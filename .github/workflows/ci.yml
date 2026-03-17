@@ -16,7 +16,7 @@ jobs:
       app: ${{ steps.filter.outputs.app }}
       e2e: ${{ steps.filter.outputs.e2e }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
       - name: Classify changed paths
@@ -39,16 +39,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: .nvmrc
           cache: npm
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Verify dependency signatures
+        run: npm audit signatures
 
       - name: Type check
         run: npm run typecheck
@@ -69,10 +72,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -156,20 +159,20 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Login to DHI registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
         with:
           registry: dhi.io
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
 
       - name: Build image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
         with:
           context: .
           load: true
@@ -182,7 +185,7 @@ jobs:
         run: docker save cornerstone:e2e -o cornerstone-e2e.tar
 
       - name: Upload image artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: cornerstone-docker-image
           path: cornerstone-e2e.tar
@@ -198,10 +201,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -217,7 +220,7 @@ jobs:
       # --- Restore caches ---
       - name: Restore browser cache
         id: browser-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
@@ -227,7 +230,7 @@ jobs:
 
       - name: Restore apt cache
         id: apt-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
         with:
           path: /var/cache/apt/archives
           key: apt-v3-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
@@ -240,7 +243,7 @@ jobs:
 
       - name: Save browser cache
         if: steps.browser-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
@@ -277,7 +280,7 @@ jobs:
 
       - name: Save apt cache
         if: steps.apt-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
         with:
           path: /var/cache/apt/archives
           key: apt-v3-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
@@ -290,7 +293,7 @@ jobs:
 
     steps:
       - name: Download image artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: cornerstone-docker-image
 
@@ -298,7 +301,7 @@ jobs:
         run: docker load -i cornerstone-e2e.tar
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v4
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -317,10 +320,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Download image artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: cornerstone-docker-image
 
@@ -328,7 +331,7 @@ jobs:
         run: docker load -i cornerstone-e2e.tar
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -337,7 +340,7 @@ jobs:
         run: npm ci -w e2e
 
       - name: Restore browser cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
@@ -346,7 +349,7 @@ jobs:
         run: sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
 
       - name: Restore apt cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
         with:
           path: /var/cache/apt/archives
           key: apt-v3-playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
@@ -371,7 +374,7 @@ jobs:
 
       - name: Upload test results
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: e2e-smoke-results
           path: |
@@ -398,10 +401,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Download image artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: cornerstone-docker-image
 
@@ -409,7 +412,7 @@ jobs:
         run: docker load -i cornerstone-e2e.tar
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -418,7 +421,7 @@ jobs:
         run: npm ci -w e2e
 
       - name: Restore browser cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
@@ -427,7 +430,7 @@ jobs:
         run: sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
 
       - name: Restore apt cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
         with:
           path: /var/cache/apt/archives
           key: apt-v3-playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
@@ -452,7 +455,7 @@ jobs:
 
       - name: Upload blob report
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: e2e-blob-report-${{ matrix.shardIndex }}
           path: e2e/blob-report/
@@ -460,7 +463,7 @@ jobs:
 
       - name: Upload test output
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: e2e-test-output-${{ matrix.shardIndex }}
           path: |
@@ -476,10 +479,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -488,7 +491,7 @@ jobs:
         run: npm ci -w e2e
 
       - name: Download blob reports
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: e2e-blob-report-*
           path: e2e/all-blob-reports
@@ -498,7 +501,7 @@ jobs:
         run: npm run test:e2e:merge-reports
 
       - name: Upload merged report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: e2e-test-results
           path: e2e/playwright-report/
