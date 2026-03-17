@@ -15,7 +15,7 @@ import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
 import styles from './CostBreakdownTable.module.css';
 
-// Context to pass formatCurrency down to child components
+// Context to pass formatCurrency down to sub-components that aren't React components (can't use hooks)
 const FormatterContext = createContext<((amount: number) => string) | null>(null);
 
 function useFormatterContext() {
@@ -49,18 +49,11 @@ function resolveProjected(
 }
 
 /**
- * Formats cost with explicit minus sign
+ * Formats cost with explicit minus sign.
+ * Must be called with the formatCurrency function from useFormatterContext or useFormatters.
  */
-function formatCost(amount: number): string {
-  return `-${formatCurrency(amount)}`;
-}
-
-/**
- * Formats payback as currency value (no sign prefix)
- */
-function formatPayback(amount: number): string {
-  const formatCurrencyFn = useFormatterContext();
-  return formatCurrencyFn(amount);
+function formatCost(amount: number, fc: (n: number) => string): string {
+  return `-${fc(amount)}`;
 }
 
 /**
@@ -262,7 +255,7 @@ function WorkItemRow({
           )}
         </td>
         <td className={styles.colPayback}>
-          {item.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
+          {item.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
           {renderNet(resolvedRawCost, resolvedPayback, styles)}
@@ -327,7 +320,7 @@ function WorkItemCategorySection({
         </td>
         <td className={styles.colBudget}>-{formatCurrencyFn(resolvedRawCost)}</td>
         <td className={styles.colPayback}>
-          {category.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
+          {category.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
           {renderNet(resolvedRawCost, resolvedPayback, styles)}
@@ -420,7 +413,7 @@ function HouseholdItemRow({
           )}
         </td>
         <td className={styles.colPayback}>
-          {item.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
+          {item.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
           {renderNet(resolvedRawCost, resolvedPayback, styles)}
@@ -485,7 +478,7 @@ function HouseholdItemCategorySection({
         </td>
         <td className={styles.colBudget}>-{formatCurrencyFn(resolvedRawCost)}</td>
         <td className={styles.colPayback}>
-          {category.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
+          {category.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
           {renderNet(resolvedRawCost, resolvedPayback, styles)}
@@ -494,7 +487,7 @@ function HouseholdItemCategorySection({
 
       {isExpanded && (
         <>
-          {category.items.map((item: BreakdownWorkItem) => {
+          {category.items.map((item: BreakdownHouseholdItem) => {
             const itemKey = `hi-cat-${category.hiCategory}-item-${item.householdItemId}`;
             return (
               <HouseholdItemRow
@@ -705,11 +698,12 @@ export function CostBreakdownTable({
                         wiTotals.rawProjectedMax,
                         perspective,
                       ),
+                      formatCurrency,
                     )}
                   </td>
                   <td className={styles.colPayback}>
                     {wiTotals.subsidyPayback > 0
-                      ? formatPayback(
+                      ? formatCurrency(
                           resolveProjected(
                             wiTotals.minSubsidyPayback,
                             wiTotals.subsidyPayback,
@@ -778,11 +772,12 @@ export function CostBreakdownTable({
                         hiTotals.rawProjectedMax,
                         perspective,
                       ),
+                      formatCurrency,
                     )}
                   </td>
                   <td className={styles.colPayback}>
                     {hiTotals.subsidyPayback > 0
-                      ? formatPayback(
+                      ? formatCurrency(
                           resolveProjected(
                             hiTotals.minSubsidyPayback,
                             hiTotals.subsidyPayback,
@@ -835,12 +830,12 @@ export function CostBreakdownTable({
                 </div>
               </td>
               <td className={styles.colBudget}>
-                <span className={styles.valueNegative}>{formatCost(totalRawProjected)}</span>
+                <span className={styles.valueNegative}>{formatCost(totalRawProjected, formatCurrency)}</span>
               </td>
               <td className={styles.colPayback}>
                 {maxTotalPayback > 0 ? (
                   <span className={styles.valuePositive}>
-                    {formatPayback(resolvedTotalPayback)}
+                    {formatCurrency(resolvedTotalPayback)}
                   </span>
                 ) : (
                   '—'
