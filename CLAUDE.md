@@ -461,6 +461,16 @@ When tests fail during development, a structured diagnostic protocol determines 
 - **Protocol owner**: The `dev-team-lead` runs the diagnostic decision tree during `[MODE: review]` when test failures are present in the review input. See the dev-team-lead agent definition for the full classification table and escalation rules.
 - **Test agents report, not diagnose**: `qa-integration-tester` and `e2e-test-engineer` submit structured failure reports but do not determine whether the fault lies in code or tests — that judgment belongs to the dev-team-lead.
 
+### Internationalization (i18n)
+
+The application supports multiple locales (English and German) via `i18next` and `react-i18next`. All agents must follow these conventions:
+
+- **Frontend**: All user-facing strings must use `t()` from react-i18next — never hardcode text in JSX. Translation files live in `client/src/i18n/locales/{lang}/{namespace}.json`. Every new string needs keys in both `en` and `de`.
+- **Backend**: API error responses must use `ErrorCode` enum values (machine-readable codes), not human-readable messages. The frontend translates error codes into locale-specific messages via `translateApiError()`. The `CURRENCY` env var (default: `EUR`) is exposed via `GET /api/config`.
+- **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent` from `client/src/lib/formatters.ts` — these read the locale from i18next automatically. Never use raw `toLocaleDateString()` or `Intl.NumberFormat` directly.
+- **Testing**: QA must verify translation keys exist in both locales. E2E tests must verify locale detection and switching behavior.
+- **Specs**: Dev-team-lead specs must include i18n requirements — translation namespace, keys to add, and locale files to modify.
+
 ### Review Metrics
 
 All reviewing agents (product-architect, security-engineer, product-owner, ux-designer) must append a structured metrics block as an HTML comment at the end of every PR review body. This is invisible to GitHub readers but parsed by the orchestrator for performance tracking.
