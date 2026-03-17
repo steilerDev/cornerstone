@@ -632,9 +632,7 @@ describe('VendorsPage', () => {
       });
 
       // Delete button should be gone after the error
-      expect(
-        within(dialog).queryByRole('button', { name: /^delete$/i }),
-      ).not.toBeInTheDocument();
+      expect(within(dialog).queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument();
     });
 
     it('shows generic delete error for non-409 failures', async () => {

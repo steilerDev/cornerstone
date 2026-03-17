@@ -1289,9 +1289,7 @@ describe('SubsidyProgramsPage', () => {
 
       await waitFor(() => {
         // After in-use error, the Delete Program button is no longer shown
-        expect(
-          within(dialog).queryByRole('button', { name: /^delete$/i }),
-        ).not.toBeInTheDocument();
+        expect(within(dialog).queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument();
       });
     });
 

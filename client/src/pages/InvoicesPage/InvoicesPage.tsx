@@ -374,9 +374,7 @@ export function InvoicesPage() {
             {isFiltered ? (
               <>
                 <h2 className={styles.emptyTitle}>{t('invoices.noFilterResults')}</h2>
-                <p className={styles.emptyText}>
-                  {t('invoices.tryDifferentFilters')}
-                </p>
+                <p className={styles.emptyText}>{t('invoices.tryDifferentFilters')}</p>
                 <button
                   type="button"
                   className={styles.secondaryButton}
@@ -391,9 +389,7 @@ export function InvoicesPage() {
             ) : (
               <>
                 <h2 className={styles.emptyTitle}>{t('invoices.noInvoicesTitle')}</h2>
-                <p className={styles.emptyText}>
-                  {t('invoices.noInvoicesDescription')}
-                </p>
+                <p className={styles.emptyText}>{t('invoices.noInvoicesDescription')}</p>
                 <button type="button" className={styles.button} onClick={openCreateModal}>
                   {t('invoices.addFirstInvoice')}
                 </button>
@@ -418,7 +414,8 @@ export function InvoicesPage() {
                           : 'none'
                       }
                     >
-                      {t('invoices.tableHeaders.date')}{renderSortIcon('date')}
+                      {t('invoices.tableHeaders.date')}
+                      {renderSortIcon('date')}
                     </th>
                     <th>{t('invoices.tableHeaders.invoiceNumber')}</th>
                     <th
@@ -432,7 +429,8 @@ export function InvoicesPage() {
                           : 'none'
                       }
                     >
-                      {t('invoices.tableHeaders.vendor')}{renderSortIcon('vendor_name')}
+                      {t('invoices.tableHeaders.vendor')}
+                      {renderSortIcon('vendor_name')}
                     </th>
                     <th
                       className={`${styles.sortableHeader} ${styles.amountHeader}`}
@@ -445,7 +443,8 @@ export function InvoicesPage() {
                           : 'none'
                       }
                     >
-                      {t('invoices.tableHeaders.amount')}{renderSortIcon('amount')}
+                      {t('invoices.tableHeaders.amount')}
+                      {renderSortIcon('amount')}
                     </th>
                     <th>{t('invoices.tableHeaders.allocated')}</th>
                     <th
@@ -459,7 +458,8 @@ export function InvoicesPage() {
                           : 'none'
                       }
                     >
-                      {t('invoices.tableHeaders.dueDate')}{renderSortIcon('due_date')}
+                      {t('invoices.tableHeaders.dueDate')}
+                      {renderSortIcon('due_date')}
                     </th>
                     <th
                       className={styles.sortableHeader}
@@ -472,7 +472,8 @@ export function InvoicesPage() {
                           : 'none'
                       }
                     >
-                      {t('invoices.tableHeaders.status')}{renderSortIcon('status')}
+                      {t('invoices.tableHeaders.status')}
+                      {renderSortIcon('status')}
                     </th>
                     <th className={styles.actionsColumn}>Actions</th>
                   </tr>
@@ -642,7 +643,8 @@ export function InvoicesPage() {
             <form onSubmit={handleCreateInvoice} className={styles.form} noValidate>
               <div className={styles.field}>
                 <label htmlFor="create-vendor" className={styles.label}>
-                  {t('invoices.form.vendor')} <span className={styles.required}>{t('invoices.form.required')}</span>
+                  {t('invoices.form.vendor')}{' '}
+                  <span className={styles.required}>{t('invoices.form.required')}</span>
                 </label>
                 <select
                   id="create-vendor"
@@ -681,7 +683,8 @@ export function InvoicesPage() {
                 </div>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="create-amount" className={styles.label}>
-                    {t('invoices.form.amount')} <span className={styles.required}>{t('invoices.form.required')}</span>
+                    {t('invoices.form.amount')}{' '}
+                    <span className={styles.required}>{t('invoices.form.required')}</span>
                   </label>
                   <input
                     type="number"
@@ -701,7 +704,8 @@ export function InvoicesPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="create-date" className={styles.label}>
-                    {t('invoices.form.invoiceDate')} <span className={styles.required}>{t('invoices.form.required')}</span>
+                    {t('invoices.form.invoiceDate')}{' '}
+                    <span className={styles.required}>{t('invoices.form.required')}</span>
                   </label>
                   <input
                     type="date"

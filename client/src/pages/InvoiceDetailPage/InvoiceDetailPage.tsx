@@ -211,7 +211,9 @@ export function InvoiceDetailPage() {
         <div className={styles.headerRow}>
           <div className={styles.pageHeading}>
             <h1 className={styles.pageTitle}>
-              {invoice.invoiceNumber ? `#${invoice.invoiceNumber}` : t('invoiceDetail.invoiceDetails')}
+              {invoice.invoiceNumber
+                ? `#${invoice.invoiceNumber}`
+                : t('invoiceDetail.invoiceDetails')}
             </h1>
             <span className={`${styles.statusBadge} ${styles[`status_${invoice.status}`]}`}>
               {t(`invoiceDetail.statusLabels.${invoice.status}`)}

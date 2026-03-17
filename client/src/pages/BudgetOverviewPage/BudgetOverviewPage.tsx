@@ -116,7 +116,9 @@ function CategoryFilter({ categories, selectedIds, onChange }: CategoryFilterPro
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <span>{t('overview.categories')}: {label}</span>
+        <span>
+          {t('overview.categories')}: {label}
+        </span>
         <span className={styles.categoryFilterChevron} aria-hidden="true">
           {open ? '▲' : '▼'}
         </span>
@@ -505,12 +507,30 @@ export function BudgetOverviewPage() {
 
   // Remaining perspectives detail items (uses filtered where sensible)
   const remainingDetailItems: RemainingDetail[] = [
-    { label: t('overview.remainingPerspectives.vsMinPlanned'), value: overview.remainingVsMinPlanned },
-    { label: t('overview.remainingPerspectives.vsMaxPlanned'), value: overview.remainingVsMaxPlanned },
-    { label: t('overview.remainingPerspectives.vsProjectedMin'), value: filteredRemainingVsProjectedMin },
-    { label: t('overview.remainingPerspectives.vsProjectedMax'), value: filteredRemainingVsProjectedMax },
-    { label: t('overview.remainingPerspectives.vsActualCost'), value: overview.remainingVsActualCost },
-    { label: t('overview.remainingPerspectives.vsActualPaid'), value: overview.remainingVsActualPaid },
+    {
+      label: t('overview.remainingPerspectives.vsMinPlanned'),
+      value: overview.remainingVsMinPlanned,
+    },
+    {
+      label: t('overview.remainingPerspectives.vsMaxPlanned'),
+      value: overview.remainingVsMaxPlanned,
+    },
+    {
+      label: t('overview.remainingPerspectives.vsProjectedMin'),
+      value: filteredRemainingVsProjectedMin,
+    },
+    {
+      label: t('overview.remainingPerspectives.vsProjectedMax'),
+      value: filteredRemainingVsProjectedMax,
+    },
+    {
+      label: t('overview.remainingPerspectives.vsActualCost'),
+      value: overview.remainingVsActualCost,
+    },
+    {
+      label: t('overview.remainingPerspectives.vsActualPaid'),
+      value: overview.remainingVsActualPaid,
+    },
     ...(hasPayback
       ? [
           {
@@ -555,9 +575,7 @@ export function BudgetOverviewPage() {
         {!hasData && (
           <div className={styles.emptyState}>
             <p className={styles.emptyStateTitle}>{t('overview.emptyStateTitle')}</p>
-            <p className={styles.emptyStateDescription}>
-              {t('overview.emptyStateDescription')}
-            </p>
+            <p className={styles.emptyStateDescription}>{t('overview.emptyStateDescription')}</p>
           </div>
         )}
 
