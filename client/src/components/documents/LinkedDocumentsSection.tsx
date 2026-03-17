@@ -204,7 +204,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
       setAnnounceMessage(
         t('linkedDocuments.documentUnlinked', {
           title: unlinkTarget.document?.title ?? 'document',
-        })
+        }),
       );
       setTimeout(() => setAnnounceMessage(''), 3000);
     } catch {
@@ -242,7 +242,9 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
             setShowPicker(true);
             setLinkError(null);
           }}
-          title={!paperlessStatus?.configured ? t('linkedDocuments.paperlessNotConfigured') : undefined}
+          title={
+            !paperlessStatus?.configured ? t('linkedDocuments.paperlessNotConfigured') : undefined
+          }
         >
           {t('linkedDocuments.addDocumentButton')}
         </button>
@@ -290,7 +292,9 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
         <div className={styles.notConfiguredBanner}>
           <span className={styles.notConfiguredIcon}>ℹ️</span>
           <div>
-            <p className={styles.notConfiguredTitle}>{t('linkedDocuments.paperlessNotConfigured')}</p>
+            <p className={styles.notConfiguredTitle}>
+              {t('linkedDocuments.paperlessNotConfigured')}
+            </p>
             <p className={styles.notConfiguredBody}>{t('linkedDocuments.configureMessage')}</p>
           </div>
         </div>
@@ -397,7 +401,8 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
               {t('linkedDocuments.unlinkDocument')}
             </h2>
             <p className={styles.modalText}>
-              &ldquo;{unlinkTarget.document?.title ?? 'This document'}&rdquo; {t('linkedDocuments.unlinkConfirmation', {
+              &ldquo;{unlinkTarget.document?.title ?? 'This document'}&rdquo;{' '}
+              {t('linkedDocuments.unlinkConfirmation', {
                 entity: entityLabel,
               })}
             </p>

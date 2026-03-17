@@ -42,7 +42,7 @@ export function DocumentCard({ document, isSelected, onSelect, ariaControls }: D
       aria-controls={ariaControls}
       aria-label={t('documentCard.documentLabel', {
         title: document.title,
-        date: formattedDate ? `, ${formattedDate}` : ''
+        date: formattedDate ? `, ${formattedDate}` : '',
       })}
     >
       <div className={styles.thumbContainer}>

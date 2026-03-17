@@ -80,9 +80,7 @@ export function DocumentBrowser({
       <div className={styles.browser}>
         <div className={styles.infoState}>
           <h2 className={styles.infoTitle}>{t('browser.notConfigured')}</h2>
-          <p className={styles.infoText}>
-            {t('browser.notConfiguredMessage')}
-          </p>
+          <p className={styles.infoText}>{t('browser.notConfiguredMessage')}</p>
         </div>
       </div>
     );
@@ -94,9 +92,7 @@ export function DocumentBrowser({
       <div className={styles.browser}>
         <div className={styles.errorState} role="alert">
           <h2 className={styles.errorTitle}>{t('browser.unreachable')}</h2>
-          <p className={styles.errorText}>
-            {t('browser.unreachableMessage')}
-          </p>
+          <p className={styles.errorText}>{t('browser.unreachableMessage')}</p>
           <button type="button" className={styles.retryButton} onClick={hook.refresh}>
             {t('browser.tryAgain')}
           </button>
@@ -134,7 +130,11 @@ export function DocumentBrowser({
 
       {/* Server-side filter tag indicator */}
       {hook.status.filterTag && (
-        <div className={styles.filterBanner} role="note" aria-label={t('browser.filterBannerLabel')}>
+        <div
+          className={styles.filterBanner}
+          role="note"
+          aria-label={t('browser.filterBannerLabel')}
+        >
           <span className={styles.filterBannerText}>
             {t('browser.showingOnlyTag')}{' '}
             <span className={styles.filterBannerTag}>{hook.status.filterTag}</span>
@@ -169,7 +169,13 @@ export function DocumentBrowser({
 
       {/* Document grid */}
       {hook.isLoading ? (
-        <div className={gridClass} role="list" id={GRID_ID} aria-label={t('browser.documentsGridLabel')} aria-busy="true">
+        <div
+          className={gridClass}
+          role="list"
+          id={GRID_ID}
+          aria-label={t('browser.documentsGridLabel')}
+          aria-busy="true"
+        >
           <DocumentSkeleton count={mode === 'modal' ? 4 : 6} />
         </div>
       ) : hook.error ? (
@@ -245,7 +251,10 @@ export function DocumentBrowser({
             &#x2190; {t('browser.previous')}
           </button>
           <span className={styles.pageInfo}>
-            {t('browser.pageInfo', { page: hook.pagination.page, totalPages: hook.pagination.totalPages })}
+            {t('browser.pageInfo', {
+              page: hook.pagination.page,
+              totalPages: hook.pagination.totalPages,
+            })}
           </span>
           <button
             type="button"
