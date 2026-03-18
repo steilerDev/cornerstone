@@ -1,3 +1,12 @@
 {
-  "signedContributors": []
+  "signedContributors": [
+    {
+      "name": "steilerDev",
+      "id": 7031616,
+      "comment_id": 4084246621,
+      "created_at": "2026-03-18T17:19:16Z",
+      "repoId": 1152325217,
+      "pullRequestNo": 1001
+    }
+  ]
 }
