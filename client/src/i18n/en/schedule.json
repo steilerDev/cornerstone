@@ -222,7 +222,8 @@
         "depSearchPlaceholder": "Search work items to add as dependent...",
         "noMatches": "No items match your search",
         "noDepMatches": "No work items match your search",
-        "deleteButton": "Delete Milestone"
+        "deleteButton": "Delete Milestone",
+        "editButton": "Edit"
       },
       "edit": {
         "title": "Edit Milestone",

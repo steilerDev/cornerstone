@@ -222,7 +222,8 @@
         "depSearchPlaceholder": "Arbeitspakete zum Hinzufügen als abhängig durchsuchen...",
         "noMatches": "Keine Artikel entsprechen Ihrer Suche",
         "noDepMatches": "Keine Arbeitspakete entsprechen Ihrer Suche",
-        "deleteButton": "Meilenstein löschen"
+        "deleteButton": "Meilenstein löschen",
+        "editButton": "Bearbeiten"
       },
       "edit": {
         "title": "Meilenstein bearbeiten",
