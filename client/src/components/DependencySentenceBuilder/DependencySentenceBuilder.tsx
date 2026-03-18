@@ -182,7 +182,9 @@ export function DependencySentenceBuilder({
           <option value="start">{t('detail.constraints.dependencyBuilder.start')}</option>
         </select>
 
-        <span className={styles.conjunction}>{t('detail.constraints.dependencyBuilder.before')}</span>
+        <span className={styles.conjunction}>
+          {t('detail.constraints.dependencyBuilder.before')}
+        </span>
 
         {/* Slot 2: successor */}
         <div className={styles.pickerSlot}>

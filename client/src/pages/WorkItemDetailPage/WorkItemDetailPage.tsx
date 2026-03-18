@@ -1419,9 +1419,7 @@ export default function WorkItemDetailPage() {
 
             <div className={styles.notesList}>
               {notes.length === 0 && (
-                <div className={styles.emptyState}>
-                  {t('detail.notes.noNotes')}
-                </div>
+                <div className={styles.emptyState}>{t('detail.notes.noNotes')}</div>
               )}
               {notes.map((note) => (
                 <div key={note.id} className={styles.noteItem}>

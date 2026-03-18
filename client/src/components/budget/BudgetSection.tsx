@@ -93,7 +93,9 @@ export function BudgetSection<T extends BaseBudgetLine>({
 
   return (
     <>
-      <h2 className={styles.sectionTitle}>{budgetLineType === 'household_item' ? t('detail.budget.title') : 'Budget'}</h2>
+      <h2 className={styles.sectionTitle}>
+        {budgetLineType === 'household_item' ? t('detail.budget.title') : 'Budget'}
+      </h2>
 
       {inlineError && (
         <div className={styles.errorBanner} role="alert">
@@ -107,7 +109,9 @@ export function BudgetSection<T extends BaseBudgetLine>({
       {/* Budget line cards */}
       {budgetLines.length === 0 && !showBudgetForm && (
         <div className={styles.emptyState}>
-          {budgetLineType === 'household_item' ? t('detail.budget.emptyState') : 'No budget lines yet. Add the first line to start tracking costs.'}
+          {budgetLineType === 'household_item'
+            ? t('detail.budget.emptyState')
+            : 'No budget lines yet. Add the first line to start tracking costs.'}
         </div>
       )}
       <div className={styles.budgetLinesList}>
@@ -163,7 +167,9 @@ export function BudgetSection<T extends BaseBudgetLine>({
                   className={styles.linkInvoiceBtn}
                   onClick={() => onLinkInvoice(line.id)}
                 >
-                  {budgetLineType === 'household_item' ? t('detail.budget.linkInvoiceButton') : 'Link to Invoice'}
+                  {budgetLineType === 'household_item'
+                    ? t('detail.budget.linkInvoiceButton')
+                    : 'Link to Invoice'}
                 </button>
               )}
             </BudgetLineCard>
