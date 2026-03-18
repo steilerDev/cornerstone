@@ -308,7 +308,7 @@ jobs:
           summary: true
 
       - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@a60c4df7a135c7317c1e9ddf9b5a9b07a910dda9 # v4
+        uses: github/codeql-action/upload-sarif@b1bff81932f5cdfc8695c7752dcee935dcd061c8 # v4
         if: always()
         with:
           sarif_file: scout-results.sarif
