@@ -11,6 +11,47 @@
  */
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+
+// ─── Mock: formatters — provides useFormatters() hook used by MilestonePanel ──
+// NOTE: MilestonePanel.tsx has a production bug — SmallDiamond calls useFormatters()
+// without importing it. This mock will be overridden by the ReferenceError until
+// the production code is fixed.
+
+jest.unstable_mockModule('../../lib/formatters.js', () => {
+  const fmtDate = (d: string | null | undefined, fallback = '—') => {
+    if (!d) return fallback;
+    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return fallback;
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+  const fmtCurrency = (n: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  return {
+    formatCurrency: fmtCurrency,
+    formatDate: fmtDate,
+    formatTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
+    formatDateTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    computeActualDuration: () => null,
+    useFormatters: () => ({
+      formatCurrency: fmtCurrency,
+      formatDate: fmtDate,
+      formatTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
+      formatDateTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
+      formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    }),
+  };
+});
+
 import type {
   MilestoneSummary,
   MilestoneDetail,

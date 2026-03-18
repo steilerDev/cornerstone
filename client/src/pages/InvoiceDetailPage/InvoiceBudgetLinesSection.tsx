@@ -18,7 +18,7 @@ import {
 } from '../../lib/householdItemBudgetsApi.js';
 import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
 import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
 import styles from './InvoiceBudgetLinesSection.module.css';
@@ -56,6 +56,7 @@ export function InvoiceBudgetLinesSection({
   invoiceId,
   invoiceTotal,
 }: InvoiceBudgetLinesSectionProps) {
+  const { formatCurrency } = useFormatters();
   const [budgetLines, setBudgetLines] = useState<InvoiceBudgetLineDetailResponse[]>([]);
   const [remainingAmount, setRemainingAmount] = useState(invoiceTotal);
   const [isLoading, setIsLoading] = useState(true);

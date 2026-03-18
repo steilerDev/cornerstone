@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext.js';
 import styles from './SettingsSubNav.module.css';
 
 const SETTINGS_TABS = [
-  { label: 'Profile', to: '/settings/profile' },
-  { label: 'Manage', to: '/settings/manage' },
+  { labelKey: 'subnav.settings.profile', to: '/settings/profile' },
+  { labelKey: 'subnav.settings.manage', to: '/settings/manage' },
 ] as const;
 
 /**
@@ -15,6 +16,7 @@ const SETTINGS_TABS = [
  * On mobile the row scrolls horizontally so all tabs remain reachable.
  */
 export function SettingsSubNav() {
+  const { t } = useTranslation('common');
   const { user } = useAuth();
 
   return (
@@ -28,7 +30,7 @@ export function SettingsSubNav() {
             className={({ isActive }) => `${styles.tab} ${isActive ? styles.tabActive : ''}`}
             role="listitem"
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </NavLink>
         ))}
         {user?.role === 'admin' && (
@@ -38,7 +40,7 @@ export function SettingsSubNav() {
             className={({ isActive }) => `${styles.tab} ${isActive ? styles.tabActive : ''}`}
             role="listitem"
           >
-            User Management
+            {t('subnav.settings.userManagement')}
           </NavLink>
         )}
       </div>

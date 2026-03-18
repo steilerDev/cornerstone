@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import styles from './BudgetSubNav.module.css';
 
 const BUDGET_TABS = [
-  { label: 'Overview', to: '/budget/overview' },
-  { label: 'Invoices', to: '/budget/invoices' },
-  { label: 'Vendors', to: '/budget/vendors' },
-  { label: 'Sources', to: '/budget/sources' },
-  { label: 'Subsidies', to: '/budget/subsidies' },
+  { labelKey: 'subnav.budget.overview', to: '/budget/overview' },
+  { labelKey: 'subnav.budget.invoices', to: '/budget/invoices' },
+  { labelKey: 'subnav.budget.vendors', to: '/budget/vendors' },
+  { labelKey: 'subnav.budget.sources', to: '/budget/sources' },
+  { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
 ] as const;
 
 /**
@@ -17,6 +18,8 @@ const BUDGET_TABS = [
  * On mobile the row scrolls horizontally so all tabs remain reachable.
  */
 export function BudgetSubNav() {
+  const { t } = useTranslation('common');
+
   return (
     <nav className={styles.subNav} aria-label="Budget section navigation">
       <div className={styles.tabList} role="list">
@@ -28,7 +31,7 @@ export function BudgetSubNav() {
             className={({ isActive }) => `${styles.tab} ${isActive ? styles.tabActive : ''}`}
             role="listitem"
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </NavLink>
         ))}
       </div>

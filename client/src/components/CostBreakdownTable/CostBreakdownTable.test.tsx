@@ -1,13 +1,83 @@
 /**
  * @jest-environment jsdom
  */
-import { describe, it, expect } from '@jest/globals';
+import { jest, describe, it, expect, beforeAll } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { CostBreakdownTable } from './CostBreakdownTable.js';
+import type { CostBreakdownTable as CostBreakdownTableType } from './CostBreakdownTable.js';
 import type { BudgetBreakdown, BudgetOverview, BudgetSource } from '@cornerstone/shared';
 
 // CSS modules mocked via identity-obj-proxy
+
+// ─── Mock: formatters — provides useFormatters() hook used by this component ──
+
+jest.unstable_mockModule('../../lib/formatters.js', () => {
+  const fmtCurrency = (n: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  const fmtDate = (d: string | null | undefined, fallback = '—') => {
+    if (!d) return fallback;
+    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return fallback;
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+  const fmtTime = (ts: string | null | undefined, fallback = '—') => {
+    if (!ts) return fallback;
+    try {
+      return new Date(ts).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch {
+      return fallback;
+    }
+  };
+  const fmtDateTime = (ts: string | null | undefined, fallback = '—') => {
+    if (!ts) return fallback;
+    try {
+      const d = new Date(ts);
+      return (
+        d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) +
+        ' at ' +
+        d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      );
+    } catch {
+      return fallback;
+    }
+  };
+  return {
+    formatCurrency: fmtCurrency,
+    formatDate: fmtDate,
+    formatTime: fmtTime,
+    formatDateTime: fmtDateTime,
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    computeActualDuration: () => null,
+    useFormatters: () => ({
+      formatCurrency: fmtCurrency,
+      formatDate: fmtDate,
+      formatTime: fmtTime,
+      formatDateTime: fmtDateTime,
+      formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    }),
+  };
+});
+
+// Dynamic import — must happen after jest.unstable_mockModule calls.
+let CostBreakdownTable: typeof CostBreakdownTableType;
+
+beforeAll(async () => {
+  const module = await import('./CostBreakdownTable.js');
+  CostBreakdownTable = module.CostBreakdownTable;
+});
 
 /**
  * Render CostBreakdownTable inside a MemoryRouter.

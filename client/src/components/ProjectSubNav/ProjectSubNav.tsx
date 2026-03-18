@@ -1,11 +1,12 @@
 import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import styles from './ProjectSubNav.module.css';
 
 const PROJECT_TABS = [
-  { label: 'Overview', to: '/project/overview' },
-  { label: 'Work Items', to: '/project/work-items' },
-  { label: 'Household Items', to: '/project/household-items' },
-  { label: 'Milestones', to: '/project/milestones' },
+  { labelKey: 'subnav.project.overview', to: '/project/overview' },
+  { labelKey: 'subnav.project.workItems', to: '/project/work-items' },
+  { labelKey: 'subnav.project.householdItems', to: '/project/household-items' },
+  { labelKey: 'subnav.project.milestones', to: '/project/milestones' },
 ] as const;
 
 /**
@@ -16,6 +17,8 @@ const PROJECT_TABS = [
  * On mobile the row scrolls horizontally so all tabs remain reachable.
  */
 export function ProjectSubNav() {
+  const { t } = useTranslation('common');
+
   return (
     <nav className={styles.subNav} aria-label="Project section navigation">
       <div className={styles.tabList} role="list">
@@ -27,7 +30,7 @@ export function ProjectSubNav() {
             className={({ isActive }) => `${styles.tab} ${isActive ? styles.tabActive : ''}`}
             role="listitem"
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </NavLink>
         ))}
       </div>

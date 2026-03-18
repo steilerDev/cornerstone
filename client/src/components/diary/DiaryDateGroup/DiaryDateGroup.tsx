@@ -1,3 +1,4 @@
+import { useFormatters } from '../../../lib/formatters.js';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
 import { DiaryEntryCard } from '../DiaryEntryCard/DiaryEntryCard.js';
 import styles from './DiaryDateGroup.module.css';
@@ -7,18 +8,8 @@ interface DiaryDateGroupProps {
   entries: DiaryEntrySummary[];
 }
 
-function formatDateHeader(dateString: string): string {
-  const date = new Date(dateString);
-  const options: Intl.DateTimeFormatOptions = {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  };
-  return date.toLocaleDateString('en-US', options);
-}
-
 export function DiaryDateGroup({ date, entries }: DiaryDateGroupProps) {
+  const { formatDate } = useFormatters();
   // Sort all entries by createdAt descending (newest first)
   const sortedEntries = [...entries].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -26,7 +17,7 @@ export function DiaryDateGroup({ date, entries }: DiaryDateGroupProps) {
 
   return (
     <section className={styles.group} data-testid={`date-group-${date}`}>
-      <h2 className={styles.dateHeader}>{formatDateHeader(date)}</h2>
+      <h2 className={styles.dateHeader}>{formatDate(date)}</h2>
 
       <div className={styles.entriesList}>
         {sortedEntries.map((entry) => (

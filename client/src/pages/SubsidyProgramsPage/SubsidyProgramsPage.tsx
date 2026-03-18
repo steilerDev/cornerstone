@@ -14,7 +14,7 @@ import {
 } from '../../lib/subsidyProgramsApi.js';
 import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatCurrency, formatDate } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import styles from './SubsidyProgramsPage.module.css';
 
@@ -22,7 +22,11 @@ import styles from './SubsidyProgramsPage.module.css';
 
 // STATUS_LABELS and REDUCTION_TYPE_LABELS will be dynamically generated from i18n
 
-function formatReduction(reductionType: SubsidyReductionType, reductionValue: number): string {
+function formatReduction(
+  reductionType: SubsidyReductionType,
+  reductionValue: number,
+  formatCurrency: (value: number) => string,
+): string {
   if (reductionType === 'percentage') {
     return `${reductionValue}%`;
   }
@@ -81,6 +85,7 @@ function programToEditState(program: SubsidyProgram): EditingProgram {
 
 export function SubsidyProgramsPage() {
   const { t } = useTranslation('budget');
+  const { formatCurrency, formatDate } = useFormatters();
   const [programs, setPrograms] = useState<SubsidyProgram[]>([]);
   const [allCategories, setAllCategories] = useState<BudgetCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -986,7 +991,7 @@ export function SubsidyProgramsPage() {
                               {t(`subsidies.statusLabels.${program.applicationStatus}`)}
                             </span>
                             <span className={styles.reductionBadge}>
-                              {formatReduction(program.reductionType, program.reductionValue)}
+                              {formatReduction(program.reductionType, program.reductionValue, formatCurrency)}
                             </span>
                             {program.maximumAmount != null && (
                               <span className={styles.maxAmountBadge}>

@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import type { BaseBudgetLine, ConfidenceLevel } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '../../lib/budgetConstants.js';
-import { formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './BudgetLineCard.module.css';
 
 export interface BudgetLineCardProps {
@@ -27,6 +27,7 @@ export function BudgetLineCard({
   children,
   unlinkAction,
 }: BudgetLineCardProps) {
+  const { formatCurrency } = useFormatters();
   const showInvoicedAmount = line.invoiceCount > 0;
 
   return (

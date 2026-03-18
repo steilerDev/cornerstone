@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import type { BaseBudgetLine } from '@cornerstone/shared';
-import { formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { BudgetLineCard } from './BudgetLineCard.js';
 import styles from './InvoiceGroup.module.css';
 
@@ -38,6 +38,7 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
   isUnlinking,
   confidenceLabels,
 }: InvoiceGroupProps<T>) {
+  const { formatCurrency } = useFormatters();
   const [isExpanded, setIsExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const toggleButtonRef = useRef<HTMLButtonElement>(null);

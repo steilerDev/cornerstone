@@ -14,7 +14,7 @@ import { useAuth } from '../../contexts/AuthContext.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import type { VendorOption } from '../../components/diary/SignatureCapture/SignatureCapture.js';
 import { usePhotos } from '../../hooks/usePhotos.js';
-import { formatDate, formatDateTime } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { DiaryEntryTypeBadge } from '../../components/diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
 import { DiaryMetadataSummary } from '../../components/diary/DiaryMetadataSummary/DiaryMetadataSummary.js';
 import { SignatureDisplay } from '../../components/diary/SignatureDisplay/SignatureDisplay.js';
@@ -24,6 +24,7 @@ import shared from '../../styles/shared.module.css';
 import styles from './DiaryEntryDetailPage.module.css';
 
 export default function DiaryEntryDetailPage() {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('diary');

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TimelineMilestone } from '@cornerstone/shared';
-import { formatDate } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './TimelineStatusCards.module.css';
 
 interface UpcomingMilestonesCardProps {
@@ -10,6 +10,7 @@ interface UpcomingMilestonesCardProps {
 
 export function UpcomingMilestonesCard({ milestones }: UpcomingMilestonesCardProps) {
   const { t } = useTranslation('dashboard');
+  const { formatDate } = useFormatters();
 
   // Filter out completed milestones, sort by targetDate ascending, take first 5
   const upcoming = milestones

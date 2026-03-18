@@ -6,11 +6,12 @@ import { listMilestones, deleteMilestone } from '../../lib/milestonesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
-import { formatDate } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './MilestonesPage.module.css';
 
 export function MilestonesPage() {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const { t } = useTranslation('schedule');
   const navigate = useNavigate();
 

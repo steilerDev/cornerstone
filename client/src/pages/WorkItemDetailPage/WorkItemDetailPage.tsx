@@ -77,7 +77,7 @@ import {
   DependencySentenceDisplay,
 } from '../../components/DependencySentenceBuilder/index.js';
 import type { DependencyType } from '@cornerstone/shared';
-import { formatDate, formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { AutosaveIndicator } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import type { AutosaveState } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
@@ -91,6 +91,7 @@ interface DeletingDependency {
 }
 
 export default function WorkItemDetailPage() {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -1258,7 +1259,7 @@ export default function WorkItemDetailPage() {
         <div className={styles.leftColumn}>
           {/* Description */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Description</h2>
+            <h2 className={styles.sectionTitle}>{t('detail.sections.description')}</h2>
             {isEditingDescription ? (
               <div className={styles.descriptionEdit}>
                 <textarea
@@ -1269,14 +1270,14 @@ export default function WorkItemDetailPage() {
                 />
                 <div className={styles.descriptionEditActions}>
                   <button type="button" onClick={saveDescription} className={styles.saveButton}>
-                    Save
+                    {t('detail.description.save')}
                   </button>
                   <button
                     type="button"
                     onClick={cancelDescriptionEdit}
                     className={styles.cancelButton}
                   >
-                    Cancel
+                    {t('detail.description.cancel')}
                   </button>
                 </div>
               </div>
@@ -1284,32 +1285,31 @@ export default function WorkItemDetailPage() {
               <div
                 className={styles.description}
                 onClick={startEditingDescription}
-                title="Click to edit"
+                title={t('detail.description.clickToEdit')}
               >
-                {workItem.description || <em className={styles.placeholder}>No description</em>}
+                {workItem.description || <em className={styles.placeholder}>{t('detail.description.noDescription')}</em>}
               </div>
             )}
           </section>
 
           {/* Dates (computed by scheduling engine) */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Schedule</h2>
+            <h2 className={styles.sectionTitle}>{t('detail.sections.schedule')}</h2>
             <p className={styles.sectionDescription}>
-              Start and end dates are computed by the scheduling engine based on constraints and
-              dependencies.
+              {t('detail.sections.scheduleDescription')}
             </p>
             <div className={styles.propertyGrid}>
               <div className={styles.property}>
-                <span className={styles.propertyLabel}>Start Date</span>
+                <span className={styles.propertyLabel}>{t('detail.schedule.startDate')}</span>
                 <span className={styles.propertyValue}>
-                  {workItem.startDate ? formatDate(workItem.startDate) : 'Not scheduled'}
+                  {workItem.startDate ? formatDate(workItem.startDate) : t('detail.schedule.notScheduled')}
                 </span>
               </div>
 
               <div className={styles.property}>
-                <span className={styles.propertyLabel}>End Date</span>
+                <span className={styles.propertyLabel}>{t('detail.schedule.endDate')}</span>
                 <span className={styles.propertyValue}>
-                  {workItem.endDate ? formatDate(workItem.endDate) : 'Not scheduled'}
+                  {workItem.endDate ? formatDate(workItem.endDate) : t('detail.schedule.notScheduled')}
                 </span>
               </div>
             </div>
@@ -1325,7 +1325,7 @@ export default function WorkItemDetailPage() {
               return (
                 <div className={styles.delayIndicator} role="status" aria-live="polite">
                   <span aria-hidden="true">⚠</span>
-                  Delayed by {delayDays} {delayDays === 1 ? 'day' : 'days'}
+                  {t('detail.schedule.delayed', { count: delayDays, unit: delayDays === 1 ? t('detail.schedule.day') : t('detail.schedule.days') })}
                 </div>
               );
             })()}
@@ -1333,9 +1333,9 @@ export default function WorkItemDetailPage() {
 
           {/* Assigned User */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Assignment</h2>
+            <h2 className={styles.sectionTitle}>{t('detail.sections.assignment')}</h2>
             <div className={styles.property}>
-              <label className={styles.propertyLabel}>Assigned To</label>
+              <label className={styles.propertyLabel}>{t('detail.assignment.assignedTo')}</label>
               <select
                 className={styles.propertySelect}
                 value={workItem.assignedUser?.id || ''}
@@ -1353,7 +1353,7 @@ export default function WorkItemDetailPage() {
 
           {/* Tags */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Tags</h2>
+            <h2 className={styles.sectionTitle}>{t('detail.sections.tags')}</h2>
             <TagPicker
               availableTags={availableTags}
               selectedTagIds={workItem.tags.map((t) => t.id)}
@@ -1390,12 +1390,12 @@ export default function WorkItemDetailPage() {
         <div className={styles.rightColumn}>
           {/* Notes */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Notes</h2>
+            <h2 className={styles.sectionTitle}>{t('detail.sections.notes')}</h2>
 
             <form className={styles.addNoteForm} onSubmit={handleAddNote}>
               <textarea
                 className={styles.noteTextarea}
-                placeholder="Add a note..."
+                placeholder={t('detail.notes.placeholder')}
                 value={newNoteContent}
                 onChange={(e) => setNewNoteContent(e.target.value)}
                 rows={3}
@@ -1406,7 +1406,7 @@ export default function WorkItemDetailPage() {
                 className={styles.addButton}
                 disabled={!newNoteContent.trim() || isAddingNote}
               >
-                {isAddingNote ? 'Adding...' : 'Add Note'}
+                {isAddingNote ? t('detail.notes.adding') : t('detail.notes.addNote')}
               </button>
             </form>
 
@@ -1480,13 +1480,13 @@ export default function WorkItemDetailPage() {
 
           {/* Subtasks */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Subtasks</h2>
+            <h2 className={styles.sectionTitle}>{t('detail.sections.subtasks')}</h2>
 
             <form className={styles.addSubtaskForm} onSubmit={handleAddSubtask}>
               <input
                 type="text"
                 className={styles.subtaskInput}
-                placeholder="Add a subtask..."
+                placeholder={t('detail.subtasks.placeholder')}
                 value={newSubtaskTitle}
                 onChange={(e) => setNewSubtaskTitle(e.target.value)}
                 disabled={isAddingSubtask}
@@ -1496,7 +1496,7 @@ export default function WorkItemDetailPage() {
                 className={styles.addButton}
                 disabled={!newSubtaskTitle.trim() || isAddingSubtask}
               >
-                {isAddingSubtask ? 'Adding...' : 'Add'}
+                {isAddingSubtask ? t('detail.subtasks.adding') : t('detail.subtasks.add')}
               </button>
             </form>
 
@@ -1588,13 +1588,13 @@ export default function WorkItemDetailPage() {
 
           {/* Constraints */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Constraints</h2>
+            <h2 className={styles.sectionTitle}>{t('detail.sections.constraints')}</h2>
 
             {/* Duration subsection — first, no top border */}
             <div className={`${styles.constraintSubsection} ${styles.constraintSubsectionFirst}`}>
-              <h3 className={styles.subsectionTitle}>Duration</h3>
+              <h3 className={styles.subsectionTitle}>{t('detail.constraints.duration')}</h3>
               <div className={styles.property}>
-                <label className={styles.propertyLabel}>Duration (days)</label>
+                <label className={styles.propertyLabel}>{t('detail.constraints.durationDays')}</label>
                 <div className={styles.inlineFieldWrapper}>
                   <input
                     type="number"
@@ -1612,10 +1612,10 @@ export default function WorkItemDetailPage() {
 
             {/* Date Constraints subsection */}
             <div className={styles.constraintSubsection}>
-              <h3 className={styles.subsectionTitle}>Date Constraints</h3>
+              <h3 className={styles.subsectionTitle}>{t('detail.constraints.dateConstraints')}</h3>
               <div className={styles.propertyGrid}>
                 <div className={styles.property}>
-                  <label className={styles.propertyLabel}>Start After</label>
+                  <label className={styles.propertyLabel}>{t('detail.constraints.startAfter')}</label>
                   <div className={styles.inlineFieldWrapper}>
                     <input
                       type="date"
@@ -1654,7 +1654,7 @@ export default function WorkItemDetailPage() {
                 </div>
 
                 <div className={styles.property}>
-                  <label className={styles.propertyLabel}>Start Before</label>
+                  <label className={styles.propertyLabel}>{t('detail.constraints.startBefore')}</label>
                   <div className={styles.inlineFieldWrapper}>
                     <input
                       type="date"
@@ -1693,7 +1693,7 @@ export default function WorkItemDetailPage() {
                 </div>
 
                 <div className={styles.property}>
-                  <label className={styles.propertyLabel}>Actual Start</label>
+                  <label className={styles.propertyLabel}>{t('detail.constraints.actualStart')}</label>
                   <div className={styles.inlineFieldWrapper}>
                     <input
                       type="date"
@@ -1732,7 +1732,7 @@ export default function WorkItemDetailPage() {
                 </div>
 
                 <div className={styles.property}>
-                  <label className={styles.propertyLabel}>Actual End</label>
+                  <label className={styles.propertyLabel}>{t('detail.constraints.actualEnd')}</label>
                   <div className={styles.inlineFieldWrapper}>
                     <input
                       type="date"
@@ -1774,7 +1774,7 @@ export default function WorkItemDetailPage() {
 
             {/* Dependencies subsection */}
             <div className={styles.constraintSubsection}>
-              <h3 className={styles.subsectionTitle}>Dependencies</h3>
+              <h3 className={styles.subsectionTitle}>{t('detail.constraints.dependencies')}</h3>
 
               <DependencySentenceDisplay
                 predecessors={dependencies.predecessors}
@@ -1795,7 +1795,7 @@ export default function WorkItemDetailPage() {
 
             {/* Required Milestones subsection */}
             <div className={styles.constraintSubsection}>
-              <h3 className={styles.subsectionTitle}>Required Milestones</h3>
+              <h3 className={styles.subsectionTitle}>{t('detail.constraints.requiredMilestones')}</h3>
               <p className={styles.constraintSubsectionDesc}>
                 Milestones that must be completed before this work item can start.
               </p>
@@ -1855,7 +1855,7 @@ export default function WorkItemDetailPage() {
 
             {/* Linked Milestones subsection */}
             <div className={styles.constraintSubsection}>
-              <h3 className={styles.subsectionTitle}>Linked Milestones</h3>
+              <h3 className={styles.subsectionTitle}>{t('detail.constraints.linkedMilestones')}</h3>
               <p className={styles.constraintSubsectionDesc}>
                 Milestones this work item contributes to.
               </p>
@@ -1922,7 +1922,7 @@ export default function WorkItemDetailPage() {
       {/* Linked Household Items section */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>
-          Dependent Household Items
+          {t('detail.sections.dependentHouseholdItems')}
           {linkedHouseholdItems.length > 0 && (
             <span className={styles.countBadge}>{linkedHouseholdItems.length}</span>
           )}

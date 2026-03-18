@@ -12,11 +12,12 @@ import badgeStyles from '../../components/Badge/Badge.module.css';
 import { TagPill } from '../../components/TagPill/TagPill.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
-import { formatDate } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import styles from './WorkItemsPage.module.css';
 
 export function WorkItemsPage() {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useTranslation('workItems');

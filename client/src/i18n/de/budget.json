@@ -213,7 +213,23 @@
     "noInvoicesHint": "Klicken Sie auf \"Rechnung Hinzufügen\", um die erste Rechnung für diesen Auftragnehmer zu erfassen.",
     "outstanding": "Ausstehend:",
     "createdBy": "Erstellt von",
+    "detailFields": {
+      "name": "Name",
+      "specialty": "Fachrichtung",
+      "phone": "Telefon",
+      "email": "E-Mail",
+      "address": "Adresse",
+      "notes": "Notizen",
+      "createdBy": "Erstellt von"
+    },
     "form": {
+      "name": "Name",
+      "specialty": "Fachrichtung",
+      "phone": "Telefon",
+      "email": "E-Mail",
+      "address": "Adresse",
+      "notes": "Notizen",
+      "required": "*",
       "placeholders": {
         "specialty": "z. B. Sanitär, Elektrik, Dachdeckerei",
         "phone": "z. B. +49 555-123-4567",
@@ -226,7 +242,9 @@
       "delete": "Löschen",
       "save": "Änderungen Speichern",
       "saving": "Wird gespeichert...",
-      "cancel": "Abbrechen"
+      "cancel": "Abbrechen",
+      "editRow": "Bearbeiten",
+      "deleteRow": "Löschen"
     },
     "invoiceStatusLabels": {
       "pending": "Ausstehend",
@@ -238,7 +256,8 @@
       "amount": "Betrag",
       "date": "Datum",
       "dueDate": "Fälligkeitsdatum",
-      "status": "Status"
+      "status": "Status",
+      "actions": "Aktionen"
     },
     "invoiceCard": {
       "noInvoiceNumber": "Keine Rechnungsnummer"
@@ -353,12 +372,23 @@
     "invoiceNotFound": "Rechnung nicht gefunden. Sie wurde möglicherweise gelöscht.",
     "invoiceDetails": "Rechnungsdetails",
     "createdBy": "Erstellt von",
+    "detailFields": {
+      "invoiceNumber": "Rechnung #",
+      "vendor": "Auftragnehmer",
+      "amount": "Betrag",
+      "date": "Datum",
+      "dueDate": "Fälligkeitsdatum",
+      "status": "Status",
+      "notes": "Notizen",
+      "createdBy": "Erstellt von"
+    },
     "form": {
       "invoiceNumber": "Rechnung #",
       "vendor": "Auftragnehmer",
       "amount": "Betrag",
       "date": "Datum",
       "dueDate": "Fälligkeitsdatum",
+      "invoiceDate": "Rechnungsdatum",
       "status": "Status",
       "notes": "Notizen",
       "required": "*",
@@ -375,7 +405,8 @@
       "delete": "Löschen",
       "save": "Änderungen Speichern",
       "saving": "Wird gespeichert...",
-      "cancel": "Abbrechen"
+      "cancel": "Abbrechen",
+      "deleting": "Wird gelöscht..."
     },
     "statusLabels": {
       "pending": "Ausstehend",
@@ -386,7 +417,8 @@
       "editTitle": "Rechnung Bearbeiten",
       "deleteTitle": "Rechnung Löschen",
       "deleteConfirm": "Sind Sie sicher, dass Sie die Rechnung {{number}} für {{amount}} löschen möchten?",
-      "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden."
+      "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+      "deleteConfirmShort": "Sind Sie sicher, dass Sie diese Rechnung löschen möchten?"
     },
     "messages": {
       "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
-import { formatDate, formatTime } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { DiaryEntryTypeBadge } from '../diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
 import { EmptyState } from '../EmptyState/index.js';
 import shared from '../../styles/shared.module.css';
@@ -14,6 +14,7 @@ interface RecentDiaryCardProps {
 }
 
 export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardProps) {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const { t } = useTranslation('dashboard');
 
   if (isLoading) {

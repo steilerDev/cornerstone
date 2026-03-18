@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TimelineWorkItem } from '@cornerstone/shared';
-import { formatDate } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './TimelineStatusCards.module.css';
 
 interface CriticalPathCardProps {
@@ -11,6 +11,7 @@ interface CriticalPathCardProps {
 
 export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardProps) {
   const { t } = useTranslation('dashboard');
+  const { formatDate } = useFormatters();
 
   // Filter work items to those on the critical path
   const criticalItems = workItems.filter((item) => criticalPath.includes(item.id));

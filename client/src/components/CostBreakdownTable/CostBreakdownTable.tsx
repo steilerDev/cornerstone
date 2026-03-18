@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, createContext, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import type {
   BudgetBreakdown,
@@ -12,8 +12,19 @@ import type {
   BudgetSource,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
-import { formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './CostBreakdownTable.module.css';
+
+// Context to pass formatCurrency down to sub-components that aren't React components (can't use hooks)
+const FormatterContext = createContext<((amount: number) => string) | null>(null);
+
+function useFormatterContext() {
+  const formatter = useContext(FormatterContext);
+  if (!formatter) {
+    throw new Error('useFormatterContext must be used within CostBreakdownTable');
+  }
+  return formatter;
+}
 
 type CostPerspective = 'min' | 'max' | 'avg';
 
@@ -38,39 +49,38 @@ function resolveProjected(
 }
 
 /**
- * Formats cost with explicit minus sign
+ * Formats cost with explicit minus sign.
+ * Must be called with the formatCurrency function from useFormatterContext or useFormatters.
  */
-function formatCost(amount: number): string {
-  return `-${formatCurrency(amount)}`;
-}
-
-/**
- * Formats payback as currency value (no sign prefix)
- */
-function formatPayback(amount: number): string {
-  return formatCurrency(amount);
+function formatCost(amount: number, fc: (n: number) => string): string {
+  return `-${fc(amount)}`;
 }
 
 /**
  * Renders net value (payback - cost).
  * At item/category level, uses neutral text color (still an expense).
  * At sum level, uses green/red coloring (surplus vs deficit).
+ *
+ * Accepts formatCurrency as a parameter so it can be called from both
+ * React components (inside FormatterContext.Provider) and from the root
+ * CostBreakdownTable render (outside the provider).
  */
 function renderNet(
   rawCost: number,
   payback: number,
   cssStyles: typeof styles,
+  fc: (n: number) => string,
   colored: boolean = false,
 ): React.ReactNode {
   const net = payback - rawCost;
   if (colored) {
     return (
       <span className={net >= 0 ? cssStyles.valuePositive : cssStyles.valueNegative}>
-        {formatCurrency(net)}
+        {fc(net)}
       </span>
     );
   }
-  return <span>{formatCurrency(net)}</span>;
+  return <span>{fc(net)}</span>;
 }
 
 /**
@@ -150,6 +160,7 @@ function BudgetLineRow({
   line: BreakdownBudgetLine;
   perspective: CostPerspective;
 }) {
+  const formatCurrencyFn = useFormatterContext();
   const key = `line-${line.id}`;
   const margin = CONFIDENCE_MARGINS[line.confidence];
   const costMin = line.plannedAmount * (1 - margin);
@@ -173,14 +184,14 @@ function BudgetLineRow({
       </td>
       <td className={styles.colBudget}>
         {line.hasInvoice ? (
-          <span>{formatCost(line.actualCost)}</span>
+          <span>-{formatCurrencyFn(line.actualCost)}</span>
         ) : (
-          <span>{formatCost(perspectiveValue)}</span>
+          <span>-{formatCurrencyFn(perspectiveValue)}</span>
         )}
       </td>
       <td className={styles.colPayback}>—</td>
       <td className={styles.colRemaining}>
-        <span>{formatCurrency(resolvedRawCost)}</span>
+        <span>{formatCurrencyFn(resolvedRawCost)}</span>
       </td>
     </tr>
   );
@@ -202,6 +213,7 @@ function WorkItemRow({
   onToggle: (key: string) => void;
   perspective: CostPerspective;
 }) {
+  const formatCurrencyFn = useFormatterContext();
   const key = expandKey;
   const rowClassName = styles.rowLevel2;
 
@@ -241,22 +253,22 @@ function WorkItemRow({
         </td>
         <td className={styles.colBudget}>
           {item.costDisplay === 'actual' ? (
-            <span>{formatCost(item.actualCost)}</span>
+            <span>-{formatCurrencyFn(item.actualCost)}</span>
           ) : (
-            <span>{formatCost(resolvedRawCost)}</span>
+            <span>-{formatCurrencyFn(resolvedRawCost)}</span>
           )}
         </td>
         <td className={styles.colPayback}>
-          {item.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
+          {item.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, resolvedPayback, styles)}
+          {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
         </td>
       </tr>
 
       {itemExpanded && (
         <>
-          {item.budgetLines.map((line) => (
+          {item.budgetLines.map((line: BreakdownBudgetLine) => (
             <BudgetLineRow key={line.id} line={line} perspective={perspective} />
           ))}
         </>
@@ -279,6 +291,7 @@ function WorkItemCategorySection({
   onToggle: (key: string) => void;
   perspective: CostPerspective;
 }) {
+  const formatCurrencyFn = useFormatterContext();
   const key = `wi-cat-${category.categoryId ?? 'null'}`;
   const isExpanded = expandedKeys.has(key);
   const resolvedRawCost = resolveProjected(
@@ -309,18 +322,18 @@ function WorkItemCategorySection({
             <span>{category.categoryName}</span>
           </div>
         </td>
-        <td className={styles.colBudget}>{formatCost(resolvedRawCost)}</td>
+        <td className={styles.colBudget}>-{formatCurrencyFn(resolvedRawCost)}</td>
         <td className={styles.colPayback}>
-          {category.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
+          {category.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, resolvedPayback, styles)}
+          {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
         </td>
       </tr>
 
       {isExpanded && (
         <>
-          {category.items.map((item) => {
+          {category.items.map((item: BreakdownWorkItem) => {
             const itemKey = `wi-cat-${category.categoryId ?? 'null'}-item-${item.workItemId}`;
             return (
               <WorkItemRow
@@ -355,6 +368,7 @@ function HouseholdItemRow({
   onToggle: (key: string) => void;
   perspective: CostPerspective;
 }) {
+  const formatCurrencyFn = useFormatterContext();
   const key = expandKey;
   const rowClassName = styles.rowLevel2;
 
@@ -397,22 +411,22 @@ function HouseholdItemRow({
         </td>
         <td className={styles.colBudget}>
           {item.costDisplay === 'actual' ? (
-            <span>{formatCost(item.actualCost)}</span>
+            <span>-{formatCurrencyFn(item.actualCost)}</span>
           ) : (
-            <span>{formatCost(resolvedRawCost)}</span>
+            <span>-{formatCurrencyFn(resolvedRawCost)}</span>
           )}
         </td>
         <td className={styles.colPayback}>
-          {item.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
+          {item.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, resolvedPayback, styles)}
+          {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
         </td>
       </tr>
 
       {itemExpanded && (
         <>
-          {item.budgetLines.map((line) => (
+          {item.budgetLines.map((line: BreakdownBudgetLine) => (
             <BudgetLineRow key={line.id} line={line} perspective={perspective} />
           ))}
         </>
@@ -435,6 +449,7 @@ function HouseholdItemCategorySection({
   onToggle: (key: string) => void;
   perspective: CostPerspective;
 }) {
+  const formatCurrencyFn = useFormatterContext();
   const key = `hi-cat-${category.hiCategory}`;
   const isExpanded = expandedKeys.has(key);
   const resolvedRawCost = resolveProjected(
@@ -465,18 +480,18 @@ function HouseholdItemCategorySection({
             <span>{category.hiCategory}</span>
           </div>
         </td>
-        <td className={styles.colBudget}>{formatCost(resolvedRawCost)}</td>
+        <td className={styles.colBudget}>-{formatCurrencyFn(resolvedRawCost)}</td>
         <td className={styles.colPayback}>
-          {category.subsidyPayback > 0 ? formatPayback(resolvedPayback) : '—'}
+          {category.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
-          {renderNet(resolvedRawCost, resolvedPayback, styles)}
+          {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
         </td>
       </tr>
 
       {isExpanded && (
         <>
-          {category.items.map((item) => {
+          {category.items.map((item: BreakdownHouseholdItem) => {
             const itemKey = `hi-cat-${category.hiCategory}-item-${item.householdItemId}`;
             return (
               <HouseholdItemRow
@@ -527,6 +542,7 @@ export function CostBreakdownTable({
   selectedCategories,
   budgetSources,
 }: CostBreakdownTableProps) {
+  const { formatCurrency } = useFormatters();
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [perspective, setPerspective] = useState<CostPerspective>('avg');
 
@@ -563,7 +579,7 @@ export function CostBreakdownTable({
     let subsidyPayback = 0;
     let minSubsidyPayback = 0;
 
-    visibleWICategories.forEach((cat) => {
+    visibleWICategories.forEach((cat: BreakdownWorkItemCategory) => {
       projectedMin += cat.projectedMin;
       projectedMax += cat.projectedMax;
       rawProjectedMin += cat.rawProjectedMin;
@@ -629,12 +645,13 @@ export function CostBreakdownTable({
   const availFundsExpanded = expandedKeys.has(availFundsKey);
 
   return (
-    <section className={styles.breakdownCard} aria-labelledby="breakdown-heading">
-      <h2 id="breakdown-heading" className={styles.breakdownTitle}>
-        Cost Breakdown
-      </h2>
+    <FormatterContext.Provider value={formatCurrency}>
+      <section className={styles.breakdownCard} aria-labelledby="breakdown-heading">
+        <h2 id="breakdown-heading" className={styles.breakdownTitle}>
+          Cost Breakdown
+        </h2>
 
-      <PerspectiveToggle value={perspective} onChange={setPerspective} />
+        <PerspectiveToggle value={perspective} onChange={setPerspective} />
 
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
@@ -685,11 +702,12 @@ export function CostBreakdownTable({
                         wiTotals.rawProjectedMax,
                         perspective,
                       ),
+                      formatCurrency,
                     )}
                   </td>
                   <td className={styles.colPayback}>
                     {wiTotals.subsidyPayback > 0
-                      ? formatPayback(
+                      ? formatCurrency(
                           resolveProjected(
                             wiTotals.minSubsidyPayback,
                             wiTotals.subsidyPayback,
@@ -711,13 +729,14 @@ export function CostBreakdownTable({
                         perspective,
                       ),
                       styles,
+                      formatCurrency,
                     )}
                   </td>
                 </tr>
 
                 {wiSectionExpanded && (
                   <>
-                    {visibleWICategories.map((category) => (
+                    {visibleWICategories.map((category: BreakdownWorkItemCategory) => (
                       <WorkItemCategorySection
                         key={category.categoryId ?? '__uncategorized__'}
                         category={category}
@@ -758,11 +777,12 @@ export function CostBreakdownTable({
                         hiTotals.rawProjectedMax,
                         perspective,
                       ),
+                      formatCurrency,
                     )}
                   </td>
                   <td className={styles.colPayback}>
                     {hiTotals.subsidyPayback > 0
-                      ? formatPayback(
+                      ? formatCurrency(
                           resolveProjected(
                             hiTotals.minSubsidyPayback,
                             hiTotals.subsidyPayback,
@@ -784,13 +804,14 @@ export function CostBreakdownTable({
                         perspective,
                       ),
                       styles,
+                      formatCurrency,
                     )}
                   </td>
                 </tr>
 
                 {hiSectionExpanded && (
                   <>
-                    {breakdown.householdItems.categories.map((category) => (
+                    {breakdown.householdItems.categories.map((category: BreakdownHouseholdItemCategory) => (
                       <HouseholdItemCategorySection
                         key={category.hiCategory}
                         category={category}
@@ -815,19 +836,19 @@ export function CostBreakdownTable({
                 </div>
               </td>
               <td className={styles.colBudget}>
-                <span className={styles.valueNegative}>{formatCost(totalRawProjected)}</span>
+                <span className={styles.valueNegative}>{formatCost(totalRawProjected, formatCurrency)}</span>
               </td>
               <td className={styles.colPayback}>
                 {maxTotalPayback > 0 ? (
                   <span className={styles.valuePositive}>
-                    {formatPayback(resolvedTotalPayback)}
+                    {formatCurrency(resolvedTotalPayback)}
                   </span>
                 ) : (
                   '—'
                 )}
               </td>
               <td className={styles.colRemaining}>
-                {renderNet(totalRawProjected, resolvedTotalPayback, styles)}
+                {renderNet(totalRawProjected, resolvedTotalPayback, styles, formatCurrency)}
               </td>
             </tr>
 
@@ -858,7 +879,7 @@ export function CostBreakdownTable({
 
             {/* Budget source sub-rows */}
             {availFundsExpanded &&
-              budgetSources.map((source) => (
+              budgetSources.map((source: BudgetSource) => (
                 <tr key={source.id} className={styles.rowSourceDetail}>
                   <td className={styles.colName}>
                     <div className={`${styles.nameContent} ${styles.nameIndented}`}>
@@ -899,7 +920,8 @@ export function CostBreakdownTable({
           </tbody>
         </table>
       </div>
-    </section>
+      </section>
+    </FormatterContext.Provider>
   );
 }
 

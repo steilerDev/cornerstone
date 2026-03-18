@@ -213,7 +213,23 @@
     "noInvoicesHint": "Click \"Add Invoice\" to record the first invoice for this vendor.",
     "outstanding": "Outstanding:",
     "createdBy": "Created by",
+    "detailFields": {
+      "name": "Name",
+      "specialty": "Specialty",
+      "phone": "Phone",
+      "email": "Email",
+      "address": "Address",
+      "notes": "Notes",
+      "createdBy": "Created by"
+    },
     "form": {
+      "name": "Name",
+      "specialty": "Specialty",
+      "phone": "Phone",
+      "email": "Email",
+      "address": "Address",
+      "notes": "Notes",
+      "required": "*",
       "placeholders": {
         "specialty": "e.g., Plumbing, Electrical, Roofing",
         "phone": "e.g., +1 555-123-4567",
@@ -226,7 +242,9 @@
       "delete": "Delete",
       "save": "Save Changes",
       "saving": "Saving...",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "editRow": "Edit",
+      "deleteRow": "Delete"
     },
     "invoiceStatusLabels": {
       "pending": "Pending",
@@ -238,7 +256,8 @@
       "amount": "Amount",
       "date": "Date",
       "dueDate": "Due Date",
-      "status": "Status"
+      "status": "Status",
+      "actions": "Actions"
     },
     "invoiceCard": {
       "noInvoiceNumber": "No Invoice #"
@@ -353,12 +372,23 @@
     "invoiceNotFound": "Invoice not found. It may have been deleted.",
     "invoiceDetails": "Invoice Details",
     "createdBy": "Created by",
+    "detailFields": {
+      "invoiceNumber": "Invoice #",
+      "vendor": "Vendor",
+      "amount": "Amount",
+      "date": "Date",
+      "dueDate": "Due Date",
+      "status": "Status",
+      "notes": "Notes",
+      "createdBy": "Created by"
+    },
     "form": {
       "invoiceNumber": "Invoice #",
       "vendor": "Vendor",
       "amount": "Amount",
       "date": "Date",
       "dueDate": "Due Date",
+      "invoiceDate": "Invoice Date",
       "status": "Status",
       "notes": "Notes",
       "required": "*",
@@ -375,7 +405,8 @@
       "delete": "Delete",
       "save": "Save Changes",
       "saving": "Saving...",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "deleting": "Deleting..."
     },
     "statusLabels": {
       "pending": "Pending",
@@ -386,7 +417,8 @@
       "editTitle": "Edit Invoice",
       "deleteTitle": "Delete Invoice",
       "deleteConfirm": "Are you sure you want to delete invoice {{number}} for {{amount}}?",
-      "deleteWarning": "This action cannot be undone."
+      "deleteWarning": "This action cannot be undone.",
+      "deleteConfirmShort": "Are you sure you want to delete this invoice?"
     },
     "messages": {
       "updateError": "Failed to update invoice. Please try again.",

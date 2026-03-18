@@ -13,7 +13,7 @@ import {
   deleteBudgetSource,
 } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatCurrency, formatPercent } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
@@ -71,9 +71,11 @@ function sourceToEditState(source: BudgetSource): EditingSource {
 
 interface SourceBarChartProps {
   source: BudgetSource;
+  formatCurrency: (value: number) => string;
+  formatPercent: (value: number) => string;
 }
 
-function SourceBarChart({ source }: SourceBarChartProps) {
+function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChartProps) {
   const { t } = useTranslation('budget');
   const [hoveredSegment, setHoveredSegment] = useState<BudgetBarSegment | null>(null);
   const handleSegmentHover = useCallback((seg: BudgetBarSegment | null) => {
@@ -230,6 +232,7 @@ function SourceBarChart({ source }: SourceBarChartProps) {
 
 export function BudgetSourcesPage() {
   const { t } = useTranslation('budget');
+  const { formatCurrency, formatPercent } = useFormatters();
   const [sources, setSources] = useState<BudgetSource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -917,7 +920,7 @@ export function BudgetSourcesPage() {
                           </div>
                         </div>
 
-                        <SourceBarChart source={source} />
+                        <SourceBarChart source={source} formatCurrency={formatCurrency} formatPercent={formatPercent} />
 
                         {source.terms && (
                           <p className={styles.sourceTerms} title="Terms">

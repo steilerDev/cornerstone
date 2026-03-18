@@ -9,7 +9,7 @@ import type {
 import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
@@ -22,16 +22,7 @@ const emptyCategories = new Set<string | null>();
 
 // ---- Helpers ----
 
-function formatShort(value: number): string {
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000) {
-    return `€${(value / 1_000_000).toFixed(1)}M`;
-  }
-  if (abs >= 1_000) {
-    return `€${(value / 1_000).toFixed(0)}K`;
-  }
-  return formatCurrency(value);
-}
+// formatShort is defined inside the component to access formatCurrency from useFormatters()
 
 function formatPct(value: number, total: number): string {
   if (total <= 0) return '0.0%';
@@ -178,9 +169,10 @@ interface RemainingDetail {
 
 interface RemainingDetailPanelProps {
   items: RemainingDetail[];
+  formatCurrency: (value: number) => string;
 }
 
-function RemainingDetailPanel({ items }: RemainingDetailPanelProps) {
+function RemainingDetailPanel({ items, formatCurrency }: RemainingDetailPanelProps) {
   return (
     <div className={styles.remainingPanel}>
       {items.map((item) => {
@@ -206,9 +198,10 @@ interface MobileBarDetailProps {
   segments: BudgetBarSegment[];
   overflow: number;
   availableFunds: number;
+  formatCurrency: (value: number) => string;
 }
 
-function MobileBarDetail({ segments, overflow, availableFunds }: MobileBarDetailProps) {
+function MobileBarDetail({ segments, overflow, availableFunds, formatCurrency }: MobileBarDetailProps) {
   const { t } = useTranslation('budget');
   const rows = segments.filter((s) => s.value > 0);
   return (
@@ -251,9 +244,10 @@ function MobileBarDetail({ segments, overflow, availableFunds }: MobileBarDetail
 interface SegmentTooltipProps {
   segment: BudgetBarSegment;
   availableFunds: number;
+  formatCurrency: (value: number) => string;
 }
 
-function SegmentTooltipContent({ segment, availableFunds }: SegmentTooltipProps) {
+function SegmentTooltipContent({ segment, availableFunds, formatCurrency }: SegmentTooltipProps) {
   const { t } = useTranslation('budget');
   const displayValue = segment.totalValue ?? segment.value;
   return (
@@ -306,6 +300,15 @@ function computeFilteredTotals(
 
 export function BudgetOverviewPage() {
   const { t } = useTranslation('budget');
+  const { formatCurrency } = useFormatters();
+
+  function formatShort(value: number): string {
+    const abs = Math.abs(value);
+    if (abs >= 1_000_000) return `€${(value / 1_000_000).toFixed(1)}M`;
+    if (abs >= 1_000) return `€${(value / 1_000).toFixed(0)}K`;
+    return formatCurrency(value);
+  }
+
   const [overview, setOverview] = useState<BudgetOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -558,7 +561,7 @@ export function BudgetOverviewPage() {
     return seg;
   });
 
-  const remainingTooltipContent = <RemainingDetailPanel items={remainingDetailItems} />;
+  const remainingTooltipContent = <RemainingDetailPanel items={remainingDetailItems} formatCurrency={formatCurrency} />;
 
   return (
     <div className={styles.container}>
@@ -658,7 +661,7 @@ export function BudgetOverviewPage() {
                 className={`${styles.remainingDetailPanel} ${remainingDetailOpen ? styles.remainingDetailPanelOpen : ''}`}
                 aria-hidden={!remainingDetailOpen}
               >
-                <RemainingDetailPanel items={remainingDetailItems} />
+                <RemainingDetailPanel items={remainingDetailItems} formatCurrency={formatCurrency} />
               </div>
             </div>
           </div>
@@ -681,6 +684,7 @@ export function BudgetOverviewPage() {
                 <SegmentTooltipContent
                   segment={hoveredSegment}
                   availableFunds={overview.availableFunds}
+                  formatCurrency={formatCurrency}
                 />
               </div>
             )}
@@ -695,6 +699,7 @@ export function BudgetOverviewPage() {
               segments={segmentsForBar}
               overflow={overflow}
               availableFunds={overview.availableFunds}
+              formatCurrency={formatCurrency}
             />
           </div>
 

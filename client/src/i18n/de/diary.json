@@ -278,5 +278,56 @@
     "deleteCancel": "Abbrechen",
     "deleteConfirm": "Eintrag löschen",
     "deleting": "Wird gelöscht..."
+  },
+  "filterBar": {
+    "filterMode": "Filtermodus",
+    "filterModeAll": "Alle",
+    "filterModeManual": "Manuell",
+    "filterModeAutomatic": "Automatisch",
+    "searchLabel": "Suchen",
+    "searchPlaceholder": "Einträge durchsuchen...",
+    "fromLabel": "Von",
+    "toLabel": "Bis",
+    "entryTypesLabel": "Eintragstypen",
+    "clearAllButton": "Alles löschen"
+  },
+  "entryForm": {
+    "entryDate": "Einzugsdatum",
+    "required": "*",
+    "title": "Titel",
+    "titlePlaceholder": "Optionaler Titel für diesen Eintrag",
+    "body": "Eintrag",
+    "weather": "Wetter",
+    "temperature": "Temperatur",
+    "temperatureCelsius": "Temperatur (°C)",
+    "workers": "Arbeiter",
+    "inspectorName": "Name des Inspektors",
+    "outcome": "Ergebnis",
+    "vendor": "Anbieter",
+    "vendorLabel": "Anbieter:",
+    "materialsLabel": "Artikel:",
+    "materials": "Materialien",
+    "severity": "Schweregrad",
+    "resolutionStatus": "Lösungsstatus",
+    "resolutionStatusOpen": "Offen",
+    "resolutionStatusInProgress": "In Bearbeitung",
+    "resolutionStatusResolved": "Gelöst"
+  },
+  "metadata": {
+    "temperature": "Temperatur:",
+    "workers": "Arbeiter",
+    "resolutionStatusOpen": "🔴 Offen",
+    "resolutionStatusInProgress": "🟡 In Bearbeitung",
+    "resolutionStatusResolved": "✅ Gelöst"
+  },
+  "entryCard": {
+    "by": "von",
+    "signed": "✓ Signiert",
+    "goToRelatedItem": "Zu verwandtem Element gehen"
+  },
+  "signature": {
+    "signedBy": "Unterzeichnet von",
+    "signaturesLabel": "Unterschriften",
+    "addSignature": "+ Unterschrift hinzufügen"
   }
 }

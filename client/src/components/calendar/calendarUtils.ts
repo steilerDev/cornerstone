@@ -397,7 +397,69 @@ export function getContrastTextColor(bgHex: string): string {
 // Display helpers
 // ---------------------------------------------------------------------------
 
-const MONTH_NAMES = [
+/**
+ * Returns month names for the user's current locale.
+ * Uses Intl.DateTimeFormat for automatic locale support.
+ */
+function getMonthNames(locale: string): string[] {
+  const monthNames = [];
+  for (let i = 0; i < 12; i++) {
+    const date = new Date(Date.UTC(2024, i, 1));
+    monthNames.push(
+      date.toLocaleDateString(locale, { month: 'long', timeZone: 'UTC' })
+    );
+  }
+  return monthNames;
+}
+
+/**
+ * Returns day names for the user's current locale (Sun, Mon, ..., Sat).
+ * Uses Intl.DateTimeFormat for automatic locale support.
+ */
+function getDayNames(locale: string): string[] {
+  const dayNames = [];
+  // Use a date that's known to be a Sunday (2024-01-01 was a Monday, so offset by 6 days for Sunday)
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(Date.UTC(2024, 0, 7 + i)); // 2024-01-07 is a Sunday
+    dayNames.push(
+      date.toLocaleDateString(locale, { weekday: 'short', timeZone: 'UTC' })
+    );
+  }
+  return dayNames;
+}
+
+/**
+ * Returns narrow day names for the user's current locale (S, M, T, W, T, F, S).
+ * Uses Intl.DateTimeFormat for automatic locale support.
+ */
+function getDayNamesNarrow(locale: string): string[] {
+  const dayNames = [];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(Date.UTC(2024, 0, 7 + i)); // 2024-01-07 is a Sunday
+    dayNames.push(
+      date.toLocaleDateString(locale, { weekday: 'narrow', timeZone: 'UTC' })
+    );
+  }
+  return dayNames;
+}
+
+export function getMonthName(month: number, locale = 'en-US'): string {
+  const monthNames = getMonthNames(locale);
+  return monthNames[month - 1] ?? '';
+}
+
+export function getDayName(day: number, locale = 'en-US'): string {
+  const dayNames = getDayNames(locale);
+  return dayNames[day] ?? '';
+}
+
+export function getDayNameNarrow(day: number, locale = 'en-US'): string {
+  const dayNames = getDayNamesNarrow(locale);
+  return dayNames[day] ?? '';
+}
+
+// Default English fallbacks for backward compatibility
+const MONTH_NAMES_DEFAULT = [
   'January',
   'February',
   'March',
@@ -414,10 +476,6 @@ const MONTH_NAMES = [
 
 export const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export const DAY_NAMES_NARROW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
-export function getMonthName(month: number): string {
-  return MONTH_NAMES[month - 1] ?? '';
-}
 
 /**
  * Formats a YYYY-MM-DD date string as a human-readable aria-label.

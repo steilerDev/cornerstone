@@ -2,7 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { updateProfile, changePassword } from '../../lib/usersApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useAuth } from '../../contexts/AuthContext.js';
-import { formatDate } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.js';
 import { DavAccessCard } from '../../components/DavAccessCard/DavAccessCard.js';
 import styles from './ProfilePage.module.css';
@@ -14,6 +14,7 @@ interface PasswordFormErrors {
 }
 
 export function ProfilePage() {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const { user, isLoading, error: loadError, refreshAuth } = useAuth();
 
   // Display name state

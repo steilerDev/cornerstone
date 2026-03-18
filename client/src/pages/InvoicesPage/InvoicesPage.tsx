@@ -10,7 +10,7 @@ import type {
 import { fetchAllInvoices, createInvoice } from '../../lib/invoicesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatDate, formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import styles from './InvoicesPage.module.css';
 
@@ -46,6 +46,7 @@ function getAttributionLabel(invoice: Invoice): string {
 
 export function InvoicesPage() {
   const { t } = useTranslation('budget');
+  const { formatCurrency, formatDate } = useFormatters();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);

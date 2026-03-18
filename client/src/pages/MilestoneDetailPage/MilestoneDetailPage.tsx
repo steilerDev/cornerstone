@@ -21,10 +21,11 @@ import { listWorkItems } from '../../lib/workItemsApi.js';
 import { listHouseholdItems } from '../../lib/householdItemsApi.js';
 import { createHouseholdItemDep, deleteHouseholdItemDep } from '../../lib/householdItemDepsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatDate } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './MilestoneDetailPage.module.css';
 
 export function MilestoneDetailPage() {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const { t } = useTranslation('schedule');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -798,7 +799,7 @@ export function MilestoneDetailPage() {
               onClick={() => setShowDeleteConfirm(true)}
               data-testid="delete-milestone-button"
             >
-              {t('milestones.detail.view.deleteButton')}
+              {t('milestones.detail.deleteButton')}
             </button>
           </div>
         </div>

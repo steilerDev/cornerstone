@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen } from '@testing-library/react';
 import { renderWithRouter } from '../../test/testUtils.js';
 import type * as CardTypes from './InvoicePipelineCard.js';
@@ -9,8 +9,34 @@ import type { Invoice, InvoiceStatusBreakdown } from '@cornerstone/shared';
 
 // CSS modules mocked via identity-obj-proxy
 
+// ─── Mock: formatters — provides useFormatters() hook used by this component ──
+
+jest.unstable_mockModule('../../lib/formatters.js', () => {
+  const fmtCurrency = (n: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  return {
+    formatDate: (d: string | null | undefined) => d ?? '—',
+    formatCurrency: fmtCurrency,
+    formatTime: (d: string | null | undefined) => d ?? '—',
+    formatDateTime: (d: string | null | undefined) => d ?? '—',
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    computeActualDuration: () => null,
+    useFormatters: () => ({
+      formatCurrency: fmtCurrency,
+      formatDate: (d: string | null | undefined) => d ?? '—',
+      formatTime: (d: string | null | undefined) => d ?? '—',
+      formatDateTime: (d: string | null | undefined) => d ?? '—',
+      formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    }),
+  };
+});
+
 // Dynamic import — must happen after any jest.unstable_mockModule calls.
-// InvoicePipelineCard has no context deps so no mocks are needed before the import.
 let InvoicePipelineCard: typeof CardTypes.InvoicePipelineCard;
 
 beforeEach(async () => {

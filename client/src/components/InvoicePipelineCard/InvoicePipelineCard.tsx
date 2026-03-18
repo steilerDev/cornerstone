@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Invoice, InvoiceStatusBreakdown } from '@cornerstone/shared';
-import { formatCurrency, formatDate } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './InvoicePipelineCard.module.css';
 
 interface InvoicePipelineCardProps {
@@ -10,6 +10,7 @@ interface InvoicePipelineCardProps {
 }
 
 export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardProps) {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const { t } = useTranslation('dashboard');
 
   // Filter to pending invoices, sort by date ascending (oldest first), take first 5
