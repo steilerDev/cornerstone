@@ -194,9 +194,7 @@ export function ProfilePage() {
         {/* Display Name Edit Card */}
         <section className={styles.card}>
           <h2 className={styles.cardTitle}>{t('profile.displayName')}</h2>
-          <p className={styles.cardDescription}>
-            {t('profile.displayNameDescription')}
-          </p>
+          <p className={styles.cardDescription}>{t('profile.displayNameDescription')}</p>
 
           {displayNameSuccess && (
             <div className={styles.successBanner} role="alert">
@@ -241,9 +239,7 @@ export function ProfilePage() {
         {isLocalAuth ? (
           <section className={styles.card}>
             <h2 className={styles.cardTitle}>{t('profile.changePassword')}</h2>
-            <p className={styles.cardDescription}>
-              {t('profile.changePasswordDescription')}
-            </p>
+            <p className={styles.cardDescription}>{t('profile.changePasswordDescription')}</p>
 
             {passwordSuccess && (
               <div className={styles.successBanner} role="alert">
@@ -339,9 +335,7 @@ export function ProfilePage() {
         ) : (
           <section className={styles.card}>
             <h2 className={styles.cardTitle}>{t('profile.password')}</h2>
-            <p className={styles.oidcMessage}>
-              {t('profile.passwordManagedByProvider')}
-            </p>
+            <p className={styles.oidcMessage}>{t('profile.passwordManagedByProvider')}</p>
           </section>
         )}
 

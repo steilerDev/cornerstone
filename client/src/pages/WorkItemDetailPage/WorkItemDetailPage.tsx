@@ -1819,7 +1819,9 @@ export default function WorkItemDetailPage() {
 
               <div className={styles.milestoneChips}>
                 {workItemMilestones.required.length === 0 && (
-                  <div className={styles.emptyState}>{t('detail.constraints.noRequiredMilestones')}</div>
+                  <div className={styles.emptyState}>
+                    {t('detail.constraints.noRequiredMilestones')}
+                  </div>
                 )}
                 {workItemMilestones.required.map((ms) => (
                   <div key={ms.id} className={styles.milestoneChip}>
@@ -1863,7 +1865,9 @@ export default function WorkItemDetailPage() {
                       onClick={handleAddRequiredMilestone}
                       disabled={!selectedRequiredMilestoneId || isAddingRequiredMilestone}
                     >
-                      {isAddingRequiredMilestone ? t('detail.constraints.adding') : t('detail.constraints.addMilestone')}
+                      {isAddingRequiredMilestone
+                        ? t('detail.constraints.adding')
+                        : t('detail.constraints.addMilestone')}
                     </button>
                   </div>
                 ) : null;
@@ -1879,7 +1883,9 @@ export default function WorkItemDetailPage() {
 
               <div className={styles.milestoneChips}>
                 {workItemMilestones.linked.length === 0 && (
-                  <div className={styles.emptyState}>{t('detail.constraints.noLinkedMilestones')}</div>
+                  <div className={styles.emptyState}>
+                    {t('detail.constraints.noLinkedMilestones')}
+                  </div>
                 )}
                 {workItemMilestones.linked.map((ms) => (
                   <div
@@ -1926,7 +1932,9 @@ export default function WorkItemDetailPage() {
                       onClick={handleAddLinkedMilestone}
                       disabled={!selectedLinkedMilestoneId || isAddingLinkedMilestone}
                     >
-                      {isAddingLinkedMilestone ? t('detail.constraints.linking') : t('detail.constraints.linkMilestone')}
+                      {isAddingLinkedMilestone
+                        ? t('detail.constraints.linking')
+                        : t('detail.constraints.linkMilestone')}
                     </button>
                   </div>
                 ) : null;
@@ -2030,7 +2038,9 @@ export default function WorkItemDetailPage() {
                 onClick={handleDeleteWorkItem}
                 disabled={isDeleting}
               >
-                {isDeleting ? t('detail.modals.deleteWorkItem.deleting') : t('detail.modals.deleteWorkItem.delete')}
+                {isDeleting
+                  ? t('detail.modals.deleteWorkItem.deleting')
+                  : t('detail.modals.deleteWorkItem.delete')}
               </button>
             </div>
           </div>
@@ -2048,9 +2058,7 @@ export default function WorkItemDetailPage() {
           <div className={styles.modalBackdrop} onClick={() => setDeletingNoteId(null)} />
           <div className={styles.modalContent}>
             <h2 className={styles.modalTitle}>{t('detail.modals.deleteNote.title')}</h2>
-            <p className={styles.modalText}>
-              {t('detail.modals.deleteNote.text')}
-            </p>
+            <p className={styles.modalText}>{t('detail.modals.deleteNote.text')}</p>
             <div className={styles.modalActions}>
               <button
                 type="button"
