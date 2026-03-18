@@ -300,7 +300,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Docker Scout CVE scan
-        uses: docker/scout-action@f8c776824083494ab0d56b8105ba2ca85c86e4de # v1
+        uses: docker/scout-action@1128f02d1e60f339af7306e0e62b9fdc13d9fab9 # v1.20.2
         with:
           command: cves
           image: steilerdev/cornerstone:${{ needs.release.outputs.new-release-version }}
@@ -308,7 +308,7 @@ jobs:
           summary: true
 
       - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@a60c4df7a135c7317c1e9ddf9b5a9b07a910dda9 # v4
+        uses: github/codeql-action/upload-sarif@b1bff81932f5cdfc8695c7752dcee935dcd061c8 # v4
         if: always()
         with:
           sarif_file: scout-results.sarif

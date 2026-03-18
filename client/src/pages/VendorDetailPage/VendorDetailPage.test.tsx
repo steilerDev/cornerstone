@@ -1112,7 +1112,7 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText(/failed to create invoice/i)).toBeInTheDocument();
+        expect(screen.getByText(/failed to load invoices/i)).toBeInTheDocument();
       });
     });
 

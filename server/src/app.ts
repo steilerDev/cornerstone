@@ -285,7 +285,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
     // SPA fallback: serve index.html for any non-API route
     app.setNotFoundHandler((request, reply) => {
-      if (request.url.startsWith('/api/')) {
+      if (request.url.startsWith('/api/') || request.url.startsWith('/feeds/')) {
         const response: ApiErrorResponse = {
           error: {
             code: 'ROUTE_NOT_FOUND',
