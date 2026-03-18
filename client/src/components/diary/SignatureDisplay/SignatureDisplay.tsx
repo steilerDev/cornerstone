@@ -20,7 +20,9 @@ export function SignatureDisplay({
         <img src={signatureDataUrl} alt={`Signature of ${signerName}`} className={styles.image} />
       </div>
       <div className={styles.info}>
-        <div className={styles.label}>{t('signature.signedBy')} {signerName}</div>
+        <div className={styles.label}>
+          {t('signature.signedBy')} {signerName}
+        </div>
         <div className={styles.date}>{signedDate}</div>
       </div>
     </div>

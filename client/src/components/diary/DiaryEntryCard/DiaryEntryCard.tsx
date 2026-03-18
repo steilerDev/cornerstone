@@ -47,7 +47,9 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
   const { formatDate, formatTime } = useFormatters();
   const { t } = useTranslation('diary');
   const route = getSourceEntityRoute(entry);
-  const sourceLabel = entry.sourceEntityType ? getSourceEntityLabel(entry.sourceEntityType, t) : null;
+  const sourceLabel = entry.sourceEntityType
+    ? getSourceEntityLabel(entry.sourceEntityType, t)
+    : null;
   const cardClassName = [styles.card, entry.isAutomatic && styles.automatic]
     .filter(Boolean)
     .join(' ');
@@ -67,7 +69,10 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
             <div className={styles.timestamp}>
               {formatTime(entry.createdAt)}
               {entry.createdBy && (
-                <span className={styles.author}> {t('entryCard.by')} {entry.createdBy.displayName}</span>
+                <span className={styles.author}>
+                  {' '}
+                  {t('entryCard.by')} {entry.createdBy.displayName}
+                </span>
               )}
               {entry.isSigned && (
                 <span className={styles.signedBadgeInline} data-testid={`signed-badge-${entry.id}`}>

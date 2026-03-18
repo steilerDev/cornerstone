@@ -201,7 +201,12 @@ interface MobileBarDetailProps {
   formatCurrency: (value: number) => string;
 }
 
-function MobileBarDetail({ segments, overflow, availableFunds, formatCurrency }: MobileBarDetailProps) {
+function MobileBarDetail({
+  segments,
+  overflow,
+  availableFunds,
+  formatCurrency,
+}: MobileBarDetailProps) {
   const { t } = useTranslation('budget');
   const rows = segments.filter((s) => s.value > 0);
   return (
@@ -561,7 +566,9 @@ export function BudgetOverviewPage() {
     return seg;
   });
 
-  const remainingTooltipContent = <RemainingDetailPanel items={remainingDetailItems} formatCurrency={formatCurrency} />;
+  const remainingTooltipContent = (
+    <RemainingDetailPanel items={remainingDetailItems} formatCurrency={formatCurrency} />
+  );
 
   return (
     <div className={styles.container}>
@@ -661,7 +668,10 @@ export function BudgetOverviewPage() {
                 className={`${styles.remainingDetailPanel} ${remainingDetailOpen ? styles.remainingDetailPanelOpen : ''}`}
                 aria-hidden={!remainingDetailOpen}
               >
-                <RemainingDetailPanel items={remainingDetailItems} formatCurrency={formatCurrency} />
+                <RemainingDetailPanel
+                  items={remainingDetailItems}
+                  formatCurrency={formatCurrency}
+                />
               </div>
             </div>
           </div>

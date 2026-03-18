@@ -328,7 +328,8 @@ export function InvoiceDetailPage() {
                 </div>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="edit-amount" className={styles.label}>
-                    {t('invoiceDetail.form.amount')} <span className={styles.required}>{t('invoiceDetail.form.required')}</span>
+                    {t('invoiceDetail.form.amount')}{' '}
+                    <span className={styles.required}>{t('invoiceDetail.form.required')}</span>
                   </label>
                   <input
                     type="number"
@@ -348,7 +349,8 @@ export function InvoiceDetailPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="edit-date" className={styles.label}>
-                    {t('invoiceDetail.form.invoiceDate')} <span className={styles.required}>{t('invoiceDetail.form.required')}</span>
+                    {t('invoiceDetail.form.invoiceDate')}{' '}
+                    <span className={styles.required}>{t('invoiceDetail.form.required')}</span>
                   </label>
                   <input
                     type="date"
@@ -445,7 +447,9 @@ export function InvoiceDetailPage() {
             </h2>
             <p className={styles.modalText}>
               {t('invoiceDetail.modal.deleteConfirm', {
-                number: invoice.invoiceNumber ? `#${invoice.invoiceNumber}` : t('invoiceDetail.invoiceDetails'),
+                number: invoice.invoiceNumber
+                  ? `#${invoice.invoiceNumber}`
+                  : t('invoiceDetail.invoiceDetails'),
                 amount: formatCurrency(invoice.amount),
               })}
             </p>
@@ -472,7 +476,9 @@ export function InvoiceDetailPage() {
                   onClick={() => void handleDelete()}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? t('invoiceDetail.buttons.deleting') : t('invoiceDetail.modal.deleteTitle')}
+                  {isDeleting
+                    ? t('invoiceDetail.buttons.deleting')
+                    : t('invoiceDetail.modal.deleteTitle')}
                 </button>
               )}
             </div>

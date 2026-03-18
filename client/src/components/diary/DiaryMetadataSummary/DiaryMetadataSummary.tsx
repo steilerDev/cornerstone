@@ -50,10 +50,14 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
           </span>
         )}
         {m.temperatureCelsius !== undefined && m.temperatureCelsius !== null && (
-          <span className={styles.item}>{t('metadata.temperature')} {m.temperatureCelsius}°C</span>
+          <span className={styles.item}>
+            {t('metadata.temperature')} {m.temperatureCelsius}°C
+          </span>
         )}
         {m.workersOnSite !== undefined && m.workersOnSite !== null && (
-          <span className={styles.item}>{m.workersOnSite} {t('metadata.workers')}</span>
+          <span className={styles.item}>
+            {m.workersOnSite} {t('metadata.workers')}
+          </span>
         )}
       </div>
     );

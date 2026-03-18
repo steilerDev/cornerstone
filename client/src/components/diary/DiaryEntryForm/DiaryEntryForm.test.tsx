@@ -637,9 +637,13 @@ describe('DiaryEntryForm', () => {
     it('does not render any type-specific metadata section', () => {
       render(<DiaryEntryForm {...makeProps({ entryType: 'general_note' })} />);
       expect(screen.queryByRole('heading', { level: 3, name: 'Weather' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('heading', { level: 3, name: 'Inspector Name' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { level: 3, name: 'Inspector Name' }),
+      ).not.toBeInTheDocument();
       expect(screen.queryByRole('heading', { level: 3, name: 'Vendor' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('heading', { level: 3, name: 'Issue Severity' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { level: 3, name: 'Issue Severity' }),
+      ).not.toBeInTheDocument();
     });
 
     it('still renders date, title, body fields', () => {
@@ -655,7 +659,9 @@ describe('DiaryEntryForm', () => {
   describe('type exclusivity', () => {
     it('daily_log does not show site_visit section heading', () => {
       render(<DiaryEntryForm {...makeProps({ entryType: 'daily_log' })} />);
-      expect(screen.queryByRole('heading', { level: 3, name: 'Inspector Name' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { level: 3, name: 'Inspector Name' }),
+      ).not.toBeInTheDocument();
     });
 
     it('site_visit does not show daily_log section heading', () => {
@@ -665,7 +671,9 @@ describe('DiaryEntryForm', () => {
 
     it('delivery does not show issue section heading', () => {
       render(<DiaryEntryForm {...makeProps({ entryType: 'delivery' })} />);
-      expect(screen.queryByRole('heading', { level: 3, name: 'Issue Severity' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { level: 3, name: 'Issue Severity' }),
+      ).not.toBeInTheDocument();
     });
   });
 });

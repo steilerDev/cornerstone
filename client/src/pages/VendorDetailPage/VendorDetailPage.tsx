@@ -484,7 +484,8 @@ export function VendorDetailPage() {
 
               <div className={styles.field}>
                 <label htmlFor="edit-name" className={styles.label}>
-                  {t('vendorDetail.form.name')} <span className={styles.required}>{t('vendorDetail.form.required')}</span>
+                  {t('vendorDetail.form.name')}{' '}
+                  <span className={styles.required}>{t('vendorDetail.form.required')}</span>
                 </label>
                 <input
                   type="text"
@@ -701,11 +702,19 @@ export function VendorDetailPage() {
                 <table className={styles.invoiceTable}>
                   <thead>
                     <tr>
-                      <th className={styles.tableHeader}>{t('vendorDetail.invoiceTable.invoiceNumber')}</th>
-                      <th className={`${styles.tableHeader} ${styles.tableHeaderRight}`}>{t('vendorDetail.invoiceTable.amount')}</th>
+                      <th className={styles.tableHeader}>
+                        {t('vendorDetail.invoiceTable.invoiceNumber')}
+                      </th>
+                      <th className={`${styles.tableHeader} ${styles.tableHeaderRight}`}>
+                        {t('vendorDetail.invoiceTable.amount')}
+                      </th>
                       <th className={styles.tableHeader}>{t('vendorDetail.invoiceTable.date')}</th>
-                      <th className={styles.tableHeader}>{t('vendorDetail.invoiceTable.dueDate')}</th>
-                      <th className={styles.tableHeader}>{t('vendorDetail.invoiceTable.status')}</th>
+                      <th className={styles.tableHeader}>
+                        {t('vendorDetail.invoiceTable.dueDate')}
+                      </th>
+                      <th className={styles.tableHeader}>
+                        {t('vendorDetail.invoiceTable.status')}
+                      </th>
                       <th className={`${styles.tableHeader} ${styles.tableHeaderRight}`}>
                         {t('vendorDetail.invoiceTable.actions')}
                       </th>

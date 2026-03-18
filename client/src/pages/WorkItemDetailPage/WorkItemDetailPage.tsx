@@ -1287,7 +1287,9 @@ export default function WorkItemDetailPage() {
                 onClick={startEditingDescription}
                 title={t('detail.description.clickToEdit')}
               >
-                {workItem.description || <em className={styles.placeholder}>{t('detail.description.noDescription')}</em>}
+                {workItem.description || (
+                  <em className={styles.placeholder}>{t('detail.description.noDescription')}</em>
+                )}
               </div>
             )}
           </section>
@@ -1295,21 +1297,23 @@ export default function WorkItemDetailPage() {
           {/* Dates (computed by scheduling engine) */}
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>{t('detail.sections.schedule')}</h2>
-            <p className={styles.sectionDescription}>
-              {t('detail.sections.scheduleDescription')}
-            </p>
+            <p className={styles.sectionDescription}>{t('detail.sections.scheduleDescription')}</p>
             <div className={styles.propertyGrid}>
               <div className={styles.property}>
                 <span className={styles.propertyLabel}>{t('detail.schedule.startDate')}</span>
                 <span className={styles.propertyValue}>
-                  {workItem.startDate ? formatDate(workItem.startDate) : t('detail.schedule.notScheduled')}
+                  {workItem.startDate
+                    ? formatDate(workItem.startDate)
+                    : t('detail.schedule.notScheduled')}
                 </span>
               </div>
 
               <div className={styles.property}>
                 <span className={styles.propertyLabel}>{t('detail.schedule.endDate')}</span>
                 <span className={styles.propertyValue}>
-                  {workItem.endDate ? formatDate(workItem.endDate) : t('detail.schedule.notScheduled')}
+                  {workItem.endDate
+                    ? formatDate(workItem.endDate)
+                    : t('detail.schedule.notScheduled')}
                 </span>
               </div>
             </div>
@@ -1325,7 +1329,10 @@ export default function WorkItemDetailPage() {
               return (
                 <div className={styles.delayIndicator} role="status" aria-live="polite">
                   <span aria-hidden="true">⚠</span>
-                  {t('detail.schedule.delayed', { count: delayDays, unit: delayDays === 1 ? t('detail.schedule.day') : t('detail.schedule.days') })}
+                  {t('detail.schedule.delayed', {
+                    count: delayDays,
+                    unit: delayDays === 1 ? t('detail.schedule.day') : t('detail.schedule.days'),
+                  })}
                 </div>
               );
             })()}
@@ -1594,7 +1601,9 @@ export default function WorkItemDetailPage() {
             <div className={`${styles.constraintSubsection} ${styles.constraintSubsectionFirst}`}>
               <h3 className={styles.subsectionTitle}>{t('detail.constraints.duration')}</h3>
               <div className={styles.property}>
-                <label className={styles.propertyLabel}>{t('detail.constraints.durationDays')}</label>
+                <label className={styles.propertyLabel}>
+                  {t('detail.constraints.durationDays')}
+                </label>
                 <div className={styles.inlineFieldWrapper}>
                   <input
                     type="number"
@@ -1615,7 +1624,9 @@ export default function WorkItemDetailPage() {
               <h3 className={styles.subsectionTitle}>{t('detail.constraints.dateConstraints')}</h3>
               <div className={styles.propertyGrid}>
                 <div className={styles.property}>
-                  <label className={styles.propertyLabel}>{t('detail.constraints.startAfter')}</label>
+                  <label className={styles.propertyLabel}>
+                    {t('detail.constraints.startAfter')}
+                  </label>
                   <div className={styles.inlineFieldWrapper}>
                     <input
                       type="date"
@@ -1654,7 +1665,9 @@ export default function WorkItemDetailPage() {
                 </div>
 
                 <div className={styles.property}>
-                  <label className={styles.propertyLabel}>{t('detail.constraints.startBefore')}</label>
+                  <label className={styles.propertyLabel}>
+                    {t('detail.constraints.startBefore')}
+                  </label>
                   <div className={styles.inlineFieldWrapper}>
                     <input
                       type="date"
@@ -1693,7 +1706,9 @@ export default function WorkItemDetailPage() {
                 </div>
 
                 <div className={styles.property}>
-                  <label className={styles.propertyLabel}>{t('detail.constraints.actualStart')}</label>
+                  <label className={styles.propertyLabel}>
+                    {t('detail.constraints.actualStart')}
+                  </label>
                   <div className={styles.inlineFieldWrapper}>
                     <input
                       type="date"
@@ -1732,7 +1747,9 @@ export default function WorkItemDetailPage() {
                 </div>
 
                 <div className={styles.property}>
-                  <label className={styles.propertyLabel}>{t('detail.constraints.actualEnd')}</label>
+                  <label className={styles.propertyLabel}>
+                    {t('detail.constraints.actualEnd')}
+                  </label>
                   <div className={styles.inlineFieldWrapper}>
                     <input
                       type="date"
@@ -1795,7 +1812,9 @@ export default function WorkItemDetailPage() {
 
             {/* Required Milestones subsection */}
             <div className={styles.constraintSubsection}>
-              <h3 className={styles.subsectionTitle}>{t('detail.constraints.requiredMilestones')}</h3>
+              <h3 className={styles.subsectionTitle}>
+                {t('detail.constraints.requiredMilestones')}
+              </h3>
               <p className={styles.constraintSubsectionDesc}>
                 Milestones that must be completed before this work item can start.
               </p>

@@ -405,9 +405,7 @@ function getMonthNames(locale: string): string[] {
   const monthNames = [];
   for (let i = 0; i < 12; i++) {
     const date = new Date(Date.UTC(2024, i, 1));
-    monthNames.push(
-      date.toLocaleDateString(locale, { month: 'long', timeZone: 'UTC' })
-    );
+    monthNames.push(date.toLocaleDateString(locale, { month: 'long', timeZone: 'UTC' }));
   }
   return monthNames;
 }
@@ -421,9 +419,7 @@ function getDayNames(locale: string): string[] {
   // Use a date that's known to be a Sunday (2024-01-01 was a Monday, so offset by 6 days for Sunday)
   for (let i = 0; i < 7; i++) {
     const date = new Date(Date.UTC(2024, 0, 7 + i)); // 2024-01-07 is a Sunday
-    dayNames.push(
-      date.toLocaleDateString(locale, { weekday: 'short', timeZone: 'UTC' })
-    );
+    dayNames.push(date.toLocaleDateString(locale, { weekday: 'short', timeZone: 'UTC' }));
   }
   return dayNames;
 }
@@ -436,9 +432,7 @@ function getDayNamesNarrow(locale: string): string[] {
   const dayNames = [];
   for (let i = 0; i < 7; i++) {
     const date = new Date(Date.UTC(2024, 0, 7 + i)); // 2024-01-07 is a Sunday
-    dayNames.push(
-      date.toLocaleDateString(locale, { weekday: 'narrow', timeZone: 'UTC' })
-    );
+    dayNames.push(date.toLocaleDateString(locale, { weekday: 'narrow', timeZone: 'UTC' }));
   }
   return dayNames;
 }

@@ -920,7 +920,11 @@ export function BudgetSourcesPage() {
                           </div>
                         </div>
 
-                        <SourceBarChart source={source} formatCurrency={formatCurrency} formatPercent={formatPercent} />
+                        <SourceBarChart
+                          source={source}
+                          formatCurrency={formatCurrency}
+                          formatPercent={formatPercent}
+                        />
 
                         {source.terms && (
                           <p className={styles.sourceTerms} title="Terms">

@@ -63,42 +63,60 @@ export interface DiaryEntryFormProps {
 // These will be built dynamically based on translations
 function useWeatherOptions() {
   const { t } = useTranslation('diary');
-  return useMemo(() => [
-    { value: 'sunny' as DiaryWeather, label: t('form.weatherOptions.sunny') },
-    { value: 'cloudy' as DiaryWeather, label: t('form.weatherOptions.cloudy') },
-    { value: 'rainy' as DiaryWeather, label: t('form.weatherOptions.rainy') },
-    { value: 'snowy' as DiaryWeather, label: t('form.weatherOptions.snowy') },
-    { value: 'stormy' as DiaryWeather, label: t('form.weatherOptions.stormy') },
-    { value: 'other' as DiaryWeather, label: t('form.weatherOptions.other') },
-  ], [t]);
+  return useMemo(
+    () => [
+      { value: 'sunny' as DiaryWeather, label: t('form.weatherOptions.sunny') },
+      { value: 'cloudy' as DiaryWeather, label: t('form.weatherOptions.cloudy') },
+      { value: 'rainy' as DiaryWeather, label: t('form.weatherOptions.rainy') },
+      { value: 'snowy' as DiaryWeather, label: t('form.weatherOptions.snowy') },
+      { value: 'stormy' as DiaryWeather, label: t('form.weatherOptions.stormy') },
+      { value: 'other' as DiaryWeather, label: t('form.weatherOptions.other') },
+    ],
+    [t],
+  );
 }
 
 function useOutcomeOptions() {
   const { t } = useTranslation('diary');
-  return useMemo(() => [
-    { value: 'pass' as DiaryInspectionOutcome, label: t('form.outcomeOptions.pass') },
-    { value: 'fail' as DiaryInspectionOutcome, label: t('form.outcomeOptions.fail') },
-    { value: 'conditional' as DiaryInspectionOutcome, label: t('form.outcomeOptions.conditional') },
-  ], [t]);
+  return useMemo(
+    () => [
+      { value: 'pass' as DiaryInspectionOutcome, label: t('form.outcomeOptions.pass') },
+      { value: 'fail' as DiaryInspectionOutcome, label: t('form.outcomeOptions.fail') },
+      {
+        value: 'conditional' as DiaryInspectionOutcome,
+        label: t('form.outcomeOptions.conditional'),
+      },
+    ],
+    [t],
+  );
 }
 
 function useSeverityOptions() {
   const { t } = useTranslation('diary');
-  return useMemo(() => [
-    { value: 'low' as DiaryIssueSeverity, label: t('form.severityOptions.low') },
-    { value: 'medium' as DiaryIssueSeverity, label: t('form.severityOptions.medium') },
-    { value: 'high' as DiaryIssueSeverity, label: t('form.severityOptions.high') },
-    { value: 'critical' as DiaryIssueSeverity, label: t('form.severityOptions.critical') },
-  ], [t]);
+  return useMemo(
+    () => [
+      { value: 'low' as DiaryIssueSeverity, label: t('form.severityOptions.low') },
+      { value: 'medium' as DiaryIssueSeverity, label: t('form.severityOptions.medium') },
+      { value: 'high' as DiaryIssueSeverity, label: t('form.severityOptions.high') },
+      { value: 'critical' as DiaryIssueSeverity, label: t('form.severityOptions.critical') },
+    ],
+    [t],
+  );
 }
 
 function useResolutionStatusOptions() {
   const { t } = useTranslation('diary');
-  return useMemo(() => [
-    { value: 'open' as DiaryIssueResolution, label: t('form.resolutionOptions.open') },
-    { value: 'in_progress' as DiaryIssueResolution, label: t('form.resolutionOptions.in_progress') },
-    { value: 'resolved' as DiaryIssueResolution, label: t('form.resolutionOptions.resolved') },
-  ], [t]);
+  return useMemo(
+    () => [
+      { value: 'open' as DiaryIssueResolution, label: t('form.resolutionOptions.open') },
+      {
+        value: 'in_progress' as DiaryIssueResolution,
+        label: t('form.resolutionOptions.in_progress'),
+      },
+      { value: 'resolved' as DiaryIssueResolution, label: t('form.resolutionOptions.resolved') },
+    ],
+    [t],
+  );
 }
 
 export function DiaryEntryForm({
@@ -173,7 +191,8 @@ export function DiaryEntryForm({
       {/* Common fields */}
       <div className={styles.formGroup}>
         <label htmlFor="entry-date" className={styles.label}>
-          {t('entryForm.entryDate')} <span className={styles.required}>{t('entryForm.required')}</span>
+          {t('entryForm.entryDate')}{' '}
+          <span className={styles.required}>{t('entryForm.required')}</span>
         </label>
         <input
           type="date"
@@ -345,7 +364,8 @@ export function DiaryEntryForm({
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="inspector-name" className={styles.label}>
-                {t('form.inspectorName')} <span className={styles.required}>{t('entryForm.required')}</span>
+                {t('form.inspectorName')}{' '}
+                <span className={styles.required}>{t('entryForm.required')}</span>
               </label>
               <input
                 type="text"
@@ -370,7 +390,8 @@ export function DiaryEntryForm({
 
             <div className={styles.formGroup}>
               <label htmlFor="inspection-outcome" className={styles.label}>
-                {t('form.inspectionOutcome')} <span className={styles.required}>{t('entryForm.required')}</span>
+                {t('form.inspectionOutcome')}{' '}
+                <span className={styles.required}>{t('entryForm.required')}</span>
               </label>
               <select
                 id="inspection-outcome"
@@ -508,7 +529,8 @@ export function DiaryEntryForm({
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="severity" className={styles.label}>
-                {t('form.severity')} <span className={styles.required}>{t('entryForm.required')}</span>
+                {t('form.severity')}{' '}
+                <span className={styles.required}>{t('entryForm.required')}</span>
               </label>
               <select
                 id="severity"
@@ -540,7 +562,8 @@ export function DiaryEntryForm({
 
             <div className={styles.formGroup}>
               <label htmlFor="resolution-status" className={styles.label}>
-                {t('form.resolutionStatus')} <span className={styles.required}>{t('entryForm.required')}</span>
+                {t('form.resolutionStatus')}{' '}
+                <span className={styles.required}>{t('entryForm.required')}</span>
               </label>
               <select
                 id="resolution-status"

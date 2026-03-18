@@ -275,9 +275,13 @@ describe('DiaryEntryCreatePage', () => {
       await advanceToFormStep('general_note');
       // No type-specific <h3> headings for general_note
       expect(screen.queryByRole('heading', { level: 3, name: 'Weather' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('heading', { level: 3, name: 'Inspector Name' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { level: 3, name: 'Inspector Name' }),
+      ).not.toBeInTheDocument();
       expect(screen.queryByRole('heading', { level: 3, name: 'Vendor' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('heading', { level: 3, name: 'Issue Severity' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { level: 3, name: 'Issue Severity' }),
+      ).not.toBeInTheDocument();
     });
   });
 

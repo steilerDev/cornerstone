@@ -991,7 +991,11 @@ export function SubsidyProgramsPage() {
                               {t(`subsidies.statusLabels.${program.applicationStatus}`)}
                             </span>
                             <span className={styles.reductionBadge}>
-                              {formatReduction(program.reductionType, program.reductionValue, formatCurrency)}
+                              {formatReduction(
+                                program.reductionType,
+                                program.reductionValue,
+                                formatCurrency,
+                              )}
                             </span>
                             {program.maximumAmount != null && (
                               <span className={styles.maxAmountBadge}>
