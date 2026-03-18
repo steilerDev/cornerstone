@@ -161,7 +161,8 @@ describe('TagPicker', () => {
     jest.spyOn(Math, 'random').mockReturnValue(0);
     const expectedColor = '#b91c1c'; // TAG_COLOR_PALETTE[0]
     const newTag: TagResponse = { id: 'tag-new', name: 'MyNewTag', color: expectedColor };
-    const onCreateTag = jest.fn<(name: string, color: string | null) => Promise<TagResponse>>()
+    const onCreateTag = jest
+      .fn<(name: string, color: string | null) => Promise<TagResponse>>()
       .mockResolvedValue(newTag);
     const onSelectionChange = jest.fn();
 
@@ -443,7 +444,8 @@ describe('TagPicker', () => {
       jest.spyOn(Math, 'random').mockReturnValue(0);
       const initialColor = TAG_COLOR_PALETTE[0]; // '#b91c1c'
       const newTag: TagResponse = { id: 'tag-color-test', name: 'ColorTest', color: initialColor };
-      const onCreateTag = jest.fn<(name: string, color: string | null) => Promise<TagResponse>>()
+      const onCreateTag = jest
+        .fn<(name: string, color: string | null) => Promise<TagResponse>>()
         .mockResolvedValue(newTag);
 
       render(

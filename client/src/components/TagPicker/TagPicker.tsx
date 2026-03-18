@@ -18,9 +18,7 @@ export const TAG_COLOR_PALETTE: string[] = [
 ];
 
 export function getRandomColor(exclude?: string): string {
-  const candidates = exclude
-    ? TAG_COLOR_PALETTE.filter((c) => c !== exclude)
-    : TAG_COLOR_PALETTE;
+  const candidates = exclude ? TAG_COLOR_PALETTE.filter((c) => c !== exclude) : TAG_COLOR_PALETTE;
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
