@@ -220,7 +220,7 @@ export function VendorDetailPage() {
       if (err instanceof ApiClientError) {
         setInvoicesError(err.error.message);
       } else {
-        setInvoicesError(t('vendorDetail.messages.invoiceCreateError'));
+        setInvoicesError(t('invoices.errorMessage'));
       }
     } finally {
       setInvoicesLoading(false);
