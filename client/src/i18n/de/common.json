@@ -56,6 +56,29 @@
     "description": "Die gesuchte Seite existiert nicht oder wurde verschoben.",
     "backLink": "Zurück zur Projektübersicht"
   },
+  "tagPicker": {
+    "placeholderEmpty": "Tags hinzufügen...",
+    "placeholderMore": "Weitere hinzufügen...",
+    "createHeader": "Neuen Tag erstellen:",
+    "colorLabel": "Farbe:",
+    "createButton": "Tag erstellen",
+    "creating": "Wird erstellt...",
+    "createError": "Tag konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "noMatchingTags": "Keine passenden Tags gefunden",
+    "noMoreTags": "Keine weiteren Tags verfügbar"
+  },
+  "tagPill": {
+    "removeAriaLabel": "Tag {{name}} entfernen"
+  },
+  "keyboardShortcuts": {
+    "title": "Tastaturkürzel",
+    "closeAriaLabel": "Schließen",
+    "keyColumn": "Taste",
+    "actionColumn": "Aktion"
+  },
+  "toast": {
+    "dismissAriaLabel": "Benachrichtigung schließen"
+  },
   "subnav": {
     "project": {
       "overview": "Übersicht",

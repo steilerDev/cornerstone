@@ -328,6 +328,36 @@
   "signature": {
     "signedBy": "Unterzeichnet von",
     "signaturesLabel": "Unterschriften",
-    "addSignature": "+ Unterschrift hinzufügen"
+    "addSignature": "+ Unterschrift hinzufügen",
+    "signerTypeLabel": "Unterzeichnertyp",
+    "signerTypeSelf": "Selbst",
+    "signerTypeVendor": "Auftragnehmer",
+    "signerNameLabel": "Name des Unterzeichners",
+    "vendorLabel": "Auftragnehmer",
+    "selectVendor": "\u2014 Auftragnehmer wählen \u2014",
+    "otherVendor": "Andere...",
+    "vendorNamePlaceholder": "Auftragnehmernamen eingeben",
+    "signatoryNameLabel": "Name des Bevollmächtigten",
+    "signatoryNameRequired": "*",
+    "signatoryNamePlaceholder": "Name der Person, die im Auftrag des Auftragnehmers unterzeichnet",
+    "vendorInfoRequired": "Auftragnehmer und Name des Bevollmächtigten sind erforderlich",
+    "canvasAriaLabel": "Unterschriftsfeld",
+    "canvasPlaceholder": "Hier unterschreiben",
+    "clearButton": "Löschen",
+    "acceptButton": "Unterschrift übernehmen",
+    "removeButton": "Unterschrift entfernen",
+    "sizeError": "Unterschrift zu groß ({{size}}KB, max. 500KB)",
+    "altText": "Unterschrift von {{name}}"
+  },
+  "photoUpload": {
+    "dropZoneAriaLabel": "Foto-Upload-Bereich",
+    "dropZoneText": "Fotos hierher ziehen oder",
+    "buttonTakePhoto": "Foto aufnehmen",
+    "buttonUploadPhotos": "Fotos hochladen",
+    "uploading": "Wird hochgeladen...",
+    "uploadProgressAriaLabel": "{{fileName}} Upload-Fortschritt"
+  },
+  "typeSwitcher": {
+    "ariaLabel": "Einträge nach Typ filtern"
   }
 }

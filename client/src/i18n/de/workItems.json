@@ -129,6 +129,13 @@
       "createFailed": "Arbeitspaket konnte nicht erstellt werden. Bitte erneut versuchen."
     }
   },
+  "picker": {
+    "placeholder": "Arbeitspakete suchen...",
+    "emptyHint": "Zum Suchen von Arbeitspaketen tippen",
+    "noResults": "Keine passenden Arbeitspakete gefunden",
+    "loadError": "Arbeitspakete konnten nicht geladen werden",
+    "searchError": "Suche nach Arbeitspaketen fehlgeschlagen"
+  },
   "detail": {
     "loading": "Arbeitspaket wird geladen...",
     "notFound": {

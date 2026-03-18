@@ -56,6 +56,29 @@
     "description": "The page you are looking for does not exist or has been moved.",
     "backLink": "Go back to Project Overview"
   },
+  "tagPicker": {
+    "placeholderEmpty": "Add tags...",
+    "placeholderMore": "Add more...",
+    "createHeader": "Create new tag:",
+    "colorLabel": "Color:",
+    "createButton": "Create Tag",
+    "creating": "Creating...",
+    "createError": "Failed to create tag. Please try again.",
+    "noMatchingTags": "No matching tags found",
+    "noMoreTags": "No more tags available"
+  },
+  "tagPill": {
+    "removeAriaLabel": "Remove tag {{name}}"
+  },
+  "keyboardShortcuts": {
+    "title": "Keyboard Shortcuts",
+    "closeAriaLabel": "Close",
+    "keyColumn": "Key",
+    "actionColumn": "Action"
+  },
+  "toast": {
+    "dismissAriaLabel": "Dismiss notification"
+  },
   "subnav": {
     "project": {
       "overview": "Overview",

@@ -375,7 +375,22 @@
       "createError": "Failed to create invoice. Please try again.",
       "updateError": "Failed to update invoice. Please try again.",
       "deleteError": "Failed to delete invoice. Please try again."
-    }
+    },
+    "attribution": {
+      "none": "—",
+      "lines": "{{count}} lines",
+      "allocated": "{{pct}}% allocated"
+    },
+    "retryButton": "Retry",
+    "searchAriaLabel": "Search invoices",
+    "filterStatusAriaLabel": "Filter by status",
+    "filterVendorAriaLabel": "Filter by vendor",
+    "sortOrderAriaLabel": "Toggle sort order",
+    "actionsHeader": "Actions",
+    "noNumber": "No Number",
+    "duePrefix": "Due:",
+    "paginationPreviousAriaLabel": "Previous page",
+    "paginationNextAriaLabel": "Next page"
   },
   "invoiceDetail": {
     "loading": "Loading invoice...",
@@ -519,6 +534,40 @@
       "updated": "Subsidy program \"{{name}}\" updated successfully",
       "deleted": "Subsidy program \"{{name}}\" deleted successfully"
     }
+  },
+  "budgetLineForm": {
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Optional description",
+    "modeDirect": "Direct Amount",
+    "modeUnit": "Unit Pricing",
+    "plannedAmountLabel": "Planned Amount ({{currencySymbol}}) *",
+    "quantityLabel": "Quantity *",
+    "unitLabel": "Unit",
+    "unitPlaceholder": "e.g., m², pcs",
+    "priceLabel": "Price *",
+    "totalLabel": "Total",
+    "includesVatLabel": "Price includes VAT ({{vatRate}}%)",
+    "vatNote": "+{{vatRate}}% VAT will be added to the total",
+    "confidenceLabel": "Confidence",
+    "categoryLabel": "Category",
+    "categoryNone": "None",
+    "fundingSourceLabel": "Funding Source",
+    "vendorLabel": "Vendor",
+    "vendorNone": "None",
+    "submitSaving": "Saving...",
+    "submitSave": "Save Changes",
+    "submitAdd": "Add Line",
+    "cancel": "Cancel"
+  },
+  "health": {
+    "overBudget": "Over Budget",
+    "atRisk": "At Risk",
+    "onBudget": "On Budget"
+  },
+  "bar": {
+    "overflowLabel": "Overflow",
+    "ariaBreakdown": "Budget breakdown: {{details}}",
+    "ariaNoData": "Budget breakdown: no data"
   },
   "common": {
     "loading": "Loading...",

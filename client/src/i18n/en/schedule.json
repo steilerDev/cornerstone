@@ -107,6 +107,9 @@
     }
   },
   "calendar": {
+    "item": {
+      "ariaLabel": "Work item: {{title}}, status: {{status}}"
+    },
     "navigation": {
       "previousMonth": "Previous month",
       "nextMonth": "Next month",

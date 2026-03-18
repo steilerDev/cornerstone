@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import styles from './DiaryEntryTypeSwitcher.module.css';
 
 type FilterMode = 'all' | 'manual' | 'automatic';
@@ -8,6 +9,8 @@ interface DiaryEntryTypeSwitcherProps {
 }
 
 export function DiaryEntryTypeSwitcher({ value, onChange }: DiaryEntryTypeSwitcherProps) {
+  const { t } = useTranslation('diary');
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
@@ -24,7 +27,7 @@ export function DiaryEntryTypeSwitcher({ value, onChange }: DiaryEntryTypeSwitch
     <div
       className={styles.switcher}
       role="radiogroup"
-      aria-label="Filter entries by type"
+      aria-label={t('typeSwitcher.ariaLabel')}
       onKeyDown={handleKeyDown}
     >
       <button
@@ -35,7 +38,7 @@ export function DiaryEntryTypeSwitcher({ value, onChange }: DiaryEntryTypeSwitch
         className={`${styles.button} ${value === 'all' ? styles.active : ''}`}
         data-testid="type-switcher-all"
       >
-        All
+        {t('filterBar.filterModeAll')}
       </button>
       <button
         type="button"
@@ -45,7 +48,7 @@ export function DiaryEntryTypeSwitcher({ value, onChange }: DiaryEntryTypeSwitch
         className={`${styles.button} ${value === 'manual' ? styles.active : ''}`}
         data-testid="type-switcher-manual"
       >
-        Manual
+        {t('filterBar.filterModeManual')}
       </button>
       <button
         type="button"
@@ -55,7 +58,7 @@ export function DiaryEntryTypeSwitcher({ value, onChange }: DiaryEntryTypeSwitch
         className={`${styles.button} ${value === 'automatic' ? styles.active : ''}`}
         data-testid="type-switcher-automatic"
       >
-        Automatic
+        {t('filterBar.filterModeAutomatic')}
       </button>
     </div>
   );

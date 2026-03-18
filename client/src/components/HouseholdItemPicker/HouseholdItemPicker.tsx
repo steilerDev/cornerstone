@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { HouseholdItemSummary, HouseholdItemStatus } from '@cornerstone/shared';
 import { listHouseholdItems } from '../../lib/householdItemsApi.js';
 import { SearchPicker } from '../SearchPicker/index.js';
@@ -34,10 +35,13 @@ export function HouseholdItemPicker({
   onSelectItem,
   excludeIds,
   disabled = false,
-  placeholder = 'Search household items...',
+  placeholder,
   showItemsOnFocus,
   initialTitle,
 }: HouseholdItemPickerProps) {
+  const { t } = useTranslation('householdItems');
+  const resolvedPlaceholder = placeholder ?? t('picker.placeholder');
+
   const handleSelectItem = (item: { id: string; label: string }) => {
     onSelectItem?.({ id: item.id, name: item.label });
   };
@@ -49,7 +53,7 @@ export function HouseholdItemPicker({
       onSelectItem={handleSelectItem}
       excludeIds={excludeIds}
       disabled={disabled}
-      placeholder={placeholder}
+      placeholder={resolvedPlaceholder}
       searchFn={async (query: string, ids: string[]) => {
         const response = await listHouseholdItems({
           q: query || undefined,
@@ -61,10 +65,10 @@ export function HouseholdItemPicker({
       getStatusBorderColor={(item) => STATUS_BORDER_COLORS[item.status]}
       showItemsOnFocus={showItemsOnFocus}
       initialTitle={initialTitle}
-      emptyHint="Type to search household items"
-      noResultsMessage="No matching household items found"
-      loadErrorMessage="Failed to load household items"
-      searchErrorMessage="Failed to search household items"
+      emptyHint={t('picker.emptyHint')}
+      noResultsMessage={t('picker.noResults')}
+      loadErrorMessage={t('picker.loadError')}
+      searchErrorMessage={t('picker.searchError')}
     />
   );
 }

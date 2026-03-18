@@ -129,6 +129,13 @@
       "createFailed": "Failed to create work item. Please try again."
     }
   },
+  "picker": {
+    "placeholder": "Search work items...",
+    "emptyHint": "Type to search work items",
+    "noResults": "No matching work items found",
+    "loadError": "Failed to load work items",
+    "searchError": "Failed to search work items"
+  },
   "detail": {
     "loading": "Loading work item...",
     "notFound": {

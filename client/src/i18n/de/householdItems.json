@@ -223,6 +223,13 @@
     "submitting": "Wird gespeichert...",
     "success": "Haushaltsartikel erfolgreich aktualisiert"
   },
+  "picker": {
+    "placeholder": "Haushaltsartikel suchen...",
+    "emptyHint": "Zum Suchen von Haushaltsartikeln tippen",
+    "noResults": "Keine passenden Haushaltsartikel gefunden",
+    "loadError": "Haushaltsartikel konnten nicht geladen werden",
+    "searchError": "Suche nach Haushaltsartikeln fehlgeschlagen"
+  },
   "detail": {
     "loading": "Haushaltsartikel wird geladen...",
     "error": "Fehler",
