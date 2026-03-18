@@ -161,7 +161,12 @@ export function TagPicker({
                   disabled={isCreating}
                 />
               </div>
-              <button type="button" className={styles.createButton} disabled={isCreating} onClick={handleCreateTag}>
+              <button
+                type="button"
+                className={styles.createButton}
+                disabled={isCreating}
+                onClick={handleCreateTag}
+              >
                 {isCreating ? t('tagPicker.creating') : t('tagPicker.createButton')}
               </button>
             </div>

@@ -41,11 +41,7 @@ describe('TagPicker', () => {
   it('opens the dropdown when the input receives focus', async () => {
     const user = userEvent.setup();
     render(
-      <TagPicker
-        availableTags={mockTags}
-        selectedTagIds={[]}
-        onSelectionChange={jest.fn()}
-      />,
+      <TagPicker availableTags={mockTags} selectedTagIds={[]} onSelectionChange={jest.fn()} />,
     );
 
     // Dropdown should not be visible before focus
@@ -147,7 +143,9 @@ describe('TagPicker', () => {
     await user.click(screen.getByRole('textbox'));
     await user.type(screen.getByRole('textbox'), 'BrandNewTag');
 
-    expect(screen.queryByRole('button', { name: /tagPicker.createButton/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /tagPicker.createButton/i }),
+    ).not.toBeInTheDocument();
   });
 
   // ---------------------------------------------------------------------------
@@ -156,7 +154,8 @@ describe('TagPicker', () => {
   it('calls onCreateTag with the trimmed search term and selected color when the create button is clicked', async () => {
     const user = userEvent.setup();
     const newTag: TagResponse = { id: 'tag-new', name: 'MyNewTag', color: '#3b82f6' };
-    const onCreateTag = jest.fn<(name: string, color: string | null) => Promise<TagResponse>>()
+    const onCreateTag = jest
+      .fn<(name: string, color: string | null) => Promise<TagResponse>>()
       .mockResolvedValue(newTag);
     const onSelectionChange = jest.fn();
 
@@ -191,7 +190,8 @@ describe('TagPicker', () => {
   // ---------------------------------------------------------------------------
   it('displays an error alert when onCreateTag rejects', async () => {
     const user = userEvent.setup();
-    const onCreateTag = jest.fn<(name: string, color: string | null) => Promise<TagResponse>>()
+    const onCreateTag = jest
+      .fn<(name: string, color: string | null) => Promise<TagResponse>>()
       .mockRejectedValue(new Error('network error'));
 
     render(
@@ -226,7 +226,8 @@ describe('TagPicker', () => {
     const pendingPromise = new Promise<TagResponse>((resolve) => {
       resolveCreate = resolve;
     });
-    const onCreateTag = jest.fn<(name: string, color: string | null) => Promise<TagResponse>>()
+    const onCreateTag = jest
+      .fn<(name: string, color: string | null) => Promise<TagResponse>>()
       .mockReturnValue(pendingPromise);
 
     render(
@@ -263,7 +264,8 @@ describe('TagPicker', () => {
     const user = userEvent.setup();
     const onSubmit = jest.fn();
     const newTag: TagResponse = { id: 'tag-reg', name: 'RegTag', color: '#3b82f6' };
-    const onCreateTag = jest.fn<(name: string, color: string | null) => Promise<TagResponse>>()
+    const onCreateTag = jest
+      .fn<(name: string, color: string | null) => Promise<TagResponse>>()
       .mockResolvedValue(newTag);
 
     render(
@@ -298,11 +300,7 @@ describe('TagPicker', () => {
     const user = userEvent.setup();
     render(
       <div>
-        <TagPicker
-          availableTags={mockTags}
-          selectedTagIds={[]}
-          onSelectionChange={jest.fn()}
-        />
+        <TagPicker availableTags={mockTags} selectedTagIds={[]} onSelectionChange={jest.fn()} />
         <div data-testid="outside">Outside element</div>
       </div>,
     );
@@ -324,13 +322,7 @@ describe('TagPicker', () => {
   // ---------------------------------------------------------------------------
   it('shows an empty state message when there are no available tags and no search term', async () => {
     const user = userEvent.setup();
-    render(
-      <TagPicker
-        availableTags={[]}
-        selectedTagIds={[]}
-        onSelectionChange={jest.fn()}
-      />,
-    );
+    render(<TagPicker availableTags={[]} selectedTagIds={[]} onSelectionChange={jest.fn()} />);
 
     await user.click(screen.getByRole('textbox'));
 
@@ -345,11 +337,7 @@ describe('TagPicker', () => {
     const user = userEvent.setup();
     // No onCreateTag — so search with no match shows the noMatchingTags message
     render(
-      <TagPicker
-        availableTags={mockTags}
-        selectedTagIds={[]}
-        onSelectionChange={jest.fn()}
-      />,
+      <TagPicker availableTags={mockTags} selectedTagIds={[]} onSelectionChange={jest.fn()} />,
     );
 
     await user.click(screen.getByRole('textbox'));
@@ -377,7 +365,9 @@ describe('TagPicker', () => {
     // Type a name that exactly matches an existing tag (case-insensitive)
     await user.type(screen.getByRole('textbox'), 'frontend');
 
-    expect(screen.queryByRole('button', { name: /tagPicker.createButton/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /tagPicker.createButton/i }),
+    ).not.toBeInTheDocument();
   });
 
   // ---------------------------------------------------------------------------
@@ -401,7 +391,8 @@ describe('TagPicker', () => {
   // ---------------------------------------------------------------------------
   it('calls the onError prop with the error message when tag creation fails', async () => {
     const user = userEvent.setup();
-    const onCreateTag = jest.fn<(name: string, color: string | null) => Promise<TagResponse>>()
+    const onCreateTag = jest
+      .fn<(name: string, color: string | null) => Promise<TagResponse>>()
       .mockRejectedValue(new Error('fail'));
     const onError = jest.fn();
 
