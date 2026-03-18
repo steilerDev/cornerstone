@@ -266,6 +266,11 @@
   word-break: break-word;
 }
 
+.descriptionValue {
+  composes: infoValue;
+  white-space: pre-wrap;
+}
+
 .infoLink {
   color: var(--color-primary);
   text-decoration: underline;
