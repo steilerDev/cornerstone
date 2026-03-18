@@ -262,7 +262,9 @@ test.describe('i18n: Language Persistence via API', () => {
   });
 
   // Skip: API timing-dependent — waitForResponse times out in CI. Covered by unit tests.
-  test.skip('Language preference is saved to server and returns on fresh session', async ({ page }) => {
+  test.skip('Language preference is saved to server and returns on fresh session', async ({
+    page,
+  }) => {
     // Given: Language is set to German via the Profile page UI
     await setLanguage(page, 'de');
 
