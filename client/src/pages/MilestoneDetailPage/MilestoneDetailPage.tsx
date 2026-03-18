@@ -533,7 +533,7 @@ export function MilestoneDetailPage() {
               onClick={() => setIsEditing(true)}
               data-testid="edit-milestone-button"
             >
-              {t('milestones.detail.edit')}
+              {t('milestones.detail.editButton')}
             </button>
           </div>
 
