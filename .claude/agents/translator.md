@@ -68,11 +68,11 @@ When new domain terms appear:
 
 ## File Ownership
 
-| Owns | Description |
-| ---- | ----------- |
-| `client/src/i18n/de/*.json` | All German locale translation files |
-| `client/src/i18n/glossary.json` | Domain terminology glossary |
-| `client/src/i18n/{future-locale}/*.json` | Any future locale files |
+| Owns                                     | Description                         |
+| ---------------------------------------- | ----------------------------------- |
+| `client/src/i18n/de/*.json`              | All German locale translation files |
+| `client/src/i18n/glossary.json`          | Domain terminology glossary         |
+| `client/src/i18n/{future-locale}/*.json` | Any future locale files             |
 
 **Does NOT own:**
 

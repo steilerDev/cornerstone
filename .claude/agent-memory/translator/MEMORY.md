@@ -16,20 +16,21 @@
 
 ## Key Terminology (from glossary)
 
-| English | German (singular) | German (plural) |
-| ------- | ----------------- | --------------- |
-| Work Item | Arbeitspaket | Arbeitspakete |
-| Household Item | Haushaltsartikel | Haushaltsartikel |
-| Vendor | Auftragnehmer | Auftragnehmer |
-| Budget Line | Budgetposition | Budgetpositionen |
-| Milestone | Meilenstein | Meilensteine |
-| Invoice | Rechnung | Rechnungen |
-| Subsidy | Förderprogramm | Förderprogramme |
-| Diary Entry | Tagebucheintrag | Tagebucheinträge |
+| English        | German (singular) | German (plural)  |
+| -------------- | ----------------- | ---------------- |
+| Work Item      | Arbeitspaket      | Arbeitspakete    |
+| Household Item | Haushaltsartikel  | Haushaltsartikel |
+| Vendor         | Auftragnehmer     | Auftragnehmer    |
+| Budget Line    | Budgetposition    | Budgetpositionen |
+| Milestone      | Meilenstein       | Meilensteine     |
+| Invoice        | Rechnung          | Rechnungen       |
+| Subsidy        | Förderprogramm    | Förderprogramme  |
+| Diary Entry    | Tagebucheintrag   | Tagebucheinträge |
 
 ## Initial Cleanup (2026-03-17)
 
 Fixed terminology inconsistencies from EPIC-17 i18n rollout:
+
 - "Arbeitselemente" / "Arbeitsgegenstand" / "Arbeitsgegenstände" → standardized to "Arbeitspaket(e)"
 - "Haushaltsgegenstände" / "Haushaltselement" → standardized to "Haushaltsartikel"
 - "Anbieter" (vendor context) → standardized to "Auftragnehmer"
