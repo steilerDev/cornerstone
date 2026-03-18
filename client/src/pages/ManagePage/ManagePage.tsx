@@ -391,7 +391,9 @@ function TagsTab() {
           <div className={styles.modalContent}>
             <h2 className={styles.modalTitle}>{t('manage.tags.deleteTitle')}</h2>
             <p className={styles.modalText}>
-              {t('manage.tags.deleteConfirm', { name: tags.find((tag) => tag.id === deletingTagId)?.name })}
+              {t('manage.tags.deleteConfirm', {
+                name: tags.find((tag) => tag.id === deletingTagId)?.name,
+              })}
             </p>
             <p className={styles.modalWarning}>{t('manage.tags.deleteWarning')}</p>
             <div className={styles.modalActions}>
@@ -978,7 +980,9 @@ function BudgetCategoriesTab() {
               {t('manage.budgetCategories.deleteTitle')}
             </h2>
             <p className={styles.modalText}>
-              {t('manage.budgetCategories.deleteConfirm', { name: categories.find((c) => c.id === deletingCategoryId)?.name })}
+              {t('manage.budgetCategories.deleteConfirm', {
+                name: categories.find((c) => c.id === deletingCategoryId)?.name,
+              })}
             </p>
 
             {deleteError ? (
@@ -986,9 +990,7 @@ function BudgetCategoriesTab() {
                 {deleteError}
               </div>
             ) : (
-              <p className={styles.modalWarning}>
-                {t('manage.budgetCategories.deleteWarning')}
-              </p>
+              <p className={styles.modalWarning}>{t('manage.budgetCategories.deleteWarning')}</p>
             )}
 
             <div className={styles.modalActions}>
@@ -1113,7 +1115,9 @@ function HouseholdItemCategoriesTab() {
       setNewColor(DEFAULT_COLOR);
       setNewSortOrder('');
       setShowCreateForm(false);
-      setSuccessMessage(t('manage.householdItemCategories.messages.created', { name: created.name }));
+      setSuccessMessage(
+        t('manage.householdItemCategories.messages.created', { name: created.name }),
+      );
     } catch (err) {
       if (err instanceof ApiClientError) {
         setCreateError(err.error.message);
@@ -1173,7 +1177,9 @@ function HouseholdItemCategoriesTab() {
           .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)),
       );
       setEditingCategory(null);
-      setSuccessMessage(t('manage.householdItemCategories.messages.updated', { name: updated.name }));
+      setSuccessMessage(
+        t('manage.householdItemCategories.messages.updated', { name: updated.name }),
+      );
     } catch (err) {
       if (err instanceof ApiClientError) {
         setUpdateError(err.error.message);
@@ -1207,7 +1213,9 @@ function HouseholdItemCategoriesTab() {
       const deleted = categories.find((cat) => cat.id === categoryId);
       setCategories(categories.filter((cat) => cat.id !== categoryId));
       setDeletingCategoryId(null);
-      setSuccessMessage(t('manage.householdItemCategories.messages.deleted', { name: deleted?.name }));
+      setSuccessMessage(
+        t('manage.householdItemCategories.messages.deleted', { name: deleted?.name }),
+      );
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
@@ -1534,7 +1542,9 @@ function HouseholdItemCategoriesTab() {
               {t('manage.householdItemCategories.deleteTitle')}
             </h2>
             <p className={styles.modalText}>
-              {t('manage.householdItemCategories.deleteConfirm', { name: categories.find((c) => c.id === deletingCategoryId)?.name })}
+              {t('manage.householdItemCategories.deleteConfirm', {
+                name: categories.find((c) => c.id === deletingCategoryId)?.name,
+              })}
             </p>
 
             {deleteError ? (
