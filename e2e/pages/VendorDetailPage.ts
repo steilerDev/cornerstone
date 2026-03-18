@@ -195,10 +195,9 @@ export class VendorDetailPage {
     // Delete modal
     this.deleteModal = page.getByRole('dialog', { name: 'Delete Vendor' });
     this.deleteModalTitle = page.locator('#delete-modal-title');
-    // i18n: button label is now just "Delete" / "Deleting..." (not "Delete Vendor")
-    // See budget.json vendors.buttons.delete = "Delete"
+    // The delete button text is hardcoded "Delete Vendor" / "Deleting..." in VendorDetailPage.tsx
     this.deleteConfirmButton = this.deleteModal.getByRole('button', {
-      name: /^Delete$|Deleting\.\.\./,
+      name: /Delete Vendor|Deleting\.\.\./,
     });
     this.deleteCancelButton = this.deleteModal.getByRole('button', {
       name: 'Cancel',
@@ -433,7 +432,8 @@ export class VendorDetailPage {
     const card = this.contactsList
       .locator('[class*="contactCard"]')
       .filter({ has: this.page.locator('[class*="contactName"]', { hasText: contactName }) });
-    await card.getByRole('button', { name: 'Edit Contact', exact: true }).click();
+    // aria-label is "Edit Contact <name>" (includes contact name), so omit exact:true
+    await card.getByRole('button', { name: 'Edit Contact' }).click();
     await this.editContactModal.waitFor({ state: 'visible' });
   }
 
@@ -496,7 +496,8 @@ export class VendorDetailPage {
     const responsePromise = this.page.waitForResponse(
       (r) => r.url().includes('/contacts/') && r.request().method() === 'DELETE',
     );
-    await card.getByRole('button', { name: 'Delete Contact', exact: true }).click();
+    // aria-label is "Delete Contact <name>" (includes contact name), so omit exact:true
+    await card.getByRole('button', { name: 'Delete Contact' }).click();
     await responsePromise;
   }
 }
