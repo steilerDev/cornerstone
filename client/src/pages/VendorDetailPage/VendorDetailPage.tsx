@@ -8,11 +8,7 @@ import type {
   InvoiceStatus,
 } from '@cornerstone/shared';
 import { fetchVendor, updateVendor, deleteVendor } from '../../lib/vendorsApi.js';
-import {
-  fetchInvoices,
-  createInvoice,
-  deleteInvoice,
-} from '../../lib/invoicesApi.js';
+import { fetchInvoices, createInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { VendorContactsSection } from '../../components/VendorContacts/VendorContactsSection.js';
