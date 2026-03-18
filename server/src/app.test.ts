@@ -84,6 +84,80 @@ describe('App - Performance Features', () => {
   });
 });
 
+describe('App - Not-Found Handler', () => {
+  let app: FastifyInstance;
+  let tempDbPath: string;
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-test-'));
+    tempDbPath = join(tempDir, 'test.db');
+    process.env.DATABASE_URL = tempDbPath;
+
+    app = await buildApp();
+  });
+
+  afterEach(async () => {
+    await app.close();
+    rmSync(tempDir, { recursive: true, force: true });
+    delete process.env.DATABASE_URL;
+  });
+
+  it('/feeds/cal.ics returns 404 in development mode', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/feeds/cal.ics',
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('/feeds/contacts.vcf returns 404 in development mode', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/feeds/contacts.vcf',
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('/feeds/cal.ics 404 response body conforms to the API error contract', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/feeds/cal.ics',
+    });
+
+    expect(response.statusCode).toBe(404);
+    const body = response.json() as { error: { code: string; message: string } };
+    expect(body).toHaveProperty('error');
+    expect(typeof body.error.code).toBe('string');
+    expect(body.error.code.length).toBeGreaterThan(0);
+    expect(typeof body.error.message).toBe('string');
+  });
+
+  it('/api/nonexistent still returns 404 (regression guard)', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/nonexistent',
+    });
+
+    expect(response.statusCode).toBe(404);
+    const body = response.json() as { error: { code: string; message: string } };
+    expect(body).toHaveProperty('error');
+    expect(body.error.code).toBe('ROUTE_NOT_FOUND');
+    expect(body.error.message).toContain('/api/nonexistent');
+  });
+
+  it('SPA route /work-items returns 200 or 404 depending on client/dist existence', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/work-items',
+    });
+
+    expect([200, 404]).toContain(response.statusCode);
+  });
+});
+
 describe('App - Static Asset Cache Headers (Integration with @fastify/static)', () => {
   let app: FastifyInstance;
   let tempDbPath: string;
