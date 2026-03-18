@@ -458,9 +458,18 @@ export function UserManagementPage() {
 
             <div className={styles.modalBody}>
               <p>
-                {t('userManagement.deactivateModal.message', {
-                  name: deactivatingUser.displayName,
-                })}
+                {(() => {
+                  const parts = t('userManagement.deactivateModal.message', {
+                    name: '\u0000',
+                  }).split('\u0000');
+                  return (
+                    <>
+                      {parts[0]}
+                      <strong>{deactivatingUser.displayName}</strong>
+                      {parts[1]}
+                    </>
+                  );
+                })()}
               </p>
             </div>
 
