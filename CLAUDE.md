@@ -504,4 +504,3 @@ All reviewing agents (product-architect, security-engineer, product-owner, ux-de
 - `verdict` must match the `gh pr review` action (`--approve` → `"approve"`, `--request-changes` → `"request-changes"`, `--comment` → `"comment"`)
 - Count each distinct issue raised, classified by severity
 - If no issues found, all counts are 0
-<!-- CLA final verification -->
