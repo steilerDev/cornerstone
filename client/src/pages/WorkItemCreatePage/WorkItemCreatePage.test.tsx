@@ -401,7 +401,7 @@ describe('WorkItemCreatePage', () => {
       });
 
       // Focus slot 1 picker to open it
-      const pickerInputs = screen.getAllByPlaceholderText('Search work items...');
+      const pickerInputs = screen.getAllByPlaceholderText(/search/i);
       await user.click(pickerInputs[0]);
 
       await waitFor(() => {

@@ -25,6 +25,7 @@ import {
   deleteHouseholdItemCategory,
 } from '../../lib/householdItemCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { useTranslation } from 'react-i18next';
 import { TagPill } from '../../components/TagPill/TagPill.js';
 import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.js';
 import styles from './ManagePage.module.css';
@@ -1573,6 +1574,7 @@ function HouseholdItemCategoriesTab() {
 // ============================================================
 
 export default function ManagePage() {
+  const { t } = useTranslation('settings');
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') ?? 'tags';
 
@@ -1606,7 +1608,7 @@ export default function ManagePage() {
   return (
     <div className={styles.container}>
       <div className={styles.content}>
-        <h1 className={styles.pageTitle}>Manage</h1>
+        <h1 className={styles.pageTitle}>{t('manage.pageTitle')}</h1>
         <SettingsSubNav />
 
         <div role="tablist" className={styles.tabList} onKeyDown={handleTabKeyDown}>
@@ -1619,7 +1621,7 @@ export default function ManagePage() {
             onClick={() => handleTabChange('tags')}
             className={`${styles.tab} ${tab === 'tags' ? styles.tabActive : ''}`}
           >
-            Tags
+            {t('manage.tabs.tags')}
           </button>
           <button
             role="tab"
@@ -1630,7 +1632,7 @@ export default function ManagePage() {
             onClick={() => handleTabChange('budget-categories')}
             className={`${styles.tab} ${tab === 'budget-categories' ? styles.tabActive : ''}`}
           >
-            Budget Categories
+            {t('manage.tabs.budgetCategories')}
           </button>
           <button
             role="tab"
@@ -1641,7 +1643,7 @@ export default function ManagePage() {
             onClick={() => handleTabChange('hi-categories')}
             className={`${styles.tab} ${tab === 'hi-categories' ? styles.tabActive : ''}`}
           >
-            Household Item Categories
+            {t('manage.tabs.householdItemCategories')}
           </button>
         </div>
 

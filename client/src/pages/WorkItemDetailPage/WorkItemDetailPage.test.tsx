@@ -632,12 +632,16 @@ describe('WorkItemDetailPage', () => {
   });
 
   describe('dependencies display', () => {
-    it('shows empty state when no dependencies exist', async () => {
+    it('shows no dependency groups when no dependencies exist', async () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('No dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
+
+      // With no dependencies, DependencySentenceDisplay renders null (no group headers)
+      expect(screen.queryByText(/must finish before/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/must start before/i)).not.toBeInTheDocument();
     });
 
     it('renders existing predecessors with sentence group header', async () => {

@@ -44,6 +44,13 @@
     "onHold": "On Hold",
     "cancelled": "Cancelled"
   },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "switchTo": "Switch to {{mode}} mode",
+    "current": "Current: {{current}} — click to switch to {{next}}"
+  },
   "notFound": {
     "title": "404 - Page Not Found",
     "description": "The page you are looking for does not exist or has been moved.",

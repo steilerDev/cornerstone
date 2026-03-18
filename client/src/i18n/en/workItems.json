@@ -220,6 +220,7 @@
       "clearActualEnd": "Clear actual end date",
       "dependencies": "Dependencies",
       "dependencyBuilder": {
+        "searchPlaceholder": "Search work items...",
         "finish": "finish",
         "start": "start",
         "before": "before",

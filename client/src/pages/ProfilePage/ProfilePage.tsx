@@ -44,11 +44,11 @@ export function ProfilePage() {
 
   const validateDisplayName = (): boolean => {
     if (!displayName.trim()) {
-      setDisplayNameError('Display name is required');
+      setDisplayNameError(t('profile.displayNameRequired'));
       return false;
     }
     if (displayName.length > 100) {
-      setDisplayNameError('Display name must be 100 characters or less');
+      setDisplayNameError(t('profile.displayNameTooLong'));
       return false;
     }
     setDisplayNameError('');
@@ -69,12 +69,12 @@ export function ProfilePage() {
     try {
       await updateProfile({ displayName: displayName.trim() });
       await refreshAuth();
-      setDisplayNameSuccess('Display name updated successfully');
+      setDisplayNameSuccess(t('profile.displayNameUpdatedSuccess'));
     } catch (error) {
       if (error instanceof ApiClientError) {
         setDisplayNameError(error.error.message);
       } else {
-        setDisplayNameError('Failed to update display name. Please try again.');
+        setDisplayNameError(t('profile.displayNameUpdateFailed'));
       }
     } finally {
       setIsUpdatingDisplayName(false);
@@ -85,19 +85,19 @@ export function ProfilePage() {
     const newErrors: PasswordFormErrors = {};
 
     if (!currentPassword) {
-      newErrors.currentPassword = 'Current password is required';
+      newErrors.currentPassword = t('profile.currentPasswordRequired');
     }
 
     if (!newPassword) {
-      newErrors.newPassword = 'New password is required';
+      newErrors.newPassword = t('profile.newPasswordRequired');
     } else if (newPassword.length < 12) {
-      newErrors.newPassword = 'New password must be at least 12 characters';
+      newErrors.newPassword = t('profile.newPasswordTooShort');
     }
 
     if (!confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your new password';
+      newErrors.confirmPassword = t('profile.confirmPasswordRequired');
     } else if (newPassword !== confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = t('profile.passwordsDoNotMatch');
     }
 
     setPasswordErrors(newErrors);
@@ -117,7 +117,7 @@ export function ProfilePage() {
 
     try {
       await changePassword({ currentPassword, newPassword });
-      setPasswordSuccess('Password changed successfully');
+      setPasswordSuccess(t('profile.passwordChangedSuccess'));
       // Clear form
       setCurrentPassword('');
       setNewPassword('');
@@ -126,7 +126,7 @@ export function ProfilePage() {
       if (error instanceof ApiClientError) {
         setPasswordApiError(error.error.message);
       } else {
-        setPasswordApiError('Failed to change password. Please try again.');
+        setPasswordApiError(t('profile.passwordChangeFailed'));
       }
     } finally {
       setIsChangingPassword(false);
@@ -136,7 +136,7 @@ export function ProfilePage() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading profile...</div>
+        <div className={styles.loading}>{t('profile.loading')}</div>
       </div>
     );
   }
@@ -145,7 +145,7 @@ export function ProfilePage() {
     return (
       <div className={styles.container}>
         <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>Error</h2>
+          <h2 className={styles.errorTitle}>{t('profile.error')}</h2>
           <p>{loadError}</p>
         </div>
       </div>
@@ -161,31 +161,31 @@ export function ProfilePage() {
   return (
     <div className={styles.container}>
       <div className={styles.content}>
-        <h1 className={styles.pageTitle}>Profile</h1>
+        <h1 className={styles.pageTitle}>{t('profile.pageTitle')}</h1>
         <SettingsSubNav />
 
         {/* Profile Information Card */}
         <section className={styles.card}>
-          <h2 className={styles.cardTitle}>Profile Information</h2>
+          <h2 className={styles.cardTitle}>{t('profile.profileInformation')}</h2>
           <div className={styles.infoGrid}>
             <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>Email</span>
+              <span className={styles.infoLabel}>{t('profile.email')}</span>
               <span className={styles.infoValue}>{user.email}</span>
             </div>
             <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>Role</span>
+              <span className={styles.infoLabel}>{t('profile.role')}</span>
               <span className={styles.infoValue}>
-                {user.role === 'admin' ? 'Administrator' : 'Member'}
+                {user.role === 'admin' ? t('profile.roleAdmin') : t('profile.roleMember')}
               </span>
             </div>
             <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>Authentication</span>
+              <span className={styles.infoLabel}>{t('profile.authentication')}</span>
               <span className={styles.infoValue}>
-                {user.authProvider === 'local' ? 'Local Account' : 'Single Sign-On (OIDC)'}
+                {user.authProvider === 'local' ? t('profile.authLocal') : t('profile.authOidc')}
               </span>
             </div>
             <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>Member Since</span>
+              <span className={styles.infoLabel}>{t('profile.memberSince')}</span>
               <span className={styles.infoValue}>{formatDate(user.createdAt)}</span>
             </div>
           </div>
@@ -193,9 +193,9 @@ export function ProfilePage() {
 
         {/* Display Name Edit Card */}
         <section className={styles.card}>
-          <h2 className={styles.cardTitle}>Display Name</h2>
+          <h2 className={styles.cardTitle}>{t('profile.displayName')}</h2>
           <p className={styles.cardDescription}>
-            This is the name that will be displayed throughout the application.
+            {t('profile.displayNameDescription')}
           </p>
 
           {displayNameSuccess && (
@@ -213,7 +213,7 @@ export function ProfilePage() {
           <form onSubmit={handleDisplayNameSubmit} className={styles.form}>
             <div className={styles.field}>
               <label htmlFor="displayName" className={styles.label}>
-                Display Name
+                {t('profile.displayName')}
               </label>
               <input
                 type="text"
@@ -232,7 +232,7 @@ export function ProfilePage() {
               className={styles.button}
               disabled={isUpdatingDisplayName || displayName.trim() === user.displayName}
             >
-              {isUpdatingDisplayName ? 'Saving...' : 'Save Changes'}
+              {isUpdatingDisplayName ? t('profile.saving') : t('profile.saveChanges')}
             </button>
           </form>
         </section>
@@ -240,10 +240,9 @@ export function ProfilePage() {
         {/* Password Change Card (local auth only) */}
         {isLocalAuth ? (
           <section className={styles.card}>
-            <h2 className={styles.cardTitle}>Change Password</h2>
+            <h2 className={styles.cardTitle}>{t('profile.changePassword')}</h2>
             <p className={styles.cardDescription}>
-              Update your password to keep your account secure. Password must be at least 12
-              characters.
+              {t('profile.changePasswordDescription')}
             </p>
 
             {passwordSuccess && (
@@ -261,7 +260,7 @@ export function ProfilePage() {
             <form onSubmit={handlePasswordSubmit} className={styles.form}>
               <div className={styles.field}>
                 <label htmlFor="currentPassword" className={styles.label}>
-                  Current Password
+                  {t('profile.currentPassword')}
                 </label>
                 <input
                   type="password"
@@ -286,7 +285,7 @@ export function ProfilePage() {
 
               <div className={styles.field}>
                 <label htmlFor="newPassword" className={styles.label}>
-                  New Password
+                  {t('profile.newPassword')}
                 </label>
                 <input
                   type="password"
@@ -309,7 +308,7 @@ export function ProfilePage() {
 
               <div className={styles.field}>
                 <label htmlFor="confirmPassword" className={styles.label}>
-                  Confirm New Password
+                  {t('profile.confirmNewPassword')}
                 </label>
                 <input
                   type="password"
@@ -333,15 +332,15 @@ export function ProfilePage() {
               </div>
 
               <button type="submit" className={styles.button} disabled={isChangingPassword}>
-                {isChangingPassword ? 'Changing Password...' : 'Change Password'}
+                {isChangingPassword ? t('profile.changingPassword') : t('profile.changePassword')}
               </button>
             </form>
           </section>
         ) : (
           <section className={styles.card}>
-            <h2 className={styles.cardTitle}>Password</h2>
+            <h2 className={styles.cardTitle}>{t('profile.password')}</h2>
             <p className={styles.oidcMessage}>
-              Your credentials are managed by your identity provider.
+              {t('profile.passwordManagedByProvider')}
             </p>
           </section>
         )}

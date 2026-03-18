@@ -220,6 +220,7 @@
       "clearActualEnd": "Tatsächliches Enddatum löschen",
       "dependencies": "Abhängigkeiten",
       "dependencyBuilder": {
+        "searchPlaceholder": "Arbeitspakete suchen...",
         "finish": "beenden",
         "start": "starten",
         "before": "bevor",

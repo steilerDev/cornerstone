@@ -162,7 +162,7 @@ export function DependencySentenceBuilder({
             onSelectItem={handleSlot1SelectItem}
             excludeIds={slot1ExcludeIds}
             disabled={disabled}
-            placeholder="Search work items..."
+            placeholder={t('detail.constraints.dependencyBuilder.searchPlaceholder')}
             specialOptions={slot1SpecialOptions}
             showItemsOnFocus
           />
@@ -194,7 +194,7 @@ export function DependencySentenceBuilder({
             onSelectItem={handleSlot2SelectItem}
             excludeIds={slot2ExcludeIds}
             disabled={disabled}
-            placeholder="Search work items..."
+            placeholder={t('detail.constraints.dependencyBuilder.searchPlaceholder')}
             specialOptions={slot2SpecialOptions}
             showItemsOnFocus
           />
@@ -220,7 +220,7 @@ export function DependencySentenceBuilder({
           onClick={handleAdd}
           disabled={!canAdd || disabled}
         >
-          Add
+          {t('common:button.add')}
         </button>
       </div>
     </div>
