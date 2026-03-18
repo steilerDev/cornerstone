@@ -12,11 +12,11 @@
     "category": "Kategorie:",
     "status": "Status:",
     "room": "Raum:",
-    "vendor": "Anbieter:",
+    "vendor": "Auftragnehmer:",
     "sortBy": "Sortieren nach:",
     "allCategories": "Alle Kategorien",
     "allStatuses": "Alle Status",
-    "allVendors": "Alle Anbieter",
+    "allVendors": "Alle Auftragnehmer",
     "roomPlaceholder": "Nach Raum filtern...",
     "roomAriaLabel": "Nach Raum filtern",
     "toggleSort": "Sortierreihenfolge umschalten"
@@ -47,7 +47,7 @@
       "category": "Kategorie",
       "status": "Status",
       "room": "Raum",
-      "vendor": "Anbieter",
+      "vendor": "Auftragnehmer",
       "plannedCost": "Geplante Kosten",
       "targetDelivery": "Ziellieferdatum",
       "actions": "Aktionen"
@@ -61,7 +61,7 @@
     "category": "Kategorie:",
     "status": "Status:",
     "room": "Raum:",
-    "vendor": "Anbieter:",
+    "vendor": "Auftragnehmer:",
     "plannedCost": "Geplante Kosten:",
     "targetDelivery": "Ziellieferdatum:"
   },
@@ -136,8 +136,8 @@
         "error": "Menge muss mindestens 1 sein"
       },
       "vendor": {
-        "label": "Anbieter",
-        "placeholder": "Kein Anbieter"
+        "label": "Auftragnehmer",
+        "placeholder": "Kein Auftragnehmer"
       },
       "url": {
         "label": "URL",
@@ -203,8 +203,8 @@
         "error": "Menge muss mindestens 1 sein"
       },
       "vendor": {
-        "label": "Anbieter",
-        "placeholder": "Kein Anbieter"
+        "label": "Auftragnehmer",
+        "placeholder": "Kein Auftragnehmer"
       },
       "url": {
         "label": "URL",
@@ -239,7 +239,7 @@
     "details": {
       "title": "Details",
       "description": "Beschreibung",
-      "vendor": "Anbieter",
+      "vendor": "Auftragnehmer",
       "productUrl": "Produkt-URL",
       "room": "Raum",
       "quantity": "Menge",
@@ -267,7 +267,7 @@
     "dependencies": {
       "title": "Abhängigkeiten",
       "noDependencies": "Noch keine Abhängigkeiten. Fügen Sie eine Abhängigkeit hinzu, um diesen Artikel zu planen.",
-      "workItem": "Arbeitsgegenstand",
+      "workItem": "Arbeitspaket",
       "milestone": "Meilenstein",
       "removeDependency": "Abhängigkeit entfernen von",
       "confirm": "Bestätigen",

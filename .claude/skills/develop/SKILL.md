@@ -194,6 +194,12 @@ Check the `Execution Order` field in the spec metadata:
 
 Launch **frontend-developer** (Haiku) with the `## Frontend Spec` section from the spec document.
 
+#### 6c-ii. Translation (if Translator Spec present)
+
+If the spec document contains a `## Translator Spec` section (new i18n keys were added), launch the **translator** (Sonnet) with the `## Translator Spec` section. Skip if no Translator Spec section exists (backend-only changes, no new UI strings).
+
+The translator translates new English keys into all supported non-English locales and validates glossary compliance across affected namespaces.
+
 #### 6d. QA + E2E Testing
 
 After implementation agents complete, launch both test agents in parallel:
@@ -250,7 +256,7 @@ Track `internalFixCount` (starts at 0). For each iteration:
 
 Launch the **dev-team-lead** in `[MODE: commit]` with:
 
-- Contributing agents list: list every agent that was launched in steps 6b-6d (and 6f if applicable). Include `backend-developer`, `frontend-developer`, `qa-integration-tester`, and/or `e2e-test-engineer` as appropriate.
+- Contributing agents list: list every agent that was launched in steps 6b-6d (and 6f if applicable). Include `backend-developer`, `frontend-developer`, `translator`, `qa-integration-tester`, and/or `e2e-test-engineer` as appropriate.
 - Issue number(s) for `Fixes #N` lines
 - Branch name
 
@@ -269,7 +275,8 @@ git log origin/beta..HEAD --format="%b"
 If production files were changed (`git diff --name-only origin/beta..HEAD | grep -E '^(server|client|shared)/'`), verify the commit body contains the appropriate Co-Authored-By trailers:
 
 - Files under `server/` or `shared/` → must have `Co-Authored-By: Claude backend-developer (Haiku`
-- Files under `client/` → must have `Co-Authored-By: Claude frontend-developer (Haiku`
+- Files under `client/` (except `client/src/i18n/de/` and `client/src/i18n/glossary.json`) → must have `Co-Authored-By: Claude frontend-developer (Haiku`
+- Files under `client/src/i18n/de/` or `client/src/i18n/glossary.json` → must have `Co-Authored-By: Claude translator (Sonnet`
 - Files under `e2e/` → must have `Co-Authored-By: Claude e2e-test-engineer (Sonnet`
 
 If trailers are missing, the dev-team-lead missed an agent in the contributing list. Re-launch `[MODE: commit]` with the corrected list.

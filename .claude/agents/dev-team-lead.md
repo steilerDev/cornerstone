@@ -166,6 +166,26 @@ The spec document you return must follow this structure exactly:
 ### Reference Files
 
 <existing E2E test files and POMs to follow as patterns>
+
+---
+
+## Translator Spec
+
+### Affected Namespaces
+
+<list of i18n namespaces with new or modified keys>
+
+### New English Keys
+
+<list of new translation keys added to en/ locale files>
+
+### Glossary Reference
+
+Refer to `client/src/i18n/glossary.json` for approved domain term translations.
+
+### Notes
+
+<any context about new domain terms that may need glossary additions>
 ```
 
 **Key rules for specs:**
@@ -178,7 +198,8 @@ The spec document you return must follow this structure exactly:
 - Reference existing files for patterns rather than describing patterns abstractly
 - Frontend specs must reference the shared component library (Badge, SearchPicker, Modal, Skeleton, EmptyState, FormError) where applicable — include which shared components to use in the step-by-step instructions
 - If the spec introduces a new UI pattern that resembles an existing shared component, use the shared component instead
-- **Frontend specs must include i18n requirements**: list the translation namespace(s), specify the translation keys to add for both `en` and `de` locales, and note which strings need `t()` wrapping. Include `client/src/i18n/locales/en/<namespace>.json` and `client/src/i18n/locales/de/<namespace>.json` in the files-to-modify table
+- **Frontend specs must include i18n requirements**: list the translation namespace(s), specify the new English translation keys to add, and note which strings need `t()` wrapping. Include `client/src/i18n/en/<namespace>.json` in the files-to-modify table (English only — the translator agent handles non-English locales)
+- **Include a `## Translator Spec` section** (after Frontend Spec) when new i18n keys are added. List affected namespaces, new English keys, and reference `client/src/i18n/glossary.json` for domain term translations. Omit this section if no new UI strings are added (backend-only, no new i18n keys)
 
 ## Work Decomposition Rules
 
@@ -201,6 +222,7 @@ These prevent parallel agent conflicts:
 | `frontend-developer`    | `client/`                                                      |
 | `qa-integration-tester` | `*.test.ts`, `*.test.tsx` (co-located with source)             |
 | `e2e-test-engineer`     | `e2e/tests/`, `e2e/pages/`, `e2e/fixtures/`, `e2e/containers/` |
+| `translator`            | `client/src/i18n/de/`, `client/src/i18n/glossary.json`, `client/src/i18n/{non-en locales}/` |
 
 If a file needs changes from multiple agents, split the work so each agent touches different files, or serialize the work.
 
@@ -217,7 +239,8 @@ After the orchestrator routes work to implementation agents, you review all modi
 - Look for security issues (unsanitized input, missing auth checks, SQL injection)
 - Verify shared component usage — if the PR introduces new badge, picker, modal, skeleton, or empty state components instead of using the shared library, flag as CHANGES_REQUIRED
 - Verify CSS token compliance — no hardcoded color, spacing, radius, or font-size values (must use `var(--token-name)` from `tokens.css`)
-- **Verify i18n compliance** — all user-facing strings in frontend code must use `t()` from react-i18next (no hardcoded text in JSX). Translation keys must exist in both `en` and `de` locale files. API error responses must use `ErrorCode` enum values, not hardcoded messages. Date/currency/percent formatting must use the locale-aware formatters from `client/src/lib/formatters.ts`
+- **Verify i18n compliance** — all user-facing strings in frontend code must use `t()` from react-i18next (no hardcoded text in JSX — labels, headings, buttons, placeholders, tooltips, error messages, empty states, aria-labels, confirmation dialogs, toast messages). Hardcoded user-visible strings are a blocking finding. Translation keys must exist in `en` locale files (non-English locales are owned by the `translator` agent). API error responses must use `ErrorCode` enum values, not hardcoded messages. Date/currency/percent formatting must use the locale-aware formatters from `client/src/lib/formatters.ts`
+- **Verify glossary compliance** — domain terms in non-English locale files must match the approved translations in `client/src/i18n/glossary.json`. Flag any deviations as findings for the `translator` agent to fix
 
 **Return format:**
 

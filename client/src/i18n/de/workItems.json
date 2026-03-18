@@ -165,7 +165,7 @@
       "notes": "Notizen",
       "subtasks": "Teilaufgaben",
       "constraints": "Einschränkungen",
-      "dependentHouseholdItems": "Abhängige Haushaltsgegenstände"
+      "dependentHouseholdItems": "Abhängige Haushaltsartikel"
     },
     "description": {
       "noDescription": "Keine Beschreibung",
@@ -244,7 +244,7 @@
       "removeLinkedMilestoneAriaLabel": "Verknüpften Meilenstein entfernen: {{name}}"
     },
     "householdItems": {
-      "noItems": "Keine Haushaltsgegenstände sind von diesem Arbeitspaket abhängig.",
+      "noItems": "Keine Haushaltsartikel sind von diesem Arbeitspaket abhängig.",
       "categories": {
         "furniture": "Möbel",
         "appliances": "Geräte",
