@@ -37,7 +37,20 @@
     },
     "ofAvailableFunds": "der verfügbaren Mittel",
     "costBreakdown": {
-      "loading": "Kostenaufschlüsselung wird geladen…"
+      "loading": "Kostenaufschlüsselung wird geladen…",
+      "title": "Kostenaufschlüsselung",
+      "emptyState": "Keine Budgetdaten zum Anzeigen",
+      "workItems": "Arbeitselemente",
+      "householdItems": "Haushaltsgegenstände",
+      "sum": "Summe",
+      "availableFunds": "Verfügbare Mittel",
+      "remainingBudget": "Verbleibendes Budget",
+      "tableHeaders": {
+        "name": "Name",
+        "cost": "Kosten",
+        "payback": "Rückzahlung",
+        "net": "Netto"
+      }
     }
   },
   "sources": {
@@ -426,7 +439,7 @@
     }
   },
   "subsidies": {
-    "title": "Budget",
+    "title": "Förderprogramme",
     "sectionTitle": "Förderprogramme",
     "addProgram": "Programm Hinzufügen",
     "loading": "Förderprogramme werden geladen...",

@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, createContext, useContext } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   BudgetBreakdown,
   BudgetOverview,
@@ -542,6 +543,7 @@ export function CostBreakdownTable({
   selectedCategories,
   budgetSources,
 }: CostBreakdownTableProps) {
+  const { t } = useTranslation('budget');
   const { formatCurrency } = useFormatters();
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [perspective, setPerspective] = useState<CostPerspective>('avg');
@@ -630,9 +632,9 @@ export function CostBreakdownTable({
     return (
       <section className={styles.breakdownCard} aria-labelledby="breakdown-heading">
         <h2 id="breakdown-heading" className={styles.breakdownTitle}>
-          Cost Breakdown
+          {t('overview.costBreakdown.title')}
         </h2>
-        <div className={styles.emptyState}>No budget data to display</div>
+        <div className={styles.emptyState}>{t('overview.costBreakdown.emptyState')}</div>
       </section>
     );
   }
@@ -648,7 +650,7 @@ export function CostBreakdownTable({
     <FormatterContext.Provider value={formatCurrency}>
       <section className={styles.breakdownCard} aria-labelledby="breakdown-heading">
         <h2 id="breakdown-heading" className={styles.breakdownTitle}>
-          Cost Breakdown
+          {t('overview.costBreakdown.title')}
         </h2>
 
         <PerspectiveToggle value={perspective} onChange={setPerspective} />
@@ -659,16 +661,16 @@ export function CostBreakdownTable({
             <thead>
               <tr>
                 <th scope="col" className={styles.colName}>
-                  Name
+                  {t('overview.costBreakdown.tableHeaders.name')}
                 </th>
                 <th scope="col" className={styles.colBudget}>
-                  Cost
+                  {t('overview.costBreakdown.tableHeaders.cost')}
                 </th>
                 <th scope="col" className={styles.colPayback}>
-                  Payback
+                  {t('overview.costBreakdown.tableHeaders.payback')}
                 </th>
                 <th scope="col" className={styles.colRemaining}>
-                  Net
+                  {t('overview.costBreakdown.tableHeaders.net')}
                 </th>
               </tr>
             </thead>
@@ -692,7 +694,7 @@ export function CostBreakdownTable({
                             className={`${styles.chevron} ${wiSectionExpanded ? styles.chevronOpen : ''}`}
                           />
                         </button>
-                        <span>Work items</span>
+                        <span>{t('overview.costBreakdown.workItems')}</span>
                       </div>
                     </td>
                     <td className={styles.colBudget}>
@@ -767,7 +769,7 @@ export function CostBreakdownTable({
                             className={`${styles.chevron} ${hiSectionExpanded ? styles.chevronOpen : ''}`}
                           />
                         </button>
-                        <span>Household items</span>
+                        <span>{t('overview.costBreakdown.householdItems')}</span>
                       </div>
                     </td>
                     <td className={styles.colBudget}>
@@ -834,7 +836,7 @@ export function CostBreakdownTable({
               <tr className={`${styles.rowLevel0} ${styles.rowSummary}`}>
                 <td className={styles.colName}>
                   <div className={styles.nameContent}>
-                    <span>Sum</span>
+                    <span>{t('overview.costBreakdown.sum')}</span>
                   </div>
                 </td>
                 <td className={styles.colBudget}>
@@ -873,7 +875,7 @@ export function CostBreakdownTable({
                         />
                       </button>
                     )}
-                    <span>Available funds</span>
+                    <span>{t('overview.costBreakdown.availableFunds')}</span>
                   </div>
                 </td>
                 <td className={styles.colBudget} colSpan={3}>
@@ -900,7 +902,7 @@ export function CostBreakdownTable({
               <tr className={`${styles.rowLevel0} ${styles.rowSummary}`}>
                 <td className={styles.colName}>
                   <div className={styles.nameContent}>
-                    <span>Remaining</span>
+                    <span>{t('overview.costBreakdown.remainingBudget')}</span>
                   </div>
                 </td>
                 <td className={styles.colBudget}>

@@ -219,6 +219,13 @@
       "clearActualStart": "Clear actual start date",
       "clearActualEnd": "Clear actual end date",
       "dependencies": "Dependencies",
+      "dependencyBuilder": {
+        "finish": "finish",
+        "start": "start",
+        "before": "before",
+        "can": "can",
+        "must": "must"
+      },
       "requiredMilestones": "Required Milestones",
       "requiredMilestonesDesc": "Milestones that must be completed before this work item can start.",
       "noRequiredMilestones": "No required milestones",
@@ -226,6 +233,7 @@
       "linkedMilestonesDesc": "Milestones this work item contributes to.",
       "noLinkedMilestones": "No linked milestones",
       "selectMilestone": "Select milestone...",
+      "selectMilestonePlaceholder": "Select milestone...",
       "selectRequiredMilestoneAriaLabel": "Select required milestone to add",
       "selectLinkedMilestoneAriaLabel": "Select milestone to link",
       "addMilestone": "Add",

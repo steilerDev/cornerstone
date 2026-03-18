@@ -1420,7 +1420,7 @@ export default function WorkItemDetailPage() {
             <div className={styles.notesList}>
               {notes.length === 0 && (
                 <div className={styles.emptyState}>
-                  No notes yet. Use the form above to add one.
+                  {t('detail.notes.noNotes')}
                 </div>
               )}
               {notes.map((note) => (
@@ -1852,7 +1852,7 @@ export default function WorkItemDetailPage() {
                       onChange={(e) => setSelectedRequiredMilestoneId(e.target.value)}
                       aria-label="Select required milestone to add"
                     >
-                      <option value="">Select milestone...</option>
+                      <option value="">{t('detail.constraints.selectMilestonePlaceholder')}</option>
                       {available.map((m) => (
                         <option key={m.id} value={String(m.id)}>
                           {m.title} — {formatDate(m.targetDate)}
@@ -1915,7 +1915,7 @@ export default function WorkItemDetailPage() {
                       onChange={(e) => setSelectedLinkedMilestoneId(e.target.value)}
                       aria-label="Select milestone to link"
                     >
-                      <option value="">Select milestone...</option>
+                      <option value="">{t('detail.constraints.selectMilestonePlaceholder')}</option>
                       {available.map((m) => (
                         <option key={m.id} value={String(m.id)}>
                           {m.title} — {formatDate(m.targetDate)}

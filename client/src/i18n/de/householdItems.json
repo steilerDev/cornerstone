@@ -299,6 +299,16 @@
       "arrived": "Angekommen",
       "late": "Verspätet",
       "updateFailed": "Fehler beim Aktualisieren des Status. Bitte versuchen Sie es erneut."
+    },
+    "budget": {
+      "title": "Budget",
+      "emptyState": "Noch keine Budgetzeilen. Fügen Sie die erste Zeile hinzu, um Kosten zu verfolgen.",
+      "addLineButton": "+ Zeile hinzufügen",
+      "linkInvoiceButton": "Mit Rechnung verknüpfen",
+      "confidenceLabel": "Konfidenz:",
+      "plannedAmountLabel": "Geplanter Betrag",
+      "actualCostLabel": "Tatsächliche Kosten",
+      "paybackLabel": "Rückzahlung"
     }
   }
 }
