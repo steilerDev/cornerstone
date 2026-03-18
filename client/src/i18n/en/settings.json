@@ -1,4 +1,9 @@
 {
+  "profile": {
+    "preferences": "Preferences",
+    "language": "Language",
+    "systemLanguage": "System (auto-detect)"
+  },
   "dav": {
     "heading": "DAV Access (Calendar & Contacts)",
     "description": "Connect your calendar and contacts app using CalDAV and CardDAV. Generate a token to authenticate your device.",
