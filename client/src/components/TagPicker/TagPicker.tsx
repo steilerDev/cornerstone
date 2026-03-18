@@ -4,6 +4,26 @@ import type { TagResponse } from '@cornerstone/shared';
 import { TagPill } from '../TagPill/TagPill.js';
 import styles from './TagPicker.module.css';
 
+export const TAG_COLOR_PALETTE: string[] = [
+  '#b91c1c', // red-700
+  '#c2410c', // orange-700
+  '#a16207', // yellow-700
+  '#15803d', // green-700
+  '#0f766e', // teal-700
+  '#1d4ed8', // blue-700
+  '#6d28d9', // violet-700
+  '#be185d', // pink-700
+  '#0e7490', // cyan-700
+  '#92400e', // amber-800
+];
+
+export function getRandomColor(exclude?: string): string {
+  const candidates = exclude
+    ? TAG_COLOR_PALETTE.filter((c) => c !== exclude)
+    : TAG_COLOR_PALETTE;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
 interface TagPickerProps {
   availableTags: TagResponse[];
   selectedTagIds: string[];
@@ -25,7 +45,7 @@ export function TagPicker({
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-  const [newTagColor, setNewTagColor] = useState<string>('#3b82f6');
+  const [newTagColor, setNewTagColor] = useState<string>(() => getRandomColor());
   const [createError, setCreateError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -81,7 +101,7 @@ export function TagPicker({
       const newTag = await onCreateTag(searchTerm.trim(), newTagColor);
       onSelectionChange([...selectedTagIds, newTag.id]);
       setSearchTerm('');
-      setNewTagColor('#3b82f6'); // Reset to default
+      setNewTagColor(getRandomColor(newTagColor));
       inputRef.current?.focus();
     } catch {
       const errorMessage = t('tagPicker.createError');

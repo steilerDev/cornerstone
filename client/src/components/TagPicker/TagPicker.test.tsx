@@ -18,6 +18,8 @@ jest.unstable_mockModule('react-i18next', () => ({
 
 describe('TagPicker', () => {
   let TagPicker: typeof import('./TagPicker.js').TagPicker;
+  let getRandomColor: typeof import('./TagPicker.js').getRandomColor;
+  let TAG_COLOR_PALETTE: typeof import('./TagPicker.js').TAG_COLOR_PALETTE;
 
   const mockTags: TagResponse[] = [
     { id: 'tag-1', name: 'Frontend', color: '#FF5733', createdAt: '2024-01-01T00:00:00Z' },
@@ -29,10 +31,12 @@ describe('TagPicker', () => {
     // Dynamic import so jest.unstable_mockModule applies before the module loads
     const mod = await import('./TagPicker.js');
     TagPicker = mod.TagPicker;
+    getRandomColor = mod.getRandomColor;
+    TAG_COLOR_PALETTE = mod.TAG_COLOR_PALETTE;
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
   // ---------------------------------------------------------------------------
@@ -153,9 +157,11 @@ describe('TagPicker', () => {
   // ---------------------------------------------------------------------------
   it('calls onCreateTag with the trimmed search term and selected color when the create button is clicked', async () => {
     const user = userEvent.setup();
-    const newTag: TagResponse = { id: 'tag-new', name: 'MyNewTag', color: '#3b82f6' };
-    const onCreateTag = jest
-      .fn<(name: string, color: string | null) => Promise<TagResponse>>()
+    // Spy on Math.random so the initial color is deterministic (index 0 → '#b91c1c')
+    jest.spyOn(Math, 'random').mockReturnValue(0);
+    const expectedColor = '#b91c1c'; // TAG_COLOR_PALETTE[0]
+    const newTag: TagResponse = { id: 'tag-new', name: 'MyNewTag', color: expectedColor };
+    const onCreateTag = jest.fn<(name: string, color: string | null) => Promise<TagResponse>>()
       .mockResolvedValue(newTag);
     const onSelectionChange = jest.fn();
 
@@ -177,7 +183,7 @@ describe('TagPicker', () => {
     await waitFor(() => {
       expect(onCreateTag).toHaveBeenCalledTimes(1);
     });
-    expect(onCreateTag).toHaveBeenCalledWith('MyNewTag', '#3b82f6');
+    expect(onCreateTag).toHaveBeenCalledWith('MyNewTag', expectedColor);
 
     // After successful creation, the new tag ID should be added to the selection
     await waitFor(() => {
@@ -368,6 +374,118 @@ describe('TagPicker', () => {
     expect(
       screen.queryByRole('button', { name: /tagPicker.createButton/i }),
     ).not.toBeInTheDocument();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Random color selection
+  // ---------------------------------------------------------------------------
+  describe('random color selection', () => {
+    // 1. getRandomColor without exclude returns a palette member
+    it('getRandomColor returns a color that is a member of TAG_COLOR_PALETTE', () => {
+      // Test with several Math.random return values to cover different palette indices
+      const testValues = [0, 0.1, 0.5, 0.9, 0.99];
+      for (const value of testValues) {
+        const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(value);
+        const result = getRandomColor();
+        expect(TAG_COLOR_PALETTE).toContain(result);
+        randomSpy.mockRestore();
+      }
+    });
+
+    // 2. getRandomColor with exclude never returns the excluded color
+    it('getRandomColor never returns the excluded color', () => {
+      // Test for each palette color as the excluded value
+      const testReturnValues = [0, 0.15, 0.3, 0.5, 0.75, 0.99];
+      for (const excluded of TAG_COLOR_PALETTE.slice(0, 4)) {
+        for (const value of testReturnValues) {
+          const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(value);
+          const result = getRandomColor(excluded);
+          expect(result).not.toBe(excluded);
+          expect(TAG_COLOR_PALETTE).toContain(result);
+          randomSpy.mockRestore();
+        }
+      }
+    });
+
+    // 3. Initial color is from the palette
+    it('renders the color input with an initial value from TAG_COLOR_PALETTE', async () => {
+      const user = userEvent.setup();
+      // Math.random returns 0 → Math.floor(0 * paletteLength) = 0 → first palette entry
+      jest.spyOn(Math, 'random').mockReturnValue(0);
+      const expectedColor = TAG_COLOR_PALETTE[0]; // '#b91c1c'
+
+      const onCreateTag = jest.fn<(name: string, color: string | null) => Promise<TagResponse>>();
+
+      render(
+        <TagPicker
+          availableTags={mockTags}
+          selectedTagIds={[]}
+          onSelectionChange={jest.fn()}
+          onCreateTag={onCreateTag}
+        />,
+      );
+
+      // Type a term that won't match any existing tag to show the create section
+      await user.click(screen.getByRole('textbox'));
+      await user.type(screen.getByRole('textbox'), 'BrandNewTag');
+
+      const colorInput = document.querySelector('input[type="color"]') as HTMLInputElement;
+      expect(colorInput).not.toBeNull();
+      expect(colorInput.value).toBe(expectedColor);
+    });
+
+    // 4. After tag creation, color changes to a different palette color
+    it('changes the color input value after a tag is successfully created', async () => {
+      const user = userEvent.setup();
+      // First call (lazy init): Math.random = 0 → palette[0] = '#b91c1c'
+      // After creation: Math.random is still mocked; exclude '#b91c1c', so
+      // candidates = palette[1..9]. Math.floor(0 * 9) = 0 → palette[1] = '#c2410c'
+      jest.spyOn(Math, 'random').mockReturnValue(0);
+      const initialColor = TAG_COLOR_PALETTE[0]; // '#b91c1c'
+      const newTag: TagResponse = { id: 'tag-color-test', name: 'ColorTest', color: initialColor };
+      const onCreateTag = jest.fn<(name: string, color: string | null) => Promise<TagResponse>>()
+        .mockResolvedValue(newTag);
+
+      render(
+        <TagPicker
+          availableTags={mockTags}
+          selectedTagIds={[]}
+          onSelectionChange={jest.fn()}
+          onCreateTag={onCreateTag}
+        />,
+      );
+
+      // Show the create section
+      await user.click(screen.getByRole('textbox'));
+      await user.type(screen.getByRole('textbox'), 'ColorTest');
+
+      // Record the color before creation
+      const colorInputBefore = document.querySelector('input[type="color"]') as HTMLInputElement;
+      expect(colorInputBefore).not.toBeNull();
+      const colorBefore = colorInputBefore.value;
+      expect(TAG_COLOR_PALETTE).toContain(colorBefore);
+
+      // Create the tag
+      const createButton = screen.getByRole('button', { name: /tagPicker.createButton/i });
+      await user.click(createButton);
+
+      await waitFor(() => {
+        expect(onCreateTag).toHaveBeenCalledTimes(1);
+      });
+
+      // After creation, the create section resets and the search is cleared.
+      // Re-trigger it with a new term so the color input is visible again.
+      await user.type(screen.getByRole('textbox'), 'NextTag');
+
+      await waitFor(() => {
+        const colorInputAfter = document.querySelector('input[type="color"]') as HTMLInputElement;
+        expect(colorInputAfter).not.toBeNull();
+        // The new color must still be a palette member
+        expect(TAG_COLOR_PALETTE).toContain(colorInputAfter.value);
+        // And it must be different from the color used for the previous tag
+        expect(colorInputAfter.value).not.toBe(colorBefore);
+      });
+    });
   });
 
   // ---------------------------------------------------------------------------
