@@ -28,7 +28,7 @@ jobs:
           private-key: ${{ secrets.BOT_PRIVATE_KEY }}
       - uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # v2.6.1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Only use app token (PAT) — omit GITHUB_TOKEN so the action uses PAT for all operations
           PERSONAL_ACCESS_TOKEN: ${{ steps.app-token.outputs.token }}
         with:
           path-to-signatures: '.github/cla/signatures.json'
