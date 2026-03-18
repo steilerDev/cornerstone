@@ -28,13 +28,12 @@ jobs:
           private-key: ${{ secrets.BOT_PRIVATE_KEY }}
       - uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # v2.6.1
         env:
-          # Use app token for all operations (bypass branch protection for signature storage)
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          # Only use app token (PAT) — omit GITHUB_TOKEN so the action uses PAT for all operations
           PERSONAL_ACCESS_TOKEN: ${{ steps.app-token.outputs.token }}
         with:
           path-to-signatures: '.github/cla/signatures.json'
           path-to-document: 'https://github.com/steilerDev/cornerstone/blob/main/CLA.md'
-          branch: 'cla-signatures'
+          branch: 'beta'
           allowlist: dependabot[bot],github-actions[bot],steilerdev-cornerstone-bot[bot],claude
           custom-notsigned-prcomment: >-
             Thank you for your submission! We require all contributors to sign our
