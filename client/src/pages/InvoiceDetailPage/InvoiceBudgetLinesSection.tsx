@@ -17,6 +17,8 @@ import {
   createHouseholdItemBudget,
 } from '../../lib/householdItemBudgetsApi.js';
 import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
+import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
+import type { BudgetSource } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
@@ -47,8 +49,10 @@ interface PickerState {
     description: string;
     amount: string;
     categoryId?: string;
+    budgetSourceId?: string;
   };
   categories?: Array<{ id: string; name: string }>;
+  budgetSources?: BudgetSource[];
   isCreatingBudgetLine?: boolean;
 }
 
@@ -188,18 +192,29 @@ export function InvoiceBudgetLinesSection({
    * Show the inline form for creating a new budget line.
    */
   const showCreateBudgetLineForm = async () => {
-    // Fetch categories to populate the dropdown
     try {
-      const categoriesResponse = await fetchBudgetCategories();
+      const [categoriesResponse, sourcesResponse] = await Promise.all([
+        fetchBudgetCategories(),
+        fetchBudgetSources(),
+      ]);
+
+      const discretionaryId = sourcesResponse.budgetSources.find((s) => s.isDiscretionary)?.id;
+
       setPickerState({
         ...pickerState,
         showCreateForm: true,
-        createFormData: { description: '', amount: '', categoryId: undefined },
+        createFormData: {
+          description: '',
+          amount: remainingAmount > 0 ? remainingAmount.toFixed(2) : '',
+          categoryId: undefined,
+          budgetSourceId: discretionaryId,
+        },
         categories: categoriesResponse.categories,
+        budgetSources: sourcesResponse.budgetSources,
       });
     } catch (err) {
       const errorMsg =
-        err instanceof ApiClientError ? err.error.message : 'Failed to load categories.';
+        err instanceof ApiClientError ? err.error.message : 'Failed to load form data.';
       setPickerState({
         ...pickerState,
         error: errorMsg,
@@ -213,7 +228,7 @@ export function InvoiceBudgetLinesSection({
   const handleCreateBudgetLine = async () => {
     if (!pickerState.itemId || !pickerState.type || !pickerState.createFormData) return;
 
-    const { description, amount, categoryId } = pickerState.createFormData;
+    const { description, amount, categoryId, budgetSourceId } = pickerState.createFormData;
     const parsedAmount = parseFloat(amount);
 
     if (!description.trim()) {
@@ -246,6 +261,7 @@ export function InvoiceBudgetLinesSection({
         plannedAmount: parsedAmount,
         confidence: 'own_estimate',
         budgetCategoryId: categoryId,
+        budgetSourceId: budgetSourceId ?? null,
       });
 
       // After creating the budget line, re-fetch the list
@@ -763,6 +779,34 @@ export function InvoiceBudgetLinesSection({
                           {pickerState.categories?.map((cat) => (
                             <option key={cat.id} value={cat.id}>
                               {cat.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className={styles.formGroup}>
+                        <label className={styles.formLabel} htmlFor="budget-source">
+                          Funding Source
+                        </label>
+                        <select
+                          id="budget-source"
+                          className={styles.formSelect}
+                          value={pickerState.createFormData?.budgetSourceId ?? ''}
+                          onChange={(e) => {
+                            setPickerState({
+                              ...pickerState,
+                              createFormData: {
+                                ...pickerState.createFormData!,
+                                budgetSourceId: e.target.value || undefined,
+                              },
+                            });
+                          }}
+                          disabled={pickerState.isCreatingBudgetLine}
+                        >
+                          <option value="">No funding source</option>
+                          {pickerState.budgetSources?.map((src) => (
+                            <option key={src.id} value={src.id}>
+                              {src.name}
                             </option>
                           ))}
                         </select>
