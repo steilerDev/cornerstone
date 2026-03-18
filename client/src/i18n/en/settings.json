@@ -91,7 +91,7 @@
     "deactivateModal": {
       "title": "Deactivate User",
       "closeAriaLabel": "Close",
-      "message": "Are you sure you want to deactivate <strong>{{name}}</strong>? Their sessions will be terminated immediately.",
+      "message": "Are you sure you want to deactivate {{name}}? Their sessions will be terminated immediately.",
       "cancel": "Cancel",
       "confirm": "Deactivate",
       "confirming": "Deactivating...",

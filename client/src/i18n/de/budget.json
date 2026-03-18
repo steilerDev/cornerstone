@@ -554,7 +554,7 @@
       "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
     },
     "attribution": {
-      "none": "\u2014",
+      "none": "—",
       "lines": "{{count}} Positionen",
       "allocated": "{{pct}}% zugeordnet"
     },

@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { useTranslation, Trans } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import {
   listUsers,
   adminUpdateUser,
@@ -458,11 +458,9 @@ export function UserManagementPage() {
 
             <div className={styles.modalBody}>
               <p>
-                <Trans
-                  i18nKey="userManagement.deactivateModal.message"
-                  values={{ name: deactivatingUser.displayName }}
-                  components={{ strong: <strong /> }}
-                />
+                {t('userManagement.deactivateModal.message', {
+                  name: deactivatingUser.displayName,
+                })}
               </p>
             </div>
 
