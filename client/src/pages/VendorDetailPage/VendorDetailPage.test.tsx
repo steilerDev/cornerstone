@@ -1449,10 +1449,10 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete invoice INV-001/i })).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /delete invoice INV-001/i }));
+      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]);
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: /delete invoice/i })).toBeInTheDocument();
@@ -1466,10 +1466,10 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete invoice INV-001/i })).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /delete invoice INV-001/i }));
+      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]);
 
       const dialog = screen.getByRole('dialog');
       expect(dialog).toHaveTextContent('INV-001');
@@ -1483,10 +1483,10 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete invoice INV-001/i })).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /delete invoice INV-001/i }));
+      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]);
 
       const dialog = screen.getByRole('dialog');
       expect(dialog).toHaveTextContent('€1,500.00');
@@ -1500,10 +1500,10 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete invoice INV-001/i })).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /delete invoice INV-001/i }));
+      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]);
       await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /cancel/i }));
 
       await waitFor(() => {
@@ -1520,10 +1520,10 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete invoice INV-001/i })).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /delete invoice INV-001/i }));
+      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]);
 
       const dialog = screen.getByRole('dialog');
       await user.click(within(dialog).getByRole('button', { name: /delete invoice/i }));
@@ -1554,10 +1554,10 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete invoice INV-001/i })).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /delete invoice INV-001/i }));
+      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]);
 
       const dialog = screen.getByRole('dialog');
       await user.click(within(dialog).getByRole('button', { name: /delete invoice/i }));
@@ -1577,10 +1577,10 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete invoice INV-001/i })).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /delete invoice INV-001/i }));
+      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]);
 
       const dialog = screen.getByRole('dialog');
       await user.click(within(dialog).getByRole('button', { name: /delete invoice/i }));
@@ -1601,10 +1601,10 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete invoice INV-001/i })).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /delete invoice INV-001/i }));
+      await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]);
 
       const dialog = screen.getByRole('dialog');
       await user.click(within(dialog).getByRole('button', { name: /delete invoice/i }));
@@ -1628,16 +1628,16 @@ describe('VendorDetailPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('button', {
+          screen.getAllByRole('button', {
             name: new RegExp(`delete invoice ${claimedInvoice.id}`, 'i'),
-          }),
+          })[0],
         ).toBeInTheDocument();
       });
 
       await user.click(
-        screen.getByRole('button', {
+        screen.getAllByRole('button', {
           name: new RegExp(`delete invoice ${claimedInvoice.id}`, 'i'),
-        }),
+        })[0],
       );
 
       const dialog = screen.getByRole('dialog');
