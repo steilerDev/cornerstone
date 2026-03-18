@@ -19,6 +19,7 @@ import type {
   MouseEvent as ReactMouseEvent,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { TimelineWorkItem } from '@cornerstone/shared';
 import styles from './CalendarItem.module.css';
 
@@ -115,6 +116,7 @@ export function CalendarItem({
   onTouchTap,
 }: CalendarItemProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation('schedule');
 
   function doNavigate() {
     void navigate(`/project/work-items/${item.id}`, {
@@ -192,7 +194,10 @@ export function CalendarItem({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={() => onMouseLeave?.()}
       onMouseMove={handleMouseMove}
-      aria-label={`Work item: ${item.title}, status: ${item.status.replace('_', ' ')}`}
+      aria-label={t('calendar.item.ariaLabel', {
+        title: item.title,
+        status: item.status.replace('_', ' '),
+      })}
       aria-describedby="calendar-view-tooltip"
       data-testid="calendar-item"
     >

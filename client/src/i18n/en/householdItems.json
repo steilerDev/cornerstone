@@ -223,6 +223,13 @@
     "submitting": "Saving...",
     "success": "Household item updated successfully"
   },
+  "picker": {
+    "placeholder": "Search household items...",
+    "emptyHint": "Type to search household items",
+    "noResults": "No matching household items found",
+    "loadError": "Failed to load household items",
+    "searchError": "Failed to search household items"
+  },
   "detail": {
     "loading": "Loading household item...",
     "error": "Error",

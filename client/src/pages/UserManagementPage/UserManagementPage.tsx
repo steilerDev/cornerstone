@@ -1,4 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
+import { useTranslation, Trans } from 'react-i18next';
 import {
   listUsers,
   adminUpdateUser,
@@ -23,6 +24,7 @@ interface FieldErrors {
 }
 
 export function UserManagementPage() {
+  const { t } = useTranslation('settings');
   const [users, setUsers] = useState<UserResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string>('');
@@ -54,7 +56,7 @@ export function UserManagementPage() {
       if (error instanceof ApiClientError) {
         setLoadError(error.error.message);
       } else {
-        setLoadError('Failed to load users. Please try again.');
+        setLoadError(t('userManagement.loadError'));
       }
     } finally {
       setIsLoading(false);
@@ -108,15 +110,15 @@ export function UserManagementPage() {
     const newErrors: FieldErrors = {};
 
     if (!editFormData.displayName.trim()) {
-      newErrors.displayName = 'Display name is required';
+      newErrors.displayName = t('userManagement.editValidation.displayNameRequired');
     } else if (editFormData.displayName.length > 100) {
-      newErrors.displayName = 'Display name must be 100 characters or less';
+      newErrors.displayName = t('userManagement.editValidation.displayNameTooLong');
     }
 
     if (!editFormData.email.trim()) {
-      newErrors.email = 'Email is required';
+      newErrors.email = t('userManagement.editValidation.emailRequired');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editFormData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+      newErrors.email = t('userManagement.editValidation.emailInvalid');
     }
 
     setEditErrors(newErrors);
@@ -155,7 +157,7 @@ export function UserManagementPage() {
       if (error instanceof ApiClientError) {
         setEditApiError(error.error.message);
       } else {
-        setEditApiError('Failed to update user. Please try again.');
+        setEditApiError(t('userManagement.editModal.error'));
       }
     } finally {
       setIsUpdating(false);
@@ -190,7 +192,7 @@ export function UserManagementPage() {
       if (error instanceof ApiClientError) {
         setDeactivateError(error.error.message);
       } else {
-        setDeactivateError('Failed to deactivate user. Please try again.');
+        setDeactivateError(t('userManagement.deactivateModal.error'));
       }
     } finally {
       setIsDeactivating(false);
@@ -200,7 +202,7 @@ export function UserManagementPage() {
   if (isLoading && users.length === 0) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading users...</div>
+        <div className={styles.loading}>{t('userManagement.loading')}</div>
       </div>
     );
   }
@@ -209,7 +211,7 @@ export function UserManagementPage() {
     return (
       <div className={styles.container}>
         <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>Error</h2>
+          <h2 className={styles.errorTitle}>{t('userManagement.errorTitle')}</h2>
           <p>{loadError}</p>
         </div>
       </div>
@@ -220,14 +222,14 @@ export function UserManagementPage() {
     <div className={styles.container}>
       <div className={styles.content}>
         <div className={styles.header}>
-          <h1 className={styles.pageTitle}>User Management</h1>
+          <h1 className={styles.pageTitle}>{t('userManagement.pageTitle')}</h1>
         </div>
         <SettingsSubNav />
         <div className={styles.header}>
           <div className={styles.searchWrapper}>
             <input
               type="text"
-              placeholder="Search by name or email..."
+              placeholder={t('userManagement.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={styles.searchInput}
@@ -243,19 +245,21 @@ export function UserManagementPage() {
 
         {users.length === 0 ? (
           <div className={styles.emptyState}>
-            <p>No users found{searchQuery ? ' matching your search' : ''}.</p>
+            <p>
+              {searchQuery ? t('userManagement.emptyStateSearch') : t('userManagement.emptyState')}
+            </p>
           </div>
         ) : (
           <div className={styles.tableWrapper}>
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Auth Provider</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th>{t('userManagement.tableHeaders.name')}</th>
+                  <th>{t('userManagement.tableHeaders.email')}</th>
+                  <th>{t('userManagement.tableHeaders.role')}</th>
+                  <th>{t('userManagement.tableHeaders.authProvider')}</th>
+                  <th>{t('userManagement.tableHeaders.status')}</th>
+                  <th>{t('userManagement.tableHeaders.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -269,13 +273,21 @@ export function UserManagementPage() {
                         <span
                           className={user.role === 'admin' ? styles.roleAdmin : styles.roleMember}
                         >
-                          {user.role === 'admin' ? 'Administrator' : 'Member'}
+                          {user.role === 'admin'
+                            ? t('userManagement.roles.admin')
+                            : t('userManagement.roles.member')}
                         </span>
                       </td>
-                      <td>{user.authProvider === 'local' ? 'Local' : 'OIDC'}</td>
+                      <td>
+                        {user.authProvider === 'local'
+                          ? t('userManagement.authProviders.local')
+                          : t('userManagement.authProviders.oidc')}
+                      </td>
                       <td>
                         <span className={isActive ? styles.statusActive : styles.statusInactive}>
-                          {isActive ? 'Active' : 'Deactivated'}
+                          {isActive
+                            ? t('userManagement.status.active')
+                            : t('userManagement.status.deactivated')}
                         </span>
                       </td>
                       <td>
@@ -286,7 +298,7 @@ export function UserManagementPage() {
                             onClick={() => openEditModal(user)}
                             disabled={!isActive}
                           >
-                            Edit
+                            {t('userManagement.actions.edit')}
                           </button>
                           {isActive && (
                             <button
@@ -294,7 +306,7 @@ export function UserManagementPage() {
                               className={styles.deactivateButton}
                               onClick={() => openDeactivateModal(user)}
                             >
-                              Deactivate
+                              {t('userManagement.actions.deactivate')}
                             </button>
                           )}
                         </div>
@@ -311,14 +323,18 @@ export function UserManagementPage() {
       {/* Edit Modal */}
       {editingUser && (
         <div className={styles.modalOverlay}>
-          <div className={styles.modal} role="dialog" aria-label="Edit User">
+          <div
+            className={styles.modal}
+            role="dialog"
+            aria-label={t('userManagement.editModal.title')}
+          >
             <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Edit User</h2>
+              <h2 className={styles.modalTitle}>{t('userManagement.editModal.title')}</h2>
               <button
                 type="button"
                 className={styles.modalCloseButton}
                 onClick={closeEditModal}
-                aria-label="Close"
+                aria-label={t('userManagement.editModal.closeAriaLabel')}
               >
                 ✕
               </button>
@@ -333,7 +349,7 @@ export function UserManagementPage() {
             <form onSubmit={handleEditSubmit} className={styles.modalForm}>
               <div className={styles.field}>
                 <label htmlFor="editDisplayName" className={styles.label}>
-                  Display Name
+                  {t('userManagement.editModal.displayNameLabel')}
                 </label>
                 <input
                   type="text"
@@ -357,7 +373,7 @@ export function UserManagementPage() {
 
               <div className={styles.field}>
                 <label htmlFor="editEmail" className={styles.label}>
-                  Email
+                  {t('userManagement.editModal.emailLabel')}
                 </label>
                 <input
                   type="email"
@@ -378,7 +394,7 @@ export function UserManagementPage() {
 
               <div className={styles.field}>
                 <label htmlFor="editRole" className={styles.label}>
-                  Role
+                  {t('userManagement.editModal.roleLabel')}
                 </label>
                 <select
                   id="editRole"
@@ -389,8 +405,8 @@ export function UserManagementPage() {
                   className={styles.select}
                   disabled={isUpdating}
                 >
-                  <option value="member">Member</option>
-                  <option value="admin">Administrator</option>
+                  <option value="member">{t('userManagement.roles.member')}</option>
+                  <option value="admin">{t('userManagement.roles.admin')}</option>
                 </select>
               </div>
 
@@ -401,10 +417,12 @@ export function UserManagementPage() {
                   onClick={closeEditModal}
                   disabled={isUpdating}
                 >
-                  Cancel
+                  {t('userManagement.editModal.cancel')}
                 </button>
                 <button type="submit" className={styles.saveButton} disabled={isUpdating}>
-                  {isUpdating ? 'Saving...' : 'Save Changes'}
+                  {isUpdating
+                    ? t('userManagement.editModal.saving')
+                    : t('userManagement.editModal.save')}
                 </button>
               </div>
             </form>
@@ -415,14 +433,18 @@ export function UserManagementPage() {
       {/* Deactivate Confirmation Modal */}
       {deactivatingUser && (
         <div className={styles.modalOverlay}>
-          <div className={styles.modal} role="dialog" aria-label="Deactivate User">
+          <div
+            className={styles.modal}
+            role="dialog"
+            aria-label={t('userManagement.deactivateModal.title')}
+          >
             <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Deactivate User</h2>
+              <h2 className={styles.modalTitle}>{t('userManagement.deactivateModal.title')}</h2>
               <button
                 type="button"
                 className={styles.modalCloseButton}
                 onClick={closeDeactivateModal}
-                aria-label="Close"
+                aria-label={t('userManagement.editModal.closeAriaLabel')}
               >
                 ✕
               </button>
@@ -436,8 +458,11 @@ export function UserManagementPage() {
 
             <div className={styles.modalBody}>
               <p>
-                Are you sure you want to deactivate <strong>{deactivatingUser.displayName}</strong>?
-                Their sessions will be terminated immediately.
+                <Trans
+                  i18nKey="userManagement.deactivateModal.message"
+                  values={{ name: deactivatingUser.displayName }}
+                  components={{ strong: <strong /> }}
+                />
               </p>
             </div>
 
@@ -448,7 +473,7 @@ export function UserManagementPage() {
                 onClick={closeDeactivateModal}
                 disabled={isDeactivating}
               >
-                Cancel
+                {t('userManagement.deactivateModal.cancel')}
               </button>
               <button
                 type="button"
@@ -456,7 +481,9 @@ export function UserManagementPage() {
                 onClick={handleDeactivateConfirm}
                 disabled={isDeactivating}
               >
-                {isDeactivating ? 'Deactivating...' : 'Deactivate'}
+                {isDeactivating
+                  ? t('userManagement.deactivateModal.confirming')
+                  : t('userManagement.deactivateModal.confirm')}
               </button>
             </div>
           </div>

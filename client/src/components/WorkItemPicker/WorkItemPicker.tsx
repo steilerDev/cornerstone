@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { WorkItemSummary, WorkItemStatus } from '@cornerstone/shared';
 import { listWorkItems } from '../../lib/workItemsApi.js';
 import { SearchPicker } from '../SearchPicker/index.js';
@@ -37,11 +38,14 @@ export function WorkItemPicker({
   onSelectItem,
   excludeIds,
   disabled = false,
-  placeholder = 'Search work items...',
+  placeholder,
   specialOptions,
   showItemsOnFocus,
   initialTitle,
 }: WorkItemPickerProps) {
+  const { t } = useTranslation('workItems');
+  const resolvedPlaceholder = placeholder ?? t('picker.placeholder');
+
   const handleSelectItem = (item: { id: string; label: string }) => {
     onSelectItem?.({ id: item.id, title: item.label });
   };
@@ -53,7 +57,7 @@ export function WorkItemPicker({
       onSelectItem={handleSelectItem}
       excludeIds={excludeIds}
       disabled={disabled}
-      placeholder={placeholder}
+      placeholder={resolvedPlaceholder}
       searchFn={async (query: string, ids: string[]) => {
         const response = await listWorkItems({
           q: query || undefined,
@@ -66,10 +70,10 @@ export function WorkItemPicker({
       specialOptions={specialOptions}
       showItemsOnFocus={showItemsOnFocus}
       initialTitle={initialTitle}
-      emptyHint="Type to search work items"
-      noResultsMessage="No matching work items found"
-      loadErrorMessage="Failed to load work items"
-      searchErrorMessage="Failed to search work items"
+      emptyHint={t('picker.emptyHint')}
+      noResultsMessage={t('picker.noResults')}
+      loadErrorMessage={t('picker.loadError')}
+      searchErrorMessage={t('picker.searchError')}
     />
   );
 }

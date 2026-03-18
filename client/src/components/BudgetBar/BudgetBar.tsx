@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import styles from './BudgetBar.module.css';
 
 export interface BudgetBarSegment {
@@ -33,6 +34,7 @@ export function BudgetBar({
   onSegmentClick,
   formatValue,
 }: BudgetBarProps) {
+  const { t } = useTranslation('budget');
   const heightClass = HEIGHT_CLASS[height];
 
   // Build aria-label describing all non-zero segments
@@ -44,12 +46,12 @@ export function BudgetBar({
   });
   if (overflow > 0) {
     const formatted = formatValue ? formatValue(overflow) : overflow.toString();
-    ariaLabelParts.push(`Overflow ${formatted}`);
+    ariaLabelParts.push(`${t('bar.overflowLabel')} ${formatted}`);
   }
   const ariaLabel =
     ariaLabelParts.length > 0
-      ? `Budget breakdown: ${ariaLabelParts.join(', ')}`
-      : 'Budget breakdown: no data';
+      ? t('bar.ariaBreakdown', { details: ariaLabelParts.join(', ') })
+      : t('bar.ariaNoData');
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -100,7 +102,7 @@ export function BudgetBar({
               key: '__overflow__',
               value: overflow,
               color: 'var(--color-budget-overflow)',
-              label: 'Overflow',
+              label: t('bar.overflowLabel'),
             })
           }
           onMouseLeave={() => onSegmentHover?.(null)}
@@ -109,7 +111,7 @@ export function BudgetBar({
               key: '__overflow__',
               value: overflow,
               color: 'var(--color-budget-overflow)',
-              label: 'Overflow',
+              label: t('bar.overflowLabel'),
             })
           }
           aria-hidden="true"

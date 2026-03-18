@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { TagResponse } from '@cornerstone/shared';
 import { TagPill } from '../TagPill/TagPill.js';
 import styles from './TagPicker.module.css';
@@ -20,6 +21,7 @@ export function TagPicker({
   disabled = false,
   onError,
 }: TagPickerProps) {
+  const { t } = useTranslation('common');
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -83,7 +85,7 @@ export function TagPicker({
       setNewTagColor('#3b82f6'); // Reset to default
       inputRef.current?.focus();
     } catch {
-      const errorMessage = 'Failed to create tag. Please try again.';
+      const errorMessage = t('tagPicker.createError');
       setCreateError(errorMessage);
       if (onError) {
         onError(errorMessage);
@@ -108,7 +110,11 @@ export function TagPicker({
           ref={inputRef}
           type="text"
           className={styles.input}
-          placeholder={selectedTags.length === 0 ? 'Add tags...' : 'Add more...'}
+          placeholder={
+            selectedTags.length === 0
+              ? t('tagPicker.placeholderEmpty')
+              : t('tagPicker.placeholderMore')
+          }
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           onFocus={() => setIsOpen(true)}
@@ -141,11 +147,11 @@ export function TagPicker({
                 </div>
               )}
               <div className={styles.createHeader}>
-                Create new tag: <strong>{searchTerm.trim()}</strong>
+                {t('tagPicker.createHeader')} <strong>{searchTerm.trim()}</strong>
               </div>
               <div className={styles.colorPicker}>
                 <label htmlFor="tagColor" className={styles.colorLabel}>
-                  Color:
+                  {t('tagPicker.colorLabel')}
                 </label>
                 <input
                   type="color"
@@ -157,14 +163,14 @@ export function TagPicker({
                 />
               </div>
               <button type="submit" className={styles.createButton} disabled={isCreating}>
-                {isCreating ? 'Creating...' : 'Create Tag'}
+                {isCreating ? t('tagPicker.creating') : t('tagPicker.createButton')}
               </button>
             </form>
           )}
 
           {filteredTags.length === 0 && !canCreateNew && (
             <div className={styles.emptyState}>
-              {searchTerm ? 'No matching tags found' : 'No more tags available'}
+              {searchTerm ? t('tagPicker.noMatchingTags') : t('tagPicker.noMoreTags')}
             </div>
           )}
         </div>

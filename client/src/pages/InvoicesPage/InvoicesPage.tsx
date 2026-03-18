@@ -36,12 +36,13 @@ const EMPTY_FORM: InvoiceFormState = {
   notes: '',
 };
 
-function getAttributionLabel(invoice: Invoice): string {
-  if (invoice.budgetLines.length === 0) return '\u2014';
+function getAttributionLabel(invoice: Invoice, t: ReturnType<typeof useTranslation>['t']): string {
+  if (invoice.budgetLines.length === 0) return t('invoices.attribution.none');
   const totalItemized = invoice.budgetLines.reduce((sum, bl) => sum + bl.itemizedAmount, 0);
-  if (invoice.amount === 0) return `${invoice.budgetLines.length} lines`;
+  if (invoice.amount === 0)
+    return t('invoices.attribution.lines', { count: invoice.budgetLines.length });
   const pct = Math.round((totalItemized / invoice.amount) * 100);
-  return `${pct}% allocated`;
+  return t('invoices.attribution.allocated', { pct });
 }
 
 export function InvoicesPage() {
@@ -283,7 +284,7 @@ export function InvoicesPage() {
               className={styles.retryButton}
               onClick={() => void loadInvoices()}
             >
-              Retry
+              {t('invoices.retryButton')}
             </button>
           </div>
         )}
@@ -296,7 +297,7 @@ export function InvoicesPage() {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             className={styles.searchInput}
-            aria-label="Search invoices"
+            aria-label={t('invoices.searchAriaLabel')}
           />
           <div className={styles.filterRow}>
             <select
@@ -312,7 +313,7 @@ export function InvoicesPage() {
                 setSearchParams(newParams);
               }}
               className={styles.filterSelect}
-              aria-label="Filter by status"
+              aria-label={t('invoices.filterStatusAriaLabel')}
             >
               <option value="">{t('invoices.allStatuses')}</option>
               <option value="pending">{t('invoices.statusLabels.pending')}</option>
@@ -332,7 +333,7 @@ export function InvoicesPage() {
                 setSearchParams(newParams);
               }}
               className={styles.filterSelect}
-              aria-label="Filter by vendor"
+              aria-label={t('invoices.filterVendorAriaLabel')}
             >
               <option value="">{t('invoices.allVendors')}</option>
               {vendors.map((v) => (
@@ -361,7 +362,7 @@ export function InvoicesPage() {
                 type="button"
                 className={styles.sortOrderButton}
                 onClick={() => handleSortChange(sortBy)}
-                aria-label="Toggle sort order"
+                aria-label={t('invoices.sortOrderAriaLabel')}
               >
                 {sortOrder === 'asc' ? t('invoices.sortAsc') : t('invoices.sortDesc')}
               </button>
@@ -476,7 +477,7 @@ export function InvoicesPage() {
                       {t('invoices.tableHeaders.status')}
                       {renderSortIcon('status')}
                     </th>
-                    <th className={styles.actionsColumn}>Actions</th>
+                    <th className={styles.actionsColumn}>{t('invoices.actionsHeader')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -509,7 +510,7 @@ export function InvoicesPage() {
                         </Link>
                       </td>
                       <td className={styles.amountCell}>{formatCurrency(invoice.amount)}</td>
-                      <td>{getAttributionLabel(invoice)}</td>
+                      <td>{getAttributionLabel(invoice, t)}</td>
                       <td>{invoice.dueDate ? formatDate(invoice.dueDate) : '\u2014'}</td>
                       <td>
                         <span
@@ -539,7 +540,9 @@ export function InvoicesPage() {
                         to={`/budget/invoices/${invoice.id}`}
                         className={styles.cardInvoiceNumber}
                       >
-                        {invoice.invoiceNumber ? `#${invoice.invoiceNumber}` : 'No Number'}
+                        {invoice.invoiceNumber
+                          ? `#${invoice.invoiceNumber}`
+                          : t('invoices.noNumber')}
                       </Link>
                       <Link
                         to={`/budget/vendors/${invoice.vendorId}`}
@@ -556,7 +559,9 @@ export function InvoicesPage() {
                     <span className={styles.cardAmount}>{formatCurrency(invoice.amount)}</span>
                     <span className={styles.cardDate}>{formatDate(invoice.date)}</span>
                     {invoice.dueDate && (
-                      <span className={styles.cardDue}>Due: {formatDate(invoice.dueDate)}</span>
+                      <span className={styles.cardDue}>
+                        {t('invoices.duePrefix')} {formatDate(invoice.dueDate)}
+                      </span>
                     )}
                   </div>
                   <div className={styles.cardActions}>
@@ -584,7 +589,7 @@ export function InvoicesPage() {
                     className={styles.paginationButton}
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    aria-label="Previous page"
+                    aria-label={t('invoices.paginationPreviousAriaLabel')}
                   >
                     {t('invoices.previous')}
                   </button>
@@ -612,7 +617,7 @@ export function InvoicesPage() {
                     className={styles.paginationButton}
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    aria-label="Next page"
+                    aria-label={t('invoices.paginationNextAriaLabel')}
                   >
                     {t('invoices.next')}
                   </button>

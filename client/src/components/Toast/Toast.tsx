@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { useToast } from './ToastContext.js';
 import type { ToastVariant } from './ToastContext.js';
 import styles from './Toast.module.css';
@@ -93,6 +94,7 @@ const TOAST_VARIANT_CLASS: Record<ToastVariant, string> = {
 // ---------------------------------------------------------------------------
 
 export function ToastList() {
+  const { t } = useTranslation('common');
   const { toasts, dismissToast } = useToast();
 
   if (toasts.length === 0) return null;
@@ -113,7 +115,7 @@ export function ToastList() {
             <button
               type="button"
               className={styles.dismiss}
-              aria-label="Dismiss notification"
+              aria-label={t('toast.dismissAriaLabel')}
               onClick={() => dismissToast(toast.id)}
             >
               <DismissIcon />

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import styles from './TagPill.module.css';
 
 interface TagPillProps {
@@ -26,6 +27,7 @@ function isLightColor(hexColor: string): boolean {
 }
 
 export function TagPill({ name, color, onRemove }: TagPillProps) {
+  const { t } = useTranslation('common');
   const backgroundColor = color ?? '#e5e7eb'; // Default gray if no color
   const textColor = color && isLightColor(color) ? '#111827' : '#ffffff';
 
@@ -42,7 +44,7 @@ export function TagPill({ name, color, onRemove }: TagPillProps) {
           type="button"
           className={styles.removeButton}
           onClick={onRemove}
-          aria-label={`Remove tag ${name}`}
+          aria-label={t('tagPill.removeAriaLabel', { name })}
           style={{ color: textColor }}
         >
           ×
