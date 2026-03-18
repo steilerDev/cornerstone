@@ -1432,7 +1432,6 @@ describe('resolveRelationsBatch()', () => {
     const sqliteDb = new Database(':memory:');
     sqliteDb.pragma('journal_mode = WAL');
     sqliteDb.pragma('foreign_keys = ON');
-    console.warn = () => undefined; // suppress migration logs
     runMigrations(sqliteDb);
     return { sqlite: sqliteDb, db: drizzle(sqliteDb, { schema }) };
   }

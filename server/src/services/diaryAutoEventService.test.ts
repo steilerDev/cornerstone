@@ -27,11 +27,6 @@ import {
 } from './diaryAutoEventService.js';
 // diaryService is imported internally by diaryAutoEventService — not needed here
 
-// Suppress migration logs
-beforeEach(() => {
-  jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-});
-
 describe('diaryAutoEventService', () => {
   let db: BetterSQLite3Database<typeof schema>;
   let sqlite: ReturnType<typeof Database>;
