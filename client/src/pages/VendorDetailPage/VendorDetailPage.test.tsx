@@ -26,13 +26,11 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 // Mock the invoices API module BEFORE importing the component
 const mockFetchInvoices = jest.fn<typeof InvoicesApiTypes.fetchInvoices>();
 const mockCreateInvoice = jest.fn<typeof InvoicesApiTypes.createInvoice>();
-const mockUpdateInvoice = jest.fn<typeof InvoicesApiTypes.updateInvoice>();
 const mockDeleteInvoice = jest.fn<typeof InvoicesApiTypes.deleteInvoice>();
 
 jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   fetchInvoices: mockFetchInvoices,
   createInvoice: mockCreateInvoice,
-  updateInvoice: mockUpdateInvoice,
   deleteInvoice: mockDeleteInvoice,
 }));
 
@@ -187,7 +185,6 @@ describe('VendorDetailPage', () => {
     mockDeleteVendor.mockReset();
     mockFetchInvoices.mockReset();
     mockCreateInvoice.mockReset();
-    mockUpdateInvoice.mockReset();
     mockDeleteInvoice.mockReset();
 
     // Default: invoices load successfully (empty list) unless overridden
@@ -203,6 +200,10 @@ describe('VendorDetailPage', () => {
         <Routes>
           <Route path="/budget/vendors/:id" element={<VendorDetailPage />} />
           <Route path="/budget/vendors" element={<div>Vendors List Page</div>} />
+          <Route
+            path="/budget/invoices/:id"
+            element={<div data-testid="invoice-detail-page">Invoice Detail</div>}
+          />
         </Routes>
       </MemoryRouter>,
     );
