@@ -30,10 +30,10 @@ describe('Skeleton', () => {
     expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
   });
 
-  it('sets aria-label to "Loading" by default', () => {
+  it('sets aria-label to translated loading text by default', () => {
     render(<Skeleton />);
 
-    expect(screen.getByRole('status')).toHaveAttribute('aria-label', 'Loading');
+    expect(screen.getByRole('status')).toHaveAttribute('aria-label', 'Loading...');
   });
 
   // ── lines prop ────────────────────────────────────────────────────────────

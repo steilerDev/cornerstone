@@ -97,9 +97,34 @@ mutation {
 }'
 ```
 
-#### Board Status Categories
+#### Board Status Management
 
-When creating or moving items on the Projects board, use these status categories:
+Use native `gh project` commands to manage board status. The project is **#4** owned by **steilerDev**.
+
+**Querying items:**
+
+```bash
+# List items with filtering (supports GitHub Projects filter syntax)
+gh project item-list 4 --owner steilerDev --format json --query "is:issue #<N>"
+
+# Get a specific issue's project item ID
+ITEM_ID=$(gh project item-list 4 --owner steilerDev --format json --limit 1 --query "is:issue #<N>" --jq '.items[0].id')
+```
+
+**Setting status:**
+
+```bash
+# Move an item to a status
+gh project item-edit --id "$ITEM_ID" --project-id PVT_kwHOAGtLQM4BOlve --field-id PVTSSF_lAHOAGtLQM4BOlvezg9P0yo --single-select-option-id <STATUS_OPTION_ID>
+```
+
+**Adding issues to the project:**
+
+```bash
+gh project item-add 4 --owner steilerDev --url https://github.com/steilerDev/cornerstone/issues/<N>
+```
+
+#### Board Status Categories
 
 | Status          | Option ID  | Purpose                                      |
 | --------------- | ---------- | -------------------------------------------- |
@@ -107,6 +132,7 @@ When creating or moving items on the Projects board, use these status categories
 | **Todo**        | `dc74a3b0` | Current sprint stories ready for development |
 | **In Progress** | `296eeabe` | Stories actively being developed             |
 | **Done**        | `c558f50d` | Completed and accepted                       |
+| **Wont-Do**     | `90c1bc33` | Cancelled or deferred indefinitely           |
 
 Project ID: `PVT_kwHOAGtLQM4BOlve`
 Status Field ID: `PVTSSF_lAHOAGtLQM4BOlvezg9P0yo`
@@ -117,7 +143,8 @@ After creating a new user story issue:
 
 1. **Link as sub-issue** of the parent epic via `addSubIssue`
 2. **Create blocked-by links** for each dependency listed in the story's Notes section
-3. **Set board status** — new stories go to `Backlog` (future sprints) or `Todo` (current sprint)
+3. **Add to project board**: `gh project item-add 4 --owner steilerDev --url <issue-url>`
+4. **Set board status** — new stories go to `Backlog` (future sprints) or `Todo` (current sprint)
 
 ## Strict Boundaries — What You Must NOT Do
 
@@ -258,14 +285,27 @@ When launched to review a pull request, follow this process:
 - **Scope discipline** — does the PR stay within the story's scope (no undocumented changes)?
 - **Board status** — is the story's board status set to "In Progress" while being worked on?
 
+### Verdict Decision Matrix
+
+Your verdict must be graduated based on the nature of the gap. This prevents unnecessary fix loops for non-functional issues:
+
+| Verdict                                  | When to Use                                                                                                                                  | Example                                                                                        |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `--request-changes`                      | **Functional AC not met**: the feature doesn't work, core behavior is wrong, required functionality is missing                               | Missing CRUD operation, wrong calculation logic, broken navigation flow                        |
+| `--comment` with "MUST FIX before merge" | **Non-functional AC gaps**: display/formatting issues, placeholder text, date format, minor UI polish that doesn't affect core functionality | Wrong null placeholder text, date shown as ISO instead of localized, missing "no data" message |
+| `--approve`                              | **All AC met**: functional and non-functional criteria are satisfied                                                                         | All acceptance criteria pass                                                                   |
+
+**Important**: Do NOT use `--request-changes` for display-formatting issues (null placeholders, date formatting, number formatting). These should be flagged as `--comment` with "MUST FIX" — they must still be fixed, but they don't block the review loop.
+
 ### Review Actions
 
 1. Read the PR diff: `gh pr diff <pr-number>`
 2. Read the linked GitHub Issue(s) to understand acceptance criteria
 3. Verify that all required agent reviews are present on the PR (architecture, security, QA)
-4. If all checks pass: `gh pr review --approve <pr-url> --body "..."` with a summary of what was verified
-5. If checks fail: `gh pr review --request-changes <pr-url> --body "..."` with **specific, actionable feedback** explaining exactly what is missing or wrong so the implementing agent can fix it without ambiguity
-6. Append a `REVIEW_METRICS` block to your review body per the format defined in the "Review Metrics" section of CLAUDE.md.
+4. If all AC met: `gh pr review --approve <pr-url> --body "..."` with a summary of what was verified
+5. If non-functional gaps only: `gh pr review --comment <pr-url> --body "..."` with specific feedback and "MUST FIX before merge" label — the orchestrator routes these as non-blocking fixes
+6. If functional AC not met: `gh pr review --request-changes <pr-url> --body "..."` with **specific, actionable feedback** explaining exactly what is missing or wrong so the implementing agent can fix it without ambiguity
+7. Append a `REVIEW_METRICS` block to your review body per the format defined in the "Review Metrics" section of CLAUDE.md.
 
 ## Attribution
 

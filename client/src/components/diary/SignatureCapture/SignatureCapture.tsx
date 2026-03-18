@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { DiarySignatureEntry } from '@cornerstone/shared';
 import styles from './SignatureCapture.module.css';
 
@@ -30,6 +31,7 @@ export function SignatureCapture({
   currentUserName,
   vendors,
 }: SignatureCaptureProps) {
+  const { t } = useTranslation('diary');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -93,7 +95,7 @@ export function SignatureCapture({
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
     return () => window.removeEventListener('resize', resizeCanvas);
-  }, [signature]);
+  }, [signature, t]);
 
   // Load existing signature image if provided
   useEffect(() => {
@@ -142,7 +144,7 @@ export function SignatureCapture({
     ctx.fillStyle = textColor;
     ctx.font = '12px system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('Sign here', 16, lineY - 8);
+    ctx.fillText(t('signature.canvasPlaceholder'), 16, lineY - 8);
   };
 
   const getMousePos = (e: React.MouseEvent<HTMLCanvasElement>): { x: number; y: number } | null => {
@@ -316,7 +318,7 @@ export function SignatureCapture({
     const sizeInKb = sizeInBytes / 1024;
 
     if (sizeInKb > 500) {
-      setSizeError(`Signature too large (${sizeInKb.toFixed(0)}KB, max 500KB)`);
+      setSizeError(t('signature.sizeError', { size: sizeInKb.toFixed(0) }));
       return;
     }
 
@@ -368,13 +370,17 @@ export function SignatureCapture({
         <div className={styles.signerInfo}>
           <span className={styles.signerName}>{signature.signerName}</span>
           <span className={styles.signerType}>
-            ({signature.signerType === 'self' ? 'Self' : 'Vendor'})
+            (
+            {signature.signerType === 'self'
+              ? t('signature.signerTypeSelf')
+              : t('signature.signerTypeVendor')}
+            )
           </span>
         </div>
         <div className={styles.signatureDisplay}>
           <img
             src={signature.signatureDataUrl}
-            alt={`Signature of ${signature.signerName}`}
+            alt={t('signature.altText', { name: signature.signerName })}
             className={styles.signatureImage}
           />
         </div>
@@ -384,7 +390,7 @@ export function SignatureCapture({
           onClick={handleRemove}
           disabled={disabled}
         >
-          Remove Signature
+          {t('signature.removeButton')}
         </button>
       </div>
     );
@@ -399,7 +405,7 @@ export function SignatureCapture({
       {/* Signer info section */}
       <div className={styles.signerSection}>
         <div className={styles.formGroup}>
-          <label className={styles.label}>Signer Type</label>
+          <label className={styles.label}>{t('signature.signerTypeLabel')}</label>
           <div className={styles.radioGroup}>
             <label className={styles.radioLabel}>
               <input
@@ -410,7 +416,7 @@ export function SignatureCapture({
                 onChange={() => handleSignerTypeChange('self')}
                 disabled={disabled}
               />
-              Self
+              {t('signature.signerTypeSelf')}
             </label>
             <label className={styles.radioLabel}>
               <input
@@ -421,14 +427,14 @@ export function SignatureCapture({
                 onChange={() => handleSignerTypeChange('vendor')}
                 disabled={disabled}
               />
-              Vendor
+              {t('signature.signerTypeVendor')}
             </label>
           </div>
         </div>
 
         <div className={styles.formGroup}>
           <label htmlFor="signer-name" className={styles.label}>
-            {signerType === 'vendor' ? 'Vendor' : 'Signer Name'}
+            {signerType === 'vendor' ? t('signature.vendorLabel') : t('signature.signerNameLabel')}
           </label>
           {signerType === 'self' ? (
             <div className={styles.readOnlyName}>{currentUserName || signerName || '—'}</div>
@@ -440,13 +446,13 @@ export function SignatureCapture({
                 onChange={(e) => handleVendorSelect(e.target.value)}
                 disabled={disabled}
               >
-                <option value="">— Select Vendor —</option>
+                <option value="">{t('signature.selectVendor')}</option>
                 {vendors.map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.name}
                   </option>
                 ))}
-                <option value="__other__">Other...</option>
+                <option value="__other__">{t('signature.otherVendor')}</option>
               </select>
               {selectedVendorId === '__other__' && (
                 <input
@@ -456,7 +462,7 @@ export function SignatureCapture({
                   value={vendorName}
                   onChange={(e) => setVendorName(e.target.value)}
                   disabled={disabled}
-                  placeholder="Enter vendor name"
+                  placeholder={t('signature.vendorNamePlaceholder')}
                 />
               )}
             </>
@@ -468,7 +474,7 @@ export function SignatureCapture({
               value={vendorName}
               onChange={(e) => setVendorName(e.target.value)}
               disabled={disabled}
-              placeholder="Enter vendor name"
+              placeholder={t('signature.vendorNamePlaceholder')}
             />
           )}
         </div>
@@ -476,7 +482,8 @@ export function SignatureCapture({
         {signerType === 'vendor' && (
           <div className={styles.formGroup}>
             <label htmlFor="signatory-name" className={styles.label}>
-              Signatory Name <span className={styles.required}>*</span>
+              {t('signature.signatoryNameLabel')}{' '}
+              <span className={styles.required}>{t('signature.signatoryNameRequired')}</span>
             </label>
             <input
               id="signatory-name"
@@ -485,12 +492,10 @@ export function SignatureCapture({
               value={signatoryName}
               onChange={(e) => setSignatoryName(e.target.value)}
               disabled={disabled}
-              placeholder="Name of person signing on behalf of vendor"
+              placeholder={t('signature.signatoryNamePlaceholder')}
             />
             {isVendorInfoMissing && (
-              <div className={styles.validationHint}>
-                Both vendor and signatory name are required
-              </div>
+              <div className={styles.validationHint}>{t('signature.vendorInfoRequired')}</div>
             )}
           </div>
         )}
@@ -507,7 +512,7 @@ export function SignatureCapture({
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-          aria-label="Signature canvas"
+          aria-label={t('signature.canvasAriaLabel')}
         />
       </div>
 
@@ -520,7 +525,7 @@ export function SignatureCapture({
           onClick={handleClear}
           disabled={disabled || !hasStrokes}
         >
-          Clear
+          {t('signature.clearButton')}
         </button>
         <button
           type="button"
@@ -528,7 +533,7 @@ export function SignatureCapture({
           onClick={handleAccept}
           disabled={isAcceptDisabled}
         >
-          Accept Signature
+          {t('signature.acceptButton')}
         </button>
       </div>
     </div>

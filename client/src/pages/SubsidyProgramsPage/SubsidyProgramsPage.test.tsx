@@ -42,6 +42,45 @@ jest.unstable_mockModule('../../lib/budgetCategoriesApi.js', () => ({
   deleteBudgetCategory: mockDeleteBudgetCategory,
 }));
 
+// ─── Mock: formatters — provides useFormatters() hook ────────────────────────
+
+jest.unstable_mockModule('../../lib/formatters.js', () => {
+  const fmtCurrency = (n: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  const fmtDate = (d: string | null | undefined, fallback = '—') => {
+    if (!d) return fallback;
+    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return fallback;
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+  const fmtTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
+  const fmtDateTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
+  return {
+    formatCurrency: fmtCurrency,
+    formatDate: fmtDate,
+    formatTime: fmtTime,
+    formatDateTime: fmtDateTime,
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    computeActualDuration: () => null,
+    useFormatters: () => ({
+      formatCurrency: fmtCurrency,
+      formatDate: fmtDate,
+      formatTime: fmtTime,
+      formatDateTime: fmtDateTime,
+      formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    }),
+  };
+});
+
 describe('SubsidyProgramsPage', () => {
   let SubsidyProgramsPage: React.ComponentType;
 
@@ -1171,7 +1210,7 @@ describe('SubsidyProgramsPage', () => {
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
       const dialog = screen.getByRole('dialog');
-      expect(within(dialog).getByRole('button', { name: /delete program/i })).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
     });
 
     it('closes delete modal when Cancel is clicked', async () => {
@@ -1207,7 +1246,7 @@ describe('SubsidyProgramsPage', () => {
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
       const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete program/i }));
+      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
 
       await waitFor(() => {
         expect(mockDeleteSubsidyProgram).toHaveBeenCalledWith('prog-1');
@@ -1232,7 +1271,7 @@ describe('SubsidyProgramsPage', () => {
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
       const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete program/i }));
+      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
 
       await waitFor(() => {
         expect(screen.getByText(/energy rebate.*deleted successfully/i)).toBeInTheDocument();
@@ -1258,7 +1297,7 @@ describe('SubsidyProgramsPage', () => {
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
       const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete program/i }));
+      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
 
       await waitFor(() => {
         expect(
@@ -1285,13 +1324,11 @@ describe('SubsidyProgramsPage', () => {
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
       const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete program/i }));
+      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
 
       await waitFor(() => {
         // After in-use error, the Delete Program button is no longer shown
-        expect(
-          within(dialog).queryByRole('button', { name: /delete program/i }),
-        ).not.toBeInTheDocument();
+        expect(within(dialog).queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument();
       });
     });
 
@@ -1309,7 +1346,7 @@ describe('SubsidyProgramsPage', () => {
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
       const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete program/i }));
+      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
 
       await waitFor(() => {
         expect(
@@ -1334,7 +1371,7 @@ describe('SubsidyProgramsPage', () => {
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
       const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete program/i }));
+      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
 
       await waitFor(() => {
         expect(screen.getByText('Server error')).toBeInTheDocument();
@@ -1356,7 +1393,7 @@ describe('SubsidyProgramsPage', () => {
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
       const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete program/i }));
+      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
 
       // Cancel button is disabled while deleting
       await waitFor(() => {

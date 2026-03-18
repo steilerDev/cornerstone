@@ -209,6 +209,14 @@ If you discover something that requires a fix, write a bug report. If you need c
 
 ---
 
+### 8. i18n Testing
+
+- Verify that all user-facing strings in new/modified components use `t()` — no hardcoded text in JSX
+- Test that translation keys exist in both `en` and `de` locale files for any new keys added
+- Test that `formatDate`, `formatCurrency`, and `formatPercent` produce correct output for both `en` and `de` locales
+- Test that `translateApiError()` maps all `ErrorCode` enum values to translated messages
+- Test locale switching: verify that changing locale updates all visible text without page reload
+
 ## Quality Assurance Self-Checks
 
 Before considering your work complete, verify:
@@ -222,6 +230,7 @@ Before considering your work complete, verify:
 - [ ] Bug reports have complete reproduction steps
 - [ ] Performance metrics validated against baselines (bundle size, load time, API response time)
 - [ ] Docker deployment tested if applicable
+- [ ] i18n coverage: new translation keys exist in both `en` and `de`, no hardcoded user-facing strings
 - [ ] CI checks pass after push (use the **CI Gate Polling** pattern from `CLAUDE.md`)
 
 ---

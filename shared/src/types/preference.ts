@@ -17,7 +17,8 @@ export interface UserPreference {
  */
 export type PreferenceKey =
   | 'dashboard.hiddenCards' // JSON array of card IDs to hide
-  | 'theme'; // 'light' | 'dark' | 'system'
+  | 'theme' // 'light' | 'dark' | 'system'
+  | 'locale'; // ISO 639-1 language code (e.g., 'en', 'de')
 
 /**
  * Known dashboard card IDs for the dashboard.hiddenCards preference.

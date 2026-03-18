@@ -35,6 +35,29 @@ In multi-item mode, maintain an ordered **items list** throughout the workflow. 
 
 If the input was a `@`-prefixed file path, also store the **source file path** (without the `@` prefix) for use during cleanup in step 11.
 
+## Task Tracking
+
+At the start of each `/develop` invocation, create tasks to track progress. These tasks survive context compression and let you recover your place if context is lost.
+
+**Create these tasks upfront** (using `TaskCreate`):
+
+1. **Rebase onto beta** — Fetch and rebase worktree branch onto origin/beta
+2. **Resolve issues** — Read/create GitHub Issues for all items
+3. **Visual spec** — Launch ux-designer for UI-touching stories (skip if all bugs or backend-only)
+4. **Create branch** — Rename worktree branch to conventional name
+5. **Move to In Progress** — Update Projects board status
+6. **Implement + Test** — Full multi-phase cycle: spec → backend → frontend → QA/E2E → review → fix loop → commit → trailer verification
+7. **Verify PR** — Confirm PR exists targeting beta
+8. **Agent reviews** — Launch product-architect, security-engineer, product-owner, ux-designer reviews
+9. **Merge** — Wait for CI, persist metrics, squash merge to beta
+10. **Close issues & clean up** — Close issues, move to Done, clean up branch
+
+**Progress rule:** Before starting each step, mark its task `in_progress`. After completing, mark it `completed`. If a step is skipped (conditional), mark it `completed` with a note in the description.
+
+**Recovery rule:** If you lose track of progress (e.g., after context compression), run `TaskList` to see which tasks are completed and resume from the first pending task.
+
+**Dynamic task rule:** When a fix loop starts (step 6f or step 9), create a new task for each round (e.g., "Fix Loop Round 1", "Fix Loop Round 2") so iterations are tracked.
+
 ## Steps
 
 ### 1. Rebase
@@ -134,13 +157,13 @@ Move the issue(s) to **In Progress** on the Projects board.
 #### Single-item mode
 
 ```bash
-ITEM_ID=$(gh api graphql -f query='{ repository(owner: "steilerDev", name: "cornerstone") { issue(number: <issue-number>) { projectItems(first: 1) { nodes { id } } } } }' --jq '.data.repository.issue.projectItems.nodes[0].id')
-gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "PVT_kwHOAGtLQM4BOlve", itemId: "'"$ITEM_ID"'", fieldId: "PVTSSF_lAHOAGtLQM4BOlvezg9P0yo", value: { singleSelectOptionId: "296eeabe" } }) { clientMutationId } }'
+ITEM_ID=$(gh project item-list 4 --owner steilerDev --format json --limit 1 --query "is:issue #<issue-number>" --jq '.items[0].id')
+gh project item-edit --id "$ITEM_ID" --project-id PVT_kwHOAGtLQM4BOlve --field-id PVTSSF_lAHOAGtLQM4BOlvezg9P0yo --single-select-option-id 296eeabe
 ```
 
 #### Multi-item mode
 
-Run the same GraphQL mutation for **each issue** in the items list.
+Run the same `gh project item-edit` command for **each issue** in the items list.
 
 ### 6. Implement + Test (Multi-Phase)
 
@@ -154,8 +177,9 @@ Launch the **dev-team-lead** in `[MODE: spec]` with:
 - Layers affected: backend-only, frontend-only, or full-stack
 - UX visual spec reference (if posted in step 3)
 - Branch name
+- Reminder to read `.claude/checklists/implementation-checklist.md` and include a `## Compliance Checklist` section per spec
 
-The dev-team-lead returns a structured spec document with `## Backend Spec`, `## Frontend Spec`, `## QA Spec`, and `## E2E Spec` sections. Store the full spec — you will pass sections to implementation agents and the full spec to review.
+The dev-team-lead returns a structured spec document with `## Backend Spec`, `## Frontend Spec`, `## QA Spec`, and `## E2E Spec` sections (each with a `### Compliance Checklist` subsection). Store the full spec — you will pass sections to implementation agents and the full spec to review.
 
 #### 6b. Backend Implementation (if backend spec present)
 
@@ -169,6 +193,12 @@ Check the `Execution Order` field in the spec metadata:
 - **`sequential`** → Wait for step 6b to complete first (frontend depends on new shared types)
 
 Launch **frontend-developer** (Haiku) with the `## Frontend Spec` section from the spec document.
+
+#### 6c-ii. Translation (if Translator Spec present)
+
+If the spec document contains a `## Translator Spec` section (new i18n keys were added), launch the **translator** (Sonnet) with the `## Translator Spec` section. Skip if no Translator Spec section exists (backend-only changes, no new UI strings).
+
+The translator translates new English keys into all supported non-English locales and validates glossary compliance across affected namespaces.
 
 #### 6d. QA + E2E Testing
 
@@ -226,7 +256,7 @@ Track `internalFixCount` (starts at 0). For each iteration:
 
 Launch the **dev-team-lead** in `[MODE: commit]` with:
 
-- Contributing agents list: list every agent that was launched in steps 6b-6d (and 6f if applicable). Include `backend-developer`, `frontend-developer`, `qa-integration-tester`, and/or `e2e-test-engineer` as appropriate.
+- Contributing agents list: list every agent that was launched in steps 6b-6d (and 6f if applicable). Include `backend-developer`, `frontend-developer`, `translator`, `qa-integration-tester`, and/or `e2e-test-engineer` as appropriate.
 - Issue number(s) for `Fixes #N` lines
 - Branch name
 
@@ -245,7 +275,8 @@ git log origin/beta..HEAD --format="%b"
 If production files were changed (`git diff --name-only origin/beta..HEAD | grep -E '^(server|client|shared)/'`), verify the commit body contains the appropriate Co-Authored-By trailers:
 
 - Files under `server/` or `shared/` → must have `Co-Authored-By: Claude backend-developer (Haiku`
-- Files under `client/` → must have `Co-Authored-By: Claude frontend-developer (Haiku`
+- Files under `client/` (except `client/src/i18n/de/` and `client/src/i18n/glossary.json`) → must have `Co-Authored-By: Claude frontend-developer (Haiku`
+- Files under `client/src/i18n/de/` or `client/src/i18n/glossary.json` → must have `Co-Authored-By: Claude translator (Sonnet`
 - Files under `e2e/` → must have `Co-Authored-By: Claude e2e-test-engineer (Sonnet`
 
 If trailers are missing, the dev-team-lead missed an agent in the contributing list. Re-launch `[MODE: commit]` with the corrected list.
@@ -313,9 +344,21 @@ EOF
 The dev-team-lead has already ensured CI is green. Launch agent reviews (in parallel - make sure to keep the review short if the changes are minimal):
 
 - `product-architect` — architecture compliance, test coverage, code quality
-- `security-engineer` — OWASP Top 10 review, input validation, auth gaps
+- `security-engineer` — **conditional**: only launch if the PR touches security-relevant files (see Security Review Trigger Rules below). Skip for frontend-only, test-only, or CSS-only PRs.
 - `product-owner` — requirements coverage, acceptance criteria (**stories only**; skip if all items are bugs)
 - `ux-designer` — token adherence, visual consistency, accessibility (only for PRs touching `client/src/`, skip otherwise)
+
+#### Security Review Trigger Rules
+
+Launch `security-engineer` only if the PR changes files matching ANY of these patterns:
+
+- `server/src/routes/**` — API endpoint handlers
+- `server/src/plugins/auth*` or `server/src/plugins/session*` — authentication/authorization plugins
+- `Dockerfile` or `docker-compose.yml` — deployment configuration
+- `**/package.json` or `**/package-lock.json` — dependency changes
+- Any file path containing `sql`, `crypto`, `cookie`, `session`, `token`, `auth`, or `secret`
+
+If none of these patterns match, skip the security review. The full security audit at `/epic-close` covers all code.
 
 Review results are posted as **comments on the PR**. All review agents must prefix their comments with their agent name (e.g., `**[product-architect]**`).
 
@@ -325,7 +368,7 @@ In multi-item mode, reviewers must validate that **all items** in the batch are 
 
 ### 9. Fix Loop
 
-Track `fixLoopCount` (starts at 0). Each fix-and-re-review iteration increments this counter. Record which agent(s) triggered each round.
+Track `fixLoopCount` (starts at 0). Each fix-and-re-review iteration increments this counter. Record which agent(s) triggered each round in `fixLoopTriggers`.
 
 If any reviewer identifies blocking issues:
 
@@ -341,7 +384,8 @@ If any reviewer identifies blocking issues:
 6. Run **trailer verification** (same as step 6h)
 7. Re-request review from the agent(s) that flagged issues
 8. Increment `fixLoopCount` and record the new round's `REVIEW_METRICS`
-9. Repeat until all reviewers approve
+9. **Update the implementation checklist**: If the fix loop was caused by a recurring pattern not yet in `.claude/checklists/implementation-checklist.md`, add the new pattern. This creates a flywheel where each fix loop reduces future occurrences.
+10. Repeat until all reviewers approve
 
 ### 10. Merge
 
@@ -389,16 +433,28 @@ If the user reports issues with a merged PR, take the user's feedback as new inp
      "issues": [<issue-numbers>],
      "epic": <epic-number-or-null>,
      "type": "<feat|fix|chore>",
-     "mergedAt": "<ISO-8601>",
+     "createdAt": "<ISO-8601 of PR creation>",
+     "mergedAt": "<ISO-8601 of merge>",
      "filesChanged": <N>,
      "linesChanged": <additions+deletions>,
+     "touchesClient": <true|false>,
+     "touchesServer": <true|false>,
      "fixLoopCount": <N>,
+     "internalFixLoopCount": <N from step 6f>,
+     "fixLoopTriggers": [{"round": 1, "agents": ["agent-name"]}],
      "reviews": [
-       { "agent": "<name>", "verdict": "<verdict>", "findings": { "critical": 0, "high": 0, "medium": 0, "low": 0, "informational": 0 }, "round": <N> }
+       { "agent": "<name>", "verdict": "<approve|request-changes>", "findings": { "critical": 0, "high": 0, "medium": 0, "low": 0, "informational": 0 }, "round": <N> }
      ],
      "totalFindings": { "critical": 0, "high": 0, "medium": 0, "low": 0, "informational": 0 }
    }
    ```
+
+   **Schema rules:**
+   - `verdict` must be `"approve"` or `"request-changes"` — never `"comment"` (agents that would comment should approve with findings noted)
+   - `createdAt` is the PR creation timestamp; `mergedAt` is only set after actual merge
+   - `touchesClient` / `touchesServer` indicate whether files under `client/` or `server/`+`shared/` were changed
+   - `internalFixLoopCount` tracks pre-PR review cycles (step 6f); `fixLoopCount` tracks post-PR review cycles (step 9)
+   - `fixLoopTriggers` records which agent(s) caused each fix loop round
 
 3. Commit and push the updated metrics file: `chore: update review metrics for PR #<N>`
 
@@ -422,8 +478,8 @@ After merge:
    ```
 2. Move the issue to **Done** on the Projects board:
    ```bash
-   ITEM_ID=$(gh api graphql -f query='{ repository(owner: "steilerDev", name: "cornerstone") { issue(number: <issue-number>) { projectItems(first: 1) { nodes { id } } } } }' --jq '.data.repository.issue.projectItems.nodes[0].id')
-   gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "PVT_kwHOAGtLQM4BOlve", itemId: "'"$ITEM_ID"'", fieldId: "PVTSSF_lAHOAGtLQM4BOlvezg9P0yo", value: { singleSelectOptionId: "c558f50d" } }) { clientMutationId } }'
+   ITEM_ID=$(gh project item-list 4 --owner steilerDev --format json --limit 1 --query "is:issue #<issue-number>" --jq '.items[0].id')
+   gh project item-edit --id "$ITEM_ID" --project-id PVT_kwHOAGtLQM4BOlve --field-id PVTSSF_lAHOAGtLQM4BOlvezg9P0yo --single-select-option-id c558f50d
    ```
 3. **Remove resolved line from source file** (only when input was a `@`-prefixed file path):
    - Remove the line from the source file that produced the resolved item (matched by original text).
@@ -443,7 +499,7 @@ After merge:
    ```
    gh issue close <issue-number>
    ```
-2. Move **each issue** to **Done** on the Projects board (run the GraphQL mutation for each).
+2. Move **each issue** to **Done** on the Projects board (run the `gh project item-edit` command for each).
 3. **Remove resolved lines from source file** (only when input was a `@`-prefixed file path):
    - For each closed issue, remove the line from the source file that produced it (matched by original text — the issue number or description as it appeared in the file).
    - Preserve comments (`#`-prefixed lines) and empty lines that were not part of the resolved items.

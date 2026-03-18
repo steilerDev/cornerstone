@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   VendorDetail,
   UpdateVendorRequest,
@@ -14,23 +15,11 @@ import {
   deleteInvoice,
 } from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatDate } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
+import { VendorContactsSection } from '../../components/VendorContacts/VendorContactsSection.js';
 import styles from './VendorDetailPage.module.css';
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
-const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
-  pending: 'Pending',
-  paid: 'Paid',
-  claimed: 'Claimed',
-};
+// INVOICE_STATUS_LABELS will be dynamically generated from i18n
 
 /** Invoice form state used for both create and edit. */
 interface InvoiceFormState {
@@ -52,6 +41,8 @@ const EMPTY_INVOICE_FORM: InvoiceFormState = {
 };
 
 export function VendorDetailPage() {
+  const { t } = useTranslation('budget');
+  const { formatCurrency, formatDate } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -109,12 +100,12 @@ export function VendorDetailPage() {
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 404) {
-          setError('Vendor not found. It may have been deleted.');
+          setError(t('vendorDetail.vendorNotFound'));
         } else {
           setError(err.error.message);
         }
       } else {
-        setError('Failed to load vendor. Please try again.');
+        setError(t('vendorDetail.vendorNotFound'));
       }
     } finally {
       setIsLoading(false);
@@ -146,11 +137,11 @@ export function VendorDetailPage() {
 
     const trimmedName = (editForm.name ?? '').trim();
     if (!trimmedName) {
-      setEditError('Vendor name is required.');
+      setEditError(t('vendors.validation.nameRequired'));
       return;
     }
     if (trimmedName.length > 200) {
-      setEditError('Vendor name must be 200 characters or less.');
+      setEditError(t('vendors.validation.nameTooLong'));
       return;
     }
 
@@ -172,7 +163,7 @@ export function VendorDetailPage() {
       if (err instanceof ApiClientError) {
         setEditError(err.error.message);
       } else {
-        setEditError('Failed to update vendor. Please try again.');
+        setEditError(t('vendorDetail.messages.updateError'));
       }
     } finally {
       setIsUpdating(false);
@@ -203,14 +194,12 @@ export function VendorDetailPage() {
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
-          setDeleteError(
-            'This vendor cannot be deleted because they have associated invoices or work items. Remove those references first.',
-          );
+          setDeleteError(t('vendors.modal.deleteError'));
         } else {
           setDeleteError(err.error.message);
         }
       } else {
-        setDeleteError('Failed to delete vendor. Please try again.');
+        setDeleteError(t('vendorDetail.messages.deleteError'));
       }
     } finally {
       setIsDeleting(false);
@@ -231,12 +220,12 @@ export function VendorDetailPage() {
       if (err instanceof ApiClientError) {
         setInvoicesError(err.error.message);
       } else {
-        setInvoicesError('Failed to load invoices. Please try again.');
+        setInvoicesError(t('vendorDetail.messages.invoiceCreateError'));
       }
     } finally {
       setInvoicesLoading(false);
     }
-  }, [id]);
+  }, [id, t]);
 
   useEffect(() => {
     if (!id) return;
@@ -267,11 +256,11 @@ export function VendorDetailPage() {
 
     const amount = parseFloat(createForm.amount);
     if (isNaN(amount) || amount < 0) {
-      setCreateError('Amount must be a valid non-negative number.');
+      setCreateError(t('invoices.validation.amountRequired'));
       return;
     }
     if (!createForm.date) {
-      setCreateError('Invoice date is required.');
+      setCreateError(t('invoices.validation.dateRequired'));
       return;
     }
 
@@ -295,7 +284,7 @@ export function VendorDetailPage() {
       if (err instanceof ApiClientError) {
         setCreateError(err.error.message);
       } else {
-        setCreateError('Failed to create invoice. Please try again.');
+        setCreateError(t('vendorDetail.messages.invoiceCreateError'));
       }
     } finally {
       setIsCreating(false);
@@ -328,11 +317,11 @@ export function VendorDetailPage() {
 
     const amount = parseFloat(editInvoiceForm.amount);
     if (isNaN(amount) || amount < 0) {
-      setEditInvoiceError('Amount must be a valid non-negative number.');
+      setEditInvoiceError(t('invoices.validation.amountRequired'));
       return;
     }
     if (!editInvoiceForm.date) {
-      setEditInvoiceError('Invoice date is required.');
+      setEditInvoiceError(t('invoices.validation.dateRequired'));
       return;
     }
 
@@ -356,7 +345,7 @@ export function VendorDetailPage() {
       if (err instanceof ApiClientError) {
         setEditInvoiceError(err.error.message);
       } else {
-        setEditInvoiceError('Failed to update invoice. Please try again.');
+        setEditInvoiceError(t('vendorDetail.messages.invoiceUpdateError'));
       }
     } finally {
       setIsUpdatingInvoice(false);
@@ -391,7 +380,7 @@ export function VendorDetailPage() {
       if (err instanceof ApiClientError) {
         setDeleteInvoiceError(err.error.message);
       } else {
-        setDeleteInvoiceError('Failed to delete invoice. Please try again.');
+        setDeleteInvoiceError(t('vendorDetail.messages.invoiceDeleteError'));
       }
     } finally {
       setIsDeletingInvoice(false);
@@ -401,7 +390,7 @@ export function VendorDetailPage() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading vendor...</div>
+        <div className={styles.loading}>{t('vendorDetail.loading')}</div>
       </div>
     );
   }
@@ -410,18 +399,18 @@ export function VendorDetailPage() {
     return (
       <div className={styles.container}>
         <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>Error</h2>
-          <p>{error ?? 'Vendor not found.'}</p>
+          <h2 className={styles.errorTitle}>{t('vendorDetail.error')}</h2>
+          <p>{error ?? t('vendorDetail.vendorNotFound')}</p>
           <div className={styles.errorActions}>
             <button
               type="button"
               className={styles.secondaryButton}
               onClick={() => navigate('/budget/vendors')}
             >
-              Back to Vendors
+              {t('vendorDetail.backToVendors')}
             </button>
             <button type="button" className={styles.button} onClick={() => void loadVendor()}>
-              Retry
+              {t('vendorDetail.retry')}
             </button>
           </div>
         </div>
@@ -439,7 +428,7 @@ export function VendorDetailPage() {
             className={styles.backButton}
             onClick={() => navigate('/budget/vendors')}
           >
-            ← Back to Vendors
+            ← {t('vendorDetail.backToVendors')}
           </button>
         </div>
 
@@ -453,10 +442,10 @@ export function VendorDetailPage() {
             {!isEditing && (
               <>
                 <button type="button" className={styles.editButton} onClick={startEdit}>
-                  Edit
+                  {t('vendorDetail.buttons.edit')}
                 </button>
                 <button type="button" className={styles.deleteButton} onClick={openDeleteConfirm}>
-                  Delete
+                  {t('vendorDetail.buttons.delete')}
                 </button>
               </>
             )}
@@ -466,11 +455,11 @@ export function VendorDetailPage() {
         {/* Stats cards */}
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
-            <span className={styles.statLabel}>Total Invoices</span>
+            <span className={styles.statLabel}>{t('vendorDetail.totalInvoices')}</span>
             <span className={styles.statValue}>{vendor.invoiceCount}</span>
           </div>
           <div className={styles.statCard}>
-            <span className={styles.statLabel}>Outstanding Balance</span>
+            <span className={styles.statLabel}>{t('vendorDetail.outstandingBalance')}</span>
             <span
               className={`${styles.statValue} ${vendor.outstandingBalance > 0 ? styles.statValueDanger : ''}`}
             >
@@ -482,7 +471,7 @@ export function VendorDetailPage() {
         {/* Info card — view or edit */}
         <section className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Vendor Information</h2>
+            <h2 className={styles.cardTitle}>{t('vendorDetail.vendorInformation')}</h2>
           </div>
 
           {isEditing ? (
@@ -495,7 +484,8 @@ export function VendorDetailPage() {
 
               <div className={styles.field}>
                 <label htmlFor="edit-name" className={styles.label}>
-                  Name <span className={styles.required}>*</span>
+                  {t('vendorDetail.form.name')}{' '}
+                  <span className={styles.required}>{t('vendorDetail.form.required')}</span>
                 </label>
                 <input
                   type="text"
@@ -511,7 +501,7 @@ export function VendorDetailPage() {
 
               <div className={styles.field}>
                 <label htmlFor="edit-specialty" className={styles.label}>
-                  Specialty
+                  {t('vendorDetail.form.specialty')}
                 </label>
                 <input
                   type="text"
@@ -519,7 +509,7 @@ export function VendorDetailPage() {
                   value={(editForm.specialty as string) ?? ''}
                   onChange={(e) => setEditForm({ ...editForm, specialty: e.target.value })}
                   className={styles.input}
-                  placeholder="e.g., Plumbing, Electrical, Roofing"
+                  placeholder={t('vendorDetail.form.placeholders.specialty')}
                   maxLength={100}
                   disabled={isUpdating}
                 />
@@ -528,7 +518,7 @@ export function VendorDetailPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="edit-phone" className={styles.label}>
-                    Phone
+                    {t('vendorDetail.form.phone')}
                   </label>
                   <input
                     type="tel"
@@ -536,14 +526,14 @@ export function VendorDetailPage() {
                     value={(editForm.phone as string) ?? ''}
                     onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                     className={styles.input}
-                    placeholder="e.g., +1 555-123-4567"
+                    placeholder={t('vendorDetail.form.placeholders.phone')}
                     maxLength={50}
                     disabled={isUpdating}
                   />
                 </div>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="edit-email" className={styles.label}>
-                    Email
+                    {t('vendorDetail.form.email')}
                   </label>
                   <input
                     type="email"
@@ -551,7 +541,7 @@ export function VendorDetailPage() {
                     value={(editForm.email as string) ?? ''}
                     onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                     className={styles.input}
-                    placeholder="e.g., contact@vendor.com"
+                    placeholder={t('vendorDetail.form.placeholders.email')}
                     maxLength={255}
                     disabled={isUpdating}
                   />
@@ -560,7 +550,7 @@ export function VendorDetailPage() {
 
               <div className={styles.field}>
                 <label htmlFor="edit-address" className={styles.label}>
-                  Address
+                  {t('vendorDetail.form.address')}
                 </label>
                 <input
                   type="text"
@@ -568,7 +558,7 @@ export function VendorDetailPage() {
                   value={(editForm.address as string) ?? ''}
                   onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
                   className={styles.input}
-                  placeholder="e.g., 123 Main St, Springfield, IL 62701"
+                  placeholder={t('vendorDetail.form.placeholders.address')}
                   maxLength={500}
                   disabled={isUpdating}
                 />
@@ -576,7 +566,7 @@ export function VendorDetailPage() {
 
               <div className={styles.field}>
                 <label htmlFor="edit-notes" className={styles.label}>
-                  Notes
+                  {t('vendorDetail.form.notes')}
                 </label>
                 <textarea
                   id="edit-notes"
@@ -609,15 +599,15 @@ export function VendorDetailPage() {
           ) : (
             <dl className={styles.infoList}>
               <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Name</dt>
+                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.name')}</dt>
                 <dd className={styles.infoValue}>{vendor.name}</dd>
               </div>
               <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Specialty</dt>
+                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.specialty')}</dt>
                 <dd className={styles.infoValue}>{vendor.specialty || '—'}</dd>
               </div>
               <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Phone</dt>
+                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.phone')}</dt>
                 <dd className={styles.infoValue}>
                   {vendor.phone ? (
                     <a href={`tel:${vendor.phone}`} className={styles.infoLink}>
@@ -629,7 +619,7 @@ export function VendorDetailPage() {
                 </dd>
               </div>
               <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Email</dt>
+                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.email')}</dt>
                 <dd className={styles.infoValue}>
                   {vendor.email ? (
                     <a href={`mailto:${vendor.email}`} className={styles.infoLink}>
@@ -641,17 +631,17 @@ export function VendorDetailPage() {
                 </dd>
               </div>
               <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Address</dt>
+                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.address')}</dt>
                 <dd className={styles.infoValue}>{vendor.address || '—'}</dd>
               </div>
               <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Notes</dt>
+                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.notes')}</dt>
                 <dd className={`${styles.infoValue} ${vendor.notes ? styles.infoValueNotes : ''}`}>
                   {vendor.notes || '—'}
                 </dd>
               </div>
               <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>Created by</dt>
+                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.createdBy')}</dt>
                 <dd className={styles.infoValue}>{vendor.createdBy?.displayName ?? '—'}</dd>
               </div>
             </dl>
@@ -661,11 +651,11 @@ export function VendorDetailPage() {
         {/* Invoices section */}
         <section className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Invoices</h2>
+            <h2 className={styles.cardTitle}>{t('vendorDetail.invoices')}</h2>
             <div className={styles.invoiceHeaderRight}>
               {invoices.length > 0 && (
                 <span className={styles.outstandingBalance}>
-                  Outstanding:{' '}
+                  {t('vendorDetail.outstanding')}{' '}
                   <strong
                     className={
                       computedOutstandingBalance > 0 ? styles.outstandingAmount : undefined
@@ -676,12 +666,14 @@ export function VendorDetailPage() {
                 </span>
               )}
               <button type="button" className={styles.button} onClick={openCreateModal}>
-                Add Invoice
+                {t('vendorDetail.addInvoice')}
               </button>
             </div>
           </div>
 
-          {invoicesLoading && <p className={styles.invoicesLoading}>Loading invoices...</p>}
+          {invoicesLoading && (
+            <p className={styles.invoicesLoading}>{t('vendorDetail.invoicesLoading')}</p>
+          )}
 
           {invoicesError && !invoicesLoading && (
             <div className={styles.invoicesError} role="alert">
@@ -698,10 +690,8 @@ export function VendorDetailPage() {
 
           {!invoicesLoading && !invoicesError && invoices.length === 0 && (
             <div className={styles.invoicesEmpty}>
-              <p className={styles.invoicesEmptyText}>No invoices yet.</p>
-              <p className={styles.invoicesEmptyHint}>
-                Click &ldquo;Add Invoice&rdquo; to record the first invoice for this vendor.
-              </p>
+              <p className={styles.invoicesEmptyText}>{t('vendorDetail.noInvoicesYet')}</p>
+              <p className={styles.invoicesEmptyHint}>{t('vendorDetail.noInvoicesHint')}</p>
             </div>
           )}
 
@@ -712,13 +702,21 @@ export function VendorDetailPage() {
                 <table className={styles.invoiceTable}>
                   <thead>
                     <tr>
-                      <th className={styles.tableHeader}>Invoice #</th>
-                      <th className={`${styles.tableHeader} ${styles.tableHeaderRight}`}>Amount</th>
-                      <th className={styles.tableHeader}>Date</th>
-                      <th className={styles.tableHeader}>Due Date</th>
-                      <th className={styles.tableHeader}>Status</th>
+                      <th className={styles.tableHeader}>
+                        {t('vendorDetail.invoiceTable.invoiceNumber')}
+                      </th>
                       <th className={`${styles.tableHeader} ${styles.tableHeaderRight}`}>
-                        Actions
+                        {t('vendorDetail.invoiceTable.amount')}
+                      </th>
+                      <th className={styles.tableHeader}>{t('vendorDetail.invoiceTable.date')}</th>
+                      <th className={styles.tableHeader}>
+                        {t('vendorDetail.invoiceTable.dueDate')}
+                      </th>
+                      <th className={styles.tableHeader}>
+                        {t('vendorDetail.invoiceTable.status')}
+                      </th>
+                      <th className={`${styles.tableHeader} ${styles.tableHeaderRight}`}>
+                        {t('vendorDetail.invoiceTable.actions')}
                       </th>
                     </tr>
                   </thead>
@@ -745,7 +743,7 @@ export function VendorDetailPage() {
                           <span
                             className={`${styles.invoiceStatusBadge} ${styles[`status_${invoice.status}`]}`}
                           >
-                            {INVOICE_STATUS_LABELS[invoice.status]}
+                            {t(`invoices.statusLabels.${invoice.status}`)}
                           </span>
                         </td>
                         <td className={`${styles.tableCell} ${styles.tableCellRight}`}>
@@ -756,7 +754,7 @@ export function VendorDetailPage() {
                               onClick={() => openEditInvoiceModal(invoice)}
                               aria-label={`Edit invoice ${invoice.invoiceNumber ?? invoice.id}`}
                             >
-                              Edit
+                              {t('vendorDetail.buttons.editRow')}
                             </button>
                             <button
                               type="button"
@@ -764,7 +762,7 @@ export function VendorDetailPage() {
                               onClick={() => openDeleteInvoiceConfirm(invoice)}
                               aria-label={`Delete invoice ${invoice.invoiceNumber ?? invoice.id}`}
                             >
-                              Delete
+                              {t('vendorDetail.buttons.deleteRow')}
                             </button>
                           </div>
                         </td>
@@ -785,7 +783,7 @@ export function VendorDetailPage() {
                       <span
                         className={`${styles.invoiceStatusBadge} ${styles[`status_${invoice.status}`]}`}
                       >
-                        {INVOICE_STATUS_LABELS[invoice.status]}
+                        {t(`invoices.statusLabels.${invoice.status}`)}
                       </span>
                     </div>
                     <div className={styles.invoiceCardRow}>
@@ -822,6 +820,9 @@ export function VendorDetailPage() {
             </>
           )}
         </section>
+
+        {/* Vendor Contacts Section */}
+        {vendor && id && <VendorContactsSection vendorId={id} />}
       </div>
 
       {/* Delete vendor confirmation modal */}

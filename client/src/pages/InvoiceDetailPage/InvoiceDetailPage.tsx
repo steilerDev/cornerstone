@@ -1,18 +1,15 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { Invoice, InvoiceStatus } from '@cornerstone/shared';
 import { fetchInvoiceById, updateInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatDate, formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { InvoiceBudgetLinesSection } from './InvoiceBudgetLinesSection.js';
 import styles from './InvoiceDetailPage.module.css';
 
-const STATUS_LABELS: Record<InvoiceStatus, string> = {
-  pending: 'Pending',
-  paid: 'Paid',
-  claimed: 'Claimed',
-};
+// STATUS_LABELS will be dynamically generated from i18n
 
 interface InvoiceFormState {
   invoiceNumber: string;
@@ -24,6 +21,8 @@ interface InvoiceFormState {
 }
 
 export function InvoiceDetailPage() {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+  const { t } = useTranslation('budget');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -65,12 +64,12 @@ export function InvoiceDetailPage() {
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 404) {
-          setError('Invoice not found. It may have been deleted.');
+          setError(t('invoiceDetail.invoiceNotFound'));
         } else {
           setError(err.error.message);
         }
       } else {
-        setError('Failed to load invoice. Please try again.');
+        setError(t('invoiceDetail.invoiceNotFound'));
       }
     } finally {
       setIsLoading(false);
@@ -103,11 +102,11 @@ export function InvoiceDetailPage() {
     if (!invoice) return;
     const amount = parseFloat(editForm.amount);
     if (isNaN(amount) || amount <= 0) {
-      setEditError('Amount must be a positive number.');
+      setEditError(t('invoiceDetail.validation.amountRequired'));
       return;
     }
     if (!editForm.date) {
-      setEditError('Invoice date is required.');
+      setEditError(t('invoiceDetail.validation.dateRequired'));
       return;
     }
     setIsUpdating(true);
@@ -127,7 +126,7 @@ export function InvoiceDetailPage() {
       if (err instanceof ApiClientError) {
         setEditError(err.error.message);
       } else {
-        setEditError('Failed to update invoice. Please try again.');
+        setEditError(t('invoiceDetail.messages.updateError'));
       }
     } finally {
       setIsUpdating(false);
@@ -157,7 +156,7 @@ export function InvoiceDetailPage() {
       if (err instanceof ApiClientError) {
         setDeleteError(err.error.message);
       } else {
-        setDeleteError('Failed to delete invoice. Please try again.');
+        setDeleteError(t('invoiceDetail.messages.deleteError'));
       }
     } finally {
       setIsDeleting(false);
@@ -167,7 +166,7 @@ export function InvoiceDetailPage() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading invoice...</div>
+        <div className={styles.loading}>{t('invoiceDetail.loading')}</div>
       </div>
     );
   }
@@ -176,18 +175,18 @@ export function InvoiceDetailPage() {
     return (
       <div className={styles.container}>
         <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>Error</h2>
-          <p>{error ?? 'Invoice not found.'}</p>
+          <h2 className={styles.errorTitle}>{t('invoiceDetail.error')}</h2>
+          <p>{error ?? t('invoiceDetail.invoiceNotFound')}</p>
           <div className={styles.errorActions}>
             <button
               type="button"
               className={styles.secondaryButton}
               onClick={() => navigate('/budget/invoices')}
             >
-              Back to Invoices
+              {t('invoiceDetail.backToInvoices')}
             </button>
             <button type="button" className={styles.button} onClick={() => void loadInvoice()}>
-              Retry
+              {t('invoiceDetail.retry')}
             </button>
           </div>
         </div>
@@ -205,7 +204,7 @@ export function InvoiceDetailPage() {
             className={styles.backButton}
             onClick={() => navigate('/budget/invoices')}
           >
-            ← Back to Invoices
+            ← {t('invoiceDetail.backToInvoices')}
           </button>
         </div>
 
@@ -213,18 +212,20 @@ export function InvoiceDetailPage() {
         <div className={styles.headerRow}>
           <div className={styles.pageHeading}>
             <h1 className={styles.pageTitle}>
-              {invoice.invoiceNumber ? `#${invoice.invoiceNumber}` : 'Invoice'}
+              {invoice.invoiceNumber
+                ? `#${invoice.invoiceNumber}`
+                : t('invoiceDetail.invoiceDetails')}
             </h1>
             <span className={`${styles.statusBadge} ${styles[`status_${invoice.status}`]}`}>
-              {STATUS_LABELS[invoice.status]}
+              {t(`invoiceDetail.statusLabels.${invoice.status}`)}
             </span>
           </div>
           <div className={styles.pageActions}>
             <button type="button" className={styles.editButton} onClick={openEditModal}>
-              Edit
+              {t('invoiceDetail.buttons.edit')}
             </button>
             <button type="button" className={styles.deleteButton} onClick={openDeleteModal}>
-              Delete
+              {t('invoiceDetail.buttons.delete')}
             </button>
           </div>
         </div>
@@ -232,15 +233,15 @@ export function InvoiceDetailPage() {
         {/* Detail card */}
         <section className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Invoice Details</h2>
+            <h2 className={styles.cardTitle}>{t('invoiceDetail.invoiceDetails')}</h2>
           </div>
           <dl className={styles.infoList}>
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Invoice #</dt>
+              <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.invoiceNumber')}</dt>
               <dd className={styles.infoValue}>{invoice.invoiceNumber ?? '\u2014'}</dd>
             </div>
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Vendor</dt>
+              <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.vendor')}</dt>
               <dd className={styles.infoValue}>
                 <Link to={`/budget/vendors/${invoice.vendorId}`} className={styles.infoLink}>
                   {invoice.vendorName}
@@ -248,37 +249,37 @@ export function InvoiceDetailPage() {
               </dd>
             </div>
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Amount</dt>
+              <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.amount')}</dt>
               <dd className={`${styles.infoValue} ${styles.infoValueAmount}`}>
                 {formatCurrency(invoice.amount)}
               </dd>
             </div>
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Date</dt>
+              <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.date')}</dt>
               <dd className={styles.infoValue}>{formatDate(invoice.date)}</dd>
             </div>
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Due Date</dt>
+              <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.dueDate')}</dt>
               <dd className={styles.infoValue}>
                 {invoice.dueDate ? formatDate(invoice.dueDate) : '\u2014'}
               </dd>
             </div>
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Status</dt>
+              <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.status')}</dt>
               <dd className={styles.infoValue}>
                 <span className={`${styles.statusBadge} ${styles[`status_${invoice.status}`]}`}>
-                  {STATUS_LABELS[invoice.status]}
+                  {t(`invoiceDetail.statusLabels.${invoice.status}`)}
                 </span>
               </dd>
             </div>
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Notes</dt>
+              <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.notes')}</dt>
               <dd className={`${styles.infoValue} ${invoice.notes ? styles.infoValueNotes : ''}`}>
                 {invoice.notes ?? '\u2014'}
               </dd>
             </div>
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Created by</dt>
+              <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.createdBy')}</dt>
               <dd className={styles.infoValue}>{invoice.createdBy?.displayName ?? '\u2014'}</dd>
             </div>
           </dl>
@@ -300,7 +301,7 @@ export function InvoiceDetailPage() {
           <div className={styles.modalBackdrop} onClick={closeEditModal} />
           <div className={`${styles.modalContent} ${styles.modalContentWide}`}>
             <h2 id="edit-modal-title" className={styles.modalTitle}>
-              Edit Invoice
+              {t('invoiceDetail.modal.editTitle')}
             </h2>
             <form onSubmit={handleUpdate} className={styles.form} noValidate>
               {editError && (
@@ -312,7 +313,7 @@ export function InvoiceDetailPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="edit-invoice-number" className={styles.label}>
-                    Invoice #
+                    {t('invoiceDetail.form.invoiceNumber')}
                   </label>
                   <input
                     type="text"
@@ -320,14 +321,15 @@ export function InvoiceDetailPage() {
                     value={editForm.invoiceNumber}
                     onChange={(e) => setEditForm({ ...editForm, invoiceNumber: e.target.value })}
                     className={styles.input}
-                    placeholder="e.g., INV-001"
+                    placeholder={t('invoiceDetail.form.placeholders.invoiceNumber')}
                     maxLength={100}
                     disabled={isUpdating}
                   />
                 </div>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="edit-amount" className={styles.label}>
-                    Amount <span className={styles.required}>*</span>
+                    {t('invoiceDetail.form.amount')}{' '}
+                    <span className={styles.required}>{t('invoiceDetail.form.required')}</span>
                   </label>
                   <input
                     type="number"
@@ -347,7 +349,8 @@ export function InvoiceDetailPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="edit-date" className={styles.label}>
-                    Invoice Date <span className={styles.required}>*</span>
+                    {t('invoiceDetail.form.invoiceDate')}{' '}
+                    <span className={styles.required}>{t('invoiceDetail.form.required')}</span>
                   </label>
                   <input
                     type="date"
@@ -361,7 +364,7 @@ export function InvoiceDetailPage() {
                 </div>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="edit-due-date" className={styles.label}>
-                    Due Date
+                    {t('invoiceDetail.form.dueDate')}
                   </label>
                   <input
                     type="date"
@@ -376,7 +379,7 @@ export function InvoiceDetailPage() {
 
               <div className={styles.field}>
                 <label htmlFor="edit-status" className={styles.label}>
-                  Status
+                  {t('invoiceDetail.form.status')}
                 </label>
                 <select
                   id="edit-status"
@@ -387,15 +390,15 @@ export function InvoiceDetailPage() {
                   className={styles.select}
                   disabled={isUpdating}
                 >
-                  <option value="pending">Pending</option>
-                  <option value="paid">Paid</option>
-                  <option value="claimed">Claimed</option>
+                  <option value="pending">{t('invoiceDetail.statusLabels.pending')}</option>
+                  <option value="paid">{t('invoiceDetail.statusLabels.paid')}</option>
+                  <option value="claimed">{t('invoiceDetail.statusLabels.claimed')}</option>
                 </select>
               </div>
 
               <div className={styles.field}>
                 <label htmlFor="edit-notes" className={styles.label}>
-                  Notes
+                  {t('invoiceDetail.form.notes')}
                 </label>
                 <textarea
                   id="edit-notes"
@@ -414,14 +417,14 @@ export function InvoiceDetailPage() {
                   onClick={closeEditModal}
                   disabled={isUpdating}
                 >
-                  Cancel
+                  {t('invoiceDetail.buttons.cancel')}
                 </button>
                 <button
                   type="submit"
                   className={styles.saveButton}
                   disabled={isUpdating || !editForm.amount || !editForm.date}
                 >
-                  {isUpdating ? 'Saving...' : 'Save Changes'}
+                  {isUpdating ? t('invoiceDetail.buttons.saving') : t('invoiceDetail.buttons.save')}
                 </button>
               </div>
             </form>
@@ -440,19 +443,22 @@ export function InvoiceDetailPage() {
           <div className={styles.modalBackdrop} onClick={closeDeleteModal} />
           <div className={styles.modalContent}>
             <h2 id="delete-modal-title" className={styles.modalTitle}>
-              Delete Invoice
+              {t('invoiceDetail.modal.deleteTitle')}
             </h2>
             <p className={styles.modalText}>
-              Are you sure you want to delete invoice{' '}
-              {invoice.invoiceNumber ? <strong>#{invoice.invoiceNumber}</strong> : 'this invoice'}{' '}
-              for <strong>{formatCurrency(invoice.amount)}</strong>?
+              {t('invoiceDetail.modal.deleteConfirm', {
+                number: invoice.invoiceNumber
+                  ? `#${invoice.invoiceNumber}`
+                  : t('invoiceDetail.invoiceDetails'),
+                amount: formatCurrency(invoice.amount),
+              })}
             </p>
             {deleteError ? (
               <div className={styles.errorBanner} role="alert">
                 {deleteError}
               </div>
             ) : (
-              <p className={styles.modalWarning}>This action cannot be undone.</p>
+              <p className={styles.modalWarning}>{t('invoiceDetail.modal.deleteWarning')}</p>
             )}
             <div className={styles.modalActions}>
               <button
@@ -461,7 +467,7 @@ export function InvoiceDetailPage() {
                 onClick={closeDeleteModal}
                 disabled={isDeleting}
               >
-                Cancel
+                {t('invoiceDetail.buttons.cancel')}
               </button>
               {!deleteError && (
                 <button
@@ -470,7 +476,9 @@ export function InvoiceDetailPage() {
                   onClick={() => void handleDelete()}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete Invoice'}
+                  {isDeleting
+                    ? t('invoiceDetail.buttons.deleting')
+                    : t('invoiceDetail.modal.deleteTitle')}
                 </button>
               )}
             </div>

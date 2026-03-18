@@ -32,6 +32,13 @@ test.beforeEach(async ({ page }) => {
   // Ensure the preference reset succeeded — a failed PATCH leaves hidden cards
   // from a prior test, causing downstream dismiss tests to fail.
   expect(resp.ok(), `beforeEach: preference reset failed with ${resp.status()}`).toBeTruthy();
+
+  // Also reset the locale preference to English. If an i18n test in the same shard
+  // left the locale as 'de', the dashboard would render with German card headings
+  // (e.g., "Schnellaktionen" instead of "Quick Actions"), causing locator failures.
+  await page.request.patch('/api/users/me/preferences', {
+    data: { key: 'locale', value: 'en' },
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

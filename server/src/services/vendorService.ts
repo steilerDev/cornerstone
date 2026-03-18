@@ -13,6 +13,7 @@ import type {
   UserSummary,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError, VendorInUseError } from '../errors/AppError.js';
+import * as vendorContactService from './vendorContactService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -79,14 +80,16 @@ function getVendorStats(
 }
 
 /**
- * Convert database vendor row to VendorDetail shape (includes invoice stats).
+ * Convert database vendor row to VendorDetail shape (includes invoice stats and contacts).
  */
 function toVendorDetail(db: DbType, row: typeof vendors.$inferSelect): VendorDetail {
   const stats = getVendorStats(db, row.id);
+  const contacts = vendorContactService.listContactsRaw(db, row.id);
   return {
     ...toVendor(db, row),
     invoiceCount: stats.invoiceCount,
     outstandingBalance: stats.outstandingBalance,
+    contacts,
   };
 }
 

@@ -49,6 +49,7 @@ describe('User Service', () => {
         deactivatedAt: null,
         failedLoginAttempts: 0,
         lockedUntil: null,
+        davToken: null,
       };
 
       // When: Converting to UserResponse
@@ -88,6 +89,7 @@ describe('User Service', () => {
         deactivatedAt: null,
         failedLoginAttempts: 0,
         lockedUntil: null,
+        davToken: null,
       };
 
       // When: Converting to response
@@ -114,6 +116,7 @@ describe('User Service', () => {
         deactivatedAt: null,
         failedLoginAttempts: 0,
         lockedUntil: null,
+        davToken: null,
       };
 
       // When: Converting to response
@@ -140,6 +143,7 @@ describe('User Service', () => {
         deactivatedAt: '2024-06-01T10:00:00.000Z',
         failedLoginAttempts: 0,
         lockedUntil: null,
+        davToken: null,
       };
 
       // When: Converting to response

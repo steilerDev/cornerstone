@@ -1,0 +1,131 @@
+{
+  "page": {
+    "title": "Projekt",
+    "customize": "Anpassen",
+    "hiddenCards": "Ausgeblendete Karten",
+    "showCard": "{{title}} anzeigen"
+  },
+  "sections": {
+    "timeline": {
+      "title": "Zeitplan",
+      "summaryNoItems": "Keine Elemente geplant",
+      "summaryItems_one": "{{count}} Arbeitspaket geplant",
+      "summaryItems_other": "{{count}} Arbeitspakete geplant"
+    },
+    "budgetDetails": {
+      "title": "Budgetdetails",
+      "summaryNoSources": "Keine Quellen konfiguriert",
+      "summarySources_one": "{{count}} Quelle konfiguriert",
+      "summarySources_other": "{{count}} Quellen konfiguriert"
+    }
+  },
+  "aria": {
+    "dashboardOverview": "Dashboard-Übersicht"
+  },
+  "cards": {
+    "budgetSummary": {
+      "title": "Budgetübersicht",
+      "remainingBudget": "Verbleibendes Budget",
+      "plannedCostRange": "Geplante Kostenspanne",
+      "actualSpend": "Tatsächliche Ausgaben",
+      "subsidySavings": "Förderersparnisse",
+      "viewBudgetOverview": "Budgetübersicht anzeigen →"
+    },
+    "sourceUtilization": {
+      "title": "Quellenauslastung",
+      "emptyMessage": "Keine Budgetquellen konfiguriert",
+      "emptyAction": "Budgetquelle hinzufügen",
+      "utilized": "{{percent}}% genutzt",
+      "usedLabel": "Genutzt",
+      "sourceTypes": {
+        "bank_loan": "Bankdarlehen",
+        "credit_line": "Kreditlinie",
+        "savings": "Ersparnisse",
+        "other": "Sonstiges",
+        "discretionary": "Verfügbar"
+      }
+    },
+    "upcomingMilestones": {
+      "title": "Bevorstehende Meilensteine",
+      "emptyMessage": "Keine bevorstehenden Meilensteine",
+      "onTrack": "Im Zeitplan",
+      "delayed": "Verzögert"
+    },
+    "workItemProgress": {
+      "title": "Arbeitspaketfortschritt",
+      "emptyMessage": "Keine Arbeitspakete",
+      "ariaLabel": "Arbeitspaketfortschritt: {{completed}} abgeschlossen, {{inProgress}} in Bearbeitung, {{notStarted}} nicht begonnen"
+    },
+    "criticalPath": {
+      "title": "Kritischer Pfad",
+      "emptyNoDefined": "Kein kritischer Pfad definiert",
+      "emptyAllCompleted": "Alle kritischen Elemente abgeschlossen",
+      "itemsOnPath": "Elemente auf dem Pfad",
+      "nextDeadline": "Nächste Frist",
+      "daysRemaining": "Verbleibende Tage",
+      "health": {
+        "onTrack": "Im Zeitplan",
+        "overdue": "Überfällig",
+        "critical": "Kritisch",
+        "warning": "Warnung"
+      }
+    },
+    "miniGantt": {
+      "title": "Mini-Gantt",
+      "emptyMessage": "Keine Arbeitspakete in diesem Zeitraum geplant",
+      "ariaViewFullSchedule": "Vollständigen Zeitplan anzeigen",
+      "ariaChartItems_one": "Mini-Gantt: {{count}} Arbeitspaket geplant",
+      "ariaChartItems_other": "Mini-Gantt: {{count}} Arbeitspakete geplant",
+      "ariaChartWithMilestones_one": "Mini-Gantt: {{count}} Arbeitspaket geplant, {{milestones}} Meilenstein",
+      "ariaChartWithMilestones_other": "Mini-Gantt: {{count}} Arbeitspakete geplant, {{milestones}} Meilensteine"
+    },
+    "invoicePipeline": {
+      "title": "Rechnungspipeline",
+      "emptyMessage": "Noch keine Rechnungen",
+      "emptyAction": "Rechnung erstellen",
+      "noPendingInvoices": "Keine ausstehenden Rechnungen",
+      "overdue": "Überfällig",
+      "pendingTotal": "Ausstehender Gesamtbetrag:",
+      "viewAllInvoices": "Alle Rechnungen anzeigen"
+    },
+    "subsidyPipeline": {
+      "title": "Förderpipeline",
+      "emptyMessage": "Keine Förderprogramme gefunden",
+      "emptyAction": "Förderprogramm hinzufügen",
+      "noPrograms": "Keine Förderprogramme gefunden",
+      "deadlineSoon": "Frist naht",
+      "viewAllSubsidies": "Alle Förderungen anzeigen",
+      "program_one": "Programm",
+      "program_other": "Programme",
+      "statuses": {
+        "eligible": "Berechtigt",
+        "applied": "Beantragt",
+        "approved": "Genehmigt",
+        "received": "Erhalten",
+        "rejected": "Abgelehnt"
+      }
+    },
+    "recentDiary": {
+      "title": "Tagebuch-Einträge",
+      "emptyMessage": "Noch keine Tagebucheinträge.",
+      "emptyAction": "Ersten Eintrag erstellen",
+      "newEntry": "+ Neuer Eintrag",
+      "viewAll": "Alle anzeigen",
+      "untitled": "Ohne Titel",
+      "loadingEntries": "Einträge werden geladen..."
+    },
+    "quickActions": {
+      "title": "Schnellaktionen",
+      "newWorkItem": "Neues Arbeitspaket",
+      "workItems": "Arbeitspakete",
+      "timeline": "Zeitplan",
+      "budget": "Budget",
+      "invoices": "Rechnungen",
+      "vendors": "Auftragnehmer"
+    },
+    "common": {
+      "emptyDefault": "Keine Daten verfügbar",
+      "retry": "Erneut versuchen"
+    }
+  }
+}

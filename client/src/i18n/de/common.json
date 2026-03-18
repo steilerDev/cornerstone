@@ -1,0 +1,102 @@
+{
+  "nav": {
+    "project": "Projekt",
+    "budget": "Budget",
+    "schedule": "Zeitplan",
+    "diary": "Tagebuch",
+    "settings": "Einstellungen"
+  },
+  "name": "Name",
+  "button": {
+    "logout": "Abmelden",
+    "close": "Schließen",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "add": "Hinzufügen",
+    "create": "Erstellen",
+    "confirm": "Bestätigen",
+    "back": "Zurück",
+    "search": "Suchen"
+  },
+  "aria": {
+    "closeMenu": "Menü schließen",
+    "openMenu": "Menü öffnen",
+    "goToOverview": "Zur Projektübersicht",
+    "closeDialog": "Dialog schließen",
+    "clearSelection": "Auswahl aufheben"
+  },
+  "loading": "Wird geladen...",
+  "searching": "Suche läuft...",
+  "appName": "Cornerstone",
+  "search": {
+    "placeholder": "Elemente suchen...",
+    "emptyHint": "Zum Suchen tippen",
+    "noResults": "Keine passenden Elemente gefunden",
+    "loadError": "Elemente konnten nicht geladen werden",
+    "searchError": "Suche fehlgeschlagen"
+  },
+  "status": {
+    "notStarted": "Nicht begonnen",
+    "inProgress": "In Bearbeitung",
+    "completed": "Abgeschlossen",
+    "onHold": "Pausiert",
+    "cancelled": "Abgebrochen"
+  },
+  "theme": {
+    "light": "Hell",
+    "dark": "Dunkel",
+    "system": "System",
+    "switchTo": "Zu {{mode}}-Modus wechseln",
+    "current": "Aktuell: {{current}} — klicken um zu {{next}} zu wechseln"
+  },
+  "notFound": {
+    "title": "404 - Seite nicht gefunden",
+    "description": "Die gesuchte Seite existiert nicht oder wurde verschoben.",
+    "backLink": "Zurück zur Projektübersicht"
+  },
+  "tagPicker": {
+    "placeholderEmpty": "Tags hinzufügen...",
+    "placeholderMore": "Weitere hinzufügen...",
+    "createHeader": "Neuen Tag erstellen:",
+    "colorLabel": "Farbe:",
+    "createButton": "Tag erstellen",
+    "creating": "Wird erstellt...",
+    "createError": "Tag konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "noMatchingTags": "Keine passenden Tags gefunden",
+    "noMoreTags": "Keine weiteren Tags verfügbar"
+  },
+  "tagPill": {
+    "removeAriaLabel": "Tag {{name}} entfernen"
+  },
+  "keyboardShortcuts": {
+    "title": "Tastaturkürzel",
+    "closeAriaLabel": "Schließen",
+    "keyColumn": "Taste",
+    "actionColumn": "Aktion"
+  },
+  "toast": {
+    "dismissAriaLabel": "Benachrichtigung schließen"
+  },
+  "subnav": {
+    "project": {
+      "overview": "Übersicht",
+      "workItems": "Arbeitspakete",
+      "householdItems": "Haushaltsartikel",
+      "milestones": "Meilensteine"
+    },
+    "budget": {
+      "overview": "Übersicht",
+      "invoices": "Rechnungen",
+      "vendors": "Auftragnehmer",
+      "sources": "Geldquellen",
+      "subsidies": "Zuschüsse"
+    },
+    "settings": {
+      "profile": "Profil",
+      "manage": "Verwalten",
+      "userManagement": "Benutzerverwaltung"
+    }
+  }
+}

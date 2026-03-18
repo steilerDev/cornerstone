@@ -1,0 +1,24 @@
+{
+  "_meta": {
+    "description": "Single source of truth for domain terminology translations. The translator agent enforces these.",
+    "locales": ["de"],
+    "lastUpdated": "2026-03-17"
+  },
+  "terms": {
+    "Work Item": { "de": { "singular": "Arbeitspaket", "plural": "Arbeitspakete" } },
+    "Household Item": { "de": { "singular": "Haushaltsartikel", "plural": "Haushaltsartikel" } },
+    "Vendor": { "de": { "singular": "Auftragnehmer", "plural": "Auftragnehmer" } },
+    "Budget Line": { "de": { "singular": "Budgetposition", "plural": "Budgetpositionen" } },
+    "Budget Source": { "de": { "singular": "Budgetquelle", "plural": "Budgetquellen" } },
+    "Milestone": { "de": { "singular": "Meilenstein", "plural": "Meilensteine" } },
+    "Invoice": { "de": { "singular": "Rechnung", "plural": "Rechnungen" } },
+    "Subsidy": { "de": { "singular": "Förderprogramm", "plural": "Förderprogramme" } },
+    "Dependency": { "de": { "singular": "Abhängigkeit", "plural": "Abhängigkeiten" } },
+    "Subtask": { "de": { "singular": "Teilaufgabe", "plural": "Teilaufgaben" } },
+    "Diary Entry": { "de": { "singular": "Tagebucheintrag", "plural": "Tagebucheinträge" } },
+    "Category": { "de": { "singular": "Kategorie", "plural": "Kategorien" } },
+    "Critical Path": { "de": { "singular": "Kritischer Pfad" } },
+    "Gantt Chart": { "de": { "singular": "Gantt-Diagramm" } },
+    "Dashboard": { "de": { "singular": "Projektübersicht" } }
+  }
+}

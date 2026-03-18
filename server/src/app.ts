@@ -15,6 +15,7 @@ import errorHandlerPlugin from './plugins/errorHandler.js';
 import authPlugin from './plugins/auth.js';
 import helmetPlugin from './plugins/helmetPlugin.js';
 import rateLimitPlugin from './plugins/rateLimitPlugin.js';
+import configRoutes from './routes/config.js';
 import authRoutes from './routes/auth.js';
 import oidcRoutes from './routes/oidc.js';
 import userRoutes from './routes/users.js';
@@ -49,7 +50,9 @@ import diaryRoutes from './routes/diary.js';
 import householdItemBudgetRoutes from './routes/householdItemBudgets.js';
 import householdItemSubsidyRoutes from './routes/householdItemSubsidies.js';
 import householdItemSubsidyPaybackRoutes from './routes/householdItemSubsidyPayback.js';
-import feedsRoutes from './routes/feeds.js';
+import vendorContactRoutes from './routes/vendorContacts.js';
+import davTokenRoutes from './routes/davTokens.js';
+import davRoutes from './routes/dav.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -61,6 +64,11 @@ export async function buildApp(): Promise<FastifyInstance> {
     },
     trustProxy: process.env.TRUST_PROXY === 'true',
   });
+
+  // Add custom HTTP methods for WebDAV (CalDAV/CardDAV)
+  app.addHttpMethod('PROPFIND', { hasBody: true });
+  app.addHttpMethod('REPORT', { hasBody: true });
+  app.addHttpMethod('PROPPATCH', { hasBody: true });
 
   // Configuration (must be first)
   await app.register(configPlugin);
@@ -81,6 +89,13 @@ export async function buildApp(): Promise<FastifyInstance> {
     },
   });
 
+  // XML content type parser for WebDAV (CalDAV/CardDAV PROPFIND/REPORT bodies)
+  app.addContentTypeParser(
+    ['application/xml', 'text/xml'],
+    { parseAs: 'string' },
+    async (_req: any, body: string) => body,
+  );
+
   // Database connection & migrations
   await app.register(dbPlugin);
 
@@ -93,6 +108,9 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Rate limiting (global defaults, per-route overrides on auth endpoints)
   await app.register(rateLimitPlugin);
 
+  // Config routes (public — no auth required)
+  await app.register(configRoutes, { prefix: '/api/config' });
+
   // Auth routes
   await app.register(authRoutes, { prefix: '/api/auth' });
 
@@ -101,6 +119,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // User profile routes
   await app.register(userRoutes, { prefix: '/api/users' });
+
+  // DAV token routes (nested under users)
+  await app.register(davTokenRoutes, { prefix: '/api/users/me/dav' });
 
   // Work item routes
   await app.register(workItemRoutes, { prefix: '/api/work-items' });
@@ -125,6 +146,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Vendor/contractor routes
   await app.register(vendorRoutes, { prefix: '/api/vendors' });
+
+  // Vendor contact routes (nested under vendors)
+  await app.register(vendorContactRoutes, { prefix: '/api/vendors/:vendorId/contacts' });
 
   // Invoice routes (nested under vendors)
   await app.register(invoiceRoutes, { prefix: '/api/vendors/:vendorId/invoices' });
@@ -202,11 +226,28 @@ export async function buildApp(): Promise<FastifyInstance> {
     prefix: '/api/household-items/:householdItemId/subsidy-payback',
   });
 
-  // Feed routes (anonymous — iCal/vCard for external calendar/contact apps)
-  await app.register(feedsRoutes, { prefix: '/feeds' });
+  // DAV routes (CalDAV/CardDAV WebDAV server — replaces legacy /feeds)
+  await app.register(davRoutes, { prefix: '/dav' });
 
   // Diary entry routes (EPIC-13: Construction Diary)
   await app.register(diaryRoutes, { prefix: '/api/diary-entries' });
+
+  // Well-known redirects for CalDAV/CardDAV discovery
+  app.get('/.well-known/caldav', (request, reply) => {
+    return reply.status(301).redirect('/dav/');
+  });
+
+  app.get('/.well-known/carddav', (request, reply) => {
+    return reply.status(301).redirect('/dav/');
+  });
+
+  app.propfind('/.well-known/caldav', (request, reply) => {
+    return reply.status(301).redirect('/dav/');
+  });
+
+  app.propfind('/.well-known/carddav', (request, reply) => {
+    return reply.status(301).redirect('/dav/');
+  });
 
   // Health check endpoint (liveness)
   app.get('/api/health', async () => {

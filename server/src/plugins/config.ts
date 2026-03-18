@@ -14,16 +14,17 @@ export interface AppConfig {
   oidcIssuer?: string;
   oidcClientId?: string;
   oidcClientSecret?: string;
-  oidcRedirectUri?: string;
   oidcEnabled: boolean;
   paperlessUrl?: string;
   paperlessExternalUrl?: string;
   paperlessApiToken?: string;
   paperlessFilterTag?: string;
   paperlessEnabled: boolean;
+  externalUrl?: string;
   photoStoragePath: string;
   photoMaxFileSizeMb: number;
   diaryAutoEvents: boolean;
+  currency: string;
 }
 
 // Type augmentation: makes fastify.config available across all routes/plugins
@@ -105,9 +106,8 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   const oidcIssuer = getValue('OIDC_ISSUER');
   const oidcClientId = getValue('OIDC_CLIENT_ID');
   const oidcClientSecret = getValue('OIDC_CLIENT_SECRET');
-  const oidcRedirectUri = getValue('OIDC_REDIRECT_URI');
 
-  // OIDC is enabled when issuer, client ID, and client secret are set (redirect URI is optional)
+  // OIDC is enabled when issuer, client ID, and client secret are set
   const oidcEnabled = !!(oidcIssuer && oidcClientId && oidcClientSecret);
 
   // Paperless-ngx configuration (all optional)
@@ -178,6 +178,33 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   }
   const diaryAutoEvents = diaryAutoEventsStr === 'true';
 
+  // EXTERNAL_URL — public-facing base URL (optional, for reverse-proxy setups)
+  const externalUrlRaw = getValue('EXTERNAL_URL');
+  let externalUrl: string | undefined = undefined;
+  if (externalUrlRaw) {
+    try {
+      const parsed = new URL(externalUrlRaw);
+      const allowedSchemes = ['http:', 'https:'];
+      if (!allowedSchemes.includes(parsed.protocol)) {
+        errors.push(
+          `EXTERNAL_URL must use http or https scheme, got: ${parsed.protocol.replace(':', '')}`,
+        );
+      } else {
+        // Strip trailing slash for consistent usage
+        externalUrl = externalUrlRaw.replace(/\/+$/, '');
+      }
+    } catch {
+      errors.push(`EXTERNAL_URL must be a valid URL, got: ${externalUrlRaw}`);
+    }
+  }
+
+  // CURRENCY — ISO 4217 currency code (e.g. EUR, USD, CHF)
+  const currencyRaw = (getValue('CURRENCY') ?? 'EUR').toUpperCase().trim();
+  if (!/^[A-Z]{3}$/.test(currencyRaw)) {
+    errors.push(`CURRENCY must be a 3-letter ISO 4217 code, got: ${getValue('CURRENCY')}`);
+  }
+  const currency = currencyRaw;
+
   // If there are any validation errors, throw a single error listing all of them
   if (errors.length > 0) {
     throw new Error(`Configuration validation failed:\n  - ${errors.join('\n  - ')}`);
@@ -195,8 +222,8 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     oidcIssuer,
     oidcClientId,
     oidcClientSecret,
-    oidcRedirectUri,
     oidcEnabled,
+    externalUrl,
     paperlessUrl,
     paperlessExternalUrl,
     paperlessApiToken,
@@ -205,6 +232,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     photoStoragePath,
     photoMaxFileSizeMb,
     diaryAutoEvents,
+    currency,
   };
 }
 
@@ -224,6 +252,7 @@ export default fp(
         sessionDuration: config.sessionDuration,
         secureCookies: config.secureCookies,
         trustProxy: config.trustProxy,
+        externalUrl: config.externalUrl,
         oidcEnabled: config.oidcEnabled,
         oidcIssuer: config.oidcIssuer,
         paperlessEnabled: config.paperlessEnabled,
@@ -232,6 +261,7 @@ export default fp(
         photoStoragePath: config.photoStoragePath,
         photoMaxFileSizeMb: config.photoMaxFileSizeMb,
         diaryAutoEvents: config.diaryAutoEvents,
+        currency: config.currency,
       },
       'Configuration loaded',
     );

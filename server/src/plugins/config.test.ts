@@ -23,7 +23,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         oidcIssuer: undefined,
         oidcClientId: undefined,
         oidcClientSecret: undefined,
-        oidcRedirectUri: undefined,
+
         oidcEnabled: false,
         paperlessUrl: undefined,
         paperlessExternalUrl: undefined,
@@ -33,6 +33,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         photoStoragePath: '/app/data/photos',
         photoMaxFileSizeMb: 20,
         diaryAutoEvents: true,
+        currency: 'EUR',
       });
     });
 
@@ -57,7 +58,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         oidcIssuer: undefined,
         oidcClientId: undefined,
         oidcClientSecret: undefined,
-        oidcRedirectUri: undefined,
+
         oidcEnabled: false,
         paperlessUrl: undefined,
         paperlessExternalUrl: undefined,
@@ -67,6 +68,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         photoStoragePath: '/app/data/photos',
         photoMaxFileSizeMb: 20,
         diaryAutoEvents: true,
+        currency: 'EUR',
       });
     });
   });
@@ -93,7 +95,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         oidcIssuer: undefined,
         oidcClientId: undefined,
         oidcClientSecret: undefined,
-        oidcRedirectUri: undefined,
+
         oidcEnabled: false,
         paperlessUrl: undefined,
         paperlessExternalUrl: undefined,
@@ -103,6 +105,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         photoStoragePath: '/custom/path/photos',
         photoMaxFileSizeMb: 20,
         diaryAutoEvents: true,
+        currency: 'EUR',
       });
     });
 
@@ -124,7 +127,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         oidcIssuer: undefined,
         oidcClientId: undefined,
         oidcClientSecret: undefined,
-        oidcRedirectUri: undefined,
+
         oidcEnabled: false,
         paperlessUrl: undefined,
         paperlessExternalUrl: undefined,
@@ -134,6 +137,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         photoStoragePath: '/app/data/photos',
         photoMaxFileSizeMb: 20,
         diaryAutoEvents: true,
+        currency: 'EUR',
       });
     });
   });
@@ -144,14 +148,12 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         OIDC_ISSUER: 'https://oidc.example.com',
         OIDC_CLIENT_ID: 'client-123',
         OIDC_CLIENT_SECRET: 'secret-456',
-        OIDC_REDIRECT_URI: 'https://app.example.com/api/auth/oidc/callback',
       });
 
       expect(config.oidcEnabled).toBe(true);
       expect(config.oidcIssuer).toBe('https://oidc.example.com');
       expect(config.oidcClientId).toBe('client-123');
       expect(config.oidcClientSecret).toBe('secret-456');
-      expect(config.oidcRedirectUri).toBe('https://app.example.com/api/auth/oidc/callback');
     });
 
     it('config with partial OIDC env vars → oidcEnabled is false', () => {
@@ -165,7 +167,6 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
       expect(config.oidcIssuer).toBe('https://oidc.example.com');
       expect(config.oidcClientId).toBe('client-123');
       expect(config.oidcClientSecret).toBeUndefined();
-      expect(config.oidcRedirectUri).toBeUndefined();
     });
 
     it('config with empty string OIDC env vars → oidcEnabled is false', () => {
@@ -173,33 +174,28 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         OIDC_ISSUER: '',
         OIDC_CLIENT_ID: '',
         OIDC_CLIENT_SECRET: '',
-        OIDC_REDIRECT_URI: '',
       });
 
       expect(config.oidcEnabled).toBe(false);
       expect(config.oidcIssuer).toBeUndefined();
       expect(config.oidcClientId).toBeUndefined();
       expect(config.oidcClientSecret).toBeUndefined();
-      expect(config.oidcRedirectUri).toBeUndefined();
     });
 
     it('verify OIDC values are correctly read from environment', () => {
       const issuer = 'https://auth.example.com';
       const clientId = 'my-client-id';
       const clientSecret = 'my-client-secret';
-      const redirectUri = 'https://app.example.com/callback';
 
       const config = loadConfig({
         OIDC_ISSUER: issuer,
         OIDC_CLIENT_ID: clientId,
         OIDC_CLIENT_SECRET: clientSecret,
-        OIDC_REDIRECT_URI: redirectUri,
       });
 
       expect(config.oidcIssuer).toBe(issuer);
       expect(config.oidcClientId).toBe(clientId);
       expect(config.oidcClientSecret).toBe(clientSecret);
-      expect(config.oidcRedirectUri).toBe(redirectUri);
       expect(config.oidcEnabled).toBe(true);
     });
 
@@ -207,23 +203,10 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
       const config = loadConfig({
         OIDC_ISSUER: 'https://oidc.example.com',
         OIDC_CLIENT_ID: 'client-123',
-        OIDC_REDIRECT_URI: 'https://app.example.com/callback',
         // Missing OIDC_CLIENT_SECRET
       });
 
       expect(config.oidcEnabled).toBe(false);
-    });
-
-    it('OIDC enabled without OIDC_REDIRECT_URI (optional, derived from request)', () => {
-      const config = loadConfig({
-        OIDC_ISSUER: 'https://oidc.example.com',
-        OIDC_CLIENT_ID: 'client-123',
-        OIDC_CLIENT_SECRET: 'secret-456',
-        // No OIDC_REDIRECT_URI — server derives it from the request
-      });
-
-      expect(config.oidcEnabled).toBe(true);
-      expect(config.oidcRedirectUri).toBeUndefined();
     });
   });
 
@@ -545,6 +528,66 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
           LOG_LEVEL: 'verbose',
         }),
       ).toThrow('LOG_LEVEL must be one of trace, debug, info, warn, error, fatal, got: verbose');
+    });
+  });
+
+  describe('CURRENCY Configuration', () => {
+    it('defaults to EUR when CURRENCY env is not set', () => {
+      const config = loadConfig({});
+      expect(config.currency).toBe('EUR');
+    });
+
+    it('accepts CHF as a valid 3-letter ISO 4217 code', () => {
+      const config = loadConfig({ CURRENCY: 'CHF' });
+      expect(config.currency).toBe('CHF');
+    });
+
+    it('accepts USD as a valid 3-letter ISO 4217 code', () => {
+      const config = loadConfig({ CURRENCY: 'USD' });
+      expect(config.currency).toBe('USD');
+    });
+
+    it('uppercases lowercase input (eur → EUR)', () => {
+      const config = loadConfig({ CURRENCY: 'eur' });
+      expect(config.currency).toBe('EUR');
+    });
+
+    it('uppercases mixed-case input (Chf → CHF)', () => {
+      const config = loadConfig({ CURRENCY: 'Chf' });
+      expect(config.currency).toBe('CHF');
+    });
+
+    it('rejects a code longer than 3 letters (TOOLONG)', () => {
+      expect(() => loadConfig({ CURRENCY: 'TOOLONG' })).toThrow(
+        'CURRENCY must be a 3-letter ISO 4217 code',
+      );
+    });
+
+    it('rejects a code shorter than 3 letters (EU)', () => {
+      expect(() => loadConfig({ CURRENCY: 'EU' })).toThrow(
+        'CURRENCY must be a 3-letter ISO 4217 code',
+      );
+    });
+
+    it('rejects a numeric string (123)', () => {
+      expect(() => loadConfig({ CURRENCY: '123' })).toThrow(
+        'CURRENCY must be a 3-letter ISO 4217 code',
+      );
+    });
+
+    it('rejects a code with digits mixed in (EU1)', () => {
+      expect(() => loadConfig({ CURRENCY: 'EU1' })).toThrow(
+        'CURRENCY must be a 3-letter ISO 4217 code',
+      );
+    });
+
+    it('treats empty string CURRENCY as missing and defaults to EUR', () => {
+      const config = loadConfig({ CURRENCY: '' });
+      expect(config.currency).toBe('EUR');
+    });
+
+    it('error message includes the invalid value that was provided', () => {
+      expect(() => loadConfig({ CURRENCY: 'TOOLONG' })).toThrow('got: TOOLONG');
     });
   });
 });

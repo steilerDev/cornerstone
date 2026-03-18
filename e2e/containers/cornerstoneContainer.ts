@@ -27,14 +27,14 @@ export async function startCornerstoneContainer(
   const environment = {
     DATABASE_URL: '/app/data/cornerstone.db',
     SECURE_COOKIES: 'false',
-    LOG_LEVEL: 'debug',
+    LOG_LEVEL: 'warn',
     NODE_ENV: 'production',
     TRUST_PROXY: 'true', // Enable proxy trust for X-Forwarded-* headers
   };
 
   // Add OIDC configuration if port is provided
   // Uses Docker network alias so the server can reach the OIDC provider container-to-container
-  // OIDC_REDIRECT_URI is omitted — the server derives it from the incoming request
+  // The callback URL is derived from the incoming request (EXTERNAL_URL not set in E2E)
   if (oidcPort) {
     Object.assign(environment, {
       OIDC_ISSUER: 'http://oidc-server:8080/default',

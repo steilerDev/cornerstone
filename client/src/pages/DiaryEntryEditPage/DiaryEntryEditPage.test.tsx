@@ -221,7 +221,7 @@ describe('DiaryEntryEditPage', () => {
       mockGetDiaryEntry.mockResolvedValueOnce(baseDailyLogEntry);
       renderEditPage();
       await waitFor(() => {
-        const input = screen.getByLabelText(/workers on site/i) as HTMLInputElement;
+        const input = screen.getByLabelText(/number of workers/i) as HTMLInputElement;
         expect(input.value).toBe('5');
       });
     });

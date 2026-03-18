@@ -194,6 +194,45 @@ jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js',
   },
 }));
 
+// ─── Mock: formatters — provides useFormatters() hook ────────────────────────
+
+jest.unstable_mockModule('../../lib/formatters.js', () => {
+  const fmtCurrency = (n: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  const fmtDate = (d: string | null | undefined, fallback = '—') => {
+    if (!d) return fallback;
+    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return fallback;
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+  const fmtTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
+  const fmtDateTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
+  return {
+    formatCurrency: fmtCurrency,
+    formatDate: fmtDate,
+    formatTime: fmtTime,
+    formatDateTime: fmtDateTime,
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    computeActualDuration: () => null,
+    useFormatters: () => ({
+      formatCurrency: fmtCurrency,
+      formatDate: fmtDate,
+      formatTime: fmtTime,
+      formatDateTime: fmtDateTime,
+      formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    }),
+  };
+});
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function LocationDisplay() {
@@ -326,7 +365,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
     });
     // Allow one more microtask tick for useEffect([item?.id]) that initializes local date state
     await waitFor(() => {
-      expect(screen.getByLabelText('Order date')).toBeInTheDocument();
+      expect(screen.getByLabelText('Order Date')).toBeInTheDocument();
     });
   }
 
@@ -396,7 +435,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       renderPage();
       await waitForPageLoad();
 
-      const orderDateInput = screen.getByLabelText('Order date') as HTMLInputElement;
+      const orderDateInput = screen.getByLabelText('Order Date') as HTMLInputElement;
       fireEvent.change(orderDateInput, { target: { value: '2026-03-15' } });
       fireEvent.blur(orderDateInput);
 
@@ -412,7 +451,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       renderPage();
       await waitForPageLoad();
 
-      const orderDateInput = screen.getByLabelText('Order date') as HTMLInputElement;
+      const orderDateInput = screen.getByLabelText('Order Date') as HTMLInputElement;
       // Wait for useEffect to initialize local state from item
       await waitFor(() => {
         expect(orderDateInput.value).toBe('2026-02-15');
@@ -439,7 +478,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       // getHouseholdItem is called once on mount
       const initialCallCount = mockGetHouseholdItem.mock.calls.length;
 
-      const orderDateInput = screen.getByLabelText('Order date') as HTMLInputElement;
+      const orderDateInput = screen.getByLabelText('Order Date') as HTMLInputElement;
       fireEvent.change(orderDateInput, { target: { value: '2026-03-15' } });
       fireEvent.blur(orderDateInput);
 
@@ -470,7 +509,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       renderPage();
       await waitForPageLoad();
 
-      const actualDeliveryInput = screen.getByLabelText('Actual delivery date') as HTMLInputElement;
+      const actualDeliveryInput = screen.getByLabelText('Actual Delivery') as HTMLInputElement;
       fireEvent.change(actualDeliveryInput, { target: { value: '2026-03-20' } });
       fireEvent.blur(actualDeliveryInput);
 
@@ -503,7 +542,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       renderPage();
       await waitForPageLoad();
 
-      const earliestInput = screen.getByLabelText('Earliest delivery date') as HTMLInputElement;
+      const earliestInput = screen.getByLabelText('Earliest Delivery') as HTMLInputElement;
       fireEvent.change(earliestInput, { target: { value: '2026-03-05' } });
       fireEvent.blur(earliestInput);
 
@@ -534,7 +573,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
 
       const initialCallCount = mockGetHouseholdItem.mock.calls.length;
 
-      const latestInput = screen.getByLabelText('Latest delivery date') as HTMLInputElement;
+      const latestInput = screen.getByLabelText('Latest Delivery') as HTMLInputElement;
       fireEvent.change(latestInput, { target: { value: '2026-03-15' } });
       fireEvent.blur(latestInput);
 
@@ -681,7 +720,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       renderPage();
       await waitForPageLoad();
 
-      const orderDateInput = screen.getByLabelText('Order date') as HTMLInputElement;
+      const orderDateInput = screen.getByLabelText('Order Date') as HTMLInputElement;
       fireEvent.change(orderDateInput, { target: { value: '2026-03-15' } });
       fireEvent.blur(orderDateInput);
 
@@ -700,7 +739,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       renderPage();
       await waitForPageLoad();
 
-      const actualInput = screen.getByLabelText('Actual delivery date') as HTMLInputElement;
+      const actualInput = screen.getByLabelText('Actual Delivery') as HTMLInputElement;
       fireEvent.change(actualInput, { target: { value: '2026-03-20' } });
       fireEvent.blur(actualInput);
 
@@ -719,7 +758,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       renderPage();
       await waitForPageLoad();
 
-      const latestInput = screen.getByLabelText('Latest delivery date') as HTMLInputElement;
+      const latestInput = screen.getByLabelText('Latest Delivery') as HTMLInputElement;
       fireEvent.change(latestInput, { target: { value: '2026-03-15' } });
       fireEvent.blur(latestInput);
 
@@ -738,7 +777,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       renderPage();
       await waitForPageLoad();
 
-      const earliestInput = screen.getByLabelText('Earliest delivery date') as HTMLInputElement;
+      const earliestInput = screen.getByLabelText('Earliest Delivery') as HTMLInputElement;
       fireEvent.change(earliestInput, { target: { value: '2026-03-05' } });
       fireEvent.blur(earliestInput);
 
@@ -793,8 +832,8 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       expect(screen.getByRole('heading', { name: 'Dates & Delivery' })).toBeInTheDocument();
 
       // Order and actual delivery date inputs in Dates & Delivery section
-      expect(screen.getByLabelText('Order date')).toBeInTheDocument();
-      expect(screen.getByLabelText('Actual delivery date')).toBeInTheDocument();
+      expect(screen.getByLabelText('Order Date')).toBeInTheDocument();
+      expect(screen.getByLabelText('Actual Delivery')).toBeInTheDocument();
     });
 
     it('renders earliest and latest delivery dates in the Dependencies section', async () => {
@@ -806,8 +845,8 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       expect(screen.getByRole('heading', { name: 'Dependencies' })).toBeInTheDocument();
 
       // Earliest and latest delivery dates are constraints in the Dependencies section
-      expect(screen.getByLabelText('Earliest delivery date')).toBeInTheDocument();
-      expect(screen.getByLabelText('Latest delivery date')).toBeInTheDocument();
+      expect(screen.getByLabelText('Earliest Delivery')).toBeInTheDocument();
+      expect(screen.getByLabelText('Latest Delivery')).toBeInTheDocument();
     });
   });
 
@@ -852,7 +891,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       await waitForPageLoad();
 
       await waitFor(() => {
-        const orderDateInput = screen.getByLabelText('Order date') as HTMLInputElement;
+        const orderDateInput = screen.getByLabelText('Order Date') as HTMLInputElement;
         expect(orderDateInput.value).toBe('2026-02-15');
       });
     });
@@ -864,7 +903,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       await waitForPageLoad();
 
       await waitFor(() => {
-        const actualInput = screen.getByLabelText('Actual delivery date') as HTMLInputElement;
+        const actualInput = screen.getByLabelText('Actual Delivery') as HTMLInputElement;
         expect(actualInput.value).toBe('2026-03-05');
       });
     });
@@ -876,7 +915,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       await waitForPageLoad();
 
       await waitFor(() => {
-        const earliestInput = screen.getByLabelText('Earliest delivery date') as HTMLInputElement;
+        const earliestInput = screen.getByLabelText('Earliest Delivery') as HTMLInputElement;
         expect(earliestInput.value).toBe('2026-03-01');
       });
     });
@@ -888,7 +927,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       await waitForPageLoad();
 
       await waitFor(() => {
-        const latestInput = screen.getByLabelText('Latest delivery date') as HTMLInputElement;
+        const latestInput = screen.getByLabelText('Latest Delivery') as HTMLInputElement;
         expect(latestInput.value).toBe('2026-03-10');
       });
     });
@@ -899,7 +938,7 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       renderPage();
       await waitForPageLoad();
 
-      const orderDateInput = screen.getByLabelText('Order date') as HTMLInputElement;
+      const orderDateInput = screen.getByLabelText('Order Date') as HTMLInputElement;
       expect(orderDateInput.value).toBe('');
     });
   });

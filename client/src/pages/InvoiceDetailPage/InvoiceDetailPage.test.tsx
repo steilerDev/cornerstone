@@ -77,9 +77,20 @@ jest.unstable_mockModule('../../lib/apiClient.js', () => ({
 // ─── Mock: formatters (pure utility — avoids Intl issues in jsdom) ────────────
 
 jest.unstable_mockModule('../../lib/formatters.js', () => ({
-  formatDate: (d: string) => d,
+  formatDate: (d: string) => d ?? '—',
   formatCurrency: (n: number) => `$${n.toFixed(2)}`,
+  formatTime: (d: string | null | undefined) => d ?? '—',
+  formatDateTime: (d: string | null | undefined) => d ?? '—',
   formatRelativeTime: (d: string) => d,
+  formatPercent: (n: number) => `${n.toFixed(2)}%`,
+  computeActualDuration: () => null,
+  useFormatters: () => ({
+    formatCurrency: (n: number) => `$${n.toFixed(2)}`,
+    formatDate: (d: string | null | undefined) => d ?? '—',
+    formatTime: (d: string | null | undefined) => d ?? '—',
+    formatDateTime: (d: string | null | undefined) => d ?? '—',
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+  }),
 }));
 
 // ─── Type import for deferred module load ─────────────────────────────────────
@@ -177,7 +188,7 @@ describe('InvoiceDetailPage', () => {
       mockFetchInvoiceById.mockRejectedValue(new Error('Network error'));
       renderPage();
 
-      await waitFor(() => expect(screen.getByText(/Failed to load invoice/i)).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText(/Invoice not found/i)).toBeInTheDocument());
     });
   });
 

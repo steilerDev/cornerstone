@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { TimelineMilestone } from '@cornerstone/shared';
-import { formatDate } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './TimelineStatusCards.module.css';
 
 interface UpcomingMilestonesCardProps {
@@ -8,6 +9,9 @@ interface UpcomingMilestonesCardProps {
 }
 
 export function UpcomingMilestonesCard({ milestones }: UpcomingMilestonesCardProps) {
+  const { t } = useTranslation('dashboard');
+  const { formatDate } = useFormatters();
+
   // Filter out completed milestones, sort by targetDate ascending, take first 5
   const upcoming = milestones
     .filter((m) => !m.isCompleted)
@@ -17,7 +21,7 @@ export function UpcomingMilestonesCard({ milestones }: UpcomingMilestonesCardPro
   if (upcoming.length === 0) {
     return (
       <p data-testid="milestone-empty" className={styles.emptyState}>
-        No upcoming milestones
+        {t('cards.upcomingMilestones.emptyMessage')}
       </p>
     );
   }
@@ -29,7 +33,9 @@ export function UpcomingMilestonesCard({ milestones }: UpcomingMilestonesCardPro
           // Determine health: "On Track" if projectedDate <= targetDate or no projectedDate
           const isOnTrack =
             !milestone.projectedDate || milestone.projectedDate <= milestone.targetDate;
-          const healthText = isOnTrack ? 'On Track' : 'Delayed';
+          const healthText = isOnTrack
+            ? t('cards.upcomingMilestones.onTrack')
+            : t('cards.upcomingMilestones.delayed');
 
           return (
             <li key={milestone.id} data-testid="milestone-row" className={styles.listItem}>

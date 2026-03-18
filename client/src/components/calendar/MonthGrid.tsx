@@ -16,6 +16,7 @@ import type {
   TimelineMilestone,
   TimelineHouseholdItem,
 } from '@cornerstone/shared';
+import { useLocale } from '../../contexts/LocaleContext.js';
 import { CalendarItem, LANE_HEIGHT_COMPACT } from './CalendarItem.js';
 import { CalendarMilestone } from './CalendarMilestone.js';
 import { CalendarHouseholdItem } from './CalendarHouseholdItem.js';
@@ -29,6 +30,8 @@ import {
   allocateLanes,
   getItemColor,
   getContrastTextColor,
+  getDayName,
+  getDayNameNarrow,
   DAY_NAMES,
   DAY_NAMES_NARROW,
   formatDateForAria,
@@ -84,6 +87,8 @@ export function MonthGrid({
   activeTouchId = null,
   onTouchTap,
 }: MonthGridProps) {
+  const { resolvedLocale } = useLocale();
+  const localeString = resolvedLocale === 'de' ? 'de-DE' : 'en-US';
   const weeks = useMemo(() => getMonthGrid(year, month), [year, month]);
 
   // Pre-compute lane allocations for every week row and color index per item.
@@ -106,13 +111,17 @@ export function MonthGrid({
     >
       {/* Day name header row */}
       <div className={styles.headerRow} role="row">
-        {DAY_NAMES.map((name, i) => (
-          <div key={name} className={styles.headerCell} role="columnheader" aria-label={name}>
-            {/* Full name on tablet+, narrow initial on mobile */}
-            <span className={styles.dayNameFull}>{name}</span>
-            <span className={styles.dayNameNarrow}>{DAY_NAMES_NARROW[i]}</span>
-          </div>
-        ))}
+        {[0, 1, 2, 3, 4, 5, 6].map((i) => {
+          const fullName = getDayName(i, localeString);
+          const narrowName = getDayNameNarrow(i, localeString);
+          return (
+            <div key={i} className={styles.headerCell} role="columnheader" aria-label={fullName}>
+              {/* Full name on tablet+, narrow initial on mobile */}
+              <span className={styles.dayNameFull}>{fullName}</span>
+              <span className={styles.dayNameNarrow}>{narrowName}</span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Week rows */}

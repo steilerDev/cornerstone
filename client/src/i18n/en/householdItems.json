@@ -1,0 +1,321 @@
+{
+  "page": {
+    "title": "Project"
+  },
+  "newButton": "New Household Item",
+  "search": {
+    "placeholder": "Search household items...",
+    "ariaLabel": "Search household items"
+  },
+  "filters": {
+    "ariaLabel": "Household item filters",
+    "category": "Category:",
+    "status": "Status:",
+    "room": "Room:",
+    "vendor": "Vendor:",
+    "sortBy": "Sort by:",
+    "allCategories": "All Categories",
+    "allStatuses": "All Statuses",
+    "allVendors": "All Vendors",
+    "roomPlaceholder": "Filter by room...",
+    "roomAriaLabel": "Filter by room",
+    "toggleSort": "Toggle sort order"
+  },
+  "sort": {
+    "options": {
+      "name": "Name",
+      "category": "Category",
+      "status": "Status",
+      "room": "Room",
+      "order_date": "Order Date",
+      "target_delivery_date": "Target Delivery",
+      "created_at": "Created",
+      "updated_at": "Updated"
+    },
+    "asc": "↑ Asc",
+    "desc": "↓ Desc"
+  },
+  "status": {
+    "planned": "Planned",
+    "purchased": "Purchased",
+    "scheduled": "Scheduled",
+    "arrived": "Arrived"
+  },
+  "table": {
+    "headers": {
+      "name": "Name",
+      "category": "Category",
+      "status": "Status",
+      "room": "Room",
+      "vendor": "Vendor",
+      "plannedCost": "Planned Cost",
+      "targetDelivery": "Target Delivery",
+      "actions": "Actions"
+    }
+  },
+  "results": {
+    "itemFound": "household item found",
+    "itemsFound": "household items found"
+  },
+  "card": {
+    "category": "Category:",
+    "status": "Status:",
+    "room": "Room:",
+    "vendor": "Vendor:",
+    "plannedCost": "Planned Cost:",
+    "targetDelivery": "Target Delivery:"
+  },
+  "empty": {
+    "noItems": "No household items yet",
+    "noItemsMessage": "Get started by creating your first household item to track.",
+    "noResults": "No household items match your filters",
+    "noResultsMessage": "Try adjusting your search or filter criteria.",
+    "createFirstItem": "Create First Item",
+    "clearAllFilters": "Clear All Filters"
+  },
+  "menu": {
+    "actions": "Actions for {{name}}",
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+  "pagination": {
+    "showing": "Showing",
+    "to": "to",
+    "of": "of",
+    "items": "items",
+    "previous": "← Previous",
+    "next": "Next →"
+  },
+  "delete": {
+    "confirm": "Delete Household Item",
+    "message": "Are you sure you want to delete",
+    "warning": "This action cannot be undone.",
+    "cancel": "Cancel",
+    "delete": "Delete Item",
+    "deleting": "Deleting..."
+  },
+  "loading": "Loading household items...",
+  "error": "Failed to load household items. Please try again.",
+  "deleteError": "Failed to delete household item. Please try again.",
+  "keyboard": {
+    "newItem": "New household item",
+    "focusSearch": "Focus search",
+    "selectNext": "Select next item",
+    "selectPrevious": "Select previous item",
+    "openSelected": "Open selected item",
+    "showShortcuts": "Show keyboard shortcuts",
+    "closeDialog": "Close dialog or cancel"
+  },
+  "create": {
+    "title": "New Household Item",
+    "backButton": "← Back to Household Items",
+    "loading": "Loading...",
+    "errorBanner": "Failed to load form data. Please try again.",
+    "form": {
+      "name": {
+        "label": "Name",
+        "required": "*",
+        "placeholder": "Enter item name",
+        "error": "Name is required"
+      },
+      "description": {
+        "label": "Description",
+        "placeholder": "Describe the item"
+      },
+      "category": {
+        "label": "Category",
+        "required": "*",
+        "placeholder": "— Select Category —",
+        "error": "Category is required"
+      },
+      "status": {
+        "label": "Purchase Status"
+      },
+      "quantity": {
+        "label": "Quantity",
+        "error": "Quantity must be at least 1"
+      },
+      "vendor": {
+        "label": "Vendor",
+        "placeholder": "No vendor"
+      },
+      "url": {
+        "label": "URL",
+        "placeholder": "https://example.com"
+      },
+      "room": {
+        "label": "Room",
+        "placeholder": "e.g., Kitchen, Bedroom"
+      },
+      "orderDate": {
+        "label": "Order Date"
+      },
+      "earliestDelivery": {
+        "label": "Earliest Delivery"
+      },
+      "latestDelivery": {
+        "label": "Latest Delivery"
+      },
+      "actualDelivery": {
+        "label": "Actual Delivery"
+      },
+      "deliveryWindow": {
+        "error": "Earliest delivery date must be before or equal to latest delivery date"
+      },
+      "deliveryDates": {
+        "error": "Actual delivery date must be after or equal to order date"
+      },
+      "tags": {
+        "label": "Tags"
+      }
+    },
+    "cancel": "Cancel",
+    "submit": "Create Item",
+    "submitting": "Creating...",
+    "success": "Household item created successfully"
+  },
+  "edit": {
+    "title": "Edit Household Item",
+    "backButton": "← Back to Item",
+    "loading": "Loading...",
+    "errorBanner": "Failed to load form data. Please try again.",
+    "notFound": "Household Item Not Found",
+    "notFoundMessage": "The household item you are looking for does not exist.",
+    "form": {
+      "name": {
+        "label": "Name",
+        "required": "*",
+        "placeholder": "Enter item name",
+        "error": "Name is required"
+      },
+      "description": {
+        "label": "Description",
+        "placeholder": "Describe the item"
+      },
+      "category": {
+        "label": "Category",
+        "required": "*",
+        "placeholder": "— Select Category —",
+        "error": "Category is required"
+      },
+      "quantity": {
+        "label": "Quantity",
+        "error": "Quantity must be at least 1"
+      },
+      "vendor": {
+        "label": "Vendor",
+        "placeholder": "No vendor"
+      },
+      "url": {
+        "label": "URL",
+        "placeholder": "https://example.com"
+      },
+      "room": {
+        "label": "Room",
+        "placeholder": "e.g., Kitchen, Bedroom"
+      },
+      "tags": {
+        "label": "Tags"
+      }
+    },
+    "cancel": "Cancel",
+    "submit": "Save Changes",
+    "submitting": "Saving...",
+    "success": "Household item updated successfully"
+  },
+  "picker": {
+    "placeholder": "Search household items...",
+    "emptyHint": "Type to search household items",
+    "noResults": "No matching household items found",
+    "loadError": "Failed to load household items",
+    "searchError": "Failed to search household items"
+  },
+  "detail": {
+    "loading": "Loading household item...",
+    "error": "Error",
+    "notFound": "Item Not Found",
+    "notFoundMessage": "The household item you're looking for doesn't exist or has been removed.",
+    "backToHouseholdItems": "Back to Household Items",
+    "retry": "Retry",
+    "backToSchedule": "← Back to Schedule",
+    "toHouseholdItems": "To Household Items",
+    "backButton": "← Back to Household Items",
+    "toSchedule": "To Schedule",
+    "edit": "Edit",
+    "delete": "Delete",
+    "details": {
+      "title": "Details",
+      "description": "Description",
+      "vendor": "Vendor",
+      "productUrl": "Product URL",
+      "room": "Room",
+      "quantity": "Quantity",
+      "tags": "Tags",
+      "noTags": "No tags"
+    },
+    "datesDelivery": {
+      "title": "Dates & Delivery",
+      "purchaseStatus": "Purchase Status",
+      "actualDate": "Actual Date",
+      "targetDate": "Target Date",
+      "orderDate": "Order Date",
+      "actualDelivery": "Actual Delivery",
+      "earliestDelivery": "Earliest Delivery",
+      "latestDelivery": "Latest Delivery",
+      "clearOrderDate": "Clear order date",
+      "clearActualDelivery": "Clear actual delivery date",
+      "clearEarliestDelivery": "Clear earliest delivery date",
+      "clearLatestDelivery": "Clear latest delivery date",
+      "failedUpdateOrderDate": "Failed to update order date",
+      "failedUpdateActualDelivery": "Failed to update actual delivery date",
+      "failedUpdateEarliestDelivery": "Failed to update earliest delivery date",
+      "failedUpdateLatestDelivery": "Failed to update latest delivery date"
+    },
+    "dependencies": {
+      "title": "Dependencies",
+      "noDependencies": "No dependencies yet. Add a dependency to schedule this item.",
+      "workItem": "Work Item",
+      "milestone": "Milestone",
+      "removeDependency": "Remove dependency on",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "search": "Search work items or milestones to add...",
+      "noMatches": "No items match your search",
+      "failedAdd": "Failed to add dependency",
+      "failedRemove": "Failed to remove dependency",
+      "addedSuccess": "Dependency added successfully",
+      "removedSuccess": "Dependency removed"
+    },
+    "metadata": {
+      "createdBy": "Created by",
+      "createdAt": "Created at",
+      "updatedAt": "Updated at"
+    },
+    "delete": {
+      "confirm": "Delete Household Item",
+      "message": "Are you sure you want to delete",
+      "warning": "This action cannot be undone.",
+      "cancel": "Cancel",
+      "delete": "Delete Item",
+      "deleting": "Deleting..."
+    },
+    "status": {
+      "planned": "Planned",
+      "purchased": "Purchased",
+      "scheduled": "Scheduled",
+      "arrived": "Arrived",
+      "late": "Late",
+      "updateFailed": "Failed to update status. Please try again."
+    },
+    "budget": {
+      "title": "Budget",
+      "emptyState": "No budget lines yet. Add the first line to start tracking costs.",
+      "addLineButton": "+ Add Line",
+      "linkInvoiceButton": "Link to Invoice",
+      "confidenceLabel": "Confidence:",
+      "plannedAmountLabel": "Planned Amount",
+      "actualCostLabel": "Actual Cost",
+      "paybackLabel": "Payback"
+    }
+  }
+}

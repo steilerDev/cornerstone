@@ -1,0 +1,353 @@
+{
+  "list": {
+    "pageTitle": "Project",
+    "newWorkItem": "New Work Item",
+    "loading": "Loading work items...",
+    "search": {
+      "placeholder": "Search work items...",
+      "ariaLabel": "Search work items"
+    },
+    "filters": {
+      "status": "Status:",
+      "allStatuses": "All Statuses",
+      "assignedTo": "Assigned to:",
+      "allUsers": "All Users",
+      "tag": "Tag:",
+      "allTags": "All Tags",
+      "sortBy": "Sort by:",
+      "sortAscending": "↑ Asc",
+      "sortDescending": "↓ Desc",
+      "toggleSortOrder": "Toggle sort order"
+    },
+    "sortOptions": {
+      "title": "Title",
+      "status": "Status",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "createdAt": "Created",
+      "updatedAt": "Updated"
+    },
+    "empty": {
+      "noMatchTitle": "No work items match your filters",
+      "noMatchText": "Try adjusting your search or filter criteria.",
+      "clearFilters": "Clear All Filters",
+      "noItemsTitle": "No work items yet",
+      "noItemsText": "Get started by creating your first work item to track construction tasks.",
+      "createFirst": "Create First Work Item"
+    },
+    "table": {
+      "title": "Title",
+      "status": "Status",
+      "assignedTo": "Assigned To",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "tags": "Tags",
+      "actions": "Actions"
+    },
+    "card": {
+      "status": "Status:",
+      "assigned": "Assigned:",
+      "start": "Start:",
+      "end": "End:",
+      "tags": "Tags:"
+    },
+    "actions": {
+      "actionsMenu": "Actions menu",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "pagination": {
+      "showing": "Showing {{from}} to {{to}} of {{total}} items",
+      "previous": "← Previous",
+      "next": "Next →",
+      "previousAriaLabel": "Previous page",
+      "nextAriaLabel": "Next page"
+    },
+    "deleteModal": {
+      "title": "Delete Work Item",
+      "confirmation": "Are you sure you want to delete \"{{title}}\"?",
+      "warning": "This will also delete all associated subtasks, dependencies, and comments. This action cannot be undone.",
+      "cancel": "Cancel",
+      "deletingLabel": "Deleting...",
+      "deleteLabel": "Delete Work Item"
+    },
+    "errors": {
+      "loadFailed": "Failed to load work items. Please try again.",
+      "deleteFailed": "Failed to delete work item. Please try again."
+    },
+    "shortcuts": {
+      "newWorkItem": "New work item",
+      "focusSearch": "Focus search",
+      "selectNext": "Select next item",
+      "selectPrevious": "Select previous item",
+      "openSelected": "Open selected item",
+      "showShortcuts": "Show keyboard shortcuts",
+      "closeOrCancel": "Close dialog or cancel"
+    }
+  },
+  "create": {
+    "backToWorkItems": "← Back to Work Items",
+    "pageTitle": "Create Work Item",
+    "loading": "Loading...",
+    "thisItemLabel": "This item",
+    "fields": {
+      "title": "Title",
+      "titleRequired": "*",
+      "titlePlaceholder": "Enter work item title",
+      "titleRequiredError": "Title is required",
+      "description": "Description",
+      "descriptionPlaceholder": "Describe the work to be done",
+      "status": "Status",
+      "statusOptions": {
+        "notStarted": "Not Started",
+        "inProgress": "In Progress",
+        "completed": "Completed"
+      },
+      "assignedTo": "Assigned To",
+      "unassigned": "Unassigned",
+      "durationDays": "Duration (days)",
+      "durationError": "Duration must be a positive number",
+      "startAfter": "Start After",
+      "startBefore": "Start Before",
+      "constraintsError": "Start after date must be before or equal to start before date",
+      "tags": "Tags",
+      "dependencies": "Dependencies"
+    },
+    "pendingDeps": {
+      "ariaLabel": "Pending dependencies",
+      "thisItemPredecessor": "This item must {{predecessorVerb}} before \"{{otherItemTitle}}\" can {{successorVerb}}",
+      "otherItemPredecessor": "\"{{otherItemTitle}}\" must {{predecessorVerb}} before this item can {{successorVerb}}",
+      "removeAriaLabel": "Remove dependency involving {{otherItemTitle}}"
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "creating": "Creating...",
+      "create": "Create Work Item"
+    },
+    "errors": {
+      "loadFailed": "Failed to load form data. Please try again.",
+      "createFailed": "Failed to create work item. Please try again."
+    }
+  },
+  "picker": {
+    "placeholder": "Search work items...",
+    "emptyHint": "Type to search work items",
+    "noResults": "No matching work items found",
+    "loadError": "Failed to load work items",
+    "searchError": "Failed to search work items"
+  },
+  "detail": {
+    "loading": "Loading work item...",
+    "notFound": {
+      "title": "Work Item Not Found",
+      "back": "Back to Work Items"
+    },
+    "error": {
+      "title": "Error",
+      "fallback": "An error occurred while loading the work item.",
+      "back": "Back to Work Items",
+      "retry": "Retry"
+    },
+    "nav": {
+      "backToSchedule": "← Back to Schedule",
+      "toWorkItems": "To Work Items",
+      "backToWorkItems": "← Back to Work Items",
+      "toSchedule": "To Schedule"
+    },
+    "titleEdit": {
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "statusOptions": {
+      "notStarted": "Not Started",
+      "inProgress": "In Progress",
+      "completed": "Completed"
+    },
+    "sections": {
+      "description": "Description",
+      "schedule": "Schedule",
+      "scheduleDescription": "Start and end dates are computed by the scheduling engine based on constraints and dependencies.",
+      "assignment": "Assignment",
+      "tags": "Tags",
+      "notes": "Notes",
+      "subtasks": "Subtasks",
+      "constraints": "Constraints",
+      "dependentHouseholdItems": "Dependent Household Items"
+    },
+    "description": {
+      "noDescription": "No description",
+      "clickToEdit": "Click to edit",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "schedule": {
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "notScheduled": "Not scheduled",
+      "delayed": "Delayed by {{count}} {{unit}}",
+      "day": "day",
+      "days": "days"
+    },
+    "assignment": {
+      "assignedTo": "Assigned To",
+      "unassigned": "Unassigned"
+    },
+    "notes": {
+      "placeholder": "Add a note...",
+      "adding": "Adding...",
+      "addNote": "Add Note",
+      "noNotes": "No notes yet. Use the form above to add one.",
+      "save": "Save",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "delete": "Delete",
+      "unknown": "Unknown"
+    },
+    "subtasks": {
+      "placeholder": "Add a subtask...",
+      "adding": "Adding...",
+      "add": "Add",
+      "noSubtasks": "No subtasks yet. Add one above.",
+      "save": "Save",
+      "cancel": "Cancel",
+      "moveUp": "Move up",
+      "moveDown": "Move down"
+    },
+    "constraints": {
+      "duration": "Duration",
+      "durationDays": "Duration (days)",
+      "dateConstraints": "Date Constraints",
+      "startAfter": "Start After",
+      "startBefore": "Start Before",
+      "actualStart": "Actual Start",
+      "actualEnd": "Actual End",
+      "clearStartAfter": "Clear start after date",
+      "clearStartBefore": "Clear start before date",
+      "clearActualStart": "Clear actual start date",
+      "clearActualEnd": "Clear actual end date",
+      "dependencies": "Dependencies",
+      "dependencyBuilder": {
+        "searchPlaceholder": "Search work items...",
+        "finish": "finish",
+        "start": "start",
+        "before": "before",
+        "can": "can",
+        "must": "must"
+      },
+      "requiredMilestones": "Required Milestones",
+      "requiredMilestonesDesc": "Milestones that must be completed before this work item can start.",
+      "noRequiredMilestones": "No required milestones",
+      "linkedMilestones": "Linked Milestones",
+      "linkedMilestonesDesc": "Milestones this work item contributes to.",
+      "noLinkedMilestones": "No linked milestones",
+      "selectMilestone": "Select milestone...",
+      "selectMilestonePlaceholder": "Select milestone...",
+      "selectRequiredMilestoneAriaLabel": "Select required milestone to add",
+      "selectLinkedMilestoneAriaLabel": "Select milestone to link",
+      "addMilestone": "Add",
+      "adding": "Adding...",
+      "linkMilestone": "Link",
+      "linking": "Linking...",
+      "removeRequiredMilestoneAriaLabel": "Remove required milestone: {{name}}",
+      "removeLinkedMilestoneAriaLabel": "Remove linked milestone: {{name}}"
+    },
+    "householdItems": {
+      "noItems": "No household items depend on this work item.",
+      "categories": {
+        "furniture": "Furniture",
+        "appliances": "Appliances",
+        "fixtures": "Fixtures",
+        "decor": "Decor",
+        "electronics": "Electronics",
+        "outdoor": "Outdoor",
+        "storage": "Storage",
+        "other": "Other"
+      },
+      "statuses": {
+        "planned": "Planned",
+        "purchased": "Purchased",
+        "scheduled": "Scheduled",
+        "arrived": "Arrived"
+      }
+    },
+    "footer": {
+      "createdBy": "Created by {{name}} on {{date}}",
+      "lastUpdated": "Last updated {{date}}",
+      "deleteWorkItem": "Delete Work Item"
+    },
+    "modals": {
+      "deleteWorkItem": {
+        "title": "Delete Work Item?",
+        "text": "Are you sure you want to delete \"{{title}}\"? This action cannot be undone.",
+        "cancel": "Cancel",
+        "deleting": "Deleting...",
+        "delete": "Delete"
+      },
+      "deleteNote": {
+        "title": "Delete Note?",
+        "text": "Are you sure you want to delete this note? This action cannot be undone.",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      },
+      "deleteSubtask": {
+        "title": "Delete Subtask?",
+        "text": "Are you sure you want to delete this subtask? This action cannot be undone.",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      },
+      "removeDependency": {
+        "title": "Remove Dependency?",
+        "textPredecessor": "This item will no longer depend on \"{{title}}\". This action cannot be undone.",
+        "textSuccessor": "This item will no longer block \"{{title}}\". This action cannot be undone.",
+        "cancel": "Cancel",
+        "remove": "Remove"
+      },
+      "deleteBudgetLine": {
+        "title": "Delete Budget Line?",
+        "text": "Are you sure you want to delete this budget line? This action cannot be undone.",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      }
+    },
+    "inlineErrors": {
+      "updateTitle": "Failed to update title",
+      "updateDescription": "Failed to update description",
+      "updateStatus": "Failed to update status",
+      "updateAssignedUser": "Failed to update assigned user",
+      "updateDuration": "Failed to update duration",
+      "updateStartAfter": "Failed to update startAfter",
+      "updateStartBefore": "Failed to update startBefore",
+      "updateActualStartDate": "Failed to update actual start date",
+      "updateActualEndDate": "Failed to update actual end date",
+      "updateTags": "Failed to update tags",
+      "addNote": "Failed to add note",
+      "updateNote": "Failed to update note",
+      "deleteNote": "Failed to delete note",
+      "addSubtask": "Failed to add subtask",
+      "updateSubtask": "Failed to update subtask",
+      "deleteSubtask": "Failed to delete subtask",
+      "reorderSubtasks": "Failed to reorder subtasks",
+      "addDependency": "Failed to add dependency",
+      "dependencyExists": "This dependency already exists or would create a circular reference",
+      "removeDependency": "Failed to remove dependency",
+      "addRequiredMilestone": "Failed to add required milestone",
+      "requiredMilestoneAlreadyLinked": "This milestone is already a required dependency",
+      "removeRequiredMilestone": "Failed to remove required milestone",
+      "addLinkedMilestone": "Failed to add linked milestone",
+      "linkedMilestoneAlreadyLinked": "This milestone is already linked",
+      "removeLinkedMilestone": "Failed to remove linked milestone",
+      "loadFailed": "Failed to load work item. Please try again.",
+      "unlinkSubsidy": "Failed to unlink subsidy program",
+      "alreadyLinkedSubsidy": "This subsidy program is already linked",
+      "unlinkInvoice": "Failed to unlink budget line from invoice",
+      "deleteWorkItem": "Failed to delete work item"
+    },
+    "dismissError": "Dismiss error",
+    "shortcuts": {
+      "editTitle": "Edit title",
+      "deleteWorkItem": "Delete work item (Delete / Backspace)",
+      "cancelOrClose": "Cancel edit or close dialog",
+      "showShortcuts": "Show keyboard shortcuts"
+    }
+  }
+}

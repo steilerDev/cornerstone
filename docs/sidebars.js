@@ -76,6 +76,22 @@ const sidebars = {
         'guides/household-items/delivery-and-dependencies',
       ],
     },
+    {
+      type: 'category',
+      label: 'Diary',
+      link: { type: 'doc', id: 'guides/diary/index' },
+      items: [
+        'guides/diary/manual-entries',
+        'guides/diary/automatic-events',
+        'guides/diary/signatures',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Calendar & Contact Feeds',
+      link: { type: 'doc', id: 'guides/feeds/index' },
+      items: ['guides/feeds/subscribing'],
+    },
     'guides/dashboard/index',
     'guides/appearance/dark-mode',
     'roadmap',

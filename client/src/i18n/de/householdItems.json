@@ -1,0 +1,321 @@
+{
+  "page": {
+    "title": "Projekt"
+  },
+  "newButton": "Neuer Haushaltsartikel",
+  "search": {
+    "placeholder": "Haushaltsartikel durchsuchen...",
+    "ariaLabel": "Haushaltsartikel durchsuchen"
+  },
+  "filters": {
+    "ariaLabel": "Haushaltsartikel-Filter",
+    "category": "Kategorie:",
+    "status": "Status:",
+    "room": "Raum:",
+    "vendor": "Auftragnehmer:",
+    "sortBy": "Sortieren nach:",
+    "allCategories": "Alle Kategorien",
+    "allStatuses": "Alle Status",
+    "allVendors": "Alle Auftragnehmer",
+    "roomPlaceholder": "Nach Raum filtern...",
+    "roomAriaLabel": "Nach Raum filtern",
+    "toggleSort": "Sortierreihenfolge umschalten"
+  },
+  "sort": {
+    "options": {
+      "name": "Name",
+      "category": "Kategorie",
+      "status": "Status",
+      "room": "Raum",
+      "order_date": "Bestelldatum",
+      "target_delivery_date": "Ziellieferdatum",
+      "created_at": "Erstellt",
+      "updated_at": "Aktualisiert"
+    },
+    "asc": "↑ Aufsteigend",
+    "desc": "↓ Absteigend"
+  },
+  "status": {
+    "planned": "Geplant",
+    "purchased": "Gekauft",
+    "scheduled": "Geplant",
+    "arrived": "Angekommen"
+  },
+  "table": {
+    "headers": {
+      "name": "Name",
+      "category": "Kategorie",
+      "status": "Status",
+      "room": "Raum",
+      "vendor": "Auftragnehmer",
+      "plannedCost": "Geplante Kosten",
+      "targetDelivery": "Ziellieferdatum",
+      "actions": "Aktionen"
+    }
+  },
+  "results": {
+    "itemFound": "Haushaltsartikel gefunden",
+    "itemsFound": "Haushaltsartikel gefunden"
+  },
+  "card": {
+    "category": "Kategorie:",
+    "status": "Status:",
+    "room": "Raum:",
+    "vendor": "Auftragnehmer:",
+    "plannedCost": "Geplante Kosten:",
+    "targetDelivery": "Ziellieferdatum:"
+  },
+  "empty": {
+    "noItems": "Noch keine Haushaltsartikel",
+    "noItemsMessage": "Erstellen Sie Ihren ersten Haushaltsartikel zum Verfolgen.",
+    "noResults": "Keine Haushaltsartikel entsprechen Ihren Filtern",
+    "noResultsMessage": "Versuchen Sie, Ihre Such- oder Filterkriterien anzupassen.",
+    "createFirstItem": "Ersten Artikel erstellen",
+    "clearAllFilters": "Alle Filter löschen"
+  },
+  "menu": {
+    "actions": "Aktionen für {{name}}",
+    "edit": "Bearbeiten",
+    "delete": "Löschen"
+  },
+  "pagination": {
+    "showing": "Zeige",
+    "to": "bis",
+    "of": "von",
+    "items": "Artikel",
+    "previous": "← Zurück",
+    "next": "Weiter →"
+  },
+  "delete": {
+    "confirm": "Haushaltsartikel löschen",
+    "message": "Möchten Sie wirklich löschen",
+    "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+    "cancel": "Abbrechen",
+    "delete": "Artikel löschen",
+    "deleting": "Wird gelöscht..."
+  },
+  "loading": "Haushaltsartikel werden geladen...",
+  "error": "Fehler beim Laden der Haushaltsartikel. Bitte versuchen Sie es erneut.",
+  "deleteError": "Fehler beim Löschen des Haushaltsartikels. Bitte versuchen Sie es erneut.",
+  "keyboard": {
+    "newItem": "Neuer Haushaltsartikel",
+    "focusSearch": "Suchfeld fokussieren",
+    "selectNext": "Nächsten Artikel wählen",
+    "selectPrevious": "Vorherigen Artikel wählen",
+    "openSelected": "Ausgewählten Artikel öffnen",
+    "showShortcuts": "Tastaturkürzel anzeigen",
+    "closeDialog": "Dialog schließen oder abbrechen"
+  },
+  "create": {
+    "title": "Neuer Haushaltsartikel",
+    "backButton": "← Zurück zu Haushaltsartikeln",
+    "loading": "Wird geladen...",
+    "errorBanner": "Fehler beim Laden der Formulardaten. Bitte versuchen Sie es erneut.",
+    "form": {
+      "name": {
+        "label": "Name",
+        "required": "*",
+        "placeholder": "Artikelnamen eingeben",
+        "error": "Name ist erforderlich"
+      },
+      "description": {
+        "label": "Beschreibung",
+        "placeholder": "Artikel beschreiben"
+      },
+      "category": {
+        "label": "Kategorie",
+        "required": "*",
+        "placeholder": "— Kategorie wählen —",
+        "error": "Kategorie ist erforderlich"
+      },
+      "status": {
+        "label": "Kaufstatus"
+      },
+      "quantity": {
+        "label": "Menge",
+        "error": "Menge muss mindestens 1 sein"
+      },
+      "vendor": {
+        "label": "Auftragnehmer",
+        "placeholder": "Kein Auftragnehmer"
+      },
+      "url": {
+        "label": "URL",
+        "placeholder": "https://example.com"
+      },
+      "room": {
+        "label": "Raum",
+        "placeholder": "z. B. Küche, Schlafzimmer"
+      },
+      "orderDate": {
+        "label": "Bestelldatum"
+      },
+      "earliestDelivery": {
+        "label": "Früheste Lieferung"
+      },
+      "latestDelivery": {
+        "label": "Späteste Lieferung"
+      },
+      "actualDelivery": {
+        "label": "Tatsächliche Lieferung"
+      },
+      "deliveryWindow": {
+        "error": "Das früheste Lieferdatum muss vor oder gleich dem spätesten Lieferdatum liegen"
+      },
+      "deliveryDates": {
+        "error": "Das tatsächliche Lieferdatum muss nach oder gleich dem Bestelldatum liegen"
+      },
+      "tags": {
+        "label": "Tags"
+      }
+    },
+    "cancel": "Abbrechen",
+    "submit": "Artikel erstellen",
+    "submitting": "Wird erstellt...",
+    "success": "Haushaltsartikel erfolgreich erstellt"
+  },
+  "edit": {
+    "title": "Haushaltsartikel bearbeiten",
+    "backButton": "← Zurück zum Artikel",
+    "loading": "Wird geladen...",
+    "errorBanner": "Fehler beim Laden der Formulardaten. Bitte versuchen Sie es erneut.",
+    "notFound": "Haushaltsartikel nicht gefunden",
+    "notFoundMessage": "Der gesuchte Haushaltsartikel existiert nicht.",
+    "form": {
+      "name": {
+        "label": "Name",
+        "required": "*",
+        "placeholder": "Artikelnamen eingeben",
+        "error": "Name ist erforderlich"
+      },
+      "description": {
+        "label": "Beschreibung",
+        "placeholder": "Artikel beschreiben"
+      },
+      "category": {
+        "label": "Kategorie",
+        "required": "*",
+        "placeholder": "— Kategorie wählen —",
+        "error": "Kategorie ist erforderlich"
+      },
+      "quantity": {
+        "label": "Menge",
+        "error": "Menge muss mindestens 1 sein"
+      },
+      "vendor": {
+        "label": "Auftragnehmer",
+        "placeholder": "Kein Auftragnehmer"
+      },
+      "url": {
+        "label": "URL",
+        "placeholder": "https://example.com"
+      },
+      "room": {
+        "label": "Raum",
+        "placeholder": "z. B. Küche, Schlafzimmer"
+      },
+      "tags": {
+        "label": "Tags"
+      }
+    },
+    "cancel": "Abbrechen",
+    "submit": "Änderungen speichern",
+    "submitting": "Wird gespeichert...",
+    "success": "Haushaltsartikel erfolgreich aktualisiert"
+  },
+  "picker": {
+    "placeholder": "Haushaltsartikel suchen...",
+    "emptyHint": "Zum Suchen von Haushaltsartikeln tippen",
+    "noResults": "Keine passenden Haushaltsartikel gefunden",
+    "loadError": "Haushaltsartikel konnten nicht geladen werden",
+    "searchError": "Suche nach Haushaltsartikeln fehlgeschlagen"
+  },
+  "detail": {
+    "loading": "Haushaltsartikel wird geladen...",
+    "error": "Fehler",
+    "notFound": "Artikel nicht gefunden",
+    "notFoundMessage": "Der gesuchte Haushaltsartikel existiert nicht oder wurde entfernt.",
+    "backToHouseholdItems": "Zurück zu Haushaltsartikeln",
+    "retry": "Erneut versuchen",
+    "backToSchedule": "← Zurück zum Zeitplan",
+    "toHouseholdItems": "Zu Haushaltsartikeln",
+    "backButton": "← Zurück zu Haushaltsartikeln",
+    "toSchedule": "Zum Zeitplan",
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "details": {
+      "title": "Details",
+      "description": "Beschreibung",
+      "vendor": "Auftragnehmer",
+      "productUrl": "Produkt-URL",
+      "room": "Raum",
+      "quantity": "Menge",
+      "tags": "Tags",
+      "noTags": "Keine Tags"
+    },
+    "datesDelivery": {
+      "title": "Daten & Lieferung",
+      "purchaseStatus": "Kaufstatus",
+      "actualDate": "Tatsächliches Datum",
+      "targetDate": "Zieldatum",
+      "orderDate": "Bestelldatum",
+      "actualDelivery": "Tatsächliche Lieferung",
+      "earliestDelivery": "Früheste Lieferung",
+      "latestDelivery": "Späteste Lieferung",
+      "clearOrderDate": "Bestelldatum löschen",
+      "clearActualDelivery": "Tatsächliches Lieferdatum löschen",
+      "clearEarliestDelivery": "Frühestes Lieferdatum löschen",
+      "clearLatestDelivery": "Spätestes Lieferdatum löschen",
+      "failedUpdateOrderDate": "Fehler beim Aktualisieren des Bestelldatums",
+      "failedUpdateActualDelivery": "Fehler beim Aktualisieren des tatsächlichen Lieferdatums",
+      "failedUpdateEarliestDelivery": "Fehler beim Aktualisieren des frühesten Lieferdatums",
+      "failedUpdateLatestDelivery": "Fehler beim Aktualisieren des spätesten Lieferdatums"
+    },
+    "dependencies": {
+      "title": "Abhängigkeiten",
+      "noDependencies": "Noch keine Abhängigkeiten. Fügen Sie eine Abhängigkeit hinzu, um diesen Artikel zu planen.",
+      "workItem": "Arbeitspaket",
+      "milestone": "Meilenstein",
+      "removeDependency": "Abhängigkeit entfernen von",
+      "confirm": "Bestätigen",
+      "cancel": "Abbrechen",
+      "search": "Arbeitsgegenstände oder Meilensteine zum Hinzufügen durchsuchen...",
+      "noMatches": "Keine Artikel entsprechen Ihrer Suche",
+      "failedAdd": "Fehler beim Hinzufügen der Abhängigkeit",
+      "failedRemove": "Fehler beim Entfernen der Abhängigkeit",
+      "addedSuccess": "Abhängigkeit erfolgreich hinzugefügt",
+      "removedSuccess": "Abhängigkeit entfernt"
+    },
+    "metadata": {
+      "createdBy": "Erstellt von",
+      "createdAt": "Erstellt am",
+      "updatedAt": "Aktualisiert am"
+    },
+    "delete": {
+      "confirm": "Haushaltsartikel löschen",
+      "message": "Möchten Sie wirklich löschen",
+      "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+      "cancel": "Abbrechen",
+      "delete": "Artikel löschen",
+      "deleting": "Wird gelöscht..."
+    },
+    "status": {
+      "planned": "Geplant",
+      "purchased": "Gekauft",
+      "scheduled": "Geplant",
+      "arrived": "Angekommen",
+      "late": "Verspätet",
+      "updateFailed": "Fehler beim Aktualisieren des Status. Bitte versuchen Sie es erneut."
+    },
+    "budget": {
+      "title": "Budget",
+      "emptyState": "Noch keine Budgetzeilen. Fügen Sie die erste Zeile hinzu, um Kosten zu verfolgen.",
+      "addLineButton": "+ Zeile hinzufügen",
+      "linkInvoiceButton": "Mit Rechnung verknüpfen",
+      "confidenceLabel": "Konfidenz:",
+      "plannedAmountLabel": "Geplanter Betrag",
+      "actualCostLabel": "Tatsächliche Kosten",
+      "paybackLabel": "Rückzahlung"
+    }
+  }
+}

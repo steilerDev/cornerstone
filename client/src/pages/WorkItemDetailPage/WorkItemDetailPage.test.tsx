@@ -162,6 +162,45 @@ jest.unstable_mockModule('../../lib/householdItemWorkItemsApi.js', () => ({
   fetchLinkedHouseholdItems: mockFetchLinkedHouseholdItems,
 }));
 
+// ─── Mock: formatters — provides useFormatters() hook ────────────────────────
+
+jest.unstable_mockModule('../../lib/formatters.js', () => {
+  const fmtCurrency = (n: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  const fmtDate = (d: string | null | undefined, fallback = '—') => {
+    if (!d) return fallback;
+    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return fallback;
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+  const fmtTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
+  const fmtDateTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
+  return {
+    formatCurrency: fmtCurrency,
+    formatDate: fmtDate,
+    formatTime: fmtTime,
+    formatDateTime: fmtDateTime,
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    computeActualDuration: () => null,
+    useFormatters: () => ({
+      formatCurrency: fmtCurrency,
+      formatDate: fmtDate,
+      formatTime: fmtTime,
+      formatDateTime: fmtDateTime,
+      formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    }),
+  };
+});
+
 describe('WorkItemDetailPage', () => {
   let WorkItemDetailPageModule: typeof WorkItemDetailPageTypes;
 
@@ -593,12 +632,16 @@ describe('WorkItemDetailPage', () => {
   });
 
   describe('dependencies display', () => {
-    it('shows empty state when no dependencies exist', async () => {
+    it('shows no dependency groups when no dependencies exist', async () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('No dependencies')).toBeInTheDocument();
+        expect(screen.getByText('Dependencies')).toBeInTheDocument();
       });
+
+      // With no dependencies, DependencySentenceDisplay renders null (no group headers)
+      expect(screen.queryByText(/must finish before/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/must start before/i)).not.toBeInTheDocument();
     });
 
     it('renders existing predecessors with sentence group header', async () => {

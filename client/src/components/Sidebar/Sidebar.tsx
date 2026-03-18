@@ -1,4 +1,5 @@
 import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { Logo } from '../Logo/Logo.js';
 import { ThemeToggle } from '../ThemeToggle/ThemeToggle.js';
@@ -10,6 +11,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const { t } = useTranslation('common');
   const { user: _user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -17,16 +19,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   return (
     <aside className={sidebarClassName} data-open={isOpen}>
-      <Link to="/project" className={styles.logoArea} aria-label="Go to project overview">
+      <Link to="/project" className={styles.logoArea} aria-label={t('aria.goToOverview')}>
         <Logo size={32} className={styles.logo} />
-        <span className={styles.logoText}>Cornerstone</span>
+        <span className={styles.logoText}>{t('appName')}</span>
       </Link>
       <div className={styles.sidebarHeader}>
         <button
           type="button"
           className={styles.closeButton}
           onClick={onClose}
-          aria-label="Close menu"
+          aria-label={t('aria.closeMenu')}
         >
           ✕
         </button>
@@ -37,28 +39,28 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           onClick={onClose}
         >
-          Project
+          {t('nav.project')}
         </NavLink>
         <NavLink
           to="/budget"
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           onClick={onClose}
         >
-          Budget
+          {t('nav.budget')}
         </NavLink>
         <NavLink
           to="/schedule"
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           onClick={onClose}
         >
-          Schedule
+          {t('nav.schedule')}
         </NavLink>
         <NavLink
           to="/diary"
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
           onClick={onClose}
         >
-          Diary
+          {t('nav.diary')}
         </NavLink>
       </nav>
       <div className={styles.sidebarFooter}>
@@ -71,7 +73,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             onClose();
           }}
         >
-          Settings
+          {t('nav.settings')}
         </button>
         <button
           type="button"
@@ -80,10 +82,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             void logout().then(() => onClose());
           }}
         >
-          Logout
+          {t('button.logout')}
         </button>
         <div className={styles.projectInfo}>
-          <span>Cornerstone v{__APP_VERSION__}</span>
+          <span>
+            {t('appName')} v{__APP_VERSION__}
+          </span>
           <a
             href="https://github.com/steilerDev/cornerstone"
             target="_blank"

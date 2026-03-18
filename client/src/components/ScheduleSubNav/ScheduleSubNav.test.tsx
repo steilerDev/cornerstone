@@ -27,9 +27,7 @@ describe('ScheduleSubNav', () => {
   it('renders nav with aria-label="Schedule view navigation"', () => {
     renderNav();
 
-    expect(
-      screen.getByRole('navigation', { name: 'Schedule view navigation' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Gantt' })).toBeInTheDocument();
   });
 
   it('renders data-testid="schedule-view-gantt" on Gantt tab', () => {

@@ -1,0 +1,131 @@
+{
+  "page": {
+    "title": "Project",
+    "customize": "Customize",
+    "hiddenCards": "Hidden Cards",
+    "showCard": "Show {{title}}"
+  },
+  "sections": {
+    "timeline": {
+      "title": "Timeline",
+      "summaryNoItems": "No items scheduled",
+      "summaryItems_one": "{{count}} work item scheduled",
+      "summaryItems_other": "{{count}} work items scheduled"
+    },
+    "budgetDetails": {
+      "title": "Budget Details",
+      "summaryNoSources": "No sources configured",
+      "summarySources_one": "{{count}} source configured",
+      "summarySources_other": "{{count}} sources configured"
+    }
+  },
+  "aria": {
+    "dashboardOverview": "Dashboard overview"
+  },
+  "cards": {
+    "budgetSummary": {
+      "title": "Budget Summary",
+      "remainingBudget": "Remaining Budget",
+      "plannedCostRange": "Planned Cost Range",
+      "actualSpend": "Actual Spend",
+      "subsidySavings": "Subsidy Savings",
+      "viewBudgetOverview": "View Budget Overview →"
+    },
+    "sourceUtilization": {
+      "title": "Source Utilization",
+      "emptyMessage": "No budget sources configured",
+      "emptyAction": "Add a budget source",
+      "utilized": "{{percent}}% utilized",
+      "usedLabel": "Used",
+      "sourceTypes": {
+        "bank_loan": "Bank Loan",
+        "credit_line": "Credit Line",
+        "savings": "Savings",
+        "other": "Other",
+        "discretionary": "Discretionary"
+      }
+    },
+    "upcomingMilestones": {
+      "title": "Upcoming Milestones",
+      "emptyMessage": "No upcoming milestones",
+      "onTrack": "On Track",
+      "delayed": "Delayed"
+    },
+    "workItemProgress": {
+      "title": "Work Item Progress",
+      "emptyMessage": "No work items",
+      "ariaLabel": "Work item progress: {{completed}} completed, {{inProgress}} in progress, {{notStarted}} not started"
+    },
+    "criticalPath": {
+      "title": "Critical Path",
+      "emptyNoDefined": "No critical path defined",
+      "emptyAllCompleted": "All critical items completed",
+      "itemsOnPath": "Items on Path",
+      "nextDeadline": "Next Deadline",
+      "daysRemaining": "Days Remaining",
+      "health": {
+        "onTrack": "On Track",
+        "overdue": "Overdue",
+        "critical": "Critical",
+        "warning": "Warning"
+      }
+    },
+    "miniGantt": {
+      "title": "Mini Gantt",
+      "emptyMessage": "No work items scheduled in this timeframe",
+      "ariaViewFullSchedule": "View full schedule",
+      "ariaChartItems_one": "Mini Gantt: {{count}} work item scheduled",
+      "ariaChartItems_other": "Mini Gantt: {{count}} work items scheduled",
+      "ariaChartWithMilestones_one": "Mini Gantt: {{count}} work item scheduled, {{milestones}} milestone",
+      "ariaChartWithMilestones_other": "Mini Gantt: {{count}} work items scheduled, {{milestones}} milestones"
+    },
+    "invoicePipeline": {
+      "title": "Invoice Pipeline",
+      "emptyMessage": "No invoices yet",
+      "emptyAction": "Create an invoice",
+      "noPendingInvoices": "No pending invoices",
+      "overdue": "Overdue",
+      "pendingTotal": "Pending Total:",
+      "viewAllInvoices": "View all invoices"
+    },
+    "subsidyPipeline": {
+      "title": "Subsidy Pipeline",
+      "emptyMessage": "No subsidy programs found",
+      "emptyAction": "Add a subsidy program",
+      "noPrograms": "No subsidy programs found",
+      "deadlineSoon": "Deadline soon",
+      "viewAllSubsidies": "View all subsidies",
+      "program_one": "program",
+      "program_other": "programs",
+      "statuses": {
+        "eligible": "Eligible",
+        "applied": "Applied",
+        "approved": "Approved",
+        "received": "Received",
+        "rejected": "Rejected"
+      }
+    },
+    "recentDiary": {
+      "title": "Recent Diary",
+      "emptyMessage": "No diary entries yet.",
+      "emptyAction": "Create first entry",
+      "newEntry": "+ New Entry",
+      "viewAll": "View All",
+      "untitled": "Untitled",
+      "loadingEntries": "Loading entries..."
+    },
+    "quickActions": {
+      "title": "Quick Actions",
+      "newWorkItem": "New Work Item",
+      "workItems": "Work Items",
+      "timeline": "Timeline",
+      "budget": "Budget",
+      "invoices": "Invoices",
+      "vendors": "Vendors"
+    },
+    "common": {
+      "emptyDefault": "No data available",
+      "retry": "Retry"
+    }
+  }
+}

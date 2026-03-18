@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type {
   BaseBudgetLine,
   BudgetSource,
@@ -53,6 +54,8 @@ export function BudgetSection<T extends BaseBudgetLine>({
   isUnlinking,
   inlineError,
 }: BudgetSectionProps<T>) {
+  const { t } = useTranslation(budgetLineType === 'household_item' ? 'householdItems' : 'budget');
+
   const {
     openAddBudgetForm,
     openEditBudgetForm,
@@ -90,7 +93,9 @@ export function BudgetSection<T extends BaseBudgetLine>({
 
   return (
     <>
-      <h2 className={styles.sectionTitle}>Budget</h2>
+      <h2 className={styles.sectionTitle}>
+        {budgetLineType === 'household_item' ? t('detail.budget.title') : 'Budget'}
+      </h2>
 
       {inlineError && (
         <div className={styles.errorBanner} role="alert">
@@ -104,7 +109,9 @@ export function BudgetSection<T extends BaseBudgetLine>({
       {/* Budget line cards */}
       {budgetLines.length === 0 && !showBudgetForm && (
         <div className={styles.emptyState}>
-          No budget lines yet. Add the first line to start tracking costs.
+          {budgetLineType === 'household_item'
+            ? t('detail.budget.emptyState')
+            : 'No budget lines yet. Add the first line to start tracking costs.'}
         </div>
       )}
       <div className={styles.budgetLinesList}>
@@ -160,7 +167,9 @@ export function BudgetSection<T extends BaseBudgetLine>({
                   className={styles.linkInvoiceBtn}
                   onClick={() => onLinkInvoice(line.id)}
                 >
-                  Link to Invoice
+                  {budgetLineType === 'household_item'
+                    ? t('detail.budget.linkInvoiceButton')
+                    : 'Link to Invoice'}
                 </button>
               )}
             </BudgetLineCard>
@@ -194,7 +203,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
           onClick={openAddBudgetForm}
           aria-label="Add budget line"
         >
-          + Add Line
+          {budgetLineType === 'household_item' ? t('detail.budget.addLineButton') : '+ Add Line'}
         </button>
       )}
 

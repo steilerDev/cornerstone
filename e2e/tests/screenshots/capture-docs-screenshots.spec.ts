@@ -397,6 +397,36 @@ async function seedHouseholdItems(request: Parameters<typeof test>[2], baseUrl: 
   return householdItemIds;
 }
 
+async function seedDiaryEntries(request: Parameters<typeof test>[2], baseUrl: string) {
+  const entries = [
+    {
+      type: 'daily_log',
+      date: '2026-03-10',
+      title: 'Foundation inspection passed',
+      body: 'Building inspector confirmed the foundation meets all code requirements. Ready to proceed with framing.',
+      weather: { temperature: 18, conditions: 'sunny' },
+    },
+    {
+      type: 'site_visit',
+      date: '2026-03-08',
+      title: 'Pre-pour walkthrough with contractor',
+      body: 'Met with general contractor to review rebar placement and form alignment before the concrete pour.',
+      weather: { temperature: 14, conditions: 'cloudy' },
+    },
+    {
+      type: 'delivery',
+      date: '2026-03-06',
+      title: 'Lumber delivery for framing',
+      items: '2x4 studs (200), 2x6 joists (80), 4x4 posts (12), plywood sheathing (40 sheets)',
+      weather: { temperature: 10, conditions: 'cloudy' },
+    },
+  ];
+
+  for (const entry of entries) {
+    await request.post(`${baseUrl}${API.diaryEntries}`, { data: entry });
+  }
+}
+
 test.describe('Documentation screenshots', () => {
   const baseUrl = process.env.APP_BASE_URL || 'http://localhost:3000';
 
@@ -410,6 +440,7 @@ test.describe('Documentation screenshots', () => {
     vendorIds = budgetResult.vendorIds;
     await seedTimelineData(request, baseUrl, workItemIds);
     householdItemIds = await seedHouseholdItems(request, baseUrl);
+    await seedDiaryEntries(request, baseUrl);
   });
 
   test.describe('Unauthenticated screenshots', () => {
@@ -717,6 +748,43 @@ test.describe('Documentation screenshots', () => {
       await setTheme(page, theme);
       await page.waitForTimeout(300);
       await saveScreenshot(page, 'household-items-list', theme);
+    }
+  });
+
+  // Diary screenshots
+
+  test('Diary list', async ({ page }) => {
+    await page.goto(`${baseUrl}${ROUTES.diary}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { level: 1, name: /diary/i })).toBeVisible();
+    await page.waitForTimeout(500);
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(page, theme);
+      await page.waitForTimeout(300);
+      await saveScreenshot(page, 'diary-list', theme);
+    }
+  });
+
+  test('Diary entry detail', async ({ page }) => {
+    // Navigate to first diary entry
+    await page.goto(`${baseUrl}${ROUTES.diary}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { level: 1, name: /diary/i })).toBeVisible();
+
+    // Click first entry to navigate to detail
+    const firstEntry = page.locator('[data-testid="diary-entry-card"]').first();
+    if ((await firstEntry.count()) > 0) {
+      await firstEntry.click();
+      await page.waitForLoadState('networkidle');
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      await page.waitForTimeout(500);
+
+      for (const theme of ['light', 'dark'] as const) {
+        await setTheme(page, theme);
+        await page.waitForTimeout(300);
+        await saveScreenshot(page, 'diary-entry-detail', theme);
+      }
     }
   });
 

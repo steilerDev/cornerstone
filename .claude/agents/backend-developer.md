@@ -149,6 +149,12 @@ Before considering any task complete, verify:
 - Never expose internal error details (stack traces, SQL errors) to the client
 - Log errors with sufficient context for debugging
 - Use consistent error response shapes as defined in the API contract
+- **Always use `ErrorCode` enum values** in error responses (e.g., `WORK_ITEM_NOT_FOUND`, `VALIDATION_ERROR`). The frontend translates these codes into locale-specific user-facing messages via `translateApiError()`. Never send pre-formatted human-readable error messages — send machine-readable error codes with optional `details` for field-level context
+
+## i18n Backend Support
+
+- The `CURRENCY` environment variable controls the currency code used for formatting (default: `EUR`). It is exposed to the frontend via `GET /api/config`. When adding new currency-related features, respect this configuration.
+- All user-facing text lives on the frontend. The backend sends data values and machine-readable error codes — never translated strings.
 
 ## Attribution
 

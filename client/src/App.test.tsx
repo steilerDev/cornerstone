@@ -20,6 +20,7 @@ import type * as BudgetOverviewApiTypes from './lib/budgetOverviewApi.js';
 import type * as BudgetSourcesApiTypes from './lib/budgetSourcesApi.js';
 import type * as SubsidyProgramsApiTypes from './lib/subsidyProgramsApi.js';
 import type * as PreferencesApiTypes from './lib/preferencesApi.js';
+import type * as DiaryApiTypes from './lib/diaryApi.js';
 import type * as AppTypes from './App.js';
 
 const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
@@ -206,6 +207,16 @@ jest.unstable_mockModule('./lib/preferencesApi.js', () => ({
   deletePreference: jest.fn<typeof PreferencesApiTypes.deletePreference>(),
 }));
 
+// DashboardPage calls listDiaryEntries on mount (RecentDiaryCard).
+const mockListDiaryEntries = jest.fn<typeof DiaryApiTypes.listDiaryEntries>();
+jest.unstable_mockModule('./lib/diaryApi.js', () => ({
+  listDiaryEntries: mockListDiaryEntries,
+  createDiaryEntry: jest.fn<typeof DiaryApiTypes.createDiaryEntry>(),
+  updateDiaryEntry: jest.fn<typeof DiaryApiTypes.updateDiaryEntry>(),
+  deleteDiaryEntry: jest.fn<typeof DiaryApiTypes.deleteDiaryEntry>(),
+  getDiaryEntry: jest.fn<typeof DiaryApiTypes.getDiaryEntry>(),
+}));
+
 describe('App', () => {
   // Dynamic imports
   let App: typeof AppTypes.App;
@@ -240,6 +251,7 @@ describe('App', () => {
     mockFetchBudgetSources.mockReset();
     mockFetchSubsidyPrograms.mockReset();
     mockListPreferences.mockReset();
+    mockListDiaryEntries.mockReset();
 
     // Default: DashboardPage data sources
     mockFetchBudgetOverview.mockResolvedValue({
@@ -268,6 +280,10 @@ describe('App', () => {
     mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
     mockFetchSubsidyPrograms.mockResolvedValue({ subsidyPrograms: [] });
     mockListPreferences.mockResolvedValue([]);
+    mockListDiaryEntries.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, pageSize: 5, totalItems: 0, totalPages: 0 },
+    });
 
     // Default: budget categories returns empty list
     mockFetchBudgetCategories.mockResolvedValue({ categories: [] });

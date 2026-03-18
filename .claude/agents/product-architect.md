@@ -202,12 +202,23 @@ When launched to review a pull request, follow this process:
 - **Schema consistency** — do any DB changes match the Wiki Schema page?
 - **Code quality** — no unjustified `any` types, proper error handling, parameterized queries, consistent naming
 
+### Verdict Decision Matrix
+
+Your verdict must match the severity of your findings. Use `approve` or `request-changes` — do NOT use `comment` as a verdict (it creates ambiguity in automated blocking decisions):
+
+| Verdict                                   | When to Use                                                                                                                                                                                   | Finding Severity                    |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `--request-changes`                       | **Critical or high findings**: API contract violations, schema inconsistencies, broken architecture patterns, security-relevant code quality issues, missing test coverage for critical paths | Critical or High                    |
+| `--approve` (with findings noted in body) | **Medium/low/informational only or no findings**: naming convention suggestions, minor pattern deviations, informational observations                                                         | Medium, Low, Informational, or None |
+
+**Important**: When approving with medium findings, note them in the review body so they can be addressed in refinement. Reserve `--request-changes` for issues that would break contracts or introduce architectural debt.
+
 ### Review Actions
 
 1. Read the PR diff: `gh pr diff <pr-number>`
 2. Read relevant Wiki pages (Architecture, API Contract, Schema) to verify compliance
-3. If all checks pass: `gh pr review --approve <pr-url> --body "..."` with a summary of what was verified
-4. If checks fail: `gh pr review --request-changes <pr-url> --body "..."` with **specific, actionable feedback** referencing the exact files/lines and what needs to change so the implementing agent can fix it without ambiguity
+3. If all checks pass or only medium/low findings: `gh pr review --approve <pr-url> --body "..."` with a summary of what was verified (note any medium findings for refinement)
+4. If critical/high issues found: `gh pr review --request-changes <pr-url> --body "..."` with **specific, actionable feedback** referencing the exact files/lines and what needs to change so the implementing agent can fix it without ambiguity
 5. Append a `REVIEW_METRICS` block to your review body per the format defined in the "Review Metrics" section of CLAUDE.md.
 
 ## Attribution

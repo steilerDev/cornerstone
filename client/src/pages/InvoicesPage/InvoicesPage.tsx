@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   Invoice,
   InvoiceStatusBreakdown,
@@ -9,15 +10,11 @@ import type {
 import { fetchAllInvoices, createInvoice } from '../../lib/invoicesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatDate, formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import styles from './InvoicesPage.module.css';
 
-const STATUS_LABELS: Record<InvoiceStatus, string> = {
-  pending: 'Pending',
-  paid: 'Paid',
-  claimed: 'Claimed',
-};
+// STATUS_LABELS will be dynamically generated from i18n to ensure proper translation
 
 interface InvoiceFormState {
   vendorId: string;
@@ -39,15 +36,18 @@ const EMPTY_FORM: InvoiceFormState = {
   notes: '',
 };
 
-function getAttributionLabel(invoice: Invoice): string {
-  if (invoice.budgetLines.length === 0) return '\u2014';
+function getAttributionLabel(invoice: Invoice, t: ReturnType<typeof useTranslation>['t']): string {
+  if (invoice.budgetLines.length === 0) return t('invoices.attribution.none');
   const totalItemized = invoice.budgetLines.reduce((sum, bl) => sum + bl.itemizedAmount, 0);
-  if (invoice.amount === 0) return `${invoice.budgetLines.length} lines`;
+  if (invoice.amount === 0)
+    return t('invoices.attribution.lines', { count: invoice.budgetLines.length });
   const pct = Math.round((totalItemized / invoice.amount) * 100);
-  return `${pct}% allocated`;
+  return t('invoices.attribution.allocated', { pct });
 }
 
 export function InvoicesPage() {
+  const { t } = useTranslation('budget');
+  const { formatCurrency, formatDate } = useFormatters();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -137,7 +137,7 @@ export function InvoicesPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to load invoices. Please try again.');
+        setError(t('invoices.errorMessage'));
       }
     } finally {
       setIsLoading(false);
@@ -180,16 +180,16 @@ export function InvoicesPage() {
   const handleCreateInvoice = async (event: FormEvent) => {
     event.preventDefault();
     if (!createForm.vendorId) {
-      setCreateError('Please select a vendor.');
+      setCreateError(t('invoices.validation.vendorRequired'));
       return;
     }
     const amount = parseFloat(createForm.amount);
     if (isNaN(amount) || amount <= 0) {
-      setCreateError('Amount must be a positive number.');
+      setCreateError(t('invoices.validation.amountRequired'));
       return;
     }
     if (!createForm.date) {
-      setCreateError('Invoice date is required.');
+      setCreateError(t('invoices.validation.dateRequired'));
       return;
     }
     setIsCreating(true);
@@ -210,7 +210,7 @@ export function InvoicesPage() {
       if (err instanceof ApiClientError) {
         setCreateError(err.error.message);
       } else {
-        setCreateError('Failed to create invoice. Please try again.');
+        setCreateError(t('invoices.messages.createError'));
       }
     } finally {
       setIsCreating(false);
@@ -224,10 +224,10 @@ export function InvoicesPage() {
       <div className={styles.container}>
         <div className={styles.content}>
           <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>Budget</h1>
+            <h1 className={styles.pageTitle}>{t('invoices.title')}</h1>
           </div>
           <BudgetSubNav />
-          <div className={styles.loading}>Loading invoices...</div>
+          <div className={styles.loading}>{t('invoices.loading')}</div>
         </div>
       </div>
     );
@@ -237,21 +237,21 @@ export function InvoicesPage() {
     <div className={styles.container}>
       <div className={styles.content}>
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>Budget</h1>
+          <h1 className={styles.pageTitle}>{t('invoices.title')}</h1>
         </div>
         <BudgetSubNav />
 
         {/* Summary cards */}
         <div className={styles.summaryGrid}>
           <div className={styles.summaryCard}>
-            <span className={styles.summaryLabel}>Pending</span>
+            <span className={styles.summaryLabel}>{t('invoices.summaryPending')}</span>
             <span className={styles.summaryCount}>{summary.pending.count}</span>
             <span className={styles.summaryAmount}>
               {formatCurrency(summary.pending.totalAmount)}
             </span>
           </div>
           <div className={styles.summaryCard}>
-            <span className={styles.summaryLabel}>Paid</span>
+            <span className={styles.summaryLabel}>{t('invoices.summaryPaid')}</span>
             <span className={styles.summaryCount}>
               {summary.paid.count + summary.claimed.count}
             </span>
@@ -260,7 +260,7 @@ export function InvoicesPage() {
             </span>
           </div>
           <div className={styles.summaryCard}>
-            <span className={styles.summaryLabel}>Claimed</span>
+            <span className={styles.summaryLabel}>{t('invoices.summaryClaimed')}</span>
             <span className={styles.summaryCount}>{summary.claimed.count}</span>
             <span className={styles.summaryAmount}>
               {formatCurrency(summary.claimed.totalAmount)}
@@ -270,9 +270,9 @@ export function InvoicesPage() {
 
         {/* Section header */}
         <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Invoices</h2>
+          <h2 className={styles.sectionTitle}>{t('invoices.sectionTitle')}</h2>
           <button type="button" className={styles.button} onClick={openCreateModal}>
-            Add Invoice
+            {t('invoices.addInvoice')}
           </button>
         </div>
 
@@ -284,7 +284,7 @@ export function InvoicesPage() {
               className={styles.retryButton}
               onClick={() => void loadInvoices()}
             >
-              Retry
+              {t('invoices.retryButton')}
             </button>
           </div>
         )}
@@ -293,11 +293,11 @@ export function InvoicesPage() {
         <div className={styles.filterCard}>
           <input
             type="search"
-            placeholder="Search by invoice number..."
+            placeholder={t('invoices.searchPlaceholder')}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             className={styles.searchInput}
-            aria-label="Search invoices"
+            aria-label={t('invoices.searchAriaLabel')}
           />
           <div className={styles.filterRow}>
             <select
@@ -313,12 +313,12 @@ export function InvoicesPage() {
                 setSearchParams(newParams);
               }}
               className={styles.filterSelect}
-              aria-label="Filter by status"
+              aria-label={t('invoices.filterStatusAriaLabel')}
             >
-              <option value="">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="paid">Paid</option>
-              <option value="claimed">Claimed</option>
+              <option value="">{t('invoices.allStatuses')}</option>
+              <option value="pending">{t('invoices.statusLabels.pending')}</option>
+              <option value="paid">{t('invoices.statusLabels.paid')}</option>
+              <option value="claimed">{t('invoices.statusLabels.claimed')}</option>
             </select>
             <select
               value={vendorFilter}
@@ -333,9 +333,9 @@ export function InvoicesPage() {
                 setSearchParams(newParams);
               }}
               className={styles.filterSelect}
-              aria-label="Filter by vendor"
+              aria-label={t('invoices.filterVendorAriaLabel')}
             >
-              <option value="">All Vendors</option>
+              <option value="">{t('invoices.allVendors')}</option>
               {vendors.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.name}
@@ -344,7 +344,7 @@ export function InvoicesPage() {
             </select>
             <div className={styles.sortControls}>
               <label htmlFor="sort-select" className={styles.sortLabel}>
-                Sort:
+                {t('invoices.sortLabel')}
               </label>
               <select
                 id="sort-select"
@@ -352,19 +352,19 @@ export function InvoicesPage() {
                 onChange={(e) => handleSortChange(e.target.value)}
                 className={styles.filterSelect}
               >
-                <option value="date">Date</option>
-                <option value="amount">Amount</option>
-                <option value="status">Status</option>
-                <option value="vendor_name">Vendor</option>
-                <option value="due_date">Due Date</option>
+                <option value="date">{t('invoices.sortDate')}</option>
+                <option value="amount">{t('invoices.sortAmount')}</option>
+                <option value="status">{t('invoices.sortStatus')}</option>
+                <option value="vendor_name">{t('invoices.sortVendor')}</option>
+                <option value="due_date">{t('invoices.sortDueDate')}</option>
               </select>
               <button
                 type="button"
                 className={styles.sortOrderButton}
                 onClick={() => handleSortChange(sortBy)}
-                aria-label="Toggle sort order"
+                aria-label={t('invoices.sortOrderAriaLabel')}
               >
-                {sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
+                {sortOrder === 'asc' ? t('invoices.sortAsc') : t('invoices.sortDesc')}
               </button>
             </div>
           </div>
@@ -375,10 +375,8 @@ export function InvoicesPage() {
           <div className={styles.emptyState}>
             {isFiltered ? (
               <>
-                <h2 className={styles.emptyTitle}>No invoices match your filters</h2>
-                <p className={styles.emptyText}>
-                  Try different filters or clear them to see all invoices.
-                </p>
+                <h2 className={styles.emptyTitle}>{t('invoices.noFilterResults')}</h2>
+                <p className={styles.emptyText}>{t('invoices.tryDifferentFilters')}</p>
                 <button
                   type="button"
                   className={styles.secondaryButton}
@@ -387,17 +385,15 @@ export function InvoicesPage() {
                     setSearchParams(new URLSearchParams());
                   }}
                 >
-                  Clear Filters
+                  {t('invoices.clearFilters')}
                 </button>
               </>
             ) : (
               <>
-                <h2 className={styles.emptyTitle}>No invoices yet</h2>
-                <p className={styles.emptyText}>
-                  Add your first invoice to start tracking vendor payments.
-                </p>
+                <h2 className={styles.emptyTitle}>{t('invoices.noInvoicesTitle')}</h2>
+                <p className={styles.emptyText}>{t('invoices.noInvoicesDescription')}</p>
                 <button type="button" className={styles.button} onClick={openCreateModal}>
-                  Add First Invoice
+                  {t('invoices.addFirstInvoice')}
                 </button>
               </>
             )}
@@ -420,9 +416,10 @@ export function InvoicesPage() {
                           : 'none'
                       }
                     >
-                      Date{renderSortIcon('date')}
+                      {t('invoices.tableHeaders.date')}
+                      {renderSortIcon('date')}
                     </th>
-                    <th>Invoice #</th>
+                    <th>{t('invoices.tableHeaders.invoiceNumber')}</th>
                     <th
                       className={styles.sortableHeader}
                       onClick={() => handleSortChange('vendor_name')}
@@ -434,7 +431,8 @@ export function InvoicesPage() {
                           : 'none'
                       }
                     >
-                      Vendor{renderSortIcon('vendor_name')}
+                      {t('invoices.tableHeaders.vendor')}
+                      {renderSortIcon('vendor_name')}
                     </th>
                     <th
                       className={`${styles.sortableHeader} ${styles.amountHeader}`}
@@ -447,9 +445,10 @@ export function InvoicesPage() {
                           : 'none'
                       }
                     >
-                      Amount{renderSortIcon('amount')}
+                      {t('invoices.tableHeaders.amount')}
+                      {renderSortIcon('amount')}
                     </th>
-                    <th>Allocated</th>
+                    <th>{t('invoices.tableHeaders.allocated')}</th>
                     <th
                       className={styles.sortableHeader}
                       onClick={() => handleSortChange('due_date')}
@@ -461,7 +460,8 @@ export function InvoicesPage() {
                           : 'none'
                       }
                     >
-                      Due Date{renderSortIcon('due_date')}
+                      {t('invoices.tableHeaders.dueDate')}
+                      {renderSortIcon('due_date')}
                     </th>
                     <th
                       className={styles.sortableHeader}
@@ -474,9 +474,10 @@ export function InvoicesPage() {
                           : 'none'
                       }
                     >
-                      Status{renderSortIcon('status')}
+                      {t('invoices.tableHeaders.status')}
+                      {renderSortIcon('status')}
                     </th>
-                    <th className={styles.actionsColumn}>Actions</th>
+                    <th className={styles.actionsColumn}>{t('invoices.actionsHeader')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -509,18 +510,18 @@ export function InvoicesPage() {
                         </Link>
                       </td>
                       <td className={styles.amountCell}>{formatCurrency(invoice.amount)}</td>
-                      <td>{getAttributionLabel(invoice)}</td>
+                      <td>{getAttributionLabel(invoice, t)}</td>
                       <td>{invoice.dueDate ? formatDate(invoice.dueDate) : '\u2014'}</td>
                       <td>
                         <span
                           className={`${styles.statusBadge} ${styles[`status_${invoice.status}`]}`}
                         >
-                          {STATUS_LABELS[invoice.status]}
+                          {t(`invoices.statusLabels.${invoice.status}`)}
                         </span>
                       </td>
                       <td className={styles.actionsCell}>
                         <Link to={`/budget/invoices/${invoice.id}`} className={styles.viewButton}>
-                          View
+                          {t('invoices.buttons.view')}
                         </Link>
                       </td>
                     </tr>
@@ -539,7 +540,9 @@ export function InvoicesPage() {
                         to={`/budget/invoices/${invoice.id}`}
                         className={styles.cardInvoiceNumber}
                       >
-                        {invoice.invoiceNumber ? `#${invoice.invoiceNumber}` : 'No Number'}
+                        {invoice.invoiceNumber
+                          ? `#${invoice.invoiceNumber}`
+                          : t('invoices.noNumber')}
                       </Link>
                       <Link
                         to={`/budget/vendors/${invoice.vendorId}`}
@@ -549,19 +552,21 @@ export function InvoicesPage() {
                       </Link>
                     </div>
                     <span className={`${styles.statusBadge} ${styles[`status_${invoice.status}`]}`}>
-                      {STATUS_LABELS[invoice.status]}
+                      {t(`invoices.statusLabels.${invoice.status}`)}
                     </span>
                   </div>
                   <div className={styles.cardMeta}>
                     <span className={styles.cardAmount}>{formatCurrency(invoice.amount)}</span>
                     <span className={styles.cardDate}>{formatDate(invoice.date)}</span>
                     {invoice.dueDate && (
-                      <span className={styles.cardDue}>Due: {formatDate(invoice.dueDate)}</span>
+                      <span className={styles.cardDue}>
+                        {t('invoices.duePrefix')} {formatDate(invoice.dueDate)}
+                      </span>
                     )}
                   </div>
                   <div className={styles.cardActions}>
                     <Link to={`/budget/invoices/${invoice.id}`} className={styles.viewButton}>
-                      View Details
+                      {t('invoices.buttons.view')}
                     </Link>
                   </div>
                 </div>
@@ -572,8 +577,11 @@ export function InvoicesPage() {
             {totalPages > 1 && (
               <div className={styles.pagination}>
                 <div className={styles.paginationInfo}>
-                  Showing {(currentPage - 1) * pageSize + 1} to{' '}
-                  {Math.min(currentPage * pageSize, totalItems)} of {totalItems} invoices
+                  {t('invoices.pagination', {
+                    from: (currentPage - 1) * pageSize + 1,
+                    to: Math.min(currentPage * pageSize, totalItems),
+                    total: totalItems,
+                  })}
                 </div>
                 <div className={styles.paginationControls}>
                   <button
@@ -581,9 +589,9 @@ export function InvoicesPage() {
                     className={styles.paginationButton}
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
-                    aria-label="Previous page"
+                    aria-label={t('invoices.paginationPreviousAriaLabel')}
                   >
-                    Previous
+                    {t('invoices.previous')}
                   </button>
                   <div className={styles.paginationPages}>
                     {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -609,9 +617,9 @@ export function InvoicesPage() {
                     className={styles.paginationButton}
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    aria-label="Next page"
+                    aria-label={t('invoices.paginationNextAriaLabel')}
                   >
-                    Next
+                    {t('invoices.next')}
                   </button>
                 </div>
               </div>
@@ -631,7 +639,7 @@ export function InvoicesPage() {
           <div className={styles.modalBackdrop} onClick={closeCreateModal} />
           <div className={`${styles.modalContent} ${styles.modalContentWide}`}>
             <h2 id="create-modal-title" className={styles.modalTitle}>
-              Add Invoice
+              {t('invoices.modal.title')}
             </h2>
             {createError && (
               <div className={styles.errorBanner} role="alert">
@@ -641,7 +649,8 @@ export function InvoicesPage() {
             <form onSubmit={handleCreateInvoice} className={styles.form} noValidate>
               <div className={styles.field}>
                 <label htmlFor="create-vendor" className={styles.label}>
-                  Vendor <span className={styles.required}>*</span>
+                  {t('invoices.form.vendor')}{' '}
+                  <span className={styles.required}>{t('invoices.form.required')}</span>
                 </label>
                 <select
                   id="create-vendor"
@@ -651,7 +660,7 @@ export function InvoicesPage() {
                   disabled={isCreating}
                   required
                 >
-                  <option value="">Select a vendor...</option>
+                  <option value="">{t('invoices.form.placeholders.vendor')}</option>
                   {vendors.map((v) => (
                     <option key={v.id} value={v.id}>
                       {v.name}
@@ -663,7 +672,7 @@ export function InvoicesPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="create-invoice-number" className={styles.label}>
-                    Invoice #
+                    {t('invoices.form.invoiceNumber')}
                   </label>
                   <input
                     type="text"
@@ -673,14 +682,15 @@ export function InvoicesPage() {
                       setCreateForm({ ...createForm, invoiceNumber: e.target.value })
                     }
                     className={styles.input}
-                    placeholder="e.g., INV-001"
+                    placeholder={t('invoices.form.placeholders.invoiceNumber')}
                     maxLength={100}
                     disabled={isCreating}
                   />
                 </div>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="create-amount" className={styles.label}>
-                    Amount <span className={styles.required}>*</span>
+                    {t('invoices.form.amount')}{' '}
+                    <span className={styles.required}>{t('invoices.form.required')}</span>
                   </label>
                   <input
                     type="number"
@@ -688,7 +698,7 @@ export function InvoicesPage() {
                     value={createForm.amount}
                     onChange={(e) => setCreateForm({ ...createForm, amount: e.target.value })}
                     className={styles.input}
-                    placeholder="0.00"
+                    placeholder={t('invoices.form.placeholders.amount')}
                     min="0.01"
                     step="0.01"
                     required
@@ -700,7 +710,8 @@ export function InvoicesPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="create-date" className={styles.label}>
-                    Invoice Date <span className={styles.required}>*</span>
+                    {t('invoices.form.invoiceDate')}{' '}
+                    <span className={styles.required}>{t('invoices.form.required')}</span>
                   </label>
                   <input
                     type="date"
@@ -714,7 +725,7 @@ export function InvoicesPage() {
                 </div>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="create-due-date" className={styles.label}>
-                    Due Date
+                    {t('invoices.form.dueDate')}
                   </label>
                   <input
                     type="date"
@@ -729,7 +740,7 @@ export function InvoicesPage() {
 
               <div className={styles.field}>
                 <label htmlFor="create-status" className={styles.label}>
-                  Status
+                  {t('invoices.form.status')}
                 </label>
                 <select
                   id="create-status"
@@ -740,15 +751,15 @@ export function InvoicesPage() {
                   className={styles.select}
                   disabled={isCreating}
                 >
-                  <option value="pending">Pending</option>
-                  <option value="paid">Paid</option>
-                  <option value="claimed">Claimed</option>
+                  <option value="pending">{t('invoices.statusLabels.pending')}</option>
+                  <option value="paid">{t('invoices.statusLabels.paid')}</option>
+                  <option value="claimed">{t('invoices.statusLabels.claimed')}</option>
                 </select>
               </div>
 
               <div className={styles.field}>
                 <label htmlFor="create-notes" className={styles.label}>
-                  Notes
+                  {t('invoices.form.notes')}
                 </label>
                 <textarea
                   id="create-notes"
@@ -767,7 +778,7 @@ export function InvoicesPage() {
                   onClick={closeCreateModal}
                   disabled={isCreating}
                 >
-                  Cancel
+                  {t('invoices.buttons.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -776,7 +787,7 @@ export function InvoicesPage() {
                     isCreating || !createForm.vendorId || !createForm.amount || !createForm.date
                   }
                 >
-                  {isCreating ? 'Adding...' : 'Add Invoice'}
+                  {isCreating ? t('invoices.buttons.creating') : t('invoices.buttons.create')}
                 </button>
               </div>
             </form>

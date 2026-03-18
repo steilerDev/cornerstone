@@ -249,30 +249,39 @@ describe('DiaryEntryCreatePage', () => {
 
     it('shows daily_log metadata section after selecting daily_log', async () => {
       await advanceToFormStep('daily_log');
-      expect(screen.getByText('Daily Log Details')).toBeInTheDocument();
+      // Section heading is the first field label rendered as <h3> (Weather for daily_log)
+      expect(screen.getByRole('heading', { level: 3, name: 'Weather' })).toBeInTheDocument();
     });
 
     it('shows site_visit metadata section after selecting site_visit', async () => {
       await advanceToFormStep('site_visit');
-      expect(screen.getByText('Site Visit Details')).toBeInTheDocument();
+      // Section heading is the first field label rendered as <h3> (Inspector Name for site_visit)
+      expect(screen.getByRole('heading', { level: 3, name: 'Inspector Name' })).toBeInTheDocument();
     });
 
     it('shows delivery metadata section after selecting delivery', async () => {
       await advanceToFormStep('delivery');
-      expect(screen.getByText('Delivery Details')).toBeInTheDocument();
+      // Section heading is the first field label rendered as <h3> (Vendor for delivery)
+      expect(screen.getByRole('heading', { level: 3, name: 'Vendor' })).toBeInTheDocument();
     });
 
     it('shows issue metadata section after selecting issue', async () => {
       await advanceToFormStep('issue');
-      expect(screen.getByText('Issue Details')).toBeInTheDocument();
+      // Section heading is the first field label rendered as <h3> (Issue Severity for issue)
+      expect(screen.getByRole('heading', { level: 3, name: 'Issue Severity' })).toBeInTheDocument();
     });
 
     it('does not show any metadata section for general_note', async () => {
       await advanceToFormStep('general_note');
-      expect(screen.queryByText('Daily Log Details')).not.toBeInTheDocument();
-      expect(screen.queryByText('Site Visit Details')).not.toBeInTheDocument();
-      expect(screen.queryByText('Delivery Details')).not.toBeInTheDocument();
-      expect(screen.queryByText('Issue Details')).not.toBeInTheDocument();
+      // No type-specific <h3> headings for general_note
+      expect(screen.queryByRole('heading', { level: 3, name: 'Weather' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { level: 3, name: 'Inspector Name' }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 3, name: 'Vendor' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { level: 3, name: 'Issue Severity' }),
+      ).not.toBeInTheDocument();
     });
   });
 

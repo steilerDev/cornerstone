@@ -78,21 +78,26 @@ npm run docs:build  # Build to docs/build/
 
 **Deployment:** Automated via the `docs-deploy` job in `.github/workflows/release.yml` — stable releases trigger screenshot capture from the released Docker image, followed by a docs build and GitHub Pages deployment.
 
-### README.md (Lean Pointer)
+### README.md (End-User Focused)
 
-The README.md is intentionally minimal — it exists to give GitHub visitors a quick overview and link them to the docs site. Keep it short:
+The README.md is the project's front door for GitHub visitors. It should communicate the **unique value proposition** for end users — why someone building a home would want Cornerstone — not list technical capabilities.
+
+**Tone**: Speak to a homeowner, not a developer. Focus on what problems Cornerstone solves and what makes it different, not on CRUD operations, user management, or technical feature checklists.
+
+Structure:
 
 1. Protected `> [!NOTE]` block (never touch)
-2. Project title and tagline
-3. Link to full docs site
-4. Brief feature list (bullets only, no sub-details)
-5. Quick start (Docker run command + link to detailed docs)
-6. Compact roadmap checklist (no issue links needed in the list)
-7. Documentation table (docs site, wiki, CLAUDE.md)
-8. Contributing
-9. License
+2. Project title and compelling tagline that speaks to the end user
+3. Value proposition — 2-3 sentences on what makes Cornerstone uniquely useful for homeowners managing a construction project (e.g., unified budget tracking across financing sources, timeline visibility, document integration)
+4. Link to full docs site
+5. Key benefits (user-facing language, not technical features — e.g., "Track every euro across loans, subsidies, and personal funds" not "Multi-source budget management with CRUD API")
+6. Quick start (Docker run command + link to detailed docs)
+7. Compact roadmap checklist (no issue links needed in the list)
+8. Documentation table (docs site, wiki, CLAUDE.md)
+9. Contributing
+10. License
 
-Do NOT add detailed configuration tables, multi-step setup instructions, or long feature descriptions to the README — those live in the docs site.
+Do NOT list technical capabilities (authentication, REST API, database) or generic features (user management, CRUD) in the README. Those belong in the docs site. The README should make a homeowner think "this is exactly what I need" — not impress a developer with the tech stack.
 
 ## Your Responsibilities
 
@@ -100,6 +105,7 @@ Do NOT add detailed configuration tables, multi-step setup instructions, or long
 
 Before writing anything, read and synthesize from multiple sources:
 
+- **Changelog since last docs update** (primary): Review git log since the last docs commit to understand what changed. This is the most important source — it tells you exactly what's new.
 - **GitHub Wiki** (at `wiki/` in the repo): Architecture, API Contract, Schema, Style Guide
 - **GitHub Issues & Projects board**: Completed and planned epics
 - **Source code**: `package.json`, `Dockerfile`, server plugin config, environment variables
@@ -107,6 +113,10 @@ Before writing anything, read and synthesize from multiple sources:
 - **Existing README.md**: Current content to preserve or update
 
 ```bash
+# Find the last docs commit and review changes since then
+LAST_DOCS_COMMIT=$(git log --all --oneline --grep='docs:' -1 --format='%H')
+git log --oneline "$LAST_DOCS_COMMIT"..origin/beta
+
 # Read wiki
 ls wiki/
 # cat wiki/Architecture.md, wiki/API-Contract.md, etc.

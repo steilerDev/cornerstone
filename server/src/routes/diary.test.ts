@@ -21,11 +21,6 @@ import type {
   CreateDiaryEntryRequest,
 } from '@cornerstone/shared';
 
-// Suppress migration logs
-beforeEach(() => {
-  jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-});
-
 describe('Diary Routes', () => {
   let app: FastifyInstance;
   let tempDir: string;

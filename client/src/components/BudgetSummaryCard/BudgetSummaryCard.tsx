@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { BudgetOverview } from '@cornerstone/shared';
 import { BudgetBar, type BudgetBarSegment } from '../BudgetBar/BudgetBar.js';
 import { BudgetHealthIndicator } from '../BudgetHealthIndicator/BudgetHealthIndicator.js';
-import { formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './BudgetSummaryCard.module.css';
 
 interface BudgetSummaryCardProps {
@@ -10,6 +11,9 @@ interface BudgetSummaryCardProps {
 }
 
 export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
+  const { formatCurrency } = useFormatters();
+  const { t } = useTranslation('dashboard');
+
   const {
     availableFunds,
     minPlanned,
@@ -26,7 +30,7 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
       key: 'actual-cost',
       value: Math.max(0, actualCost),
       color: 'var(--color-budget-paid)',
-      label: 'Actual Spend',
+      label: t('cards.budgetSummary.actualSpend'),
     },
   ];
 
@@ -36,7 +40,7 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
       key: 'remaining',
       value: remainingVsActualCost,
       color: 'var(--color-budget-track)',
-      label: 'Remaining',
+      label: t('cards.budgetSummary.remainingBudget'),
     });
   }
 
@@ -46,7 +50,7 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
     <div className={styles.content}>
       {/* Primary metric */}
       <div className={styles.primaryMetric}>
-        <span className={styles.metricLabel}>Remaining Budget</span>
+        <span className={styles.metricLabel}>{t('cards.budgetSummary.remainingBudget')}</span>
         <span className={styles.metricValue} data-testid="remaining-budget">
           {formatCurrency(remainingVsActualCost)}
         </span>
@@ -72,14 +76,14 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
       {/* Metrics grid */}
       <dl className={styles.metricsGrid}>
         <div className={styles.metricItem}>
-          <dt className={styles.metricItemLabel}>Planned Cost Range</dt>
+          <dt className={styles.metricItemLabel}>{t('cards.budgetSummary.plannedCostRange')}</dt>
           <dd className={styles.metricItemValue} data-testid="planned-cost-range">
             {formatCurrency(minPlanned)} – {formatCurrency(maxPlanned)}
           </dd>
         </div>
 
         <div className={styles.metricItem}>
-          <dt className={styles.metricItemLabel}>Actual Spend</dt>
+          <dt className={styles.metricItemLabel}>{t('cards.budgetSummary.actualSpend')}</dt>
           <dd className={styles.metricItemValue} data-testid="actual-spend">
             {formatCurrency(actualCost)}
           </dd>
@@ -87,7 +91,7 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
 
         {subsidySummary.totalReductions > 0 && (
           <div className={styles.metricItem}>
-            <dt className={styles.metricItemLabel}>Subsidy Savings</dt>
+            <dt className={styles.metricItemLabel}>{t('cards.budgetSummary.subsidySavings')}</dt>
             <dd className={styles.metricItemValue} data-testid="subsidy-impact">
               {formatCurrency(subsidySummary.totalReductions)}
             </dd>
@@ -98,7 +102,7 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
       {/* Footer */}
       <div className={styles.footer}>
         <Link to="/budget/overview" className={styles.footerLink}>
-          View Budget Overview →
+          {t('cards.budgetSummary.viewBudgetOverview')}
         </Link>
       </div>
     </div>

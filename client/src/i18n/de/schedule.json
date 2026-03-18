@@ -1,0 +1,313 @@
+{
+  "timeline": {
+    "page": {
+      "title": "Zeitplan"
+    },
+    "toolbar": {
+      "entityFilter": "Entity-Filter",
+      "workItems": "Arbeitspakete",
+      "milestones": "Meilensteine",
+      "householdItems": "Haushaltsartikel",
+      "cannotHideLastType": "letzte Art kann nicht ausgeblendet werden",
+      "hideLabel": "Ausblenden",
+      "showLabel": "Anzeigen",
+      "dependencyArrows": "Abhängigkeitspfeile",
+      "hideDependencyArrows": "Abhängigkeitspfeile ausblenden",
+      "showDependencyArrows": "Abhängigkeitspfeile anzeigen",
+      "criticalPath": "Hervorhebung kritischer Pfad",
+      "hideCriticalPath": "Hervorhebung kritischer Pfad ausblenden",
+      "showCriticalPath": "Hervorhebung kritischer Pfad anzeigen",
+      "zoomLevel": "Zoomstufe",
+      "columnZoom": "Spalten-Zoom",
+      "zoomOutColumns": "Spalten verkleinern",
+      "zoomInColumns": "Spalten vergrößern",
+      "adjustColumnWidth": "Spaltenbreite anpassen (Strg+Bildlauf oder Strg+=/−)"
+    },
+    "zoomOptions": {
+      "day": "Tag",
+      "week": "Woche",
+      "month": "Monat"
+    },
+    "errorBanner": {
+      "title": "Fehler beim Laden des Zeitplans. Bitte versuchen Sie es erneut.",
+      "tryAgain": "Erneut versuchen"
+    },
+    "emptyState": {
+      "noItems": "Keine Arbeitspakete zum Anzeigen",
+      "noItemsMessage": "Fügen Sie Arbeitspakete mit Start- und Enddaten hinzu, um sie im Zeitplan anzuzeigen.",
+      "noScheduled": "Keine geplanten Arbeitspakete",
+      "noScheduledMessage": "Ihre Arbeitspakete haben noch kein Start- und Enddatum. Legen Sie Daten für Ihre Arbeitspakete fest, um sie im Zeitplan zu sehen.",
+      "goToWorkItems": "Zu Arbeitspaketen gehen"
+    }
+  },
+  "schedule": {
+    "navigation": {
+      "gantt": "Gantt-Diagramm",
+      "calendar": "Kalender"
+    }
+  },
+  "gantt": {
+    "tooltip": {
+      "status": {
+        "not_started": "Nicht begonnen",
+        "in_progress": "In Arbeit",
+        "completed": "Abgeschlossen"
+      },
+      "duration": {
+        "label": "Dauer",
+        "planned": "Geplant",
+        "actual": "Tatsächlich",
+        "variance": "Abweichung",
+        "onPlan": "Planmäßig",
+        "day": "Tag",
+        "days": "Tage"
+      },
+      "workItem": {
+        "startLabel": "Anfang",
+        "endLabel": "Ende",
+        "ownerLabel": "Verantwortlicher",
+        "dependencies": "Abhängigkeiten",
+        "more": "weitere"
+      },
+      "milestone": {
+        "targetLabel": "Zielangabe",
+        "projectedLabel": "Voraussichtlich",
+        "doneLabel": "Fertig",
+        "contributing": "Beitrag",
+        "blockedByThis": "Wird von diesem blockiert",
+        "linkedItems": "Verknüpfte Elemente",
+        "none": "Keine"
+      },
+      "householdItem": {
+        "statusLabel": "Status",
+        "earliestLabel": "Früheste",
+        "targetLabel": "Zielangabe",
+        "latestLabel": "Späteste",
+        "actualLabel": "Tatsächlich",
+        "flooredToToday": "Heute begrenzt",
+        "linkedItems": "Verknüpfte Elemente"
+      },
+      "dependency": {
+        "finishToStart": "Finish-to-Start",
+        "startToStart": "Start-to-Start",
+        "finishToFinish": "Finish-to-Finish",
+        "startToFinish": "Start-to-Finish"
+      },
+      "navigation": {
+        "viewItem": "Artikel ansehen"
+      }
+    },
+    "status": {
+      "completed": "Abgeschlossen",
+      "late": "Verspätet",
+      "onTrack": "Im Plan"
+    },
+    "skeleton": {
+      "loading": "Diagramm wird geladen..."
+    }
+  },
+  "calendar": {
+    "item": {
+      "ariaLabel": "Arbeitspaket: {{title}}, Status: {{status}}"
+    },
+    "navigation": {
+      "previousMonth": "Vorheriger Monat",
+      "nextMonth": "Nächster Monat",
+      "previousWeek": "Vorherige Woche",
+      "nextWeek": "Nächste Woche",
+      "today": "Heute"
+    },
+    "modes": {
+      "month": "Monat",
+      "week": "Woche"
+    }
+  },
+  "milestones": {
+    "page": {
+      "title": "Projekt"
+    },
+    "newButton": "Neuer Meilenstein",
+    "empty": {
+      "noItems": "Noch keine Meilensteine",
+      "noItemsMessage": "Erstellen Sie Ihren ersten Meilenstein, um wichtige Projektfortschrittspunkte zu markieren.",
+      "createFirst": "Ersten Meilenstein erstellen"
+    },
+    "table": {
+      "headers": {
+        "title": "Titel",
+        "targetDate": "Zieldatum",
+        "status": "Status",
+        "description": "Beschreibung",
+        "actions": "Aktionen"
+      }
+    },
+    "status": {
+      "completed": "Abgeschlossen",
+      "pending": "Ausstehend"
+    },
+    "card": {
+      "targetDate": "Zieldatum:",
+      "status": "Status:",
+      "description": "Beschreibung:"
+    },
+    "menu": {
+      "actions": "Aktionsmenü",
+      "edit": "Bearbeiten",
+      "delete": "Löschen"
+    },
+    "delete": {
+      "confirm": "Meilenstein löschen",
+      "message": "Möchten Sie wirklich löschen",
+      "cancel": "Abbrechen",
+      "delete": "Meilenstein löschen",
+      "deleting": "Wird gelöscht..."
+    },
+    "loading": "Meilensteine werden geladen...",
+    "error": "Fehler beim Laden der Meilensteine. Bitte versuchen Sie es erneut.",
+    "deleteError": "Fehler beim Löschen des Meilensteins. Bitte versuchen Sie es erneut.",
+    "keyboard": {
+      "newMilestone": "Neuer Meilenstein",
+      "selectNext": "Nächsten Artikel wählen",
+      "selectPrevious": "Vorherigen Artikel wählen",
+      "openSelected": "Ausgewählten Artikel öffnen",
+      "showShortcuts": "Tastaturkürzel anzeigen",
+      "closeDialog": "Dialog schließen oder abbrechen"
+    },
+    "create": {
+      "title": "Meilenstein erstellen",
+      "backLink": "← Meilensteine",
+      "form": {
+        "title": {
+          "label": "Titel",
+          "required": "*",
+          "placeholder": "Meilensteintitel eingeben",
+          "error": "Titel ist erforderlich."
+        },
+        "targetDate": {
+          "label": "Zieldatum",
+          "required": "*",
+          "error": "Zieldatum ist erforderlich."
+        },
+        "description": {
+          "label": "Beschreibung",
+          "placeholder": "Optionale Beschreibung für diesen Meilenstein"
+        }
+      },
+      "cancel": "Abbrechen",
+      "submit": "Meilenstein erstellen",
+      "submitting": "Wird erstellt..."
+    },
+    "detail": {
+      "backButton": "← Zurück zu Meilensteinen",
+      "toSchedule": "Zum Zeitplan",
+      "backToSchedule": "← Zurück zum Zeitplan",
+      "toMilestones": "Zu Meilensteinen",
+      "loading": "Meilenstein wird geladen...",
+      "notFound": "Meilenstein nicht gefunden",
+      "notFoundMessage": "Der gesuchte Meilenstein existiert nicht.",
+      "backLink": "Zurück zu Meilensteinen",
+      "edit": "Bearbeiten",
+      "view": {
+        "targetDate": "Zieldatum",
+        "projectedDate": "Voraussichtliches Datum",
+        "description": "Beschreibung",
+        "completedAt": "Abgeschlossen am",
+        "linkedItems": "Verknüpfte Artikel",
+        "workItem": "Arbeitspaket",
+        "householdItem": "Haushaltsartikel",
+        "noItems": "Keine Artikel verknüpft",
+        "dependentItems": "Abhängige Arbeitspakete",
+        "noDependentItems": "Keine abhängigen Arbeitspakete",
+        "searchPlaceholder": "Arbeitspakete oder Haushaltsartikel zum Verknüpfen durchsuchen...",
+        "depSearchPlaceholder": "Arbeitspakete zum Hinzufügen als abhängig durchsuchen...",
+        "noMatches": "Keine Artikel entsprechen Ihrer Suche",
+        "noDepMatches": "Keine Arbeitspakete entsprechen Ihrer Suche",
+        "deleteButton": "Meilenstein löschen",
+        "editButton": "Bearbeiten"
+      },
+      "edit": {
+        "title": "Meilenstein bearbeiten",
+        "form": {
+          "title": {
+            "label": "Titel",
+            "required": "*",
+            "placeholder": "Meilensteintitel"
+          },
+          "targetDate": {
+            "label": "Zieldatum",
+            "required": "*"
+          },
+          "description": {
+            "label": "Beschreibung",
+            "placeholder": "Optionale Beschreibung"
+          },
+          "isCompleted": {
+            "label": "Als abgeschlossen markieren"
+          }
+        },
+        "save": "Änderungen speichern",
+        "saving": "Wird gespeichert...",
+        "cancel": "Abbrechen"
+      },
+      "delete": {
+        "confirm": "Meilenstein löschen",
+        "message": "Möchten Sie wirklich löschen",
+        "cancel": "Abbrechen",
+        "delete": "Meilenstein löschen",
+        "deleting": "Wird gelöscht..."
+      },
+      "delay": {
+        "late": "verspätet",
+        "ahead": "im Voraus",
+        "day": "Tag",
+        "days": "Tage"
+      },
+      "unlinkButton": "Diesen Arbeitspaket aus dem Meilenstein entfernen",
+      "unlinkHouseholdButton": "Diesen Haushaltsartikel aus dem Meilenstein entfernen",
+      "removeDependentButton": "Diesen abhängigen Arbeitspaket aus dem Meilenstein entfernen",
+      "linkedItems": "Verknüpfte Artikel",
+      "noItemsLinked": "Keine Artikel verknüpft",
+      "dependentItems": "Abhängige Arbeitspakete",
+      "noDependentItems": "Keine abhängigen Arbeitspakete",
+      "workItem": "Arbeitspaket",
+      "householdItem": "Haushaltsartikel",
+      "searchPlaceholder": "Arbeitspakete oder Haushaltsartikel zum Verknüpfen durchsuchen...",
+      "depSearchPlaceholder": "Arbeitspakete zum Hinzufügen als abhängig durchsuchen...",
+      "noMatches": "Keine Artikel entsprechen Ihrer Suche",
+      "noDepMatches": "Keine Arbeitspakete entsprechen Ihrer Suche",
+      "form": {
+        "title": "Meilenstein bearbeiten",
+        "titleLabel": "Titel",
+        "targetDateLabel": "Zieldatum",
+        "descriptionLabel": "Beschreibung",
+        "markCompleted": "Als abgeschlossen markieren",
+        "placeholderTitle": "Meilensteintitel",
+        "placeholderDescription": "Optionale Beschreibung",
+        "save": "Änderungen speichern",
+        "saving": "Wird gespeichert...",
+        "cancel": "Abbrechen"
+      },
+      "view": {
+        "targetDate": "Zieldatum",
+        "projectedDate": "Voraussichtliches Datum",
+        "description": "Beschreibung",
+        "completedAt": "Abgeschlossen am",
+        "status": {
+          "completed": "Abgeschlossen",
+          "pending": "Ausstehend"
+        }
+      },
+      "failedLink": "Fehler beim Verknüpfen des Arbeitspakets. Bitte versuchen Sie es erneut.",
+      "failedUnlink": "Fehler beim Aufheben der Verknüpfung des Arbeitspakets. Bitte versuchen Sie es erneut.",
+      "failedAddDependent": "Fehler beim Hinzufügen des abhängigen Arbeitspakets. Bitte versuchen Sie es erneut.",
+      "failedRemoveDependent": "Fehler beim Entfernen des abhängigen Arbeitspakets. Bitte versuchen Sie es erneut.",
+      "failedSave": "Fehler beim Speichern des Meilensteins. Bitte versuchen Sie es erneut.",
+      "failedDelete": "Fehler beim Löschen des Meilensteins. Bitte versuchen Sie es erneut.",
+      "deleteConfirm": "Meilenstein löschen",
+      "deleteMessage": "Möchten Sie wirklich löschen",
+      "deleteCancel": "Abbrechen",
+      "deleteButton": "Meilenstein löschen",
+      "deleting": "Wird gelöscht..."
+    }
+  }
+}

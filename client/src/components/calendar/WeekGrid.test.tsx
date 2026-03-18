@@ -13,6 +13,18 @@ import { MemoryRouter } from 'react-router-dom';
 import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
 import type * as WeekGridTypes from './WeekGrid.js';
 
+// Mock LocaleContext so the component can call useLocale() without a provider.
+// The resolved locale is 'en' so day names render in English via Intl.DateTimeFormat('en-US').
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: () => ({
+    resolvedLocale: 'en',
+    locale: 'en',
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  }),
+}));
+
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------

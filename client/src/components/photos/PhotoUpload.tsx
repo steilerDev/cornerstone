@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Photo } from '@cornerstone/shared';
 import { uploadPhoto } from '../../lib/photoApi.js';
 import styles from './PhotoUpload.module.css';
@@ -18,6 +19,7 @@ export function PhotoUpload({
   disabled,
   onError,
 }: PhotoUploadProps) {
+  const { t } = useTranslation('diary');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -105,7 +107,9 @@ export function PhotoUpload({
     setUploading(false);
   };
 
-  const buttonLabel = isTouchDevice ? 'Take Photo' : 'Upload Photos';
+  const buttonLabel = isTouchDevice
+    ? t('photoUpload.buttonTakePhoto')
+    : t('photoUpload.buttonUploadPhotos');
 
   return (
     <div className={styles.container}>
@@ -118,11 +122,11 @@ export function PhotoUpload({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         role="region"
-        aria-label="Photo upload drop zone"
+        aria-label={t('photoUpload.dropZoneAriaLabel')}
         data-testid="photo-upload-zone"
       >
         <div className={styles.dropZoneContent}>
-          <p className={styles.dropZoneText}>Drag photos here or</p>
+          <p className={styles.dropZoneText}>{t('photoUpload.dropZoneText')}</p>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -130,7 +134,7 @@ export function PhotoUpload({
             className={styles.uploadButton}
             aria-label={buttonLabel}
           >
-            {uploading ? 'Uploading...' : buttonLabel}
+            {uploading ? t('photoUpload.uploading') : buttonLabel}
           </button>
         </div>
       </div>
@@ -159,7 +163,7 @@ export function PhotoUpload({
                   className={styles.progressFill}
                   style={{ width: `${percent}%` }}
                   role="progressbar"
-                  aria-label={`${fileName} upload progress`}
+                  aria-label={t('photoUpload.uploadProgressAriaLabel', { fileName })}
                   aria-valuenow={percent}
                   aria-valuemin={0}
                   aria-valuemax={100}

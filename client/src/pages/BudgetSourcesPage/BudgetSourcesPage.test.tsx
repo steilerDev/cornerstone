@@ -24,6 +24,68 @@ jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
   deleteBudgetSource: mockDeleteBudgetSource,
 }));
 
+// ─── Mock: formatters — provides useFormatters() hook ────────────────────────
+
+jest.unstable_mockModule('../../lib/formatters.js', () => {
+  const fmtCurrency = (n: number) =>
+    new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  const fmtDate = (d: string | null | undefined, fallback = '—') => {
+    if (!d) return fallback;
+    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return fallback;
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+  const fmtTime = (ts: string | null | undefined, fallback = '—') => {
+    if (!ts) return fallback;
+    try {
+      return new Date(ts).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch {
+      return fallback;
+    }
+  };
+  const fmtDateTime = (ts: string | null | undefined, fallback = '—') => {
+    if (!ts) return fallback;
+    try {
+      const d = new Date(ts);
+      return (
+        d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) +
+        ' at ' +
+        d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      );
+    } catch {
+      return fallback;
+    }
+  };
+  return {
+    formatCurrency: fmtCurrency,
+    formatDate: fmtDate,
+    formatTime: fmtTime,
+    formatDateTime: fmtDateTime,
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    computeActualDuration: () => null,
+    useFormatters: () => ({
+      formatCurrency: fmtCurrency,
+      formatDate: fmtDate,
+      formatTime: fmtTime,
+      formatDateTime: fmtDateTime,
+      formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    }),
+  };
+});
+
 describe('BudgetSourcesPage', () => {
   let BudgetSourcesPage: React.ComponentType;
 
@@ -280,8 +342,8 @@ describe('BudgetSourcesPage', () => {
       await waitFor(() => {
         // claimedAmount = 10000 → Claimed appears in bar legend
         expect(screen.getByText('Claimed')).toBeInTheDocument();
-        // Available appears inline in summary row as "Available: €X"
-        expect(screen.getByText(/available:/i)).toBeInTheDocument();
+        // Available appears inline in summary row (no colon after i18n)
+        expect(screen.getAllByText(/available/i).length).toBeGreaterThanOrEqual(1);
         // Old standalone 'Unclaimed' label is gone — replaced by 'Paid (unclaimed)' in legend
         expect(screen.queryByText('Unclaimed')).not.toBeInTheDocument();
       });
@@ -300,7 +362,7 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText(/planned:/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/planned/i).length).toBeGreaterThanOrEqual(1);
         expect(screen.getAllByText(/€150,000\.00/).length).toBeGreaterThanOrEqual(1);
       });
     });
@@ -328,10 +390,10 @@ describe('BudgetSourcesPage', () => {
         expect(screen.getByText('Paid (unclaimed)')).toBeInTheDocument();
         // Old standalone 'Unclaimed' label is gone
         expect(screen.queryByText('Unclaimed')).not.toBeInTheDocument();
-        // Available: €70,000.00 appears in summary row as "Available: €70,000.00"
-        expect(screen.getByText(/available:/i)).toBeInTheDocument();
+        // Available €70,000.00 appears in summary row (no colon after i18n)
+        expect(screen.getAllByText(/available/i).length).toBeGreaterThanOrEqual(1);
         // Planned appears in summary row
-        expect(screen.getByText(/planned:/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/planned/i).length).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -1686,9 +1748,9 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText(/total:/i)).toBeInTheDocument();
-        expect(screen.getByText(/available:/i)).toBeInTheDocument();
-        expect(screen.getByText(/planned:/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/total/i).length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText(/available/i).length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText(/planned/i).length).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -1701,7 +1763,7 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText(/rate:/i)).toBeInTheDocument();
+        expect(screen.getByText('Rate')).toBeInTheDocument();
       });
     });
 
@@ -1717,7 +1779,7 @@ describe('BudgetSourcesPage', () => {
         expect(screen.getByText('Savings Account')).toBeInTheDocument();
       });
 
-      expect(screen.queryByText(/rate:/i)).not.toBeInTheDocument();
+      expect(screen.queryByText('Rate')).not.toBeInTheDocument();
     });
 
     it('old standalone "Unclaimed" label is no longer present', async () => {

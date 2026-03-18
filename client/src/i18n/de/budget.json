@@ -1,0 +1,588 @@
+{
+  "overview": {
+    "title": "Budget",
+    "loading": "Budget-Übersicht wird geladen...",
+    "error": "Fehler",
+    "errorMessage": "Budget-Übersicht konnte nicht geladen werden. Bitte versuchen Sie es später erneut.",
+    "retry": "Erneut versuchen",
+    "emptyStateTitle": "Noch keine Budgetdaten",
+    "emptyStateDescription": "Beginnen Sie mit dem Hinzufügen von Budgekategorien, Arbeitspaketen mit geplanten Kosten und Finanzierungsquellen. Ihre Projektbudget-Übersicht wird hier angezeigt, sobald Daten eingegeben werden.",
+    "availableFunds": "Verfügbare Mittel",
+    "projectedCostRange": "Geplanter Kostenbereich",
+    "expectedPayback": "Erwartete Rückzahlung",
+    "remaining": "Verbleibend",
+    "remainingDetail": "Verbleibendes Budget – tippen Sie für Details",
+    "categories": "Kategorien",
+    "allCategories": "Alle Kategorien",
+    "noCategories": "Keine Kategorien",
+    "selectAll": "Alle auswählen",
+    "clearAll": "Alle deaktivieren",
+    "bars": {
+      "claimedInvoices": "Eingereichte Rechnungen",
+      "paidInvoices": "Bezahlte Rechnungen",
+      "pendingInvoices": "Ausstehende Rechnungen",
+      "projectedOptimistic": "Projiziert (optimistisch)",
+      "projectedPessimistic": "Projiziert (pessimistisch)",
+      "overflow": "Überlauf"
+    },
+    "remainingPerspectives": {
+      "vsMinPlanned": "Verbleibend vs. Min. Geplant",
+      "vsMaxPlanned": "Verbleibend vs. Max. Geplant",
+      "vsProjectedMin": "Verbleibend vs. Projiz. Min.",
+      "vsProjectedMax": "Verbleibend vs. Projiz. Max.",
+      "vsActualCost": "Verbleibend vs. Tatsächliche Kosten",
+      "vsActualPaid": "Verbleibend vs. Tatsächlich Bezahlt",
+      "vsMinPlannedWithPayback": "Verbleibend vs. Min. Geplant (inkl. Rückzahlung)",
+      "vsMaxPlannedWithPayback": "Verbleibend vs. Max. Geplant (inkl. Rückzahlung)"
+    },
+    "ofAvailableFunds": "der verfügbaren Mittel",
+    "costBreakdown": {
+      "loading": "Kostenaufschlüsselung wird geladen…",
+      "title": "Kostenaufschlüsselung",
+      "emptyState": "Keine Budgetdaten zum Anzeigen",
+      "workItems": "Arbeitspakete",
+      "householdItems": "Haushaltsartikel",
+      "sum": "Summe",
+      "availableFunds": "Verfügbare Mittel",
+      "remainingBudget": "Verbleibendes Budget",
+      "tableHeaders": {
+        "name": "Name",
+        "cost": "Kosten",
+        "payback": "Rückzahlung",
+        "net": "Netto"
+      }
+    }
+  },
+  "sources": {
+    "title": "Budget",
+    "sectionTitle": "Quellen",
+    "addSource": "Quelle Hinzufügen",
+    "loading": "Budgetquellen werden geladen...",
+    "error": "Fehler",
+    "errorMessage": "Budgetquellen konnten nicht geladen werden. Bitte versuchen Sie es später erneut.",
+    "retry": "Erneut versuchen",
+    "newBudgetSource": "Neue Budgetquelle",
+    "newBudgetSourceDescription": "Budgetquellen stellen Finanzierung für Ihr Projekt dar (z. B. Bankkredite, Kreditlinien, Ersparnisse).",
+    "form": {
+      "name": "Name",
+      "type": "Typ",
+      "status": "Status",
+      "totalAmount": "Gesamtbetrag (€)",
+      "interestRate": "Zinssatz (%)",
+      "terms": "Bedingungen",
+      "notes": "Notizen",
+      "required": "*",
+      "placeholders": {
+        "name": "z. B. Hauptbankkredite",
+        "interestRate": "z. B. 3,50",
+        "terms": "z. B. 30-jähriger fester Satz, monatliche Zahlungen",
+        "notes": "Optionale Notizen"
+      }
+    },
+    "validation": {
+      "nameRequired": "Quellenname ist erforderlich",
+      "amountRequired": "Gesamtbetrag muss eine nicht-negative Zahl sein",
+      "interestRateInvalid": "Zinssatz muss eine nicht-negative Zahl sein"
+    },
+    "buttons": {
+      "create": "Quelle Erstellen",
+      "creating": "Wird erstellt...",
+      "save": "Speichern",
+      "saving": "Wird gespeichert...",
+      "cancel": "Abbrechen",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "deleting": "Wird gelöscht...",
+      "deleteConfirm": "Quelle Löschen"
+    },
+    "sourcesList": {
+      "title": "Quellen",
+      "empty": "Noch keine Budgetquellen. Fügen Sie Ihre erste Finanzierungsquelle hinzu, um die Projektfinanzierung zu verfolgen.",
+      "system": "System"
+    },
+    "deleteModal": {
+      "title": "Budgetquelle Löschen",
+      "confirm": "Sind Sie sicher, dass Sie die Budgetquelle \"{{name}}\" löschen möchten?",
+      "warning": "Diese Aktion kann nicht rückgängig gemacht werden. Die Quelle wird dauerhaft entfernt.",
+      "conflictError": "Diese Budgetquelle kann nicht gelöscht werden, da sie derzeit von einem oder mehreren Budgeteinträgen referenziert wird."
+    },
+    "messages": {
+      "created": "Budgetquelle \"{{name}}\" erfolgreich erstellt",
+      "updated": "Budgetquelle \"{{name}}\" erfolgreich aktualisiert",
+      "deleted": "Budgetquelle \"{{name}}\" erfolgreich gelöscht",
+      "createError": "Budgetquelle konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",
+      "updateError": "Budgetquelle konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
+      "deleteError": "Budgetquelle konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
+    },
+    "sourceTypes": {
+      "bank_loan": "Bankdarlehen",
+      "credit_line": "Kreditlinie",
+      "savings": "Ersparnisse",
+      "other": "Sonstiges",
+      "discretionary": "Diskretionär"
+    },
+    "sourceStatus": {
+      "active": "Aktiv",
+      "exhausted": "Erschöpft",
+      "closed": "Geschlossen"
+    },
+    "barChart": {
+      "claimed": "Eingereicht",
+      "paidUnclaimed": "Bezahlt (nicht eingereicht)",
+      "projected": "Projiziert",
+      "allocated": "Zugeordnet (geplant)",
+      "total": "Gesamt",
+      "available": "Verfügbar",
+      "planned": "Geplant",
+      "rate": "Rate",
+      "ofTotal": "der Summe",
+      "remaining": "Verbleibend",
+      "overflow": "Überlauf"
+    }
+  },
+  "vendors": {
+    "title": "Budget",
+    "sectionTitle": "Auftragnehmer",
+    "addVendor": "Auftragnehmer Hinzufügen",
+    "addFirstVendor": "Ersten Auftragnehmer Hinzufügen",
+    "loading": "Auftragnehmer werden geladen...",
+    "error": "Fehler",
+    "errorMessage": "Auftragnehmer konnten nicht geladen werden. Bitte versuchen Sie es später erneut.",
+    "retry": "Erneut versuchen",
+    "noVendorsTitle": "Noch keine Auftragnehmer",
+    "noVendorsDescription": "Fügen Sie Ihren ersten Auftragnehmer oder Unternehmer hinzu, um zu verfolgen, wer an Ihrem Projekt arbeitet.",
+    "searchPlaceholder": "Auftragnehmer nach Name oder Fachrichtung suchen...",
+    "sortBy": "Sortieren nach:",
+    "sortAsc": "↑ Aufsteigend",
+    "sortDesc": "↓ Absteigend",
+    "dateAdded": "Hinzugefügt am",
+    "lastUpdated": "Zuletzt aktualisiert",
+    "noSearchResults": "Keine Auftragnehmer stimmen Ihrer Suche überein",
+    "tryDifferentSearch": "Versuchen Sie unterschiedliche Suchbegriffe oder löschen Sie die Suche, um alle Auftragnehmer zu sehen.",
+    "clearSearch": "Suche Löschen",
+    "pagination": "Anzeige {{from}} bis {{to}} von {{total}} Auftragnehmern",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "form": {
+      "name": "Name",
+      "specialty": "Fachrichtung",
+      "phone": "Telefon",
+      "email": "E-Mail",
+      "address": "Adresse",
+      "notes": "Notizen",
+      "required": "*",
+      "placeholders": {
+        "name": "z. B. Müller Klempner GmbH",
+        "specialty": "z. B. Sanitär, Elektrik, Dachdeckerei",
+        "phone": "z. B. +49 555-123-4567",
+        "email": "z. B. kontakt@mueller-klemner.de",
+        "address": "z. B. Hauptstr. 123, 12345 Musterstadt",
+        "notes": "Zusätzliche Notizen zu diesem Auftragnehmer..."
+      }
+    },
+    "validation": {
+      "nameRequired": "Name des Auftragnehmers ist erforderlich.",
+      "nameTooLong": "Name des Auftragnehmers darf maximal 200 Zeichen lang sein."
+    },
+    "buttons": {
+      "create": "Auftragnehmer Hinzufügen",
+      "creating": "Wird hinzugefügt...",
+      "save": "Änderungen Speichern",
+      "saving": "Wird gespeichert...",
+      "cancel": "Abbrechen",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "deleting": "Wird gelöscht...",
+      "view": "Anzeigen",
+      "viewDetails": "Details Anzeigen"
+    },
+    "modal": {
+      "title": "Auftragnehmer Hinzufügen",
+      "description": "Fügen Sie einen Auftragnehmer oder Unternehmer hinzu, der an Ihrem Bauprojekt beteiligt ist.",
+      "deleteTitle": "Auftragnehmer Löschen",
+      "deleteConfirm": "Sind Sie sicher, dass Sie \"{{name}}\" löschen möchten?",
+      "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+      "deleteError": "Dieser Auftragnehmer kann nicht gelöscht werden, da er zugehörige Rechnungen oder Arbeitspakete hat. Entfernen Sie zuerst diese Verweise."
+    },
+    "messages": {
+      "createError": "Auftragnehmer konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",
+      "updateError": "Auftragnehmer konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
+      "deleteError": "Auftragnehmer konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
+    }
+  },
+  "vendorDetail": {
+    "loading": "Auftragnehmer wird geladen...",
+    "error": "Fehler",
+    "backToVendors": "Zurück zu Auftragnehmern",
+    "retry": "Erneut versuchen",
+    "vendorNotFound": "Auftragnehmer nicht gefunden. Er wurde möglicherweise gelöscht.",
+    "vendorInformation": "Auftragnehmerinformationen",
+    "totalInvoices": "Gesamtrechnungen",
+    "outstandingBalance": "Ausstehender Saldo",
+    "invoices": "Rechnungen",
+    "addInvoice": "Rechnung Hinzufügen",
+    "invoicesLoading": "Rechnungen werden geladen...",
+    "noInvoicesYet": "Noch keine Rechnungen.",
+    "noInvoicesHint": "Klicken Sie auf \"Rechnung Hinzufügen\", um die erste Rechnung für diesen Auftragnehmer zu erfassen.",
+    "outstanding": "Ausstehend:",
+    "createdBy": "Erstellt von",
+    "detailFields": {
+      "name": "Name",
+      "specialty": "Fachrichtung",
+      "phone": "Telefon",
+      "email": "E-Mail",
+      "address": "Adresse",
+      "notes": "Notizen",
+      "createdBy": "Erstellt von"
+    },
+    "form": {
+      "name": "Name",
+      "specialty": "Fachrichtung",
+      "phone": "Telefon",
+      "email": "E-Mail",
+      "address": "Adresse",
+      "notes": "Notizen",
+      "required": "*",
+      "placeholders": {
+        "specialty": "z. B. Sanitär, Elektrik, Dachdeckerei",
+        "phone": "z. B. +49 555-123-4567",
+        "email": "z. B. kontakt@auftragnehmer.de",
+        "address": "z. B. Hauptstr. 123, 12345 Musterstadt"
+      }
+    },
+    "buttons": {
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "save": "Änderungen Speichern",
+      "saving": "Wird gespeichert...",
+      "cancel": "Abbrechen",
+      "editRow": "Bearbeiten",
+      "deleteRow": "Löschen"
+    },
+    "invoiceStatusLabels": {
+      "pending": "Ausstehend",
+      "paid": "Bezahlt",
+      "claimed": "Eingereicht"
+    },
+    "invoiceTable": {
+      "invoiceNumber": "Rechnung #",
+      "amount": "Betrag",
+      "date": "Datum",
+      "dueDate": "Fälligkeitsdatum",
+      "status": "Status",
+      "actions": "Aktionen"
+    },
+    "invoiceCard": {
+      "noInvoiceNumber": "Keine Rechnungsnummer"
+    },
+    "modal": {
+      "addInvoiceTitle": "Rechnung Hinzufügen",
+      "editInvoiceTitle": "Rechnung Bearbeiten",
+      "deleteInvoiceTitle": "Rechnung Löschen",
+      "deleteInvoiceConfirm": "Sind Sie sicher, dass Sie die Rechnung {{number}} löschen möchten?",
+      "deleteInvoiceWarning": "Diese Aktion kann nicht rückgängig gemacht werden."
+    },
+    "messages": {
+      "updateError": "Auftragnehmer konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
+      "deleteError": "Auftragnehmer konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.",
+      "invoiceCreateError": "Rechnung konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",
+      "invoiceUpdateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
+      "invoiceDeleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
+    }
+  },
+  "invoiceDetail": {
+    "loading": "Rechnung wird geladen...",
+    "error": "Fehler",
+    "backToInvoices": "Zurück zu Rechnungen",
+    "retry": "Erneut versuchen",
+    "invoiceNotFound": "Rechnung nicht gefunden. Sie wurde möglicherweise gelöscht.",
+    "invoiceDetails": "Rechnungsdetails",
+    "createdBy": "Erstellt von",
+    "detailFields": {
+      "invoiceNumber": "Rechnung #",
+      "vendor": "Auftragnehmer",
+      "amount": "Betrag",
+      "date": "Datum",
+      "dueDate": "Fälligkeitsdatum",
+      "status": "Status",
+      "notes": "Notizen",
+      "createdBy": "Erstellt von"
+    },
+    "form": {
+      "invoiceNumber": "Rechnung #",
+      "vendor": "Auftragnehmer",
+      "amount": "Betrag",
+      "date": "Datum",
+      "dueDate": "Fälligkeitsdatum",
+      "invoiceDate": "Rechnungsdatum",
+      "status": "Status",
+      "notes": "Notizen",
+      "required": "*",
+      "placeholders": {
+        "invoiceNumber": "z. B. ReCH-001"
+      }
+    },
+    "validation": {
+      "amountRequired": "Betrag muss eine positive Zahl sein.",
+      "dateRequired": "Rechnungsdatum ist erforderlich."
+    },
+    "buttons": {
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "save": "Änderungen Speichern",
+      "saving": "Wird gespeichert...",
+      "cancel": "Abbrechen",
+      "deleting": "Wird gelöscht..."
+    },
+    "statusLabels": {
+      "pending": "Ausstehend",
+      "paid": "Bezahlt",
+      "claimed": "Eingereicht"
+    },
+    "modal": {
+      "editTitle": "Rechnung Bearbeiten",
+      "deleteTitle": "Rechnung Löschen",
+      "deleteConfirm": "Sind Sie sicher, dass Sie die Rechnung {{number}} für {{amount}} löschen möchten?",
+      "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+      "deleteConfirmShort": "Sind Sie sicher, dass Sie diese Rechnung löschen möchten?"
+    },
+    "messages": {
+      "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
+      "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
+    }
+  },
+  "subsidies": {
+    "title": "Förderprogramme",
+    "sectionTitle": "Förderprogramme",
+    "addProgram": "Programm Hinzufügen",
+    "loading": "Förderprogramme werden geladen...",
+    "error": "Fehler",
+    "errorMessage": "Förderprogramme konnten nicht geladen werden. Bitte versuchen Sie es später erneut.",
+    "retry": "Erneut versuchen",
+    "noProgramsTitle": "Noch keine Förderprogramme",
+    "noProgramsDescription": "Fügen Sie Ihr erstes Programm hinzu, um verfügbare Zuschüsse und Regierungsanreize für Ihr Projekt zu verfolgen.",
+    "programsCount": "Programme ({{count}})",
+    "newSubsidyProgram": "Neues Förderprogramm",
+    "subsidyDescription": "Förderprogramme stellen staatliche oder institutionelle Programme dar, die Baukosten durch prozentuale oder pauschale Reduktionen senken.",
+    "form": {
+      "name": "Name",
+      "reductionType": "Reduktionstyp",
+      "reductionValue": "Reduktionswert",
+      "valuePercentage": "Wert (%)",
+      "valueFixed": "Wert ($)",
+      "applicationStatus": "Bewerbungsstatus",
+      "deadline": "Frist",
+      "maximumAmount": "Maximalbetrag (€)",
+      "description": "Beschreibung",
+      "eligibility": "Anforderungen",
+      "notes": "Notizen",
+      "applicableCategories": "Anwendbare Budgetkategorien",
+      "selectAll": "Alle Auswählen",
+      "deselectAll": "Alle Abwählen",
+      "required": "*",
+      "placeholders": {
+        "name": "z. B. Energieeffizienz-Zuschuss",
+        "reductionValuePercentage": "15",
+        "reductionValueFixed": "5000",
+        "description": "Optionale Programmbeschreibung",
+        "eligibility": "Optionale Zulassungskriterien",
+        "notes": "Optionale zusätzliche Notizen",
+        "maximumAmount": "Keine Begrenzung"
+      }
+    },
+    "validation": {
+      "nameRequired": "Programmname ist erforderlich",
+      "reductionValueRequired": "Reduktionswert muss eine nicht-negative Zahl sein",
+      "percentageMax": "Prozentuale Reduktion kann 100% nicht überschreiten"
+    },
+    "reductionTypeLabels": {
+      "percentage": "Prozentual (%)",
+      "fixed": "Festbetrag (€)"
+    },
+    "statusLabels": {
+      "eligible": "Berechtigt",
+      "applied": "Eingereicht",
+      "approved": "Genehmigt",
+      "received": "Erhalten",
+      "rejected": "Abgelehnt"
+    },
+    "buttons": {
+      "create": "Programm Erstellen",
+      "creating": "Wird erstellt...",
+      "save": "Speichern",
+      "saving": "Wird gespeichert...",
+      "cancel": "Abbrechen",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "deleting": "Wird gelöscht...",
+      "selectAll": "Alle Auswählen",
+      "deselectAll": "Alle Abwählen"
+    },
+    "modal": {
+      "deleteTitle": "Förderprogramm Löschen",
+      "deleteConfirm": "Sind Sie sicher, dass Sie das Programm \"{{name}}\" löschen möchten?",
+      "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden. Das Programm wird dauerhaft entfernt.",
+      "deleteError": "Dieses Förderprogramm kann nicht gelöscht werden, da es derzeit von einem oder mehreren Budgeteinträgen referenziert wird."
+    },
+    "messages": {
+      "createError": "Förderprogramm konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",
+      "updateError": "Förderprogramm konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
+      "deleteError": "Förderprogramm konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.",
+      "created": "Förderprogramm \"{{name}}\" erfolgreich erstellt",
+      "updated": "Förderprogramm \"{{name}}\" erfolgreich aktualisiert",
+      "deleted": "Förderprogramm \"{{name}}\" erfolgreich gelöscht"
+    }
+  },
+  "budgetLineForm": {
+    "descriptionLabel": "Beschreibung",
+    "descriptionPlaceholder": "Optionale Beschreibung",
+    "modeDirect": "Direktbetrag",
+    "modeUnit": "Einheitspreise",
+    "plannedAmountLabel": "Geplanter Betrag ({{currencySymbol}}) *",
+    "quantityLabel": "Menge *",
+    "unitLabel": "Einheit",
+    "unitPlaceholder": "z. B. m², Stk.",
+    "priceLabel": "Preis *",
+    "totalLabel": "Gesamt",
+    "includesVatLabel": "Preis inkl. MwSt. ({{vatRate}}%)",
+    "vatNote": "+{{vatRate}}% MwSt. wird zum Gesamtbetrag hinzugefügt",
+    "confidenceLabel": "Konfidenz",
+    "categoryLabel": "Kategorie",
+    "categoryNone": "Keine",
+    "fundingSourceLabel": "Finanzierungsquelle",
+    "vendorLabel": "Auftragnehmer",
+    "vendorNone": "Keiner",
+    "submitSaving": "Wird gespeichert...",
+    "submitSave": "Änderungen speichern",
+    "submitAdd": "Position hinzufügen",
+    "cancel": "Abbrechen"
+  },
+  "health": {
+    "overBudget": "Über Budget",
+    "atRisk": "Gefährdet",
+    "onBudget": "Im Budget"
+  },
+  "bar": {
+    "overflowLabel": "Überlauf",
+    "ariaBreakdown": "Budgetaufschlüsselung: {{details}}",
+    "ariaNoData": "Budgetaufschlüsselung: keine Daten"
+  },
+  "invoices": {
+    "title": "Budget",
+    "sectionTitle": "Rechnungen",
+    "addInvoice": "Rechnung Hinzufügen",
+    "addFirstInvoice": "Erste Rechnung Hinzufügen",
+    "loading": "Rechnungen werden geladen...",
+    "error": "Fehler",
+    "errorMessage": "Rechnungen konnten nicht geladen werden. Bitte versuchen Sie es später erneut.",
+    "retry": "Erneut versuchen",
+    "noInvoicesTitle": "Noch keine Rechnungen",
+    "noInvoicesDescription": "Fügen Sie Ihre erste Rechnung hinzu, um die Auftragnehmer-Zahlungen zu verfolgen.",
+    "searchPlaceholder": "Nach Rechnungsnummer suchen...",
+    "summaryPending": "Ausstehend",
+    "summaryPaid": "Bezahlt",
+    "summaryClaimed": "Eingereicht",
+    "filterByStatus": "Nach Status filtern",
+    "filterByVendor": "Nach Auftragnehmer filtern",
+    "allStatuses": "Alle Status",
+    "allVendors": "Alle Auftragnehmer",
+    "sortLabel": "Sortieren:",
+    "sortDate": "Datum",
+    "sortAmount": "Betrag",
+    "sortStatus": "Status",
+    "sortVendor": "Auftragnehmer",
+    "sortDueDate": "Fälligkeitsdatum",
+    "sortAsc": "↑ Aufsteigend",
+    "sortDesc": "↓ Absteigend",
+    "noFilterResults": "Keine Rechnungen entsprechen Ihren Filtern",
+    "tryDifferentFilters": "Versuchen Sie unterschiedliche Filter oder löschen Sie sie, um alle Rechnungen zu sehen.",
+    "clearFilters": "Filter Löschen",
+    "pagination": "Anzeige {{from}} bis {{to}} von {{total}} Rechnungen",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "tableHeaders": {
+      "date": "Datum",
+      "invoiceNumber": "Rechnung #",
+      "vendor": "Auftragnehmer",
+      "amount": "Betrag",
+      "allocated": "Zugeordnet",
+      "dueDate": "Fälligkeitsdatum",
+      "status": "Status"
+    },
+    "form": {
+      "vendor": "Auftragnehmer",
+      "invoiceNumber": "Rechnung #",
+      "amount": "Betrag",
+      "invoiceDate": "Rechnungsdatum",
+      "dueDate": "Fälligkeitsdatum",
+      "status": "Status",
+      "notes": "Notizen",
+      "required": "*",
+      "placeholders": {
+        "vendor": "Auftragnehmer auswählen...",
+        "invoiceNumber": "z. B. ReCH-001",
+        "amount": "0.00"
+      }
+    },
+    "validation": {
+      "vendorRequired": "Bitte wählen Sie einen Auftragnehmer aus.",
+      "amountRequired": "Betrag muss eine positive Zahl sein.",
+      "dateRequired": "Rechnungsdatum ist erforderlich."
+    },
+    "buttons": {
+      "create": "Rechnung Hinzufügen",
+      "creating": "Wird hinzugefügt...",
+      "save": "Änderungen Speichern",
+      "saving": "Wird gespeichert...",
+      "cancel": "Abbrechen",
+      "view": "Anzeigen"
+    },
+    "statusLabels": {
+      "pending": "Ausstehend",
+      "paid": "Bezahlt",
+      "claimed": "Eingereicht"
+    },
+    "modal": {
+      "title": "Rechnung Hinzufügen",
+      "deleteTitle": "Rechnung Löschen",
+      "deleteConfirm": "Sind Sie sicher, dass Sie die Rechnung {{number}} für {{amount}} löschen möchten?",
+      "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden."
+    },
+    "messages": {
+      "createError": "Rechnung konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",
+      "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
+      "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
+    },
+    "attribution": {
+      "none": "—",
+      "lines": "{{count}} Positionen",
+      "allocated": "{{pct}}% zugeordnet"
+    },
+    "retryButton": "Erneut versuchen",
+    "searchAriaLabel": "Rechnungen durchsuchen",
+    "filterStatusAriaLabel": "Nach Status filtern",
+    "filterVendorAriaLabel": "Nach Auftragnehmer filtern",
+    "sortOrderAriaLabel": "Sortierreihenfolge umschalten",
+    "actionsHeader": "Aktionen",
+    "noNumber": "Keine Nummer",
+    "duePrefix": "Fällig:",
+    "paginationPreviousAriaLabel": "Vorherige Seite",
+    "paginationNextAriaLabel": "Nächste Seite"
+  },
+  "common": {
+    "loading": "Wird geladen...",
+    "error": "Fehler",
+    "retry": "Erneut versuchen",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "add": "Hinzufügen",
+    "create": "Erstellen",
+    "update": "Aktualisieren",
+    "remove": "Entfernen",
+    "close": "Schließen",
+    "submit": "Absenden",
+    "required": "*"
+  }
+}

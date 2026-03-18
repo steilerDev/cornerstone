@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   DiaryEntryDetail,
   DailyLogMetadata,
@@ -13,7 +14,7 @@ import { useAuth } from '../../contexts/AuthContext.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import type { VendorOption } from '../../components/diary/SignatureCapture/SignatureCapture.js';
 import { usePhotos } from '../../hooks/usePhotos.js';
-import { formatDate, formatDateTime } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { DiaryEntryTypeBadge } from '../../components/diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
 import { DiaryMetadataSummary } from '../../components/diary/DiaryMetadataSummary/DiaryMetadataSummary.js';
 import { SignatureDisplay } from '../../components/diary/SignatureDisplay/SignatureDisplay.js';
@@ -23,8 +24,10 @@ import shared from '../../styles/shared.module.css';
 import styles from './DiaryEntryDetailPage.module.css';
 
 export default function DiaryEntryDetailPage() {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation('diary');
   const { showToast } = useToast();
   const { user } = useAuth();
   const [vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
@@ -53,7 +56,7 @@ export default function DiaryEntryDetailPage() {
 
   useEffect(() => {
     if (!id) {
-      setError('Invalid diary entry ID');
+      setError(t('detailPage.invalidEntryId'));
       setIsLoading(false);
       return;
     }
@@ -67,12 +70,12 @@ export default function DiaryEntryDetailPage() {
       } catch (err) {
         if (err instanceof ApiClientError) {
           if (err.statusCode === 404) {
-            setError('Diary entry not found');
+            setError(t('detailPage.entryNotFound'));
           } else {
             setError(err.error.message);
           }
         } else {
-          setError('Failed to load diary entry. Please try again.');
+          setError(t('detail.errorMessage'));
         }
       } finally {
         setIsLoading(false);
@@ -80,7 +83,7 @@ export default function DiaryEntryDetailPage() {
     };
 
     void loadEntry();
-  }, [id]);
+  }, [id, t]);
 
   // Delete modal: focus trap and Escape key handler
   useEffect(() => {
@@ -127,17 +130,17 @@ export default function DiaryEntryDetailPage() {
 
     try {
       await deleteDiaryEntry(entry.id);
-      showToast('success', 'Diary entry deleted successfully');
+      showToast('success', t('detailPage.deleteSuccess'));
       navigate('/diary');
     } catch (err) {
-      setDeleteError('Failed to delete diary entry. Please try again.');
+      setDeleteError(t('detailPage.deleteError'));
       console.error('Failed to delete diary entry:', err);
       setIsDeleting(false);
     }
   };
 
   if (isLoading) {
-    return <div className={shared.loading}>Loading entry...</div>;
+    return <div className={shared.loading}>{t('detail.loading')}</div>;
   }
 
   if (error) {
@@ -145,7 +148,7 @@ export default function DiaryEntryDetailPage() {
       <div className={styles.page}>
         <div className={shared.bannerError}>{error}</div>
         <Link to="/diary" className={shared.btnSecondary}>
-          Back to Diary
+          {t('detailPage.backLink')}
         </Link>
       </div>
     );
@@ -155,9 +158,9 @@ export default function DiaryEntryDetailPage() {
     return (
       <div className={styles.page}>
         <div className={shared.emptyState}>
-          <p>Diary entry not found.</p>
+          <p>{t('detail.notFoundMessage')}</p>
           <Link to="/diary" className={shared.btnPrimary}>
-            Back to Diary
+            {t('detailPage.backLink')}
           </Link>
         </div>
       </div>
@@ -173,20 +176,20 @@ export default function DiaryEntryDetailPage() {
           onClick={() => navigate('/diary')}
           aria-label="Go back to diary"
         >
-          ← Back
+          {t('detailPage.backLink')}
         </button>
         <div className={styles.actionButtons}>
           {!entry.isAutomatic && !entry.isSigned && (
             <>
               <Link to={`/diary/${entry.id}/edit`} className={styles.editButton}>
-                Edit
+                {t('detailPage.edit')}
               </Link>
               <button
                 type="button"
                 className={styles.deleteButton}
                 onClick={() => setShowDeleteModal(true)}
               >
-                Delete
+                {t('detailPage.delete')}
               </button>
             </>
           )}
@@ -196,7 +199,7 @@ export default function DiaryEntryDetailPage() {
               className={styles.deleteButton}
               onClick={() => setShowDeleteModal(true)}
             >
-              Delete
+              {t('detailPage.delete')}
             </button>
           )}
         </div>
@@ -211,7 +214,9 @@ export default function DiaryEntryDetailPage() {
             {entry.title && <h1 className={styles.title}>{entry.title}</h1>}
             <div className={styles.meta}>
               <span className={styles.date}>{formatDate(entry.entryDate)}</span>
-              {entry.isAutomatic && <span className={styles.badge}>Automatic</span>}
+              {entry.isAutomatic && (
+                <span className={styles.badge}>{t('detailPage.automatic')}</span>
+              )}
             </div>
           </div>
         </header>
@@ -246,15 +251,17 @@ export default function DiaryEntryDetailPage() {
         {!(entry.isSigned && photosResult.photos.length === 0) && !entry.isAutomatic && (
           <div className={styles.photoSection}>
             <div className={styles.photoSectionHeader}>
-              <h2 className={styles.photoHeading}>Photos ({photosResult.photos.length})</h2>
+              <h2 className={styles.photoHeading}>
+                {t('detailPage.photosHeading', { count: photosResult.photos.length })}
+              </h2>
             </div>
 
             {photosResult.photos.length === 0 ? (
               <div className={styles.photoEmptyState}>
-                <p>No photos attached yet.</p>
+                <p>{t('detailPage.photosEmpty')}</p>
                 {!entry.isAutomatic && (
                   <Link to={`/diary/${entry.id}/edit`} className={styles.addPhotoLink}>
-                    Add photos
+                    {t('detailPage.addPhotos')}
                   </Link>
                 )}
               </div>
@@ -284,7 +291,7 @@ export default function DiaryEntryDetailPage() {
 
         {entry.sourceEntityType && entry.sourceEntityId && (
           <div className={styles.sourceSection}>
-            <p className={styles.sourceLabel}>Related to:</p>
+            <p className={styles.sourceLabel}>{t('detailPage.relatedTo')}</p>
             <SourceEntityLink
               sourceType={entry.sourceEntityType}
               sourceId={entry.sourceEntityId}
@@ -295,12 +302,12 @@ export default function DiaryEntryDetailPage() {
 
         <div className={styles.timestamps}>
           <div className={styles.timestamp}>
-            <span className={styles.label}>Created:</span>
+            <span className={styles.label}>{t('detailPage.created')}</span>
             <span>{formatDateTime(entry.createdAt)}</span>
           </div>
           {entry.updatedAt && (
             <div className={styles.timestamp}>
-              <span className={styles.label}>Updated:</span>
+              <span className={styles.label}>{t('detailPage.updated')}</span>
               <span>{formatDateTime(entry.updatedAt)}</span>
             </div>
           )}
@@ -318,11 +325,9 @@ export default function DiaryEntryDetailPage() {
           <div className={styles.modalBackdrop} onClick={closeDeleteModal} />
           <div className={styles.modalContent} ref={modalRef}>
             <h2 id="delete-modal-title" className={styles.modalTitle}>
-              Delete Diary Entry
+              {t('detailPage.deleteTitle')}
             </h2>
-            <p className={styles.modalText}>
-              Are you sure you want to delete this diary entry? This action cannot be undone.
-            </p>
+            <p className={styles.modalText}>{t('detailPage.deleteMessage')}</p>
             {deleteError ? (
               <div className={styles.errorBanner} role="alert">
                 {deleteError}
@@ -335,7 +340,7 @@ export default function DiaryEntryDetailPage() {
                 onClick={closeDeleteModal}
                 disabled={isDeleting}
               >
-                Cancel
+                {t('detailPage.deleteCancel')}
               </button>
               {!deleteError && (
                 <button
@@ -344,7 +349,7 @@ export default function DiaryEntryDetailPage() {
                   onClick={() => void handleDelete()}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete Entry'}
+                  {isDeleting ? t('detailPage.deleting') : t('detailPage.deleteConfirm')}
                 </button>
               )}
             </div>
@@ -362,6 +367,8 @@ interface SourceEntityLinkProps {
 }
 
 function SourceEntityLink({ sourceType, sourceId, sourceTitle }: SourceEntityLinkProps) {
+  const { t } = useTranslation('diary');
+
   const getRoute = (): string | null => {
     switch (sourceType) {
       case 'work_item':
@@ -380,19 +387,13 @@ function SourceEntityLink({ sourceType, sourceId, sourceTitle }: SourceEntityLin
   };
 
   const getDefaultLabel = (): string => {
-    switch (sourceType) {
-      case 'work_item':
-        return 'Work Item';
-      case 'invoice':
-        return 'Invoice';
-      case 'milestone':
-        return 'Milestone';
-      case 'budget_source':
-        return 'Budget Sources';
-      case 'subsidy_program':
-        return 'Subsidy Programs';
-      default:
-        return sourceType;
+    try {
+      const key = `detailPage.sourceType.${sourceType}`;
+      const label = t(key as any);
+      // If translation key not found, it returns the key itself, so fallback to sourceType
+      return label === key ? sourceType : label;
+    } catch {
+      return sourceType;
     }
   };
 

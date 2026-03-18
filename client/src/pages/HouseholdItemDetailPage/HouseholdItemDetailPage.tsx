@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   HouseholdItemDetail,
   HouseholdItemStatus,
@@ -53,7 +54,7 @@ import {
   deleteInvoiceBudgetLine,
 } from '../../lib/invoiceBudgetLinesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { formatDate, formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import { useToast } from '../../components/Toast/ToastContext.js';
@@ -71,6 +72,8 @@ const HI_STATUS_VARIANTS = {
 };
 
 export function HouseholdItemDetailPage() {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+  const { t } = useTranslation('householdItems');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -524,7 +527,7 @@ export function HouseholdItemDetailPage() {
     } catch {
       setAutosaveOrderDate('error');
       triggerAutosaveReset(setAutosaveOrderDate, 'orderDate');
-      setDateInlineError('Failed to update order date');
+      setDateInlineError(t('detail.datesDelivery.failedUpdateOrderDate'));
     }
   };
 
@@ -546,7 +549,7 @@ export function HouseholdItemDetailPage() {
     } catch {
       setAutosaveActualDelivery('error');
       triggerAutosaveReset(setAutosaveActualDelivery, 'actualDelivery');
-      setDateInlineError('Failed to update actual delivery date');
+      setDateInlineError(t('detail.datesDelivery.failedUpdateActualDelivery'));
     }
   };
 
@@ -568,7 +571,7 @@ export function HouseholdItemDetailPage() {
     } catch {
       setAutosaveEarliestDelivery('error');
       triggerAutosaveReset(setAutosaveEarliestDelivery, 'earliestDelivery');
-      setDateInlineError('Failed to update earliest delivery date');
+      setDateInlineError(t('detail.datesDelivery.failedUpdateEarliestDelivery'));
     }
   };
 
@@ -587,7 +590,7 @@ export function HouseholdItemDetailPage() {
     } catch {
       setAutosaveLatestDelivery('error');
       triggerAutosaveReset(setAutosaveLatestDelivery, 'latestDelivery');
-      setDateInlineError('Failed to update latest delivery date');
+      setDateInlineError(t('detail.datesDelivery.failedUpdateLatestDelivery'));
     }
   };
 
@@ -600,7 +603,7 @@ export function HouseholdItemDetailPage() {
       setItem(updated);
       showToast('success', 'Status updated');
     } catch (err) {
-      setInlineError('Failed to update status. Please try again.');
+      setInlineError(t('detail.status.updateFailed'));
       console.error('Failed to update status:', err);
     } finally {
       setIsChangingStatus(false);
@@ -644,7 +647,7 @@ export function HouseholdItemDetailPage() {
     return (
       <div className={styles.container}>
         <div className={styles.loading} role="status">
-          Loading household item...
+          {t('detail.loading')}
         </div>
       </div>
     );
@@ -654,15 +657,15 @@ export function HouseholdItemDetailPage() {
     return (
       <div className={styles.container}>
         <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>Item Not Found</h2>
-          <p>The household item you&apos;re looking for doesn&apos;t exist or has been removed.</p>
+          <h2 className={styles.errorTitle}>{t('detail.notFound')}</h2>
+          <p>{t('detail.notFoundMessage')}</p>
           <div className={styles.errorActions}>
             <button
               type="button"
               className={styles.secondaryButton}
               onClick={() => navigate('/project/household-items')}
             >
-              Back to Household Items
+              {t('detail.backToHouseholdItems')}
             </button>
           </div>
         </div>
@@ -674,18 +677,18 @@ export function HouseholdItemDetailPage() {
     return (
       <div className={styles.container}>
         <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>Error</h2>
-          <p>{error ?? 'Household item not found.'}</p>
+          <h2 className={styles.errorTitle}>{t('detail.error')}</h2>
+          <p>{error ?? t('detail.notFoundMessage')}</p>
           <div className={styles.errorActions}>
             <button
               type="button"
               className={styles.secondaryButton}
               onClick={() => navigate('/project/household-items')}
             >
-              Back to Household Items
+              {t('detail.backToHouseholdItems')}
             </button>
             <button type="button" className={styles.button} onClick={() => void loadItem()}>
-              Retry
+              {t('detail.retry')}
             </button>
           </div>
         </div>
@@ -709,14 +712,14 @@ export function HouseholdItemDetailPage() {
                 className={styles.backButton}
                 onClick={() => navigate(fromView ? `/schedule?view=${fromView}` : '/schedule')}
               >
-                ← Back to Schedule
+                {t('detail.backToSchedule')}
               </button>
               <button
                 type="button"
                 className={styles.secondaryNavButton}
                 onClick={() => navigate('/project/household-items')}
               >
-                To Household Items
+                {t('detail.toHouseholdItems')}
               </button>
             </>
           ) : (
@@ -726,14 +729,14 @@ export function HouseholdItemDetailPage() {
                 className={styles.backButton}
                 onClick={() => navigate('/project/household-items')}
               >
-                ← Back to Household Items
+                {t('detail.backButton')}
               </button>
               <button
                 type="button"
                 className={styles.secondaryNavButton}
                 onClick={() => navigate('/schedule')}
               >
-                To Schedule
+                {t('detail.toSchedule')}
               </button>
             </>
           )}
@@ -756,10 +759,10 @@ export function HouseholdItemDetailPage() {
               className={styles.editButton}
               onClick={() => navigate(`/project/household-items/${item.id}/edit`)}
             >
-              Edit
+              {t('detail.edit')}
             </button>
             <button type="button" className={styles.deleteButton} onClick={openDeleteModal}>
-              Delete
+              {t('detail.delete.delete')}
             </button>
           </div>
         </div>
@@ -767,15 +770,15 @@ export function HouseholdItemDetailPage() {
         {/* Details card */}
         <section className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Details</h2>
+            <h2 className={styles.cardTitle}>{t('detail.details.title')}</h2>
           </div>
           <dl className={styles.infoList}>
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Description</dt>
+              <dt className={styles.infoLabel}>{t('detail.details.description')}</dt>
               <dd className={styles.infoValue}>{item.description ?? '\u2014'}</dd>
             </div>
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Vendor</dt>
+              <dt className={styles.infoLabel}>{t('detail.details.vendor')}</dt>
               <dd className={styles.infoValue}>
                 {item.vendor ? (
                   <Link to={`/budget/vendors/${item.vendor.id}`} className={styles.infoLink}>
@@ -787,7 +790,7 @@ export function HouseholdItemDetailPage() {
               </dd>
             </div>
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Product URL</dt>
+              <dt className={styles.infoLabel}>{t('detail.details.productUrl')}</dt>
               <dd className={styles.infoValue}>
                 {item.url ? (
                   <a
@@ -804,15 +807,15 @@ export function HouseholdItemDetailPage() {
               </dd>
             </div>
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Room</dt>
+              <dt className={styles.infoLabel}>{t('detail.details.room')}</dt>
               <dd className={styles.infoValue}>{item.room ?? '\u2014'}</dd>
             </div>
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Quantity</dt>
+              <dt className={styles.infoLabel}>{t('detail.details.quantity')}</dt>
               <dd className={styles.infoValue}>{item.quantity}</dd>
             </div>
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>Tags</dt>
+              <dt className={styles.infoLabel}>{t('detail.details.tags')}</dt>
               <dd className={styles.infoValue}>
                 {item.tags.length > 0 ? (
                   <div className={styles.tagList}>
@@ -823,7 +826,7 @@ export function HouseholdItemDetailPage() {
                     ))}
                   </div>
                 ) : (
-                  <span className={styles.emptyState}>No tags</span>
+                  <span className={styles.emptyState}>{t('detail.details.noTags')}</span>
                 )}
               </dd>
             </div>
@@ -833,7 +836,7 @@ export function HouseholdItemDetailPage() {
         {/* Dates & Delivery card */}
         <section className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Dates & Delivery</h2>
+            <h2 className={styles.cardTitle}>{t('detail.datesDelivery.title')}</h2>
           </div>
           {dateInlineError && (
             <div
@@ -863,27 +866,29 @@ export function HouseholdItemDetailPage() {
           {/* Inline status selector */}
           <div className={styles.statusSection}>
             <label htmlFor="hi-status-select" className={styles.infoLabel}>
-              Purchase Status
+              {t('detail.datesDelivery.purchaseStatus')}
             </label>
             <select
               id="hi-status-select"
               className={styles.statusSelect}
               value={item.status}
               disabled={isChangingStatus}
-              aria-label="Purchase status"
+              aria-label={t('detail.datesDelivery.purchaseStatus')}
               onChange={(e) => void handleStatusChange(e.target.value as HouseholdItemStatus)}
             >
-              <option value="planned">Planned</option>
-              <option value="purchased">Purchased</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="arrived">Arrived</option>
+              <option value="planned">{t('detail.status.planned')}</option>
+              <option value="purchased">{t('detail.status.purchased')}</option>
+              <option value="scheduled">{t('detail.status.scheduled')}</option>
+              <option value="arrived">{t('detail.status.arrived')}</option>
             </select>
           </div>
           <dl className={styles.infoList}>
             {/* Schedule row showing target or actual date */}
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>
-                {item.actualDeliveryDate ? 'Actual Date' : 'Target Date'}
+                {item.actualDeliveryDate
+                  ? t('detail.datesDelivery.actualDate')
+                  : t('detail.datesDelivery.targetDate')}
               </dt>
               <dd className={styles.infoValue}>
                 {item.actualDeliveryDate ? (
@@ -908,7 +913,7 @@ export function HouseholdItemDetailPage() {
             {/* Order Date - inline editable */}
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>
-                <label htmlFor="hi-order-date">Order Date</label>
+                <label htmlFor="hi-order-date">{t('detail.datesDelivery.orderDate')}</label>
               </dt>
               <dd className={styles.infoValue}>
                 <div className={styles.inlineFieldWrapper}>
@@ -919,13 +924,13 @@ export function HouseholdItemDetailPage() {
                     value={localOrderDate}
                     onChange={(e) => setLocalOrderDate(e.target.value)}
                     onBlur={() => void handleOrderDateBlur()}
-                    aria-label="Order date"
+                    aria-label={t('detail.datesDelivery.orderDate')}
                   />
                   {localOrderDate && (
                     <button
                       type="button"
                       className={styles.clearDateButton}
-                      aria-label="Clear order date"
+                      aria-label={t('detail.datesDelivery.clearOrderDate')}
                       onClick={() => {
                         setLocalOrderDate('');
                         if (item?.orderDate) {
@@ -954,7 +959,9 @@ export function HouseholdItemDetailPage() {
             {/* Actual Delivery Date - inline editable */}
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>
-                <label htmlFor="hi-actual-delivery">Actual Delivery</label>
+                <label htmlFor="hi-actual-delivery">
+                  {t('detail.datesDelivery.actualDelivery')}
+                </label>
               </dt>
               <dd className={styles.infoValue}>
                 <div className={styles.inlineFieldWrapper}>
@@ -965,13 +972,13 @@ export function HouseholdItemDetailPage() {
                     value={localActualDeliveryDate}
                     onChange={(e) => setLocalActualDeliveryDate(e.target.value)}
                     onBlur={() => void handleActualDeliveryDateBlur()}
-                    aria-label="Actual delivery date"
+                    aria-label={t('detail.datesDelivery.actualDelivery')}
                   />
                   {localActualDeliveryDate && (
                     <button
                       type="button"
                       className={styles.clearDateButton}
-                      aria-label="Clear actual delivery date"
+                      aria-label={t('detail.datesDelivery.clearActualDelivery')}
                       onClick={() => {
                         setLocalActualDeliveryDate('');
                         if (item?.actualDeliveryDate) {
@@ -1007,16 +1014,18 @@ export function HouseholdItemDetailPage() {
         {/* Dependencies card */}
         <section className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Dependencies</h2>
+            <h2 className={styles.cardTitle}>{t('detail.dependencies.title')}</h2>
           </div>
 
           {/* Earliest & Latest Delivery Date - inline editable constraints */}
           <dl className={styles.infoList}>
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>
-                <label htmlFor="hi-earliest-delivery">Earliest Delivery</label>
+                <label htmlFor="hi-earliest-delivery">
+                  {t('detail.datesDelivery.earliestDelivery')}
+                </label>
                 {item.isLate && item.status !== 'arrived' && (
-                  <span className={styles.lateChip}>Late</span>
+                  <span className={styles.lateChip}>{t('detail.status.late')}</span>
                 )}
               </dt>
               <dd className={styles.infoValue}>
@@ -1028,13 +1037,13 @@ export function HouseholdItemDetailPage() {
                     value={localEarliestDeliveryDate}
                     onChange={(e) => setLocalEarliestDeliveryDate(e.target.value)}
                     onBlur={() => void handleEarliestDeliveryDateBlur()}
-                    aria-label="Earliest delivery date"
+                    aria-label={t('detail.datesDelivery.earliestDelivery')}
                   />
                   {localEarliestDeliveryDate && (
                     <button
                       type="button"
                       className={styles.clearDateButton}
-                      aria-label="Clear earliest delivery date"
+                      aria-label={t('detail.datesDelivery.clearEarliestDelivery')}
                       onClick={() => {
                         setLocalEarliestDeliveryDate('');
                         if (item?.earliestDeliveryDate) {
@@ -1067,7 +1076,9 @@ export function HouseholdItemDetailPage() {
 
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>
-                <label htmlFor="hi-latest-delivery">Latest Delivery</label>
+                <label htmlFor="hi-latest-delivery">
+                  {t('detail.datesDelivery.latestDelivery')}
+                </label>
               </dt>
               <dd className={styles.infoValue}>
                 <div className={styles.inlineFieldWrapper}>
@@ -1078,13 +1089,13 @@ export function HouseholdItemDetailPage() {
                     value={localLatestDeliveryDate}
                     onChange={(e) => setLocalLatestDeliveryDate(e.target.value)}
                     onBlur={() => void handleLatestDeliveryDateBlur()}
-                    aria-label="Latest delivery date"
+                    aria-label={t('detail.datesDelivery.latestDelivery')}
                   />
                   {localLatestDeliveryDate && (
                     <button
                       type="button"
                       className={styles.clearDateButton}
-                      aria-label="Clear latest delivery date"
+                      aria-label={t('detail.datesDelivery.clearLatestDelivery')}
                       onClick={() => {
                         setLocalLatestDeliveryDate('');
                         if (item?.latestDeliveryDate) {
@@ -1113,9 +1124,7 @@ export function HouseholdItemDetailPage() {
 
           {/* Dependency list */}
           {dependencies.length === 0 ? (
-            <p className={styles.emptyState}>
-              No dependencies yet. Add a dependency to schedule this item.
-            </p>
+            <p className={styles.emptyState}>{t('detail.dependencies.noDependencies')}</p>
           ) : (
             <ul role="list" className={styles.depList}>
               {dependencies.map((dep) => {
@@ -1130,7 +1139,9 @@ export function HouseholdItemDetailPage() {
                       }
                     >
                       {dep.predecessorType === 'milestone' && <MilestoneIconSvg />}
-                      {dep.predecessorType === 'work_item' ? 'Work Item' : 'Milestone'}
+                      {dep.predecessorType === 'work_item'
+                        ? t('detail.dependencies.workItem')
+                        : t('detail.dependencies.milestone')}
                     </span>
                     {dep.predecessorType === 'work_item' ? (
                       <Link
@@ -1146,7 +1157,7 @@ export function HouseholdItemDetailPage() {
                       type="button"
                       className={styles.unlinkButton}
                       onClick={() => setRemovingDepKey(depKey)}
-                      aria-label={`Remove dependency on ${dep.predecessor.title}`}
+                      aria-label={`${t('detail.dependencies.removeDependency')} ${dep.predecessor.title}`}
                     >
                       ×
                     </button>
@@ -1157,14 +1168,14 @@ export function HouseholdItemDetailPage() {
                           className={styles.deleteButton}
                           onClick={() => void handleRemoveDep(dep)}
                         >
-                          Confirm
+                          {t('detail.dependencies.confirm')}
                         </button>
                         <button
                           type="button"
                           className={styles.cancelButton}
                           onClick={() => setRemovingDepKey(null)}
                         >
-                          Cancel
+                          {t('detail.dependencies.cancel')}
                         </button>
                       </>
                     )}
@@ -1179,7 +1190,7 @@ export function HouseholdItemDetailPage() {
             <input
               ref={depSearchRef}
               type="text"
-              placeholder="Search work items or milestones to add..."
+              placeholder={t('detail.dependencies.search')}
               value={depSearchInput}
               onChange={(e) => {
                 setDepSearchInput(e.target.value);
@@ -1189,7 +1200,7 @@ export function HouseholdItemDetailPage() {
               className={styles.searchInput}
               disabled={isAddingDep}
               data-testid="dep-search-input"
-              aria-label="Search work items or milestones to add as dependencies"
+              aria-label={t('detail.dependencies.search')}
             />
             {showDepDropdown && depSearchInput.trim() && (
               <div className={styles.searchDropdown}>
@@ -1212,7 +1223,9 @@ export function HouseholdItemDetailPage() {
                       onClick={() => void handleAddDepInline('work_item', wi.id)}
                       disabled={isAddingDep}
                     >
-                      <span className={styles.itemTypeBadge}>Work Item</span>
+                      <span className={styles.itemTypeBadge}>
+                        {t('detail.dependencies.workItem')}
+                      </span>
                       <span>{wi.title}</span>
                     </button>
                   ))}
@@ -1235,7 +1248,9 @@ export function HouseholdItemDetailPage() {
                       onClick={() => void handleAddDepInline('milestone', String(ms.id))}
                       disabled={isAddingDep}
                     >
-                      <span className={styles.itemTypeBadgeMilestone}>Milestone</span>
+                      <span className={styles.itemTypeBadgeMilestone}>
+                        {t('detail.dependencies.milestone')}
+                      </span>
                       <span>{ms.title}</span>
                     </button>
                   ))}
@@ -1253,7 +1268,9 @@ export function HouseholdItemDetailPage() {
                           d.predecessorType === 'milestone' && d.predecessorId === String(ms.id),
                       ) && ms.title.toLowerCase().includes(depSearchInput.toLowerCase()),
                   ).length === 0 && (
-                    <div className={styles.searchDropdownEmpty}>No items match your search</div>
+                    <div className={styles.searchDropdownEmpty}>
+                      {t('detail.dependencies.noMatches')}
+                    </div>
                   )}
               </div>
             )}
@@ -1294,15 +1311,15 @@ export function HouseholdItemDetailPage() {
         <section className={styles.card}>
           <div className={styles.metaRow}>
             <div className={styles.metaItem}>
-              <span className={styles.infoLabel}>Created by</span>
+              <span className={styles.infoLabel}>{t('detail.metadata.createdBy')}</span>
               <span className={styles.infoValue}>{item.createdBy?.displayName ?? '\u2014'}</span>
             </div>
             <div className={styles.metaItem}>
-              <span className={styles.infoLabel}>Created at</span>
+              <span className={styles.infoLabel}>{t('detail.metadata.createdAt')}</span>
               <span className={styles.infoValue}>{formatDate(item.createdAt)}</span>
             </div>
             <div className={styles.metaItem}>
-              <span className={styles.infoLabel}>Updated at</span>
+              <span className={styles.infoLabel}>{t('detail.metadata.updatedAt')}</span>
               <span className={styles.infoValue}>{formatDate(item.updatedAt)}</span>
             </div>
           </div>
@@ -1320,17 +1337,17 @@ export function HouseholdItemDetailPage() {
           <div className={styles.modalBackdrop} onClick={closeDeleteModal} />
           <div className={styles.modalContent} ref={modalRef}>
             <h2 id="delete-modal-title" className={styles.modalTitle}>
-              Delete Household Item
+              {t('detail.delete.confirm')}
             </h2>
             <p className={styles.modalText}>
-              Are you sure you want to delete <strong>{item.name}</strong>?
+              {t('detail.delete.message')} <strong>{item.name}</strong>?
             </p>
             {deleteError ? (
               <div className={styles.errorBanner} role="alert">
                 {deleteError}
               </div>
             ) : (
-              <p className={styles.modalWarning}>This action cannot be undone.</p>
+              <p className={styles.modalWarning}>{t('detail.delete.warning')}</p>
             )}
             <div className={styles.modalActions}>
               <button
@@ -1339,7 +1356,7 @@ export function HouseholdItemDetailPage() {
                 onClick={closeDeleteModal}
                 disabled={isDeleting}
               >
-                Cancel
+                {t('detail.delete.cancel')}
               </button>
               {!deleteError && (
                 <button
@@ -1348,7 +1365,7 @@ export function HouseholdItemDetailPage() {
                   onClick={() => void handleDelete()}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete Item'}
+                  {isDeleting ? t('detail.delete.deleting') : t('detail.delete.delete')}
                 </button>
               )}
             </div>

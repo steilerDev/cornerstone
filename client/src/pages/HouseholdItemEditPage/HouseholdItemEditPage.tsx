@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   TagResponse,
   HouseholdItemCategory,
@@ -22,6 +23,7 @@ export function HouseholdItemEditPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { showToast } = useToast();
+  const { t } = useTranslation('householdItems');
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -99,15 +101,15 @@ export function HouseholdItemEditPage() {
     const errors: Record<string, string> = {};
 
     if (!name.trim()) {
-      errors.name = 'Name is required';
+      errors.name = t('edit.form.name.error');
     }
 
     if (!category) {
-      errors.category = 'Category is required';
+      errors.category = t('edit.form.category.error');
     }
 
     if (quantity < 1) {
-      errors.quantity = 'Quantity must be at least 1';
+      errors.quantity = t('edit.form.quantity.error');
     }
 
     setValidationErrors(errors);
@@ -136,10 +138,10 @@ export function HouseholdItemEditPage() {
         tagIds: selectedTagIds,
       });
 
-      showToast('success', 'Household item updated successfully');
+      showToast('success', t('edit.success'));
       navigate(`/project/household-items/${id}`);
     } catch (err) {
-      setError('Failed to update household item. Please try again.');
+      setError(t('edit.errorBanner'));
       console.error('Failed to update household item:', err);
       setIsSubmitting(false);
     }
@@ -148,7 +150,7 @@ export function HouseholdItemEditPage() {
   if (isLoadingData) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>Loading...</div>
+        <div className={styles.loading}>{t('edit.loading')}</div>
       </div>
     );
   }
@@ -162,13 +164,11 @@ export function HouseholdItemEditPage() {
             className={styles.backButton}
             onClick={() => navigate('/project/household-items')}
           >
-            ← Back to Household Items
+            {t('edit.backButton')}
           </button>
-          <h1 className={styles.title}>Household Item Not Found</h1>
+          <h1 className={styles.title}>{t('edit.notFound')}</h1>
         </div>
-        <div className={styles.errorBanner}>
-          The household item you are looking for does not exist.
-        </div>
+        <div className={styles.errorBanner}>{t('edit.notFoundMessage')}</div>
       </div>
     );
   }
@@ -182,9 +182,9 @@ export function HouseholdItemEditPage() {
           onClick={() => navigate(`/project/household-items/${id}`)}
           disabled={isSubmitting}
         >
-          ← Back to Item
+          {t('edit.backButton')}
         </button>
-        <h1 className={styles.title}>Edit Household Item</h1>
+        <h1 className={styles.title}>{t('edit.title')}</h1>
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
@@ -192,7 +192,8 @@ export function HouseholdItemEditPage() {
       <form className={styles.form} onSubmit={handleSubmit}>
         <div className={styles.formGroup}>
           <label htmlFor="name" className={styles.label}>
-            Name <span className={styles.required}>*</span>
+            {t('edit.form.name.label')}{' '}
+            <span className={styles.required}>{t('edit.form.name.required')}</span>
           </label>
           <input
             type="text"
@@ -201,7 +202,7 @@ export function HouseholdItemEditPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={isSubmitting}
-            placeholder="Enter item name"
+            placeholder={t('edit.form.name.placeholder')}
             aria-required="true"
             aria-invalid={!!validationErrors.name}
             aria-describedby={validationErrors.name ? 'hi-edit-name-error' : undefined}
@@ -215,7 +216,7 @@ export function HouseholdItemEditPage() {
 
         <div className={styles.formGroup}>
           <label htmlFor="description" className={styles.label}>
-            Description
+            {t('edit.form.description.label')}
           </label>
           <textarea
             id="description"
@@ -224,14 +225,15 @@ export function HouseholdItemEditPage() {
             onChange={(e) => setDescription(e.target.value)}
             disabled={isSubmitting}
             rows={4}
-            placeholder="Describe the item"
+            placeholder={t('edit.form.description.placeholder')}
           />
         </div>
 
         <div className={styles.formRow}>
           <div className={styles.formGroup}>
             <label htmlFor="category" className={styles.label}>
-              Category <span className={styles.required}>*</span>
+              {t('edit.form.category.label')}{' '}
+              <span className={styles.required}>{t('edit.form.category.required')}</span>
             </label>
             <select
               id="category"
@@ -243,7 +245,7 @@ export function HouseholdItemEditPage() {
               aria-invalid={!!validationErrors.category}
               aria-describedby={validationErrors.category ? 'hi-edit-category-error' : undefined}
             >
-              <option value="">— Select Category —</option>
+              <option value="">{t('edit.form.category.placeholder')}</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
@@ -259,7 +261,7 @@ export function HouseholdItemEditPage() {
 
           <div className={styles.formGroup}>
             <label htmlFor="quantity" className={styles.label}>
-              Quantity
+              {t('edit.form.quantity.label')}
             </label>
             <input
               type="number"
@@ -283,7 +285,7 @@ export function HouseholdItemEditPage() {
 
         <div className={styles.formGroup}>
           <label htmlFor="vendorId" className={styles.label}>
-            Vendor
+            {t('edit.form.vendor.label')}
           </label>
           <select
             id="vendorId"
@@ -292,7 +294,7 @@ export function HouseholdItemEditPage() {
             onChange={(e) => setVendorId(e.target.value)}
             disabled={isSubmitting}
           >
-            <option value="">No vendor</option>
+            <option value="">{t('edit.form.vendor.placeholder')}</option>
             {vendors.map((vendor) => (
               <option key={vendor.id} value={vendor.id}>
                 {vendor.name}
@@ -303,7 +305,7 @@ export function HouseholdItemEditPage() {
 
         <div className={styles.formGroup}>
           <label htmlFor="url" className={styles.label}>
-            URL
+            {t('edit.form.url.label')}
           </label>
           <input
             type="url"
@@ -312,13 +314,13 @@ export function HouseholdItemEditPage() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             disabled={isSubmitting}
-            placeholder="https://example.com"
+            placeholder={t('edit.form.url.placeholder')}
           />
         </div>
 
         <div className={styles.formGroup}>
           <label htmlFor="room" className={styles.label}>
-            Room
+            {t('edit.form.room.label')}
           </label>
           <input
             type="text"
@@ -327,12 +329,12 @@ export function HouseholdItemEditPage() {
             value={room}
             onChange={(e) => setRoom(e.target.value)}
             disabled={isSubmitting}
-            placeholder="e.g., Kitchen, Bedroom"
+            placeholder={t('edit.form.room.placeholder')}
           />
         </div>
 
         <div className={styles.formGroup}>
-          <label className={styles.label}>Tags</label>
+          <label className={styles.label}>{t('edit.form.tags.label')}</label>
           <TagPicker
             availableTags={availableTags}
             selectedTagIds={selectedTagIds}
@@ -349,10 +351,10 @@ export function HouseholdItemEditPage() {
             onClick={() => navigate(`/project/household-items/${id}`)}
             disabled={isSubmitting}
           >
-            Cancel
+            {t('edit.cancel')}
           </button>
           <button type="submit" className={styles.submitButton} disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
+            {isSubmitting ? t('edit.submitting') : t('edit.submit')}
           </button>
         </div>
       </form>

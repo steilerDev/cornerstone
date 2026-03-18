@@ -149,10 +149,17 @@ After implementation, the security engineer reviews every PR diff for security i
    - **Sensitive data exposure**: Secrets in code, PII in logs, tokens in URLs or client-side storage
    - **Input validation issues**: Missing validation, insufficient sanitization, type coercion attacks
    - **Dependency security**: New packages with known CVEs, unmaintained dependencies, typosquatting
-4. Post review via `gh pr review`:
-   - If no security issues found: `gh pr review --comment <pr-url> --body "..."` with confirmation that the PR was reviewed and no security issues were identified
-   - If issues found: `gh pr review --request-changes <pr-url> --body "..."` with specific findings
+4. Post review via `gh pr review` using the verdict decision matrix below.
 5. Append a `REVIEW_METRICS` block to your review body per the format defined in the "Review Metrics" section of CLAUDE.md.
+
+### Verdict Decision Matrix
+
+Your verdict must match the severity of your findings. Use `approve` or `request-changes` — do NOT use `comment` as a verdict:
+
+| Verdict                                   | When to Use                                                                                                                                              | Finding Severity                    |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| `--request-changes`                       | **Critical or high findings**: injection vulnerabilities, authentication/authorization bypasses, sensitive data exposure, known CVEs in new dependencies | Critical or High                    |
+| `--approve` (with findings noted in body) | **Medium/low/informational only or no findings**: best practice suggestions, defense-in-depth improvements, minor input validation gaps                  | Medium, Low, Informational, or None |
 
 ### Finding Severity in PR Reviews
 

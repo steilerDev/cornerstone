@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import { useEffect, useRef, useId } from 'react';
+import { useTranslation } from 'react-i18next';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './Modal.module.css';
 
@@ -14,6 +15,7 @@ export interface ModalProps {
 export function Modal({ title, onClose, children, footer, className }: ModalProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  const { t } = useTranslation('common');
 
   // Handle escape key
   useEffect(() => {
@@ -53,7 +55,7 @@ export function Modal({ title, onClose, children, footer, className }: ModalProp
             type="button"
             className={styles.closeButton}
             onClick={onClose}
-            aria-label="Close dialog"
+            aria-label={t('aria.closeDialog')}
           >
             ×
           </button>

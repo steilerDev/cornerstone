@@ -5,7 +5,7 @@ import {
   createInvoiceBudgetLine,
   fetchInvoiceBudgetLines,
 } from '../../lib/invoiceBudgetLinesApi.js';
-import { formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { useToast } from '../Toast/ToastContext.js';
 import { Modal } from '../Modal/index.js';
 import { FormError } from '../FormError/index.js';
@@ -33,6 +33,7 @@ export function InvoiceLinkModal({
   onSuccess,
   onClose,
 }: InvoiceLinkModalProps) {
+  const { formatCurrency, formatDate } = useFormatters();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [searchInput, setSearchInput] = useState<string>('');

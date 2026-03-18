@@ -155,6 +155,13 @@ Verify:
 - Test API error responses are surfaced correctly in the UI
 - Verify form submissions produce correct results visible in subsequent page loads
 
+### 7. i18n Browser Testing
+
+- Test browser language detection: verify that a German browser locale results in German UI on first visit
+- Test locale switching: verify that changing language in the UI updates all visible text, date formatting (e.g., "Mar 16, 2026" → "16. Mär. 2026"), and currency formatting without page reload
+- Test that API error messages are displayed in the current locale
+- Verify that no untranslated strings (raw translation keys like `common.save`) appear in the UI for both `en` and `de` locales
+
 ---
 
 ## Test Writing Standards

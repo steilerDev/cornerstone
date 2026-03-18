@@ -14,6 +14,32 @@ You are the orchestrator running the closing phase for a completed epic. Follow 
 
 `$ARGUMENTS` contains the epic issue number. If empty, ask the user to provide the epic issue number before proceeding.
 
+## Task Tracking
+
+At the start of each `/epic-close` invocation, create tasks to track progress. These tasks survive context compression and let you recover your place if context is lost.
+
+**Create these tasks upfront** (using `TaskCreate`):
+
+1. **Rebase** — Fetch and rebase worktree branch onto origin/beta
+2. **Verify all stories merged** — Confirm all sub-issues are closed
+3. **Epic metrics + lint check** — Generate metrics report (step 2a) and lint health check (step 2b)
+4. **Collect refinement items** — Review story PRs for non-blocking observations
+5. **Refinement PR** — Address refinement items via implementation agents (skip if none)
+6. **E2E validation** — Launch e2e-test-engineer to verify coverage and pass rate
+7. **UAT validation** — Launch product-owner for UAT scenarios
+8. **Branch sync** — Sync main→beta if diverged (skip if no divergence)
+9. **Epic promotion PR + UAT criteria** — Create promotion PR, post detailed UAT criteria
+10. **CI gate** — Wait for all CI checks including full E2E suite
+11. **Promotion approval loop** — Present to user, handle feedback rounds if needed
+12. **Documentation** — Launch docs-writer to update docs site, README, RELEASE_SUMMARY, and .env.example
+13. **Lessons learned + merge** — Update implementation checklist, merge, close epic
+
+**Progress rule:** Before starting each step, mark its task `in_progress`. After completing, mark it `completed`. If a step is skipped (conditional), mark it `completed` with a note in the description.
+
+**Recovery rule:** If you lose track of progress (e.g., after context compression), run `TaskList` to see which tasks are completed and resume from the first pending task.
+
+**Dynamic task rule:** When a UAT fix round or E2E fix cycle starts, create a new task for each round (e.g., "UAT Fix Round 1", "E2E Fix Round 1") so iterations are tracked.
+
 ## Steps
 
 ### 1. Rebase
@@ -255,9 +281,16 @@ For each group of issues from 11d:
 
 1. Create a fresh branch from `origin/beta`: `git checkout -B fix/<issue-number>-<short-description> origin/beta`
 2. Execute `/develop` steps 2–11 (skipping step 1 Rebase and step 4 Branch — branch is already created)
-3. Track success/failure for each group
+3. **UAT fix batches MUST go through the standard review pipeline.** Launch at minimum:
+   - `product-architect` review
+   - `product-owner` review (if any items are user-story-adjacent or touch acceptance criteria)
+   - `ux-designer` review (if the fix touches `client/src/`)
+   - `security-engineer` review may be skipped for frontend-only UAT fixes (per Security Review Trigger Rules in `/develop` step 8)
+4. Track success/failure for each group
 
 If any group fails after retry budget exhaustion, report the failure to the user and ask whether to continue with remaining groups or pause.
+
+**Important**: Never bypass reviews for UAT fix batches regardless of urgency. Large unreviewed PRs are the highest-risk code path.
 
 #### 11f. Update Promotion PR
 
@@ -303,7 +336,31 @@ Wait for CI, then squash merge.
 
 **Note:** Documentation runs after user approval (step 11) to ensure docs reflect the final state, including any changes from UAT feedback rounds.
 
-### 13. Merge & Post-Merge
+### 13. Lessons Learned Sync
+
+After user approval and before merging, update the implementation checklist with patterns learned during this epic:
+
+1. Read agent memory files for reviewing agents:
+   - `product-owner/MEMORY.md` — recurring acceptance criteria gaps
+   - `ux-designer/MEMORY.md` — recurring token/pattern violations
+   - `product-architect/MEMORY.md` — recurring architecture deviations
+2. Read `.claude/metrics/review-metrics.jsonl` filtered for this epic's PRs
+3. Identify any new recurring patterns from this epic's fix loops that are NOT yet in `.claude/checklists/implementation-checklist.md`
+4. If new patterns found, add them to the checklist and commit:
+
+   ```bash
+   git add .claude/checklists/implementation-checklist.md
+   git commit -m "chore: update implementation checklist with lessons from epic #<epic-number>
+
+   Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
+   git push
+   ```
+
+5. If no new patterns, skip the commit
+
+This creates a flywheel: each epic's review findings reduce fix loops in subsequent epics.
+
+### 14. Merge & Post-Merge
 
 After user approval:
 
@@ -321,8 +378,8 @@ After user approval:
    ```
 4. Move the epic to **Done** on the Projects board:
    ```bash
-   ITEM_ID=$(gh api graphql -f query='{ repository(owner: "steilerDev", name: "cornerstone") { issue(number: <epic-number>) { projectItems(first: 1) { nodes { id } } } } }' --jq '.data.repository.issue.projectItems.nodes[0].id')
-   gh api graphql -f query='mutation { updateProjectV2ItemFieldValue(input: { projectId: "PVT_kwHOAGtLQM4BOlve", itemId: "'"$ITEM_ID"'", fieldId: "PVTSSF_lAHOAGtLQM4BOlvezg9P0yo", value: { singleSelectOptionId: "c558f50d" } }) { clientMutationId } }'
+   ITEM_ID=$(gh project item-list 4 --owner steilerDev --format json --limit 1 --query "is:issue #<epic-number>" --jq '.items[0].id')
+   gh project item-edit --id "$ITEM_ID" --project-id PVT_kwHOAGtLQM4BOlve --field-id PVTSSF_lAHOAGtLQM4BOlvezg9P0yo --single-select-option-id c558f50d
    ```
 5. Exit the session and remove the worktree:
    ```

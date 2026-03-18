@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { Vendor, CreateVendorRequest, VendorListQuery } from '@cornerstone/shared';
 import { fetchVendors, createVendor, deleteVendor } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -7,6 +8,7 @@ import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import styles from './VendorsPage.module.css';
 
 export function VendorsPage() {
+  const { t } = useTranslation('budget');
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -106,7 +108,7 @@ export function VendorsPage() {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to load vendors. Please try again.');
+        setError(t('vendors.errorMessage'));
       }
     } finally {
       setIsLoading(false);
@@ -152,11 +154,11 @@ export function VendorsPage() {
 
     const trimmedName = createForm.name.trim();
     if (!trimmedName) {
-      setCreateError('Vendor name is required.');
+      setCreateError(t('vendors.validation.nameRequired'));
       return;
     }
     if (trimmedName.length > 200) {
-      setCreateError('Vendor name must be 200 characters or less.');
+      setCreateError(t('vendors.validation.nameTooLong'));
       return;
     }
 
@@ -177,7 +179,7 @@ export function VendorsPage() {
       if (err instanceof ApiClientError) {
         setCreateError(err.error.message);
       } else {
-        setCreateError('Failed to create vendor. Please try again.');
+        setCreateError(t('vendors.messages.createError'));
       }
     } finally {
       setIsCreating(false);
@@ -209,14 +211,12 @@ export function VendorsPage() {
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
-          setDeleteError(
-            'This vendor cannot be deleted because they have associated invoices or work items. Remove those references first.',
-          );
+          setDeleteError(t('vendors.modal.deleteError'));
         } else {
           setDeleteError(err.error.message);
         }
       } else {
-        setDeleteError('Failed to delete vendor. Please try again.');
+        setDeleteError(t('vendors.messages.deleteError'));
       }
     } finally {
       setIsDeleting(false);
@@ -228,10 +228,10 @@ export function VendorsPage() {
       <div className={styles.container}>
         <div className={styles.content}>
           <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>Budget</h1>
+            <h1 className={styles.pageTitle}>{t('vendors.title')}</h1>
           </div>
           <BudgetSubNav />
-          <div className={styles.loading}>Loading vendors...</div>
+          <div className={styles.loading}>{t('vendors.loading')}</div>
         </div>
       </div>
     );
@@ -242,7 +242,7 @@ export function VendorsPage() {
       <div className={styles.content}>
         {/* Page header */}
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>Budget</h1>
+          <h1 className={styles.pageTitle}>{t('vendors.title')}</h1>
         </div>
 
         {/* Budget sub-navigation */}
@@ -250,9 +250,9 @@ export function VendorsPage() {
 
         {/* Section header */}
         <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Vendors</h2>
+          <h2 className={styles.sectionTitle}>{t('vendors.sectionTitle')}</h2>
           <button type="button" className={styles.button} onClick={openCreateModal}>
-            Add Vendor
+            {t('vendors.addVendor')}
           </button>
         </div>
 
@@ -269,7 +269,7 @@ export function VendorsPage() {
         <div className={styles.searchCard}>
           <input
             type="search"
-            placeholder="Search vendors by name or specialty..."
+            placeholder={t('vendors.searchPlaceholder')}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             className={styles.searchInput}
@@ -277,7 +277,7 @@ export function VendorsPage() {
           />
           <div className={styles.sortRow}>
             <label htmlFor="sort-select" className={styles.sortLabel}>
-              Sort by:
+              {t('vendors.sortBy')}
             </label>
             <select
               id="sort-select"
@@ -285,10 +285,10 @@ export function VendorsPage() {
               onChange={(e) => handleSortChange(e.target.value)}
               className={styles.sortSelect}
             >
-              <option value="name">Name</option>
-              <option value="specialty">Specialty</option>
-              <option value="created_at">Date Added</option>
-              <option value="updated_at">Last Updated</option>
+              <option value="name">{t('common:name')}</option>
+              <option value="specialty">{t('vendors.form.specialty')}</option>
+              <option value="created_at">{t('vendors.dateAdded')}</option>
+              <option value="updated_at">{t('vendors.lastUpdated')}</option>
             </select>
             <button
               type="button"
@@ -296,7 +296,7 @@ export function VendorsPage() {
               onClick={() => handleSortChange(sortBy || 'name')}
               aria-label="Toggle sort order"
             >
-              {sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
+              {sortOrder === 'asc' ? t('vendors.sortAsc') : t('vendors.sortDesc')}
             </button>
           </div>
         </div>
@@ -306,10 +306,8 @@ export function VendorsPage() {
           <div className={styles.emptyState}>
             {searchQuery ? (
               <>
-                <h2 className={styles.emptyTitle}>No vendors match your search</h2>
-                <p className={styles.emptyText}>
-                  Try different search terms or clear the search to see all vendors.
-                </p>
+                <h2 className={styles.emptyTitle}>{t('vendors.noSearchResults')}</h2>
+                <p className={styles.emptyText}>{t('vendors.tryDifferentSearch')}</p>
                 <button
                   type="button"
                   className={styles.secondaryButton}
@@ -318,17 +316,15 @@ export function VendorsPage() {
                     setSearchParams(new URLSearchParams());
                   }}
                 >
-                  Clear Search
+                  {t('vendors.clearSearch')}
                 </button>
               </>
             ) : (
               <>
-                <h2 className={styles.emptyTitle}>No vendors yet</h2>
-                <p className={styles.emptyText}>
-                  Add your first vendor or contractor to track who is working on your project.
-                </p>
+                <h2 className={styles.emptyTitle}>{t('vendors.noVendorsTitle')}</h2>
+                <p className={styles.emptyText}>{t('vendors.noVendorsDescription')}</p>
                 <button type="button" className={styles.button} onClick={openCreateModal}>
-                  Add First Vendor
+                  {t('vendors.addFirstVendor')}
                 </button>
               </>
             )}
@@ -351,7 +347,8 @@ export function VendorsPage() {
                           : 'none'
                       }
                     >
-                      Name{renderSortIcon('name')}
+                      {t('common:name')}
+                      {renderSortIcon('name')}
                     </th>
                     <th
                       className={styles.sortableHeader}
@@ -364,10 +361,11 @@ export function VendorsPage() {
                           : 'none'
                       }
                     >
-                      Specialty{renderSortIcon('specialty')}
+                      {t('vendors.form.specialty')}
+                      {renderSortIcon('specialty')}
                     </th>
-                    <th>Phone</th>
-                    <th>Email</th>
+                    <th>{t('vendors.form.phone')}</th>
+                    <th>{t('vendors.form.email')}</th>
                     <th className={styles.actionsColumn}>Actions</th>
                   </tr>
                 </thead>
@@ -406,7 +404,7 @@ export function VendorsPage() {
                             onClick={() => navigate(`/budget/vendors/${vendor.id}`)}
                             aria-label={`View ${vendor.name}`}
                           >
-                            View
+                            {t('vendors.buttons.view')}
                           </button>
                           <button
                             type="button"
@@ -414,7 +412,7 @@ export function VendorsPage() {
                             onClick={() => openDeleteConfirm(vendor)}
                             aria-label={`Delete ${vendor.name}`}
                           >
-                            Delete
+                            {t('vendors.buttons.delete')}
                           </button>
                         </div>
                       </td>
@@ -439,7 +437,7 @@ export function VendorsPage() {
                   <div className={styles.cardBody}>
                     {vendor.phone && (
                       <div className={styles.cardRow}>
-                        <span className={styles.cardLabel}>Phone:</span>
+                        <span className={styles.cardLabel}>{t('vendors.form.phone')}:</span>
                         <a href={`tel:${vendor.phone}`} className={styles.contactLink}>
                           {vendor.phone}
                         </a>
@@ -447,7 +445,7 @@ export function VendorsPage() {
                     )}
                     {vendor.email && (
                       <div className={styles.cardRow}>
-                        <span className={styles.cardLabel}>Email:</span>
+                        <span className={styles.cardLabel}>{t('vendors.form.email')}:</span>
                         <a href={`mailto:${vendor.email}`} className={styles.contactLink}>
                           {vendor.email}
                         </a>
@@ -460,7 +458,7 @@ export function VendorsPage() {
                       className={styles.viewButton}
                       onClick={() => navigate(`/budget/vendors/${vendor.id}`)}
                     >
-                      View Details
+                      {t('vendors.buttons.viewDetails')}
                     </button>
                     <button
                       type="button"
@@ -468,7 +466,7 @@ export function VendorsPage() {
                       onClick={() => openDeleteConfirm(vendor)}
                       aria-label={`Delete ${vendor.name}`}
                     >
-                      Delete
+                      {t('vendors.buttons.delete')}
                     </button>
                   </div>
                 </div>
@@ -479,8 +477,11 @@ export function VendorsPage() {
             {totalPages > 1 && (
               <div className={styles.pagination}>
                 <div className={styles.paginationInfo}>
-                  Showing {(currentPage - 1) * pageSize + 1} to{' '}
-                  {Math.min(currentPage * pageSize, totalItems)} of {totalItems} vendors
+                  {t('vendors.pagination', {
+                    from: (currentPage - 1) * pageSize + 1,
+                    to: Math.min(currentPage * pageSize, totalItems),
+                    total: totalItems,
+                  })}
                 </div>
                 <div className={styles.paginationControls}>
                   <button
@@ -490,7 +491,7 @@ export function VendorsPage() {
                     disabled={currentPage === 1}
                     aria-label="Previous page"
                   >
-                    Previous
+                    {t('vendors.previous')}
                   </button>
                   <div className={styles.paginationPages}>
                     {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -525,7 +526,7 @@ export function VendorsPage() {
                     disabled={currentPage === totalPages}
                     aria-label="Next page"
                   >
-                    Next
+                    {t('vendors.next')}
                   </button>
                 </div>
               </div>
@@ -545,11 +546,9 @@ export function VendorsPage() {
           <div className={styles.modalBackdrop} onClick={closeCreateModal} />
           <div className={styles.modalContent}>
             <h2 id="create-modal-title" className={styles.modalTitle}>
-              Add Vendor
+              {t('vendors.modal.title')}
             </h2>
-            <p className={styles.modalDescription}>
-              Add a vendor or contractor involved in your construction project.
-            </p>
+            <p className={styles.modalDescription}>{t('vendors.modal.description')}</p>
 
             {createError && (
               <div className={styles.errorBanner} role="alert">
@@ -560,7 +559,8 @@ export function VendorsPage() {
             <form onSubmit={handleCreateVendor} className={styles.form} noValidate>
               <div className={styles.field}>
                 <label htmlFor="vendor-name" className={styles.label}>
-                  Name <span className={styles.required}>*</span>
+                  {t('vendors.form.name')}{' '}
+                  <span className={styles.required}>{t('vendors.form.required')}</span>
                 </label>
                 <input
                   type="text"
@@ -568,7 +568,7 @@ export function VendorsPage() {
                   value={createForm.name}
                   onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
                   className={styles.input}
-                  placeholder="e.g., Smith Plumbing Co."
+                  placeholder={t('vendors.form.placeholders.name')}
                   maxLength={200}
                   disabled={isCreating}
                   autoFocus
@@ -577,7 +577,7 @@ export function VendorsPage() {
 
               <div className={styles.field}>
                 <label htmlFor="vendor-specialty" className={styles.label}>
-                  Specialty
+                  {t('vendors.form.specialty')}
                 </label>
                 <input
                   type="text"
@@ -585,7 +585,7 @@ export function VendorsPage() {
                   value={createForm.specialty ?? ''}
                   onChange={(e) => setCreateForm({ ...createForm, specialty: e.target.value })}
                   className={styles.input}
-                  placeholder="e.g., Plumbing, Electrical, Roofing"
+                  placeholder={t('vendors.form.placeholders.specialty')}
                   maxLength={100}
                   disabled={isCreating}
                 />
@@ -594,7 +594,7 @@ export function VendorsPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="vendor-phone" className={styles.label}>
-                    Phone
+                    {t('vendors.form.phone')}
                   </label>
                   <input
                     type="tel"
@@ -602,14 +602,14 @@ export function VendorsPage() {
                     value={createForm.phone ?? ''}
                     onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
                     className={styles.input}
-                    placeholder="e.g., +1 555-123-4567"
+                    placeholder={t('vendors.form.placeholders.phone')}
                     maxLength={50}
                     disabled={isCreating}
                   />
                 </div>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="vendor-email" className={styles.label}>
-                    Email
+                    {t('vendors.form.email')}
                   </label>
                   <input
                     type="email"
@@ -617,7 +617,7 @@ export function VendorsPage() {
                     value={createForm.email ?? ''}
                     onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
                     className={styles.input}
-                    placeholder="e.g., contact@smithplumbing.com"
+                    placeholder={t('vendors.form.placeholders.email')}
                     maxLength={255}
                     disabled={isCreating}
                   />
@@ -626,7 +626,7 @@ export function VendorsPage() {
 
               <div className={styles.field}>
                 <label htmlFor="vendor-address" className={styles.label}>
-                  Address
+                  {t('vendors.form.address')}
                 </label>
                 <input
                   type="text"
@@ -634,7 +634,7 @@ export function VendorsPage() {
                   value={createForm.address ?? ''}
                   onChange={(e) => setCreateForm({ ...createForm, address: e.target.value })}
                   className={styles.input}
-                  placeholder="e.g., 123 Main St, Springfield, IL 62701"
+                  placeholder={t('vendors.form.placeholders.address')}
                   maxLength={500}
                   disabled={isCreating}
                 />
@@ -642,14 +642,14 @@ export function VendorsPage() {
 
               <div className={styles.field}>
                 <label htmlFor="vendor-notes" className={styles.label}>
-                  Notes
+                  {t('vendors.form.notes')}
                 </label>
                 <textarea
                   id="vendor-notes"
                   value={createForm.notes ?? ''}
                   onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
                   className={styles.textarea}
-                  placeholder="Any additional notes about this vendor..."
+                  placeholder={t('vendors.form.placeholders.notes')}
                   rows={3}
                   disabled={isCreating}
                 />
@@ -662,14 +662,14 @@ export function VendorsPage() {
                   onClick={closeCreateModal}
                   disabled={isCreating}
                 >
-                  Cancel
+                  {t('vendors.buttons.cancel')}
                 </button>
                 <button
                   type="submit"
                   className={styles.button}
                   disabled={isCreating || !createForm.name.trim()}
                 >
-                  {isCreating ? 'Adding...' : 'Add Vendor'}
+                  {isCreating ? t('vendors.buttons.creating') : t('vendors.buttons.create')}
                 </button>
               </div>
             </form>
@@ -688,10 +688,10 @@ export function VendorsPage() {
           <div className={styles.modalBackdrop} onClick={closeDeleteConfirm} />
           <div className={styles.modalContent}>
             <h2 id="delete-modal-title" className={styles.modalTitle}>
-              Delete Vendor
+              {t('vendors.modal.deleteTitle')}
             </h2>
             <p className={styles.modalText}>
-              Are you sure you want to delete &quot;<strong>{deletingVendor.name}</strong>&quot;?
+              {t('vendors.modal.deleteConfirm', { name: deletingVendor.name })}
             </p>
 
             {deleteError ? (
@@ -699,7 +699,7 @@ export function VendorsPage() {
                 {deleteError}
               </div>
             ) : (
-              <p className={styles.modalWarning}>This action cannot be undone.</p>
+              <p className={styles.modalWarning}>{t('vendors.modal.deleteWarning')}</p>
             )}
 
             <div className={styles.modalActions}>
@@ -709,7 +709,7 @@ export function VendorsPage() {
                 onClick={closeDeleteConfirm}
                 disabled={isDeleting}
               >
-                Cancel
+                {t('vendors.buttons.cancel')}
               </button>
               {!deleteError && (
                 <button
@@ -718,7 +718,7 @@ export function VendorsPage() {
                   onClick={() => void confirmDelete()}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete Vendor'}
+                  {isDeleting ? t('vendors.buttons.deleting') : t('vendors.buttons.delete')}
                 </button>
               )}
             </div>

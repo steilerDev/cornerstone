@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Skeleton } from '../Skeleton/index.js';
 import { EmptyState } from '../EmptyState/index.js';
 import styles from './DashboardCard.module.css';
@@ -41,6 +42,8 @@ export function DashboardCard({
   emptyAction,
   children,
 }: DashboardCardProps) {
+  const { t } = useTranslation('dashboard');
+
   return (
     <article className={styles.card} aria-labelledby={`card-${id}-title`}>
       {/* Card header with title and dismiss button */}
@@ -70,7 +73,7 @@ export function DashboardCard({
             <p className={styles.errorMessage}>{error}</p>
             {onRetry && (
               <button type="button" className={styles.retryButton} onClick={onRetry}>
-                Retry
+                {t('cards.common.retry')}
               </button>
             )}
           </div>

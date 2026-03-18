@@ -35,11 +35,6 @@ import {
 import type { CreateDiaryEntryRequest, UpdateDiaryEntryRequest } from '@cornerstone/shared';
 import { workItems, invoices, milestones, vendors } from '../db/schema.js';
 
-// Suppress migration logs
-beforeEach(() => {
-  jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-});
-
 describe('diaryService', () => {
   let db: BetterSQLite3Database<typeof schema>;
   let sqlite: ReturnType<typeof Database>;

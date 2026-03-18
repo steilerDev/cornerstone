@@ -21,7 +21,7 @@ Verified across EPIC-01/02/03/05 — all confirmed STRONG:
 - **SQL injection**: Drizzle ORM parameterized queries throughout; `sql\`\`` tagged templates also safe
 - **XSS**: Zero dangerouslySetInnerHTML/innerHTML/eval in any client code across all EPICs
 - **CSRF**: SameSite=strict session cookies (no token needed)
-- **Sensitive data**: toUserResponse() strips passwordHash/oidcSubject; toBudgetCategory() explicit field mapping
+- **Sensitive data**: toUserResponse() strips passwordHash/oidcSubject/davToken (explicit field mapping); toBudgetCategory() explicit field mapping
 - **Dockerfile**: DHI images (near-zero CVEs), non-root user, multi-stage, no shell in prod
 - **Dependencies**: 0 production vulnerabilities (npm audit --omit=dev)
 
@@ -88,6 +88,7 @@ See `review-history.md` for detailed findings per PR.
 | #709 | EPIC-09 Story #471 — Dashboard Layout & Data Shell                                                | COMMENTED (1 informational: emptyAction.href no protocol allowlist)                                                           | 2026-03-09 |
 | #713 | EPIC-09 Story #476 — Invoice & Subsidy Pipeline Cards                                             | COMMENTED (no findings)                                                                                                       | 2026-03-10 |
 | #732 | UAT round 10 — dashboard fixes: invoice click-through, timeline status split, mini Gantt redesign | COMMENTED (no findings)                                                                                                       | 2026-03-10 |
+| #936 | #933 CalDAV/CardDAV server with DAV token auth and vendor contacts                                | COMMENTED (1 low: WWW-Authenticate; 3 informational)                                                                          | 2026-03-17 |
 
 ## Known Open Recommendations (Low Priority)
 
@@ -114,6 +115,7 @@ These have been noted in previous reviews. **GitHub Issue #315** tracks items 1-
 19. **GET /api/work-items/:id/dependent-household-items no work item existence check** (Informational): workItems.ts handler — returns 200+empty array for non-existent WI IDs instead of 404; listDependentHouseholdItemsForWorkItem service also lacks assertWorkItemExists guard (PR #416)
 20. **Preferences value field no maxLength** (Informational): preferences.ts upsertPreferenceSchema — `value: { type: 'string' }` with no maxLength; ThemeContext correctly validates enum before applying; future consumers of other keys may not (PR #708)
 21. **DELETE preferences key param no bounds** (Informational): preferences.ts deletePreferenceSchema params — `key: { type: 'string' }` missing minLength:1/maxLength:100 that PATCH schema has; empty-string always 404 so no exploit path (PR #708)
+22. **DAV 401 missing WWW-Authenticate header** (Low): dav.ts davAuth throws UnauthorizedError without setting `WWW-Authenticate: Basic realm="Cornerstone DAV"` — RFC 7235 §4.1 required; CalDAV/CardDAV clients may fail auto-config (PR #936)
 
 ## Key Architecture Patterns (Security-Relevant)
 
@@ -149,3 +151,7 @@ These have been noted in previous reviews. **GitHub Issue #315** tracks items 1-
 - **React Router Link with API-sourced IDs (PR #732)**: `<Link to={/route/${entity.id}}>` pattern is safe when `id` is a UUID string or integer from an authenticated API response. React Router constructs an internal `href` — path segments cannot carry `javascript:` protocol injection or open redirect payloads. Pattern confirmed safe for: invoice.id (UUID), milestone.id (number), workItem.id (UUID).
 - **SVG text nodes with user data (PR #732)**: `item.title` rendered inside SVG `<text>/<tspan>` as JSX text node — React escapes at render time. String-slice truncation arithmetic does not produce executable content. Same guarantee as React JSX in HTML elements.
 - **DashboardCardId enum migration (PR #732)**: Removing a card ID (e.g., `timeline-status`) from the enum causes stale preference entries to be silently ignored (Set.has() returns false). Cards become visible again. Data integrity concern, not a security risk, in single-tenant model.
+- **DAV token pattern (PR #936)**: `dav_token` on users table — 64-char hex (randomBytes(32)), partial unique index (WHERE NOT NULL), looked up by equality (`eq(users.davToken, token)`). Token never returned by toUserResponse() — explicit field mapping confirmed. Auth via HTTP Basic, davAuth preHandler on all data endpoints. OPTIONS handler correctly unauthenticated (RFC 4918).
+- **feeds routes REMOVED (PR #936)**: Legacy anonymous `/feeds/cal.ics` and `/feeds/contacts.vcf` removed. Replaced by authenticated `/dav/calendars/default/` and `/dav/addressbooks/default/`. High/Medium/Low feed security findings all resolved.
+- **davAuth split(':') extracts index 1 only** (PR #936): `const [, token] = decoded.split(':')` — correct for 64-char hex token (no colons), but non-RFC if token ever contains colons. Use `indexOf(':')` + `slice()` for robustness.
+- **REPORT href count unbounded** (PR #936): parseReportHrefs returns all hrefs, no limit. Single-tenant scale — no practical DoS risk, but informational.

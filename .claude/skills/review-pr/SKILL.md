@@ -65,7 +65,7 @@ Launch all applicable review agents simultaneously. Each agent posts its own `gh
 **Always launch (every PR):**
 
 - **product-architect** — architecture compliance, API contract adherence, schema conventions, naming conventions, dependency policy
-- **security-engineer** — OWASP Top 10, injection vulnerabilities, authentication/authorization gaps, dependency CVEs, input validation
+- **security-engineer** — **conditional**: only launch if the PR touches security-relevant files. Launch if changed files match ANY of: `server/src/routes/**`, `server/src/plugins/auth*`, `server/src/plugins/session*`, `Dockerfile`, `docker-compose.yml`, `**/package.json`, `**/package-lock.json`, or any path containing `sql`, `crypto`, `cookie`, `session`, `token`, `auth`, or `secret`. Skip for frontend-only, test-only, docs-only, or CSS-only PRs.
 - **dev-team-lead** `[MODE: review]` — code quality, TypeScript strictness, ESM conventions, consistent-type-imports, test co-location
 
 **Conditional launches (based on affected areas from Step 1):**
@@ -160,16 +160,24 @@ gh pr view <pr-number> --json number,additions,deletions,changedFiles,closingIss
   "issues": [<linked-issue-numbers>],
   "epic": null,
   "type": "external-review",
+  "createdAt": "<ISO-8601 of PR creation>",
   "reviewedAt": "<ISO-8601>",
   "filesChanged": <changedFiles>,
   "linesChanged": <additions + deletions>,
+  "touchesClient": <true|false>,
+  "touchesServer": <true|false>,
   "fixLoopCount": 0,
   "reviews": [
-    { "agent": "<name>", "verdict": "<verdict>", "findings": { "critical": 0, "high": 0, "medium": 0, "low": 0, "informational": 0 }, "round": 1 }
+    { "agent": "<name>", "verdict": "<approve|request-changes>", "findings": { "critical": 0, "high": 0, "medium": 0, "low": 0, "informational": 0 }, "round": 1 }
   ],
   "totalFindings": { "critical": 0, "high": 0, "medium": 0, "low": 0, "informational": 0 }
 }
 ```
+
+**Schema rules:**
+
+- `verdict` must be `"approve"` or `"request-changes"` — never `"comment"`
+- `touchesClient` / `touchesServer` indicate whether files under `client/` or `server/`+`shared/` were changed
 
 Commit and push the updated metrics file:
 

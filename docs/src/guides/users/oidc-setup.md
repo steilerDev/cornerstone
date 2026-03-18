@@ -21,6 +21,22 @@ In your identity provider, create a new client/application:
 3. **Grant type**: Authorization Code
 4. Note the **Client ID** and **Client Secret**
 
+:::info Redirect URI
+The redirect URI you register with your identity provider must exactly match the callback URL that Cornerstone generates. Cornerstone builds the callback URL as:
+
+```
+<EXTERNAL_URL>/api/auth/oidc/callback
+```
+
+For example, if `EXTERNAL_URL=https://myhouse.example.com`, the redirect URI is:
+
+```
+https://myhouse.example.com/api/auth/oidc/callback
+```
+
+If `EXTERNAL_URL` is not set, Cornerstone derives the URL from the incoming request's protocol and host (e.g., `https://localhost:3000/api/auth/oidc/callback`). Behind a reverse proxy, you should always set `EXTERNAL_URL` to ensure the callback URL matches what you registered with your identity provider.
+:::
+
 ## Step 2: Configure Environment Variables
 
 Set the following environment variables in your `.env` file or Docker configuration:
@@ -28,22 +44,13 @@ Set the following environment variables in your `.env` file or Docker configurat
 ```env
 TRUST_PROXY=true
 SECURE_COOKIES=true
+EXTERNAL_URL=https://myhouse.example.com
 OIDC_ISSUER=https://auth.example.com/realms/main
 OIDC_CLIENT_ID=cornerstone
 OIDC_CLIENT_SECRET=your-client-secret
 ```
 
 OIDC is automatically enabled when `OIDC_ISSUER`, `OIDC_CLIENT_ID`, and `OIDC_CLIENT_SECRET` are all set.
-
-### Optional: Explicit Redirect URI
-
-If your application is behind a reverse proxy, you may need to set the redirect URI explicitly:
-
-```env
-OIDC_REDIRECT_URI=https://cornerstone.example.com/api/auth/oidc/callback
-```
-
-If not set, the redirect URI is auto-derived from the incoming request.
 
 ## Step 3: Restart and Test
 
@@ -54,7 +61,7 @@ Restart your Cornerstone container. The login page will now show an OIDC login b
 1. User clicks the OIDC login button
 2. Browser redirects to your identity provider
 3. User authenticates with their credentials
-4. Identity provider redirects back to Cornerstone with an authorization code
+4. Identity provider redirects back to `<EXTERNAL_URL>/api/auth/oidc/callback` with an authorization code
 5. Cornerstone exchanges the code for tokens and creates a session
 
 ### Auto-Provisioning
@@ -68,7 +75,7 @@ Users who log in via OIDC for the first time are automatically created in Corner
 | `OIDC_ISSUER` | Yes | Your OIDC provider's issuer URL |
 | `OIDC_CLIENT_ID` | Yes | Client ID from your provider |
 | `OIDC_CLIENT_SECRET` | Yes | Client secret from your provider |
-| `OIDC_REDIRECT_URI` | No | Explicit callback URL (auto-derived if not set) |
+| `EXTERNAL_URL` | Recommended | Public-facing base URL -- used to build the OIDC callback URL |
 | `TRUST_PROXY` | Recommended | Set to `true` behind a reverse proxy |
 | `SECURE_COOKIES` | Recommended | Set to `true` for HTTPS (default) |
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   WorkItemDetail,
   WorkItemStatus,
@@ -76,7 +77,7 @@ import {
   DependencySentenceDisplay,
 } from '../../components/DependencySentenceBuilder/index.js';
 import type { DependencyType } from '@cornerstone/shared';
-import { formatDate, formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { AutosaveIndicator } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import type { AutosaveState } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
@@ -89,25 +90,8 @@ interface DeletingDependency {
   title: string;
 }
 
-const HOUSEHOLD_ITEM_CATEGORY_LABELS: Record<HouseholdItemCategory, string> = {
-  furniture: 'Furniture',
-  appliances: 'Appliances',
-  fixtures: 'Fixtures',
-  decor: 'Decor',
-  electronics: 'Electronics',
-  outdoor: 'Outdoor',
-  storage: 'Storage',
-  other: 'Other',
-};
-
-const HOUSEHOLD_ITEM_STATUS_LABELS: Record<HouseholdItemStatus, string> = {
-  planned: 'Planned',
-  purchased: 'Purchased',
-  scheduled: 'Scheduled',
-  arrived: 'Arrived',
-};
-
 export default function WorkItemDetailPage() {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -115,6 +99,32 @@ export default function WorkItemDetailPage() {
   const fromTimeline = locationState?.from === 'schedule';
   const fromView = locationState?.view;
   const { user } = useAuth();
+  const { t } = useTranslation('workItems');
+
+  // Household item labels (moved from module level to use i18n)
+  const HOUSEHOLD_ITEM_CATEGORY_LABELS: Record<HouseholdItemCategory, string> = useMemo(
+    () => ({
+      furniture: t('detail.householdItems.categories.furniture'),
+      appliances: t('detail.householdItems.categories.appliances'),
+      fixtures: t('detail.householdItems.categories.fixtures'),
+      decor: t('detail.householdItems.categories.decor'),
+      electronics: t('detail.householdItems.categories.electronics'),
+      outdoor: t('detail.householdItems.categories.outdoor'),
+      storage: t('detail.householdItems.categories.storage'),
+      other: t('detail.householdItems.categories.other'),
+    }),
+    [t],
+  );
+
+  const HOUSEHOLD_ITEM_STATUS_LABELS: Record<HouseholdItemStatus, string> = useMemo(
+    () => ({
+      planned: t('detail.householdItems.statuses.planned'),
+      purchased: t('detail.householdItems.statuses.purchased'),
+      scheduled: t('detail.householdItems.statuses.scheduled'),
+      arrived: t('detail.householdItems.statuses.arrived'),
+    }),
+    [t],
+  );
 
   const [workItem, setWorkItem] = useState<WorkItemDetail | null>(null);
   const [notes, setNotes] = useState<NoteResponse[]>([]);
@@ -1087,7 +1097,7 @@ export default function WorkItemDetailPage() {
     return (
       <div className={styles.container}>
         <div className={styles.loading} role="status">
-          Loading work item...
+          {t('detail.loading')}
         </div>
       </div>
     );
@@ -1097,14 +1107,14 @@ export default function WorkItemDetailPage() {
     return (
       <div className={styles.container}>
         <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>Work Item Not Found</h2>
+          <h2 className={styles.errorTitle}>{t('detail.notFound.title')}</h2>
           <div className={styles.errorActions}>
             <button
               type="button"
               className={styles.backButton}
               onClick={() => navigate('/project/work-items')}
             >
-              Back to Work Items
+              {t('detail.notFound.back')}
             </button>
           </div>
         </div>
@@ -1116,18 +1126,18 @@ export default function WorkItemDetailPage() {
     return (
       <div className={styles.container}>
         <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>Error</h2>
-          <p>{error || 'An error occurred while loading the work item.'}</p>
+          <h2 className={styles.errorTitle}>{t('detail.error.title')}</h2>
+          <p>{error || t('detail.error.fallback')}</p>
           <div className={styles.errorActions}>
             <button
               type="button"
               className={styles.backButton}
               onClick={() => navigate('/project/work-items')}
             >
-              Back to Work Items
+              {t('detail.error.back')}
             </button>
             <button type="button" className={styles.backButton} onClick={() => navigate(0)}>
-              Retry
+              {t('detail.error.retry')}
             </button>
           </div>
         </div>
@@ -1151,7 +1161,7 @@ export default function WorkItemDetailPage() {
             type="button"
             className={styles.closeError}
             onClick={() => setInlineError(null)}
-            aria-label="Dismiss error"
+            aria-label={t('detail.dismissError')}
           >
             ×
           </button>
@@ -1168,14 +1178,14 @@ export default function WorkItemDetailPage() {
                 className={styles.backButton}
                 onClick={() => navigate(fromView ? `/schedule?view=${fromView}` : '/schedule')}
               >
-                ← Back to Schedule
+                {t('detail.nav.backToSchedule')}
               </button>
               <button
                 type="button"
                 className={styles.secondaryNavButton}
                 onClick={() => navigate('/project/work-items')}
               >
-                To Work Items
+                {t('detail.nav.toWorkItems')}
               </button>
             </>
           ) : (
@@ -1185,14 +1195,14 @@ export default function WorkItemDetailPage() {
                 className={styles.backButton}
                 onClick={() => navigate('/project/work-items')}
               >
-                ← Back to Work Items
+                {t('detail.nav.backToWorkItems')}
               </button>
               <button
                 type="button"
                 className={styles.secondaryNavButton}
                 onClick={() => navigate('/schedule')}
               >
-                To Schedule
+                {t('detail.nav.toSchedule')}
               </button>
             </>
           )}
@@ -1235,9 +1245,9 @@ export default function WorkItemDetailPage() {
               value={workItem.status}
               onChange={(e) => handleStatusChange(e.target.value as WorkItemStatus)}
             >
-              <option value="not_started">Not Started</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
+              <option value="not_started">{t('detail.statusOptions.notStarted')}</option>
+              <option value="in_progress">{t('detail.statusOptions.inProgress')}</option>
+              <option value="completed">{t('detail.statusOptions.completed')}</option>
             </select>
           </div>
         </div>
@@ -1249,7 +1259,7 @@ export default function WorkItemDetailPage() {
         <div className={styles.leftColumn}>
           {/* Description */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Description</h2>
+            <h2 className={styles.sectionTitle}>{t('detail.sections.description')}</h2>
             {isEditingDescription ? (
               <div className={styles.descriptionEdit}>
                 <textarea
@@ -1260,14 +1270,14 @@ export default function WorkItemDetailPage() {
                 />
                 <div className={styles.descriptionEditActions}>
                   <button type="button" onClick={saveDescription} className={styles.saveButton}>
-                    Save
+                    {t('detail.description.save')}
                   </button>
                   <button
                     type="button"
                     onClick={cancelDescriptionEdit}
                     className={styles.cancelButton}
                   >
-                    Cancel
+                    {t('detail.description.cancel')}
                   </button>
                 </div>
               </div>
@@ -1275,32 +1285,35 @@ export default function WorkItemDetailPage() {
               <div
                 className={styles.description}
                 onClick={startEditingDescription}
-                title="Click to edit"
+                title={t('detail.description.clickToEdit')}
               >
-                {workItem.description || <em className={styles.placeholder}>No description</em>}
+                {workItem.description || (
+                  <em className={styles.placeholder}>{t('detail.description.noDescription')}</em>
+                )}
               </div>
             )}
           </section>
 
           {/* Dates (computed by scheduling engine) */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Schedule</h2>
-            <p className={styles.sectionDescription}>
-              Start and end dates are computed by the scheduling engine based on constraints and
-              dependencies.
-            </p>
+            <h2 className={styles.sectionTitle}>{t('detail.sections.schedule')}</h2>
+            <p className={styles.sectionDescription}>{t('detail.sections.scheduleDescription')}</p>
             <div className={styles.propertyGrid}>
               <div className={styles.property}>
-                <span className={styles.propertyLabel}>Start Date</span>
+                <span className={styles.propertyLabel}>{t('detail.schedule.startDate')}</span>
                 <span className={styles.propertyValue}>
-                  {workItem.startDate ? formatDate(workItem.startDate) : 'Not scheduled'}
+                  {workItem.startDate
+                    ? formatDate(workItem.startDate)
+                    : t('detail.schedule.notScheduled')}
                 </span>
               </div>
 
               <div className={styles.property}>
-                <span className={styles.propertyLabel}>End Date</span>
+                <span className={styles.propertyLabel}>{t('detail.schedule.endDate')}</span>
                 <span className={styles.propertyValue}>
-                  {workItem.endDate ? formatDate(workItem.endDate) : 'Not scheduled'}
+                  {workItem.endDate
+                    ? formatDate(workItem.endDate)
+                    : t('detail.schedule.notScheduled')}
                 </span>
               </div>
             </div>
@@ -1316,7 +1329,10 @@ export default function WorkItemDetailPage() {
               return (
                 <div className={styles.delayIndicator} role="status" aria-live="polite">
                   <span aria-hidden="true">⚠</span>
-                  Delayed by {delayDays} {delayDays === 1 ? 'day' : 'days'}
+                  {t('detail.schedule.delayed', {
+                    count: delayDays,
+                    unit: delayDays === 1 ? t('detail.schedule.day') : t('detail.schedule.days'),
+                  })}
                 </div>
               );
             })()}
@@ -1324,15 +1340,15 @@ export default function WorkItemDetailPage() {
 
           {/* Assigned User */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Assignment</h2>
+            <h2 className={styles.sectionTitle}>{t('detail.sections.assignment')}</h2>
             <div className={styles.property}>
-              <label className={styles.propertyLabel}>Assigned To</label>
+              <label className={styles.propertyLabel}>{t('detail.assignment.assignedTo')}</label>
               <select
                 className={styles.propertySelect}
                 value={workItem.assignedUser?.id || ''}
                 onChange={(e) => handleAssignedUserChange(e.target.value)}
               >
-                <option value="">Unassigned</option>
+                <option value="">{t('create.fields.unassigned')}</option>
                 {users.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.displayName}
@@ -1344,7 +1360,7 @@ export default function WorkItemDetailPage() {
 
           {/* Tags */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Tags</h2>
+            <h2 className={styles.sectionTitle}>{t('detail.sections.tags')}</h2>
             <TagPicker
               availableTags={availableTags}
               selectedTagIds={workItem.tags.map((t) => t.id)}
@@ -1381,12 +1397,12 @@ export default function WorkItemDetailPage() {
         <div className={styles.rightColumn}>
           {/* Notes */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Notes</h2>
+            <h2 className={styles.sectionTitle}>{t('detail.sections.notes')}</h2>
 
             <form className={styles.addNoteForm} onSubmit={handleAddNote}>
               <textarea
                 className={styles.noteTextarea}
-                placeholder="Add a note..."
+                placeholder={t('detail.notes.placeholder')}
                 value={newNoteContent}
                 onChange={(e) => setNewNoteContent(e.target.value)}
                 rows={3}
@@ -1397,15 +1413,13 @@ export default function WorkItemDetailPage() {
                 className={styles.addButton}
                 disabled={!newNoteContent.trim() || isAddingNote}
               >
-                {isAddingNote ? 'Adding...' : 'Add Note'}
+                {isAddingNote ? t('detail.notes.adding') : t('detail.notes.addNote')}
               </button>
             </form>
 
             <div className={styles.notesList}>
               {notes.length === 0 && (
-                <div className={styles.emptyState}>
-                  No notes yet. Use the form above to add one.
-                </div>
+                <div className={styles.emptyState}>{t('detail.notes.noNotes')}</div>
               )}
               {notes.map((note) => (
                 <div key={note.id} className={styles.noteItem}>
@@ -1471,13 +1485,13 @@ export default function WorkItemDetailPage() {
 
           {/* Subtasks */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Subtasks</h2>
+            <h2 className={styles.sectionTitle}>{t('detail.sections.subtasks')}</h2>
 
             <form className={styles.addSubtaskForm} onSubmit={handleAddSubtask}>
               <input
                 type="text"
                 className={styles.subtaskInput}
-                placeholder="Add a subtask..."
+                placeholder={t('detail.subtasks.placeholder')}
                 value={newSubtaskTitle}
                 onChange={(e) => setNewSubtaskTitle(e.target.value)}
                 disabled={isAddingSubtask}
@@ -1487,7 +1501,7 @@ export default function WorkItemDetailPage() {
                 className={styles.addButton}
                 disabled={!newSubtaskTitle.trim() || isAddingSubtask}
               >
-                {isAddingSubtask ? 'Adding...' : 'Add'}
+                {isAddingSubtask ? t('detail.subtasks.adding') : t('detail.subtasks.add')}
               </button>
             </form>
 
@@ -1579,13 +1593,15 @@ export default function WorkItemDetailPage() {
 
           {/* Constraints */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Constraints</h2>
+            <h2 className={styles.sectionTitle}>{t('detail.sections.constraints')}</h2>
 
             {/* Duration subsection — first, no top border */}
             <div className={`${styles.constraintSubsection} ${styles.constraintSubsectionFirst}`}>
-              <h3 className={styles.subsectionTitle}>Duration</h3>
+              <h3 className={styles.subsectionTitle}>{t('detail.constraints.duration')}</h3>
               <div className={styles.property}>
-                <label className={styles.propertyLabel}>Duration (days)</label>
+                <label className={styles.propertyLabel}>
+                  {t('detail.constraints.durationDays')}
+                </label>
                 <div className={styles.inlineFieldWrapper}>
                   <input
                     type="number"
@@ -1603,10 +1619,12 @@ export default function WorkItemDetailPage() {
 
             {/* Date Constraints subsection */}
             <div className={styles.constraintSubsection}>
-              <h3 className={styles.subsectionTitle}>Date Constraints</h3>
+              <h3 className={styles.subsectionTitle}>{t('detail.constraints.dateConstraints')}</h3>
               <div className={styles.propertyGrid}>
                 <div className={styles.property}>
-                  <label className={styles.propertyLabel}>Start After</label>
+                  <label className={styles.propertyLabel}>
+                    {t('detail.constraints.startAfter')}
+                  </label>
                   <div className={styles.inlineFieldWrapper}>
                     <input
                       type="date"
@@ -1645,7 +1663,9 @@ export default function WorkItemDetailPage() {
                 </div>
 
                 <div className={styles.property}>
-                  <label className={styles.propertyLabel}>Start Before</label>
+                  <label className={styles.propertyLabel}>
+                    {t('detail.constraints.startBefore')}
+                  </label>
                   <div className={styles.inlineFieldWrapper}>
                     <input
                       type="date"
@@ -1684,7 +1704,9 @@ export default function WorkItemDetailPage() {
                 </div>
 
                 <div className={styles.property}>
-                  <label className={styles.propertyLabel}>Actual Start</label>
+                  <label className={styles.propertyLabel}>
+                    {t('detail.constraints.actualStart')}
+                  </label>
                   <div className={styles.inlineFieldWrapper}>
                     <input
                       type="date"
@@ -1723,7 +1745,9 @@ export default function WorkItemDetailPage() {
                 </div>
 
                 <div className={styles.property}>
-                  <label className={styles.propertyLabel}>Actual End</label>
+                  <label className={styles.propertyLabel}>
+                    {t('detail.constraints.actualEnd')}
+                  </label>
                   <div className={styles.inlineFieldWrapper}>
                     <input
                       type="date"
@@ -1765,7 +1789,7 @@ export default function WorkItemDetailPage() {
 
             {/* Dependencies subsection */}
             <div className={styles.constraintSubsection}>
-              <h3 className={styles.subsectionTitle}>Dependencies</h3>
+              <h3 className={styles.subsectionTitle}>{t('detail.constraints.dependencies')}</h3>
 
               <DependencySentenceDisplay
                 predecessors={dependencies.predecessors}
@@ -1786,14 +1810,18 @@ export default function WorkItemDetailPage() {
 
             {/* Required Milestones subsection */}
             <div className={styles.constraintSubsection}>
-              <h3 className={styles.subsectionTitle}>Required Milestones</h3>
+              <h3 className={styles.subsectionTitle}>
+                {t('detail.constraints.requiredMilestones')}
+              </h3>
               <p className={styles.constraintSubsectionDesc}>
-                Milestones that must be completed before this work item can start.
+                {t('detail.constraints.requiredMilestonesDesc')}
               </p>
 
               <div className={styles.milestoneChips}>
                 {workItemMilestones.required.length === 0 && (
-                  <div className={styles.emptyState}>No required milestones</div>
+                  <div className={styles.emptyState}>
+                    {t('detail.constraints.noRequiredMilestones')}
+                  </div>
                 )}
                 {workItemMilestones.required.map((ms) => (
                   <div key={ms.id} className={styles.milestoneChip}>
@@ -1824,7 +1852,7 @@ export default function WorkItemDetailPage() {
                       onChange={(e) => setSelectedRequiredMilestoneId(e.target.value)}
                       aria-label="Select required milestone to add"
                     >
-                      <option value="">Select milestone...</option>
+                      <option value="">{t('detail.constraints.selectMilestonePlaceholder')}</option>
                       {available.map((m) => (
                         <option key={m.id} value={String(m.id)}>
                           {m.title} — {formatDate(m.targetDate)}
@@ -1837,7 +1865,9 @@ export default function WorkItemDetailPage() {
                       onClick={handleAddRequiredMilestone}
                       disabled={!selectedRequiredMilestoneId || isAddingRequiredMilestone}
                     >
-                      {isAddingRequiredMilestone ? 'Adding...' : 'Add'}
+                      {isAddingRequiredMilestone
+                        ? t('detail.constraints.adding')
+                        : t('detail.constraints.addMilestone')}
                     </button>
                   </div>
                 ) : null;
@@ -1846,14 +1876,16 @@ export default function WorkItemDetailPage() {
 
             {/* Linked Milestones subsection */}
             <div className={styles.constraintSubsection}>
-              <h3 className={styles.subsectionTitle}>Linked Milestones</h3>
+              <h3 className={styles.subsectionTitle}>{t('detail.constraints.linkedMilestones')}</h3>
               <p className={styles.constraintSubsectionDesc}>
-                Milestones this work item contributes to.
+                {t('detail.constraints.linkedMilestonesDesc')}
               </p>
 
               <div className={styles.milestoneChips}>
                 {workItemMilestones.linked.length === 0 && (
-                  <div className={styles.emptyState}>No linked milestones</div>
+                  <div className={styles.emptyState}>
+                    {t('detail.constraints.noLinkedMilestones')}
+                  </div>
                 )}
                 {workItemMilestones.linked.map((ms) => (
                   <div
@@ -1887,7 +1919,7 @@ export default function WorkItemDetailPage() {
                       onChange={(e) => setSelectedLinkedMilestoneId(e.target.value)}
                       aria-label="Select milestone to link"
                     >
-                      <option value="">Select milestone...</option>
+                      <option value="">{t('detail.constraints.selectMilestonePlaceholder')}</option>
                       {available.map((m) => (
                         <option key={m.id} value={String(m.id)}>
                           {m.title} — {formatDate(m.targetDate)}
@@ -1900,7 +1932,9 @@ export default function WorkItemDetailPage() {
                       onClick={handleAddLinkedMilestone}
                       disabled={!selectedLinkedMilestoneId || isAddingLinkedMilestone}
                     >
-                      {isAddingLinkedMilestone ? 'Adding...' : 'Link'}
+                      {isAddingLinkedMilestone
+                        ? t('detail.constraints.linking')
+                        : t('detail.constraints.linkMilestone')}
                     </button>
                   </div>
                 ) : null;
@@ -1913,13 +1947,13 @@ export default function WorkItemDetailPage() {
       {/* Linked Household Items section */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>
-          Dependent Household Items
+          {t('detail.sections.dependentHouseholdItems')}
           {linkedHouseholdItems.length > 0 && (
             <span className={styles.countBadge}>{linkedHouseholdItems.length}</span>
           )}
         </h2>
         {linkedHouseholdItems.length === 0 ? (
-          <p className={styles.emptyText}>No household items depend on this work item.</p>
+          <p className={styles.emptyText}>{t('detail.householdItems.noItems')}</p>
         ) : (
           <ul className={styles.householdItemLinkList}>
             {linkedHouseholdItems.map((hi) => (
@@ -1960,10 +1994,12 @@ export default function WorkItemDetailPage() {
       <footer className={styles.footer}>
         <div className={styles.timestamps}>
           <div>
-            Created by {workItem.createdBy?.displayName || 'Unknown'} on{' '}
-            {formatDate(workItem.createdAt)}
+            {t('detail.footer.createdBy', {
+              name: workItem.createdBy?.displayName || 'Unknown',
+              date: formatDate(workItem.createdAt),
+            })}
           </div>
-          <div>Last updated {formatDate(workItem.updatedAt)}</div>
+          <div>{t('detail.footer.lastUpdated', { date: formatDate(workItem.updatedAt) })}</div>
         </div>
 
         <button
@@ -1971,7 +2007,7 @@ export default function WorkItemDetailPage() {
           className={styles.deleteWorkItemButton}
           onClick={() => setShowDeleteConfirm(true)}
         >
-          Delete Work Item
+          {t('detail.footer.deleteWorkItem')}
         </button>
       </footer>
 
@@ -1983,10 +2019,9 @@ export default function WorkItemDetailPage() {
             onClick={() => !isDeleting && setShowDeleteConfirm(false)}
           />
           <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>Delete Work Item?</h2>
+            <h2 className={styles.modalTitle}>{t('detail.modals.deleteWorkItem.title')}</h2>
             <p className={styles.modalText}>
-              Are you sure you want to delete &ldquo;{workItem.title}&rdquo;? This action cannot be
-              undone.
+              {t('detail.modals.deleteWorkItem.text', { title: workItem.title })}
             </p>
             <div className={styles.modalActions}>
               <button
@@ -1995,7 +2030,7 @@ export default function WorkItemDetailPage() {
                 onClick={() => setShowDeleteConfirm(false)}
                 disabled={isDeleting}
               >
-                Cancel
+                {t('detail.modals.deleteWorkItem.cancel')}
               </button>
               <button
                 type="button"
@@ -2003,7 +2038,9 @@ export default function WorkItemDetailPage() {
                 onClick={handleDeleteWorkItem}
                 disabled={isDeleting}
               >
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting
+                  ? t('detail.modals.deleteWorkItem.deleting')
+                  : t('detail.modals.deleteWorkItem.delete')}
               </button>
             </div>
           </div>
@@ -2020,24 +2057,22 @@ export default function WorkItemDetailPage() {
         <div className={styles.modal}>
           <div className={styles.modalBackdrop} onClick={() => setDeletingNoteId(null)} />
           <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>Delete Note?</h2>
-            <p className={styles.modalText}>
-              Are you sure you want to delete this note? This action cannot be undone.
-            </p>
+            <h2 className={styles.modalTitle}>{t('detail.modals.deleteNote.title')}</h2>
+            <p className={styles.modalText}>{t('detail.modals.deleteNote.text')}</p>
             <div className={styles.modalActions}>
               <button
                 type="button"
                 className={styles.modalCancelButton}
                 onClick={() => setDeletingNoteId(null)}
               >
-                Cancel
+                {t('detail.modals.deleteNote.cancel')}
               </button>
               <button
                 type="button"
                 className={styles.modalDeleteButton}
                 onClick={confirmDeleteNote}
               >
-                Delete
+                {t('detail.modals.deleteNote.delete')}
               </button>
             </div>
           </div>

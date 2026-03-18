@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { DocumentLinkWithMetadata } from '@cornerstone/shared';
 import { getDocumentThumbnailUrl } from '../../lib/paperlessApi.js';
 import styles from './LinkedDocumentCard.module.css';
@@ -16,6 +17,7 @@ export function LinkedDocumentCard({
   onView,
   onUnlink,
 }: LinkedDocumentCardProps) {
+  const { t } = useTranslation('documents');
   const [thumbError, setThumbError] = useState(false);
 
   const thumbUrl = getDocumentThumbnailUrl(link.paperlessDocumentId);
@@ -74,9 +76,9 @@ export function LinkedDocumentCard({
             type="button"
             className={styles.viewButton}
             onClick={() => onView(link)}
-            aria-label={`View document: ${title}`}
+            aria-label={`${t('documentCard.view')}: ${title}`}
           >
-            View
+            {t('documentCard.view')}
           </button>
         )}
 
@@ -87,7 +89,7 @@ export function LinkedDocumentCard({
             rel="noopener noreferrer"
             className={styles.openLink}
             aria-label={`Open document in Paperless: ${title}`}
-            title="Open in Paperless-ngx"
+            title={t('documentCard.openInPaperless')}
           >
             ↗
           </a>
@@ -98,7 +100,7 @@ export function LinkedDocumentCard({
           className={styles.unlinkButton}
           onClick={() => onUnlink(link)}
           aria-label={`Unlink document: ${title}`}
-          title="Remove document link"
+          title={t('documentCard.removeLink')}
         >
           ✕
         </button>

@@ -1,4 +1,5 @@
 import { type FormEvent, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ConfidenceLevel, Vendor, BudgetSource, BudgetCategory } from '@cornerstone/shared';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { FormError } from '../FormError/index.js';
@@ -35,6 +36,8 @@ export function BudgetLineForm({
   staticCategoryLabel,
   children,
 }: BudgetLineFormProps) {
+  const { t } = useTranslation('budget');
+
   return (
     <div className={styles.container}>
       <form onSubmit={onSubmit} className={styles.form}>
@@ -42,7 +45,7 @@ export function BudgetLineForm({
 
         <div className={styles.field}>
           <label className={styles.label} htmlFor="budget-description">
-            Description
+            {t('budgetLineForm.descriptionLabel')}
           </label>
           <input
             type="text"
@@ -50,7 +53,7 @@ export function BudgetLineForm({
             className={styles.input}
             value={form.description}
             onChange={(e) => onFormChange({ description: e.target.value })}
-            placeholder="Optional description"
+            placeholder={t('budgetLineForm.descriptionPlaceholder')}
             disabled={isSaving}
           />
         </div>
@@ -62,7 +65,7 @@ export function BudgetLineForm({
             onClick={() => onFormChange({ pricingMode: 'direct' })}
             disabled={isSaving}
           >
-            Direct Amount
+            {t('budgetLineForm.modeDirect')}
           </button>
           <button
             type="button"
@@ -70,14 +73,14 @@ export function BudgetLineForm({
             onClick={() => onFormChange({ pricingMode: 'unit' })}
             disabled={isSaving}
           >
-            Unit Pricing
+            {t('budgetLineForm.modeUnit')}
           </button>
         </div>
 
         {form.pricingMode === 'direct' ? (
           <div className={styles.field}>
             <label className={styles.label} htmlFor="budget-planned-amount">
-              Planned Amount (€) *
+              {t('budgetLineForm.plannedAmountLabel', { currencySymbol: '€' })}
             </label>
             <input
               type="number"
@@ -97,7 +100,7 @@ export function BudgetLineForm({
             <div className={styles.unitPricingRow}>
               <div className={styles.unitField}>
                 <label className={styles.label} htmlFor="budget-quantity">
-                  Quantity *
+                  {t('budgetLineForm.quantityLabel')}
                 </label>
                 <input
                   type="number"
@@ -114,7 +117,7 @@ export function BudgetLineForm({
 
               <div className={styles.unitField}>
                 <label className={styles.label} htmlFor="budget-unit">
-                  Unit
+                  {t('budgetLineForm.unitLabel')}
                 </label>
                 <input
                   type="text"
@@ -122,7 +125,7 @@ export function BudgetLineForm({
                   className={styles.input}
                   value={form.unit}
                   onChange={(e) => onFormChange({ unit: e.target.value })}
-                  placeholder="e.g., m², pcs"
+                  placeholder={t('budgetLineForm.unitPlaceholder')}
                   disabled={isSaving}
                 />
               </div>
@@ -131,7 +134,7 @@ export function BudgetLineForm({
 
               <div className={styles.unitField}>
                 <label className={styles.label} htmlFor="budget-unit-price">
-                  Price *
+                  {t('budgetLineForm.priceLabel')}
                 </label>
                 <input
                   type="number"
@@ -147,7 +150,7 @@ export function BudgetLineForm({
               </div>
 
               <div className={styles.computedTotal}>
-                <label className={styles.label}>Total</label>
+                <label className={styles.label}>{t('budgetLineForm.totalLabel')}</label>
                 <div className={styles.computedValue}>
                   €
                   {form.quantity && form.unitPrice
@@ -174,10 +177,12 @@ export function BudgetLineForm({
                   onChange={(e) => onFormChange({ includesVat: e.target.checked })}
                   disabled={isSaving}
                 />
-                Price includes VAT (19%)
+                {t('budgetLineForm.includesVatLabel', { vatRate: '19' })}
               </label>
               {!form.includesVat && (
-                <div className={styles.vatNote}>+19% VAT will be added to the total</div>
+                <div className={styles.vatNote}>
+                  {t('budgetLineForm.vatNote', { vatRate: '19' })}
+                </div>
               )}
             </div>
           </>
@@ -185,7 +190,7 @@ export function BudgetLineForm({
 
         <div className={styles.field}>
           <label className={styles.label} htmlFor="budget-confidence">
-            Confidence
+            {t('budgetLineForm.confidenceLabel')}
           </label>
           <select
             id="budget-confidence"
@@ -204,13 +209,13 @@ export function BudgetLineForm({
 
         {staticCategoryLabel ? (
           <div className={styles.field}>
-            <label className={styles.label}>Category</label>
+            <label className={styles.label}>{t('budgetLineForm.categoryLabel')}</label>
             <div className={styles.staticValue}>{staticCategoryLabel}</div>
           </div>
         ) : budgetCategories ? (
           <div className={styles.field}>
             <label className={styles.label} htmlFor="budget-category">
-              Category
+              {t('budgetLineForm.categoryLabel')}
             </label>
             <select
               id="budget-category"
@@ -219,7 +224,7 @@ export function BudgetLineForm({
               onChange={(e) => onFormChange({ budgetCategoryId: e.target.value })}
               disabled={isSaving}
             >
-              <option value="">None</option>
+              <option value="">{t('budgetLineForm.categoryNone')}</option>
               {budgetCategories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
@@ -231,7 +236,7 @@ export function BudgetLineForm({
 
         <div className={styles.field}>
           <label className={styles.label} htmlFor="budget-source">
-            Funding Source
+            {t('budgetLineForm.fundingSourceLabel')}
           </label>
           <select
             id="budget-source"
@@ -250,7 +255,7 @@ export function BudgetLineForm({
 
         <div className={styles.field}>
           <label className={styles.label} htmlFor="budget-vendor">
-            Vendor
+            {t('budgetLineForm.vendorLabel')}
           </label>
           <select
             id="budget-vendor"
@@ -259,7 +264,7 @@ export function BudgetLineForm({
             onChange={(e) => onFormChange({ vendorId: e.target.value })}
             disabled={isSaving}
           >
-            <option value="">None</option>
+            <option value="">{t('budgetLineForm.vendorNone')}</option>
             {vendors.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.name}
@@ -282,7 +287,11 @@ export function BudgetLineForm({
                 : !form.quantity || !form.unitPrice)
             }
           >
-            {isSaving ? 'Saving...' : isEditing ? 'Save Changes' : 'Add Line'}
+            {isSaving
+              ? t('budgetLineForm.submitSaving')
+              : isEditing
+                ? t('budgetLineForm.submitSave')
+                : t('budgetLineForm.submitAdd')}
           </button>
           <button
             type="button"
@@ -290,7 +299,7 @@ export function BudgetLineForm({
             onClick={onCancel}
             disabled={isSaving}
           >
-            Cancel
+            {t('budgetLineForm.cancel')}
           </button>
         </div>
       </form>

@@ -4,13 +4,34 @@
  * Unit tests for GanttHeader — date label row above the Gantt chart canvas.
  * Tests cell rendering, today highlighting, today triangle, and zoom mode differences.
  */
-import { describe, it, expect } from '@jest/globals';
+import { jest, describe, it, expect, beforeAll } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
-import { GanttHeader } from './GanttHeader.js';
+import type { GanttHeader as GanttHeaderType } from './GanttHeader.js';
 import type { HeaderCell } from './ganttUtils.js';
 import { COLUMN_WIDTHS } from './ganttUtils.js';
 
 // CSS modules mocked via identity-obj-proxy
+
+// ─── Mock: LocaleContext — GanttHeader uses useLocale() directly ──────────────
+
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// Dynamic import — must happen after jest.unstable_mockModule calls.
+let GanttHeader: typeof GanttHeaderType;
+
+beforeAll(async () => {
+  const module = await import('./GanttHeader.js');
+  GanttHeader = module.GanttHeader;
+});
 
 // Factory for HeaderCell
 function makeCell(overrides: Partial<HeaderCell> = {}): HeaderCell {

@@ -51,9 +51,10 @@ function renderDisplay(
 
 describe('DependencySentenceDisplay', () => {
   describe('empty state', () => {
-    it('renders "No dependencies" when both arrays are empty', () => {
-      renderDisplay([], []);
-      expect(screen.getByText('No dependencies')).toBeInTheDocument();
+    it('renders nothing when both arrays are empty', () => {
+      const { container } = renderDisplay([], []);
+      // Component returns null for empty arrays — nothing is rendered
+      expect(container.firstChild).toBeNull();
     });
   });
 

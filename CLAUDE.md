@@ -10,7 +10,7 @@ Cornerstone is a web-based home building project management application designed
 
 ## Agent Team
 
-This project uses a team of 10 specialized Claude Code agents defined in `.claude/agents/`:
+This project uses a team of 11 specialized Claude Code agents defined in `.claude/agents/`:
 
 | Agent                   | Role                                                                                                                                    |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -20,6 +20,7 @@ This project uses a team of 10 specialized Claude Code agents defined in `.claud
 | `dev-team-lead`         | Spec-writer, reviewer, and committer (Sonnet): decomposes work into implementation specs, reviews agent output, commits and monitors CI |
 | `backend-developer`     | API endpoints, business logic, auth, database operations (Haiku, launched by orchestrator with dev-team-lead specs)                     |
 | `frontend-developer`    | UI components, pages, interactions, API client (Haiku, launched by orchestrator with dev-team-lead specs)                               |
+| `translator`            | Non-English translations, glossary enforcement (Sonnet, launched by orchestrator with dev-team-lead Translator Specs)                   |
 | `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports                                                   |
 | `e2e-test-engineer`     | Playwright E2E browser tests, page objects, smoke tests, responsive testing, dependent system integration testing                       |
 | `security-engineer`     | Security audits, vulnerability reports, remediation guidance                                                                            |
@@ -59,7 +60,7 @@ Wiki pages are markdown files in `wiki/`. Sync before reading: `git submodule up
 
 ### Board & Issue Relationships
 
-The GitHub Projects board uses 4 statuses: Backlog, Todo, In Progress, Done. All stories must be linked as sub-issues of their parent epic, and dependency relationships must be maintained. Board IDs, GraphQL mutations, and exact commands are in the skill files.
+The GitHub Projects board uses 5 statuses: Backlog, Todo, In Progress, Done, Wont-Do. All stories must be linked as sub-issues of their parent epic, and dependency relationships must be maintained. Use native `gh project` CLI commands for board status management (`gh project item-list`, `gh project item-edit`, `gh project item-add`). GraphQL mutations are still needed for `addSubIssue` and `addBlockedBy`. Board IDs and exact commands are in the skill files and agent definitions.
 
 ## Agile Workflow
 
@@ -76,6 +77,7 @@ The GitHub Projects board uses 4 statuses: Backlog, Todo, In Progress, Done. All
 - **Implementation specs** → `dev-team-lead` agent (produces specs, reviews code, commits)
 - **Backend code** → `backend-developer` agent (Haiku, launched by orchestrator with dev-team-lead specs)
 - **Frontend code** → `frontend-developer` agent (Haiku, launched by orchestrator with dev-team-lead specs)
+- **Non-English translations** → `translator` agent (Sonnet, launched by orchestrator with dev-team-lead Translator Specs)
 - **Unit/integration tests** → `qa-integration-tester` agent (launched by orchestrator with dev-team-lead specs)
 - **E2E browser tests** → `e2e-test-engineer` agent (launched by orchestrator with dev-team-lead specs)
 - **Visual specs, design tokens, brand assets, CSS files** → `ux-designer` agent
@@ -107,7 +109,7 @@ Every epic follows a two-phase validation lifecycle. **Development phase** (`/de
 - **Acceptance criteria live on GitHub Issues** — stored on story issues, summarized on promotion PRs
 - **Security review required** — the `security-engineer` must review every story PR
 - **Test agents own all tests** — `qa-integration-tester` owns unit and integration tests; `e2e-test-engineer` owns Playwright E2E browser tests. Developer agents do not write tests.
-- **Flat delegation model** — the orchestrator launches all agents directly. The `dev-team-lead` produces implementation specs, reviews agent output, and handles commits/CI. The orchestrator routes specs to `backend-developer`, `frontend-developer`, `qa-integration-tester`, and `e2e-test-engineer`.
+- **Flat delegation model** — the orchestrator launches all agents directly. The `dev-team-lead` produces implementation specs, reviews agent output, and handles commits/CI. The orchestrator routes specs to `backend-developer`, `frontend-developer`, `translator`, `qa-integration-tester`, and `e2e-test-engineer`.
 
 ## Git & Commit Conventions
 
@@ -143,19 +145,19 @@ If the state is `CONFLICTING`, rebase onto the target branch, force-push, and re
 
 **Step 2 — Poll for required gate checks.**
 
-**Beta PRs** (require `Quality Gates` only):
+**Beta PRs** (require `Quality Gates` only — expected ~5 minutes):
 
 ```bash
-echo "Waiting for Quality Gates..."; while true; do bucket=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); case "$bucket" in pass) echo "Quality Gates passed"; break ;; fail) echo "Quality Gates FAILED"; exit 1 ;; *) sleep 30 ;; esac; done
+echo "Waiting for Quality Gates..."; SECONDS=0; while true; do if [ $SECONDS -ge 300 ]; then echo "TIMEOUT: Quality Gates did not complete within 5 minutes"; exit 1; fi; bucket=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); case "$bucket" in pass) echo "Quality Gates passed"; break ;; fail) echo "Quality Gates FAILED"; exit 1 ;; *) sleep 30 ;; esac; done
 ```
 
-**Main PRs** (require `Quality Gates` + `E2E Gates`):
+**Main PRs** (require `Quality Gates` + `E2E Gates` — expected ~15 minutes):
 
 ```bash
-echo "Waiting for Quality Gates + E2E Gates..."; while true; do qg=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); e2e=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "E2E Gates") | .bucket' 2>/dev/null); if [ "$qg" = "fail" ] || [ "$e2e" = "fail" ]; then echo "CI FAILED (QG=$qg, E2E=$e2e)"; exit 1; fi; if [ "$qg" = "pass" ] && [ "$e2e" = "pass" ]; then echo "All gates passed"; break; fi; sleep 30; done
+echo "Waiting for Quality Gates + E2E Gates..."; SECONDS=0; while true; do if [ $SECONDS -ge 900 ]; then echo "TIMEOUT: CI gates did not complete within 15 minutes"; exit 1; fi; qg=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); e2e=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "E2E Gates") | .bucket' 2>/dev/null); if [ "$qg" = "fail" ] || [ "$e2e" = "fail" ]; then echo "CI FAILED (QG=$qg, E2E=$e2e)"; exit 1; fi; if [ "$qg" = "pass" ] && [ "$e2e" = "pass" ]; then echo "All gates passed"; break; fi; sleep 30; done
 ```
 
-Replace `<PR>` with the PR number. The polling loop handles the "checks not yet reported" edge case — an empty bucket means we retry after 30s.
+Replace `<PR>` with the PR number. The polling loop handles the "checks not yet reported" edge case — an empty bucket means we retry after 30s. Timeouts prevent agents from polling indefinitely if CI hangs.
 
 The only exception is the QA agent running a specific test file it just wrote (e.g., `npx jest path/to/new.test.ts`) to verify correctness before committing — but never `npm test` (the full suite).
 
@@ -181,10 +183,11 @@ The orchestrator launches all implementation agents directly using specs produce
 
 The orchestrator runs a **trailer verification** after every commit:
 
-1. Commit trailers must include Haiku co-authors for production file changes
+1. Commit trailers must include appropriate co-authors for production file changes
 2. Files under `server/` or `shared/` → must have `backend-developer` trailer
-3. Files under `client/` → must have `frontend-developer` trailer
-4. Files under `e2e/` → must have `e2e-test-engineer` trailer
+3. Files under `client/` (except `client/src/i18n/de/` and `client/src/i18n/glossary.json`) → must have `frontend-developer` trailer
+4. Files under `client/src/i18n/de/` or `client/src/i18n/glossary.json` → must have `translator` trailer
+5. Files under `e2e/` → must have `e2e-test-engineer` trailer
 
 Commits that change production files without the appropriate Haiku co-author trailers are rejected and re-committed with corrected trailers.
 
@@ -425,18 +428,19 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 
 ### Environment Variables
 
-| Variable                 | Default                    | Description                                                                         |
-| ------------------------ | -------------------------- | ----------------------------------------------------------------------------------- |
-| `PORT`                   | `3000`                     | Server port                                                                         |
-| `HOST`                   | `0.0.0.0`                  | Server bind address                                                                 |
-| `DATABASE_URL`           | `/app/data/cornerstone.db` | SQLite database path                                                                |
-| `LOG_LEVEL`              | `info`                     | Log level (trace/debug/info/warn/error/fatal)                                       |
-| `NODE_ENV`               | `production`               | Environment                                                                         |
-| `CLIENT_DEV_PORT`        | `5173`                     | Webpack dev server port (development only)                                          |
-| `PAPERLESS_URL`          | (none)                     | Paperless-ngx instance base URL                                                     |
-| `PAPERLESS_API_TOKEN`    | (none)                     | Paperless-ngx API authentication token                                              |
-| `PAPERLESS_EXTERNAL_URL` | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset) |
-| `PAPERLESS_FILTER_TAG`   | (none)                     | Tag name for automatic document pre-filtering                                       |
+| Variable                 | Default                    | Description                                                                           |
+| ------------------------ | -------------------------- | ------------------------------------------------------------------------------------- |
+| `PORT`                   | `3000`                     | Server port                                                                           |
+| `HOST`                   | `0.0.0.0`                  | Server bind address                                                                   |
+| `DATABASE_URL`           | `/app/data/cornerstone.db` | SQLite database path                                                                  |
+| `LOG_LEVEL`              | `info`                     | Log level (trace/debug/info/warn/error/fatal)                                         |
+| `NODE_ENV`               | `production`               | Environment                                                                           |
+| `CLIENT_DEV_PORT`        | `5173`                     | Webpack dev server port (development only)                                            |
+| `EXTERNAL_URL`           | (none)                     | Public-facing base URL (e.g., `https://myhouse.example.com`) for reverse-proxy setups |
+| `PAPERLESS_URL`          | (none)                     | Paperless-ngx instance base URL                                                       |
+| `PAPERLESS_API_TOKEN`    | (none)                     | Paperless-ngx API authentication token                                                |
+| `PAPERLESS_EXTERNAL_URL` | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset)   |
+| `PAPERLESS_FILTER_TAG`   | (none)                     | Tag name for automatic document pre-filtering                                         |
 
 Production images use Docker Hardened Images (DHI). See `Dockerfile` and `docker-compose.yml` for build/deploy details.
 
@@ -460,6 +464,26 @@ When tests fail during development, a structured diagnostic protocol determines 
 - **Rule**: Correct tests must not be weakened to accommodate buggy code; correct code must not be broken to satisfy a wrong test
 - **Protocol owner**: The `dev-team-lead` runs the diagnostic decision tree during `[MODE: review]` when test failures are present in the review input. See the dev-team-lead agent definition for the full classification table and escalation rules.
 - **Test agents report, not diagnose**: `qa-integration-tester` and `e2e-test-engineer` submit structured failure reports but do not determine whether the fault lies in code or tests — that judgment belongs to the dev-team-lead.
+
+### Internationalization (i18n)
+
+The application supports multiple locales (English and German) via `i18next` and `react-i18next`. All agents must follow these conventions:
+
+- **Frontend**: All user-facing strings must use `t()` from react-i18next — never hardcode text in JSX. Translation files live in `client/src/i18n/{lang}/{namespace}.json`. Dev agents write English (`en`) keys only.
+- **Translator owns non-English locales**: The `translator` agent handles all non-English translations and enforces glossary compliance. Dev agents do not write German or other non-English translations.
+- **Backend**: API error responses must use `ErrorCode` enum values (machine-readable codes), not human-readable messages. The frontend translates error codes into locale-specific messages via `translateApiError()`. The `CURRENCY` env var (default: `EUR`) is exposed via `GET /api/config`.
+- **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent` from `client/src/lib/formatters.ts` — these read the locale from i18next automatically. Never use raw `toLocaleDateString()` or `Intl.NumberFormat` directly.
+- **Testing**: QA must verify translation keys exist in both locales. E2E tests must verify locale detection and switching behavior.
+- **Specs**: Dev-team-lead specs must include i18n requirements — translation namespace, English keys to add, and a Translator Spec section for the translator agent.
+
+### Translation & Glossary Convention
+
+- **Glossary**: `client/src/i18n/glossary.json` — single source of truth for domain term translations (multi-locale)
+- **Dev agents write English only**: frontend-developer adds `en` keys. Never writes non-English translations.
+- **Translator owns all non-English locales**: translates new keys + enforces glossary compliance
+- **Glossary scope**: Domain-specific terms only (Work Item, Invoice, etc.), not common UI words
+- **Glossary updates**: Translator proposes additions for new domain terms; product-owner approves terminology
+- **Adding a locale**: Add locale code to `glossary.json` `_meta.locales`, add translations for all terms, create `client/src/i18n/{locale}/` directory with namespace files, register in `client/src/i18n/index.ts`
 
 ### Review Metrics
 

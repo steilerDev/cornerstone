@@ -39,6 +39,7 @@ describe('vendorsApi', () => {
     ...sampleVendor,
     invoiceCount: 3,
     outstandingBalance: 800,
+    contacts: [],
   };
 
   // ─── fetchVendors ──────────────────────────────────────────────────────────

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { DiarySignatureEntry } from '@cornerstone/shared';
 import shared from '../../../styles/shared.module.css';
 import { SignatureCapture } from '../SignatureCapture/SignatureCapture.js';
@@ -29,10 +30,12 @@ export function SignatureSection({
   onAddSignature,
   onSignaturesChange,
   disabled = false,
-  label = 'Signatures',
+  label,
   currentUserName,
   vendors,
 }: SignatureSectionProps) {
+  const { t } = useTranslation('diary');
+  const defaultLabel = label || t('signature.signaturesLabel');
   const handleSignatureUpdate = (index: number, updated: DiarySignatureEntry | null) => {
     onSignatureChange(index, updated);
 
@@ -51,7 +54,7 @@ export function SignatureSection({
 
   return (
     <div className={styles.signatureSection}>
-      <span className={styles.label}>{label}</span>
+      <span className={styles.label}>{defaultLabel}</span>
       {(signatures?.length ?? 0) > 0 && (
         <div className={styles.signaturesList}>
           {signatures!.map((sig, index) => (
@@ -88,7 +91,7 @@ export function SignatureSection({
         disabled={disabled}
         aria-label="Add signature"
       >
-        + Add Signature
+        {t('signature.addSignature')}
       </button>
     </div>
   );

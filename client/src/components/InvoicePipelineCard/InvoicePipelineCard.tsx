@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { Invoice, InvoiceStatusBreakdown } from '@cornerstone/shared';
-import { formatCurrency, formatDate } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './InvoicePipelineCard.module.css';
 
 interface InvoicePipelineCardProps {
@@ -9,6 +10,9 @@ interface InvoicePipelineCardProps {
 }
 
 export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardProps) {
+  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+  const { t } = useTranslation('dashboard');
+
   // Filter to pending invoices, sort by date ascending (oldest first), take first 5
   const pendingInvoices = invoices
     .filter((inv) => inv.status === 'pending')
@@ -29,7 +33,7 @@ export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardPr
   if (pendingInvoices.length === 0) {
     return (
       <p data-testid="invoice-empty" className={styles.emptyState}>
-        No pending invoices
+        {t('cards.invoicePipeline.noPendingInvoices')}
       </p>
     );
   }
@@ -55,7 +59,7 @@ export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardPr
               </Link>
               {overdue && (
                 <span data-testid="overdue-badge" className={styles.overdueBadge}>
-                  Overdue
+                  {t('cards.invoicePipeline.overdue')}
                 </span>
               )}
             </li>
@@ -65,10 +69,11 @@ export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardPr
 
       <div className={styles.footer}>
         <div data-testid="pending-total" className={styles.footerTotal}>
-          Pending Total: <strong>{formatCurrency(summary.pending.totalAmount)}</strong>
+          {t('cards.invoicePipeline.pendingTotal')}{' '}
+          <strong>{formatCurrency(summary.pending.totalAmount)}</strong>
         </div>
         <Link to="/budget/invoices" className={styles.link}>
-          View all invoices
+          {t('cards.invoicePipeline.viewAllInvoices')}
         </Link>
       </div>
     </>

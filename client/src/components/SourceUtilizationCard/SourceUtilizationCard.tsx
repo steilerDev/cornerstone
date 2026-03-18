@@ -1,21 +1,24 @@
+import { useTranslation } from 'react-i18next';
 import type { BudgetSource, BudgetSourceType } from '@cornerstone/shared';
 import { BudgetBar } from '../BudgetBar/BudgetBar.js';
-import { formatCurrency } from '../../lib/formatters.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './SourceUtilizationCard.module.css';
 
 interface SourceUtilizationCardProps {
   sources: BudgetSource[];
 }
 
-const SOURCE_TYPE_LABELS: Record<BudgetSourceType, string> = {
-  bank_loan: 'Bank Loan',
-  credit_line: 'Credit Line',
-  savings: 'Savings',
-  other: 'Other',
-  discretionary: 'Discretionary',
-};
-
 export function SourceUtilizationCard({ sources }: SourceUtilizationCardProps) {
+  const { t } = useTranslation('dashboard');
+  const { formatCurrency } = useFormatters();
+
+  const SOURCE_TYPE_LABELS: Record<BudgetSourceType, string> = {
+    bank_loan: t('cards.sourceUtilization.sourceTypes.bank_loan'),
+    credit_line: t('cards.sourceUtilization.sourceTypes.credit_line'),
+    savings: t('cards.sourceUtilization.sourceTypes.savings'),
+    other: t('cards.sourceUtilization.sourceTypes.other'),
+    discretionary: t('cards.sourceUtilization.sourceTypes.discretionary'),
+  };
   // Sort: high utilization (>= 90% or exhausted) first, then by utilization descending
   const sortedSources = [...sources].sort((a, b) => {
     const utilA = a.totalAmount > 0 ? a.usedAmount / a.totalAmount : 0;
@@ -52,7 +55,7 @@ export function SourceUtilizationCard({ sources }: SourceUtilizationCardProps) {
                   key: 'used',
                   value: source.usedAmount,
                   color: 'var(--color-primary)',
-                  label: 'Used',
+                  label: t('cards.sourceUtilization.usedLabel'),
                 },
               ]}
               maxValue={maxValue}
@@ -61,9 +64,12 @@ export function SourceUtilizationCard({ sources }: SourceUtilizationCardProps) {
             />
 
             <span className={styles.srOnly}>
-              {source.totalAmount > 0
-                ? `${((source.usedAmount / source.totalAmount) * 100).toFixed(0)}% utilized`
-                : '0% utilized'}
+              {t('cards.sourceUtilization.utilized', {
+                percent:
+                  source.totalAmount > 0
+                    ? ((source.usedAmount / source.totalAmount) * 100).toFixed(0)
+                    : '0',
+              })}
             </span>
 
             <div className={styles.amounts}>

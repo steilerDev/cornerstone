@@ -560,7 +560,7 @@ describe('VendorsPage', () => {
       await user.click(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]);
 
       const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete vendor/i }));
+      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
 
       await waitFor(() => {
         expect(mockDeleteVendor).toHaveBeenCalledWith('vendor-1');
@@ -594,7 +594,7 @@ describe('VendorsPage', () => {
       await user.click(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]);
 
       const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete vendor/i }));
+      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
 
       await waitFor(() => {
         // The dialog should show the in-use error message
@@ -625,16 +625,14 @@ describe('VendorsPage', () => {
       await user.click(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]);
 
       const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete vendor/i }));
+      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
 
       await waitFor(() => {
         expect(within(dialog).getByRole('alert')).toBeInTheDocument();
       });
 
-      // Delete Vendor button should be gone after the error
-      expect(
-        within(dialog).queryByRole('button', { name: /delete vendor/i }),
-      ).not.toBeInTheDocument();
+      // Delete button should be gone after the error
+      expect(within(dialog).queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument();
     });
 
     it('shows generic delete error for non-409 failures', async () => {
@@ -653,7 +651,7 @@ describe('VendorsPage', () => {
       await user.click(screen.getAllByRole('button', { name: /delete smith plumbing/i })[0]);
 
       const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete vendor/i }));
+      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
 
       await waitFor(() => {
         expect(within(dialog).getByText(/failed to delete vendor/i)).toBeInTheDocument();

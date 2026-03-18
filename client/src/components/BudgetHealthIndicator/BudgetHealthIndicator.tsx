@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import styles from './BudgetHealthIndicator.module.css';
 
 interface BudgetHealthIndicatorProps {
@@ -17,7 +18,7 @@ function resolveHealth(remainingVsProjectedMax: number, availableFunds: number):
   if (remainingVsProjectedMax < 0) {
     return {
       status: 'over-budget',
-      label: 'Over Budget',
+      label: 'health.overBudget',
       cssClass: styles.overBudget,
     };
   }
@@ -26,7 +27,7 @@ function resolveHealth(remainingVsProjectedMax: number, availableFunds: number):
   if (availableFunds === 0) {
     return {
       status: 'at-risk',
-      label: 'At Risk',
+      label: 'health.atRisk',
       cssClass: styles.atRisk,
     };
   }
@@ -36,14 +37,14 @@ function resolveHealth(remainingVsProjectedMax: number, availableFunds: number):
   if (margin > 0.1) {
     return {
       status: 'on-budget',
-      label: 'On Budget',
+      label: 'health.onBudget',
       cssClass: styles.onBudget,
     };
   }
 
   return {
     status: 'at-risk',
-    label: 'At Risk',
+    label: 'health.atRisk',
     cssClass: styles.atRisk,
   };
 }
@@ -52,11 +53,12 @@ export function BudgetHealthIndicator({
   remainingVsProjectedMax,
   availableFunds,
 }: BudgetHealthIndicatorProps) {
+  const { t } = useTranslation('budget');
   const { label, cssClass } = resolveHealth(remainingVsProjectedMax, availableFunds);
 
   return (
     <span className={`${styles.badge} ${cssClass}`} role="status">
-      {label}
+      {t(label)}
     </span>
   );
 }
