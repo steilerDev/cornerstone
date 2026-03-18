@@ -1,4 +1,5 @@
 import { type FormEvent, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ConfidenceLevel, Vendor, BudgetSource, BudgetCategory } from '@cornerstone/shared';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { FormError } from '../FormError/index.js';
@@ -35,6 +36,8 @@ export function BudgetLineForm({
   staticCategoryLabel,
   children,
 }: BudgetLineFormProps) {
+  const { t } = useTranslation('budget');
+
   return (
     <div className={styles.container}>
       <form onSubmit={onSubmit} className={styles.form}>
@@ -42,7 +45,7 @@ export function BudgetLineForm({
 
         <div className={styles.field}>
           <label className={styles.label} htmlFor="budget-description">
-            Description
+            {t('budgetLineForm.descriptionLabel')}
           </label>
           <input
             type="text"
@@ -50,7 +53,7 @@ export function BudgetLineForm({
             className={styles.input}
             value={form.description}
             onChange={(e) => onFormChange({ description: e.target.value })}
-            placeholder="Optional description"
+            placeholder={t('budgetLineForm.descriptionPlaceholder')}
             disabled={isSaving}
           />
         </div>
@@ -62,7 +65,7 @@ export function BudgetLineForm({
             onClick={() => onFormChange({ pricingMode: 'direct' })}
             disabled={isSaving}
           >
-            Direct Amount
+            {t('budgetLineForm.modeDirect')}
           </button>
           <button
             type="button"
@@ -70,7 +73,7 @@ export function BudgetLineForm({
             onClick={() => onFormChange({ pricingMode: 'unit' })}
             disabled={isSaving}
           >
-            Unit Pricing
+            {t('budgetLineForm.modeUnit')}
           </button>
         </div>
 

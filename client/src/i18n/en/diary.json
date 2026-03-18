@@ -328,6 +328,36 @@
   "signature": {
     "signedBy": "Signed by",
     "signaturesLabel": "Signatures",
-    "addSignature": "+ Add Signature"
+    "addSignature": "+ Add Signature",
+    "signerTypeLabel": "Signer Type",
+    "signerTypeSelf": "Self",
+    "signerTypeVendor": "Vendor",
+    "signerNameLabel": "Signer Name",
+    "vendorLabel": "Vendor",
+    "selectVendor": "\u2014 Select Vendor \u2014",
+    "otherVendor": "Other...",
+    "vendorNamePlaceholder": "Enter vendor name",
+    "signatoryNameLabel": "Signatory Name",
+    "signatoryNameRequired": "*",
+    "signatoryNamePlaceholder": "Name of person signing on behalf of vendor",
+    "vendorInfoRequired": "Both vendor and signatory name are required",
+    "canvasAriaLabel": "Signature canvas",
+    "canvasPlaceholder": "Sign here",
+    "clearButton": "Clear",
+    "acceptButton": "Accept Signature",
+    "removeButton": "Remove Signature",
+    "sizeError": "Signature too large ({{size}}KB, max 500KB)",
+    "altText": "Signature of {{name}}"
+  },
+  "photoUpload": {
+    "dropZoneAriaLabel": "Photo upload drop zone",
+    "dropZoneText": "Drag photos here or",
+    "buttonTakePhoto": "Take Photo",
+    "buttonUploadPhotos": "Upload Photos",
+    "uploading": "Uploading...",
+    "uploadProgressAriaLabel": "{{fileName}} upload progress"
+  },
+  "typeSwitcher": {
+    "ariaLabel": "Filter entries by type"
   }
 }
