@@ -11,7 +11,6 @@ import { fetchVendor, updateVendor, deleteVendor } from '../../lib/vendorsApi.js
 import {
   fetchInvoices,
   createInvoice,
-  updateInvoice,
   deleteInvoice,
 } from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -71,12 +70,6 @@ export function VendorDetailPage() {
   const [createForm, setCreateForm] = useState<InvoiceFormState>(EMPTY_INVOICE_FORM);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string>('');
-
-  // Edit invoice modal state
-  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
-  const [editInvoiceForm, setEditInvoiceForm] = useState<InvoiceFormState>(EMPTY_INVOICE_FORM);
-  const [isUpdatingInvoice, setIsUpdatingInvoice] = useState(false);
-  const [editInvoiceError, setEditInvoiceError] = useState<string>('');
 
   // Delete invoice confirmation state
   const [deletingInvoice, setDeletingInvoice] = useState<Invoice | null>(null);
@@ -288,67 +281,6 @@ export function VendorDetailPage() {
       }
     } finally {
       setIsCreating(false);
-    }
-  };
-
-  const openEditInvoiceModal = (invoice: Invoice) => {
-    setEditingInvoice(invoice);
-    setEditInvoiceForm({
-      invoiceNumber: invoice.invoiceNumber ?? '',
-      amount: invoice.amount.toString(),
-      date: invoice.date.slice(0, 10),
-      dueDate: invoice.dueDate ? invoice.dueDate.slice(0, 10) : '',
-      status: invoice.status,
-      notes: invoice.notes ?? '',
-    });
-    setEditInvoiceError('');
-  };
-
-  const closeEditInvoiceModal = () => {
-    if (!isUpdatingInvoice) {
-      setEditingInvoice(null);
-      setEditInvoiceError('');
-    }
-  };
-
-  const handleUpdateInvoice = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!id || !editingInvoice) return;
-
-    const amount = parseFloat(editInvoiceForm.amount);
-    if (isNaN(amount) || amount < 0) {
-      setEditInvoiceError(t('invoices.validation.amountRequired'));
-      return;
-    }
-    if (!editInvoiceForm.date) {
-      setEditInvoiceError(t('invoices.validation.dateRequired'));
-      return;
-    }
-
-    setIsUpdatingInvoice(true);
-    setEditInvoiceError('');
-
-    try {
-      const updated = await updateInvoice(id, editingInvoice.id, {
-        invoiceNumber: editInvoiceForm.invoiceNumber.trim() || null,
-        amount,
-        date: editInvoiceForm.date,
-        dueDate: editInvoiceForm.dueDate || null,
-        status: editInvoiceForm.status,
-        notes: editInvoiceForm.notes.trim() || null,
-      });
-      setInvoices((prev) => prev.map((inv) => (inv.id === updated.id ? updated : inv)));
-      setEditingInvoice(null);
-      // Re-fetch vendor to update stats cards
-      void loadVendor();
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setEditInvoiceError(err.error.message);
-      } else {
-        setEditInvoiceError(t('vendorDetail.messages.invoiceUpdateError'));
-      }
-    } finally {
-      setIsUpdatingInvoice(false);
     }
   };
 
@@ -751,7 +683,7 @@ export function VendorDetailPage() {
                             <button
                               type="button"
                               className={styles.rowActionButton}
-                              onClick={() => openEditInvoiceModal(invoice)}
+                              onClick={() => navigate(`/budget/invoices/${invoice.id}`)}
                               aria-label={`Edit invoice ${invoice.invoiceNumber ?? invoice.id}`}
                             >
                               {t('vendorDetail.buttons.editRow')}
@@ -802,16 +734,18 @@ export function VendorDetailPage() {
                       <button
                         type="button"
                         className={styles.rowActionButton}
-                        onClick={() => openEditInvoiceModal(invoice)}
+                        onClick={() => navigate(`/budget/invoices/${invoice.id}`)}
+                        aria-label={`Edit invoice ${invoice.invoiceNumber ?? invoice.id}`}
                       >
-                        Edit
+                        {t('vendorDetail.buttons.editRow')}
                       </button>
                       <button
                         type="button"
                         className={`${styles.rowActionButton} ${styles.rowActionButtonDanger}`}
                         onClick={() => openDeleteInvoiceConfirm(invoice)}
+                        aria-label={`Delete invoice ${invoice.invoiceNumber ?? invoice.id}`}
                       >
-                        Delete
+                        {t('vendorDetail.buttons.deleteRow')}
                       </button>
                     </div>
                   </li>
@@ -1010,160 +944,6 @@ export function VendorDetailPage() {
                   disabled={isCreating || !createForm.amount || !createForm.date}
                 >
                   {isCreating ? 'Adding...' : 'Add Invoice'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Edit invoice modal */}
-      {editingInvoice && (
-        <div
-          className={styles.modal}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="edit-invoice-modal-title"
-        >
-          <div className={styles.modalBackdrop} onClick={closeEditInvoiceModal} />
-          <div className={`${styles.modalContent} ${styles.modalContentWide}`}>
-            <h2 id="edit-invoice-modal-title" className={styles.modalTitle}>
-              Edit Invoice
-            </h2>
-
-            <form onSubmit={handleUpdateInvoice} className={styles.form} noValidate>
-              {editInvoiceError && (
-                <div className={styles.errorBanner} role="alert">
-                  {editInvoiceError}
-                </div>
-              )}
-
-              <div className={styles.formRow}>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="edit-invoice-number" className={styles.label}>
-                    Invoice #
-                  </label>
-                  <input
-                    type="text"
-                    id="edit-invoice-number"
-                    value={editInvoiceForm.invoiceNumber}
-                    onChange={(e) =>
-                      setEditInvoiceForm({ ...editInvoiceForm, invoiceNumber: e.target.value })
-                    }
-                    className={styles.input}
-                    placeholder="e.g., INV-001"
-                    maxLength={100}
-                    disabled={isUpdatingInvoice}
-                  />
-                </div>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="edit-amount" className={styles.label}>
-                    Amount <span className={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="number"
-                    id="edit-amount"
-                    value={editInvoiceForm.amount}
-                    onChange={(e) =>
-                      setEditInvoiceForm({ ...editInvoiceForm, amount: e.target.value })
-                    }
-                    className={styles.input}
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
-                    required
-                    disabled={isUpdatingInvoice}
-                  />
-                </div>
-              </div>
-
-              <div className={styles.formRow}>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="edit-invoice-date" className={styles.label}>
-                    Invoice Date <span className={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="date"
-                    id="edit-invoice-date"
-                    value={editInvoiceForm.date}
-                    onChange={(e) =>
-                      setEditInvoiceForm({ ...editInvoiceForm, date: e.target.value })
-                    }
-                    className={styles.input}
-                    required
-                    disabled={isUpdatingInvoice}
-                  />
-                </div>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="edit-due-date" className={styles.label}>
-                    Due Date
-                  </label>
-                  <input
-                    type="date"
-                    id="edit-due-date"
-                    value={editInvoiceForm.dueDate}
-                    onChange={(e) =>
-                      setEditInvoiceForm({ ...editInvoiceForm, dueDate: e.target.value })
-                    }
-                    className={styles.input}
-                    disabled={isUpdatingInvoice}
-                  />
-                </div>
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="edit-invoice-status" className={styles.label}>
-                  Status
-                </label>
-                <select
-                  id="edit-invoice-status"
-                  value={editInvoiceForm.status}
-                  onChange={(e) =>
-                    setEditInvoiceForm({
-                      ...editInvoiceForm,
-                      status: e.target.value as InvoiceStatus,
-                    })
-                  }
-                  className={styles.select}
-                  disabled={isUpdatingInvoice}
-                >
-                  <option value="pending">Pending</option>
-                  <option value="paid">Paid</option>
-                  <option value="claimed">Claimed</option>
-                </select>
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="edit-invoice-notes" className={styles.label}>
-                  Notes
-                </label>
-                <textarea
-                  id="edit-invoice-notes"
-                  value={editInvoiceForm.notes}
-                  onChange={(e) =>
-                    setEditInvoiceForm({ ...editInvoiceForm, notes: e.target.value })
-                  }
-                  className={styles.textarea}
-                  rows={3}
-                  disabled={isUpdatingInvoice}
-                />
-              </div>
-
-              <div className={styles.modalActions}>
-                <button
-                  type="button"
-                  className={styles.cancelButton}
-                  onClick={closeEditInvoiceModal}
-                  disabled={isUpdatingInvoice}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className={styles.saveButton}
-                  disabled={isUpdatingInvoice || !editInvoiceForm.amount || !editInvoiceForm.date}
-                >
-                  {isUpdatingInvoice ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>
