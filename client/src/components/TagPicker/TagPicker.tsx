@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type FormEvent } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TagResponse } from '@cornerstone/shared';
 import { TagPill } from '../TagPill/TagPill.js';
@@ -71,8 +71,7 @@ export function TagPicker({
     onSelectionChange(selectedTagIds.filter((id) => id !== tagId));
   };
 
-  const handleCreateTag = async (event: FormEvent) => {
-    event.preventDefault();
+  const handleCreateTag = async () => {
     if (!onCreateTag || !canCreateNew) return;
 
     setIsCreating(true);
@@ -140,7 +139,7 @@ export function TagPicker({
           )}
 
           {canCreateNew && (
-            <form className={styles.createForm} onSubmit={handleCreateTag}>
+            <div className={styles.createForm}>
               {createError && (
                 <div className={styles.createError} role="alert">
                   {createError}
@@ -162,10 +161,10 @@ export function TagPicker({
                   disabled={isCreating}
                 />
               </div>
-              <button type="submit" className={styles.createButton} disabled={isCreating}>
+              <button type="button" className={styles.createButton} disabled={isCreating} onClick={handleCreateTag}>
                 {isCreating ? t('tagPicker.creating') : t('tagPicker.createButton')}
               </button>
-            </form>
+            </div>
           )}
 
           {filteredTags.length === 0 && !canCreateNew && (
