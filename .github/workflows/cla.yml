@@ -31,7 +31,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PERSONAL_ACCESS_TOKEN: ${{ steps.app-token.outputs.token }}
         with:
-          remote-repository-name: steilerDev/cornerstone
+          remote-organization-name: steilerDev
+          remote-repository-name: cornerstone
           path-to-signatures: '.github/cla/signatures.json'
           path-to-document: 'https://github.com/steilerDev/cornerstone/blob/main/CLA.md'
           branch: 'beta'
