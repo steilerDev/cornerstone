@@ -261,13 +261,13 @@ describe('TagPicker', () => {
   // ---------------------------------------------------------------------------
   it('does not submit the parent form when the create button is clicked', async () => {
     const user = userEvent.setup();
-    const onSubmit = jest.fn((e: Event) => e.preventDefault());
+    const onSubmit = jest.fn();
     const newTag: TagResponse = { id: 'tag-reg', name: 'RegTag', color: '#3b82f6' };
     const onCreateTag = jest.fn<(name: string, color: string | null) => Promise<TagResponse>>()
       .mockResolvedValue(newTag);
 
     render(
-      <form onSubmit={onSubmit as unknown as React.FormEventHandler<HTMLFormElement>}>
+      <form onSubmit={onSubmit}>
         <TagPicker
           availableTags={[]}
           selectedTagIds={[]}
