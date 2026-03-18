@@ -743,8 +743,9 @@ export function VendorDetailPage() {
                         type="button"
                         className={`${styles.rowActionButton} ${styles.rowActionButtonDanger}`}
                         onClick={() => openDeleteInvoiceConfirm(invoice)}
+                        aria-label={`Delete invoice ${invoice.invoiceNumber ?? invoice.id}`}
                       >
-                        Delete
+                        {t('vendorDetail.buttons.deleteRow')}
                       </button>
                     </div>
                   </li>

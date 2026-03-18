@@ -1390,10 +1390,10 @@ describe('VendorDetailPage', () => {
     });
   });
 
-  // ─── Edit invoice modal ───────────────────────────────────────────────────
+  // ─── Invoice edit navigation ──────────────────────────────────────────────
 
-  describe('edit invoice modal', () => {
-    it('opens edit modal when Edit button is clicked on an invoice row', async () => {
+  describe('invoice edit navigation', () => {
+    it('navigates to invoice detail page when desktop table Edit button is clicked', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
       mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
 
@@ -1401,24 +1401,20 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', {
-            name: new RegExp(`edit invoice ${sampleInvoice.invoiceNumber}`, 'i'),
-          }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('table')).toBeInTheDocument();
       });
 
-      await user.click(
-        screen.getByRole('button', {
-          name: new RegExp(`edit invoice ${sampleInvoice.invoiceNumber}`, 'i'),
-        }),
-      );
+      const table = screen.getByRole('table');
+      await user.click(within(table).getByRole('button', { name: /edit invoice/i }));
 
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /edit invoice/i })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('invoice-detail-page')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
-    it('pre-fills the edit modal with current invoice values', async () => {
+    it('navigates to invoice detail page when mobile card Edit button is clicked', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
       mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
 
@@ -1426,145 +1422,19 @@ describe('VendorDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /edit invoice INV-001/i })).toBeInTheDocument();
+        const editButtons = screen.getAllByRole('button', { name: /edit invoice/i });
+        expect(editButtons.length).toBeGreaterThan(1);
       });
 
-      await user.click(screen.getByRole('button', { name: /edit invoice INV-001/i }));
-
-      const dialog = screen.getByRole('dialog');
-      // Amount field should be pre-filled
-      expect(within(dialog).getByDisplayValue('1500')).toBeInTheDocument();
-      // Invoice number field
-      expect(within(dialog).getByDisplayValue('INV-001')).toBeInTheDocument();
-    });
-
-    it('closes edit modal when Cancel is clicked', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-
-      const user = userEvent.setup();
-      renderPage();
+      // Index 1 is the mobile card button (index 0 is the desktop table button)
+      const editButtons = screen.getAllByRole('button', { name: /edit invoice/i });
+      await user.click(editButtons[1]);
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /edit invoice INV-001/i })).toBeInTheDocument();
+        expect(screen.getByTestId('invoice-detail-page')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /edit invoice INV-001/i }));
-      await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /cancel/i }));
-
-      await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      });
-    });
-
-    it('successfully saves invoice edits and closes the modal', async () => {
-      const updatedInvoice: Invoice = { ...sampleInvoice, status: 'paid', amount: 1500 };
-
-      mockFetchVendor.mockResolvedValue(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-      mockUpdateInvoice.mockResolvedValueOnce(updatedInvoice);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /edit invoice INV-001/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /edit invoice INV-001/i }));
-
-      const dialog = screen.getByRole('dialog');
-      const statusSelect = within(dialog).getByLabelText(/status/i);
-      await user.selectOptions(statusSelect, 'paid');
-
-      await user.click(within(dialog).getByRole('button', { name: /save changes/i }));
-
-      await waitFor(() => {
-        expect(mockUpdateInvoice).toHaveBeenCalledWith(
-          'vendor-1',
-          'invoice-1',
-          expect.objectContaining({ status: 'paid' }),
-        );
-      });
-
-      await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      });
-    });
-
-    it('updates the invoice list inline after successful edit', async () => {
-      const updatedInvoice: Invoice = { ...sampleInvoice, status: 'paid' };
-
-      mockFetchVendor.mockResolvedValue(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-      mockUpdateInvoice.mockResolvedValueOnce(updatedInvoice);
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getAllByText('Pending').length).toBeGreaterThan(0);
-      });
-
-      await user.click(screen.getByRole('button', { name: /edit invoice INV-001/i }));
-
-      const dialog = screen.getByRole('dialog');
-      await user.selectOptions(within(dialog).getByLabelText(/status/i), 'paid');
-      await user.click(within(dialog).getByRole('button', { name: /save changes/i }));
-
-      await waitFor(() => {
-        expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);
-      });
-    });
-
-    it('shows edit invoice error when API call fails', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-      mockUpdateInvoice.mockRejectedValueOnce(
-        new ApiClientError(400, {
-          code: 'VALIDATION_ERROR',
-          message: 'Amount must be greater than 0',
-        }),
-      );
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /edit invoice INV-001/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /edit invoice INV-001/i }));
-
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /save changes/i }));
-
-      await waitFor(() => {
-        expect(within(dialog).getByRole('alert')).toBeInTheDocument();
-        expect(within(dialog).getByText(/amount must be greater than 0/i)).toBeInTheDocument();
-      });
-    });
-
-    it('shows generic edit error for non-ApiClientError', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
-      mockUpdateInvoice.mockRejectedValueOnce(new Error('Network error'));
-
-      const user = userEvent.setup();
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /edit invoice INV-001/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /edit invoice INV-001/i }));
-
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /save changes/i }));
-
-      await waitFor(() => {
-        expect(within(dialog).getByText(/failed to update invoice/i)).toBeInTheDocument();
-      });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
   });
 
