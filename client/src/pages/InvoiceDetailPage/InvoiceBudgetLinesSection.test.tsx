@@ -18,8 +18,7 @@ import type {
 
 // ─── Module-scope mock functions ───────────────────────────────────────────────
 
-const mockFetchBudgetCategories =
-  jest.fn<typeof BudgetCategoriesApiTypes.fetchBudgetCategories>();
+const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiTypes.fetchBudgetCategories>();
 const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
 const mockCreateWorkItemBudget = jest.fn<typeof WorkItemBudgetsApiTypes.createWorkItemBudget>();
 const mockCreateHouseholdItemBudget =
@@ -776,9 +775,7 @@ describe('InvoiceBudgetLinesSection', () => {
 
       // Step 2: no unlinked budget lines → "Create Budget Line" button appears
       await waitFor(() =>
-        expect(
-          screen.getByRole('button', { name: /Create Budget Line/i }),
-        ).toBeInTheDocument(),
+        expect(screen.getByRole('button', { name: /Create Budget Line/i })).toBeInTheDocument(),
       );
 
       // Click "Create Budget Line" → loads categories + sources, shows inline form
@@ -806,9 +803,7 @@ describe('InvoiceBudgetLinesSection', () => {
     it('lists all budget sources as options including "No funding source"', async () => {
       await openCreateForm();
       const select = screen.getByLabelText(/Funding Source/i);
-      expect(select).toContainElement(
-        select.querySelector('option[value=""]') as HTMLElement,
-      );
+      expect(select).toContainElement(select.querySelector('option[value=""]') as HTMLElement);
       expect(select).toContainElement(
         select.querySelector('option[value="bs-disc"]') as HTMLElement,
       );
@@ -867,9 +862,7 @@ describe('InvoiceBudgetLinesSection', () => {
       });
 
       await waitFor(() =>
-        expect(
-          screen.getByRole('button', { name: /Create Budget Line/i }),
-        ).toBeInTheDocument(),
+        expect(screen.getByRole('button', { name: /Create Budget Line/i })).toBeInTheDocument(),
       );
 
       // Click "Create Budget Line" — fetchBudgetSources will reject
@@ -878,9 +871,7 @@ describe('InvoiceBudgetLinesSection', () => {
       });
 
       // Error banner should appear in the picker step
-      await waitFor(() =>
-        expect(screen.getByRole('alert')).toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
       expect(screen.getByText('Failed to load form data.')).toBeInTheDocument();
     });
   });
