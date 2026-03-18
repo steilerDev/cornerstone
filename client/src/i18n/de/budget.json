@@ -290,93 +290,6 @@
       "invoiceDeleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
     }
   },
-  "invoices": {
-    "title": "Budget",
-    "sectionTitle": "Rechnungen",
-    "addInvoice": "Rechnung Hinzufügen",
-    "addFirstInvoice": "Erste Rechnung Hinzufügen",
-    "loading": "Rechnungen werden geladen...",
-    "error": "Fehler",
-    "errorMessage": "Rechnungen konnten nicht geladen werden. Bitte versuchen Sie es später erneut.",
-    "retry": "Erneut versuchen",
-    "noInvoicesTitle": "Noch keine Rechnungen",
-    "noInvoicesDescription": "Fügen Sie Ihre erste Rechnung hinzu, um die Auftragnehmer-Zahlungen zu verfolgen.",
-    "searchPlaceholder": "Nach Rechnungsnummer suchen...",
-    "summaryPending": "Ausstehend",
-    "summaryPaid": "Bezahlt",
-    "summaryClaimed": "Eingereicht",
-    "filterByStatus": "Nach Status filtern",
-    "filterByVendor": "Nach Auftragnehmer filtern",
-    "allStatuses": "Alle Status",
-    "allVendors": "Alle Auftragnehmer",
-    "sortLabel": "Sortieren:",
-    "sortDate": "Datum",
-    "sortAmount": "Betrag",
-    "sortStatus": "Status",
-    "sortVendor": "Auftragnehmer",
-    "sortDueDate": "Fälligkeitsdatum",
-    "sortAsc": "↑ Aufsteigend",
-    "sortDesc": "↓ Absteigend",
-    "noFilterResults": "Keine Rechnungen entsprechen Ihren Filtern",
-    "tryDifferentFilters": "Versuchen Sie unterschiedliche Filter oder löschen Sie sie, um alle Rechnungen zu sehen.",
-    "clearFilters": "Filter Löschen",
-    "pagination": "Anzeige {{from}} bis {{to}} von {{total}} Rechnungen",
-    "previous": "Zurück",
-    "next": "Weiter",
-    "tableHeaders": {
-      "date": "Datum",
-      "invoiceNumber": "Rechnung #",
-      "vendor": "Auftragnehmer",
-      "amount": "Betrag",
-      "allocated": "Zugeordnet",
-      "dueDate": "Fälligkeitsdatum",
-      "status": "Status"
-    },
-    "form": {
-      "vendor": "Auftragnehmer",
-      "invoiceNumber": "Rechnung #",
-      "amount": "Betrag",
-      "invoiceDate": "Rechnungsdatum",
-      "dueDate": "Fälligkeitsdatum",
-      "status": "Status",
-      "notes": "Notizen",
-      "required": "*",
-      "placeholders": {
-        "vendor": "Auftragnehmer auswählen...",
-        "invoiceNumber": "z. B. ReCH-001",
-        "amount": "0.00"
-      }
-    },
-    "validation": {
-      "vendorRequired": "Bitte wählen Sie einen Auftragnehmer aus.",
-      "amountRequired": "Betrag muss eine positive Zahl sein.",
-      "dateRequired": "Rechnungsdatum ist erforderlich."
-    },
-    "buttons": {
-      "create": "Rechnung Hinzufügen",
-      "creating": "Wird hinzugefügt...",
-      "save": "Änderungen Speichern",
-      "saving": "Wird gespeichert...",
-      "cancel": "Abbrechen",
-      "view": "Anzeigen"
-    },
-    "statusLabels": {
-      "pending": "Ausstehend",
-      "paid": "Bezahlt",
-      "claimed": "Eingereicht"
-    },
-    "modal": {
-      "title": "Rechnung Hinzufügen",
-      "deleteTitle": "Rechnung Löschen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie die Rechnung {{number}} für {{amount}} löschen möchten?",
-      "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden."
-    },
-    "messages": {
-      "createError": "Rechnung konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",
-      "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
-      "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
-    }
-  },
   "invoiceDetail": {
     "loading": "Rechnung wird geladen...",
     "error": "Fehler",
@@ -519,6 +432,142 @@
       "updated": "Förderprogramm \"{{name}}\" erfolgreich aktualisiert",
       "deleted": "Förderprogramm \"{{name}}\" erfolgreich gelöscht"
     }
+  },
+  "budgetLineForm": {
+    "descriptionLabel": "Beschreibung",
+    "descriptionPlaceholder": "Optionale Beschreibung",
+    "modeDirect": "Direktbetrag",
+    "modeUnit": "Einheitspreise",
+    "plannedAmountLabel": "Geplanter Betrag ({{currencySymbol}}) *",
+    "quantityLabel": "Menge *",
+    "unitLabel": "Einheit",
+    "unitPlaceholder": "z. B. m², Stk.",
+    "priceLabel": "Preis *",
+    "totalLabel": "Gesamt",
+    "includesVatLabel": "Preis inkl. MwSt. ({{vatRate}}%)",
+    "vatNote": "+{{vatRate}}% MwSt. wird zum Gesamtbetrag hinzugefügt",
+    "confidenceLabel": "Konfidenz",
+    "categoryLabel": "Kategorie",
+    "categoryNone": "Keine",
+    "fundingSourceLabel": "Finanzierungsquelle",
+    "vendorLabel": "Auftragnehmer",
+    "vendorNone": "Keiner",
+    "submitSaving": "Wird gespeichert...",
+    "submitSave": "Änderungen speichern",
+    "submitAdd": "Position hinzufügen",
+    "cancel": "Abbrechen"
+  },
+  "health": {
+    "overBudget": "Über Budget",
+    "atRisk": "Gefährdet",
+    "onBudget": "Im Budget"
+  },
+  "bar": {
+    "overflowLabel": "Überlauf",
+    "ariaBreakdown": "Budgetaufschlüsselung: {{details}}",
+    "ariaNoData": "Budgetaufschlüsselung: keine Daten"
+  },
+  "invoices": {
+    "title": "Budget",
+    "sectionTitle": "Rechnungen",
+    "addInvoice": "Rechnung Hinzufügen",
+    "addFirstInvoice": "Erste Rechnung Hinzufügen",
+    "loading": "Rechnungen werden geladen...",
+    "error": "Fehler",
+    "errorMessage": "Rechnungen konnten nicht geladen werden. Bitte versuchen Sie es später erneut.",
+    "retry": "Erneut versuchen",
+    "noInvoicesTitle": "Noch keine Rechnungen",
+    "noInvoicesDescription": "Fügen Sie Ihre erste Rechnung hinzu, um die Auftragnehmer-Zahlungen zu verfolgen.",
+    "searchPlaceholder": "Nach Rechnungsnummer suchen...",
+    "summaryPending": "Ausstehend",
+    "summaryPaid": "Bezahlt",
+    "summaryClaimed": "Eingereicht",
+    "filterByStatus": "Nach Status filtern",
+    "filterByVendor": "Nach Auftragnehmer filtern",
+    "allStatuses": "Alle Status",
+    "allVendors": "Alle Auftragnehmer",
+    "sortLabel": "Sortieren:",
+    "sortDate": "Datum",
+    "sortAmount": "Betrag",
+    "sortStatus": "Status",
+    "sortVendor": "Auftragnehmer",
+    "sortDueDate": "Fälligkeitsdatum",
+    "sortAsc": "↑ Aufsteigend",
+    "sortDesc": "↓ Absteigend",
+    "noFilterResults": "Keine Rechnungen entsprechen Ihren Filtern",
+    "tryDifferentFilters": "Versuchen Sie unterschiedliche Filter oder löschen Sie sie, um alle Rechnungen zu sehen.",
+    "clearFilters": "Filter Löschen",
+    "pagination": "Anzeige {{from}} bis {{to}} von {{total}} Rechnungen",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "tableHeaders": {
+      "date": "Datum",
+      "invoiceNumber": "Rechnung #",
+      "vendor": "Auftragnehmer",
+      "amount": "Betrag",
+      "allocated": "Zugeordnet",
+      "dueDate": "Fälligkeitsdatum",
+      "status": "Status"
+    },
+    "form": {
+      "vendor": "Auftragnehmer",
+      "invoiceNumber": "Rechnung #",
+      "amount": "Betrag",
+      "invoiceDate": "Rechnungsdatum",
+      "dueDate": "Fälligkeitsdatum",
+      "status": "Status",
+      "notes": "Notizen",
+      "required": "*",
+      "placeholders": {
+        "vendor": "Auftragnehmer auswählen...",
+        "invoiceNumber": "z. B. ReCH-001",
+        "amount": "0.00"
+      }
+    },
+    "validation": {
+      "vendorRequired": "Bitte wählen Sie einen Auftragnehmer aus.",
+      "amountRequired": "Betrag muss eine positive Zahl sein.",
+      "dateRequired": "Rechnungsdatum ist erforderlich."
+    },
+    "buttons": {
+      "create": "Rechnung Hinzufügen",
+      "creating": "Wird hinzugefügt...",
+      "save": "Änderungen Speichern",
+      "saving": "Wird gespeichert...",
+      "cancel": "Abbrechen",
+      "view": "Anzeigen"
+    },
+    "statusLabels": {
+      "pending": "Ausstehend",
+      "paid": "Bezahlt",
+      "claimed": "Eingereicht"
+    },
+    "modal": {
+      "title": "Rechnung Hinzufügen",
+      "deleteTitle": "Rechnung Löschen",
+      "deleteConfirm": "Sind Sie sicher, dass Sie die Rechnung {{number}} für {{amount}} löschen möchten?",
+      "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden."
+    },
+    "messages": {
+      "createError": "Rechnung konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",
+      "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
+      "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
+    },
+    "attribution": {
+      "none": "\u2014",
+      "lines": "{{count}} Positionen",
+      "allocated": "{{pct}}% zugeordnet"
+    },
+    "retryButton": "Erneut versuchen",
+    "searchAriaLabel": "Rechnungen durchsuchen",
+    "filterStatusAriaLabel": "Nach Status filtern",
+    "filterVendorAriaLabel": "Nach Auftragnehmer filtern",
+    "sortOrderAriaLabel": "Sortierreihenfolge umschalten",
+    "actionsHeader": "Aktionen",
+    "noNumber": "Keine Nummer",
+    "duePrefix": "Fällig:",
+    "paginationPreviousAriaLabel": "Vorherige Seite",
+    "paginationNextAriaLabel": "Nächste Seite"
   },
   "common": {
     "loading": "Wird geladen...",
