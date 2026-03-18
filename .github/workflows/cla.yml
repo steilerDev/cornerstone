@@ -44,3 +44,4 @@ jobs:
             To sign, please comment on this PR with:<br/>
             **I have read the CLA Document and I hereby sign the CLA**
           custom-pr-sign-comment: 'I have read the CLA Document and I hereby sign the CLA'
+          signed-commit-message: 'chore: record CLA signature for $contributorName (#$pullRequestNo) [skip ci]'
