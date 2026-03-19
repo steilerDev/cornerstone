@@ -117,9 +117,9 @@ function getColumnNames(db: Database.Database, table: string): string[] {
  * Returns the names of all tables in the database.
  */
 function getTableNames(db: Database.Database): string[] {
-  const rows = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as Array<{
-    name: string;
-  }>;
+  const rows = db
+    .prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`)
+    .all() as Array<{ name: string }>;
   return rows.map((r) => r.name);
 }
 
@@ -230,9 +230,9 @@ describe('Migration 0028: Areas and Trades Rework', () => {
         .run('area-kitchen', 'Kitchen', null, '#FF5733', 'Main kitchen area', 0, now, now);
     }).not.toThrow();
 
-    const row = sqlite
-      .prepare('SELECT id, name, parent_id FROM areas WHERE id = ?')
-      .get('area-kitchen') as { id: string; name: string; parent_id: string | null } | undefined;
+    const row = sqlite.prepare('SELECT id, name, parent_id FROM areas WHERE id = ?').get('area-kitchen') as
+      | { id: string; name: string; parent_id: string | null }
+      | undefined;
     expect(row).toBeDefined();
     expect(row?.id).toBe('area-kitchen');
     expect(row?.name).toBe('Kitchen');
@@ -350,9 +350,9 @@ describe('Migration 0028: Areas and Trades Rework', () => {
 
     runMigration0028(sqlite);
 
-    const vendor = sqlite
-      .prepare('SELECT id, name, trade_id FROM vendors WHERE id = ?')
-      .get('vendor-001') as { id: string; name: string; trade_id: string } | undefined;
+    const vendor = sqlite.prepare('SELECT id, name, trade_id FROM vendors WHERE id = ?').get('vendor-001') as
+      | { id: string; name: string; trade_id: string }
+      | undefined;
     expect(vendor).toBeDefined();
     expect(vendor?.name).toBe('Acme Plumbing Co');
     // 'Plumbing' matches the seeded trade-plumbing by name (case-insensitive)
@@ -374,9 +374,9 @@ describe('Migration 0028: Areas and Trades Rework', () => {
 
     runMigration0028(sqlite);
 
-    const vendor = sqlite
-      .prepare('SELECT id, name, trade_id FROM vendors WHERE id = ?')
-      .get('vendor-002') as { id: string; name: string; trade_id: string } | undefined;
+    const vendor = sqlite.prepare('SELECT id, name, trade_id FROM vendors WHERE id = ?').get('vendor-002') as
+      | { id: string; name: string; trade_id: string }
+      | undefined;
     expect(vendor).toBeDefined();
     expect(vendor?.name).toBe('Mystery Corp');
     // Unmatched specialty gets a custom trade inserted, then SET NULL check means trade-other for unmatched
@@ -420,9 +420,7 @@ describe('Migration 0028: Areas and Trades Rework', () => {
 
     const wi = sqlite
       .prepare('SELECT id, area_id, assigned_vendor_id FROM work_items WHERE id = ?')
-      .get('wi-001') as
-      | { id: string; area_id: string | null; assigned_vendor_id: string | null }
-      | undefined;
+      .get('wi-001') as { id: string; area_id: string | null; assigned_vendor_id: string | null } | undefined;
     expect(wi).toBeDefined();
     expect(wi?.area_id).toBeNull();
     expect(wi?.assigned_vendor_id).toBeNull();

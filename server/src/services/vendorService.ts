@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, asc, desc, sql, or, and } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { vendors, invoices, workItemBudgets, users } from '../db/schema.js';
+import { vendors, invoices, workItemBudgets, users, trades } from '../db/schema.js';
 import type {
   Vendor,
   VendorDetail,
@@ -11,6 +11,7 @@ import type {
   VendorListQuery,
   PaginationMeta,
   UserSummary,
+  TradeSummary,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError, VendorInUseError } from '../errors/AppError.js';
 import * as vendorContactService from './vendorContactService.js';
@@ -38,10 +39,23 @@ function toVendor(db: DbType, row: typeof vendors.$inferSelect): Vendor {
     ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
     : null;
 
+  // Resolve trade if present
+  let trade: TradeSummary | null = null;
+  if (row.tradeId) {
+    const tradeRow = db.select().from(trades).where(eq(trades.id, row.tradeId)).get();
+    if (tradeRow) {
+      trade = {
+        id: tradeRow.id,
+        name: tradeRow.name,
+        color: tradeRow.color,
+      };
+    }
+  }
+
   return {
     id: row.id,
     name: row.name,
-    trade: null, // TODO: JOIN to trades table in Story 3
+    trade,
     phone: row.phone,
     email: row.email,
     address: row.address,
@@ -112,7 +126,13 @@ export function listVendors(
     // Escape SQL LIKE wildcards (% and _) in user input
     const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
     const pattern = `%${escapedQ}%`;
-    conditions.push(sql`LOWER(${vendors.name}) LIKE LOWER(${pattern}) ESCAPE '\\'`!);
+    conditions.push(
+      sql`(LOWER(${vendors.name}) LIKE LOWER(${pattern}) ESCAPE '\\' OR EXISTS (SELECT 1 FROM trades WHERE trades.id = ${vendors.tradeId} AND LOWER(trades.name) LIKE LOWER(${pattern}) ESCAPE '\\'))`!,
+    );
+  }
+
+  if (query.tradeId) {
+    conditions.push(eq(vendors.tradeId, query.tradeId));
   }
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -127,16 +147,18 @@ export function listVendors(
   const totalPages = Math.ceil(totalItems / pageSize);
 
   // Build ORDER BY
-  const sortColumn =
-    sortBy === 'created_at'
-      ? vendors.createdAt
-      : sortBy === 'updated_at'
-        ? vendors.updatedAt
-        : sortBy === 'trade'
-          ? vendors.name // TODO: sort by trade name via JOIN in Story 3
-          : vendors.name;
-
-  const orderBy = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
+  let orderByClause: any;
+  if (sortBy === 'trade') {
+    // Sort by trade name via subquery
+    const sortDirection = sortOrder === 'asc' ? 'ASC' : 'DESC';
+    orderByClause = sql`(SELECT COALESCE(${trades.name}, '') FROM ${trades} WHERE ${trades.id} = ${vendors.tradeId}) ${sql.raw(sortDirection)}`;
+  } else if (sortBy === 'created_at') {
+    orderByClause = sortOrder === 'asc' ? asc(vendors.createdAt) : desc(vendors.createdAt);
+  } else if (sortBy === 'updated_at') {
+    orderByClause = sortOrder === 'asc' ? asc(vendors.updatedAt) : desc(vendors.updatedAt);
+  } else {
+    orderByClause = sortOrder === 'asc' ? asc(vendors.name) : desc(vendors.name);
+  }
 
   // Fetch paginated items
   const offset = (page - 1) * pageSize;
@@ -144,7 +166,7 @@ export function listVendors(
     .select()
     .from(vendors)
     .where(whereClause)
-    .orderBy(orderBy)
+    .orderBy(orderByClause)
     .limit(pageSize)
     .offset(offset)
     .all();
@@ -176,13 +198,21 @@ export function getVendorById(db: DbType, id: string): VendorDetail {
 
 /**
  * Create a new vendor.
- * @throws ValidationError if name is invalid
+ * @throws ValidationError if name is invalid or tradeId doesn't exist
  */
 export function createVendor(db: DbType, data: CreateVendorRequest, userId: string): Vendor {
   // Validate name
   const trimmedName = data.name.trim();
   if (trimmedName.length === 0 || trimmedName.length > 200) {
     throw new ValidationError('Vendor name must be between 1 and 200 characters');
+  }
+
+  // Validate tradeId exists if provided
+  if (data.tradeId !== undefined && data.tradeId !== null) {
+    const trade = db.select().from(trades).where(eq(trades.id, data.tradeId)).get();
+    if (!trade) {
+      throw new ValidationError('Trade does not exist');
+    }
   }
 
   const id = randomUUID();
@@ -192,7 +222,7 @@ export function createVendor(db: DbType, data: CreateVendorRequest, userId: stri
     .values({
       id,
       name: trimmedName,
-      tradeId: null, // TODO: support trade linking in Story 3
+      tradeId: data.tradeId ?? null,
       phone: data.phone ?? null,
       email: data.email ?? null,
       address: data.address ?? null,
@@ -210,7 +240,7 @@ export function createVendor(db: DbType, data: CreateVendorRequest, userId: stri
 /**
  * Update a vendor's details (partial update).
  * @throws NotFoundError if vendor does not exist
- * @throws ValidationError if provided fields are invalid
+ * @throws ValidationError if provided fields are invalid or tradeId doesn't exist
  */
 export function updateVendor(db: DbType, id: string, data: UpdateVendorRequest): VendorDetail {
   const existing = db.select().from(vendors).where(eq(vendors.id, id)).get();
@@ -221,6 +251,7 @@ export function updateVendor(db: DbType, id: string, data: UpdateVendorRequest):
   // Validate at least one field provided
   if (
     data.name === undefined &&
+    data.tradeId === undefined &&
     data.phone === undefined &&
     data.email === undefined &&
     data.address === undefined &&
@@ -239,7 +270,16 @@ export function updateVendor(db: DbType, id: string, data: UpdateVendorRequest):
     updates.name = trimmedName;
   }
 
-  // Note: tradeId updates are not supported yet (Story 3)
+  if (data.tradeId !== undefined) {
+    // Validate tradeId exists if non-null
+    if (data.tradeId !== null) {
+      const trade = db.select().from(trades).where(eq(trades.id, data.tradeId)).get();
+      if (!trade) {
+        throw new ValidationError('Trade does not exist');
+      }
+    }
+    updates.tradeId = data.tradeId;
+  }
 
   if (data.phone !== undefined) {
     updates.phone = data.phone;

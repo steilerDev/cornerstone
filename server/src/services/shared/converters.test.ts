@@ -285,3 +285,4 @@ describe('toVendorSummary()', () => {
     expect(result).not.toHaveProperty('createdAt');
   });
 });
+

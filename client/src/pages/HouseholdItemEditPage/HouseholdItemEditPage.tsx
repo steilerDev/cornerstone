@@ -1,7 +1,10 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { HouseholdItemCategory, HouseholdItemCategoryEntity } from '@cornerstone/shared';
+import type {
+  HouseholdItemCategory,
+  HouseholdItemCategoryEntity,
+} from '@cornerstone/shared';
 import { getHouseholdItem, updateHouseholdItem } from '../../lib/householdItemsApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';

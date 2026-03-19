@@ -25,6 +25,8 @@ import subtaskRoutes from './routes/subtasks.js';
 import dependencyRoutes from './routes/dependencies.js';
 import budgetCategoryRoutes from './routes/budgetCategories.js';
 import budgetSourceRoutes from './routes/budgetSources.js';
+import areaRoutes from './routes/areas.js';
+import tradeRoutes from './routes/trades.js';
 import vendorRoutes from './routes/vendors.js';
 import invoiceRoutes from './routes/invoices.js';
 import standaloneInvoiceRoutes from './routes/standaloneInvoices.js';
@@ -139,6 +141,12 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Budget source routes
   await app.register(budgetSourceRoutes, { prefix: '/api/budget-sources' });
+
+  // Area routes (EPIC-18: Areas Management)
+  await app.register(areaRoutes, { prefix: '/api/areas' });
+
+  // Trade routes (EPIC-18: Trades Management)
+  await app.register(tradeRoutes, { prefix: '/api/trades' });
 
   // Vendor/contractor routes
   await app.register(vendorRoutes, { prefix: '/api/vendors' });
