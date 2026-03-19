@@ -77,6 +77,9 @@ export function WorkItemsPage() {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Screen reader announcement for filter toggle
+  const [srMessage, setSrMessage] = useState('');
+
   // Load users and tags on mount
   useEffect(() => {
     const loadFilters = async () => {
@@ -243,6 +246,7 @@ export function WorkItemsPage() {
 
   const handleNoBudgetFilterChange = (checked: boolean) => {
     updateSearchParams({ noBudget: checked ? 'true' : undefined, page: '1' });
+    setSrMessage(checked ? t('list.filters.noBudgetActive') : t('list.filters.noBudgetInactive'));
   };
 
   const handleSortChange = (field: string) => {
@@ -504,17 +508,18 @@ export function WorkItemsPage() {
             </select>
           </div>
 
-          <div className={styles.filter}>
-            <label className={styles.filterLabel}>
-              <input
-                type="checkbox"
-                checked={noBudgetFilter}
-                onChange={(e) => handleNoBudgetFilterChange(e.target.checked)}
-                aria-label={t('list.filters.noBudgetAriaLabel')}
-              />{' '}
-              {t('list.filters.noBudget')}
-            </label>
-          </div>
+          <button
+            type="button"
+            className={styles.noBudgetToggle}
+            aria-pressed={noBudgetFilter}
+            aria-label={t('list.filters.noBudgetAriaLabel')}
+            onClick={() => handleNoBudgetFilterChange(!noBudgetFilter)}
+          >
+            {t('list.filters.noBudget')}
+          </button>
+          <span className={styles.srOnly} role="status" aria-atomic="true">
+            {srMessage}
+          </span>
 
           <div className={styles.filter}>
             <label htmlFor="sort-filter" className={styles.filterLabel}>
@@ -610,7 +615,7 @@ export function WorkItemsPage() {
                     {renderSortIcon('end_date')}
                   </th>
                   <th>{t('list.table.tags')}</th>
-                  <th>{t('list.table.budgetLines')}</th>
+                  <th className={styles.budgetLinesColumn}>{t('list.table.budgetLines')}</th>
                   <th className={styles.actionsColumn}>{t('list.table.actions')}</th>
                 </tr>
               </thead>
@@ -637,7 +642,20 @@ export function WorkItemsPage() {
                           : '—'}
                       </div>
                     </td>
-                    <td>{item.budgetLineCount > 0 ? item.budgetLineCount : '—'}</td>
+                    <td className={styles.budgetLinesCell}>
+                      <span
+                        className={
+                          item.budgetLineCount > 0
+                            ? styles.budgetLineCountPositive
+                            : styles.budgetLineCountZero
+                        }
+                        aria-label={t('list.table.budgetLinesAriaLabel', {
+                          count: item.budgetLineCount,
+                        })}
+                      >
+                        {item.budgetLineCount}
+                      </span>
+                    </td>
                     <td className={styles.actionsCell} onClick={(e) => e.stopPropagation()}>
                       <div className={styles.actionsMenu}>
                         <button
@@ -740,7 +758,18 @@ export function WorkItemsPage() {
                   )}
                   <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>{t('list.card.budgetLines')}</span>
-                    <span>{item.budgetLineCount > 0 ? item.budgetLineCount : '—'}</span>
+                    <span
+                      className={
+                        item.budgetLineCount > 0
+                          ? styles.budgetLineCountPositive
+                          : styles.budgetLineCountZero
+                      }
+                      aria-label={t('list.table.budgetLinesAriaLabel', {
+                        count: item.budgetLineCount,
+                      })}
+                    >
+                      {item.budgetLineCount}
+                    </span>
                   </div>
                 </div>
               </div>

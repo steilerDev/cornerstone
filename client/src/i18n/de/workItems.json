@@ -14,6 +14,10 @@
       "allUsers": "Alle Benutzer",
       "tag": "Tag:",
       "allTags": "Alle Tags",
+      "noBudget": "Kein Budget",
+      "noBudgetAriaLabel": "Nur Arbeitspakete ohne Budgetpositionen anzeigen",
+      "noBudgetActive": "Kein-Budget-Filter aktiv",
+      "noBudgetInactive": "Kein-Budget-Filter aufgehoben",
       "sortBy": "Sortieren nach:",
       "sortAscending": "↑ Aufsteigend",
       "sortDescending": "↓ Absteigend",
@@ -42,6 +46,8 @@
       "startDate": "Startdatum",
       "endDate": "Enddatum",
       "tags": "Tags",
+      "budgetLines": "Budgetpositionen",
+      "budgetLinesAriaLabel": "{{count}} Budgetpositionen",
       "actions": "Aktionen"
     },
     "card": {
@@ -49,7 +55,8 @@
       "assigned": "Zugewiesen:",
       "start": "Start:",
       "end": "Ende:",
-      "tags": "Tags:"
+      "tags": "Tags:",
+      "budgetLines": "Budgetpositionen:"
     },
     "actions": {
       "actionsMenu": "Aktionsmenü",
@@ -303,8 +310,8 @@
         "remove": "Entfernen"
       },
       "deleteBudgetLine": {
-        "title": "Budgetzeile löschen?",
-        "text": "Sind Sie sicher, dass Sie diese Budgetzeile löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+        "title": "Budgetposition löschen?",
+        "text": "Sind Sie sicher, dass Sie diese Budgetposition löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
         "cancel": "Abbrechen",
         "delete": "Löschen"
       }
@@ -339,7 +346,7 @@
       "loadFailed": "Arbeitspaket konnte nicht geladen werden. Bitte erneut versuchen.",
       "unlinkSubsidy": "Förderprogramm konnte nicht aufgehoben werden",
       "alreadyLinkedSubsidy": "Dieses Förderprogramm ist bereits verknüpft",
-      "unlinkInvoice": "Budgetzeile konnte nicht von Rechnung getrennt werden",
+      "unlinkInvoice": "Budgetposition konnte nicht von Rechnung getrennt werden",
       "deleteWorkItem": "Arbeitspaket konnte nicht gelöscht werden"
     },
     "dismissError": "Fehler ausblenden",
