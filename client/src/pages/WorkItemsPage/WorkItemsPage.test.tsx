@@ -454,7 +454,9 @@ describe('WorkItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/show only work items without budget lines/i)).toBeInTheDocument();
+        expect(
+          screen.getByLabelText(/show only work items without budget lines/i),
+        ).toBeInTheDocument();
       });
 
       const toggle = screen.getByLabelText(/show only work items without budget lines/i);
@@ -467,7 +469,9 @@ describe('WorkItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/show only work items without budget lines/i)).toBeInTheDocument();
+        expect(
+          screen.getByLabelText(/show only work items without budget lines/i),
+        ).toBeInTheDocument();
       });
 
       const toggle = screen.getByLabelText(/show only work items without budget lines/i);
@@ -480,7 +484,9 @@ describe('WorkItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/show only work items without budget lines/i)).toBeInTheDocument();
+        expect(
+          screen.getByLabelText(/show only work items without budget lines/i),
+        ).toBeInTheDocument();
       });
 
       const toggle = screen.getByLabelText(/show only work items without budget lines/i);
@@ -493,7 +499,9 @@ describe('WorkItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/show only work items without budget lines/i)).toBeInTheDocument();
+        expect(
+          screen.getByLabelText(/show only work items without budget lines/i),
+        ).toBeInTheDocument();
       });
 
       const toggle = screen.getByLabelText(/show only work items without budget lines/i);
@@ -506,7 +514,9 @@ describe('WorkItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/show only work items without budget lines/i)).toBeInTheDocument();
+        expect(
+          screen.getByLabelText(/show only work items without budget lines/i),
+        ).toBeInTheDocument();
       });
 
       const toggle = screen.getByLabelText(/show only work items without budget lines/i);

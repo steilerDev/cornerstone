@@ -63,13 +63,17 @@ Work Items:
 Before proceeding, present the user with:
 
 #### Questions
+
 Identify 2–5 open questions about the spec — ambiguities, missing details, edge cases, or unclear scope boundaries. Format as a numbered list. Focus on questions whose answers would change the work items or their scope.
 
 #### Alternative Approaches
+
 If there are meaningful alternative ways to implement the spec (different data models, UI patterns, API designs, phasing strategies), present 1–3 alternatives with brief trade-off analysis. Only raise alternatives that would materially change the work items — skip this section if the approach is straightforward.
 
 #### Implications
+
 Flag any consequences the user might not have considered:
+
 - **Breaking changes**: Will this change existing API contracts, database schemas, or UI behavior?
 - **Migration concerns**: Does this require data migration or backfill?
 - **Performance**: Could this introduce performance issues at scale?
@@ -81,12 +85,14 @@ Skip any implication category that doesn't apply.
 ### 5. User Confirmation
 
 Wait for the user to:
+
 - Answer the questions
 - Confirm or adjust the work items
 - Choose an approach (if alternatives were presented)
 - Acknowledge implications
 
 **Do NOT proceed until the user explicitly confirms.** The user may:
+
 - Adjust the work item list (add, remove, reorder, merge, or split items)
 - Refine descriptions
 - Answer questions that change the decomposition
@@ -99,6 +105,7 @@ Iterate steps 3–5 until the user is satisfied.
 Once the user confirms, exit planning mode (`ExitPlanMode`).
 
 **Create GitHub Issues** for each work item using the **product-owner** agent. For each item:
+
 - Create an issue with the `user-story` or `bug` label (as appropriate)
 - Include acceptance criteria in Given/When/Then format derived from the spec and the user's answers
 - Add to the Projects board in "Todo"
