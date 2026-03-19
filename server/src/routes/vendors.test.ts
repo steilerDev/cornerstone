@@ -7,7 +7,7 @@ import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
 import type { Vendor, VendorDetail, ApiErrorResponse } from '@cornerstone/shared';
-import { vendors, invoices, workItems, workItemBudgets } from '../db/schema.js';
+import { vendors, invoices, workItems, workItemBudgets, trades } from '../db/schema.js';
 
 describe('Vendor Routes', () => {
   let app: FastifyInstance;
@@ -22,6 +22,9 @@ describe('Vendor Routes', () => {
     process.env.SECURE_COOKIES = 'false';
 
     app = await buildApp();
+    // Migration 0028 seeds 15 default trades — delete them so tests start with an empty trades table.
+    // Tests that need trades create them explicitly via createTestTrade().
+    app.db.delete(trades).run();
   });
 
   afterEach(async () => {
@@ -151,6 +154,39 @@ describe('Vendor Routes', () => {
     return workItemId;
   }
 
+  /**
+   * Helper: Insert a trade directly into the database.
+   */
+  let tradeTimestampOffset = 0;
+
+  function createTestTrade(
+    name: string,
+    options: {
+      description?: string | null;
+      color?: string | null;
+      sortOrder?: number;
+    } = {},
+  ) {
+    const id = `trade-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const timestamp = new Date(Date.now() + tradeTimestampOffset).toISOString();
+    tradeTimestampOffset += 1;
+
+    app.db
+      .insert(trades)
+      .values({
+        id,
+        name,
+        description: options.description ?? null,
+        color: options.color ?? null,
+        sortOrder: options.sortOrder ?? 0,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      })
+      .run();
+
+    return { id, name, ...options, createdAt: timestamp, updatedAt: timestamp };
+  }
+
   // ─── GET /api/vendors ──────────────────────────────────────────────────────
 
   describe('GET /api/vendors', () => {
@@ -185,11 +221,9 @@ describe('Vendor Routes', () => {
       expect(body.vendors).toHaveLength(2);
     });
 
-    it('returns all vendor fields in list', async () => {
-      // TODO: trade JOIN not yet implemented (Story 3) — trade is always null
+    it('returns all vendor fields in list (trade is null when no tradeId set)', async () => {
       const { cookie, userId } = await createUserWithSession('user@test.com', 'User', 'password');
       createTestVendor('Full Vendor', {
-        tradeId: 'trade-plumbing',
         phone: '555-1234',
         email: 'full@vendor.com',
         address: '123 Main St',
@@ -207,13 +241,33 @@ describe('Vendor Routes', () => {
       const body = response.json<{ vendors: Vendor[] }>();
       const vendor = body.vendors[0];
       expect(vendor.name).toBe('Full Vendor');
-      // trade JOIN not implemented yet (Story 3); trade is always null
       expect(vendor.trade).toBeNull();
       expect(vendor.phone).toBe('555-1234');
       expect(vendor.email).toBe('full@vendor.com');
       expect(vendor.address).toBe('123 Main St');
       expect(vendor.notes).toBe('Test notes');
       expect(vendor.createdBy).not.toBeNull();
+    });
+
+    it('returns trade object in vendor when tradeId is set', async () => {
+      const { cookie } = await createUserWithSession('user@trade-list.com', 'User', 'password');
+      const trade = createTestTrade('Plumbing', { color: '#3B82F6' });
+      createTestVendor('Trade Vendor', { tradeId: trade.id });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/vendors',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ vendors: Vendor[] }>();
+      const vendor = body.vendors.find((v) => v.name === 'Trade Vendor');
+      expect(vendor).toBeDefined();
+      expect(vendor!.trade).not.toBeNull();
+      expect(vendor!.trade!.id).toBe(trade.id);
+      expect(vendor!.trade!.name).toBe('Plumbing');
+      expect(vendor!.trade!.color).toBe('#3B82F6');
     });
 
     it('returns correct pagination metadata', async () => {
@@ -258,22 +312,24 @@ describe('Vendor Routes', () => {
       expect(body.vendors.every((v) => v.name.toLowerCase().includes('smith'))).toBe(true);
     });
 
-    it.skip('filters by trade name in search query (Story 3 — trade JOIN not yet implemented)', async () => {
-      // Trade-name search requires a JOIN to trades table (Story 3)
-      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
-      createTestVendor('Vendor A', { tradeId: 'trade-plumbing' });
-      createTestVendor('Vendor B', { tradeId: 'trade-electrical' });
+    it('filters by tradeId query parameter', async () => {
+      const { cookie } = await createUserWithSession('user@trade-filter.com', 'User', 'password');
+      const plumbing = createTestTrade('Plumbing');
+      const electrical = createTestTrade('Electrical');
+      createTestVendor('Plumber A', { tradeId: plumbing.id });
+      createTestVendor('Plumber B', { tradeId: plumbing.id });
+      createTestVendor('Electrician', { tradeId: electrical.id });
 
       const response = await app.inject({
         method: 'GET',
-        url: '/api/vendors?q=electrical',
+        url: `/api/vendors?tradeId=${plumbing.id}`,
         headers: { cookie },
       });
 
       expect(response.statusCode).toBe(200);
       const body = response.json<{ vendors: Vendor[] }>();
-      expect(body.vendors).toHaveLength(1);
-      expect(body.vendors[0].name).toBe('Vendor B');
+      expect(body.vendors).toHaveLength(2);
+      expect(body.vendors.every((v) => v.trade?.id === plumbing.id)).toBe(true);
     });
 
     it('sorts by name ascending', async () => {
@@ -309,11 +365,12 @@ describe('Vendor Routes', () => {
       expect(body.vendors[0].name).toBe('Zeta Corp');
     });
 
-    it.skip('sorts by trade name (Story 3 — trade JOIN not yet implemented)', async () => {
-      // sortBy=trade falls back to name sort (Story 3 TODO)
-      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
-      createTestVendor('Vendor A', { tradeId: 'trade-roofing' });
-      createTestVendor('Vendor B', { tradeId: 'trade-electrical' });
+    it('sorts by trade name ascending (sortBy=trade)', async () => {
+      const { cookie } = await createUserWithSession('user@trade-sort.com', 'User', 'password');
+      const roofing = createTestTrade('Roofing');
+      const electrical = createTestTrade('Electrical');
+      createTestVendor('Vendor A', { tradeId: roofing.id });
+      createTestVendor('Vendor B', { tradeId: electrical.id });
 
       const response = await app.inject({
         method: 'GET',
@@ -324,7 +381,8 @@ describe('Vendor Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ vendors: Vendor[] }>();
       // Electrical comes before Roofing alphabetically
-      expect(body.vendors[0].trade?.id).toBe('trade-electrical');
+      expect(body.vendors[0].trade?.id).toBe(electrical.id);
+      expect(body.vendors[1].trade?.id).toBe(roofing.id);
     });
 
     it('returns 401 without authentication', async () => {
@@ -392,7 +450,6 @@ describe('Vendor Routes', () => {
     });
 
     it('creates a vendor with all fields (201)', async () => {
-      // TODO: trade JOIN not yet implemented (Story 3) — trade is always null in response
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
 
       const response = await app.inject({
@@ -411,12 +468,60 @@ describe('Vendor Routes', () => {
       expect(response.statusCode).toBe(201);
       const body = response.json<{ vendor: Vendor }>();
       expect(body.vendor.name).toBe('Full Vendor');
-      // trade JOIN not implemented yet (Story 3); trade is always null
-      expect(body.vendor.trade).toBeNull();
+      expect(body.vendor.trade).toBeNull(); // No tradeId provided
       expect(body.vendor.phone).toBe('+1 555-0001');
       expect(body.vendor.email).toBe('full@vendor.com');
       expect(body.vendor.address).toBe('100 Oak Ave');
       expect(body.vendor.notes).toBe('Excellent service');
+    });
+
+    it('creates vendor with tradeId and response includes trade object (201)', async () => {
+      const { cookie } = await createUserWithSession('user@post-trade.com', 'User', 'password');
+      const trade = createTestTrade('Carpentry', { color: '#123456' });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/vendors',
+        headers: { cookie },
+        payload: { name: 'Carpenter Co', tradeId: trade.id },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<{ vendor: Vendor }>();
+      expect(body.vendor.trade).not.toBeNull();
+      expect(body.vendor.trade!.id).toBe(trade.id);
+      expect(body.vendor.trade!.name).toBe('Carpentry');
+      expect(body.vendor.trade!.color).toBe('#123456');
+    });
+
+    it('creates vendor with tradeId: null and response has trade: null (201)', async () => {
+      const { cookie } = await createUserWithSession('user@post-null-trade.com', 'User', 'password');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/vendors',
+        headers: { cookie },
+        payload: { name: 'No Trade Vendor', tradeId: null },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<{ vendor: Vendor }>();
+      expect(body.vendor.trade).toBeNull();
+    });
+
+    it('returns 400 VALIDATION_ERROR when tradeId does not exist', async () => {
+      const { cookie } = await createUserWithSession('user@post-bad-trade.com', 'User', 'password');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/vendors',
+        headers: { cookie },
+        payload: { name: 'Bad Trade Vendor', tradeId: 'non-existent-trade' },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
     });
 
     it('sets createdBy to the authenticated user', async () => {
@@ -593,10 +698,9 @@ describe('Vendor Routes', () => {
   // ─── GET /api/vendors/:id ──────────────────────────────────────────────────
 
   describe('GET /api/vendors/:id', () => {
-    it('returns 200 with vendor detail', async () => {
-      // TODO: trade JOIN not yet implemented (Story 3) — trade is always null in response
+    it('returns 200 with vendor detail (trade null when no tradeId)', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
-      const vendor = createTestVendor('Detail Vendor', { tradeId: 'trade-plumbing' });
+      const vendor = createTestVendor('Detail Vendor');
 
       const response = await app.inject({
         method: 'GET',
@@ -609,8 +713,26 @@ describe('Vendor Routes', () => {
       expect(body.vendor).toBeDefined();
       expect(body.vendor.id).toBe(vendor.id);
       expect(body.vendor.name).toBe('Detail Vendor');
-      // trade JOIN not implemented yet (Story 3); trade is always null
       expect(body.vendor.trade).toBeNull();
+    });
+
+    it('returns trade object in detail response when tradeId is set', async () => {
+      const { cookie } = await createUserWithSession('user@get-trade.com', 'User', 'password');
+      const trade = createTestTrade('HVAC', { color: '#AABBCC' });
+      const vendor = createTestVendor('HVAC Vendor', { tradeId: trade.id });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/vendors/${vendor.id}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ vendor: VendorDetail }>();
+      expect(body.vendor.trade).not.toBeNull();
+      expect(body.vendor.trade!.id).toBe(trade.id);
+      expect(body.vendor.trade!.name).toBe('HVAC');
+      expect(body.vendor.trade!.color).toBe('#AABBCC');
     });
 
     it('includes invoiceCount and outstandingBalance in detail response', async () => {
@@ -698,9 +820,8 @@ describe('Vendor Routes', () => {
 
   describe('PATCH /api/vendors/:id', () => {
     it('updates vendor name successfully (200)', async () => {
-      // TODO: trade JOIN not yet implemented (Story 3) — trade is always null in response
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
-      const vendor = createTestVendor('Old Name Vendor', { tradeId: 'trade-roofing' });
+      const vendor = createTestVendor('Old Name Vendor');
 
       const response = await app.inject({
         method: 'PATCH',
@@ -713,12 +834,62 @@ describe('Vendor Routes', () => {
       const body = response.json<{ vendor: VendorDetail }>();
       expect(body.vendor.id).toBe(vendor.id);
       expect(body.vendor.name).toBe('New Name Vendor');
-      // trade JOIN not implemented yet (Story 3); trade is always null
+      expect(body.vendor.trade).toBeNull(); // No tradeId set
+    });
+
+    it('updates tradeId to link to a trade (200)', async () => {
+      const { cookie } = await createUserWithSession('user@patch-trade.com', 'User', 'password');
+      const trade = createTestTrade('Electrical');
+      const vendor = createTestVendor('Update Trade Vendor');
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/vendors/${vendor.id}`,
+        headers: { cookie },
+        payload: { tradeId: trade.id },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ vendor: VendorDetail }>();
+      expect(body.vendor.trade).not.toBeNull();
+      expect(body.vendor.trade!.id).toBe(trade.id);
+      expect(body.vendor.trade!.name).toBe('Electrical');
+    });
+
+    it('clears tradeId by setting to null (200)', async () => {
+      const { cookie } = await createUserWithSession('user@clear-trade.com', 'User', 'password');
+      const trade = createTestTrade('Plumbing');
+      const vendor = createTestVendor('Clear Trade Vendor', { tradeId: trade.id });
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/vendors/${vendor.id}`,
+        headers: { cookie },
+        payload: { tradeId: null },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ vendor: VendorDetail }>();
       expect(body.vendor.trade).toBeNull();
     });
 
+    it('returns 400 VALIDATION_ERROR when PATCH tradeId does not exist', async () => {
+      const { cookie } = await createUserWithSession('user@patch-bad-trade.com', 'User', 'password');
+      const vendor = createTestVendor('Bad Trade PATCH Vendor');
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/vendors/${vendor.id}`,
+        headers: { cookie },
+        payload: { tradeId: 'non-existent-trade' },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
     it('returns VendorDetail shape (includes invoiceCount and outstandingBalance)', async () => {
-      // TODO: tradeId updates not supported yet (Story 3) — patching name instead
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
       const vendor = createTestVendor('Update Detail Vendor');
       createTestInvoice(vendor.id, 'pending', 250);
@@ -736,26 +907,11 @@ describe('Vendor Routes', () => {
       expect(body.vendor.outstandingBalance).toBe(250);
     });
 
-    it.skip('clears tradeId by setting to null (Story 3 — tradeId update not yet implemented)', async () => {
-      // tradeId updates not supported yet (Story 3); tradeId field is stripped on PATCH
-      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
-      const vendor = createTestVendor('Clear Trade Vendor', { tradeId: 'trade-plumbing' });
-
-      const response = await app.inject({
-        method: 'PATCH',
-        url: `/api/vendors/${vendor.id}`,
-        headers: { cookie },
-        payload: { tradeId: null },
-      });
-
-      expect(response.statusCode).toBe(200);
-      const body = response.json<{ vendor: VendorDetail }>();
-      expect(body.vendor.trade).toBeNull();
-    });
+    // (tradeId null test moved to above, now unskipped)
 
     it('updates all fields at once', async () => {
-      // TODO: trade JOIN not yet implemented (Story 3) — trade is always null in response
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const trade = createTestTrade('Masonry');
       const vendor = createTestVendor('All Fields Vendor');
 
       const response = await app.inject({
@@ -764,6 +920,7 @@ describe('Vendor Routes', () => {
         headers: { cookie },
         payload: {
           name: 'Updated All Fields',
+          tradeId: trade.id,
           phone: '555-7777',
           email: 'updated@vendor.com',
           address: '456 Elm St',
@@ -774,8 +931,8 @@ describe('Vendor Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ vendor: VendorDetail }>();
       expect(body.vendor.name).toBe('Updated All Fields');
-      // trade JOIN not implemented yet (Story 3); trade is always null
-      expect(body.vendor.trade).toBeNull();
+      expect(body.vendor.trade).not.toBeNull();
+      expect(body.vendor.trade!.id).toBe(trade.id);
       expect(body.vendor.phone).toBe('555-7777');
       expect(body.vendor.email).toBe('updated@vendor.com');
       expect(body.vendor.address).toBe('456 Elm St');

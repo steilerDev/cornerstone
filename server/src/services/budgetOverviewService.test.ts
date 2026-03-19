@@ -536,7 +536,14 @@ describe('getBudgetOverview', () => {
     it('includes all seeded categories even with no assigned budget lines', () => {
       const result = getBudgetOverview(db);
 
-      const seededNames = ['Materials', 'Labor', 'Permits', 'Design', 'Waste', 'Other'];
+      const seededNames = [
+        'Materials',
+        'Labor',
+        'Permits',
+        'Design',
+        'Waste',
+        'Other',
+      ];
       const resultNames = result.categorySummaries.map((c) => c.categoryName);
       for (const name of seededNames) {
         expect(resultNames).toContain(name);

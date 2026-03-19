@@ -730,9 +730,7 @@ describe('VendorsPage', () => {
         expect(sortSelect).toBeInTheDocument();
         expect(within(sortSelect).getByRole('option', { name: /name/i })).toBeInTheDocument();
         // specialty sort option removed in migration 0028
-        expect(
-          within(sortSelect).queryByRole('option', { name: /specialty/i }),
-        ).not.toBeInTheDocument();
+        expect(within(sortSelect).queryByRole('option', { name: /specialty/i })).not.toBeInTheDocument();
         expect(within(sortSelect).getByRole('option', { name: /date added/i })).toBeInTheDocument();
       });
     });

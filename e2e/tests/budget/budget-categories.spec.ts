@@ -22,7 +22,14 @@ import { API } from '../../fixtures/testData.js';
 
 // Default categories after EPIC-05 seeding + EPIC-18 migration 0028
 // (Equipment, Landscaping, Utilities, Insurance, Contingency conditionally deleted; Waste added)
-const DEFAULT_CATEGORIES = ['Materials', 'Labor', 'Permits', 'Design', 'Waste', 'Other'];
+const DEFAULT_CATEGORIES = [
+  'Materials',
+  'Labor',
+  'Permits',
+  'Design',
+  'Waste',
+  'Other',
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: create a temporary category via API and return its id for cleanup
