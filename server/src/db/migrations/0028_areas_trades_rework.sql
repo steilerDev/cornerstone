@@ -1,3 +1,7 @@
+-- FK enforcement is handled by the migration runner (PRAGMA is a no-op inside transactions),
+-- but included here for documentation of intent.
+PRAGMA foreign_keys = OFF;
+
 -- Migration 0028: Areas and Trades rework
 -- - Creates trades table with 15 default trades
 -- - Migrates vendor specialty values to trades
@@ -178,4 +182,6 @@ INSERT OR IGNORE INTO household_item_categories (id, name, color, sort_order, cr
 DELETE FROM household_item_categories WHERE id = 'hic-outdoor' AND NOT EXISTS (SELECT 1 FROM household_items WHERE category_id = 'hic-outdoor');
 
 DELETE FROM household_item_categories WHERE id = 'hic-storage' AND NOT EXISTS (SELECT 1 FROM household_items WHERE category_id = 'hic-storage');
+
+PRAGMA foreign_keys = ON;
 
