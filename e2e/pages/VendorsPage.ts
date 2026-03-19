@@ -63,6 +63,7 @@ export class VendorsPage {
   readonly createEmailInput: Locator;
   readonly createAddressInput: Locator;
   readonly createNotesInput: Locator;
+  readonly createTradeSelect: Locator;
   readonly createSubmitButton: Locator;
   readonly createCancelButton: Locator;
   readonly createErrorBanner: Locator;
@@ -120,6 +121,7 @@ export class VendorsPage {
     this.createEmailInput = this.createModal.locator('#vendor-email');
     this.createAddressInput = this.createModal.locator('#vendor-address');
     this.createNotesInput = this.createModal.locator('#vendor-notes');
+    this.createTradeSelect = this.createModal.getByPlaceholder('Select a trade...');
     this.createSubmitButton = this.createModal.getByRole('button', {
       name: /Add Vendor|Adding\.\.\./,
     });

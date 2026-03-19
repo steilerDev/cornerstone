@@ -730,6 +730,7 @@ export function HouseholdItemsPage() {
                     <td>
                       <Badge variants={HI_STATUS_VARIANTS} value={item.status} />
                     </td>
+                    <td>{item.area?.name || '—'}</td>
                     <td>{item.vendor?.name || '—'}</td>
                     <td>{formatCurrency(item.totalPlannedAmount)}</td>
                     <td>{formatDate(item.targetDeliveryDate)}</td>

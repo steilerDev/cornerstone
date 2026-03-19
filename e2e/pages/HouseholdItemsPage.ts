@@ -121,7 +121,7 @@ export class HouseholdItemsPage {
    */
   async goto(): Promise<void> {
     await this.page.goto(HOUSEHOLD_ITEMS_ROUTE);
-    await this.heading.waitFor({ state: 'visible' });
+    await this.heading.waitFor({ state: 'visible', timeout: 15000 });
   }
 
   /**
@@ -186,43 +186,18 @@ export class HouseholdItemsPage {
 
   /**
    * Open the delete modal for the item with the given name.
-   * Uses the table on desktop and falls back to cards on mobile.
-   *
-   * NOTE: The actions button aria-label is currently broken (bug #944) — it renders as
-   * "Actions for" without the item name due to a missing {{name}} interpolation in
-   * householdItems.json. We use a locator that matches the button within the matching row/card.
-   * When bug #944 is fixed, update to: `[aria-label="Actions for ${name}"]`
+   * Uses the aria-label to find the actions button at page level,
+   * which works across both table (desktop/tablet) and card (mobile) layouts.
    */
   async openDeleteModal(name: string): Promise<void> {
-    const tableVisible = await this.tableContainer.isVisible();
-
-    if (tableVisible) {
-      const rows = await this.tableBody.locator('tr').all();
-      for (const row of rows) {
-        const rowText = await row.textContent();
-        if (rowText?.includes(name)) {
-          // Use button containing "⋮" (aria-label="Actions for") scoped to this row
-          await row.locator('[aria-label^="Actions for"]').click();
-          await row.getByRole('menuitem', { name: 'Delete' }).click();
-          await this.deleteModal.waitFor({ state: 'visible' });
-          return;
-        }
-      }
-    }
-
-    // Mobile fallback
-    const cards = await this.cardsContainer.locator('[class*="card"]').all();
-    for (const card of cards) {
-      const cardText = await card.textContent();
-      if (cardText?.includes(name)) {
-        await card.locator('[aria-label^="Actions for"]').click();
-        await card.getByRole('menuitem', { name: 'Delete' }).click();
-        await this.deleteModal.waitFor({ state: 'visible' });
-        return;
-      }
-    }
-
-    throw new Error(`Household item with name "${name}" not found in list`);
+    // Both table and card layouts render an actions button with the same aria-label.
+    // On mobile the table is display:none, so we must target the visible one.
+    const actionsBtn = this.page
+      .locator(`[aria-label^="Actions for"][aria-label*="${name}"]:visible`)
+      .first();
+    await actionsBtn.click();
+    await this.page.getByRole('menuitem', { name: 'Delete' }).click();
+    await this.deleteModal.waitFor({ state: 'visible' });
   }
 
   /**

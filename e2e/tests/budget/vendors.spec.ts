@@ -1219,7 +1219,7 @@ test.describe('Responsive layout (Scenario 17)', { tag: '@responsive' }, () => {
 
     // All required form inputs visible
     await expect(vendorsPage.createNameInput).toBeVisible();
-    await expect(vendorsPage.createSpecialtyInput).toBeVisible();
+    await expect(vendorsPage.createTradeSelect).toBeVisible();
     await expect(vendorsPage.createPhoneInput).toBeVisible();
     await expect(vendorsPage.createEmailInput).toBeVisible();
     await expect(vendorsPage.createSubmitButton).toBeVisible();
