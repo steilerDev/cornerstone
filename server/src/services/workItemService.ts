@@ -328,6 +328,12 @@ export function createWorkItem(
     replaceWorkItemTags(db, id, data.tagIds);
   }
 
+  // Schedule the newly created work item
+  autoReschedule(db, {
+    onMilestoneDelayed: () => {},
+    onRescheduleCompleted: () => {},
+  });
+
   // Fetch and return the created work item
   const workItem = db.select().from(workItems).where(eq(workItems.id, id)).get();
   return toWorkItemDetail(db, workItem!);
