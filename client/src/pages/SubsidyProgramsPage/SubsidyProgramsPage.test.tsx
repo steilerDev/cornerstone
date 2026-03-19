@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
+import type * as BudgetOverviewApiTypes from '../../lib/budgetOverviewApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type {
   SubsidyProgram,
@@ -21,6 +22,8 @@ const mockFetchSubsidyProgram = jest.fn<typeof SubsidyProgramsApiTypes.fetchSubs
 const mockCreateSubsidyProgram = jest.fn<typeof SubsidyProgramsApiTypes.createSubsidyProgram>();
 const mockUpdateSubsidyProgram = jest.fn<typeof SubsidyProgramsApiTypes.updateSubsidyProgram>();
 const mockDeleteSubsidyProgram = jest.fn<typeof SubsidyProgramsApiTypes.deleteSubsidyProgram>();
+
+const mockFetchBudgetOverview = jest.fn<typeof BudgetOverviewApiTypes.fetchBudgetOverview>();
 
 const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiTypes.fetchBudgetCategories>();
 const mockCreateBudgetCategory = jest.fn<typeof BudgetCategoriesApiTypes.createBudgetCategory>();
@@ -40,6 +43,11 @@ jest.unstable_mockModule('../../lib/budgetCategoriesApi.js', () => ({
   createBudgetCategory: mockCreateBudgetCategory,
   updateBudgetCategory: mockUpdateBudgetCategory,
   deleteBudgetCategory: mockDeleteBudgetCategory,
+}));
+
+jest.unstable_mockModule('../../lib/budgetOverviewApi.js', () => ({
+  fetchBudgetOverview: mockFetchBudgetOverview,
+  fetchBudgetBreakdown: jest.fn(),
 }));
 
 // ─── Mock: formatters — provides useFormatters() hook ────────────────────────
@@ -183,9 +191,36 @@ describe('SubsidyProgramsPage', () => {
     mockCreateBudgetCategory.mockReset();
     mockUpdateBudgetCategory.mockReset();
     mockDeleteBudgetCategory.mockReset();
+    mockFetchBudgetOverview.mockReset();
 
     // Default: categories return empty list unless overridden
     mockFetchBudgetCategories.mockResolvedValue(emptyCategoriesResponse);
+
+    // Default: budget overview with empty oversubscribed subsidies
+    mockFetchBudgetOverview.mockResolvedValue({
+      availableFunds: 0,
+      sourceCount: 0,
+      minPlanned: 0,
+      maxPlanned: 0,
+      actualCost: 0,
+      actualCostPaid: 0,
+      actualCostClaimed: 0,
+      remainingVsMinPlanned: 0,
+      remainingVsMaxPlanned: 0,
+      remainingVsActualCost: 0,
+      remainingVsActualPaid: 0,
+      remainingVsActualClaimed: 0,
+      remainingVsMinPlannedWithPayback: 0,
+      remainingVsMaxPlannedWithPayback: 0,
+      categorySummaries: [],
+      subsidySummary: {
+        totalReductions: 0,
+        activeSubsidyCount: 0,
+        minTotalPayback: 0,
+        maxTotalPayback: 0,
+        oversubscribedSubsidies: [],
+      },
+    });
   });
 
   function renderPage() {

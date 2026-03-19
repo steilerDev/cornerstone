@@ -428,7 +428,7 @@ describe('Work Item Subsidy Routes', () => {
         headers: { cookie, 'content-type': 'application/json' },
         body: JSON.stringify({ subsidyProgramId: subsidy.id }),
       });
-      expect(response1.statusCode).toBe(200);
+      expect(response1.statusCode).toBe(201);
 
       const response2 = await app.inject({
         method: 'POST',
@@ -436,7 +436,7 @@ describe('Work Item Subsidy Routes', () => {
         headers: { cookie, 'content-type': 'application/json' },
         body: JSON.stringify({ subsidyProgramId: subsidy.id }),
       });
-      expect(response2.statusCode).toBe(200);
+      expect(response2.statusCode).toBe(201);
     });
 
     it('links successfully when no maximumAmount is set', async () => {
