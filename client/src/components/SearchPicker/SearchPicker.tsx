@@ -191,6 +191,7 @@ export function SearchPicker<T>({
   };
 
   const handleSelectSpecial = (opt: SpecialOption) => {
+    setJustClearedSpecial(false);
     setSelectedItem(null); // clear any real item selection
     setSpecialSelected(true);
     onChange(opt.id);
