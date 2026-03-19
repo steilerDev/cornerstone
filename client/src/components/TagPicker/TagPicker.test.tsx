@@ -4,7 +4,8 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { TagResponse } from '@cornerstone/shared';
+// TagResponse removed from @cornerstone/shared — define locally for test compatibility
+type TagResponse = { id: string; name: string; color: string | null; createdAt?: string };
 
 // TagPill also uses useTranslation — mock react-i18next globally before any import
 jest.unstable_mockModule('react-i18next', () => ({

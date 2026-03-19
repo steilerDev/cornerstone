@@ -14,11 +14,12 @@ import type {
 import { householdItemCategories, householdItems } from '../db/schema.js';
 
 /**
- * NOTE: Migration 0016 seeds 8 default household item categories:
- * Furniture, Appliances, Fixtures, Decor, Electronics, Outdoor, Storage, Other.
+ * NOTE: After all migrations on a fresh DB, 7 default household item categories remain:
+ * Furniture, Appliances, Fixtures, Decor, Electronics, Other, Equipment (added by 0028).
+ * Migration 0028 removes Outdoor and Storage when unused on fresh DB.
  *
  * Tests that insert categories use unique names like "Custom HIC *" to avoid conflicts.
- * Tests that check empty/count behavior account for the 8 seeded records.
+ * Tests that check empty/count behavior account for the 7 seeded records.
  */
 
 type HICListResponse = { categories: HouseholdItemCategoryEntity[] };
@@ -28,8 +29,8 @@ describe('Household Item Category Routes', () => {
   let tempDir: string;
   let originalEnv: NodeJS.ProcessEnv;
 
-  /** Number of categories seeded by migration 0016 */
-  const SEEDED_CATEGORY_COUNT = 8;
+  /** Number of HI categories after all migrations on a fresh DB (0028 removes 2 unused defaults) */
+  const SEEDED_CATEGORY_COUNT = 7;
 
   beforeEach(async () => {
     originalEnv = { ...process.env };
@@ -119,7 +120,7 @@ describe('Household Item Category Routes', () => {
   // ─── GET /api/household-item-categories ───────────────────────────────────
 
   describe('GET /api/household-item-categories', () => {
-    it('returns the 8 seeded default categories after migration', async () => {
+    it('returns the 7 seeded default categories after migration', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
       const response = await app.inject({
         method: 'GET',

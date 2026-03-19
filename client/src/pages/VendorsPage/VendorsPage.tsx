@@ -37,7 +37,6 @@ export function VendorsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState<CreateVendorRequest>({
     name: '',
-    specialty: '',
     phone: '',
     email: '',
     address: '',
@@ -136,7 +135,7 @@ export function VendorsPage() {
   };
 
   const openCreateModal = () => {
-    setCreateForm({ name: '', specialty: '', phone: '', email: '', address: '', notes: '' });
+    setCreateForm({ name: '', phone: '', email: '', address: '', notes: '' });
     setCreateError('');
     setShowCreateModal(true);
   };
@@ -167,7 +166,6 @@ export function VendorsPage() {
     try {
       await createVendor({
         name: trimmedName,
-        specialty: createForm.specialty?.trim() || null,
         phone: createForm.phone?.trim() || null,
         email: createForm.email?.trim() || null,
         address: createForm.address?.trim() || null,
@@ -286,7 +284,6 @@ export function VendorsPage() {
               className={styles.sortSelect}
             >
               <option value="name">{t('common:name')}</option>
-              <option value="specialty">{t('vendors.form.specialty')}</option>
               <option value="created_at">{t('vendors.dateAdded')}</option>
               <option value="updated_at">{t('vendors.lastUpdated')}</option>
             </select>
@@ -350,20 +347,6 @@ export function VendorsPage() {
                       {t('common:name')}
                       {renderSortIcon('name')}
                     </th>
-                    <th
-                      className={styles.sortableHeader}
-                      onClick={() => handleSortChange('specialty')}
-                      aria-sort={
-                        sortBy === 'specialty'
-                          ? sortOrder === 'asc'
-                            ? 'ascending'
-                            : 'descending'
-                          : 'none'
-                      }
-                    >
-                      {t('vendors.form.specialty')}
-                      {renderSortIcon('specialty')}
-                    </th>
                     <th>{t('vendors.form.phone')}</th>
                     <th>{t('vendors.form.email')}</th>
                     <th className={styles.actionsColumn}>Actions</th>
@@ -377,7 +360,6 @@ export function VendorsPage() {
                           {vendor.name}
                         </Link>
                       </td>
-                      <td>{vendor.specialty || '—'}</td>
                       <td>
                         {vendor.phone ? (
                           <a href={`tel:${vendor.phone}`} className={styles.contactLink}>
@@ -430,9 +412,6 @@ export function VendorsPage() {
                     <Link to={`/budget/vendors/${vendor.id}`} className={styles.cardName}>
                       {vendor.name}
                     </Link>
-                    {vendor.specialty && (
-                      <span className={styles.cardSpecialty}>{vendor.specialty}</span>
-                    )}
                   </div>
                   <div className={styles.cardBody}>
                     {vendor.phone && (
@@ -572,22 +551,6 @@ export function VendorsPage() {
                   maxLength={200}
                   disabled={isCreating}
                   autoFocus
-                />
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="vendor-specialty" className={styles.label}>
-                  {t('vendors.form.specialty')}
-                </label>
-                <input
-                  type="text"
-                  id="vendor-specialty"
-                  value={createForm.specialty ?? ''}
-                  onChange={(e) => setCreateForm({ ...createForm, specialty: e.target.value })}
-                  className={styles.input}
-                  placeholder={t('vendors.form.placeholders.specialty')}
-                  maxLength={100}
-                  disabled={isCreating}
                 />
               </div>
 

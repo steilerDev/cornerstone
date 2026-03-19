@@ -1,35 +1,52 @@
-import { get, post, patch, del } from './apiClient.js';
-import type {
-  TagResponse,
-  TagListResponse,
-  CreateTagRequest,
-  UpdateTagRequest,
-} from '@cornerstone/shared';
+/**
+ * Tags are removed in EPIC-18. This file will be deleted in Story 6.
+ * All functions return empty/no-op stubs since the /api/tags endpoint no longer exists.
+ */
+
+export interface TagResponse {
+  id: string;
+  name: string;
+  color: string | null;
+}
+
+export interface TagListResponse {
+  tags: TagResponse[];
+}
+
+export interface CreateTagRequest {
+  name: string;
+  color: string | null;
+}
+
+export interface UpdateTagRequest {
+  name?: string;
+  color?: string;
+}
 
 /**
- * Fetches all tags, sorted alphabetically by name.
+ * Returns an empty tag list (tags endpoint removed in EPIC-18).
  */
 export function fetchTags(): Promise<TagListResponse> {
-  return get<TagListResponse>('/tags');
+  return Promise.resolve({ tags: [] });
 }
 
 /**
- * Creates a new tag.
+ * No-op (tags endpoint removed in EPIC-18).
  */
-export function createTag(data: CreateTagRequest): Promise<TagResponse> {
-  return post<TagResponse>('/tags', data);
+export function createTag(_data: CreateTagRequest): Promise<TagResponse> {
+  return Promise.reject(new Error('Tags have been removed'));
 }
 
 /**
- * Updates an existing tag.
+ * No-op (tags endpoint removed in EPIC-18).
  */
-export function updateTag(id: string, data: UpdateTagRequest): Promise<TagResponse> {
-  return patch<TagResponse>(`/tags/${id}`, data);
+export function updateTag(_id: string, _data: UpdateTagRequest): Promise<TagResponse> {
+  return Promise.reject(new Error('Tags have been removed'));
 }
 
 /**
- * Deletes a tag.
+ * No-op (tags endpoint removed in EPIC-18).
  */
-export function deleteTag(id: string): Promise<void> {
-  return del<void>(`/tags/${id}`);
+export function deleteTag(_id: string): Promise<void> {
+  return Promise.reject(new Error('Tags have been removed'));
 }

@@ -20,17 +20,14 @@ import type { Page } from '@playwright/test';
 import { BudgetCategoriesPage } from '../../pages/BudgetCategoriesPage.js';
 import { API } from '../../fixtures/testData.js';
 
-// The 10 default categories seeded by the EPIC-05 migration, in sort_order order
+// Default categories after EPIC-05 seeding + EPIC-18 migration 0028
+// (Equipment, Landscaping, Utilities, Insurance, Contingency conditionally deleted; Waste added)
 const DEFAULT_CATEGORIES = [
   'Materials',
   'Labor',
   'Permits',
   'Design',
-  'Equipment',
-  'Landscaping',
-  'Utilities',
-  'Insurance',
-  'Contingency',
+  'Waste',
   'Other',
 ];
 
@@ -55,7 +52,7 @@ async function deleteCategoryViaApi(page: Page, id: string): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Default categories (Scenario 1 & 2)', { tag: '@responsive' }, () => {
   test(
-    'All 10 default categories are present after fresh migration',
+    'All default categories are present after fresh migration',
     { tag: '@smoke' },
     async ({ page }) => {
       // Given: EPIC-05 migration applied; default seeds loaded

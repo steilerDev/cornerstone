@@ -288,7 +288,8 @@ describe('Timeline Routes', () => {
       expect(wi).toHaveProperty('startAfter');
       expect(wi).toHaveProperty('startBefore');
       expect(wi).toHaveProperty('assignedUser');
-      expect(wi).toHaveProperty('tags');
+      expect(wi).toHaveProperty('area');
+      expect(wi).toHaveProperty('assignedVendor');
 
       expect(wi.title).toBe('Foundation Work');
       expect(wi.status).toBe('in_progress');
@@ -298,7 +299,8 @@ describe('Timeline Routes', () => {
       expect(wi.startAfter).toBe('2026-02-15');
       expect(wi.startBefore).toBe('2026-05-01');
       expect(wi.assignedUser).toBeNull();
-      expect(wi.tags).toEqual([]);
+      expect(wi.area).toBeNull();
+      expect(wi.assignedVendor).toBeNull();
     });
 
     it('returns a TimelineDependency with all required fields', async () => {

@@ -673,17 +673,15 @@ describe('Work Items Database Schema & Migration', () => {
     it('UAT-3.1-02: all work item tables exist', () => {
       const tables = sqlite
         .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('work_items', 'tags', 'work_item_tags', 'work_item_notes', 'work_item_subtasks', 'work_item_dependencies')",
+          "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('work_items', 'work_item_notes', 'work_item_subtasks', 'work_item_dependencies')",
         )
         .all() as Array<{ name: string }>;
 
       const tableNames = tables.map((t) => t.name).sort();
       expect(tableNames).toEqual([
-        'tags',
         'work_item_dependencies',
         'work_item_notes',
         'work_item_subtasks',
-        'work_item_tags',
         'work_items',
       ]);
     });
@@ -734,8 +732,8 @@ describe('Work Items Database Schema & Migration', () => {
       expect(createdByCol?.notnull).toBe(0);
     });
 
-    it('UAT-3.1-04: tags table has correct columns', () => {
-      const columns = sqlite.prepare("PRAGMA table_info('tags')").all() as Array<{
+    it('UAT-3.1-04: work_items table has area_id and assigned_vendor_id columns', () => {
+      const columns = sqlite.prepare("PRAGMA table_info('work_items')").all() as Array<{
         name: string;
         type: string;
         notnull: number;
@@ -743,37 +741,28 @@ describe('Work Items Database Schema & Migration', () => {
       }>;
 
       const columnNames = columns.map((col) => col.name);
-      expect(columnNames).toContain('id');
-      expect(columnNames).toContain('name');
-      expect(columnNames).toContain('color');
-      expect(columnNames).toContain('created_at');
+      expect(columnNames).toContain('area_id');
+      expect(columnNames).toContain('assigned_vendor_id');
 
-      // Verify primary key
-      const idCol = columns.find((col) => col.name === 'id');
-      expect(idCol?.pk).toBe(1);
+      // Verify area_id is nullable
+      const areaIdCol = columns.find((col) => col.name === 'area_id');
+      expect(areaIdCol?.notnull).toBe(0);
 
-      // Verify NOT NULL constraints
-      const nameCol = columns.find((col) => col.name === 'name');
-      expect(nameCol?.notnull).toBe(1);
-
-      const createdAtCol = columns.find((col) => col.name === 'created_at');
-      expect(createdAtCol?.notnull).toBe(1);
-
-      // Verify color is nullable
-      const colorCol = columns.find((col) => col.name === 'color');
-      expect(colorCol?.notnull).toBe(0);
+      // Verify assigned_vendor_id is nullable
+      const assignedVendorIdCol = columns.find((col) => col.name === 'assigned_vendor_id');
+      expect(assignedVendorIdCol?.notnull).toBe(0);
     });
 
-    it('UAT-3.1-05: work_item_tags has composite primary key', () => {
-      const columns = sqlite.prepare("PRAGMA table_info('work_item_tags')").all() as Array<{
-        name: string;
-        pk: number;
-      }>;
+    it('UAT-3.1-05: tags and work_item_tags tables no longer exist (dropped in migration 0028)', () => {
+      const tagsTbl = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='tags'")
+        .all() as Array<{ name: string }>;
+      expect(tagsTbl).toHaveLength(0);
 
-      const pkColumns = columns.filter((col) => col.pk > 0).map((col) => col.name);
-      expect(pkColumns).toContain('work_item_id');
-      expect(pkColumns).toContain('tag_id');
-      expect(pkColumns).toHaveLength(2);
+      const witTbl = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='work_item_tags'")
+        .all() as Array<{ name: string }>;
+      expect(witTbl).toHaveLength(0);
     });
 
     it('UAT-3.1-06: work_item_notes table has correct columns', () => {
@@ -891,9 +880,6 @@ describe('Work Items Database Schema & Migration', () => {
       // Work item subtasks index
       expect(indexNames).toContain('idx_work_item_subtasks_work_item_id');
 
-      // Work item tags index
-      expect(indexNames).toContain('idx_work_item_tags_tag_id');
-
       // Work item dependencies index
       expect(indexNames).toContain('idx_work_item_dependencies_successor_id');
 
@@ -906,9 +892,6 @@ describe('Work Items Database Schema & Migration', () => {
 
       const subtasksIdx = indexes.find((idx) => idx.name === 'idx_work_item_subtasks_work_item_id');
       expect(subtasksIdx?.tbl_name).toBe('work_item_subtasks');
-
-      const tagsIdx = indexes.find((idx) => idx.name === 'idx_work_item_tags_tag_id');
-      expect(tagsIdx?.tbl_name).toBe('work_item_tags');
 
       const depsIdx = indexes.find((idx) => idx.name === 'idx_work_item_dependencies_successor_id');
       expect(depsIdx?.tbl_name).toBe('work_item_dependencies');
@@ -1057,11 +1040,11 @@ describe('Work Items Database Schema & Migration', () => {
       expect(subtasks).toHaveLength(0);
     });
 
-    it('UAT-3.1-12: deleting a work item cascades to tag associations', async () => {
+    it('UAT-3.1-12: work_items now has area_id and assigned_vendor_id columns (migration 0028)', async () => {
       const now = new Date().toISOString();
-      const workItemId = 'work-item-3';
+      const workItemId = 'work-item-area-test';
 
-      // Insert work item
+      // Insert work item with area_id and assigned_vendor_id as null (no FK violation)
       await db.insert(schema.workItems).values({
         id: workItemId,
         title: 'Test Work Item',
@@ -1073,43 +1056,21 @@ describe('Work Items Database Schema & Migration', () => {
         startAfter: null,
         startBefore: null,
         assignedUserId: null,
+        areaId: null,
+        assignedVendorId: null,
         createdBy: testUserId,
         createdAt: now,
         updatedAt: now,
       });
 
-      // Insert tags
-      await db.insert(schema.tags).values([
-        { id: 'tag-1', name: 'Tag 1', color: '#ff0000', createdAt: now },
-        { id: 'tag-2', name: 'Tag 2', color: '#00ff00', createdAt: now },
-      ]);
-
-      // Insert tag associations
-      await db.insert(schema.workItemTags).values([
-        { workItemId, tagId: 'tag-1' },
-        { workItemId, tagId: 'tag-2' },
-      ]);
-
-      // Verify associations exist
-      let associations = await db
+      // Verify work item was inserted and has the expected new columns
+      const workItems = await db
         .select()
-        .from(schema.workItemTags)
-        .where(eq(schema.workItemTags.workItemId, workItemId));
-      expect(associations).toHaveLength(2);
-
-      // Delete work item
-      await db.delete(schema.workItems).where(eq(schema.workItems.id, workItemId));
-
-      // Verify associations are CASCADE deleted
-      associations = await db
-        .select()
-        .from(schema.workItemTags)
-        .where(eq(schema.workItemTags.workItemId, workItemId));
-      expect(associations).toHaveLength(0);
-
-      // Verify tags themselves are NOT deleted
-      const tags = await db.select().from(schema.tags);
-      expect(tags).toHaveLength(2);
+        .from(schema.workItems)
+        .where(eq(schema.workItems.id, workItemId));
+      expect(workItems).toHaveLength(1);
+      expect(workItems[0].areaId).toBeNull();
+      expect(workItems[0].assignedVendorId).toBeNull();
     });
 
     it('UAT-3.1-13: deleting a work item cascades to dependencies', async () => {
@@ -1313,77 +1274,17 @@ describe('Work Items Database Schema & Migration', () => {
       expect(notesAfter[0].createdBy).toBeNull();
     });
 
-    it('UAT-3.1-16: deleting a tag cascades to work_item_tags', async () => {
-      const now = new Date().toISOString();
+    it('UAT-3.1-16: tags and work_item_tags tables do not exist (removed in migration 0028)', () => {
+      // Tags feature was removed — verify the tables are gone
+      const tagsTbl = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='tags'")
+        .all() as Array<{ name: string }>;
+      expect(tagsTbl).toHaveLength(0);
 
-      // Insert work items
-      await db.insert(schema.workItems).values([
-        {
-          id: 'work-item-6',
-          title: 'Work Item 6',
-          description: null,
-          status: 'not_started',
-          startDate: null,
-          endDate: null,
-          durationDays: null,
-          startAfter: null,
-          startBefore: null,
-          assignedUserId: null,
-          createdBy: testUserId,
-          createdAt: now,
-          updatedAt: now,
-        },
-        {
-          id: 'work-item-7',
-          title: 'Work Item 7',
-          description: null,
-          status: 'not_started',
-          startDate: null,
-          endDate: null,
-          durationDays: null,
-          startAfter: null,
-          startBefore: null,
-          assignedUserId: null,
-          createdBy: testUserId,
-          createdAt: now,
-          updatedAt: now,
-        },
-      ]);
-
-      // Insert tag
-      await db.insert(schema.tags).values({
-        id: 'tag-3',
-        name: 'Tag to Delete',
-        color: '#0000ff',
-        createdAt: now,
-      });
-
-      // Associate tag with both work items
-      await db.insert(schema.workItemTags).values([
-        { workItemId: 'work-item-6', tagId: 'tag-3' },
-        { workItemId: 'work-item-7', tagId: 'tag-3' },
-      ]);
-
-      // Verify associations exist
-      let associations = await db
-        .select()
-        .from(schema.workItemTags)
-        .where(eq(schema.workItemTags.tagId, 'tag-3'));
-      expect(associations).toHaveLength(2);
-
-      // Delete the tag
-      await db.delete(schema.tags).where(eq(schema.tags.id, 'tag-3'));
-
-      // Verify associations are CASCADE deleted
-      associations = await db
-        .select()
-        .from(schema.workItemTags)
-        .where(eq(schema.workItemTags.tagId, 'tag-3'));
-      expect(associations).toHaveLength(0);
-
-      // Verify work items themselves are NOT deleted
-      const workItems = await db.select().from(schema.workItems);
-      expect(workItems.length).toBeGreaterThanOrEqual(2);
+      const witTbl = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='work_item_tags'")
+        .all() as Array<{ name: string }>;
+      expect(witTbl).toHaveLength(0);
     });
   });
 
@@ -1697,26 +1598,13 @@ describe('Work Items Database Schema & Migration', () => {
   });
 
   describe('Unique Constraints', () => {
-    it('enforces tag name uniqueness', async () => {
-      const now = new Date().toISOString();
-
-      // Insert first tag
-      await db.insert(schema.tags).values({
-        id: 'tag-unique-1',
-        name: 'Unique Tag Name',
-        color: '#ff0000',
-        createdAt: now,
-      });
-
-      // Attempt to insert second tag with same name
+    it('enforces trade name uniqueness', async () => {
+      // Try inserting a duplicate trade name — the trades table enforces uniqueness on name
       let error: Error | undefined;
       try {
-        await db.insert(schema.tags).values({
-          id: 'tag-unique-2',
-          name: 'Unique Tag Name',
-          color: '#00ff00',
-          createdAt: now,
-        });
+        sqlite
+          .prepare(`INSERT INTO trades (id, name, description, color, sort_order, created_at, updated_at) VALUES (?, ?, NULL, NULL, 999, datetime('now'), datetime('now'))`)
+          .run('trade-duplicate-test', 'Plumbing'); // 'Plumbing' already seeded
       } catch (err) {
         error = err as Error;
       }
@@ -1873,71 +1761,39 @@ describe('Work Items Database Schema & Migration', () => {
       expect(workItems[0].assignedUserId).toBeNull();
     });
 
-    it('can insert a tag', async () => {
-      const now = new Date().toISOString();
-      const tagId = 'tag-insert-test';
-
-      await db.insert(schema.tags).values({
-        id: tagId,
-        name: 'Test Tag',
-        color: '#ff5733',
-        createdAt: now,
-      });
-
-      const tags = await db.select().from(schema.tags).where(eq(schema.tags.id, tagId));
-      expect(tags).toHaveLength(1);
-      expect(tags[0].name).toBe('Test Tag');
-      expect(tags[0].color).toBe('#ff5733');
+    it('can query default trades seeded by migration 0028', async () => {
+      // Migration 0028 seeds 15 default trades; verify some are present
+      const trades = sqlite
+        .prepare("SELECT id, name FROM trades WHERE id IN ('trade-plumbing', 'trade-electrical', 'trade-other')")
+        .all() as Array<{ id: string; name: string }>;
+      expect(trades.length).toBe(3);
+      const ids = trades.map((t) => t.id).sort();
+      expect(ids).toEqual(['trade-electrical', 'trade-other', 'trade-plumbing']);
     });
 
-    it('can associate tags with work items', async () => {
+    it('can link a vendor to a trade via trade_id FK', async () => {
       const now = new Date().toISOString();
-      const workItemId = 'work-item-with-tags';
-      const tagIds = ['tag-1', 'tag-2', 'tag-3'];
+      const vendorId = 'vendor-trade-fk-test';
 
-      // Insert work item
-      await db.insert(schema.workItems).values({
-        id: workItemId,
-        title: 'Work Item with Tags',
-        description: null,
-        status: 'not_started',
-        startDate: null,
-        endDate: null,
-        durationDays: null,
-        startAfter: null,
-        startBefore: null,
-        assignedUserId: null,
-        createdBy: testUserId,
+      await db.insert(schema.vendors).values({
+        id: vendorId,
+        name: 'Test Vendor',
+        tradeId: 'trade-plumbing',
+        phone: null,
+        email: null,
+        address: null,
+        notes: null,
+        createdBy: null,
         createdAt: now,
         updatedAt: now,
       });
 
-      // Insert tags
-      for (const tagId of tagIds) {
-        await db.insert(schema.tags).values({
-          id: tagId,
-          name: `Tag ${tagId}`,
-          color: null,
-          createdAt: now,
-        });
-      }
-
-      // Associate tags
-      for (const tagId of tagIds) {
-        await db.insert(schema.workItemTags).values({
-          workItemId,
-          tagId,
-        });
-      }
-
-      // Verify associations
-      const associations = await db
+      const vendorRows = await db
         .select()
-        .from(schema.workItemTags)
-        .where(eq(schema.workItemTags.workItemId, workItemId));
-
-      expect(associations).toHaveLength(3);
-      expect(associations.map((a) => a.tagId).sort()).toEqual(tagIds);
+        .from(schema.vendors)
+        .where(eq(schema.vendors.id, vendorId));
+      expect(vendorRows).toHaveLength(1);
+      expect(vendorRows[0].tradeId).toBe('trade-plumbing');
     });
 
     it('can insert notes on a work item', async () => {
@@ -2287,7 +2143,8 @@ describe('Budget Schema (EPIC-05)', () => {
       const columnNames = columns.map((col) => col.name);
       expect(columnNames).toContain('id');
       expect(columnNames).toContain('name');
-      expect(columnNames).toContain('specialty');
+      expect(columnNames).toContain('trade_id');
+      expect(columnNames).not.toContain('specialty');
       expect(columnNames).toContain('phone');
       expect(columnNames).toContain('email');
       expect(columnNames).toContain('address');
@@ -2309,7 +2166,7 @@ describe('Budget Schema (EPIC-05)', () => {
       await db.insert(schema.vendors).values({
         id: 'vendor-1',
         name: 'ABC Construction',
-        specialty: 'Electrical',
+        tradeId: 'trade-electrical',
         phone: '555-1234',
         email: 'abc@construction.com',
         address: '123 Main St',
@@ -2322,16 +2179,18 @@ describe('Budget Schema (EPIC-05)', () => {
 
       expect(rows).toHaveLength(1);
       expect(rows[0].name).toBe('ABC Construction');
-      expect(rows[0].specialty).toBe('Electrical');
+      expect(rows[0].tradeId).toBe('trade-electrical');
     });
 
-    it('creates idx_vendors_name index', () => {
+    it('creates idx_vendors_new_name index', () => {
+      // Migration 0028 recreates the vendors table as vendors_new, then renames it.
+      // The index is created as idx_vendors_new_name and retains that name after rename.
       const indexes = sqlite
         .prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='vendors'")
         .all() as Array<{ name: string }>;
 
       const indexNames = indexes.map((idx) => idx.name);
-      expect(indexNames).toContain('idx_vendors_name');
+      expect(indexNames).toContain('idx_vendors_new_name');
     });
   });
 

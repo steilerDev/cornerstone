@@ -268,7 +268,7 @@ export function BudgetLineForm({
             {vendors.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.name}
-                {v.specialty ? ` — ${v.specialty}` : ''}
+                {v.trade?.name ? ` — ${v.trade.name}` : ''}
               </option>
             ))}
           </select>

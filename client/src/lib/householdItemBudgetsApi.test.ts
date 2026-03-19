@@ -172,7 +172,7 @@ describe('householdItemBudgetsApi', () => {
           updatedAt: '2026-01-01T00:00:00.000Z',
         },
         budgetSource: { id: 'src-1', name: 'Savings', sourceType: 'savings' },
-        vendor: { id: 'vendor-1', name: 'Home Depot', specialty: 'Hardware' },
+        vendor: { id: 'vendor-1', name: 'Home Depot', trade: null },
         actualCost: 0,
         actualCostPaid: 0,
         invoiceCount: 0,

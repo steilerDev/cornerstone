@@ -74,7 +74,8 @@ function makeTimeline(overrides: Partial<TimelineResponse> = {}): TimelineRespon
         startAfter: null,
         startBefore: null,
         assignedUser: null,
-        tags: [],
+        assignedVendor: null,
+        area: null,
       },
       {
         id: 'wi-2',
@@ -88,7 +89,8 @@ function makeTimeline(overrides: Partial<TimelineResponse> = {}): TimelineRespon
         startAfter: null,
         startBefore: null,
         assignedUser: null,
-        tags: [],
+        assignedVendor: null,
+        area: null,
       },
       {
         id: 'wi-3',
@@ -102,7 +104,8 @@ function makeTimeline(overrides: Partial<TimelineResponse> = {}): TimelineRespon
         startAfter: null,
         startBefore: null,
         assignedUser: null,
-        tags: [],
+        assignedVendor: null,
+        area: null,
       },
     ],
     dependencies: [

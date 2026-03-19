@@ -126,7 +126,8 @@ describe('householdItemsApi', () => {
       );
     });
 
-    it('includes room filter query param when provided', async () => {
+    // areaId filter not yet in listHouseholdItems signature (Story 3 TODO)
+    it.skip('includes areaId filter query param when provided', async () => {
       const mockResponse: HouseholdItemListResponse = {
         items: [],
         pagination: { page: 1, pageSize: 25, totalPages: 0, totalItems: 0 },
@@ -137,10 +138,10 @@ describe('householdItemsApi', () => {
         json: async () => mockResponse,
       } as Response);
 
-      await listHouseholdItems({ room: 'bedroom' });
+      await listHouseholdItems({ areaId: 'area-123' });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/household-items?room=bedroom',
+        '/api/household-items?areaId=area-123',
         expect.any(Object),
       );
     });
@@ -164,7 +165,7 @@ describe('householdItemsApi', () => {
       );
     });
 
-    it('includes tagId filter query param when provided', async () => {
+    it('includes category filter query param when provided', async () => {
       const mockResponse: HouseholdItemListResponse = {
         items: [],
         pagination: { page: 1, pageSize: 25, totalPages: 0, totalItems: 0 },
@@ -175,10 +176,10 @@ describe('householdItemsApi', () => {
         json: async () => mockResponse,
       } as Response);
 
-      await listHouseholdItems({ tagId: 'tag-456' });
+      await listHouseholdItems({ category: 'furniture' });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/household-items?tagId=tag-456',
+        '/api/household-items?category=furniture',
         expect.any(Object),
       );
     });
@@ -261,8 +262,8 @@ describe('householdItemsApi', () => {
             description: 'Wooden coffee table',
             category: 'furniture',
             status: 'arrived',
-            vendor: { id: 'vendor-1', name: 'Furniture Plus', specialty: 'Furniture' },
-            room: 'living room',
+            vendor: { id: 'vendor-1', name: 'Furniture Plus', trade: null },
+            area: null,
             quantity: 1,
             orderDate: '2026-01-01',
             targetDeliveryDate: '2026-01-10',
@@ -271,7 +272,6 @@ describe('householdItemsApi', () => {
             latestDeliveryDate: '2026-01-15',
             isLate: false,
             url: null,
-            tagIds: [],
             budgetLineCount: 0,
             totalPlannedAmount: 200,
             budgetSummary: { totalPlanned: 200, totalActual: 0, subsidyReduction: 0, netCost: 200 },
@@ -315,7 +315,7 @@ describe('householdItemsApi', () => {
         category: 'furniture',
         status: 'planned',
         vendor: null,
-        room: 'living room',
+        area: null,
         quantity: 1,
         orderDate: null,
         targetDeliveryDate: null,
@@ -324,14 +324,12 @@ describe('householdItemsApi', () => {
         latestDeliveryDate: null,
         isLate: false,
         url: null,
-        tagIds: [],
         budgetLineCount: 0,
         totalPlannedAmount: 0,
         budgetSummary: { totalPlanned: 0, totalActual: 0, subsidyReduction: 0, netCost: 0 },
         createdBy: null,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
-        tags: [],
         dependencies: [],
         subsidies: [],
       };
@@ -353,8 +351,8 @@ describe('householdItemsApi', () => {
         description: 'Oak dining table',
         category: 'furniture',
         status: 'arrived',
-        vendor: { id: 'vendor-1', name: 'Furniture Plus', specialty: 'Furniture' },
-        room: 'dining room',
+        vendor: { id: 'vendor-1', name: 'Furniture Plus', trade: null },
+        area: null,
         quantity: 1,
         orderDate: '2026-01-01',
         targetDeliveryDate: '2026-01-10',
@@ -363,14 +361,12 @@ describe('householdItemsApi', () => {
         latestDeliveryDate: '2026-01-15',
         isLate: false,
         url: 'https://example.com/dining-table',
-        tagIds: ['tag-1'],
         budgetLineCount: 1,
         totalPlannedAmount: 500,
         budgetSummary: { totalPlanned: 500, totalActual: 0, subsidyReduction: 0, netCost: 500 },
         createdBy: { id: 'user-1', displayName: 'John Doe', email: 'john@example.com' },
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-09T00:00:00.000Z',
-        tags: [{ id: 'tag-1', name: 'Essential', color: '#FF0000' }],
         dependencies: [],
         subsidies: [],
       };
@@ -407,7 +403,7 @@ describe('householdItemsApi', () => {
         category: 'furniture',
         status: 'planned',
         vendor: null,
-        room: null,
+        area: null,
         quantity: 1,
         orderDate: null,
         targetDeliveryDate: null,
@@ -416,14 +412,12 @@ describe('householdItemsApi', () => {
         latestDeliveryDate: null,
         isLate: false,
         url: null,
-        tagIds: [],
         budgetLineCount: 0,
         totalPlannedAmount: 0,
         budgetSummary: { totalPlanned: 0, totalActual: 0, subsidyReduction: 0, netCost: 0 },
         createdBy: null,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
-        tags: [],
         dependencies: [],
         subsidies: [],
       };
@@ -454,7 +448,7 @@ describe('householdItemsApi', () => {
         category: 'furniture',
         status: 'planned',
         vendor: null,
-        room: 'bedroom',
+        area: null,
         quantity: 1,
         orderDate: null,
         targetDeliveryDate: null,
@@ -463,14 +457,12 @@ describe('householdItemsApi', () => {
         latestDeliveryDate: null,
         isLate: false,
         url: 'https://example.com/bed',
-        tagIds: [],
         budgetLineCount: 0,
         totalPlannedAmount: 0,
         budgetSummary: { totalPlanned: 0, totalActual: 0, subsidyReduction: 0, netCost: 0 },
         createdBy: null,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-01T00:00:00.000Z',
-        tags: [],
         dependencies: [],
         subsidies: [],
       };
@@ -510,7 +502,7 @@ describe('householdItemsApi', () => {
         category: 'furniture',
         status: 'purchased',
         vendor: null,
-        room: null,
+        area: null,
         quantity: 1,
         orderDate: null,
         targetDeliveryDate: null,
@@ -519,14 +511,12 @@ describe('householdItemsApi', () => {
         latestDeliveryDate: null,
         isLate: false,
         url: null,
-        tagIds: [],
         budgetLineCount: 0,
         totalPlannedAmount: 0,
         budgetSummary: { totalPlanned: 0, totalActual: 0, subsidyReduction: 0, netCost: 0 },
         createdBy: null,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-02T00:00:00.000Z',
-        tags: [],
         dependencies: [],
         subsidies: [],
       };
@@ -555,8 +545,8 @@ describe('householdItemsApi', () => {
         description: 'Updated description',
         category: 'appliances',
         status: 'arrived',
-        vendor: { id: 'vendor-2', name: 'Appliance Store', specialty: 'Appliances' },
-        room: 'kitchen',
+        vendor: { id: 'vendor-2', name: 'Appliance Store', trade: null },
+        area: null,
         quantity: 1,
         orderDate: '2026-01-01',
         targetDeliveryDate: '2026-01-15',
@@ -565,14 +555,12 @@ describe('householdItemsApi', () => {
         latestDeliveryDate: '2026-01-20',
         isLate: false,
         url: null,
-        tagIds: [],
         budgetLineCount: 0,
         totalPlannedAmount: 0,
         budgetSummary: { totalPlanned: 0, totalActual: 0, subsidyReduction: 0, netCost: 0 },
         createdBy: null,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-01-15T10:00:00.000Z',
-        tags: [],
         dependencies: [],
         subsidies: [],
       };

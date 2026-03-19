@@ -317,11 +317,14 @@ describe('getBudgetOverview', () => {
       expect(result.subsidySummary.activeSubsidyCount).toBe(0);
     });
 
-    it('returns 11 category summaries (seeded defaults) with all-zero values', () => {
+    it('returns 7 category summaries (seeded defaults after migration 0028) with all-zero values', () => {
       const result = getBudgetOverview(db);
 
-      // Migration seeds exactly 11 categories (migration 0016 added 'bc-household-items')
-      expect(result.categorySummaries).toHaveLength(11);
+      // After migration 0028 on a fresh DB (no budget lines):
+      // Original 10 (0003) + 1 bc-household-items (0016) + 1 bc-waste (0028)
+      // - 5 deleted by 0028 (bc-equipment, bc-landscaping, bc-utilities, bc-insurance, bc-contingency)
+      // = 7 categories: bc-materials, bc-labor, bc-permits, bc-design, bc-other, bc-household-items, bc-waste
+      expect(result.categorySummaries).toHaveLength(7);
 
       for (const cat of result.categorySummaries) {
         expect(cat.minPlanned).toBe(0);
@@ -538,11 +541,7 @@ describe('getBudgetOverview', () => {
         'Labor',
         'Permits',
         'Design',
-        'Equipment',
-        'Landscaping',
-        'Utilities',
-        'Insurance',
-        'Contingency',
+        'Waste',
         'Other',
       ];
       const resultNames = result.categorySummaries.map((c) => c.categoryName);

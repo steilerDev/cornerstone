@@ -256,8 +256,8 @@ describe('HouseholdItemDetailPage', () => {
       description: 'Electric height-adjustable desk',
       category: 'furniture' as HouseholdItemCategory,
       status: 'purchased' as HouseholdItemStatus,
-      vendor: { id: 'vendor-1', name: 'IKEA', specialty: 'Furniture' },
-      room: 'Office',
+      vendor: { id: 'vendor-1', name: 'IKEA', trade: null },
+      area: null,
       quantity: 2,
       orderDate: '2026-02-15',
       targetDeliveryDate: '2026-03-01',
@@ -266,16 +266,12 @@ describe('HouseholdItemDetailPage', () => {
       latestDeliveryDate: '2026-03-10',
       isLate: false,
       url: 'https://example.com/desk',
-      tagIds: ['tag-1'],
       budgetLineCount: 1,
       totalPlannedAmount: 599.99,
       budgetSummary: { totalPlanned: 599.99, totalActual: 0, subsidyReduction: 0, netCost: 599.99 },
       createdBy: { id: 'user-1', displayName: 'John Doe', email: 'john@example.com' },
       createdAt: '2026-01-15T10:00:00Z',
       updatedAt: '2026-02-15T14:30:00Z',
-      tags: [
-        { id: 'tag-1', name: 'Priority', color: '#ff0000', createdAt: '2026-01-01T00:00:00Z' },
-      ],
       dependencies: [],
       subsidies: [],
       ...overrides,
@@ -529,15 +525,7 @@ describe('HouseholdItemDetailPage', () => {
       });
     });
 
-    it('renders room', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Office')).toBeInTheDocument();
-      });
-    });
+    // room field was removed in migration 0028 (replaced by area) — test deleted
 
     it('renders quantity', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
@@ -562,15 +550,7 @@ describe('HouseholdItemDetailPage', () => {
       });
     });
 
-    it('renders tags', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Priority')).toBeInTheDocument();
-      });
-    });
+    // tags were removed in migration 0028 (household_item_tags table dropped) — test deleted
 
     it('renders order date formatted', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
@@ -630,18 +610,9 @@ describe('HouseholdItemDetailPage', () => {
       expect(dashValues.length).toBeGreaterThan(0);
     });
 
-    it('shows dash for missing room', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ room: null }));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      // Verify room shows dash (unicode 2014)
-      const roomValues = screen.getAllByText('\u2014');
-      expect(roomValues.length).toBeGreaterThan(0);
+    it.skip('shows dash for missing area — area display not yet implemented in UI', () => {
+      // The HouseholdItemDetailPage does not yet display the area field.
+      // This test should be re-enabled when area display is added to the detail page.
     });
 
     it('shows dash for missing vendor', async () => {
@@ -676,17 +647,7 @@ describe('HouseholdItemDetailPage', () => {
       expect(dashValues.length).toBeGreaterThan(0);
     });
 
-    it('shows "No tags" for empty tags array', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ tags: [], tagIds: [] }));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('No tags')).toBeInTheDocument();
-    });
+    // tags were removed in migration 0028 — "No tags" test deleted
 
     it('shows empty Dependencies section when no deps exist', async () => {
       // The old "linked work items" section was replaced by the Dependencies section (migration 0012)

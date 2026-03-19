@@ -44,7 +44,6 @@ export function HouseholdItemsPage() {
     { value: 'name', label: t('sort.options.name') },
     { value: 'category', label: t('sort.options.category') },
     { value: 'status', label: t('sort.options.status') },
-    { value: 'room', label: t('sort.options.room') },
     { value: 'order_date', label: t('sort.options.order_date') },
     { value: 'target_delivery_date', label: t('sort.options.target_delivery_date') },
     { value: 'created_at', label: t('sort.options.created_at') },
@@ -75,7 +74,6 @@ export function HouseholdItemsPage() {
   const searchQuery = searchParams.get('q') || '';
   const categoryFilter = searchParams.get('category') as HouseholdItemCategory | null;
   const statusFilter = searchParams.get('status') as HouseholdItemStatus | null;
-  const roomFilter = searchParams.get('room') || '';
   const vendorFilter = searchParams.get('vendorId') || '';
   const noBudgetFilter = searchParams.get('noBudget') === 'true';
   const sortBy =
@@ -83,7 +81,6 @@ export function HouseholdItemsPage() {
       | 'name'
       | 'category'
       | 'status'
-      | 'room'
       | 'order_date'
       | 'target_delivery_date'
       | 'created_at'
@@ -94,9 +91,7 @@ export function HouseholdItemsPage() {
 
   // Search debounce
   const [searchInput, setSearchInput] = useState(searchQuery);
-  const [roomInput, setRoomInput] = useState(roomFilter);
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
-  const roomDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // Delete confirmation state
   const [deletingItem, setDeletingItem] = useState<HouseholdItemSummary | null>(null);
@@ -175,30 +170,6 @@ export function HouseholdItemsPage() {
     };
   }, [searchInput, searchParams, setSearchParams]);
 
-  // Debounced room filter
-  useEffect(() => {
-    if (roomDebounceRef.current) {
-      clearTimeout(roomDebounceRef.current);
-    }
-
-    roomDebounceRef.current = setTimeout(() => {
-      const newParams = new URLSearchParams(searchParams);
-      if (roomInput) {
-        newParams.set('room', roomInput);
-      } else {
-        newParams.delete('room');
-      }
-      newParams.set('page', '1');
-      setSearchParams(newParams);
-    }, 300);
-
-    return () => {
-      if (roomDebounceRef.current) {
-        clearTimeout(roomDebounceRef.current);
-      }
-    };
-  }, [roomInput, searchParams, setSearchParams]);
-
   // Load household items when filters/page changes
   useEffect(() => {
     const fetchData = async () => {
@@ -211,7 +182,6 @@ export function HouseholdItemsPage() {
           pageSize,
           category: categoryFilter || undefined,
           status: statusFilter || undefined,
-          room: roomFilter || undefined,
           vendorId: vendorFilter || undefined,
           q: searchQuery || undefined,
           sortBy,
@@ -238,7 +208,6 @@ export function HouseholdItemsPage() {
     searchQuery,
     categoryFilter,
     statusFilter,
-    roomFilter,
     vendorFilter,
     sortBy,
     sortOrder,
@@ -550,21 +519,6 @@ export function HouseholdItemsPage() {
             </div>
 
             <div className={styles.filter}>
-              <label htmlFor="room-input" className={styles.filterLabel}>
-                {t('filters.room')}
-              </label>
-              <input
-                id="room-input"
-                type="text"
-                placeholder={t('filters.roomPlaceholder')}
-                value={roomInput}
-                onChange={(e) => setRoomInput(e.target.value)}
-                className={styles.filterSelect}
-                aria-label={t('filters.roomAriaLabel')}
-              />
-            </div>
-
-            <div className={styles.filter}>
               <label htmlFor="vendor-filter" className={styles.filterLabel}>
                 {t('filters.vendor')}
               </label>
@@ -637,7 +591,6 @@ export function HouseholdItemsPage() {
           {searchQuery ||
           categoryFilter ||
           statusFilter ||
-          roomFilter ||
           vendorFilter ||
           noBudgetFilter ? (
             <>
@@ -648,7 +601,6 @@ export function HouseholdItemsPage() {
                 className={styles.secondaryButton}
                 onClick={() => {
                   setSearchInput('');
-                  setRoomInput('');
                   setSearchParams(new URLSearchParams());
                 }}
               >
@@ -782,7 +734,6 @@ export function HouseholdItemsPage() {
                     <td>
                       <Badge variants={HI_STATUS_VARIANTS} value={item.status} />
                     </td>
-                    <td>{item.room || '—'}</td>
                     <td>{item.vendor?.name || '—'}</td>
                     <td>{formatCurrency(item.totalPlannedAmount)}</td>
                     <td>{formatDate(item.targetDeliveryDate)}</td>
@@ -917,10 +868,6 @@ export function HouseholdItemsPage() {
                   <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>{t('card.status')}</span>
                     <Badge variants={HI_STATUS_VARIANTS} value={item.status} />
-                  </div>
-                  <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>{t('card.room')}</span>
-                    <span>{item.room || '—'}</span>
                   </div>
                   <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>{t('card.vendor')}</span>

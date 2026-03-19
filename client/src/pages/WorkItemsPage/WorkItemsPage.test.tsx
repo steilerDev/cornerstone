@@ -88,7 +88,8 @@ describe('WorkItemsPage', () => {
       actualStartDate: null,
       actualEndDate: null,
       assignedUser: { id: 'user-1', displayName: 'John Doe', email: 'john@example.com' },
-      tags: [{ id: 'tag-1', name: 'Electrical', color: '#FF0000' }],
+      assignedVendor: null,
+      area: null,
       budgetLineCount: 0,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
@@ -103,7 +104,8 @@ describe('WorkItemsPage', () => {
       actualStartDate: null,
       actualEndDate: null,
       assignedUser: null,
-      tags: [],
+      assignedVendor: null,
+      area: null,
       budgetLineCount: 0,
       createdAt: '2026-01-02T00:00:00.000Z',
       updatedAt: '2026-01-02T00:00:00.000Z',
@@ -312,14 +314,9 @@ describe('WorkItemsPage', () => {
       });
     });
 
-    it('renders tag filter dropdown', async () => {
-      mockListWorkItems.mockResolvedValueOnce(listResponse);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByLabelText(/tag:/i)).toBeInTheDocument();
-      });
+    it.skip('renders tag filter dropdown — tags table dropped in migration 0028', () => {
+      // Tags (work_item_tags, household_item_tags, tags tables) were dropped in migration 0028.
+      // Tag filtering is no longer available on the work items page.
     });
 
     it('renders sort dropdown', async () => {
@@ -360,7 +357,8 @@ describe('WorkItemsPage', () => {
         actualStartDate: null,
         actualEndDate: null,
         assignedUser: null,
-        tags: [],
+        assignedVendor: null,
+        area: null,
         budgetLineCount: 3,
         createdAt: '2026-01-03T00:00:00.000Z',
         updatedAt: '2026-01-03T00:00:00.000Z',
@@ -395,7 +393,8 @@ describe('WorkItemsPage', () => {
         actualStartDate: null,
         actualEndDate: null,
         assignedUser: null,
-        tags: [],
+        assignedVendor: null,
+        area: null,
         budgetLineCount: 3,
         createdAt: '2026-01-03T00:00:00.000Z',
         updatedAt: '2026-01-03T00:00:00.000Z',

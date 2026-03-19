@@ -8,7 +8,7 @@
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { eq } from 'drizzle-orm';
 import type * as schemaTypes from '../../db/schema.js';
-import { budgetCategories, budgetSources, tags, vendors } from '../../db/schema.js';
+import { budgetCategories, budgetSources, vendors } from '../../db/schema.js';
 import { ValidationError } from '../../errors/AppError.js';
 import type { ConfidenceLevel } from '@cornerstone/shared';
 
@@ -24,19 +24,6 @@ export const VALID_CONFIDENCE_LEVELS: ConfidenceLevel[] = [
 
 /** Maximum description length */
 export const MAX_DESCRIPTION_LENGTH = 500;
-
-/**
- * Validate that all tag IDs exist.
- * Throws ValidationError if any tag does not exist.
- */
-export function validateTagIds(_db: DbType, tagIds: string[]): void {
-  for (const tagId of tagIds) {
-    const tag = _db.select().from(tags).where(eq(tags.id, tagId)).get();
-    if (!tag) {
-      throw new ValidationError(`Tag not found: ${tagId}`);
-    }
-  }
-}
 
 /**
  * Validate that a confidence level value is valid.

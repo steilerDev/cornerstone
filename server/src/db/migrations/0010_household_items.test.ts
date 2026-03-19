@@ -127,13 +127,13 @@ describe('Migration 0010: Household Items', () => {
       const tableNames = tables.map((t) => t.name).sort();
       // Note: migration 0012 replaces household_item_work_items with household_item_deps
       // Note: migration 0016 adds household_item_categories
+      // Note: migration 0028 drops household_item_tags (tags system removed)
       expect(tableNames).toEqual([
         'household_item_budgets',
         'household_item_categories',
         'household_item_deps',
         'household_item_notes',
         'household_item_subsidies',
-        'household_item_tags',
         'household_items',
       ]);
     });
@@ -169,13 +169,16 @@ describe('Migration 0010: Household Items', () => {
       expect(colMap.get('description')?.notnull).toBe(0);
       expect(colMap.get('vendor_id')?.notnull).toBe(0);
       expect(colMap.get('url')?.notnull).toBe(0);
-      expect(colMap.get('room')?.notnull).toBe(0);
+      // room column was dropped in migration 0028 (replaced by area_id)
+      expect(colMap.get('room')).toBeUndefined();
+      expect(colMap.get('area_id')?.notnull).toBe(0);
       expect(colMap.get('order_date')?.notnull).toBe(0);
       expect(colMap.get('actual_delivery_date')?.notnull).toBe(0);
       expect(colMap.get('created_by')?.notnull).toBe(0);
 
       // All expected columns are present
       // (expected_delivery_date removed in 0015; category removed in 0016, replaced by category_id)
+      // (room removed in 0028, replaced by area_id)
       const expectedColumns = [
         'id',
         'name',
@@ -184,7 +187,7 @@ describe('Migration 0010: Household Items', () => {
         'status',
         'vendor_id',
         'url',
-        'room',
+        'area_id',
         'quantity',
         'order_date',
         'actual_delivery_date',
@@ -223,15 +226,18 @@ describe('Migration 0010: Household Items', () => {
   // Migration 0016 also seeds 8 default category rows (hic-furniture, hic-appliances, etc.)
 
   describe('category_id FK constraint (added by migration 0016)', () => {
+    // Note: migration 0028 conditionally removes hic-outdoor and hic-storage on fresh DBs
+    // (when no household items reference them). Only test categories that survive 0028.
     const validCategoryIds = [
       'hic-furniture',
       'hic-appliances',
       'hic-fixtures',
       'hic-decor',
       'hic-electronics',
-      'hic-outdoor',
-      'hic-storage',
       'hic-other',
+      // hic-outdoor and hic-storage are deleted by migration 0028 on fresh DBs
+      // hic-equipment is added by migration 0028
+      'hic-equipment',
     ];
 
     it.each(validCategoryIds)('accepts seeded category_id: %s', (categoryId) => {
@@ -415,8 +421,10 @@ describe('Migration 0010: Household Items', () => {
   });
 
   // ── 7. household_item_tags composite PK ───────────────────────────────────
+  // NOTE: Migration 0028 dropped household_item_tags and tags tables.
+  // These tests are skipped because the tables no longer exist after all migrations run.
 
-  describe('household_item_tags composite primary key', () => {
+  describe.skip('household_item_tags composite primary key (dropped in migration 0028)', () => {
     it('prevents duplicate (household_item_id, tag_id) pairs', () => {
       insertHouseholdItem(sqlite, 'item-tag-pk');
       insertTag(sqlite, 'tag-pk-1');
@@ -463,7 +471,8 @@ describe('Migration 0010: Household Items', () => {
   // ── 8. CASCADE on household item delete ───────────────────────────────────
 
   describe('CASCADE delete from household_items', () => {
-    it('removes tag links when household item is deleted', () => {
+    // household_item_tags was dropped in migration 0028 — skip tag cascade test
+    it.skip('removes tag links when household item is deleted (dropped in migration 0028)', () => {
       insertHouseholdItem(sqlite, 'item-cascade-1');
       insertTag(sqlite, 'tag-cascade-1');
       sqlite
@@ -657,7 +666,7 @@ describe('Migration 0010: Household Items', () => {
   // ── 12. Indexes on household_items ────────────────────────────────────────
 
   describe('indexes on household_items', () => {
-    it('creates all 5 required indexes on household_items table', () => {
+    it('creates required indexes on household_items table', () => {
       const indexes = sqlite
         .prepare(`SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='household_items'`)
         .all() as Array<{ name: string }>;
@@ -666,12 +675,16 @@ describe('Migration 0010: Household Items', () => {
       // migration 0016 replaced idx_household_items_category with idx_household_items_category_id
       expect(indexNames).toContain('idx_household_items_category_id');
       expect(indexNames).toContain('idx_household_items_status');
-      expect(indexNames).toContain('idx_household_items_room');
+      // idx_household_items_room was dropped in migration 0028 (room column removed)
+      expect(indexNames).not.toContain('idx_household_items_room');
+      // idx_household_items_area_id is added in migration 0028
+      expect(indexNames).toContain('idx_household_items_area_id');
       expect(indexNames).toContain('idx_household_items_vendor_id');
       expect(indexNames).toContain('idx_household_items_created_at');
     });
 
-    it('creates index on household_item_tags tag_id', () => {
+    it.skip('creates index on household_item_tags tag_id (dropped in migration 0028)', () => {
+      // household_item_tags table was dropped in migration 0028
       const indexes = sqlite
         .prepare(
           `SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='household_item_tags'`,
@@ -731,6 +744,7 @@ describe('Migration 0010: Household Items', () => {
 
   describe('full record insertion', () => {
     it('can insert a household item with all optional fields populated', () => {
+      // Note: migration 0028 dropped the room column and added area_id instead
       insertVendor(sqlite, 'vendor-full');
       insertUser(sqlite, 'user-full');
 
@@ -738,10 +752,10 @@ describe('Migration 0010: Household Items', () => {
       sqlite
         .prepare(
           `INSERT INTO household_items
-             (id, name, description, category_id, status, vendor_id, url, room, quantity,
+             (id, name, description, category_id, status, vendor_id, url, quantity,
               order_date, actual_delivery_date, created_by,
               created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           'item-full',
@@ -751,7 +765,6 @@ describe('Migration 0010: Household Items', () => {
           'purchased',
           'vendor-full',
           'https://example.com/sofa',
-          'Living Room',
           2,
           '2025-01-15',
           null,
@@ -768,7 +781,9 @@ describe('Migration 0010: Household Items', () => {
       expect(row.category_id).toBe('hic-furniture');
       expect(row.status).toBe('purchased');
       expect(row.quantity).toBe(2);
-      expect(row.room).toBe('Living Room');
+      // room column was dropped in migration 0028; use area_id instead
+      expect(row).not.toHaveProperty('room');
+      expect(row.area_id).toBeNull();
       expect(row.vendor_id).toBe('vendor-full');
       expect(row.url).toBe('https://example.com/sofa');
       expect(row.order_date).toBe('2025-01-15');

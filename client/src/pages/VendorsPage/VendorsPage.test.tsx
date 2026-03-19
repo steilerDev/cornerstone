@@ -30,7 +30,7 @@ describe('VendorsPage', () => {
   const sampleVendor1: Vendor = {
     id: 'vendor-1',
     name: 'Smith Plumbing',
-    specialty: 'Plumbing',
+    trade: { id: 'trade-plumbing', name: 'Plumbing', color: null },
     phone: '+1 555-1234',
     email: 'smith@plumbing.com',
     address: '123 Main St',
@@ -43,7 +43,7 @@ describe('VendorsPage', () => {
   const sampleVendor2: Vendor = {
     id: 'vendor-2',
     name: 'Jones Electric',
-    specialty: 'Electrical',
+    trade: { id: 'trade-electrical', name: 'Electrical', color: null },
     phone: null,
     email: 'jones@electric.com',
     address: null,
@@ -178,15 +178,9 @@ describe('VendorsPage', () => {
       });
     });
 
-    it('displays vendor specialty', async () => {
-      mockFetchVendors.mockResolvedValueOnce(listResponse);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getAllByText('Plumbing').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Electrical').length).toBeGreaterThan(0);
-      });
+    it.skip('displays vendor trade — trade column removed from list view in migration 0028', async () => {
+      // Trade (formerly specialty) is no longer shown in the vendor list table or mobile cards.
+      // It is only accessible on the vendor detail page.
     });
 
     it('displays vendor phone when present', async () => {
@@ -304,7 +298,8 @@ describe('VendorsPage', () => {
       expect(screen.getByRole('heading', { name: /add vendor/i })).toBeInTheDocument();
     });
 
-    it('shows name, specialty, phone, email, address, and notes fields in modal', async () => {
+    it('shows name, phone, email, address, and notes fields in modal', async () => {
+      // Specialty was removed in migration 0028 — vendors now use trade_id (select, not free text)
       mockFetchVendors.mockResolvedValueOnce(emptyResponse);
 
       const user = userEvent.setup();
@@ -318,7 +313,7 @@ describe('VendorsPage', () => {
 
       const dialog = screen.getByRole('dialog');
       expect(within(dialog).getByLabelText(/^name/i)).toBeInTheDocument();
-      expect(within(dialog).getByLabelText(/specialty/i)).toBeInTheDocument();
+      // specialty field removed in migration 0028 — vendors now linked by trade (not free text)
       expect(within(dialog).getByLabelText(/phone/i)).toBeInTheDocument();
       expect(within(dialog).getByLabelText(/email/i)).toBeInTheDocument();
       expect(within(dialog).getByLabelText(/address/i)).toBeInTheDocument();
@@ -365,7 +360,7 @@ describe('VendorsPage', () => {
       const newVendor: Vendor = {
         id: 'vendor-new',
         name: 'Brown Roofing',
-        specialty: 'Roofing',
+        trade: { id: 'trade-roofing', name: 'Roofing', color: null },
         phone: null,
         email: null,
         address: null,
@@ -393,7 +388,7 @@ describe('VendorsPage', () => {
 
       const dialog = screen.getByRole('dialog');
       await user.type(within(dialog).getByLabelText(/^name/i), 'Brown Roofing');
-      await user.type(within(dialog).getByLabelText(/specialty/i), 'Roofing');
+      // specialty field removed in migration 0028
 
       await user.click(within(dialog).getByRole('button', { name: /add vendor/i }));
 
@@ -725,7 +720,7 @@ describe('VendorsPage', () => {
   // ─── Sort controls ─────────────────────────────────────────────────────────
 
   describe('sort controls', () => {
-    it('renders sort select with name, specialty, date added, last updated options', async () => {
+    it('renders sort select with name and date added options (specialty removed in 0028)', async () => {
       mockFetchVendors.mockResolvedValueOnce(listResponse);
 
       renderPage();
@@ -734,7 +729,8 @@ describe('VendorsPage', () => {
         const sortSelect = screen.getByRole('combobox', { name: /sort by/i });
         expect(sortSelect).toBeInTheDocument();
         expect(within(sortSelect).getByRole('option', { name: /name/i })).toBeInTheDocument();
-        expect(within(sortSelect).getByRole('option', { name: /specialty/i })).toBeInTheDocument();
+        // specialty sort option removed in migration 0028
+        expect(within(sortSelect).queryByRole('option', { name: /specialty/i })).not.toBeInTheDocument();
         expect(within(sortSelect).getByRole('option', { name: /date added/i })).toBeInTheDocument();
       });
     });

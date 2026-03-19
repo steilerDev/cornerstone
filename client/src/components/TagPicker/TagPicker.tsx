@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { TagResponse } from '@cornerstone/shared';
+import type { TagResponse } from '../../lib/tagsApi.js';
 import { TagPill } from '../TagPill/TagPill.js';
 import styles from './TagPicker.module.css';
 

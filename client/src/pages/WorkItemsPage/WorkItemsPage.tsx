@@ -4,8 +4,6 @@ import { useTranslation } from 'react-i18next';
 import type { WorkItemSummary, WorkItemStatus, UserResponse } from '@cornerstone/shared';
 import { listWorkItems, deleteWorkItem } from '../../lib/workItemsApi.js';
 import { listUsers } from '../../lib/usersApi.js';
-import { fetchTags } from '../../lib/tagsApi.js';
-import type { TagResponse } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
@@ -25,7 +23,6 @@ export function WorkItemsPage() {
   // Data state
   const [workItems, setWorkItems] = useState<WorkItemSummary[]>([]);
   const [users, setUsers] = useState<UserResponse[]>([]);
-  const [tags, setTags] = useState<TagResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
@@ -46,7 +43,6 @@ export function WorkItemsPage() {
   const searchQuery = searchParams.get('q') || '';
   const statusFilter = searchParams.get('status') as WorkItemStatus | null;
   const assignedUserFilter = searchParams.get('assignedUserId') || '';
-  const tagFilter = searchParams.get('tagId') || '';
   const noBudgetFilter = searchParams.get('noBudget') === 'true';
   const sortBy =
     (searchParams.get('sortBy') as
@@ -80,13 +76,12 @@ export function WorkItemsPage() {
   // Screen reader announcement for filter toggle
   const [srMessage, setSrMessage] = useState('');
 
-  // Load users and tags on mount
+  // Load users on mount
   useEffect(() => {
     const loadFilters = async () => {
       try {
-        const [usersResponse, tagsResponse] = await Promise.all([listUsers(), fetchTags()]);
+        const usersResponse = await listUsers();
         setUsers(usersResponse.users.filter((u) => !u.deactivatedAt));
-        setTags(tagsResponse.tags);
       } catch (err) {
         console.error('Failed to load filter options:', err);
       }
@@ -137,7 +132,6 @@ export function WorkItemsPage() {
           pageSize,
           status: statusFilter || undefined,
           assignedUserId: assignedUserFilter || undefined,
-          tagId: tagFilter || undefined,
           q: searchQuery || undefined,
           sortBy,
           sortOrder,
@@ -163,7 +157,6 @@ export function WorkItemsPage() {
     searchQuery,
     statusFilter,
     assignedUserFilter,
-    tagFilter,
     noBudgetFilter,
     sortBy,
     sortOrder,
@@ -197,7 +190,6 @@ export function WorkItemsPage() {
         pageSize,
         status: statusFilter || undefined,
         assignedUserId: assignedUserFilter || undefined,
-        tagId: tagFilter || undefined,
         q: searchQuery || undefined,
         sortBy,
         sortOrder,
@@ -238,10 +230,6 @@ export function WorkItemsPage() {
 
   const handleUserFilterChange = (userId: string) => {
     updateSearchParams({ assignedUserId: userId || undefined, page: '1' });
-  };
-
-  const handleTagFilterChange = (tagId: string) => {
-    updateSearchParams({ tagId: tagId || undefined, page: '1' });
   };
 
   const handleNoBudgetFilterChange = (checked: boolean) => {
@@ -489,25 +477,6 @@ export function WorkItemsPage() {
             </select>
           </div>
 
-          <div className={styles.filter}>
-            <label htmlFor="tag-filter" className={styles.filterLabel}>
-              {t('list.filters.tag')}
-            </label>
-            <select
-              id="tag-filter"
-              value={tagFilter}
-              onChange={(e) => handleTagFilterChange(e.target.value)}
-              className={styles.filterSelect}
-            >
-              <option value="">{t('list.filters.allTags')}</option>
-              {tags.map((tag) => (
-                <option key={tag.id} value={tag.id}>
-                  {tag.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
           <button
             type="button"
             className={styles.noBudgetToggle}
@@ -555,7 +524,7 @@ export function WorkItemsPage() {
       {/* Work items list */}
       {workItems.length === 0 ? (
         <div className={styles.emptyState}>
-          {searchQuery || statusFilter || assignedUserFilter || tagFilter || noBudgetFilter ? (
+          {searchQuery || statusFilter || assignedUserFilter || noBudgetFilter ? (
             <>
               <h2>{t('list.empty.noMatchTitle')}</h2>
               <p>{t('list.empty.noMatchText')}</p>
@@ -614,7 +583,6 @@ export function WorkItemsPage() {
                     {t('list.table.endDate')}
                     {renderSortIcon('end_date')}
                   </th>
-                  <th>{t('list.table.tags')}</th>
                   <th className={styles.budgetLinesColumn}>{t('list.table.budgetLines')}</th>
                   <th className={styles.actionsColumn}>{t('list.table.actions')}</th>
                 </tr>
@@ -633,15 +601,6 @@ export function WorkItemsPage() {
                     <td>{item.assignedUser?.displayName || '—'}</td>
                     <td>{formatDate(item.startDate)}</td>
                     <td>{formatDate(item.endDate)}</td>
-                    <td>
-                      <div className={styles.tagsCell}>
-                        {item.tags.length > 0
-                          ? item.tags.map((tag) => (
-                              <TagPill key={tag.id} name={tag.name} color={tag.color} />
-                            ))
-                          : '—'}
-                      </div>
-                    </td>
                     <td className={styles.budgetLinesCell}>
                       <span
                         className={
@@ -746,16 +705,6 @@ export function WorkItemsPage() {
                     <span className={styles.cardLabel}>{t('list.card.end')}</span>
                     <span>{formatDate(item.endDate)}</span>
                   </div>
-                  {item.tags.length > 0 && (
-                    <div className={styles.cardRow}>
-                      <span className={styles.cardLabel}>{t('list.card.tags')}</span>
-                      <div className={styles.tagsCell}>
-                        {item.tags.map((tag) => (
-                          <TagPill key={tag.id} name={tag.name} color={tag.color} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
                   <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>{t('list.card.budgetLines')}</span>
                     <span

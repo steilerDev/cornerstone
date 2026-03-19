@@ -91,7 +91,7 @@ describe('HouseholdItemsPage', () => {
       category: 'furniture',
       status: 'planned',
       vendor: null,
-      room: null,
+      area: null,
       quantity: 1,
       orderDate: null,
       targetDeliveryDate: null,
@@ -100,7 +100,6 @@ describe('HouseholdItemsPage', () => {
       latestDeliveryDate: null,
       isLate: false,
       url: null,
-      tagIds: [],
       budgetLineCount: 0,
       totalPlannedAmount: 0,
       budgetSummary: { totalPlanned: 0, totalActual: 0, subsidyReduction: 0, netCost: 0 },
@@ -117,8 +116,8 @@ describe('HouseholdItemsPage', () => {
       name: 'Coffee table',
       category: 'furniture',
       status: 'arrived',
-      vendor: { id: 'vendor-1', name: 'Furniture Plus', specialty: 'Furniture' },
-      room: 'living room',
+      vendor: { id: 'vendor-1', name: 'Furniture Plus', trade: null },
+      area: null,
       totalPlannedAmount: 200,
       targetDeliveryDate: '2026-01-10',
     }),
@@ -127,8 +126,8 @@ describe('HouseholdItemsPage', () => {
       name: 'Dining chair',
       category: 'furniture',
       status: 'purchased',
-      vendor: { id: 'vendor-1', name: 'Furniture Plus', specialty: 'Furniture' },
-      room: 'dining room',
+      vendor: { id: 'vendor-1', name: 'Furniture Plus', trade: null },
+      area: null,
       totalPlannedAmount: 150,
       targetDeliveryDate: '2026-01-15',
     }),
@@ -272,14 +271,9 @@ describe('HouseholdItemsPage', () => {
       });
     });
 
-    it('renders room filter input', async () => {
-      mockListHouseholdItems.mockResolvedValueOnce(listResponse);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByLabelText(/filter by room/i)).toBeInTheDocument();
-      });
+    it.skip('renders room filter input — room removed in migration 0028 (replaced by area)', () => {
+      // room column dropped from household_items in migration 0028.
+      // Area-based filtering will be added when area_id display is implemented.
     });
 
     it('renders vendor filter dropdown', async () => {

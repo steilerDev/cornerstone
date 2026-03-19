@@ -4,8 +4,6 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import {
   workItems,
-  workItemTags,
-  tags,
   users,
   workItemSubtasks,
   workItemDependencies,
@@ -20,13 +18,11 @@ import {
   onMilestoneDelayed,
   onAutoRescheduleCompleted,
 } from './diaryAutoEventService.js';
-import { toUserSummary, toTagResponse } from './shared/converters.js';
-import { validateTagIds } from './shared/validators.js';
+import { toUserSummary } from './shared/converters.js';
 import type {
   WorkItemDetail,
   WorkItemSummary,
   UserSummary,
-  TagResponse,
   SubtaskResponse,
   DependencyResponse,
   CreateWorkItemRequest,
@@ -66,20 +62,6 @@ function toSubtaskResponse(subtask: typeof workItemSubtasks.$inferSelect): Subta
 }
 
 /**
- * Fetch tags for a work item.
- */
-function getWorkItemTags(db: DbType, workItemId: string): TagResponse[] {
-  const tagRows = db
-    .select({ tag: tags })
-    .from(workItemTags)
-    .innerJoin(tags, eq(tags.id, workItemTags.tagId))
-    .where(eq(workItemTags.workItemId, workItemId))
-    .all();
-
-  return tagRows.map((row) => toTagResponse(row.tag));
-}
-
-/**
  * Fetch assigned user for a work item.
  */
 function getAssignedUser(db: DbType, assignedUserId: string | null): UserSummary | null {
@@ -96,7 +78,6 @@ export function toWorkItemSummary(
   workItem: typeof workItems.$inferSelect,
 ): WorkItemSummary {
   const assignedUser = getAssignedUser(db, workItem.assignedUserId);
-  const itemTags = getWorkItemTags(db, workItem.id);
   const budgetLineCount = getBudgetLineCount(db, workItem.id);
 
   return {
@@ -109,7 +90,8 @@ export function toWorkItemSummary(
     actualEndDate: workItem.actualEndDate,
     durationDays: workItem.durationDays,
     assignedUser,
-    tags: itemTags,
+    assignedVendor: null, // TODO: fetch in Story 4
+    area: null, // TODO: fetch in Story 2
     budgetLineCount,
     createdAt: workItem.createdAt,
     updatedAt: workItem.updatedAt,
@@ -185,7 +167,6 @@ export function toWorkItemDetail(
   const createdByUser = workItem.createdBy
     ? db.select().from(users).where(eq(users.id, workItem.createdBy)).get()
     : null;
-  const itemTags = getWorkItemTags(db, workItem.id);
   const subtasks = getWorkItemSubtasks(db, workItem.id);
   const dependencies = getWorkItemDependencies(db, workItem.id);
 
@@ -204,8 +185,9 @@ export function toWorkItemDetail(
     startAfter: workItem.startAfter,
     startBefore: workItem.startBefore,
     assignedUser,
+    assignedVendor: null, // TODO: fetch in Story 4
+    area: null, // TODO: fetch in Story 2
     createdBy: toUserSummary(createdByUser || null),
-    tags: itemTags,
     subtasks,
     dependencies,
     budgets,
@@ -259,20 +241,6 @@ function validateAssignedUser(db: DbType, userId: string): void {
  * Replace all tags for a work item (set-semantics).
  * Deletes existing associations not in the new set, inserts new ones.
  */
-function replaceWorkItemTags(db: DbType, workItemId: string, tagIds: string[]): void {
-  // Delete all existing tags
-  db.delete(workItemTags).where(eq(workItemTags.workItemId, workItemId)).run();
-
-  // Insert new tags
-  if (tagIds.length > 0) {
-    const values = tagIds.map((tagId) => ({
-      workItemId,
-      tagId,
-    }));
-    db.insert(workItemTags).values(values).run();
-  }
-}
-
 /**
  * Create a new work item.
  */
@@ -292,11 +260,6 @@ export function createWorkItem(
   // Validate assignedUserId if provided
   if (data.assignedUserId) {
     validateAssignedUser(db, data.assignedUserId);
-  }
-
-  // Validate tagIds if provided
-  if (data.tagIds && data.tagIds.length > 0) {
-    validateTagIds(db, data.tagIds);
   }
 
   const now = new Date().toISOString();
@@ -322,11 +285,6 @@ export function createWorkItem(
       updatedAt: now,
     })
     .run();
-
-  // Insert tags if provided
-  if (data.tagIds && data.tagIds.length > 0) {
-    replaceWorkItemTags(db, id, data.tagIds);
-  }
 
   // Fetch and return the created work item
   const workItem = db.select().from(workItems).where(eq(workItems.id, id)).get();
@@ -501,15 +459,6 @@ export function updateWorkItem(
   updateData.updatedAt = new Date().toISOString();
   db.update(workItems).set(updateData).where(eq(workItems.id, id)).run();
 
-  // Update tags if provided
-  if ('tagIds' in data) {
-    const tagIds = data.tagIds ?? [];
-    if (tagIds.length > 0) {
-      validateTagIds(db, tagIds);
-    }
-    replaceWorkItemTags(db, id, tagIds);
-  }
-
   // Trigger auto-reschedule when any scheduling-relevant field changed.
   // actualStartDate and actualEndDate are included because the engine uses them
   // as absolute overrides for ES/EF in the CPM forward pass.
@@ -609,13 +558,6 @@ export function listWorkItems(
         sql`LOWER(${workItems.title}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
         sql`LOWER(${workItems.description}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
       )!,
-    );
-  }
-
-  // Tag filter requires a JOIN
-  if (query.tagId) {
-    conditions.push(
-      sql`${workItems.id} IN (SELECT ${workItemTags.workItemId} FROM ${workItemTags} WHERE ${workItemTags.tagId} = ${query.tagId})`,
     );
   }
 
