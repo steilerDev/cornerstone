@@ -350,7 +350,11 @@ function AreasTab() {
                 }
               >
                 {editingArea?.id === area.id ? (
-                  <form onSubmit={handleUpdateArea} className={styles.editForm} aria-label={`Edit ${area.name}`}>
+                  <form
+                    onSubmit={handleUpdateArea}
+                    className={styles.editForm}
+                    aria-label={`Edit ${area.name}`}
+                  >
                     {updateError && (
                       <div className={styles.errorBanner} role="alert">
                         {updateError}
@@ -839,7 +843,11 @@ function TradesTab() {
             {trades.map((trade) => (
               <div key={trade.id} className={styles.itemRow}>
                 {editingTrade?.id === trade.id ? (
-                  <form onSubmit={handleUpdateTrade} className={styles.editForm} aria-label={`Edit ${trade.name}`}>
+                  <form
+                    onSubmit={handleUpdateTrade}
+                    className={styles.editForm}
+                    aria-label={`Edit ${trade.name}`}
+                  >
                     {updateError && (
                       <div className={styles.errorBanner} role="alert">
                         {updateError}
@@ -1400,7 +1408,11 @@ function BudgetCategoriesTab() {
             {categories.map((category) => (
               <div key={category.id} className={styles.itemRow}>
                 {editingCategory?.id === category.id ? (
-                  <form onSubmit={handleUpdateCategory} className={styles.editForm} aria-label={`Edit ${category.name}`}>
+                  <form
+                    onSubmit={handleUpdateCategory}
+                    className={styles.editForm}
+                    aria-label={`Edit ${category.name}`}
+                  >
                     {updateError && (
                       <div className={styles.errorBanner} role="alert">
                         {updateError}
@@ -1968,7 +1980,11 @@ function HouseholdItemCategoriesTab() {
             {categories.map((category) => (
               <div key={category.id} className={styles.itemRow}>
                 {editingCategory?.id === category.id ? (
-                  <form onSubmit={handleUpdateCategory} className={styles.editForm} aria-label={`Edit ${category.name}`}>
+                  <form
+                    onSubmit={handleUpdateCategory}
+                    className={styles.editForm}
+                    aria-label={`Edit ${category.name}`}
+                  >
                     {updateError && (
                       <div className={styles.errorBanner} role="alert">
                         {updateError}
