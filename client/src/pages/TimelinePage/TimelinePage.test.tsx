@@ -343,9 +343,7 @@ describe('TimelinePage', () => {
       fireEvent.click(screen.getByTestId('timeline-new-button'));
       fireEvent.click(screen.getByTestId('timeline-new-work-item'));
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-      expect(screen.getByTestId('location-display')).toHaveTextContent(
-        '/project/work-items/new',
-      );
+      expect(screen.getByTestId('location-display')).toHaveTextContent('/project/work-items/new');
     });
 
     it('"Household Item" menu item navigates to /project/household-items/new', () => {
@@ -363,9 +361,7 @@ describe('TimelinePage', () => {
       fireEvent.click(screen.getByTestId('timeline-new-button'));
       fireEvent.click(screen.getByTestId('timeline-new-milestone'));
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-      expect(screen.getByTestId('location-display')).toHaveTextContent(
-        '/project/milestones/new',
-      );
+      expect(screen.getByTestId('location-display')).toHaveTextContent('/project/milestones/new');
     });
 
     it('"New" button has aria-haspopup="menu"', () => {
