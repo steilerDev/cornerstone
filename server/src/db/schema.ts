@@ -15,7 +15,7 @@ import {
   uniqueIndex,
   primaryKey,
 } from 'drizzle-orm/sqlite-core';
-import { isNotNull } from 'drizzle-orm';
+import { isNotNull, type AnySQLiteColumn } from 'drizzle-orm';
 
 /**
  * Users table - stores user accounts for authentication.
@@ -70,6 +70,55 @@ export const sessions = sqliteTable(
   }),
 );
 
+// ─── EPIC-18: Areas & Trades Management ───────────────────────────────────────
+
+/**
+ * Trades table - specialties of work (e.g., Plumbing, Electrical, Carpentry).
+ * Vendors are associated with trades to indicate their area of expertise.
+ * EPIC-18: Replaces vendor.specialty string field.
+ */
+export const trades = sqliteTable(
+  'trades',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').unique().notNull(),
+    color: text('color'),
+    description: text('description'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    sortOrderIdx: index('idx_trades_sort_order').on(table.sortOrder, table.name),
+  }),
+);
+
+/**
+ * Areas table - hierarchical location/space divisions within the construction project.
+ * Areas can have parent-child relationships (e.g., Kitchen > Kitchen Cabinets).
+ * EPIC-18: Replaces household_items.room string field.
+ */
+export const areas = sqliteTable(
+  'areas',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    parentId: text('parent_id').references((): AnySQLiteColumn => areas.id, {
+      onDelete: 'cascade',
+    }),
+    color: text('color'),
+    description: text('description'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    parentIdIdx: index('idx_areas_parent_id').on(table.parentId),
+    sortOrderIdx: index('idx_areas_sort_order').on(table.sortOrder, table.name),
+    uniqueNameParent: uniqueIndex('idx_areas_unique_name_parent').on(table.name, table.parentId),
+  }),
+);
+
 /**
  * Work items table - stores construction work items/tasks.
  * EPIC-03: Work Items Core CRUD & Properties
@@ -96,6 +145,12 @@ export const workItems = sqliteTable(
     assignedUserId: text('assigned_user_id').references(() => users.id, {
       onDelete: 'set null',
     }),
+    areaId: text('area_id').references(() => areas.id, {
+      onDelete: 'set null',
+    }),
+    assignedVendorId: text('assigned_vendor_id').references(() => vendors.id, {
+      onDelete: 'set null',
+    }),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
@@ -103,39 +158,12 @@ export const workItems = sqliteTable(
   (table) => ({
     statusIdx: index('idx_work_items_status').on(table.status),
     assignedUserIdIdx: index('idx_work_items_assigned_user_id').on(table.assignedUserId),
+    areaIdIdx: index('idx_work_items_area_id').on(table.areaId),
+    assignedVendorIdIdx: index('idx_work_items_assigned_vendor_id').on(table.assignedVendorId),
     createdAtIdx: index('idx_work_items_created_at').on(table.createdAt),
   }),
 );
 
-/**
- * Tags table - shared tags for organizing work items and household items.
- * Tags are a global resource that can be applied to multiple entities.
- */
-export const tags = sqliteTable('tags', {
-  id: text('id').primaryKey(),
-  name: text('name').unique().notNull(),
-  color: text('color'),
-  createdAt: text('created_at').notNull(),
-});
-
-/**
- * Work item tags junction table - many-to-many relationship between work items and tags.
- */
-export const workItemTags = sqliteTable(
-  'work_item_tags',
-  {
-    workItemId: text('work_item_id')
-      .notNull()
-      .references(() => workItems.id, { onDelete: 'cascade' }),
-    tagId: text('tag_id')
-      .notNull()
-      .references(() => tags.id, { onDelete: 'cascade' }),
-  },
-  (table) => ({
-    pk: primaryKey({ columns: [table.workItemId, table.tagId] }),
-    tagIdIdx: index('idx_work_item_tags_tag_id').on(table.tagId),
-  }),
-);
 
 /**
  * Work item notes table - stores notes/comments on work items.
@@ -225,13 +253,14 @@ export const budgetCategories = sqliteTable('budget_categories', {
 
 /**
  * Vendors table - tracks contractors and vendors involved in the project.
+ * EPIC-18: Replaced specialty string with trade_id FK to trades table.
  */
 export const vendors = sqliteTable(
   'vendors',
   {
     id: text('id').primaryKey(),
     name: text('name').notNull(),
-    specialty: text('specialty'),
+    tradeId: text('trade_id').references(() => trades.id, { onDelete: 'set null' }),
     phone: text('phone'),
     email: text('email'),
     address: text('address'),
@@ -242,6 +271,7 @@ export const vendors = sqliteTable(
   },
   (table) => ({
     nameIdx: index('idx_vendors_name').on(table.name),
+    tradeIdIdx: index('idx_vendors_trade_id').on(table.tradeId),
   }),
 );
 
@@ -612,8 +642,10 @@ export const householdItems = sqliteTable(
       .notNull()
       .default('planned'),
     vendorId: text('vendor_id').references(() => vendors.id, { onDelete: 'set null' }),
+    areaId: text('area_id').references(() => areas.id, {
+      onDelete: 'set null',
+    }),
     url: text('url'),
-    room: text('room'),
     quantity: integer('quantity').notNull().default(1),
     orderDate: text('order_date'),
     actualDeliveryDate: text('actual_delivery_date'),
@@ -628,29 +660,10 @@ export const householdItems = sqliteTable(
   (table) => ({
     categoryIdIdx: index('idx_household_items_category_id').on(table.categoryId),
     statusIdx: index('idx_household_items_status').on(table.status),
-    roomIdx: index('idx_household_items_room').on(table.room),
+    areaIdIdx: index('idx_household_items_area_id').on(table.areaId),
     vendorIdIdx: index('idx_household_items_vendor_id').on(table.vendorId),
     createdAtIdx: index('idx_household_items_created_at').on(table.createdAt),
     targetDeliveryIdx: index('idx_household_items_target_delivery').on(table.targetDeliveryDate),
-  }),
-);
-
-/**
- * Household item tags junction table - many-to-many relationship between household items and tags.
- */
-export const householdItemTags = sqliteTable(
-  'household_item_tags',
-  {
-    householdItemId: text('household_item_id')
-      .notNull()
-      .references(() => householdItems.id, { onDelete: 'cascade' }),
-    tagId: text('tag_id')
-      .notNull()
-      .references(() => tags.id, { onDelete: 'cascade' }),
-  },
-  (table) => ({
-    pk: primaryKey({ columns: [table.householdItemId, table.tagId] }),
-    tagIdIdx: index('idx_household_item_tags_tag_id').on(table.tagId),
   }),
 );
 
