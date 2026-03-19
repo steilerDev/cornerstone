@@ -176,11 +176,20 @@ export function getWeekDates(date: Date): CalendarDay[] {
  * Returns work items that overlap the given day.
  * An item overlaps if its startDate <= day <= endDate.
  * Items without both dates are excluded.
+ *
+ * Items are sorted by duration (longest first) for consistent visual ordering.
  */
 export function getItemsForDay(dateStr: string, items: TimelineWorkItem[]): TimelineWorkItem[] {
-  return items.filter((item) => {
+  const filtered = items.filter((item) => {
     if (!item.startDate || !item.endDate) return false;
     return item.startDate <= dateStr && item.endDate >= dateStr;
+  });
+
+  // Sort by duration (longest first)
+  return filtered.sort((a, b) => {
+    const durationA = new Date(a.endDate!).getTime() - new Date(a.startDate!).getTime();
+    const durationB = new Date(b.endDate!).getTime() - new Date(b.startDate!).getTime();
+    return durationB - durationA;
   });
 }
 
@@ -191,12 +200,14 @@ export function getItemsForDay(dateStr: string, items: TimelineWorkItem[]): Time
  *   1. Completed milestones: match on completedAt date (YYYY-MM-DD portion)
  *   2. Incomplete with projectedDate: match on projectedDate
  *   3. Incomplete without projectedDate: match on targetDate (fallback)
+ *
+ * Milestones are sorted by ID to ensure consistent visual ordering.
  */
 export function getMilestonesForDay(
   dateStr: string,
   milestones: TimelineMilestone[],
 ): TimelineMilestone[] {
-  return milestones.filter((m) => {
+  const filtered = milestones.filter((m) => {
     if (m.isCompleted && m.completedAt) {
       // Use the YYYY-MM-DD portion of the ISO timestamp
       return m.completedAt.slice(0, 10) === dateStr;
@@ -206,6 +217,9 @@ export function getMilestonesForDay(
     }
     return m.targetDate === dateStr;
   });
+
+  // Sort by ID for consistent ordering
+  return filtered.sort((a, b) => a.id - b.id);
 }
 
 // ---------------------------------------------------------------------------
@@ -488,12 +502,14 @@ export function formatDateForAria(dateStr: string): string {
  * A household item is shown on a date if:
  *   - It has an actualDeliveryDate matching the date (shown ONLY on that date)
  *   - Otherwise, if it has a targetDeliveryDate matching the date
+ *
+ * Items are sorted by ID to ensure consistent visual ordering.
  */
 export function getHouseholdItemsForDay(
   dateStr: string,
   items: TimelineHouseholdItem[],
 ): TimelineHouseholdItem[] {
-  return items.filter((item) => {
+  const filtered = items.filter((item) => {
     // Actual delivery date takes priority (exclusive)
     if (item.actualDeliveryDate) {
       return item.actualDeliveryDate === dateStr;
@@ -501,4 +517,7 @@ export function getHouseholdItemsForDay(
     // Otherwise check target delivery date
     return item.targetDeliveryDate === dateStr;
   });
+
+  // Sort by ID for consistent ordering
+  return filtered.sort((a, b) => a.id.localeCompare(b.id));
 }
