@@ -205,8 +205,13 @@
       "delete": "Löschen",
       "deleting": "Wird gelöscht...",
       "view": "Anzeigen",
-      "viewDetails": "Details Anzeigen"
+      "viewDetails": "Details Anzeigen",
+      "retry": "Erneut versuchen"
     },
+    "tableHeaders": {
+      "actions": "Aktionen"
+    },
+    "searchAriaLabel": "Auftragnehmer durchsuchen",
     "modal": {
       "title": "Auftragnehmer Hinzufügen",
       "description": "Fügen Sie einen Auftragnehmer oder Unternehmer hinzu, der an Ihrem Bauprojekt beteiligt ist.",
@@ -270,8 +275,40 @@
       "save": "Änderungen Speichern",
       "saving": "Wird gespeichert...",
       "cancel": "Abbrechen",
+      "retry": "Erneut versuchen",
       "editRow": "Bearbeiten",
       "deleteRow": "Löschen"
+    },
+    "deleteModal": {
+      "title": "Auftragnehmer Löschen",
+      "confirm": "Sind Sie sicher, dass Sie \"{{name}}\" löschen möchten?",
+      "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+      "delete": "Auftragnehmer Löschen",
+      "deleting": "Wird gelöscht..."
+    },
+    "invoiceForm": {
+      "title": "Rechnung Hinzufügen",
+      "invoiceNumber": "Rechnung #",
+      "invoiceNumberPlaceholder": "z. B. ReCH-001",
+      "amount": "Betrag",
+      "invoiceDate": "Rechnungsdatum",
+      "dueDate": "Fälligkeitsdatum",
+      "status": "Status",
+      "statusQuotation": "Angebot",
+      "statusPending": "Ausstehend",
+      "statusPaid": "Bezahlt",
+      "statusClaimed": "Eingereicht",
+      "notes": "Notizen",
+      "add": "Rechnung Hinzufügen",
+      "adding": "Wird hinzugefügt..."
+    },
+    "deleteInvoiceModal": {
+      "title": "Rechnung Löschen",
+      "confirm": "Sind Sie sicher, dass Sie die Rechnung {{number}} über {{amount}} löschen möchten?",
+      "noNumber": "diese Rechnung",
+      "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+      "delete": "Rechnung Löschen",
+      "deleting": "Wird gelöscht..."
     },
     "invoiceStatusLabels": {
       "pending": "Ausstehend",
