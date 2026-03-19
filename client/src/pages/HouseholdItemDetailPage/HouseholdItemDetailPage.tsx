@@ -807,28 +807,8 @@ export function HouseholdItemDetailPage() {
               </dd>
             </div>
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>{t('detail.details.room')}</dt>
-              <dd className={styles.infoValue}>{item.room ?? '\u2014'}</dd>
-            </div>
-            <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>{t('detail.details.quantity')}</dt>
               <dd className={styles.infoValue}>{item.quantity}</dd>
-            </div>
-            <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>{t('detail.details.tags')}</dt>
-              <dd className={styles.infoValue}>
-                {item.tags.length > 0 ? (
-                  <div className={styles.tagList}>
-                    {item.tags.map((tag) => (
-                      <span key={tag.id} className={styles.tagPill}>
-                        {tag.name}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <span className={styles.emptyState}>{t('detail.details.noTags')}</span>
-                )}
-              </dd>
             </div>
           </dl>
         </section>

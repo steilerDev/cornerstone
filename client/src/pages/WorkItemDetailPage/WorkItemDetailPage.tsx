@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import type {
   WorkItemDetail,
   WorkItemStatus,
-  TagResponse,
   UserResponse,
   NoteResponse,
   SubtaskResponse,
@@ -134,7 +133,6 @@ export default function WorkItemDetailPage() {
     successors: DependencyResponse[];
   }>({ predecessors: [], successors: [] });
 
-  const [availableTags, setAvailableTags] = useState<TagResponse[]>([]);
   const [users, setUsers] = useState<UserResponse[]>([]);
 
   // Budget lines state
@@ -364,7 +362,6 @@ export default function WorkItemDetailPage() {
         setNotes(notesData.notes);
         setSubtasks(subtasksData.subtasks);
         setDependencies(depsData);
-        setAvailableTags(tagsData.tags);
         setUsers(usersData.users.filter((u) => !u.deactivatedAt));
         setBudgetCategories(categoriesData.categories);
         setBudgetSources(sourcesData.budgetSources);
@@ -605,12 +602,6 @@ export default function WorkItemDetailPage() {
     }
   };
 
-  const handleCreateTag = async (name: string, color: string | null): Promise<TagResponse> => {
-    const newTag = await createTag({ name, color });
-    setAvailableTags((prev) => [...prev, newTag]);
-    return newTag;
-  };
-
   // Title editing
   const startEditingTitle = () => {
     if (!workItem) return;
@@ -761,19 +752,6 @@ export default function WorkItemDetailPage() {
         `Failed to update ${field === 'actualStartDate' ? 'actual start date' : 'actual end date'}`,
       );
       console.error(`Failed to update ${field}:`, err);
-    }
-  };
-
-  // Tags change
-  const handleTagsChange = async (tagIds: string[]) => {
-    if (!id) return;
-    setInlineError(null);
-    try {
-      await updateWorkItem(id, { tagIds });
-      await reloadWorkItem();
-    } catch (err) {
-      setInlineError('Failed to update tags');
-      console.error('Failed to update tags:', err);
     }
   };
 
@@ -1356,18 +1334,6 @@ export default function WorkItemDetailPage() {
                 ))}
               </select>
             </div>
-          </section>
-
-          {/* Tags */}
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>{t('detail.sections.tags')}</h2>
-            <TagPicker
-              availableTags={availableTags}
-              selectedTagIds={workItem.tags.map((t) => t.id)}
-              onSelectionChange={handleTagsChange}
-              onCreateTag={handleCreateTag}
-              onError={(message) => setInlineError(message)}
-            />
           </section>
 
           {/* Budget Lines */}

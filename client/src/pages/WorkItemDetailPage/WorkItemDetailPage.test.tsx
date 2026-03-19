@@ -221,7 +221,8 @@ describe('WorkItemDetailPage', () => {
       displayName: 'Assigned User',
       email: 'assigned@example.com',
     },
-    tags: [{ id: 'tag-1', name: 'Frontend', color: '#FF5733', createdAt: '2024-01-01T00:00:00Z' }],
+    assignedVendor: null,
+    area: null,
     createdBy: {
       id: 'user-1',
       displayName: 'Creator User',
@@ -385,7 +386,8 @@ describe('WorkItemDetailPage', () => {
       expect(screen.getByText('Schedule')).toBeInTheDocument();
       expect(screen.getByText('Constraints')).toBeInTheDocument();
       expect(screen.getByText('Assignment')).toBeInTheDocument();
-      expect(screen.getByText('Tags')).toBeInTheDocument();
+      // Tags section removed in migration 0028 (areas_trades_rework)
+      expect(screen.queryByText('Tags')).not.toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Budget', level: 2 })).toBeInTheDocument();
       expect(screen.getByText('Notes')).toBeInTheDocument();
       expect(screen.getByText('Subtasks')).toBeInTheDocument();
@@ -655,7 +657,8 @@ describe('WorkItemDetailPage', () => {
         actualStartDate: null,
         actualEndDate: null,
         assignedUser: null,
-        tags: [],
+        assignedVendor: null,
+        area: null,
         budgetLineCount: 0,
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
@@ -694,7 +697,8 @@ describe('WorkItemDetailPage', () => {
         actualStartDate: null,
         actualEndDate: null,
         assignedUser: null,
-        tags: [],
+        assignedVendor: null,
+        area: null,
         budgetLineCount: 0,
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',

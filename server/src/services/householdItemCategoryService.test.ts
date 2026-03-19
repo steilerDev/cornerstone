@@ -17,8 +17,9 @@ import type {
 } from '@cornerstone/shared';
 
 /**
- * NOTE: Migration 0016 seeds 8 default household item categories:
- * Furniture, Appliances, Fixtures, Decor, Electronics, Outdoor, Storage, Other.
+ * NOTE: After all migrations on a fresh DB, 7 default household item categories remain:
+ * Furniture, Appliances, Fixtures, Decor, Electronics, Other, Equipment (added by 0028).
+ * Migration 0028 removes Outdoor and Storage when unused on fresh DB.
  *
  * Tests use distinct names (e.g., "Test HIC *") to avoid UNIQUE constraint violations.
  */
@@ -27,8 +28,8 @@ describe('Household Item Category Service', () => {
   let sqlite: Database.Database;
   let db: BetterSQLite3Database<typeof schema>;
 
-  /** Number of categories seeded by migration 0016 */
-  const SEEDED_CATEGORY_COUNT = 8;
+  /** Number of HI categories after all migrations on a fresh DB (0028 removes 2 unused defaults) */
+  const SEEDED_CATEGORY_COUNT = 7;
 
   function createTestDb() {
     const sqliteDb = new Database(':memory:');
@@ -107,7 +108,7 @@ describe('Household Item Category Service', () => {
   // ─── listHouseholdItemCategories() ────────────────────────────────────────
 
   describe('listHouseholdItemCategories()', () => {
-    it('returns the 8 seeded default categories after migration', () => {
+    it('returns the 7 seeded default categories after migration', () => {
       const result = householdItemCategoryService.listHouseholdItemCategories(db);
       expect(result).toHaveLength(SEEDED_CATEGORY_COUNT);
     });

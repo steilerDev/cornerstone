@@ -2,15 +2,12 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
-  TagResponse,
   HouseholdItemCategory,
   HouseholdItemCategoryEntity,
 } from '@cornerstone/shared';
 import { getHouseholdItem, updateHouseholdItem } from '../../lib/householdItemsApi.js';
-import { fetchTags, createTag } from '../../lib/tagsApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
-import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import styles from './HouseholdItemEditPage.module.css';
 
@@ -31,10 +28,6 @@ export function HouseholdItemEditPage() {
   const [quantity, setQuantity] = useState(1);
   const [vendorId, setVendorId] = useState('');
   const [url, setUrl] = useState('');
-  const [room, setRoom] = useState('');
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-
-  const [availableTags, setAvailableTags] = useState<TagResponse[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
 
@@ -44,19 +37,17 @@ export function HouseholdItemEditPage() {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [notFound, setNotFound] = useState(false);
 
-  // Load item data, tags, vendors, and categories on mount
+  // Load item data, vendors, and categories on mount
   useEffect(() => {
     async function loadData() {
       setIsLoadingData(true);
       try {
-        const [tagsResponse, vendorsResponse, categoriesResponse, item] = await Promise.all([
-          fetchTags(),
+        const [vendorsResponse, categoriesResponse, item] = await Promise.all([
           fetchVendors({ pageSize: 100 }),
           fetchHouseholdItemCategories(),
           getHouseholdItem(id!),
         ]);
 
-        setAvailableTags(tagsResponse.tags);
         setVendors(vendorsResponse.vendors);
         setCategories(categoriesResponse.categories);
 
@@ -67,8 +58,6 @@ export function HouseholdItemEditPage() {
         setQuantity(item.quantity);
         setVendorId(item.vendor?.id ?? '');
         setUrl(item.url || '');
-        setRoom(item.room || '');
-        setSelectedTagIds(item.tagIds);
       } catch (err) {
         console.error('Failed to load data:', err);
         if (
@@ -90,12 +79,6 @@ export function HouseholdItemEditPage() {
       loadData();
     }
   }, [id]);
-
-  const handleCreateTag = async (name: string, color: string | null): Promise<TagResponse> => {
-    const newTag = await createTag({ name, color });
-    setAvailableTags((prev) => [...prev, newTag]);
-    return newTag;
-  };
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
@@ -134,8 +117,6 @@ export function HouseholdItemEditPage() {
         quantity,
         vendorId: vendorId || null,
         url: url.trim() || null,
-        room: room.trim() || null,
-        tagIds: selectedTagIds,
       });
 
       showToast('success', t('edit.success'));
@@ -315,32 +296,6 @@ export function HouseholdItemEditPage() {
             onChange={(e) => setUrl(e.target.value)}
             disabled={isSubmitting}
             placeholder={t('edit.form.url.placeholder')}
-          />
-        </div>
-
-        <div className={styles.formGroup}>
-          <label htmlFor="room" className={styles.label}>
-            {t('edit.form.room.label')}
-          </label>
-          <input
-            type="text"
-            id="room"
-            className={styles.input}
-            value={room}
-            onChange={(e) => setRoom(e.target.value)}
-            disabled={isSubmitting}
-            placeholder={t('edit.form.room.placeholder')}
-          />
-        </div>
-
-        <div className={styles.formGroup}>
-          <label className={styles.label}>{t('edit.form.tags.label')}</label>
-          <TagPicker
-            availableTags={availableTags}
-            selectedTagIds={selectedTagIds}
-            onSelectionChange={setSelectedTagIds}
-            onCreateTag={handleCreateTag}
-            disabled={isSubmitting}
           />
         </div>
 

@@ -8,7 +8,6 @@ import { ValidationError } from '../../errors/AppError.js';
 import {
   VALID_CONFIDENCE_LEVELS,
   MAX_DESCRIPTION_LENGTH,
-  validateTagIds,
   validateConfidence,
   validateDescription,
   validateBudgetCategoryId,
@@ -62,57 +61,6 @@ describe('Shared Validators', () => {
   describe('MAX_DESCRIPTION_LENGTH', () => {
     it('equals 500', () => {
       expect(MAX_DESCRIPTION_LENGTH).toBe(500);
-    });
-  });
-
-  // ─── validateTagIds ──────────────────────────────────────────────────────
-
-  describe('validateTagIds()', () => {
-    it('does not throw for an empty array', () => {
-      expect(() => validateTagIds(db, [])).not.toThrow();
-    });
-
-    it('does not throw when all tag IDs exist in the database', () => {
-      const now = new Date().toISOString();
-      db.insert(schema.tags)
-        .values({ id: 'tag-existing-1', name: 'Electrical', color: '#3B82F6', createdAt: now })
-        .run();
-      db.insert(schema.tags)
-        .values({ id: 'tag-existing-2', name: 'Plumbing', color: '#EF4444', createdAt: now })
-        .run();
-
-      expect(() => validateTagIds(db, ['tag-existing-1', 'tag-existing-2'])).not.toThrow();
-    });
-
-    it('does not throw for a single existing tag ID', () => {
-      const now = new Date().toISOString();
-      db.insert(schema.tags)
-        .values({ id: 'tag-single', name: 'Structural', color: null, createdAt: now })
-        .run();
-
-      expect(() => validateTagIds(db, ['tag-single'])).not.toThrow();
-    });
-
-    it('throws ValidationError when a tag ID does not exist', () => {
-      expect(() => validateTagIds(db, ['nonexistent-tag'])).toThrow(ValidationError);
-    });
-
-    it('includes the missing tag ID in the error message', () => {
-      expect(() => validateTagIds(db, ['tag-abc-123'])).toThrow('Tag not found: tag-abc-123');
-    });
-
-    it('throws on the first missing tag ID even when other IDs are valid', () => {
-      const now = new Date().toISOString();
-      db.insert(schema.tags)
-        .values({ id: 'tag-valid', name: 'Valid Tag', color: null, createdAt: now })
-        .run();
-
-      // 'tag-valid' exists but 'tag-missing' does not — should throw for the missing one
-      expect(() => validateTagIds(db, ['tag-valid', 'tag-missing'])).toThrow(ValidationError);
-    });
-
-    it('throws when the only tag in the list does not exist', () => {
-      expect(() => validateTagIds(db, ['does-not-exist'])).toThrow(ValidationError);
     });
   });
 
@@ -272,7 +220,7 @@ describe('Shared Validators', () => {
         .values({
           id: 'vendor-test-1',
           name: 'Test Vendor',
-          specialty: null,
+          tradeId: null,
           phone: null,
           email: null,
           address: null,

@@ -55,7 +55,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
       .values({
         id,
         name,
-        specialty: null,
+        tradeId: null,
         phone: null,
         email: null,
         address: null,
@@ -72,7 +72,6 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
     const result = householdItemService.createHouseholdItem(db, userId, {
       name,
       vendorId: undefined,
-      tagIds: [],
       earliestDeliveryDate: undefined,
       latestDeliveryDate: undefined,
     });

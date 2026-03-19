@@ -6,10 +6,11 @@
  * EPIC-04: Household Items & Furniture Management
  */
 
-import type { TagResponse } from './tag.js';
 import type { PaginatedResponse } from './pagination.js';
 import type { SubsidyApplicationStatus } from './subsidyProgram.js';
-import type { UserSummary } from './workItem.js';
+import type { UserSummary, VendorSummary } from './workItem.js';
+import type { AreaSummary } from './area.js';
+import type { TradeSummary } from './trade.js';
 
 /**
  * Budget aggregates for a household item.
@@ -72,7 +73,7 @@ export type HouseholdItemStatus = 'planned' | 'purchased' | 'scheduled' | 'arriv
 export interface HouseholdItemVendorSummary {
   id: string;
   name: string;
-  specialty: string | null;
+  trade: TradeSummary | null;
 }
 
 /**
@@ -160,7 +161,6 @@ export interface HouseholdItem {
   status: HouseholdItemStatus;
   vendorId: string | null;
   url: string | null;
-  room: string | null;
   quantity: number;
   orderDate: string | null;
   actualDeliveryDate: string | null;
@@ -183,7 +183,7 @@ export interface HouseholdItemSummary {
   category: HouseholdItemCategory;
   status: HouseholdItemStatus;
   vendor: HouseholdItemVendorSummary | null;
-  room: string | null;
+  area: AreaSummary | null;
   quantity: number;
   orderDate: string | null;
   actualDeliveryDate: string | null;
@@ -192,7 +192,6 @@ export interface HouseholdItemSummary {
   targetDeliveryDate: string | null;
   isLate: boolean;
   url: string | null;
-  tagIds: string[];
   budgetLineCount: number;
   totalPlannedAmount: number;
   budgetSummary: HouseholdItemBudgetAggregate;
@@ -205,7 +204,6 @@ export interface HouseholdItemSummary {
  * Household item detail (used in single-item responses).
  */
 export interface HouseholdItemDetail extends HouseholdItemSummary {
-  tags: TagResponse[];
   dependencies: HouseholdItemDepDetail[];
   subsidies: HouseholdItemSubsidySummary[];
 }
@@ -220,19 +218,17 @@ export interface CreateHouseholdItemRequest {
   status?: HouseholdItemStatus;
   vendorId?: string | null;
   url?: string | null;
-  room?: string | null;
+  areaId?: string | null;
   quantity?: number;
   orderDate?: string | null;
   earliestDeliveryDate?: string;
   latestDeliveryDate?: string;
   actualDeliveryDate?: string | null;
-  tagIds?: string[];
 }
 
 /**
  * Request body for updating a household item.
  * All fields are optional; at least one must be provided.
- * Sending tagIds replaces the entire tag set (set-semantics).
  */
 export interface UpdateHouseholdItemRequest {
   name?: string;
@@ -241,13 +237,12 @@ export interface UpdateHouseholdItemRequest {
   status?: HouseholdItemStatus;
   vendorId?: string | null;
   url?: string | null;
-  room?: string | null;
+  areaId?: string | null;
   quantity?: number;
   orderDate?: string | null;
   earliestDeliveryDate?: string | null;
   latestDeliveryDate?: string | null;
   actualDeliveryDate?: string | null;
-  tagIds?: string[];
 }
 
 /**
@@ -259,15 +254,13 @@ export interface HouseholdItemListQuery {
   q?: string;
   category?: HouseholdItemCategory;
   status?: HouseholdItemStatus;
-  room?: string;
+  areaId?: string;
   vendorId?: string;
-  tagId?: string;
   noBudget?: boolean;
   sortBy?:
     | 'name'
     | 'category'
     | 'status'
-    | 'room'
     | 'order_date'
     | 'target_delivery_date'
     | 'created_at'

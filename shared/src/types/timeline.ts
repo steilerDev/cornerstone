@@ -4,9 +4,9 @@
  * EPIC-06 Story 6.3 — Timeline Data API (GET /api/timeline)
  */
 
-import type { WorkItemStatus, UserSummary } from './workItem.js';
+import type { WorkItemStatus, UserSummary, VendorSummary } from './workItem.js';
 import type { DependencyType } from './dependency.js';
-import type { TagResponse } from './tag.js';
+import type { AreaSummary } from './area.js';
 import type {
   HouseholdItemCategory,
   HouseholdItemStatus,
@@ -33,7 +33,8 @@ export interface TimelineWorkItem {
   /** Latest start constraint (scheduling). */
   startBefore: string | null;
   assignedUser: UserSummary | null;
-  tags: TagResponse[];
+  assignedVendor: VendorSummary | null;
+  area: AreaSummary | null;
   /**
    * IDs of milestones this work item depends on (must complete before WI can start).
    * EPIC-06 UAT Fix 4: Bidirectional milestone-work item dependency tracking.

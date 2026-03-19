@@ -105,7 +105,6 @@ export function VendorDetailPage() {
     if (!vendor) return;
     setEditForm({
       name: vendor.name,
-      specialty: vendor.specialty ?? '',
       phone: vendor.phone ?? '',
       email: vendor.email ?? '',
       address: vendor.address ?? '',
@@ -140,7 +139,6 @@ export function VendorDetailPage() {
     try {
       const updated = await updateVendor(id, {
         name: trimmedName,
-        specialty: (editForm.specialty as string)?.trim() || null,
         phone: (editForm.phone as string)?.trim() || null,
         email: (editForm.email as string)?.trim() || null,
         address: (editForm.address as string)?.trim() || null,
@@ -364,7 +362,6 @@ export function VendorDetailPage() {
         <div className={styles.headerRow}>
           <div className={styles.pageHeading}>
             <h1 className={styles.pageTitle}>{vendor.name}</h1>
-            {vendor.specialty && <span className={styles.pageSubtitle}>{vendor.specialty}</span>}
           </div>
           <div className={styles.pageActions}>
             {!isEditing && (
@@ -424,22 +421,6 @@ export function VendorDetailPage() {
                   maxLength={200}
                   disabled={isUpdating}
                   autoFocus
-                />
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="edit-specialty" className={styles.label}>
-                  {t('vendorDetail.form.specialty')}
-                </label>
-                <input
-                  type="text"
-                  id="edit-specialty"
-                  value={(editForm.specialty as string) ?? ''}
-                  onChange={(e) => setEditForm({ ...editForm, specialty: e.target.value })}
-                  className={styles.input}
-                  placeholder={t('vendorDetail.form.placeholders.specialty')}
-                  maxLength={100}
-                  disabled={isUpdating}
                 />
               </div>
 
@@ -529,10 +510,6 @@ export function VendorDetailPage() {
               <div className={styles.infoRow}>
                 <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.name')}</dt>
                 <dd className={styles.infoValue}>{vendor.name}</dd>
-              </div>
-              <div className={styles.infoRow}>
-                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.specialty')}</dt>
-                <dd className={styles.infoValue}>{vendor.specialty || '—'}</dd>
               </div>
               <div className={styles.infoRow}>
                 <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.phone')}</dt>

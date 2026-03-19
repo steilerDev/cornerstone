@@ -160,9 +160,6 @@ export function WeekGrid({
             >
               {/* Work item blocks */}
               {dayItems.map((item) => {
-                const firstTagColor = item.tags?.[0]?.color ?? null;
-                const tagTextColor =
-                  firstTagColor != null ? getContrastTextColor(firstTagColor) : undefined;
                 return (
                   <CalendarItem
                     key={item.id}
@@ -175,9 +172,7 @@ export function WeekGrid({
                     onMouseLeave={onItemMouseLeave}
                     onMouseMove={onItemMouseMove}
                     laneIndex={laneMap.get(item.id)}
-                    colorIndex={firstTagColor != null ? undefined : getItemColor(item.id)}
-                    tagColor={firstTagColor}
-                    tagTextColor={tagTextColor}
+                    colorIndex={getItemColor(item.id)}
                     isTouchDevice={isTouchDevice}
                     activeTouchId={activeTouchId}
                     onTouchTap={onTouchTap}

@@ -1,16 +1,14 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type {
-  TagResponse,
   BudgetCategory,
   HouseholdItemCategoryEntity,
-  CreateTagRequest,
-  UpdateTagRequest,
   CreateBudgetCategoryRequest,
   UpdateBudgetCategoryRequest,
   CreateHouseholdItemCategoryRequest,
   UpdateHouseholdItemCategoryRequest,
 } from '@cornerstone/shared';
+import type { TagResponse, CreateTagRequest, UpdateTagRequest } from '../../lib/tagsApi.js';
 import { fetchTags, createTag, updateTag, deleteTag } from '../../lib/tagsApi.js';
 import {
   fetchBudgetCategories,

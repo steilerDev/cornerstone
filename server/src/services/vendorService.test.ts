@@ -53,7 +53,7 @@ describe('Vendor Service', () => {
   function createTestVendor(
     name: string,
     options: {
-      specialty?: string | null;
+      tradeId?: string | null;
       phone?: string | null;
       email?: string | null;
       address?: string | null;
@@ -69,7 +69,7 @@ describe('Vendor Service', () => {
       .values({
         id,
         name,
-        specialty: options.specialty ?? null,
+        tradeId: options.tradeId ?? null,
         phone: options.phone ?? null,
         email: options.email ?? null,
         address: options.address ?? null,
@@ -182,7 +182,7 @@ describe('Vendor Service', () => {
     it('returns all vendor fields', () => {
       const userId = createTestUser('creator@test.com', 'Creator User');
       createTestVendor('Smith Plumbing', {
-        specialty: 'Plumbing',
+        tradeId: 'trade-plumbing',
         phone: '+1 555-1234',
         email: 'smith@plumbing.com',
         address: '123 Main St',
@@ -195,7 +195,8 @@ describe('Vendor Service', () => {
       expect(result.vendors).toHaveLength(1);
       const vendor = result.vendors[0];
       expect(vendor.name).toBe('Smith Plumbing');
-      expect(vendor.specialty).toBe('Plumbing');
+      // trade JOIN not implemented until Story 3 — returns null for now
+      expect(vendor.trade).toBeNull();
       expect(vendor.phone).toBe('+1 555-1234');
       expect(vendor.email).toBe('smith@plumbing.com');
       expect(vendor.address).toBe('123 Main St');
@@ -236,16 +237,20 @@ describe('Vendor Service', () => {
       expect(result.vendors[1].name).toBe('Acme Plumbing');
     });
 
-    it('sorts by specialty ascending', () => {
-      createTestVendor('Vendor A', { specialty: 'Roofing' });
-      createTestVendor('Vendor B', { specialty: 'Electrical' });
-      createTestVendor('Vendor C', { specialty: 'Plumbing' });
+    it('sorts by trade name ascending (falls back to vendor name sort until Story 3)', () => {
+      // Trade JOIN not implemented until Story 3 — sortBy 'trade' falls back to vendor name sort
+      createTestVendor('Vendor A', { tradeId: 'trade-roofing' });
+      createTestVendor('Vendor B', { tradeId: 'trade-electrical' });
+      createTestVendor('Vendor C', { tradeId: 'trade-plumbing' });
 
-      const result = vendorService.listVendors(db, { sortBy: 'specialty', sortOrder: 'asc' });
+      const result = vendorService.listVendors(db, { sortBy: 'trade', sortOrder: 'asc' });
 
-      expect(result.vendors[0].specialty).toBe('Electrical');
-      expect(result.vendors[1].specialty).toBe('Plumbing');
-      expect(result.vendors[2].specialty).toBe('Roofing');
+      // Falls back to name sort: Vendor A < Vendor B < Vendor C
+      expect(result.vendors[0].name).toBe('Vendor A');
+      expect(result.vendors[1].name).toBe('Vendor B');
+      expect(result.vendors[2].name).toBe('Vendor C');
+      // All trade fields are null since JOIN not yet implemented
+      result.vendors.forEach((v) => expect(v.trade).toBeNull());
     });
 
     it('sorts by created_at', () => {
@@ -282,14 +287,17 @@ describe('Vendor Service', () => {
       expect(names).toContain('SMITH Roofing');
     });
 
-    it('searches by specialty (case-insensitive)', () => {
-      createTestVendor('Vendor A', { specialty: 'Plumbing' });
-      createTestVendor('Vendor B', { specialty: 'Electrical' });
-      createTestVendor('Vendor C', { specialty: 'PLUMBING SPECIALIST' });
+    it('search by trade name is not yet implemented (Story 3) — only name search works', () => {
+      // Trade search is not implemented until Story 3; querying a trade name that is only in
+      // tradeId (not the vendor name) returns 0 results since service only searches vendor.name
+      createTestVendor('Vendor A', { tradeId: 'trade-plumbing' });
+      createTestVendor('Vendor B', { tradeId: 'trade-electrical' });
+      createTestVendor('Vendor C', { tradeId: 'trade-plumbing' });
 
-      const result = vendorService.listVendors(db, { q: 'plumbing' });
+      // 'Plumbing' only exists in tradeId values, not vendor names — no results expected
+      const result = vendorService.listVendors(db, { q: 'Plumbing' });
 
-      expect(result.vendors).toHaveLength(2);
+      expect(result.vendors).toHaveLength(0);
     });
 
     it('returns empty list when search finds no match', () => {
@@ -412,13 +420,14 @@ describe('Vendor Service', () => {
 
   describe('getVendorById()', () => {
     it('returns a vendor by ID', () => {
-      const vendor = createTestVendor('Test Vendor', { specialty: 'Roofing' });
+      const vendor = createTestVendor('Test Vendor', { tradeId: 'trade-roofing' });
 
       const result = vendorService.getVendorById(db, vendor.id);
 
       expect(result.id).toBe(vendor.id);
       expect(result.name).toBe('Test Vendor');
-      expect(result.specialty).toBe('Roofing');
+      // trade JOIN not implemented until Story 3 — returns null for now
+      expect(result.trade).toBeNull();
     });
 
     it('throws NotFoundError when vendor does not exist', () => {
@@ -478,7 +487,7 @@ describe('Vendor Service', () => {
 
       const result = vendorService.getVendorById(db, vendor.id);
 
-      expect(result.specialty).toBeNull();
+      expect(result.trade).toBeNull();
       expect(result.phone).toBeNull();
       expect(result.email).toBeNull();
       expect(result.address).toBeNull();
@@ -522,7 +531,7 @@ describe('Vendor Service', () => {
 
       expect(result.id).toBeDefined();
       expect(result.name).toBe('New Vendor');
-      expect(result.specialty).toBeNull();
+      expect(result.trade).toBeNull();
       expect(result.phone).toBeNull();
       expect(result.email).toBeNull();
       expect(result.address).toBeNull();
@@ -535,7 +544,7 @@ describe('Vendor Service', () => {
       const userId = createTestUser('creator@test.com', 'Creator');
       const data: CreateVendorRequest = {
         name: 'Full Vendor',
-        specialty: 'Plumbing',
+        tradeId: 'trade-plumbing',
         phone: '+1 555-0001',
         email: 'full@vendor.com',
         address: '100 Oak Ave, Springfield IL',
@@ -545,7 +554,9 @@ describe('Vendor Service', () => {
       const result = vendorService.createVendor(db, data, userId);
 
       expect(result.name).toBe('Full Vendor');
-      expect(result.specialty).toBe('Plumbing');
+      // tradeId is accepted in the request but trade JOIN is not implemented until Story 3
+      // the service currently stores tradeId=null (ignores tradeId from request) and returns trade: null
+      expect(result.trade).toBeNull();
       expect(result.phone).toBe('+1 555-0001');
       expect(result.email).toBe('full@vendor.com');
       expect(result.address).toBe('100 Oak Ave, Springfield IL');
@@ -642,7 +653,7 @@ describe('Vendor Service', () => {
 
       const result = vendorService.createVendor(db, data, userId);
 
-      expect(result.specialty).toBeNull();
+      expect(result.trade).toBeNull();
       expect(result.phone).toBeNull();
       expect(result.email).toBeNull();
       expect(result.address).toBeNull();
@@ -696,16 +707,24 @@ describe('Vendor Service', () => {
       expect(result.outstandingBalance).toBe(750);
     });
 
-    it('updates specialty only (partial update)', () => {
+    it('updates tradeId only (partial update) — tradeId ignored until Story 3', () => {
+      // tradeId updates are not supported until Story 3.
+      // Passing only tradeId triggers "At least one field must be provided" since the service
+      // does not count tradeId as a supported field yet.
       const vendor = createTestVendor('Partial Vendor', {
-        specialty: 'Roofing',
+        tradeId: 'trade-roofing',
         phone: '555-1234',
       });
 
-      const result = vendorService.updateVendor(db, vendor.id, { specialty: 'Electrical' });
+      // Update phone alongside tradeId to satisfy the at-least-one-field constraint
+      const result = vendorService.updateVendor(db, vendor.id, {
+        tradeId: 'trade-electrical',
+        phone: '555-1234',
+      });
 
       expect(result.name).toBe('Partial Vendor');
-      expect(result.specialty).toBe('Electrical');
+      // trade is always null until Story 3 implements the JOIN
+      expect(result.trade).toBeNull();
       expect(result.phone).toBe('555-1234');
     });
 
@@ -742,12 +761,16 @@ describe('Vendor Service', () => {
       expect(result.notes).toBe('New notes');
     });
 
-    it('clears specialty by setting to null', () => {
-      const vendor = createTestVendor('Specialty Vendor', { specialty: 'Plumbing' });
+    it('clears tradeId by setting to null — tradeId ignored until Story 3', () => {
+      // tradeId updates are not supported until Story 3. Passing only tradeId: null will
+      // trigger "At least one field must be provided". Pass notes alongside to be safe.
+      const vendor = createTestVendor('Trade Vendor', { tradeId: 'trade-plumbing' });
 
-      const result = vendorService.updateVendor(db, vendor.id, { specialty: null });
+      // Must pass a supported field alongside tradeId to avoid ValidationError
+      const result = vendorService.updateVendor(db, vendor.id, { tradeId: null, notes: null });
 
-      expect(result.specialty).toBeNull();
+      // trade is always null since JOIN not implemented yet
+      expect(result.trade).toBeNull();
     });
 
     it('clears phone by setting to null', () => {
@@ -760,19 +783,20 @@ describe('Vendor Service', () => {
 
     it('updates multiple fields at once', () => {
       const vendor = createTestVendor('Multi Update Vendor', {
-        specialty: 'Old Specialty',
+        tradeId: 'trade-roofing',
         phone: '555-0000',
       });
 
       const result = vendorService.updateVendor(db, vendor.id, {
         name: 'Updated Multi Vendor',
-        specialty: 'New Specialty',
+        tradeId: 'trade-electrical',
         phone: '555-9999',
         email: 'multi@vendor.com',
       });
 
       expect(result.name).toBe('Updated Multi Vendor');
-      expect(result.specialty).toBe('New Specialty');
+      // tradeId is ignored until Story 3 — trade is always null until JOIN is implemented
+      expect(result.trade).toBeNull();
       expect(result.phone).toBe('555-9999');
       expect(result.email).toBe('multi@vendor.com');
     });

@@ -78,7 +78,7 @@ describe('HouseholdItemEditPage', () => {
     {
       id: 'v-1',
       name: 'IKEA',
-      specialty: 'Furniture',
+      trade: null,
       phone: null,
       email: null,
       address: null,
@@ -90,7 +90,7 @@ describe('HouseholdItemEditPage', () => {
     {
       id: 'v-2',
       name: 'Home Depot',
-      specialty: 'General',
+      trade: null,
       phone: null,
       email: null,
       address: null,
@@ -107,9 +107,9 @@ describe('HouseholdItemEditPage', () => {
     description: 'Custom maple island',
     category: 'furniture' as const,
     status: 'purchased' as const,
-    vendor: { id: 'v-1', name: 'IKEA', specialty: 'Furniture' },
+    vendor: { id: 'v-1', name: 'IKEA', trade: null },
     url: 'https://example.com/island',
-    room: 'Kitchen',
+    area: null,
     quantity: 1,
     orderDate: '2026-03-01',
     targetDeliveryDate: '2026-04-15',
@@ -117,14 +117,12 @@ describe('HouseholdItemEditPage', () => {
     earliestDeliveryDate: '2026-04-15',
     latestDeliveryDate: '2026-04-20',
     isLate: false,
-    tagIds: ['tag-1'],
     budgetLineCount: 0,
     totalPlannedAmount: 0,
     budgetSummary: { totalPlanned: 0, totalActual: 0, subsidyReduction: 0, netCost: 0 },
     createdBy: null,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
-    tags: [{ id: 'tag-1', name: 'Kitchen', color: '#E57373', createdAt: '2026-01-01T00:00:00Z' }],
     dependencies: [],
     subsidies: [],
   };
@@ -222,8 +220,8 @@ describe('HouseholdItemEditPage', () => {
       const categorySelect = screen.getByLabelText(/category/i) as HTMLSelectElement;
       expect(categorySelect.value).toBe('furniture');
 
-      const roomInput = screen.getByLabelText(/^room/i) as HTMLInputElement;
-      expect(roomInput.value).toBe('Kitchen');
+      // room field was removed in migration 0028 (areas_trades_rework)
+      expect(screen.queryByLabelText(/^room/i)).not.toBeInTheDocument();
 
       const descriptionInput = screen.getByLabelText(/description/i) as HTMLTextAreaElement;
       expect(descriptionInput.value).toBe('Custom maple island');
@@ -299,7 +297,7 @@ describe('HouseholdItemEditPage', () => {
       expect(screen.queryByLabelText(/purchase status/i)).not.toBeInTheDocument();
     });
 
-    it('still renders core fields: Name, Description, Category, Vendor, URL, Room, Quantity', async () => {
+    it('still renders core fields: Name, Description, Category, Vendor, URL, Quantity', async () => {
       renderPage();
 
       await waitFor(() => {
@@ -310,7 +308,8 @@ describe('HouseholdItemEditPage', () => {
       expect(screen.getByLabelText(/category/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/vendor/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/url/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/^room/i)).toBeInTheDocument();
+      // room field was removed in migration 0028 (areas_trades_rework)
+      expect(screen.queryByLabelText(/^room/i)).not.toBeInTheDocument();
       expect(screen.getByLabelText(/quantity/i)).toBeInTheDocument();
     });
   });
@@ -582,7 +581,8 @@ describe('HouseholdItemEditPage', () => {
       });
     });
 
-    it('shows generic error banner when tags fail to load', async () => {
+    // Tags were removed in migration 0028 (areas_trades_rework) — tagsApi no longer called
+    it.skip('shows generic error banner when tags fail to load', async () => {
       mockFetchTags.mockRejectedValue(new Error('Network error'));
 
       renderPage();

@@ -49,11 +49,12 @@ export function buildVendorVcard(
   vendor: {
     id: string;
     name: string;
-    specialty: string | null;
+    tradeId: string | null;
     email: string | null;
     phone: string | null;
     address: string | null;
     notes: string | null;
+    createdAt: string;
     updatedAt: string;
   },
   baseUrl?: string,
@@ -73,10 +74,6 @@ export function buildVendorVcard(
 
   if (vendor.address) {
     vcard.addAddress('', '', vendor.address, '', '', '', '', 'WORK');
-  }
-
-  if (vendor.specialty) {
-    vcard.addJobtitle(vendor.specialty);
   }
 
   if (vendor.notes) {

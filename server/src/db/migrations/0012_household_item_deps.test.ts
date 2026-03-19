@@ -476,7 +476,8 @@ describe('Migration 0012: Household Item Deps', () => {
       expect(tableNames).toContain('household_item_deps');
       expect(tableNames).toContain('household_item_notes');
       expect(tableNames).toContain('household_item_subsidies');
-      expect(tableNames).toContain('household_item_tags');
+      // household_item_tags was dropped by migration 0028
+      expect(tableNames).not.toContain('household_item_tags');
       expect(tableNames).toContain('household_items');
     });
   });

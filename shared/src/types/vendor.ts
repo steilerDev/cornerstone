@@ -5,6 +5,7 @@
 
 import type { UserSummary } from './workItem.js';
 import type { VendorContact } from './vendorContact.js';
+import type { TradeSummary } from './trade.js';
 
 /**
  * Vendor entity as returned by the API in list responses.
@@ -12,7 +13,7 @@ import type { VendorContact } from './vendorContact.js';
 export interface Vendor {
   id: string;
   name: string;
-  specialty: string | null;
+  trade: TradeSummary | null;
   phone: string | null;
   email: string | null;
   address: string | null;
@@ -37,7 +38,7 @@ export interface VendorDetail extends Vendor {
  */
 export interface CreateVendorRequest {
   name: string;
-  specialty?: string | null;
+  tradeId?: string | null;
   phone?: string | null;
   email?: string | null;
   address?: string | null;
@@ -50,7 +51,7 @@ export interface CreateVendorRequest {
  */
 export interface UpdateVendorRequest {
   name?: string;
-  specialty?: string | null;
+  tradeId?: string | null;
   phone?: string | null;
   email?: string | null;
   address?: string | null;
@@ -64,7 +65,8 @@ export interface VendorListQuery {
   page?: number;
   pageSize?: number;
   q?: string;
-  sortBy?: 'name' | 'specialty' | 'created_at' | 'updated_at';
+  tradeId?: string;
+  sortBy?: 'name' | 'trade' | 'created_at' | 'updated_at';
   sortOrder?: 'asc' | 'desc';
 }
 

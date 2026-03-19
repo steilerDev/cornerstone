@@ -27,9 +27,6 @@ export function listWorkItems(params?: WorkItemListQuery): Promise<WorkItemListR
   if (params?.assignedUserId) {
     queryParams.set('assignedUserId', params.assignedUserId);
   }
-  if (params?.tagId) {
-    queryParams.set('tagId', params.tagId);
-  }
   if (params?.q) {
     queryParams.set('q', params.q);
   }

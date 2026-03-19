@@ -144,7 +144,9 @@ describe('Migration 0015: Household Item Delivery Date Redesign', () => {
       expect(colNames).toContain('status');
       expect(colNames).toContain('vendor_id');
       expect(colNames).toContain('url');
-      expect(colNames).toContain('room');
+      // 'room' column was replaced by 'area_id' FK in migration 0028
+      expect(colNames).not.toContain('room');
+      expect(colNames).toContain('area_id');
       expect(colNames).toContain('quantity');
       expect(colNames).toContain('order_date');
       expect(colNames).toContain('actual_delivery_date');
@@ -238,7 +240,9 @@ describe('Migration 0015: Household Item Delivery Date Redesign', () => {
       // migration 0016 replaced idx_household_items_category with idx_household_items_category_id
       expect(indexNames).toContain('idx_household_items_category_id');
       expect(indexNames).toContain('idx_household_items_status');
-      expect(indexNames).toContain('idx_household_items_room');
+      // migration 0028 dropped idx_household_items_room and added idx_household_items_area_id
+      expect(indexNames).not.toContain('idx_household_items_room');
+      expect(indexNames).toContain('idx_household_items_area_id');
       expect(indexNames).toContain('idx_household_items_vendor_id');
       expect(indexNames).toContain('idx_household_items_created_at');
     });
