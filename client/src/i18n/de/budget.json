@@ -8,6 +8,7 @@
     "emptyStateTitle": "Noch keine Budgetdaten",
     "emptyStateDescription": "Beginnen Sie mit dem Hinzufügen von Budgekategorien, Arbeitspaketen mit geplanten Kosten und Finanzierungsquellen. Ihre Projektbudget-Übersicht wird hier angezeigt, sobald Daten eingegeben werden.",
     "actions": {
+      "addButton": "Hinzufügen",
       "addInvoice": "Rechnung Hinzufügen",
       "addVendor": "Auftragnehmer Hinzufügen"
     },
