@@ -18,6 +18,8 @@ import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
+import { useAreas } from '../../hooks/useAreas.js';
+import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import styles from './HouseholdItemsPage.module.css';
 
 export function HouseholdItemsPage() {
@@ -25,6 +27,7 @@ export function HouseholdItemsPage() {
   const { t } = useTranslation('householdItems');
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { areas } = useAreas();
 
   const STATUS_OPTIONS: { value: HouseholdItemStatus; label: string }[] = [
     { value: 'planned', label: t('status.planned') },
@@ -73,6 +76,7 @@ export function HouseholdItemsPage() {
   // Filter and search state from URL
   const searchQuery = searchParams.get('q') || '';
   const categoryFilter = searchParams.get('category') as HouseholdItemCategory | null;
+  const areaFilter = searchParams.get('areaId') || '';
   const statusFilter = searchParams.get('status') as HouseholdItemStatus | null;
   const vendorFilter = searchParams.get('vendorId') || '';
   const noBudgetFilter = searchParams.get('noBudget') === 'true';
@@ -181,6 +185,7 @@ export function HouseholdItemsPage() {
           page: currentPage,
           pageSize,
           category: categoryFilter || undefined,
+          areaId: areaFilter || undefined,
           status: statusFilter || undefined,
           vendorId: vendorFilter || undefined,
           q: searchQuery || undefined,
@@ -207,6 +212,7 @@ export function HouseholdItemsPage() {
   }, [
     searchQuery,
     categoryFilter,
+    areaFilter,
     statusFilter,
     vendorFilter,
     sortBy,
@@ -286,6 +292,10 @@ export function HouseholdItemsPage() {
 
   const handleCategoryFilterChange = (category: string) => {
     updateSearchParams({ category: category || undefined, page: '1' });
+  };
+
+  const handleAreaFilterChange = (areaId: string) => {
+    updateSearchParams({ areaId: areaId || undefined, page: '1' });
   };
 
   const handleStatusFilterChange = (status: string) => {
@@ -500,6 +510,17 @@ export function HouseholdItemsPage() {
             </div>
 
             <div className={styles.filter}>
+              <label htmlFor="area-filter" className={styles.filterLabel}>{t('filters.area')}</label>
+              <AreaPicker
+                id="area-filter"
+                areas={areas}
+                value={areaFilter}
+                onChange={handleAreaFilterChange}
+                specialOptions={[{ id: '', label: t('filters.allAreas') }]}
+              />
+            </div>
+
+            <div className={styles.filter}>
               <label htmlFor="status-filter" className={styles.filterLabel}>
                 {t('filters.status')}
               </label>
@@ -588,7 +609,7 @@ export function HouseholdItemsPage() {
       {/* Household items list */}
       {householdItems.length === 0 ? (
         <div className={styles.emptyState}>
-          {searchQuery || categoryFilter || statusFilter || vendorFilter || noBudgetFilter ? (
+          {searchQuery || categoryFilter || areaFilter || statusFilter || vendorFilter || noBudgetFilter ? (
             <>
               <h2>{t('empty.noResults')}</h2>
               <p>{t('empty.noResultsMessage')}</p>

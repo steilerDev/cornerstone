@@ -52,6 +52,7 @@ export const API = {
   timeline: '/api/timeline',
   schedule: '/api/schedule',
   householdItems: '/api/household-items',
+  areas: '/api/areas',
   diaryEntries: '/api/diary-entries',
   diaryExport: '/api/diary-entries/export',
 };

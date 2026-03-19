@@ -10,6 +10,7 @@
   "filters": {
     "ariaLabel": "Household item filters",
     "category": "Category:",
+    "area": "Area:",
     "status": "Status:",
     "room": "Room:",
     "vendor": "Vendor:",
@@ -19,6 +20,7 @@
     "noBudgetInactive": "No Budget Lines filter cleared",
     "sortBy": "Sort by:",
     "allCategories": "All Categories",
+    "allAreas": "All Areas",
     "allStatuses": "All Statuses",
     "allVendors": "All Vendors",
     "roomPlaceholder": "Filter by room...",
