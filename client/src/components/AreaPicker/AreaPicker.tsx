@@ -43,9 +43,7 @@ export function AreaPicker({
 
   // Find the currently selected node to generate initialTitle with proper indentation
   const selectedNode = tree.find((n) => n.area.id === value);
-  const initialTitle = selectedNode
-    ? renderItem(selectedNode).label
-    : undefined;
+  const initialTitle = selectedNode ? renderItem(selectedNode).label : undefined;
 
   return (
     <SearchPicker<TreeNode>

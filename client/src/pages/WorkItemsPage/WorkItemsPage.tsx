@@ -502,9 +502,7 @@ export function WorkItemsPage() {
           </div>
 
           <div className={styles.filter}>
-            <label className={styles.filterLabel}>
-              {t('list.filters.area')}
-            </label>
+            <label className={styles.filterLabel}>{t('list.filters.area')}</label>
             <AreaPicker
               areas={areas}
               value={areaFilter}
