@@ -143,7 +143,6 @@ describe('WorkItemsPage', () => {
         },
       ],
     });
-
   });
 
   function renderPage() {

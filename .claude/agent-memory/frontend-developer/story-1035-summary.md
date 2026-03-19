@@ -7,6 +7,7 @@ Completed full frontend implementation for Story #1035, replacing Tags system wi
 ## Files Created
 
 ### API Clients
+
 1. **`client/src/lib/areasApi.ts`** (48 lines)
    - CRUD functions: fetchAreas, fetchArea, createArea, updateArea, deleteArea
    - Follows vendorsApi.ts pattern with typed responses
@@ -17,6 +18,7 @@ Completed full frontend implementation for Story #1035, replacing Tags system wi
    - Identical pattern to areasApi for consistency
 
 ### Data Hooks
+
 3. **`client/src/hooks/useAreas.ts`** (103 lines)
    - UseAreasResult interface with areas, isLoading, error, refetch, create/update/delete methods
    - Follows useMilestones.ts pattern
@@ -27,6 +29,7 @@ Completed full frontend implementation for Story #1035, replacing Tags system wi
    - Identical pattern to useAreas
 
 ### Picker Components
+
 5. **`client/src/components/AreaPicker/AreaPicker.tsx`** (74 lines)
    - Tree-aware select dropdown with hierarchical indentation
    - buildTree() helper converts flat areas list to depth-first ordered nodes
@@ -54,6 +57,7 @@ Completed full frontend implementation for Story #1035, replacing Tags system wi
    - Index export: AssignmentPicker/index.ts
 
 ### Pages
+
 8. **`client/src/pages/ManagePage/ManagePage.tsx`** (COMPLETE REWRITE, ~1500 lines)
    - Replaced Tags tab with Areas tab (tree display with create/edit/delete)
    - Added Trades tab (flat list with create/edit/delete)
@@ -67,6 +71,7 @@ Completed full frontend implementation for Story #1035, replacing Tags system wi
    - Modal delete confirmations with error handling
 
 ### i18n Updates
+
 9. **`client/src/i18n/en/settings.json`** (UPDATED)
    - Replaced manage.tags with manage.areas + manage.trades blocks
    - Updated manage.tabs: removed tags, added areas and trades
@@ -79,6 +84,7 @@ Completed full frontend implementation for Story #1035, replacing Tags system wi
     - Added assignmentPicker section: usersGroup, vendorsGroup
 
 ### Files Deleted
+
 - `client/src/components/TagPicker/TagPicker.tsx`
 - `client/src/components/TagPicker/TagPicker.module.css`
 - `client/src/components/TagPicker/TagPicker.test.tsx`
@@ -86,56 +92,67 @@ Completed full frontend implementation for Story #1035, replacing Tags system wi
 - `client/src/components/TagPill/TagPill.module.css`
 
 ### Files Preserved for Compatibility
+
 - `client/src/lib/tagsApi.ts` (stub implementation for test compatibility)
 
 ## Key Design Decisions
 
 ### Tree Building Algorithm
+
 AreaPicker.buildTree() converts flat areas to depth-first order:
+
 1. Recursively traverses parent-child relationships
 2. Maintains sort order by sortOrder, then name
 3. Prevents cycles via visited set
 4. Top-level areas (no parent) rendered first, children indented
 
 ### Component Reuse
+
 - TradePicker wraps existing SearchPicker for consistency
 - AreaPicker uses native select (no SearchPicker) because hierarchical indentation requires custom rendering
 - AssignmentPicker uses native select with optgroup for semantic structure
 
 ### Error Handling
+
 - 409 status code → conflict message (item in use)
 - ApiClientError → display error.message
 - Network/other errors → generic translated messages
 
 ### Accessibility
+
 - All pickers have aria-label attributes
 - Delete modals use role="dialog", aria-modal="true"
 - Tab interface uses semantic role="tab", aria-selected
 - Form labels properly associated via htmlFor
 
 ### Styling
+
 - All CSS values use design tokens from tokens.css
 - Responsive: formRow flexes to column on mobile
 - Color swatches: 0.75rem × 0.75rem circles
 - Input styling: consistent with existing budget/HI category forms
 
 ## Testing Considerations
+
 - ManagePage.test.tsx still imports stubbed tagsApi (not modified by frontend-developer per rules)
 - All components structured for testability: clear props interfaces, deterministic rendering
 - AreaPicker.buildTree() pure function with no side effects
 - Hooks follow useMilestones pattern for easy mocking
 
 ## Translation Notes
+
 - English only: en/settings.json and en/common.json fully translated
 - Translator agent will handle German translations for new keys
 - 60+ new translation keys across settings.json and common.json
 
 ## Files Modified Summary
+
 - Created: 10 files (2 APIs, 2 hooks, 3 picker components + 3 index files, rewritten ManagePage, 2 i18n updates)
 - Deleted: 5 files (TagPicker, TagPill)
 - Preserved: 1 file (tagsApi.ts stub)
 
 ## Standards Compliance
+
 ✅ Type imports only (`import type { ... }`)
 ✅ `.js` extensions in imports
 ✅ All CSS values use design tokens

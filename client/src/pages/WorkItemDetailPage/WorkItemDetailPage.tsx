@@ -1356,10 +1356,7 @@ export default function WorkItemDetailPage() {
               <AssignmentPicker
                 users={users}
                 vendors={allVendors}
-                value={encodeAssignment(
-                  workItem.assignedUser?.id,
-                  workItem.assignedVendor?.id,
-                )}
+                value={encodeAssignment(workItem.assignedUser?.id, workItem.assignedVendor?.id)}
                 onChange={handleAssignmentChange}
               />
             </div>
