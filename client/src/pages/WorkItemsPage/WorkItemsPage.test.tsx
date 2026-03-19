@@ -6,7 +6,6 @@ import { screen, waitFor, render, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
-import type * as TagsApiTypes from '../../lib/tagsApi.js';
 import type { WorkItemListResponse, WorkItemSummary } from '@cornerstone/shared';
 
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
@@ -15,7 +14,6 @@ const mockGetWorkItem = jest.fn<typeof WorkItemsApiTypes.getWorkItem>();
 const mockCreateWorkItem = jest.fn<typeof WorkItemsApiTypes.createWorkItem>();
 const mockUpdateWorkItem = jest.fn<typeof WorkItemsApiTypes.updateWorkItem>();
 const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
-const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
 
 // Mock API modules BEFORE importing components
 jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
@@ -28,10 +26,6 @@ jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
   listUsers: mockListUsers,
-}));
-
-jest.unstable_mockModule('../../lib/tagsApi.js', () => ({
-  fetchTags: mockFetchTags,
 }));
 
 // ─── Mock: formatters — provides useFormatters() hook ────────────────────────
@@ -133,7 +127,6 @@ describe('WorkItemsPage', () => {
     mockListWorkItems.mockReset();
     mockDeleteWorkItem.mockReset();
     mockListUsers.mockReset();
-    mockFetchTags.mockReset();
 
     // Default mock responses
     mockListUsers.mockResolvedValue({
@@ -151,9 +144,6 @@ describe('WorkItemsPage', () => {
       ],
     });
 
-    mockFetchTags.mockResolvedValue({
-      tags: [{ id: 'tag-1', name: 'Electrical', color: '#FF0000' }],
-    });
   });
 
   function renderPage() {

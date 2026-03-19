@@ -5,7 +5,9 @@ import type { HouseholdItemCategory, HouseholdItemCategoryEntity } from '@corner
 import { getHouseholdItem, updateHouseholdItem } from '../../lib/householdItemsApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
+import { useAreas } from '../../hooks/useAreas.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
+import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import styles from './HouseholdItemEditPage.module.css';
 
 interface Vendor {
@@ -18,11 +20,13 @@ export function HouseholdItemEditPage() {
   const { id } = useParams<{ id: string }>();
   const { showToast } = useToast();
   const { t } = useTranslation('householdItems');
+  const { areas, isLoading: areasLoading } = useAreas();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<HouseholdItemCategory>('' as HouseholdItemCategory);
   const [quantity, setQuantity] = useState(1);
+  const [areaId, setAreaId] = useState('');
   const [vendorId, setVendorId] = useState('');
   const [url, setUrl] = useState('');
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -53,6 +57,7 @@ export function HouseholdItemEditPage() {
         setDescription(item.description || '');
         setCategory(item.category);
         setQuantity(item.quantity);
+        setAreaId(item.area?.id ?? '');
         setVendorId(item.vendor?.id ?? '');
         setUrl(item.url || '');
       } catch (err) {
@@ -112,6 +117,7 @@ export function HouseholdItemEditPage() {
         description: description.trim() || null,
         category,
         quantity,
+        areaId: areaId || null,
         vendorId: vendorId || null,
         url: url.trim() || null,
       });
@@ -259,6 +265,25 @@ export function HouseholdItemEditPage() {
               </div>
             )}
           </div>
+        </div>
+
+        <div className={styles.formGroup}>
+          <label htmlFor="area" className={styles.label}>
+            {t('edit.form.area.label')}
+          </label>
+          {areasLoading ? (
+            <div className={styles.select} style={{ opacity: 0.6 }}>
+              {t('edit.loading')}
+            </div>
+          ) : (
+            <AreaPicker
+              areas={areas}
+              value={areaId}
+              onChange={setAreaId}
+              disabled={isSubmitting}
+              nullable
+            />
+          )}
         </div>
 
         <div className={styles.formGroup}>

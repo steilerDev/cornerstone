@@ -50,8 +50,8 @@ import {
   reorderSubtasks,
 } from '../../lib/subtasksApi.js';
 import { getDependencies, createDependency, deleteDependency } from '../../lib/dependenciesApi.js';
-import { fetchTags, createTag } from '../../lib/tagsApi.js';
 import { listUsers } from '../../lib/usersApi.js';
+import { useAreas } from '../../hooks/useAreas.js';
 import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
@@ -65,8 +65,13 @@ import {
   removeLinkedMilestone,
 } from '../../lib/workItemMilestonesApi.js';
 import { fetchLinkedHouseholdItems } from '../../lib/householdItemWorkItemsApi.js';
-import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useAuth } from '../../contexts/AuthContext.js';
+import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
+import {
+  AssignmentPicker,
+  decodeAssignment,
+  encodeAssignment,
+} from '../../components/AssignmentPicker/AssignmentPicker.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { BudgetSection } from '../../components/budget/BudgetSection.js';
@@ -99,6 +104,7 @@ export default function WorkItemDetailPage() {
   const fromView = locationState?.view;
   const { user } = useAuth();
   const { t } = useTranslation('workItems');
+  const { areas } = useAreas();
 
   // Household item labels (moved from module level to use i18n)
   const HOUSEHOLD_ITEM_CATEGORY_LABELS: Record<HouseholdItemCategory, string> = useMemo(
@@ -320,7 +326,6 @@ export default function WorkItemDetailPage() {
           notesData,
           subtasksData,
           depsData,
-          tagsData,
           usersData,
           categoriesData,
           sourcesData,
@@ -337,7 +342,6 @@ export default function WorkItemDetailPage() {
           listNotes(id!),
           listSubtasks(id!),
           getDependencies(id!),
-          fetchTags(),
           listUsers(),
           fetchBudgetCategories(),
           fetchBudgetSources(),
@@ -664,15 +668,31 @@ export default function WorkItemDetailPage() {
   };
 
   // Assigned user change
-  const handleAssignedUserChange = async (userId: string) => {
+  const handleAssignmentChange = async (assignmentValue: string) => {
+    if (!id) return;
+    setInlineError(null);
+    const { userId, vendorId } = decodeAssignment(assignmentValue);
+    try {
+      await updateWorkItem(id, {
+        assignedUserId: userId || null,
+        assignedVendorId: vendorId || null,
+      });
+      await reloadWorkItem();
+    } catch (err) {
+      setInlineError('Failed to update assignment');
+      console.error('Failed to update assignment:', err);
+    }
+  };
+
+  const handleAreaChange = async (areaId: string) => {
     if (!id) return;
     setInlineError(null);
     try {
-      await updateWorkItem(id, { assignedUserId: userId || null });
+      await updateWorkItem(id, { areaId: areaId || null });
       await reloadWorkItem();
     } catch (err) {
-      setInlineError('Failed to update assigned user');
-      console.error('Failed to update assigned user:', err);
+      setInlineError('Failed to update area');
+      console.error('Failed to update area:', err);
     }
   };
 
@@ -1314,23 +1334,34 @@ export default function WorkItemDetailPage() {
             })()}
           </section>
 
-          {/* Assigned User */}
+          {/* Area */}
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>{t('detail.sections.area')}</h2>
+            <div className={styles.property}>
+              <label className={styles.propertyLabel}>{t('detail.area.label')}</label>
+              <AreaPicker
+                areas={areas}
+                value={workItem.area?.id || ''}
+                onChange={handleAreaChange}
+                nullable
+              />
+            </div>
+          </section>
+
+          {/* Assigned User/Vendor */}
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>{t('detail.sections.assignment')}</h2>
             <div className={styles.property}>
               <label className={styles.propertyLabel}>{t('detail.assignment.assignedTo')}</label>
-              <select
-                className={styles.propertySelect}
-                value={workItem.assignedUser?.id || ''}
-                onChange={(e) => handleAssignedUserChange(e.target.value)}
-              >
-                <option value="">{t('create.fields.unassigned')}</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.displayName}
-                  </option>
-                ))}
-              </select>
+              <AssignmentPicker
+                users={users}
+                vendors={allVendors}
+                value={encodeAssignment(
+                  workItem.assignedUser?.id,
+                  workItem.assignedVendor?.id,
+                )}
+                onChange={handleAssignmentChange}
+              />
             </div>
           </section>
 

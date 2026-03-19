@@ -195,6 +195,20 @@ jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
   deleteHouseholdItemCategory: jest.fn(),
 }));
 
+// Mock useAreas hook — HouseholdItemDetailPage uses useAreas to render AreaPicker
+const mockUseAreas = jest.fn(() => ({
+  areas: [],
+  isLoading: false,
+  error: null,
+  refetch: jest.fn(),
+  createArea: jest.fn(),
+  updateArea: jest.fn(),
+  deleteArea: jest.fn(),
+}));
+jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
+  useAreas: mockUseAreas,
+}));
+
 jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
   LinkedDocumentsSection: function MockLinkedDocumentsSection(props: {
     entityType: string;

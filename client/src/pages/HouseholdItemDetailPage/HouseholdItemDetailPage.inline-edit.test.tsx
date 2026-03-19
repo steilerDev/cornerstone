@@ -194,6 +194,30 @@ jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js',
   },
 }));
 
+// Mock householdItemCategoriesApi — HouseholdItemDetailPage loads categories to display badges
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockFetchHICCategories = jest.fn<any>().mockResolvedValue({ categories: [] });
+jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
+  fetchHouseholdItemCategories: mockFetchHICCategories,
+  createHouseholdItemCategory: jest.fn(),
+  updateHouseholdItemCategory: jest.fn(),
+  deleteHouseholdItemCategory: jest.fn(),
+}));
+
+// Mock useAreas hook — HouseholdItemDetailPage uses useAreas to render AreaPicker
+const mockUseAreas = jest.fn(() => ({
+  areas: [],
+  isLoading: false,
+  error: null,
+  refetch: jest.fn(),
+  createArea: jest.fn(),
+  updateArea: jest.fn(),
+  deleteArea: jest.fn(),
+}));
+jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
+  useAreas: mockUseAreas,
+}));
+
 // ─── Mock: formatters — provides useFormatters() hook ────────────────────────
 
 jest.unstable_mockModule('../../lib/formatters.js', () => {
