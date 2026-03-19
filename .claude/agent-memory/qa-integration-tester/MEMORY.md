@@ -3,6 +3,19 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Issue #1010 InvoiceBudgetLinesSection — budget source + pre-fill (2026-03-18)
+
+**Test file**: `client/src/pages/InvoiceDetailPage/InvoiceBudgetLinesSection.test.tsx` (5 new tests in new describe block).
+
+**Key patterns**:
+
+- **New mocks required**: `budgetCategoriesApi.js` and `budgetSourcesApi.js` must be mocked (they are called together in `showCreateBudgetLineForm()` via `Promise.all`). Add both to module-scope mock functions and `jest.unstable_mockModule`.
+- **Create form flow (3 steps)**: open picker → click work-item-picker → wait for "Create Budget Line" button (step 2 empty state) → click it → wait for `<h4>Create Budget Line</h4>` heading.
+- **`WorkItemBudgetLine` type is complex** — when mocking `createWorkItemBudget` return value for tests that only verify call arguments, use `{} as any` rather than building a full fixture.
+- **`mockFetchWorkItemBudgets` default is `[]`** — sufficient to trigger the "no unlinked budget lines" empty state in step 2, which shows the "Create Budget Line" button.
+- **Remaining amount pre-fill**: component uses `remainingAmount.toFixed(2)` on the current `remainingAmount` state (from initial fetch). Pass `invoiceTotal` matching the mock's `remainingAmount` to verify pre-fill correctly.
+- **Error path for `fetchBudgetSources` failure**: error message is `'Failed to load form data.'` (generic non-`ApiClientError` fallback in `showCreateBudgetLineForm`).
+
 ## Story #933 CalDAV/CardDAV + Vendor Contacts (2026-03-17)
 
 **Test files** (6 new): `vendorContactService.test.ts`, `davTokenService.test.ts`, `davXml.test.ts`, `vendorContacts.test.ts`, `davTokens.test.ts`, `dav.test.ts`. Branch: `feat/933-caldav-carddav-vendor-contacts`.

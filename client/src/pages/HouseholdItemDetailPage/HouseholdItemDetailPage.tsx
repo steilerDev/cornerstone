@@ -775,7 +775,7 @@ export function HouseholdItemDetailPage() {
           <dl className={styles.infoList}>
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>{t('detail.details.description')}</dt>
-              <dd className={styles.infoValue}>{item.description ?? '\u2014'}</dd>
+              <dd className={styles.descriptionValue}>{item.description ?? '\u2014'}</dd>
             </div>
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>{t('detail.details.vendor')}</dt>
