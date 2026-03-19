@@ -9,7 +9,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { eq, sql, and, or, desc, asc } from 'drizzle-orm';
+import { eq, sql, and, or, desc, asc, inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import {
@@ -28,6 +28,7 @@ import {
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { listDeps } from './householdItemDepService.js';
 import { autoReschedule } from './schedulingEngine.js';
+import { getDescendantIds } from './areaService.js';
 import { toUserSummary, toAreaSummary, toVendorSummaryWithTrade } from './shared/converters.js';
 import { validateVendorId, validateAreaId } from './shared/validators.js';
 import type {
@@ -507,7 +508,8 @@ export function listHouseholdItems(
   }
 
   if (query.areaId) {
-    conditions.push(eq(householdItems.areaId, query.areaId));
+    const areaIds = getDescendantIds(db, query.areaId);
+    conditions.push(inArray(householdItems.areaId, areaIds));
   }
 
   if (query.q) {
