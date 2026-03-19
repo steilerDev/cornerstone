@@ -769,4 +769,186 @@ describe('SearchPicker', () => {
       expect(separator).not.toBeInTheDocument();
     });
   });
+
+  // ── 17. Special option with empty-string id (bug #1073) ───────────────────
+
+  describe('special option with empty-string id (bug #1073)', () => {
+    const emptyIdSpecialOptions = [{ id: '', label: 'No Area' }];
+
+    it('initial render — input shown, not selected display', () => {
+      renderPicker({ value: '', specialOptions: emptyIdSpecialOptions, placeholder: 'Search...' });
+
+      // Should show the search input, not the selected display
+      expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+      // "No Area" should NOT appear in the document — it hasn't been selected yet
+      expect(screen.queryByText('No Area')).not.toBeInTheDocument();
+    });
+
+    it('focus opens dropdown with special option', async () => {
+      const user = userEvent.setup();
+      renderPicker({ value: '', specialOptions: emptyIdSpecialOptions, placeholder: 'Search...' });
+
+      const input = screen.getByPlaceholderText('Search...');
+      await user.click(input);
+
+      await waitFor(() => {
+        expect(screen.getByRole('listbox')).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'No Area' })).toBeInTheDocument();
+      });
+    });
+
+    it('selecting "No Area" shows selected display with label and clear button', async () => {
+      const user = userEvent.setup();
+      const onChange = jest.fn<(id: string) => void>();
+      renderPicker({
+        value: '',
+        specialOptions: emptyIdSpecialOptions,
+        onChange: onChange as ReturnType<typeof jest.fn>,
+        placeholder: 'Search...',
+      });
+
+      const input = screen.getByPlaceholderText('Search...');
+      await user.click(input);
+
+      await waitFor(() =>
+        expect(screen.getByRole('option', { name: 'No Area' })).toBeInTheDocument(),
+      );
+
+      await user.click(screen.getByRole('option', { name: 'No Area' }));
+
+      // onChange called with empty string (the special option's id)
+      expect(onChange).toHaveBeenCalledWith('');
+
+      // Selected display should appear with "No Area" label and clear button
+      await waitFor(() => {
+        expect(screen.getByText('No Area')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /clear selection/i })).toBeInTheDocument();
+        // Input should no longer be visible
+        expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+      });
+    });
+
+    it('clearing after selecting "No Area" returns to input mode', async () => {
+      const user = userEvent.setup();
+      const onChange = jest.fn<(id: string) => void>();
+      renderPicker({
+        value: '',
+        specialOptions: emptyIdSpecialOptions,
+        onChange: onChange as ReturnType<typeof jest.fn>,
+        placeholder: 'Search...',
+      });
+
+      // Select "No Area"
+      const input = screen.getByPlaceholderText('Search...');
+      await user.click(input);
+      await waitFor(() =>
+        expect(screen.getByRole('option', { name: 'No Area' })).toBeInTheDocument(),
+      );
+      await user.click(screen.getByRole('option', { name: 'No Area' }));
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /clear selection/i })).toBeInTheDocument(),
+      );
+
+      // Clear the selection
+      await user.click(screen.getByRole('button', { name: /clear selection/i }));
+
+      // onChange called with '' again (the clear)
+      expect(onChange).toHaveBeenLastCalledWith('');
+
+      // Back to search input mode — "No Area" text should not be visible
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+        expect(screen.queryByText('No Area')).not.toBeInTheDocument();
+      });
+    });
+
+    it('external value reset clears specialSelected state', async () => {
+      const user = userEvent.setup();
+      const onChange = jest.fn<(id: string) => void>();
+
+      const { rerender } = render(
+        <SearchPicker<TestItem>
+          value=""
+          onChange={onChange as ReturnType<typeof jest.fn>}
+          excludeIds={[]}
+          searchFn={mockSearchFn}
+          renderItem={mockRenderItem}
+          specialOptions={emptyIdSpecialOptions}
+          placeholder="Search..."
+        />,
+      );
+
+      // Select "No Area" to set specialSelected=true
+      const input = screen.getByPlaceholderText('Search...');
+      await user.click(input);
+      await waitFor(() =>
+        expect(screen.getByRole('option', { name: 'No Area' })).toBeInTheDocument(),
+      );
+      await user.click(screen.getByRole('option', { name: 'No Area' }));
+
+      await waitFor(() => expect(screen.getByText('No Area')).toBeInTheDocument());
+
+      // Parent externally resets value to '' (same as the special option's id)
+      rerender(
+        <SearchPicker<TestItem>
+          value=""
+          onChange={onChange as ReturnType<typeof jest.fn>}
+          excludeIds={[]}
+          searchFn={mockSearchFn}
+          renderItem={mockRenderItem}
+          specialOptions={emptyIdSpecialOptions}
+          placeholder="Search..."
+        />,
+      );
+
+      // After external reset: should be in search input mode, not selected display
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+        expect(screen.queryByText('No Area')).not.toBeInTheDocument();
+      });
+    });
+
+    it('selecting a real item after clearing "No Area" works normally', async () => {
+      const user = userEvent.setup();
+      const onChange = jest.fn<(id: string) => void>();
+      renderPicker({
+        value: '',
+        specialOptions: emptyIdSpecialOptions,
+        onChange: onChange as ReturnType<typeof jest.fn>,
+        placeholder: 'Search...',
+      });
+
+      // Step 1: Select "No Area"
+      const input = screen.getByPlaceholderText('Search...');
+      await user.click(input);
+      await waitFor(() =>
+        expect(screen.getByRole('option', { name: 'No Area' })).toBeInTheDocument(),
+      );
+      await user.click(screen.getByRole('option', { name: 'No Area' }));
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /clear selection/i })).toBeInTheDocument(),
+      );
+
+      // Step 2: Clear "No Area"
+      await user.click(screen.getByRole('button', { name: /clear selection/i }));
+      await waitFor(() => expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument());
+
+      // Step 3: Focus again and select a real item
+      const inputAfterClear = screen.getByPlaceholderText('Search...');
+      await user.click(inputAfterClear);
+
+      await waitFor(() => expect(screen.getByText('Alpha Widget')).toBeInTheDocument());
+      await user.click(screen.getByText('Alpha Widget'));
+
+      // Normal selection should work: onChange called with the item's id
+      expect(onChange).toHaveBeenLastCalledWith('item-1');
+
+      await waitFor(() => {
+        expect(screen.getByText('Alpha Widget')).toBeInTheDocument();
+        expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+      });
+    });
+  });
 });
