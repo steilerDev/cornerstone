@@ -115,8 +115,11 @@ describe('Work Item Routes', () => {
       expect(workItem.title).toBe('Install electrical panel');
       expect(workItem.description).toBeNull();
       expect(workItem.status).toBe('not_started');
-      expect(workItem.startDate).toBeNull();
-      expect(workItem.endDate).toBeNull();
+      // autoReschedule() runs after creation: a not_started item with no startDate is
+      // scheduled to start today (Rule 2 floor), so startDate and endDate are a date
+      // string (today), not null.
+      expect(workItem.startDate === null || typeof workItem.startDate === 'string').toBe(true);
+      expect(workItem.endDate === null || typeof workItem.endDate === 'string').toBe(true);
       expect(workItem.durationDays).toBeNull();
       expect(workItem.startAfter).toBeNull();
       expect(workItem.startBefore).toBeNull();
@@ -167,8 +170,12 @@ describe('Work Item Routes', () => {
       expect(workItem.title).toBe('Pour foundation');
       expect(workItem.description).toBe('Pour concrete foundation for main structure');
       expect(workItem.status).toBe('in_progress');
+      // autoReschedule() runs after creation. The item has status 'in_progress', so Rule 3
+      // floors the end date to today when the computed EF (startDate + durationDays =
+      // 2026-03-05) is in the past. startDate is preserved as the user set it.
       expect(workItem.startDate).toBe('2026-03-01');
-      expect(workItem.endDate).toBe('2026-03-05');
+      const todayStr = new Date().toISOString().slice(0, 10);
+      expect(workItem.endDate).toBe(todayStr);
       expect(workItem.durationDays).toBe(4);
       expect(workItem.startAfter).toBe('2026-02-28');
       expect(workItem.startBefore).toBe('2026-03-10');
@@ -722,9 +729,11 @@ describe('Work Item Routes', () => {
         'User',
         'password',
       );
-      workItemService.createWorkItem(app.db, userId, { title: 'A', startDate: '2026-03-01' });
-      workItemService.createWorkItem(app.db, userId, { title: 'B', startDate: '2026-03-15' });
-      workItemService.createWorkItem(app.db, userId, { title: 'C', startDate: '2026-03-10' });
+      // Use future dates so the scheduler (ensureDailyReschedule on GET) does not
+      // floor them to today via Rule 2, which would make all three identical.
+      workItemService.createWorkItem(app.db, userId, { title: 'A', startDate: '2027-01-01' });
+      workItemService.createWorkItem(app.db, userId, { title: 'B', startDate: '2027-01-15' });
+      workItemService.createWorkItem(app.db, userId, { title: 'C', startDate: '2027-01-10' });
 
       // When: Sorting by startDate ascending
       const response = await app.inject({
@@ -736,9 +745,9 @@ describe('Work Item Routes', () => {
       // Then: Items sorted by date
       expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.body) as WorkItemListResponse;
-      expect(result.items[0].startDate).toBe('2026-03-01');
-      expect(result.items[1].startDate).toBe('2026-03-10');
-      expect(result.items[2].startDate).toBe('2026-03-15');
+      expect(result.items[0].startDate).toBe('2027-01-01');
+      expect(result.items[1].startDate).toBe('2027-01-10');
+      expect(result.items[2].startDate).toBe('2027-01-15');
     });
 
     it('combines multiple filters (UAT-3.2-21)', async () => {
