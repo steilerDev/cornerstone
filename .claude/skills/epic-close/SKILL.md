@@ -126,10 +126,11 @@ If no refinement items exist, skip to step 5.
 
 ### 5. E2E Validation
 
+#### 5a. Coverage Verification
+
 Launch the **e2e-test-engineer** agent to:
 
 - **Triage prior E2E failures** from recent beta PRs (the agent does this automatically per its "Before Starting Any Work" checklist — review the triage report before proceeding). If real regressions are found, address them before continuing.
-- Confirm all existing Playwright E2E tests pass
 - Verify every approved UAT scenario (from story issues) has E2E coverage
 - Write new E2E tests on a branch if coverage gaps exist
 - Ensure dependent system containers are included in the E2E environment (not just `page.route()` mocks)
@@ -137,7 +138,11 @@ Launch the **e2e-test-engineer** agent to:
 - Open a PR targeting `beta` to trigger the full sharded E2E suite in CI (if it does not yet exist)
 - Wait for the full E2E suite to pass (not just smoke tests)
 
-**If the e2e-test-engineer reports failures**: Collect the structured E2E failure reports and launch the **dev-team-lead** in `[MODE: review]` with the failure reports and the relevant spec/acceptance criteria. The dev-team-lead's diagnostic protocol will classify each failure and produce targeted fix specs. Route fixes based on the diagnosis (same routing as `/develop` step 6f).
+If the e2e-test-engineer's PR passes all E2E shards, squash merge it and proceed to step 6.
+
+#### 5b. Fix Failing E2E Tests
+
+**If E2E shards fail**: Use `/fix-e2e <run-id>` to iteratively analyze, fix, and verify failing tests. The `/fix-e2e` skill handles the full fix cycle — root cause analysis, agent delegation, push, CI wait, and iteration — and merges its own PR when all shards pass.
 
 This approval is **required** before proceeding to UAT validation.
 
