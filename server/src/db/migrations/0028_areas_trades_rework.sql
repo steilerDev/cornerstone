@@ -149,3 +149,4 @@ INSERT OR IGNORE INTO household_item_categories (id, name, color, sort_order, cr
 DELETE FROM household_item_categories WHERE id = 'hic-outdoor' AND NOT EXISTS (SELECT 1 FROM household_items WHERE category_id = 'hic-outdoor');
 
 DELETE FROM household_item_categories WHERE id = 'hic-storage' AND NOT EXISTS (SELECT 1 FROM household_items WHERE category_id = 'hic-storage');
+// EPIC-18: Areas & Trades
