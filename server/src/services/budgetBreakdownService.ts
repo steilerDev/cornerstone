@@ -219,7 +219,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       confidence: string;
       budgetCategoryId: string | null;
     }>,
-    invoiceMap: Map<string, number>,
+    invoiceMap: Map<string, number | { actualCost: number; isQuotation: boolean }>,
     useMinMargin: boolean = false,
   ): number {
     const linkedSubsidyIds = entitySubsidyMap.get(entityId);
