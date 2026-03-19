@@ -38,26 +38,9 @@
 }
 
 .actionButton {
-  padding: var(--spacing-2) var(--spacing-4);
-  background-color: var(--color-bg-secondary);
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: var(--transition-button-border);
+  composes: btnSecondary from '../../styles/shared.module.css';
   min-height: 44px;
   white-space: nowrap;
-}
-
-.actionButton:hover {
-  background-color: var(--color-bg-hover);
-}
-
-.actionButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
 }
 
 /* ---- Loading / error states ---- */

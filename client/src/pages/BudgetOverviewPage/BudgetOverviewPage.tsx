@@ -410,6 +410,7 @@ export function BudgetOverviewPage() {
                 className={styles.actionButton}
                 onClick={() => navigate('/budget/invoices')}
                 data-testid="budget-overview-add-invoice"
+                aria-label={t('overview.actions.addInvoice')}
               >
                 {t('overview.actions.addInvoice')}
               </button>
@@ -418,6 +419,7 @@ export function BudgetOverviewPage() {
                 className={styles.actionButton}
                 onClick={() => navigate('/budget/vendors')}
                 data-testid="budget-overview-add-vendor"
+                aria-label={t('overview.actions.addVendor')}
               >
                 {t('overview.actions.addVendor')}
               </button>
@@ -445,6 +447,7 @@ export function BudgetOverviewPage() {
                 className={styles.actionButton}
                 onClick={() => navigate('/budget/invoices')}
                 data-testid="budget-overview-add-invoice"
+                aria-label={t('overview.actions.addInvoice')}
               >
                 {t('overview.actions.addInvoice')}
               </button>
@@ -453,6 +456,7 @@ export function BudgetOverviewPage() {
                 className={styles.actionButton}
                 onClick={() => navigate('/budget/vendors')}
                 data-testid="budget-overview-add-vendor"
+                aria-label={t('overview.actions.addVendor')}
               >
                 {t('overview.actions.addVendor')}
               </button>
@@ -620,6 +624,7 @@ export function BudgetOverviewPage() {
               className={styles.actionButton}
               onClick={() => navigate('/budget/invoices')}
               data-testid="budget-overview-add-invoice"
+              aria-label={t('overview.actions.addInvoice')}
             >
               {t('overview.actions.addInvoice')}
             </button>
@@ -628,6 +633,7 @@ export function BudgetOverviewPage() {
               className={styles.actionButton}
               onClick={() => navigate('/budget/vendors')}
               data-testid="budget-overview-add-vendor"
+              aria-label={t('overview.actions.addVendor')}
             >
               {t('overview.actions.addVendor')}
             </button>

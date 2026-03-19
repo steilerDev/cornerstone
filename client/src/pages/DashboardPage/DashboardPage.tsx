@@ -455,6 +455,7 @@ export function DashboardPage() {
               className={styles.actionButton}
               onClick={() => navigate('/project/work-items/new')}
               data-testid="dashboard-add-work-item"
+              aria-label={t('page.actions.addWorkItem')}
             >
               {t('page.actions.addWorkItem')}
             </button>
@@ -463,6 +464,7 @@ export function DashboardPage() {
               className={styles.actionButton}
               onClick={() => navigate('/project/household-items/new')}
               data-testid="dashboard-add-household-item"
+              aria-label={t('page.actions.addHouseholdItem')}
             >
               {t('page.actions.addHouseholdItem')}
             </button>
@@ -471,6 +473,7 @@ export function DashboardPage() {
               className={styles.actionButton}
               onClick={() => navigate('/project/milestones/new')}
               data-testid="dashboard-add-milestone"
+              aria-label={t('page.actions.addMilestone')}
             >
               {t('page.actions.addMilestone')}
             </button>
