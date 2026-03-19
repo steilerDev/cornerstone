@@ -13,6 +13,7 @@ import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
+import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import styles from './WorkItemsPage.module.css';
 
 export function WorkItemsPage() {
@@ -501,22 +502,15 @@ export function WorkItemsPage() {
           </div>
 
           <div className={styles.filter}>
-            <label htmlFor="area-filter" className={styles.filterLabel}>
+            <label className={styles.filterLabel}>
               {t('list.filters.area')}
             </label>
-            <select
-              id="area-filter"
+            <AreaPicker
+              areas={areas}
               value={areaFilter}
-              onChange={(e) => handleAreaFilterChange(e.target.value)}
-              className={styles.filterSelect}
-            >
-              <option value="">{t('list.filters.allAreas')}</option>
-              {areas.map((area) => (
-                <option key={area.id} value={area.id}>
-                  {area.name}
-                </option>
-              ))}
-            </select>
+              onChange={handleAreaFilterChange}
+              nullable={true}
+            />
           </div>
 
           <div className={styles.filter}>
