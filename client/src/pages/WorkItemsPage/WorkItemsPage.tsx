@@ -77,6 +77,9 @@ export function WorkItemsPage() {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Screen reader announcement for filter toggle
+  const [srMessage, setSrMessage] = useState('');
+
   // Load users and tags on mount
   useEffect(() => {
     const loadFilters = async () => {
@@ -243,6 +246,7 @@ export function WorkItemsPage() {
 
   const handleNoBudgetFilterChange = (checked: boolean) => {
     updateSearchParams({ noBudget: checked ? 'true' : undefined, page: '1' });
+    setSrMessage(checked ? t('list.filters.noBudgetActive') : t('list.filters.noBudgetInactive'));
   };
 
   const handleSortChange = (field: string) => {
@@ -513,6 +517,9 @@ export function WorkItemsPage() {
           >
             {t('list.filters.noBudget')}
           </button>
+          <span className={styles.srOnly} aria-live="polite" role="status">
+            {srMessage}
+          </span>
 
           <div className={styles.filter}>
             <label htmlFor="sort-filter" className={styles.filterLabel}>

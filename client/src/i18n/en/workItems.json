@@ -16,6 +16,8 @@
       "allTags": "All Tags",
       "noBudget": "No Budget",
       "noBudgetAriaLabel": "Show only work items without budget lines",
+      "noBudgetActive": "No Budget filter active",
+      "noBudgetInactive": "No Budget filter cleared",
       "sortBy": "Sort by:",
       "sortAscending": "↑ Asc",
       "sortDescending": "↓ Desc",
