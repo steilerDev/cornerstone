@@ -34,6 +34,8 @@ coverage/
 playwright-output/
 playwright-report/
 test-results/
+design-review-screenshots/
+design-review-output/
 
 # SQLite
 *.sqlite
