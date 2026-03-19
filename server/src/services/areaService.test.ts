@@ -5,6 +5,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as areaService from './areaService.js';
+import { getDescendantIds } from './areaService.js';
 import {
   NotFoundError,
   ValidationError,
@@ -946,5 +947,11 @@ describe('Area Service', () => {
         areaService.getAreaById(db, child.id);
       }).toThrow(NotFoundError);
     });
+  });
+});
+
+describe('getDescendantIds export smoke test', () => {
+  it('getDescendantIds is exported from areaService and is a function', () => {
+    expect(typeof getDescendantIds).toBe('function');
   });
 });

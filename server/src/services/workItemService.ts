@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, sql, and, or, desc, asc } from 'drizzle-orm';
+import { eq, sql, and, or, desc, asc, inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import {
@@ -16,6 +16,7 @@ import {
 import { listWorkItemBudgets } from './workItemBudgetService.js';
 import { autoReschedule } from './schedulingEngine.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
+import { getDescendantIds } from './areaService.js';
 import {
   onWorkItemStatusChanged,
   onMilestoneDelayed,
@@ -611,7 +612,8 @@ export function listWorkItems(
   }
 
   if (query.areaId) {
-    conditions.push(eq(workItems.areaId, query.areaId));
+    const areaIds = getDescendantIds(db, query.areaId);
+    conditions.push(inArray(workItems.areaId, areaIds));
   }
 
   if (query.assignedVendorId) {

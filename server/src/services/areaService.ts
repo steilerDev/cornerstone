@@ -40,7 +40,7 @@ function isValidHexColor(color: string): boolean {
  * Collect all descendant IDs of an area using breadth-first search.
  * Includes the area itself.
  */
-function getDescendantIds(db: DbType, areaId: string): string[] {
+export function getDescendantIds(db: DbType, areaId: string): string[] {
   const result: string[] = [areaId];
   const queue: string[] = [areaId];
 
