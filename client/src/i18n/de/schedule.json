@@ -21,7 +21,11 @@
       "columnZoom": "Spalten-Zoom",
       "zoomOutColumns": "Spalten verkleinern",
       "zoomInColumns": "Spalten vergrößern",
-      "adjustColumnWidth": "Spaltenbreite anpassen (Strg+Bildlauf oder Strg+=/−)"
+      "adjustColumnWidth": "Spaltenbreite anpassen (Strg+Bildlauf oder Strg+=/−)",
+      "newButton": "Neu",
+      "newWorkItem": "Arbeitspaket",
+      "newHouseholdItem": "Haushaltsartikel",
+      "newMilestone": "Meilenstein"
     },
     "zoomOptions": {
       "day": "Tag",
