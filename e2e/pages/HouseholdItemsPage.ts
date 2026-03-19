@@ -194,36 +194,19 @@ export class HouseholdItemsPage {
    * When bug #944 is fixed, update to: `[aria-label="Actions for ${name}"]`
    */
   async openDeleteModal(name: string): Promise<void> {
-    const tableVisible = await this.tableContainer.isVisible();
+    // Find the actions button by aria-label at page level — avoids table/card
+    // visibility issues on tablet WebKit where the table actions column may be
+    // invisible despite tableContainer being in the DOM.
+    const actionsBtn = this.page.locator(`[aria-label^="Actions for"][aria-label*="${name}"]`).first();
+    await actionsBtn.waitFor({ state: 'attached' });
 
-    if (tableVisible) {
-      const rows = await this.tableBody.locator('tr').all();
-      for (const row of rows) {
-        const rowText = await row.textContent();
-        if (rowText?.includes(name)) {
-          // Use dispatchEvent to bypass all visibility/stability checks — on tablet
-          // WebKit the actions button can be off-screen or unstable.
-          await row.locator('[aria-label^="Actions for"]').dispatchEvent('click');
-          await row.getByRole('menuitem', { name: 'Delete' }).click();
-          await this.deleteModal.waitFor({ state: 'visible' });
-          return;
-        }
-      }
-    }
+    // Use evaluate to click — bypasses all Playwright actionability checks
+    // (visibility, stability) which fail on tablet WebKit for table actions buttons.
+    await actionsBtn.evaluate((el: HTMLElement) => el.click());
 
-    // Mobile fallback
-    const cards = await this.cardsContainer.locator('[class*="card"]').all();
-    for (const card of cards) {
-      const cardText = await card.textContent();
-      if (cardText?.includes(name)) {
-        await card.locator('[aria-label^="Actions for"]').dispatchEvent('click');
-        await card.getByRole('menuitem', { name: 'Delete' }).click();
-        await this.deleteModal.waitFor({ state: 'visible' });
-        return;
-      }
-    }
-
-    throw new Error(`Household item with name "${name}" not found in list`);
+    // Wait for the dropdown menu to appear, then click Delete
+    await this.page.getByRole('menuitem', { name: 'Delete' }).click();
+    await this.deleteModal.waitFor({ state: 'visible' });
   }
 
   /**
