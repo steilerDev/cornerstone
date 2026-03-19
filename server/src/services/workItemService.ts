@@ -10,6 +10,7 @@ import {
   workItemSubtasks,
   workItemDependencies,
   householdItemDeps,
+  workItemBudgets,
 } from '../db/schema.js';
 import { listWorkItemBudgets } from './workItemBudgetService.js';
 import { autoReschedule } from './schedulingEngine.js';
@@ -37,6 +38,18 @@ import type {
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
+
+/**
+ * Count budget lines for a work item.
+ */
+function getBudgetLineCount(db: DbType, workItemId: string): number {
+  const result = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(workItemBudgets)
+    .where(eq(workItemBudgets.workItemId, workItemId))
+    .get();
+  return result?.count ?? 0;
+}
 
 /**
  * Convert database subtask row to SubtaskResponse shape.
@@ -84,6 +97,7 @@ export function toWorkItemSummary(
 ): WorkItemSummary {
   const assignedUser = getAssignedUser(db, workItem.assignedUserId);
   const itemTags = getWorkItemTags(db, workItem.id);
+  const budgetLineCount = getBudgetLineCount(db, workItem.id);
 
   return {
     id: workItem.id,
@@ -96,6 +110,7 @@ export function toWorkItemSummary(
     durationDays: workItem.durationDays,
     assignedUser,
     tags: itemTags,
+    budgetLineCount,
     createdAt: workItem.createdAt,
     updatedAt: workItem.updatedAt,
   };
@@ -601,6 +616,13 @@ export function listWorkItems(
   if (query.tagId) {
     conditions.push(
       sql`${workItems.id} IN (SELECT ${workItemTags.workItemId} FROM ${workItemTags} WHERE ${workItemTags.tagId} = ${query.tagId})`,
+    );
+  }
+
+  // Filter for work items with no budget lines
+  if (query.noBudget) {
+    conditions.push(
+      sql`${workItems.id} NOT IN (SELECT ${workItemBudgets.workItemId} FROM ${workItemBudgets})`,
     );
   }
 

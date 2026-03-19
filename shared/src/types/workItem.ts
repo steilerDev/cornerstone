@@ -63,6 +63,7 @@ export interface WorkItemSummary {
   durationDays: number | null;
   assignedUser: UserSummary | null;
   tags: TagResponse[];
+  budgetLineCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -161,6 +162,7 @@ export interface WorkItemListQuery {
   q?: string;
   sortBy?: 'title' | 'status' | 'start_date' | 'end_date' | 'created_at' | 'updated_at';
   sortOrder?: 'asc' | 'desc';
+  noBudget?: boolean;
 }
 
 /**
