@@ -2,9 +2,9 @@ import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
-import type { BudgetOverview, CategoryBudgetSummary } from '@cornerstone/shared';
-import { computeSubsidyEffects } from './shared/subsidyCalculationEngine.js';
-import type { LinkedSubsidy } from './shared/subsidyCalculationEngine.js';
+import type { BudgetOverview, CategoryBudgetSummary, OversubscribedSubsidy } from '@cornerstone/shared';
+import { computeSubsidyEffects, applySubsidyCaps } from './shared/subsidyCalculationEngine.js';
+import type { LinkedSubsidy, SubsidyCapMeta, PerSubsidyTotals } from './shared/subsidyCalculationEngine.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -69,13 +69,17 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   // Returns one row per subsidy program (non-rejected).
   const subsidyRows = db.all<{
     subsidyId: string;
+    name: string;
     reductionType: string;
     reductionValue: number;
+    maximumAmount: number | null;
   }>(
     sql`SELECT
       id              AS subsidyId,
+      name            AS name,
       reduction_type  AS reductionType,
-      reduction_value AS reductionValue
+      reduction_value AS reductionValue,
+      maximum_amount  AS maximumAmount
     FROM subsidy_programs
     WHERE application_status != 'rejected'`,
   );
@@ -433,8 +437,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   //
   // Note: subsidyMeta and workItemSubsidyMap already fetched above.
 
-  let totalMinPayback = 0;
-  let totalMaxPayback = 0;
+  // Aggregate per-subsidy payback totals across all entities
+  const perSubsidyPayback = new Map<string, { min: number; max: number }>();
 
   // Group budget lines by entityId for efficient per-entity processing
   const linesByEntity = new Map<
@@ -480,22 +484,67 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       });
     }
 
-    const { minTotalPayback: entityMin, maxTotalPayback: entityMax } = computeSubsidyEffects(
+    const { subsidies: entitySubsidyEffects } = computeSubsidyEffects(
       engineLines,
       engineSubsidies,
       subsidyCategoryMap,
       lineInvoiceMap,
     );
 
-    totalMinPayback += entityMin;
-    totalMaxPayback += entityMax;
+    // Accumulate per-subsidy totals
+    for (const effect of entitySubsidyEffects) {
+      const existing = perSubsidyPayback.get(effect.subsidyProgramId);
+      if (existing) {
+        existing.min += effect.minPayback;
+        existing.max += effect.maxPayback;
+      } else {
+        perSubsidyPayback.set(effect.subsidyProgramId, {
+          min: effect.minPayback,
+          max: effect.maxPayback,
+        });
+      }
+    }
   }
+
+  // Build per-subsidy totals and cap metadata for applySubsidyCaps
+  const perSubsidyTotals: PerSubsidyTotals[] = [];
+  for (const [subsidyProgramId, totals] of perSubsidyPayback) {
+    perSubsidyTotals.push({
+      subsidyProgramId,
+      uncappedMinPayback: totals.min,
+      uncappedMaxPayback: totals.max,
+    });
+  }
+
+  const subsidyCapMeta: SubsidyCapMeta[] = subsidyRows.map((row) => ({
+    subsidyProgramId: row.subsidyId,
+    name: row.name,
+    reductionType: row.reductionType as 'percentage' | 'fixed',
+    reductionValue: row.reductionValue,
+    maximumAmount: row.maximumAmount,
+  }));
+
+  const capResult = applySubsidyCaps(perSubsidyTotals, subsidyCapMeta);
+
+  const oversubscribedSubsidies: OversubscribedSubsidy[] = capResult.oversubscribedSubsidies.map(
+    (s) => ({
+      subsidyProgramId: s.subsidyProgramId,
+      name: s.name,
+      maximumAmount: s.maximumAmount,
+      maxPayout: s.maxPayout,
+      uncappedMinPayback: s.uncappedMinPayback,
+      uncappedMaxPayback: s.uncappedMaxPayback,
+      minExcess: s.minExcess,
+      maxExcess: s.maxExcess,
+    }),
+  );
 
   const subsidySummary = {
     totalReductions,
     activeSubsidyCount: subsidyCountRow?.activeSubsidyCount ?? 0,
-    minTotalPayback: totalMinPayback,
-    maxTotalPayback: totalMaxPayback,
+    minTotalPayback: capResult.cappedMinPayback,
+    maxTotalPayback: capResult.cappedMaxPayback,
+    oversubscribedSubsidies,
   };
 
   // ── 12. Remaining-funds perspectives ───────────────────────────────────────
@@ -505,9 +554,11 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   const remainingVsActualPaid = availableFunds - actualCostPaid;
   const remainingVsActualClaimed = availableFunds - actualCostClaimed;
 
-  // Payback-adjusted remaining perspectives
-  const remainingVsMinPlannedWithPayback = availableFunds + totalMinPayback - totalMinPlanned;
-  const remainingVsMaxPlannedWithPayback = availableFunds + totalMaxPayback - totalMaxPlanned;
+  // Payback-adjusted remaining perspectives (using capped payback values)
+  const remainingVsMinPlannedWithPayback =
+    availableFunds + capResult.cappedMinPayback - totalMinPlanned;
+  const remainingVsMaxPlannedWithPayback =
+    availableFunds + capResult.cappedMaxPayback - totalMaxPlanned;
 
   return {
     availableFunds,

@@ -181,6 +181,7 @@ export type {
   CategoryBudgetSummary,
   BudgetOverview,
   BudgetOverviewResponse,
+  OversubscribedSubsidy,
 } from './types/budgetOverview.js';
 
 // Budget Breakdown
@@ -194,6 +195,7 @@ export type {
   BreakdownTotals,
   BudgetBreakdown,
   BudgetBreakdownResponse,
+  SubsidyAdjustment,
 } from './types/budgetBreakdown.js';
 
 // Work Item Budgets

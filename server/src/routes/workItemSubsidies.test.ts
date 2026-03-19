@@ -407,76 +407,36 @@ describe('Work Item Subsidy Routes', () => {
       expect(body.error.code).toBe('CONFLICT');
     });
 
-    it('returns 409 SUBSIDY_OVERSUBSCRIBED when fixed subsidy would exceed maximumAmount', async () => {
+    it('allows linking even when subsidy exceeds maximumAmount (oversubscription allowed)', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
         'password123',
       );
-      // Subsidy: fixed 10000. Max = 15000. Link to first WI (alloc=10000). Second would → 20000 > 15000.
+      // Subsidy: fixed 10000. Max = 5000. Link should succeed despite exceeding cap.
       const subsidy = createTestSubsidyProgram('Fixed Cap Subsidy', {
         reductionType: 'fixed',
         reductionValue: 10000,
-        maximumAmount: 15000,
+        maximumAmount: 5000,
       });
-      const workItem1 = createTestWorkItem('WI 1 Oversubscribed', userId);
-      const workItem2 = createTestWorkItem('WI 2 Oversubscribed', userId);
+      const workItem1 = createTestWorkItem('WI 1 Over Cap', userId);
+      const workItem2 = createTestWorkItem('WI 2 Over Cap', userId);
 
-      // First link succeeds
-      await app.inject({
+      const response1 = await app.inject({
         method: 'POST',
         url: `/api/work-items/${workItem1.id}/subsidies`,
         headers: { cookie, 'content-type': 'application/json' },
         body: JSON.stringify({ subsidyProgramId: subsidy.id }),
       });
+      expect(response1.statusCode).toBe(201);
 
-      // Second link would exceed the cap
-      const response = await app.inject({
+      const response2 = await app.inject({
         method: 'POST',
         url: `/api/work-items/${workItem2.id}/subsidies`,
         headers: { cookie, 'content-type': 'application/json' },
         body: JSON.stringify({ subsidyProgramId: subsidy.id }),
       });
-
-      expect(response.statusCode).toBe(409);
-      const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('SUBSIDY_OVERSUBSCRIBED');
-    });
-
-    it('returns 409 SUBSIDY_OVERSUBSCRIBED with currentAllocation, maximumAmount, excess in details', async () => {
-      const { userId, cookie } = await createUserWithSession(
-        'user@example.com',
-        'Test User',
-        'password123',
-      );
-      const subsidy = createTestSubsidyProgram('Details Cap Subsidy', {
-        reductionType: 'fixed',
-        reductionValue: 10000,
-        maximumAmount: 15000,
-      });
-      const workItem1 = createTestWorkItem('WI Details 1', userId);
-      const workItem2 = createTestWorkItem('WI Details 2', userId);
-
-      await app.inject({
-        method: 'POST',
-        url: `/api/work-items/${workItem1.id}/subsidies`,
-        headers: { cookie, 'content-type': 'application/json' },
-        body: JSON.stringify({ subsidyProgramId: subsidy.id }),
-      });
-
-      const response = await app.inject({
-        method: 'POST',
-        url: `/api/work-items/${workItem2.id}/subsidies`,
-        headers: { cookie, 'content-type': 'application/json' },
-        body: JSON.stringify({ subsidyProgramId: subsidy.id }),
-      });
-
-      expect(response.statusCode).toBe(409);
-      const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('SUBSIDY_OVERSUBSCRIBED');
-      expect(body.error.details?.currentAllocation).toBe(10000);
-      expect(body.error.details?.maximumAmount).toBe(15000);
-      expect(body.error.details?.excess).toBe(5000);
+      expect(response2.statusCode).toBe(201);
     });
 
     it('links successfully when no maximumAmount is set', async () => {

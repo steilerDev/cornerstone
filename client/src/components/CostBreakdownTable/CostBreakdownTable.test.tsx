@@ -258,6 +258,7 @@ function buildOverview(
       activeSubsidyCount: 0,
       minTotalPayback: opts.minTotalPayback ?? 0,
       maxTotalPayback: opts.maxTotalPayback ?? 0,
+      oversubscribedSubsidies: [],
     },
   };
 }
@@ -291,6 +292,7 @@ function buildEmptyBreakdown(): BudgetBreakdown {
         minSubsidyPayback: 0,
       },
     },
+    subsidyAdjustments: [],
   };
 }
 
@@ -392,6 +394,7 @@ function buildBreakdownWithWI(
         minSubsidyPayback: 0,
       },
     },
+    subsidyAdjustments: [],
   };
 }
 
@@ -485,6 +488,7 @@ function buildBreakdownWithHI(
         minSubsidyPayback,
       },
     },
+    subsidyAdjustments: [],
   };
 }
 
@@ -882,6 +886,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 0,
         },
       },
+    subsidyAdjustments: [],
     };
 
     const { container } = render(
@@ -953,6 +958,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 0,
         },
       },
+    subsidyAdjustments: [],
     };
 
     const { container } = render(
@@ -1024,6 +1030,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 0,
         },
       },
+    subsidyAdjustments: [],
     };
 
     render(
@@ -1351,6 +1358,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 0,
         },
       },
+    subsidyAdjustments: [],
     };
 
     render(
@@ -2598,6 +2606,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
           minSubsidyPayback: 0,
         },
       },
+    subsidyAdjustments: [],
     };
   }
 
@@ -2675,6 +2684,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
           minSubsidyPayback: 0,
         },
       },
+    subsidyAdjustments: [],
     };
   }
 

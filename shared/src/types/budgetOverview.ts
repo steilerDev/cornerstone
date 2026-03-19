@@ -47,7 +47,20 @@ export interface BudgetOverview {
     minTotalPayback: number;
     /** Sum of max expected payback across all work items with linked subsidies */
     maxTotalPayback: number;
+    /** Subsidies whose uncapped payback exceeds their maximumAmount cap */
+    oversubscribedSubsidies: OversubscribedSubsidy[];
   };
+}
+
+export interface OversubscribedSubsidy {
+  subsidyProgramId: string;
+  name: string;
+  maximumAmount: number;
+  maxPayout: number;
+  uncappedMinPayback: number;
+  uncappedMaxPayback: number;
+  minExcess: number;
+  maxExcess: number;
 }
 
 export interface BudgetOverviewResponse {

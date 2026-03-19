@@ -35,6 +35,7 @@
       "plannedCostRange": "Planned Cost Range",
       "actualSpend": "Actual Spend",
       "subsidySavings": "Subsidy Savings",
+      "subsidiesOversubscribed": "Some subsidies are oversubscribed",
       "viewBudgetOverview": "View Budget Overview →"
     },
     "sourceUtilization": {

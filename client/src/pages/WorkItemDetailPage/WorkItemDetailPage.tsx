@@ -476,9 +476,7 @@ export default function WorkItemDetailPage() {
       await reloadSubsidyPayback();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        if (err.error.code === 'SUBSIDY_OVERSUBSCRIBED') {
-          setInlineError(err.error.message);
-        } else if (err.statusCode === 409) {
+        if (err.statusCode === 409) {
           setInlineError('This subsidy program is already linked');
         } else {
           setInlineError(err.error.message);

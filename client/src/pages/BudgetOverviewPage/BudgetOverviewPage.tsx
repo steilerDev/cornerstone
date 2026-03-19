@@ -703,6 +703,11 @@ export function BudgetOverviewPage() {
                     ) : null}
                   </span>
                 </span>
+                {overview.subsidySummary.oversubscribedSubsidies?.length > 0 && (
+                  <span className={styles.paybackCappedNote}>
+                    {t('overview.paybackCapped')}
+                  </span>
+                )}
               </div>
             )}
 

@@ -18,6 +18,7 @@ export interface SubsidyPaybackData {
 export interface BudgetCostOverviewProps {
   budgetLines: BaseBudgetLine[];
   subsidyPayback: SubsidyPaybackData | null;
+  oversubscribedSubsidyNames?: string[];
 }
 
 function formatRange(min: number, max: number, fc: (n: number) => string): string {
@@ -25,7 +26,11 @@ function formatRange(min: number, max: number, fc: (n: number) => string): strin
   return `${fc(min)} – ${fc(max)}`;
 }
 
-export function BudgetCostOverview({ budgetLines, subsidyPayback }: BudgetCostOverviewProps) {
+export function BudgetCostOverview({
+  budgetLines,
+  subsidyPayback,
+  oversubscribedSubsidyNames,
+}: BudgetCostOverviewProps) {
   const { t } = useTranslation('budget');
   const { formatCurrency } = useFormatters();
   if (budgetLines.length === 0) return null;
@@ -100,6 +105,17 @@ export function BudgetCostOverview({ budgetLines, subsidyPayback }: BudgetCostOv
               }
             >
               {formatRange(effectivePaybackMin, effectivePaybackMax, formatCurrency)}
+            </span>
+          </div>
+        )}
+
+        {oversubscribedSubsidyNames && oversubscribedSubsidyNames.length > 0 && (
+          <div className={styles.oversubscribedNote}>
+            <span className={styles.oversubscribedIcon}>&#9888;</span>
+            <span>
+              {oversubscribedSubsidyNames.length === 1
+                ? `${oversubscribedSubsidyNames[0]} is oversubscribed`
+                : `${oversubscribedSubsidyNames.join(', ')} are oversubscribed`}
             </span>
           </div>
         )}

@@ -94,6 +94,7 @@ const baseOverview: BudgetOverview = {
     activeSubsidyCount: 0,
     minTotalPayback: 0,
     maxTotalPayback: 0,
+  oversubscribedSubsidies: [],
   },
 };
 
@@ -147,8 +148,9 @@ describe('BudgetSummaryCard', () => {
           subsidySummary: {
             totalReductions: 5000,
             activeSubsidyCount: 1,
-            minTotalPayback: 0,
-            maxTotalPayback: 0,
+            minTotalPayback: 5000,
+            maxTotalPayback: 5000,
+            oversubscribedSubsidies: [],
           },
         }}
       />,

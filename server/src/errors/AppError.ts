@@ -151,16 +151,6 @@ export class ItemizedSumExceedsInvoiceError extends AppError {
   }
 }
 
-export class SubsidyOversubscribedError extends AppError {
-  constructor(
-    message = 'Subsidy program is oversubscribed',
-    details?: { currentAllocation: number; maximumAmount: number; excess: number },
-  ) {
-    super('SUBSIDY_OVERSUBSCRIBED', 409, message, details);
-    this.name = 'SubsidyOversubscribedError';
-  }
-}
-
 export class DiscretionarySourceError extends AppError {
   constructor(
     message = 'The Discretionary Funding source cannot be deleted',

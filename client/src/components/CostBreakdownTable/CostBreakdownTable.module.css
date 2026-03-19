@@ -405,6 +405,27 @@
   gap: var(--spacing-0-5);
 }
 
+/* ---- Subsidy adjustment section ---- */
+
+.adjustmentValue {
+  color: var(--color-warning-text-on-light);
+  font-weight: var(--font-weight-semibold);
+  text-align: center;
+  display: block;
+}
+
+.adjustmentName {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-0-5);
+}
+
+.adjustmentHint {
+  font-size: var(--font-size-xs);
+  color: var(--color-warning-text-on-light);
+  font-weight: var(--font-weight-normal);
+}
+
 /* ---- Empty state ---- */
 
 .emptyState {

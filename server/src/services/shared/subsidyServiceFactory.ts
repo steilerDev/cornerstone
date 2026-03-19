@@ -1,4 +1,4 @@
-import { eq, and, inArray, asc, sql } from 'drizzle-orm';
+import { eq, and, inArray, asc } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
 import type * as schemaTypes from '../../db/schema.js';
@@ -15,7 +15,7 @@ import type {
   SubsidyApplicationStatus,
   BudgetCategory,
 } from '@cornerstone/shared';
-import { NotFoundError, ConflictError, SubsidyOversubscribedError } from '../../errors/AppError.js';
+import { NotFoundError, ConflictError } from '../../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -97,75 +97,6 @@ export function createSubsidyService(config: SubsidyServiceConfig): SubsidyServi
     }
   }
 
-  /**
-   * Compute current allocation of a subsidy program across all entities.
-   * For fixed subsidies: count all links × reductionValue
-   * For percentage subsidies: sum matching budget line amounts × rate
-   */
-  function computeCurrentAllocation(
-    db: DbType,
-    program: typeof subsidyPrograms.$inferSelect,
-  ): number {
-    if (program.reductionType === 'fixed') {
-      const result = db
-        .select({
-          count: sql<number>`COUNT(*)`.mapWith(Number),
-        })
-        .from(config.junctionTable)
-        .where(eq(config.junctionSubsidyProgramIdColumn, program.id))
-        .get();
-
-      return (result?.count ?? 0) * program.reductionValue;
-    }
-
-    // For percentage: sum matching budget line amounts × rate
-    // Only count budget lines from entities already linked via the junction table
-    const query = sql`
-      SELECT COALESCE(SUM(bl.planned_amount), 0) as total
-      FROM ${sql.identifier(config.budgetLinesTable)} bl
-      INNER JOIN budget_categories bc ON bl.budget_category_id = bc.id
-      INNER JOIN subsidy_program_categories spc ON spc.budget_category_id = bc.id
-      INNER JOIN ${sql.identifier(config.junctionTableName)} jt
-        ON jt.${sql.identifier(config.junctionEntityIdColumnName)} = bl.${sql.identifier(config.budgetLinesEntityIdColumn)}
-        AND jt.${sql.identifier(config.junctionSubsidyProgramIdColumnName)} = spc.subsidy_program_id
-      WHERE spc.subsidy_program_id = ${program.id}
-    `;
-
-    const result = db.get<{ total: number }>(query);
-    const amount = result?.total ?? 0;
-    return (amount * program.reductionValue) / 100;
-  }
-
-  /**
-   * Compute the new entity's contribution to subsidy allocation.
-   * For fixed: just reductionValue
-   * For percentage: sum matching budget lines for this entity × rate
-   */
-  function computeNewEntityContribution(
-    db: DbType,
-    entityId: string,
-    program: typeof subsidyPrograms.$inferSelect,
-  ): number {
-    if (program.reductionType === 'fixed') {
-      return program.reductionValue;
-    }
-
-    // For percentage: sum matching budget lines for this entity × rate
-    // Using raw SQL to support dynamic table names
-    const query = sql`
-      SELECT COALESCE(SUM(planned_amount), 0) as total
-      FROM ${sql.identifier(config.budgetLinesTable)} bl
-      INNER JOIN budget_categories bc ON bl.budget_category_id = bc.id
-      INNER JOIN subsidy_program_categories spc ON spc.budget_category_id = bc.id
-      WHERE bl.${sql.identifier(config.budgetLinesEntityIdColumn)} = ${entityId}
-        AND spc.subsidy_program_id = ${program.id}
-    `;
-
-    const result = db.get<{ total: number }>(query);
-    const amount = result?.total ?? 0;
-    return (amount * program.reductionValue) / 100;
-  }
-
   function list(db: DbType, entityId: string): SubsidyProgram[] {
     assertEntityExists(db, entityId);
 
@@ -207,21 +138,6 @@ export function createSubsidyService(config: SubsidyServiceConfig): SubsidyServi
       throw new ConflictError(
         `Subsidy program is already linked to this ${config.entityLabel.toLowerCase()}`,
       );
-    }
-
-    // Check oversubscription if maximumAmount is set
-    if (program.maximumAmount !== null) {
-      const currentAllocation = computeCurrentAllocation(db, program);
-      const newContribution = computeNewEntityContribution(db, entityId, program);
-      const projected = currentAllocation + newContribution;
-
-      if (projected > program.maximumAmount) {
-        throw new SubsidyOversubscribedError('Subsidy program is oversubscribed', {
-          currentAllocation,
-          maximumAmount: program.maximumAmount,
-          excess: projected - program.maximumAmount,
-        });
-      }
     }
 
     const insertValues = config.makeInsertValues(entityId, subsidyProgramId);

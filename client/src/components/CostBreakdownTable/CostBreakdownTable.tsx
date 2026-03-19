@@ -11,6 +11,7 @@ import type {
   BreakdownHouseholdItem,
   ConfidenceLevel,
   BudgetSource,
+  SubsidyAdjustment,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
@@ -627,11 +628,26 @@ export function CostBreakdownTable({
   const hiTotals = breakdown.householdItems.totals;
 
   /**
-   * Total payback from all sources (min and max).
+   * Subsidy adjustments (oversubscribed subsidies).
+   */
+  const subsidyAdjustments = breakdown.subsidyAdjustments ?? [];
+  const totalMinExcess = subsidyAdjustments.reduce(
+    (sum: number, adj: SubsidyAdjustment) => sum + adj.minExcess,
+    0,
+  );
+  const totalMaxExcess = subsidyAdjustments.reduce(
+    (sum: number, adj: SubsidyAdjustment) => sum + adj.maxExcess,
+    0,
+  );
+  const resolvedTotalExcess = resolveProjected(totalMinExcess, totalMaxExcess, perspective);
+
+  /**
+   * Total payback from all sources (min and max), reduced by subsidy cap excess.
    */
   const maxTotalPayback = wiTotals.subsidyPayback + hiTotals.subsidyPayback;
   const minTotalPayback = wiTotals.minSubsidyPayback + hiTotals.minSubsidyPayback;
   const resolvedTotalPayback = resolveProjected(minTotalPayback, maxTotalPayback, perspective);
+  const adjustedTotalPayback = resolvedTotalPayback - resolvedTotalExcess;
 
   /**
    * Total raw projected cost (perspective-dependent).
@@ -643,9 +659,9 @@ export function CostBreakdownTable({
   );
 
   /**
-   * Sum = availableFunds - totalRawProjected + resolvedTotalPayback.
+   * Sum = availableFunds - totalRawProjected + adjustedTotalPayback.
    */
-  const sum = overview.availableFunds - totalRawProjected + resolvedTotalPayback;
+  const sum = overview.availableFunds - totalRawProjected + adjustedTotalPayback;
 
   // Empty state
   const hasData = visibleWICategories.length > 0 || breakdown.householdItems.categories.length > 0;
@@ -852,6 +868,64 @@ export function CostBreakdownTable({
               )}
             </tbody>
 
+            {/* ===== SUBSIDY ADJUSTMENTS SECTION ===== */}
+            {subsidyAdjustments.length > 0 && (() => {
+              const adjSectionKey = 'adj-section';
+              const adjSectionExpanded = expandedKeys.has(adjSectionKey);
+              return (
+                <tbody>
+                  <tr className={styles.rowLevel0}>
+                    <td className={styles.colName}>
+                      <div className={styles.nameContent}>
+                        <button
+                          type="button"
+                          className={styles.expandBtn}
+                          aria-expanded={adjSectionExpanded}
+                          aria-label="Expand subsidy adjustments"
+                          onClick={() => toggle(adjSectionKey)}
+                        >
+                          <ChevronSvg
+                            className={`${styles.chevron} ${adjSectionExpanded ? styles.chevronOpen : ''}`}
+                          />
+                        </button>
+                        <span>{t('overview.costBreakdown.subsidyAdjustments')}</span>
+                      </div>
+                    </td>
+                    <td className={styles.colBudget} />
+                    <td className={styles.colPayback} colSpan={2}>
+                      <span className={styles.adjustmentValue}>
+                        {formatCost(resolvedTotalExcess, formatCurrency)}
+                      </span>
+                    </td>
+                  </tr>
+                  {adjSectionExpanded &&
+                    subsidyAdjustments.map((adj: SubsidyAdjustment) => {
+                      const adjExcess = resolveProjected(adj.minExcess, adj.maxExcess, perspective);
+                      return (
+                        <tr key={adj.subsidyProgramId} className={styles.rowLevel1}>
+                          <td className={`${styles.colName} ${styles.cellLevel1Name}`}>
+                            <div className={styles.adjustmentName}>
+                              <span>{adj.name}</span>
+                              <span className={styles.adjustmentHint}>
+                                {t('overview.costBreakdown.oversubscribed', {
+                                  amount: formatCurrency(adj.maximumAmount),
+                                })}
+                              </span>
+                            </div>
+                          </td>
+                          <td className={styles.colBudget} />
+                          <td className={styles.colPayback} colSpan={2}>
+                            <span className={styles.adjustmentValue}>
+                              {formatCost(adjExcess, formatCurrency)}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              );
+            })()}
+
             {/* ===== SUMMARY SECTION (no column tints) ===== */}
             <tbody>
               {/* Sum row */}
@@ -869,14 +943,14 @@ export function CostBreakdownTable({
                 <td className={styles.colPayback}>
                   {maxTotalPayback > 0 ? (
                     <span className={styles.valuePositive}>
-                      {formatCurrency(resolvedTotalPayback)}
+                      {formatCurrency(adjustedTotalPayback)}
                     </span>
                   ) : (
                     '—'
                   )}
                 </td>
                 <td className={styles.colRemaining}>
-                  {renderNet(totalRawProjected, resolvedTotalPayback, styles, formatCurrency)}
+                  {renderNet(totalRawProjected, adjustedTotalPayback, styles, formatCurrency)}
                 </td>
               </tr>
 
