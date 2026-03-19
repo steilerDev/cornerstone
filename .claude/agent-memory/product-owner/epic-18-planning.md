@@ -13,6 +13,7 @@ type: project
 ### Summary
 
 Replaces generic tags (color + name, M:N with work items and household items) with two purpose-built dimensions:
+
 - **Area**: spatial organization (where in the house) — hierarchical via self-referencing parent_id
 - **Trade**: craft/skill classification (what kind of work) — flat list, linked to vendors
 
@@ -20,15 +21,15 @@ Also replaces: HI freetext `room` → Area FK, vendor freetext `specialty` → T
 
 ### Stories
 
-| Story | Issue | Title | Blocked By |
-|-------|-------|-------|------------|
-| 18.1 | #1030 | Migration + Shared Types | — |
-| 18.2 | #1031 | Areas Backend CRUD | #1030 |
-| 18.3 | #1032 | Trades Backend CRUD + Vendor Update | #1030 |
-| 18.4 | #1033 | Work Item Rework (Backend) | #1031, #1032 |
-| 18.5 | #1034 | Household Item Rework (Backend) | #1031, #1032 |
-| 18.6 | #1035 | Frontend — Manage Page + Components | #1033, #1034 |
-| 18.7 | #1037 | Frontend — Entity Integration | #1035 |
+| Story | Issue | Title                               | Blocked By   |
+| ----- | ----- | ----------------------------------- | ------------ |
+| 18.1  | #1030 | Migration + Shared Types            | —            |
+| 18.2  | #1031 | Areas Backend CRUD                  | #1030        |
+| 18.3  | #1032 | Trades Backend CRUD + Vendor Update | #1030        |
+| 18.4  | #1033 | Work Item Rework (Backend)          | #1031, #1032 |
+| 18.5  | #1034 | Household Item Rework (Backend)     | #1031, #1032 |
+| 18.6  | #1035 | Frontend — Manage Page + Components | #1033, #1034 |
+| 18.7  | #1037 | Frontend — Entity Integration       | #1035        |
 
 ### Key Design Decisions
 

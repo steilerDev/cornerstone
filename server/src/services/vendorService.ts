@@ -112,9 +112,7 @@ export function listVendors(
     // Escape SQL LIKE wildcards (% and _) in user input
     const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
     const pattern = `%${escapedQ}%`;
-    conditions.push(
-      sql`LOWER(${vendors.name}) LIKE LOWER(${pattern}) ESCAPE '\\'`!,
-    );
+    conditions.push(sql`LOWER(${vendors.name}) LIKE LOWER(${pattern}) ESCAPE '\\'`!);
   }
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;

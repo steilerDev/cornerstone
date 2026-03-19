@@ -1603,7 +1603,9 @@ describe('Work Items Database Schema & Migration', () => {
       let error: Error | undefined;
       try {
         sqlite
-          .prepare(`INSERT INTO trades (id, name, description, color, sort_order, created_at, updated_at) VALUES (?, ?, NULL, NULL, 999, datetime('now'), datetime('now'))`)
+          .prepare(
+            `INSERT INTO trades (id, name, description, color, sort_order, created_at, updated_at) VALUES (?, ?, NULL, NULL, 999, datetime('now'), datetime('now'))`,
+          )
           .run('trade-duplicate-test', 'Plumbing'); // 'Plumbing' already seeded
       } catch (err) {
         error = err as Error;
@@ -1764,7 +1766,9 @@ describe('Work Items Database Schema & Migration', () => {
     it('can query default trades seeded by migration 0028', async () => {
       // Migration 0028 seeds 15 default trades; verify some are present
       const trades = sqlite
-        .prepare("SELECT id, name FROM trades WHERE id IN ('trade-plumbing', 'trade-electrical', 'trade-other')")
+        .prepare(
+          "SELECT id, name FROM trades WHERE id IN ('trade-plumbing', 'trade-electrical', 'trade-other')",
+        )
         .all() as Array<{ id: string; name: string }>;
       expect(trades.length).toBe(3);
       const ids = trades.map((t) => t.id).sort();

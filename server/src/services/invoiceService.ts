@@ -208,7 +208,12 @@ export function listAllInvoices(
   };
   for (const row of summaryRows) {
     const status = row.status as InvoiceStatus;
-    if (status === 'pending' || status === 'paid' || status === 'claimed' || status === 'quotation') {
+    if (
+      status === 'pending' ||
+      status === 'paid' ||
+      status === 'claimed' ||
+      status === 'quotation'
+    ) {
       summary[status] = { count: row.count, totalAmount: row.totalAmount };
     }
   }
