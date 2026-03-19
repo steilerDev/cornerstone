@@ -22,6 +22,7 @@ function mockDependencyResponse(overrides: Partial<DependencyResponse> = {}): De
       actualEndDate: null,
       assignedUser: null,
       tags: [],
+      budgetLineCount: 0,
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z',
     },

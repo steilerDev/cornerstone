@@ -58,6 +58,7 @@ const listWorkItemsSchema = {
         enum: ['title', 'status', 'start_date', 'end_date', 'created_at', 'updated_at'],
       },
       sortOrder: { type: 'string', enum: ['asc', 'desc'] },
+      noBudget: { type: 'boolean' },
     },
     additionalProperties: false,
   },

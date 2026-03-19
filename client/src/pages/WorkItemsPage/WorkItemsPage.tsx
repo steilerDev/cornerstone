@@ -47,6 +47,7 @@ export function WorkItemsPage() {
   const statusFilter = searchParams.get('status') as WorkItemStatus | null;
   const assignedUserFilter = searchParams.get('assignedUserId') || '';
   const tagFilter = searchParams.get('tagId') || '';
+  const noBudgetFilter = searchParams.get('noBudget') === 'true';
   const sortBy =
     (searchParams.get('sortBy') as
       | 'title'
@@ -137,6 +138,7 @@ export function WorkItemsPage() {
           q: searchQuery || undefined,
           sortBy,
           sortOrder,
+          noBudget: noBudgetFilter || undefined,
         });
 
         setWorkItems(response.items);
@@ -154,7 +156,16 @@ export function WorkItemsPage() {
     };
 
     fetchData();
-  }, [searchQuery, statusFilter, assignedUserFilter, tagFilter, sortBy, sortOrder, currentPage]);
+  }, [
+    searchQuery,
+    statusFilter,
+    assignedUserFilter,
+    tagFilter,
+    noBudgetFilter,
+    sortBy,
+    sortOrder,
+    currentPage,
+  ]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -187,6 +198,7 @@ export function WorkItemsPage() {
         q: searchQuery || undefined,
         sortBy,
         sortOrder,
+        noBudget: noBudgetFilter || undefined,
       });
 
       setWorkItems(response.items);
@@ -227,6 +239,10 @@ export function WorkItemsPage() {
 
   const handleTagFilterChange = (tagId: string) => {
     updateSearchParams({ tagId: tagId || undefined, page: '1' });
+  };
+
+  const handleNoBudgetFilterChange = (checked: boolean) => {
+    updateSearchParams({ noBudget: checked ? 'true' : undefined, page: '1' });
   };
 
   const handleSortChange = (field: string) => {
@@ -489,6 +505,18 @@ export function WorkItemsPage() {
           </div>
 
           <div className={styles.filter}>
+            <label className={styles.filterLabel}>
+              <input
+                type="checkbox"
+                checked={noBudgetFilter}
+                onChange={(e) => handleNoBudgetFilterChange(e.target.checked)}
+                aria-label={t('list.filters.noBudgetAriaLabel')}
+              />{' '}
+              {t('list.filters.noBudget')}
+            </label>
+          </div>
+
+          <div className={styles.filter}>
             <label htmlFor="sort-filter" className={styles.filterLabel}>
               {t('list.filters.sortBy')}
             </label>
@@ -522,7 +550,7 @@ export function WorkItemsPage() {
       {/* Work items list */}
       {workItems.length === 0 ? (
         <div className={styles.emptyState}>
-          {searchQuery || statusFilter || assignedUserFilter || tagFilter ? (
+          {searchQuery || statusFilter || assignedUserFilter || tagFilter || noBudgetFilter ? (
             <>
               <h2>{t('list.empty.noMatchTitle')}</h2>
               <p>{t('list.empty.noMatchText')}</p>
@@ -582,6 +610,7 @@ export function WorkItemsPage() {
                     {renderSortIcon('end_date')}
                   </th>
                   <th>{t('list.table.tags')}</th>
+                  <th>{t('list.table.budgetLines')}</th>
                   <th className={styles.actionsColumn}>{t('list.table.actions')}</th>
                 </tr>
               </thead>
@@ -608,6 +637,7 @@ export function WorkItemsPage() {
                           : '—'}
                       </div>
                     </td>
+                    <td>{item.budgetLineCount > 0 ? item.budgetLineCount : '—'}</td>
                     <td className={styles.actionsCell} onClick={(e) => e.stopPropagation()}>
                       <div className={styles.actionsMenu}>
                         <button
@@ -708,6 +738,10 @@ export function WorkItemsPage() {
                       </div>
                     </div>
                   )}
+                  <div className={styles.cardRow}>
+                    <span className={styles.cardLabel}>{t('list.card.budgetLines')}</span>
+                    <span>{item.budgetLineCount > 0 ? item.budgetLineCount : '—'}</span>
+                  </div>
                 </div>
               </div>
             ))}

@@ -217,6 +217,7 @@ describe('workItemsApi', () => {
             actualEndDate: null,
             assignedUser: { id: 'user-1', displayName: 'John Doe', email: 'john@example.com' },
             tags: [],
+            budgetLineCount: 0,
             createdAt: '2026-01-01T00:00:00.000Z',
             updatedAt: '2026-01-01T00:00:00.000Z',
           },
