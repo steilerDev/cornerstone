@@ -251,9 +251,10 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       // For min margin: create a custom invoice map that adjusts all lines by min margin
       const minInvoiceMap = new Map<string, number>();
       for (const line of budgetLines) {
-        const lineActualCost = invoiceMap.get(line.id);
-        if (lineActualCost !== undefined) {
-          minInvoiceMap.set(line.id, lineActualCost);
+        const invoiceData = invoiceMap.get(line.id);
+        if (invoiceData !== undefined) {
+          const cost = typeof invoiceData === 'number' ? invoiceData : invoiceData.actualCost;
+          minInvoiceMap.set(line.id, cost);
         } else {
           const margin =
             CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ??
