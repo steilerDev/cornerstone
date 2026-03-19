@@ -145,6 +145,7 @@ test.describe('i18n: Language Switching', () => {
 
     // And: Schedule/timeline page renders in German
     await page.goto(ROUTES.timeline);
+    await page.waitForURL('**/schedule/gantt');
     await expect(page.getByRole('heading', { level: 1, name: 'Zeitplan' })).toBeVisible();
 
     // And: Diary page renders in German

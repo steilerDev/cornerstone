@@ -202,7 +202,9 @@ export class HouseholdItemsPage {
         const rowText = await row.textContent();
         if (rowText?.includes(name)) {
           // Use button containing "⋮" (aria-label="Actions for") scoped to this row
-          await row.locator('[aria-label^="Actions for"]').click();
+          const actionsBtn = row.locator('[aria-label^="Actions for"]');
+          await actionsBtn.scrollIntoViewIfNeeded();
+          await actionsBtn.click();
           await row.getByRole('menuitem', { name: 'Delete' }).click();
           await this.deleteModal.waitFor({ state: 'visible' });
           return;
@@ -215,7 +217,9 @@ export class HouseholdItemsPage {
     for (const card of cards) {
       const cardText = await card.textContent();
       if (cardText?.includes(name)) {
-        await card.locator('[aria-label^="Actions for"]').click();
+        const actionsBtn = card.locator('[aria-label^="Actions for"]');
+        await actionsBtn.scrollIntoViewIfNeeded();
+        await actionsBtn.click();
         await card.getByRole('menuitem', { name: 'Delete' }).click();
         await this.deleteModal.waitFor({ state: 'visible' });
         return;
