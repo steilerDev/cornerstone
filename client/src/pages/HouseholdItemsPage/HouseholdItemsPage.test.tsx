@@ -28,6 +28,10 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: jest.fn(() => new Promise(() => {})), // Never resolves
 }));
 
+jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
+  fetchHouseholdItemCategories: jest.fn(() => new Promise(() => {})), // Never resolves
+}));
+
 jest.unstable_mockModule('../../hooks/useKeyboardShortcuts.js', () => ({
   useKeyboardShortcuts: jest.fn(),
 }));
@@ -503,6 +507,81 @@ describe('HouseholdItemsPage', () => {
       await waitFor(() => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       });
+    });
+  });
+
+  describe('No Budget Lines toggle', () => {
+    it('toggle renders as button with aria-pressed false by default', async () => {
+      mockListHouseholdItems.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        const toggle = screen.getByRole('button', {
+          name: /show only household items without budget lines/i,
+        });
+        expect(toggle).toBeInTheDocument();
+        expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      });
+    });
+
+    it('toggle label text is "No Budget Lines"', async () => {
+      mockListHouseholdItems.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        const toggle = screen.getByRole('button', {
+          name: /show only household items without budget lines/i,
+        });
+        expect(toggle).toHaveTextContent('No Budget Lines');
+      });
+    });
+
+    it('clicking the toggle sets aria-pressed to true', async () => {
+      const user = userEvent.setup();
+      mockListHouseholdItems.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      const toggle = await screen.findByRole('button', {
+        name: /show only household items without budget lines/i,
+      });
+      await user.click(toggle);
+
+      await waitFor(() => {
+        expect(toggle).toHaveAttribute('aria-pressed', 'true');
+      });
+    });
+
+    it('toggle has a non-empty aria-label', async () => {
+      mockListHouseholdItems.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        const toggle = screen.getByRole('button', {
+          name: /show only household items without budget lines/i,
+        });
+        const ariaLabel = toggle.getAttribute('aria-label');
+        expect(ariaLabel).toBeTruthy();
+        expect(ariaLabel!.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('no checkbox input is used for budget filtering', async () => {
+      mockListHouseholdItems.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        // Filter panel must be visible
+        expect(screen.getByRole('search', { name: /household item filters/i })).toBeInTheDocument();
+      });
+
+      const filterPanel = screen.getByRole('search', { name: /household item filters/i });
+      const checkboxes = filterPanel.querySelectorAll('input[type="checkbox"]');
+      expect(checkboxes).toHaveLength(0);
     });
   });
 
