@@ -89,10 +89,7 @@ function getAssignedVendor(
 /**
  * Fetch area for a work item.
  */
-function getArea(
-  db: DbType,
-  areaId: string | null,
-): ReturnType<typeof toAreaSummary> {
+function getArea(db: DbType, areaId: string | null): ReturnType<typeof toAreaSummary> {
   if (!areaId) return null;
   const area = db.select().from(areas).where(eq(areas.id, areaId)).get();
   return toAreaSummary(area || null);

@@ -107,9 +107,7 @@ export function toAreaSummary(
  * Convert a database trade row to TradeSummary shape.
  * Returns null if trade is null or undefined.
  */
-function toTradeSummary(
-  trade: typeof trades.$inferSelect | null | undefined,
-): TradeSummary | null {
+function toTradeSummary(trade: typeof trades.$inferSelect | null | undefined): TradeSummary | null {
   if (!trade) return null;
   return {
     id: trade.id,

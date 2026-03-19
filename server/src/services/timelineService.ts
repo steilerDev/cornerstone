@@ -174,9 +174,7 @@ export function getTimeline(db: DbType): TimelineResponse {
     ...new Set(rawWorkItems.map((wi) => wi.assignedUserId).filter(Boolean) as string[]),
   ];
 
-  const areaIds = [
-    ...new Set(rawWorkItems.map((wi) => wi.areaId).filter(Boolean) as string[]),
-  ];
+  const areaIds = [...new Set(rawWorkItems.map((wi) => wi.areaId).filter(Boolean) as string[])];
 
   const assignedVendorIds = [
     ...new Set(rawWorkItems.map((wi) => wi.assignedVendorId).filter(Boolean) as string[]),
@@ -231,9 +229,7 @@ export function getTimeline(db: DbType): TimelineResponse {
       ? toUserSummary(userMap.get(wi.assignedUserId) ?? null)
       : null;
 
-    const area = wi.areaId
-      ? toAreaSummaryInternal(areaMap.get(wi.areaId) ?? null)
-      : null;
+    const area = wi.areaId ? toAreaSummaryInternal(areaMap.get(wi.areaId) ?? null) : null;
 
     const assignedVendor = wi.assignedVendorId
       ? toVendorSummaryWithTrade(vendorMap.get(wi.assignedVendorId) ?? null, tradeMap)
