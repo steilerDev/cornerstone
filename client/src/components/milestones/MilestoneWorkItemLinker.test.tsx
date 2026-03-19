@@ -33,6 +33,7 @@ const WI_1: WorkItemSummary = {
   actualEndDate: null,
   assignedUser: null,
   tags: [],
+  budgetLineCount: 0,
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
 };
@@ -48,6 +49,7 @@ const WI_2: WorkItemSummary = {
   actualEndDate: null,
   assignedUser: null,
   tags: [],
+  budgetLineCount: 0,
   createdAt: '2024-01-02T00:00:00Z',
   updatedAt: '2024-01-02T00:00:00Z',
 };
@@ -63,6 +65,7 @@ const WI_3: WorkItemSummary = {
   actualEndDate: null,
   assignedUser: null,
   tags: [],
+  budgetLineCount: 0,
   createdAt: '2024-01-03T00:00:00Z',
   updatedAt: '2024-01-03T00:00:00Z',
 };
