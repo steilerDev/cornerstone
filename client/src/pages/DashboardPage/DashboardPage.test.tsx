@@ -4,7 +4,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import type * as BudgetOverviewApiTypes from '../../lib/budgetOverviewApi.js';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
@@ -743,6 +743,57 @@ describe('DashboardPage', () => {
     const detailsEls = container.querySelectorAll('details');
     const budgetDetails = detailsEls[1];
     expect(budgetDetails?.textContent).toContain('No sources configured');
+  });
+
+  // ─── Story #1014: Quick-action buttons ──────────────────────────────────
+
+  describe('Quick-action buttons', () => {
+    /** Renders the page with a LocationDisplay helper to assert navigation. */
+    function LocationDisplay() {
+      const location = useLocation();
+      return <div data-testid="location">{location.pathname}</div>;
+    }
+
+    function renderWithLocation() {
+      return render(
+        <MemoryRouter initialEntries={['/']}>
+          <DashboardPage />
+          <LocationDisplay />
+        </MemoryRouter>,
+      );
+    }
+
+    it('renders the Add Work Item, Add Household Item, and Add Milestone action buttons', () => {
+      renderWithLocation();
+
+      expect(screen.getByTestId('dashboard-add-work-item')).toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-add-household-item')).toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-add-milestone')).toBeInTheDocument();
+    });
+
+    it('clicking Add Work Item navigates to /project/work-items/new', async () => {
+      renderWithLocation();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-work-item'));
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/project/work-items/new');
+    });
+
+    it('clicking Add Household Item navigates to /project/household-items/new', async () => {
+      renderWithLocation();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-household-item'));
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/new');
+    });
+
+    it('clicking Add Milestone navigates to /project/milestones/new', async () => {
+      renderWithLocation();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-milestone'));
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/project/milestones/new');
+    });
   });
 
   // ─── Test 22: Malformed JSON in preferences does not crash ───────────────

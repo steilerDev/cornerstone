@@ -19,6 +19,7 @@
 .pageHeader {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--spacing-4);
 }
 
@@ -27,6 +28,19 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   margin: 0;
+}
+
+.actionButtons {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+.actionButton {
+  composes: btnSecondary from '../../styles/shared.module.css';
+  min-height: 44px;
+  white-space: nowrap;
 }
 
 /* ---- Loading / error states ---- */
@@ -567,8 +581,22 @@
     padding: var(--spacing-4);
   }
 
+  .pageHeader {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+
   .pageTitle {
     font-size: var(--font-size-2xl);
+  }
+
+  .actionButtons {
+    flex-direction: column;
+  }
+
+  .actionButton {
+    width: 100%;
   }
 
   .retryButton {

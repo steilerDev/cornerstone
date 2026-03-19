@@ -27,6 +27,16 @@
 | Subsidy        | Förderprogramm    | Förderprogramme  |
 | Diary Entry    | Tagebucheintrag   | Tagebucheinträge |
 
+## Button/Action Label Convention
+
+Action labels in German follow the pattern: `{Noun} {Verb}` with capitalised first letters on each word, e.g. `Rechnung Hinzufügen`, `Auftragnehmer Hinzufügen`, `Arbeitspaket Hinzufügen`. This matches the style already established in the existing de translation files (e.g. `"addVendor": "Auftragnehmer Hinzufügen"` in `budget.vendors.buttons.create`).
+
+## Key Parity Notes
+
+- `de/dashboard.json` was missing `page.actions` entirely at initial rollout — added 2026-03-19
+- `de/budget.json` was missing `overview.actions` entirely at initial rollout — added 2026-03-19
+- Always check key parity when picking up a new translator spec
+
 ## Initial Cleanup (2026-03-17)
 
 Fixed terminology inconsistencies from EPIC-17 i18n rollout:

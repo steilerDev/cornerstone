@@ -3,7 +3,12 @@
     "title": "Projekt",
     "customize": "Anpassen",
     "hiddenCards": "Ausgeblendete Karten",
-    "showCard": "{{title}} anzeigen"
+    "showCard": "{{title}} anzeigen",
+    "actions": {
+      "addWorkItem": "Arbeitspaket Hinzufügen",
+      "addHouseholdItem": "Haushaltsartikel Hinzufügen",
+      "addMilestone": "Meilenstein Hinzufügen"
+    }
   },
   "sections": {
     "timeline": {

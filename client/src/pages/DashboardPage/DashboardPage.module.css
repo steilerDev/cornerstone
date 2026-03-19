@@ -19,6 +19,26 @@
   flex-wrap: wrap;
 }
 
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+}
+
+.actionButtons {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+.actionButton {
+  composes: btnSecondary from '../../styles/shared.module.css';
+  min-height: 44px;
+  white-space: nowrap;
+}
+
 .title {
   margin: 0;
   font-size: var(--font-size-4xl);
@@ -251,6 +271,19 @@ details[open] > .sectionSummary > .sectionChevron {
 
   .title {
     font-size: var(--font-size-2xl);
+  }
+
+  .headerRight {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actionButtons {
+    flex-direction: column;
+  }
+
+  .actionButton {
+    width: 100%;
   }
 
   .customizeButton {
