@@ -143,6 +143,9 @@
         "label": "Auftragnehmer",
         "placeholder": "Kein Auftragnehmer"
       },
+      "area": {
+        "label": "Bereich"
+      },
       "url": {
         "label": "URL",
         "placeholder": "https://example.com"
@@ -210,6 +213,9 @@
         "label": "Auftragnehmer",
         "placeholder": "Kein Auftragnehmer"
       },
+      "area": {
+        "label": "Bereich"
+      },
       "url": {
         "label": "URL",
         "placeholder": "https://example.com"
@@ -256,6 +262,12 @@
       "quantity": "Menge",
       "tags": "Tags",
       "noTags": "Keine Tags"
+    },
+    "area": {
+      "title": "Bereich",
+      "label": "Bereich",
+      "updated": "Bereich erfolgreich aktualisiert",
+      "updateFailed": "Bereich konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
     },
     "datesDelivery": {
       "title": "Daten & Lieferung",

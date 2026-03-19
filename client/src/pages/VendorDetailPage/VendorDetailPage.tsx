@@ -11,7 +11,9 @@ import { fetchVendor, updateVendor, deleteVendor } from '../../lib/vendorsApi.js
 import { fetchInvoices, createInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { useTrades } from '../../hooks/useTrades.js';
 import { VendorContactsSection } from '../../components/VendorContacts/VendorContactsSection.js';
+import { TradePicker } from '../../components/TradePicker/TradePicker.js';
 import styles from './VendorDetailPage.module.css';
 
 // INVOICE_STATUS_LABELS will be dynamically generated from i18n
@@ -40,6 +42,7 @@ export function VendorDetailPage() {
   const { formatCurrency, formatDate } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { trades } = useTrades();
 
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -487,6 +490,19 @@ export function VendorDetailPage() {
                 />
               </div>
 
+              <div className={styles.field}>
+                <label htmlFor="edit-tradeId" className={styles.label}>
+                  {t('vendorDetail.form.trade')}
+                </label>
+                <TradePicker
+                  trades={trades}
+                  value={(editForm.tradeId as string) ?? ''}
+                  onChange={(tradeId) => setEditForm({ ...editForm, tradeId })}
+                  disabled={isUpdating}
+                  placeholder={t('vendorDetail.form.tradePlaceholder')}
+                />
+              </div>
+
               <div className={styles.formActions}>
                 <button
                   type="submit"
@@ -544,6 +560,10 @@ export function VendorDetailPage() {
                 <dd className={`${styles.infoValue} ${vendor.notes ? styles.infoValueNotes : ''}`}>
                   {vendor.notes || '—'}
                 </dd>
+              </div>
+              <div className={styles.infoRow}>
+                <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.trade')}</dt>
+                <dd className={styles.infoValue}>{vendor.trade?.name ?? '—'}</dd>
               </div>
               <div className={styles.infoRow}>
                 <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.createdBy')}</dt>

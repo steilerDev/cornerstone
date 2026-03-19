@@ -26,6 +26,8 @@ export interface GanttTooltipWorkItemData {
   endDate: string | null;
   durationDays: number | null;
   assignedUserName: string | null;
+  /** Area name, if the work item is assigned to an area. */
+  areaName?: string | null;
   /**
    * Dependency relationships for this work item (predecessors and successors).
    * When absent or empty, no "Dependencies" section is rendered in the tooltip.
@@ -299,6 +301,14 @@ function WorkItemTooltipContent({
         <div className={styles.detailRow}>
           <span className={styles.detailLabel}>{t('gantt.tooltip.workItem.ownerLabel')}</span>
           <span className={styles.detailValue}>{data.assignedUserName}</span>
+        </div>
+      )}
+
+      {/* Area */}
+      {data.areaName && (
+        <div className={styles.detailRow}>
+          <span className={styles.detailLabel}>{t('gantt.tooltip.workItem.areaLabel')}</span>
+          <span className={styles.detailValue}>{data.areaName}</span>
         </div>
       )}
 

@@ -4,10 +4,11 @@ import { useTranslation } from 'react-i18next';
 import type { WorkItemSummary, WorkItemStatus, UserResponse } from '@cornerstone/shared';
 import { listWorkItems, deleteWorkItem } from '../../lib/workItemsApi.js';
 import { listUsers } from '../../lib/usersApi.js';
+import { fetchVendors } from '../../lib/vendorsApi.js';
+import { useAreas } from '../../hooks/useAreas.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
-import { TagPill } from '../../components/TagPill/TagPill.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -19,10 +20,12 @@ export function WorkItemsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useTranslation('workItems');
+  const { areas } = useAreas();
 
   // Data state
   const [workItems, setWorkItems] = useState<WorkItemSummary[]>([]);
   const [users, setUsers] = useState<UserResponse[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
@@ -43,6 +46,8 @@ export function WorkItemsPage() {
   const searchQuery = searchParams.get('q') || '';
   const statusFilter = searchParams.get('status') as WorkItemStatus | null;
   const assignedUserFilter = searchParams.get('assignedUserId') || '';
+  const areaFilter = searchParams.get('areaId') || '';
+  const assignedVendorFilter = searchParams.get('assignedVendorId') || '';
   const noBudgetFilter = searchParams.get('noBudget') === 'true';
   const sortBy =
     (searchParams.get('sortBy') as
@@ -76,12 +81,16 @@ export function WorkItemsPage() {
   // Screen reader announcement for filter toggle
   const [srMessage, setSrMessage] = useState('');
 
-  // Load users on mount
+  // Load users and vendors on mount
   useEffect(() => {
     const loadFilters = async () => {
       try {
-        const usersResponse = await listUsers();
+        const [usersResponse, vendorsResponse] = await Promise.all([
+          listUsers(),
+          fetchVendors({ pageSize: 100 }),
+        ]);
         setUsers(usersResponse.users.filter((u) => !u.deactivatedAt));
+        setVendors(vendorsResponse.vendors);
       } catch (err) {
         console.error('Failed to load filter options:', err);
       }
@@ -132,6 +141,8 @@ export function WorkItemsPage() {
           pageSize,
           status: statusFilter || undefined,
           assignedUserId: assignedUserFilter || undefined,
+          areaId: areaFilter || undefined,
+          assignedVendorId: assignedVendorFilter || undefined,
           q: searchQuery || undefined,
           sortBy,
           sortOrder,
@@ -157,6 +168,8 @@ export function WorkItemsPage() {
     searchQuery,
     statusFilter,
     assignedUserFilter,
+    areaFilter,
+    assignedVendorFilter,
     noBudgetFilter,
     sortBy,
     sortOrder,
@@ -190,6 +203,8 @@ export function WorkItemsPage() {
         pageSize,
         status: statusFilter || undefined,
         assignedUserId: assignedUserFilter || undefined,
+        areaId: areaFilter || undefined,
+        assignedVendorId: assignedVendorFilter || undefined,
         q: searchQuery || undefined,
         sortBy,
         sortOrder,
@@ -230,6 +245,14 @@ export function WorkItemsPage() {
 
   const handleUserFilterChange = (userId: string) => {
     updateSearchParams({ assignedUserId: userId || undefined, page: '1' });
+  };
+
+  const handleAreaFilterChange = (areaId: string) => {
+    updateSearchParams({ areaId: areaId || undefined, page: '1' });
+  };
+
+  const handleVendorFilterChange = (vendorId: string) => {
+    updateSearchParams({ assignedVendorId: vendorId || undefined, page: '1' });
   };
 
   const handleNoBudgetFilterChange = (checked: boolean) => {
@@ -472,6 +495,44 @@ export function WorkItemsPage() {
               {users.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.displayName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className={styles.filter}>
+            <label htmlFor="area-filter" className={styles.filterLabel}>
+              {t('list.filters.area')}
+            </label>
+            <select
+              id="area-filter"
+              value={areaFilter}
+              onChange={(e) => handleAreaFilterChange(e.target.value)}
+              className={styles.filterSelect}
+            >
+              <option value="">{t('list.filters.allAreas')}</option>
+              {areas.map((area) => (
+                <option key={area.id} value={area.id}>
+                  {area.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className={styles.filter}>
+            <label htmlFor="vendor-filter" className={styles.filterLabel}>
+              {t('list.filters.assignedVendor')}
+            </label>
+            <select
+              id="vendor-filter"
+              value={assignedVendorFilter}
+              onChange={(e) => handleVendorFilterChange(e.target.value)}
+              className={styles.filterSelect}
+            >
+              <option value="">{t('list.filters.allVendors')}</option>
+              {vendors.map((vendor) => (
+                <option key={vendor.id} value={vendor.id}>
+                  {vendor.name}
                 </option>
               ))}
             </select>

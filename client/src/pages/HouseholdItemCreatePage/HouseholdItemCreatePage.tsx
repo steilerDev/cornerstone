@@ -9,7 +9,9 @@ import type {
 import { createHouseholdItem } from '../../lib/householdItemsApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
+import { useAreas } from '../../hooks/useAreas.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
+import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import styles from './HouseholdItemCreatePage.module.css';
 
 interface Vendor {
@@ -21,6 +23,7 @@ export function HouseholdItemCreatePage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { t } = useTranslation('householdItems');
+  const { areas, isLoading: areasLoading } = useAreas();
 
   const STATUSES: Array<{ value: HouseholdItemStatus; label: string }> = [
     { value: 'planned', label: t('status.planned') },
@@ -34,6 +37,7 @@ export function HouseholdItemCreatePage() {
   const [category, setCategory] = useState<HouseholdItemCategory>('' as HouseholdItemCategory);
   const [status, setStatus] = useState<HouseholdItemStatus>('planned');
   const [quantity, setQuantity] = useState(1);
+  const [areaId, setAreaId] = useState('');
   const [vendorId, setVendorId] = useState('');
   const [url, setUrl] = useState('');
   const [orderDate, setOrderDate] = useState('');
@@ -118,6 +122,7 @@ export function HouseholdItemCreatePage() {
         category,
         status,
         quantity,
+        areaId: areaId || null,
         vendorId: vendorId || null,
         url: url.trim() || null,
         orderDate: orderDate || null,
@@ -271,6 +276,25 @@ export function HouseholdItemCreatePage() {
               </div>
             )}
           </div>
+        </div>
+
+        <div className={styles.formGroup}>
+          <label htmlFor="area" className={styles.label}>
+            {t('create.form.area.label')}
+          </label>
+          {areasLoading ? (
+            <div className={styles.select} style={{ opacity: 0.6 }}>
+              {t('create.loading')}
+            </div>
+          ) : (
+            <AreaPicker
+              areas={areas}
+              value={areaId}
+              onChange={setAreaId}
+              disabled={isSubmitting}
+              nullable
+            />
+          )}
         </div>
 
         <div className={styles.formGroup}>

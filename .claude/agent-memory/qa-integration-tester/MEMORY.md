@@ -3,6 +3,33 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1035 ManagePage Rewrite — Areas + Trades Tabs (2026-03-19)
+
+**File rewritten**: `client/src/pages/ManagePage/ManagePage.test.tsx`
+
+**Key patterns**:
+
+- **Mock hooks not API modules when tabs use hooks**: `AreasTab` uses `useAreas` hook, `TradesTab` uses `useTrades` hook. Mock at the hook level (`../../hooks/useAreas.js`) not the API level — avoids mocking the hook's internal fetch + error handling logic.
+- **`makeAreasHookResult`/`makeTradesHookResult` helper factories**: Build full hook result objects with sensible defaults + per-test overrides. Pass `createArea`, `updateArea`, `deleteArea` as jest.fn() mocks on the hook result, not the API.
+- **AreaPicker needs a mock**: `ManagePage` imports `AreaPicker` which has its own rendering logic. Stub it with a simple `<select>` to avoid dependency issues.
+- **Skeleton renders with `role="status"`**: When `isLoading=true`, use `screen.getByRole('status')` to assert loading state (not text — Skeleton has no visible text, only animated lines).
+- **Tab conditional rendering = hook call isolation**: `{activeTab === 'areas' && <AreasTab />}` means `useAreas` is never called when trades tab is active — isolation assertions (`not.toHaveBeenCalled`) are valid.
+- **Hook mutation methods swallow errors**: `useAreas.handleCreate/Update/Delete` catch errors and return null/false. The component's try/catch will not receive API errors from hook methods. Don't test API error paths for Areas/Trades create/update via hook mocks.
+- **Default tab is `areas`** (not `tags`). Default mock must cover `useAreas` in `beforeEach` even when testing other tabs (hook mock is called on mount of ManagePage to satisfy React rules of hooks — but since `AreasTab` is conditionally rendered, the mock is only invoked when areas tab is active).
+
+## Stories #1033/#1034 Work Item + HI Rework (2026-03-19)
+
+**Files updated**: `workItemService.test.ts`, `householdItemService.test.ts`, `workItems.test.ts`, `householdItems.test.ts`, `timelineService.test.ts`.
+
+**Key patterns**:
+
+- **`insertTestArea` helper pattern**: Insert directly with `db.insert(schema.areas).values({ id, name, parentId: null, color, description: null, sortOrder: 0, ... })`. No NOT NULL FK dependency beyond the uniqueIndex (name+parentId).
+- **`insertTestVendor`/`insertTestTrade` helpers**: Same pattern. Vendors have `tradeId: null` default.
+- **Mutual exclusivity (user+vendor) via DB trigger**: The trigger fires with message `'Cannot assign both a user and a vendor to a work item'`. Test with `.toThrow()` (not ValidationError — it's a SQLite error, not an AppError).
+- **route tests need schema import**: Add `import * as schema from '../db/schema.js'` at top; use `app.db.insert(schema.areas).values(...)` in helper functions.
+- **Timeline `insertWorkItem` accepts overrides**: Pass `areaId` and `assignedVendorId` in the overrides arg. The `$inferInsert` type includes those columns (added by migration 0028).
+- **SIGILL (exit 132) in sandbox**: Cannot run tests locally; always commit and use CI to validate.
+
 ## Stories #1031/#1032 Areas + Trades Backend CRUD (2026-03-19)
 
 **Test files** (4 new, 1 updated): `areaService.test.ts` (60 tests), `tradeService.test.ts` (57), `areas.test.ts` (route, 35), `trades.test.ts` (route, 31), `vendors.test.ts` (updated, +trade tests).

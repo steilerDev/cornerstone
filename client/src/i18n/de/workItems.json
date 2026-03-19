@@ -14,6 +14,10 @@
       "allUsers": "Alle Benutzer",
       "tag": "Tag:",
       "allTags": "Alle Tags",
+      "area": "Bereich:",
+      "allAreas": "Alle Bereiche",
+      "assignedVendor": "Auftragnehmer:",
+      "allVendors": "Alle Auftragnehmer",
       "noBudget": "Keine Budgetpositionen",
       "noBudgetAriaLabel": "Nur Arbeitspakete ohne Budgetpositionen anzeigen",
       "noBudgetActive": "Kein-Budget-Filter aktiv",
@@ -118,6 +122,7 @@
       "startBefore": "Spätestens ab",
       "constraintsError": "Das Datum 'Frühestens ab' muss vor oder gleich dem Datum 'Spätestens ab' sein",
       "tags": "Tags",
+      "area": "Bereich",
       "dependencies": "Abhängigkeiten"
     },
     "pendingDeps": {
@@ -174,6 +179,7 @@
       "description": "Beschreibung",
       "schedule": "Zeitplan",
       "scheduleDescription": "Start- und Enddatum werden von der Planungsmaschine basierend auf Einschränkungen und Abhängigkeiten berechnet.",
+      "area": "Bereich",
       "assignment": "Zuweisung",
       "tags": "Tags",
       "notes": "Notizen",
@@ -198,6 +204,9 @@
     "assignment": {
       "assignedTo": "Zugewiesen an",
       "unassigned": "Nicht zugewiesen"
+    },
+    "area": {
+      "label": "Bereich"
     },
     "notes": {
       "placeholder": "Notiz hinzufügen...",

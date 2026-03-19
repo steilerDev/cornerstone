@@ -23,7 +23,6 @@ import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
 import type * as NotesApiTypes from '../../lib/notesApi.js';
 import type * as SubtasksApiTypes from '../../lib/subtasksApi.js';
 import type * as DependenciesApiTypes from '../../lib/dependenciesApi.js';
-import type * as TagsApiTypes from '../../lib/tagsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
@@ -62,8 +61,6 @@ const mockReorderSubtasks = jest.fn<typeof SubtasksApiTypes.reorderSubtasks>();
 const mockGetDependencies = jest.fn<typeof DependenciesApiTypes.getDependencies>();
 const mockCreateDependency = jest.fn<typeof DependenciesApiTypes.createDependency>();
 const mockDeleteDependency = jest.fn<typeof DependenciesApiTypes.deleteDependency>();
-const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
-const mockCreateTag = jest.fn<typeof TagsApiTypes.createTag>();
 const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
 const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiTypes.fetchBudgetCategories>();
 const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
@@ -126,11 +123,6 @@ jest.unstable_mockModule('../../lib/dependenciesApi.js', () => ({
   deleteDependency: mockDeleteDependency,
 }));
 
-jest.unstable_mockModule('../../lib/tagsApi.js', () => ({
-  fetchTags: mockFetchTags,
-  createTag: mockCreateTag,
-}));
-
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
   listUsers: mockListUsers,
 }));
@@ -173,6 +165,20 @@ jest.unstable_mockModule('../../lib/workItemMilestonesApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/householdItemWorkItemsApi.js', () => ({
   fetchLinkedHouseholdItems: mockFetchLinkedHouseholdItems,
+}));
+
+// Mock useAreas hook — WorkItemDetailPage uses useAreas to render AreaPicker
+const mockUseAreas = jest.fn(() => ({
+  areas: [],
+  isLoading: false,
+  error: null,
+  refetch: jest.fn(),
+  createArea: jest.fn(),
+  updateArea: jest.fn(),
+  deleteArea: jest.fn(),
+}));
+jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
+  useAreas: mockUseAreas,
 }));
 
 // ─── Mock: formatters — provides useFormatters() hook ────────────────────────
@@ -289,8 +295,6 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
     mockGetDependencies.mockReset();
     mockCreateDependency.mockReset();
     mockDeleteDependency.mockReset();
-    mockFetchTags.mockReset();
-    mockCreateTag.mockReset();
     mockListUsers.mockReset();
     mockFetchBudgetCategories.mockReset();
     mockFetchBudgetSources.mockReset();
@@ -324,7 +328,6 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
     mockListNotes.mockResolvedValue({ notes: [] });
     mockListSubtasks.mockResolvedValue({ subtasks: [] });
     mockGetDependencies.mockResolvedValue({ predecessors: [], successors: [] });
-    mockFetchTags.mockResolvedValue({ tags: [] });
     mockListUsers.mockResolvedValue({ users: [] });
     mockListWorkItems.mockResolvedValue({
       items: [],

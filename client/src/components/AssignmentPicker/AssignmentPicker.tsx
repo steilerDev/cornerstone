@@ -35,6 +35,7 @@ export interface AssignmentPickerProps {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  id?: string;
 }
 
 export function AssignmentPicker({
@@ -43,6 +44,7 @@ export function AssignmentPicker({
   value,
   onChange,
   disabled = false,
+  id,
 }: AssignmentPickerProps) {
   const { t } = useTranslation('common');
 
@@ -51,6 +53,7 @@ export function AssignmentPicker({
 
   return (
     <select
+      id={id}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}

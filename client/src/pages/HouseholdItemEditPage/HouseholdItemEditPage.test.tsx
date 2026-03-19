@@ -6,7 +6,6 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
-import type * as TagsApiTypes from '../../lib/tagsApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as HouseholdItemCategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
 import type * as HouseholdItemEditPageTypes from './HouseholdItemEditPage.js';
@@ -14,8 +13,6 @@ import type React from 'react';
 
 const mockGetHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.getHouseholdItem>();
 const mockUpdateHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.updateHouseholdItem>();
-const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
-const mockCreateTag = jest.fn<typeof TagsApiTypes.createTag>();
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 const mockFetchHouseholdItemCategories =
   jest.fn<typeof HouseholdItemCategoriesApiTypes.fetchHouseholdItemCategories>();
@@ -27,11 +24,6 @@ jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
   updateHouseholdItem: mockUpdateHouseholdItem,
   listHouseholdItems: jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>(),
   deleteHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.deleteHouseholdItem>(),
-}));
-
-jest.unstable_mockModule('../../lib/tagsApi.js', () => ({
-  fetchTags: mockFetchTags,
-  createTag: mockCreateTag,
 }));
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
@@ -68,11 +60,6 @@ function LocationDisplay() {
 
 describe('HouseholdItemEditPage', () => {
   let HouseholdItemEditPageModule: typeof HouseholdItemEditPageTypes;
-
-  const mockTags = [
-    { id: 'tag-1', name: 'Kitchen', color: '#E57373', createdAt: '2026-01-01T00:00:00Z' },
-    { id: 'tag-2', name: 'Priority', color: '#64B5F6', createdAt: '2026-01-01T00:00:00Z' },
-  ];
 
   const mockVendors = [
     {
@@ -136,8 +123,6 @@ describe('HouseholdItemEditPage', () => {
   beforeEach(async () => {
     mockGetHouseholdItem.mockReset();
     mockUpdateHouseholdItem.mockReset();
-    mockFetchTags.mockReset();
-    mockCreateTag.mockReset();
     mockFetchVendors.mockReset();
     mockFetchHouseholdItemCategories.mockReset();
 
@@ -145,7 +130,6 @@ describe('HouseholdItemEditPage', () => {
       HouseholdItemEditPageModule = await import('./HouseholdItemEditPage.js');
     }
 
-    mockFetchTags.mockResolvedValue({ tags: mockTags });
     mockFetchVendors.mockResolvedValue({
       vendors: mockVendors,
       pagination: { page: 1, pageSize: 100, totalItems: 2, totalPages: 1 },
@@ -582,14 +566,8 @@ describe('HouseholdItemEditPage', () => {
     });
 
     // Tags were removed in migration 0028 (areas_trades_rework) — tagsApi no longer called
-    it.skip('shows generic error banner when tags fail to load', async () => {
-      mockFetchTags.mockRejectedValue(new Error('Network error'));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Failed to load form data. Please try again.')).toBeInTheDocument();
-      });
+    it.skip('shows generic error banner when tags fail to load', () => {
+      // Test removed: tagsApi.ts has been deleted; tags table was dropped in migration 0028
     });
   });
 
