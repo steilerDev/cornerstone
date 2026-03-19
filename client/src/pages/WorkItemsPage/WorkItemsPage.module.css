@@ -611,6 +611,88 @@
   }
 }
 
+/* Budget Lines count pill */
+.budgetLineCountZero {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-1) var(--spacing-2-5);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  line-height: 1;
+  background-color: var(--color-role-member-bg);
+  color: var(--color-text-muted);
+}
+
+.budgetLineCountPositive {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-1) var(--spacing-2-5);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  line-height: 1;
+  background-color: var(--color-primary-bg);
+  color: var(--color-primary-badge-text);
+}
+
+/* Budget Lines column header alignment */
+.budgetLinesColumn {
+  width: 80px;
+  text-align: center;
+}
+
+/* Budget Lines table cell alignment */
+.budgetLinesCell {
+  text-align: center;
+}
+
+/* No Budget Lines toggle button */
+.noBudgetToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s,
+    color 0.2s;
+  align-self: flex-end;
+  min-height: 38px;
+}
+
+.noBudgetToggle:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.noBudgetToggle[aria-pressed='true'] {
+  background-color: var(--color-primary-bg);
+  color: var(--color-primary-badge-text);
+  border-color: var(--color-primary);
+}
+
+.noBudgetToggle[aria-pressed='true']::before {
+  content: '✓ ';
+}
+
+@media (max-width: 767px) {
+  .noBudgetToggle {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+}
+
 @media (min-width: 768px) and (max-width: 1024px) {
   .container {
     padding: 1.5rem;

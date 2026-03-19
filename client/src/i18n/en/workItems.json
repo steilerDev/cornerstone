@@ -45,6 +45,7 @@
       "endDate": "End Date",
       "tags": "Tags",
       "budgetLines": "Budget Lines",
+      "budgetLinesAriaLabel": "{{count}} budget lines",
       "actions": "Actions"
     },
     "card": {
