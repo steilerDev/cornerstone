@@ -63,7 +63,8 @@ const baseWorkItem: TimelineWorkItem = {
   startAfter: null,
   startBefore: null,
   assignedUser: null,
-  tags: [],
+  assignedVendor: null,
+  area: null,
 };
 
 // Fixed date for all time-sensitive tests: 2026-03-09 midnight local.

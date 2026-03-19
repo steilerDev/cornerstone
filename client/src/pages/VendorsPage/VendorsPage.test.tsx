@@ -30,7 +30,7 @@ describe('VendorsPage', () => {
   const sampleVendor1: Vendor = {
     id: 'vendor-1',
     name: 'Smith Plumbing',
-    specialty: 'Plumbing',
+    trade: { id: 'trade-plumbing', name: 'Plumbing', color: null },
     phone: '+1 555-1234',
     email: 'smith@plumbing.com',
     address: '123 Main St',
@@ -43,7 +43,7 @@ describe('VendorsPage', () => {
   const sampleVendor2: Vendor = {
     id: 'vendor-2',
     name: 'Jones Electric',
-    specialty: 'Electrical',
+    trade: { id: 'trade-electrical', name: 'Electrical', color: null },
     phone: null,
     email: 'jones@electric.com',
     address: null,
@@ -365,7 +365,7 @@ describe('VendorsPage', () => {
       const newVendor: Vendor = {
         id: 'vendor-new',
         name: 'Brown Roofing',
-        specialty: 'Roofing',
+        trade: { id: 'trade-roofing', name: 'Roofing', color: null },
         phone: null,
         email: null,
         address: null,

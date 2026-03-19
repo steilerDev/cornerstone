@@ -20,7 +20,6 @@ import authRoutes from './routes/auth.js';
 import oidcRoutes from './routes/oidc.js';
 import userRoutes from './routes/users.js';
 import workItemRoutes from './routes/workItems.js';
-import tagRoutes from './routes/tags.js';
 import noteRoutes from './routes/notes.js';
 import subtaskRoutes from './routes/subtasks.js';
 import dependencyRoutes from './routes/dependencies.js';
@@ -125,9 +124,6 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Work item routes
   await app.register(workItemRoutes, { prefix: '/api/work-items' });
-
-  // Tag routes
-  await app.register(tagRoutes, { prefix: '/api/tags' });
 
   // Note routes (nested under work items)
   await app.register(noteRoutes, { prefix: '/api/work-items/:workItemId/notes' });

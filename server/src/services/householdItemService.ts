@@ -14,9 +14,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import {
   householdItems,
-  householdItemTags,
   householdItemCategories,
-  tags,
   users,
   vendors,
   householdItemBudgets,
@@ -28,12 +26,11 @@ import {
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { listDeps } from './householdItemDepService.js';
 import { autoReschedule } from './schedulingEngine.js';
-import { toUserSummary, toTagResponse, toVendorSummary } from './shared/converters.js';
-import { validateTagIds, validateVendorId } from './shared/validators.js';
+import { toUserSummary, toVendorSummary } from './shared/converters.js';
+import { validateVendorId } from './shared/validators.js';
 import type {
   HouseholdItemDetail,
   HouseholdItemSummary,
-  TagResponse,
   HouseholdItemCategory,
   HouseholdItemStatus,
   HouseholdItemSubsidySummary,
@@ -46,20 +43,6 @@ import type {
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
-
-/**
- * Fetch tags for a household item.
- */
-function getHouseholdItemTags(db: DbType, householdItemId: string): TagResponse[] {
-  const tagRows = db
-    .select({ tag: tags })
-    .from(householdItemTags)
-    .innerJoin(tags, eq(tags.id, householdItemTags.tagId))
-    .where(eq(householdItemTags.householdItemId, householdItemId))
-    .all();
-
-  return tagRows.map((row) => toTagResponse(row.tag));
-}
 
 /**
  * Fetch subsidy programs linked to a household item.
@@ -202,13 +185,6 @@ export function toHouseholdItemSummary(
     ? (db.select().from(users).where(eq(users.id, item.createdBy)).get() ?? null)
     : null;
 
-  const tagIds = db
-    .select({ tagId: householdItemTags.tagId })
-    .from(householdItemTags)
-    .where(eq(householdItemTags.householdItemId, item.id))
-    .all()
-    .map((row) => row.tagId);
-
   return {
     id: item.id,
     name: item.name,
@@ -216,7 +192,7 @@ export function toHouseholdItemSummary(
     category: item.categoryId as HouseholdItemCategory,
     status: item.status as HouseholdItemStatus,
     vendor: toVendorSummary(vendor),
-    room: item.room,
+    area: null, // TODO: JOIN to areas table in Story 2
     quantity: item.quantity,
     orderDate: item.orderDate,
     actualDeliveryDate: item.actualDeliveryDate,
@@ -225,7 +201,6 @@ export function toHouseholdItemSummary(
     targetDeliveryDate: item.targetDeliveryDate,
     isLate: !!item.isLate,
     url: item.url,
-    tagIds,
     budgetLineCount: getBudgetLineCount(db, item.id),
     totalPlannedAmount: getTotalPlannedAmount(db, item.id),
     budgetSummary: getBudgetSummary(db, item.id),
@@ -243,13 +218,11 @@ export function toHouseholdItemDetail(
   item: typeof householdItems.$inferSelect,
 ): HouseholdItemDetail {
   const summary = toHouseholdItemSummary(db, item);
-  const itemTags = getHouseholdItemTags(db, item.id);
   const dependencies = listDeps(db, item.id);
   const subsidies = getHouseholdItemSubsidies(db, item.id);
 
   return {
     ...summary,
-    tags: itemTags,
     dependencies,
     subsidies,
   };
@@ -279,24 +252,6 @@ function validateHouseholdItemCategoryId(db: DbType, categoryId: string): void {
 }
 
 /**
- * Replace all tags for a household item (set-semantics).
- * Deletes existing associations not in the new set, inserts new ones.
- */
-function replaceHouseholdItemTags(db: DbType, householdItemId: string, tagIds: string[]): void {
-  // Delete all existing tags
-  db.delete(householdItemTags).where(eq(householdItemTags.householdItemId, householdItemId)).run();
-
-  // Insert new tags
-  if (tagIds.length > 0) {
-    const values = tagIds.map((tagId) => ({
-      householdItemId,
-      tagId,
-    }));
-    db.insert(householdItemTags).values(values).run();
-  }
-}
-
-/**
  * Create a new household item.
  */
 export function createHouseholdItem(
@@ -312,12 +267,6 @@ export function createHouseholdItem(
   // Validate optional vendor if provided
   if (data.vendorId) {
     validateVendorId(db, data.vendorId);
-  }
-
-  // Validate optional tags if provided
-  const tagIds = data.tagIds ?? [];
-  if (tagIds.length > 0) {
-    validateTagIds(db, tagIds);
   }
 
   // Validate optional category ID if provided, default to 'hic-other'
@@ -344,8 +293,8 @@ export function createHouseholdItem(
       categoryId,
       status: data.status ?? 'planned',
       vendorId: data.vendorId ?? null,
+      areaId: data.areaId ?? null,
       url: data.url ?? null,
-      room: data.room ?? null,
       quantity: data.quantity ?? 1,
       orderDate: data.orderDate ?? null,
       actualDeliveryDate: data.actualDeliveryDate ?? null,
@@ -358,11 +307,6 @@ export function createHouseholdItem(
       updatedAt: now,
     })
     .run();
-
-  // Add tags if provided
-  if (tagIds.length > 0) {
-    replaceHouseholdItemTags(db, id, tagIds);
-  }
 
   // Fetch and return the created item
   const createdItem = findHouseholdItemById(db, id)!;
@@ -404,14 +348,6 @@ export function updateHouseholdItem(
   // Validate category if provided
   if ('category' in data && data.category) {
     validateHouseholdItemCategoryId(db, data.category);
-  }
-
-  // Validate tags if provided
-  if ('tagIds' in data) {
-    const tagIds = data.tagIds ?? [];
-    if (tagIds.length > 0) {
-      validateTagIds(db, tagIds);
-    }
   }
 
   // Cross-field validation: if both earliest and latest are provided, earliest <= latest
@@ -463,8 +399,8 @@ export function updateHouseholdItem(
     updateData.url = data.url ?? null;
   }
 
-  if ('room' in data) {
-    updateData.room = data.room ?? null;
+  if ('areaId' in data) {
+    updateData.areaId = data.areaId ?? null;
   }
 
   if ('quantity' in data) {
@@ -494,12 +430,6 @@ export function updateHouseholdItem(
 
   // Update household item
   db.update(householdItems).set(updateData).where(eq(householdItems.id, id)).run();
-
-  // Update tags if provided
-  if ('tagIds' in data) {
-    const tagIds = data.tagIds ?? [];
-    replaceHouseholdItemTags(db, id, tagIds);
-  }
 
   // Trigger auto-reschedule when any scheduling-relevant field changed.
   const schedulingFieldChanged =
@@ -560,11 +490,6 @@ export function listHouseholdItems(
     conditions.push(eq(householdItems.vendorId, query.vendorId));
   }
 
-  if (query.room) {
-    // Exact match for room
-    conditions.push(eq(householdItems.room, query.room));
-  }
-
   if (query.q) {
     // Escape SQL LIKE wildcards (% and _) in user input
     const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
@@ -573,15 +498,7 @@ export function listHouseholdItems(
       or(
         sql`LOWER(${householdItems.name}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
         sql`LOWER(${householdItems.description}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
-        sql`LOWER(${householdItems.room}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
       )!,
-    );
-  }
-
-  // Tag filter requires a JOIN/subquery
-  if (query.tagId) {
-    conditions.push(
-      sql`${householdItems.id} IN (SELECT ${householdItemTags.householdItemId} FROM ${householdItemTags} WHERE ${householdItemTags.tagId} = ${query.tagId})`,
     );
   }
 
@@ -604,15 +521,13 @@ export function listHouseholdItems(
         ? householdItems.categoryId
         : sortBy === 'status'
           ? householdItems.status
-          : sortBy === 'room'
-            ? householdItems.room
-            : sortBy === 'order_date'
-              ? householdItems.orderDate
-              : sortBy === 'target_delivery_date'
-                ? householdItems.targetDeliveryDate
-                : sortBy === 'updated_at'
-                  ? householdItems.updatedAt
-                  : householdItems.createdAt;
+          : sortBy === 'order_date'
+            ? householdItems.orderDate
+            : sortBy === 'target_delivery_date'
+              ? householdItems.targetDeliveryDate
+              : sortBy === 'updated_at'
+                ? householdItems.updatedAt
+                : householdItems.createdAt;
 
   const orderBy = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
 

@@ -41,7 +41,7 @@ function toVendor(db: DbType, row: typeof vendors.$inferSelect): Vendor {
   return {
     id: row.id,
     name: row.name,
-    specialty: row.specialty,
+    trade: null, // TODO: JOIN to trades table in Story 3
     phone: row.phone,
     email: row.email,
     address: row.address,
@@ -113,10 +113,7 @@ export function listVendors(
     const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
     const pattern = `%${escapedQ}%`;
     conditions.push(
-      or(
-        sql`LOWER(${vendors.name}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
-        sql`LOWER(${vendors.specialty}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
-      )!,
+      sql`LOWER(${vendors.name}) LIKE LOWER(${pattern}) ESCAPE '\\'`!,
     );
   }
 
@@ -133,12 +130,12 @@ export function listVendors(
 
   // Build ORDER BY
   const sortColumn =
-    sortBy === 'specialty'
-      ? vendors.specialty
-      : sortBy === 'created_at'
-        ? vendors.createdAt
-        : sortBy === 'updated_at'
-          ? vendors.updatedAt
+    sortBy === 'created_at'
+      ? vendors.createdAt
+      : sortBy === 'updated_at'
+        ? vendors.updatedAt
+        : sortBy === 'trade'
+          ? vendors.name // TODO: sort by trade name via JOIN in Story 3
           : vendors.name;
 
   const orderBy = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
@@ -197,7 +194,7 @@ export function createVendor(db: DbType, data: CreateVendorRequest, userId: stri
     .values({
       id,
       name: trimmedName,
-      specialty: data.specialty ?? null,
+      tradeId: null, // TODO: support trade linking in Story 3
       phone: data.phone ?? null,
       email: data.email ?? null,
       address: data.address ?? null,
@@ -226,7 +223,6 @@ export function updateVendor(db: DbType, id: string, data: UpdateVendorRequest):
   // Validate at least one field provided
   if (
     data.name === undefined &&
-    data.specialty === undefined &&
     data.phone === undefined &&
     data.email === undefined &&
     data.address === undefined &&
@@ -245,9 +241,7 @@ export function updateVendor(db: DbType, id: string, data: UpdateVendorRequest):
     updates.name = trimmedName;
   }
 
-  if (data.specialty !== undefined) {
-    updates.specialty = data.specialty;
-  }
+  // Note: tradeId updates are not supported yet (Story 3)
 
   if (data.phone !== undefined) {
     updates.phone = data.phone;

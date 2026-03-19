@@ -28,7 +28,8 @@ function makeItem(overrides: Partial<TimelineWorkItem> = {}): TimelineWorkItem {
     startAfter: null,
     startBefore: null,
     assignedUser: null,
-    tags: [],
+    assignedVendor: null,
+    area: null,
     ...overrides,
   };
 }

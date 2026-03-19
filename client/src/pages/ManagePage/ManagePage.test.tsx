@@ -9,7 +9,9 @@ import type * as TagsApiTypes from '../../lib/tagsApi.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
 import type * as HICApiTypes from '../../lib/householdItemCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import type { TagResponse, BudgetCategory, HouseholdItemCategoryEntity } from '@cornerstone/shared';
+import type { BudgetCategory, HouseholdItemCategoryEntity } from '@cornerstone/shared';
+// TagResponse removed from @cornerstone/shared — define locally for test compatibility
+type TagResponse = { id: string; name: string; color: string | null; createdAt?: string };
 
 // ─── Mock API modules BEFORE importing components ─────────────────────────────
 

@@ -63,7 +63,7 @@ describe('Vendor Routes', () => {
   function createTestVendor(
     name: string,
     options: {
-      specialty?: string | null;
+      tradeId?: string | null;
       phone?: string | null;
       email?: string | null;
       address?: string | null;
@@ -80,7 +80,7 @@ describe('Vendor Routes', () => {
       .values({
         id,
         name,
-        specialty: options.specialty ?? null,
+        tradeId: options.tradeId ?? null,
         phone: options.phone ?? null,
         email: options.email ?? null,
         address: options.address ?? null,
@@ -188,7 +188,7 @@ describe('Vendor Routes', () => {
     it('returns all vendor fields in list', async () => {
       const { cookie, userId } = await createUserWithSession('user@test.com', 'User', 'password');
       createTestVendor('Full Vendor', {
-        specialty: 'Plumbing',
+        tradeId: 'trade-plumbing',
         phone: '555-1234',
         email: 'full@vendor.com',
         address: '123 Main St',
@@ -206,7 +206,8 @@ describe('Vendor Routes', () => {
       const body = response.json<{ vendors: Vendor[] }>();
       const vendor = body.vendors[0];
       expect(vendor.name).toBe('Full Vendor');
-      expect(vendor.specialty).toBe('Plumbing');
+      expect(vendor.trade).not.toBeNull();
+      expect(vendor.trade?.id).toBe('trade-plumbing');
       expect(vendor.phone).toBe('555-1234');
       expect(vendor.email).toBe('full@vendor.com');
       expect(vendor.address).toBe('123 Main St');
@@ -240,9 +241,9 @@ describe('Vendor Routes', () => {
 
     it('filters by search query', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
-      createTestVendor('Smith Plumbing', { specialty: 'Plumbing' });
-      createTestVendor('Jones Electric', { specialty: 'Electrical' });
-      createTestVendor('Smith Roofing', { specialty: 'Roofing' });
+      createTestVendor('Smith Plumbing');
+      createTestVendor('Jones Electric');
+      createTestVendor('Smith Roofing');
 
       const response = await app.inject({
         method: 'GET',
@@ -256,10 +257,10 @@ describe('Vendor Routes', () => {
       expect(body.vendors.every((v) => v.name.toLowerCase().includes('smith'))).toBe(true);
     });
 
-    it('filters by specialty in search query', async () => {
+    it('filters by trade name in search query', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
-      createTestVendor('Vendor A', { specialty: 'Plumbing' });
-      createTestVendor('Vendor B', { specialty: 'Electrical' });
+      createTestVendor('Vendor A', { tradeId: 'trade-plumbing' });
+      createTestVendor('Vendor B', { tradeId: 'trade-electrical' });
 
       const response = await app.inject({
         method: 'GET',
@@ -306,20 +307,21 @@ describe('Vendor Routes', () => {
       expect(body.vendors[0].name).toBe('Zeta Corp');
     });
 
-    it('sorts by specialty', async () => {
+    it('sorts by trade name', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
-      createTestVendor('Vendor A', { specialty: 'Roofing' });
-      createTestVendor('Vendor B', { specialty: 'Electrical' });
+      createTestVendor('Vendor A', { tradeId: 'trade-roofing' });
+      createTestVendor('Vendor B', { tradeId: 'trade-electrical' });
 
       const response = await app.inject({
         method: 'GET',
-        url: '/api/vendors?sortBy=specialty&sortOrder=asc',
+        url: '/api/vendors?sortBy=trade&sortOrder=asc',
         headers: { cookie },
       });
 
       expect(response.statusCode).toBe(200);
       const body = response.json<{ vendors: Vendor[] }>();
-      expect(body.vendors[0].specialty).toBe('Electrical');
+      // Electrical comes before Roofing alphabetically
+      expect(body.vendors[0].trade?.id).toBe('trade-electrical');
     });
 
     it('returns 401 without authentication', async () => {
@@ -381,7 +383,7 @@ describe('Vendor Routes', () => {
       expect(body.vendor).toBeDefined();
       expect(body.vendor.id).toBeDefined();
       expect(body.vendor.name).toBe('New Vendor');
-      expect(body.vendor.specialty).toBeNull();
+      expect(body.vendor.trade).toBeNull();
       expect(body.vendor.phone).toBeNull();
       expect(body.vendor.createdAt).toBeDefined();
     });
@@ -395,7 +397,7 @@ describe('Vendor Routes', () => {
         headers: { cookie },
         payload: {
           name: 'Full Vendor',
-          specialty: 'Electrical',
+          tradeId: 'trade-electrical',
           phone: '+1 555-0001',
           email: 'full@vendor.com',
           address: '100 Oak Ave',
@@ -406,7 +408,8 @@ describe('Vendor Routes', () => {
       expect(response.statusCode).toBe(201);
       const body = response.json<{ vendor: Vendor }>();
       expect(body.vendor.name).toBe('Full Vendor');
-      expect(body.vendor.specialty).toBe('Electrical');
+      expect(body.vendor.trade).not.toBeNull();
+      expect(body.vendor.trade?.id).toBe('trade-electrical');
       expect(body.vendor.phone).toBe('+1 555-0001');
       expect(body.vendor.email).toBe('full@vendor.com');
       expect(body.vendor.address).toBe('100 Oak Ave');
@@ -455,7 +458,7 @@ describe('Vendor Routes', () => {
         method: 'POST',
         url: '/api/vendors',
         headers: { cookie },
-        payload: { specialty: 'Plumbing' },
+        payload: { tradeId: 'trade-plumbing' },
       });
 
       expect(response.statusCode).toBe(400);
@@ -589,7 +592,7 @@ describe('Vendor Routes', () => {
   describe('GET /api/vendors/:id', () => {
     it('returns 200 with vendor detail', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
-      const vendor = createTestVendor('Detail Vendor', { specialty: 'Plumbing' });
+      const vendor = createTestVendor('Detail Vendor', { tradeId: 'trade-plumbing' });
 
       const response = await app.inject({
         method: 'GET',
@@ -602,7 +605,8 @@ describe('Vendor Routes', () => {
       expect(body.vendor).toBeDefined();
       expect(body.vendor.id).toBe(vendor.id);
       expect(body.vendor.name).toBe('Detail Vendor');
-      expect(body.vendor.specialty).toBe('Plumbing');
+      expect(body.vendor.trade).not.toBeNull();
+      expect(body.vendor.trade?.id).toBe('trade-plumbing');
     });
 
     it('includes invoiceCount and outstandingBalance in detail response', async () => {
@@ -691,7 +695,7 @@ describe('Vendor Routes', () => {
   describe('PATCH /api/vendors/:id', () => {
     it('updates vendor name successfully (200)', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
-      const vendor = createTestVendor('Old Name Vendor', { specialty: 'Roofing' });
+      const vendor = createTestVendor('Old Name Vendor', { tradeId: 'trade-roofing' });
 
       const response = await app.inject({
         method: 'PATCH',
@@ -704,7 +708,7 @@ describe('Vendor Routes', () => {
       const body = response.json<{ vendor: VendorDetail }>();
       expect(body.vendor.id).toBe(vendor.id);
       expect(body.vendor.name).toBe('New Name Vendor');
-      expect(body.vendor.specialty).toBe('Roofing'); // Unchanged
+      expect(body.vendor.trade?.id).toBe('trade-roofing'); // Unchanged
     });
 
     it('returns VendorDetail shape (includes invoiceCount and outstandingBalance)', async () => {
@@ -716,7 +720,7 @@ describe('Vendor Routes', () => {
         method: 'PATCH',
         url: `/api/vendors/${vendor.id}`,
         headers: { cookie },
-        payload: { specialty: 'Electrical' },
+        payload: { tradeId: 'trade-electrical' },
       });
 
       expect(response.statusCode).toBe(200);
@@ -725,20 +729,20 @@ describe('Vendor Routes', () => {
       expect(body.vendor.outstandingBalance).toBe(250);
     });
 
-    it('clears specialty by setting to null', async () => {
+    it('clears tradeId by setting to null', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
-      const vendor = createTestVendor('Clear Specialty Vendor', { specialty: 'Plumbing' });
+      const vendor = createTestVendor('Clear Trade Vendor', { tradeId: 'trade-plumbing' });
 
       const response = await app.inject({
         method: 'PATCH',
         url: `/api/vendors/${vendor.id}`,
         headers: { cookie },
-        payload: { specialty: null },
+        payload: { tradeId: null },
       });
 
       expect(response.statusCode).toBe(200);
       const body = response.json<{ vendor: VendorDetail }>();
-      expect(body.vendor.specialty).toBeNull();
+      expect(body.vendor.trade).toBeNull();
     });
 
     it('updates all fields at once', async () => {
@@ -751,7 +755,7 @@ describe('Vendor Routes', () => {
         headers: { cookie },
         payload: {
           name: 'Updated All Fields',
-          specialty: 'Landscaping',
+          tradeId: 'trade-landscaping',
           phone: '555-7777',
           email: 'updated@vendor.com',
           address: '456 Elm St',
@@ -762,7 +766,7 @@ describe('Vendor Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ vendor: VendorDetail }>();
       expect(body.vendor.name).toBe('Updated All Fields');
-      expect(body.vendor.specialty).toBe('Landscaping');
+      expect(body.vendor.trade?.id).toBe('trade-landscaping');
       expect(body.vendor.phone).toBe('555-7777');
       expect(body.vendor.email).toBe('updated@vendor.com');
       expect(body.vendor.address).toBe('456 Elm St');

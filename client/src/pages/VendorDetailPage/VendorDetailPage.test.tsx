@@ -93,7 +93,7 @@ describe('VendorDetailPage', () => {
   const sampleVendor: VendorDetail = {
     id: 'vendor-1',
     name: 'Smith Plumbing',
-    specialty: 'Plumbing',
+    trade: { id: 'trade-plumbing', name: 'Plumbing', color: null },
     phone: '+1 555-1234',
     email: 'smith@plumbing.com',
     address: '123 Main St, Springfield',
@@ -109,7 +109,7 @@ describe('VendorDetailPage', () => {
   const vendorWithNoStats: VendorDetail = {
     id: 'vendor-2',
     name: 'Jones Electric',
-    specialty: null,
+    trade: null,
     phone: null,
     email: null,
     address: null,
@@ -566,7 +566,7 @@ describe('VendorDetailPage', () => {
       const updatedVendor: VendorDetail = {
         ...sampleVendor,
         name: 'Smith Plumbing Updated',
-        specialty: 'General Plumbing',
+        trade: { id: 'trade-plumbing', name: 'General Plumbing', color: null },
       };
 
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);

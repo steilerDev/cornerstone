@@ -14,7 +14,6 @@ import { CONFIDENCE_MARGINS } from './budget.js';
 import type {
   ConfidenceLevel,
   BudgetSourceSummary,
-  VendorSummary,
   InvoiceSummary,
   BaseBudgetLine,
   CreateBudgetLineRequest,
@@ -23,6 +22,7 @@ import type {
   BudgetAggregate,
   BudgetSummary,
 } from './budget.js';
+import type { VendorSummary } from './workItem.js';
 import type { WorkItemBudgetLine } from './workItemBudget.js';
 import type {
   HouseholdItemBudgetLine,
@@ -173,28 +173,30 @@ describe('BudgetSourceSummary interface', () => {
 // ---------------------------------------------------------------------------
 
 describe('VendorSummary interface', () => {
-  it('constructs a valid vendor summary with a specialty string', () => {
+  it('constructs a valid vendor summary with a trade object', () => {
     const vendor: VendorSummary = {
       id: 'v-001',
       name: 'Acme Plumbing',
-      specialty: 'Plumbing',
+      trade: { id: 'trade-plumbing', name: 'Plumbing', color: '#0EA5E9' },
     };
 
     expect(vendor.id).toBe('v-001');
     expect(vendor.name).toBe('Acme Plumbing');
-    expect(vendor.specialty).toBe('Plumbing');
+    expect(vendor.trade?.id).toBe('trade-plumbing');
+    expect(vendor.trade?.name).toBe('Plumbing');
+    expect(vendor.trade?.color).toBe('#0EA5E9');
   });
 
-  it('allows specialty to be null', () => {
+  it('allows trade to be null', () => {
     const vendor: VendorSummary = {
       id: 'v-002',
       name: 'General Contractor',
-      specialty: null,
+      trade: null,
     };
 
     expect(vendor.id).toBe('v-002');
     expect(vendor.name).toBe('General Contractor');
-    expect(vendor.specialty).toBeNull();
+    expect(vendor.trade).toBeNull();
   });
 });
 
@@ -316,7 +318,7 @@ describe('BaseBudgetLine interface', () => {
       vendor: {
         id: 'v-001',
         name: 'Acme Concrete',
-        specialty: 'Concrete & Masonry',
+        trade: { id: 'trade-masonry', name: 'Masonry', color: '#78716C' },
       },
       actualCost: 24500,
       actualCostPaid: 24500,
@@ -342,7 +344,7 @@ describe('BaseBudgetLine interface', () => {
     expect(line.confidenceMargin).toBe(0.05);
     expect(line.budgetCategory?.name).toBe('Materials');
     expect(line.budgetSource?.sourceType).toBe('loan');
-    expect(line.vendor?.specialty).toBe('Concrete & Masonry');
+    expect(line.vendor?.trade?.name).toBe('Masonry');
     expect(line.actualCost).toBe(24500);
     expect(line.actualCostPaid).toBe(24500);
     expect(line.invoiceCount).toBe(2);
