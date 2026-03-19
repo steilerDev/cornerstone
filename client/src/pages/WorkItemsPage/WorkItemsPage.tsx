@@ -517,7 +517,7 @@ export function WorkItemsPage() {
           >
             {t('list.filters.noBudget')}
           </button>
-          <span className={styles.srOnly} aria-live="polite" role="status">
+          <span className={styles.srOnly} role="status" aria-atomic="true">
             {srMessage}
           </span>
 

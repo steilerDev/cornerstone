@@ -664,14 +664,19 @@
   color: var(--color-text-secondary);
   white-space: nowrap;
   transition:
-    background-color 0.2s,
-    border-color 0.2s,
-    color 0.2s;
+    background-color var(--transition-medium),
+    border-color var(--transition-medium),
+    color var(--transition-medium);
   align-self: flex-end;
 }
 
 .noBudgetToggle:hover {
   background-color: var(--color-bg-tertiary);
+}
+
+.noBudgetToggle:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .noBudgetToggle[aria-pressed='true'] {
@@ -701,6 +706,12 @@
     width: 100%;
     min-height: 44px;
     justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .noBudgetToggle {
+    transition: none;
   }
 }
 

@@ -44,3 +44,11 @@ Fixed terminology inconsistencies from EPIC-17 i18n rollout:
 - "Arbeitselemente" / "Arbeitsgegenstand" / "Arbeitsgegenstände" → standardized to "Arbeitspaket(e)"
 - "Haushaltsgegenstände" / "Haushaltselement" → standardized to "Haushaltsartikel"
 - "Anbieter" (vendor context) → standardized to "Auftragnehmer"
+
+## Ongoing Violations to Watch (2026-03-19)
+
+- "Budgetzeile" is a non-glossary term that had slipped into `de/workItems.json` (modals + inlineErrors). Corrected to "Budgetposition(en)". Always scan for "Budgetzeile" when touching workItems or budget namespaces.
+
+## Pluralization Note for "Budgetpositionen"
+
+The German plural "Budgetpositionen" is used even when the count is 1 in aria-label contexts (e.g. `"{{count}} Budgetpositionen"`). If the frontend ever uses i18next pluralization keys (`_one`/`_other`), add both forms. For now the English source also uses a single key without suffix, so German matches.
