@@ -7,11 +7,17 @@
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import type * as TimelineApiTypes from '../../lib/timelineApi.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
 import type { TimelineResponse } from '@cornerstone/shared';
 import type React from 'react';
+
+/** Renders the current router location pathname into a data-testid for navigation assertions. */
+function LocationDisplay() {
+  const location = useLocation();
+  return <div data-testid="location-display">{location.pathname}</div>;
+}
 
 const mockGetTimeline = jest.fn<typeof TimelineApiTypes.getTimeline>();
 
@@ -73,6 +79,7 @@ describe('TimelinePage', () => {
     return render(
       <MemoryRouter initialEntries={initialEntries}>
         <TimelinePage />
+        <LocationDisplay />
       </MemoryRouter>,
     );
   }
@@ -274,6 +281,107 @@ describe('TimelinePage', () => {
     it('shows the entity filter group when the route is /schedule/calendar', () => {
       renderWithRouter(['/schedule/calendar']);
       expect(screen.getByRole('group', { name: /entity filter/i })).toBeInTheDocument();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // New entity dropdown
+  // ---------------------------------------------------------------------------
+
+  describe('New entity dropdown', () => {
+    it('"New" button renders on Gantt view', () => {
+      renderWithRouter();
+      expect(screen.getByTestId('timeline-new-button')).toBeInTheDocument();
+    });
+
+    it('"New" button renders on Calendar view', () => {
+      renderWithRouter(['/schedule/calendar']);
+      expect(screen.getByTestId('timeline-new-button')).toBeInTheDocument();
+    });
+
+    it('dropdown is initially closed — no menu in document', () => {
+      renderWithRouter();
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+
+    it('clicking "New" opens the dropdown with menu items', () => {
+      renderWithRouter();
+      fireEvent.click(screen.getByTestId('timeline-new-button'));
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+      expect(screen.getByTestId('timeline-new-work-item')).toBeInTheDocument();
+      expect(screen.getByTestId('timeline-new-household-item')).toBeInTheDocument();
+      expect(screen.getByTestId('timeline-new-milestone')).toBeInTheDocument();
+    });
+
+    it('clicking "New" again closes the dropdown (toggle)', () => {
+      renderWithRouter();
+      const newButton = screen.getByTestId('timeline-new-button');
+      fireEvent.click(newButton);
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+      fireEvent.click(newButton);
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+
+    it('pressing Escape closes the dropdown', () => {
+      renderWithRouter();
+      fireEvent.click(screen.getByTestId('timeline-new-button'));
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+
+    it('clicking outside the dropdown closes it', () => {
+      renderWithRouter();
+      fireEvent.click(screen.getByTestId('timeline-new-button'));
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+      fireEvent.mouseDown(document.body);
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+
+    it('"Work Item" menu item navigates to /project/work-items/new', () => {
+      renderWithRouter();
+      fireEvent.click(screen.getByTestId('timeline-new-button'));
+      fireEvent.click(screen.getByTestId('timeline-new-work-item'));
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      expect(screen.getByTestId('location-display')).toHaveTextContent(
+        '/project/work-items/new',
+      );
+    });
+
+    it('"Household Item" menu item navigates to /project/household-items/new', () => {
+      renderWithRouter();
+      fireEvent.click(screen.getByTestId('timeline-new-button'));
+      fireEvent.click(screen.getByTestId('timeline-new-household-item'));
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      expect(screen.getByTestId('location-display')).toHaveTextContent(
+        '/project/household-items/new',
+      );
+    });
+
+    it('"Milestone" menu item navigates to /project/milestones/new', () => {
+      renderWithRouter();
+      fireEvent.click(screen.getByTestId('timeline-new-button'));
+      fireEvent.click(screen.getByTestId('timeline-new-milestone'));
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      expect(screen.getByTestId('location-display')).toHaveTextContent(
+        '/project/milestones/new',
+      );
+    });
+
+    it('"New" button has aria-haspopup="menu"', () => {
+      renderWithRouter();
+      expect(screen.getByTestId('timeline-new-button')).toHaveAttribute('aria-haspopup', 'menu');
+    });
+
+    it('"New" button aria-expanded is false when closed', () => {
+      renderWithRouter();
+      expect(screen.getByTestId('timeline-new-button')).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('"New" button aria-expanded is true when open', () => {
+      renderWithRouter();
+      fireEvent.click(screen.getByTestId('timeline-new-button'));
+      expect(screen.getByTestId('timeline-new-button')).toHaveAttribute('aria-expanded', 'true');
     });
   });
 
