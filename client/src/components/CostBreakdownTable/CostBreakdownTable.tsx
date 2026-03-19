@@ -869,46 +869,62 @@ export function CostBreakdownTable({
             </tbody>
 
             {/* ===== SUBSIDY ADJUSTMENTS SECTION ===== */}
-            {subsidyAdjustments.length > 0 && (
-              <tbody className={styles.adjustmentSection}>
-                <tr className={styles.rowLevel0}>
-                  <td className={styles.colName}>
-                    <div className={styles.nameContent}>
-                      <span>{t('overview.costBreakdown.subsidyAdjustments')}</span>
-                    </div>
-                  </td>
-                  <td className={styles.colBudget} />
-                  <td className={styles.colPayback} colSpan={2}>
-                    <span className={styles.valueNegative}>
-                      {formatCost(resolvedTotalExcess, formatCurrency)}
-                    </span>
-                  </td>
-                </tr>
-                {subsidyAdjustments.map((adj: SubsidyAdjustment) => {
-                  const adjExcess = resolveProjected(adj.minExcess, adj.maxExcess, perspective);
-                  return (
-                    <tr key={adj.subsidyProgramId} className={styles.rowLevel1}>
-                      <td className={`${styles.colName} ${styles.cellLevel1Name}`}>
-                        <div className={styles.adjustmentName}>
-                          <span>{adj.name}</span>
-                          <span className={styles.adjustmentHint}>
-                            {t('overview.costBreakdown.oversubscribed', {
-                              amount: formatCurrency(adj.maximumAmount),
-                            })}
-                          </span>
-                        </div>
-                      </td>
-                      <td className={styles.colBudget} />
-                      <td className={styles.colPayback} colSpan={2}>
-                        <span className={styles.valueNegative}>
-                          {formatCost(adjExcess, formatCurrency)}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            )}
+            {subsidyAdjustments.length > 0 && (() => {
+              const adjSectionKey = 'adj-section';
+              const adjSectionExpanded = expandedKeys.has(adjSectionKey);
+              return (
+                <tbody>
+                  <tr className={styles.rowLevel0}>
+                    <td className={styles.colName}>
+                      <div className={styles.nameContent}>
+                        <button
+                          type="button"
+                          className={styles.expandBtn}
+                          aria-expanded={adjSectionExpanded}
+                          aria-label="Expand subsidy adjustments"
+                          onClick={() => toggle(adjSectionKey)}
+                        >
+                          <ChevronSvg
+                            className={`${styles.chevron} ${adjSectionExpanded ? styles.chevronOpen : ''}`}
+                          />
+                        </button>
+                        <span>{t('overview.costBreakdown.subsidyAdjustments')}</span>
+                      </div>
+                    </td>
+                    <td className={styles.colBudget} />
+                    <td className={styles.colPayback} colSpan={2}>
+                      <span className={styles.adjustmentValue}>
+                        {formatCost(resolvedTotalExcess, formatCurrency)}
+                      </span>
+                    </td>
+                  </tr>
+                  {adjSectionExpanded &&
+                    subsidyAdjustments.map((adj: SubsidyAdjustment) => {
+                      const adjExcess = resolveProjected(adj.minExcess, adj.maxExcess, perspective);
+                      return (
+                        <tr key={adj.subsidyProgramId} className={styles.rowLevel1}>
+                          <td className={`${styles.colName} ${styles.cellLevel1Name}`}>
+                            <div className={styles.adjustmentName}>
+                              <span>{adj.name}</span>
+                              <span className={styles.adjustmentHint}>
+                                {t('overview.costBreakdown.oversubscribed', {
+                                  amount: formatCurrency(adj.maximumAmount),
+                                })}
+                              </span>
+                            </div>
+                          </td>
+                          <td className={styles.colBudget} />
+                          <td className={styles.colPayback} colSpan={2}>
+                            <span className={styles.adjustmentValue}>
+                              {formatCost(adjExcess, formatCurrency)}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              );
+            })()}
 
             {/* ===== SUMMARY SECTION (no column tints) ===== */}
             <tbody>

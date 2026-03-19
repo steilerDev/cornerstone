@@ -56,3 +56,18 @@
   color: var(--color-success-text-on-light);
   text-align: right;
 }
+
+.oversubscribedNote {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  font-size: var(--font-size-xs);
+  color: var(--color-warning-text-on-light);
+  padding-top: var(--spacing-1);
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--spacing-1);
+}
+
+.oversubscribedIcon {
+  flex-shrink: 0;
+}

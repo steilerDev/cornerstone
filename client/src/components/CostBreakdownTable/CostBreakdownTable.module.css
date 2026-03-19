@@ -407,8 +407,11 @@
 
 /* ---- Subsidy adjustment section ---- */
 
-.adjustmentSection td.colPayback {
-  box-shadow: inset 0 0 0 9999px color-mix(in srgb, var(--color-warning) 5%, transparent);
+.adjustmentValue {
+  color: var(--color-warning-text-on-light);
+  font-weight: var(--font-weight-semibold);
+  text-align: center;
+  display: block;
 }
 
 .adjustmentName {

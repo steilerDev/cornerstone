@@ -89,11 +89,11 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
           </dd>
         </div>
 
-        {subsidySummary.totalReductions > 0 && (
+        {subsidySummary.maxTotalPayback > 0 && (
           <div className={styles.metricItem}>
             <dt className={styles.metricItemLabel}>{t('cards.budgetSummary.subsidySavings')}</dt>
             <dd className={styles.metricItemValue} data-testid="subsidy-impact">
-              {formatCurrency(subsidySummary.totalReductions)}
+              {formatCurrency(subsidySummary.maxTotalPayback)}
             </dd>
           </div>
         )}

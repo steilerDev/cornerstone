@@ -106,7 +106,17 @@ export function BudgetSection<T extends BaseBudgetLine>({
       )}
 
       {/* Cost overview box */}
-      <BudgetCostOverview budgetLines={budgetLines} subsidyPayback={subsidyPayback} />
+      <BudgetCostOverview
+        budgetLines={budgetLines}
+        subsidyPayback={subsidyPayback}
+        oversubscribedSubsidyNames={
+          oversubscribedSubsidyIds && oversubscribedSubsidyIds.size > 0
+            ? linkedSubsidies
+                .filter((s) => oversubscribedSubsidyIds.has(s.id))
+                .map((s) => s.name)
+            : undefined
+        }
+      />
 
       {/* Budget line cards */}
       {budgetLines.length === 0 && !showBudgetForm && (
