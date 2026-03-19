@@ -33,38 +33,7 @@ export async function deleteWorkItemViaApi(page: Page, id: string): Promise<void
   await page.request.delete(`${API.workItems}/${id}`);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tags
-// ─────────────────────────────────────────────────────────────────────────────
-
-export async function createTagViaApi(
-  page: Page,
-  data: { name: string; color?: string },
-): Promise<string> {
-  const response = await page.request.post(API.tags, { data });
-  if (response.ok()) {
-    const body = (await response.json()) as { id: string; name: string; color: string | null };
-    return body.id;
-  }
-  // On 409 (tag name already exists due to parallel shard workers), fall back
-  // to fetching all tags and finding the pre-existing one by name.
-  if (response.status() === 409) {
-    const listResponse = await page.request.get(API.tags);
-    expect(listResponse.ok()).toBeTruthy();
-    const tags = (await listResponse.json()) as Array<{ id: string; name: string }>;
-    const existing = tags.find((t) => t.name === data.name);
-    expect(existing).toBeDefined();
-    return existing!.id;
-  }
-  // Unexpected failure — surface the error
-  expect(response.ok()).toBeTruthy();
-  // This line is unreachable but satisfies TypeScript
-  return '';
-}
-
-export async function deleteTagViaApi(page: Page, id: string): Promise<void> {
-  await page.request.delete(`${API.tags}/${id}`);
-}
+// Note: createTagViaApi / deleteTagViaApi were removed in EPIC-18 (tagging system removed).
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Budget Sources
@@ -139,7 +108,8 @@ export async function createHouseholdItemViaApi(
     name: string;
     category?: string;
     status?: string;
-    room?: string;
+    // Note: room field removed in EPIC-18 (replaced by AreaPicker/areaId)
+    areaId?: string | null;
     quantity?: number;
     [key: string]: unknown;
   },

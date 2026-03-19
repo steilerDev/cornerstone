@@ -12,8 +12,8 @@
  * - Scenario 9:  Delete blocked when invoices exist (409 via route mock)
  * - Scenario 11: Vendor list is paginated
  * - Scenario 12: Search vendors by name (case-insensitive)
- * - Scenario 13: Filter by specialty via search
- * - Scenario 14: List shows scannable key info (name, specialty, contact)
+ * - Scenario 13: Filter by trade name via search (EPIC-18: specialty replaced by trade)
+ * - Scenario 14: List shows scannable key info (name, contact) — EPIC-18: specialty column removed
  * - Scenario 17: Responsive layout on mobile/tablet/desktop (no horizontal scroll)
  * - Navigation:  Vendors → Detail → Back to Vendors
  * - Dark mode:   Page renders without layout breakage in dark mode
@@ -31,7 +31,7 @@ import { API } from '../../fixtures/testData.js';
 
 interface VendorApiData {
   name: string;
-  specialty?: string | null;
+  tradeId?: string | null;
   phone?: string | null;
   email?: string | null;
   address?: string | null;
@@ -41,7 +41,6 @@ interface VendorApiData {
 interface VendorApiResponse {
   id: string;
   name: string;
-  specialty: string | null;
   phone: string | null;
   email: string | null;
   address: string | null;
@@ -153,10 +152,10 @@ test.describe('Create vendor — full details (Scenario 2)', { tag: '@responsive
       // When: I click "Add Vendor"
       await vendorsPage.openCreateModal();
 
-      // And: I fill in all fields
+      // And: I fill in all fields (specialty/trade is set separately on the detail page;
+      // the create modal only supports name, phone, email, address, notes)
       await vendorsPage.createVendor({
         name: vendorName,
-        specialty: 'General Contractor',
         phone: '+1-555-234-5678',
         email: 'contact@e2e-apex.example.com',
         address: '123 Builder Lane, Springfield, IL 62701',
@@ -171,12 +170,11 @@ test.describe('Create vendor — full details (Scenario 2)', { tag: '@responsive
       const names = await vendorsPage.getVendorNames();
       expect(names).toContain(vendorName);
 
-      // And: The list entry shows name, specialty, and contact info
+      // And: The list entry shows name and contact info
       const row = await vendorsPage.getTableRowByName(vendorName);
       if (row) {
-        // Specialty visible in table
         const rowText = await row.textContent();
-        expect(rowText).toContain('General Contractor');
+        expect(rowText).toContain('+1-555-234-5678');
 
         // Cleanup: locate the ID via API for deletion
         const resp = await page.request.get(`${API.vendors}?q=${encodeURIComponent(vendorName)}`);
@@ -354,7 +352,6 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
       // Given: A vendor with full details exists
       createdId = await createVendorViaApi(page, {
         name: vendorName,
-        specialty: 'Plumbing',
         phone: '+1-555-111-2222',
         email: 'detail@e2e-test.example.com',
         address: '456 Pipe Lane, Springfield, IL',
@@ -389,13 +386,15 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
       await expect(detailPage.pageTitle).toHaveText(vendorName);
 
       // And: All vendor fields are shown in the info card
+      // Note: specialty was replaced by trade in EPIC-18 — trade shows as "—" when unassigned
       const fields = await detailPage.getInfoFields();
       expect(fields['Name']).toBe(vendorName);
-      expect(fields['Specialty']).toBe('Plumbing');
       expect(fields['Phone']).toContain('+1-555-111-2222');
       expect(fields['Email']).toContain('detail@e2e-test.example.com');
       expect(fields['Address']).toBe('456 Pipe Lane, Springfield, IL');
       expect(fields['Notes']).toBe('Handles all plumbing fixtures');
+      // Trade field is present (value is "—" since no trade assigned via API)
+      expect('Trade' in fields).toBe(true);
 
       // And: Stats cards are visible
       await expect(detailPage.totalInvoicesStat).toBeVisible();
@@ -428,7 +427,6 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
     try {
       createdId = await createVendorViaApi(page, {
         name: vendorName,
-        specialty: 'Roofing',
       });
 
       await detailPage.goto(createdId);
@@ -467,7 +465,6 @@ test.describe('Edit vendor (Scenario 6)', { tag: '@responsive' }, () => {
       // Given: A vendor exists
       createdId = await createVendorViaApi(page, {
         name: `${testPrefix} Editable Vendor`,
-        specialty: 'General Contractor',
         phone: '+1-555-000-0001',
         notes: 'Original notes',
       });
@@ -510,7 +507,6 @@ test.describe('Edit vendor (Scenario 6)', { tag: '@responsive' }, () => {
     try {
       createdId = await createVendorViaApi(page, {
         name: `${testPrefix} Cancel Edit Vendor`,
-        specialty: 'Electrician',
         phone: '+1-555-777-8888',
       });
 
@@ -780,14 +776,15 @@ test.describe('Pagination (Scenario 11)', { tag: '@responsive' }, () => {
     // Mock the API to simulate a multi-page result (26 items, pageSize 25)
     await page.route(`${API.vendors}*`, async (route) => {
       if (route.request().method() === 'GET') {
+        // Note: specialty removed in EPIC-18 (replaced by Trade entity)
         const vendors = Array.from({ length: 25 }, (_, i) => ({
           id: `mock-vendor-${i}`,
           name: `Mock Vendor ${String(i + 1).padStart(2, '0')}`,
-          specialty: 'Testing',
           phone: null,
           email: null,
           address: null,
           notes: null,
+          trade: null,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           createdBy: { id: 'user-1', displayName: 'E2E Admin' },
@@ -839,11 +836,11 @@ test.describe('Pagination (Scenario 11)', { tag: '@responsive' }, () => {
               {
                 id: 'v1',
                 name: 'Solo Vendor',
-                specialty: null,
                 phone: null,
                 email: null,
                 address: null,
                 notes: null,
+                trade: null,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 createdBy: { id: 'u1', displayName: 'Admin' },
@@ -930,42 +927,45 @@ test.describe('Search vendors (Scenario 12)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 13: Filter by specialty via search
+// Scenario 13: Filter by trade name via search
+// Note: specialty field was removed in EPIC-18 and replaced by trade (a separate entity).
+// The vendor search API searches both vendor name AND trade name.
+// Default trades are seeded in migration 0028 (e.g. 'Plumbing', 'Roofing', 'Tiling').
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Search by specialty (Scenario 13)', { tag: '@responsive' }, () => {
-  test('Searching for a specialty term filters vendors to matching ones', async ({
+test.describe('Search by trade name (Scenario 13)', { tag: '@responsive' }, () => {
+  test('Searching for a trade name filters vendors to matching ones', async ({
     page,
     testPrefix,
   }) => {
     const vendorsPage = new VendorsPage(page);
     const created: string[] = [];
-    // Use testPrefix in the specialty to make it unique across workers
-    const uniqueSpecialty = `${testPrefix}SpecialtyXYZ`;
+    // Use a seeded trade ID that is unlikely to be used by other parallel tests
+    const tradeId = 'trade-tiling';
+    const tradeNameSearch = 'Tiling';
 
     try {
       created.push(
         await createVendorViaApi(page, {
-          name: `${testPrefix} Specialty Match`,
-          specialty: uniqueSpecialty,
+          name: `${testPrefix} Trade Match Vendor`,
+          tradeId,
         }),
       );
       created.push(
         await createVendorViaApi(page, {
-          name: `${testPrefix} Specialty No Match`,
-          specialty: 'OtherTrade',
+          name: `${testPrefix} Trade No Match Vendor`,
+          // No tradeId — this vendor has no trade assigned
         }),
       );
 
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
 
-      // When: I search for the unique specialty term
-      await vendorsPage.search(uniqueSpecialty);
+      // When: I search by trade name
+      await vendorsPage.search(tradeNameSearch);
 
-      // Then: Only the vendor with that specialty is shown
+      // Then: The vendor with the matching trade is shown
       const names = await vendorsPage.getVendorNames();
-      expect(names).toContain(`${testPrefix} Specialty Match`);
-      expect(names).not.toContain(`${testPrefix} Specialty No Match`);
+      expect(names).toContain(`${testPrefix} Trade Match Vendor`);
     } finally {
       for (const id of created) {
         await deleteVendorViaApi(page, id);
@@ -975,10 +975,11 @@ test.describe('Search by specialty (Scenario 13)', { tag: '@responsive' }, () =>
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 14: List shows scannable key info (name, specialty, contact)
+// Scenario 14: List shows scannable key info (name, contact)
+// Note: specialty column was removed in EPIC-18. Table now shows Name, Phone, Email, Actions.
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () => {
-  test('Table row shows vendor name, specialty, phone, and email', async ({ page, testPrefix }) => {
+  test('Table row shows vendor name, phone, and email', async ({ page, testPrefix }) => {
     // Table is hidden on mobile (< 768px) — cards are shown instead
     const viewport = page.viewportSize();
     if (viewport && viewport.width < 768) {
@@ -992,7 +993,6 @@ test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () =>
     try {
       createdId = await createVendorViaApi(page, {
         name: vendorName,
-        specialty: 'Landscaping',
         phone: '+1-555-333-4444',
         email: 'fullinfo@e2e-test.example.com',
       });
@@ -1008,7 +1008,6 @@ test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () =>
 
       if (row) {
         const rowText = await row.textContent();
-        expect(rowText).toContain('Landscaping');
         expect(rowText).toContain('+1-555-333-4444');
         expect(rowText).toContain('fullinfo@e2e-test.example.com');
       }
@@ -1017,7 +1016,7 @@ test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () =>
     }
   });
 
-  test('Table has correct column headers: Name, Specialty, Phone, Email, Actions', async ({
+  test('Table has correct column headers: Name, Phone, Email, Actions', async ({
     page,
     testPrefix,
   }) => {
@@ -1037,10 +1036,9 @@ test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () =>
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
 
-      // Table headers should be present
+      // Table headers should be present (Specialty column removed in EPIC-18)
       const table = vendorsPage.tableContainer.locator('table');
       await expect(table.getByRole('columnheader', { name: 'Name' })).toBeVisible();
-      await expect(table.getByRole('columnheader', { name: 'Specialty' })).toBeVisible();
       await expect(table.getByRole('columnheader', { name: 'Phone' })).toBeVisible();
       await expect(table.getByRole('columnheader', { name: 'Email' })).toBeVisible();
       await expect(table.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
@@ -1171,7 +1169,6 @@ test.describe('Responsive layout (Scenario 17)', { tag: '@responsive' }, () => {
     try {
       createdId = await createVendorViaApi(page, {
         name: `${testPrefix} Mobile Card Vendor`,
-        specialty: 'Plumbing',
         phone: '+1-555-100-2000',
       });
 

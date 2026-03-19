@@ -110,28 +110,7 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
     hiCategoryIds: [],
   };
 
-  // ── Tags ──
-  const tags = [
-    { name: 'DR-Electrical', color: '#f59e0b' },
-    { name: 'DR-Plumbing', color: '#3b82f6' },
-    { name: 'DR-Exterior', color: '#10b981' },
-    { name: 'DR-Interior', color: '#8b5cf6' },
-  ];
-  const tagIds: number[] = [];
-  for (const tag of tags) {
-    const res = await request.post(`${baseUrl}/api/tags`, { data: tag });
-    if (res.ok()) {
-      const body = (await res.json()) as { id: number };
-      tagIds.push(body.id);
-    } else if (res.status() === 409) {
-      const listRes = await request.get(`${baseUrl}/api/tags`);
-      if (listRes.ok()) {
-        const list = (await listRes.json()) as { tags: Array<{ id: number; name: string }> };
-        const existing = list.tags.find((t) => t.name === tag.name);
-        if (existing) tagIds.push(existing.id);
-      }
-    }
-  }
+  // Note: tags were removed in EPIC-18 (tagging system removed)
 
   // ── Budget Categories ──
   const categories = [
@@ -184,6 +163,7 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
   });
 
   // ── Work Items (diverse statuses for richer views) ──
+  // Note: tagIds removed in EPIC-18 (tagging system removed)
   const workItems = [
     {
       title: 'DR-Install kitchen cabinets',
@@ -192,7 +172,6 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
       status: 'in_progress',
       startDate: '2026-03-01',
       endDate: '2026-03-15',
-      tagIds: tagIds.slice(0, 1),
     },
     {
       title: 'DR-Rough electrical wiring',
@@ -200,7 +179,6 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
       status: 'completed',
       startDate: '2026-02-01',
       endDate: '2026-02-20',
-      tagIds: [tagIds[0]],
     },
     {
       title: 'DR-Plumbing rough-in',
@@ -208,7 +186,6 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
       status: 'completed',
       startDate: '2026-02-05',
       endDate: '2026-02-25',
-      tagIds: [tagIds[1]],
     },
     {
       title: 'DR-Pour concrete foundation',
@@ -216,7 +193,6 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
       status: 'completed',
       startDate: '2026-01-10',
       endDate: '2026-01-25',
-      tagIds: [tagIds[3]],
     },
     {
       title: 'DR-Install exterior windows',
@@ -224,7 +200,6 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
       status: 'not_started',
       startDate: '2026-04-01',
       endDate: '2026-04-15',
-      tagIds: [tagIds[2]],
     },
     {
       title: 'DR-Drywall installation',
@@ -232,7 +207,6 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
       status: 'not_started',
       startDate: '2026-04-20',
       endDate: '2026-05-10',
-      tagIds: [tagIds[3]],
     },
     {
       title: 'DR-Paint interior rooms',
@@ -240,7 +214,6 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
       status: 'not_started',
       startDate: '2026-05-15',
       endDate: '2026-06-01',
-      tagIds: [tagIds[3]],
     },
     {
       title: 'DR-Install HVAC system',
@@ -248,7 +221,6 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
       status: 'in_progress',
       startDate: '2026-03-10',
       endDate: '2026-04-05',
-      tagIds: [tagIds[0]],
     },
     {
       title: 'DR-Roof shingling',
@@ -256,7 +228,6 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
       status: 'completed',
       startDate: '2026-01-28',
       endDate: '2026-02-10',
-      tagIds: [tagIds[2]],
     },
     {
       title: 'DR-Landscaping',
@@ -264,7 +235,6 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
       status: 'not_started',
       startDate: '2026-06-10',
       endDate: '2026-06-30',
-      tagIds: [tagIds[2]],
     },
   ];
   for (const item of workItems) {
@@ -439,12 +409,12 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
   await request.post(`${baseUrl}${API.schedule}/auto`);
 
   // ── Household Items ──
+  // Note: room field removed in EPIC-18 (replaced by AreaPicker; areas are not seeded here)
   const householdItems = [
     {
       name: 'DR-Kitchen island pendant lights',
       category: 'fixtures',
       status: 'purchased',
-      room: 'Kitchen',
       quantity: 3,
       description: 'Brass pendant lights for above the kitchen island.',
     },
@@ -452,7 +422,6 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
       name: 'DR-Dishwasher',
       category: 'appliances',
       status: 'scheduled',
-      room: 'Kitchen',
       quantity: 1,
       description: 'Energy Star rated built-in dishwasher.',
     },
@@ -460,7 +429,6 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
       name: 'DR-Living room sofa',
       category: 'furniture',
       status: 'planned',
-      room: 'Living Room',
       quantity: 1,
       description: 'L-shaped sectional sofa in charcoal grey.',
     },
@@ -468,7 +436,6 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
       name: 'DR-Smart thermostat',
       category: 'electronics',
       status: 'arrived',
-      room: 'Hallway',
       quantity: 1,
       description: 'Wi-Fi connected programmable thermostat.',
     },
@@ -476,7 +443,6 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
       name: 'DR-Bathroom vanity mirror',
       category: 'fixtures',
       status: 'planned',
-      room: 'Bathroom',
       quantity: 2,
       description: 'LED backlit vanity mirrors with anti-fog.',
     },
@@ -484,7 +450,6 @@ async function seedAllData(request: APIRequestContext, baseUrl: string): Promise
       name: 'DR-Dining table',
       category: 'furniture',
       status: 'purchased',
-      room: 'Dining Room',
       quantity: 1,
       description: 'Solid oak dining table, seats 8.',
     },
@@ -827,10 +792,11 @@ test.describe('Design Review Screenshots', () => {
     await captureViewFullPage(page, '60-profile-page');
   });
 
-  test('61-manage-tags', async ({ page }) => {
+  test('61-manage-areas', async ({ page }) => {
+    // Note: renamed from '61-manage-tags' in EPIC-18 (tagging system removed; page now shows Areas)
     await page.goto(`${baseUrl}/settings/manage`);
     await waitForPage(page);
-    await captureView(page, '61-manage-tags');
+    await captureView(page, '61-manage-areas');
   });
 
   test('62-manage-budget-categories', async ({ page }) => {

@@ -2,14 +2,15 @@
  * Page Object Model for the Household Items list page (/project/household-items)
  *
  * EPIC-04: Household Items & Furniture Management
+ * Updated in EPIC-18: #room-input filter removed (room field replaced by area entity);
+ *                     tags filter removed; area filter not added to list page filter panel.
  *
  * The page renders:
  * - A page header with h1 "Household Items" and an "Add new Household Item" button
  * - A search input (aria-label="Search household items") with 300ms debounce
- * - Filter panel (role="search", aria-label="Household item filters") with:
+ * - Filter panel (id="hi-filter-panel") with:
  *   - #category-filter (select)
  *   - #status-filter (select)
- *   - #room-input (text input)
  *   - #vendor-filter (select)
  *   - #sort-filter (select)
  *   - Toggle sort order button (aria-label="Toggle sort order")
@@ -25,7 +26,6 @@
  * - Empty state h2: "No household items yet" or "No household items match your filters"
  * - Table rows are clickable and navigate to detail page
  * - Actions menu button: aria-label="Actions for {item.name}" (⋮)
- * - Search debounce: 300ms, room filter debounce: 300ms
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -43,7 +43,6 @@ export class HouseholdItemsPage {
   readonly searchInput: Locator;
   readonly categoryFilter: Locator;
   readonly statusFilter: Locator;
-  readonly roomInput: Locator;
   readonly vendorFilter: Locator;
   readonly sortFilter: Locator;
   readonly sortOrderButton: Locator;
@@ -82,7 +81,7 @@ export class HouseholdItemsPage {
     this.searchInput = page.getByLabel('Search household items');
     this.categoryFilter = page.locator('#category-filter');
     this.statusFilter = page.locator('#status-filter');
-    this.roomInput = page.locator('#room-input');
+    // Note: #room-input removed in EPIC-18 (room replaced by area entity; no area filter on list page)
     this.vendorFilter = page.locator('#vendor-filter');
     this.sortFilter = page.locator('#sort-filter');
     this.sortOrderButton = page.getByLabel('Toggle sort order');

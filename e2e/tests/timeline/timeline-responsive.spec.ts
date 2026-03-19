@@ -450,9 +450,11 @@ test.describe('ARIA roles and labels (Scenario 7)', { tag: '@responsive' }, () =
 
       // Sidebar rows list has role=list and aria-label
       await expect(timelinePage.ganttSidebarRowsList).toHaveAttribute('role', 'list');
+      // aria-label comes from t('ganttSidebar.ariaLabel') in schedule.json
+      // Updated in EPIC-18 to include household items: "Work items, milestones, and household items"
       await expect(timelinePage.ganttSidebarRowsList).toHaveAttribute(
         'aria-label',
-        'Work items and milestones',
+        'Work items, milestones, and household items',
       );
     } finally {
       await page.unroute('**/api/timeline');
