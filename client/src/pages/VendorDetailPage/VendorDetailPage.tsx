@@ -511,7 +511,7 @@ export function VendorDetailPage() {
                   className={styles.saveButton}
                   disabled={isUpdating || !(editForm.name as string)?.trim()}
                 >
-                  {isUpdating ? 'Saving...' : 'Save Changes'}
+                  {isUpdating ? t('vendorDetail.buttons.saving') : t('vendorDetail.buttons.save')}
                 </button>
                 <button
                   type="button"
@@ -519,7 +519,7 @@ export function VendorDetailPage() {
                   onClick={cancelEdit}
                   disabled={isUpdating}
                 >
-                  Cancel
+                  {t('vendorDetail.buttons.cancel')}
                 </button>
               </div>
             </form>
@@ -610,7 +610,7 @@ export function VendorDetailPage() {
                 className={styles.secondaryButton}
                 onClick={() => void loadInvoices()}
               >
-                Retry
+                {t('vendorDetail.buttons.retry')}
               </button>
             </div>
           )}
@@ -765,10 +765,10 @@ export function VendorDetailPage() {
           <div className={styles.modalBackdrop} onClick={closeDeleteConfirm} />
           <div className={styles.modalContent}>
             <h2 id="delete-modal-title" className={styles.modalTitle}>
-              Delete Vendor
+              {t('vendorDetail.deleteModal.title')}
             </h2>
             <p className={styles.modalText}>
-              Are you sure you want to delete &quot;<strong>{vendor.name}</strong>&quot;?
+              {t('vendorDetail.deleteModal.confirm', { name: vendor.name })}
             </p>
 
             {deleteError ? (
@@ -776,7 +776,7 @@ export function VendorDetailPage() {
                 {deleteError}
               </div>
             ) : (
-              <p className={styles.modalWarning}>This action cannot be undone.</p>
+              <p className={styles.modalWarning}>{t('vendorDetail.deleteModal.warning')}</p>
             )}
 
             <div className={styles.modalActions}>
@@ -786,7 +786,7 @@ export function VendorDetailPage() {
                 onClick={closeDeleteConfirm}
                 disabled={isDeleting}
               >
-                Cancel
+                {t('vendorDetail.buttons.cancel')}
               </button>
               {!deleteError && (
                 <button
@@ -795,7 +795,7 @@ export function VendorDetailPage() {
                   onClick={() => void handleDelete()}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete Vendor'}
+                  {isDeleting ? t('vendorDetail.deleteModal.deleting') : t('vendorDetail.deleteModal.delete')}
                 </button>
               )}
             </div>
@@ -814,7 +814,7 @@ export function VendorDetailPage() {
           <div className={styles.modalBackdrop} onClick={closeCreateModal} />
           <div className={`${styles.modalContent} ${styles.modalContentWide}`}>
             <h2 id="create-invoice-modal-title" className={styles.modalTitle}>
-              Add Invoice
+              {t('vendorDetail.invoiceForm.title')}
             </h2>
 
             <form onSubmit={handleCreateInvoice} className={styles.form} noValidate>
@@ -827,7 +827,7 @@ export function VendorDetailPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="create-invoice-number" className={styles.label}>
-                    Invoice #
+                    {t('vendorDetail.invoiceForm.invoiceNumber')}
                   </label>
                   <input
                     type="text"
@@ -837,14 +837,14 @@ export function VendorDetailPage() {
                       setCreateForm({ ...createForm, invoiceNumber: e.target.value })
                     }
                     className={styles.input}
-                    placeholder="e.g., INV-001"
+                    placeholder={t('vendorDetail.invoiceForm.invoiceNumberPlaceholder')}
                     maxLength={100}
                     disabled={isCreating}
                   />
                 </div>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="create-amount" className={styles.label}>
-                    Amount <span className={styles.required}>*</span>
+                    {t('vendorDetail.invoiceForm.amount')} <span className={styles.required}>*</span>
                   </label>
                   <input
                     type="number"
@@ -864,7 +864,7 @@ export function VendorDetailPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="create-date" className={styles.label}>
-                    Invoice Date <span className={styles.required}>*</span>
+                    {t('vendorDetail.invoiceForm.invoiceDate')} <span className={styles.required}>*</span>
                   </label>
                   <input
                     type="date"
@@ -878,7 +878,7 @@ export function VendorDetailPage() {
                 </div>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="create-due-date" className={styles.label}>
-                    Due Date
+                    {t('vendorDetail.invoiceForm.dueDate')}
                   </label>
                   <input
                     type="date"
@@ -893,7 +893,7 @@ export function VendorDetailPage() {
 
               <div className={styles.field}>
                 <label htmlFor="create-status" className={styles.label}>
-                  Status
+                  {t('vendorDetail.invoiceForm.status')}
                 </label>
                 <select
                   id="create-status"
@@ -904,15 +904,16 @@ export function VendorDetailPage() {
                   className={styles.select}
                   disabled={isCreating}
                 >
-                  <option value="pending">Pending</option>
-                  <option value="paid">Paid</option>
-                  <option value="claimed">Claimed</option>
+                  <option value="quotation">{t('vendorDetail.invoiceForm.statusQuotation')}</option>
+                  <option value="pending">{t('vendorDetail.invoiceForm.statusPending')}</option>
+                  <option value="paid">{t('vendorDetail.invoiceForm.statusPaid')}</option>
+                  <option value="claimed">{t('vendorDetail.invoiceForm.statusClaimed')}</option>
                 </select>
               </div>
 
               <div className={styles.field}>
                 <label htmlFor="create-notes" className={styles.label}>
-                  Notes
+                  {t('vendorDetail.invoiceForm.notes')}
                 </label>
                 <textarea
                   id="create-notes"
@@ -931,14 +932,14 @@ export function VendorDetailPage() {
                   onClick={closeCreateModal}
                   disabled={isCreating}
                 >
-                  Cancel
+                  {t('vendorDetail.buttons.cancel')}
                 </button>
                 <button
                   type="submit"
                   className={styles.saveButton}
                   disabled={isCreating || !createForm.amount || !createForm.date}
                 >
-                  {isCreating ? 'Adding...' : 'Add Invoice'}
+                  {isCreating ? t('vendorDetail.invoiceForm.adding') : t('vendorDetail.invoiceForm.add')}
                 </button>
               </div>
             </form>
@@ -957,16 +958,13 @@ export function VendorDetailPage() {
           <div className={styles.modalBackdrop} onClick={closeDeleteInvoiceConfirm} />
           <div className={styles.modalContent}>
             <h2 id="delete-invoice-modal-title" className={styles.modalTitle}>
-              Delete Invoice
+              {t('vendorDetail.deleteInvoiceModal.title')}
             </h2>
             <p className={styles.modalText}>
-              Are you sure you want to delete invoice{' '}
-              {deletingInvoice.invoiceNumber ? (
-                <strong>#{deletingInvoice.invoiceNumber}</strong>
-              ) : (
-                'this invoice'
-              )}{' '}
-              for <strong>{formatCurrency(deletingInvoice.amount)}</strong>?
+              {t('vendorDetail.deleteInvoiceModal.confirm', {
+                number: deletingInvoice.invoiceNumber || t('vendorDetail.deleteInvoiceModal.noNumber'),
+                amount: formatCurrency(deletingInvoice.amount),
+              })}
             </p>
 
             {deleteInvoiceError ? (
@@ -974,7 +972,7 @@ export function VendorDetailPage() {
                 {deleteInvoiceError}
               </div>
             ) : (
-              <p className={styles.modalWarning}>This action cannot be undone.</p>
+              <p className={styles.modalWarning}>{t('vendorDetail.deleteInvoiceModal.warning')}</p>
             )}
 
             <div className={styles.modalActions}>
@@ -984,7 +982,7 @@ export function VendorDetailPage() {
                 onClick={closeDeleteInvoiceConfirm}
                 disabled={isDeletingInvoice}
               >
-                Cancel
+                {t('vendorDetail.buttons.cancel')}
               </button>
               {!deleteInvoiceError && (
                 <button
@@ -993,7 +991,7 @@ export function VendorDetailPage() {
                   onClick={() => void handleDeleteInvoice()}
                   disabled={isDeletingInvoice}
                 >
-                  {isDeletingInvoice ? 'Deleting...' : 'Delete Invoice'}
+                  {isDeletingInvoice ? t('vendorDetail.deleteInvoiceModal.deleting') : t('vendorDetail.deleteInvoiceModal.delete')}
                 </button>
               )}
             </div>

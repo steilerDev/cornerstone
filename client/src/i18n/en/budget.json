@@ -205,8 +205,13 @@
       "delete": "Delete",
       "deleting": "Deleting...",
       "view": "View",
-      "viewDetails": "View Details"
+      "viewDetails": "View Details",
+      "retry": "Retry"
     },
+    "tableHeaders": {
+      "actions": "Actions"
+    },
+    "searchAriaLabel": "Search vendors",
     "modal": {
       "title": "Add Vendor",
       "description": "Add a vendor or contractor involved in your construction project.",
@@ -270,8 +275,40 @@
       "save": "Save Changes",
       "saving": "Saving...",
       "cancel": "Cancel",
+      "retry": "Retry",
       "editRow": "Edit",
       "deleteRow": "Delete"
+    },
+    "deleteModal": {
+      "title": "Delete Vendor",
+      "confirm": "Are you sure you want to delete \"{{name}}\"?",
+      "warning": "This action cannot be undone.",
+      "delete": "Delete Vendor",
+      "deleting": "Deleting..."
+    },
+    "invoiceForm": {
+      "title": "Add Invoice",
+      "invoiceNumber": "Invoice #",
+      "invoiceNumberPlaceholder": "e.g., INV-001",
+      "amount": "Amount",
+      "invoiceDate": "Invoice Date",
+      "dueDate": "Due Date",
+      "status": "Status",
+      "statusQuotation": "Quotation",
+      "statusPending": "Pending",
+      "statusPaid": "Paid",
+      "statusClaimed": "Claimed",
+      "notes": "Notes",
+      "add": "Add Invoice",
+      "adding": "Adding..."
+    },
+    "deleteInvoiceModal": {
+      "title": "Delete Invoice",
+      "confirm": "Are you sure you want to delete invoice {{number}} for {{amount}}?",
+      "noNumber": "this invoice",
+      "warning": "This action cannot be undone.",
+      "delete": "Delete Invoice",
+      "deleting": "Deleting..."
     },
     "invoiceStatusLabels": {
       "pending": "Pending",

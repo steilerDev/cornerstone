@@ -246,6 +246,7 @@
       "colorLabel": "Color",
       "sortOrderLabel": "Sort Order",
       "createButton": "Create Category",
+      "cancel": "Cancel",
       "creating": "Creating...",
       "cancel": "Cancel",
       "addButton": "Add Category",

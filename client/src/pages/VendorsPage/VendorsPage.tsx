@@ -263,7 +263,7 @@ export function VendorsPage() {
           <div className={styles.errorBanner} role="alert">
             {error}
             <button type="button" className={styles.retryButton} onClick={() => void loadVendors()}>
-              Retry
+              {t('vendors.buttons.retry')}
             </button>
           </div>
         )}
@@ -276,7 +276,7 @@ export function VendorsPage() {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             className={styles.searchInput}
-            aria-label="Search vendors"
+            aria-label={t('vendors.searchAriaLabel')}
           />
           <div className={styles.sortRow}>
             <label htmlFor="sort-select" className={styles.sortLabel}>
@@ -354,7 +354,7 @@ export function VendorsPage() {
                     </th>
                     <th>{t('vendors.form.phone')}</th>
                     <th>{t('vendors.form.email')}</th>
-                    <th className={styles.actionsColumn}>Actions</th>
+                    <th className={styles.actionsColumn}>{t('vendors.tableHeaders.actions')}</th>
                   </tr>
                 </thead>
                 <tbody>

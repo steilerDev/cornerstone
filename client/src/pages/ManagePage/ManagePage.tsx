@@ -1292,7 +1292,7 @@ function BudgetCategoriesTab() {
 
               <div className={styles.fieldFixed}>
                 <label htmlFor="categoryColor" className={styles.label}>
-                  Color
+                  {t('manage.budgetCategories.colorLabel')}
                 </label>
                 <div className={styles.colorWrapper}>
                   <input
@@ -1330,7 +1330,7 @@ function BudgetCategoriesTab() {
 
             <div className={styles.field}>
               <label htmlFor="categoryDescription" className={styles.label}>
-                Description
+                {t('manage.budgetCategories.descriptionLabel')}
               </label>
               <input
                 type="text"
@@ -1338,7 +1338,7 @@ function BudgetCategoriesTab() {
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
                 className={styles.input}
-                placeholder="Optional description"
+                placeholder={t('manage.budgetCategories.descriptionPlaceholder')}
                 maxLength={500}
                 disabled={isCreating}
               />
@@ -1428,7 +1428,7 @@ function BudgetCategoriesTab() {
 
                       <div className={styles.fieldFixed}>
                         <label htmlFor={`edit-color-${category.id}`} className={styles.label}>
-                          Color
+                          {t('manage.budgetCategories.colorLabel')}
                         </label>
                         <div className={styles.colorWrapper}>
                           <input
@@ -1877,7 +1877,7 @@ function HouseholdItemCategoriesTab() {
 
               <div className={styles.fieldFixed}>
                 <label htmlFor="categoryColor" className={styles.label}>
-                  Color
+                  {t('manage.householdItemCategories.colorLabel')}
                 </label>
                 <div className={styles.colorWrapper}>
                   <input
@@ -1935,7 +1935,7 @@ function HouseholdItemCategoriesTab() {
                 }}
                 disabled={isCreating}
               >
-                {t('manage.budgetCategories.cancel')}
+                {t('manage.householdItemCategories.cancel')}
               </button>
             </div>
           </form>
@@ -1996,7 +1996,7 @@ function HouseholdItemCategoriesTab() {
 
                       <div className={styles.fieldFixed}>
                         <label htmlFor={`edit-color-${category.id}`} className={styles.label}>
-                          Color
+                          {t('manage.householdItemCategories.colorLabel')}
                         </label>
                         <div className={styles.colorWrapper}>
                           <input
