@@ -262,6 +262,7 @@ export interface HouseholdItemListQuery {
   room?: string;
   vendorId?: string;
   tagId?: string;
+  noBudget?: boolean;
   sortBy?:
     | 'name'
     | 'category'

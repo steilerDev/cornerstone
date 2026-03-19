@@ -70,6 +70,7 @@ const listHouseholdItemsSchema = {
         ],
       },
       sortOrder: { type: 'string', enum: ['asc', 'desc'] },
+      noBudget: { type: 'boolean' },
     },
     additionalProperties: false,
   },
