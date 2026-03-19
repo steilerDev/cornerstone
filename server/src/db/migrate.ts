@@ -33,10 +33,19 @@ export function runMigrations(db: Database.Database, customMigrationsDir?: strin
   for (const file of files) {
     if (applied.has(file)) continue;
     const sql = readFileSync(join(migrationsDir, file), 'utf-8');
+
+    // Disable FK enforcement OUTSIDE the transaction (PRAGMA is a no-op inside transactions).
+    // This prevents CASCADE deletes during table-recreation migrations.
+    db.pragma('foreign_keys = OFF');
+
     db.transaction(() => {
       db.exec(sql);
       db.prepare('INSERT INTO _migrations (name) VALUES (?)').run(file);
     })();
+
+    // Re-enable FK enforcement after migration completes
+    db.pragma('foreign_keys = ON');
+
     console.warn(`Applied migration: ${file}`);
   }
 }
