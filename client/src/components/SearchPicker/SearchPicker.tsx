@@ -60,9 +60,17 @@ export function SearchPicker<T>({
   const [selectedItem, setSelectedItem] = useState<T | null>(null);
   // Track whether the user has explicitly cleared an initialTitle-based selection
   const [initialTitleCleared, setInitialTitleCleared] = useState(false);
+  // Track whether the user has explicitly selected a special option
+  const [specialSelected, setSpecialSelected] = useState(false);
+  // Track whether we just cleared a special option (to prevent immediate re-match)
+  const [justClearedSpecial, setJustClearedSpecial] = useState(false);
 
   // The currently selected special option (if value matches one)
-  const selectedSpecial = specialOptions?.find((opt) => opt.id === value) ?? null;
+  // Don't show if: we just cleared it OR user hasn't explicitly selected it
+  const selectedSpecial =
+    !justClearedSpecial && specialSelected && specialOptions
+      ? (specialOptions.find((opt) => opt.id === value) ?? null)
+      : null;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -91,8 +99,17 @@ export function SearchPicker<T>({
       setSelectedItem(null);
       setSearchTerm('');
       setInitialTitleCleared(false);
+      setSpecialSelected(false);
+      setJustClearedSpecial(false);
+    } else {
+      // If value changes to a non-empty value, clear the "just cleared" flag
+      // and set specialSelected if this is a special option id
+      setJustClearedSpecial(false);
+      if (specialOptions?.some((opt) => opt.id === value)) {
+        setSpecialSelected(true);
+      }
     }
-  }, [value]);
+  }, [value, specialOptions]);
 
   // Cleanup debounce on unmount
   useEffect(() => {
@@ -175,6 +192,7 @@ export function SearchPicker<T>({
 
   const handleSelectSpecial = (opt: SpecialOption) => {
     setSelectedItem(null); // clear any real item selection
+    setSpecialSelected(true);
     onChange(opt.id);
     onSelectItem?.({ id: opt.id, label: opt.label });
     setIsOpen(false);
@@ -185,6 +203,8 @@ export function SearchPicker<T>({
   const handleClear = () => {
     setSelectedItem(null);
     setInitialTitleCleared(true);
+    setSpecialSelected(false);
+    setJustClearedSpecial(true);
     onChange('');
     setSearchTerm('');
     setResults([]);
