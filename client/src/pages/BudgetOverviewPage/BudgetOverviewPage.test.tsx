@@ -4,7 +4,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import type * as BudgetOverviewApiTypes from '../../lib/budgetOverviewApi.js';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -1292,6 +1292,58 @@ describe('BudgetOverviewPage', () => {
       await waitFor(() => {
         expect(screen.queryByText(/incl\. payback/i)).not.toBeInTheDocument();
       });
+    });
+  });
+
+  // ─── Story #1015: Quick-action buttons ────────────────────────────────────
+
+  describe('Quick-action buttons', () => {
+    /** Captures the current router location so we can assert navigation. */
+    function LocationDisplay() {
+      const location = useLocation();
+      return <div data-testid="location">{location.pathname}</div>;
+    }
+
+    function renderWithLocation() {
+      return render(
+        <MemoryRouter initialEntries={['/budget/overview']}>
+          <BudgetOverviewPage />
+          <LocationDisplay />
+        </MemoryRouter>,
+      );
+    }
+
+    it('renders Add Invoice and Add Vendor buttons in the loading state', () => {
+      // Keep APIs pending so the loading branch renders
+      mockFetchBudgetOverview.mockReturnValueOnce(new Promise(() => {}));
+      mockFetchBudgetSources.mockReturnValueOnce(new Promise(() => {}));
+
+      renderWithLocation();
+
+      expect(screen.getAllByTestId('budget-overview-add-invoice').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByTestId('budget-overview-add-vendor').length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('clicking Add Invoice navigates to /budget/invoices', async () => {
+      mockFetchBudgetOverview.mockReturnValueOnce(new Promise(() => {}));
+      mockFetchBudgetSources.mockReturnValueOnce(new Promise(() => {}));
+
+      renderWithLocation();
+
+      await userEvent.click(screen.getAllByTestId('budget-overview-add-invoice')[0]);
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/budget/invoices');
+    });
+
+    it('clicking Add Vendor navigates to /budget/vendors', async () => {
+      mockFetchBudgetOverview.mockReturnValueOnce(new Promise(() => {}));
+      mockFetchBudgetSources.mockReturnValueOnce(new Promise(() => {}));
+
+      renderWithLocation();
+
+      await userEvent.click(screen.getAllByTestId('budget-overview-add-vendor')[0]);
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/budget/vendors');
     });
   });
 });
