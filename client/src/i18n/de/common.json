@@ -25,7 +25,13 @@
     "openMenu": "Menü öffnen",
     "goToOverview": "Zur Projektübersicht",
     "closeDialog": "Dialog schließen",
-    "clearSelection": "Auswahl aufheben"
+    "clearSelection": "Auswahl aufheben",
+    "noArea": "Kein Bereich",
+    "noTrade": "Kein Gewerk",
+    "selectArea": "Bereich auswählen",
+    "selectTrade": "Gewerk auswählen",
+    "selectAssignment": "Benutzer oder Auftragnehmer auswählen",
+    "unassigned": "Nicht zugewiesen"
   },
   "loading": "Wird geladen...",
   "searching": "Suche läuft...",
@@ -78,6 +84,10 @@
   },
   "toast": {
     "dismissAriaLabel": "Benachrichtigung schließen"
+  },
+  "assignmentPicker": {
+    "usersGroup": "Benutzer",
+    "vendorsGroup": "Auftragnehmer"
   },
   "subnav": {
     "project": {

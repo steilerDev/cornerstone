@@ -1,6 +1,7 @@
 /**
- * Tags are removed in EPIC-18. This file will be deleted in Story 6.
- * All functions return empty/no-op stubs since the /api/tags endpoint no longer exists.
+ * Tags are removed in EPIC-18. This stub prevents compilation errors
+ * in files that still import tags (WorkItemDetailPage, WorkItemsPage).
+ * These imports will be removed in Story #1037.
  */
 
 export interface TagResponse {
@@ -23,30 +24,18 @@ export interface UpdateTagRequest {
   color?: string;
 }
 
-/**
- * Returns an empty tag list (tags endpoint removed in EPIC-18).
- */
 export function fetchTags(): Promise<TagListResponse> {
   return Promise.resolve({ tags: [] });
 }
 
-/**
- * No-op (tags endpoint removed in EPIC-18).
- */
 export function createTag(_data: CreateTagRequest): Promise<TagResponse> {
   return Promise.reject(new Error('Tags have been removed'));
 }
 
-/**
- * No-op (tags endpoint removed in EPIC-18).
- */
 export function updateTag(_id: string, _data: UpdateTagRequest): Promise<TagResponse> {
   return Promise.reject(new Error('Tags have been removed'));
 }
 
-/**
- * No-op (tags endpoint removed in EPIC-18).
- */
 export function deleteTag(_id: string): Promise<void> {
   return Promise.reject(new Error('Tags have been removed'));
 }

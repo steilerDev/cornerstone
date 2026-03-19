@@ -25,7 +25,13 @@
     "openMenu": "Open menu",
     "goToOverview": "Go to project overview",
     "closeDialog": "Close dialog",
-    "clearSelection": "Clear selection"
+    "clearSelection": "Clear selection",
+    "noArea": "No area",
+    "noTrade": "No trade",
+    "selectArea": "Select an area",
+    "selectTrade": "Select a trade",
+    "selectAssignment": "Select user or vendor",
+    "unassigned": "Unassigned"
   },
   "loading": "Loading...",
   "searching": "Searching...",
@@ -78,6 +84,10 @@
   },
   "toast": {
     "dismissAriaLabel": "Dismiss notification"
+  },
+  "assignmentPicker": {
+    "usersGroup": "Users",
+    "vendorsGroup": "Vendors"
   },
   "subnav": {
     "project": {

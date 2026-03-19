@@ -20,6 +20,8 @@
     "Critical Path": { "de": { "singular": "Kritischer Pfad" } },
     "Gantt Chart": { "de": { "singular": "Gantt-Diagramm" } },
     "Dashboard": { "de": { "singular": "Projektübersicht" } },
-    "Quotation": { "de": { "singular": "Angebot", "plural": "Angebote" } }
+    "Quotation": { "de": { "singular": "Angebot", "plural": "Angebote" } },
+    "Area": { "de": { "singular": "Bereich", "plural": "Bereiche" } },
+    "Trade": { "de": { "singular": "Gewerk", "plural": "Gewerke" } }
   }
 }
