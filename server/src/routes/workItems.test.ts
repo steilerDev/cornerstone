@@ -14,7 +14,6 @@ import type {
   CreateWorkItemRequest,
   UpdateWorkItemRequest,
 } from '@cornerstone/shared';
-import { tags } from '../db/schema.js';
 
 describe('Work Item Routes', () => {
   let app: FastifyInstance;
@@ -68,23 +67,6 @@ describe('Work Item Routes', () => {
     };
   }
 
-  /**
-   * Helper: Create a tag
-   */
-  function createTestTag(name: string, color: string = '#3b82f6') {
-    const tagId = `tag-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    app.db
-      .insert(tags)
-      .values({
-        id: tagId,
-        name,
-        color,
-        createdAt: new Date().toISOString(),
-      })
-      .run();
-    return tagId;
-  }
-
   describe('POST /api/work-items', () => {
     it('creates work item with minimum required fields (UAT-3.2-01)', async () => {
       // Given: Authenticated member user
@@ -125,13 +107,13 @@ describe('Work Item Routes', () => {
       expect(workItem.startBefore).toBeNull();
       expect(workItem.assignedUser).toBeNull();
       expect(workItem.createdBy?.id).toBe(userId);
-      expect(workItem.tags).toEqual([]);
+      expect(workItem.area).toBeNull();
       expect(workItem.createdAt).toBeDefined();
       expect(workItem.updatedAt).toBeDefined();
     });
 
     it('creates work item with all optional fields (UAT-3.2-02)', async () => {
-      // Given: Admin user, a tag, and another user
+      // Given: Admin user and another user
       const { cookie } = await createUserWithSession(
         'admin@example.com',
         'Admin',
@@ -140,7 +122,6 @@ describe('Work Item Routes', () => {
       );
       const assigneeId = (await createUserWithSession('assignee@example.com', 'Assignee', 'pass'))
         .userId;
-      const tagId = createTestTag('Foundation');
 
       const body: CreateWorkItemRequest = {
         title: 'Pour foundation',
@@ -152,7 +133,6 @@ describe('Work Item Routes', () => {
         startAfter: '2026-02-28',
         startBefore: '2026-03-10',
         assignedUserId: assigneeId,
-        tagIds: [tagId],
       };
 
       // When: Creating work item
@@ -180,8 +160,6 @@ describe('Work Item Routes', () => {
       expect(workItem.startAfter).toBe('2026-02-28');
       expect(workItem.startBefore).toBe('2026-03-10');
       expect(workItem.assignedUser?.id).toBe(assigneeId);
-      expect(workItem.tags).toHaveLength(1);
-      expect(workItem.tags[0].name).toBe('Foundation');
     });
 
     it('fails with 400 when title is empty (UAT-3.2-03)', async () => {
@@ -327,16 +305,16 @@ describe('Work Item Routes', () => {
       expect(error.error.message).toContain('User not found');
     });
 
-    it('fails with 400 when tagId does not exist (UAT-3.2-09)', async () => {
+    it('fails with 400 when areaId does not exist (UAT-3.2-09)', async () => {
       // Given: Authenticated user
       const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
 
       const body: CreateWorkItemRequest = {
         title: 'Test',
-        tagIds: ['non-existent-tag-uuid'],
+        areaId: 'non-existent-area-uuid',
       };
 
-      // When: Creating with non-existent tag
+      // When: Creating with non-existent area
       const response = await app.inject({
         method: 'POST',
         url: '/api/work-items',
@@ -348,7 +326,7 @@ describe('Work Item Routes', () => {
       expect(response.statusCode).toBe(400);
       const error = JSON.parse(response.body) as ApiErrorResponse;
       expect(error.error.code).toBe('VALIDATION_ERROR');
-      expect(error.error.message).toContain('Tag not found');
+      expect(error.error.message).toContain('Area not found');
     });
 
     it('fails with 400 when date format is invalid (UAT-3.2-10)', async () => {
@@ -661,35 +639,26 @@ describe('Work Item Routes', () => {
       expect(result.items.every((item) => item.assignedUser?.id === userA)).toBe(true);
     });
 
-    it('filters by tagId (UAT-3.2-18)', async () => {
-      // Given: Work items with various tags
+    it('accepts areaId filter without error (UAT-3.2-18)', async () => {
+      // Given: Work items exist (no area assigned)
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'User',
         'password',
       );
-      const tagA = createTestTag('Tag A');
-      const tagB = createTestTag('Tag B');
+      workItemService.createWorkItem(app.db, userId, { title: 'Item without area' });
 
-      workItemService.createWorkItem(app.db, userId, { title: 'Has A', tagIds: [tagA] });
-      workItemService.createWorkItem(app.db, userId, { title: 'Has B', tagIds: [tagB] });
-      workItemService.createWorkItem(app.db, userId, {
-        title: 'Has A and B',
-        tagIds: [tagA, tagB],
-      });
-
-      // When: Filtering by tagA
+      // When: Filtering by a non-existent areaId
       const response = await app.inject({
         method: 'GET',
-        url: `/api/work-items?tagId=${tagA}`,
+        url: '/api/work-items?areaId=non-existent-area',
         headers: { cookie },
       });
 
-      // Then: Returns items with tagA
+      // Then: Returns 200 with empty list (filter is accepted)
       expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.body) as WorkItemListResponse;
-      expect(result.items).toHaveLength(2);
-      expect(result.items.every((item) => item.tags.some((t) => t.id === tagA))).toBe(true);
+      expect(result.items).toHaveLength(0);
     });
 
     it('searches title and description (UAT-3.2-19)', async () => {
@@ -872,16 +841,14 @@ describe('Work Item Routes', () => {
 
   describe('GET /api/work-items/:id', () => {
     it('returns complete work item detail (UAT-3.2-24)', async () => {
-      // Given: Work item with tags, subtask, and dependencies
+      // Given: Work item with subtask and dependencies
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'User',
         'password',
       );
-      const tagId = createTestTag('Foundation');
       const workItem = workItemService.createWorkItem(app.db, userId, {
         title: 'Main Task',
-        tagIds: [tagId],
       });
 
       // When: Getting work item detail
@@ -895,7 +862,8 @@ describe('Work Item Routes', () => {
       expect(response.statusCode).toBe(200);
       const detail = JSON.parse(response.body) as WorkItemDetail;
       expect(detail.id).toBe(workItem.id);
-      expect(detail.tags).toHaveLength(1);
+      expect(detail.area).toBeNull();
+      expect(detail.assignedVendor).toBeNull();
       expect(detail.subtasks).toBeDefined();
       expect(detail.dependencies).toBeDefined();
     });
@@ -1124,24 +1092,20 @@ describe('Work Item Routes', () => {
       expect(error.error.code).toBe('UNAUTHORIZED');
     });
 
-    it('allows updating tags (replaces, not merges) (UAT-3.2-33)', async () => {
-      // Given: Work item with tags [A]
+    it('allows updating assignedVendorId to null (UAT-3.2-33)', async () => {
+      // Given: Work item with an assigned vendor (via assignedVendorId)
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'User',
         'password',
       );
-      const tagA = createTestTag('Tag A');
-      const tagB = createTestTag('Tag B');
-      const tagC = createTestTag('Tag C');
       const workItem = workItemService.createWorkItem(app.db, userId, {
         title: 'Test',
-        tagIds: [tagA],
       });
 
-      // When: Updating tags to [B, C]
+      // When: Updating assignedVendorId to null
       const body: UpdateWorkItemRequest = {
-        tagIds: [tagB, tagC],
+        assignedVendorId: null,
       };
       const response = await app.inject({
         method: 'PATCH',
@@ -1150,12 +1114,10 @@ describe('Work Item Routes', () => {
         payload: body,
       });
 
-      // Then: Tags are [B, C] (replaced)
+      // Then: assignedVendor is null
       expect(response.statusCode).toBe(200);
       const updated = JSON.parse(response.body) as WorkItemDetail;
-      expect(updated.tags).toHaveLength(2);
-      const tagNames = updated.tags.map((t) => t.name).sort();
-      expect(tagNames).toEqual(['Tag B', 'Tag C']);
+      expect(updated.assignedVendor).toBeNull();
     });
 
     it('allows member users to update work items (UAT-3.2-38)', async () => {
@@ -1186,16 +1148,14 @@ describe('Work Item Routes', () => {
 
   describe('DELETE /api/work-items/:id', () => {
     it('deletes work item and cascades (UAT-3.2-34)', async () => {
-      // Given: Work item with tags and subtask
+      // Given: Work item to delete
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'User',
         'password',
       );
-      const tagId = createTestTag('Test Tag');
       const workItem = workItemService.createWorkItem(app.db, userId, {
         title: 'To Delete',
-        tagIds: [tagId],
       });
 
       // When: Deleting work item
