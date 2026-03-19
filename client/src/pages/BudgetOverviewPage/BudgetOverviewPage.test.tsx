@@ -1216,6 +1216,7 @@ describe('BudgetOverviewPage', () => {
             minSubsidyPayback: 0,
           },
         },
+        subsidyAdjustments: [],
       });
 
       renderPage();

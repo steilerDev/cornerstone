@@ -151,7 +151,6 @@ const emptyTimelineResponse: TimelineResponse = {
   householdItems: [],
   criticalPath: [],
   dateRange: null,
-subsidyAdjustments: [],
 };
 
 const emptyInvoicesResponse: InvoiceListPaginatedResponse = {
