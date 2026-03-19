@@ -14,7 +14,7 @@
       "allUsers": "All Users",
       "tag": "Tag:",
       "allTags": "All Tags",
-      "noBudget": "No Budget",
+      "noBudget": "No Budget Lines",
       "noBudgetAriaLabel": "Show only work items without budget lines",
       "noBudgetActive": "No Budget filter active",
       "noBudgetInactive": "No Budget filter cleared",
