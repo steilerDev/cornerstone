@@ -703,7 +703,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
   }
 
   // Combined invoice map for subsidy effect calculations
-  const combinedInvoiceMap = new Map<string, number>();
+  const combinedInvoiceMap = new Map<string, number | { actualCost: number; isQuotation: boolean }>();
   for (const [k, v] of wiLineInvoiceMap) combinedInvoiceMap.set(k, v);
   for (const [k, v] of hiLineInvoiceMap) combinedInvoiceMap.set(k, v);
 
