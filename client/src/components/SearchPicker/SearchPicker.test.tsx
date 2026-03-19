@@ -930,6 +930,46 @@ describe('SearchPicker', () => {
       expect(screen.queryByText('No Area')).not.toBeInTheDocument();
     });
 
+    it('re-selecting "No Area" after clearing it shows selected display again', async () => {
+      const user = userEvent.setup();
+      const onChange = jest.fn<(id: string) => void>();
+
+      renderPicker({
+        value: '',
+        specialOptions: emptyIdSpecialOptions,
+        onChange: onChange as ReturnType<typeof jest.fn>,
+        placeholder: 'Search...',
+      });
+
+      // First selection
+      const input = screen.getByPlaceholderText('Search...');
+      await user.click(input);
+      await waitFor(() =>
+        expect(screen.getByRole('option', { name: 'No Area' })).toBeInTheDocument(),
+      );
+      await user.click(screen.getByRole('option', { name: 'No Area' }));
+      await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+
+      // Clear — onChange called with ''
+      const clearBtn = screen.getByRole('button', { name: /clear selection/i });
+      await user.click(clearBtn);
+      expect(onChange).toHaveBeenLastCalledWith('');
+      await waitFor(() => expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument());
+
+      // Re-select — selected display must appear again
+      const inputAfterClear = screen.getByPlaceholderText('Search...');
+      await user.click(inputAfterClear);
+      await waitFor(() =>
+        expect(screen.getByRole('option', { name: 'No Area' })).toBeInTheDocument(),
+      );
+      await user.click(screen.getByRole('option', { name: 'No Area' }));
+      await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+
+      // Selected display must appear — not the input
+      expect(screen.getByText('No Area')).toBeInTheDocument();
+      expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+    });
+
     it('selecting a real item after clearing a special option works normally', async () => {
       const user = userEvent.setup();
       const onChange = jest.fn<(id: string) => void>();
