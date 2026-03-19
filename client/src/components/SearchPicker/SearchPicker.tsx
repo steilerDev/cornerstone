@@ -192,7 +192,7 @@ export function SearchPicker<T>({
   };
 
   // If a special option is selected, show it in a display similar to selectedItem
-  if (selectedSpecial) {
+  if (selectedSpecial && value !== '') {
     return (
       <div className={styles.container} ref={containerRef}>
         <div className={styles.selectedDisplay}>
