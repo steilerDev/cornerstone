@@ -49,6 +49,7 @@ describe('budgetOverviewApi', () => {
       activeSubsidyCount: 2,
       minTotalPayback: 0,
       maxTotalPayback: 0,
+    oversubscribedSubsidies: [],
     },
   };
 
@@ -191,6 +192,7 @@ describe('budgetOverviewApi', () => {
           activeSubsidyCount: 0,
           minTotalPayback: 0,
           maxTotalPayback: 0,
+        oversubscribedSubsidies: [],
         },
       };
 

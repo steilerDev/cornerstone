@@ -702,6 +702,11 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     });
   }
 
+  // Combined invoice map for subsidy effect calculations
+  const combinedInvoiceMap = new Map<string, number>();
+  for (const [k, v] of wiLineInvoiceMap) combinedInvoiceMap.set(k, v);
+  for (const [k, v] of hiLineInvoiceMap) combinedInvoiceMap.set(k, v);
+
   for (const [entityId, linkedSubsidyIds] of entitySubsidyMap) {
     const entityLines = allEntityLines.get(entityId) ?? [];
     const engineLines = entityLines.map((line) => ({
@@ -722,9 +727,6 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
         reductionValue: meta.reductionValue,
       });
     }
-
-    // Use combined invoice map for the entity
-    const combinedInvoiceMap = new Map<string, number>([...wiLineInvoiceMap, ...hiLineInvoiceMap]);
 
     const { subsidies: entityEffects } = computeSubsidyEffects(
       engineLines,

@@ -554,9 +554,11 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   const remainingVsActualPaid = availableFunds - actualCostPaid;
   const remainingVsActualClaimed = availableFunds - actualCostClaimed;
 
-  // Payback-adjusted remaining perspectives
-  const remainingVsMinPlannedWithPayback = availableFunds + totalMinPayback - totalMinPlanned;
-  const remainingVsMaxPlannedWithPayback = availableFunds + totalMaxPayback - totalMaxPlanned;
+  // Payback-adjusted remaining perspectives (using capped payback values)
+  const remainingVsMinPlannedWithPayback =
+    availableFunds + capResult.cappedMinPayback - totalMinPlanned;
+  const remainingVsMaxPlannedWithPayback =
+    availableFunds + capResult.cappedMaxPayback - totalMaxPlanned;
 
   return {
     availableFunds,

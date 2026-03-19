@@ -140,6 +140,7 @@ const minimalBudgetOverview: BudgetOverview = {
     activeSubsidyCount: 0,
     minTotalPayback: 0,
     maxTotalPayback: 0,
+  oversubscribedSubsidies: [],
   },
 };
 
@@ -150,6 +151,7 @@ const emptyTimelineResponse: TimelineResponse = {
   householdItems: [],
   criticalPath: [],
   dateRange: null,
+subsidyAdjustments: [],
 };
 
 const emptyInvoicesResponse: InvoiceListPaginatedResponse = {
