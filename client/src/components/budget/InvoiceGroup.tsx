@@ -97,7 +97,11 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
           </div>
           <div className={styles.amounts}>
             <div className={styles.amountGroup}>
-              <span className={styles.amountValue}>{formatCurrency(itemizedTotal)}</span>
+              <span className={styles.amountValue}>
+                {invoiceStatus === 'quotation'
+                  ? `${formatCurrency(itemizedTotal * 0.95)} – ${formatCurrency(itemizedTotal * 1.05)}`
+                  : formatCurrency(itemizedTotal)}
+              </span>
               <span className={styles.amountLabel}>{amountLabel}</span>
             </div>
             <div className={styles.amountGroup}>
