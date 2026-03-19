@@ -17,6 +17,9 @@ import {
   workItemMilestoneDeps,
   householdItems,
   householdItemDeps,
+  vendors,
+  areas,
+  trades,
 } from '../db/schema.js';
 import type {
   TimelineResponse,
@@ -28,6 +31,9 @@ import type {
   UserSummary,
   HouseholdItemCategory,
   HouseholdItemStatus,
+  AreaSummary,
+  VendorSummary,
+  TradeSummary,
 } from '@cornerstone/shared';
 import { schedule } from './schedulingEngine.js';
 import type {
@@ -47,6 +53,44 @@ function toUserSummary(user: typeof users.$inferSelect | null): UserSummary | nu
     id: user.id,
     displayName: user.displayName,
     email: user.email,
+  };
+}
+
+/**
+ * Convert a database area row to AreaSummary shape.
+ */
+function toAreaSummaryInternal(area: typeof areas.$inferSelect | null): AreaSummary | null {
+  if (!area) return null;
+  return {
+    id: area.id,
+    name: area.name,
+    color: area.color,
+  };
+}
+
+/**
+ * Convert a database vendor row with trade lookup to VendorSummary shape.
+ */
+function toVendorSummaryWithTrade(
+  vendor: typeof vendors.$inferSelect | null,
+  tradeMap: Map<string, typeof trades.$inferSelect>,
+): VendorSummary | null {
+  if (!vendor) return null;
+  let trade: TradeSummary | null = null;
+  if (vendor.tradeId) {
+    const tradeRow = tradeMap.get(vendor.tradeId);
+    if (tradeRow) {
+      trade = {
+        id: tradeRow.id,
+        name: tradeRow.name,
+        color: tradeRow.color,
+      };
+    }
+  }
+  return {
+    id: vendor.id,
+    name: vendor.name,
+    trade,
   };
 }
 
@@ -124,10 +168,18 @@ export function getTimeline(db: DbType): TimelineResponse {
     .where(or(isNotNull(workItems.startDate), isNotNull(workItems.endDate)))
     .all();
 
-  // ── 2. Build a map of assignedUserId → user row (batch lookup) ──────────────
+  // ── 2. Build maps for assignedUserId, areaId, and assignedVendorId (batch lookup) ─
 
   const assignedUserIds = [
     ...new Set(rawWorkItems.map((wi) => wi.assignedUserId).filter(Boolean) as string[]),
+  ];
+
+  const areaIds = [
+    ...new Set(rawWorkItems.map((wi) => wi.areaId).filter(Boolean) as string[]),
+  ];
+
+  const assignedVendorIds = [
+    ...new Set(rawWorkItems.map((wi) => wi.assignedVendorId).filter(Boolean) as string[]),
   ];
 
   const userMap = new Map<string, typeof users.$inferSelect>();
@@ -135,6 +187,28 @@ export function getTimeline(db: DbType): TimelineResponse {
     const userRows = db.select().from(users).all();
     for (const u of userRows) {
       userMap.set(u.id, u);
+    }
+  }
+
+  const areaMap = new Map<string, typeof areas.$inferSelect>();
+  if (areaIds.length > 0) {
+    const areaRows = db.select().from(areas).all();
+    for (const a of areaRows) {
+      areaMap.set(a.id, a);
+    }
+  }
+
+  const vendorMap = new Map<string, typeof vendors.$inferSelect>();
+  const tradeMap = new Map<string, typeof trades.$inferSelect>();
+  if (assignedVendorIds.length > 0) {
+    const vendorRows = db.select().from(vendors).all();
+    for (const v of vendorRows) {
+      vendorMap.set(v.id, v);
+    }
+    // Batch-fetch trades
+    const tradeRows = db.select().from(trades).all();
+    for (const t of tradeRows) {
+      tradeMap.set(t.id, t);
     }
   }
 
@@ -157,6 +231,14 @@ export function getTimeline(db: DbType): TimelineResponse {
       ? toUserSummary(userMap.get(wi.assignedUserId) ?? null)
       : null;
 
+    const area = wi.areaId
+      ? toAreaSummaryInternal(areaMap.get(wi.areaId) ?? null)
+      : null;
+
+    const assignedVendor = wi.assignedVendorId
+      ? toVendorSummaryWithTrade(vendorMap.get(wi.assignedVendorId) ?? null, tradeMap)
+      : null;
+
     const requiredMilestoneIds = workItemRequiredMilestoneMap.get(wi.id);
 
     return {
@@ -171,8 +253,8 @@ export function getTimeline(db: DbType): TimelineResponse {
       startAfter: wi.startAfter,
       startBefore: wi.startBefore,
       assignedUser,
-      assignedVendor: null, // TODO: fetch in Story 4
-      area: null, // TODO: fetch in Story 2
+      assignedVendor,
+      area,
       ...(requiredMilestoneIds && requiredMilestoneIds.length > 0 ? { requiredMilestoneIds } : {}),
     };
   });

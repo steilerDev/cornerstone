@@ -8,7 +8,7 @@
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { eq } from 'drizzle-orm';
 import type * as schemaTypes from '../../db/schema.js';
-import { budgetCategories, budgetSources, vendors } from '../../db/schema.js';
+import { budgetCategories, budgetSources, vendors, areas } from '../../db/schema.js';
 import { ValidationError } from '../../errors/AppError.js';
 import type { ConfidenceLevel } from '@cornerstone/shared';
 
@@ -79,5 +79,16 @@ export function validateVendorId(db: DbType, vendorId: string): void {
   const vendor = db.select().from(vendors).where(eq(vendors.id, vendorId)).get();
   if (!vendor) {
     throw new ValidationError(`Vendor not found: ${vendorId}`);
+  }
+}
+
+/**
+ * Validate that an area ID exists.
+ * Throws ValidationError if not found.
+ */
+export function validateAreaId(db: DbType, areaId: string): void {
+  const area = db.select().from(areas).where(eq(areas.id, areaId)).get();
+  if (!area) {
+    throw new ValidationError(`Area not found: ${areaId}`);
   }
 }

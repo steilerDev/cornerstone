@@ -45,6 +45,73 @@ describe('Work Item Service', () => {
     return userId;
   }
 
+  /**
+   * Helper: Insert a test area directly into the DB.
+   * Returns the area ID.
+   */
+  function insertTestArea(name: string, color: string | null = null) {
+    const now = new Date().toISOString();
+    const areaId = `area-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    db.insert(schema.areas)
+      .values({
+        id: areaId,
+        name,
+        parentId: null,
+        color,
+        description: null,
+        sortOrder: 0,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return areaId;
+  }
+
+  /**
+   * Helper: Insert a test trade directly into the DB.
+   * Returns the trade ID.
+   */
+  function insertTestTrade(name: string) {
+    const now = new Date().toISOString();
+    const tradeId = `trade-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    db.insert(schema.trades)
+      .values({
+        id: tradeId,
+        name,
+        color: null,
+        description: null,
+        sortOrder: 0,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return tradeId;
+  }
+
+  /**
+   * Helper: Insert a test vendor directly into the DB.
+   * Returns the vendor ID.
+   */
+  function insertTestVendor(name: string, tradeId: string | null = null) {
+    const now = new Date().toISOString();
+    const vendorId = `vendor-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    db.insert(schema.vendors)
+      .values({
+        id: vendorId,
+        name,
+        tradeId,
+        phone: null,
+        email: null,
+        address: null,
+        notes: null,
+        createdBy: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return vendorId;
+  }
+
   beforeEach(() => {
     const testDb = createTestDb();
     sqlite = testDb.sqlite;
@@ -239,18 +306,88 @@ describe('Work Item Service', () => {
       );
     });
 
-    it.skip('throws ValidationError when areaId does not exist (Story 4 — not yet implemented)', () => {
-      // areaId validation against the areas table is not implemented until Story 4.
-      // The service currently accepts areaId without validation.
+    it('throws ValidationError when areaId does not exist', () => {
+      // Given: A user and a non-existent area ID
       const userId = createTestUser('user@example.com', 'Test User');
       const data: CreateWorkItemRequest = {
         title: 'Test',
         areaId: 'non-existent-area-id',
       };
 
+      // When/Then: Throws validation error
       expect(() => workItemService.createWorkItem(db, userId, data)).toThrow(ValidationError);
       expect(() => workItemService.createWorkItem(db, userId, data)).toThrow(
         'Area not found: non-existent-area-id',
+      );
+    });
+
+    it('creates work item with valid areaId and returns area object in response', () => {
+      // Given: A user and a real area
+      const userId = createTestUser('user@example.com', 'Test User');
+      const areaId = insertTestArea('Kitchen', '#FF5733');
+      const data: CreateWorkItemRequest = {
+        title: 'Install kitchen cabinets',
+        areaId,
+      };
+
+      // When: Creating work item
+      const result = workItemService.createWorkItem(db, userId, data);
+
+      // Then: area object is populated in response
+      expect(result.area).not.toBeNull();
+      expect(result.area!.id).toBe(areaId);
+      expect(result.area!.name).toBe('Kitchen');
+      expect(result.area!.color).toBe('#FF5733');
+    });
+
+    it('creates work item with valid assignedVendorId and returns vendor object with trade', () => {
+      // Given: A user, a trade, and a vendor with that trade
+      const userId = createTestUser('user@example.com', 'Test User');
+      const tradeId = insertTestTrade('Custom Test Trade');
+      const vendorId = insertTestVendor('Sparky Electric', tradeId);
+      const data: CreateWorkItemRequest = {
+        title: 'Wire the living room',
+        assignedVendorId: vendorId,
+      };
+
+      // When: Creating work item
+      const result = workItemService.createWorkItem(db, userId, data);
+
+      // Then: assignedVendor is populated with trade info
+      expect(result.assignedVendor).not.toBeNull();
+      expect(result.assignedVendor!.id).toBe(vendorId);
+      expect(result.assignedVendor!.name).toBe('Sparky Electric');
+      expect(result.assignedVendor!.trade).not.toBeNull();
+      expect(result.assignedVendor!.trade!.id).toBe(tradeId);
+      expect(result.assignedVendor!.trade!.name).toBe('Custom Test Trade');
+    });
+
+    it('throws ValidationError when both assignedUserId and assignedVendorId are set', () => {
+      // Given: A user and a vendor — mutual exclusivity enforced by DB trigger
+      const userId = createTestUser('user@example.com', 'Test User');
+      const vendorId = insertTestVendor('Bob Builder');
+      const data: CreateWorkItemRequest = {
+        title: 'Test',
+        assignedUserId: userId,
+        assignedVendorId: vendorId,
+      };
+
+      // When/Then: The DB trigger fires and raises an error
+      expect(() => workItemService.createWorkItem(db, userId, data)).toThrow();
+    });
+
+    it('throws ValidationError for non-existent assignedVendorId', () => {
+      // Given: A non-existent vendor ID
+      const userId = createTestUser('user@example.com', 'Test User');
+      const data: CreateWorkItemRequest = {
+        title: 'Test',
+        assignedVendorId: 'non-existent-vendor-id',
+      };
+
+      // When/Then: Throws validation error
+      expect(() => workItemService.createWorkItem(db, userId, data)).toThrow(ValidationError);
+      expect(() => workItemService.createWorkItem(db, userId, data)).toThrow(
+        'Vendor not found: non-existent-vendor-id',
       );
     });
   });
@@ -547,12 +684,12 @@ describe('Work Item Service', () => {
       expect(updated.area).toBeNull();
     });
 
-    it.skip('throws ValidationError for non-existent areaId in update (Story 4 — not yet implemented)', () => {
-      // areaId validation against the areas table is not implemented until Story 4.
-      // The service currently accepts any areaId in updates without validation.
+    it('throws ValidationError for non-existent areaId in update', () => {
+      // Given: An existing work item and a bad area ID
       const userId = createTestUser('user@example.com', 'Test User');
       const workItem = workItemService.createWorkItem(db, userId, { title: 'Test' });
 
+      // When/Then: Throws validation error
       expect(() =>
         workItemService.updateWorkItem(db, workItem.id, {
           areaId: 'non-existent-area-id',
@@ -563,6 +700,40 @@ describe('Work Item Service', () => {
           areaId: 'non-existent-area-id',
         }),
       ).toThrow('Area not found: non-existent-area-id');
+    });
+
+    it('updates areaId to a valid area and returns area object', () => {
+      // Given: A work item without an area and a real area
+      const userId = createTestUser('user@example.com', 'Test User');
+      const areaId = insertTestArea('Bathroom', '#3498DB');
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Tile bathroom' });
+      expect(workItem.area).toBeNull();
+
+      // When: Updating areaId to a real area
+      const updated = workItemService.updateWorkItem(db, workItem.id, { areaId });
+
+      // Then: Area is populated
+      expect(updated.area).not.toBeNull();
+      expect(updated.area!.id).toBe(areaId);
+      expect(updated.area!.name).toBe('Bathroom');
+      expect(updated.area!.color).toBe('#3498DB');
+    });
+
+    it('mutual exclusivity check: setting vendor on item that has a user throws', () => {
+      // Given: A work item assigned to a user
+      const userId = createTestUser('user@example.com', 'Test User');
+      const vendorId = insertTestVendor('Fix-It Inc');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Test',
+        assignedUserId: userId,
+      });
+
+      // When/Then: Trying to also set a vendor triggers the DB trigger
+      expect(() =>
+        workItemService.updateWorkItem(db, workItem.id, {
+          assignedVendorId: vendorId,
+        }),
+      ).toThrow();
     });
 
     it('throws NotFoundError when work item does not exist', () => {
@@ -800,6 +971,48 @@ describe('Work Item Service', () => {
       // Then: Returns all items (area is null for all)
       expect(result.items).toHaveLength(2);
       result.items.forEach((item) => expect(item.area).toBeNull());
+    });
+
+    it('filters by areaId returns only items in that area', () => {
+      // Given: A real area and work items — some in the area, some not
+      const userId = createTestUser('user@example.com', 'Test User');
+      const areaId = insertTestArea('Living Room');
+      const area2Id = insertTestArea('Bedroom');
+      workItemService.createWorkItem(db, userId, { title: 'In Living Room', areaId });
+      workItemService.createWorkItem(db, userId, { title: 'In Bedroom', areaId: area2Id });
+      workItemService.createWorkItem(db, userId, { title: 'No Area' });
+
+      // When: Filtering by area
+      const result = workItemService.listWorkItems(db, { areaId });
+
+      // Then: Only work items in that area are returned
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].title).toBe('In Living Room');
+      expect(result.items[0].area!.id).toBe(areaId);
+    });
+
+    it('filters by assignedVendorId returns only items assigned to that vendor', () => {
+      // Given: Two vendors and work items assigned to each
+      const userId = createTestUser('user@example.com', 'Test User');
+      const vendor1 = insertTestVendor('Plumbers R Us');
+      const vendor2 = insertTestVendor('Electricians Inc');
+      workItemService.createWorkItem(db, userId, {
+        title: 'Fix pipes',
+        assignedVendorId: vendor1,
+      });
+      workItemService.createWorkItem(db, userId, {
+        title: 'Wire up lights',
+        assignedVendorId: vendor2,
+      });
+      workItemService.createWorkItem(db, userId, { title: 'Unassigned task' });
+
+      // When: Filtering by vendor1
+      const result = workItemService.listWorkItems(db, { assignedVendorId: vendor1 });
+
+      // Then: Only items assigned to vendor1 are returned
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].title).toBe('Fix pipes');
+      expect(result.items[0].assignedVendor!.id).toBe(vendor1);
     });
 
     it('searches title and description (case-insensitive)', () => {

@@ -63,6 +63,25 @@ describe('Household Item Service', () => {
     return vendorId;
   }
 
+  /** Helper: Insert a test area directly into the DB. Returns the area ID. */
+  function insertTestArea(name: string, color: string | null = null) {
+    const now = new Date(Date.now() + idCounter++).toISOString();
+    const areaId = `area-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    db.insert(schema.areas)
+      .values({
+        id: areaId,
+        name,
+        parentId: null,
+        color,
+        description: null,
+        sortOrder: 0,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return areaId;
+  }
+
   beforeEach(() => {
     idCounter = 0;
     const testDb = createTestDb();
@@ -208,21 +227,40 @@ describe('Household Item Service', () => {
       );
     });
 
-    it.skip('throws ValidationError for non-existent areaId (Story 5 — not yet implemented)', () => {
-      // areaId validation against the areas table is not implemented until Story 5.
-      // The service currently accepts areaId without validation.
+    it('throws ValidationError for non-existent areaId', () => {
+      // Given: A non-existent area ID
       const userId = createTestUser('user@example.com', 'Test User');
       const data: Parameters<typeof householdItemService.createHouseholdItem>[2] = {
         name: 'Test Item',
         areaId: 'non-existent-area-id',
       };
 
+      // When/Then: Throws validation error
       expect(() => householdItemService.createHouseholdItem(db, userId, data)).toThrow(
         ValidationError,
       );
       expect(() => householdItemService.createHouseholdItem(db, userId, data)).toThrow(
         'Area not found: non-existent-area-id',
       );
+    });
+
+    it('creates item with valid areaId and returns area object', () => {
+      // Given: A user and a real area
+      const userId = createTestUser('user@example.com', 'Test User');
+      const areaId = insertTestArea('Bedroom', '#9B59B6');
+      const data: Parameters<typeof householdItemService.createHouseholdItem>[2] = {
+        name: 'Wardrobe',
+        areaId,
+      };
+
+      // When: Creating household item
+      const result = householdItemService.createHouseholdItem(db, userId, data);
+
+      // Then: Area is populated in response
+      expect(result.area).not.toBeNull();
+      expect(result.area!.id).toBe(areaId);
+      expect(result.area!.name).toBe('Bedroom');
+      expect(result.area!.color).toBe('#9B59B6');
     });
 
     it('sets createdBy from userId', () => {
@@ -431,12 +469,12 @@ describe('Household Item Service', () => {
       expect(updated.area).toBeNull();
     });
 
-    it.skip('throws ValidationError for non-existent areaId in update (Story 5 — not yet implemented)', () => {
-      // areaId validation against the areas table is not implemented until Story 5.
-      // The service currently accepts any areaId in updates without validation.
+    it('throws ValidationError for non-existent areaId in update', () => {
+      // Given: An existing item and a bad area ID
       const userId = createTestUser('user@example.com', 'Test User');
       const item = householdItemService.createHouseholdItem(db, userId, { name: 'Blender' });
 
+      // When/Then: Throws validation error
       expect(() =>
         householdItemService.updateHouseholdItem(db, item.id, {
           areaId: 'non-existent-area-id',
@@ -447,6 +485,23 @@ describe('Household Item Service', () => {
           areaId: 'non-existent-area-id',
         }),
       ).toThrow('Area not found: non-existent-area-id');
+    });
+
+    it('updates areaId to a valid area and returns area object', () => {
+      // Given: An item without an area and a real area
+      const userId = createTestUser('user@example.com', 'Test User');
+      const areaId = insertTestArea('Kitchen', '#E74C3C');
+      const item = householdItemService.createHouseholdItem(db, userId, { name: 'Blender' });
+      expect(item.area).toBeNull();
+
+      // When: Updating to a real area
+      const updated = householdItemService.updateHouseholdItem(db, item.id, { areaId });
+
+      // Then: Area is populated
+      expect(updated.area).not.toBeNull();
+      expect(updated.area!.id).toBe(areaId);
+      expect(updated.area!.name).toBe('Kitchen');
+      expect(updated.area!.color).toBe('#E74C3C');
     });
 
     it('throws NotFoundError for non-existent ID', () => {
@@ -803,6 +858,30 @@ describe('Household Item Service', () => {
       // Then: Items without area are returned
       expect(result.items).toHaveLength(2);
       result.items.forEach((item) => expect(item.area).toBeNull());
+    });
+
+    it('filters by areaId returns only items in that area', () => {
+      // Given: A real area and items — some in the area, some not
+      const userId = createTestUser('user@example.com', 'Test User');
+      const areaId = insertTestArea('Master Bedroom');
+      const area2Id = insertTestArea('Living Room');
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'King Bed',
+        areaId,
+      });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Sofa',
+        areaId: area2Id,
+      });
+      householdItemService.createHouseholdItem(db, userId, { name: 'No Area Item' });
+
+      // When: Filtering by area
+      const result = householdItemService.listHouseholdItems(db, { areaId });
+
+      // Then: Only items in that area are returned
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe('King Bed');
+      expect(result.items[0].area!.id).toBe(areaId);
     });
 
     it('search q matches name (case-insensitive)', () => {
