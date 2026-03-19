@@ -343,7 +343,11 @@ function AreasTab() {
               <div
                 key={area.id}
                 className={styles.itemRow}
-                style={depth > 0 ? { paddingLeft: `calc(var(--spacing-3) + ${depth} * var(--spacing-6))` } : undefined}
+                style={
+                  depth > 0
+                    ? { paddingLeft: `calc(var(--spacing-3) + ${depth} * var(--spacing-6))` }
+                    : undefined
+                }
               >
                 {editingArea?.id === area.id ? (
                   <form onSubmit={handleUpdateArea} className={styles.editForm}>
