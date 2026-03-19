@@ -28,7 +28,7 @@ describe('HouseholdItemPicker', () => {
       category: 'furniture' as const,
       status: 'planned' as const,
       vendor: null,
-      room: null,
+      area: null,
       quantity: 1,
       orderDate: null,
       targetDeliveryDate: null,
@@ -37,7 +37,6 @@ describe('HouseholdItemPicker', () => {
       latestDeliveryDate: null,
       isLate: false,
       url: null,
-      tagIds: [],
       budgetLineCount: 0,
       totalPlannedAmount: 0,
       budgetSummary: {
@@ -57,7 +56,7 @@ describe('HouseholdItemPicker', () => {
       category: 'furniture' as const,
       status: 'purchased' as const,
       vendor: null,
-      room: null,
+      area: null,
       quantity: 1,
       orderDate: null,
       targetDeliveryDate: null,
@@ -66,7 +65,6 @@ describe('HouseholdItemPicker', () => {
       latestDeliveryDate: null,
       isLate: false,
       url: null,
-      tagIds: [],
       budgetLineCount: 0,
       totalPlannedAmount: 0,
       budgetSummary: {

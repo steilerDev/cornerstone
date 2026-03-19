@@ -256,8 +256,8 @@ describe('HouseholdItemDetailPage', () => {
       description: 'Electric height-adjustable desk',
       category: 'furniture' as HouseholdItemCategory,
       status: 'purchased' as HouseholdItemStatus,
-      vendor: { id: 'vendor-1', name: 'IKEA', specialty: 'Furniture' },
-      room: 'Office',
+      vendor: { id: 'vendor-1', name: 'IKEA', trade: null },
+      area: null,
       quantity: 2,
       orderDate: '2026-02-15',
       targetDeliveryDate: '2026-03-01',
@@ -266,16 +266,12 @@ describe('HouseholdItemDetailPage', () => {
       latestDeliveryDate: '2026-03-10',
       isLate: false,
       url: 'https://example.com/desk',
-      tagIds: ['tag-1'],
       budgetLineCount: 1,
       totalPlannedAmount: 599.99,
       budgetSummary: { totalPlanned: 599.99, totalActual: 0, subsidyReduction: 0, netCost: 599.99 },
       createdBy: { id: 'user-1', displayName: 'John Doe', email: 'john@example.com' },
       createdAt: '2026-01-15T10:00:00Z',
       updatedAt: '2026-02-15T14:30:00Z',
-      tags: [
-        { id: 'tag-1', name: 'Priority', color: '#ff0000', createdAt: '2026-01-01T00:00:00Z' },
-      ],
       dependencies: [],
       subsidies: [],
       ...overrides,
@@ -630,8 +626,8 @@ describe('HouseholdItemDetailPage', () => {
       expect(dashValues.length).toBeGreaterThan(0);
     });
 
-    it('shows dash for missing room', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ room: null }));
+    it('shows dash for missing area', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ area: null }));
 
       renderPage();
 
@@ -676,8 +672,8 @@ describe('HouseholdItemDetailPage', () => {
       expect(dashValues.length).toBeGreaterThan(0);
     });
 
-    it('shows "No tags" for empty tags array', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ tags: [], tagIds: [] }));
+    it('shows "No tags" for item without tags', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
 
       renderPage();
 

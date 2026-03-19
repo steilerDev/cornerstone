@@ -94,21 +94,6 @@ function insertWorkItem(
   return id;
 }
 
-function insertTag(db: BetterSQLite3Database<typeof schema>, name: string): string {
-  const id = makeId('tag');
-  const now = new Date().toISOString();
-  db.insert(schema.tags).values({ id, name, color: '#3B82F6', createdAt: now }).run();
-  return id;
-}
-
-function linkWorkItemTag(
-  db: BetterSQLite3Database<typeof schema>,
-  workItemId: string,
-  tagId: string,
-) {
-  db.insert(schema.workItemTags).values({ workItemId, tagId }).run();
-}
-
 function insertDependency(
   db: BetterSQLite3Database<typeof schema>,
   predecessorId: string,
@@ -350,42 +335,20 @@ describe('getTimeline service', () => {
       expect(result.workItems[0].assignedUser).toBeNull();
     });
 
-    it('includes tags array on work items (with tag fields)', () => {
-      const userId = insertUser(db);
-      const wiId = insertWorkItem(db, userId, { startDate: '2026-03-01' });
-      const tagId = insertTag(db, 'Structural');
-      linkWorkItemTag(db, wiId, tagId);
-
-      const result = getTimeline(db);
-      const wi = result.workItems[0];
-
-      expect(wi.tags).toHaveLength(1);
-      expect(wi.tags[0].id).toBe(tagId);
-      expect(wi.tags[0].name).toBe('Structural');
-      expect(wi.tags[0].color).toBe('#3B82F6');
-    });
-
-    it('returns empty tags array when work item has no tags', () => {
+    it('returns null area when work item has no area assigned', () => {
       const userId = insertUser(db);
       insertWorkItem(db, userId, { startDate: '2026-03-01' });
 
       const result = getTimeline(db);
-      expect(result.workItems[0].tags).toEqual([]);
+      expect(result.workItems[0].area).toBeNull();
     });
 
-    it('returns multiple tags for a work item', () => {
+    it('returns null assignedVendor when work item has no vendor assigned', () => {
       const userId = insertUser(db);
-      const wiId = insertWorkItem(db, userId, { startDate: '2026-03-01' });
-      const tagA = insertTag(db, 'Foundation');
-      const tagB = insertTag(db, 'Concrete');
-      linkWorkItemTag(db, wiId, tagA);
-      linkWorkItemTag(db, wiId, tagB);
+      insertWorkItem(db, userId, { startDate: '2026-03-01' });
 
       const result = getTimeline(db);
-      expect(result.workItems[0].tags).toHaveLength(2);
-      const tagNames = result.workItems[0].tags.map((t) => t.name);
-      expect(tagNames).toContain('Foundation');
-      expect(tagNames).toContain('Concrete');
+      expect(result.workItems[0].assignedVendor).toBeNull();
     });
   });
 

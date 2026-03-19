@@ -10,8 +10,6 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import {
   workItems,
-  workItemTags,
-  tags,
   users,
   workItemDependencies,
   milestones,
@@ -28,12 +26,11 @@ import type {
   TimelineHouseholdItem,
   TimelineDateRange,
   UserSummary,
-  TagResponse,
   HouseholdItemCategory,
   HouseholdItemStatus,
 } from '@cornerstone/shared';
 import { schedule } from './schedulingEngine.js';
-import type { SchedulingWorkItem, SchedulingDependency } from './schedulingEngine.js';
+import type { SchedulingWorkItem, SchedulingDependency, ScheduleResult } from './schedulingEngine.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -47,24 +44,6 @@ function toUserSummary(user: typeof users.$inferSelect | null): UserSummary | nu
     displayName: user.displayName,
     email: user.email,
   };
-}
-
-/**
- * Fetch tags for a single work item.
- */
-function getWorkItemTags(db: DbType, workItemId: string): TagResponse[] {
-  const rows = db
-    .select({ tag: tags })
-    .from(workItemTags)
-    .innerJoin(tags, eq(tags.id, workItemTags.tagId))
-    .where(eq(workItemTags.workItemId, workItemId))
-    .all();
-
-  return rows.map((row) => ({
-    id: row.tag.id,
-    name: row.tag.name,
-    color: row.tag.color,
-  }));
 }
 
 /**
@@ -188,7 +167,8 @@ export function getTimeline(db: DbType): TimelineResponse {
       startAfter: wi.startAfter,
       startBefore: wi.startBefore,
       assignedUser,
-      tags: getWorkItemTags(db, wi.id),
+      assignedVendor: null, // TODO: fetch in Story 4
+      area: null, // TODO: fetch in Story 2
       ...(requiredMilestoneIds && requiredMilestoneIds.length > 0 ? { requiredMilestoneIds } : {}),
     };
   });
@@ -331,7 +311,7 @@ export function getTimeline(db: DbType): TimelineResponse {
   // Filter out milestone nodes from the returned critical path
   const criticalPath = hasCycle
     ? []
-    : scheduleResult.criticalPath.filter((id) => !id.startsWith('milestone:'));
+    : scheduleResult.criticalPath.filter((id: string) => !id.startsWith('milestone:'));
 
   // Derive set of critical milestone IDs
   const criticalMilestoneIds = new Set<number>();

@@ -54,7 +54,7 @@ describe('Household Item Service - Total Actual Amount', () => {
       .values({
         id,
         name,
-        specialty: null,
+        tradeId: null,
         phone: null,
         email: null,
         address: null,
@@ -71,7 +71,6 @@ describe('Household Item Service - Total Actual Amount', () => {
     const result = householdItemService.createHouseholdItem(db, userId, {
       name,
       vendorId: undefined,
-      tagIds: [],
       earliestDeliveryDate: undefined,
       latestDeliveryDate: undefined,
     });

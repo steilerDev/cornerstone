@@ -236,7 +236,8 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
       displayName: 'Assigned User',
       email: 'assigned@example.com',
     },
-    tags: [],
+    assignedVendor: null,
+    area: null,
     createdBy: {
       id: 'user-1',
       displayName: 'Creator User',

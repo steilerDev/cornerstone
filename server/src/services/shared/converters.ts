@@ -5,11 +5,10 @@
  * They are extracted from duplicate implementations across multiple service files.
  */
 
-import type { budgetCategories, budgetSources, tags, users, vendors } from '../../db/schema.js';
+import type { budgetCategories, budgetSources, users, vendors } from '../../db/schema.js';
 import type {
   BudgetCategory,
   BudgetSourceSummary,
-  TagResponse,
   UserSummary,
   VendorSummary,
 } from '@cornerstone/shared';
@@ -74,17 +73,6 @@ export function toVendorSummary(
   return {
     id: vendor.id,
     name: vendor.name,
-    specialty: vendor.specialty,
-  };
-}
-
-/**
- * Convert a database tag row to TagResponse shape.
- */
-export function toTagResponse(tag: typeof tags.$inferSelect): TagResponse {
-  return {
-    id: tag.id,
-    name: tag.name,
-    color: tag.color,
+    trade: null, // TODO: JOIN to trades table in Story 3
   };
 }

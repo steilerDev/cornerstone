@@ -5,7 +5,9 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
-import type { TagResponse, UserResponse } from '@cornerstone/shared';
+import type { UserResponse } from '@cornerstone/shared';
+// TagResponse removed from @cornerstone/shared — define locally for test compatibility
+type TagResponse = { id: string; name: string; color: string | null; createdAt?: string };
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as TagsApiTypes from '../../lib/tagsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
@@ -289,7 +291,8 @@ describe('WorkItemCreatePage', () => {
         startAfter: null,
         startBefore: null,
         assignedUser: null,
-        tags: [],
+        assignedVendor: null,
+        area: null,
         createdBy: {
           id: 'user-1',
           displayName: 'Test User',
@@ -386,7 +389,8 @@ describe('WorkItemCreatePage', () => {
             actualStartDate: null,
             actualEndDate: null,
             assignedUser: null,
-            tags: [],
+            assignedVendor: null,
+            area: null,
             budgetLineCount: 0,
             createdAt: '2024-01-01T00:00:00Z',
             updatedAt: '2024-01-01T00:00:00Z',
