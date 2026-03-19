@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as workItemService from '../services/workItemService.js';
 import * as householdItemWorkItemService from '../services/householdItemWorkItemService.js';
-import { ensureDailyReschedule } from '../services/schedulingEngine.js';
+import { autoReschedule, ensureDailyReschedule } from '../services/schedulingEngine.js';
 import type {
   CreateWorkItemRequest,
   UpdateWorkItemRequest,
@@ -139,7 +139,13 @@ export default async function workItemRoutes(fastify: FastifyInstance) {
 
     const workItem = workItemService.createWorkItem(fastify.db, request.user.id, data);
 
-    return reply.status(201).send(workItem);
+    // Schedule the newly created work item via CPM algorithm
+    autoReschedule(fastify.db);
+
+    // Re-fetch the work item to include any updated dates from scheduling
+    const scheduled = workItemService.getWorkItemDetail(fastify.db, workItem.id);
+
+    return reply.status(201).send(scheduled);
   });
 
   /**
