@@ -97,10 +97,7 @@ interface SeedResult {
   hiCategoryIds: number[];
 }
 
-async function seedAllData(
-  request: APIRequestContext,
-  baseUrl: string,
-): Promise<SeedResult> {
+async function seedAllData(request: APIRequestContext, baseUrl: string): Promise<SeedResult> {
   const result: SeedResult = {
     workItemIds: [],
     vendorIds: [],
@@ -190,7 +187,8 @@ async function seedAllData(
   const workItems = [
     {
       title: 'DR-Install kitchen cabinets',
-      description: 'Upper and lower cabinets in main kitchen area. Custom maple with soft-close hinges.',
+      description:
+        'Upper and lower cabinets in main kitchen area. Custom maple with soft-close hinges.',
       status: 'in_progress',
       startDate: '2026-03-01',
       endDate: '2026-03-15',
@@ -278,7 +276,11 @@ async function seedAllData(
   }
 
   // ── Add budget lines to work items ──
-  if (result.workItemIds.length >= 5 && result.budgetCategoryIds.length >= 4 && result.budgetSourceIds.length >= 2) {
+  if (
+    result.workItemIds.length >= 5 &&
+    result.budgetCategoryIds.length >= 4 &&
+    result.budgetSourceIds.length >= 2
+  ) {
     const budgetLines = [
       { wiIdx: 1, catIdx: 0, srcIdx: 0, amount: 18500, confidence: 'professional_estimate' },
       { wiIdx: 2, catIdx: 1, srcIdx: 0, amount: 12000, confidence: 'quote' },
@@ -289,7 +291,11 @@ async function seedAllData(
       { wiIdx: 8, catIdx: 2, srcIdx: 0, amount: 9800, confidence: 'invoice' },
     ];
     for (const line of budgetLines) {
-      if (result.workItemIds[line.wiIdx] && result.budgetCategoryIds[line.catIdx] && result.budgetSourceIds[line.srcIdx]) {
+      if (
+        result.workItemIds[line.wiIdx] &&
+        result.budgetCategoryIds[line.catIdx] &&
+        result.budgetSourceIds[line.srcIdx]
+      ) {
         await request.post(`${baseUrl}/api/work-items/${result.workItemIds[line.wiIdx]}/budgets`, {
           data: {
             budgetCategoryId: result.budgetCategoryIds[line.catIdx],
@@ -310,7 +316,12 @@ async function seedAllData(
     await request.post(`${baseUrl}/api/work-items/${result.workItemIds[0]}/notes`, {
       data: { content: 'Hardware delivery delayed — new ETA Wednesday.' },
     });
-    const subtasks = ['Order cabinet hardware', 'Verify measurements', 'Schedule installer', 'Final punch list'];
+    const subtasks = [
+      'Order cabinet hardware',
+      'Verify measurements',
+      'Schedule installer',
+      'Final punch list',
+    ];
     for (let i = 0; i < subtasks.length; i++) {
       await request.post(`${baseUrl}/api/work-items/${result.workItemIds[0]}/subtasks`, {
         data: { title: subtasks[i], position: i },
@@ -487,10 +498,7 @@ async function seedAllData(
   }
 
   // ── Household item categories ──
-  const hiCategories = [
-    { name: 'DR-Lighting' },
-    { name: 'DR-Bathroom' },
-  ];
+  const hiCategories = [{ name: 'DR-Lighting' }, { name: 'DR-Bathroom' }];
   for (const cat of hiCategories) {
     const res = await request.post(`${baseUrl}/api/household-item-categories`, { data: cat });
     if (res.ok()) {
@@ -753,7 +761,9 @@ test.describe('Design Review Screenshots', () => {
     }
 
     // Toggle critical path on
-    const criticalPathBtn = page.locator('[aria-label*="critical path"], [aria-label*="Critical path"]');
+    const criticalPathBtn = page.locator(
+      '[aria-label*="critical path"], [aria-label*="Critical path"]',
+    );
     if ((await criticalPathBtn.count()) > 0) {
       await criticalPathBtn.first().click();
       await page.waitForTimeout(500);
@@ -789,9 +799,9 @@ test.describe('Design Review Screenshots', () => {
     await page.goto(`${baseUrl}/diary/new`);
     await waitForPage(page);
     // Click 'Daily Log' to get to step 2
-    const dailyLogOption = page.getByRole('button', { name: /daily log/i }).or(
-      page.locator('[data-testid*="daily"]').first(),
-    );
+    const dailyLogOption = page
+      .getByRole('button', { name: /daily log/i })
+      .or(page.locator('[data-testid*="daily"]').first());
     if (await dailyLogOption.isVisible()) {
       await dailyLogOption.click();
       await page.waitForTimeout(500);
