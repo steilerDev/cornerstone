@@ -28,9 +28,12 @@ const COLORS: MilestoneColors = {
   completeStroke: '#15803D',
   lateFill: '#DC2626',
   lateStroke: '#B91C1C',
+  aheadFill: '#10B981',
+  aheadStroke: '#047857',
   hoverGlow: 'rgba(59,130,246,0.3)',
   completeHoverGlow: 'rgba(34,197,94,0.3)',
   lateHoverGlow: 'rgba(220,38,38,0.25)',
+  aheadHoverGlow: 'rgba(16,185,129,0.25)',
 };
 
 // Chart range: 2024-06-01 to 2024-12-31 (day zoom)
@@ -132,13 +135,13 @@ describe('computeMilestoneStatus', () => {
     expect(computeMilestoneStatus(ms)).toBe('on_track');
   });
 
-  it('returns "on_track" when projectedDate < targetDate', () => {
+  it('returns "ahead" when projectedDate < targetDate', () => {
     const ms: TimelineMilestone = {
       ...MILESTONE_INCOMPLETE,
       targetDate: '2024-08-01',
       projectedDate: '2024-07-15', // before target
     };
-    expect(computeMilestoneStatus(ms)).toBe('on_track');
+    expect(computeMilestoneStatus(ms)).toBe('ahead');
   });
 
   it('returns "on_track" when projectedDate is null and not completed', () => {
