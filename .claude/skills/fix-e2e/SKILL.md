@@ -22,6 +22,7 @@ If empty, ask the user to provide a run URL or ID before proceeding.
 ### Input Parsing
 
 Extract the run ID from the input:
+
 - If a URL: extract the numeric run ID from the path
 - If a number: use directly as the run ID
 
@@ -61,11 +62,13 @@ gh run view <RUN_ID> --repo steilerDev/cornerstone --log-failed 2>&1 | grep -E "
 ```
 
 **Categorize failures** into distinct groups:
+
 - Group by test file and failure pattern (same error = same root cause)
 - Note which viewports are affected (desktop/tablet/mobile — all = likely production issue, one = likely responsive/test issue)
 - Note retry behavior (fails on retry too = deterministic, passes on retry = flaky)
 
 **Determine root cause classification** for each group using the test failure debugging protocol:
+
 - **Test bug**: Test expectations don't match current production behavior (e.g., test references a renamed field, uses a stale locator, has wrong selector)
 - **Production bug**: Production code behavior is incorrect per the spec/contract (e.g., missing field, broken feature, regression)
 - **Spec mismatch**: Spec/contract changed but tests weren't updated
@@ -75,6 +78,7 @@ gh run view <RUN_ID> --repo steilerDev/cornerstone --log-failed 2>&1 | grep -E "
 Enter plan mode (`EnterPlanMode`) and write a structured fix plan covering:
 
 For each failure group:
+
 1. **Failure description**: What test fails and what the error is
 2. **Root cause**: Test bug, production bug, or spec mismatch
 3. **Fix approach**: What needs to change and in which files
@@ -96,12 +100,14 @@ Delegate fixes to the appropriate agents based on the plan:
 - **Translation fixes**: Launch `translator` agent
 
 Provide each agent with:
+
 - The specific failure details and error messages
 - The exact files to modify
 - The expected behavior
 - Any relevant context from the production code or spec
 
 **Delegation rules** (per CLAUDE.md):
+
 - The orchestrator NEVER writes production code or tests directly
 - Each agent gets a clear, self-contained spec
 - Multiple independent fixes can be delegated in parallel
@@ -213,6 +219,7 @@ After CI completes:
    - PR URL (now merged)
 
 **If E2E tests still fail**:
+
 1. Create new iteration tasks (e.g., "Iteration 2: Analyze", "Iteration 2: Fix", "Iteration 2: Verify")
 2. Fetch the NEW run ID from the latest PR check:
    ```bash
@@ -223,6 +230,7 @@ After CI completes:
 5. Repeat until all E2E tests pass
 
 **Iteration cap**: If after 5 iterations E2E tests still fail, stop and report the remaining failures to the user for manual review. Include:
+
 - Which tests still fail
 - What was tried
 - Hypotheses for remaining issues
