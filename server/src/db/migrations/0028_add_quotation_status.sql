@@ -46,9 +46,13 @@ CREATE TABLE invoice_budget_lines_new (
   invoice_id TEXT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
   work_item_budget_id TEXT REFERENCES work_item_budgets(id) ON DELETE CASCADE,
   household_item_budget_id TEXT REFERENCES household_item_budgets(id) ON DELETE CASCADE,
-  itemized_amount REAL NOT NULL,
+  itemized_amount REAL NOT NULL CHECK(itemized_amount > 0),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  CHECK (
+    (work_item_budget_id IS NOT NULL AND household_item_budget_id IS NULL) OR
+    (work_item_budget_id IS NULL AND household_item_budget_id IS NOT NULL)
+  )
 );
 
 INSERT INTO invoice_budget_lines_new (
@@ -64,7 +68,11 @@ DROP TABLE invoice_budget_lines;
 ALTER TABLE invoice_budget_lines_new RENAME TO invoice_budget_lines;
 
 CREATE INDEX idx_invoice_budget_lines_invoice_id ON invoice_budget_lines(invoice_id);
-CREATE UNIQUE INDEX idx_invoice_budget_lines_work_item_budget_id ON invoice_budget_lines(work_item_budget_id);
-CREATE UNIQUE INDEX idx_invoice_budget_lines_household_item_budget_id ON invoice_budget_lines(household_item_budget_id);
+CREATE UNIQUE INDEX idx_invoice_budget_lines_work_item_budget_id
+  ON invoice_budget_lines(work_item_budget_id)
+  WHERE work_item_budget_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_invoice_budget_lines_household_item_budget_id
+  ON invoice_budget_lines(household_item_budget_id)
+  WHERE household_item_budget_id IS NOT NULL;
 
 PRAGMA foreign_keys = ON;
