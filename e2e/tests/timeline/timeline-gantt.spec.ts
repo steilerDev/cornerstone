@@ -44,6 +44,16 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
     await expect(timelinePage.ganttViewButton).toBeVisible();
     await expect(timelinePage.calendarViewButton).toBeVisible();
   });
+
+  test('"Add" button is visible in the toolbar (renamed from "New" in issue #1050)', async ({
+    page,
+  }) => {
+    const timelinePage = new TimelinePage(page);
+    await timelinePage.goto();
+
+    await expect(timelinePage.addButton).toBeVisible();
+    await expect(timelinePage.addButton).toHaveText('Add');
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

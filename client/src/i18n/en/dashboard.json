@@ -5,6 +5,7 @@
     "hiddenCards": "Hidden Cards",
     "showCard": "Show {{title}}",
     "actions": {
+      "addButton": "Add",
       "addWorkItem": "Add Work Item",
       "addHouseholdItem": "Add Household Item",
       "addMilestone": "Add Milestone"

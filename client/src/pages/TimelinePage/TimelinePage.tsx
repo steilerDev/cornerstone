@@ -492,7 +492,7 @@ export function TimelinePage() {
             </>
           )}
 
-          {/* New dropdown button */}
+          {/* Add dropdown button */}
           <div className={styles.newContainer} ref={newRef}>
             <button
               type="button"
@@ -500,10 +500,10 @@ export function TimelinePage() {
               onClick={() => setNewOpen((v) => !v)}
               aria-haspopup="menu"
               aria-expanded={newOpen}
-              aria-label={t('timeline.toolbar.newButton')}
-              data-testid="timeline-new-button"
+              aria-label={t('timeline.toolbar.addButton')}
+              data-testid="timeline-add-button"
             >
-              {t('timeline.toolbar.newButton')}
+              {t('timeline.toolbar.addButton')}
             </button>
             {newOpen && (
               <div className={styles.newDropdown} role="menu">
@@ -515,9 +515,9 @@ export function TimelinePage() {
                     setNewOpen(false);
                     void navigate('/project/work-items/new');
                   }}
-                  data-testid="timeline-new-work-item"
+                  data-testid="timeline-add-work-item"
                 >
-                  {t('timeline.toolbar.newWorkItem')}
+                  {t('timeline.toolbar.addWorkItem')}
                 </button>
                 <button
                   type="button"
@@ -527,9 +527,9 @@ export function TimelinePage() {
                     setNewOpen(false);
                     void navigate('/project/household-items/new');
                   }}
-                  data-testid="timeline-new-household-item"
+                  data-testid="timeline-add-household-item"
                 >
-                  {t('timeline.toolbar.newHouseholdItem')}
+                  {t('timeline.toolbar.addHouseholdItem')}
                 </button>
                 <button
                   type="button"
@@ -539,9 +539,9 @@ export function TimelinePage() {
                     setNewOpen(false);
                     void navigate('/project/milestones/new');
                   }}
-                  data-testid="timeline-new-milestone"
+                  data-testid="timeline-add-milestone"
                 >
-                  {t('timeline.toolbar.newMilestone')}
+                  {t('timeline.toolbar.addMilestone')}
                 </button>
               </div>
             )}

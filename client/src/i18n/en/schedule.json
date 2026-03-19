@@ -22,10 +22,10 @@
       "zoomOutColumns": "Zoom out columns",
       "zoomInColumns": "Zoom in columns",
       "adjustColumnWidth": "Adjust column width (Ctrl+scroll or Ctrl+=/−)",
-      "newButton": "New",
-      "newWorkItem": "Work Item",
-      "newHouseholdItem": "Household Item",
-      "newMilestone": "Milestone"
+      "addButton": "Add",
+      "addWorkItem": "Add Work Item",
+      "addHouseholdItem": "Add Household Item",
+      "addMilestone": "Add Milestone"
     },
     "zoomOptions": {
       "day": "Day",
