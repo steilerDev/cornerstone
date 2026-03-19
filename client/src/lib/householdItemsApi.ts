@@ -40,6 +40,9 @@ export function listHouseholdItems(
   if (params?.tagId) {
     queryParams.set('tagId', params.tagId);
   }
+  if (params?.noBudget) {
+    queryParams.set('noBudget', 'true');
+  }
   if (params?.sortBy) {
     queryParams.set('sortBy', params.sortBy);
   }

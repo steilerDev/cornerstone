@@ -585,6 +585,13 @@ export function listHouseholdItems(
     );
   }
 
+  // Filter for household items with no budget lines
+  if (query.noBudget) {
+    conditions.push(
+      sql`${householdItems.id} NOT IN (SELECT ${householdItemBudgets.householdItemId} FROM ${householdItemBudgets})`,
+    );
+  }
+
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
   // Count total items

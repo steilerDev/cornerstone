@@ -77,6 +77,7 @@ export function HouseholdItemsPage() {
   const statusFilter = searchParams.get('status') as HouseholdItemStatus | null;
   const roomFilter = searchParams.get('room') || '';
   const vendorFilter = searchParams.get('vendorId') || '';
+  const noBudgetFilter = searchParams.get('noBudget') === 'true';
   const sortBy =
     (searchParams.get('sortBy') as
       | 'name'
@@ -109,6 +110,9 @@ export function HouseholdItemsPage() {
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Screen reader announcement for filter toggle
+  const [srMessage, setSrMessage] = useState('');
 
   // Delete confirmation and modal state
   const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -212,6 +216,7 @@ export function HouseholdItemsPage() {
           q: searchQuery || undefined,
           sortBy,
           sortOrder,
+          noBudget: noBudgetFilter || undefined,
         });
 
         setHouseholdItems(response.items);
@@ -238,6 +243,7 @@ export function HouseholdItemsPage() {
     sortBy,
     sortOrder,
     currentPage,
+    noBudgetFilter,
   ]);
 
   // Close menu when clicking outside
@@ -319,6 +325,18 @@ export function HouseholdItemsPage() {
 
   const handleVendorFilterChange = (vendorId: string) => {
     updateSearchParams({ vendorId: vendorId || undefined, page: '1' });
+  };
+
+  const handleNoBudgetFilterChange = (checked: boolean) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (checked) {
+      newParams.set('noBudget', 'true');
+    } else {
+      newParams.delete('noBudget');
+    }
+    newParams.set('page', '1');
+    setSearchParams(newParams);
+    setSrMessage(checked ? t('filters.noBudgetActive') : t('filters.noBudgetInactive'));
   };
 
   const handleSortChange = (field: string) => {
@@ -565,6 +583,19 @@ export function HouseholdItemsPage() {
               </select>
             </div>
 
+            <button
+              type="button"
+              className={styles.noBudgetToggle}
+              aria-pressed={noBudgetFilter}
+              aria-label={t('filters.noBudgetAriaLabel')}
+              onClick={() => handleNoBudgetFilterChange(!noBudgetFilter)}
+            >
+              {t('filters.noBudget')}
+            </button>
+            <span className={styles.srAnnouncement} role="status" aria-atomic="true">
+              {srMessage}
+            </span>
+
             <div className={styles.filter}>
               <label htmlFor="sort-filter" className={styles.filterLabel}>
                 {t('filters.sortBy')}
@@ -603,7 +634,12 @@ export function HouseholdItemsPage() {
       {/* Household items list */}
       {householdItems.length === 0 ? (
         <div className={styles.emptyState}>
-          {searchQuery || categoryFilter || statusFilter || roomFilter || vendorFilter ? (
+          {searchQuery ||
+          categoryFilter ||
+          statusFilter ||
+          roomFilter ||
+          vendorFilter ||
+          noBudgetFilter ? (
             <>
               <h2>{t('empty.noResults')}</h2>
               <p>{t('empty.noResultsMessage')}</p>

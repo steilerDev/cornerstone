@@ -706,6 +706,54 @@
   }
 }
 
+/* No Budget Lines toggle button */
+.noBudgetToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  transition:
+    background-color var(--transition-medium),
+    border-color var(--transition-medium),
+    color var(--transition-medium);
+  align-self: flex-end;
+}
+
+.noBudgetToggle:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.noBudgetToggle:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.noBudgetToggle[aria-pressed='true'] {
+  background-color: var(--color-primary-bg);
+  color: var(--color-primary-badge-text);
+  border-color: var(--color-primary);
+}
+
+.noBudgetToggle[aria-pressed='true']::before {
+  content: '✓ ';
+}
+
+@media (max-width: 767px) {
+  .noBudgetToggle {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .primaryButton,
   .secondaryButton,
@@ -718,7 +766,8 @@
   .cancelButton,
   .confirmDeleteButton,
   .searchInput,
-  .filterSelect {
+  .filterSelect,
+  .noBudgetToggle {
     transition: none;
   }
 }
