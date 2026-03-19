@@ -5,12 +5,15 @@ import type { Vendor, CreateVendorRequest, VendorListQuery } from '@cornerstone/
 import { fetchVendors, createVendor, deleteVendor } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
+import { TradePicker } from '../../components/TradePicker/TradePicker.js';
+import { useTrades } from '../../hooks/useTrades.js';
 import styles from './VendorsPage.module.css';
 
 export function VendorsPage() {
   const { t } = useTranslation('budget');
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { trades } = useTrades();
 
   // Data state
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -41,6 +44,7 @@ export function VendorsPage() {
     email: '',
     address: '',
     notes: '',
+    tradeId: null,
   });
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string>('');
@@ -135,7 +139,7 @@ export function VendorsPage() {
   };
 
   const openCreateModal = () => {
-    setCreateForm({ name: '', phone: '', email: '', address: '', notes: '' });
+    setCreateForm({ name: '', phone: '', email: '', address: '', notes: '', tradeId: null });
     setCreateError('');
     setShowCreateModal(true);
   };
@@ -170,6 +174,7 @@ export function VendorsPage() {
         email: createForm.email?.trim() || null,
         address: createForm.address?.trim() || null,
         notes: createForm.notes?.trim() || null,
+        tradeId: createForm.tradeId || null,
       });
       setShowCreateModal(false);
       await loadVendors();
@@ -615,6 +620,19 @@ export function VendorsPage() {
                   placeholder={t('vendors.form.placeholders.notes')}
                   rows={3}
                   disabled={isCreating}
+                />
+              </div>
+
+              <div className={styles.field}>
+                <label htmlFor="vendor-trade" className={styles.label}>
+                  {t('vendors.form.trade')}
+                </label>
+                <TradePicker
+                  trades={trades}
+                  value={createForm.tradeId ?? ''}
+                  onChange={(tradeId) => setCreateForm({ ...createForm, tradeId })}
+                  disabled={isCreating}
+                  placeholder={t('vendors.form.placeholders.trade')}
                 />
               </div>
 

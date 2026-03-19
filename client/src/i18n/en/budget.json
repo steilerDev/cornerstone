@@ -179,6 +179,7 @@
       "email": "Email",
       "address": "Address",
       "notes": "Notes",
+      "trade": "Trade",
       "required": "*",
       "placeholders": {
         "name": "e.g., Smith Plumbing Co.",
@@ -186,7 +187,8 @@
         "phone": "e.g., +1 555-123-4567",
         "email": "e.g., contact@smithplumbing.com",
         "address": "e.g., 123 Main St, Springfield, IL 62701",
-        "notes": "Any additional notes about this vendor..."
+        "notes": "Any additional notes about this vendor...",
+        "trade": "Select a trade..."
       }
     },
     "validation": {
@@ -242,6 +244,7 @@
       "email": "Email",
       "address": "Address",
       "notes": "Notes",
+      "trade": "Trade",
       "createdBy": "Created by"
     },
     "form": {
@@ -251,7 +254,9 @@
       "email": "Email",
       "address": "Address",
       "notes": "Notes",
+      "trade": "Trade",
       "required": "*",
+      "tradePlaceholder": "Select a trade...",
       "placeholders": {
         "specialty": "e.g., Plumbing, Electrical, Roofing",
         "phone": "e.g., +1 555-123-4567",
