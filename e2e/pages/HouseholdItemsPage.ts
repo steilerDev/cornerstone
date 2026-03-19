@@ -186,25 +186,12 @@ export class HouseholdItemsPage {
 
   /**
    * Open the delete modal for the item with the given name.
-   * Uses the table on desktop and falls back to cards on mobile.
-   *
-   * NOTE: The actions button aria-label is currently broken (bug #944) — it renders as
-   * "Actions for" without the item name due to a missing {{name}} interpolation in
-   * householdItems.json. We use a locator that matches the button within the matching row/card.
-   * When bug #944 is fixed, update to: `[aria-label="Actions for ${name}"]`
+   * Uses the aria-label to find the actions button at page level,
+   * which works across both table (desktop/tablet) and card (mobile) layouts.
    */
   async openDeleteModal(name: string): Promise<void> {
-    // Find the actions button by aria-label at page level — avoids table/card
-    // visibility issues on tablet WebKit where the table actions column may be
-    // invisible despite tableContainer being in the DOM.
     const actionsBtn = this.page.locator(`[aria-label^="Actions for"][aria-label*="${name}"]`).first();
-    await actionsBtn.waitFor({ state: 'attached' });
-
-    // Use evaluate to click — bypasses all Playwright actionability checks
-    // (visibility, stability) which fail on tablet WebKit for table actions buttons.
-    await actionsBtn.evaluate((el: HTMLElement) => el.click());
-
-    // Wait for the dropdown menu to appear, then click Delete
+    await actionsBtn.click();
     await this.page.getByRole('menuitem', { name: 'Delete' }).click();
     await this.deleteModal.waitFor({ state: 'visible' });
   }
