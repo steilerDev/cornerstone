@@ -26,6 +26,8 @@ export interface GanttSidebarProps {
   onMilestoneClick?: (milestoneId: number) => void;
   /** Called when user clicks a household item sidebar row — navigate to the household item. */
   onHouseholdItemClick?: (id: string) => void;
+  /** Called when the sidebar scroll container scrolls — for syncing to the chart. */
+  onScroll?: () => void;
 }
 
 /**
@@ -45,6 +47,7 @@ export const GanttSidebar = function GanttSidebar({
   onItemClick,
   onMilestoneClick,
   onHouseholdItemClick,
+  onScroll,
 }: GanttSidebarProps & { ref?: Ref<HTMLDivElement | null> }) {
   // Ref for the rows container to query row elements
   const rowsRef = useRef<HTMLDivElement>(null);
@@ -156,6 +159,7 @@ export const GanttSidebar = function GanttSidebar({
         className={styles.sidebarRows}
         role="list"
         aria-label="Work items and milestones"
+        onScroll={onScroll}
       >
         {/* Render unified rows (interleaved work items + milestones) when available */}
         {unifiedRows

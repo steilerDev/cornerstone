@@ -86,9 +86,12 @@ function resolveColors(): ChartColors {
       completeStroke: readCssVar('--color-milestone-complete-stroke'),
       lateFill: readCssVar('--color-milestone-late-fill') || readCssVar('--color-danger'),
       lateStroke: readCssVar('--color-milestone-late-stroke') || readCssVar('--color-danger'),
+      aheadFill: readCssVar('--color-milestone-ahead-fill') || readCssVar('--color-success'),
+      aheadStroke: readCssVar('--color-milestone-ahead-stroke') || readCssVar('--color-success'),
       hoverGlow: readCssVar('--color-milestone-hover-glow'),
       completeHoverGlow: readCssVar('--color-milestone-complete-hover-glow'),
       lateHoverGlow: readCssVar('--color-milestone-late-hover-glow') || 'rgba(220, 38, 38, 0.25)',
+      aheadHoverGlow: readCssVar('--color-milestone-ahead-hover-glow') || 'rgba(16, 185, 129, 0.25)',
     },
     householdItem: {
       fill: readCssVar('--color-gantt-hi-fill'),
@@ -1111,6 +1114,27 @@ export function GanttChart({
     });
   }, []);
 
+  /**
+   * Sync sidebar scroll back to chart.
+   * This is called when the user scrolls the sidebar independently.
+   */
+  const handleSidebarScroll = useCallback(() => {
+    if (isScrollSyncing.current) return;
+
+    const sidebarEl = sidebarScrollRef.current;
+    if (!sidebarEl) return;
+
+    requestAnimationFrame(() => {
+      isScrollSyncing.current = true;
+
+      if (chartScrollRef.current) {
+        chartScrollRef.current.scrollTop = sidebarEl.scrollTop;
+      }
+
+      isScrollSyncing.current = false;
+    });
+  }, []);
+
   // Scroll to today on first render and when zoom changes
   useEffect(() => {
     if (todayX !== null && chartScrollRef.current) {
@@ -1142,6 +1166,7 @@ export function GanttChart({
         onItemClick={handleBarOrSidebarClick}
         onMilestoneClick={onMilestoneClick}
         onHouseholdItemClick={handleHiClick}
+        onScroll={handleSidebarScroll}
         ref={sidebarScrollRef}
       />
 
