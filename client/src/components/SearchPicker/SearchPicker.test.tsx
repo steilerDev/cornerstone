@@ -502,7 +502,7 @@ describe('SearchPicker', () => {
       });
     });
 
-    it('empty-string special option: selecting "All Areas" calls onChange("")', async () => {
+    it('empty-string special option: selecting "All Areas" calls onChange("") and shows selected display', async () => {
       const user = userEvent.setup();
       const onChange = jest.fn<(id: string) => void>();
       const specialOptions = [{ id: '', label: 'All Areas' }];
@@ -523,7 +523,44 @@ describe('SearchPicker', () => {
       await user.click(screen.getByRole('option', { name: 'All Areas' }));
 
       expect(onChange).toHaveBeenCalledWith('');
-      expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+      // After explicit selection, the selected display should appear
+      await waitFor(() => {
+        expect(screen.getByText('All Areas')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /clear selection/i })).toBeInTheDocument();
+      });
+    });
+
+    it('empty-string special option: clearing after selection returns to input', async () => {
+      const user = userEvent.setup();
+      const onChange = jest.fn<(id: string) => void>();
+      const specialOptions = [{ id: '', label: 'All Areas' }];
+      renderPicker({
+        specialOptions,
+        value: '',
+        onChange: onChange as ReturnType<typeof jest.fn>,
+        placeholder: 'Search...',
+      });
+
+      // Select "All Areas"
+      const input = screen.getByPlaceholderText('Search...');
+      await user.click(input);
+      await waitFor(() =>
+        expect(screen.getByRole('option', { name: 'All Areas' })).toBeInTheDocument(),
+      );
+      await user.click(screen.getByRole('option', { name: 'All Areas' }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /clear selection/i })).toBeInTheDocument(),
+      );
+
+      // Clear the selection
+      await user.click(screen.getByRole('button', { name: /clear selection/i }));
+      expect(onChange).toHaveBeenLastCalledWith('');
+
+      // Should return to input mode
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+        expect(screen.queryByText('All Areas')).not.toBeInTheDocument();
+      });
     });
 
     it('non-empty special option id: chip still renders (regression guard)', () => {
