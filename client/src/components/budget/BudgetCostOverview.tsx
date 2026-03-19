@@ -30,19 +30,28 @@ export function BudgetCostOverview({ budgetLines, subsidyPayback }: BudgetCostOv
   const { formatCurrency } = useFormatters();
   if (budgetLines.length === 0) return null;
 
-  const { totalPlanned, totalMinPlanned, totalMaxPlanned, hasPlannedRange, allInvoiced } =
-    computeBudgetTotals(budgetLines);
+  const {
+    totalPlanned,
+    totalMinPlanned,
+    totalMaxPlanned,
+    hasPlannedRange,
+    allInvoiced,
+    allQuotation,
+  } = computeBudgetTotals(budgetLines);
+
+  // When all lines are quotation-linked, costs are NOT fully known — show ranges
+  const costsKnown = allInvoiced && !allQuotation;
 
   const hasSubsidyPayback =
     subsidyPayback !== null &&
     subsidyPayback.subsidies.length > 0 &&
     subsidyPayback.maxTotalPayback > 0;
 
-  // When all budget lines are invoiced, costs are known — collapse to single values.
+  // When all budget lines are invoiced (non-quotation), costs are known — collapse to single values.
   // The server-side payback should already return equal min/max when all lines are invoiced,
   // but we force collapse here for a definitive single-number display.
   const effectivePaybackMin =
-    allInvoiced && hasSubsidyPayback
+    costsKnown && hasSubsidyPayback
       ? subsidyPayback!.maxTotalPayback
       : hasSubsidyPayback
         ? subsidyPayback!.minTotalPayback
@@ -69,7 +78,7 @@ export function BudgetCostOverview({ budgetLines, subsidyPayback }: BudgetCostOv
         {/* Planned Range — always shown; struck-through only when ALL lines are invoiced */}
         <div className={styles.summaryRow}>
           <span className={styles.summaryLabel}>Planned Cost</span>
-          <span className={allInvoiced ? styles.budgetValueMuted : styles.budgetValue}>
+          <span className={costsKnown ? styles.budgetValueMuted : styles.budgetValue}>
             {hasPlannedRange
               ? `${formatCurrency(totalMinPlanned)} – ${formatCurrency(totalMaxPlanned)}`
               : formatCurrency(totalPlanned)}

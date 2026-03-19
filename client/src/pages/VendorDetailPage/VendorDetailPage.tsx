@@ -31,7 +31,7 @@ const EMPTY_INVOICE_FORM: InvoiceFormState = {
   amount: '',
   date: '',
   dueDate: '',
-  status: 'pending',
+  status: 'quotation',
   notes: '',
 };
 

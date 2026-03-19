@@ -121,6 +121,7 @@ const ZERO_SUMMARY = {
   pending: { count: 0, totalAmount: 0 },
   paid: { count: 0, totalAmount: 0 },
   claimed: { count: 0, totalAmount: 0 },
+  quotation: { count: 0, totalAmount: 0 },
 };
 
 function makeInvoice(overrides: Partial<Invoice> & { id: string }): Invoice {
@@ -263,12 +264,12 @@ describe('InvoicesPage', () => {
       });
     });
 
-    it('renders the Claimed summary card', async () => {
+    it('renders the Quotation summary card', async () => {
       renderPage();
 
-      // 'Claimed' appears as both a summary label and a filter <option> — use getAllByText
+      // 'Quotation' appears as both a summary label and a filter <option> — use getAllByText
       await waitFor(() => {
-        const matches = screen.getAllByText('Claimed');
+        const matches = screen.getAllByText('Quotation');
         expect(matches.length).toBeGreaterThanOrEqual(1);
       });
     });
@@ -277,7 +278,7 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        // Three summary cards: Pending, Paid, Claimed — all showing 0 count and $0.00
+        // Three summary cards: Pending, Paid, Quotation — all showing 0 count and $0.00
         const zeros = screen.getAllByText('0');
         expect(zeros.length).toBeGreaterThanOrEqual(3);
         const amounts = screen.getAllByText('$0.00');
@@ -292,6 +293,7 @@ describe('InvoicesPage', () => {
             pending: { count: 1, totalAmount: 50 },
             paid: { count: 3, totalAmount: 300 },
             claimed: { count: 2, totalAmount: 200 },
+            quotation: { count: 0, totalAmount: 0 },
           },
         }),
       );
@@ -308,6 +310,7 @@ describe('InvoicesPage', () => {
             pending: { count: 1, totalAmount: 50 },
             paid: { count: 3, totalAmount: 300 },
             claimed: { count: 2, totalAmount: 200 },
+            quotation: { count: 0, totalAmount: 0 },
           },
         }),
       );
@@ -317,36 +320,38 @@ describe('InvoicesPage', () => {
       await waitFor(() => expect(screen.getByText('$500.00')).toBeInTheDocument());
     });
 
-    it('Claimed card shows only claimed count (not combined)', async () => {
+    it('Quotation card shows quotation count', async () => {
       mockFetchAllInvoices.mockResolvedValue(
         makeApiResponse({
           summary: {
             pending: { count: 1, totalAmount: 50 },
             paid: { count: 3, totalAmount: 300 },
             claimed: { count: 2, totalAmount: 200 },
+            quotation: { count: 4, totalAmount: 800 },
           },
         }),
       );
       renderPage();
 
-      // Claimed card shows exactly 2, not 5. Verify '2' appears in the DOM (claimed count).
-      await waitFor(() => expect(screen.getByText('2')).toBeInTheDocument());
+      // Quotation card shows exactly 4
+      await waitFor(() => expect(screen.getByText('4')).toBeInTheDocument());
     });
 
-    it('Claimed card shows only claimed total amount (not combined)', async () => {
+    it('Quotation card shows quotation total amount', async () => {
       mockFetchAllInvoices.mockResolvedValue(
         makeApiResponse({
           summary: {
             pending: { count: 1, totalAmount: 50 },
             paid: { count: 3, totalAmount: 300 },
             claimed: { count: 2, totalAmount: 200 },
+            quotation: { count: 4, totalAmount: 800 },
           },
         }),
       );
       renderPage();
 
-      // Claimed card shows exactly $200.00, not $500.00.
-      await waitFor(() => expect(screen.getByText('$200.00')).toBeInTheDocument());
+      // Quotation card shows $800.00
+      await waitFor(() => expect(screen.getByText('$800.00')).toBeInTheDocument());
     });
   });
 
@@ -356,8 +361,7 @@ describe('InvoicesPage', () => {
      * `summary.paid` and `summary.claimed` from the API response.
      *
      * This ensures the UI reflects the full "settled" amount (both paid
-     * and subsidy-claimed invoices) while the "Claimed" card still shows
-     * the subset that went through a subsidy claim.
+     * and subsidy-claimed invoices).
      */
     it('shows combined paid + claimed totals when both statuses are present', async () => {
       const paidInvoice = makeInvoice({ id: 'inv-paid-1', status: 'paid', amount: 1500 });
@@ -371,6 +375,7 @@ describe('InvoicesPage', () => {
             pending: { count: 0, totalAmount: 0 },
             paid: { count: 1, totalAmount: 1500 },
             claimed: { count: 1, totalAmount: 750 },
+            quotation: { count: 0, totalAmount: 0 },
           },
         }),
       );
@@ -383,11 +388,6 @@ describe('InvoicesPage', () => {
         // Paid card amount: $1500 + $750 = $2250.00
         expect(screen.getByText('$2250.00')).toBeInTheDocument();
       });
-
-      // Claimed card still shows its own totals: count=1, amount=$750.00
-      // Multiple elements with '1' and '$750.00' exist (summary + table + mobile cards)
-      expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('$750.00').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows only paid total when there are no claimed invoices', async () => {
@@ -397,6 +397,7 @@ describe('InvoicesPage', () => {
             pending: { count: 2, totalAmount: 400 },
             paid: { count: 4, totalAmount: 1200 },
             claimed: { count: 0, totalAmount: 0 },
+            quotation: { count: 0, totalAmount: 0 },
           },
         }),
       );
@@ -418,6 +419,7 @@ describe('InvoicesPage', () => {
             pending: { count: 0, totalAmount: 0 },
             paid: { count: 0, totalAmount: 0 },
             claimed: { count: 3, totalAmount: 900 },
+            quotation: { count: 0, totalAmount: 0 },
           },
         }),
       );
@@ -426,13 +428,9 @@ describe('InvoicesPage', () => {
 
       await waitFor(() => {
         // Paid card count: 0 paid + 3 claimed = 3
-        // Both Paid card and Claimed card display '3', so getAllByText
-        const threeElements = screen.getAllByText('3');
-        expect(threeElements.length).toBeGreaterThanOrEqual(2);
+        expect(screen.getByText('3')).toBeInTheDocument();
         // Paid card amount: $0 + $900 = $900.00
-        // Both Paid card and Claimed card display $900.00, so getAllByText
-        const nineHundredElements = screen.getAllByText('$900.00');
-        expect(nineHundredElements.length).toBeGreaterThanOrEqual(2);
+        expect(screen.getByText('$900.00')).toBeInTheDocument();
       });
     });
   });

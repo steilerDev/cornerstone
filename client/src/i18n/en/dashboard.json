@@ -92,6 +92,8 @@
       "noPendingInvoices": "No pending invoices",
       "overdue": "Overdue",
       "pendingTotal": "Pending Total:",
+      "quotesTitle": "Quotes",
+      "quotesTotal": "Total Quoted:",
       "viewAllInvoices": "View all invoices"
     },
     "subsidyPipeline": {

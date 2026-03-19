@@ -50,6 +50,7 @@
       "sum": "Sum",
       "availableFunds": "Available funds",
       "remainingBudget": "Remaining Budget",
+      "quoted": "Quoted",
       "tableHeaders": {
         "name": "Name",
         "cost": "Cost",
@@ -267,8 +268,11 @@
     "invoiceStatusLabels": {
       "pending": "Pending",
       "paid": "Paid",
-      "claimed": "Claimed"
+      "claimed": "Claimed",
+      "quotation": "Quotation"
     },
+    "quotedLabel": "Quoted",
+    "quotedAmount": "Quoted Amount",
     "invoiceTable": {
       "invoiceNumber": "Invoice #",
       "amount": "Amount",
@@ -310,6 +314,7 @@
     "summaryPending": "Pending",
     "summaryPaid": "Paid",
     "summaryClaimed": "Claimed",
+    "summaryQuotation": "Quotation",
     "filterByStatus": "Filter by status",
     "filterByVendor": "Filter by vendor",
     "allStatuses": "All Statuses",
@@ -368,7 +373,8 @@
     "statusLabels": {
       "pending": "Pending",
       "paid": "Paid",
-      "claimed": "Claimed"
+      "claimed": "Claimed",
+      "quotation": "Quotation"
     },
     "modal": {
       "title": "Add Invoice",
@@ -444,7 +450,8 @@
     "statusLabels": {
       "pending": "Pending",
       "paid": "Paid",
-      "claimed": "Claimed"
+      "claimed": "Claimed",
+      "quotation": "Quotation"
     },
     "modal": {
       "editTitle": "Edit Invoice",

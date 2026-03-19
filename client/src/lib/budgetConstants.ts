@@ -25,6 +25,7 @@ export interface BudgetTotals {
   totalMaxPlanned: number;
   hasPlannedRange: boolean;
   allInvoiced: boolean;
+  allQuotation: boolean;
 }
 
 /**
@@ -39,19 +40,28 @@ export function computeBudgetTotals(budgetLines: BaseBudgetLine[]): BudgetTotals
   const totalActualCost = budgetLines.reduce((sum, b) => sum + b.actualCost, 0);
 
   const totalMinPlanned = budgetLines.reduce((sum, b) => {
-    if (b.invoiceCount > 0) return sum + b.actualCost;
+    if (b.invoiceCount > 0) {
+      if (b.invoiceLink?.invoiceStatus === 'quotation') return sum + b.actualCost * 0.95;
+      return sum + b.actualCost;
+    }
     const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
     return sum + b.plannedAmount * (1 - margin);
   }, 0);
 
   const totalMaxPlanned = budgetLines.reduce((sum, b) => {
-    if (b.invoiceCount > 0) return sum + b.actualCost;
+    if (b.invoiceCount > 0) {
+      if (b.invoiceLink?.invoiceStatus === 'quotation') return sum + b.actualCost * 1.05;
+      return sum + b.actualCost;
+    }
     const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
     return sum + b.plannedAmount * (1 + margin);
   }, 0);
 
   const hasPlannedRange = Math.abs(totalMaxPlanned - totalMinPlanned) > 0.01;
   const allInvoiced = budgetLines.length > 0 && budgetLines.every((b) => b.invoiceCount > 0);
+  // If all lines are quotation-linked, we still have a range — don't collapse
+  const allQuotation =
+    allInvoiced && budgetLines.every((b) => b.invoiceLink?.invoiceStatus === 'quotation');
 
   return {
     totalPlanned,
@@ -60,5 +70,6 @@ export function computeBudgetTotals(budgetLines: BaseBudgetLine[]): BudgetTotals
     totalMaxPlanned,
     hasPlannedRange,
     allInvoiced,
+    allQuotation,
   };
 }

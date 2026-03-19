@@ -9,7 +9,7 @@ const listAllInvoicesSchema = {
       page: { type: 'integer', minimum: 1 },
       pageSize: { type: 'integer', minimum: 1, maximum: 100 },
       q: { type: 'string', maxLength: 200 },
-      status: { type: 'string', enum: ['pending', 'paid', 'claimed'] },
+      status: { type: 'string', enum: ['pending', 'paid', 'claimed', 'quotation'] },
       vendorId: { type: 'string' },
       sortBy: { type: 'string', enum: ['date', 'amount', 'status', 'vendor_name', 'due_date'] },
       sortOrder: { type: 'string', enum: ['asc', 'desc'] },
@@ -32,7 +32,7 @@ interface ListAllInvoicesQuery {
   page?: number;
   pageSize?: number;
   q?: string;
-  status?: 'pending' | 'paid' | 'claimed';
+  status?: 'pending' | 'paid' | 'claimed' | 'quotation';
   vendorId?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';

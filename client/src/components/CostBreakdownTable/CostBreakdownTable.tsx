@@ -161,6 +161,7 @@ function BudgetLineRow({
   line: BreakdownBudgetLine;
   perspective: CostPerspective;
 }) {
+  const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
   const key = `line-${line.id}`;
   const margin = CONFIDENCE_MARGINS[line.confidence];
@@ -169,14 +170,25 @@ function BudgetLineRow({
   const perspectiveValue = resolveProjected(costMin, costMax, perspective);
   const rowClassName = styles.rowLevel3;
 
-  const resolvedRawCost = line.hasInvoice ? line.actualCost : perspectiveValue;
+  // Calculate quoted range (±5%)
+  const quotedMin = line.actualCost * 0.95;
+  const quotedMax = line.actualCost * 1.05;
+  const quotedPerspectiveValue = resolveProjected(quotedMin, quotedMax, perspective);
+
+  const resolvedRawCost = line.isQuotation
+    ? quotedPerspectiveValue
+    : line.hasInvoice
+      ? line.actualCost
+      : perspectiveValue;
 
   return (
     <tr className={rowClassName} key={key}>
       <td className={styles.colName}>
         <div className={styles.nameContent}>
           <span>{line.description || 'Untitled'}</span>
-          {line.hasInvoice ? (
+          {line.isQuotation ? (
+            <span className={styles.quotedBadge}>{t('overview.costBreakdown.quoted')}</span>
+          ) : line.hasInvoice ? (
             <span className={styles.invoicedBadge}>invoiced</span>
           ) : (
             <ConfidenceBadge confidence={line.confidence} />
@@ -184,7 +196,9 @@ function BudgetLineRow({
         </div>
       </td>
       <td className={styles.colBudget}>
-        {line.hasInvoice ? (
+        {line.isQuotation ? (
+          <span>-{formatCurrencyFn(quotedPerspectiveValue)}</span>
+        ) : line.hasInvoice ? (
           <span>-{formatCurrencyFn(line.actualCost)}</span>
         ) : (
           <span>-{formatCurrencyFn(perspectiveValue)}</span>
@@ -214,6 +228,7 @@ function WorkItemRow({
   onToggle: (key: string) => void;
   perspective: CostPerspective;
 }) {
+  const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
   const key = expandKey;
   const rowClassName = styles.rowLevel2;
@@ -249,6 +264,9 @@ function WorkItemRow({
             </Link>
             {item.costDisplay === 'actual' && (
               <span className={styles.invoicedBadge}>invoiced</span>
+            )}
+            {item.costDisplay === 'quoted' && (
+              <span className={styles.quotedBadge}>{t('overview.costBreakdown.quoted')}</span>
             )}
           </div>
         </td>
@@ -369,6 +387,7 @@ function HouseholdItemRow({
   onToggle: (key: string) => void;
   perspective: CostPerspective;
 }) {
+  const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
   const key = expandKey;
   const rowClassName = styles.rowLevel2;
@@ -407,6 +426,9 @@ function HouseholdItemRow({
             </Link>
             {item.costDisplay === 'actual' && (
               <span className={styles.invoicedBadge}>invoiced</span>
+            )}
+            {item.costDisplay === 'quoted' && (
+              <span className={styles.quotedBadge}>{t('overview.costBreakdown.quoted')}</span>
             )}
           </div>
         </td>

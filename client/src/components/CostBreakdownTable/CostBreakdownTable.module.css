@@ -377,6 +377,26 @@
   white-space: nowrap;
 }
 
+/* ---- Quoted badge ---- */
+
+.quotedBadge {
+  display: inline-block;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full);
+  background: var(--color-gray-200);
+  color: var(--color-gray-800);
+  text-transform: capitalize;
+  margin-left: var(--spacing-2);
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .quotedBadge {
+  background: var(--color-slate-500);
+  color: var(--color-white);
+}
+
 /* ---- Cost mixed display wrapper ---- */
 
 .costMixedWrapper {
