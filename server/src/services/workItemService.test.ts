@@ -45,22 +45,6 @@ describe('Work Item Service', () => {
     return userId;
   }
 
-  /**
-   * Helper: Create a test tag
-   */
-  function createTestTag(name: string, color: string = '#3b82f6') {
-    const tagId = `tag-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    db.insert(schema.tags)
-      .values({
-        id: tagId,
-        name,
-        color,
-        createdAt: new Date().toISOString(),
-      })
-      .run();
-    return tagId;
-  }
-
   beforeEach(() => {
     const testDb = createTestDb();
     sqlite = testDb.sqlite;
@@ -94,7 +78,6 @@ describe('Work Item Service', () => {
       expect(result.startBefore).toBeNull();
       expect(result.assignedUser).toBeNull();
       expect(result.createdBy?.id).toBe(userId);
-      expect(result.tags).toEqual([]);
       expect(result.subtasks).toEqual([]);
       expect(result.dependencies).toEqual({ predecessors: [], successors: [] });
       expect(result.createdAt).toBeDefined();
@@ -102,10 +85,9 @@ describe('Work Item Service', () => {
     });
 
     it('creates work item with all optional fields', () => {
-      // Given: A user, a tag, and another user for assignment
+      // Given: A user and another user for assignment
       const creatorId = createTestUser('creator@example.com', 'Creator');
       const assigneeId = createTestUser('assignee@example.com', 'Assignee');
-      const tagId = createTestTag('Foundation');
 
       const data: CreateWorkItemRequest = {
         title: 'Pour foundation',
@@ -117,7 +99,6 @@ describe('Work Item Service', () => {
         startAfter: '2026-02-28',
         startBefore: '2026-03-10',
         assignedUserId: assigneeId,
-        tagIds: [tagId],
       };
 
       // When: Creating work item
@@ -134,8 +115,6 @@ describe('Work Item Service', () => {
       expect(result.startBefore).toBe('2026-03-10');
       expect(result.assignedUser?.id).toBe(assigneeId);
       expect(result.createdBy?.id).toBe(creatorId);
-      expect(result.tags).toHaveLength(1);
-      expect(result.tags[0].name).toBe('Foundation');
     });
 
     it('trims whitespace from title', () => {
@@ -260,40 +239,19 @@ describe('Work Item Service', () => {
       );
     });
 
-    it('throws ValidationError when tagId does not exist', () => {
-      // Given: Non-existent tag ID
+    it('throws ValidationError when areaId does not exist', () => {
+      // Given: Non-existent area ID
       const userId = createTestUser('user@example.com', 'Test User');
       const data: CreateWorkItemRequest = {
         title: 'Test',
-        tagIds: ['non-existent-tag-id'],
+        areaId: 'non-existent-area-id',
       };
 
       // When/Then: Throws validation error
       expect(() => workItemService.createWorkItem(db, userId, data)).toThrow(ValidationError);
       expect(() => workItemService.createWorkItem(db, userId, data)).toThrow(
-        'Tag not found: non-existent-tag-id',
+        'Area not found: non-existent-area-id',
       );
-    });
-
-    it('creates work item with multiple tags', () => {
-      // Given: Multiple tags
-      const userId = createTestUser('user@example.com', 'Test User');
-      const tag1 = createTestTag('Foundation');
-      const tag2 = createTestTag('Electrical');
-      const tag3 = createTestTag('Urgent');
-
-      const data: CreateWorkItemRequest = {
-        title: 'Multi-tag task',
-        tagIds: [tag1, tag2, tag3],
-      };
-
-      // When: Creating work item
-      const result = workItemService.createWorkItem(db, userId, data);
-
-      // Then: All tags are assigned
-      expect(result.tags).toHaveLength(3);
-      const tagNames = result.tags.map((t) => t.name).sort();
-      expect(tagNames).toEqual(['Electrical', 'Foundation', 'Urgent']);
     });
   });
 
@@ -324,12 +282,10 @@ describe('Work Item Service', () => {
 
   describe('getWorkItemDetail()', () => {
     it('returns work item detail with all relationships', () => {
-      // Given: A work item with tags, subtask, and dependencies
+      // Given: A work item with subtask and dependencies
       const userId = createTestUser('user@example.com', 'Test User');
-      const tagId = createTestTag('Foundation');
       const workItem = workItemService.createWorkItem(db, userId, {
         title: 'Main Task',
-        tagIds: [tagId],
       });
 
       // Add a subtask
@@ -360,7 +316,6 @@ describe('Work Item Service', () => {
 
       // Then: All relationships are loaded
       expect(detail.id).toBe(workItem.id);
-      expect(detail.tags).toHaveLength(1);
       expect(detail.subtasks).toHaveLength(1);
       expect(detail.subtasks[0].title).toBe('Subtask 1');
       expect(detail.dependencies.predecessors).toHaveLength(1);
@@ -578,44 +533,36 @@ describe('Work Item Service', () => {
       ).toThrow('User not found: non-existent');
     });
 
-    it('replaces tags (set semantics, not merge)', () => {
-      // Given: Work item with tags [A, B]
+    it('updates areaId to null (clears area)', () => {
+      // Given: Work item without area
       const userId = createTestUser('user@example.com', 'Test User');
-      const tagA = createTestTag('Tag A');
-      const tagB = createTestTag('Tag B');
-      const tagC = createTestTag('Tag C');
-      const workItem = workItemService.createWorkItem(db, userId, {
-        title: 'Test',
-        tagIds: [tagA, tagB],
-      });
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Test' });
 
-      // When: Updating tags to [B, C]
+      // When: Updating areaId to null
       const updated = workItemService.updateWorkItem(db, workItem.id, {
-        tagIds: [tagB, tagC],
+        areaId: null,
       });
 
-      // Then: Tags are [B, C] (not [A, B, C])
-      expect(updated.tags).toHaveLength(2);
-      const tagNames = updated.tags.map((t) => t.name).sort();
-      expect(tagNames).toEqual(['Tag B', 'Tag C']);
+      // Then: Area is still null
+      expect(updated.area).toBeNull();
     });
 
-    it('allows clearing all tags', () => {
-      // Given: Work item with tags
+    it('throws ValidationError for non-existent areaId in update', () => {
+      // Given: Work item
       const userId = createTestUser('user@example.com', 'Test User');
-      const tagId = createTestTag('Tag A');
-      const workItem = workItemService.createWorkItem(db, userId, {
-        title: 'Test',
-        tagIds: [tagId],
-      });
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Test' });
 
-      // When: Updating tags to empty array
-      const updated = workItemService.updateWorkItem(db, workItem.id, {
-        tagIds: [],
-      });
-
-      // Then: No tags
-      expect(updated.tags).toHaveLength(0);
+      // When: Updating with non-existent areaId
+      expect(() =>
+        workItemService.updateWorkItem(db, workItem.id, {
+          areaId: 'non-existent-area-id',
+        }),
+      ).toThrow(ValidationError);
+      expect(() =>
+        workItemService.updateWorkItem(db, workItem.id, {
+          areaId: 'non-existent-area-id',
+        }),
+      ).toThrow('Area not found: non-existent-area-id');
     });
 
     it('throws NotFoundError when work item does not exist', () => {
@@ -642,31 +589,6 @@ describe('Work Item Service', () => {
       // Then: Work item no longer exists
       const found = workItemService.findWorkItemById(db, workItem.id);
       expect(found).toBeUndefined();
-    });
-
-    it('cascades delete to tags association', () => {
-      // Given: Work item with tags
-      const userId = createTestUser('user@example.com', 'Test User');
-      const tagId = createTestTag('Test Tag');
-      const workItem = workItemService.createWorkItem(db, userId, {
-        title: 'Test',
-        tagIds: [tagId],
-      });
-
-      // When: Deleting work item
-      workItemService.deleteWorkItem(db, workItem.id);
-
-      // Then: Tag association is deleted
-      const associations = db
-        .select()
-        .from(schema.workItemTags)
-        .where(eq(schema.workItemTags.workItemId, workItem.id))
-        .all();
-      expect(associations).toHaveLength(0);
-
-      // And: Tag itself still exists
-      const tag = db.select().from(schema.tags).where(eq(schema.tags.id, tagId)).get();
-      expect(tag).toBeDefined();
     });
 
     it('cascades delete to subtasks', () => {
@@ -866,22 +788,18 @@ describe('Work Item Service', () => {
       expect(result.items.every((item) => item.assignedUser?.id === userA)).toBe(true);
     });
 
-    it('filters by tagId', () => {
-      // Given: Work items with various tags
+    it('filters by areaId returns results (no area set)', () => {
+      // Given: Work items without areas
       const userId = createTestUser('user@example.com', 'Test User');
-      const tagA = createTestTag('Tag A');
-      const tagB = createTestTag('Tag B');
-      workItemService.createWorkItem(db, userId, { title: 'Has A', tagIds: [tagA] });
-      workItemService.createWorkItem(db, userId, { title: 'Has B', tagIds: [tagB] });
-      workItemService.createWorkItem(db, userId, { title: 'Has A and B', tagIds: [tagA, tagB] });
-      workItemService.createWorkItem(db, userId, { title: 'No tags' });
+      workItemService.createWorkItem(db, userId, { title: 'Item A' });
+      workItemService.createWorkItem(db, userId, { title: 'Item B' });
 
-      // When: Filtering by tagA
-      const result = workItemService.listWorkItems(db, { tagId: tagA });
+      // When: Listing without areaId filter
+      const result = workItemService.listWorkItems(db, {});
 
-      // Then: Returns items with tagA
+      // Then: Returns all items (area is null for all)
       expect(result.items).toHaveLength(2);
-      expect(result.items.every((item) => item.tags.some((t) => t.id === tagA))).toBe(true);
+      result.items.forEach((item) => expect(item.area).toBeNull());
     });
 
     it('searches title and description (case-insensitive)', () => {
@@ -972,25 +890,21 @@ describe('Work Item Service', () => {
       // Given: Work items with various properties
       const creator = createTestUser('creator@example.com', 'Creator');
       const userA = createTestUser('userA@example.com', 'User A');
-      const tagElectrical = createTestTag('Electrical');
 
       workItemService.createWorkItem(db, creator, {
         title: 'Electrical wiring in progress',
         status: 'in_progress',
         assignedUserId: userA,
-        tagIds: [tagElectrical],
       });
       workItemService.createWorkItem(db, creator, {
         title: 'Electrical planning not started',
         status: 'not_started',
         assignedUserId: userA,
-        tagIds: [tagElectrical],
       });
       workItemService.createWorkItem(db, creator, {
         title: 'Electrical installation in progress',
         status: 'in_progress',
         assignedUserId: userA,
-        tagIds: [tagElectrical],
       });
 
       // When: Filtering by status=in_progress AND assignedUserId=userA AND q=wiring
@@ -1005,18 +919,16 @@ describe('Work Item Service', () => {
       expect(result.items[0].title).toBe('Electrical wiring in progress');
     });
 
-    it('includes tags in list response', () => {
-      // Given: Work item with tags
+    it('includes area in list response', () => {
+      // Given: Work item without area
       const userId = createTestUser('user@example.com', 'Test User');
-      const tagId = createTestTag('Foundation');
-      workItemService.createWorkItem(db, userId, { title: 'Test', tagIds: [tagId] });
+      workItemService.createWorkItem(db, userId, { title: 'Test' });
 
       // When: Listing work items
       const result = workItemService.listWorkItems(db, {});
 
-      // Then: Tags are included
-      expect(result.items[0].tags).toHaveLength(1);
-      expect(result.items[0].tags[0].name).toBe('Foundation');
+      // Then: Area is null when unset
+      expect(result.items[0].area).toBeNull();
     });
 
     it('includes assignedUser summary in list response', () => {

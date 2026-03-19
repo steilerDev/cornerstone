@@ -80,19 +80,6 @@ describe('Migration 0010: Household Items', () => {
     ).run(id, `Work Item ${id}`, 'not_started', now, now);
   }
 
-  /**
-   * Insert a minimal tag row required by FK constraints.
-   * Note: tags table has no updated_at column (see migration 0002).
-   */
-  function insertTag(db: Database.Database, id: string) {
-    const now = new Date().toISOString();
-    db.prepare(`INSERT INTO tags (id, name, created_at) VALUES (?, ?, ?)`).run(
-      id,
-      `Tag ${id}`,
-      now,
-    );
-  }
-
   beforeEach(() => {
     sqlite = createTestDb();
   });
@@ -133,7 +120,6 @@ describe('Migration 0010: Household Items', () => {
         'household_item_deps',
         'household_item_notes',
         'household_item_subsidies',
-        'household_item_tags',
         'household_items',
       ]);
     });
@@ -169,13 +155,16 @@ describe('Migration 0010: Household Items', () => {
       expect(colMap.get('description')?.notnull).toBe(0);
       expect(colMap.get('vendor_id')?.notnull).toBe(0);
       expect(colMap.get('url')?.notnull).toBe(0);
-      expect(colMap.get('room')?.notnull).toBe(0);
+      expect(colMap.get('area_id')?.notnull).toBe(0);
       expect(colMap.get('order_date')?.notnull).toBe(0);
       expect(colMap.get('actual_delivery_date')?.notnull).toBe(0);
       expect(colMap.get('created_by')?.notnull).toBe(0);
 
+      // room column was replaced by area_id FK in migration 0028
+      expect(colMap.has('room')).toBe(false);
+
       // All expected columns are present
-      // (expected_delivery_date removed in 0015; category removed in 0016, replaced by category_id)
+      // (expected_delivery_date removed in 0015; category removed in 0016; room removed in 0028, replaced by area_id)
       const expectedColumns = [
         'id',
         'name',
@@ -184,7 +173,7 @@ describe('Migration 0010: Household Items', () => {
         'status',
         'vendor_id',
         'url',
-        'room',
+        'area_id',
         'quantity',
         'order_date',
         'actual_delivery_date',
@@ -414,68 +403,47 @@ describe('Migration 0010: Household Items', () => {
     });
   });
 
-  // ── 7. household_item_tags composite PK ───────────────────────────────────
+  // ── 7. household_items area_id column (migration 0028) ─────────────────────
 
-  describe('household_item_tags composite primary key', () => {
-    it('prevents duplicate (household_item_id, tag_id) pairs', () => {
-      insertHouseholdItem(sqlite, 'item-tag-pk');
-      insertTag(sqlite, 'tag-pk-1');
-
-      // First insert succeeds
-      sqlite
-        .prepare(`INSERT INTO household_item_tags (household_item_id, tag_id) VALUES (?, ?)`)
-        .run('item-tag-pk', 'tag-pk-1');
-
-      // Duplicate insert should fail
-      let error: Error | undefined;
-      try {
-        sqlite
-          .prepare(`INSERT INTO household_item_tags (household_item_id, tag_id) VALUES (?, ?)`)
-          .run('item-tag-pk', 'tag-pk-1');
-      } catch (err) {
-        error = err as Error;
-      }
-      expect(error).toBeDefined();
-      expect(error?.message).toMatch(/UNIQUE constraint failed/);
+  describe('household_items area_id column', () => {
+    it('household_item_tags table no longer exists after migration 0028', () => {
+      const tables = sqlite
+        .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='household_item_tags'`)
+        .all();
+      expect(tables).toHaveLength(0);
     });
 
-    it('allows same item linked to different tags', () => {
-      insertHouseholdItem(sqlite, 'item-multi-tag');
-      insertTag(sqlite, 'tag-a');
-      insertTag(sqlite, 'tag-b');
-
-      expect(() => {
-        sqlite
-          .prepare(`INSERT INTO household_item_tags (household_item_id, tag_id) VALUES (?, ?)`)
-          .run('item-multi-tag', 'tag-a');
-        sqlite
-          .prepare(`INSERT INTO household_item_tags (household_item_id, tag_id) VALUES (?, ?)`)
-          .run('item-multi-tag', 'tag-b');
-      }).not.toThrow();
-
-      const links = sqlite
-        .prepare('SELECT * FROM household_item_tags WHERE household_item_id = ?')
-        .all('item-multi-tag');
-      expect(links).toHaveLength(2);
+    it('household_items has area_id column that can be null', () => {
+      insertHouseholdItem(sqlite, 'item-area-null');
+      const row = sqlite
+        .prepare('SELECT area_id FROM household_items WHERE id = ?')
+        .get('item-area-null') as Record<string, unknown>;
+      expect(row.area_id).toBeNull();
     });
   });
 
   // ── 8. CASCADE on household item delete ───────────────────────────────────
 
   describe('CASCADE delete from household_items', () => {
-    it('removes tag links when household item is deleted', () => {
-      insertHouseholdItem(sqlite, 'item-cascade-1');
-      insertTag(sqlite, 'tag-cascade-1');
+    it('removes dependency records when household item is deleted', () => {
+      insertHouseholdItem(sqlite, 'item-cascade-dep');
+      insertHouseholdItem(sqlite, 'item-other');
+
+      // Note: household_item_tags table no longer exists after migration 0028
+      // Verify that notes cascade still works
+      const now = new Date().toISOString();
       sqlite
-        .prepare(`INSERT INTO household_item_tags (household_item_id, tag_id) VALUES (?, ?)`)
-        .run('item-cascade-1', 'tag-cascade-1');
+        .prepare(
+          `INSERT INTO household_item_notes (id, household_item_id, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run('note-cascade', 'item-cascade-dep', 'test note', now, now);
 
-      sqlite.prepare('DELETE FROM household_items WHERE id = ?').run('item-cascade-1');
+      sqlite.prepare('DELETE FROM household_items WHERE id = ?').run('item-cascade-dep');
 
-      const links = sqlite
-        .prepare('SELECT * FROM household_item_tags WHERE household_item_id = ?')
-        .all('item-cascade-1');
-      expect(links).toHaveLength(0);
+      const notes = sqlite
+        .prepare('SELECT * FROM household_item_notes WHERE household_item_id = ?')
+        .all('item-cascade-dep');
+      expect(notes).toHaveLength(0);
     });
 
     it('removes notes when household item is deleted', () => {
@@ -666,19 +634,20 @@ describe('Migration 0010: Household Items', () => {
       // migration 0016 replaced idx_household_items_category with idx_household_items_category_id
       expect(indexNames).toContain('idx_household_items_category_id');
       expect(indexNames).toContain('idx_household_items_status');
-      expect(indexNames).toContain('idx_household_items_room');
+      // migration 0028 replaced idx_household_items_room with idx_household_items_area_id
+      expect(indexNames).toContain('idx_household_items_area_id');
       expect(indexNames).toContain('idx_household_items_vendor_id');
       expect(indexNames).toContain('idx_household_items_created_at');
+      expect(indexNames).not.toContain('idx_household_items_room');
     });
 
-    it('creates index on household_item_tags tag_id', () => {
+    it('household_item_tags index no longer exists after migration 0028', () => {
       const indexes = sqlite
         .prepare(
-          `SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='household_item_tags'`,
+          `SELECT name FROM sqlite_master WHERE type='index' AND name='idx_household_item_tags_tag_id'`,
         )
         .all() as Array<{ name: string }>;
-      const indexNames = indexes.map((i) => i.name);
-      expect(indexNames).toContain('idx_household_item_tags_tag_id');
+      expect(indexes).toHaveLength(0);
     });
 
     it('creates index on household_item_notes household_item_id', () => {
@@ -738,10 +707,10 @@ describe('Migration 0010: Household Items', () => {
       sqlite
         .prepare(
           `INSERT INTO household_items
-             (id, name, description, category_id, status, vendor_id, url, room, quantity,
+             (id, name, description, category_id, status, vendor_id, url, quantity,
               order_date, actual_delivery_date, created_by,
               created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           'item-full',
@@ -751,7 +720,6 @@ describe('Migration 0010: Household Items', () => {
           'purchased',
           'vendor-full',
           'https://example.com/sofa',
-          'Living Room',
           2,
           '2025-01-15',
           null,
@@ -768,7 +736,7 @@ describe('Migration 0010: Household Items', () => {
       expect(row.category_id).toBe('hic-furniture');
       expect(row.status).toBe('purchased');
       expect(row.quantity).toBe(2);
-      expect(row.room).toBe('Living Room');
+      expect(row.area_id).toBeNull();
       expect(row.vendor_id).toBe('vendor-full');
       expect(row.url).toBe('https://example.com/sofa');
       expect(row.order_date).toBe('2025-01-15');

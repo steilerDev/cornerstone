@@ -126,7 +126,7 @@ describe('documentLinkService', () => {
       .values({
         id,
         name,
-        specialty: null,
+        tradeId: null,
         phone: null,
         email: null,
         address: null,

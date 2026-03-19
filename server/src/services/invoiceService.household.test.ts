@@ -59,7 +59,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
       .values({
         id,
         name,
-        specialty: null,
+        tradeId: null,
         phone: null,
         email: null,
         address: null,
@@ -76,7 +76,6 @@ describe('Invoice Service - Household Item Budget Linking', () => {
     const result = householdItemService.createHouseholdItem(db, userId, {
       name,
       vendorId: undefined,
-      tagIds: [],
       earliestDeliveryDate: undefined,
       latestDeliveryDate: undefined,
     });
