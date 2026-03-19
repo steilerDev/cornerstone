@@ -50,6 +50,10 @@
       "calendar": "Calendar"
     }
   },
+  "ganttSidebar": {
+    "header": "Items",
+    "ariaLabel": "Work items, milestones, and household items"
+  },
   "gantt": {
     "tooltip": {
       "status": {
