@@ -520,7 +520,14 @@ test.describe('Card dismiss (Scenario 6)', () => {
     await interceptDashboardApis(page);
 
     try {
+      // The prior test dismisses Quick Actions and beforeEach resets hiddenCards to [].
+      // Wait for the preferences API response after navigation to ensure the reset
+      // is fully applied before asserting card visibility (prevents state-leak flake).
+      const prefsLoaded = page.waitForResponse(
+        (resp) => resp.url().includes('/api/users/me/preferences') && resp.status() === 200,
+      );
       await dashboardPage.goto();
+      await prefsLoaded;
       await dashboardPage.waitForCardsLoaded();
 
       // Verify the Quick Actions card is visible before attempting to dismiss

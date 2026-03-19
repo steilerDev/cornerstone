@@ -121,7 +121,7 @@ export class HouseholdItemsPage {
    */
   async goto(): Promise<void> {
     await this.page.goto(HOUSEHOLD_ITEMS_ROUTE);
-    await this.heading.waitFor({ state: 'visible' });
+    await this.heading.waitFor({ state: 'visible', timeout: 15000 });
   }
 
   /**
