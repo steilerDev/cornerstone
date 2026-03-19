@@ -74,10 +74,7 @@ export function useTrades(): UseTradesResult {
     }
   }
 
-  async function handleUpdate(
-    id: string,
-    data: UpdateTradeRequest,
-  ): Promise<TradeResponse | null> {
+  async function handleUpdate(id: string, data: UpdateTradeRequest): Promise<TradeResponse | null> {
     try {
       const trade = await updateTrade(id, data);
       refetch();

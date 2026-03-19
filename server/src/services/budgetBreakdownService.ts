@@ -13,7 +13,11 @@ import type {
   SubsidyAdjustment,
 } from '@cornerstone/shared';
 import { computeSubsidyEffects, applySubsidyCaps } from './shared/subsidyCalculationEngine.js';
-import type { LinkedSubsidy, SubsidyCapMeta, PerSubsidyTotals } from './shared/subsidyCalculationEngine.js';
+import type {
+  LinkedSubsidy,
+  SubsidyCapMeta,
+  PerSubsidyTotals,
+} from './shared/subsidyCalculationEngine.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -667,12 +671,15 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
   const perSubsidyPayback = new Map<string, { min: number; max: number }>();
 
   // Re-iterate all entities to collect per-subsidy payback
-  const allEntityLines = new Map<string, Array<{
-    id: string;
-    plannedAmount: number;
-    confidence: string;
-    budgetCategoryId: string | null;
-  }>>();
+  const allEntityLines = new Map<
+    string,
+    Array<{
+      id: string;
+      plannedAmount: number;
+      confidence: string;
+      budgetCategoryId: string | null;
+    }>
+  >();
 
   for (const row of workItemLineRows) {
     let arr = allEntityLines.get(row.workItemId);
@@ -703,7 +710,10 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
   }
 
   // Combined invoice map for subsidy effect calculations
-  const combinedInvoiceMap = new Map<string, number | { actualCost: number; isQuotation: boolean }>();
+  const combinedInvoiceMap = new Map<
+    string,
+    number | { actualCost: number; isQuotation: boolean }
+  >();
   for (const [k, v] of wiLineInvoiceMap) combinedInvoiceMap.set(k, v);
   for (const [k, v] of hiLineInvoiceMap) combinedInvoiceMap.set(k, v);
 

@@ -704,9 +704,7 @@ export function BudgetOverviewPage() {
                   </span>
                 </span>
                 {overview.subsidySummary.oversubscribedSubsidies?.length > 0 && (
-                  <span className={styles.paybackCappedNote}>
-                    {t('overview.paybackCapped')}
-                  </span>
+                  <span className={styles.paybackCappedNote}>{t('overview.paybackCapped')}</span>
                 )}
               </div>
             )}

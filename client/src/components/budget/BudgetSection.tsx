@@ -111,9 +111,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
         subsidyPayback={subsidyPayback}
         oversubscribedSubsidyNames={
           oversubscribedSubsidyIds && oversubscribedSubsidyIds.size > 0
-            ? linkedSubsidies
-                .filter((s) => oversubscribedSubsidyIds.has(s.id))
-                .map((s) => s.name)
+            ? linkedSubsidies.filter((s) => oversubscribedSubsidyIds.has(s.id)).map((s) => s.name)
             : undefined
         }
       />

@@ -886,7 +886,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 0,
         },
       },
-    subsidyAdjustments: [],
+      subsidyAdjustments: [],
     };
 
     const { container } = render(
@@ -958,7 +958,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 0,
         },
       },
-    subsidyAdjustments: [],
+      subsidyAdjustments: [],
     };
 
     const { container } = render(
@@ -1030,7 +1030,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 0,
         },
       },
-    subsidyAdjustments: [],
+      subsidyAdjustments: [],
     };
 
     render(
@@ -1358,7 +1358,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 0,
         },
       },
-    subsidyAdjustments: [],
+      subsidyAdjustments: [],
     };
 
     render(
@@ -2606,7 +2606,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
           minSubsidyPayback: 0,
         },
       },
-    subsidyAdjustments: [],
+      subsidyAdjustments: [],
     };
   }
 
@@ -2684,7 +2684,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
           minSubsidyPayback: 0,
         },
       },
-    subsidyAdjustments: [],
+      subsidyAdjustments: [],
     };
   }
 

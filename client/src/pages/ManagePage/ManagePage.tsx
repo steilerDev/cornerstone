@@ -55,7 +55,15 @@ type EditingArea = {
 
 function AreasTab() {
   const { t } = useTranslation('settings');
-  const { areas, isLoading, error: loadError, createArea, updateArea, deleteArea, refetch } = useAreas();
+  const {
+    areas,
+    isLoading,
+    error: loadError,
+    createArea,
+    updateArea,
+    deleteArea,
+    refetch,
+  } = useAreas();
 
   // Create form state
   const [newName, setNewName] = useState('');
@@ -314,11 +322,7 @@ function AreasTab() {
             />
           </div>
 
-          <button
-            type="submit"
-            className={styles.button}
-            disabled={isCreating || !newName.trim()}
-          >
+          <button type="submit" className={styles.button} disabled={isCreating || !newName.trim()}>
             {isCreating ? t('manage.areas.creating') : t('manage.areas.createButton')}
           </button>
         </form>
@@ -331,10 +335,7 @@ function AreasTab() {
         </h2>
 
         {areas.length === 0 ? (
-          <EmptyState
-            icon="📍"
-            message={t('manage.areas.emptyState')}
-          />
+          <EmptyState icon="📍" message={t('manage.areas.emptyState')} />
         ) : (
           <div className={styles.itemsList}>
             {areas.map((area) => (
@@ -355,9 +356,7 @@ function AreasTab() {
                           type="text"
                           id={`edit-name-${area.id}`}
                           value={editingArea.name}
-                          onChange={(e) =>
-                            setEditingArea({ ...editingArea, name: e.target.value })
-                          }
+                          onChange={(e) => setEditingArea({ ...editingArea, name: e.target.value })}
                           className={styles.input}
                           maxLength={100}
                           disabled={isUpdating}
@@ -563,7 +562,15 @@ type EditingTrade = {
 
 function TradesTab() {
   const { t } = useTranslation('settings');
-  const { trades, isLoading, error: loadError, createTrade, updateTrade, deleteTrade, refetch } = useTrades();
+  const {
+    trades,
+    isLoading,
+    error: loadError,
+    createTrade,
+    updateTrade,
+    deleteTrade,
+    refetch,
+  } = useTrades();
 
   // Create form state
   const [newName, setNewName] = useState('');
@@ -804,11 +811,7 @@ function TradesTab() {
             />
           </div>
 
-          <button
-            type="submit"
-            className={styles.button}
-            disabled={isCreating || !newName.trim()}
-          >
+          <button type="submit" className={styles.button} disabled={isCreating || !newName.trim()}>
             {isCreating ? t('manage.trades.creating') : t('manage.trades.createButton')}
           </button>
         </form>
@@ -1382,10 +1385,7 @@ function BudgetCategoriesTab() {
         </div>
 
         {categories.length === 0 ? (
-          <EmptyState
-            icon="💰"
-            message={t('manage.budgetCategories.emptyState')}
-          />
+          <EmptyState icon="💰" message={t('manage.budgetCategories.emptyState')} />
         ) : (
           <div className={styles.itemsList}>
             {categories.map((category) => (
@@ -1953,10 +1953,7 @@ function HouseholdItemCategoriesTab() {
         </div>
 
         {categories.length === 0 ? (
-          <EmptyState
-            icon="🛋️"
-            message={t('manage.householdItemCategories.emptyState')}
-          />
+          <EmptyState icon="🛋️" message={t('manage.householdItemCategories.emptyState')} />
         ) : (
           <div className={styles.itemsList}>
             {categories.map((category) => (

@@ -275,7 +275,7 @@ describe('App', () => {
         activeSubsidyCount: 0,
         minTotalPayback: 0,
         maxTotalPayback: 0,
-      oversubscribedSubsidies: [],
+        oversubscribedSubsidies: [],
       },
     });
     mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });

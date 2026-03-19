@@ -74,10 +74,7 @@ export function useAreas(): UseAreasResult {
     }
   }
 
-  async function handleUpdate(
-    id: string,
-    data: UpdateAreaRequest,
-  ): Promise<AreaResponse | null> {
+  async function handleUpdate(id: string, data: UpdateAreaRequest): Promise<AreaResponse | null> {
     try {
       const area = await updateArea(id, data);
       refetch();

@@ -2,11 +2,10 @@ import type { TradeResponse } from '@cornerstone/shared';
 import { SearchPicker } from '../SearchPicker/SearchPicker.js';
 import type { SearchPickerProps } from '../SearchPicker/SearchPicker.js';
 
-export interface TradePickerProps
-  extends Omit<
-    SearchPickerProps<TradeResponse>,
-    'searchFn' | 'renderItem' | 'excludeIds'
-  > {
+export interface TradePickerProps extends Omit<
+  SearchPickerProps<TradeResponse>,
+  'searchFn' | 'renderItem' | 'excludeIds'
+> {
   trades: TradeResponse[];
 }
 
@@ -22,9 +21,7 @@ export function TradePicker({
 }: TradePickerProps) {
   const searchFn = async (query: string): Promise<TradeResponse[]> => {
     const lowerQuery = query.toLowerCase();
-    return trades.filter((trade) =>
-      trade.name.toLowerCase().includes(lowerQuery)
-    );
+    return trades.filter((trade) => trade.name.toLowerCase().includes(lowerQuery));
   };
 
   const renderItem = (trade: TradeResponse) => ({

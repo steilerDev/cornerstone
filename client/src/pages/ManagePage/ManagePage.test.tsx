@@ -10,7 +10,12 @@ import type * as UseTradesTypes from '../../hooks/useTrades.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
 import type * as HICApiTypes from '../../lib/householdItemCategoriesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import type { BudgetCategory, HouseholdItemCategoryEntity, AreaResponse, TradeResponse } from '@cornerstone/shared';
+import type {
+  BudgetCategory,
+  HouseholdItemCategoryEntity,
+  AreaResponse,
+  TradeResponse,
+} from '@cornerstone/shared';
 
 // ─── Mock hooks and API modules BEFORE importing components ───────────────────
 
@@ -55,12 +60,17 @@ jest.unstable_mockModule('../../components/SettingsSubNav/SettingsSubNav.js', ()
 
 // Mock AreaPicker — pure display component, no need for full rendering
 jest.unstable_mockModule('../../components/AreaPicker/AreaPicker.js', () => ({
-  AreaPicker: ({ value, onChange }: { value: string; onChange: (val: string) => void; nullable?: boolean; disabled?: boolean; areas: AreaResponse[] }) => (
-    <select
-      data-testid="area-picker"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    >
+  AreaPicker: ({
+    value,
+    onChange,
+  }: {
+    value: string;
+    onChange: (val: string) => void;
+    nullable?: boolean;
+    disabled?: boolean;
+    areas: AreaResponse[];
+  }) => (
+    <select data-testid="area-picker" value={value} onChange={(e) => onChange(e.target.value)}>
       <option value="">No parent</option>
     </select>
   ),
@@ -158,8 +168,12 @@ function makeAreasHookResult(
     isLoading: false,
     error: null,
     refetch: jest.fn(),
-    createArea: jest.fn<UseAreasTypes.UseAreasResult['createArea']>().mockResolvedValue(sampleArea1),
-    updateArea: jest.fn<UseAreasTypes.UseAreasResult['updateArea']>().mockResolvedValue(sampleArea1),
+    createArea: jest
+      .fn<UseAreasTypes.UseAreasResult['createArea']>()
+      .mockResolvedValue(sampleArea1),
+    updateArea: jest
+      .fn<UseAreasTypes.UseAreasResult['updateArea']>()
+      .mockResolvedValue(sampleArea1),
     deleteArea: jest.fn<UseAreasTypes.UseAreasResult['deleteArea']>().mockResolvedValue(true),
     ...overrides,
   };
@@ -173,8 +187,12 @@ function makeTradesHookResult(
     isLoading: false,
     error: null,
     refetch: jest.fn(),
-    createTrade: jest.fn<UseTradesTypes.UseTradesResult['createTrade']>().mockResolvedValue(sampleTrade1),
-    updateTrade: jest.fn<UseTradesTypes.UseTradesResult['updateTrade']>().mockResolvedValue(sampleTrade1),
+    createTrade: jest
+      .fn<UseTradesTypes.UseTradesResult['createTrade']>()
+      .mockResolvedValue(sampleTrade1),
+    updateTrade: jest
+      .fn<UseTradesTypes.UseTradesResult['updateTrade']>()
+      .mockResolvedValue(sampleTrade1),
     deleteTrade: jest.fn<UseTradesTypes.UseTradesResult['deleteTrade']>().mockResolvedValue(true),
     ...overrides,
   };
@@ -300,7 +318,10 @@ describe('ManagePage', () => {
 
       await user.click(screen.getByRole('tab', { name: 'Budget Categories' }));
 
-      expect(screen.getByRole('tab', { name: 'Budget Categories' })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByRole('tab', { name: 'Budget Categories' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
       expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'false');
     });
 
@@ -310,7 +331,10 @@ describe('ManagePage', () => {
 
       await user.click(screen.getByRole('tab', { name: 'Household Item Categories' }));
 
-      expect(screen.getByRole('tab', { name: 'Household Item Categories' })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByRole('tab', { name: 'Household Item Categories' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
       expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'false');
     });
   });
@@ -347,7 +371,9 @@ describe('ManagePage', () => {
       );
       renderManagePage('/settings/manage');
       // EmptyState renders with the error message
-      expect(screen.getByText('An unexpected error occurred while loading areas.')).toBeInTheDocument();
+      expect(
+        screen.getByText('An unexpected error occurred while loading areas.'),
+      ).toBeInTheDocument();
     });
 
     it('shows area count in section heading', async () => {
@@ -399,7 +425,9 @@ describe('ManagePage', () => {
         createdAt: '2026-03-06T00:00:00.000Z',
         updatedAt: '2026-03-06T00:00:00.000Z',
       };
-      const mockCreateArea = jest.fn<UseAreasTypes.UseAreasResult['createArea']>().mockResolvedValue(newArea);
+      const mockCreateArea = jest
+        .fn<UseAreasTypes.UseAreasResult['createArea']>()
+        .mockResolvedValue(newArea);
       mockUseAreas.mockReturnValue(makeAreasHookResult({ createArea: mockCreateArea }));
 
       renderManagePage('/settings/manage');
@@ -426,7 +454,9 @@ describe('ManagePage', () => {
         ...sampleArea1,
         name: 'Kitchen Updated',
       };
-      const mockUpdateArea = jest.fn<UseAreasTypes.UseAreasResult['updateArea']>().mockResolvedValue(updatedArea);
+      const mockUpdateArea = jest
+        .fn<UseAreasTypes.UseAreasResult['updateArea']>()
+        .mockResolvedValue(updatedArea);
       mockUseAreas.mockReturnValue(makeAreasHookResult({ updateArea: mockUpdateArea }));
 
       renderManagePage('/settings/manage');
@@ -471,7 +501,9 @@ describe('ManagePage', () => {
 
     it('successfully deletes an area after confirming in modal', async () => {
       const user = userEvent.setup();
-      const mockDeleteArea = jest.fn<UseAreasTypes.UseAreasResult['deleteArea']>().mockResolvedValue(true);
+      const mockDeleteArea = jest
+        .fn<UseAreasTypes.UseAreasResult['deleteArea']>()
+        .mockResolvedValue(true);
       mockUseAreas.mockReturnValue(makeAreasHookResult({ deleteArea: mockDeleteArea }));
 
       renderManagePage('/settings/manage');
@@ -531,7 +563,9 @@ describe('ManagePage', () => {
         }),
       );
       renderManagePage('/settings/manage?tab=trades');
-      expect(screen.getByText('An unexpected error occurred while loading trades.')).toBeInTheDocument();
+      expect(
+        screen.getByText('An unexpected error occurred while loading trades.'),
+      ).toBeInTheDocument();
     });
 
     it('shows trade count in section heading', async () => {
@@ -581,7 +615,9 @@ describe('ManagePage', () => {
         createdAt: '2026-03-06T00:00:00.000Z',
         updatedAt: '2026-03-06T00:00:00.000Z',
       };
-      const mockCreateTrade = jest.fn<UseTradesTypes.UseTradesResult['createTrade']>().mockResolvedValue(newTrade);
+      const mockCreateTrade = jest
+        .fn<UseTradesTypes.UseTradesResult['createTrade']>()
+        .mockResolvedValue(newTrade);
       mockUseTrades.mockReturnValue(makeTradesHookResult({ createTrade: mockCreateTrade }));
 
       renderManagePage('/settings/manage?tab=trades');
@@ -608,7 +644,9 @@ describe('ManagePage', () => {
         ...sampleTrade1,
         name: 'Plumbing Updated',
       };
-      const mockUpdateTrade = jest.fn<UseTradesTypes.UseTradesResult['updateTrade']>().mockResolvedValue(updatedTrade);
+      const mockUpdateTrade = jest
+        .fn<UseTradesTypes.UseTradesResult['updateTrade']>()
+        .mockResolvedValue(updatedTrade);
       mockUseTrades.mockReturnValue(makeTradesHookResult({ updateTrade: mockUpdateTrade }));
 
       renderManagePage('/settings/manage?tab=trades');
@@ -631,7 +669,9 @@ describe('ManagePage', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText('Trade "Plumbing Updated" updated successfully')).toBeInTheDocument();
+        expect(
+          screen.getByText('Trade "Plumbing Updated" updated successfully'),
+        ).toBeInTheDocument();
       });
     });
 
@@ -650,7 +690,9 @@ describe('ManagePage', () => {
 
     it('successfully deletes a trade after confirming in modal', async () => {
       const user = userEvent.setup();
-      const mockDeleteTrade = jest.fn<UseTradesTypes.UseTradesResult['deleteTrade']>().mockResolvedValue(true);
+      const mockDeleteTrade = jest
+        .fn<UseTradesTypes.UseTradesResult['deleteTrade']>()
+        .mockResolvedValue(true);
       mockUseTrades.mockReturnValue(makeTradesHookResult({ deleteTrade: mockDeleteTrade }));
 
       renderManagePage('/settings/manage?tab=trades');

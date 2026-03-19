@@ -116,7 +116,7 @@ describe('BudgetOverviewPage', () => {
       activeSubsidyCount: 0,
       minTotalPayback: 0,
       maxTotalPayback: 0,
-    oversubscribedSubsidies: [],
+      oversubscribedSubsidies: [],
     },
   };
 
@@ -167,7 +167,7 @@ describe('BudgetOverviewPage', () => {
       activeSubsidyCount: 3,
       minTotalPayback: 0,
       maxTotalPayback: 0,
-    oversubscribedSubsidies: [],
+      oversubscribedSubsidies: [],
     },
   };
 
@@ -230,7 +230,7 @@ describe('BudgetOverviewPage', () => {
         minSubsidyPayback: 0,
       },
     },
-  subsidyAdjustments: [],
+    subsidyAdjustments: [],
   };
 
   beforeEach(async () => {
@@ -922,7 +922,7 @@ describe('BudgetOverviewPage', () => {
           minSubsidyPayback: 0,
         },
       },
-    subsidyAdjustments: [],
+      subsidyAdjustments: [],
     };
 
     it('selecting only one category updates Budget Health projected range but not Cost Breakdown', async () => {
@@ -1058,7 +1058,7 @@ describe('BudgetOverviewPage', () => {
           activeSubsidyCount: 3,
           minTotalPayback: 5000,
           maxTotalPayback: 7500,
-        oversubscribedSubsidies: [],
+          oversubscribedSubsidies: [],
         },
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
@@ -1084,7 +1084,7 @@ describe('BudgetOverviewPage', () => {
           activeSubsidyCount: 3,
           minTotalPayback: 5000,
           maxTotalPayback: 5000,
-        oversubscribedSubsidies: [],
+          oversubscribedSubsidies: [],
         },
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
@@ -1113,7 +1113,7 @@ describe('BudgetOverviewPage', () => {
           activeSubsidyCount: 3,
           minTotalPayback: 5000,
           maxTotalPayback: 7500,
-        oversubscribedSubsidies: [],
+          oversubscribedSubsidies: [],
         },
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
@@ -1249,7 +1249,7 @@ describe('BudgetOverviewPage', () => {
           activeSubsidyCount: 3,
           minTotalPayback: 5000,
           maxTotalPayback: 5000,
-        oversubscribedSubsidies: [],
+          oversubscribedSubsidies: [],
         },
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
@@ -1277,7 +1277,7 @@ describe('BudgetOverviewPage', () => {
           activeSubsidyCount: 3,
           minTotalPayback: 5000,
           maxTotalPayback: 5000,
-        oversubscribedSubsidies: [],
+          oversubscribedSubsidies: [],
         },
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
