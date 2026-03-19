@@ -248,7 +248,6 @@
       "createButton": "Create Category",
       "cancel": "Cancel",
       "creating": "Creating...",
-      "cancel": "Cancel",
       "addButton": "Add Category",
       "listTitle": "Categories ({{count}})",
       "emptyState": "No household item categories yet. Add your first category to start organizing your furniture and appliances.",
