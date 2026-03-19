@@ -795,7 +795,9 @@ export function VendorDetailPage() {
                   onClick={() => void handleDelete()}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? t('vendorDetail.deleteModal.deleting') : t('vendorDetail.deleteModal.delete')}
+                  {isDeleting
+                    ? t('vendorDetail.deleteModal.deleting')
+                    : t('vendorDetail.deleteModal.delete')}
                 </button>
               )}
             </div>
@@ -844,7 +846,8 @@ export function VendorDetailPage() {
                 </div>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="create-amount" className={styles.label}>
-                    {t('vendorDetail.invoiceForm.amount')} <span className={styles.required}>*</span>
+                    {t('vendorDetail.invoiceForm.amount')}{' '}
+                    <span className={styles.required}>*</span>
                   </label>
                   <input
                     type="number"
@@ -864,7 +867,8 @@ export function VendorDetailPage() {
               <div className={styles.formRow}>
                 <div className={styles.fieldGrow}>
                   <label htmlFor="create-date" className={styles.label}>
-                    {t('vendorDetail.invoiceForm.invoiceDate')} <span className={styles.required}>*</span>
+                    {t('vendorDetail.invoiceForm.invoiceDate')}{' '}
+                    <span className={styles.required}>*</span>
                   </label>
                   <input
                     type="date"
@@ -939,7 +943,9 @@ export function VendorDetailPage() {
                   className={styles.saveButton}
                   disabled={isCreating || !createForm.amount || !createForm.date}
                 >
-                  {isCreating ? t('vendorDetail.invoiceForm.adding') : t('vendorDetail.invoiceForm.add')}
+                  {isCreating
+                    ? t('vendorDetail.invoiceForm.adding')
+                    : t('vendorDetail.invoiceForm.add')}
                 </button>
               </div>
             </form>
@@ -962,7 +968,8 @@ export function VendorDetailPage() {
             </h2>
             <p className={styles.modalText}>
               {t('vendorDetail.deleteInvoiceModal.confirm', {
-                number: deletingInvoice.invoiceNumber || t('vendorDetail.deleteInvoiceModal.noNumber'),
+                number:
+                  deletingInvoice.invoiceNumber || t('vendorDetail.deleteInvoiceModal.noNumber'),
                 amount: formatCurrency(deletingInvoice.amount),
               })}
             </p>
@@ -991,7 +998,9 @@ export function VendorDetailPage() {
                   onClick={() => void handleDeleteInvoice()}
                   disabled={isDeletingInvoice}
                 >
-                  {isDeletingInvoice ? t('vendorDetail.deleteInvoiceModal.deleting') : t('vendorDetail.deleteInvoiceModal.delete')}
+                  {isDeletingInvoice
+                    ? t('vendorDetail.deleteInvoiceModal.deleting')
+                    : t('vendorDetail.deleteInvoiceModal.delete')}
                 </button>
               )}
             </div>
