@@ -156,7 +156,16 @@ export function WorkItemsPage() {
     };
 
     fetchData();
-  }, [searchQuery, statusFilter, assignedUserFilter, tagFilter, noBudgetFilter, sortBy, sortOrder, currentPage]);
+  }, [
+    searchQuery,
+    statusFilter,
+    assignedUserFilter,
+    tagFilter,
+    noBudgetFilter,
+    sortBy,
+    sortOrder,
+    currentPage,
+  ]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -502,8 +511,7 @@ export function WorkItemsPage() {
                 checked={noBudgetFilter}
                 onChange={(e) => handleNoBudgetFilterChange(e.target.checked)}
                 aria-label={t('list.filters.noBudgetAriaLabel')}
-              />
-              {' '}
+              />{' '}
               {t('list.filters.noBudget')}
             </label>
           </div>
