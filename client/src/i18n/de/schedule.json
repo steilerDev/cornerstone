@@ -50,6 +50,10 @@
       "calendar": "Kalender"
     }
   },
+  "ganttSidebar": {
+    "header": "Elemente",
+    "ariaLabel": "Arbeitspakete, Meilensteine und Haushaltsartikel"
+  },
   "gantt": {
     "tooltip": {
       "status": {
