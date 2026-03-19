@@ -8,7 +8,7 @@
  * - h1 with the item name (inline-editable via autosave)
  * - An "Edit" button (navigates to /project/household-items/:id/edit)
  * - A status badge showing current status
- * - Fields: category, room, vendor, URL, quantity, description, dates
+ * - Fields: category, area (EPIC-18, replaces room), vendor, URL, quantity, description, dates
  * - Budget section: budget lines, subsidies, planned/actual totals
  * - Work Item Dependencies section: link HI to work items or milestones for scheduling
  * - Documents section: LinkedDocumentsSection (Paperless-ngx integration)

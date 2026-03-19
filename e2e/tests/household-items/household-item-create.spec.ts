@@ -130,13 +130,14 @@ test.describe('Create with all fields (Scenario 5)', { tag: '@responsive' }, () 
 
     try {
       await createPage.goto();
+      // Note: room field removed in EPIC-18; AreaPicker (areaId) replaces it.
+      // areaId is not filled here since areas are dynamic and not seeded in E2E tests.
       await createPage.fillForm({
         name,
         description: 'A comfortable sofa for the living room',
         category: 'hic-furniture',
         status: 'planned',
         quantity: '2',
-        room: 'Living Room',
         url: 'https://example.com/sofa',
         orderDate: '2026-04-01',
         earliestDeliveryDate: '2026-05-01',
@@ -188,14 +189,16 @@ test.describe('Category options (Scenario 7)', { tag: '@responsive' }, () => {
 
     await createPage.goto();
 
+    // EPIC-18 migration 0028: hic-outdoor and hic-storage removed (if unreferenced),
+    // hic-equipment added. The form loads categories dynamically from the API, so
+    // we verify the categories that are always present after migration.
     const expectedCategories = [
       'Furniture',
       'Appliances',
       'Fixtures',
       'Decor',
       'Electronics',
-      'Outdoor',
-      'Storage',
+      'Equipment',
       'Other',
     ];
 

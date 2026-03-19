@@ -2,6 +2,8 @@
  * Page Object Model for the Household Item Create page (/project/household-items/new)
  *
  * EPIC-04 Story 4.4: Create & Edit Form
+ * Updated in EPIC-18: room field removed, replaced by AreaPicker (select with aria-label="Select an area");
+ *                     tags removed; categories updated (hic-outdoor + hic-storage removed, hic-equipment added)
  *
  * The page renders:
  * - A header with a back button ("← Back to Household Items", a <button>)
@@ -9,14 +11,13 @@
  * - A form with household item fields:
  *   - #name (text, required) — shows validation error when empty on submit
  *   - #description (textarea)
- *   - #category (select) — options loaded from API; values use hic- prefix: hic-furniture, hic-appliances, hic-fixtures, hic-decor, hic-electronics, hic-outdoor, hic-storage, hic-other
+ *   - #category (select) — options loaded from API via fetchHouseholdItemCategories()
  *   - #status (select) — options: planned, purchased, scheduled, arrived
  *   - #quantity (number, min 1)
+ *   - AreaPicker (select, aria-label="Select an area") — replaces the old #room text input
  *   - #vendorId (select)
  *   - #url (text)
- *   - #room (text)
  *   - #orderDate, #earliestDeliveryDate, #latestDeliveryDate, #actualDeliveryDate (date inputs)
- *   - Tags: TagPicker component
  * - Submit button: text "Create Item" / "Creating..."
  * - Cancel button: text "Cancel"
  * - Error banner for server-side errors
@@ -39,7 +40,8 @@ export interface HouseholdItemFormData {
   quantity?: string;
   vendorId?: string;
   url?: string;
-  room?: string;
+  /** areaId — value of the AreaPicker select (area ID from /api/areas). room field removed in EPIC-18. */
+  areaId?: string;
   orderDate?: string;
   earliestDeliveryDate?: string;
   latestDeliveryDate?: string;
@@ -61,7 +63,8 @@ export class HouseholdItemCreatePage {
   readonly quantityInput: Locator;
   readonly vendorSelect: Locator;
   readonly urlInput: Locator;
-  readonly roomInput: Locator;
+  /** AreaPicker select — replaces the old room text input (EPIC-18) */
+  readonly areaSelect: Locator;
   readonly orderDateInput: Locator;
   readonly earliestDeliveryDateInput: Locator;
   readonly latestDeliveryDateInput: Locator;
@@ -93,7 +96,8 @@ export class HouseholdItemCreatePage {
     this.quantityInput = page.locator('#quantity');
     this.vendorSelect = page.locator('#vendorId');
     this.urlInput = page.locator('#url');
-    this.roomInput = page.locator('#room');
+    // AreaPicker renders a <select> with aria-label="Select an area" (no id attribute)
+    this.areaSelect = page.getByLabel('Select an area');
     this.orderDateInput = page.locator('#orderDate');
     this.earliestDeliveryDateInput = page.locator('#earliestDeliveryDate');
     this.latestDeliveryDateInput = page.locator('#latestDeliveryDate');
@@ -137,8 +141,8 @@ export class HouseholdItemCreatePage {
     if (data.url !== undefined) {
       await this.urlInput.fill(data.url);
     }
-    if (data.room !== undefined) {
-      await this.roomInput.fill(data.room);
+    if (data.areaId !== undefined) {
+      await this.areaSelect.selectOption(data.areaId);
     }
     if (data.orderDate !== undefined) {
       await this.orderDateInput.fill(data.orderDate);

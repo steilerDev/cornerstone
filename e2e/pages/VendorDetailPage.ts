@@ -3,7 +3,7 @@
  *
  * The page renders:
  * - A back button navigation ("← Back to Vendors")
- * - A page header with vendor name, specialty subtitle, and Edit/Delete buttons
+ * - A page header with vendor name, trade subtitle (EPIC-18), and Edit/Delete buttons
  * - Stats cards: Total Invoices and Outstanding Balance
  * - An info card (dl/dt/dd list) with all vendor fields — read view
  * - An inline edit form inside the info card when isEditing is true
@@ -16,7 +16,6 @@ import type { Page, Locator } from '@playwright/test';
 
 export interface EditVendorData {
   name?: string;
-  specialty?: string;
   phone?: string;
   email?: string;
   address?: string;
@@ -45,7 +44,6 @@ export class VendorDetailPage {
 
   // Edit form (shown when isEditing = true, inside the info card)
   readonly editNameInput: Locator;
-  readonly editSpecialtyInput: Locator;
   readonly editPhoneInput: Locator;
   readonly editEmailInput: Locator;
   readonly editAddressInput: Locator;
@@ -127,7 +125,6 @@ export class VendorDetailPage {
 
     // Edit form inputs (inside the info card's form)
     this.editNameInput = page.locator('#edit-name');
-    this.editSpecialtyInput = page.locator('#edit-specialty');
     this.editPhoneInput = page.locator('#edit-phone');
     this.editEmailInput = page.locator('#edit-email');
     this.editAddressInput = page.locator('#edit-address');
@@ -233,9 +230,6 @@ export class VendorDetailPage {
   async fillEditForm(data: EditVendorData): Promise<void> {
     if (data.name !== undefined) {
       await this.editNameInput.fill(data.name);
-    }
-    if (data.specialty !== undefined) {
-      await this.editSpecialtyInput.fill(data.specialty);
     }
     if (data.phone !== undefined) {
       await this.editPhoneInput.fill(data.phone);

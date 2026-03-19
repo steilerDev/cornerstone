@@ -116,7 +116,10 @@ export class TimelinePage {
 
     // Gantt sidebar
     this.ganttSidebar = page.getByTestId('gantt-sidebar');
-    this.ganttSidebarRowsList = page.getByRole('list', { name: 'Work items and milestones' });
+    // Updated in EPIC-18: aria-label now includes household items
+    this.ganttSidebarRowsList = page.getByRole('list', {
+      name: 'Work items, milestones, and household items',
+    });
     this.ganttHeader = page.getByTestId('gantt-header');
 
     // Gantt bars
