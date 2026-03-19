@@ -99,8 +99,6 @@ export function SearchPicker<T>({
       setSelectedItem(null);
       setSearchTerm('');
       setInitialTitleCleared(false);
-      setSpecialSelected(false);
-      setJustClearedSpecial(false);
     } else {
       // If value changes to a non-empty value, clear the "just cleared" flag
       // and set specialSelected if this is a special option id
