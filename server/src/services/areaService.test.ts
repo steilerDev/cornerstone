@@ -585,7 +585,11 @@ describe('Area Service', () => {
 
     it('updates all fields at once', () => {
       const parent = createTestArea('New Parent');
-      const area = createTestArea('Old Name', { description: 'Old desc', color: '#000000', sortOrder: 1 });
+      const area = createTestArea('Old Name', {
+        description: 'Old desc',
+        color: '#000000',
+        sortOrder: 1,
+      });
 
       const data: UpdateAreaRequest = {
         name: 'New Name',

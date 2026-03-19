@@ -282,7 +282,9 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
   }
 
   // ── Helper: Compute costDisplay for an entity ──────────────────────────────
-  function computeCostDisplay(budgetLines: Array<{ hasInvoice: boolean; isQuotation: boolean }>): CostDisplay {
+  function computeCostDisplay(
+    budgetLines: Array<{ hasInvoice: boolean; isQuotation: boolean }>,
+  ): CostDisplay {
     const hasActualInvoice = budgetLines.some((l) => l.hasInvoice && !l.isQuotation);
     const hasQuotationInvoice = budgetLines.some((l) => l.hasInvoice && l.isQuotation);
     const hasNoInvoice = budgetLines.some((l) => !l.hasInvoice);

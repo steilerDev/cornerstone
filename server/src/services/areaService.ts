@@ -4,7 +4,12 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { areas, workItems, householdItems } from '../db/schema.js';
 import type { CreateAreaRequest, UpdateAreaRequest, AreaResponse } from '@cornerstone/shared';
-import { NotFoundError, ValidationError, ConflictError, AreaInUseError } from '../errors/AppError.js';
+import {
+  NotFoundError,
+  ValidationError,
+  ConflictError,
+  AreaInUseError,
+} from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -59,7 +64,11 @@ function getDescendantIds(db: DbType, areaId: string): string[] {
 /**
  * Check if setting proposedParentId as parent of areaId would create a circular reference.
  */
-function hasCircularReference(db: DbType, areaId: string, proposedParentId: string | null): boolean {
+function hasCircularReference(
+  db: DbType,
+  areaId: string,
+  proposedParentId: string | null,
+): boolean {
   if (proposedParentId === null) {
     return false;
   }
@@ -91,18 +100,11 @@ function hasCircularReference(db: DbType, areaId: string, proposedParentId: stri
  * List all areas, sorted by sort_order ascending, then name ascending.
  * Optionally filter by name search (case-insensitive).
  */
-export function listAreas(
-  db: DbType,
-  search?: string,
-): AreaResponse[] {
+export function listAreas(db: DbType, search?: string): AreaResponse[] {
   const rows = db
     .select()
     .from(areas)
-    .where(
-      search
-        ? sql`LOWER(${areas.name}) LIKE LOWER(${`%${search}%`})`
-        : undefined,
-    )
+    .where(search ? sql`LOWER(${areas.name}) LIKE LOWER(${`%${search}%`})` : undefined)
     .orderBy(asc(areas.sortOrder), asc(areas.name))
     .all();
 
@@ -126,10 +128,7 @@ export function getAreaById(db: DbType, id: string): AreaResponse {
  * @throws ValidationError if name is invalid, description too long, or color format invalid, or parent doesn't exist
  * @throws ConflictError if sibling with the same name already exists (case-insensitive)
  */
-export function createArea(
-  db: DbType,
-  data: CreateAreaRequest,
-): AreaResponse {
+export function createArea(db: DbType, data: CreateAreaRequest): AreaResponse {
   // Validate name
   const trimmedName = data.name.trim();
   if (trimmedName.length === 0 || trimmedName.length > 200) {
@@ -170,9 +169,7 @@ export function createArea(
       ? db
           .select()
           .from(areas)
-          .where(
-            sql`LOWER(${areas.name}) = LOWER(${trimmedName}) AND ${areas.parentId} IS NULL`,
-          )
+          .where(sql`LOWER(${areas.name}) = LOWER(${trimmedName}) AND ${areas.parentId} IS NULL`)
       : db
           .select()
           .from(areas)
@@ -221,11 +218,7 @@ export function createArea(
  * @throws ValidationError if fields are invalid, no fields provided, or would create circular reference
  * @throws ConflictError if new name conflicts with sibling area (case-insensitive)
  */
-export function updateArea(
-  db: DbType,
-  id: string,
-  data: UpdateAreaRequest,
-): AreaResponse {
+export function updateArea(db: DbType, id: string, data: UpdateAreaRequest): AreaResponse {
   // Check area exists
   const existing = db.select().from(areas).where(eq(areas.id, id)).get();
   if (!existing) {
@@ -355,7 +348,12 @@ export function deleteArea(db: DbType, id: string): void {
   const workItemCountResult = db
     .select({ count: sql<number>`COUNT(*)` })
     .from(workItems)
-    .where(sql`${workItems.areaId} IN (${sql.join(descendantIds.map((d) => sql`${d}`), sql`, `)})`)
+    .where(
+      sql`${workItems.areaId} IN (${sql.join(
+        descendantIds.map((d) => sql`${d}`),
+        sql`, `,
+      )})`,
+    )
     .get();
   const workItemCount = workItemCountResult?.count ?? 0;
 
@@ -363,7 +361,12 @@ export function deleteArea(db: DbType, id: string): void {
   const householdItemCountResult = db
     .select({ count: sql<number>`COUNT(*)` })
     .from(householdItems)
-    .where(sql`${householdItems.areaId} IN (${sql.join(descendantIds.map((d) => sql`${d}`), sql`, `)})`)
+    .where(
+      sql`${householdItems.areaId} IN (${sql.join(
+        descendantIds.map((d) => sql`${d}`),
+        sql`, `,
+      )})`,
+    )
     .get();
   const householdItemCount = householdItemCountResult?.count ?? 0;
 

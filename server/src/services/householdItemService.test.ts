@@ -478,7 +478,6 @@ describe('Household Item Service', () => {
       ).toThrow('Vendor not found: bad-vendor-id');
     });
 
-
     it('throws ValidationError when name is empty string in update', () => {
       // Given: An existing item
       const userId = createTestUser('user@example.com', 'Test User');

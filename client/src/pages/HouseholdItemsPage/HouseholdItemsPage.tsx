@@ -588,11 +588,7 @@ export function HouseholdItemsPage() {
       {/* Household items list */}
       {householdItems.length === 0 ? (
         <div className={styles.emptyState}>
-          {searchQuery ||
-          categoryFilter ||
-          statusFilter ||
-          vendorFilter ||
-          noBudgetFilter ? (
+          {searchQuery || categoryFilter || statusFilter || vendorFilter || noBudgetFilter ? (
             <>
               <h2>{t('empty.noResults')}</h2>
               <p>{t('empty.noResultsMessage')}</p>

@@ -168,7 +168,6 @@ export const workItems = sqliteTable(
   }),
 );
 
-
 /**
  * Work item notes table - stores notes/comments on work items.
  * Notes are ordered by creation time descending (newest first).

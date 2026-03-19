@@ -70,19 +70,15 @@ export default async function areaRoutes(fastify: FastifyInstance) {
    * List all areas, sorted by sort_order ascending, then name ascending.
    * Auth required: Yes (both admin and member)
    */
-  fastify.get(
-    '/',
-    { schema: listAreasSchema },
-    async (request, reply) => {
-      if (!request.user) {
-        throw new UnauthorizedError();
-      }
+  fastify.get('/', { schema: listAreasSchema }, async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError();
+    }
 
-      const search = (request.query as { search?: string }).search;
-      const areas = areaService.listAreas(fastify.db, search);
-      return reply.status(200).send({ areas });
-    },
-  );
+    const search = (request.query as { search?: string }).search;
+    const areas = areaService.listAreas(fastify.db, search);
+    return reply.status(200).send({ areas });
+  });
 
   /**
    * POST /api/areas
@@ -133,11 +129,7 @@ export default async function areaRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      const area = areaService.updateArea(
-        fastify.db,
-        request.params.id,
-        request.body,
-      );
+      const area = areaService.updateArea(fastify.db, request.params.id, request.body);
       return reply.status(200).send({ area });
     },
   );

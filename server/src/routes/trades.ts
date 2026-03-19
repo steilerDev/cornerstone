@@ -68,19 +68,15 @@ export default async function tradeRoutes(fastify: FastifyInstance) {
    * List all trades, sorted by sort_order ascending, then name ascending.
    * Auth required: Yes (both admin and member)
    */
-  fastify.get(
-    '/',
-    { schema: listTradesSchema },
-    async (request, reply) => {
-      if (!request.user) {
-        throw new UnauthorizedError();
-      }
+  fastify.get('/', { schema: listTradesSchema }, async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError();
+    }
 
-      const search = (request.query as { search?: string }).search;
-      const trades = tradeService.listTrades(fastify.db, search);
-      return reply.status(200).send({ trades });
-    },
-  );
+    const search = (request.query as { search?: string }).search;
+    const trades = tradeService.listTrades(fastify.db, search);
+    return reply.status(200).send({ trades });
+  });
 
   /**
    * POST /api/trades
@@ -131,11 +127,7 @@ export default async function tradeRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      const trade = tradeService.updateTrade(
-        fastify.db,
-        request.params.id,
-        request.body,
-      );
+      const trade = tradeService.updateTrade(fastify.db, request.params.id, request.body);
       return reply.status(200).send({ trade });
     },
   );

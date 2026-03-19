@@ -4,7 +4,12 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { trades, vendors } from '../db/schema.js';
 import type { CreateTradeRequest, UpdateTradeRequest, TradeResponse } from '@cornerstone/shared';
-import { NotFoundError, ValidationError, ConflictError, TradeInUseError } from '../errors/AppError.js';
+import {
+  NotFoundError,
+  ValidationError,
+  ConflictError,
+  TradeInUseError,
+} from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -34,18 +39,11 @@ function isValidHexColor(color: string): boolean {
  * List all trades, sorted by sort_order ascending, then name ascending.
  * Optionally filter by name search (case-insensitive).
  */
-export function listTrades(
-  db: DbType,
-  search?: string,
-): TradeResponse[] {
+export function listTrades(db: DbType, search?: string): TradeResponse[] {
   const rows = db
     .select()
     .from(trades)
-    .where(
-      search
-        ? sql`LOWER(${trades.name}) LIKE LOWER(${`%${search}%`})`
-        : undefined,
-    )
+    .where(search ? sql`LOWER(${trades.name}) LIKE LOWER(${`%${search}%`})` : undefined)
     .orderBy(asc(trades.sortOrder), asc(trades.name))
     .all();
 
@@ -69,10 +67,7 @@ export function getTradeById(db: DbType, id: string): TradeResponse {
  * @throws ValidationError if name is invalid, description too long, or color format invalid
  * @throws ConflictError if a trade with the same name already exists (case-insensitive)
  */
-export function createTrade(
-  db: DbType,
-  data: CreateTradeRequest,
-): TradeResponse {
+export function createTrade(db: DbType, data: CreateTradeRequest): TradeResponse {
   // Validate name
   const trimmedName = data.name.trim();
   if (trimmedName.length === 0 || trimmedName.length > 200) {
@@ -142,11 +137,7 @@ export function createTrade(
  * @throws ValidationError if fields are invalid or no fields provided
  * @throws ConflictError if new name conflicts with existing trade (case-insensitive)
  */
-export function updateTrade(
-  db: DbType,
-  id: string,
-  data: UpdateTradeRequest,
-): TradeResponse {
+export function updateTrade(db: DbType, id: string, data: UpdateTradeRequest): TradeResponse {
   // Check trade exists
   const existing = db.select().from(trades).where(eq(trades.id, id)).get();
   if (!existing) {
@@ -177,9 +168,7 @@ export function updateTrade(
     const duplicate = db
       .select()
       .from(trades)
-      .where(
-        sql`LOWER(${trades.name}) = LOWER(${trimmedName}) AND ${trades.id} != ${id}`,
-      )
+      .where(sql`LOWER(${trades.name}) = LOWER(${trimmedName}) AND ${trades.id} != ${id}`)
       .get();
 
     if (duplicate) {

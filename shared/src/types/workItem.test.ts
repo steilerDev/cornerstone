@@ -122,7 +122,11 @@ describe('WorkItemSummary interface', () => {
       actualEndDate: null,
       durationDays: 14,
       assignedUser: { id: 'user-1', displayName: 'Bob', email: 'bob@example.com' },
-      assignedVendor: { id: 'v-001', name: 'Tile Masters', trade: { id: 'trade-tiling', name: 'Tiling', color: '#06B6D4' } },
+      assignedVendor: {
+        id: 'v-001',
+        name: 'Tile Masters',
+        trade: { id: 'trade-tiling', name: 'Tiling', color: '#06B6D4' },
+      },
       area: { id: 'area-bathroom', name: 'Bathroom', color: '#3B82F6' },
       budgetLineCount: 3,
       createdAt: '2026-01-01T00:00:00Z',

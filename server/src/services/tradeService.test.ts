@@ -482,7 +482,11 @@ describe('Trade Service', () => {
     });
 
     it('updates all fields at once', () => {
-      const trade = createTestTrade('Old Trade', { description: 'Old desc', color: '#000000', sortOrder: 1 });
+      const trade = createTestTrade('Old Trade', {
+        description: 'Old desc',
+        color: '#000000',
+        sortOrder: 1,
+      });
 
       const data: UpdateTradeRequest = {
         name: 'New Trade',

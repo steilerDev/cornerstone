@@ -495,7 +495,11 @@ describe('Vendor Routes', () => {
     });
 
     it('creates vendor with tradeId: null and response has trade: null (201)', async () => {
-      const { cookie } = await createUserWithSession('user@post-null-trade.com', 'User', 'password');
+      const { cookie } = await createUserWithSession(
+        'user@post-null-trade.com',
+        'User',
+        'password',
+      );
 
       const response = await app.inject({
         method: 'POST',
@@ -874,7 +878,11 @@ describe('Vendor Routes', () => {
     });
 
     it('returns 400 VALIDATION_ERROR when PATCH tradeId does not exist', async () => {
-      const { cookie } = await createUserWithSession('user@patch-bad-trade.com', 'User', 'password');
+      const { cookie } = await createUserWithSession(
+        'user@patch-bad-trade.com',
+        'User',
+        'password',
+      );
       const vendor = createTestVendor('Bad Trade PATCH Vendor');
 
       const response = await app.inject({
