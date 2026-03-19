@@ -112,6 +112,7 @@ export function VendorDetailPage() {
       email: vendor.email ?? '',
       address: vendor.address ?? '',
       notes: vendor.notes ?? '',
+      tradeId: vendor.trade?.id ?? null,
     });
     setEditError('');
     setIsEditing(true);
@@ -146,6 +147,7 @@ export function VendorDetailPage() {
         email: (editForm.email as string)?.trim() || null,
         address: (editForm.address as string)?.trim() || null,
         notes: (editForm.notes as string)?.trim() || null,
+        tradeId: editForm.tradeId || null,
       });
       setVendor(updated);
       setIsEditing(false);

@@ -15,6 +15,7 @@
     "availableFunds": "Verfügbare Mittel",
     "projectedCostRange": "Geplanter Kostenbereich",
     "expectedPayback": "Erwartete Rückzahlung",
+    "paybackCapped": "Einige Förderprogramme sind überzeichnet – Rückzahlungswerte sind begrenzt",
     "remaining": "Verbleibend",
     "remainingDetail": "Verbleibendes Budget – tippen Sie für Details",
     "categories": "Kategorien",
@@ -56,7 +57,9 @@
         "cost": "Kosten",
         "payback": "Rückzahlung",
         "net": "Netto"
-      }
+      },
+      "subsidyAdjustments": "Förderprogramme",
+      "oversubscribed": "Dieses Förderprogramm ist überzeichnet, der Maximalbetrag beträgt {{amount}}"
     }
   },
   "sources": {
@@ -176,6 +179,7 @@
       "email": "E-Mail",
       "address": "Adresse",
       "notes": "Notizen",
+      "trade": "Gewerk",
       "required": "*",
       "placeholders": {
         "name": "z. B. Müller Klempner GmbH",
@@ -183,7 +187,8 @@
         "phone": "z. B. +49 555-123-4567",
         "email": "z. B. kontakt@mueller-klemner.de",
         "address": "z. B. Hauptstr. 123, 12345 Musterstadt",
-        "notes": "Zusätzliche Notizen zu diesem Auftragnehmer..."
+        "notes": "Zusätzliche Notizen zu diesem Auftragnehmer...",
+        "trade": "Gewerk auswählen..."
       }
     },
     "validation": {
@@ -239,6 +244,7 @@
       "email": "E-Mail",
       "address": "Adresse",
       "notes": "Notizen",
+      "trade": "Gewerk",
       "createdBy": "Erstellt von"
     },
     "form": {
@@ -248,7 +254,9 @@
       "email": "E-Mail",
       "address": "Adresse",
       "notes": "Notizen",
+      "trade": "Gewerk",
       "required": "*",
+      "tradePlaceholder": "Gewerk auswählen...",
       "placeholders": {
         "specialty": "z. B. Sanitär, Elektrik, Dachdeckerei",
         "phone": "z. B. +49 555-123-4567",
@@ -409,6 +417,7 @@
       "percentage": "Prozentual (%)",
       "fixed": "Festbetrag (€)"
     },
+    "oversubscribed": "Überzeichnet",
     "statusLabels": {
       "eligible": "Berechtigt",
       "applied": "Eingereicht",
