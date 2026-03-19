@@ -39,6 +39,9 @@ export function listWorkItems(params?: WorkItemListQuery): Promise<WorkItemListR
   if (params?.sortOrder) {
     queryParams.set('sortOrder', params.sortOrder);
   }
+  if (params?.noBudget) {
+    queryParams.set('noBudget', 'true');
+  }
 
   const queryString = queryParams.toString();
   const path = queryString ? `/work-items?${queryString}` : '/work-items';
