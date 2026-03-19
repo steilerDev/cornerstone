@@ -207,6 +207,13 @@
   color: var(--color-success-text-on-light);
 }
 
+.paybackCappedNote {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-warning-text-on-light);
+  margin-top: var(--spacing-1);
+}
+
 .metricGroup {
   display: flex;
   flex-direction: column;

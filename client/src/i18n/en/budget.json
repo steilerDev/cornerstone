@@ -15,6 +15,7 @@
     "availableFunds": "Available Funds",
     "projectedCostRange": "Projected Cost Range",
     "expectedPayback": "Expected Payback",
+    "paybackCapped": "Some subsidies are oversubscribed — payback values are capped",
     "remaining": "Remaining",
     "remainingDetail": "Remaining budget — tap for details",
     "categories": "Categories",
@@ -56,7 +57,9 @@
         "cost": "Cost",
         "payback": "Payback",
         "net": "Net"
-      }
+      },
+      "subsidyAdjustments": "Subsidies",
+      "oversubscribed": "This subsidy is oversubscribed, maximum amount is {{amount}}"
     }
   },
   "sources": {
@@ -513,6 +516,7 @@
       "percentage": "Percentage (%)",
       "fixed": "Fixed Amount (€)"
     },
+    "oversubscribed": "Oversubscribed",
     "statusLabels": {
       "eligible": "Eligible",
       "applied": "Applied",

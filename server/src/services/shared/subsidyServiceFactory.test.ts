@@ -5,7 +5,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../../db/migrate.js';
 import * as schema from '../../db/schema.js';
 import { createSubsidyService } from './subsidyServiceFactory.js';
-import { NotFoundError, ConflictError, SubsidyOversubscribedError } from '../../errors/AppError.js';
+import { NotFoundError, ConflictError } from '../../errors/AppError.js';
 
 // ─── Factory configurations under test ────────────────────────────────────────
 
@@ -572,252 +572,52 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
     });
   });
 
-  // ─── Oversubscription checks ───────────────────────────────────────────────
+  // ─── Oversubscription is allowed (cap enforcement moved to budget calculations) ──
 
-  describe('link() oversubscription checks', () => {
-    describe('fixed reduction type', () => {
-      it('links successfully when maximumAmount is null (no limit)', () => {
-        const service = makeWorkItemService(db);
-        const workItemId = insertWorkItem();
-        const subsidyId = insertSubsidyProgram('Unlimited Fixed', {
-          reductionType: 'fixed',
-          reductionValue: 10000,
-          maximumAmount: null,
-        });
-
-        // Should not throw even though there is no budget at all — no cap
-        expect(() => {
-          service.link(db, workItemId, subsidyId);
-        }).not.toThrow();
-
-        expect(service.list(db, workItemId)).toHaveLength(1);
+  describe('link() allows oversubscription', () => {
+    it('links successfully even when fixed subsidy exceeds maximumAmount', () => {
+      const service = makeWorkItemService(db);
+      // maximumAmount = 5000, reductionValue = 10000
+      // Previously this would throw SubsidyOversubscribedError — now it succeeds
+      const subsidyId = insertSubsidyProgram('Fixed Over Cap', {
+        reductionType: 'fixed',
+        reductionValue: 10000,
+        maximumAmount: 5000,
       });
+      const workItemId1 = insertWorkItem('Work Item X');
+      const workItemId2 = insertWorkItem('Work Item Y');
 
-      it('links successfully when current allocation + new contribution is below the maximum', () => {
-        const service = makeWorkItemService(db);
-        // maximumAmount = 25000, reductionValue = 10000
-        // Link to first work item (allocation = 10000), then link to second (total = 20000 < 25000)
-        const subsidyId = insertSubsidyProgram('Fixed With Cap', {
-          reductionType: 'fixed',
-          reductionValue: 10000,
-          maximumAmount: 25000,
-        });
-        const workItemId1 = insertWorkItem('Work Item 1');
-        const workItemId2 = insertWorkItem('Work Item 2');
+      service.link(db, workItemId1, subsidyId);
+      // Second link takes total well above cap — should succeed
+      expect(() => {
+        service.link(db, workItemId2, subsidyId);
+      }).not.toThrow();
 
-        service.link(db, workItemId1, subsidyId);
-        // currentAllocation = 10000, new contribution = 10000, projected = 20000 < 25000 → ok
-        expect(() => {
-          service.link(db, workItemId2, subsidyId);
-        }).not.toThrow();
-      });
-
-      it('links successfully when current allocation + new contribution exactly equals the maximum', () => {
-        const service = makeWorkItemService(db);
-        // maximumAmount = 20000, reductionValue = 10000
-        // After linking first: 10000. Second brings total to exactly 20000.
-        const subsidyId = insertSubsidyProgram('Fixed Exact Cap', {
-          reductionType: 'fixed',
-          reductionValue: 10000,
-          maximumAmount: 20000,
-        });
-        const workItemId1 = insertWorkItem('Work Item A');
-        const workItemId2 = insertWorkItem('Work Item B');
-
-        service.link(db, workItemId1, subsidyId);
-        // 10000 + 10000 = 20000 = maximumAmount → should succeed (not strictly greater)
-        expect(() => {
-          service.link(db, workItemId2, subsidyId);
-        }).not.toThrow();
-      });
-
-      it('throws SubsidyOversubscribedError when projected allocation would exceed the maximum', () => {
-        const service = makeWorkItemService(db);
-        // maximumAmount = 15000, reductionValue = 10000
-        // After linking first: 10000. Second would add 10000 → 20000 > 15000.
-        const subsidyId = insertSubsidyProgram('Fixed Oversubscribed', {
-          reductionType: 'fixed',
-          reductionValue: 10000,
-          maximumAmount: 15000,
-        });
-        const workItemId1 = insertWorkItem('Work Item X');
-        const workItemId2 = insertWorkItem('Work Item Y');
-
-        service.link(db, workItemId1, subsidyId);
-
-        expect(() => {
-          service.link(db, workItemId2, subsidyId);
-        }).toThrow(SubsidyOversubscribedError);
-      });
-
-      it('throws SubsidyOversubscribedError with correct currentAllocation, maximumAmount, and excess', () => {
-        const service = makeWorkItemService(db);
-        // maximumAmount = 15000, reductionValue = 10000
-        // After two links: currentAllocation = 10000. Third link: projected = 20000.
-        // excess = 20000 - 15000 = 5000
-        const subsidyId = insertSubsidyProgram('Fixed Cap Details', {
-          reductionType: 'fixed',
-          reductionValue: 10000,
-          maximumAmount: 15000,
-        });
-        const workItemId1 = insertWorkItem('WI 1');
-        const workItemId2 = insertWorkItem('WI 2');
-
-        service.link(db, workItemId1, subsidyId);
-
-        let caughtError: SubsidyOversubscribedError | null = null;
-        try {
-          service.link(db, workItemId2, subsidyId);
-        } catch (err) {
-          caughtError = err as SubsidyOversubscribedError;
-        }
-
-        expect(caughtError).toBeInstanceOf(SubsidyOversubscribedError);
-        expect(caughtError?.code).toBe('SUBSIDY_OVERSUBSCRIBED');
-        expect(caughtError?.statusCode).toBe(409);
-        expect(caughtError?.details?.currentAllocation).toBe(10000);
-        expect(caughtError?.details?.maximumAmount).toBe(15000);
-        expect(caughtError?.details?.excess).toBe(5000);
-      });
-
-      it('does not insert the junction row when oversubscribed', () => {
-        const service = makeWorkItemService(db);
-        const subsidyId = insertSubsidyProgram('No Insert On Over', {
-          reductionType: 'fixed',
-          reductionValue: 10000,
-          maximumAmount: 5000,
-        });
-        const workItemId = insertWorkItem('Work Item Z');
-
-        // Directly oversubscribed even on first link (10000 > 5000)
-        try {
-          service.link(db, workItemId, subsidyId);
-        } catch {
-          // expected
-        }
-
-        expect(service.list(db, workItemId)).toHaveLength(0);
-      });
+      expect(service.list(db, workItemId1)).toHaveLength(1);
+      expect(service.list(db, workItemId2)).toHaveLength(1);
     });
 
-    describe('percentage reduction type', () => {
-      it('links successfully when maximumAmount is null (no limit)', () => {
-        const service = makeWorkItemService(db);
-        const workItemId = insertWorkItem();
-        // Get a real seeded budget category for the subsidy to match
-        const subsidyId = insertSubsidyProgram('Unlimited Percentage', {
-          reductionType: 'percentage',
-          reductionValue: 20,
-          maximumAmount: null,
-        });
+    it('links successfully even when percentage subsidy exceeds maximumAmount', () => {
+      const service = makeWorkItemService(db);
+      const categories = db.select().from(schema.budgetCategories).limit(1).all();
+      if (categories.length === 0) return;
 
-        expect(() => {
-          service.link(db, workItemId, subsidyId);
-        }).not.toThrow();
+      // 10% of 10000 = 1000 > max 500 — previously blocked, now allowed
+      const subsidyId = insertSubsidyProgram('Pct Over Cap', {
+        reductionType: 'percentage',
+        reductionValue: 10,
+        maximumAmount: 500,
       });
+      db.insert(schema.subsidyProgramCategories)
+        .values({ subsidyProgramId: subsidyId, budgetCategoryId: categories[0].id })
+        .run();
 
-      it('links successfully when contribution is below the maximum', () => {
-        const service = makeWorkItemService(db);
-        // Get a seeded budget category to link the subsidy program to
-        const categories = db.select().from(schema.budgetCategories).limit(1).all();
-        if (categories.length === 0) return; // skip if no seeded categories
+      const workItemId = insertWorkItem('WI Over Pct');
+      insertWorkItemBudgetLine(workItemId, 10000, categories[0].id);
 
-        // Subsidy: 10% of matching budget lines, max = 1000
-        // Work item has budget line of 5000 in matching category → contribution = 500 < 1000
-        const subsidyId = insertSubsidyProgram('Pct Below Cap', {
-          reductionType: 'percentage',
-          reductionValue: 10,
-          maximumAmount: 1000,
-        });
-        db.insert(schema.subsidyProgramCategories)
-          .values({ subsidyProgramId: subsidyId, budgetCategoryId: categories[0].id })
-          .run();
-
-        const workItemId = insertWorkItem('WI Percentage');
-        insertWorkItemBudgetLine(workItemId, 5000, categories[0].id);
-
-        expect(() => {
-          service.link(db, workItemId, subsidyId);
-        }).not.toThrow();
-      });
-
-      it('throws SubsidyOversubscribedError when percentage contribution exceeds the maximum', () => {
-        const service = makeWorkItemService(db);
-        const categories = db.select().from(schema.budgetCategories).limit(1).all();
-        if (categories.length === 0) return; // skip if no seeded categories
-
-        // Subsidy: 10% of matching budget lines, max = 500
-        // Work item has budget line of 10000 in matching category → contribution = 1000 > 500
-        const subsidyId = insertSubsidyProgram('Pct Over Cap', {
-          reductionType: 'percentage',
-          reductionValue: 10,
-          maximumAmount: 500,
-        });
-        db.insert(schema.subsidyProgramCategories)
-          .values({ subsidyProgramId: subsidyId, budgetCategoryId: categories[0].id })
-          .run();
-
-        const workItemId = insertWorkItem('WI Over Pct');
-        insertWorkItemBudgetLine(workItemId, 10000, categories[0].id);
-
-        expect(() => {
-          service.link(db, workItemId, subsidyId);
-        }).toThrow(SubsidyOversubscribedError);
-      });
-
-      it('throws SubsidyOversubscribedError with correct details for percentage type', () => {
-        const service = makeWorkItemService(db);
-        const categories = db.select().from(schema.budgetCategories).limit(1).all();
-        if (categories.length === 0) return;
-
-        // 10% of 10000 = 1000. Max = 500. Excess = 500.
-        const subsidyId = insertSubsidyProgram('Pct Cap Details', {
-          reductionType: 'percentage',
-          reductionValue: 10,
-          maximumAmount: 500,
-        });
-        db.insert(schema.subsidyProgramCategories)
-          .values({ subsidyProgramId: subsidyId, budgetCategoryId: categories[0].id })
-          .run();
-
-        const workItemId = insertWorkItem('WI Pct Details');
-        insertWorkItemBudgetLine(workItemId, 10000, categories[0].id);
-
-        let caughtError: SubsidyOversubscribedError | null = null;
-        try {
-          service.link(db, workItemId, subsidyId);
-        } catch (err) {
-          caughtError = err as SubsidyOversubscribedError;
-        }
-
-        expect(caughtError).toBeInstanceOf(SubsidyOversubscribedError);
-        expect(caughtError?.details?.currentAllocation).toBe(0);
-        expect(caughtError?.details?.maximumAmount).toBe(500);
-        expect(caughtError?.details?.excess).toBe(500);
-      });
-
-      it('links successfully when percentage contribution exactly equals the maximum', () => {
-        const service = makeWorkItemService(db);
-        const categories = db.select().from(schema.budgetCategories).limit(1).all();
-        if (categories.length === 0) return;
-
-        // 10% of 5000 = 500. Max = 500. projected = 500 = maximumAmount → success (not strictly >)
-        const subsidyId = insertSubsidyProgram('Pct Exact Cap', {
-          reductionType: 'percentage',
-          reductionValue: 10,
-          maximumAmount: 500,
-        });
-        db.insert(schema.subsidyProgramCategories)
-          .values({ subsidyProgramId: subsidyId, budgetCategoryId: categories[0].id })
-          .run();
-
-        const workItemId = insertWorkItem('WI Pct Exact');
-        insertWorkItemBudgetLine(workItemId, 5000, categories[0].id);
-
-        expect(() => {
-          service.link(db, workItemId, subsidyId);
-        }).not.toThrow();
-      });
+      expect(() => {
+        service.link(db, workItemId, subsidyId);
+      }).not.toThrow();
     });
   });
 

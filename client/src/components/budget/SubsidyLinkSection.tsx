@@ -11,6 +11,7 @@ export interface SubsidyLinkSectionProps {
   onLinkSubsidy: () => void;
   onUnlinkSubsidy: (subsidyProgramId: string) => void;
   isLinking: boolean;
+  oversubscribedIds?: Set<string>;
   children?: ReactNode;
 }
 
@@ -22,6 +23,7 @@ export function SubsidyLinkSection({
   onLinkSubsidy,
   onUnlinkSubsidy,
   isLinking,
+  oversubscribedIds,
   children,
 }: SubsidyLinkSectionProps) {
   const { formatCurrency } = useFormatters();
@@ -32,7 +34,12 @@ export function SubsidyLinkSection({
           {linkedSubsidies.map((subsidy) => (
             <div key={subsidy.id} className={styles.linkedItem}>
               <div className={styles.linkedItemInfo}>
-                <span className={styles.linkedItemName}>{subsidy.name}</span>
+                <span className={styles.linkedItemName}>
+                  {subsidy.name}
+                  {oversubscribedIds?.has(subsidy.id) && (
+                    <span className={styles.oversubscribedBadge}>Oversubscribed</span>
+                  )}
+                </span>
                 <span className={styles.linkedItemMeta}>
                   {subsidy.reductionType === 'percentage'
                     ? `${subsidy.reductionValue}% reduction`

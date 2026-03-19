@@ -97,6 +97,14 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
             </dd>
           </div>
         )}
+
+        {subsidySummary.oversubscribedSubsidies?.length > 0 && (
+          <div className={styles.metricItem}>
+            <dd className={styles.oversubscribedWarning} data-testid="oversubscribed-warning">
+              {t('cards.budgetSummary.subsidiesOversubscribed')}
+            </dd>
+          </div>
+        )}
       </dl>
 
       {/* Footer */}

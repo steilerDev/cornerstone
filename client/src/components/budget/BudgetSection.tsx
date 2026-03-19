@@ -33,6 +33,7 @@ export interface BudgetSectionProps<T extends BaseBudgetLine> {
   onUnlinkInvoice?: (budgetLineId: string, invoiceBudgetLineId: string) => void;
   isUnlinking?: Record<string, boolean>;
   inlineError?: string | null;
+  oversubscribedSubsidyIds?: Set<string>;
 }
 
 export function BudgetSection<T extends BaseBudgetLine>({
@@ -53,6 +54,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
   onUnlinkInvoice,
   isUnlinking,
   inlineError,
+  oversubscribedSubsidyIds,
 }: BudgetSectionProps<T>) {
   const { t } = useTranslation(budgetLineType === 'household_item' ? 'householdItems' : 'budget');
 
@@ -218,6 +220,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
           onLinkSubsidy={onLinkSubsidy}
           onUnlinkSubsidy={onUnlinkSubsidy}
           isLinking={isLinkingSubsidy}
+          oversubscribedIds={oversubscribedSubsidyIds}
         />
       </div>
     </>

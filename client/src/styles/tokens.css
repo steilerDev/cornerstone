@@ -83,9 +83,10 @@
   /* Red scale additions — dark mode danger variants */
   --color-red-300: #fca5a5;
 
-  /* Orange scale — critical path accent */
+  /* Orange scale — critical path accent, warning text */
   --color-orange-300: #fdba74;
   --color-orange-400: #fb923c;
+  --color-orange-700: #c2410c;
 
   /* Amber scale — household item scheduled status */
   --color-amber-100: #fef3c7;
@@ -146,6 +147,7 @@
   /* --- Warning (orange/amber) --- */
   --color-warning: var(--color-orange-400);
   --color-warning-bg: #fff7ed;
+  --color-warning-text-on-light: var(--color-orange-700);
 
   /* --- Success (green) --- */
   --color-success: var(--color-green-500);
@@ -564,6 +566,7 @@
   /* --- Warning --- */
   --color-warning: var(--color-orange-300);
   --color-warning-bg: rgba(251, 146, 60, 0.1);
+  --color-warning-text-on-light: var(--color-orange-300);
 
   /* --- Danger / Error --- */
   --color-danger: var(--color-red-400);

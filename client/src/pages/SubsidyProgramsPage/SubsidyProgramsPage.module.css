@@ -413,6 +413,21 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ---- Oversubscribed badge ---- */
+
+.oversubscribedBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.4;
+  white-space: nowrap;
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-text-on-light);
+}
+
 /* ---- Deadline ---- */
 
 .programDeadline {

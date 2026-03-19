@@ -10,9 +10,10 @@ import type {
   BreakdownHouseholdItem,
   BreakdownTotals,
   CostDisplay,
+  SubsidyAdjustment,
 } from '@cornerstone/shared';
-import { computeSubsidyEffects } from './shared/subsidyCalculationEngine.js';
-import type { LinkedSubsidy } from './shared/subsidyCalculationEngine.js';
+import { computeSubsidyEffects, applySubsidyCaps } from './shared/subsidyCalculationEngine.js';
+import type { LinkedSubsidy, SubsidyCapMeta, PerSubsidyTotals } from './shared/subsidyCalculationEngine.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -146,13 +147,17 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
   // ── 5. Queries E/F/G/H: Subsidy data (same pattern as budgetOverviewService) ──
   const subsidyRows = db.all<{
     subsidyId: string;
+    name: string;
     reductionType: string;
     reductionValue: number;
+    maximumAmount: number | null;
   }>(
     sql`SELECT
       id              AS subsidyId,
+      name            AS name,
       reduction_type  AS reductionType,
-      reduction_value AS reductionValue
+      reduction_value AS reductionValue,
+      maximum_amount  AS maximumAmount
     FROM subsidy_programs
     WHERE application_status != 'rejected'`,
   );
@@ -657,6 +662,119 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     }),
   });
 
+  // ── Aggregate per-subsidy payback totals for cap enforcement ─────────────────
+  // Track per-subsidy totals across all entities (both WI and HI)
+  const perSubsidyPayback = new Map<string, { min: number; max: number }>();
+
+  // Re-iterate all entities to collect per-subsidy payback
+  const allEntityLines = new Map<string, Array<{
+    id: string;
+    plannedAmount: number;
+    confidence: string;
+    budgetCategoryId: string | null;
+  }>>();
+
+  for (const row of workItemLineRows) {
+    let arr = allEntityLines.get(row.workItemId);
+    if (!arr) {
+      arr = [];
+      allEntityLines.set(row.workItemId, arr);
+    }
+    arr.push({
+      id: row.budgetLineId,
+      plannedAmount: row.plannedAmount,
+      confidence: row.confidence,
+      budgetCategoryId: row.budgetCategoryId,
+    });
+  }
+
+  for (const row of hiLineRows) {
+    let arr = allEntityLines.get(row.householdItemId);
+    if (!arr) {
+      arr = [];
+      allEntityLines.set(row.householdItemId, arr);
+    }
+    arr.push({
+      id: row.budgetLineId,
+      plannedAmount: row.plannedAmount,
+      confidence: row.confidence,
+      budgetCategoryId: row.budgetCategoryId,
+    });
+  }
+
+  for (const [entityId, linkedSubsidyIds] of entitySubsidyMap) {
+    const entityLines = allEntityLines.get(entityId) ?? [];
+    const engineLines = entityLines.map((line) => ({
+      id: line.id,
+      budgetCategoryId: line.budgetCategoryId,
+      plannedAmount: line.plannedAmount,
+      confidence: line.confidence,
+    }));
+
+    const engineSubsidies: LinkedSubsidy[] = [];
+    for (const subsidyId of linkedSubsidyIds) {
+      const meta = subsidyMeta.get(subsidyId);
+      if (!meta) continue;
+      engineSubsidies.push({
+        subsidyProgramId: subsidyId,
+        name: subsidyId,
+        reductionType: meta.reductionType as 'percentage' | 'fixed',
+        reductionValue: meta.reductionValue,
+      });
+    }
+
+    // Use combined invoice map for the entity
+    const combinedInvoiceMap = new Map<string, number>([...wiLineInvoiceMap, ...hiLineInvoiceMap]);
+
+    const { subsidies: entityEffects } = computeSubsidyEffects(
+      engineLines,
+      engineSubsidies,
+      subsidyCategoryMap,
+      combinedInvoiceMap,
+    );
+
+    for (const effect of entityEffects) {
+      const existing = perSubsidyPayback.get(effect.subsidyProgramId);
+      if (existing) {
+        existing.min += effect.minPayback;
+        existing.max += effect.maxPayback;
+      } else {
+        perSubsidyPayback.set(effect.subsidyProgramId, {
+          min: effect.minPayback,
+          max: effect.maxPayback,
+        });
+      }
+    }
+  }
+
+  const perSubsidyTotals: PerSubsidyTotals[] = [];
+  for (const [subsidyProgramId, totals] of perSubsidyPayback) {
+    perSubsidyTotals.push({
+      subsidyProgramId,
+      uncappedMinPayback: totals.min,
+      uncappedMaxPayback: totals.max,
+    });
+  }
+
+  const subsidyCapMeta: SubsidyCapMeta[] = subsidyRows.map((row) => ({
+    subsidyProgramId: row.subsidyId,
+    name: row.name,
+    reductionType: row.reductionType as 'percentage' | 'fixed',
+    reductionValue: row.reductionValue,
+    maximumAmount: row.maximumAmount,
+  }));
+
+  const capResult = applySubsidyCaps(perSubsidyTotals, subsidyCapMeta);
+
+  const subsidyAdjustments: SubsidyAdjustment[] = capResult.oversubscribedSubsidies.map((s) => ({
+    subsidyProgramId: s.subsidyProgramId,
+    name: s.name,
+    maximumAmount: s.maximumAmount,
+    maxPayout: s.maxPayout,
+    minExcess: s.minExcess,
+    maxExcess: s.maxExcess,
+  }));
+
   return {
     workItems: {
       categories: wiCategories,
@@ -666,5 +784,6 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       categories: hiCategories,
       totals: hiTotals,
     },
+    subsidyAdjustments,
   };
 }

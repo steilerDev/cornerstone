@@ -4,6 +4,7 @@ import type {
   SubsidyProgram,
   SubsidyApplicationStatus,
   SubsidyReductionType,
+  OversubscribedSubsidy,
 } from '@cornerstone/shared';
 import type { BudgetCategory } from '@cornerstone/shared';
 import {
@@ -13,6 +14,7 @@ import {
   deleteSubsidyProgram,
 } from '../../lib/subsidyProgramsApi.js';
 import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
+import { fetchBudgetOverview } from '../../lib/budgetOverviewApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
@@ -87,6 +89,7 @@ export function SubsidyProgramsPage() {
   const { t } = useTranslation('budget');
   const { formatCurrency, formatDate } = useFormatters();
   const [programs, setPrograms] = useState<SubsidyProgram[]>([]);
+  const [oversubscribedIds, setOversubscribedIds] = useState<Set<string>>(new Set());
   const [allCategories, setAllCategories] = useState<BudgetCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -127,12 +130,19 @@ export function SubsidyProgramsPage() {
     setError('');
 
     try {
-      const [programsResponse, categoriesResponse] = await Promise.all([
+      const [programsResponse, categoriesResponse, overviewData] = await Promise.all([
         fetchSubsidyPrograms(),
         fetchBudgetCategories(),
+        fetchBudgetOverview(),
       ]);
       setPrograms(programsResponse.subsidyPrograms);
       setAllCategories(categoriesResponse.categories);
+      const ids = new Set<string>(
+        (overviewData.subsidySummary.oversubscribedSubsidies ?? []).map(
+          (s: OversubscribedSubsidy) => s.subsidyProgramId,
+        ),
+      );
+      setOversubscribedIds(ids);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
@@ -1000,6 +1010,11 @@ export function SubsidyProgramsPage() {
                             {program.maximumAmount != null && (
                               <span className={styles.maxAmountBadge}>
                                 Cap: {formatCurrency(program.maximumAmount)}
+                              </span>
+                            )}
+                            {oversubscribedIds.has(program.id) && (
+                              <span className={styles.oversubscribedBadge}>
+                                {t('subsidies.oversubscribed')}
                               </span>
                             )}
                           </div>
