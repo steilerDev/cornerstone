@@ -190,7 +190,11 @@ export class HouseholdItemsPage {
    * which works across both table (desktop/tablet) and card (mobile) layouts.
    */
   async openDeleteModal(name: string): Promise<void> {
-    const actionsBtn = this.page.locator(`[aria-label^="Actions for"][aria-label*="${name}"]`).first();
+    // Both table and card layouts render an actions button with the same aria-label.
+    // On mobile the table is display:none, so we must target the visible one.
+    const actionsBtn = this.page
+      .locator(`[aria-label^="Actions for"][aria-label*="${name}"]:visible`)
+      .first();
     await actionsBtn.click();
     await this.page.getByRole('menuitem', { name: 'Delete' }).click();
     await this.deleteModal.waitFor({ state: 'visible' });
