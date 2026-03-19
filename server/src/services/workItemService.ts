@@ -9,6 +9,9 @@ import {
   workItemDependencies,
   householdItemDeps,
   workItemBudgets,
+  vendors,
+  areas,
+  trades,
 } from '../db/schema.js';
 import { listWorkItemBudgets } from './workItemBudgetService.js';
 import { autoReschedule } from './schedulingEngine.js';
@@ -18,7 +21,8 @@ import {
   onMilestoneDelayed,
   onAutoRescheduleCompleted,
 } from './diaryAutoEventService.js';
-import { toUserSummary } from './shared/converters.js';
+import { toUserSummary, toAreaSummary, toVendorSummaryWithTrade } from './shared/converters.js';
+import { validateAreaId } from './shared/validators.js';
 import type {
   WorkItemDetail,
   WorkItemSummary,
@@ -71,6 +75,30 @@ function getAssignedUser(db: DbType, assignedUserId: string | null): UserSummary
 }
 
 /**
+ * Fetch assigned vendor for a work item, with trade resolution.
+ */
+function getAssignedVendor(
+  db: DbType,
+  assignedVendorId: string | null,
+): ReturnType<typeof toVendorSummaryWithTrade> {
+  if (!assignedVendorId) return null;
+  const vendor = db.select().from(vendors).where(eq(vendors.id, assignedVendorId)).get();
+  return toVendorSummaryWithTrade(db, vendor || null);
+}
+
+/**
+ * Fetch area for a work item.
+ */
+function getArea(
+  db: DbType,
+  areaId: string | null,
+): ReturnType<typeof toAreaSummary> {
+  if (!areaId) return null;
+  const area = db.select().from(areas).where(eq(areas.id, areaId)).get();
+  return toAreaSummary(area || null);
+}
+
+/**
  * Convert database work item row to WorkItemSummary shape.
  */
 export function toWorkItemSummary(
@@ -78,6 +106,8 @@ export function toWorkItemSummary(
   workItem: typeof workItems.$inferSelect,
 ): WorkItemSummary {
   const assignedUser = getAssignedUser(db, workItem.assignedUserId);
+  const assignedVendor = getAssignedVendor(db, workItem.assignedVendorId);
+  const area = getArea(db, workItem.areaId);
   const budgetLineCount = getBudgetLineCount(db, workItem.id);
 
   return {
@@ -90,8 +120,8 @@ export function toWorkItemSummary(
     actualEndDate: workItem.actualEndDate,
     durationDays: workItem.durationDays,
     assignedUser,
-    assignedVendor: null, // TODO: fetch in Story 4
-    area: null, // TODO: fetch in Story 2
+    assignedVendor,
+    area,
     budgetLineCount,
     createdAt: workItem.createdAt,
     updatedAt: workItem.updatedAt,
@@ -164,6 +194,8 @@ export function toWorkItemDetail(
   workItem: typeof workItems.$inferSelect,
 ): WorkItemDetail {
   const assignedUser = getAssignedUser(db, workItem.assignedUserId);
+  const assignedVendor = getAssignedVendor(db, workItem.assignedVendorId);
+  const area = getArea(db, workItem.areaId);
   const createdByUser = workItem.createdBy
     ? db.select().from(users).where(eq(users.id, workItem.createdBy)).get()
     : null;
@@ -185,8 +217,8 @@ export function toWorkItemDetail(
     startAfter: workItem.startAfter,
     startBefore: workItem.startBefore,
     assignedUser,
-    assignedVendor: null, // TODO: fetch in Story 4
-    area: null, // TODO: fetch in Story 2
+    assignedVendor,
+    area,
     createdBy: toUserSummary(createdByUser || null),
     subtasks,
     dependencies,
@@ -262,6 +294,19 @@ export function createWorkItem(
     validateAssignedUser(db, data.assignedUserId);
   }
 
+  // Validate areaId if provided
+  if (data.areaId) {
+    validateAreaId(db, data.areaId);
+  }
+
+  // Validate assignedVendorId if provided
+  if (data.assignedVendorId) {
+    const vendor = db.select().from(vendors).where(eq(vendors.id, data.assignedVendorId)).get();
+    if (!vendor) {
+      throw new ValidationError(`Vendor not found: ${data.assignedVendorId}`);
+    }
+  }
+
   const now = new Date().toISOString();
   const id = randomUUID();
 
@@ -280,6 +325,8 @@ export function createWorkItem(
       startAfter: data.startAfter ?? null,
       startBefore: data.startBefore ?? null,
       assignedUserId: data.assignedUserId ?? null,
+      areaId: data.areaId ?? null,
+      assignedVendorId: data.assignedVendorId ?? null,
       createdBy: userId,
       createdAt: now,
       updatedAt: now,
@@ -392,6 +439,23 @@ export function updateWorkItem(
       validateAssignedUser(db, data.assignedUserId);
     }
     updateData.assignedUserId = data.assignedUserId ?? null;
+  }
+
+  if ('areaId' in data) {
+    if (data.areaId) {
+      validateAreaId(db, data.areaId);
+    }
+    updateData.areaId = data.areaId ?? null;
+  }
+
+  if ('assignedVendorId' in data) {
+    if (data.assignedVendorId) {
+      const vendor = db.select().from(vendors).where(eq(vendors.id, data.assignedVendorId)).get();
+      if (!vendor) {
+        throw new ValidationError(`Vendor not found: ${data.assignedVendorId}`);
+      }
+    }
+    updateData.assignedVendorId = data.assignedVendorId ?? null;
   }
 
   if ('actualStartDate' in data) {
@@ -547,6 +611,14 @@ export function listWorkItems(
 
   if (query.assignedUserId) {
     conditions.push(eq(workItems.assignedUserId, query.assignedUserId));
+  }
+
+  if (query.areaId) {
+    conditions.push(eq(workItems.areaId, query.areaId));
+  }
+
+  if (query.assignedVendorId) {
+    conditions.push(eq(workItems.assignedVendorId, query.assignedVendorId));
   }
 
   if (query.q) {

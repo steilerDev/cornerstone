@@ -350,6 +350,114 @@ describe('getTimeline service', () => {
       const result = getTimeline(db);
       expect(result.workItems[0].assignedVendor).toBeNull();
     });
+
+    it('includes area summary when work item has areaId set', () => {
+      // Given: An area and a work item assigned to it
+      const userId = insertUser(db);
+      const now = new Date().toISOString();
+      const areaId = `area-${Date.now()}`;
+      db.insert(schema.areas)
+        .values({
+          id: areaId,
+          name: 'Basement',
+          parentId: null,
+          color: '#123456',
+          description: null,
+          sortOrder: 0,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      insertWorkItem(db, userId, { startDate: '2026-03-01', areaId });
+
+      // When: Getting timeline
+      const result = getTimeline(db);
+
+      // Then: area summary is populated
+      const wi = result.workItems[0];
+      expect(wi.area).not.toBeNull();
+      expect(wi.area!.id).toBe(areaId);
+      expect(wi.area!.name).toBe('Basement');
+      expect(wi.area!.color).toBe('#123456');
+    });
+
+    it('includes assignedVendor with trade when work item has assignedVendorId set', () => {
+      // Given: A trade, a vendor with that trade, and a work item assigned to the vendor
+      const userId = insertUser(db);
+      const now = new Date().toISOString();
+      const tradeId = `trade-${Date.now()}`;
+      db.insert(schema.trades)
+        .values({
+          id: tradeId,
+          name: 'Custom Test Plumbing',
+          color: '#0000FF',
+          description: null,
+          sortOrder: 0,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const vendorId = `vendor-${Date.now()}`;
+      db.insert(schema.vendors)
+        .values({
+          id: vendorId,
+          name: 'Pipe Masters',
+          tradeId,
+          phone: null,
+          email: null,
+          address: null,
+          notes: null,
+          createdBy: null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      insertWorkItem(db, userId, { startDate: '2026-03-01', assignedVendorId: vendorId });
+
+      // When: Getting timeline
+      const result = getTimeline(db);
+
+      // Then: assignedVendor is populated with trade info
+      const wi = result.workItems[0];
+      expect(wi.assignedVendor).not.toBeNull();
+      expect(wi.assignedVendor!.id).toBe(vendorId);
+      expect(wi.assignedVendor!.name).toBe('Pipe Masters');
+      expect(wi.assignedVendor!.trade).not.toBeNull();
+      expect(wi.assignedVendor!.trade!.id).toBe(tradeId);
+      expect(wi.assignedVendor!.trade!.name).toBe('Custom Test Plumbing');
+      expect(wi.assignedVendor!.trade!.color).toBe('#0000FF');
+    });
+
+    it('includes assignedVendor with null trade when vendor has no trade', () => {
+      // Given: A vendor without a trade
+      const userId = insertUser(db);
+      const now = new Date().toISOString();
+      const vendorId = `vendor-notrade-${Date.now()}`;
+      db.insert(schema.vendors)
+        .values({
+          id: vendorId,
+          name: 'No Trade Vendor',
+          tradeId: null,
+          phone: null,
+          email: null,
+          address: null,
+          notes: null,
+          createdBy: null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      insertWorkItem(db, userId, { startDate: '2026-03-01', assignedVendorId: vendorId });
+
+      // When: Getting timeline
+      const result = getTimeline(db);
+
+      // Then: assignedVendor populated, trade is null
+      const wi = result.workItems[0];
+      expect(wi.assignedVendor).not.toBeNull();
+      expect(wi.assignedVendor!.name).toBe('No Trade Vendor');
+      expect(wi.assignedVendor!.trade).toBeNull();
+    });
   });
 
   // ─── Dependencies ───────────────────────────────────────────────────────────

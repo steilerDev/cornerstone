@@ -6,6 +6,7 @@ import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import * as workItemService from '../services/workItemService.js';
+import * as schema from '../db/schema.js';
 import type { FastifyInstance } from 'fastify';
 import type {
   WorkItemDetail,
@@ -65,6 +66,52 @@ describe('Work Item Routes', () => {
       userId: user.id,
       cookie: `cornerstone_session=${sessionToken}`,
     };
+  }
+
+  /**
+   * Helper: Insert a test area directly into the app DB.
+   */
+  function insertTestArea(name: string, color: string | null = null): string {
+    const now = new Date().toISOString();
+    const areaId = `area-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    app.db
+      .insert(schema.areas)
+      .values({
+        id: areaId,
+        name,
+        parentId: null,
+        color,
+        description: null,
+        sortOrder: 0,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return areaId;
+  }
+
+  /**
+   * Helper: Insert a test vendor directly into the app DB.
+   */
+  function insertTestVendor(name: string): string {
+    const now = new Date().toISOString();
+    const vendorId = `vendor-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    app.db
+      .insert(schema.vendors)
+      .values({
+        id: vendorId,
+        name,
+        tradeId: null,
+        phone: null,
+        email: null,
+        address: null,
+        notes: null,
+        createdBy: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return vendorId;
   }
 
   describe('POST /api/work-items', () => {
@@ -305,9 +352,8 @@ describe('Work Item Routes', () => {
       expect(error.error.message).toContain('User not found');
     });
 
-    it.skip('fails with 400 when areaId does not exist (UAT-3.2-09 — Story 4 not yet implemented)', async () => {
-      // areaId validation against the areas table is not implemented until Story 4.
-      // The route currently accepts any areaId without validation.
+    it('fails with 400 when areaId does not exist (UAT-3.2-09)', async () => {
+      // Given: Authenticated user
       const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
 
       const body: CreateWorkItemRequest = {
@@ -315,6 +361,7 @@ describe('Work Item Routes', () => {
         areaId: 'non-existent-area-uuid',
       };
 
+      // When: Creating with non-existent area
       const response = await app.inject({
         method: 'POST',
         url: '/api/work-items',
@@ -322,6 +369,7 @@ describe('Work Item Routes', () => {
         payload: body,
       });
 
+      // Then: Returns 400 VALIDATION_ERROR
       expect(response.statusCode).toBe(400);
       const error = JSON.parse(response.body) as ApiErrorResponse;
       expect(error.error.code).toBe('VALIDATION_ERROR');
@@ -638,25 +686,33 @@ describe('Work Item Routes', () => {
       expect(result.items.every((item) => item.assignedUser?.id === userA)).toBe(true);
     });
 
-    it.skip('accepts areaId filter without error (UAT-3.2-18 — Story 4 not yet implemented)', async () => {
-      // areaId query filter is not in the route schema yet (Story 4).
-      // The route uses additionalProperties: false so passing areaId returns 400, not 200.
+    it('filters by areaId returns only items in that area (UAT-3.2-18)', async () => {
+      // Given: Work items in different areas
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'User',
         'password',
       );
+      const areaId = insertTestArea('Kitchen');
+      workItemService.createWorkItem(app.db, userId, {
+        title: 'Item in Kitchen',
+        areaId,
+      });
       workItemService.createWorkItem(app.db, userId, { title: 'Item without area' });
 
+      // When: Filtering by areaId
       const response = await app.inject({
         method: 'GET',
-        url: '/api/work-items?areaId=non-existent-area',
+        url: `/api/work-items?areaId=${areaId}`,
         headers: { cookie },
       });
 
+      // Then: Returns only items in that area
       expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.body) as WorkItemListResponse;
-      expect(result.items).toHaveLength(0);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].title).toBe('Item in Kitchen');
+      expect(result.items[0].area?.id).toBe(areaId);
     });
 
     it('searches title and description (UAT-3.2-19)', async () => {
@@ -1090,18 +1146,21 @@ describe('Work Item Routes', () => {
       expect(error.error.code).toBe('UNAUTHORIZED');
     });
 
-    it.skip('allows updating assignedVendorId to null (UAT-3.2-33 — Story 4 not yet implemented)', async () => {
-      // assignedVendorId is not in the PATCH schema yet (Story 4).
-      // The route uses additionalProperties: false so passing assignedVendorId returns 400.
+    it('allows updating assignedVendorId to null (UAT-3.2-33)', async () => {
+      // Given: A work item with a vendor assigned
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'User',
         'password',
       );
+      const vendorId = insertTestVendor('Test Vendor');
       const workItem = workItemService.createWorkItem(app.db, userId, {
         title: 'Test',
+        assignedVendorId: vendorId,
       });
+      expect(workItem.assignedVendor?.id).toBe(vendorId);
 
+      // When: Setting assignedVendorId to null
       const body: UpdateWorkItemRequest = {
         assignedVendorId: null,
       };
@@ -1112,6 +1171,7 @@ describe('Work Item Routes', () => {
         payload: body,
       });
 
+      // Then: Returns 200 with vendor cleared
       expect(response.statusCode).toBe(200);
       const updated = JSON.parse(response.body) as WorkItemDetail;
       expect(updated.assignedVendor).toBeNull();

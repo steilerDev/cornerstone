@@ -8,6 +8,7 @@ import * as sessionService from '../services/sessionService.js';
 import * as householdItemService from '../services/householdItemService.js';
 import * as milestoneService from '../services/milestoneService.js';
 import * as workItemService from '../services/workItemService.js';
+import * as schema from '../db/schema.js';
 import type { FastifyInstance } from 'fastify';
 import type { ApiErrorResponse } from '@cornerstone/shared';
 
@@ -61,6 +62,28 @@ describe('Household Item Routes', () => {
       userId: user.id,
       cookie: `cornerstone_session=${sessionToken}`,
     };
+  }
+
+  /**
+   * Helper: Insert a test area directly into the app DB.
+   */
+  function insertTestArea(name: string, color: string | null = null): string {
+    const now = new Date().toISOString();
+    const areaId = `area-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    app.db
+      .insert(schema.areas)
+      .values({
+        id: areaId,
+        name,
+        parentId: null,
+        color,
+        description: null,
+        sortOrder: 0,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return areaId;
   }
 
   // ---------------------------------------------------------------------------
@@ -250,12 +273,11 @@ describe('Household Item Routes', () => {
       expect(error.error.message).toContain('Vendor not found');
     });
 
-    it.skip('returns 400 when areaId does not exist (Story 5 — not yet implemented)', async () => {
-      // areaId is not in the create schema yet (Story 5).
-      // The route uses additionalProperties: false so passing areaId returns 400 with
-      // a schema-level error (not an "Area not found" application error).
+    it('returns 400 when areaId does not exist', async () => {
+      // Given: Authenticated user
       const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
 
+      // When: Creating with non-existent area
       const response = await app.inject({
         method: 'POST',
         url: '/api/household-items',
@@ -263,6 +285,7 @@ describe('Household Item Routes', () => {
         payload: { name: 'Test Item', areaId: 'non-existent-area-id' },
       });
 
+      // Then: Returns 400 VALIDATION_ERROR
       expect(response.statusCode).toBe(400);
       const error = JSON.parse(response.body) as ApiErrorResponse;
       expect(error.error.code).toBe('VALIDATION_ERROR');
@@ -838,18 +861,21 @@ describe('Household Item Routes', () => {
       expect(item.name).toBe('New Name');
     });
 
-    it.skip('updates areaId to null (clears area) — Story 5 not yet implemented', async () => {
-      // areaId is not in the update schema yet (Story 5).
-      // The route uses additionalProperties: false so passing areaId: null returns 400.
+    it('updates areaId to null (clears area)', async () => {
+      // Given: An item with an area assigned
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'User',
         'password',
       );
+      const areaId = insertTestArea('Living Room');
       const created = householdItemService.createHouseholdItem(app.db, userId, {
         name: 'Lamp',
+        areaId,
       });
+      expect(created.area?.id).toBe(areaId);
 
+      // When: Clearing the area
       const response = await app.inject({
         method: 'PATCH',
         url: `/api/household-items/${created.id}`,
@@ -857,6 +883,7 @@ describe('Household Item Routes', () => {
         payload: { areaId: null },
       });
 
+      // Then: Returns 200 with area cleared
       expect(response.statusCode).toBe(200);
       const item = (JSON.parse(response.body) as { householdItem: Record<string, unknown> })
         .householdItem;

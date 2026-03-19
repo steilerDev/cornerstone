@@ -3,6 +3,22 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Stories #1031/#1032 Areas + Trades Backend CRUD (2026-03-19)
+
+**Test files** (4 new, 1 updated): `areaService.test.ts` (60 tests), `tradeService.test.ts` (57), `areas.test.ts` (route, 35), `trades.test.ts` (route, 31), `vendors.test.ts` (updated, +trade tests).
+
+**Key patterns**:
+
+- **Area sibling uniqueness**: Areas use a partial UNIQUE constraint — same name is only a conflict among siblings (same parentId). Top-level and child-level areas can share names. The service checks this with `LOWER(name) = LOWER(trimmed) AND parent_id IS NULL` (for top-level) or `AND parent_id = X` (for children). The Drizzle schema also has `uniqueIndex('idx_areas_unique_name_parent').on(table.name, table.parentId)`.
+- **Circular reference detection**: `areaService.updateArea()` calls `hasCircularReference()` which walks up the ancestor chain. Test: set grandparent's parentId to child.id → 400 VALIDATION_ERROR `'circular reference'`.
+- **AreaInUseError counts descendants**: `deleteArea()` collects all descendant IDs via BFS, then counts work item + HI references for ALL of them. Deleting parent fails if any descendant is in use.
+- **Cascade delete on parent_id FK**: `areas.parentId` has `onDelete: 'cascade'` — deleting a parent with no in-use descendants cascades to children automatically.
+- **TradeInUseError suppressDetails=true**: Like CategoryInUseError and AreaInUseError, the `vendorCount` detail is suppressed in API responses. Assert `body.error.details === undefined`.
+- **`vendors.test.ts` trade updates**: After #1032, `trade` field in vendor responses is populated from trades table JOIN. Tests that previously expected `trade: null` for vendors with a tradeId now need a real trade row inserted. Use `createTestTrade()` helper.
+- **`sortBy=trade` in vendors**: Uses subquery `(SELECT COALESCE(name,'') FROM trades WHERE id = vendor.tradeId)` — vendors with no trade sort first (empty string).
+- **`tradeId` filter in GET /api/vendors**: `?tradeId=<id>` filters using `eq(vendors.tradeId, query.tradeId)`.
+- **`createTestHouseholdItem` requires `categoryId: 'hic-furniture'`**: seeded by migration 0016; do NOT omit it (NOT NULL FK constraint).
+
 ## Issue #1010 InvoiceBudgetLinesSection — budget source + pre-fill (2026-03-18)
 
 **Test file**: `client/src/pages/InvoiceDetailPage/InvoiceBudgetLinesSection.test.tsx` (5 new tests in new describe block).

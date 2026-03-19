@@ -22,12 +22,14 @@ import {
   subsidyPrograms,
   invoices,
   invoiceBudgetLines,
+  areas,
+  trades,
 } from '../db/schema.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { listDeps } from './householdItemDepService.js';
 import { autoReschedule } from './schedulingEngine.js';
-import { toUserSummary, toVendorSummary } from './shared/converters.js';
-import { validateVendorId } from './shared/validators.js';
+import { toUserSummary, toAreaSummary, toVendorSummaryWithTrade } from './shared/converters.js';
+import { validateVendorId, validateAreaId } from './shared/validators.js';
 import type {
   HouseholdItemDetail,
   HouseholdItemSummary,
@@ -185,14 +187,18 @@ export function toHouseholdItemSummary(
     ? (db.select().from(users).where(eq(users.id, item.createdBy)).get() ?? null)
     : null;
 
+  const area = item.areaId
+    ? (db.select().from(areas).where(eq(areas.id, item.areaId)).get() ?? null)
+    : null;
+
   return {
     id: item.id,
     name: item.name,
     description: item.description,
     category: item.categoryId as HouseholdItemCategory,
     status: item.status as HouseholdItemStatus,
-    vendor: toVendorSummary(vendor),
-    area: null, // TODO: JOIN to areas table in Story 2
+    vendor: toVendorSummaryWithTrade(db, vendor),
+    area: toAreaSummary(area),
     quantity: item.quantity,
     orderDate: item.orderDate,
     actualDeliveryDate: item.actualDeliveryDate,
@@ -273,6 +279,11 @@ export function createHouseholdItem(
   const categoryId = data.category ?? 'hic-other';
   validateHouseholdItemCategoryId(db, categoryId);
 
+  // Validate areaId if provided
+  if (data.areaId) {
+    validateAreaId(db, data.areaId);
+  }
+
   // Cross-field validation: if both earliest and latest are provided, earliest <= latest
   if (data.earliestDeliveryDate && data.latestDeliveryDate) {
     if (data.earliestDeliveryDate > data.latestDeliveryDate) {
@@ -348,6 +359,11 @@ export function updateHouseholdItem(
   // Validate category if provided
   if ('category' in data && data.category) {
     validateHouseholdItemCategoryId(db, data.category);
+  }
+
+  // Validate areaId if provided
+  if ('areaId' in data && data.areaId) {
+    validateAreaId(db, data.areaId);
   }
 
   // Cross-field validation: if both earliest and latest are provided, earliest <= latest
@@ -488,6 +504,10 @@ export function listHouseholdItems(
 
   if (query.vendorId) {
     conditions.push(eq(householdItems.vendorId, query.vendorId));
+  }
+
+  if (query.areaId) {
+    conditions.push(eq(householdItems.areaId, query.areaId));
   }
 
   if (query.q) {
