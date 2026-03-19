@@ -25,4 +25,4 @@ From the tag management page you can:
 - **Edit** a tag's name or color
 - **Delete** a tag (this removes it from all work items that use it)
 
-![Tag management page](/img/screenshots/tags-light.png)
+![Tag management page](/img/screenshots/manage-light.png)

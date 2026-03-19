@@ -423,6 +423,19 @@ test.describe('Documentation screenshots', () => {
     });
   });
 
+  test('Dashboard', async ({ page }) => {
+    await page.goto(`${baseUrl}${ROUTES.home}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { level: 1, name: /overview/i })).toBeVisible();
+    await page.waitForTimeout(500);
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(page, theme);
+      await page.waitForTimeout(300);
+      await saveScreenshot(page, 'dashboard', theme);
+    }
+  });
+
   test('Work items list', async ({ page }) => {
     await page.goto(`${baseUrl}${ROUTES.workItems}`);
     await page.waitForLoadState('networkidle');

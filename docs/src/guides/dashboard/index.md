@@ -54,6 +54,4 @@ Cards that have no data to show (for example, the Invoice Pipeline when no invoi
 
 The dashboard uses ARIA landmarks and live regions so screen readers announce updates as data loads. All cards and controls are fully keyboard-navigable.
 
-:::info Screenshot needed
-Dashboard screenshots will be captured on the next stable release.
-:::
+![Dashboard overview](/img/screenshots/dashboard-light.png)
