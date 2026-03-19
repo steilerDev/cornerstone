@@ -22,10 +22,10 @@
       "zoomOutColumns": "Spalten verkleinern",
       "zoomInColumns": "Spalten vergrößern",
       "adjustColumnWidth": "Spaltenbreite anpassen (Strg+Bildlauf oder Strg+=/−)",
-      "newButton": "Neu",
-      "newWorkItem": "Arbeitspaket",
-      "newHouseholdItem": "Haushaltsartikel",
-      "newMilestone": "Meilenstein"
+      "addButton": "Hinzufügen",
+      "addWorkItem": "Arbeitspaket Hinzufügen",
+      "addHouseholdItem": "Haushaltsartikel Hinzufügen",
+      "addMilestone": "Meilenstein Hinzufügen"
     },
     "zoomOptions": {
       "day": "Tag",

@@ -882,6 +882,65 @@ test.describe('No horizontal scroll (Scenario 11)', { tag: '@responsive' }, () =
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Scenario 12: "Add" dropdown (issue #1050 — consolidated 3 individual buttons)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('"Add" dropdown (Scenario 12)', () => {
+  test('"Add" button is visible on the project overview page', async ({ page }) => {
+    const dashboardPage = new DashboardPage(page);
+
+    await interceptDashboardApis(page);
+
+    try {
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+
+      await expect(dashboardPage.addButton).toBeVisible();
+    } finally {
+      await uninterceptDashboardApis(page);
+    }
+  });
+
+  test('Clicking "Add" opens a dropdown with three menu items', async ({ page }) => {
+    const dashboardPage = new DashboardPage(page);
+
+    await interceptDashboardApis(page);
+
+    try {
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+
+      await dashboardPage.openAddDropdown();
+
+      await expect(page.getByTestId('dashboard-add-work-item')).toBeVisible();
+      await expect(page.getByTestId('dashboard-add-household-item')).toBeVisible();
+      await expect(page.getByTestId('dashboard-add-milestone')).toBeVisible();
+    } finally {
+      await uninterceptDashboardApis(page);
+    }
+  });
+
+  test('"Add Work Item" menu item navigates to the work item create page', async ({ page }) => {
+    const dashboardPage = new DashboardPage(page);
+
+    await interceptDashboardApis(page);
+
+    try {
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+
+      await dashboardPage.openAddDropdown();
+      await page.getByTestId('dashboard-add-work-item').click();
+
+      await page.waitForURL(/\/project\/work-items\/new/);
+      expect(page.url()).toContain('/project/work-items/new');
+    } finally {
+      await uninterceptDashboardApis(page);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ARIA / Accessibility
 // ─────────────────────────────────────────────────────────────────────────────
 

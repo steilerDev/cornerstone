@@ -285,18 +285,23 @@ describe('TimelinePage', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // New entity dropdown
+  // Add entity dropdown (renamed from "New" to "Add" in issue #1050)
   // ---------------------------------------------------------------------------
 
-  describe('New entity dropdown', () => {
-    it('"New" button renders on Gantt view', () => {
+  describe('Add entity dropdown', () => {
+    it('"Add" button renders on Gantt view', () => {
       renderWithRouter();
-      expect(screen.getByTestId('timeline-new-button')).toBeInTheDocument();
+      expect(screen.getByTestId('timeline-add-button')).toBeInTheDocument();
     });
 
-    it('"New" button renders on Calendar view', () => {
+    it('"Add" button renders on Calendar view', () => {
       renderWithRouter(['/schedule/calendar']);
-      expect(screen.getByTestId('timeline-new-button')).toBeInTheDocument();
+      expect(screen.getByTestId('timeline-add-button')).toBeInTheDocument();
+    });
+
+    it('"Add" button has text "Add"', () => {
+      renderWithRouter();
+      expect(screen.getByTestId('timeline-add-button')).toHaveTextContent('Add');
     });
 
     it('dropdown is initially closed — no menu in document', () => {
@@ -304,27 +309,37 @@ describe('TimelinePage', () => {
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });
 
-    it('clicking "New" opens the dropdown with menu items', () => {
+    it('clicking "Add" opens the dropdown with menu items', () => {
       renderWithRouter();
-      fireEvent.click(screen.getByTestId('timeline-new-button'));
+      fireEvent.click(screen.getByTestId('timeline-add-button'));
       expect(screen.getByRole('menu')).toBeInTheDocument();
-      expect(screen.getByTestId('timeline-new-work-item')).toBeInTheDocument();
-      expect(screen.getByTestId('timeline-new-household-item')).toBeInTheDocument();
-      expect(screen.getByTestId('timeline-new-milestone')).toBeInTheDocument();
+      expect(screen.getByTestId('timeline-add-work-item')).toBeInTheDocument();
+      expect(screen.getByTestId('timeline-add-household-item')).toBeInTheDocument();
+      expect(screen.getByTestId('timeline-add-milestone')).toBeInTheDocument();
     });
 
-    it('clicking "New" again closes the dropdown (toggle)', () => {
+    it('menu items have "Add ..." prefix labels', () => {
       renderWithRouter();
-      const newButton = screen.getByTestId('timeline-new-button');
-      fireEvent.click(newButton);
+      fireEvent.click(screen.getByTestId('timeline-add-button'));
+      expect(screen.getByTestId('timeline-add-work-item')).toHaveTextContent('Add Work Item');
+      expect(screen.getByTestId('timeline-add-household-item')).toHaveTextContent(
+        'Add Household Item',
+      );
+      expect(screen.getByTestId('timeline-add-milestone')).toHaveTextContent('Add Milestone');
+    });
+
+    it('clicking "Add" again closes the dropdown (toggle)', () => {
+      renderWithRouter();
+      const addButton = screen.getByTestId('timeline-add-button');
+      fireEvent.click(addButton);
       expect(screen.getByRole('menu')).toBeInTheDocument();
-      fireEvent.click(newButton);
+      fireEvent.click(addButton);
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });
 
     it('pressing Escape closes the dropdown', () => {
       renderWithRouter();
-      fireEvent.click(screen.getByTestId('timeline-new-button'));
+      fireEvent.click(screen.getByTestId('timeline-add-button'));
       expect(screen.getByRole('menu')).toBeInTheDocument();
       fireEvent.keyDown(document, { key: 'Escape' });
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
@@ -332,52 +347,52 @@ describe('TimelinePage', () => {
 
     it('clicking outside the dropdown closes it', () => {
       renderWithRouter();
-      fireEvent.click(screen.getByTestId('timeline-new-button'));
+      fireEvent.click(screen.getByTestId('timeline-add-button'));
       expect(screen.getByRole('menu')).toBeInTheDocument();
       fireEvent.mouseDown(document.body);
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });
 
-    it('"Work Item" menu item navigates to /project/work-items/new', () => {
+    it('"Add Work Item" menu item navigates to /project/work-items/new', () => {
       renderWithRouter();
-      fireEvent.click(screen.getByTestId('timeline-new-button'));
-      fireEvent.click(screen.getByTestId('timeline-new-work-item'));
+      fireEvent.click(screen.getByTestId('timeline-add-button'));
+      fireEvent.click(screen.getByTestId('timeline-add-work-item'));
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
       expect(screen.getByTestId('location-display')).toHaveTextContent('/project/work-items/new');
     });
 
-    it('"Household Item" menu item navigates to /project/household-items/new', () => {
+    it('"Add Household Item" menu item navigates to /project/household-items/new', () => {
       renderWithRouter();
-      fireEvent.click(screen.getByTestId('timeline-new-button'));
-      fireEvent.click(screen.getByTestId('timeline-new-household-item'));
+      fireEvent.click(screen.getByTestId('timeline-add-button'));
+      fireEvent.click(screen.getByTestId('timeline-add-household-item'));
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
       expect(screen.getByTestId('location-display')).toHaveTextContent(
         '/project/household-items/new',
       );
     });
 
-    it('"Milestone" menu item navigates to /project/milestones/new', () => {
+    it('"Add Milestone" menu item navigates to /project/milestones/new', () => {
       renderWithRouter();
-      fireEvent.click(screen.getByTestId('timeline-new-button'));
-      fireEvent.click(screen.getByTestId('timeline-new-milestone'));
+      fireEvent.click(screen.getByTestId('timeline-add-button'));
+      fireEvent.click(screen.getByTestId('timeline-add-milestone'));
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
       expect(screen.getByTestId('location-display')).toHaveTextContent('/project/milestones/new');
     });
 
-    it('"New" button has aria-haspopup="menu"', () => {
+    it('"Add" button has aria-haspopup="menu"', () => {
       renderWithRouter();
-      expect(screen.getByTestId('timeline-new-button')).toHaveAttribute('aria-haspopup', 'menu');
+      expect(screen.getByTestId('timeline-add-button')).toHaveAttribute('aria-haspopup', 'menu');
     });
 
-    it('"New" button aria-expanded is false when closed', () => {
+    it('"Add" button aria-expanded is false when closed', () => {
       renderWithRouter();
-      expect(screen.getByTestId('timeline-new-button')).toHaveAttribute('aria-expanded', 'false');
+      expect(screen.getByTestId('timeline-add-button')).toHaveAttribute('aria-expanded', 'false');
     });
 
-    it('"New" button aria-expanded is true when open', () => {
+    it('"Add" button aria-expanded is true when open', () => {
       renderWithRouter();
-      fireEvent.click(screen.getByTestId('timeline-new-button'));
-      expect(screen.getByTestId('timeline-new-button')).toHaveAttribute('aria-expanded', 'true');
+      fireEvent.click(screen.getByTestId('timeline-add-button'));
+      expect(screen.getByTestId('timeline-add-button')).toHaveAttribute('aria-expanded', 'true');
     });
   });
 

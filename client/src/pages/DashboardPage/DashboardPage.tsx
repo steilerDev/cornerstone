@@ -141,6 +141,8 @@ export function DashboardPage() {
   const { preferences, upsert: upsertPreference } = usePreferences();
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const customizeRef = useRef<HTMLDivElement>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const addRef = useRef<HTMLDivElement>(null);
 
   // Parse hidden cards from preferences
   const hiddenCardIds = useMemo(() => {
@@ -175,6 +177,28 @@ export function DashboardPage() {
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
   }, [customizeOpen]);
+
+  // Close Add dropdown on outside click
+  useEffect(() => {
+    if (!addOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (addRef.current && !addRef.current.contains(e.target as Node)) {
+        setAddOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [addOpen]);
+
+  // Close Add dropdown on Escape
+  useEffect(() => {
+    if (!addOpen) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setAddOpen(false);
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [addOpen]);
 
   const loadAllData = useCallback(async () => {
     const results = await Promise.allSettled([
@@ -449,34 +473,58 @@ export function DashboardPage() {
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>{t('page.title')}</h1>
         <div className={styles.headerRight}>
-          <div className={styles.actionButtons}>
+          <div className={styles.addContainer} ref={addRef}>
             <button
               type="button"
-              className={styles.actionButton}
-              onClick={() => navigate('/project/work-items/new')}
-              data-testid="dashboard-add-work-item"
-              aria-label={t('page.actions.addWorkItem')}
+              className={styles.addButton}
+              onClick={() => setAddOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={addOpen}
+              aria-label={t('page.actions.addButton')}
+              data-testid="dashboard-add-button"
             >
-              {t('page.actions.addWorkItem')}
+              {t('page.actions.addButton')}
             </button>
-            <button
-              type="button"
-              className={styles.actionButton}
-              onClick={() => navigate('/project/household-items/new')}
-              data-testid="dashboard-add-household-item"
-              aria-label={t('page.actions.addHouseholdItem')}
-            >
-              {t('page.actions.addHouseholdItem')}
-            </button>
-            <button
-              type="button"
-              className={styles.actionButton}
-              onClick={() => navigate('/project/milestones/new')}
-              data-testid="dashboard-add-milestone"
-              aria-label={t('page.actions.addMilestone')}
-            >
-              {t('page.actions.addMilestone')}
-            </button>
+            {addOpen && (
+              <div className={styles.addDropdown} role="menu">
+                <button
+                  type="button"
+                  className={styles.addMenuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    setAddOpen(false);
+                    void navigate('/project/work-items/new');
+                  }}
+                  data-testid="dashboard-add-work-item"
+                >
+                  {t('page.actions.addWorkItem')}
+                </button>
+                <button
+                  type="button"
+                  className={styles.addMenuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    setAddOpen(false);
+                    void navigate('/project/household-items/new');
+                  }}
+                  data-testid="dashboard-add-household-item"
+                >
+                  {t('page.actions.addHouseholdItem')}
+                </button>
+                <button
+                  type="button"
+                  className={styles.addMenuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    setAddOpen(false);
+                    void navigate('/project/milestones/new');
+                  }}
+                  data-testid="dashboard-add-milestone"
+                >
+                  {t('page.actions.addMilestone')}
+                </button>
+              </div>
+            )}
           </div>
           {hasHiddenCards && (
             <div className={styles.customizeContainer} ref={customizeRef}>
