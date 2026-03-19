@@ -62,13 +62,10 @@ export function SearchPicker<T>({
   const [initialTitleCleared, setInitialTitleCleared] = useState(false);
   // Track whether the user has explicitly selected a special option
   const [specialSelected, setSpecialSelected] = useState(false);
-  // Track whether we just cleared a special option (to prevent immediate re-match)
-  const [justClearedSpecial, setJustClearedSpecial] = useState(false);
 
   // The currently selected special option (if value matches one)
-  // Don't show if: we just cleared it OR user hasn't explicitly selected it
   const selectedSpecial =
-    !justClearedSpecial && specialSelected && specialOptions
+    specialSelected && specialOptions
       ? (specialOptions.find((opt) => opt.id === value) ?? null)
       : null;
 
@@ -100,9 +97,6 @@ export function SearchPicker<T>({
       setSearchTerm('');
       setInitialTitleCleared(false);
     } else {
-      // If value changes to a non-empty value, clear the "just cleared" flag
-      // and set specialSelected if this is a special option id
-      setJustClearedSpecial(false);
       if (specialOptions?.some((opt) => opt.id === value)) {
         setSpecialSelected(true);
       }
@@ -189,8 +183,7 @@ export function SearchPicker<T>({
   };
 
   const handleSelectSpecial = (opt: SpecialOption) => {
-    setJustClearedSpecial(false);
-    setSelectedItem(null); // clear any real item selection
+    setSelectedItem(null);
     setSpecialSelected(true);
     onChange(opt.id);
     onSelectItem?.({ id: opt.id, label: opt.label });
@@ -203,7 +196,6 @@ export function SearchPicker<T>({
     setSelectedItem(null);
     setInitialTitleCleared(true);
     setSpecialSelected(false);
-    setJustClearedSpecial(true);
     onChange('');
     setSearchTerm('');
     setResults([]);
