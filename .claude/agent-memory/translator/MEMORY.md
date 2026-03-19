@@ -26,6 +26,7 @@
 | Invoice        | Rechnung          | Rechnungen       |
 | Subsidy        | Förderprogramm    | Förderprogramme  |
 | Diary Entry    | Tagebucheintrag   | Tagebucheinträge |
+| Quotation      | Angebot           | Angebote         |
 
 ## Button/Action Label Convention
 

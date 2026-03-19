@@ -16,7 +16,7 @@ CREATE TABLE invoices_new (
   amount REAL NOT NULL,
   date TEXT NOT NULL,
   due_date TEXT,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'paid', 'claimed', 'quotation')),
+  status TEXT NOT NULL DEFAULT 'quotation' CHECK(status IN ('pending', 'paid', 'claimed', 'quotation')),
   notes TEXT,
   created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),

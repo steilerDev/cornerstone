@@ -170,11 +170,16 @@ function BudgetLineRow({
   const perspectiveValue = resolveProjected(costMin, costMax, perspective);
   const rowClassName = styles.rowLevel3;
 
-  const resolvedRawCost = line.hasInvoice ? line.actualCost : perspectiveValue;
-
   // Calculate quoted range (±5%)
   const quotedMin = line.actualCost * 0.95;
   const quotedMax = line.actualCost * 1.05;
+  const quotedPerspectiveValue = resolveProjected(quotedMin, quotedMax, perspective);
+
+  const resolvedRawCost = line.isQuotation
+    ? quotedPerspectiveValue
+    : line.hasInvoice
+      ? line.actualCost
+      : perspectiveValue;
 
   return (
     <tr className={rowClassName} key={key}>
@@ -192,7 +197,7 @@ function BudgetLineRow({
       </td>
       <td className={styles.colBudget}>
         {line.isQuotation ? (
-          <span>{formatCurrencyFn(quotedMin)} – {formatCurrencyFn(quotedMax)}</span>
+          <span>-{formatCurrencyFn(quotedPerspectiveValue)}</span>
         ) : line.hasInvoice ? (
           <span>-{formatCurrencyFn(line.actualCost)}</span>
         ) : (
