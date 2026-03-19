@@ -20,6 +20,7 @@ import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.j
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
+import { buildTree } from '../../lib/areaTreeUtils.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { useTrades } from '../../hooks/useTrades.js';
 import {
@@ -338,8 +339,12 @@ function AreasTab() {
           <EmptyState icon="📍" message={t('manage.areas.emptyState')} />
         ) : (
           <div className={styles.itemsList}>
-            {areas.map((area) => (
-              <div key={area.id} className={styles.itemRow}>
+            {buildTree(areas).map(({ depth, area }) => (
+              <div
+                key={area.id}
+                className={styles.itemRow}
+                style={depth > 0 ? { paddingLeft: `calc(var(--spacing-3) + ${depth} * var(--spacing-6))` } : undefined}
+              >
                 {editingArea?.id === area.id ? (
                   <form onSubmit={handleUpdateArea} className={styles.editForm}>
                     {updateError && (
