@@ -55,6 +55,7 @@ export function InvoicesPage() {
     pending: { count: 0, totalAmount: 0 },
     paid: { count: 0, totalAmount: 0 },
     claimed: { count: 0, totalAmount: 0 },
+    quotation: { count: 0, totalAmount: 0 },
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -260,10 +261,10 @@ export function InvoicesPage() {
             </span>
           </div>
           <div className={styles.summaryCard}>
-            <span className={styles.summaryLabel}>{t('invoices.summaryClaimed')}</span>
-            <span className={styles.summaryCount}>{summary.claimed.count}</span>
+            <span className={styles.summaryLabel}>{t('invoices.summaryQuotation')}</span>
+            <span className={styles.summaryCount}>{summary.quotation.count}</span>
             <span className={styles.summaryAmount}>
-              {formatCurrency(summary.claimed.totalAmount)}
+              {formatCurrency(summary.quotation.totalAmount)}
             </span>
           </div>
         </div>
@@ -319,6 +320,7 @@ export function InvoicesPage() {
               <option value="pending">{t('invoices.statusLabels.pending')}</option>
               <option value="paid">{t('invoices.statusLabels.paid')}</option>
               <option value="claimed">{t('invoices.statusLabels.claimed')}</option>
+              <option value="quotation">{t('invoices.statusLabels.quotation')}</option>
             </select>
             <select
               value={vendorFilter}
@@ -754,6 +756,7 @@ export function InvoicesPage() {
                   <option value="pending">{t('invoices.statusLabels.pending')}</option>
                   <option value="paid">{t('invoices.statusLabels.paid')}</option>
                   <option value="claimed">{t('invoices.statusLabels.claimed')}</option>
+                  <option value="quotation">{t('invoices.statusLabels.quotation')}</option>
                 </select>
               </div>
 

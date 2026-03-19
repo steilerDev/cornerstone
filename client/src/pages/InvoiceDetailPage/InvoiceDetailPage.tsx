@@ -393,6 +393,7 @@ export function InvoiceDetailPage() {
                   <option value="pending">{t('invoiceDetail.statusLabels.pending')}</option>
                   <option value="paid">{t('invoiceDetail.statusLabels.paid')}</option>
                   <option value="claimed">{t('invoiceDetail.statusLabels.claimed')}</option>
+                  <option value="quotation">{t('invoiceDetail.statusLabels.quotation')}</option>
                 </select>
               </div>
 

@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { BaseBudgetLine, ConfidenceLevel } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '../../lib/budgetConstants.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -28,7 +29,9 @@ export function BudgetLineCard({
   unlinkAction,
 }: BudgetLineCardProps) {
   const { formatCurrency } = useFormatters();
+  const { t } = useTranslation('budget');
   const showInvoicedAmount = line.invoiceCount > 0;
+  const isQuotation = line.invoiceLink?.invoiceStatus === 'quotation';
 
   return (
     <div className={styles.card}>
@@ -36,10 +39,18 @@ export function BudgetLineCard({
         <div className={styles.topRow}>
           {showInvoicedAmount ? (
             <>
-              <span className={`${styles.amount} ${styles.amountInvoiced}`}>
+              <span
+                className={`${styles.amount} ${
+                  isQuotation ? styles.amountQuoted : styles.amountInvoiced
+                }`}
+              >
                 {formatCurrency(line.actualCost)}
               </span>
-              <span className={styles.invoicedLabel}>Invoiced Amount</span>
+              <span className={isQuotation ? styles.quotedLabel : styles.invoicedLabel}>
+                {isQuotation
+                  ? t('vendorDetail.quotedAmount')
+                  : 'Invoiced Amount'}
+              </span>
               <span className={styles.plannedSecondary}>
                 (planned: {formatCurrency(line.plannedAmount)})
               </span>
