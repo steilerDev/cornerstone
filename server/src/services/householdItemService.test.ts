@@ -64,14 +64,18 @@ describe('Household Item Service', () => {
   }
 
   /** Helper: Insert a test area directly into the DB. Returns the area ID. */
-  function insertTestArea(name: string, color: string | null = null) {
+  function insertTestArea(
+    name: string,
+    color: string | null = null,
+    parentId: string | null = null,
+  ) {
     const now = new Date(Date.now() + idCounter++).toISOString();
     const areaId = `area-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     db.insert(schema.areas)
       .values({
         id: areaId,
         name,
-        parentId: null,
+        parentId,
         color,
         description: null,
         sortOrder: 0,
@@ -882,6 +886,87 @@ describe('Household Item Service', () => {
       expect(result.items).toHaveLength(1);
       expect(result.items[0].name).toBe('King Bed');
       expect(result.items[0].area!.id).toBe(areaId);
+    });
+
+    it('areaId filter on a leaf area (no descendants) returns only exact-match items', () => {
+      // Given: A leaf area with one household item and a sibling area with another
+      const userId = createTestUser('leafhi@example.com', 'Leaf HI User');
+      const leafAreaId = insertTestArea('Utility Room');
+      const siblingAreaId = insertTestArea('Attic');
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Washing Machine',
+        areaId: leafAreaId,
+      });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Storage Shelves',
+        areaId: siblingAreaId,
+      });
+
+      // When: Filtering by the leaf area
+      const result = householdItemService.listHouseholdItems(db, { areaId: leafAreaId });
+
+      // Then: Only the item in the leaf area is returned
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].name).toBe('Washing Machine');
+      expect(result.items[0].area!.id).toBe(leafAreaId);
+    });
+
+    it('areaId filter on a parent area includes items from direct child areas', () => {
+      // Given: Parent area P with child area C; one household item in each
+      const userId = createTestUser('parenthi@example.com', 'Parent HI User');
+      const parentAreaId = insertTestArea('Upper Floor');
+      const childAreaId = insertTestArea('Upper Floor Bathroom', null, parentAreaId);
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Landing Rug',
+        areaId: parentAreaId,
+      });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Bathtub',
+        areaId: childAreaId,
+      });
+
+      // When: Filtering by the parent area
+      const result = householdItemService.listHouseholdItems(db, { areaId: parentAreaId });
+
+      // Then: Both items are returned (parent + child)
+      expect(result.items).toHaveLength(2);
+      const names = result.items.map((i) => i.name).sort();
+      expect(names).toEqual(['Bathtub', 'Landing Rug']);
+    });
+
+    it('areaId filter on grandparent area includes items from all descendant levels', () => {
+      // Given: Three-level hierarchy G → P → C, each with one household item
+      const userId = createTestUser('gphi@example.com', 'Grandparent HI User');
+      const grandparentId = insertTestArea('Building');
+      const parentId = insertTestArea('Building Second Floor', null, grandparentId);
+      const childId = insertTestArea('Building Second Floor Study', null, parentId);
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Entrance Mirror',
+        areaId: grandparentId,
+      });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Hallway Console',
+        areaId: parentId,
+      });
+      householdItemService.createHouseholdItem(db, userId, {
+        name: 'Desk Chair',
+        areaId: childId,
+      });
+
+      // When: Filtering by grandparent — should return all 3
+      const allResult = householdItemService.listHouseholdItems(db, { areaId: grandparentId });
+      expect(allResult.items).toHaveLength(3);
+
+      // When: Filtering by parent — should return 2 (parent + child, not grandparent)
+      const parentResult = householdItemService.listHouseholdItems(db, { areaId: parentId });
+      expect(parentResult.items).toHaveLength(2);
+      const parentNames = parentResult.items.map((i) => i.name).sort();
+      expect(parentNames).toEqual(['Desk Chair', 'Hallway Console']);
+
+      // When: Filtering by child — should return 1 (leaf only)
+      const childResult = householdItemService.listHouseholdItems(db, { areaId: childId });
+      expect(childResult.items).toHaveLength(1);
+      expect(childResult.items[0].name).toBe('Desk Chair');
     });
 
     it('search q matches name (case-insensitive)', () => {

@@ -49,14 +49,18 @@ describe('Work Item Service', () => {
    * Helper: Insert a test area directly into the DB.
    * Returns the area ID.
    */
-  function insertTestArea(name: string, color: string | null = null) {
+  function insertTestArea(
+    name: string,
+    color: string | null = null,
+    parentId: string | null = null,
+  ) {
     const now = new Date().toISOString();
     const areaId = `area-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     db.insert(schema.areas)
       .values({
         id: areaId,
         name,
-        parentId: null,
+        parentId,
         color,
         description: null,
         sortOrder: 0,
@@ -989,6 +993,109 @@ describe('Work Item Service', () => {
       expect(result.items).toHaveLength(1);
       expect(result.items[0].title).toBe('In Living Room');
       expect(result.items[0].area!.id).toBe(areaId);
+    });
+
+    it('areaId filter on a leaf area (no descendants) returns only exact-match items', () => {
+      // Given: A leaf area with one work item and a sibling area with another item
+      const userId = createTestUser('leaffilter@example.com', 'Leaf User');
+      const leafAreaId = insertTestArea('Garage');
+      const siblingAreaId = insertTestArea('Garden');
+      workItemService.createWorkItem(db, userId, { title: 'Garage Door', areaId: leafAreaId });
+      workItemService.createWorkItem(db, userId, { title: 'Plant Hedge', areaId: siblingAreaId });
+
+      // When: Filtering by the leaf area
+      const result = workItemService.listWorkItems(db, { areaId: leafAreaId });
+
+      // Then: Only the item in the leaf area is returned
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].title).toBe('Garage Door');
+      expect(result.items[0].area!.id).toBe(leafAreaId);
+    });
+
+    it('areaId filter on a parent area includes items from direct child areas', () => {
+      // Given: Parent area P with child area C; one work item in each
+      const userId = createTestUser('parentfilter@example.com', 'Parent User');
+      const parentAreaId = insertTestArea('Ground Floor');
+      const childAreaId = insertTestArea('Ground Floor Kitchen', null, parentAreaId);
+      workItemService.createWorkItem(db, userId, {
+        title: 'Hallway Tiles',
+        areaId: parentAreaId,
+      });
+      workItemService.createWorkItem(db, userId, {
+        title: 'Kitchen Sink',
+        areaId: childAreaId,
+      });
+
+      // When: Filtering by the parent area
+      const result = workItemService.listWorkItems(db, { areaId: parentAreaId });
+
+      // Then: Both items are returned (parent + child)
+      expect(result.items).toHaveLength(2);
+      const titles = result.items.map((i) => i.title).sort();
+      expect(titles).toEqual(['Hallway Tiles', 'Kitchen Sink']);
+    });
+
+    it('areaId filter on grandparent area includes items from all descendant levels', () => {
+      // Given: Three-level hierarchy G → P → C, each with one work item
+      const userId = createTestUser('grandparent@example.com', 'Grandparent User');
+      const grandparentId = insertTestArea('House');
+      const parentId = insertTestArea('First Floor', null, grandparentId);
+      const childId = insertTestArea('First Floor Bedroom', null, parentId);
+      workItemService.createWorkItem(db, userId, {
+        title: 'Exterior Paint',
+        areaId: grandparentId,
+      });
+      workItemService.createWorkItem(db, userId, {
+        title: 'Corridor Flooring',
+        areaId: parentId,
+      });
+      workItemService.createWorkItem(db, userId, {
+        title: 'Bedroom Wardrobe',
+        areaId: childId,
+      });
+
+      // When: Filtering by grandparent — should return all 3
+      const allResult = workItemService.listWorkItems(db, { areaId: grandparentId });
+      expect(allResult.items).toHaveLength(3);
+
+      // When: Filtering by parent — should return 2 (parent + child, not grandparent)
+      const parentResult = workItemService.listWorkItems(db, { areaId: parentId });
+      expect(parentResult.items).toHaveLength(2);
+      const parentTitles = parentResult.items.map((i) => i.title).sort();
+      expect(parentTitles).toEqual(['Bedroom Wardrobe', 'Corridor Flooring']);
+
+      // When: Filtering by child — should return 1 (leaf)
+      const childResult = workItemService.listWorkItems(db, { areaId: childId });
+      expect(childResult.items).toHaveLength(1);
+      expect(childResult.items[0].title).toBe('Bedroom Wardrobe');
+    });
+
+    it('areaId filter on a parent area excludes items from unrelated areas', () => {
+      // Given: Hierarchy P → C and an unrelated area U, each with one work item
+      const userId = createTestUser('unrelated@example.com', 'Unrelated User');
+      const parentAreaId = insertTestArea('Wing A');
+      const childAreaId = insertTestArea('Wing A Office', null, parentAreaId);
+      const unrelatedAreaId = insertTestArea('Wing B');
+      workItemService.createWorkItem(db, userId, {
+        title: 'Wing A Reception',
+        areaId: parentAreaId,
+      });
+      workItemService.createWorkItem(db, userId, {
+        title: 'Wing A Office Desk',
+        areaId: childAreaId,
+      });
+      workItemService.createWorkItem(db, userId, {
+        title: 'Wing B Storage',
+        areaId: unrelatedAreaId,
+      });
+
+      // When: Filtering by parent area
+      const result = workItemService.listWorkItems(db, { areaId: parentAreaId });
+
+      // Then: Items from Wing A (parent + child) are returned, Wing B is excluded
+      expect(result.items).toHaveLength(2);
+      const titles = result.items.map((i) => i.title).sort();
+      expect(titles).toEqual(['Wing A Office Desk', 'Wing A Reception']);
     });
 
     it('filters by assignedVendorId returns only items assigned to that vendor', () => {
