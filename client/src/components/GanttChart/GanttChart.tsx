@@ -369,7 +369,7 @@ export function GanttChart({
 
     const all = [...workItemRows, ...milestoneRows, ...hiRows];
 
-    // Sort: by effective date ascending, nulls last; order on same date: work items, then milestones, then HIs
+    // Sort: by effective date ascending, nulls last; order on same date: milestones, then HIs, then work items
     all.sort((a, b) => {
       const getDate = (row: UnifiedRow): string | null => {
         if (row.kind === 'workItem') return row.item.startDate;
@@ -385,9 +385,20 @@ export function GanttChart({
       if (dateB === null) return -1;
       if (dateA < dateB) return -1;
       if (dateA > dateB) return 1;
-      // Same date: work items, then milestones, then HIs
-      const kindOrder = { workItem: 0, milestone: 1, householdItem: 2 };
-      return kindOrder[a.kind] - kindOrder[b.kind];
+
+      // Same date: sort by type (milestones, then HIs, then work items)
+      const kindOrder = { milestone: 0, householdItem: 1, workItem: 2 };
+      if (a.kind !== b.kind) return kindOrder[a.kind] - kindOrder[b.kind];
+
+      // Same date and type: sort by duration (longest first)
+      const getDuration = (row: UnifiedRow): number => {
+        if (row.kind === 'milestone') return 0; // milestones have no duration
+        const start = row.kind === 'workItem' ? row.item.startDate : row.item.earliestDeliveryDate;
+        const end = row.kind === 'workItem' ? row.item.endDate : row.item.latestDeliveryDate;
+        if (!start || !end) return 0;
+        return new Date(end).getTime() - new Date(start).getTime();
+      };
+      return getDuration(b) - getDuration(a); // descending (longest first)
     });
 
     return all;
