@@ -325,7 +325,8 @@ export const GanttMilestones = memo(function GanttMilestones({
             : null;
 
         // For late/ahead milestones, also compute projected date position
-        const hasProjectedDate = (status === 'late' || status === 'ahead') && milestone.projectedDate !== null;
+        const hasProjectedDate =
+          (status === 'late' || status === 'ahead') && milestone.projectedDate !== null;
         const projectedX =
           hasProjectedDate && milestone.projectedDate !== null
             ? dateToX(toUtcMidnight(milestone.projectedDate), chartRange, zoom, columnWidth)

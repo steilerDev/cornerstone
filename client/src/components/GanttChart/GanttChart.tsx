@@ -91,7 +91,8 @@ function resolveColors(): ChartColors {
       hoverGlow: readCssVar('--color-milestone-hover-glow'),
       completeHoverGlow: readCssVar('--color-milestone-complete-hover-glow'),
       lateHoverGlow: readCssVar('--color-milestone-late-hover-glow') || 'rgba(220, 38, 38, 0.25)',
-      aheadHoverGlow: readCssVar('--color-milestone-ahead-hover-glow') || 'rgba(16, 185, 129, 0.25)',
+      aheadHoverGlow:
+        readCssVar('--color-milestone-ahead-hover-glow') || 'rgba(16, 185, 129, 0.25)',
     },
     householdItem: {
       fill: readCssVar('--color-gantt-hi-fill'),
