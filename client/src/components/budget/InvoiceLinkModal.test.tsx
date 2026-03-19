@@ -118,6 +118,7 @@ function buildPaginatedResponse(invoices: Invoice[]): InvoiceListPaginatedRespon
       pending: { count: invoices.length, totalAmount: 1000 },
       paid: { count: 0, totalAmount: 0 },
       claimed: { count: 0, totalAmount: 0 },
+      quotation: { count: 0, totalAmount: 0 },
     },
   };
 }

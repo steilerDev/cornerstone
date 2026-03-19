@@ -363,6 +363,7 @@ function buildBreakdownWithWI(
                   confidence: 'own_estimate',
                   actualCost,
                   hasInvoice,
+                  isQuotation: false,
                 },
               ],
             },
@@ -467,6 +468,7 @@ function buildBreakdownWithHI(
                   confidence: 'own_estimate',
                   actualCost,
                   hasInvoice: actualCost > 0,
+                  isQuotation: false,
                 },
               ],
             },
@@ -2542,6 +2544,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
           confidence: 'own_estimate' as const,
           actualCost: 0,
           hasInvoice: false,
+          isQuotation: false,
         },
       ],
     };
@@ -2621,6 +2624,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
           confidence: 'own_estimate' as const,
           actualCost: 0,
           hasInvoice: false,
+          isQuotation: false,
         },
       ],
     };

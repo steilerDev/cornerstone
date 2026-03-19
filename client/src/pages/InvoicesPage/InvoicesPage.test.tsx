@@ -121,6 +121,7 @@ const ZERO_SUMMARY = {
   pending: { count: 0, totalAmount: 0 },
   paid: { count: 0, totalAmount: 0 },
   claimed: { count: 0, totalAmount: 0 },
+  quotation: { count: 0, totalAmount: 0 },
 };
 
 function makeInvoice(overrides: Partial<Invoice> & { id: string }): Invoice {
@@ -292,6 +293,7 @@ describe('InvoicesPage', () => {
             pending: { count: 1, totalAmount: 50 },
             paid: { count: 3, totalAmount: 300 },
             claimed: { count: 2, totalAmount: 200 },
+            quotation: { count: 0, totalAmount: 0 },
           },
         }),
       );
@@ -308,6 +310,7 @@ describe('InvoicesPage', () => {
             pending: { count: 1, totalAmount: 50 },
             paid: { count: 3, totalAmount: 300 },
             claimed: { count: 2, totalAmount: 200 },
+            quotation: { count: 0, totalAmount: 0 },
           },
         }),
       );
@@ -324,6 +327,7 @@ describe('InvoicesPage', () => {
             pending: { count: 1, totalAmount: 50 },
             paid: { count: 3, totalAmount: 300 },
             claimed: { count: 2, totalAmount: 200 },
+            quotation: { count: 0, totalAmount: 0 },
           },
         }),
       );
@@ -340,6 +344,7 @@ describe('InvoicesPage', () => {
             pending: { count: 1, totalAmount: 50 },
             paid: { count: 3, totalAmount: 300 },
             claimed: { count: 2, totalAmount: 200 },
+            quotation: { count: 0, totalAmount: 0 },
           },
         }),
       );
@@ -371,6 +376,7 @@ describe('InvoicesPage', () => {
             pending: { count: 0, totalAmount: 0 },
             paid: { count: 1, totalAmount: 1500 },
             claimed: { count: 1, totalAmount: 750 },
+            quotation: { count: 0, totalAmount: 0 },
           },
         }),
       );
@@ -397,6 +403,7 @@ describe('InvoicesPage', () => {
             pending: { count: 2, totalAmount: 400 },
             paid: { count: 4, totalAmount: 1200 },
             claimed: { count: 0, totalAmount: 0 },
+            quotation: { count: 0, totalAmount: 0 },
           },
         }),
       );
@@ -418,6 +425,7 @@ describe('InvoicesPage', () => {
             pending: { count: 0, totalAmount: 0 },
             paid: { count: 0, totalAmount: 0 },
             claimed: { count: 3, totalAmount: 900 },
+            quotation: { count: 0, totalAmount: 0 },
           },
         }),
       );

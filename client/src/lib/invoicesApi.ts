@@ -48,7 +48,7 @@ export function fetchAllInvoices(params?: {
   page?: number;
   pageSize?: number;
   q?: string;
-  status?: 'pending' | 'paid' | 'claimed';
+  status?: 'pending' | 'paid' | 'claimed' | 'quotation';
   vendorId?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
