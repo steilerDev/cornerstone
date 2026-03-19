@@ -19,6 +19,7 @@
 .pageHeader {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--spacing-4);
 }
 
@@ -27,6 +28,36 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   margin: 0;
+}
+
+.actionButtons {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+.actionButton {
+  padding: var(--spacing-2) var(--spacing-4);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.actionButton:hover {
+  background-color: var(--color-bg-hover);
+}
+
+.actionButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 /* ---- Loading / error states ---- */
@@ -567,8 +598,22 @@
     padding: var(--spacing-4);
   }
 
+  .pageHeader {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+
   .pageTitle {
     font-size: var(--font-size-2xl);
+  }
+
+  .actionButtons {
+    flex-direction: column;
+  }
+
+  .actionButton {
+    width: 100%;
   }
 
   .retryButton {

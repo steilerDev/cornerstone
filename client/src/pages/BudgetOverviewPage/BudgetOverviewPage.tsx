@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   BudgetOverview,
@@ -305,6 +306,7 @@ function computeFilteredTotals(
 
 export function BudgetOverviewPage() {
   const { t } = useTranslation('budget');
+  const navigate = useNavigate();
   const { formatCurrency } = useFormatters();
 
   function formatShort(value: number): string {
@@ -402,6 +404,24 @@ export function BudgetOverviewPage() {
         <div className={styles.content}>
           <div className={styles.pageHeader}>
             <h1 className={styles.pageTitle}>{t('overview.title')}</h1>
+            <div className={styles.actionButtons}>
+              <button
+                type="button"
+                className={styles.actionButton}
+                onClick={() => navigate('/budget/invoices')}
+                data-testid="budget-overview-add-invoice"
+              >
+                {t('overview.actions.addInvoice')}
+              </button>
+              <button
+                type="button"
+                className={styles.actionButton}
+                onClick={() => navigate('/budget/vendors')}
+                data-testid="budget-overview-add-vendor"
+              >
+                {t('overview.actions.addVendor')}
+              </button>
+            </div>
           </div>
           <BudgetSubNav />
           <div className={styles.loading} role="status" aria-label={t('overview.loading')}>
@@ -419,6 +439,24 @@ export function BudgetOverviewPage() {
         <div className={styles.content}>
           <div className={styles.pageHeader}>
             <h1 className={styles.pageTitle}>{t('overview.title')}</h1>
+            <div className={styles.actionButtons}>
+              <button
+                type="button"
+                className={styles.actionButton}
+                onClick={() => navigate('/budget/invoices')}
+                data-testid="budget-overview-add-invoice"
+              >
+                {t('overview.actions.addInvoice')}
+              </button>
+              <button
+                type="button"
+                className={styles.actionButton}
+                onClick={() => navigate('/budget/vendors')}
+                data-testid="budget-overview-add-vendor"
+              >
+                {t('overview.actions.addVendor')}
+              </button>
+            </div>
           </div>
           <BudgetSubNav />
           <div className={styles.errorCard} role="alert">
@@ -576,6 +614,24 @@ export function BudgetOverviewPage() {
         {/* Page header */}
         <div className={styles.pageHeader}>
           <h1 className={styles.pageTitle}>{t('overview.title')}</h1>
+          <div className={styles.actionButtons}>
+            <button
+              type="button"
+              className={styles.actionButton}
+              onClick={() => navigate('/budget/invoices')}
+              data-testid="budget-overview-add-invoice"
+            >
+              {t('overview.actions.addInvoice')}
+            </button>
+            <button
+              type="button"
+              className={styles.actionButton}
+              onClick={() => navigate('/budget/vendors')}
+              data-testid="budget-overview-add-vendor"
+            >
+              {t('overview.actions.addVendor')}
+            </button>
+          </div>
         </div>
 
         {/* Budget sub-navigation */}

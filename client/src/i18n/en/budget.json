@@ -7,6 +7,10 @@
     "retry": "Retry",
     "emptyStateTitle": "No budget data yet",
     "emptyStateDescription": "Start by adding budget categories, work items with planned costs, and financing sources. Your project budget overview will appear here once data is entered.",
+    "actions": {
+      "addInvoice": "Add Invoice",
+      "addVendor": "Add Vendor"
+    },
     "availableFunds": "Available Funds",
     "projectedCostRange": "Projected Cost Range",
     "expectedPayback": "Expected Payback",

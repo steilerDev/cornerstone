@@ -3,7 +3,12 @@
     "title": "Project",
     "customize": "Customize",
     "hiddenCards": "Hidden Cards",
-    "showCard": "Show {{title}}"
+    "showCard": "Show {{title}}",
+    "actions": {
+      "addWorkItem": "Add Work Item",
+      "addHouseholdItem": "Add Household Item",
+      "addMilestone": "Add Milestone"
+    }
   },
   "sections": {
     "timeline": {

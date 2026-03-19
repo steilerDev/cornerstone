@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   DashboardCardId,
@@ -50,6 +51,7 @@ interface DataSourceState {
 
 export function DashboardPage() {
   const { t } = useTranslation('dashboard');
+  const navigate = useNavigate();
 
   const CARD_DEFINITIONS = [
     {
@@ -446,39 +448,67 @@ export function DashboardPage() {
     <div className={styles.page}>
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>{t('page.title')}</h1>
-        {hasHiddenCards && (
-          <div className={styles.customizeContainer} ref={customizeRef}>
+        <div className={styles.headerRight}>
+          <div className={styles.actionButtons}>
             <button
               type="button"
-              className={styles.customizeButton}
-              onClick={() => setCustomizeOpen((v) => !v)}
-              aria-haspopup="menu"
-              aria-expanded={customizeOpen}
+              className={styles.actionButton}
+              onClick={() => navigate('/project/work-items/new')}
+              data-testid="dashboard-add-work-item"
             >
-              {t('page.customize')}
+              {t('page.actions.addWorkItem')}
             </button>
-
-            {customizeOpen && (
-              <div className={styles.customizeDropdown} role="menu">
-                <h3 className={styles.customizeHeading}>{t('page.hiddenCards')}</h3>
-                {hiddenCards.map((card) => (
-                  <button
-                    key={card.id}
-                    type="button"
-                    className={styles.reEnableButton}
-                    onClick={() => {
-                      void handleReEnableCard(card.id);
-                      setCustomizeOpen(false);
-                    }}
-                    role="menuitem"
-                  >
-                    {t('page.showCard', { title: card.title })}
-                  </button>
-                ))}
-              </div>
-            )}
+            <button
+              type="button"
+              className={styles.actionButton}
+              onClick={() => navigate('/project/household-items/new')}
+              data-testid="dashboard-add-household-item"
+            >
+              {t('page.actions.addHouseholdItem')}
+            </button>
+            <button
+              type="button"
+              className={styles.actionButton}
+              onClick={() => navigate('/project/milestones/new')}
+              data-testid="dashboard-add-milestone"
+            >
+              {t('page.actions.addMilestone')}
+            </button>
           </div>
-        )}
+          {hasHiddenCards && (
+            <div className={styles.customizeContainer} ref={customizeRef}>
+              <button
+                type="button"
+                className={styles.customizeButton}
+                onClick={() => setCustomizeOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={customizeOpen}
+              >
+                {t('page.customize')}
+              </button>
+
+              {customizeOpen && (
+                <div className={styles.customizeDropdown} role="menu">
+                  <h3 className={styles.customizeHeading}>{t('page.hiddenCards')}</h3>
+                  {hiddenCards.map((card) => (
+                    <button
+                      key={card.id}
+                      type="button"
+                      className={styles.reEnableButton}
+                      onClick={() => {
+                        void handleReEnableCard(card.id);
+                        setCustomizeOpen(false);
+                      }}
+                      role="menuitem"
+                    >
+                      {t('page.showCard', { title: card.title })}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <ProjectSubNav />
