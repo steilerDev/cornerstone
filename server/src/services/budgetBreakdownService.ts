@@ -62,22 +62,28 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
   );
 
   // ── 2. Query B: Invoice aggregates per WI budget line ─────────────────────
+  // Track invoice status to determine if line is a quotation
   const wiLineInvoiceRows = db.all<{
     budgetLineId: string;
     actualCost: number;
+    invoiceStatus: string;
   }>(
     sql`SELECT
       ibl.work_item_budget_id AS budgetLineId,
-      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost
+      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost,
+      MAX(i.status) AS invoiceStatus
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     WHERE ibl.work_item_budget_id IS NOT NULL
     GROUP BY ibl.work_item_budget_id`,
   );
 
-  const wiLineInvoiceMap = new Map<string, number>();
+  const wiLineInvoiceMap = new Map<string, { actualCost: number; isQuotation: boolean }>();
   for (const row of wiLineInvoiceRows) {
-    wiLineInvoiceMap.set(row.budgetLineId, row.actualCost);
+    wiLineInvoiceMap.set(row.budgetLineId, {
+      actualCost: row.actualCost,
+      isQuotation: row.invoiceStatus === 'quotation',
+    });
   }
 
   // ── 3. Query C: Household item budget lines with HI category ──────────────
@@ -113,22 +119,28 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
   );
 
   // ── 4. Query D: Invoice aggregates per HI budget line ────────────────────
+  // Track invoice status to determine if line is a quotation
   const hiLineInvoiceRows = db.all<{
     budgetLineId: string;
     actualCost: number;
+    invoiceStatus: string;
   }>(
     sql`SELECT
       ibl.household_item_budget_id AS budgetLineId,
-      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost
+      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost,
+      MAX(i.status) AS invoiceStatus
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     WHERE ibl.household_item_budget_id IS NOT NULL
     GROUP BY ibl.household_item_budget_id`,
   );
 
-  const hiLineInvoiceMap = new Map<string, number>();
+  const hiLineInvoiceMap = new Map<string, { actualCost: number; isQuotation: boolean }>();
   for (const row of hiLineInvoiceRows) {
-    hiLineInvoiceMap.set(row.budgetLineId, row.actualCost);
+    hiLineInvoiceMap.set(row.budgetLineId, {
+      actualCost: row.actualCost,
+      isQuotation: row.invoiceStatus === 'quotation',
+    });
   }
 
   // ── 5. Queries E/F/G/H: Subsidy data (same pattern as budgetOverviewService) ──
@@ -269,12 +281,19 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
   }
 
   // ── Helper: Compute costDisplay for an entity ──────────────────────────────
-  function computeCostDisplay(budgetLines: Array<{ hasInvoice: boolean }>): CostDisplay {
-    const allInvoiced = budgetLines.every((l) => l.hasInvoice);
-    const someInvoiced = budgetLines.some((l) => l.hasInvoice);
-    if (allInvoiced) return 'actual';
-    if (someInvoiced) return 'mixed';
-    return 'projected';
+  function computeCostDisplay(budgetLines: Array<{ hasInvoice: boolean; isQuotation: boolean }>): CostDisplay {
+    const hasActualInvoice = budgetLines.some((l) => l.hasInvoice && !l.isQuotation);
+    const hasQuotationInvoice = budgetLines.some((l) => l.hasInvoice && l.isQuotation);
+    const hasNoInvoice = budgetLines.some((l) => !l.hasInvoice);
+
+    // No invoices at all
+    if (!hasActualInvoice && !hasQuotationInvoice) return 'projected';
+    // All lines have quotation invoices
+    if (hasQuotationInvoice && !hasActualInvoice && !hasNoInvoice) return 'quoted';
+    // All lines have actual (non-quotation) invoices
+    if (hasActualInvoice && !hasQuotationInvoice && !hasNoInvoice) return 'actual';
+    // Any mix → mixed
+    return 'mixed';
   }
 
   // ── Helper: Compute projectedMin/Max for a budget line ─────────────────────
@@ -283,8 +302,14 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     confidence: string,
     actualCost: number,
     hasInvoice: boolean,
+    isQuotation: boolean = false,
   ): { min: number; max: number } {
     if (hasInvoice) {
+      if (isQuotation) {
+        // Quotation invoices use ±5% margin around itemized amount
+        return { min: actualCost * 0.95, max: actualCost * 1.05 };
+      }
+      // Non-quotation invoices: actual cost is fixed
       return { min: actualCost, max: actualCost };
     }
     const margin =
@@ -307,7 +332,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
 
   interface EntityBreakdownConfig<TRow extends EntityRow, TItem, TCategory> {
     rows: TRow[];
-    invoiceMap: Map<string, number>;
+    invoiceMap: Map<string, { actualCost: number; isQuotation: boolean }>;
     getCategoryKey: (row: TRow) => string;
     getCategoryMeta: (row: TRow) => {
       categoryId: string | null;
@@ -335,6 +360,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
           confidence: ConfidenceLevel;
           actualCost: number;
           hasInvoice: boolean;
+          isQuotation: boolean;
         }>;
       },
     ) => TItem;
@@ -448,7 +474,9 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       for (const itemData of itemsInCategory) {
         // Build budget lines for this entity
         const itemBudgetLines = itemData.lines.map((line) => {
-          const actualCost = config.invoiceMap.get(line.budgetLineId) ?? 0;
+          const invoiceData = config.invoiceMap.get(line.budgetLineId);
+          const actualCost = invoiceData?.actualCost ?? 0;
+          const isQuotation = invoiceData?.isQuotation ?? false;
           return {
             id: line.budgetLineId,
             description: line.description,
@@ -456,6 +484,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
             confidence: line.confidence as ConfidenceLevel,
             actualCost,
             hasInvoice: config.invoiceMap.has(line.budgetLineId),
+            isQuotation,
           };
         });
 
@@ -470,6 +499,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
             budgetLine.confidence,
             budgetLine.actualCost,
             budgetLine.hasInvoice,
+            budgetLine.isQuotation,
           );
           itemMin += min;
           itemMax += max;

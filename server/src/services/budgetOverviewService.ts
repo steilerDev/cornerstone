@@ -137,13 +137,16 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
 
   // ── 5. Per-line invoice aggregates (for blended projected model) ──────────────
   // Include both work item and household item budget lines
+  // Track whether each line's invoice is a quotation for margin calculation
   const lineInvoiceRows = db.all<{
     budgetLineId: string;
     actualCost: number;
+    invoiceStatus: string;
   }>(
     sql`SELECT
       ibl.work_item_budget_id AS budgetLineId,
-      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost
+      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost,
+      MAX(i.status) AS invoiceStatus
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     WHERE ibl.work_item_budget_id IS NOT NULL
@@ -151,16 +154,20 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     UNION ALL
     SELECT
       ibl.household_item_budget_id AS budgetLineId,
-      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost
+      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost,
+      MAX(i.status) AS invoiceStatus
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     WHERE ibl.household_item_budget_id IS NOT NULL
     GROUP BY ibl.household_item_budget_id`,
   );
 
-  const lineInvoiceMap = new Map<string, number>();
+  const lineInvoiceMap = new Map<string, { actualCost: number; isQuotation: boolean }>();
   for (const row of lineInvoiceRows) {
-    lineInvoiceMap.set(row.budgetLineId, row.actualCost);
+    lineInvoiceMap.set(row.budgetLineId, {
+      actualCost: row.actualCost,
+      isQuotation: row.invoiceStatus === 'quotation',
+    });
   }
 
   // ── 6. For fixed subsidies: count matching budget lines per work_item+subsidy ─
@@ -218,7 +225,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
 
         // Determine cost basis: use invoice amount if available, otherwise planned amount
         const costBasis = lineInvoiceMap.has(line.id)
-          ? lineInvoiceMap.get(line.id)!
+          ? lineInvoiceMap.get(line.id)!.actualCost
           : line.plannedAmount;
 
         // This subsidy applies to this line
@@ -253,11 +260,24 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     const rawMinPlanned = rawMin;
     const rawMaxPlanned = rawMax;
 
-    // If line has invoices, actual cost overrides planned values (the real cost is known)
-    const lineActualCost = lineInvoiceMap.get(line.id);
-    const hasInvoices = lineActualCost !== undefined;
-    const minPlanned = hasInvoices ? lineActualCost : rawMinPlanned;
-    const maxPlanned = hasInvoices ? lineActualCost : rawMaxPlanned;
+    // If line has invoices, determine if it's a quotation and calculate projections accordingly
+    const lineInvoiceData = lineInvoiceMap.get(line.id);
+    const hasInvoices = lineInvoiceData !== undefined;
+    let minPlanned = rawMinPlanned;
+    let maxPlanned = rawMaxPlanned;
+
+    if (hasInvoices) {
+      const { actualCost, isQuotation } = lineInvoiceData;
+      if (isQuotation) {
+        // Quotation invoices use ±5% margin around itemized amount
+        minPlanned = actualCost * 0.95;
+        maxPlanned = actualCost * 1.05;
+      } else {
+        // Non-quotation invoices: actual cost is fixed (no margin)
+        minPlanned = actualCost;
+        maxPlanned = actualCost;
+      }
+    }
 
     totalMinPlanned += minPlanned;
     totalMaxPlanned += maxPlanned;
@@ -282,6 +302,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
 
   // ── 8. Actual costs from invoices linked to budget lines ──────────────────
   // Include both work item and household item invoices
+  // Exclude quotation invoices from actual cost aggregates
   const invoiceTotalsRow = db.get<{
     actualCost: number | null;
     actualCostPaid: number | null;
@@ -292,7 +313,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       COALESCE(SUM(CASE WHEN i.status IN ('paid', 'claimed') THEN ibl.itemized_amount ELSE 0 END), 0) AS actualCostPaid,
       COALESCE(SUM(CASE WHEN i.status = 'claimed' THEN ibl.itemized_amount ELSE 0 END), 0)            AS actualCostClaimed
     FROM invoice_budget_lines ibl
-    INNER JOIN invoices i ON i.id = ibl.invoice_id`,
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    WHERE i.status != 'quotation'`,
   );
 
   const actualCost = invoiceTotalsRow?.actualCost ?? 0;
@@ -301,6 +323,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
 
   // ── 9. Per-category actual costs from invoices ────────────────────────────
   // Include both work item and household item budget invoices using UNION ALL
+  // Exclude quotation invoices from actual cost aggregates
   const categoryInvoiceRows = db.all<{
     budgetCategoryId: string | null;
     actualCost: number;
@@ -315,6 +338,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     INNER JOIN work_item_budgets wib ON wib.id = ibl.work_item_budget_id
+    WHERE i.status != 'quotation'
     GROUP BY wib.budget_category_id
     UNION ALL
     SELECT
@@ -325,6 +349,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     INNER JOIN household_item_budgets hib ON hib.id = ibl.household_item_budget_id
+    WHERE i.status != 'quotation'
     GROUP BY hib.budget_category_id`,
   );
 

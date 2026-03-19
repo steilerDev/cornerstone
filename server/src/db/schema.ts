@@ -355,7 +355,7 @@ export const invoices = sqliteTable(
     amount: real('amount').notNull(),
     date: text('date').notNull(),
     dueDate: text('due_date'),
-    status: text('status', { enum: ['pending', 'paid', 'claimed'] })
+    status: text('status', { enum: ['pending', 'paid', 'claimed', 'quotation'] })
       .notNull()
       .default('pending'),
     notes: text('notes'),

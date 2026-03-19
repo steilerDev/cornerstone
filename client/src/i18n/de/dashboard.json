@@ -91,6 +91,8 @@
       "noPendingInvoices": "Keine ausstehenden Rechnungen",
       "overdue": "Überfällig",
       "pendingTotal": "Ausstehender Gesamtbetrag:",
+      "quotesTitle": "Angebote",
+      "quotesTotal": "Angebotssumme:",
       "viewAllInvoices": "Alle Rechnungen anzeigen"
     },
     "subsidyPipeline": {

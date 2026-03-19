@@ -49,6 +49,7 @@
       "sum": "Sum",
       "availableFunds": "Available funds",
       "remainingBudget": "Remaining Budget",
+      "quoted": "Quoted",
       "tableHeaders": {
         "name": "Name",
         "cost": "Cost",

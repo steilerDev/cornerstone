@@ -12,8 +12,9 @@ import type { HouseholdItemCategory } from './householdItem.js';
  * - 'actual': entity has all invoiced lines (display actualCost only)
  * - 'projected': entity has no invoiced lines (display projectedMin–projectedMax)
  * - 'mixed': entity has both invoiced and non-invoiced lines (display both)
+ * - 'quoted': entity has quotation-status lines (display projectedMin–projectedMax separately)
  */
-export type CostDisplay = 'actual' | 'projected' | 'mixed';
+export type CostDisplay = 'actual' | 'projected' | 'mixed' | 'quoted';
 
 /**
  * A single budget line within a breakdown item.
@@ -26,6 +27,7 @@ export interface BreakdownBudgetLine {
   confidence: ConfidenceLevel;
   actualCost: number;
   hasInvoice: boolean;
+  isQuotation: boolean;
 }
 
 /**

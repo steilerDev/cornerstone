@@ -49,6 +49,7 @@
       "sum": "Summe",
       "availableFunds": "Verfügbare Mittel",
       "remainingBudget": "Verbleibendes Budget",
+      "quoted": "Angebot",
       "tableHeaders": {
         "name": "Name",
         "cost": "Kosten",
@@ -266,8 +267,11 @@
     "invoiceStatusLabels": {
       "pending": "Ausstehend",
       "paid": "Bezahlt",
-      "claimed": "Eingereicht"
+      "claimed": "Eingereicht",
+      "quotation": "Angebot"
     },
+    "quotedLabel": "Angebot",
+    "quotedAmount": "Angebotsbetrag",
     "invoiceTable": {
       "invoiceNumber": "Rechnung #",
       "amount": "Betrag",
@@ -341,7 +345,8 @@
     "statusLabels": {
       "pending": "Ausstehend",
       "paid": "Bezahlt",
-      "claimed": "Eingereicht"
+      "claimed": "Eingereicht",
+      "quotation": "Angebot"
     },
     "modal": {
       "editTitle": "Rechnung Bearbeiten",
@@ -486,6 +491,7 @@
     "summaryPending": "Ausstehend",
     "summaryPaid": "Bezahlt",
     "summaryClaimed": "Eingereicht",
+    "summaryQuotation": "Angebot",
     "filterByStatus": "Nach Status filtern",
     "filterByVendor": "Nach Auftragnehmer filtern",
     "allStatuses": "Alle Status",
@@ -544,7 +550,8 @@
     "statusLabels": {
       "pending": "Ausstehend",
       "paid": "Bezahlt",
-      "claimed": "Eingereicht"
+      "claimed": "Eingereicht",
+      "quotation": "Angebot"
     },
     "modal": {
       "title": "Rechnung Hinzufügen",

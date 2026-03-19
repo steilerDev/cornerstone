@@ -2,7 +2,7 @@
   "_meta": {
     "description": "Single source of truth for domain terminology translations. The translator agent enforces these.",
     "locales": ["de"],
-    "lastUpdated": "2026-03-17"
+    "lastUpdated": "2026-03-19"
   },
   "terms": {
     "Work Item": { "de": { "singular": "Arbeitspaket", "plural": "Arbeitspakete" } },
@@ -19,6 +19,7 @@
     "Category": { "de": { "singular": "Kategorie", "plural": "Kategorien" } },
     "Critical Path": { "de": { "singular": "Kritischer Pfad" } },
     "Gantt Chart": { "de": { "singular": "Gantt-Diagramm" } },
-    "Dashboard": { "de": { "singular": "Projektübersicht" } }
+    "Dashboard": { "de": { "singular": "Projektübersicht" } },
+    "Quotation": { "de": { "singular": "Angebot", "plural": "Angebote" } }
   }
 }
