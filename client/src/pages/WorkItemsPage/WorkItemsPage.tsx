@@ -510,6 +510,7 @@ export function WorkItemsPage() {
               value={areaFilter}
               onChange={handleAreaFilterChange}
               nullable={true}
+              specialOptions={[{ id: '', label: t('list.filters.allAreas') }]}
             />
           </div>
 
