@@ -16,15 +16,14 @@
 
 - All API endpoints under `/api/` prefix, error shape: `{ error: { code, message, details? } }`
 - Offset pagination: page (1-indexed), pageSize (default 25, max 100)
-- Tags/users NOT paginated (small collections)
-- PATCH with tagIds replaces entire tag set (set-semantics)
+- Areas/trades/users NOT paginated (small collections)
 - Junction tables use composite PKs (no surrogate id) -- EXCEPT invoice_budget_lines which uses surrogate UUID (carries itemized_amount, needs individual CRUD)
 
 ## Naming Conventions
 
 - DB: snake_case | TS vars: camelCase | TS types: PascalCase | Files: camelCase.ts (React: PascalCase.tsx) | API: kebab-case | Env: UPPER_SNAKE_CASE
 
-## Migrations (17 total)
+## Migrations (18 total)
 
 - 0001-0009: Auth, work items, budget, milestones, deps, actual dates, document_links
 - 0010: household_items + 5 supporting tables (EPIC-04)
@@ -32,8 +31,9 @@
 - 0012: household_item_deps + delivery date columns
 - 0013-0016: HI dep cleanup, status rename, delivery date redesign, HI categories
 - 0017: invoice_budget_lines junction table (EPIC-15, ADR-018)
+- 0018: areas + trades, vendor trade_id, WI area_id + assigned_vendor_id, HI area_id, drop tags (EPIC-18, ADR-028)
 
-## ADRs (ADR-001 through ADR-018)
+## ADRs (ADR-001 through ADR-028)
 
 - ADR-001-009: Tech stack + error handling
 - ADR-010: Auth (sessions + OIDC + scrypt)
@@ -44,6 +44,7 @@
 - ADR-015: Paperless-ngx integration (proxy + polymorphic links)
 - ADR-016: Household items (separate entity with parallel structure)
 - ADR-018: Invoice-budget-line junction table (M:N with XOR CHECK, ON DELETE CASCADE)
+- ADR-028: Areas & Trades (structured dimensions replacing tags)
 
 ## EPIC Status
 
@@ -53,12 +54,13 @@
 - EPIC-06 Timeline/Gantt: Complete (promoted to main, v1.10.0)
 - EPIC-08 Documents: Complete (promoted to main, v1.11.0)
 - EPIC-04 Household Items: Complete (promoted to main, v1.12.0)
-- EPIC-15 Budget-Line Invoice Linking: In progress. Story 15.1 schema (PR #612, request changes)
+- EPIC-15 Budget-Line Invoice Linking: Complete (promoted to main, v1.14.0)
+- EPIC-18 Areas & Trades: In progress (ADR-028, Schema, API Contract designed)
 
 ## GitHub Wiki
 
 - Wiki is git submodule at `wiki/`. Sync: `git submodule update --init wiki && git -C wiki pull origin master`
-- ADR-001 through ADR-016, Architecture, Schema, API-Contract, Home, ADR-Index, Style-Guide, Security-Audit
+- ADR-001 through ADR-028, Architecture, Schema, API-Contract, Home, ADR-Index, Style-Guide, Security-Audit
 - **Always push wiki before creating PR** -- submodule ref must be committed in feature branch
 
 ### Wiki Update Discipline (CRITICAL)
@@ -116,6 +118,7 @@ See `epic04-household-items.md` for full details.
 - `epic03-refinement.md` -- 40 consolidated refinement items from EPIC-03
 - `epic05-budget.md` -- EPIC-05 budget management details
 - `epic04-household-items.md` -- EPIC-04 household items architecture
+- `epic18-areas-trades.md` -- EPIC-18 areas & trades structured dimensions
 
 ## EPIC-04 Review Summary (see story-reviews.md for details)
 
