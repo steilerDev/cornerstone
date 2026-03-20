@@ -197,7 +197,10 @@ describe('HouseholdItemsPage', () => {
       error: null,
       refetch: jest.fn(),
       createArea: jest.fn() as unknown as (data: CreateAreaRequest) => Promise<AreaResponse | null>,
-      updateArea: jest.fn() as unknown as (id: string, data: UpdateAreaRequest) => Promise<AreaResponse | null>,
+      updateArea: jest.fn() as unknown as (
+        id: string,
+        data: UpdateAreaRequest,
+      ) => Promise<AreaResponse | null>,
       deleteArea: jest.fn() as unknown as (id: string) => Promise<boolean>,
     });
   });

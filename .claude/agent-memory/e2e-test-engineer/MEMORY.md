@@ -201,6 +201,7 @@ Key behavioral changes validated:
 ## SearchPicker/AreaPicker Filter Pattern (2026-03-19, issue #1074)
 
 AreaPicker has two DOM states: unselected (input visible) vs selected (selectedDisplay visible, input gone).
+
 - Unselected: `input[placeholder="Select an area"]` — click to open dropdown (role="listbox")
 - Selected: `[class*="selectedDisplay"]` with `[class*="selectedTitle"]` + clear btn (aria-label="Clear selection")
 - areaFilterContainer: `'#hi-filter-panel [class*="container"]:has(input[placeholder="Select an area"])'`

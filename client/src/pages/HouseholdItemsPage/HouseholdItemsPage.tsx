@@ -510,7 +510,9 @@ export function HouseholdItemsPage() {
             </div>
 
             <div className={styles.filter}>
-              <label htmlFor="area-filter" className={styles.filterLabel}>{t('filters.area')}</label>
+              <label htmlFor="area-filter" className={styles.filterLabel}>
+                {t('filters.area')}
+              </label>
               <AreaPicker
                 id="area-filter"
                 areas={areas}
@@ -609,7 +611,12 @@ export function HouseholdItemsPage() {
       {/* Household items list */}
       {householdItems.length === 0 ? (
         <div className={styles.emptyState}>
-          {searchQuery || categoryFilter || areaFilter || statusFilter || vendorFilter || noBudgetFilter ? (
+          {searchQuery ||
+          categoryFilter ||
+          areaFilter ||
+          statusFilter ||
+          vendorFilter ||
+          noBudgetFilter ? (
             <>
               <h2>{t('empty.noResults')}</h2>
               <p>{t('empty.noResultsMessage')}</p>

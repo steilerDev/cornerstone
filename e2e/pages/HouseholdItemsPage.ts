@@ -335,9 +335,7 @@ export class HouseholdItemsPage {
   async clearAreaFilter(): Promise<void> {
     // In selected state, the container uses CSS :has() — the input is gone.
     // Use the filter panel scope to find the unique clear button for the area picker.
-    const clearButton = this.page
-      .locator('#hi-filter-panel')
-      .getByLabel('Clear selection');
+    const clearButton = this.page.locator('#hi-filter-panel').getByLabel('Clear selection');
     await clearButton.waitFor({ state: 'visible' });
     await clearButton.click();
   }

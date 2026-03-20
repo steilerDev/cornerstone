@@ -164,13 +164,9 @@ test.describe('Selecting All Areas clears filter (Scenario 3)', { tag: '@respons
       const areaId = await createAreaViaApi(page, { name: areaName });
       areaIds.push(areaId);
 
-      itemIds.push(
-        await createHouseholdItemViaApi(page, { name: itemWithAreaName, areaId }),
-      );
+      itemIds.push(await createHouseholdItemViaApi(page, { name: itemWithAreaName, areaId }));
       // Item without any area
-      itemIds.push(
-        await createHouseholdItemViaApi(page, { name: itemNoAreaName }),
-      );
+      itemIds.push(await createHouseholdItemViaApi(page, { name: itemNoAreaName }));
 
       // Start with area filter pre-applied in URL
       await page.goto(`${HOUSEHOLD_ITEMS_ROUTE}?areaId=${encodeURIComponent(areaId)}`);
@@ -267,74 +263,78 @@ test.describe('URL persistence on reload (Scenario 4)', { tag: '@responsive' }, 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 5: Combining area filter with status filter
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Combining area filter with status filter (Scenario 5)', { tag: '@responsive' }, () => {
-  test.describe.configure({ timeout: 90_000 });
+test.describe(
+  'Combining area filter with status filter (Scenario 5)',
+  { tag: '@responsive' },
+  () => {
+    test.describe.configure({ timeout: 90_000 });
 
-  test('Both area and status filters apply simultaneously', async ({ page, testPrefix }) => {
-    const listPage = new HouseholdItemsPage(page);
-    const areaIds: string[] = [];
-    const itemIds: string[] = [];
+    test('Both area and status filters apply simultaneously', async ({ page, testPrefix }) => {
+      const listPage = new HouseholdItemsPage(page);
+      const areaIds: string[] = [];
+      const itemIds: string[] = [];
 
-    const areaName = `${testPrefix} Area Epsilon Garden`;
-    const plannedInAreaName = `${testPrefix} HI Epsilon Planned Fence`;
-    const purchasedInAreaName = `${testPrefix} HI Epsilon Purchased Gate`;
-    const plannedNoAreaName = `${testPrefix} HI No Area Planned Chair`;
+      const areaName = `${testPrefix} Area Epsilon Garden`;
+      const plannedInAreaName = `${testPrefix} HI Epsilon Planned Fence`;
+      const purchasedInAreaName = `${testPrefix} HI Epsilon Purchased Gate`;
+      const plannedNoAreaName = `${testPrefix} HI No Area Planned Chair`;
 
-    try {
-      const areaId = await createAreaViaApi(page, { name: areaName });
-      areaIds.push(areaId);
+      try {
+        const areaId = await createAreaViaApi(page, { name: areaName });
+        areaIds.push(areaId);
 
-      // Two items in the area (different statuses) + one item without the area
-      itemIds.push(
-        await createHouseholdItemViaApi(page, {
-          name: plannedInAreaName,
-          areaId,
-          status: 'planned',
-        }),
-      );
-      itemIds.push(
-        await createHouseholdItemViaApi(page, {
-          name: purchasedInAreaName,
-          areaId,
-          status: 'purchased',
-        }),
-      );
-      itemIds.push(
-        await createHouseholdItemViaApi(page, {
-          name: plannedNoAreaName,
-          status: 'planned',
-        }),
-      );
+        // Two items in the area (different statuses) + one item without the area
+        itemIds.push(
+          await createHouseholdItemViaApi(page, {
+            name: plannedInAreaName,
+            areaId,
+            status: 'planned',
+          }),
+        );
+        itemIds.push(
+          await createHouseholdItemViaApi(page, {
+            name: purchasedInAreaName,
+            areaId,
+            status: 'purchased',
+          }),
+        );
+        itemIds.push(
+          await createHouseholdItemViaApi(page, {
+            name: plannedNoAreaName,
+            status: 'planned',
+          }),
+        );
 
-      // Navigate with both filters pre-applied in URL
-      await page.goto(
-        `${HOUSEHOLD_ITEMS_ROUTE}?areaId=${encodeURIComponent(areaId)}&status=planned`,
-      );
-      await listPage.heading.waitFor({ state: 'visible' });
-      await listPage.waitForLoaded();
+        // Navigate with both filters pre-applied in URL
+        await page.goto(
+          `${HOUSEHOLD_ITEMS_ROUTE}?areaId=${encodeURIComponent(areaId)}&status=planned`,
+        );
+        await listPage.heading.waitFor({ state: 'visible' });
+        await listPage.waitForLoaded();
 
-      // Only the planned item in the area should match both filters
-      await expect(async () => {
-        const names = await listPage.getItemNames();
-        expect(names).toContain(plannedInAreaName);
-        expect(names).not.toContain(purchasedInAreaName);
-        expect(names).not.toContain(plannedNoAreaName);
-      }).toPass({ timeout: 30_000 });
+        // Only the planned item in the area should match both filters
+        await expect(async () => {
+          const names = await listPage.getItemNames();
+          expect(names).toContain(plannedInAreaName);
+          expect(names).not.toContain(purchasedInAreaName);
+          expect(names).not.toContain(plannedNoAreaName);
+        }).toPass({ timeout: 30_000 });
 
-      // Both areaId and status must appear in the URL
-      const url = new URL(page.url());
-      expect(url.searchParams.get('areaId')).toBe(areaId);
-      expect(url.searchParams.get('status')).toBe('planned');
-    } finally {
-      for (const id of itemIds) {
-        await deleteHouseholdItemViaApi(page, id);
+        // Both areaId and status must appear in the URL
+        const url = new URL(page.url());
+        expect(url.searchParams.get('areaId')).toBe(areaId);
+        expect(url.searchParams.get('status')).toBe('planned');
+      } finally {
+        for (const id of itemIds) {
+          await deleteHouseholdItemViaApi(page, id);
+        }
+        for (const id of areaIds) {
+          await deleteAreaViaApi(page, id);
+        }
       }
-      for (const id of areaIds) {
-        await deleteAreaViaApi(page, id);
-      }
-    }
-  });
-});
+    });
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 6: Empty state when no items match the selected area
