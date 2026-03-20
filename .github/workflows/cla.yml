@@ -19,6 +19,8 @@ jobs:
     if: >-
       (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA')
       || (github.event_name == 'pull_request_target' && github.event.pull_request.base.ref == 'beta')
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Generate app token
         id: app-token
