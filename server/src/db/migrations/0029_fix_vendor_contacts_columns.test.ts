@@ -286,21 +286,24 @@ describe('Migration 0029: Fix vendor_contacts column corruption', () => {
     expect(fixedContact?.updated_at).toBe(originalUpdatedAt);
   });
 
-  // ── Scenario 4: NULL first_name / last_name COALESCE fallback ────────────
+  // ── Scenario 4: NULL nullable fields restored correctly ──────────────────
 
-  it('restores NULL first_name and last_name and uses COALESCE fallback for timestamps', () => {
+  it('restores NULL notes when original notes was NULL in a corrupted row', () => {
     setupPreMigrationDb(sqlite);
     insertUser(sqlite, 'user-001');
     insertVendor(sqlite, 'vendor-001', 'user-001');
 
-    // A contact where first_name and last_name were originally NULL
+    // Original values: notes is NULL, first_name/last_name are non-NULL
+    const originalFirstName = 'Clara';
+    const originalLastName = 'Sparks';
     const originalRole = 'Electrician';
     const originalPhone = '+49 711 5550000';
     const originalEmail = 'contact@sparks.de';
-    const originalNotes = 'No notes';
+    // notes is intentionally NULL
     const originalCreatedAt = '2026-02-01T09:00:00.000Z';
     const originalUpdatedAt = '2026-02-28T17:00:00.000Z';
 
+    // Insert the contact with correct values
     sqlite
       .prepare(
         `INSERT INTO vendor_contacts
@@ -308,20 +311,29 @@ describe('Migration 0029: Fix vendor_contacts column corruption', () => {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
-        'vc-null-names',
+        'vc-null-notes',
         'vendor-001',
-        'Contact Only',
-        null,   // first_name = NULL
-        null,   // last_name = NULL
+        'Clara Sparks',
+        originalFirstName,
+        originalLastName,
         originalRole,
         originalPhone,
         originalEmail,
-        originalNotes,
+        null,   // notes = NULL
         originalCreatedAt,
         originalUpdatedAt,
       );
 
-    // Simulate corruption: first_name=NULL → created_at=NULL, last_name=NULL → updated_at=NULL
+    // Simulate corruption from the buggy 0028 SELECT * column shift.
+    // The buggy migration mapped old column positions to new positions:
+    //   new.first_name(4) ← old.role(4)         = 'Electrician'
+    //   new.last_name(5)  ← old.phone(5)        = '+49 711 5550000'
+    //   new.role(6)       ← old.email(6)        = 'contact@sparks.de'
+    //   new.phone(7)      ← old.notes(7)        = NULL  (original notes was NULL)
+    //   new.email(8)      ← old.created_at(8)   = '2026-02-01T...' (datetime string!)
+    //   new.notes(9)      ← old.updated_at(9)   = '2026-02-28T...' (datetime string)
+    //   new.created_at(10)← old.first_name(10)  = 'Clara'  (non-NULL, respects NOT NULL)
+    //   new.updated_at(11)← old.last_name(11)   = 'Sparks' (non-NULL, respects NOT NULL)
     sqlite
       .prepare(
         `UPDATE vendor_contacts SET
@@ -335,37 +347,35 @@ describe('Migration 0029: Fix vendor_contacts column corruption', () => {
            updated_at = last_name
          WHERE id = ?`,
       )
-      .run('vc-null-names');
+      .run('vc-null-notes');
 
-    // Verify corruption is in place
-    const corruptedContact = getContact(sqlite, 'vc-null-names');
+    // Verify corruption: email is a datetime string, phone is NULL (from original NULL notes)
+    const corruptedContact = getContact(sqlite, 'vc-null-notes');
     expect(corruptedContact?.email).toBe(originalCreatedAt);
-    expect(corruptedContact?.created_at).toBeNull(); // was first_name = NULL
-    expect(corruptedContact?.updated_at).toBeNull(); // was last_name = NULL
+    expect(corruptedContact?.phone).toBeNull();
 
     // Run 0029
     runMigration0029(sqlite);
 
-    const fixedContact = getContact(sqlite, 'vc-null-names');
+    const fixedContact = getContact(sqlite, 'vc-null-notes');
     expect(fixedContact).toBeDefined();
 
-    // first_name and last_name should be NULL (restored from original NULL values)
-    expect(fixedContact?.first_name).toBeNull();
-    expect(fixedContact?.last_name).toBeNull();
+    // notes should be restored to NULL (notes = phone, which was NULL in corrupted state)
+    expect(fixedContact?.notes).toBeNull();
 
-    // Other fields should be restored
+    // first_name and last_name should be correctly restored
+    expect(fixedContact?.first_name).toBe(originalFirstName);
+    expect(fixedContact?.last_name).toBe(originalLastName);
+
+    // All other fields should be correctly restored
     expect(fixedContact?.role).toBe(originalRole);
     expect(fixedContact?.phone).toBe(originalPhone);
     expect(fixedContact?.email).toBe(originalEmail);
-    expect(fixedContact?.notes).toBe(originalNotes);
 
-    // Timestamps must not be NULL — COALESCE fell back to datetime('now')
-    expect(fixedContact?.created_at).not.toBeNull();
-    expect(fixedContact?.updated_at).not.toBeNull();
-
-    // The fallback timestamps should look like a valid ISO datetime
-    expect(fixedContact?.created_at).toMatch(/^\d{4}-\d{2}-\d{2}/);
-    expect(fixedContact?.updated_at).toMatch(/^\d{4}-\d{2}-\d{2}/);
+    // Timestamps should be valid (COALESCE(email, datetime('now')) = originalCreatedAt,
+    // COALESCE(notes, datetime('now')) = originalUpdatedAt since notes was a datetime string)
+    expect(fixedContact?.created_at).toBe(originalCreatedAt);
+    expect(fixedContact?.updated_at).toBe(originalUpdatedAt);
   });
 
   // ── Scenario 5: Idempotency ────────────────────────────────────────────────
