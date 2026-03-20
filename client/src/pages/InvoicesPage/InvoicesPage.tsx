@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, type FormEvent } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   Invoice,
@@ -12,6 +12,10 @@ import { fetchVendors } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
+import { DataTable } from '../../components/DataTable/DataTable.js';
+import type { ColumnDef } from '../../components/DataTable/DataTable.js';
+import { useTableState } from '../../hooks/useTableState.js';
+import { useColumnPreferences } from '../../hooks/useColumnPreferences.js';
 import styles from './InvoicesPage.module.css';
 
 // STATUS_LABELS will be dynamically generated from i18n to ensure proper translation
@@ -48,7 +52,7 @@ function getAttributionLabel(invoice: Invoice, t: ReturnType<typeof useTranslati
 export function InvoicesPage() {
   const { t } = useTranslation('budget');
   const { formatCurrency, formatDate } = useFormatters();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [summary, setSummary] = useState<InvoiceStatusBreakdown>({
@@ -60,21 +64,25 @@ export function InvoicesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const pageSize = 25;
 
-  // Filter/sort state from URL
-  const searchQuery = searchParams.get('q') || '';
-  const statusFilter = (searchParams.get('status') as InvoiceStatus | '') || '';
-  const vendorFilter = searchParams.get('vendorId') || '';
-  const sortBy = searchParams.get('sortBy') || 'date';
-  const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc';
-  const urlPage = parseInt(searchParams.get('page') || '1', 10);
-
-  const [searchInput, setSearchInput] = useState(searchQuery);
-  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Table state
+  const {
+    tableState,
+    searchInput,
+    setSearchInput,
+    setFilter,
+    setSort,
+    setPage,
+    clearFilters,
+    hasActiveFilters,
+    toApiParams,
+  } = useTableState({
+    defaultSort: { sortBy: 'date', sortOrder: 'desc' },
+    filterKeys: ['status', 'vendorId'],
+  });
 
   // Vendor list for filter dropdown + create modal
   const [vendors, setVendors] = useState<Array<{ id: string; name: string }>>([]);
@@ -86,84 +94,133 @@ export function InvoicesPage() {
   const [createError, setCreateError] = useState('');
 
   useEffect(() => {
-    if (urlPage !== currentPage) setCurrentPage(urlPage);
-  }, [urlPage, currentPage]);
-
-  useEffect(() => {
     void fetchVendors({ pageSize: 100 }).then((res) =>
       setVendors(res.vendors.map((v) => ({ id: v.id, name: v.name }))),
     );
   }, []);
 
+  // Load invoices when table state changes
   useEffect(() => {
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => {
-      const newParams = new URLSearchParams(searchParams);
-      if (searchInput) {
-        newParams.set('q', searchInput);
-      } else {
-        newParams.delete('q');
+    const loadInvoices = async () => {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const params = toApiParams();
+        const response = await fetchAllInvoices({
+          page: params.page as number,
+          pageSize,
+          q: (params.q as string) || undefined,
+          status: (params.status as InvoiceStatus) || undefined,
+          vendorId: (params.vendorId as string) || undefined,
+          sortBy: params.sortBy as string,
+          sortOrder: params.sortOrder as 'asc' | 'desc',
+        });
+
+        setInvoices(response.invoices);
+        setSummary(response.summary);
+        setTotalPages(response.pagination.totalPages);
+        setTotalItems(response.pagination.totalItems);
+      } catch (err) {
+        if (err instanceof ApiClientError) {
+          setError(err.error.message);
+        } else {
+          setError(t('invoices.errorMessage'));
+        }
+      } finally {
+        setIsLoading(false);
       }
-      newParams.set('page', '1');
-      setSearchParams(newParams);
-    }, 300);
-    return () => {
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
-  }, [searchInput, searchParams, setSearchParams]);
 
-  useEffect(() => {
     void loadInvoices();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, statusFilter, vendorFilter, sortBy, sortOrder, currentPage]);
+  }, [tableState, toApiParams, t]);
 
-  const loadInvoices = async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-      const response = await fetchAllInvoices({
-        page: currentPage,
-        pageSize,
-        q: searchQuery || undefined,
-        status: (statusFilter as InvoiceStatus) || undefined,
-        vendorId: vendorFilter || undefined,
-        sortBy: sortBy || undefined,
-        sortOrder: sortOrder || undefined,
-      });
-      setInvoices(response.invoices);
-      setSummary(response.summary);
-      setTotalPages(response.pagination.totalPages);
-      setTotalItems(response.pagination.totalItems);
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setError(err.error.message);
-      } else {
-        setError(t('invoices.errorMessage'));
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Column definitions
+  const columns: ColumnDef<Invoice>[] = useMemo(
+    () => [
+      {
+        key: 'date',
+        label: t('invoices.tableHeaders.date'),
+        type: 'date',
+        sortable: true,
+        sortKey: 'date',
+        defaultVisible: true,
+        render: (item) => formatDate(item.date),
+      },
+      {
+        key: 'invoiceNumber',
+        label: t('invoices.tableHeaders.invoiceNumber'),
+        type: 'string',
+        defaultVisible: true,
+        render: (item) =>
+          item.invoiceNumber ? (
+            <Link to={`/budget/invoices/${item.id}`} className={styles.invoiceLink}>
+              {item.invoiceNumber}
+            </Link>
+          ) : (
+            <Link
+              to={`/budget/invoices/${item.id}`}
+              className={`${styles.invoiceLink} ${styles.invoiceLinkNoNumber}`}
+            >
+              &mdash;
+            </Link>
+          ),
+      },
+      {
+        key: 'vendorName',
+        label: t('invoices.tableHeaders.vendor'),
+        type: 'string',
+        defaultVisible: true,
+        render: (item) => (
+          <Link to={`/budget/vendors/${item.vendorId}`} className={styles.vendorLink}>
+            {item.vendorName}
+          </Link>
+        ),
+      },
+      {
+        key: 'amount',
+        label: t('invoices.tableHeaders.amount'),
+        type: 'currency',
+        sortable: true,
+        sortKey: 'amount',
+        defaultVisible: true,
+        cellClassName: styles.amountCell,
+        render: (item) => formatCurrency(item.amount),
+      },
+      {
+        key: 'allocated',
+        label: t('invoices.tableHeaders.allocated'),
+        type: 'string',
+        defaultVisible: true,
+        render: (item) => getAttributionLabel(item, t),
+      },
+      {
+        key: 'dueDate',
+        label: t('invoices.tableHeaders.dueDate'),
+        type: 'date',
+        sortable: true,
+        sortKey: 'due_date',
+        defaultVisible: true,
+        render: (item) => (item.dueDate ? formatDate(item.dueDate) : '\u2014'),
+      },
+      {
+        key: 'status',
+        label: t('invoices.tableHeaders.status'),
+        type: 'enum',
+        sortable: true,
+        sortKey: 'status',
+        defaultVisible: true,
+        render: (item) => (
+          <span className={`${styles.statusBadge} ${styles[`status_${item.status}`]}`}>
+            {t(`invoices.statusLabels.${item.status}`)}
+          </span>
+        ),
+      },
+    ],
+    [t, formatDate, formatCurrency],
+  );
 
-  const handlePageChange = (page: number) => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('page', page.toString());
-    setSearchParams(newParams);
-  };
-
-  const handleSortChange = (field: string) => {
-    const newOrder = sortBy === field && sortOrder === 'asc' ? 'desc' : 'asc';
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('sortBy', field);
-    newParams.set('sortOrder', newOrder);
-    newParams.set('page', '1');
-    setSearchParams(newParams);
-  };
-
-  const renderSortIcon = (field: string) => {
-    if (sortBy !== field) return null;
-    return sortOrder === 'asc' ? ' ↑' : ' ↓';
-  };
+  const { visibleColumns, toggleColumn } = useColumnPreferences('invoices', columns);
 
   const openCreateModal = () => {
     setCreateForm(EMPTY_FORM);
@@ -218,21 +275,101 @@ export function InvoicesPage() {
     }
   };
 
-  const isFiltered = !!(searchQuery || statusFilter || vendorFilter);
+  // Filter bar as headerContent for DataTable
+  const filterBar = (
+    <div className={styles.filterCard}>
+      <div className={styles.searchRow}>
+        <input
+          type="search"
+          placeholder={t('invoices.searchPlaceholder')}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          className={styles.searchInput}
+          aria-label={t('invoices.searchAriaLabel')}
+        />
+      </div>
 
-  if (isLoading && invoices.length === 0) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.content}>
-          <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>{t('invoices.title')}</h1>
-          </div>
-          <BudgetSubNav />
-          <div className={styles.loading}>{t('invoices.loading')}</div>
+      {/* Summary cards */}
+      <div className={styles.summaryGrid}>
+        <div className={styles.summaryCard}>
+          <span className={styles.summaryLabel}>{t('invoices.summaryPending')}</span>
+          <span className={styles.summaryCount}>{summary.pending.count}</span>
+          <span className={styles.summaryAmount}>
+            {formatCurrency(summary.pending.totalAmount)}
+          </span>
+        </div>
+        <div className={styles.summaryCard}>
+          <span className={styles.summaryLabel}>{t('invoices.summaryPaid')}</span>
+          <span className={styles.summaryCount}>
+            {summary.paid.count + summary.claimed.count}
+          </span>
+          <span className={`${styles.summaryAmount} ${styles.summaryAmountPaid}`}>
+            {formatCurrency(summary.paid.totalAmount + summary.claimed.totalAmount)}
+          </span>
+        </div>
+        <div className={styles.summaryCard}>
+          <span className={styles.summaryLabel}>{t('invoices.summaryQuotation')}</span>
+          <span className={styles.summaryCount}>{summary.quotation.count}</span>
+          <span className={styles.summaryAmount}>
+            {formatCurrency(summary.quotation.totalAmount)}
+          </span>
         </div>
       </div>
-    );
-  }
+
+      <div className={styles.filterRow}>
+        <select
+          value={tableState.filters.status || ''}
+          onChange={(e) => setFilter('status', e.target.value || undefined)}
+          className={styles.filterSelect}
+          aria-label={t('invoices.filterStatusAriaLabel')}
+        >
+          <option value="">{t('invoices.allStatuses')}</option>
+          <option value="pending">{t('invoices.statusLabels.pending')}</option>
+          <option value="paid">{t('invoices.statusLabels.paid')}</option>
+          <option value="claimed">{t('invoices.statusLabels.claimed')}</option>
+          <option value="quotation">{t('invoices.statusLabels.quotation')}</option>
+        </select>
+        <select
+          value={tableState.filters.vendorId || ''}
+          onChange={(e) => setFilter('vendorId', e.target.value || undefined)}
+          className={styles.filterSelect}
+          aria-label={t('invoices.filterVendorAriaLabel')}
+        >
+          <option value="">{t('invoices.allVendors')}</option>
+          {vendors.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.name}
+            </option>
+          ))}
+        </select>
+        <div className={styles.sortControls}>
+          <label htmlFor="sort-select" className={styles.sortLabel}>
+            {t('invoices.sortLabel')}
+          </label>
+          <select
+            id="sort-select"
+            value={tableState.sort.sortBy}
+            onChange={(e) => setSort(e.target.value)}
+            className={styles.filterSelect}
+          >
+            <option value="date">{t('invoices.sortDate')}</option>
+            <option value="amount">{t('invoices.sortAmount')}</option>
+            <option value="status">{t('invoices.sortStatus')}</option>
+            <option value="vendor_name">{t('invoices.sortVendor')}</option>
+            <option value="due_date">{t('invoices.sortDueDate')}</option>
+          </select>
+          <button
+            type="button"
+            className={styles.sortOrderButton}
+            onClick={() => setSort(tableState.sort.sortBy)}
+            aria-label={t('invoices.sortOrderAriaLabel')}
+          >
+            {tableState.sort.sortOrder === 'asc' ? t('invoices.sortAsc') : t('invoices.sortDesc')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className={styles.container}>
@@ -241,33 +378,6 @@ export function InvoicesPage() {
           <h1 className={styles.pageTitle}>{t('invoices.title')}</h1>
         </div>
         <BudgetSubNav />
-
-        {/* Summary cards */}
-        <div className={styles.summaryGrid}>
-          <div className={styles.summaryCard}>
-            <span className={styles.summaryLabel}>{t('invoices.summaryPending')}</span>
-            <span className={styles.summaryCount}>{summary.pending.count}</span>
-            <span className={styles.summaryAmount}>
-              {formatCurrency(summary.pending.totalAmount)}
-            </span>
-          </div>
-          <div className={styles.summaryCard}>
-            <span className={styles.summaryLabel}>{t('invoices.summaryPaid')}</span>
-            <span className={styles.summaryCount}>
-              {summary.paid.count + summary.claimed.count}
-            </span>
-            <span className={`${styles.summaryAmount} ${styles.summaryAmountPaid}`}>
-              {formatCurrency(summary.paid.totalAmount + summary.claimed.totalAmount)}
-            </span>
-          </div>
-          <div className={styles.summaryCard}>
-            <span className={styles.summaryLabel}>{t('invoices.summaryQuotation')}</span>
-            <span className={styles.summaryCount}>{summary.quotation.count}</span>
-            <span className={styles.summaryAmount}>
-              {formatCurrency(summary.quotation.totalAmount)}
-            </span>
-          </div>
-        </div>
 
         {/* Section header */}
         <div className={styles.sectionHeader}>
@@ -280,354 +390,51 @@ export function InvoicesPage() {
         {error && (
           <div className={styles.errorBanner} role="alert">
             {error}
-            <button
-              type="button"
-              className={styles.retryButton}
-              onClick={() => void loadInvoices()}
-            >
-              {t('invoices.retryButton')}
-            </button>
           </div>
         )}
 
-        {/* Filter bar */}
-        <div className={styles.filterCard}>
-          <input
-            type="search"
-            placeholder={t('invoices.searchPlaceholder')}
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className={styles.searchInput}
-            aria-label={t('invoices.searchAriaLabel')}
-          />
-          <div className={styles.filterRow}>
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                const newParams = new URLSearchParams(searchParams);
-                if (e.target.value) {
-                  newParams.set('status', e.target.value);
-                } else {
-                  newParams.delete('status');
-                }
-                newParams.set('page', '1');
-                setSearchParams(newParams);
-              }}
-              className={styles.filterSelect}
-              aria-label={t('invoices.filterStatusAriaLabel')}
-            >
-              <option value="">{t('invoices.allStatuses')}</option>
-              <option value="pending">{t('invoices.statusLabels.pending')}</option>
-              <option value="paid">{t('invoices.statusLabels.paid')}</option>
-              <option value="claimed">{t('invoices.statusLabels.claimed')}</option>
-              <option value="quotation">{t('invoices.statusLabels.quotation')}</option>
-            </select>
-            <select
-              value={vendorFilter}
-              onChange={(e) => {
-                const newParams = new URLSearchParams(searchParams);
-                if (e.target.value) {
-                  newParams.set('vendorId', e.target.value);
-                } else {
-                  newParams.delete('vendorId');
-                }
-                newParams.set('page', '1');
-                setSearchParams(newParams);
-              }}
-              className={styles.filterSelect}
-              aria-label={t('invoices.filterVendorAriaLabel')}
-            >
-              <option value="">{t('invoices.allVendors')}</option>
-              {vendors.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
-            <div className={styles.sortControls}>
-              <label htmlFor="sort-select" className={styles.sortLabel}>
-                {t('invoices.sortLabel')}
-              </label>
-              <select
-                id="sort-select"
-                value={sortBy}
-                onChange={(e) => handleSortChange(e.target.value)}
-                className={styles.filterSelect}
-              >
-                <option value="date">{t('invoices.sortDate')}</option>
-                <option value="amount">{t('invoices.sortAmount')}</option>
-                <option value="status">{t('invoices.sortStatus')}</option>
-                <option value="vendor_name">{t('invoices.sortVendor')}</option>
-                <option value="due_date">{t('invoices.sortDueDate')}</option>
-              </select>
-              <button
-                type="button"
-                className={styles.sortOrderButton}
-                onClick={() => handleSortChange(sortBy)}
-                aria-label={t('invoices.sortOrderAriaLabel')}
-              >
-                {sortOrder === 'asc' ? t('invoices.sortAsc') : t('invoices.sortDesc')}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* List or empty state */}
-        {invoices.length === 0 ? (
-          <div className={styles.emptyState}>
-            {isFiltered ? (
-              <>
-                <h2 className={styles.emptyTitle}>{t('invoices.noFilterResults')}</h2>
-                <p className={styles.emptyText}>{t('invoices.tryDifferentFilters')}</p>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={() => {
-                    setSearchInput('');
-                    setSearchParams(new URLSearchParams());
-                  }}
-                >
-                  {t('invoices.clearFilters')}
-                </button>
-              </>
-            ) : (
-              <>
-                <h2 className={styles.emptyTitle}>{t('invoices.noInvoicesTitle')}</h2>
-                <p className={styles.emptyText}>{t('invoices.noInvoicesDescription')}</p>
+        <DataTable<Invoice>
+          pageKey="invoices"
+          columns={columns}
+          items={invoices}
+          totalItems={totalItems}
+          totalPages={totalPages}
+          currentPage={tableState.page}
+          pageSize={pageSize}
+          isLoading={isLoading}
+          getRowKey={(item) => item.id}
+          onRowClick={(item) => navigate(`/budget/invoices/${item.id}`)}
+          tableState={tableState}
+          onSortChange={setSort}
+          onPageChange={setPage}
+          visibleColumns={visibleColumns}
+          onToggleColumn={toggleColumn}
+          headerContent={filterBar}
+          hasActiveFilters={hasActiveFilters}
+          getCardTitle={(item) =>
+            item.invoiceNumber ? `#${item.invoiceNumber}` : t('invoices.noNumber')
+          }
+          emptyState={{
+            noData: {
+              title: t('invoices.noInvoicesTitle'),
+              description: t('invoices.noInvoicesDescription'),
+              action: (
                 <button type="button" className={styles.button} onClick={openCreateModal}>
                   {t('invoices.addFirstInvoice')}
                 </button>
-              </>
-            )}
-          </div>
-        ) : (
-          <>
-            {/* Desktop table */}
-            <div className={styles.tableContainer}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th
-                      className={styles.sortableHeader}
-                      onClick={() => handleSortChange('date')}
-                      aria-sort={
-                        sortBy === 'date'
-                          ? sortOrder === 'asc'
-                            ? 'ascending'
-                            : 'descending'
-                          : 'none'
-                      }
-                    >
-                      {t('invoices.tableHeaders.date')}
-                      {renderSortIcon('date')}
-                    </th>
-                    <th>{t('invoices.tableHeaders.invoiceNumber')}</th>
-                    <th
-                      className={styles.sortableHeader}
-                      onClick={() => handleSortChange('vendor_name')}
-                      aria-sort={
-                        sortBy === 'vendor_name'
-                          ? sortOrder === 'asc'
-                            ? 'ascending'
-                            : 'descending'
-                          : 'none'
-                      }
-                    >
-                      {t('invoices.tableHeaders.vendor')}
-                      {renderSortIcon('vendor_name')}
-                    </th>
-                    <th
-                      className={`${styles.sortableHeader} ${styles.amountHeader}`}
-                      onClick={() => handleSortChange('amount')}
-                      aria-sort={
-                        sortBy === 'amount'
-                          ? sortOrder === 'asc'
-                            ? 'ascending'
-                            : 'descending'
-                          : 'none'
-                      }
-                    >
-                      {t('invoices.tableHeaders.amount')}
-                      {renderSortIcon('amount')}
-                    </th>
-                    <th>{t('invoices.tableHeaders.allocated')}</th>
-                    <th
-                      className={styles.sortableHeader}
-                      onClick={() => handleSortChange('due_date')}
-                      aria-sort={
-                        sortBy === 'due_date'
-                          ? sortOrder === 'asc'
-                            ? 'ascending'
-                            : 'descending'
-                          : 'none'
-                      }
-                    >
-                      {t('invoices.tableHeaders.dueDate')}
-                      {renderSortIcon('due_date')}
-                    </th>
-                    <th
-                      className={styles.sortableHeader}
-                      onClick={() => handleSortChange('status')}
-                      aria-sort={
-                        sortBy === 'status'
-                          ? sortOrder === 'asc'
-                            ? 'ascending'
-                            : 'descending'
-                          : 'none'
-                      }
-                    >
-                      {t('invoices.tableHeaders.status')}
-                      {renderSortIcon('status')}
-                    </th>
-                    <th className={styles.actionsColumn}>{t('invoices.actionsHeader')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.map((invoice) => (
-                    <tr key={invoice.id} className={styles.tableRow}>
-                      <td>{formatDate(invoice.date)}</td>
-                      <td className={styles.invoiceNumberCell}>
-                        {invoice.invoiceNumber ? (
-                          <Link
-                            to={`/budget/invoices/${invoice.id}`}
-                            className={styles.invoiceLink}
-                          >
-                            {invoice.invoiceNumber}
-                          </Link>
-                        ) : (
-                          <Link
-                            to={`/budget/invoices/${invoice.id}`}
-                            className={`${styles.invoiceLink} ${styles.invoiceLinkNoNumber}`}
-                          >
-                            &mdash;
-                          </Link>
-                        )}
-                      </td>
-                      <td>
-                        <Link
-                          to={`/budget/vendors/${invoice.vendorId}`}
-                          className={styles.vendorLink}
-                        >
-                          {invoice.vendorName}
-                        </Link>
-                      </td>
-                      <td className={styles.amountCell}>{formatCurrency(invoice.amount)}</td>
-                      <td>{getAttributionLabel(invoice, t)}</td>
-                      <td>{invoice.dueDate ? formatDate(invoice.dueDate) : '\u2014'}</td>
-                      <td>
-                        <span
-                          className={`${styles.statusBadge} ${styles[`status_${invoice.status}`]}`}
-                        >
-                          {t(`invoices.statusLabels.${invoice.status}`)}
-                        </span>
-                      </td>
-                      <td className={styles.actionsCell}>
-                        <Link to={`/budget/invoices/${invoice.id}`} className={styles.viewButton}>
-                          {t('invoices.buttons.view')}
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile cards */}
-            <div className={styles.cardsContainer}>
-              {invoices.map((invoice) => (
-                <div key={invoice.id} className={styles.card}>
-                  <div className={styles.cardTop}>
-                    <div className={styles.cardLeft}>
-                      <Link
-                        to={`/budget/invoices/${invoice.id}`}
-                        className={styles.cardInvoiceNumber}
-                      >
-                        {invoice.invoiceNumber
-                          ? `#${invoice.invoiceNumber}`
-                          : t('invoices.noNumber')}
-                      </Link>
-                      <Link
-                        to={`/budget/vendors/${invoice.vendorId}`}
-                        className={styles.cardVendorName}
-                      >
-                        {invoice.vendorName}
-                      </Link>
-                    </div>
-                    <span className={`${styles.statusBadge} ${styles[`status_${invoice.status}`]}`}>
-                      {t(`invoices.statusLabels.${invoice.status}`)}
-                    </span>
-                  </div>
-                  <div className={styles.cardMeta}>
-                    <span className={styles.cardAmount}>{formatCurrency(invoice.amount)}</span>
-                    <span className={styles.cardDate}>{formatDate(invoice.date)}</span>
-                    {invoice.dueDate && (
-                      <span className={styles.cardDue}>
-                        {t('invoices.duePrefix')} {formatDate(invoice.dueDate)}
-                      </span>
-                    )}
-                  </div>
-                  <div className={styles.cardActions}>
-                    <Link to={`/budget/invoices/${invoice.id}`} className={styles.viewButton}>
-                      {t('invoices.buttons.view')}
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className={styles.pagination}>
-                <div className={styles.paginationInfo}>
-                  {t('invoices.pagination', {
-                    from: (currentPage - 1) * pageSize + 1,
-                    to: Math.min(currentPage * pageSize, totalItems),
-                    total: totalItems,
-                  })}
-                </div>
-                <div className={styles.paginationControls}>
-                  <button
-                    type="button"
-                    className={styles.paginationButton}
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    aria-label={t('invoices.paginationPreviousAriaLabel')}
-                  >
-                    {t('invoices.previous')}
-                  </button>
-                  <div className={styles.paginationPages}>
-                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                      let pageNum: number;
-                      if (totalPages <= 5) pageNum = i + 1;
-                      else if (currentPage <= 3) pageNum = i + 1;
-                      else if (currentPage >= totalPages - 2) pageNum = totalPages - 4 + i;
-                      else pageNum = currentPage - 2 + i;
-                      return (
-                        <button
-                          key={pageNum}
-                          type="button"
-                          className={`${styles.paginationButton} ${currentPage === pageNum ? styles.paginationButtonActive : ''}`}
-                          onClick={() => handlePageChange(pageNum)}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <button
-                    type="button"
-                    className={styles.paginationButton}
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    aria-label={t('invoices.paginationNextAriaLabel')}
-                  >
-                    {t('invoices.next')}
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+              ),
+            },
+            noResults: {
+              title: t('invoices.noFilterResults'),
+              description: t('invoices.tryDifferentFilters'),
+              action: (
+                <button type="button" className={styles.secondaryButton} onClick={clearFilters}>
+                  {t('invoices.clearFilters')}
+                </button>
+              ),
+            },
+          }}
+        />
       </div>
 
       {/* Create invoice modal */}

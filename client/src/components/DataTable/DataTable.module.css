@@ -1,0 +1,384 @@
+/* ============================================================
+ * DataTable — Shared table/card/pagination component styles
+ * Extracted from WorkItemsPage, HouseholdItemsPage, etc.
+ * ============================================================ */
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+/* ============================================================
+ * Loading & Empty States
+ * ============================================================ */
+
+.skeletonContainer {
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-8);
+  box-shadow: var(--shadow-md);
+}
+
+.emptyState {
+  text-align: center;
+  padding: var(--spacing-16) var(--spacing-8);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.emptyStateTitle {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-2) 0;
+}
+
+.emptyStateDescription {
+  color: var(--color-text-muted);
+  margin: 0 0 var(--spacing-4) 0;
+}
+
+/* ============================================================
+ * Table Toolbar (column settings)
+ * ============================================================ */
+
+.tableToolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ============================================================
+ * Column Settings Popover
+ * ============================================================ */
+
+.columnSettings {
+  position: relative;
+  display: inline-block;
+}
+
+.columnSettingsButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  padding: var(--spacing-1-5) var(--spacing-3);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color var(--transition-medium);
+}
+
+.columnSettingsButton:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.columnSettingsDropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: var(--spacing-1);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  min-width: 200px;
+  z-index: 20;
+  padding: var(--spacing-2) 0;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.columnSettingsItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--transition-medium);
+}
+
+.columnSettingsItem:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.columnSettingsCheckbox {
+  accent-color: var(--color-primary);
+}
+
+/* ============================================================
+ * Desktop Table
+ * ============================================================ */
+
+.tableContainer {
+  display: block;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table thead {
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table th {
+  padding: var(--spacing-3) var(--spacing-4);
+  text-align: left;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.sortableHeader {
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--transition-medium);
+}
+
+.sortableHeader:hover {
+  color: var(--color-primary-hover);
+}
+
+.actionsColumn {
+  width: 80px;
+  text-align: center;
+}
+
+.table tbody tr {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.tableRow {
+  cursor: pointer;
+  transition: background-color var(--transition-medium);
+}
+
+.tableRow:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.tableRowSelected {
+  background-color: var(--color-primary-bg);
+}
+
+.tableRowSelected:hover {
+  background-color: var(--color-primary-bg-hover);
+}
+
+.table td {
+  padding: var(--spacing-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.actionsCell {
+  text-align: center;
+}
+
+/* ============================================================
+ * Mobile Card View
+ * ============================================================ */
+
+.cardsContainer {
+  display: none;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.card {
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+  box-shadow: var(--shadow-md);
+  transition: box-shadow var(--transition-medium);
+}
+
+.cardClickable {
+  cursor: pointer;
+}
+
+.cardClickable:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-3);
+  padding-bottom: var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cardTitle {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+  flex: 1;
+  padding-right: var(--spacing-2);
+}
+
+.cardActions {
+  flex-shrink: 0;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.cardRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+}
+
+.cardLabel {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.cardValue {
+  color: var(--color-text-secondary);
+  flex: 1;
+  min-width: 0;
+}
+
+/* ============================================================
+ * Pagination
+ * ============================================================ */
+
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.paginationInfo {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.paginationControls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.paginationPages {
+  display: flex;
+  gap: var(--spacing-1);
+}
+
+.paginationButton {
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-medium),
+    border-color var(--transition-medium);
+  min-width: 44px;
+}
+
+.paginationButton:hover:not(:disabled) {
+  background-color: var(--color-bg-tertiary);
+  border-color: var(--color-text-placeholder);
+}
+
+.paginationButton:disabled {
+  color: var(--color-text-placeholder);
+  cursor: not-allowed;
+}
+
+.paginationButtonActive {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  color: var(--color-primary-text);
+}
+
+.paginationButtonActive:hover {
+  background-color: var(--color-primary-active);
+  border-color: var(--color-primary-active);
+}
+
+/* ============================================================
+ * Responsive
+ * ============================================================ */
+
+@media (max-width: 767px) {
+  .tableContainer {
+    display: none;
+  }
+
+  .cardsContainer {
+    display: flex;
+  }
+
+  .tableToolbar {
+    display: none;
+  }
+
+  .pagination {
+    flex-direction: column;
+    gap: var(--spacing-3);
+    align-items: stretch;
+  }
+
+  .paginationInfo {
+    text-align: center;
+  }
+
+  .paginationControls {
+    flex-direction: column;
+  }
+
+  .paginationPages {
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tableRow,
+  .card,
+  .cardClickable,
+  .sortableHeader,
+  .paginationButton,
+  .columnSettingsButton {
+    transition: none;
+  }
+}

@@ -89,6 +89,19 @@
     "usersGroup": "Benutzer",
     "vendorsGroup": "Auftragnehmer"
   },
+  "dataTable": {
+    "columns": {
+      "button": "Spalten",
+      "toggleAriaLabel": "Spaltenvisibilität umschalten"
+    },
+    "pagination": {
+      "showing": "{{from}} bis {{to}} von {{total}}",
+      "previous": "Zurück",
+      "next": "Weiter",
+      "previousAriaLabel": "Zur vorherigen Seite",
+      "nextAriaLabel": "Zur nächsten Seite"
+    }
+  },
   "subnav": {
     "project": {
       "overview": "Übersicht",

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { WorkItemSummary, WorkItemStatus, UserResponse } from '@cornerstone/shared';
 import { listWorkItems, deleteWorkItem } from '../../lib/workItemsApi.js';
@@ -14,11 +14,14 @@ import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/Ke
 import { useFormatters } from '../../lib/formatters.js';
 import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
+import { DataTable } from '../../components/DataTable/DataTable.js';
+import type { ColumnDef } from '../../components/DataTable/DataTable.js';
+import { useTableState } from '../../hooks/useTableState.js';
+import { useColumnPreferences } from '../../hooks/useColumnPreferences.js';
 import styles from './WorkItemsPage.module.css';
 
 export function WorkItemsPage() {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { formatDate } = useFormatters();
   const navigate = useNavigate();
   const { t } = useTranslation('workItems');
   const { areas } = useAreas();
@@ -38,33 +41,26 @@ export function WorkItemsPage() {
   }, [error]);
 
   // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const pageSize = 25;
 
-  // Filter and search state from URL
-  const searchQuery = searchParams.get('q') || '';
-  const statusFilter = searchParams.get('status') as WorkItemStatus | null;
-  const assignedUserFilter = searchParams.get('assignedUserId') || '';
-  const areaFilter = searchParams.get('areaId') || '';
-  const assignedVendorFilter = searchParams.get('assignedVendorId') || '';
-  const noBudgetFilter = searchParams.get('noBudget') === 'true';
-  const sortBy =
-    (searchParams.get('sortBy') as
-      | 'title'
-      | 'status'
-      | 'start_date'
-      | 'end_date'
-      | 'created_at'
-      | 'updated_at'
-      | null) || 'created_at';
-  const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc';
-  const urlPage = parseInt(searchParams.get('page') || '1', 10);
-
-  // Search debounce
-  const [searchInput, setSearchInput] = useState(searchQuery);
-  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  // Table state
+  const {
+    tableState,
+    searchInput,
+    setSearchInput,
+    searchInputRef,
+    setFilter,
+    setSort,
+    setPage,
+    clearFilters,
+    hasActiveFilters,
+    toApiParams,
+  } = useTableState({
+    defaultSort: { sortBy: 'created_at', sortOrder: 'desc' },
+    filterKeys: ['status', 'assignedUserId', 'areaId', 'assignedVendorId', 'noBudget'],
+  });
 
   // Delete confirmation state
   const [deletingWorkItem, setDeletingWorkItem] = useState<WorkItemSummary | null>(null);
@@ -77,10 +73,117 @@ export function WorkItemsPage() {
   // Keyboard shortcuts state
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Screen reader announcement for filter toggle
   const [srMessage, setSrMessage] = useState('');
+
+  // Column definitions
+  const WORK_ITEM_STATUS_VARIANTS = useMemo(
+    () => ({
+      not_started: {
+        label: t('create.fields.statusOptions.notStarted'),
+        className: badgeStyles.not_started,
+      },
+      in_progress: {
+        label: t('create.fields.statusOptions.inProgress'),
+        className: badgeStyles.in_progress,
+      },
+      completed: {
+        label: t('create.fields.statusOptions.completed'),
+        className: badgeStyles.completed,
+      },
+    }),
+    [t],
+  );
+
+  const columns: ColumnDef<WorkItemSummary>[] = useMemo(
+    () => [
+      {
+        key: 'title',
+        label: t('list.table.title'),
+        type: 'string',
+        sortable: true,
+        defaultVisible: true,
+        render: (item) => <span className={styles.titleCell}>{item.title}</span>,
+      },
+      {
+        key: 'status',
+        label: t('list.table.status'),
+        type: 'enum',
+        sortable: true,
+        defaultVisible: true,
+        render: (item) => <Badge variants={WORK_ITEM_STATUS_VARIANTS} value={item.status} />,
+      },
+      {
+        key: 'assignedUser',
+        label: t('list.table.assignedTo'),
+        type: 'string',
+        defaultVisible: true,
+        render: (item) => item.assignedUser?.displayName || '\u2014',
+      },
+      {
+        key: 'startDate',
+        label: t('list.table.startDate'),
+        type: 'date',
+        sortable: true,
+        sortKey: 'start_date',
+        defaultVisible: true,
+        render: (item) => formatDate(item.startDate),
+      },
+      {
+        key: 'endDate',
+        label: t('list.table.endDate'),
+        type: 'date',
+        sortable: true,
+        sortKey: 'end_date',
+        defaultVisible: true,
+        render: (item) => formatDate(item.endDate),
+      },
+      {
+        key: 'budgetLines',
+        label: t('list.table.budgetLines'),
+        type: 'number',
+        defaultVisible: true,
+        headerClassName: styles.budgetLinesColumn,
+        cellClassName: styles.budgetLinesCell,
+        render: (item) => (
+          <span
+            className={
+              item.budgetLineCount > 0
+                ? styles.budgetLineCountPositive
+                : styles.budgetLineCountZero
+            }
+            aria-label={t('list.table.budgetLinesAriaLabel', {
+              count: item.budgetLineCount,
+            })}
+          >
+            {item.budgetLineCount}
+          </span>
+        ),
+      },
+      {
+        key: 'createdAt',
+        label: t('list.sortOptions.createdAt'),
+        type: 'date',
+        sortable: true,
+        sortKey: 'created_at',
+        defaultVisible: false,
+        render: (item) => formatDate(item.createdAt),
+      },
+      {
+        key: 'updatedAt',
+        label: t('list.sortOptions.updatedAt'),
+        type: 'date',
+        sortable: true,
+        sortKey: 'updated_at',
+        defaultVisible: false,
+        render: (item) => formatDate(item.updatedAt),
+      },
+    ],
+    [t, formatDate, WORK_ITEM_STATUS_VARIANTS],
+  );
+
+  const { visibleColumns, toggleColumn } = useColumnPreferences('workItems', columns);
 
   // Load users and vendors on mount
   useEffect(() => {
@@ -99,37 +202,6 @@ export function WorkItemsPage() {
     loadFilters();
   }, []);
 
-  // Sync current page with URL
-  useEffect(() => {
-    if (urlPage !== currentPage) {
-      setCurrentPage(urlPage);
-    }
-  }, [urlPage, currentPage]);
-
-  // Debounced search
-  useEffect(() => {
-    if (searchDebounceRef.current) {
-      clearTimeout(searchDebounceRef.current);
-    }
-
-    searchDebounceRef.current = setTimeout(() => {
-      const newParams = new URLSearchParams(searchParams);
-      if (searchInput) {
-        newParams.set('q', searchInput);
-      } else {
-        newParams.delete('q');
-      }
-      newParams.set('page', '1');
-      setSearchParams(newParams);
-    }, 300);
-
-    return () => {
-      if (searchDebounceRef.current) {
-        clearTimeout(searchDebounceRef.current);
-      }
-    };
-  }, [searchInput, searchParams, setSearchParams]);
-
   // Load work items when filters/page changes
   useEffect(() => {
     const fetchData = async () => {
@@ -137,17 +209,18 @@ export function WorkItemsPage() {
       setError('');
 
       try {
+        const params = toApiParams();
         const response = await listWorkItems({
-          page: currentPage,
+          page: params.page as number,
           pageSize,
-          status: statusFilter || undefined,
-          assignedUserId: assignedUserFilter || undefined,
-          areaId: areaFilter || undefined,
-          assignedVendorId: assignedVendorFilter || undefined,
-          q: searchQuery || undefined,
-          sortBy,
-          sortOrder,
-          noBudget: noBudgetFilter || undefined,
+          status: (params.status as string) || undefined,
+          assignedUserId: (params.assignedUserId as string) || undefined,
+          areaId: (params.areaId as string) || undefined,
+          assignedVendorId: (params.assignedVendorId as string) || undefined,
+          q: (params.q as string) || undefined,
+          sortBy: params.sortBy as string,
+          sortOrder: params.sortOrder as 'asc' | 'desc',
+          noBudget: params.noBudget as boolean | undefined,
         });
 
         setWorkItems(response.items);
@@ -165,17 +238,7 @@ export function WorkItemsPage() {
     };
 
     fetchData();
-  }, [
-    searchQuery,
-    statusFilter,
-    assignedUserFilter,
-    areaFilter,
-    assignedVendorFilter,
-    noBudgetFilter,
-    sortBy,
-    sortOrder,
-    currentPage,
-  ]);
+  }, [tableState, toApiParams, t]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -199,17 +262,18 @@ export function WorkItemsPage() {
     setError('');
 
     try {
+      const params = toApiParams();
       const response = await listWorkItems({
-        page: currentPage,
+        page: params.page as number,
         pageSize,
-        status: statusFilter || undefined,
-        assignedUserId: assignedUserFilter || undefined,
-        areaId: areaFilter || undefined,
-        assignedVendorId: assignedVendorFilter || undefined,
-        q: searchQuery || undefined,
-        sortBy,
-        sortOrder,
-        noBudget: noBudgetFilter || undefined,
+        status: (params.status as string) || undefined,
+        assignedUserId: (params.assignedUserId as string) || undefined,
+        areaId: (params.areaId as string) || undefined,
+        assignedVendorId: (params.assignedVendorId as string) || undefined,
+        q: (params.q as string) || undefined,
+        sortBy: params.sortBy as string,
+        sortOrder: params.sortOrder as 'asc' | 'desc',
+        noBudget: params.noBudget as boolean | undefined,
       });
 
       setWorkItems(response.items);
@@ -226,52 +290,9 @@ export function WorkItemsPage() {
     }
   };
 
-  const updateSearchParams = (updates: Record<string, string | undefined>) => {
-    const newParams = new URLSearchParams(searchParams);
-
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value === undefined || value === '') {
-        newParams.delete(key);
-      } else {
-        newParams.set(key, value);
-      }
-    });
-
-    setSearchParams(newParams);
-  };
-
-  const handleStatusFilterChange = (status: string) => {
-    updateSearchParams({ status: status || undefined, page: '1' });
-  };
-
-  const handleUserFilterChange = (userId: string) => {
-    updateSearchParams({ assignedUserId: userId || undefined, page: '1' });
-  };
-
-  const handleAreaFilterChange = (areaId: string) => {
-    updateSearchParams({ areaId: areaId || undefined, page: '1' });
-  };
-
-  const handleVendorFilterChange = (vendorId: string) => {
-    updateSearchParams({ assignedVendorId: vendorId || undefined, page: '1' });
-  };
-
   const handleNoBudgetFilterChange = (checked: boolean) => {
-    updateSearchParams({ noBudget: checked ? 'true' : undefined, page: '1' });
+    setFilter('noBudget', checked ? 'true' : undefined);
     setSrMessage(checked ? t('list.filters.noBudgetActive') : t('list.filters.noBudgetInactive'));
-  };
-
-  const handleSortChange = (field: string) => {
-    const newSortOrder = sortBy === field && sortOrder === 'asc' ? 'desc' : 'asc';
-    updateSearchParams({ sortBy: field, sortOrder: newSortOrder });
-  };
-
-  const handlePageChange = (page: number) => {
-    updateSearchParams({ page: page.toString() });
-  };
-
-  const handleRowClick = (workItemId: string) => {
-    navigate(`/project/work-items/${workItemId}`);
   };
 
   const handleDeleteClick = (workItem: WorkItemSummary, event: React.MouseEvent) => {
@@ -300,10 +321,59 @@ export function WorkItemsPage() {
     }
   };
 
-  const renderSortIcon = (field: string) => {
-    if (sortBy !== field) return null;
-    return sortOrder === 'asc' ? ' ↑' : ' ↓';
-  };
+  // Build status options
+  const STATUS_OPTIONS: { value: WorkItemStatus; label: string }[] = useMemo(
+    () => [
+      { value: 'not_started', label: t('create.fields.statusOptions.notStarted') },
+      { value: 'in_progress', label: t('create.fields.statusOptions.inProgress') },
+      { value: 'completed', label: t('create.fields.statusOptions.completed') },
+    ],
+    [t],
+  );
+
+  const SORT_OPTIONS: { value: string; label: string }[] = useMemo(
+    () => [
+      { value: 'title', label: t('list.sortOptions.title') },
+      { value: 'status', label: t('list.sortOptions.status') },
+      { value: 'start_date', label: t('list.sortOptions.startDate') },
+      { value: 'end_date', label: t('list.sortOptions.endDate') },
+      { value: 'created_at', label: t('list.sortOptions.createdAt') },
+      { value: 'updated_at', label: t('list.sortOptions.updatedAt') },
+    ],
+    [t],
+  );
+
+  // Render actions for each row
+  const renderActions = (item: WorkItemSummary) => (
+    <div className={styles.actionsMenu}>
+      <button
+        type="button"
+        className={styles.menuButton}
+        onClick={() => setActiveMenuId(activeMenuId === item.id ? null : item.id)}
+        aria-label={t('list.actions.actionsMenu')}
+      >
+        &#x22EE;
+      </button>
+      {activeMenuId === item.id && (
+        <div className={styles.menuDropdown}>
+          <button
+            type="button"
+            className={styles.menuItem}
+            onClick={() => navigate(`/project/work-items/${item.id}`)}
+          >
+            {t('list.actions.edit')}
+          </button>
+          <button
+            type="button"
+            className={`${styles.menuItem} ${styles.menuItemDanger}`}
+            onClick={(e) => handleDeleteClick(item, e)}
+          >
+            {t('list.actions.delete')}
+          </button>
+        </div>
+      )}
+    </div>
+  );
 
   // Keyboard shortcuts
   const shortcuts = useMemo(
@@ -368,7 +438,7 @@ export function WorkItemsPage() {
         description: t('list.shortcuts.closeOrCancel'),
       },
     ],
-    [navigate, workItems, selectedIndex, showShortcutsHelp, deletingWorkItem, activeMenuId, t],
+    [navigate, workItems, selectedIndex, showShortcutsHelp, deletingWorkItem, activeMenuId, t, searchInputRef],
   );
 
   useKeyboardShortcuts(shortcuts);
@@ -380,53 +450,136 @@ export function WorkItemsPage() {
     }
   }, [workItems.length, selectedIndex]);
 
-  // Build status options inside component
-  const STATUS_OPTIONS: { value: WorkItemStatus; label: string }[] = useMemo(
-    () => [
-      { value: 'not_started', label: t('list.sortOptions.status') },
-      { value: 'in_progress', label: t('create.fields.statusOptions.inProgress') },
-      { value: 'completed', label: t('create.fields.statusOptions.completed') },
-    ],
-    [t],
-  );
+  const noBudgetFilter = tableState.filters.noBudget === 'true';
 
-  const WORK_ITEM_STATUS_VARIANTS = useMemo(
-    () => ({
-      not_started: {
-        label: t('create.fields.statusOptions.notStarted'),
-        className: badgeStyles.not_started,
-      },
-      in_progress: {
-        label: t('create.fields.statusOptions.inProgress'),
-        className: badgeStyles.in_progress,
-      },
-      completed: {
-        label: t('create.fields.statusOptions.completed'),
-        className: badgeStyles.completed,
-      },
-    }),
-    [t],
-  );
-
-  const SORT_OPTIONS: { value: string; label: string }[] = useMemo(
-    () => [
-      { value: 'title', label: t('list.sortOptions.title') },
-      { value: 'status', label: t('list.sortOptions.status') },
-      { value: 'start_date', label: t('list.sortOptions.startDate') },
-      { value: 'end_date', label: t('list.sortOptions.endDate') },
-      { value: 'created_at', label: t('list.sortOptions.createdAt') },
-      { value: 'updated_at', label: t('list.sortOptions.updatedAt') },
-    ],
-    [t],
-  );
-
-  if (isLoading && workItems.length === 0) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.loading}>{t('list.loading')}</div>
+  // Filter bar as headerContent for DataTable
+  const filterBar = (
+    <div className={styles.filtersCard}>
+      <div className={styles.searchRow}>
+        <input
+          ref={searchInputRef}
+          type="search"
+          placeholder={t('list.search.placeholder')}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          className={styles.searchInput}
+          aria-label={t('list.search.ariaLabel')}
+        />
       </div>
-    );
-  }
+
+      <div className={styles.filtersRow}>
+        <div className={styles.filter}>
+          <label htmlFor="status-filter" className={styles.filterLabel}>
+            {t('list.filters.status')}
+          </label>
+          <select
+            id="status-filter"
+            value={tableState.filters.status || ''}
+            onChange={(e) => setFilter('status', e.target.value || undefined)}
+            className={styles.filterSelect}
+          >
+            <option value="">{t('list.filters.allStatuses')}</option>
+            {STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className={styles.filter}>
+          <label htmlFor="user-filter" className={styles.filterLabel}>
+            {t('list.filters.assignedTo')}
+          </label>
+          <select
+            id="user-filter"
+            value={tableState.filters.assignedUserId || ''}
+            onChange={(e) => setFilter('assignedUserId', e.target.value || undefined)}
+            className={styles.filterSelect}
+          >
+            <option value="">{t('list.filters.allUsers')}</option>
+            {users.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.displayName}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className={styles.filter}>
+          <label className={styles.filterLabel}>{t('list.filters.area')}</label>
+          <AreaPicker
+            areas={areas}
+            value={tableState.filters.areaId || ''}
+            onChange={(areaId: string) => setFilter('areaId', areaId || undefined)}
+            nullable={true}
+            specialOptions={[{ id: '', label: t('list.filters.allAreas') }]}
+          />
+        </div>
+
+        <div className={styles.filter}>
+          <label htmlFor="vendor-filter" className={styles.filterLabel}>
+            {t('list.filters.assignedVendor')}
+          </label>
+          <select
+            id="vendor-filter"
+            value={tableState.filters.assignedVendorId || ''}
+            onChange={(e) => setFilter('assignedVendorId', e.target.value || undefined)}
+            className={styles.filterSelect}
+          >
+            <option value="">{t('list.filters.allVendors')}</option>
+            {vendors.map((vendor) => (
+              <option key={vendor.id} value={vendor.id}>
+                {vendor.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          type="button"
+          className={styles.noBudgetToggle}
+          aria-pressed={noBudgetFilter}
+          aria-label={t('list.filters.noBudgetAriaLabel')}
+          onClick={() => handleNoBudgetFilterChange(!noBudgetFilter)}
+        >
+          {t('list.filters.noBudget')}
+        </button>
+        <span className={styles.srOnly} role="status" aria-atomic="true">
+          {srMessage}
+        </span>
+
+        <div className={styles.filter}>
+          <label htmlFor="sort-filter" className={styles.filterLabel}>
+            {t('list.filters.sortBy')}
+          </label>
+          <select
+            id="sort-filter"
+            value={tableState.sort.sortBy}
+            onChange={(e) => setSort(e.target.value)}
+            className={styles.filterSelect}
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          type="button"
+          className={styles.secondaryButton}
+          onClick={() => setSort(tableState.sort.sortBy)}
+          aria-label={t('list.filters.toggleSortOrder')}
+        >
+          {tableState.sort.sortOrder === 'asc'
+            ? t('list.filters.sortAscending')
+            : t('list.filters.sortDescending')}
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className={styles.container} ref={containerRef}>
@@ -448,155 +601,32 @@ export function WorkItemsPage() {
         </div>
       )}
 
-      {/* Search and filters */}
-      <div className={styles.filtersCard}>
-        <div className={styles.searchRow}>
-          <input
-            ref={searchInputRef}
-            type="search"
-            placeholder={t('list.search.placeholder')}
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className={styles.searchInput}
-            aria-label={t('list.search.ariaLabel')}
-          />
-        </div>
-
-        <div className={styles.filtersRow}>
-          <div className={styles.filter}>
-            <label htmlFor="status-filter" className={styles.filterLabel}>
-              {t('list.filters.status')}
-            </label>
-            <select
-              id="status-filter"
-              value={statusFilter || ''}
-              onChange={(e) => handleStatusFilterChange(e.target.value)}
-              className={styles.filterSelect}
-            >
-              <option value="">{t('list.filters.allStatuses')}</option>
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className={styles.filter}>
-            <label htmlFor="user-filter" className={styles.filterLabel}>
-              {t('list.filters.assignedTo')}
-            </label>
-            <select
-              id="user-filter"
-              value={assignedUserFilter}
-              onChange={(e) => handleUserFilterChange(e.target.value)}
-              className={styles.filterSelect}
-            >
-              <option value="">{t('list.filters.allUsers')}</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.displayName}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className={styles.filter}>
-            <label className={styles.filterLabel}>{t('list.filters.area')}</label>
-            <AreaPicker
-              areas={areas}
-              value={areaFilter}
-              onChange={handleAreaFilterChange}
-              nullable={true}
-              specialOptions={[{ id: '', label: t('list.filters.allAreas') }]}
-            />
-          </div>
-
-          <div className={styles.filter}>
-            <label htmlFor="vendor-filter" className={styles.filterLabel}>
-              {t('list.filters.assignedVendor')}
-            </label>
-            <select
-              id="vendor-filter"
-              value={assignedVendorFilter}
-              onChange={(e) => handleVendorFilterChange(e.target.value)}
-              className={styles.filterSelect}
-            >
-              <option value="">{t('list.filters.allVendors')}</option>
-              {vendors.map((vendor) => (
-                <option key={vendor.id} value={vendor.id}>
-                  {vendor.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <button
-            type="button"
-            className={styles.noBudgetToggle}
-            aria-pressed={noBudgetFilter}
-            aria-label={t('list.filters.noBudgetAriaLabel')}
-            onClick={() => handleNoBudgetFilterChange(!noBudgetFilter)}
-          >
-            {t('list.filters.noBudget')}
-          </button>
-          <span className={styles.srOnly} role="status" aria-atomic="true">
-            {srMessage}
-          </span>
-
-          <div className={styles.filter}>
-            <label htmlFor="sort-filter" className={styles.filterLabel}>
-              {t('list.filters.sortBy')}
-            </label>
-            <select
-              id="sort-filter"
-              value={sortBy}
-              onChange={(e) => handleSortChange(e.target.value)}
-              className={styles.filterSelect}
-            >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <button
-            type="button"
-            className={styles.secondaryButton}
-            onClick={() => handleSortChange(sortBy)}
-            aria-label={t('list.filters.toggleSortOrder')}
-          >
-            {sortOrder === 'asc'
-              ? t('list.filters.sortAscending')
-              : t('list.filters.sortDescending')}
-          </button>
-        </div>
-      </div>
-
-      {/* Work items list */}
-      {workItems.length === 0 ? (
-        <div className={styles.emptyState}>
-          {searchQuery || statusFilter || assignedUserFilter || noBudgetFilter ? (
-            <>
-              <h2>{t('list.empty.noMatchTitle')}</h2>
-              <p>{t('list.empty.noMatchText')}</p>
-              <button
-                type="button"
-                className={styles.secondaryButton}
-                onClick={() => {
-                  setSearchInput('');
-                  setSearchParams(new URLSearchParams());
-                }}
-              >
-                {t('list.empty.clearFilters')}
-              </button>
-            </>
-          ) : (
-            <>
-              <h2>{t('list.empty.noItemsTitle')}</h2>
-              <p>{t('list.empty.noItemsText')}</p>
+      <DataTable<WorkItemSummary>
+        pageKey="workItems"
+        columns={columns}
+        items={workItems}
+        totalItems={totalItems}
+        totalPages={totalPages}
+        currentPage={tableState.page}
+        pageSize={pageSize}
+        isLoading={isLoading}
+        getRowKey={(item) => item.id}
+        onRowClick={(item) => navigate(`/project/work-items/${item.id}`)}
+        renderActions={renderActions}
+        tableState={tableState}
+        onSortChange={setSort}
+        onPageChange={setPage}
+        visibleColumns={visibleColumns}
+        onToggleColumn={toggleColumn}
+        headerContent={filterBar}
+        hasActiveFilters={hasActiveFilters}
+        selectedIndex={selectedIndex}
+        getCardTitle={(item) => item.title}
+        emptyState={{
+          noData: {
+            title: t('list.empty.noItemsTitle'),
+            description: t('list.empty.noItemsText'),
+            action: (
               <button
                 type="button"
                 className={styles.primaryButton}
@@ -604,241 +634,23 @@ export function WorkItemsPage() {
               >
                 {t('list.empty.createFirst')}
               </button>
-            </>
-          )}
-        </div>
-      ) : (
-        <>
-          {/* Desktop table view */}
-          <div className={styles.tableContainer}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th className={styles.sortableHeader} onClick={() => handleSortChange('title')}>
-                    {t('list.table.title')}
-                    {renderSortIcon('title')}
-                  </th>
-                  <th className={styles.sortableHeader} onClick={() => handleSortChange('status')}>
-                    {t('list.table.status')}
-                    {renderSortIcon('status')}
-                  </th>
-                  <th>{t('list.table.assignedTo')}</th>
-                  <th
-                    className={styles.sortableHeader}
-                    onClick={() => handleSortChange('start_date')}
-                  >
-                    {t('list.table.startDate')}
-                    {renderSortIcon('start_date')}
-                  </th>
-                  <th
-                    className={styles.sortableHeader}
-                    onClick={() => handleSortChange('end_date')}
-                  >
-                    {t('list.table.endDate')}
-                    {renderSortIcon('end_date')}
-                  </th>
-                  <th className={styles.budgetLinesColumn}>{t('list.table.budgetLines')}</th>
-                  <th className={styles.actionsColumn}>{t('list.table.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {workItems.map((item, index) => (
-                  <tr
-                    key={item.id}
-                    className={`${styles.tableRow} ${index === selectedIndex ? styles.tableRowSelected : ''}`}
-                    onClick={() => handleRowClick(item.id)}
-                  >
-                    <td className={styles.titleCell}>{item.title}</td>
-                    <td>
-                      <Badge variants={WORK_ITEM_STATUS_VARIANTS} value={item.status} />
-                    </td>
-                    <td>{item.assignedUser?.displayName || '—'}</td>
-                    <td>{formatDate(item.startDate)}</td>
-                    <td>{formatDate(item.endDate)}</td>
-                    <td className={styles.budgetLinesCell}>
-                      <span
-                        className={
-                          item.budgetLineCount > 0
-                            ? styles.budgetLineCountPositive
-                            : styles.budgetLineCountZero
-                        }
-                        aria-label={t('list.table.budgetLinesAriaLabel', {
-                          count: item.budgetLineCount,
-                        })}
-                      >
-                        {item.budgetLineCount}
-                      </span>
-                    </td>
-                    <td className={styles.actionsCell} onClick={(e) => e.stopPropagation()}>
-                      <div className={styles.actionsMenu}>
-                        <button
-                          type="button"
-                          className={styles.menuButton}
-                          onClick={() => setActiveMenuId(activeMenuId === item.id ? null : item.id)}
-                          aria-label={t('list.actions.actionsMenu')}
-                        >
-                          ⋮
-                        </button>
-                        {activeMenuId === item.id && (
-                          <div className={styles.menuDropdown}>
-                            <button
-                              type="button"
-                              className={styles.menuItem}
-                              onClick={() => navigate(`/project/work-items/${item.id}`)}
-                            >
-                              {t('list.actions.edit')}
-                            </button>
-                            <button
-                              type="button"
-                              className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                              onClick={(e) => handleDeleteClick(item, e)}
-                            >
-                              {t('list.actions.delete')}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile card view */}
-          <div className={styles.cardsContainer}>
-            {workItems.map((item) => (
-              <div key={item.id} className={styles.card} onClick={() => handleRowClick(item.id)}>
-                <div className={styles.cardHeader}>
-                  <h3 className={styles.cardTitle}>{item.title}</h3>
-                  <div className={styles.cardActions} onClick={(e) => e.stopPropagation()}>
-                    <div className={styles.actionsMenu}>
-                      <button
-                        type="button"
-                        className={styles.menuButton}
-                        onClick={() => setActiveMenuId(activeMenuId === item.id ? null : item.id)}
-                        aria-label={t('list.actions.actionsMenu')}
-                      >
-                        ⋮
-                      </button>
-                      {activeMenuId === item.id && (
-                        <div className={styles.menuDropdown}>
-                          <button
-                            type="button"
-                            className={styles.menuItem}
-                            onClick={() => navigate(`/project/work-items/${item.id}`)}
-                          >
-                            {t('list.actions.edit')}
-                          </button>
-                          <button
-                            type="button"
-                            className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                            onClick={(e) => handleDeleteClick(item, e)}
-                          >
-                            {t('list.actions.delete')}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className={styles.cardBody}>
-                  <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>{t('list.card.status')}</span>
-                    <Badge variants={WORK_ITEM_STATUS_VARIANTS} value={item.status} />
-                  </div>
-                  <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>{t('list.card.assigned')}</span>
-                    <span>{item.assignedUser?.displayName || '—'}</span>
-                  </div>
-                  <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>{t('list.card.start')}</span>
-                    <span>{formatDate(item.startDate)}</span>
-                  </div>
-                  <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>{t('list.card.end')}</span>
-                    <span>{formatDate(item.endDate)}</span>
-                  </div>
-                  <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>{t('list.card.budgetLines')}</span>
-                    <span
-                      className={
-                        item.budgetLineCount > 0
-                          ? styles.budgetLineCountPositive
-                          : styles.budgetLineCountZero
-                      }
-                      aria-label={t('list.table.budgetLinesAriaLabel', {
-                        count: item.budgetLineCount,
-                      })}
-                    >
-                      {item.budgetLineCount}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className={styles.pagination}>
-              <div className={styles.paginationInfo}>
-                {t('list.pagination.showing', {
-                  from: (currentPage - 1) * pageSize + 1,
-                  to: Math.min(currentPage * pageSize, totalItems),
-                  total: totalItems,
-                })}
-              </div>
-              <div className={styles.paginationControls}>
-                <button
-                  type="button"
-                  className={styles.paginationButton}
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  aria-label={t('list.pagination.previousAriaLabel')}
-                >
-                  {t('list.pagination.previous')}
-                </button>
-                <div className={styles.paginationPages}>
-                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                    let pageNum: number;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1;
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = currentPage - 2 + i;
-                    }
-                    return (
-                      <button
-                        key={pageNum}
-                        type="button"
-                        className={`${styles.paginationButton} ${
-                          currentPage === pageNum ? styles.paginationButtonActive : ''
-                        }`}
-                        onClick={() => handlePageChange(pageNum)}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  type="button"
-                  className={styles.paginationButton}
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  aria-label={t('list.pagination.nextAriaLabel')}
-                >
-                  {t('list.pagination.next')}
-                </button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+            ),
+          },
+          noResults: {
+            title: t('list.empty.noMatchTitle'),
+            description: t('list.empty.noMatchText'),
+            action: (
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={clearFilters}
+              >
+                {t('list.empty.clearFilters')}
+              </button>
+            ),
+          },
+        }}
+      />
 
       {/* Delete confirmation modal */}
       {deletingWorkItem && (

@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   listUsers,
@@ -10,6 +10,10 @@ import {
 import { ApiClientError } from '../../lib/apiClient.js';
 import type { UserResponse } from '@cornerstone/shared';
 import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.js';
+import { DataTable } from '../../components/DataTable/DataTable.js';
+import type { ColumnDef } from '../../components/DataTable/DataTable.js';
+import type { TableState } from '../../hooks/useTableState.js';
+import { useColumnPreferences } from '../../hooks/useColumnPreferences.js';
 import styles from './UserManagementPage.module.css';
 
 interface EditFormData {
@@ -87,6 +91,79 @@ export function UserManagementPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery]);
+
+  // Synthetic table state for DataTable (no URL-synced state)
+  const syntheticTableState = useMemo<TableState>(
+    () => ({
+      search: searchQuery,
+      filters: {} as Record<string, string>,
+      sort: { sortBy: '', sortOrder: 'asc' as const },
+      page: 1,
+    }),
+    [searchQuery],
+  );
+
+  // Column definitions
+  const columns: ColumnDef<UserResponse>[] = useMemo(
+    () => [
+      {
+        key: 'displayName',
+        label: t('userManagement.tableHeaders.name'),
+        type: 'string',
+        defaultVisible: true,
+        render: (item) => item.displayName,
+      },
+      {
+        key: 'email',
+        label: t('userManagement.tableHeaders.email'),
+        type: 'string',
+        defaultVisible: true,
+        render: (item) => item.email,
+      },
+      {
+        key: 'role',
+        label: t('userManagement.tableHeaders.role'),
+        type: 'enum',
+        defaultVisible: true,
+        render: (item) => (
+          <span className={item.role === 'admin' ? styles.roleAdmin : styles.roleMember}>
+            {item.role === 'admin'
+              ? t('userManagement.roles.admin')
+              : t('userManagement.roles.member')}
+          </span>
+        ),
+      },
+      {
+        key: 'authProvider',
+        label: t('userManagement.tableHeaders.authProvider'),
+        type: 'string',
+        defaultVisible: true,
+        render: (item) =>
+          item.authProvider === 'local'
+            ? t('userManagement.authProviders.local')
+            : t('userManagement.authProviders.oidc'),
+      },
+      {
+        key: 'status',
+        label: t('userManagement.tableHeaders.status'),
+        type: 'string',
+        defaultVisible: true,
+        render: (item) => {
+          const isActive = !item.deactivatedAt;
+          return (
+            <span className={isActive ? styles.statusActive : styles.statusInactive}>
+              {isActive
+                ? t('userManagement.status.active')
+                : t('userManagement.status.deactivated')}
+            </span>
+          );
+        },
+      },
+    ],
+    [t],
+  );
+
+  const { visibleColumns, toggleColumn } = useColumnPreferences('users', columns);
 
   const openEditModal = (user: UserResponse) => {
     setEditingUser(user);
@@ -199,24 +276,46 @@ export function UserManagementPage() {
     }
   };
 
-  if (isLoading && users.length === 0) {
+  // Render actions for each row
+  const renderActions = (item: UserResponse) => {
+    const isActive = !item.deactivatedAt;
     return (
-      <div className={styles.container}>
-        <div className={styles.loading}>{t('userManagement.loading')}</div>
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className={styles.editButton}
+          onClick={() => openEditModal(item)}
+          disabled={!isActive}
+        >
+          {t('userManagement.actions.edit')}
+        </button>
+        {isActive && (
+          <button
+            type="button"
+            className={styles.deactivateButton}
+            onClick={() => openDeactivateModal(item)}
+          >
+            {t('userManagement.actions.deactivate')}
+          </button>
+        )}
       </div>
     );
-  }
+  };
 
-  if (loadError && users.length === 0) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>{t('userManagement.errorTitle')}</h2>
-          <p>{loadError}</p>
-        </div>
+  // Filter bar as headerContent for DataTable
+  const filterBar = (
+    <div className={styles.header}>
+      <div className={styles.searchWrapper}>
+        <input
+          type="text"
+          placeholder={t('userManagement.searchPlaceholder')}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className={styles.searchInput}
+        />
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
     <div className={styles.container}>
@@ -225,17 +324,6 @@ export function UserManagementPage() {
           <h1 className={styles.pageTitle}>{t('userManagement.pageTitle')}</h1>
         </div>
         <SettingsSubNav />
-        <div className={styles.header}>
-          <div className={styles.searchWrapper}>
-            <input
-              type="text"
-              placeholder={t('userManagement.searchPlaceholder')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={styles.searchInput}
-            />
-          </div>
-        </div>
 
         {loadError && users.length > 0 && (
           <div className={styles.errorBanner} role="alert">
@@ -243,81 +331,34 @@ export function UserManagementPage() {
           </div>
         )}
 
-        {users.length === 0 ? (
-          <div className={styles.emptyState}>
-            <p>
-              {searchQuery ? t('userManagement.emptyStateSearch') : t('userManagement.emptyState')}
-            </p>
-          </div>
-        ) : (
-          <div className={styles.tableWrapper}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>{t('userManagement.tableHeaders.name')}</th>
-                  <th>{t('userManagement.tableHeaders.email')}</th>
-                  <th>{t('userManagement.tableHeaders.role')}</th>
-                  <th>{t('userManagement.tableHeaders.authProvider')}</th>
-                  <th>{t('userManagement.tableHeaders.status')}</th>
-                  <th>{t('userManagement.tableHeaders.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => {
-                  const isActive = !user.deactivatedAt;
-                  return (
-                    <tr key={user.id}>
-                      <td>{user.displayName}</td>
-                      <td>{user.email}</td>
-                      <td>
-                        <span
-                          className={user.role === 'admin' ? styles.roleAdmin : styles.roleMember}
-                        >
-                          {user.role === 'admin'
-                            ? t('userManagement.roles.admin')
-                            : t('userManagement.roles.member')}
-                        </span>
-                      </td>
-                      <td>
-                        {user.authProvider === 'local'
-                          ? t('userManagement.authProviders.local')
-                          : t('userManagement.authProviders.oidc')}
-                      </td>
-                      <td>
-                        <span className={isActive ? styles.statusActive : styles.statusInactive}>
-                          {isActive
-                            ? t('userManagement.status.active')
-                            : t('userManagement.status.deactivated')}
-                        </span>
-                      </td>
-                      <td>
-                        <div className={styles.actions}>
-                          <button
-                            type="button"
-                            className={styles.editButton}
-                            onClick={() => openEditModal(user)}
-                            disabled={!isActive}
-                          >
-                            {t('userManagement.actions.edit')}
-                          </button>
-                          {isActive && (
-                            <button
-                              type="button"
-                              className={styles.deactivateButton}
-                              onClick={() => openDeactivateModal(user)}
-                            >
-                              {t('userManagement.actions.deactivate')}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable<UserResponse>
+          pageKey="users"
+          columns={columns}
+          items={users}
+          totalItems={users.length}
+          totalPages={1}
+          currentPage={1}
+          pageSize={users.length || 1}
+          isLoading={isLoading}
+          getRowKey={(item) => item.id}
+          renderActions={renderActions}
+          tableState={syntheticTableState}
+          onSortChange={() => {}}
+          onPageChange={() => {}}
+          visibleColumns={visibleColumns}
+          onToggleColumn={toggleColumn}
+          headerContent={filterBar}
+          hasActiveFilters={!!searchQuery}
+          getCardTitle={(item) => item.displayName}
+          emptyState={{
+            noData: {
+              title: t('userManagement.emptyState'),
+            },
+            noResults: {
+              title: t('userManagement.emptyStateSearch'),
+            },
+          }}
+        />
       </div>
 
       {/* Edit Modal */}

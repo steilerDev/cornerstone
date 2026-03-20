@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, type FormEvent } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Vendor, CreateVendorRequest, VendorListQuery } from '@cornerstone/shared';
 import { fetchVendors, createVendor, deleteVendor } from '../../lib/vendorsApi.js';
@@ -7,11 +7,14 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import { TradePicker } from '../../components/TradePicker/TradePicker.js';
 import { useTrades } from '../../hooks/useTrades.js';
+import { DataTable } from '../../components/DataTable/DataTable.js';
+import type { ColumnDef } from '../../components/DataTable/DataTable.js';
+import { useTableState } from '../../hooks/useTableState.js';
+import { useColumnPreferences } from '../../hooks/useColumnPreferences.js';
 import styles from './VendorsPage.module.css';
 
 export function VendorsPage() {
   const { t } = useTranslation('budget');
-  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { trades } = useTrades();
 
@@ -21,20 +24,24 @@ export function VendorsPage() {
   const [error, setError] = useState<string>('');
 
   // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const pageSize = 25;
 
-  // Search and sort from URL
-  const searchQuery = searchParams.get('q') || '';
-  const sortBy = (searchParams.get('sortBy') as VendorListQuery['sortBy']) || 'name';
-  const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'asc';
-  const urlPage = parseInt(searchParams.get('page') || '1', 10);
-
-  // Search debounce
-  const [searchInput, setSearchInput] = useState(searchQuery);
-  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  // Table state
+  const {
+    tableState,
+    searchInput,
+    setSearchInput,
+    setSort,
+    setPage,
+    clearFilters,
+    hasActiveFilters,
+    toApiParams,
+  } = useTableState({
+    defaultSort: { sortBy: 'name', sortOrder: 'asc' },
+    filterKeys: [],
+  });
 
   // Create vendor modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -54,89 +61,88 @@ export function VendorsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
 
-  // Sync current page with URL
+  // Load vendors when table state changes
   useEffect(() => {
-    if (urlPage !== currentPage) {
-      setCurrentPage(urlPage);
-    }
-  }, [urlPage, currentPage]);
+    const loadVendors = async () => {
+      setIsLoading(true);
+      setError('');
 
-  // Debounced search
-  useEffect(() => {
-    if (searchDebounceRef.current) {
-      clearTimeout(searchDebounceRef.current);
-    }
+      try {
+        const params = toApiParams();
+        const response = await fetchVendors({
+          page: params.page as number,
+          pageSize,
+          q: (params.q as string) || undefined,
+          sortBy: params.sortBy as VendorListQuery['sortBy'],
+          sortOrder: params.sortOrder as 'asc' | 'desc',
+        });
 
-    searchDebounceRef.current = setTimeout(() => {
-      const newParams = new URLSearchParams(searchParams);
-      if (searchInput) {
-        newParams.set('q', searchInput);
-      } else {
-        newParams.delete('q');
-      }
-      newParams.set('page', '1');
-      setSearchParams(newParams);
-    }, 300);
-
-    return () => {
-      if (searchDebounceRef.current) {
-        clearTimeout(searchDebounceRef.current);
+        setVendors(response.vendors);
+        setTotalPages(response.pagination.totalPages);
+        setTotalItems(response.pagination.totalItems);
+      } catch (err) {
+        if (err instanceof ApiClientError) {
+          setError(err.error.message);
+        } else {
+          setError(t('vendors.errorMessage'));
+        }
+      } finally {
+        setIsLoading(false);
       }
     };
-  }, [searchInput, searchParams, setSearchParams]);
 
-  // Load vendors when search/sort/page changes
-  useEffect(() => {
     void loadVendors();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, sortBy, sortOrder, currentPage]);
+  }, [tableState, toApiParams, t]);
 
-  const loadVendors = async () => {
-    setIsLoading(true);
-    setError('');
+  // Column definitions
+  const columns: ColumnDef<Vendor>[] = useMemo(
+    () => [
+      {
+        key: 'name',
+        label: t('common:name'),
+        type: 'string',
+        sortable: true,
+        sortKey: 'name',
+        defaultVisible: true,
+        render: (item) => (
+          <Link to={`/budget/vendors/${item.id}`} className={styles.vendorLink}>
+            {item.name}
+          </Link>
+        ),
+      },
+      {
+        key: 'phone',
+        label: t('vendors.form.phone'),
+        type: 'string',
+        defaultVisible: true,
+        render: (item) =>
+          item.phone ? (
+            <a href={`tel:${item.phone}`} className={styles.contactLink}>
+              {item.phone}
+            </a>
+          ) : (
+            '—'
+          ),
+      },
+      {
+        key: 'email',
+        label: t('vendors.form.email'),
+        type: 'string',
+        defaultVisible: true,
+        render: (item) =>
+          item.email ? (
+            <a href={`mailto:${item.email}`} className={styles.contactLink}>
+              {item.email}
+            </a>
+          ) : (
+            '—'
+          ),
+      },
+    ],
+    [t],
+  );
 
-    try {
-      const response = await fetchVendors({
-        page: currentPage,
-        pageSize,
-        q: searchQuery || undefined,
-        sortBy: sortBy || undefined,
-        sortOrder: sortOrder || undefined,
-      });
-
-      setVendors(response.vendors);
-      setTotalPages(response.pagination.totalPages);
-      setTotalItems(response.pagination.totalItems);
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setError(err.error.message);
-      } else {
-        setError(t('vendors.errorMessage'));
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handlePageChange = (page: number) => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('page', page.toString());
-    setSearchParams(newParams);
-  };
-
-  const handleSortChange = (field: string) => {
-    const newOrder = sortBy === field && sortOrder === 'asc' ? 'desc' : 'asc';
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('sortBy', field);
-    newParams.set('sortOrder', newOrder);
-    newParams.set('page', '1');
-    setSearchParams(newParams);
-  };
-
-  const renderSortIcon = (field: string) => {
-    if (sortBy !== field) return null;
-    return sortOrder === 'asc' ? ' ↑' : ' ↓';
-  };
+  const { visibleColumns, toggleColumn } = useColumnPreferences('vendors', columns);
 
   const openCreateModal = () => {
     setCreateForm({ name: '', phone: '', email: '', address: '', notes: '', tradeId: null });
@@ -201,6 +207,34 @@ export function VendorsPage() {
     }
   };
 
+  const reloadVendors = async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const params = toApiParams();
+      const response = await fetchVendors({
+        page: params.page as number,
+        pageSize,
+        q: (params.q as string) || undefined,
+        sortBy: params.sortBy as VendorListQuery['sortBy'],
+        sortOrder: params.sortOrder as 'asc' | 'desc',
+      });
+
+      setVendors(response.vendors);
+      setTotalPages(response.pagination.totalPages);
+      setTotalItems(response.pagination.totalItems);
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.error.message);
+      } else {
+        setError(t('vendors.errorMessage'));
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const confirmDelete = async () => {
     if (!deletingVendor) return;
 
@@ -210,7 +244,7 @@ export function VendorsPage() {
     try {
       await deleteVendor(deletingVendor.id);
       setDeletingVendor(null);
-      await loadVendors();
+      await reloadVendors();
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
@@ -226,19 +260,64 @@ export function VendorsPage() {
     }
   };
 
-  if (isLoading && vendors.length === 0) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.content}>
-          <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>{t('vendors.title')}</h1>
-          </div>
-          <BudgetSubNav />
-          <div className={styles.loading}>{t('vendors.loading')}</div>
-        </div>
+  // Render actions for each row
+  const renderActions = (item: Vendor) => (
+    <div className={styles.actionButtons}>
+      <button
+        type="button"
+        className={styles.viewButton}
+        onClick={() => navigate(`/budget/vendors/${item.id}`)}
+        aria-label={`View ${item.name}`}
+      >
+        {t('vendors.buttons.view')}
+      </button>
+      <button
+        type="button"
+        className={styles.deleteButton}
+        onClick={() => openDeleteConfirm(item)}
+        aria-label={`Delete ${item.name}`}
+      >
+        {t('vendors.buttons.delete')}
+      </button>
+    </div>
+  );
+
+  // Filter bar as headerContent for DataTable
+  const filterBar = (
+    <div className={styles.searchCard}>
+      <input
+        type="search"
+        placeholder={t('vendors.searchPlaceholder')}
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
+        className={styles.searchInput}
+        aria-label={t('vendors.searchAriaLabel')}
+      />
+      <div className={styles.sortRow}>
+        <label htmlFor="sort-select" className={styles.sortLabel}>
+          {t('vendors.sortBy')}
+        </label>
+        <select
+          id="sort-select"
+          value={tableState.sort.sortBy || 'name'}
+          onChange={(e) => setSort(e.target.value)}
+          className={styles.sortSelect}
+        >
+          <option value="name">{t('common:name')}</option>
+          <option value="created_at">{t('vendors.dateAdded')}</option>
+          <option value="updated_at">{t('vendors.lastUpdated')}</option>
+        </select>
+        <button
+          type="button"
+          className={styles.sortOrderButton}
+          onClick={() => setSort(tableState.sort.sortBy || 'name')}
+          aria-label="Toggle sort order"
+        >
+          {tableState.sort.sortOrder === 'asc' ? t('vendors.sortAsc') : t('vendors.sortDesc')}
+        </button>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
     <div className={styles.container}>
@@ -262,261 +341,50 @@ export function VendorsPage() {
         {error && (
           <div className={styles.errorBanner} role="alert">
             {error}
-            <button type="button" className={styles.retryButton} onClick={() => void loadVendors()}>
-              {t('vendors.buttons.retry')}
-            </button>
           </div>
         )}
 
-        {/* Search and sort bar */}
-        <div className={styles.searchCard}>
-          <input
-            type="search"
-            placeholder={t('vendors.searchPlaceholder')}
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className={styles.searchInput}
-            aria-label={t('vendors.searchAriaLabel')}
-          />
-          <div className={styles.sortRow}>
-            <label htmlFor="sort-select" className={styles.sortLabel}>
-              {t('vendors.sortBy')}
-            </label>
-            <select
-              id="sort-select"
-              value={sortBy || 'name'}
-              onChange={(e) => handleSortChange(e.target.value)}
-              className={styles.sortSelect}
-            >
-              <option value="name">{t('common:name')}</option>
-              <option value="created_at">{t('vendors.dateAdded')}</option>
-              <option value="updated_at">{t('vendors.lastUpdated')}</option>
-            </select>
-            <button
-              type="button"
-              className={styles.sortOrderButton}
-              onClick={() => handleSortChange(sortBy || 'name')}
-              aria-label="Toggle sort order"
-            >
-              {sortOrder === 'asc' ? t('vendors.sortAsc') : t('vendors.sortDesc')}
-            </button>
-          </div>
-        </div>
-
-        {/* Vendor list */}
-        {vendors.length === 0 ? (
-          <div className={styles.emptyState}>
-            {searchQuery ? (
-              <>
-                <h2 className={styles.emptyTitle}>{t('vendors.noSearchResults')}</h2>
-                <p className={styles.emptyText}>{t('vendors.tryDifferentSearch')}</p>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={() => {
-                    setSearchInput('');
-                    setSearchParams(new URLSearchParams());
-                  }}
-                >
-                  {t('vendors.clearSearch')}
-                </button>
-              </>
-            ) : (
-              <>
-                <h2 className={styles.emptyTitle}>{t('vendors.noVendorsTitle')}</h2>
-                <p className={styles.emptyText}>{t('vendors.noVendorsDescription')}</p>
+        <DataTable<Vendor>
+          pageKey="vendors"
+          columns={columns}
+          items={vendors}
+          totalItems={totalItems}
+          totalPages={totalPages}
+          currentPage={tableState.page}
+          pageSize={pageSize}
+          isLoading={isLoading}
+          getRowKey={(item) => item.id}
+          onRowClick={(item) => navigate(`/budget/vendors/${item.id}`)}
+          renderActions={renderActions}
+          tableState={tableState}
+          onSortChange={setSort}
+          onPageChange={setPage}
+          visibleColumns={visibleColumns}
+          onToggleColumn={toggleColumn}
+          headerContent={filterBar}
+          hasActiveFilters={hasActiveFilters}
+          getCardTitle={(item) => item.name}
+          emptyState={{
+            noData: {
+              title: t('vendors.noVendorsTitle'),
+              description: t('vendors.noVendorsDescription'),
+              action: (
                 <button type="button" className={styles.button} onClick={openCreateModal}>
                   {t('vendors.addFirstVendor')}
                 </button>
-              </>
-            )}
-          </div>
-        ) : (
-          <>
-            {/* Desktop table */}
-            <div className={styles.tableContainer}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th
-                      className={styles.sortableHeader}
-                      onClick={() => handleSortChange('name')}
-                      aria-sort={
-                        sortBy === 'name'
-                          ? sortOrder === 'asc'
-                            ? 'ascending'
-                            : 'descending'
-                          : 'none'
-                      }
-                    >
-                      {t('common:name')}
-                      {renderSortIcon('name')}
-                    </th>
-                    <th>{t('vendors.form.phone')}</th>
-                    <th>{t('vendors.form.email')}</th>
-                    <th className={styles.actionsColumn}>{t('vendors.tableHeaders.actions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {vendors.map((vendor) => (
-                    <tr key={vendor.id} className={styles.tableRow}>
-                      <td className={styles.nameCell}>
-                        <Link to={`/budget/vendors/${vendor.id}`} className={styles.vendorLink}>
-                          {vendor.name}
-                        </Link>
-                      </td>
-                      <td>
-                        {vendor.phone ? (
-                          <a href={`tel:${vendor.phone}`} className={styles.contactLink}>
-                            {vendor.phone}
-                          </a>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                      <td>
-                        {vendor.email ? (
-                          <a href={`mailto:${vendor.email}`} className={styles.contactLink}>
-                            {vendor.email}
-                          </a>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                      <td className={styles.actionsCell}>
-                        <div className={styles.actionButtons}>
-                          <button
-                            type="button"
-                            className={styles.viewButton}
-                            onClick={() => navigate(`/budget/vendors/${vendor.id}`)}
-                            aria-label={`View ${vendor.name}`}
-                          >
-                            {t('vendors.buttons.view')}
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.deleteButton}
-                            onClick={() => openDeleteConfirm(vendor)}
-                            aria-label={`Delete ${vendor.name}`}
-                          >
-                            {t('vendors.buttons.delete')}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile cards */}
-            <div className={styles.cardsContainer}>
-              {vendors.map((vendor) => (
-                <div key={vendor.id} className={styles.card}>
-                  <div className={styles.cardHeader}>
-                    <Link to={`/budget/vendors/${vendor.id}`} className={styles.cardName}>
-                      {vendor.name}
-                    </Link>
-                  </div>
-                  <div className={styles.cardBody}>
-                    {vendor.phone && (
-                      <div className={styles.cardRow}>
-                        <span className={styles.cardLabel}>{t('vendors.form.phone')}:</span>
-                        <a href={`tel:${vendor.phone}`} className={styles.contactLink}>
-                          {vendor.phone}
-                        </a>
-                      </div>
-                    )}
-                    {vendor.email && (
-                      <div className={styles.cardRow}>
-                        <span className={styles.cardLabel}>{t('vendors.form.email')}:</span>
-                        <a href={`mailto:${vendor.email}`} className={styles.contactLink}>
-                          {vendor.email}
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                  <div className={styles.cardActions}>
-                    <button
-                      type="button"
-                      className={styles.viewButton}
-                      onClick={() => navigate(`/budget/vendors/${vendor.id}`)}
-                    >
-                      {t('vendors.buttons.viewDetails')}
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.deleteButton}
-                      onClick={() => openDeleteConfirm(vendor)}
-                      aria-label={`Delete ${vendor.name}`}
-                    >
-                      {t('vendors.buttons.delete')}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className={styles.pagination}>
-                <div className={styles.paginationInfo}>
-                  {t('vendors.pagination', {
-                    from: (currentPage - 1) * pageSize + 1,
-                    to: Math.min(currentPage * pageSize, totalItems),
-                    total: totalItems,
-                  })}
-                </div>
-                <div className={styles.paginationControls}>
-                  <button
-                    type="button"
-                    className={styles.paginationButton}
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    aria-label="Previous page"
-                  >
-                    {t('vendors.previous')}
-                  </button>
-                  <div className={styles.paginationPages}>
-                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                      let pageNum: number;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      return (
-                        <button
-                          key={pageNum}
-                          type="button"
-                          className={`${styles.paginationButton} ${
-                            currentPage === pageNum ? styles.paginationButtonActive : ''
-                          }`}
-                          onClick={() => handlePageChange(pageNum)}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <button
-                    type="button"
-                    className={styles.paginationButton}
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    aria-label="Next page"
-                  >
-                    {t('vendors.next')}
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
+              ),
+            },
+            noResults: {
+              title: t('vendors.noSearchResults'),
+              description: t('vendors.tryDifferentSearch'),
+              action: (
+                <button type="button" className={styles.secondaryButton} onClick={clearFilters}>
+                  {t('vendors.clearSearch')}
+                </button>
+              ),
+            },
+          }}
+        />
       </div>
 
       {/* Create vendor modal */}

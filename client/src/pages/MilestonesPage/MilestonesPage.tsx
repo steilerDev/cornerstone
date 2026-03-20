@@ -8,10 +8,14 @@ import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
+import { DataTable } from '../../components/DataTable/DataTable.js';
+import type { ColumnDef } from '../../components/DataTable/DataTable.js';
+import { useTableState } from '../../hooks/useTableState.js';
+import { useColumnPreferences } from '../../hooks/useColumnPreferences.js';
 import styles from './MilestonesPage.module.css';
 
 export function MilestonesPage() {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+  const { formatDate } = useFormatters();
   const { t } = useTranslation('schedule');
   const navigate = useNavigate();
 
@@ -38,6 +42,73 @@ export function MilestonesPage() {
   // Keyboard shortcuts state
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+
+  // Table state (no server-side filtering/sorting for milestones)
+  const { tableState, setSort, setPage } = useTableState({
+    defaultSort: { sortBy: 'targetDate', sortOrder: 'asc' },
+  });
+
+  // Column definitions
+  const columns: ColumnDef<MilestoneSummary>[] = useMemo(
+    () => [
+      {
+        key: 'title',
+        label: t('milestones.table.headers.title'),
+        type: 'string',
+        defaultVisible: true,
+        render: (item) => <span className={styles.titleCell}>{item.title}</span>,
+      },
+      {
+        key: 'targetDate',
+        label: t('milestones.table.headers.targetDate'),
+        type: 'date',
+        sortable: true,
+        defaultVisible: true,
+        render: (item) => formatDate(item.targetDate),
+      },
+      {
+        key: 'status',
+        label: t('milestones.table.headers.status'),
+        type: 'enum',
+        defaultVisible: true,
+        render: (item) => (
+          <span
+            className={`${styles.statusBadge} ${
+              item.isCompleted ? styles.statusCompleted : styles.statusPending
+            }`}
+          >
+            {item.isCompleted
+              ? t('milestones.status.completed')
+              : t('milestones.status.pending')}
+          </span>
+        ),
+      },
+      {
+        key: 'description',
+        label: t('milestones.table.headers.description'),
+        type: 'string',
+        defaultVisible: true,
+        render: (item) => (
+          <span className={styles.descriptionCell}>
+            {item.description
+              ? item.description.substring(0, 60) +
+                (item.description.length > 60 ? '...' : '')
+              : '\u2014'}
+          </span>
+        ),
+      },
+      {
+        key: 'workItemCount',
+        label: t('milestones.table.headers.workItems', { defaultValue: 'Work Items' }),
+        type: 'number',
+        defaultVisible: false,
+        render: (item) => item.workItemCount,
+      },
+    ],
+    [t, formatDate],
+  );
+
+  const { visibleColumns, toggleColumn } = useColumnPreferences('milestones', columns);
 
   // Load milestones on mount
   useEffect(() => {
@@ -98,10 +169,6 @@ export function MilestonesPage() {
     }
   };
 
-  const handleRowClick = (milestoneId: number) => {
-    navigate(`/project/milestones/${milestoneId}`);
-  };
-
   const handleDeleteClick = (milestone: MilestoneSummary, event: React.MouseEvent) => {
     event.stopPropagation();
     setDeletingMilestone(milestone);
@@ -128,6 +195,64 @@ export function MilestonesPage() {
     }
   };
 
+  // Client-side sorting
+  const sortedMilestones = useMemo(() => {
+    const sorted = [...milestones];
+    const { sortBy, sortOrder } = tableState.sort;
+
+    sorted.sort((a, b) => {
+      let cmp = 0;
+      switch (sortBy) {
+        case 'targetDate':
+          cmp = a.targetDate.localeCompare(b.targetDate);
+          break;
+        case 'title':
+          cmp = a.title.localeCompare(b.title);
+          break;
+        default:
+          cmp = a.targetDate.localeCompare(b.targetDate);
+      }
+      return sortOrder === 'desc' ? -cmp : cmp;
+    });
+
+    return sorted;
+  }, [milestones, tableState.sort]);
+
+  // Render actions for each row
+  const renderActions = (milestone: MilestoneSummary) => (
+    <div className={styles.actionsMenu}>
+      <button
+        type="button"
+        className={styles.menuButton}
+        onClick={() => setActiveMenuId(activeMenuId === milestone.id ? null : milestone.id)}
+        aria-label={t('milestones.menu.actions')}
+        data-testid={`milestone-menu-button-${milestone.id}`}
+      >
+        &#x22EE;
+      </button>
+      {activeMenuId === milestone.id && (
+        <div className={styles.menuDropdown}>
+          <button
+            type="button"
+            className={styles.menuItem}
+            onClick={() => navigate(`/project/milestones/${milestone.id}`)}
+            data-testid={`milestone-edit-${milestone.id}`}
+          >
+            {t('milestones.menu.edit')}
+          </button>
+          <button
+            type="button"
+            className={`${styles.menuItem} ${styles.menuItemDanger}`}
+            onClick={(e) => handleDeleteClick(milestone, e)}
+            data-testid={`milestone-delete-${milestone.id}`}
+          >
+            {t('milestones.menu.delete')}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   // Keyboard shortcuts
   const shortcuts = useMemo(
     () => [
@@ -139,9 +264,9 @@ export function MilestonesPage() {
       {
         key: 'ArrowDown',
         handler: () => {
-          if (milestones.length > 0) {
+          if (sortedMilestones.length > 0) {
             setSelectedIndex((prev) =>
-              prev === -1 ? 0 : Math.min(prev + 1, milestones.length - 1),
+              prev === -1 ? 0 : Math.min(prev + 1, sortedMilestones.length - 1),
             );
           }
         },
@@ -150,7 +275,7 @@ export function MilestonesPage() {
       {
         key: 'ArrowUp',
         handler: () => {
-          if (milestones.length > 0) {
+          if (sortedMilestones.length > 0) {
             setSelectedIndex((prev) => (prev === -1 ? 0 : Math.max(prev - 1, 0)));
           }
         },
@@ -159,8 +284,8 @@ export function MilestonesPage() {
       {
         key: 'Enter',
         handler: () => {
-          if (selectedIndex >= 0 && milestones[selectedIndex]) {
-            navigate(`/project/milestones/${milestones[selectedIndex].id}`);
+          if (selectedIndex >= 0 && sortedMilestones[selectedIndex]) {
+            navigate(`/project/milestones/${sortedMilestones[selectedIndex].id}`);
           }
         },
         description: t('milestones.keyboard.openSelected'),
@@ -186,25 +311,17 @@ export function MilestonesPage() {
         description: t('milestones.keyboard.closeDialog'),
       },
     ],
-    [navigate, milestones, selectedIndex, showShortcutsHelp, deletingMilestone, activeMenuId, t],
+    [navigate, sortedMilestones, selectedIndex, showShortcutsHelp, deletingMilestone, activeMenuId, t],
   );
 
   useKeyboardShortcuts(shortcuts);
 
   // Reset selected index when milestones change
   useEffect(() => {
-    if (selectedIndex >= milestones.length) {
+    if (selectedIndex >= sortedMilestones.length) {
       setSelectedIndex(-1);
     }
-  }, [milestones.length, selectedIndex]);
-
-  if (isLoading && milestones.length === 0) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.loading}>{t('milestones.loading')}</div>
-      </div>
-    );
-  }
+  }, [sortedMilestones.length, selectedIndex]);
 
   return (
     <div className={styles.container} ref={containerRef}>
@@ -227,175 +344,44 @@ export function MilestonesPage() {
         </div>
       )}
 
-      {/* Milestones list */}
-      {milestones.length === 0 ? (
-        <div className={styles.emptyState}>
-          <h2>{t('milestones.empty.noItems')}</h2>
-          <p>{t('milestones.empty.noItemsMessage')}</p>
-          <button
-            type="button"
-            className={styles.primaryButton}
-            onClick={() => navigate('/project/milestones/new')}
-          >
-            {t('milestones.empty.createFirst')}
-          </button>
-        </div>
-      ) : (
-        <>
-          {/* Desktop table view */}
-          <div className={styles.tableContainer}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>{t('milestones.table.headers.title')}</th>
-                  <th>{t('milestones.table.headers.targetDate')}</th>
-                  <th>{t('milestones.table.headers.status')}</th>
-                  <th>{t('milestones.table.headers.description')}</th>
-                  <th className={styles.actionsColumn}>{t('milestones.table.headers.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {milestones.map((milestone, index) => (
-                  <tr
-                    key={milestone.id}
-                    className={`${styles.tableRow} ${index === selectedIndex ? styles.tableRowSelected : ''}`}
-                    onClick={() => handleRowClick(milestone.id)}
-                  >
-                    <td className={styles.titleCell}>{milestone.title}</td>
-                    <td>{formatDate(milestone.targetDate)}</td>
-                    <td>
-                      <span
-                        className={`${styles.statusBadge} ${
-                          milestone.isCompleted ? styles.statusCompleted : styles.statusPending
-                        }`}
-                      >
-                        {milestone.isCompleted
-                          ? t('milestones.status.completed')
-                          : t('milestones.status.pending')}
-                      </span>
-                    </td>
-                    <td className={styles.descriptionCell}>
-                      {milestone.description
-                        ? milestone.description.substring(0, 60) +
-                          (milestone.description.length > 60 ? '...' : '')
-                        : '—'}
-                    </td>
-                    <td className={styles.actionsCell} onClick={(e) => e.stopPropagation()}>
-                      <div className={styles.actionsMenu}>
-                        <button
-                          type="button"
-                          className={styles.menuButton}
-                          onClick={() =>
-                            setActiveMenuId(activeMenuId === milestone.id ? null : milestone.id)
-                          }
-                          aria-label={t('milestones.menu.actions')}
-                          data-testid={`milestone-menu-button-${milestone.id}`}
-                        >
-                          ⋮
-                        </button>
-                        {activeMenuId === milestone.id && (
-                          <div className={styles.menuDropdown}>
-                            <button
-                              type="button"
-                              className={styles.menuItem}
-                              onClick={() => navigate(`/project/milestones/${milestone.id}`)}
-                              data-testid={`milestone-edit-${milestone.id}`}
-                            >
-                              {t('milestones.menu.edit')}
-                            </button>
-                            <button
-                              type="button"
-                              className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                              onClick={(e) => handleDeleteClick(milestone, e)}
-                              data-testid={`milestone-delete-${milestone.id}`}
-                            >
-                              {t('milestones.menu.delete')}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile card view */}
-          <div className={styles.cardsContainer}>
-            {milestones.map((milestone) => (
-              <div
-                key={milestone.id}
-                className={styles.card}
-                onClick={() => handleRowClick(milestone.id)}
+      <DataTable<MilestoneSummary>
+        pageKey="milestones"
+        columns={columns}
+        items={sortedMilestones}
+        totalItems={sortedMilestones.length}
+        totalPages={1}
+        currentPage={1}
+        isLoading={isLoading}
+        getRowKey={(item) => String(item.id)}
+        onRowClick={(item) => navigate(`/project/milestones/${item.id}`)}
+        renderActions={renderActions}
+        tableState={tableState}
+        onSortChange={setSort}
+        onPageChange={setPage}
+        visibleColumns={visibleColumns}
+        onToggleColumn={toggleColumn}
+        selectedIndex={selectedIndex}
+        getCardTitle={(item) => item.title}
+        emptyState={{
+          noData: {
+            title: t('milestones.empty.noItems'),
+            description: t('milestones.empty.noItemsMessage'),
+            action: (
+              <button
+                type="button"
+                className={styles.primaryButton}
+                onClick={() => navigate('/project/milestones/new')}
               >
-                <div className={styles.cardHeader}>
-                  <h3 className={styles.cardTitle}>{milestone.title}</h3>
-                  <div className={styles.cardActions} onClick={(e) => e.stopPropagation()}>
-                    <div className={styles.actionsMenu}>
-                      <button
-                        type="button"
-                        className={styles.menuButton}
-                        onClick={() =>
-                          setActiveMenuId(activeMenuId === milestone.id ? null : milestone.id)
-                        }
-                        aria-label={t('milestones.menu.actions')}
-                      >
-                        ⋮
-                      </button>
-                      {activeMenuId === milestone.id && (
-                        <div className={styles.menuDropdown}>
-                          <button
-                            type="button"
-                            className={styles.menuItem}
-                            onClick={() => navigate(`/project/milestones/${milestone.id}`)}
-                          >
-                            {t('milestones.menu.edit')}
-                          </button>
-                          <button
-                            type="button"
-                            className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                            onClick={(e) => handleDeleteClick(milestone, e)}
-                          >
-                            {t('milestones.menu.delete')}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className={styles.cardBody}>
-                  <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>{t('milestones.card.targetDate')}</span>
-                    <span>{formatDate(milestone.targetDate)}</span>
-                  </div>
-                  <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>{t('milestones.card.status')}</span>
-                    <span
-                      className={`${styles.statusBadge} ${
-                        milestone.isCompleted ? styles.statusCompleted : styles.statusPending
-                      }`}
-                    >
-                      {milestone.isCompleted
-                        ? t('milestones.status.completed')
-                        : t('milestones.status.pending')}
-                    </span>
-                  </div>
-                  {milestone.description && (
-                    <div className={styles.cardRow}>
-                      <span className={styles.cardLabel}>{t('milestones.card.description')}</span>
-                      <span>
-                        {milestone.description.substring(0, 60) +
-                          (milestone.description.length > 60 ? '...' : '')}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+                {t('milestones.empty.createFirst')}
+              </button>
+            ),
+          },
+          noResults: {
+            title: t('milestones.empty.noItems'),
+            description: t('milestones.empty.noItemsMessage'),
+          },
+        }}
+      />
 
       {/* Delete confirmation modal */}
       {deletingMilestone && (

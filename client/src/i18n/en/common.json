@@ -89,6 +89,19 @@
     "usersGroup": "Users",
     "vendorsGroup": "Vendors"
   },
+  "dataTable": {
+    "columns": {
+      "button": "Columns",
+      "toggleAriaLabel": "Toggle column visibility"
+    },
+    "pagination": {
+      "showing": "Showing {{from}} to {{to}} of {{total}}",
+      "previous": "Previous",
+      "next": "Next",
+      "previousAriaLabel": "Go to previous page",
+      "nextAriaLabel": "Go to next page"
+    }
+  },
   "subnav": {
     "project": {
       "overview": "Overview",
