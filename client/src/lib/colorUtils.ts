@@ -13,7 +13,7 @@
 export function generateRandomColor(): string {
   const hue = Math.floor(Math.random() * 360);
   const saturation = Math.floor(Math.random() * 26) + 65; // 65–90%
-  const lightness = Math.floor(Math.random() * 21) + 40;  // 40–60%
+  const lightness = Math.floor(Math.random() * 21) + 40; // 40–60%
   return hslToHex(hue, saturation, lightness);
 }
 
