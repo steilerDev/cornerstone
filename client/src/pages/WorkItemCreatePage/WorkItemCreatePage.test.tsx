@@ -5,17 +5,14 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
-import type { TagResponse, UserResponse } from '@cornerstone/shared';
+import type { UserResponse } from '@cornerstone/shared';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
-import type * as TagsApiTypes from '../../lib/tagsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as DependenciesApiTypes from '../../lib/dependenciesApi.js';
 import type * as WorkItemCreatePageTypes from './WorkItemCreatePage.js';
 
 const mockCreateWorkItem = jest.fn<typeof WorkItemsApiTypes.createWorkItem>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
-const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
-const mockCreateTag = jest.fn<typeof TagsApiTypes.createTag>();
 const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
 const mockCreateDependency = jest.fn<typeof DependenciesApiTypes.createDependency>();
 
@@ -23,11 +20,6 @@ const mockCreateDependency = jest.fn<typeof DependenciesApiTypes.createDependenc
 jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   createWorkItem: mockCreateWorkItem,
   listWorkItems: mockListWorkItems,
-}));
-
-jest.unstable_mockModule('../../lib/tagsApi.js', () => ({
-  fetchTags: mockFetchTags,
-  createTag: mockCreateTag,
 }));
 
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
@@ -38,6 +30,27 @@ jest.unstable_mockModule('../../lib/dependenciesApi.js', () => ({
   createDependency: mockCreateDependency,
 }));
 
+// WorkItemCreatePage now uses fetchVendors to populate AssignmentPicker
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockFetchVendors = jest.fn<any>();
+jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
+  fetchVendors: mockFetchVendors,
+}));
+
+// WorkItemCreatePage uses useAreas hook to populate AreaPicker
+const mockUseAreas = jest.fn(() => ({
+  areas: [],
+  isLoading: false,
+  error: null,
+  refetch: jest.fn(),
+  createArea: jest.fn(),
+  updateArea: jest.fn(),
+  deleteArea: jest.fn(),
+}));
+jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
+  useAreas: mockUseAreas,
+}));
+
 // Helper to capture current location
 function LocationDisplay() {
   const location = useLocation();
@@ -46,11 +59,6 @@ function LocationDisplay() {
 
 describe('WorkItemCreatePage', () => {
   let WorkItemCreatePageModule: typeof WorkItemCreatePageTypes;
-
-  const mockTags: TagResponse[] = [
-    { id: 'tag-1', name: 'Frontend', color: '#FF5733', createdAt: '2024-01-01T00:00:00Z' },
-    { id: 'tag-2', name: 'Backend', color: '#33FF57', createdAt: '2024-01-01T00:00:00Z' },
-  ];
 
   const mockUsers: UserResponse[] = [
     {
@@ -76,20 +84,23 @@ describe('WorkItemCreatePage', () => {
     mockCreateWorkItem.mockReset();
     mockListWorkItems.mockReset();
     mockCreateDependency.mockReset();
-    mockFetchTags.mockReset();
-    mockCreateTag.mockReset();
     mockListUsers.mockReset();
+    mockFetchVendors.mockReset();
 
     if (!WorkItemCreatePageModule) {
       WorkItemCreatePageModule = await import('./WorkItemCreatePage.js');
     }
 
-    mockFetchTags.mockResolvedValue({ tags: mockTags });
     mockListUsers.mockResolvedValue({ users: mockUsers });
     // Default: empty list response for WorkItemPicker in DependencySentenceBuilder
     mockListWorkItems.mockResolvedValue({
       items: [],
       pagination: { page: 1, pageSize: 15, totalItems: 0, totalPages: 0 },
+    });
+    // Default: empty vendors list
+    mockFetchVendors.mockResolvedValue({
+      vendors: [],
+      pagination: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0 },
     });
   });
 
@@ -136,7 +147,8 @@ describe('WorkItemCreatePage', () => {
       expect(screen.getByLabelText(/duration/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/start after/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/start before/i)).toBeInTheDocument();
-      expect(screen.getByText('Tags')).toBeInTheDocument();
+      // Tags section removed in migration 0028 (tags table dropped)
+      expect(screen.queryByText('Tags')).not.toBeInTheDocument();
     });
 
     it('does not render start date or end date inputs (computed by scheduling engine)', async () => {
@@ -289,7 +301,8 @@ describe('WorkItemCreatePage', () => {
         startAfter: null,
         startBefore: null,
         assignedUser: null,
-        tags: [],
+        assignedVendor: null,
+        area: null,
         createdBy: {
           id: 'user-1',
           displayName: 'Test User',
@@ -386,7 +399,9 @@ describe('WorkItemCreatePage', () => {
             actualStartDate: null,
             actualEndDate: null,
             assignedUser: null,
-            tags: [],
+            assignedVendor: null,
+            area: null,
+            budgetLineCount: 0,
             createdAt: '2024-01-01T00:00:00Z',
             updatedAt: '2024-01-01T00:00:00Z',
           },

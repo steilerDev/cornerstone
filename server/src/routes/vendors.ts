@@ -15,9 +15,10 @@ const listVendorsSchema = {
       page: { type: 'integer', minimum: 1 },
       pageSize: { type: 'integer', minimum: 1, maximum: 100 },
       q: { type: 'string' },
+      tradeId: { type: 'string' },
       sortBy: {
         type: 'string',
-        enum: ['name', 'specialty', 'created_at', 'updated_at'],
+        enum: ['name', 'trade', 'created_at', 'updated_at'],
       },
       sortOrder: { type: 'string', enum: ['asc', 'desc'] },
     },
@@ -32,7 +33,7 @@ const createVendorSchema = {
     required: ['name'],
     properties: {
       name: { type: 'string', minLength: 1, maxLength: 200 },
-      specialty: { type: ['string', 'null'], maxLength: 200 },
+      tradeId: { type: ['string', 'null'] },
       phone: { type: ['string', 'null'], maxLength: 50 },
       email: { type: ['string', 'null'], maxLength: 255, format: 'email' },
       address: { type: ['string', 'null'], maxLength: 500 },
@@ -48,7 +49,7 @@ const updateVendorSchema = {
     type: 'object',
     properties: {
       name: { type: 'string', minLength: 1, maxLength: 200 },
-      specialty: { type: ['string', 'null'], maxLength: 200 },
+      tradeId: { type: ['string', 'null'] },
       phone: { type: ['string', 'null'], maxLength: 50 },
       email: { type: ['string', 'null'], maxLength: 255, format: 'email' },
       address: { type: ['string', 'null'], maxLength: 500 },

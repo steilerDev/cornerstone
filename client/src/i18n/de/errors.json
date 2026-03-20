@@ -21,7 +21,6 @@
   "BUDGET_SOURCE_IN_USE": "Diese Budgetquelle wird verwendet und kann nicht gelöscht werden.",
   "DISCRETIONARY_SOURCE": "Die freie Budgetquelle kann nicht gelöscht werden.",
   "SUBSIDY_PROGRAM_IN_USE": "Dieses Förderprogramm wird verwendet und kann nicht gelöscht werden.",
-  "SUBSIDY_OVERSUBSCRIBED": "Dieses Förderprogramm ist bereits vollständig ausgeschöpft.",
   "BUDGET_LINE_IN_USE": "Diese Budgetposition ist mit einer Rechnung verknüpft und kann nicht gelöscht werden.",
   "PAPERLESS_NOT_CONFIGURED": "Die Dokumentenverwaltungsintegration ist nicht konfiguriert.",
   "PAPERLESS_UNREACHABLE": "Das Dokumentenverwaltungssystem ist nicht erreichbar.",

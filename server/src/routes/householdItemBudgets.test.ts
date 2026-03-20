@@ -91,7 +91,7 @@ describe('Household Item Budget Routes', () => {
       app.db,
       {
         name,
-        specialty: 'General',
+        tradeId: null,
       },
       userId,
     );

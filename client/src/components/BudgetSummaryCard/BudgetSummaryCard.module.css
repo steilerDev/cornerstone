@@ -67,6 +67,13 @@
   margin: 0;
 }
 
+.oversubscribedWarning {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-warning-text-on-light);
+  margin: 0;
+}
+
 .footer {
   margin-top: auto;
   padding-top: var(--spacing-2);

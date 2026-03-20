@@ -47,6 +47,11 @@ export class TimelinePage {
   readonly ganttViewButton: Locator;
   /** Calendar view toggle button. */
   readonly calendarViewButton: Locator;
+  /**
+   * "Add" dropdown trigger button (data-testid="timeline-add-button").
+   * Previously labelled "New" — renamed in issue #1050.
+   */
+  readonly addButton: Locator;
 
   // ── Chart area states ──────────────────────────────────────────────────────
   /** Gantt chart container. */
@@ -99,6 +104,7 @@ export class TimelinePage {
     this.zoomToolbar = page.getByRole('toolbar', { name: 'Zoom level' });
     this.ganttViewButton = page.getByTestId('schedule-view-gantt');
     this.calendarViewButton = page.getByTestId('schedule-view-calendar');
+    this.addButton = page.getByTestId('timeline-add-button');
 
     // Chart area states
     this.ganttChart = page.getByTestId('gantt-chart');
@@ -110,7 +116,10 @@ export class TimelinePage {
 
     // Gantt sidebar
     this.ganttSidebar = page.getByTestId('gantt-sidebar');
-    this.ganttSidebarRowsList = page.getByRole('list', { name: 'Work items and milestones' });
+    // Updated in EPIC-18: aria-label now includes household items
+    this.ganttSidebarRowsList = page.getByRole('list', {
+      name: 'Work items, milestones, and household items',
+    });
     this.ganttHeader = page.getByTestId('gantt-header');
 
     // Gantt bars

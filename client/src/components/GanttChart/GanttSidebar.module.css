@@ -123,8 +123,15 @@
   max-width: 100%;
 }
 
-/* Tablet and mobile: collapse sidebar to icon strip */
-@media (max-width: 1279px) {
+/* Tablet: narrower sidebar with readable labels */
+@media (max-width: 1279px) and (min-width: 768px) {
+  .sidebar {
+    width: 180px;
+  }
+}
+
+/* Mobile: collapse sidebar to icon strip */
+@media (max-width: 767px) {
   .sidebar {
     width: 44px;
   }

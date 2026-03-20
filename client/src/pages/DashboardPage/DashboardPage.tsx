@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   DashboardCardId,
@@ -50,6 +51,7 @@ interface DataSourceState {
 
 export function DashboardPage() {
   const { t } = useTranslation('dashboard');
+  const navigate = useNavigate();
 
   const CARD_DEFINITIONS = [
     {
@@ -139,6 +141,8 @@ export function DashboardPage() {
   const { preferences, upsert: upsertPreference } = usePreferences();
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const customizeRef = useRef<HTMLDivElement>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const addRef = useRef<HTMLDivElement>(null);
 
   // Parse hidden cards from preferences
   const hiddenCardIds = useMemo(() => {
@@ -173,6 +177,28 @@ export function DashboardPage() {
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
   }, [customizeOpen]);
+
+  // Close Add dropdown on outside click
+  useEffect(() => {
+    if (!addOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (addRef.current && !addRef.current.contains(e.target as Node)) {
+        setAddOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [addOpen]);
+
+  // Close Add dropdown on Escape
+  useEffect(() => {
+    if (!addOpen) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setAddOpen(false);
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [addOpen]);
 
   const loadAllData = useCallback(async () => {
     const results = await Promise.allSettled([
@@ -446,39 +472,94 @@ export function DashboardPage() {
     <div className={styles.page}>
       <div className={styles.pageHeader}>
         <h1 className={styles.title}>{t('page.title')}</h1>
-        {hasHiddenCards && (
-          <div className={styles.customizeContainer} ref={customizeRef}>
+        <div className={styles.headerRight}>
+          <div className={styles.addContainer} ref={addRef}>
             <button
               type="button"
-              className={styles.customizeButton}
-              onClick={() => setCustomizeOpen((v) => !v)}
+              className={styles.addButton}
+              onClick={() => setAddOpen((v) => !v)}
               aria-haspopup="menu"
-              aria-expanded={customizeOpen}
+              aria-expanded={addOpen}
+              aria-label={t('page.actions.addButton')}
+              data-testid="dashboard-add-button"
             >
-              {t('page.customize')}
+              {t('page.actions.addButton')}
             </button>
-
-            {customizeOpen && (
-              <div className={styles.customizeDropdown} role="menu">
-                <h3 className={styles.customizeHeading}>{t('page.hiddenCards')}</h3>
-                {hiddenCards.map((card) => (
-                  <button
-                    key={card.id}
-                    type="button"
-                    className={styles.reEnableButton}
-                    onClick={() => {
-                      void handleReEnableCard(card.id);
-                      setCustomizeOpen(false);
-                    }}
-                    role="menuitem"
-                  >
-                    {t('page.showCard', { title: card.title })}
-                  </button>
-                ))}
+            {addOpen && (
+              <div className={styles.addDropdown} role="menu">
+                <button
+                  type="button"
+                  className={styles.addMenuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    setAddOpen(false);
+                    void navigate('/project/work-items/new');
+                  }}
+                  data-testid="dashboard-add-work-item"
+                >
+                  {t('page.actions.addWorkItem')}
+                </button>
+                <button
+                  type="button"
+                  className={styles.addMenuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    setAddOpen(false);
+                    void navigate('/project/household-items/new');
+                  }}
+                  data-testid="dashboard-add-household-item"
+                >
+                  {t('page.actions.addHouseholdItem')}
+                </button>
+                <button
+                  type="button"
+                  className={styles.addMenuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    setAddOpen(false);
+                    void navigate('/project/milestones/new');
+                  }}
+                  data-testid="dashboard-add-milestone"
+                >
+                  {t('page.actions.addMilestone')}
+                </button>
               </div>
             )}
           </div>
-        )}
+          {hasHiddenCards && (
+            <div className={styles.customizeContainer} ref={customizeRef}>
+              <button
+                type="button"
+                className={styles.customizeButton}
+                onClick={() => setCustomizeOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={customizeOpen}
+              >
+                {t('page.customize')}
+              </button>
+
+              {customizeOpen && (
+                <div className={styles.customizeDropdown} role="menu">
+                  <h3 className={styles.customizeHeading}>{t('page.hiddenCards')}</h3>
+                  {hiddenCards.map((card) => (
+                    <button
+                      key={card.id}
+                      type="button"
+                      className={styles.reEnableButton}
+                      onClick={() => {
+                        void handleReEnableCard(card.id);
+                        setCustomizeOpen(false);
+                      }}
+                      role="menuitem"
+                    >
+                      {t('page.showCard', { title: card.title })}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <ProjectSubNav />

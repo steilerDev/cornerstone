@@ -14,6 +14,14 @@
       "allUsers": "All Users",
       "tag": "Tag:",
       "allTags": "All Tags",
+      "area": "Area:",
+      "allAreas": "All Areas",
+      "assignedVendor": "Vendor:",
+      "allVendors": "All Vendors",
+      "noBudget": "No Budget Lines",
+      "noBudgetAriaLabel": "Show only work items without budget lines",
+      "noBudgetActive": "No Budget filter active",
+      "noBudgetInactive": "No Budget filter cleared",
       "sortBy": "Sort by:",
       "sortAscending": "↑ Asc",
       "sortDescending": "↓ Desc",
@@ -42,6 +50,8 @@
       "startDate": "Start Date",
       "endDate": "End Date",
       "tags": "Tags",
+      "budgetLines": "Budget Lines",
+      "budgetLinesAriaLabel": "{{count}} budget lines",
       "actions": "Actions"
     },
     "card": {
@@ -49,7 +59,8 @@
       "assigned": "Assigned:",
       "start": "Start:",
       "end": "End:",
-      "tags": "Tags:"
+      "tags": "Tags:",
+      "budgetLines": "Budget Lines:"
     },
     "actions": {
       "actionsMenu": "Actions menu",

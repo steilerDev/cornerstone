@@ -1,17 +1,28 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type {
-  TagResponse,
   BudgetCategory,
   HouseholdItemCategoryEntity,
-  CreateTagRequest,
-  UpdateTagRequest,
   CreateBudgetCategoryRequest,
   UpdateBudgetCategoryRequest,
   CreateHouseholdItemCategoryRequest,
   UpdateHouseholdItemCategoryRequest,
+  AreaResponse,
+  TradeResponse,
+  CreateAreaRequest,
+  UpdateAreaRequest,
+  CreateTradeRequest,
+  UpdateTradeRequest,
 } from '@cornerstone/shared';
-import { fetchTags, createTag, updateTag, deleteTag } from '../../lib/tagsApi.js';
+import { ApiClientError } from '../../lib/apiClient.js';
+import { useTranslation } from 'react-i18next';
+import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.js';
+import { Skeleton } from '../../components/Skeleton/Skeleton.js';
+import { EmptyState } from '../../components/EmptyState/EmptyState.js';
+import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
+import { buildTree } from '../../lib/areaTreeUtils.js';
+import { useAreas } from '../../hooks/useAreas.js';
+import { useTrades } from '../../hooks/useTrades.js';
 import {
   fetchBudgetCategories,
   createBudgetCategory,
@@ -24,183 +35,176 @@ import {
   updateHouseholdItemCategory,
   deleteHouseholdItemCategory,
 } from '../../lib/householdItemCategoriesApi.js';
-import { ApiClientError } from '../../lib/apiClient.js';
-import { useTranslation } from 'react-i18next';
-import { TagPill } from '../../components/TagPill/TagPill.js';
-import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.js';
 import styles from './ManagePage.module.css';
 
 const DEFAULT_COLOR = '#3b82f6';
 
+type Tab = 'areas' | 'trades' | 'budget-categories' | 'hi-categories';
+
 // ============================================================
-// TAGS TAB
+// AREAS TAB
 // ============================================================
 
-type EditingTag = {
+type EditingArea = {
   id: string;
   name: string;
-  color: string;
+  parentId: string | null;
+  color: string | null;
+  description: string | null;
+  sortOrder: number;
 };
 
-function TagsTab() {
+function AreasTab() {
   const { t } = useTranslation('settings');
-  const [tags, setTags] = useState<TagResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string>('');
-  const [successMessage, setSuccessMessage] = useState<string>('');
+  const {
+    areas,
+    isLoading,
+    error: loadError,
+    createArea,
+    updateArea,
+    deleteArea,
+    refetch,
+  } = useAreas();
 
-  // Create tag state
-  const [newTagName, setNewTagName] = useState('');
-  const [newTagColor, setNewTagColor] = useState('#3b82f6');
+  // Create form state
+  const [newName, setNewName] = useState('');
+  const [newParentId, setNewParentId] = useState('');
+  const [newColor, setNewColor] = useState<string | null>(null);
+  const [newDescription, setNewDescription] = useState('');
+  const [newSortOrder, setNewSortOrder] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState<string>('');
 
-  // Edit tag state
-  const [editingTag, setEditingTag] = useState<EditingTag | null>(null);
+  // Edit state
+  const [editingArea, setEditingArea] = useState<EditingArea | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string>('');
 
   // Delete confirmation state
-  const [deletingTagId, setDeletingTagId] = useState<string | null>(null);
+  const [deletingAreaId, setDeletingAreaId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Auto-scroll to top when error appears
-  useEffect(() => {
-    if (error) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [error]);
-
-  useEffect(() => {
-    loadTags();
-  }, []);
-
-  const loadTags = async () => {
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const response = await fetchTags();
-      setTags(response.tags);
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setError(err.error.message);
-      } else {
-        setError(t('manage.tags.loadError'));
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCreateTag = async (event: FormEvent) => {
+  const handleCreateArea = async (event: FormEvent) => {
     event.preventDefault();
     setCreateError('');
     setSuccessMessage('');
 
-    const trimmedName = newTagName.trim();
+    const trimmedName = newName.trim();
     if (!trimmedName) {
-      setCreateError(t('manage.tags.validation.nameRequired'));
+      setCreateError(t('manage.areas.validation.nameRequired'));
       return;
     }
 
-    if (trimmedName.length > 50) {
-      setCreateError(t('manage.tags.validation.nameTooLong'));
+    if (trimmedName.length > 100) {
+      setCreateError(t('manage.areas.validation.nameTooLong'));
       return;
     }
 
     setIsCreating(true);
 
     try {
-      const newTag = await createTag({ name: trimmedName, color: newTagColor } as CreateTagRequest);
-      setTags([...tags, newTag].sort((a, b) => a.name.localeCompare(b.name)));
-      setNewTagName('');
-      setNewTagColor('#3b82f6');
-      setSuccessMessage(t('manage.tags.messages.created', { name: newTag.name }));
+      await createArea({
+        name: trimmedName,
+        parentId: newParentId || null,
+        color: newColor,
+        description: newDescription.trim() || null,
+        sortOrder: newSortOrder ? parseInt(newSortOrder, 10) : undefined,
+      } as CreateAreaRequest);
+      setNewName('');
+      setNewParentId('');
+      setNewColor(null);
+      setNewDescription('');
+      setNewSortOrder('');
+      setSuccessMessage(t('manage.areas.messages.created', { name: trimmedName }));
     } catch (err) {
       if (err instanceof ApiClientError) {
         setCreateError(err.error.message);
       } else {
-        setCreateError(t('manage.tags.messages.createError'));
+        setCreateError(t('manage.areas.messages.createError'));
       }
     } finally {
       setIsCreating(false);
     }
   };
 
-  const startEdit = (tag: TagResponse) => {
-    setEditingTag({
-      id: tag.id,
-      name: tag.name,
-      color: tag.color ?? '#3b82f6',
+  const startEdit = (area: AreaResponse) => {
+    setEditingArea({
+      id: area.id,
+      name: area.name,
+      parentId: area.parentId,
+      color: area.color,
+      description: area.description,
+      sortOrder: area.sortOrder,
     });
     setUpdateError('');
     setSuccessMessage('');
   };
 
   const cancelEdit = () => {
-    setEditingTag(null);
+    setEditingArea(null);
     setUpdateError('');
   };
 
-  const handleUpdateTag = async (event: FormEvent) => {
+  const handleUpdateArea = async (event: FormEvent) => {
     event.preventDefault();
-    if (!editingTag) return;
+    if (!editingArea) return;
 
     setUpdateError('');
     setSuccessMessage('');
 
-    const trimmedName = editingTag.name.trim();
+    const trimmedName = editingArea.name.trim();
     if (!trimmedName) {
-      setUpdateError(t('manage.tags.validation.nameRequired'));
+      setUpdateError(t('manage.areas.validation.nameRequired'));
       return;
     }
 
-    if (trimmedName.length > 50) {
-      setUpdateError(t('manage.tags.validation.nameTooLong'));
+    if (trimmedName.length > 100) {
+      setUpdateError(t('manage.areas.validation.nameTooLong'));
       return;
     }
 
     setIsUpdating(true);
 
     try {
-      const updatedTag = await updateTag(editingTag.id, {
+      await updateArea(editingArea.id, {
         name: trimmedName,
-        color: editingTag.color,
-      } as UpdateTagRequest);
-      setTags(
-        tags
-          .map((tag) => (tag.id === updatedTag.id ? updatedTag : tag))
-          .sort((a, b) => a.name.localeCompare(b.name)),
-      );
-      setEditingTag(null);
-      setSuccessMessage(t('manage.tags.messages.updated', { name: updatedTag.name }));
+        parentId: editingArea.parentId,
+        color: editingArea.color,
+        description: editingArea.description,
+        sortOrder: editingArea.sortOrder,
+      } as UpdateAreaRequest);
+      setEditingArea(null);
+      setSuccessMessage(t('manage.areas.messages.updated', { name: trimmedName }));
     } catch (err) {
       if (err instanceof ApiClientError) {
         setUpdateError(err.error.message);
       } else {
-        setUpdateError(t('manage.tags.messages.updateError'));
+        setUpdateError(t('manage.areas.messages.updateError'));
       }
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const handleDeleteTag = async (tagId: string) => {
+  const handleDeleteArea = async (areaId: string) => {
     setIsDeleting(true);
     setSuccessMessage('');
 
     try {
-      await deleteTag(tagId);
-      const deletedTag = tags.find((tag) => tag.id === tagId);
-      setTags(tags.filter((tag) => tag.id !== tagId));
-      setDeletingTagId(null);
-      setSuccessMessage(t('manage.tags.messages.deleted', { name: deletedTag?.name }));
+      const deletedArea = areas.find((a) => a.id === areaId);
+      await deleteArea(areaId);
+      setDeletingAreaId(null);
+      setSuccessMessage(t('manage.areas.messages.deleted', { name: deletedArea?.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        if (err.statusCode === 409) {
+          setSuccessMessage(t('manage.areas.messages.deleteConflict'));
+        } else {
+          setSuccessMessage(err.error.message);
+        }
       } else {
-        setError(t('manage.tags.messages.deleteError'));
+        setSuccessMessage(t('manage.areas.messages.deleteError'));
       }
     } finally {
       setIsDeleting(false);
@@ -208,19 +212,11 @@ function TagsTab() {
   };
 
   if (isLoading) {
-    return <div className={styles.loading}>{t('manage.tags.loading')}</div>;
+    return <Skeleton lines={5} />;
   }
 
-  if (error && tags.length === 0) {
-    return (
-      <div className={styles.errorCard} role="alert">
-        <h2 className={styles.errorTitle}>{t('manage.tags.errorTitle')}</h2>
-        <p>{error}</p>
-        <button type="button" className={styles.button} onClick={loadTags}>
-          {t('manage.tags.retry')}
-        </button>
-      </div>
-    );
+  if (loadError && areas.length === 0) {
+    return <EmptyState icon="⚠️" message={loadError} />;
   }
 
   return (
@@ -231,16 +227,10 @@ function TagsTab() {
         </div>
       )}
 
-      {error && (
-        <div className={styles.errorBanner} role="alert">
-          {error}
-        </div>
-      )}
-
-      {/* Create new tag */}
+      {/* Create new area */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>{t('manage.tags.createTitle')}</h2>
-        <p className={styles.cardDescription}>{t('manage.tags.createDescription')}</p>
+        <h2 className={styles.cardTitle}>{t('manage.areas.createTitle')}</h2>
+        <p className={styles.cardDescription}>{t('manage.areas.createDescription')}</p>
 
         {createError && (
           <div className={styles.errorBanner} role="alert">
@@ -248,97 +238,231 @@ function TagsTab() {
           </div>
         )}
 
-        <form onSubmit={handleCreateTag} className={styles.form}>
+        <form onSubmit={handleCreateArea} className={styles.form}>
           <div className={styles.formRow}>
-            <div className={styles.field}>
-              <label htmlFor="tagName" className={styles.label}>
-                {t('manage.tags.nameLabel')}
+            <div className={styles.fieldGrow}>
+              <label htmlFor="areaName" className={styles.label}>
+                {t('manage.areas.nameLabel')}
               </label>
               <input
                 type="text"
-                id="tagName"
-                value={newTagName}
-                onChange={(e) => setNewTagName(e.target.value)}
+                id="areaName"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
                 className={styles.input}
-                placeholder={t('manage.tags.namePlaceholder')}
-                maxLength={50}
+                placeholder={t('manage.areas.namePlaceholder')}
+                maxLength={100}
                 disabled={isCreating}
               />
             </div>
 
-            <div className={styles.field}>
-              <label htmlFor="tagColor" className={styles.label}>
-                {t('manage.tags.colorLabel')}
+            <div className={styles.fieldFixed}>
+              <label htmlFor="areaColor" className={styles.label}>
+                {t('manage.areas.colorLabel')}
+              </label>
+              <div className={styles.colorWrapper}>
+                <input
+                  type="color"
+                  id="areaColor"
+                  value={newColor || '#3b82f6'}
+                  onChange={(e) => setNewColor(e.target.value)}
+                  className={styles.colorInput}
+                  disabled={isCreating}
+                />
+                <span
+                  className={styles.colorSwatch}
+                  style={{ backgroundColor: newColor || '#3b82f6' }}
+                  aria-hidden="true"
+                />
+              </div>
+            </div>
+
+            <div className={styles.fieldNarrow}>
+              <label htmlFor="areaSortOrder" className={styles.label}>
+                {t('manage.areas.sortOrderLabel')}
               </label>
               <input
-                type="color"
-                id="tagColor"
-                value={newTagColor}
-                onChange={(e) => setNewTagColor(e.target.value)}
-                className={styles.colorInput}
+                type="number"
+                id="areaSortOrder"
+                value={newSortOrder}
+                onChange={(e) => setNewSortOrder(e.target.value)}
+                className={styles.input}
+                placeholder="0"
+                min={0}
                 disabled={isCreating}
               />
             </div>
           </div>
 
-          <div className={styles.previewRow}>
-            <span className={styles.previewLabel}>{t('manage.tags.previewLabel')}</span>
-            <TagPill name={newTagName || 'Tag Name'} color={newTagColor} />
+          <div className={styles.field}>
+            <label htmlFor="areaParent" className={styles.label}>
+              {t('manage.areas.parentLabel')}
+            </label>
+            <AreaPicker
+              areas={areas}
+              value={newParentId}
+              onChange={setNewParentId}
+              disabled={isCreating}
+              nullable={true}
+            />
           </div>
 
-          <button
-            type="submit"
-            className={styles.button}
-            disabled={isCreating || !newTagName.trim()}
-          >
-            {isCreating ? t('manage.tags.creating') : t('manage.tags.createButton')}
+          <div className={styles.field}>
+            <label htmlFor="areaDescription" className={styles.label}>
+              {t('manage.areas.descriptionLabel')}
+            </label>
+            <input
+              type="text"
+              id="areaDescription"
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              className={styles.input}
+              placeholder={t('manage.areas.descriptionPlaceholder')}
+              maxLength={500}
+              disabled={isCreating}
+            />
+          </div>
+
+          <button type="submit" className={styles.button} disabled={isCreating || !newName.trim()}>
+            {isCreating ? t('manage.areas.creating') : t('manage.areas.createButton')}
           </button>
         </form>
       </section>
 
-      {/* Tags list */}
+      {/* Areas list */}
       <section className={styles.card}>
         <h2 className={styles.cardTitle}>
-          {t('manage.tags.existingTitle', { count: tags.length })}
+          {t('manage.areas.existingTitle', { count: areas.length })}
         </h2>
 
-        {tags.length === 0 ? (
-          <p className={styles.emptyState}>{t('manage.tags.emptyState')}</p>
+        {areas.length === 0 ? (
+          <EmptyState icon="📍" message={t('manage.areas.emptyState')} />
         ) : (
           <div className={styles.itemsList}>
-            {tags.map((tag) => (
-              <div key={tag.id} className={styles.itemRow}>
-                {editingTag?.id === tag.id ? (
-                  <form onSubmit={handleUpdateTag} className={styles.editForm}>
+            {buildTree(areas).map(({ depth, area }) => (
+              <div
+                key={area.id}
+                className={styles.itemRow}
+                style={
+                  depth > 0
+                    ? { paddingLeft: `calc(var(--spacing-3) + ${depth} * var(--spacing-6))` }
+                    : undefined
+                }
+              >
+                {editingArea?.id === area.id ? (
+                  <form
+                    onSubmit={handleUpdateArea}
+                    className={styles.editForm}
+                    aria-label={`Edit ${area.name}`}
+                  >
                     {updateError && (
                       <div className={styles.errorBanner} role="alert">
                         {updateError}
                       </div>
                     )}
-                    <div className={styles.editFields}>
+                    <div className={styles.editFormRow}>
+                      <div className={styles.fieldGrow}>
+                        <label htmlFor={`edit-name-${area.id}`} className={styles.label}>
+                          {t('manage.areas.nameLabel')}
+                        </label>
+                        <input
+                          type="text"
+                          id={`edit-name-${area.id}`}
+                          value={editingArea.name}
+                          onChange={(e) => setEditingArea({ ...editingArea, name: e.target.value })}
+                          className={styles.input}
+                          maxLength={100}
+                          disabled={isUpdating}
+                        />
+                      </div>
+
+                      <div className={styles.fieldFixed}>
+                        <label htmlFor={`edit-color-${area.id}`} className={styles.label}>
+                          {t('manage.areas.colorLabel')}
+                        </label>
+                        <div className={styles.colorWrapper}>
+                          <input
+                            type="color"
+                            id={`edit-color-${area.id}`}
+                            value={editingArea.color || '#3b82f6'}
+                            onChange={(e) =>
+                              setEditingArea({ ...editingArea, color: e.target.value })
+                            }
+                            className={styles.colorInput}
+                            disabled={isUpdating}
+                          />
+                          <span
+                            className={styles.colorSwatch}
+                            style={{ backgroundColor: editingArea.color || '#3b82f6' }}
+                            aria-hidden="true"
+                          />
+                        </div>
+                      </div>
+
+                      <div className={styles.fieldNarrow}>
+                        <label htmlFor={`edit-sortorder-${area.id}`} className={styles.label}>
+                          {t('manage.areas.sortOrderLabel')}
+                        </label>
+                        <input
+                          type="number"
+                          id={`edit-sortorder-${area.id}`}
+                          value={editingArea.sortOrder}
+                          onChange={(e) =>
+                            setEditingArea({
+                              ...editingArea,
+                              sortOrder: parseInt(e.target.value, 10) || 0,
+                            })
+                          }
+                          className={styles.input}
+                          min={0}
+                          disabled={isUpdating}
+                        />
+                      </div>
+                    </div>
+
+                    <div className={styles.field}>
+                      <label htmlFor={`edit-parent-${area.id}`} className={styles.label}>
+                        {t('manage.areas.parentLabel')}
+                      </label>
+                      <AreaPicker
+                        areas={areas.filter((a) => a.id !== area.id)}
+                        value={editingArea.parentId || ''}
+                        onChange={(val) =>
+                          setEditingArea({ ...editingArea, parentId: val || null })
+                        }
+                        disabled={isUpdating}
+                        nullable={true}
+                      />
+                    </div>
+
+                    <div className={styles.field}>
+                      <label htmlFor={`edit-description-${area.id}`} className={styles.label}>
+                        {t('manage.areas.descriptionLabel')}
+                      </label>
                       <input
                         type="text"
-                        value={editingTag.name}
-                        onChange={(e) => setEditingTag({ ...editingTag, name: e.target.value })}
+                        id={`edit-description-${area.id}`}
+                        value={editingArea.description || ''}
+                        onChange={(e) =>
+                          setEditingArea({
+                            ...editingArea,
+                            description: e.target.value,
+                          })
+                        }
                         className={styles.input}
-                        maxLength={50}
-                        disabled={isUpdating}
-                      />
-                      <input
-                        type="color"
-                        value={editingTag.color}
-                        onChange={(e) => setEditingTag({ ...editingTag, color: e.target.value })}
-                        className={styles.colorInput}
+                        placeholder={t('manage.areas.descriptionPlaceholder')}
+                        maxLength={500}
                         disabled={isUpdating}
                       />
                     </div>
+
                     <div className={styles.editActions}>
                       <button
                         type="submit"
                         className={styles.saveButton}
-                        disabled={isUpdating || !editingTag.name.trim()}
+                        disabled={isUpdating || !editingArea.name.trim()}
                       >
-                        {isUpdating ? t('manage.tags.saving') : t('manage.tags.save')}
+                        {isUpdating ? t('manage.areas.saving') : t('manage.areas.save')}
                       </button>
                       <button
                         type="button"
@@ -346,31 +470,47 @@ function TagsTab() {
                         onClick={cancelEdit}
                         disabled={isUpdating}
                       >
-                        {t('manage.tags.cancel')}
+                        {t('manage.areas.cancel')}
                       </button>
                     </div>
                   </form>
                 ) : (
                   <>
                     <div className={styles.itemInfo}>
-                      <TagPill name={tag.name} color={tag.color} />
+                      <span
+                        className={styles.itemSwatch}
+                        style={{ backgroundColor: area.color ?? DEFAULT_COLOR }}
+                        aria-hidden="true"
+                      />
+                      <div className={styles.itemDetails}>
+                        <span className={styles.itemName}>{area.name}</span>
+                        {area.description && (
+                          <span className={styles.itemDescription}>{area.description}</span>
+                        )}
+                      </div>
+                      <span
+                        className={styles.itemSortOrder}
+                        title={t('manage.areas.sortOrderLabel')}
+                      >
+                        #{area.sortOrder}
+                      </span>
                     </div>
                     <div className={styles.itemActions}>
                       <button
                         type="button"
                         className={styles.editButton}
-                        onClick={() => startEdit(tag)}
-                        disabled={!!editingTag}
+                        onClick={() => startEdit(area)}
+                        disabled={!!editingArea}
                       >
-                        {t('manage.tags.edit')}
+                        {t('manage.areas.edit')}
                       </button>
                       <button
                         type="button"
                         className={styles.deleteButton}
-                        onClick={() => setDeletingTagId(tag.id)}
-                        disabled={!!editingTag}
+                        onClick={() => setDeletingAreaId(area.id)}
+                        disabled={!!editingArea}
                       >
-                        {t('manage.tags.delete')}
+                        {t('manage.areas.delete')}
                       </button>
                     </div>
                   </>
@@ -382,36 +522,36 @@ function TagsTab() {
       </section>
 
       {/* Delete confirmation modal */}
-      {deletingTagId && (
+      {deletingAreaId && (
         <div className={styles.modal} role="dialog" aria-modal="true">
           <div
             className={styles.modalBackdrop}
-            onClick={() => !isDeleting && setDeletingTagId(null)}
+            onClick={() => !isDeleting && setDeletingAreaId(null)}
           />
           <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>{t('manage.tags.deleteTitle')}</h2>
+            <h2 className={styles.modalTitle}>{t('manage.areas.deleteTitle')}</h2>
             <p className={styles.modalText}>
-              {t('manage.tags.deleteConfirm', {
-                name: tags.find((tag) => tag.id === deletingTagId)?.name,
+              {t('manage.areas.deleteConfirm', {
+                name: areas.find((a) => a.id === deletingAreaId)?.name,
               })}
             </p>
-            <p className={styles.modalWarning}>{t('manage.tags.deleteWarning')}</p>
+            <p className={styles.modalWarning}>{t('manage.areas.deleteWarning')}</p>
             <div className={styles.modalActions}>
               <button
                 type="button"
                 className={styles.cancelButton}
-                onClick={() => setDeletingTagId(null)}
+                onClick={() => setDeletingAreaId(null)}
                 disabled={isDeleting}
               >
-                {t('manage.tags.cancel')}
+                {t('manage.areas.cancel')}
               </button>
               <button
                 type="button"
                 className={styles.confirmDeleteButton}
-                onClick={() => handleDeleteTag(deletingTagId)}
+                onClick={() => void handleDeleteArea(deletingAreaId)}
                 disabled={isDeleting}
               >
-                {isDeleting ? t('manage.tags.deleting') : t('manage.tags.deleteButton')}
+                {isDeleting ? t('manage.areas.deleting') : t('manage.areas.deleteButton')}
               </button>
             </div>
           </div>
@@ -422,7 +562,487 @@ function TagsTab() {
 }
 
 // ============================================================
-// BUDGET CATEGORIES TAB
+// TRADES TAB
+// ============================================================
+
+type EditingTrade = {
+  id: string;
+  name: string;
+  color: string | null;
+  description: string | null;
+  sortOrder: number;
+};
+
+function TradesTab() {
+  const { t } = useTranslation('settings');
+  const {
+    trades,
+    isLoading,
+    error: loadError,
+    createTrade,
+    updateTrade,
+    deleteTrade,
+    refetch,
+  } = useTrades();
+
+  // Create form state
+  const [newName, setNewName] = useState('');
+  const [newColor, setNewColor] = useState<string | null>(null);
+  const [newDescription, setNewDescription] = useState('');
+  const [newSortOrder, setNewSortOrder] = useState<string>('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState<string>('');
+
+  // Edit state
+  const [editingTrade, setEditingTrade] = useState<EditingTrade | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string>('');
+
+  // Delete confirmation state
+  const [deletingTradeId, setDeletingTradeId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleCreateTrade = async (event: FormEvent) => {
+    event.preventDefault();
+    setCreateError('');
+    setSuccessMessage('');
+
+    const trimmedName = newName.trim();
+    if (!trimmedName) {
+      setCreateError(t('manage.trades.validation.nameRequired'));
+      return;
+    }
+
+    if (trimmedName.length > 100) {
+      setCreateError(t('manage.trades.validation.nameTooLong'));
+      return;
+    }
+
+    setIsCreating(true);
+
+    try {
+      await createTrade({
+        name: trimmedName,
+        color: newColor,
+        description: newDescription.trim() || null,
+        sortOrder: newSortOrder ? parseInt(newSortOrder, 10) : undefined,
+      } as CreateTradeRequest);
+      setNewName('');
+      setNewColor(null);
+      setNewDescription('');
+      setNewSortOrder('');
+      setSuccessMessage(t('manage.trades.messages.created', { name: trimmedName }));
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setCreateError(err.error.message);
+      } else {
+        setCreateError(t('manage.trades.messages.createError'));
+      }
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const startEdit = (trade: TradeResponse) => {
+    setEditingTrade({
+      id: trade.id,
+      name: trade.name,
+      color: trade.color,
+      description: trade.description,
+      sortOrder: trade.sortOrder,
+    });
+    setUpdateError('');
+    setSuccessMessage('');
+  };
+
+  const cancelEdit = () => {
+    setEditingTrade(null);
+    setUpdateError('');
+  };
+
+  const handleUpdateTrade = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editingTrade) return;
+
+    setUpdateError('');
+    setSuccessMessage('');
+
+    const trimmedName = editingTrade.name.trim();
+    if (!trimmedName) {
+      setUpdateError(t('manage.trades.validation.nameRequired'));
+      return;
+    }
+
+    if (trimmedName.length > 100) {
+      setUpdateError(t('manage.trades.validation.nameTooLong'));
+      return;
+    }
+
+    setIsUpdating(true);
+
+    try {
+      await updateTrade(editingTrade.id, {
+        name: trimmedName,
+        color: editingTrade.color,
+        description: editingTrade.description,
+        sortOrder: editingTrade.sortOrder,
+      } as UpdateTradeRequest);
+      setEditingTrade(null);
+      setSuccessMessage(t('manage.trades.messages.updated', { name: trimmedName }));
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setUpdateError(err.error.message);
+      } else {
+        setUpdateError(t('manage.trades.messages.updateError'));
+      }
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDeleteTrade = async (tradeId: string) => {
+    setIsDeleting(true);
+    setSuccessMessage('');
+
+    try {
+      const deletedTrade = trades.find((t) => t.id === tradeId);
+      await deleteTrade(tradeId);
+      setDeletingTradeId(null);
+      setSuccessMessage(t('manage.trades.messages.deleted', { name: deletedTrade?.name }));
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        if (err.statusCode === 409) {
+          setSuccessMessage(t('manage.trades.messages.deleteConflict'));
+        } else {
+          setSuccessMessage(err.error.message);
+        }
+      } else {
+        setSuccessMessage(t('manage.trades.messages.deleteError'));
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  if (isLoading) {
+    return <Skeleton lines={5} />;
+  }
+
+  if (loadError && trades.length === 0) {
+    return <EmptyState icon="⚠️" message={loadError} />;
+  }
+
+  return (
+    <>
+      {successMessage && (
+        <div className={styles.successBanner} role="alert">
+          {successMessage}
+        </div>
+      )}
+
+      {/* Create new trade */}
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>{t('manage.trades.createTitle')}</h2>
+        <p className={styles.cardDescription}>{t('manage.trades.createDescription')}</p>
+
+        {createError && (
+          <div className={styles.errorBanner} role="alert">
+            {createError}
+          </div>
+        )}
+
+        <form onSubmit={handleCreateTrade} className={styles.form}>
+          <div className={styles.formRow}>
+            <div className={styles.fieldGrow}>
+              <label htmlFor="tradeName" className={styles.label}>
+                {t('manage.trades.nameLabel')}
+              </label>
+              <input
+                type="text"
+                id="tradeName"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className={styles.input}
+                placeholder={t('manage.trades.namePlaceholder')}
+                maxLength={100}
+                disabled={isCreating}
+              />
+            </div>
+
+            <div className={styles.fieldFixed}>
+              <label htmlFor="tradeColor" className={styles.label}>
+                {t('manage.trades.colorLabel')}
+              </label>
+              <div className={styles.colorWrapper}>
+                <input
+                  type="color"
+                  id="tradeColor"
+                  value={newColor || '#3b82f6'}
+                  onChange={(e) => setNewColor(e.target.value)}
+                  className={styles.colorInput}
+                  disabled={isCreating}
+                />
+                <span
+                  className={styles.colorSwatch}
+                  style={{ backgroundColor: newColor || '#3b82f6' }}
+                  aria-hidden="true"
+                />
+              </div>
+            </div>
+
+            <div className={styles.fieldNarrow}>
+              <label htmlFor="tradeSortOrder" className={styles.label}>
+                {t('manage.trades.sortOrderLabel')}
+              </label>
+              <input
+                type="number"
+                id="tradeSortOrder"
+                value={newSortOrder}
+                onChange={(e) => setNewSortOrder(e.target.value)}
+                className={styles.input}
+                placeholder="0"
+                min={0}
+                disabled={isCreating}
+              />
+            </div>
+          </div>
+
+          <div className={styles.field}>
+            <label htmlFor="tradeDescription" className={styles.label}>
+              {t('manage.trades.descriptionLabel')}
+            </label>
+            <input
+              type="text"
+              id="tradeDescription"
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              className={styles.input}
+              placeholder={t('manage.trades.descriptionPlaceholder')}
+              maxLength={500}
+              disabled={isCreating}
+            />
+          </div>
+
+          <button type="submit" className={styles.button} disabled={isCreating || !newName.trim()}>
+            {isCreating ? t('manage.trades.creating') : t('manage.trades.createButton')}
+          </button>
+        </form>
+      </section>
+
+      {/* Trades list */}
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>
+          {t('manage.trades.existingTitle', { count: trades.length })}
+        </h2>
+
+        {trades.length === 0 ? (
+          <EmptyState icon="🔧" message={t('manage.trades.emptyState')} />
+        ) : (
+          <div className={styles.itemsList}>
+            {trades.map((trade) => (
+              <div key={trade.id} className={styles.itemRow}>
+                {editingTrade?.id === trade.id ? (
+                  <form
+                    onSubmit={handleUpdateTrade}
+                    className={styles.editForm}
+                    aria-label={`Edit ${trade.name}`}
+                  >
+                    {updateError && (
+                      <div className={styles.errorBanner} role="alert">
+                        {updateError}
+                      </div>
+                    )}
+                    <div className={styles.editFormRow}>
+                      <div className={styles.fieldGrow}>
+                        <label htmlFor={`edit-name-${trade.id}`} className={styles.label}>
+                          {t('manage.trades.nameLabel')}
+                        </label>
+                        <input
+                          type="text"
+                          id={`edit-name-${trade.id}`}
+                          value={editingTrade.name}
+                          onChange={(e) =>
+                            setEditingTrade({ ...editingTrade, name: e.target.value })
+                          }
+                          className={styles.input}
+                          maxLength={100}
+                          disabled={isUpdating}
+                        />
+                      </div>
+
+                      <div className={styles.fieldFixed}>
+                        <label htmlFor={`edit-color-${trade.id}`} className={styles.label}>
+                          {t('manage.trades.colorLabel')}
+                        </label>
+                        <div className={styles.colorWrapper}>
+                          <input
+                            type="color"
+                            id={`edit-color-${trade.id}`}
+                            value={editingTrade.color || '#3b82f6'}
+                            onChange={(e) =>
+                              setEditingTrade({ ...editingTrade, color: e.target.value })
+                            }
+                            className={styles.colorInput}
+                            disabled={isUpdating}
+                          />
+                          <span
+                            className={styles.colorSwatch}
+                            style={{ backgroundColor: editingTrade.color || '#3b82f6' }}
+                            aria-hidden="true"
+                          />
+                        </div>
+                      </div>
+
+                      <div className={styles.fieldNarrow}>
+                        <label htmlFor={`edit-sortorder-${trade.id}`} className={styles.label}>
+                          {t('manage.trades.sortOrderLabel')}
+                        </label>
+                        <input
+                          type="number"
+                          id={`edit-sortorder-${trade.id}`}
+                          value={editingTrade.sortOrder}
+                          onChange={(e) =>
+                            setEditingTrade({
+                              ...editingTrade,
+                              sortOrder: parseInt(e.target.value, 10) || 0,
+                            })
+                          }
+                          className={styles.input}
+                          min={0}
+                          disabled={isUpdating}
+                        />
+                      </div>
+                    </div>
+
+                    <div className={styles.field}>
+                      <label htmlFor={`edit-description-${trade.id}`} className={styles.label}>
+                        {t('manage.trades.descriptionLabel')}
+                      </label>
+                      <input
+                        type="text"
+                        id={`edit-description-${trade.id}`}
+                        value={editingTrade.description || ''}
+                        onChange={(e) =>
+                          setEditingTrade({
+                            ...editingTrade,
+                            description: e.target.value,
+                          })
+                        }
+                        className={styles.input}
+                        placeholder={t('manage.trades.descriptionPlaceholder')}
+                        maxLength={500}
+                        disabled={isUpdating}
+                      />
+                    </div>
+
+                    <div className={styles.editActions}>
+                      <button
+                        type="submit"
+                        className={styles.saveButton}
+                        disabled={isUpdating || !editingTrade.name.trim()}
+                      >
+                        {isUpdating ? t('manage.trades.saving') : t('manage.trades.save')}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.cancelButton}
+                        onClick={cancelEdit}
+                        disabled={isUpdating}
+                      >
+                        {t('manage.trades.cancel')}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <div className={styles.itemInfo}>
+                      <span
+                        className={styles.itemSwatch}
+                        style={{ backgroundColor: trade.color ?? DEFAULT_COLOR }}
+                        aria-hidden="true"
+                      />
+                      <div className={styles.itemDetails}>
+                        <span className={styles.itemName}>{trade.name}</span>
+                        {trade.description && (
+                          <span className={styles.itemDescription}>{trade.description}</span>
+                        )}
+                      </div>
+                      <span
+                        className={styles.itemSortOrder}
+                        title={t('manage.trades.sortOrderLabel')}
+                      >
+                        #{trade.sortOrder}
+                      </span>
+                    </div>
+                    <div className={styles.itemActions}>
+                      <button
+                        type="button"
+                        className={styles.editButton}
+                        onClick={() => startEdit(trade)}
+                        disabled={!!editingTrade}
+                      >
+                        {t('manage.trades.edit')}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.deleteButton}
+                        onClick={() => setDeletingTradeId(trade.id)}
+                        disabled={!!editingTrade}
+                      >
+                        {t('manage.trades.delete')}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Delete confirmation modal */}
+      {deletingTradeId && (
+        <div className={styles.modal} role="dialog" aria-modal="true">
+          <div
+            className={styles.modalBackdrop}
+            onClick={() => !isDeleting && setDeletingTradeId(null)}
+          />
+          <div className={styles.modalContent}>
+            <h2 className={styles.modalTitle}>{t('manage.trades.deleteTitle')}</h2>
+            <p className={styles.modalText}>
+              {t('manage.trades.deleteConfirm', {
+                name: trades.find((t) => t.id === deletingTradeId)?.name,
+              })}
+            </p>
+            <p className={styles.modalWarning}>{t('manage.trades.deleteWarning')}</p>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.cancelButton}
+                onClick={() => setDeletingTradeId(null)}
+                disabled={isDeleting}
+              >
+                {t('manage.trades.cancel')}
+              </button>
+              <button
+                type="button"
+                className={styles.confirmDeleteButton}
+                onClick={() => void handleDeleteTrade(deletingTradeId)}
+                disabled={isDeleting}
+              >
+                {isDeleting ? t('manage.trades.deleting') : t('manage.trades.deleteButton')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ============================================================
+// BUDGET CATEGORIES TAB (existing, kept minimal)
 // ============================================================
 
 type EditingBudgetCategory = {
@@ -439,8 +1059,6 @@ function BudgetCategoriesTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
-
-  // Create form state
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -448,13 +1066,9 @@ function BudgetCategoriesTab() {
   const [newSortOrder, setNewSortOrder] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string>('');
-
-  // Edit state
   const [editingCategory, setEditingCategory] = useState<EditingBudgetCategory | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string>('');
-
-  // Delete confirmation state
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
@@ -631,19 +1245,11 @@ function BudgetCategoriesTab() {
   };
 
   if (isLoading) {
-    return <div className={styles.loading}>{t('manage.budgetCategories.loading')}</div>;
+    return <Skeleton lines={5} />;
   }
 
   if (error && categories.length === 0) {
-    return (
-      <div className={styles.errorCard} role="alert">
-        <h2 className={styles.errorTitle}>Error</h2>
-        <p>{error}</p>
-        <button type="button" className={styles.button} onClick={() => void loadCategories()}>
-          Retry
-        </button>
-      </div>
-    );
+    return <EmptyState icon="⚠️" message={error} />;
   }
 
   return (
@@ -694,7 +1300,7 @@ function BudgetCategoriesTab() {
 
               <div className={styles.fieldFixed}>
                 <label htmlFor="categoryColor" className={styles.label}>
-                  Color
+                  {t('manage.budgetCategories.colorLabel')}
                 </label>
                 <div className={styles.colorWrapper}>
                   <input
@@ -732,7 +1338,7 @@ function BudgetCategoriesTab() {
 
             <div className={styles.field}>
               <label htmlFor="categoryDescription" className={styles.label}>
-                Description
+                {t('manage.budgetCategories.descriptionLabel')}
               </label>
               <input
                 type="text"
@@ -740,7 +1346,7 @@ function BudgetCategoriesTab() {
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
                 className={styles.input}
-                placeholder="Optional description"
+                placeholder={t('manage.budgetCategories.descriptionPlaceholder')}
                 maxLength={500}
                 disabled={isCreating}
               />
@@ -796,7 +1402,7 @@ function BudgetCategoriesTab() {
         </div>
 
         {categories.length === 0 ? (
-          <p className={styles.emptyState}>{t('manage.budgetCategories.emptyState')}</p>
+          <EmptyState icon="💰" message={t('manage.budgetCategories.emptyState')} />
         ) : (
           <div className={styles.itemsList}>
             {categories.map((category) => (
@@ -834,7 +1440,7 @@ function BudgetCategoriesTab() {
 
                       <div className={styles.fieldFixed}>
                         <label htmlFor={`edit-color-${category.id}`} className={styles.label}>
-                          Color
+                          {t('manage.budgetCategories.colorLabel')}
                         </label>
                         <div className={styles.colorWrapper}>
                           <input
@@ -1023,7 +1629,7 @@ function BudgetCategoriesTab() {
 }
 
 // ============================================================
-// HOUSEHOLD ITEM CATEGORIES TAB
+// HOUSEHOLD ITEM CATEGORIES TAB (existing, minimal)
 // ============================================================
 
 type EditingHICategory = {
@@ -1039,21 +1645,15 @@ function HouseholdItemCategoriesTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
-
-  // Create form state
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState(DEFAULT_COLOR);
   const [newSortOrder, setNewSortOrder] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string>('');
-
-  // Edit state
   const [editingCategory, setEditingCategory] = useState<EditingHICategory | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string>('');
-
-  // Delete confirmation state
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
@@ -1232,19 +1832,11 @@ function HouseholdItemCategoriesTab() {
   };
 
   if (isLoading) {
-    return <div className={styles.loading}>{t('manage.householdItemCategories.loading')}</div>;
+    return <Skeleton lines={5} />;
   }
 
   if (error && categories.length === 0) {
-    return (
-      <div className={styles.errorCard} role="alert">
-        <h2 className={styles.errorTitle}>Error</h2>
-        <p>{error}</p>
-        <button type="button" className={styles.button} onClick={() => void loadCategories()}>
-          Retry
-        </button>
-      </div>
-    );
+    return <EmptyState icon="⚠️" message={error} />;
   }
 
   return (
@@ -1297,7 +1889,7 @@ function HouseholdItemCategoriesTab() {
 
               <div className={styles.fieldFixed}>
                 <label htmlFor="categoryColor" className={styles.label}>
-                  Color
+                  {t('manage.householdItemCategories.colorLabel')}
                 </label>
                 <div className={styles.colorWrapper}>
                   <input
@@ -1355,7 +1947,7 @@ function HouseholdItemCategoriesTab() {
                 }}
                 disabled={isCreating}
               >
-                {t('manage.budgetCategories.cancel')}
+                {t('manage.householdItemCategories.cancel')}
               </button>
             </div>
           </form>
@@ -1366,7 +1958,7 @@ function HouseholdItemCategoriesTab() {
       <section className={styles.card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 className={styles.cardTitle}>
-            {t('manage.budgetCategories.listTitle', { count: categories.length })}
+            {t('manage.householdItemCategories.listTitle', { count: categories.length })}
           </h2>
           <button
             type="button"
@@ -1377,12 +1969,12 @@ function HouseholdItemCategoriesTab() {
             }}
             disabled={showCreateForm}
           >
-            {t('manage.budgetCategories.addButton')}
+            {t('manage.householdItemCategories.addButton')}
           </button>
         </div>
 
         {categories.length === 0 ? (
-          <p className={styles.emptyState}>{t('manage.householdItemCategories.emptyState')}</p>
+          <EmptyState icon="🛋️" message={t('manage.householdItemCategories.emptyState')} />
         ) : (
           <div className={styles.itemsList}>
             {categories.map((category) => (
@@ -1420,7 +2012,7 @@ function HouseholdItemCategoriesTab() {
 
                       <div className={styles.fieldFixed}>
                         <label htmlFor={`edit-color-${category.id}`} className={styles.label}>
-                          Color
+                          {t('manage.householdItemCategories.colorLabel')}
                         </label>
                         <div className={styles.colorWrapper}>
                           <input
@@ -1478,7 +2070,7 @@ function HouseholdItemCategoriesTab() {
                         onClick={cancelEdit}
                         disabled={isUpdating}
                       >
-                        {t('manage.tags.cancel')}
+                        {t('manage.householdItemCategories.cancel')}
                       </button>
                     </div>
                   </form>
@@ -1495,7 +2087,7 @@ function HouseholdItemCategoriesTab() {
                       </div>
                       <span
                         className={styles.itemSortOrder}
-                        title={t('manage.householdItemCategories.sortOrderTitle')}
+                        title={t('manage.householdItemCategories.sortOrderLabel')}
                       >
                         #{category.sortOrder}
                       </span>
@@ -1590,108 +2182,68 @@ function HouseholdItemCategoriesTab() {
 // MAIN PAGE
 // ============================================================
 
-export default function ManagePage() {
+export function ManagePage() {
   const { t } = useTranslation('settings');
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') ?? 'tags';
+  const [activeTab, setActiveTab] = useState<Tab>((searchParams.get('tab') as Tab) || 'areas');
 
-  const handleTabChange = (newTab: string) => {
-    setSearchParams({ tab: newTab }, { replace: true });
-  };
-
-  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    const tabs = ['tags', 'budget-categories', 'hi-categories'];
-    const currentIndex = tabs.indexOf(tab);
-    let newIndex = currentIndex;
-
-    if (e.key === 'ArrowRight') {
-      newIndex = (currentIndex + 1) % tabs.length;
-      e.preventDefault();
-    } else if (e.key === 'ArrowLeft') {
-      newIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-      e.preventDefault();
-    } else {
-      return;
-    }
-
-    const newTab = tabs[newIndex];
-    setSearchParams({ tab: newTab }, { replace: true });
-    // Focus the new tab button
-    setTimeout(() => {
-      document.getElementById(`${newTab}-tab`)?.focus();
-    }, 0);
-  };
+  useEffect(() => {
+    setSearchParams({ tab: activeTab });
+  }, [activeTab, setSearchParams]);
 
   return (
-    <div className={styles.container}>
-      <div className={styles.content}>
-        <h1 className={styles.pageTitle}>{t('manage.pageTitle')}</h1>
-        <SettingsSubNav />
+    <>
+      <SettingsSubNav />
 
-        <div role="tablist" className={styles.tabList} onKeyDown={handleTabKeyDown}>
-          <button
-            role="tab"
-            aria-selected={tab === 'tags'}
-            aria-controls="tags-panel"
-            id="tags-tab"
-            tabIndex={tab === 'tags' ? 0 : -1}
-            onClick={() => handleTabChange('tags')}
-            className={`${styles.tab} ${tab === 'tags' ? styles.tabActive : ''}`}
-          >
-            {t('manage.tabs.tags')}
-          </button>
-          <button
-            role="tab"
-            aria-selected={tab === 'budget-categories'}
-            aria-controls="budget-categories-panel"
-            id="budget-categories-tab"
-            tabIndex={tab === 'budget-categories' ? 0 : -1}
-            onClick={() => handleTabChange('budget-categories')}
-            className={`${styles.tab} ${tab === 'budget-categories' ? styles.tabActive : ''}`}
-          >
-            {t('manage.tabs.budgetCategories')}
-          </button>
-          <button
-            role="tab"
-            aria-selected={tab === 'hi-categories'}
-            aria-controls="hi-categories-panel"
-            id="hi-categories-tab"
-            tabIndex={tab === 'hi-categories' ? 0 : -1}
-            onClick={() => handleTabChange('hi-categories')}
-            className={`${styles.tab} ${tab === 'hi-categories' ? styles.tabActive : ''}`}
-          >
-            {t('manage.tabs.householdItemCategories')}
-          </button>
-        </div>
+      <div className={styles.container}>
+        <div className={styles.content}>
+          <h1 className={styles.pageTitle}>{t('manage.pageTitle')}</h1>
 
-        <div
-          role="tabpanel"
-          id="tags-panel"
-          aria-labelledby="tags-tab"
-          className={styles.tabPanel}
-          hidden={tab !== 'tags'}
-        >
-          {tab === 'tags' && <TagsTab />}
-        </div>
-        <div
-          role="tabpanel"
-          id="budget-categories-panel"
-          aria-labelledby="budget-categories-tab"
-          className={styles.tabPanel}
-          hidden={tab !== 'budget-categories'}
-        >
-          {tab === 'budget-categories' && <BudgetCategoriesTab />}
-        </div>
-        <div
-          role="tabpanel"
-          id="hi-categories-panel"
-          aria-labelledby="hi-categories-tab"
-          className={styles.tabPanel}
-          hidden={tab !== 'hi-categories'}
-        >
-          {tab === 'hi-categories' && <HouseholdItemCategoriesTab />}
+          <div className={styles.tabList} role="tablist">
+            <button
+              role="tab"
+              aria-selected={activeTab === 'areas'}
+              className={`${styles.tab} ${activeTab === 'areas' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('areas')}
+            >
+              {t('manage.tabs.areas')}
+            </button>
+            <button
+              role="tab"
+              aria-selected={activeTab === 'trades'}
+              className={`${styles.tab} ${activeTab === 'trades' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('trades')}
+            >
+              {t('manage.tabs.trades')}
+            </button>
+            <button
+              role="tab"
+              aria-selected={activeTab === 'budget-categories'}
+              className={`${styles.tab} ${activeTab === 'budget-categories' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('budget-categories')}
+            >
+              {t('manage.tabs.budgetCategories')}
+            </button>
+            <button
+              role="tab"
+              aria-selected={activeTab === 'hi-categories'}
+              className={`${styles.tab} ${activeTab === 'hi-categories' ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab('hi-categories')}
+            >
+              {t('manage.tabs.householdItemCategories')}
+            </button>
+          </div>
+
+          <div className={styles.tabPanel} role="tabpanel" id={`${activeTab}-panel`}>
+            {activeTab === 'areas' && <AreasTab />}
+            {activeTab === 'trades' && <TradesTab />}
+            {activeTab === 'budget-categories' && <BudgetCategoriesTab />}
+            {activeTab === 'hi-categories' && <HouseholdItemCategoriesTab />}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
+
+export default ManagePage;

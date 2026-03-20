@@ -121,6 +121,16 @@
   color: var(--color-black);
 }
 
+.statusBadge.status_quotation {
+  background: var(--color-gray-200);
+  color: var(--color-gray-800);
+}
+
+[data-theme='dark'] .statusBadge.status_quotation {
+  background: var(--color-slate-500);
+  color: var(--color-white);
+}
+
 /* ─── Amounts Display ────────────────────────────────────────────────────── */
 
 .amounts {

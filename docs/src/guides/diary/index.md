@@ -63,6 +63,4 @@ When the Automatic filter is active, additional type-specific chips appear for f
 - [Automatic Events](automatic-events) -- How system events are generated
 - [Signatures](signatures) -- Digital signature capture and immutability
 
-:::info Screenshot needed
-Diary screenshots will be captured on the next stable release.
-:::
+![Diary page](/img/screenshots/diary-list-light.png)

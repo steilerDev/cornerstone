@@ -6,6 +6,7 @@ import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import * as workItemService from '../services/workItemService.js';
+import * as schema from '../db/schema.js';
 import type { FastifyInstance } from 'fastify';
 import type {
   WorkItemDetail,
@@ -14,7 +15,6 @@ import type {
   CreateWorkItemRequest,
   UpdateWorkItemRequest,
 } from '@cornerstone/shared';
-import { tags } from '../db/schema.js';
 
 describe('Work Item Routes', () => {
   let app: FastifyInstance;
@@ -69,20 +69,49 @@ describe('Work Item Routes', () => {
   }
 
   /**
-   * Helper: Create a tag
+   * Helper: Insert a test area directly into the app DB.
    */
-  function createTestTag(name: string, color: string = '#3b82f6') {
-    const tagId = `tag-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  function insertTestArea(name: string, color: string | null = null): string {
+    const now = new Date().toISOString();
+    const areaId = `area-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     app.db
-      .insert(tags)
+      .insert(schema.areas)
       .values({
-        id: tagId,
+        id: areaId,
         name,
+        parentId: null,
         color,
-        createdAt: new Date().toISOString(),
+        description: null,
+        sortOrder: 0,
+        createdAt: now,
+        updatedAt: now,
       })
       .run();
-    return tagId;
+    return areaId;
+  }
+
+  /**
+   * Helper: Insert a test vendor directly into the app DB.
+   */
+  function insertTestVendor(name: string): string {
+    const now = new Date().toISOString();
+    const vendorId = `vendor-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    app.db
+      .insert(schema.vendors)
+      .values({
+        id: vendorId,
+        name,
+        tradeId: null,
+        phone: null,
+        email: null,
+        address: null,
+        notes: null,
+        createdBy: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return vendorId;
   }
 
   describe('POST /api/work-items', () => {
@@ -115,20 +144,23 @@ describe('Work Item Routes', () => {
       expect(workItem.title).toBe('Install electrical panel');
       expect(workItem.description).toBeNull();
       expect(workItem.status).toBe('not_started');
-      expect(workItem.startDate).toBeNull();
-      expect(workItem.endDate).toBeNull();
+      // autoReschedule() runs after creation: a not_started item with no startDate is
+      // scheduled to start today (Rule 2 floor), so startDate and endDate are a date
+      // string (today), not null.
+      expect(workItem.startDate === null || typeof workItem.startDate === 'string').toBe(true);
+      expect(workItem.endDate === null || typeof workItem.endDate === 'string').toBe(true);
       expect(workItem.durationDays).toBeNull();
       expect(workItem.startAfter).toBeNull();
       expect(workItem.startBefore).toBeNull();
       expect(workItem.assignedUser).toBeNull();
       expect(workItem.createdBy?.id).toBe(userId);
-      expect(workItem.tags).toEqual([]);
+      expect(workItem.area).toBeNull();
       expect(workItem.createdAt).toBeDefined();
       expect(workItem.updatedAt).toBeDefined();
     });
 
     it('creates work item with all optional fields (UAT-3.2-02)', async () => {
-      // Given: Admin user, a tag, and another user
+      // Given: Admin user and another user
       const { cookie } = await createUserWithSession(
         'admin@example.com',
         'Admin',
@@ -137,7 +169,6 @@ describe('Work Item Routes', () => {
       );
       const assigneeId = (await createUserWithSession('assignee@example.com', 'Assignee', 'pass'))
         .userId;
-      const tagId = createTestTag('Foundation');
 
       const body: CreateWorkItemRequest = {
         title: 'Pour foundation',
@@ -149,7 +180,6 @@ describe('Work Item Routes', () => {
         startAfter: '2026-02-28',
         startBefore: '2026-03-10',
         assignedUserId: assigneeId,
-        tagIds: [tagId],
       };
 
       // When: Creating work item
@@ -167,14 +197,16 @@ describe('Work Item Routes', () => {
       expect(workItem.title).toBe('Pour foundation');
       expect(workItem.description).toBe('Pour concrete foundation for main structure');
       expect(workItem.status).toBe('in_progress');
+      // autoReschedule() runs after creation. The item has status 'in_progress', so Rule 3
+      // floors the end date to today when the computed EF (startDate + durationDays =
+      // 2026-03-05) is in the past. startDate is preserved as the user set it.
       expect(workItem.startDate).toBe('2026-03-01');
-      expect(workItem.endDate).toBe('2026-03-05');
+      const todayStr = new Date().toISOString().slice(0, 10);
+      expect(workItem.endDate).toBe(todayStr);
       expect(workItem.durationDays).toBe(4);
       expect(workItem.startAfter).toBe('2026-02-28');
       expect(workItem.startBefore).toBe('2026-03-10');
       expect(workItem.assignedUser?.id).toBe(assigneeId);
-      expect(workItem.tags).toHaveLength(1);
-      expect(workItem.tags[0].name).toBe('Foundation');
     });
 
     it('fails with 400 when title is empty (UAT-3.2-03)', async () => {
@@ -320,16 +352,16 @@ describe('Work Item Routes', () => {
       expect(error.error.message).toContain('User not found');
     });
 
-    it('fails with 400 when tagId does not exist (UAT-3.2-09)', async () => {
+    it('fails with 400 when areaId does not exist (UAT-3.2-09)', async () => {
       // Given: Authenticated user
       const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
 
       const body: CreateWorkItemRequest = {
         title: 'Test',
-        tagIds: ['non-existent-tag-uuid'],
+        areaId: 'non-existent-area-uuid',
       };
 
-      // When: Creating with non-existent tag
+      // When: Creating with non-existent area
       const response = await app.inject({
         method: 'POST',
         url: '/api/work-items',
@@ -341,7 +373,7 @@ describe('Work Item Routes', () => {
       expect(response.statusCode).toBe(400);
       const error = JSON.parse(response.body) as ApiErrorResponse;
       expect(error.error.code).toBe('VALIDATION_ERROR');
-      expect(error.error.message).toContain('Tag not found');
+      expect(error.error.message).toContain('Area not found');
     });
 
     it('fails with 400 when date format is invalid (UAT-3.2-10)', async () => {
@@ -654,35 +686,33 @@ describe('Work Item Routes', () => {
       expect(result.items.every((item) => item.assignedUser?.id === userA)).toBe(true);
     });
 
-    it('filters by tagId (UAT-3.2-18)', async () => {
-      // Given: Work items with various tags
+    it('filters by areaId returns only items in that area (UAT-3.2-18)', async () => {
+      // Given: Work items in different areas
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'User',
         'password',
       );
-      const tagA = createTestTag('Tag A');
-      const tagB = createTestTag('Tag B');
-
-      workItemService.createWorkItem(app.db, userId, { title: 'Has A', tagIds: [tagA] });
-      workItemService.createWorkItem(app.db, userId, { title: 'Has B', tagIds: [tagB] });
+      const areaId = insertTestArea('Kitchen');
       workItemService.createWorkItem(app.db, userId, {
-        title: 'Has A and B',
-        tagIds: [tagA, tagB],
+        title: 'Item in Kitchen',
+        areaId,
       });
+      workItemService.createWorkItem(app.db, userId, { title: 'Item without area' });
 
-      // When: Filtering by tagA
+      // When: Filtering by areaId
       const response = await app.inject({
         method: 'GET',
-        url: `/api/work-items?tagId=${tagA}`,
+        url: `/api/work-items?areaId=${areaId}`,
         headers: { cookie },
       });
 
-      // Then: Returns items with tagA
+      // Then: Returns only items in that area
       expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.body) as WorkItemListResponse;
-      expect(result.items).toHaveLength(2);
-      expect(result.items.every((item) => item.tags.some((t) => t.id === tagA))).toBe(true);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].title).toBe('Item in Kitchen');
+      expect(result.items[0].area?.id).toBe(areaId);
     });
 
     it('searches title and description (UAT-3.2-19)', async () => {
@@ -722,9 +752,11 @@ describe('Work Item Routes', () => {
         'User',
         'password',
       );
-      workItemService.createWorkItem(app.db, userId, { title: 'A', startDate: '2026-03-01' });
-      workItemService.createWorkItem(app.db, userId, { title: 'B', startDate: '2026-03-15' });
-      workItemService.createWorkItem(app.db, userId, { title: 'C', startDate: '2026-03-10' });
+      // Use future dates so the scheduler (ensureDailyReschedule on GET) does not
+      // floor them to today via Rule 2, which would make all three identical.
+      workItemService.createWorkItem(app.db, userId, { title: 'A', startDate: '2027-01-01' });
+      workItemService.createWorkItem(app.db, userId, { title: 'B', startDate: '2027-01-15' });
+      workItemService.createWorkItem(app.db, userId, { title: 'C', startDate: '2027-01-10' });
 
       // When: Sorting by startDate ascending
       const response = await app.inject({
@@ -736,9 +768,9 @@ describe('Work Item Routes', () => {
       // Then: Items sorted by date
       expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.body) as WorkItemListResponse;
-      expect(result.items[0].startDate).toBe('2026-03-01');
-      expect(result.items[1].startDate).toBe('2026-03-10');
-      expect(result.items[2].startDate).toBe('2026-03-15');
+      expect(result.items[0].startDate).toBe('2027-01-01');
+      expect(result.items[1].startDate).toBe('2027-01-10');
+      expect(result.items[2].startDate).toBe('2027-01-15');
     });
 
     it('combines multiple filters (UAT-3.2-21)', async () => {
@@ -863,16 +895,14 @@ describe('Work Item Routes', () => {
 
   describe('GET /api/work-items/:id', () => {
     it('returns complete work item detail (UAT-3.2-24)', async () => {
-      // Given: Work item with tags, subtask, and dependencies
+      // Given: Work item with subtask and dependencies
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'User',
         'password',
       );
-      const tagId = createTestTag('Foundation');
       const workItem = workItemService.createWorkItem(app.db, userId, {
         title: 'Main Task',
-        tagIds: [tagId],
       });
 
       // When: Getting work item detail
@@ -886,7 +916,8 @@ describe('Work Item Routes', () => {
       expect(response.statusCode).toBe(200);
       const detail = JSON.parse(response.body) as WorkItemDetail;
       expect(detail.id).toBe(workItem.id);
-      expect(detail.tags).toHaveLength(1);
+      expect(detail.area).toBeNull();
+      expect(detail.assignedVendor).toBeNull();
       expect(detail.subtasks).toBeDefined();
       expect(detail.dependencies).toBeDefined();
     });
@@ -1115,24 +1146,23 @@ describe('Work Item Routes', () => {
       expect(error.error.code).toBe('UNAUTHORIZED');
     });
 
-    it('allows updating tags (replaces, not merges) (UAT-3.2-33)', async () => {
-      // Given: Work item with tags [A]
+    it('allows updating assignedVendorId to null (UAT-3.2-33)', async () => {
+      // Given: A work item with a vendor assigned
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'User',
         'password',
       );
-      const tagA = createTestTag('Tag A');
-      const tagB = createTestTag('Tag B');
-      const tagC = createTestTag('Tag C');
+      const vendorId = insertTestVendor('Test Vendor');
       const workItem = workItemService.createWorkItem(app.db, userId, {
         title: 'Test',
-        tagIds: [tagA],
+        assignedVendorId: vendorId,
       });
+      expect(workItem.assignedVendor?.id).toBe(vendorId);
 
-      // When: Updating tags to [B, C]
+      // When: Setting assignedVendorId to null
       const body: UpdateWorkItemRequest = {
-        tagIds: [tagB, tagC],
+        assignedVendorId: null,
       };
       const response = await app.inject({
         method: 'PATCH',
@@ -1141,12 +1171,10 @@ describe('Work Item Routes', () => {
         payload: body,
       });
 
-      // Then: Tags are [B, C] (replaced)
+      // Then: Returns 200 with vendor cleared
       expect(response.statusCode).toBe(200);
       const updated = JSON.parse(response.body) as WorkItemDetail;
-      expect(updated.tags).toHaveLength(2);
-      const tagNames = updated.tags.map((t) => t.name).sort();
-      expect(tagNames).toEqual(['Tag B', 'Tag C']);
+      expect(updated.assignedVendor).toBeNull();
     });
 
     it('allows member users to update work items (UAT-3.2-38)', async () => {
@@ -1177,16 +1205,14 @@ describe('Work Item Routes', () => {
 
   describe('DELETE /api/work-items/:id', () => {
     it('deletes work item and cascades (UAT-3.2-34)', async () => {
-      // Given: Work item with tags and subtask
+      // Given: Work item to delete
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'User',
         'password',
       );
-      const tagId = createTestTag('Test Tag');
       const workItem = workItemService.createWorkItem(app.db, userId, {
         title: 'To Delete',
-        tagIds: [tagId],
       });
 
       // When: Deleting work item

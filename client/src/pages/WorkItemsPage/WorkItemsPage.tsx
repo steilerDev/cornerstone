@@ -4,16 +4,16 @@ import { useTranslation } from 'react-i18next';
 import type { WorkItemSummary, WorkItemStatus, UserResponse } from '@cornerstone/shared';
 import { listWorkItems, deleteWorkItem } from '../../lib/workItemsApi.js';
 import { listUsers } from '../../lib/usersApi.js';
-import { fetchTags } from '../../lib/tagsApi.js';
-import type { TagResponse } from '@cornerstone/shared';
+import { fetchVendors } from '../../lib/vendorsApi.js';
+import { useAreas } from '../../hooks/useAreas.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
-import { TagPill } from '../../components/TagPill/TagPill.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
+import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import styles from './WorkItemsPage.module.css';
 
 export function WorkItemsPage() {
@@ -21,11 +21,12 @@ export function WorkItemsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useTranslation('workItems');
+  const { areas } = useAreas();
 
   // Data state
   const [workItems, setWorkItems] = useState<WorkItemSummary[]>([]);
   const [users, setUsers] = useState<UserResponse[]>([]);
-  const [tags, setTags] = useState<TagResponse[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
@@ -46,7 +47,9 @@ export function WorkItemsPage() {
   const searchQuery = searchParams.get('q') || '';
   const statusFilter = searchParams.get('status') as WorkItemStatus | null;
   const assignedUserFilter = searchParams.get('assignedUserId') || '';
-  const tagFilter = searchParams.get('tagId') || '';
+  const areaFilter = searchParams.get('areaId') || '';
+  const assignedVendorFilter = searchParams.get('assignedVendorId') || '';
+  const noBudgetFilter = searchParams.get('noBudget') === 'true';
   const sortBy =
     (searchParams.get('sortBy') as
       | 'title'
@@ -76,13 +79,19 @@ export function WorkItemsPage() {
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Load users and tags on mount
+  // Screen reader announcement for filter toggle
+  const [srMessage, setSrMessage] = useState('');
+
+  // Load users and vendors on mount
   useEffect(() => {
     const loadFilters = async () => {
       try {
-        const [usersResponse, tagsResponse] = await Promise.all([listUsers(), fetchTags()]);
+        const [usersResponse, vendorsResponse] = await Promise.all([
+          listUsers(),
+          fetchVendors({ pageSize: 100 }),
+        ]);
         setUsers(usersResponse.users.filter((u) => !u.deactivatedAt));
-        setTags(tagsResponse.tags);
+        setVendors(vendorsResponse.vendors);
       } catch (err) {
         console.error('Failed to load filter options:', err);
       }
@@ -133,10 +142,12 @@ export function WorkItemsPage() {
           pageSize,
           status: statusFilter || undefined,
           assignedUserId: assignedUserFilter || undefined,
-          tagId: tagFilter || undefined,
+          areaId: areaFilter || undefined,
+          assignedVendorId: assignedVendorFilter || undefined,
           q: searchQuery || undefined,
           sortBy,
           sortOrder,
+          noBudget: noBudgetFilter || undefined,
         });
 
         setWorkItems(response.items);
@@ -154,7 +165,17 @@ export function WorkItemsPage() {
     };
 
     fetchData();
-  }, [searchQuery, statusFilter, assignedUserFilter, tagFilter, sortBy, sortOrder, currentPage]);
+  }, [
+    searchQuery,
+    statusFilter,
+    assignedUserFilter,
+    areaFilter,
+    assignedVendorFilter,
+    noBudgetFilter,
+    sortBy,
+    sortOrder,
+    currentPage,
+  ]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -183,10 +204,12 @@ export function WorkItemsPage() {
         pageSize,
         status: statusFilter || undefined,
         assignedUserId: assignedUserFilter || undefined,
-        tagId: tagFilter || undefined,
+        areaId: areaFilter || undefined,
+        assignedVendorId: assignedVendorFilter || undefined,
         q: searchQuery || undefined,
         sortBy,
         sortOrder,
+        noBudget: noBudgetFilter || undefined,
       });
 
       setWorkItems(response.items);
@@ -225,8 +248,17 @@ export function WorkItemsPage() {
     updateSearchParams({ assignedUserId: userId || undefined, page: '1' });
   };
 
-  const handleTagFilterChange = (tagId: string) => {
-    updateSearchParams({ tagId: tagId || undefined, page: '1' });
+  const handleAreaFilterChange = (areaId: string) => {
+    updateSearchParams({ areaId: areaId || undefined, page: '1' });
+  };
+
+  const handleVendorFilterChange = (vendorId: string) => {
+    updateSearchParams({ assignedVendorId: vendorId || undefined, page: '1' });
+  };
+
+  const handleNoBudgetFilterChange = (checked: boolean) => {
+    updateSearchParams({ noBudget: checked ? 'true' : undefined, page: '1' });
+    setSrMessage(checked ? t('list.filters.noBudgetActive') : t('list.filters.noBudgetInactive'));
   };
 
   const handleSortChange = (field: string) => {
@@ -470,23 +502,47 @@ export function WorkItemsPage() {
           </div>
 
           <div className={styles.filter}>
-            <label htmlFor="tag-filter" className={styles.filterLabel}>
-              {t('list.filters.tag')}
+            <label className={styles.filterLabel}>{t('list.filters.area')}</label>
+            <AreaPicker
+              areas={areas}
+              value={areaFilter}
+              onChange={handleAreaFilterChange}
+              nullable={true}
+              specialOptions={[{ id: '', label: t('list.filters.allAreas') }]}
+            />
+          </div>
+
+          <div className={styles.filter}>
+            <label htmlFor="vendor-filter" className={styles.filterLabel}>
+              {t('list.filters.assignedVendor')}
             </label>
             <select
-              id="tag-filter"
-              value={tagFilter}
-              onChange={(e) => handleTagFilterChange(e.target.value)}
+              id="vendor-filter"
+              value={assignedVendorFilter}
+              onChange={(e) => handleVendorFilterChange(e.target.value)}
               className={styles.filterSelect}
             >
-              <option value="">{t('list.filters.allTags')}</option>
-              {tags.map((tag) => (
-                <option key={tag.id} value={tag.id}>
-                  {tag.name}
+              <option value="">{t('list.filters.allVendors')}</option>
+              {vendors.map((vendor) => (
+                <option key={vendor.id} value={vendor.id}>
+                  {vendor.name}
                 </option>
               ))}
             </select>
           </div>
+
+          <button
+            type="button"
+            className={styles.noBudgetToggle}
+            aria-pressed={noBudgetFilter}
+            aria-label={t('list.filters.noBudgetAriaLabel')}
+            onClick={() => handleNoBudgetFilterChange(!noBudgetFilter)}
+          >
+            {t('list.filters.noBudget')}
+          </button>
+          <span className={styles.srOnly} role="status" aria-atomic="true">
+            {srMessage}
+          </span>
 
           <div className={styles.filter}>
             <label htmlFor="sort-filter" className={styles.filterLabel}>
@@ -522,7 +578,7 @@ export function WorkItemsPage() {
       {/* Work items list */}
       {workItems.length === 0 ? (
         <div className={styles.emptyState}>
-          {searchQuery || statusFilter || assignedUserFilter || tagFilter ? (
+          {searchQuery || statusFilter || assignedUserFilter || noBudgetFilter ? (
             <>
               <h2>{t('list.empty.noMatchTitle')}</h2>
               <p>{t('list.empty.noMatchText')}</p>
@@ -581,7 +637,7 @@ export function WorkItemsPage() {
                     {t('list.table.endDate')}
                     {renderSortIcon('end_date')}
                   </th>
-                  <th>{t('list.table.tags')}</th>
+                  <th className={styles.budgetLinesColumn}>{t('list.table.budgetLines')}</th>
                   <th className={styles.actionsColumn}>{t('list.table.actions')}</th>
                 </tr>
               </thead>
@@ -599,14 +655,19 @@ export function WorkItemsPage() {
                     <td>{item.assignedUser?.displayName || '—'}</td>
                     <td>{formatDate(item.startDate)}</td>
                     <td>{formatDate(item.endDate)}</td>
-                    <td>
-                      <div className={styles.tagsCell}>
-                        {item.tags.length > 0
-                          ? item.tags.map((tag) => (
-                              <TagPill key={tag.id} name={tag.name} color={tag.color} />
-                            ))
-                          : '—'}
-                      </div>
+                    <td className={styles.budgetLinesCell}>
+                      <span
+                        className={
+                          item.budgetLineCount > 0
+                            ? styles.budgetLineCountPositive
+                            : styles.budgetLineCountZero
+                        }
+                        aria-label={t('list.table.budgetLinesAriaLabel', {
+                          count: item.budgetLineCount,
+                        })}
+                      >
+                        {item.budgetLineCount}
+                      </span>
                     </td>
                     <td className={styles.actionsCell} onClick={(e) => e.stopPropagation()}>
                       <div className={styles.actionsMenu}>
@@ -698,16 +759,21 @@ export function WorkItemsPage() {
                     <span className={styles.cardLabel}>{t('list.card.end')}</span>
                     <span>{formatDate(item.endDate)}</span>
                   </div>
-                  {item.tags.length > 0 && (
-                    <div className={styles.cardRow}>
-                      <span className={styles.cardLabel}>{t('list.card.tags')}</span>
-                      <div className={styles.tagsCell}>
-                        {item.tags.map((tag) => (
-                          <TagPill key={tag.id} name={tag.name} color={tag.color} />
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  <div className={styles.cardRow}>
+                    <span className={styles.cardLabel}>{t('list.card.budgetLines')}</span>
+                    <span
+                      className={
+                        item.budgetLineCount > 0
+                          ? styles.budgetLineCountPositive
+                          : styles.budgetLineCountZero
+                      }
+                      aria-label={t('list.table.budgetLinesAriaLabel', {
+                        count: item.budgetLineCount,
+                      })}
+                    >
+                      {item.budgetLineCount}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}

@@ -18,7 +18,7 @@ The household items system provides:
 - **Timeline Dependencies** -- Add dependencies on work items and milestones so delivery dates integrate with the project Gantt chart
 - **Invoice Linking** -- Link vendor invoices to household item budget lines to track actual costs
 - **Document Linking** -- Attach documents from [Paperless-ngx](/guides/documents) (product specs, receipts, warranties) to household items
-- **Tags & Notes** -- Organize items with color-coded tags and add timestamped notes
+- **Areas & Notes** -- Assign items to project areas and add timestamped notes
 - **Subsidy Support** -- Apply subsidy programs to household item costs for budget reduction
 
 ## Categories
@@ -52,7 +52,7 @@ Household items move through a purchase lifecycle:
 The household items list page provides:
 
 - **Search** -- Full-text search across item names and descriptions
-- **Filtering** -- Filter by category, status, room, vendor, or tag
+- **Filtering** -- Filter by category, status, room, vendor, area, or budget status
 - **Sorting** -- Sort by name, category, status, room, order date, delivery date, or creation date
 - **Pagination** -- Paginated results for large item lists
 - **Responsive layout** -- Table view on desktop, card view on mobile and tablet

@@ -189,6 +189,20 @@ jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
   deleteHouseholdItemCategory: jest.fn(),
 }));
 
+// Mock useAreas hook — HouseholdItemDetailPage uses useAreas to render AreaPicker
+const mockUseAreas = jest.fn(() => ({
+  areas: [],
+  isLoading: false,
+  error: null,
+  refetch: jest.fn(),
+  createArea: jest.fn(),
+  updateArea: jest.fn(),
+  deleteArea: jest.fn(),
+}));
+jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
+  useAreas: mockUseAreas,
+}));
+
 jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
   LinkedDocumentsSection: function MockLinkedDocumentsSection(props: {
     entityType: string;
@@ -255,8 +269,8 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
       description: 'Electric height-adjustable desk',
       category: 'furniture' as HouseholdItemCategory,
       status: 'planned' as HouseholdItemStatus,
-      vendor: { id: 'vendor-1', name: 'IKEA', specialty: 'Furniture' },
-      room: 'Office',
+      vendor: { id: 'vendor-1', name: 'IKEA', trade: null },
+      area: null,
       quantity: 1,
       orderDate: null,
       targetDeliveryDate: null,
@@ -265,14 +279,12 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
       latestDeliveryDate: null,
       isLate: false,
       url: null,
-      tagIds: [],
       budgetLineCount: 1,
       totalPlannedAmount: 500,
       budgetSummary: { totalPlanned: 500, totalActual: 0, subsidyReduction: 0, netCost: 500 },
       createdBy: { id: 'user-1', displayName: 'John Doe', email: 'john@example.com' },
       createdAt: '2026-01-15T10:00:00Z',
       updatedAt: '2026-02-15T14:30:00Z',
-      tags: [],
       dependencies: [],
       subsidies: [],
       ...overrides,

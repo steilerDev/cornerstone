@@ -197,3 +197,14 @@ Key behavioral changes validated:
 - Signed badge on cards: `data-testid="signed-badge-{entryId}"` text "✓ Signed" — UAT R2 #869
 - Mode filter chips: `data-testid="mode-filter-all/manual/automatic"` — UAT R2 #866-A
 - Photo input on create: `data-testid="create-photo-input"` (file, multiple, accept image/\*) — UAT R2 #867
+
+## SearchPicker/AreaPicker Filter Pattern (2026-03-19, issue #1074)
+
+AreaPicker has two DOM states: unselected (input visible) vs selected (selectedDisplay visible, input gone).
+
+- Unselected: `input[placeholder="Select an area"]` — click to open dropdown (role="listbox")
+- Selected: `[class*="selectedDisplay"]` with `[class*="selectedTitle"]` + clear btn (aria-label="Clear selection")
+- areaFilterContainer: `'#hi-filter-panel [class*="container"]:has(input[placeholder="Select an area"])'`
+  (only valid in unselected state — use direct filter-panel scoping for selected-state methods)
+- createAreaViaApi/deleteAreaViaApi: added to e2e/fixtures/apiHelpers.ts; API.areas in testData.ts
+- After area selection, URL gets `?areaId=<id>`; clearing removes it. Use waitForResponse BEFORE selection.

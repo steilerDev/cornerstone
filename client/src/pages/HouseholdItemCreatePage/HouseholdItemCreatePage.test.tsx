@@ -6,15 +6,12 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
-import type * as TagsApiTypes from '../../lib/tagsApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as HouseholdItemCategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
 import type * as HouseholdItemCreatePageTypes from './HouseholdItemCreatePage.js';
 import type React from 'react';
 
 const mockCreateHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.createHouseholdItem>();
-const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
-const mockCreateTag = jest.fn<typeof TagsApiTypes.createTag>();
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 const mockFetchHouseholdItemCategories =
   jest.fn<typeof HouseholdItemCategoriesApiTypes.fetchHouseholdItemCategories>();
@@ -26,11 +23,6 @@ jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
   updateHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.updateHouseholdItem>(),
   listHouseholdItems: jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>(),
   deleteHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.deleteHouseholdItem>(),
-}));
-
-jest.unstable_mockModule('../../lib/tagsApi.js', () => ({
-  fetchTags: mockFetchTags,
-  createTag: mockCreateTag,
 }));
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
@@ -68,16 +60,11 @@ function LocationDisplay() {
 describe('HouseholdItemCreatePage', () => {
   let HouseholdItemCreatePageModule: typeof HouseholdItemCreatePageTypes;
 
-  const mockTags = [
-    { id: 'tag-1', name: 'Kitchen', color: '#E57373', createdAt: '2026-01-01T00:00:00Z' },
-    { id: 'tag-2', name: 'Priority', color: '#64B5F6', createdAt: '2026-01-01T00:00:00Z' },
-  ];
-
   const mockVendors = [
     {
       id: 'v-1',
       name: 'IKEA',
-      specialty: 'Furniture',
+      trade: null,
       phone: null,
       email: null,
       address: null,
@@ -89,7 +76,7 @@ describe('HouseholdItemCreatePage', () => {
     {
       id: 'v-2',
       name: 'Home Depot',
-      specialty: 'General',
+      trade: null,
       phone: null,
       email: null,
       address: null,
@@ -108,7 +95,7 @@ describe('HouseholdItemCreatePage', () => {
     status: 'planned' as const,
     vendor: null,
     url: null,
-    room: null,
+    area: null,
     quantity: 1,
     orderDate: null,
     targetDeliveryDate: null,
@@ -116,22 +103,18 @@ describe('HouseholdItemCreatePage', () => {
     earliestDeliveryDate: null,
     latestDeliveryDate: null,
     isLate: false,
-    tagIds: [],
     budgetLineCount: 0,
     totalPlannedAmount: 0,
     budgetSummary: { totalPlanned: 0, totalActual: 0, subsidyReduction: 0, netCost: 0 },
     createdBy: null,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
-    tags: [],
     dependencies: [],
     subsidies: [],
   };
 
   beforeEach(async () => {
     mockCreateHouseholdItem.mockReset();
-    mockFetchTags.mockReset();
-    mockCreateTag.mockReset();
     mockFetchVendors.mockReset();
     mockFetchHouseholdItemCategories.mockReset();
 
@@ -139,7 +122,6 @@ describe('HouseholdItemCreatePage', () => {
       HouseholdItemCreatePageModule = await import('./HouseholdItemCreatePage.js');
     }
 
-    mockFetchTags.mockResolvedValue({ tags: mockTags });
     mockFetchVendors.mockResolvedValue({
       vendors: mockVendors,
       pagination: { page: 1, pageSize: 100, totalItems: 2, totalPages: 1 },
@@ -213,7 +195,8 @@ describe('HouseholdItemCreatePage', () => {
       expect(screen.getByLabelText(/purchase status/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/vendor/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/^url/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/^room/i)).toBeInTheDocument();
+      // room field was removed in migration 0028 (areas_trades_rework)
+      expect(screen.queryByLabelText(/^room/i)).not.toBeInTheDocument();
       expect(screen.getByLabelText(/quantity/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/order date/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/earliest delivery/i)).toBeInTheDocument();
@@ -478,14 +461,9 @@ describe('HouseholdItemCreatePage', () => {
   });
 
   describe('data loading failure', () => {
-    it('shows error banner when tags fail to load', async () => {
-      mockFetchTags.mockRejectedValue(new Error('Network error'));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Failed to load form data. Please try again.')).toBeInTheDocument();
-      });
+    // Tags were removed in migration 0028 (areas_trades_rework) — tagsApi no longer called
+    it.skip('shows error banner when tags fail to load', () => {
+      // Test removed: tagsApi.ts has been deleted; tags table was dropped in migration 0028
     });
 
     it('shows error banner when vendors fail to load', async () => {

@@ -11,7 +11,6 @@ import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
 import type * as NotesApiTypes from '../../lib/notesApi.js';
 import type * as SubtasksApiTypes from '../../lib/subtasksApi.js';
 import type * as DependenciesApiTypes from '../../lib/dependenciesApi.js';
-import type * as TagsApiTypes from '../../lib/tagsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
@@ -49,8 +48,6 @@ const mockReorderSubtasks = jest.fn<typeof SubtasksApiTypes.reorderSubtasks>();
 const mockGetDependencies = jest.fn<typeof DependenciesApiTypes.getDependencies>();
 const mockCreateDependency = jest.fn<typeof DependenciesApiTypes.createDependency>();
 const mockDeleteDependency = jest.fn<typeof DependenciesApiTypes.deleteDependency>();
-const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
-const mockCreateTag = jest.fn<typeof TagsApiTypes.createTag>();
 const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
 const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiTypes.fetchBudgetCategories>();
 const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
@@ -113,11 +110,6 @@ jest.unstable_mockModule('../../lib/dependenciesApi.js', () => ({
   deleteDependency: mockDeleteDependency,
 }));
 
-jest.unstable_mockModule('../../lib/tagsApi.js', () => ({
-  fetchTags: mockFetchTags,
-  createTag: mockCreateTag,
-}));
-
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
   listUsers: mockListUsers,
 }));
@@ -160,6 +152,20 @@ jest.unstable_mockModule('../../lib/workItemMilestonesApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/householdItemWorkItemsApi.js', () => ({
   fetchLinkedHouseholdItems: mockFetchLinkedHouseholdItems,
+}));
+
+// Mock useAreas hook — WorkItemDetailPage uses useAreas to render AreaPicker
+const mockUseAreas = jest.fn(() => ({
+  areas: [],
+  isLoading: false,
+  error: null,
+  refetch: jest.fn(),
+  createArea: jest.fn(),
+  updateArea: jest.fn(),
+  deleteArea: jest.fn(),
+}));
+jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
+  useAreas: mockUseAreas,
 }));
 
 // ─── Mock: formatters — provides useFormatters() hook ────────────────────────
@@ -221,7 +227,8 @@ describe('WorkItemDetailPage', () => {
       displayName: 'Assigned User',
       email: 'assigned@example.com',
     },
-    tags: [{ id: 'tag-1', name: 'Frontend', color: '#FF5733', createdAt: '2024-01-01T00:00:00Z' }],
+    assignedVendor: null,
+    area: null,
     createdBy: {
       id: 'user-1',
       displayName: 'Creator User',
@@ -273,8 +280,6 @@ describe('WorkItemDetailPage', () => {
     mockGetDependencies.mockReset();
     mockCreateDependency.mockReset();
     mockDeleteDependency.mockReset();
-    mockFetchTags.mockReset();
-    mockCreateTag.mockReset();
     mockListUsers.mockReset();
     mockFetchBudgetCategories.mockReset();
     mockFetchBudgetSources.mockReset();
@@ -306,7 +311,6 @@ describe('WorkItemDetailPage', () => {
     mockListNotes.mockResolvedValue({ notes: [] });
     mockListSubtasks.mockResolvedValue({ subtasks: [] });
     mockGetDependencies.mockResolvedValue({ predecessors: [], successors: [] });
-    mockFetchTags.mockResolvedValue({ tags: [] });
     mockListUsers.mockResolvedValue({ users: [] });
     // WorkItemPicker in DependencySentenceBuilder may call listWorkItems on focus
     mockListWorkItems.mockResolvedValue({
@@ -385,7 +389,8 @@ describe('WorkItemDetailPage', () => {
       expect(screen.getByText('Schedule')).toBeInTheDocument();
       expect(screen.getByText('Constraints')).toBeInTheDocument();
       expect(screen.getByText('Assignment')).toBeInTheDocument();
-      expect(screen.getByText('Tags')).toBeInTheDocument();
+      // Tags section removed in migration 0028 (areas_trades_rework)
+      expect(screen.queryByText('Tags')).not.toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Budget', level: 2 })).toBeInTheDocument();
       expect(screen.getByText('Notes')).toBeInTheDocument();
       expect(screen.getByText('Subtasks')).toBeInTheDocument();
@@ -655,7 +660,9 @@ describe('WorkItemDetailPage', () => {
         actualStartDate: null,
         actualEndDate: null,
         assignedUser: null,
-        tags: [],
+        assignedVendor: null,
+        area: null,
+        budgetLineCount: 0,
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       };
@@ -693,7 +700,9 @@ describe('WorkItemDetailPage', () => {
         actualStartDate: null,
         actualEndDate: null,
         assignedUser: null,
-        tags: [],
+        assignedVendor: null,
+        area: null,
+        budgetLineCount: 0,
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       };

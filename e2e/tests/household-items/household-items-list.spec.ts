@@ -503,7 +503,7 @@ test.describe('Pagination (Scenario 12)', { tag: '@responsive' }, () => {
           name: `Mock Household Item ${String(i + 1).padStart(2, '0')}`,
           category: 'hic-furniture',
           status: 'planned',
-          room: null,
+          areaId: null,
           vendor: null,
           totalPlannedAmount: null,
           targetDeliveryDate: null,

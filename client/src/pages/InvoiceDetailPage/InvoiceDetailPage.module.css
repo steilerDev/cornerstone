@@ -135,6 +135,11 @@
   color: var(--color-status-in-progress-text);
 }
 
+.status_quotation {
+  background-color: var(--color-gray-200);
+  color: var(--color-gray-800);
+}
+
 /* ---- Card ---- */
 
 .card {

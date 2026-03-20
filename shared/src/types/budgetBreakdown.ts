@@ -12,8 +12,9 @@ import type { HouseholdItemCategory } from './householdItem.js';
  * - 'actual': entity has all invoiced lines (display actualCost only)
  * - 'projected': entity has no invoiced lines (display projectedMin–projectedMax)
  * - 'mixed': entity has both invoiced and non-invoiced lines (display both)
+ * - 'quoted': entity has quotation-status lines (display projectedMin–projectedMax separately)
  */
-export type CostDisplay = 'actual' | 'projected' | 'mixed';
+export type CostDisplay = 'actual' | 'projected' | 'mixed' | 'quoted';
 
 /**
  * A single budget line within a breakdown item.
@@ -26,6 +27,7 @@ export interface BreakdownBudgetLine {
   confidence: ConfidenceLevel;
   actualCost: number;
   hasInvoice: boolean;
+  isQuotation: boolean;
 }
 
 /**
@@ -110,6 +112,19 @@ export interface BreakdownTotals {
 }
 
 /**
+ * A subsidy adjustment row for the cost breakdown table.
+ * Displayed when a subsidy's uncapped payback exceeds its maximumAmount cap.
+ */
+export interface SubsidyAdjustment {
+  subsidyProgramId: string;
+  name: string;
+  maximumAmount: number;
+  maxPayout: number;
+  minExcess: number;
+  maxExcess: number;
+}
+
+/**
  * Complete budget breakdown structure.
  */
 export interface BudgetBreakdown {
@@ -121,6 +136,7 @@ export interface BudgetBreakdown {
     categories: BreakdownHouseholdItemCategory[];
     totals: BreakdownTotals;
   };
+  subsidyAdjustments: SubsidyAdjustment[];
 }
 
 /**

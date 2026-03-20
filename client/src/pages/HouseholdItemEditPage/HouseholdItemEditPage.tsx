@@ -1,17 +1,13 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type {
-  TagResponse,
-  HouseholdItemCategory,
-  HouseholdItemCategoryEntity,
-} from '@cornerstone/shared';
+import type { HouseholdItemCategory, HouseholdItemCategoryEntity } from '@cornerstone/shared';
 import { getHouseholdItem, updateHouseholdItem } from '../../lib/householdItemsApi.js';
-import { fetchTags, createTag } from '../../lib/tagsApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
-import { TagPicker } from '../../components/TagPicker/TagPicker.js';
+import { useAreas } from '../../hooks/useAreas.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
+import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import styles from './HouseholdItemEditPage.module.css';
 
 interface Vendor {
@@ -24,17 +20,15 @@ export function HouseholdItemEditPage() {
   const { id } = useParams<{ id: string }>();
   const { showToast } = useToast();
   const { t } = useTranslation('householdItems');
+  const { areas, isLoading: areasLoading } = useAreas();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<HouseholdItemCategory>('' as HouseholdItemCategory);
   const [quantity, setQuantity] = useState(1);
+  const [areaId, setAreaId] = useState('');
   const [vendorId, setVendorId] = useState('');
   const [url, setUrl] = useState('');
-  const [room, setRoom] = useState('');
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-
-  const [availableTags, setAvailableTags] = useState<TagResponse[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
 
@@ -44,19 +38,17 @@ export function HouseholdItemEditPage() {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [notFound, setNotFound] = useState(false);
 
-  // Load item data, tags, vendors, and categories on mount
+  // Load item data, vendors, and categories on mount
   useEffect(() => {
     async function loadData() {
       setIsLoadingData(true);
       try {
-        const [tagsResponse, vendorsResponse, categoriesResponse, item] = await Promise.all([
-          fetchTags(),
+        const [vendorsResponse, categoriesResponse, item] = await Promise.all([
           fetchVendors({ pageSize: 100 }),
           fetchHouseholdItemCategories(),
           getHouseholdItem(id!),
         ]);
 
-        setAvailableTags(tagsResponse.tags);
         setVendors(vendorsResponse.vendors);
         setCategories(categoriesResponse.categories);
 
@@ -65,10 +57,9 @@ export function HouseholdItemEditPage() {
         setDescription(item.description || '');
         setCategory(item.category);
         setQuantity(item.quantity);
+        setAreaId(item.area?.id ?? '');
         setVendorId(item.vendor?.id ?? '');
         setUrl(item.url || '');
-        setRoom(item.room || '');
-        setSelectedTagIds(item.tagIds);
       } catch (err) {
         console.error('Failed to load data:', err);
         if (
@@ -90,12 +81,6 @@ export function HouseholdItemEditPage() {
       loadData();
     }
   }, [id]);
-
-  const handleCreateTag = async (name: string, color: string | null): Promise<TagResponse> => {
-    const newTag = await createTag({ name, color });
-    setAvailableTags((prev) => [...prev, newTag]);
-    return newTag;
-  };
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
@@ -132,10 +117,9 @@ export function HouseholdItemEditPage() {
         description: description.trim() || null,
         category,
         quantity,
+        areaId: areaId || null,
         vendorId: vendorId || null,
         url: url.trim() || null,
-        room: room.trim() || null,
-        tagIds: selectedTagIds,
       });
 
       showToast('success', t('edit.success'));
@@ -284,6 +268,25 @@ export function HouseholdItemEditPage() {
         </div>
 
         <div className={styles.formGroup}>
+          <label htmlFor="area" className={styles.label}>
+            {t('edit.form.area.label')}
+          </label>
+          {areasLoading ? (
+            <div className={styles.select} style={{ opacity: 0.6 }}>
+              {t('edit.loading')}
+            </div>
+          ) : (
+            <AreaPicker
+              areas={areas}
+              value={areaId}
+              onChange={setAreaId}
+              disabled={isSubmitting}
+              nullable
+            />
+          )}
+        </div>
+
+        <div className={styles.formGroup}>
           <label htmlFor="vendorId" className={styles.label}>
             {t('edit.form.vendor.label')}
           </label>
@@ -315,32 +318,6 @@ export function HouseholdItemEditPage() {
             onChange={(e) => setUrl(e.target.value)}
             disabled={isSubmitting}
             placeholder={t('edit.form.url.placeholder')}
-          />
-        </div>
-
-        <div className={styles.formGroup}>
-          <label htmlFor="room" className={styles.label}>
-            {t('edit.form.room.label')}
-          </label>
-          <input
-            type="text"
-            id="room"
-            className={styles.input}
-            value={room}
-            onChange={(e) => setRoom(e.target.value)}
-            disabled={isSubmitting}
-            placeholder={t('edit.form.room.placeholder')}
-          />
-        </div>
-
-        <div className={styles.formGroup}>
-          <label className={styles.label}>{t('edit.form.tags.label')}</label>
-          <TagPicker
-            availableTags={availableTags}
-            selectedTagIds={selectedTagIds}
-            onSelectionChange={setSelectedTagIds}
-            onCreateTag={handleCreateTag}
-            disabled={isSubmitting}
           />
         </div>
 

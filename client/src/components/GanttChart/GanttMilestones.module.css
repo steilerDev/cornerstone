@@ -27,7 +27,12 @@
   /* No extra styles beyond diamond base — fill/stroke resolved from color tokens via props */
 }
 
-/* Ghost diamond — planned position for late milestones */
+/* Ahead milestone state — fill/stroke set via inline props; class used for CSS targeting */
+.diamondAhead {
+  /* No extra styles beyond diamond base — fill/stroke resolved from color tokens via props */
+}
+
+/* Ghost diamond — planned position for late/ahead milestones */
 .diamondGhost {
   opacity: 0.4;
   pointer-events: none;

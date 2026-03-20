@@ -180,6 +180,8 @@ export function TimelinePage() {
   const [zoom, setZoom] = useState<ZoomLevel>('month');
   const [showArrows, setShowArrows] = useState(true);
   const [highlightCriticalPath, setHighlightCriticalPath] = useState(true);
+  const [newOpen, setNewOpen] = useState(false);
+  const newRef = useRef<HTMLDivElement>(null);
   const { data, isLoading, error, refetch } = useTimeline();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -217,6 +219,28 @@ export function TimelinePage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zoom]);
+
+  // Close New dropdown on outside click
+  useEffect(() => {
+    if (!newOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (newRef.current && !newRef.current.contains(e.target as Node)) {
+        setNewOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [newOpen]);
+
+  // Close New dropdown on Escape key
+  useEffect(() => {
+    if (!newOpen) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setNewOpen(false);
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [newOpen]);
 
   function adjustColumnWidth(direction: number) {
     setColumnWidth((current) => {
@@ -467,6 +491,61 @@ export function TimelinePage() {
               </div>
             </>
           )}
+
+          {/* Add dropdown button */}
+          <div className={styles.newContainer} ref={newRef}>
+            <button
+              type="button"
+              className={styles.newButton}
+              onClick={() => setNewOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={newOpen}
+              aria-label={t('timeline.toolbar.addButton')}
+              data-testid="timeline-add-button"
+            >
+              {t('timeline.toolbar.addButton')}
+            </button>
+            {newOpen && (
+              <div className={styles.newDropdown} role="menu">
+                <button
+                  type="button"
+                  className={styles.newMenuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    setNewOpen(false);
+                    void navigate('/project/work-items/new');
+                  }}
+                  data-testid="timeline-add-work-item"
+                >
+                  {t('timeline.toolbar.addWorkItem')}
+                </button>
+                <button
+                  type="button"
+                  className={styles.newMenuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    setNewOpen(false);
+                    void navigate('/project/household-items/new');
+                  }}
+                  data-testid="timeline-add-household-item"
+                >
+                  {t('timeline.toolbar.addHouseholdItem')}
+                </button>
+                <button
+                  type="button"
+                  className={styles.newMenuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    setNewOpen(false);
+                    void navigate('/project/milestones/new');
+                  }}
+                  data-testid="timeline-add-milestone"
+                >
+                  {t('timeline.toolbar.addMilestone')}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

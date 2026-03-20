@@ -21,7 +21,6 @@
   "BUDGET_SOURCE_IN_USE": "This budget source is in use and cannot be deleted.",
   "DISCRETIONARY_SOURCE": "The discretionary budget source cannot be deleted.",
   "SUBSIDY_PROGRAM_IN_USE": "This subsidy program is in use and cannot be deleted.",
-  "SUBSIDY_OVERSUBSCRIBED": "This subsidy program is already fully subscribed.",
   "BUDGET_LINE_IN_USE": "This budget line is linked to an invoice and cannot be deleted.",
   "PAPERLESS_NOT_CONFIGURED": "The document management integration is not configured.",
   "PAPERLESS_UNREACHABLE": "The document management system could not be reached.",

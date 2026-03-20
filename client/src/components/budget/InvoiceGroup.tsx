@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { BaseBudgetLine } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
 import { BudgetLineCard } from './BudgetLineCard.js';
@@ -39,6 +40,7 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
   confidenceLabels,
 }: InvoiceGroupProps<T>) {
   const { formatCurrency } = useFormatters();
+  const { t } = useTranslation('budget');
   const [isExpanded, setIsExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const toggleButtonRef = useRef<HTMLButtonElement>(null);
@@ -61,7 +63,14 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
   }, [isExpanded]);
 
   const statusBadgeClass = `${styles.statusBadge} ${styles[`status_${invoiceStatus}`] || ''}`;
-  const ariaLabel = `Invoice ${invoiceNumber || 'unknown'}: ${lines.length} budget lines, ${formatCurrency(itemizedTotal)} invoiced`;
+
+  const getStatusLabel = (status: string): string => {
+    if (status === 'quotation') return t('vendorDetail.quotedLabel');
+    return t('vendorDetail.invoiceStatusLabels.paid'); // Default to "Invoiced" equivalent
+  };
+
+  const amountLabel = invoiceStatus === 'quotation' ? t('vendorDetail.quotedAmount') : 'Invoiced';
+  const ariaLabel = `Invoice ${invoiceNumber || 'unknown'}: ${lines.length} budget lines, ${formatCurrency(itemizedTotal)} ${amountLabel}`;
 
   return (
     <div className={styles.group} role="group" aria-label={ariaLabel}>
@@ -88,8 +97,12 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
           </div>
           <div className={styles.amounts}>
             <div className={styles.amountGroup}>
-              <span className={styles.amountValue}>{formatCurrency(itemizedTotal)}</span>
-              <span className={styles.amountLabel}>Invoiced</span>
+              <span className={styles.amountValue}>
+                {invoiceStatus === 'quotation'
+                  ? `${formatCurrency(itemizedTotal * 0.95)} – ${formatCurrency(itemizedTotal * 1.05)}`
+                  : formatCurrency(itemizedTotal)}
+              </span>
+              <span className={styles.amountLabel}>{amountLabel}</span>
             </div>
             <div className={styles.amountGroup}>
               <span className={styles.amountValueMuted}>{formatCurrency(plannedTotal)}</span>

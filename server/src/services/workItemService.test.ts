@@ -46,19 +46,74 @@ describe('Work Item Service', () => {
   }
 
   /**
-   * Helper: Create a test tag
+   * Helper: Insert a test area directly into the DB.
+   * Returns the area ID.
    */
-  function createTestTag(name: string, color: string = '#3b82f6') {
-    const tagId = `tag-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    db.insert(schema.tags)
+  function insertTestArea(
+    name: string,
+    color: string | null = null,
+    parentId: string | null = null,
+  ) {
+    const now = new Date().toISOString();
+    const areaId = `area-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    db.insert(schema.areas)
       .values({
-        id: tagId,
+        id: areaId,
         name,
+        parentId,
         color,
-        createdAt: new Date().toISOString(),
+        description: null,
+        sortOrder: 0,
+        createdAt: now,
+        updatedAt: now,
       })
       .run();
-    return tagId;
+    return areaId;
+  }
+
+  /**
+   * Helper: Insert a test trade directly into the DB.
+   * Returns the trade ID.
+   */
+  function insertTestTrade(name: string) {
+    const now = new Date().toISOString();
+    const tradeId = `trade-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    db.insert(schema.trades)
+      .values({
+        id: tradeId,
+        name,
+        color: null,
+        description: null,
+        sortOrder: 0,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return tradeId;
+  }
+
+  /**
+   * Helper: Insert a test vendor directly into the DB.
+   * Returns the vendor ID.
+   */
+  function insertTestVendor(name: string, tradeId: string | null = null) {
+    const now = new Date().toISOString();
+    const vendorId = `vendor-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    db.insert(schema.vendors)
+      .values({
+        id: vendorId,
+        name,
+        tradeId,
+        phone: null,
+        email: null,
+        address: null,
+        notes: null,
+        createdBy: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return vendorId;
   }
 
   beforeEach(() => {
@@ -94,7 +149,6 @@ describe('Work Item Service', () => {
       expect(result.startBefore).toBeNull();
       expect(result.assignedUser).toBeNull();
       expect(result.createdBy?.id).toBe(userId);
-      expect(result.tags).toEqual([]);
       expect(result.subtasks).toEqual([]);
       expect(result.dependencies).toEqual({ predecessors: [], successors: [] });
       expect(result.createdAt).toBeDefined();
@@ -102,10 +156,9 @@ describe('Work Item Service', () => {
     });
 
     it('creates work item with all optional fields', () => {
-      // Given: A user, a tag, and another user for assignment
+      // Given: A user and another user for assignment
       const creatorId = createTestUser('creator@example.com', 'Creator');
       const assigneeId = createTestUser('assignee@example.com', 'Assignee');
-      const tagId = createTestTag('Foundation');
 
       const data: CreateWorkItemRequest = {
         title: 'Pour foundation',
@@ -117,7 +170,6 @@ describe('Work Item Service', () => {
         startAfter: '2026-02-28',
         startBefore: '2026-03-10',
         assignedUserId: assigneeId,
-        tagIds: [tagId],
       };
 
       // When: Creating work item
@@ -134,8 +186,6 @@ describe('Work Item Service', () => {
       expect(result.startBefore).toBe('2026-03-10');
       expect(result.assignedUser?.id).toBe(assigneeId);
       expect(result.createdBy?.id).toBe(creatorId);
-      expect(result.tags).toHaveLength(1);
-      expect(result.tags[0].name).toBe('Foundation');
     });
 
     it('trims whitespace from title', () => {
@@ -260,40 +310,89 @@ describe('Work Item Service', () => {
       );
     });
 
-    it('throws ValidationError when tagId does not exist', () => {
-      // Given: Non-existent tag ID
+    it('throws ValidationError when areaId does not exist', () => {
+      // Given: A user and a non-existent area ID
       const userId = createTestUser('user@example.com', 'Test User');
       const data: CreateWorkItemRequest = {
         title: 'Test',
-        tagIds: ['non-existent-tag-id'],
+        areaId: 'non-existent-area-id',
       };
 
       // When/Then: Throws validation error
       expect(() => workItemService.createWorkItem(db, userId, data)).toThrow(ValidationError);
       expect(() => workItemService.createWorkItem(db, userId, data)).toThrow(
-        'Tag not found: non-existent-tag-id',
+        'Area not found: non-existent-area-id',
       );
     });
 
-    it('creates work item with multiple tags', () => {
-      // Given: Multiple tags
+    it('creates work item with valid areaId and returns area object in response', () => {
+      // Given: A user and a real area
       const userId = createTestUser('user@example.com', 'Test User');
-      const tag1 = createTestTag('Foundation');
-      const tag2 = createTestTag('Electrical');
-      const tag3 = createTestTag('Urgent');
-
+      const areaId = insertTestArea('Kitchen', '#FF5733');
       const data: CreateWorkItemRequest = {
-        title: 'Multi-tag task',
-        tagIds: [tag1, tag2, tag3],
+        title: 'Install kitchen cabinets',
+        areaId,
       };
 
       // When: Creating work item
       const result = workItemService.createWorkItem(db, userId, data);
 
-      // Then: All tags are assigned
-      expect(result.tags).toHaveLength(3);
-      const tagNames = result.tags.map((t) => t.name).sort();
-      expect(tagNames).toEqual(['Electrical', 'Foundation', 'Urgent']);
+      // Then: area object is populated in response
+      expect(result.area).not.toBeNull();
+      expect(result.area!.id).toBe(areaId);
+      expect(result.area!.name).toBe('Kitchen');
+      expect(result.area!.color).toBe('#FF5733');
+    });
+
+    it('creates work item with valid assignedVendorId and returns vendor object with trade', () => {
+      // Given: A user, a trade, and a vendor with that trade
+      const userId = createTestUser('user@example.com', 'Test User');
+      const tradeId = insertTestTrade('Custom Test Trade');
+      const vendorId = insertTestVendor('Sparky Electric', tradeId);
+      const data: CreateWorkItemRequest = {
+        title: 'Wire the living room',
+        assignedVendorId: vendorId,
+      };
+
+      // When: Creating work item
+      const result = workItemService.createWorkItem(db, userId, data);
+
+      // Then: assignedVendor is populated with trade info
+      expect(result.assignedVendor).not.toBeNull();
+      expect(result.assignedVendor!.id).toBe(vendorId);
+      expect(result.assignedVendor!.name).toBe('Sparky Electric');
+      expect(result.assignedVendor!.trade).not.toBeNull();
+      expect(result.assignedVendor!.trade!.id).toBe(tradeId);
+      expect(result.assignedVendor!.trade!.name).toBe('Custom Test Trade');
+    });
+
+    it('throws ValidationError when both assignedUserId and assignedVendorId are set', () => {
+      // Given: A user and a vendor — mutual exclusivity enforced by DB trigger
+      const userId = createTestUser('user@example.com', 'Test User');
+      const vendorId = insertTestVendor('Bob Builder');
+      const data: CreateWorkItemRequest = {
+        title: 'Test',
+        assignedUserId: userId,
+        assignedVendorId: vendorId,
+      };
+
+      // When/Then: The DB trigger fires and raises an error
+      expect(() => workItemService.createWorkItem(db, userId, data)).toThrow();
+    });
+
+    it('throws ValidationError for non-existent assignedVendorId', () => {
+      // Given: A non-existent vendor ID
+      const userId = createTestUser('user@example.com', 'Test User');
+      const data: CreateWorkItemRequest = {
+        title: 'Test',
+        assignedVendorId: 'non-existent-vendor-id',
+      };
+
+      // When/Then: Throws validation error
+      expect(() => workItemService.createWorkItem(db, userId, data)).toThrow(ValidationError);
+      expect(() => workItemService.createWorkItem(db, userId, data)).toThrow(
+        'Vendor not found: non-existent-vendor-id',
+      );
     });
   });
 
@@ -324,12 +423,10 @@ describe('Work Item Service', () => {
 
   describe('getWorkItemDetail()', () => {
     it('returns work item detail with all relationships', () => {
-      // Given: A work item with tags, subtask, and dependencies
+      // Given: A work item with subtask and dependencies
       const userId = createTestUser('user@example.com', 'Test User');
-      const tagId = createTestTag('Foundation');
       const workItem = workItemService.createWorkItem(db, userId, {
         title: 'Main Task',
-        tagIds: [tagId],
       });
 
       // Add a subtask
@@ -360,7 +457,6 @@ describe('Work Item Service', () => {
 
       // Then: All relationships are loaded
       expect(detail.id).toBe(workItem.id);
-      expect(detail.tags).toHaveLength(1);
       expect(detail.subtasks).toHaveLength(1);
       expect(detail.subtasks[0].title).toBe('Subtask 1');
       expect(detail.dependencies.predecessors).toHaveLength(1);
@@ -578,44 +674,70 @@ describe('Work Item Service', () => {
       ).toThrow('User not found: non-existent');
     });
 
-    it('replaces tags (set semantics, not merge)', () => {
-      // Given: Work item with tags [A, B]
+    it('updates areaId to null (clears area)', () => {
+      // Given: Work item without area
       const userId = createTestUser('user@example.com', 'Test User');
-      const tagA = createTestTag('Tag A');
-      const tagB = createTestTag('Tag B');
-      const tagC = createTestTag('Tag C');
-      const workItem = workItemService.createWorkItem(db, userId, {
-        title: 'Test',
-        tagIds: [tagA, tagB],
-      });
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Test' });
 
-      // When: Updating tags to [B, C]
+      // When: Updating areaId to null
       const updated = workItemService.updateWorkItem(db, workItem.id, {
-        tagIds: [tagB, tagC],
+        areaId: null,
       });
 
-      // Then: Tags are [B, C] (not [A, B, C])
-      expect(updated.tags).toHaveLength(2);
-      const tagNames = updated.tags.map((t) => t.name).sort();
-      expect(tagNames).toEqual(['Tag B', 'Tag C']);
+      // Then: Area is still null
+      expect(updated.area).toBeNull();
     });
 
-    it('allows clearing all tags', () => {
-      // Given: Work item with tags
+    it('throws ValidationError for non-existent areaId in update', () => {
+      // Given: An existing work item and a bad area ID
       const userId = createTestUser('user@example.com', 'Test User');
-      const tagId = createTestTag('Tag A');
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Test' });
+
+      // When/Then: Throws validation error
+      expect(() =>
+        workItemService.updateWorkItem(db, workItem.id, {
+          areaId: 'non-existent-area-id',
+        }),
+      ).toThrow(ValidationError);
+      expect(() =>
+        workItemService.updateWorkItem(db, workItem.id, {
+          areaId: 'non-existent-area-id',
+        }),
+      ).toThrow('Area not found: non-existent-area-id');
+    });
+
+    it('updates areaId to a valid area and returns area object', () => {
+      // Given: A work item without an area and a real area
+      const userId = createTestUser('user@example.com', 'Test User');
+      const areaId = insertTestArea('Bathroom', '#3498DB');
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'Tile bathroom' });
+      expect(workItem.area).toBeNull();
+
+      // When: Updating areaId to a real area
+      const updated = workItemService.updateWorkItem(db, workItem.id, { areaId });
+
+      // Then: Area is populated
+      expect(updated.area).not.toBeNull();
+      expect(updated.area!.id).toBe(areaId);
+      expect(updated.area!.name).toBe('Bathroom');
+      expect(updated.area!.color).toBe('#3498DB');
+    });
+
+    it('mutual exclusivity check: setting vendor on item that has a user throws', () => {
+      // Given: A work item assigned to a user
+      const userId = createTestUser('user@example.com', 'Test User');
+      const vendorId = insertTestVendor('Fix-It Inc');
       const workItem = workItemService.createWorkItem(db, userId, {
         title: 'Test',
-        tagIds: [tagId],
+        assignedUserId: userId,
       });
 
-      // When: Updating tags to empty array
-      const updated = workItemService.updateWorkItem(db, workItem.id, {
-        tagIds: [],
-      });
-
-      // Then: No tags
-      expect(updated.tags).toHaveLength(0);
+      // When/Then: Trying to also set a vendor triggers the DB trigger
+      expect(() =>
+        workItemService.updateWorkItem(db, workItem.id, {
+          assignedVendorId: vendorId,
+        }),
+      ).toThrow();
     });
 
     it('throws NotFoundError when work item does not exist', () => {
@@ -642,31 +764,6 @@ describe('Work Item Service', () => {
       // Then: Work item no longer exists
       const found = workItemService.findWorkItemById(db, workItem.id);
       expect(found).toBeUndefined();
-    });
-
-    it('cascades delete to tags association', () => {
-      // Given: Work item with tags
-      const userId = createTestUser('user@example.com', 'Test User');
-      const tagId = createTestTag('Test Tag');
-      const workItem = workItemService.createWorkItem(db, userId, {
-        title: 'Test',
-        tagIds: [tagId],
-      });
-
-      // When: Deleting work item
-      workItemService.deleteWorkItem(db, workItem.id);
-
-      // Then: Tag association is deleted
-      const associations = db
-        .select()
-        .from(schema.workItemTags)
-        .where(eq(schema.workItemTags.workItemId, workItem.id))
-        .all();
-      expect(associations).toHaveLength(0);
-
-      // And: Tag itself still exists
-      const tag = db.select().from(schema.tags).where(eq(schema.tags.id, tagId)).get();
-      expect(tag).toBeDefined();
     });
 
     it('cascades delete to subtasks', () => {
@@ -866,22 +963,163 @@ describe('Work Item Service', () => {
       expect(result.items.every((item) => item.assignedUser?.id === userA)).toBe(true);
     });
 
-    it('filters by tagId', () => {
-      // Given: Work items with various tags
+    it('filters by areaId returns results (no area set)', () => {
+      // Given: Work items without areas
       const userId = createTestUser('user@example.com', 'Test User');
-      const tagA = createTestTag('Tag A');
-      const tagB = createTestTag('Tag B');
-      workItemService.createWorkItem(db, userId, { title: 'Has A', tagIds: [tagA] });
-      workItemService.createWorkItem(db, userId, { title: 'Has B', tagIds: [tagB] });
-      workItemService.createWorkItem(db, userId, { title: 'Has A and B', tagIds: [tagA, tagB] });
-      workItemService.createWorkItem(db, userId, { title: 'No tags' });
+      workItemService.createWorkItem(db, userId, { title: 'Item A' });
+      workItemService.createWorkItem(db, userId, { title: 'Item B' });
 
-      // When: Filtering by tagA
-      const result = workItemService.listWorkItems(db, { tagId: tagA });
+      // When: Listing without areaId filter
+      const result = workItemService.listWorkItems(db, {});
 
-      // Then: Returns items with tagA
+      // Then: Returns all items (area is null for all)
       expect(result.items).toHaveLength(2);
-      expect(result.items.every((item) => item.tags.some((t) => t.id === tagA))).toBe(true);
+      result.items.forEach((item) => expect(item.area).toBeNull());
+    });
+
+    it('filters by areaId returns only items in that area', () => {
+      // Given: A real area and work items — some in the area, some not
+      const userId = createTestUser('user@example.com', 'Test User');
+      const areaId = insertTestArea('Living Room');
+      const area2Id = insertTestArea('Bedroom');
+      workItemService.createWorkItem(db, userId, { title: 'In Living Room', areaId });
+      workItemService.createWorkItem(db, userId, { title: 'In Bedroom', areaId: area2Id });
+      workItemService.createWorkItem(db, userId, { title: 'No Area' });
+
+      // When: Filtering by area
+      const result = workItemService.listWorkItems(db, { areaId });
+
+      // Then: Only work items in that area are returned
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].title).toBe('In Living Room');
+      expect(result.items[0].area!.id).toBe(areaId);
+    });
+
+    it('areaId filter on a leaf area (no descendants) returns only exact-match items', () => {
+      // Given: A leaf area with one work item and a sibling area with another item
+      const userId = createTestUser('leaffilter@example.com', 'Leaf User');
+      const leafAreaId = insertTestArea('Garage');
+      const siblingAreaId = insertTestArea('Garden');
+      workItemService.createWorkItem(db, userId, { title: 'Garage Door', areaId: leafAreaId });
+      workItemService.createWorkItem(db, userId, { title: 'Plant Hedge', areaId: siblingAreaId });
+
+      // When: Filtering by the leaf area
+      const result = workItemService.listWorkItems(db, { areaId: leafAreaId });
+
+      // Then: Only the item in the leaf area is returned
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].title).toBe('Garage Door');
+      expect(result.items[0].area!.id).toBe(leafAreaId);
+    });
+
+    it('areaId filter on a parent area includes items from direct child areas', () => {
+      // Given: Parent area P with child area C; one work item in each
+      const userId = createTestUser('parentfilter@example.com', 'Parent User');
+      const parentAreaId = insertTestArea('Ground Floor');
+      const childAreaId = insertTestArea('Ground Floor Kitchen', null, parentAreaId);
+      workItemService.createWorkItem(db, userId, {
+        title: 'Hallway Tiles',
+        areaId: parentAreaId,
+      });
+      workItemService.createWorkItem(db, userId, {
+        title: 'Kitchen Sink',
+        areaId: childAreaId,
+      });
+
+      // When: Filtering by the parent area
+      const result = workItemService.listWorkItems(db, { areaId: parentAreaId });
+
+      // Then: Both items are returned (parent + child)
+      expect(result.items).toHaveLength(2);
+      const titles = result.items.map((i) => i.title).sort();
+      expect(titles).toEqual(['Hallway Tiles', 'Kitchen Sink']);
+    });
+
+    it('areaId filter on grandparent area includes items from all descendant levels', () => {
+      // Given: Three-level hierarchy G → P → C, each with one work item
+      const userId = createTestUser('grandparent@example.com', 'Grandparent User');
+      const grandparentId = insertTestArea('House');
+      const parentId = insertTestArea('First Floor', null, grandparentId);
+      const childId = insertTestArea('First Floor Bedroom', null, parentId);
+      workItemService.createWorkItem(db, userId, {
+        title: 'Exterior Paint',
+        areaId: grandparentId,
+      });
+      workItemService.createWorkItem(db, userId, {
+        title: 'Corridor Flooring',
+        areaId: parentId,
+      });
+      workItemService.createWorkItem(db, userId, {
+        title: 'Bedroom Wardrobe',
+        areaId: childId,
+      });
+
+      // When: Filtering by grandparent — should return all 3
+      const allResult = workItemService.listWorkItems(db, { areaId: grandparentId });
+      expect(allResult.items).toHaveLength(3);
+
+      // When: Filtering by parent — should return 2 (parent + child, not grandparent)
+      const parentResult = workItemService.listWorkItems(db, { areaId: parentId });
+      expect(parentResult.items).toHaveLength(2);
+      const parentTitles = parentResult.items.map((i) => i.title).sort();
+      expect(parentTitles).toEqual(['Bedroom Wardrobe', 'Corridor Flooring']);
+
+      // When: Filtering by child — should return 1 (leaf)
+      const childResult = workItemService.listWorkItems(db, { areaId: childId });
+      expect(childResult.items).toHaveLength(1);
+      expect(childResult.items[0].title).toBe('Bedroom Wardrobe');
+    });
+
+    it('areaId filter on a parent area excludes items from unrelated areas', () => {
+      // Given: Hierarchy P → C and an unrelated area U, each with one work item
+      const userId = createTestUser('unrelated@example.com', 'Unrelated User');
+      const parentAreaId = insertTestArea('Wing A');
+      const childAreaId = insertTestArea('Wing A Office', null, parentAreaId);
+      const unrelatedAreaId = insertTestArea('Wing B');
+      workItemService.createWorkItem(db, userId, {
+        title: 'Wing A Reception',
+        areaId: parentAreaId,
+      });
+      workItemService.createWorkItem(db, userId, {
+        title: 'Wing A Office Desk',
+        areaId: childAreaId,
+      });
+      workItemService.createWorkItem(db, userId, {
+        title: 'Wing B Storage',
+        areaId: unrelatedAreaId,
+      });
+
+      // When: Filtering by parent area
+      const result = workItemService.listWorkItems(db, { areaId: parentAreaId });
+
+      // Then: Items from Wing A (parent + child) are returned, Wing B is excluded
+      expect(result.items).toHaveLength(2);
+      const titles = result.items.map((i) => i.title).sort();
+      expect(titles).toEqual(['Wing A Office Desk', 'Wing A Reception']);
+    });
+
+    it('filters by assignedVendorId returns only items assigned to that vendor', () => {
+      // Given: Two vendors and work items assigned to each
+      const userId = createTestUser('user@example.com', 'Test User');
+      const vendor1 = insertTestVendor('Plumbers R Us');
+      const vendor2 = insertTestVendor('Electricians Inc');
+      workItemService.createWorkItem(db, userId, {
+        title: 'Fix pipes',
+        assignedVendorId: vendor1,
+      });
+      workItemService.createWorkItem(db, userId, {
+        title: 'Wire up lights',
+        assignedVendorId: vendor2,
+      });
+      workItemService.createWorkItem(db, userId, { title: 'Unassigned task' });
+
+      // When: Filtering by vendor1
+      const result = workItemService.listWorkItems(db, { assignedVendorId: vendor1 });
+
+      // Then: Only items assigned to vendor1 are returned
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].title).toBe('Fix pipes');
+      expect(result.items[0].assignedVendor!.id).toBe(vendor1);
     });
 
     it('searches title and description (case-insensitive)', () => {
@@ -972,25 +1210,21 @@ describe('Work Item Service', () => {
       // Given: Work items with various properties
       const creator = createTestUser('creator@example.com', 'Creator');
       const userA = createTestUser('userA@example.com', 'User A');
-      const tagElectrical = createTestTag('Electrical');
 
       workItemService.createWorkItem(db, creator, {
         title: 'Electrical wiring in progress',
         status: 'in_progress',
         assignedUserId: userA,
-        tagIds: [tagElectrical],
       });
       workItemService.createWorkItem(db, creator, {
         title: 'Electrical planning not started',
         status: 'not_started',
         assignedUserId: userA,
-        tagIds: [tagElectrical],
       });
       workItemService.createWorkItem(db, creator, {
         title: 'Electrical installation in progress',
         status: 'in_progress',
         assignedUserId: userA,
-        tagIds: [tagElectrical],
       });
 
       // When: Filtering by status=in_progress AND assignedUserId=userA AND q=wiring
@@ -1005,18 +1239,16 @@ describe('Work Item Service', () => {
       expect(result.items[0].title).toBe('Electrical wiring in progress');
     });
 
-    it('includes tags in list response', () => {
-      // Given: Work item with tags
+    it('includes area in list response', () => {
+      // Given: Work item without area
       const userId = createTestUser('user@example.com', 'Test User');
-      const tagId = createTestTag('Foundation');
-      workItemService.createWorkItem(db, userId, { title: 'Test', tagIds: [tagId] });
+      workItemService.createWorkItem(db, userId, { title: 'Test' });
 
       // When: Listing work items
       const result = workItemService.listWorkItems(db, {});
 
-      // Then: Tags are included
-      expect(result.items[0].tags).toHaveLength(1);
-      expect(result.items[0].tags[0].name).toBe('Foundation');
+      // Then: Area is null when unset
+      expect(result.items[0].area).toBeNull();
     });
 
     it('includes assignedUser summary in list response', () => {

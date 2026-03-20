@@ -21,7 +21,11 @@
       "columnZoom": "Column zoom",
       "zoomOutColumns": "Zoom out columns",
       "zoomInColumns": "Zoom in columns",
-      "adjustColumnWidth": "Adjust column width (Ctrl+scroll or Ctrl+=/−)"
+      "adjustColumnWidth": "Adjust column width (Ctrl+scroll or Ctrl+=/−)",
+      "addButton": "Add",
+      "addWorkItem": "Add Work Item",
+      "addHouseholdItem": "Add Household Item",
+      "addMilestone": "Add Milestone"
     },
     "zoomOptions": {
       "day": "Day",
@@ -45,6 +49,10 @@
       "gantt": "Gantt",
       "calendar": "Calendar"
     }
+  },
+  "ganttSidebar": {
+    "header": "Items",
+    "ariaLabel": "Work items, milestones, and household items"
   },
   "gantt": {
     "tooltip": {

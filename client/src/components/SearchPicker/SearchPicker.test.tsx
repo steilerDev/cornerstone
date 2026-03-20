@@ -476,6 +476,120 @@ describe('SearchPicker', () => {
 
       expect(screen.queryByText('Should not appear')).not.toBeInTheDocument();
     });
+
+    // ── Bug fix: empty-string special option id with value='' ────────────────
+
+    it('empty-string special option: value="" shows input, not chip', () => {
+      const specialOptions = [{ id: '', label: 'All Areas' }];
+      renderPicker({ specialOptions, value: '', placeholder: 'Search...' });
+
+      expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+      expect(screen.queryByText('All Areas')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /clear selection/i })).not.toBeInTheDocument();
+    });
+
+    it('empty-string special option: "All Areas" appears in dropdown on focus when value=""', async () => {
+      const user = userEvent.setup();
+      const specialOptions = [{ id: '', label: 'All Areas' }];
+      renderPicker({ specialOptions, value: '', placeholder: 'Search...' });
+
+      const input = screen.getByPlaceholderText('Search...');
+      await user.click(input);
+
+      await waitFor(() => {
+        expect(screen.getByRole('listbox')).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'All Areas' })).toBeInTheDocument();
+      });
+    });
+
+    it('empty-string special option: selecting "All Areas" calls onChange("") and shows selected display', async () => {
+      const user = userEvent.setup();
+      const onChange = jest.fn<(id: string) => void>();
+      const specialOptions = [{ id: '', label: 'All Areas' }];
+      renderPicker({
+        specialOptions,
+        value: '',
+        onChange: onChange as ReturnType<typeof jest.fn>,
+        placeholder: 'Search...',
+      });
+
+      const input = screen.getByPlaceholderText('Search...');
+      await user.click(input);
+
+      await waitFor(() =>
+        expect(screen.getByRole('option', { name: 'All Areas' })).toBeInTheDocument(),
+      );
+
+      await user.click(screen.getByRole('option', { name: 'All Areas' }));
+
+      expect(onChange).toHaveBeenCalledWith('');
+      // After explicit selection, the selected display should appear
+      await waitFor(() => {
+        expect(screen.getByText('All Areas')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /clear selection/i })).toBeInTheDocument();
+      });
+    });
+
+    it('empty-string special option: clearing after selection returns to input', async () => {
+      const user = userEvent.setup();
+      const onChange = jest.fn<(id: string) => void>();
+      const specialOptions = [{ id: '', label: 'All Areas' }];
+      renderPicker({
+        specialOptions,
+        value: '',
+        onChange: onChange as ReturnType<typeof jest.fn>,
+        placeholder: 'Search...',
+      });
+
+      // Select "All Areas"
+      const input = screen.getByPlaceholderText('Search...');
+      await user.click(input);
+      await waitFor(() =>
+        expect(screen.getByRole('option', { name: 'All Areas' })).toBeInTheDocument(),
+      );
+      await user.click(screen.getByRole('option', { name: 'All Areas' }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /clear selection/i })).toBeInTheDocument(),
+      );
+
+      // Clear the selection
+      await user.click(screen.getByRole('button', { name: /clear selection/i }));
+      expect(onChange).toHaveBeenLastCalledWith('');
+
+      // Should return to input mode
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
+        expect(screen.queryByText('All Areas')).not.toBeInTheDocument();
+      });
+    });
+
+    it('non-empty special option id: chip still renders (regression guard)', () => {
+      const specialOptions = [{ id: 'all', label: 'All Items' }];
+      renderPicker({ specialOptions, value: 'all', placeholder: 'Search...' });
+
+      expect(screen.getByText('All Items')).toBeInTheDocument();
+      expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /clear selection/i })).toBeInTheDocument();
+    });
+
+    it('non-empty special option: clicking × on chip calls onChange("") and restores input', async () => {
+      const user = userEvent.setup();
+      const onChange = jest.fn<(id: string) => void>();
+      const specialOptions = [{ id: 'all', label: 'All Items' }];
+      renderPicker({
+        specialOptions,
+        value: 'all',
+        onChange: onChange as ReturnType<typeof jest.fn>,
+        placeholder: 'Search...',
+      });
+
+      expect(screen.getByText('All Items')).toBeInTheDocument();
+
+      const clearBtn = screen.getByRole('button', { name: /clear selection/i });
+      await user.click(clearBtn);
+
+      expect(onChange).toHaveBeenCalledWith('');
+    });
   });
 
   // ── 9. Clear button ───────────────────────────────────────────────────────

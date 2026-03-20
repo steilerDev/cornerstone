@@ -46,6 +46,9 @@ export class DashboardPage {
   readonly customizeDropdown: Locator;
   readonly projectSubNav: Locator;
 
+  /** The consolidated "Add" dropdown trigger button (data-testid="dashboard-add-button"). */
+  readonly addButton: Locator;
+
   constructor(page: Page) {
     this.page = page;
 
@@ -69,6 +72,9 @@ export class DashboardPage {
 
     // Project sub-navigation
     this.projectSubNav = page.getByRole('navigation', { name: 'Project section navigation' });
+
+    // Consolidated "Add" dropdown button (replaces the 3 individual add buttons)
+    this.addButton = page.getByTestId('dashboard-add-button');
   }
 
   async goto(): Promise<void> {
@@ -116,6 +122,15 @@ export class DashboardPage {
     await btn.click();
     // Wait for the card to disappear from DOM
     await this.card(title).waitFor({ state: 'detached' });
+  }
+
+  /**
+   * Opens the "Add" dropdown and waits for the menu items to appear.
+   * The dropdown contains "Add Work Item", "Add Household Item", and "Add Milestone" options.
+   */
+  async openAddDropdown(): Promise<void> {
+    await this.addButton.click();
+    await this.page.getByTestId('dashboard-add-work-item').waitFor({ state: 'visible' });
   }
 
   /**

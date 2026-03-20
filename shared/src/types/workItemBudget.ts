@@ -8,7 +8,6 @@
 export type {
   ConfidenceLevel,
   BudgetSourceSummary,
-  VendorSummary,
   InvoiceSummary,
   BaseBudgetLine,
   CreateBudgetLineRequest,

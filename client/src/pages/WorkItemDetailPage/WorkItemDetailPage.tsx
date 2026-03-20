@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import type {
   WorkItemDetail,
   WorkItemStatus,
-  TagResponse,
   UserResponse,
   NoteResponse,
   SubtaskResponse,
@@ -51,8 +50,8 @@ import {
   reorderSubtasks,
 } from '../../lib/subtasksApi.js';
 import { getDependencies, createDependency, deleteDependency } from '../../lib/dependenciesApi.js';
-import { fetchTags, createTag } from '../../lib/tagsApi.js';
 import { listUsers } from '../../lib/usersApi.js';
+import { useAreas } from '../../hooks/useAreas.js';
 import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
@@ -66,8 +65,13 @@ import {
   removeLinkedMilestone,
 } from '../../lib/workItemMilestonesApi.js';
 import { fetchLinkedHouseholdItems } from '../../lib/householdItemWorkItemsApi.js';
-import { TagPicker } from '../../components/TagPicker/TagPicker.js';
 import { useAuth } from '../../contexts/AuthContext.js';
+import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
+import {
+  AssignmentPicker,
+  decodeAssignment,
+  encodeAssignment,
+} from '../../components/AssignmentPicker/AssignmentPicker.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { BudgetSection } from '../../components/budget/BudgetSection.js';
@@ -100,6 +104,7 @@ export default function WorkItemDetailPage() {
   const fromView = locationState?.view;
   const { user } = useAuth();
   const { t } = useTranslation('workItems');
+  const { areas } = useAreas();
 
   // Household item labels (moved from module level to use i18n)
   const HOUSEHOLD_ITEM_CATEGORY_LABELS: Record<HouseholdItemCategory, string> = useMemo(
@@ -134,7 +139,6 @@ export default function WorkItemDetailPage() {
     successors: DependencyResponse[];
   }>({ predecessors: [], successors: [] });
 
-  const [availableTags, setAvailableTags] = useState<TagResponse[]>([]);
   const [users, setUsers] = useState<UserResponse[]>([]);
 
   // Budget lines state
@@ -322,7 +326,6 @@ export default function WorkItemDetailPage() {
           notesData,
           subtasksData,
           depsData,
-          tagsData,
           usersData,
           categoriesData,
           sourcesData,
@@ -339,7 +342,6 @@ export default function WorkItemDetailPage() {
           listNotes(id!),
           listSubtasks(id!),
           getDependencies(id!),
-          fetchTags(),
           listUsers(),
           fetchBudgetCategories(),
           fetchBudgetSources(),
@@ -364,7 +366,6 @@ export default function WorkItemDetailPage() {
         setNotes(notesData.notes);
         setSubtasks(subtasksData.subtasks);
         setDependencies(depsData);
-        setAvailableTags(tagsData.tags);
         setUsers(usersData.users.filter((u) => !u.deactivatedAt));
         setBudgetCategories(categoriesData.categories);
         setBudgetSources(sourcesData.budgetSources);
@@ -479,9 +480,7 @@ export default function WorkItemDetailPage() {
       await reloadSubsidyPayback();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        if (err.error.code === 'SUBSIDY_OVERSUBSCRIBED') {
-          setInlineError(err.error.message);
-        } else if (err.statusCode === 409) {
+        if (err.statusCode === 409) {
           setInlineError('This subsidy program is already linked');
         } else {
           setInlineError(err.error.message);
@@ -605,12 +604,6 @@ export default function WorkItemDetailPage() {
     }
   };
 
-  const handleCreateTag = async (name: string, color: string | null): Promise<TagResponse> => {
-    const newTag = await createTag({ name, color });
-    setAvailableTags((prev) => [...prev, newTag]);
-    return newTag;
-  };
-
   // Title editing
   const startEditingTitle = () => {
     if (!workItem) return;
@@ -675,15 +668,31 @@ export default function WorkItemDetailPage() {
   };
 
   // Assigned user change
-  const handleAssignedUserChange = async (userId: string) => {
+  const handleAssignmentChange = async (assignmentValue: string) => {
+    if (!id) return;
+    setInlineError(null);
+    const { userId, vendorId } = decodeAssignment(assignmentValue);
+    try {
+      await updateWorkItem(id, {
+        assignedUserId: userId || null,
+        assignedVendorId: vendorId || null,
+      });
+      await reloadWorkItem();
+    } catch (err) {
+      setInlineError('Failed to update assignment');
+      console.error('Failed to update assignment:', err);
+    }
+  };
+
+  const handleAreaChange = async (areaId: string) => {
     if (!id) return;
     setInlineError(null);
     try {
-      await updateWorkItem(id, { assignedUserId: userId || null });
+      await updateWorkItem(id, { areaId: areaId || null });
       await reloadWorkItem();
     } catch (err) {
-      setInlineError('Failed to update assigned user');
-      console.error('Failed to update assigned user:', err);
+      setInlineError('Failed to update area');
+      console.error('Failed to update area:', err);
     }
   };
 
@@ -761,19 +770,6 @@ export default function WorkItemDetailPage() {
         `Failed to update ${field === 'actualStartDate' ? 'actual start date' : 'actual end date'}`,
       );
       console.error(`Failed to update ${field}:`, err);
-    }
-  };
-
-  // Tags change
-  const handleTagsChange = async (tagIds: string[]) => {
-    if (!id) return;
-    setInlineError(null);
-    try {
-      await updateWorkItem(id, { tagIds });
-      await reloadWorkItem();
-    } catch (err) {
-      setInlineError('Failed to update tags');
-      console.error('Failed to update tags:', err);
     }
   };
 
@@ -1338,36 +1334,32 @@ export default function WorkItemDetailPage() {
             })()}
           </section>
 
-          {/* Assigned User */}
+          {/* Area */}
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>{t('detail.sections.area')}</h2>
+            <div className={styles.property}>
+              <label className={styles.propertyLabel}>{t('detail.area.label')}</label>
+              <AreaPicker
+                areas={areas}
+                value={workItem.area?.id || ''}
+                onChange={handleAreaChange}
+                nullable
+              />
+            </div>
+          </section>
+
+          {/* Assigned User/Vendor */}
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>{t('detail.sections.assignment')}</h2>
             <div className={styles.property}>
               <label className={styles.propertyLabel}>{t('detail.assignment.assignedTo')}</label>
-              <select
-                className={styles.propertySelect}
-                value={workItem.assignedUser?.id || ''}
-                onChange={(e) => handleAssignedUserChange(e.target.value)}
-              >
-                <option value="">{t('create.fields.unassigned')}</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.displayName}
-                  </option>
-                ))}
-              </select>
+              <AssignmentPicker
+                users={users}
+                vendors={allVendors}
+                value={encodeAssignment(workItem.assignedUser?.id, workItem.assignedVendor?.id)}
+                onChange={handleAssignmentChange}
+              />
             </div>
-          </section>
-
-          {/* Tags */}
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>{t('detail.sections.tags')}</h2>
-            <TagPicker
-              availableTags={availableTags}
-              selectedTagIds={workItem.tags.map((t) => t.id)}
-              onSelectionChange={handleTagsChange}
-              onCreateTag={handleCreateTag}
-              onError={(message) => setInlineError(message)}
-            />
           </section>
 
           {/* Budget Lines */}

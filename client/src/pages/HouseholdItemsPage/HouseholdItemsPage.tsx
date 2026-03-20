@@ -18,6 +18,8 @@ import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
+import { useAreas } from '../../hooks/useAreas.js';
+import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import styles from './HouseholdItemsPage.module.css';
 
 export function HouseholdItemsPage() {
@@ -25,6 +27,7 @@ export function HouseholdItemsPage() {
   const { t } = useTranslation('householdItems');
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { areas } = useAreas();
 
   const STATUS_OPTIONS: { value: HouseholdItemStatus; label: string }[] = [
     { value: 'planned', label: t('status.planned') },
@@ -44,7 +47,6 @@ export function HouseholdItemsPage() {
     { value: 'name', label: t('sort.options.name') },
     { value: 'category', label: t('sort.options.category') },
     { value: 'status', label: t('sort.options.status') },
-    { value: 'room', label: t('sort.options.room') },
     { value: 'order_date', label: t('sort.options.order_date') },
     { value: 'target_delivery_date', label: t('sort.options.target_delivery_date') },
     { value: 'created_at', label: t('sort.options.created_at') },
@@ -74,15 +76,15 @@ export function HouseholdItemsPage() {
   // Filter and search state from URL
   const searchQuery = searchParams.get('q') || '';
   const categoryFilter = searchParams.get('category') as HouseholdItemCategory | null;
+  const areaFilter = searchParams.get('areaId') || '';
   const statusFilter = searchParams.get('status') as HouseholdItemStatus | null;
-  const roomFilter = searchParams.get('room') || '';
   const vendorFilter = searchParams.get('vendorId') || '';
+  const noBudgetFilter = searchParams.get('noBudget') === 'true';
   const sortBy =
     (searchParams.get('sortBy') as
       | 'name'
       | 'category'
       | 'status'
-      | 'room'
       | 'order_date'
       | 'target_delivery_date'
       | 'created_at'
@@ -93,9 +95,7 @@ export function HouseholdItemsPage() {
 
   // Search debounce
   const [searchInput, setSearchInput] = useState(searchQuery);
-  const [roomInput, setRoomInput] = useState(roomFilter);
   const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
-  const roomDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // Delete confirmation state
   const [deletingItem, setDeletingItem] = useState<HouseholdItemSummary | null>(null);
@@ -109,6 +109,9 @@ export function HouseholdItemsPage() {
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Screen reader announcement for filter toggle
+  const [srMessage, setSrMessage] = useState('');
 
   // Delete confirmation and modal state
   const deleteTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -171,30 +174,6 @@ export function HouseholdItemsPage() {
     };
   }, [searchInput, searchParams, setSearchParams]);
 
-  // Debounced room filter
-  useEffect(() => {
-    if (roomDebounceRef.current) {
-      clearTimeout(roomDebounceRef.current);
-    }
-
-    roomDebounceRef.current = setTimeout(() => {
-      const newParams = new URLSearchParams(searchParams);
-      if (roomInput) {
-        newParams.set('room', roomInput);
-      } else {
-        newParams.delete('room');
-      }
-      newParams.set('page', '1');
-      setSearchParams(newParams);
-    }, 300);
-
-    return () => {
-      if (roomDebounceRef.current) {
-        clearTimeout(roomDebounceRef.current);
-      }
-    };
-  }, [roomInput, searchParams, setSearchParams]);
-
   // Load household items when filters/page changes
   useEffect(() => {
     const fetchData = async () => {
@@ -206,12 +185,13 @@ export function HouseholdItemsPage() {
           page: currentPage,
           pageSize,
           category: categoryFilter || undefined,
+          areaId: areaFilter || undefined,
           status: statusFilter || undefined,
-          room: roomFilter || undefined,
           vendorId: vendorFilter || undefined,
           q: searchQuery || undefined,
           sortBy,
           sortOrder,
+          noBudget: noBudgetFilter || undefined,
         });
 
         setHouseholdItems(response.items);
@@ -232,12 +212,13 @@ export function HouseholdItemsPage() {
   }, [
     searchQuery,
     categoryFilter,
+    areaFilter,
     statusFilter,
-    roomFilter,
     vendorFilter,
     sortBy,
     sortOrder,
     currentPage,
+    noBudgetFilter,
   ]);
 
   // Close menu when clicking outside
@@ -313,12 +294,28 @@ export function HouseholdItemsPage() {
     updateSearchParams({ category: category || undefined, page: '1' });
   };
 
+  const handleAreaFilterChange = (areaId: string) => {
+    updateSearchParams({ areaId: areaId || undefined, page: '1' });
+  };
+
   const handleStatusFilterChange = (status: string) => {
     updateSearchParams({ status: status || undefined, page: '1' });
   };
 
   const handleVendorFilterChange = (vendorId: string) => {
     updateSearchParams({ vendorId: vendorId || undefined, page: '1' });
+  };
+
+  const handleNoBudgetFilterChange = (checked: boolean) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (checked) {
+      newParams.set('noBudget', 'true');
+    } else {
+      newParams.delete('noBudget');
+    }
+    newParams.set('page', '1');
+    setSearchParams(newParams);
+    setSrMessage(checked ? t('filters.noBudgetActive') : t('filters.noBudgetInactive'));
   };
 
   const handleSortChange = (field: string) => {
@@ -513,6 +510,19 @@ export function HouseholdItemsPage() {
             </div>
 
             <div className={styles.filter}>
+              <label htmlFor="area-filter" className={styles.filterLabel}>
+                {t('filters.area')}
+              </label>
+              <AreaPicker
+                id="area-filter"
+                areas={areas}
+                value={areaFilter}
+                onChange={handleAreaFilterChange}
+                specialOptions={[{ id: '', label: t('filters.allAreas') }]}
+              />
+            </div>
+
+            <div className={styles.filter}>
               <label htmlFor="status-filter" className={styles.filterLabel}>
                 {t('filters.status')}
               </label>
@@ -529,21 +539,6 @@ export function HouseholdItemsPage() {
                   </option>
                 ))}
               </select>
-            </div>
-
-            <div className={styles.filter}>
-              <label htmlFor="room-input" className={styles.filterLabel}>
-                {t('filters.room')}
-              </label>
-              <input
-                id="room-input"
-                type="text"
-                placeholder={t('filters.roomPlaceholder')}
-                value={roomInput}
-                onChange={(e) => setRoomInput(e.target.value)}
-                className={styles.filterSelect}
-                aria-label={t('filters.roomAriaLabel')}
-              />
             </div>
 
             <div className={styles.filter}>
@@ -564,6 +559,19 @@ export function HouseholdItemsPage() {
                 ))}
               </select>
             </div>
+
+            <button
+              type="button"
+              className={styles.noBudgetToggle}
+              aria-pressed={noBudgetFilter}
+              aria-label={t('filters.noBudgetAriaLabel')}
+              onClick={() => handleNoBudgetFilterChange(!noBudgetFilter)}
+            >
+              {t('filters.noBudget')}
+            </button>
+            <span className={styles.srAnnouncement} role="status" aria-atomic="true">
+              {srMessage}
+            </span>
 
             <div className={styles.filter}>
               <label htmlFor="sort-filter" className={styles.filterLabel}>
@@ -603,7 +611,12 @@ export function HouseholdItemsPage() {
       {/* Household items list */}
       {householdItems.length === 0 ? (
         <div className={styles.emptyState}>
-          {searchQuery || categoryFilter || statusFilter || roomFilter || vendorFilter ? (
+          {searchQuery ||
+          categoryFilter ||
+          areaFilter ||
+          statusFilter ||
+          vendorFilter ||
+          noBudgetFilter ? (
             <>
               <h2>{t('empty.noResults')}</h2>
               <p>{t('empty.noResultsMessage')}</p>
@@ -612,7 +625,6 @@ export function HouseholdItemsPage() {
                 className={styles.secondaryButton}
                 onClick={() => {
                   setSearchInput('');
-                  setRoomInput('');
                   setSearchParams(new URLSearchParams());
                 }}
               >
@@ -746,7 +758,7 @@ export function HouseholdItemsPage() {
                     <td>
                       <Badge variants={HI_STATUS_VARIANTS} value={item.status} />
                     </td>
-                    <td>{item.room || '—'}</td>
+                    <td>{item.area?.name || '—'}</td>
                     <td>{item.vendor?.name || '—'}</td>
                     <td>{formatCurrency(item.totalPlannedAmount)}</td>
                     <td>{formatDate(item.targetDeliveryDate)}</td>
@@ -881,10 +893,6 @@ export function HouseholdItemsPage() {
                   <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>{t('card.status')}</span>
                     <Badge variants={HI_STATUS_VARIANTS} value={item.status} />
-                  </div>
-                  <div className={styles.cardRow}>
-                    <span className={styles.cardLabel}>{t('card.room')}</span>
-                    <span>{item.room || '—'}</span>
                   </div>
                   <div className={styles.cardRow}>
                     <span className={styles.cardLabel}>{t('card.vendor')}</span>

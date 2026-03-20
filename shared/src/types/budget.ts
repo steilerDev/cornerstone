@@ -5,7 +5,7 @@
  */
 
 import type { BudgetCategory } from './budgetCategory.js';
-import type { UserSummary } from './workItem.js';
+import type { UserSummary, VendorSummary } from './workItem.js';
 
 /**
  * Confidence level for a budget line estimate.
@@ -31,15 +31,6 @@ export interface BudgetSourceSummary {
   id: string;
   name: string;
   sourceType: string;
-}
-
-/**
- * Vendor summary shape used in budget line responses.
- */
-export interface VendorSummary {
-  id: string;
-  name: string;
-  specialty: string | null;
 }
 
 /**

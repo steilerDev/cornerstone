@@ -3,11 +3,12 @@
  * Work items are the central entity of the application - construction tasks/work items.
  */
 
-import type { TagResponse } from './tag.js';
 import type { SubtaskResponse } from './subtask.js';
 import type { DependencyType } from './dependency.js';
 import type { PaginatedResponse } from './pagination.js';
 import type { WorkItemBudgetLine } from './workItemBudget.js';
+import type { AreaSummary } from './area.js';
+import type { TradeSummary } from './trade.js';
 
 /**
  * Work item status enum.
@@ -22,6 +23,15 @@ export interface UserSummary {
   id: string;
   displayName: string;
   email: string;
+}
+
+/**
+ * Vendor summary shape used in work item responses.
+ */
+export interface VendorSummary {
+  id: string;
+  name: string;
+  trade: TradeSummary | null;
 }
 
 /**
@@ -62,7 +72,9 @@ export interface WorkItemSummary {
   actualEndDate: string | null;
   durationDays: number | null;
   assignedUser: UserSummary | null;
-  tags: TagResponse[];
+  assignedVendor: VendorSummary | null;
+  area: AreaSummary | null;
+  budgetLineCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -96,7 +108,8 @@ export interface WorkItemDetail {
   startBefore: string | null;
   assignedUser: UserSummary | null;
   createdBy: UserSummary | null;
-  tags: TagResponse[];
+  assignedVendor: VendorSummary | null;
+  area: AreaSummary | null;
   subtasks: SubtaskResponse[];
   dependencies: {
     predecessors: DependencyResponse[];
@@ -125,7 +138,8 @@ export interface CreateWorkItemRequest {
   startAfter?: string | null;
   startBefore?: string | null;
   assignedUserId?: string | null;
-  tagIds?: string[];
+  assignedVendorId?: string | null;
+  areaId?: string | null;
 }
 
 /**
@@ -146,7 +160,8 @@ export interface UpdateWorkItemRequest {
   startAfter?: string | null;
   startBefore?: string | null;
   assignedUserId?: string | null;
-  tagIds?: string[];
+  assignedVendorId?: string | null;
+  areaId?: string | null;
 }
 
 /**
@@ -157,10 +172,12 @@ export interface WorkItemListQuery {
   pageSize?: number;
   status?: WorkItemStatus;
   assignedUserId?: string;
-  tagId?: string;
+  assignedVendorId?: string;
+  areaId?: string;
   q?: string;
   sortBy?: 'title' | 'status' | 'start_date' | 'end_date' | 'created_at' | 'updated_at';
   sortOrder?: 'asc' | 'desc';
+  noBudget?: boolean;
 }
 
 /**

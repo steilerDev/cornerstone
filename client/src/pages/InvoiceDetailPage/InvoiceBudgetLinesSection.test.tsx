@@ -7,6 +7,8 @@ import { MemoryRouter } from 'react-router-dom';
 import type * as InvoiceBudgetLinesApiTypes from '../../lib/invoiceBudgetLinesApi.js';
 import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
 import type * as HouseholdItemBudgetsApiTypes from '../../lib/householdItemBudgetsApi.js';
+import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
+import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import type * as InvoiceBudgetLinesSectionTypes from './InvoiceBudgetLinesSection.js';
 import type {
   InvoiceBudgetLineDetailResponse,
@@ -16,6 +18,11 @@ import type {
 
 // ─── Module-scope mock functions ───────────────────────────────────────────────
 
+const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiTypes.fetchBudgetCategories>();
+const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
+const mockCreateWorkItemBudget = jest.fn<typeof WorkItemBudgetsApiTypes.createWorkItemBudget>();
+const mockCreateHouseholdItemBudget =
+  jest.fn<typeof HouseholdItemBudgetsApiTypes.createHouseholdItemBudget>();
 const mockFetchInvoiceBudgetLines =
   jest.fn<typeof InvoiceBudgetLinesApiTypes.fetchInvoiceBudgetLines>();
 const mockCreateInvoiceBudgetLine =
@@ -41,7 +48,7 @@ jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
   fetchWorkItemBudgets: mockFetchWorkItemBudgets,
-  createWorkItemBudget: jest.fn(),
+  createWorkItemBudget: mockCreateWorkItemBudget,
   updateWorkItemBudget: jest.fn(),
   deleteWorkItemBudget: jest.fn(),
 }));
@@ -50,9 +57,28 @@ jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/householdItemBudgetsApi.js', () => ({
   fetchHouseholdItemBudgets: mockFetchHouseholdItemBudgets,
-  createHouseholdItemBudget: jest.fn(),
+  createHouseholdItemBudget: mockCreateHouseholdItemBudget,
   updateHouseholdItemBudget: jest.fn(),
   deleteHouseholdItemBudget: jest.fn(),
+}));
+
+// ─── Mock: budgetCategoriesApi ────────────────────────────────────────────────
+
+jest.unstable_mockModule('../../lib/budgetCategoriesApi.js', () => ({
+  fetchBudgetCategories: mockFetchBudgetCategories,
+  createBudgetCategory: jest.fn(),
+  updateBudgetCategory: jest.fn(),
+  deleteBudgetCategory: jest.fn(),
+}));
+
+// ─── Mock: budgetSourcesApi ────────────────────────────────────────────────────
+
+jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
+  fetchBudgetSources: mockFetchBudgetSources,
+  fetchBudgetSource: jest.fn(),
+  createBudgetSource: jest.fn(),
+  updateBudgetSource: jest.fn(),
+  deleteBudgetSource: jest.fn(),
 }));
 
 // ─── Mock: WorkItemPicker ──────────────────────────────────────────────────────
@@ -179,11 +205,85 @@ beforeEach(async () => {
   mockDeleteInvoiceBudgetLine.mockReset();
   mockFetchWorkItemBudgets.mockReset();
   mockFetchHouseholdItemBudgets.mockReset();
+  mockFetchBudgetCategories.mockReset();
+  mockFetchBudgetSources.mockReset();
+  mockCreateWorkItemBudget.mockReset();
+  mockCreateHouseholdItemBudget.mockReset();
 
   // Default: empty budget lines
   mockFetchInvoiceBudgetLines.mockResolvedValue(makeListResponse([], INVOICE_TOTAL));
   mockFetchWorkItemBudgets.mockResolvedValue([]);
   mockFetchHouseholdItemBudgets.mockResolvedValue([]);
+
+  // Default: categories and budget sources for create form
+  mockFetchBudgetCategories.mockResolvedValue({
+    categories: [
+      {
+        id: 'bc-construction',
+        name: 'Construction',
+        color: '#ff0000',
+        sortOrder: 1,
+        description: null,
+        createdAt: '2025-01-01T00:00:00.000Z',
+        updatedAt: '2025-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'bc-materials',
+        name: 'Materials',
+        color: '#00ff00',
+        sortOrder: 2,
+        description: null,
+        createdAt: '2025-01-01T00:00:00.000Z',
+        updatedAt: '2025-01-01T00:00:00.000Z',
+      },
+    ],
+  });
+  mockFetchBudgetSources.mockResolvedValue({
+    budgetSources: [
+      {
+        id: 'bs-disc',
+        name: 'Discretionary',
+        isDiscretionary: true,
+        status: 'active' as const,
+        sourceType: 'savings' as const,
+        totalAmount: 100000,
+        usedAmount: 0,
+        availableAmount: 100000,
+        claimedAmount: 0,
+        unclaimedAmount: 0,
+        paidAmount: 0,
+        actualAvailableAmount: 100000,
+        projectedAmount: 0,
+        interestRate: null,
+        terms: null,
+        notes: null,
+        createdBy: null,
+        createdAt: '2025-01-01T00:00:00.000Z',
+        updatedAt: '2025-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'bs-loan',
+        name: 'Bank Loan',
+        isDiscretionary: false,
+        status: 'active' as const,
+        sourceType: 'bank_loan' as const,
+        totalAmount: 100000,
+        usedAmount: 0,
+        availableAmount: 100000,
+        claimedAmount: 0,
+        unclaimedAmount: 0,
+        paidAmount: 0,
+        actualAvailableAmount: 100000,
+        projectedAmount: 0,
+        interestRate: null,
+        terms: null,
+        notes: null,
+        createdBy: null,
+        createdAt: '2025-01-01T00:00:00.000Z',
+        updatedAt: '2025-01-01T00:00:00.000Z',
+      },
+    ],
+  });
 
   // Deferred import after mock registration
   const module =
@@ -646,6 +746,133 @@ describe('InvoiceBudgetLinesSection', () => {
 
       await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
       expect(screen.getByText('Delete failed')).toBeInTheDocument();
+    });
+  });
+
+  describe('create budget line form — funding source and pre-fill', () => {
+    /**
+     * Helper: opens the picker, selects the work item (triggering step 2 with
+     * empty budget lines), then clicks "Create Budget Line" to open the inline
+     * create form. By default, mockFetchWorkItemBudgets returns [] so the
+     * "Create Budget Line" button is shown in step 2.
+     */
+    async function openCreateForm() {
+      renderSection(INVOICE_ID, 1500.0);
+
+      // Wait for section to finish initial load
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /\+ Add Budget Line/i })).not.toBeDisabled(),
+      );
+
+      // Open picker (step 1)
+      fireEvent.click(screen.getByRole('button', { name: /\+ Add Budget Line/i }));
+      expect(screen.getByRole('dialog', { name: /Add Budget Line/i })).toBeInTheDocument();
+
+      // Select a work item via the mocked WorkItemPicker → transitions to step 2
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('work-item-picker'));
+      });
+
+      // Step 2: no unlinked budget lines → "Create Budget Line" button appears
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /Create Budget Line/i })).toBeInTheDocument(),
+      );
+
+      // Click "Create Budget Line" → loads categories + sources, shows inline form
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Create Budget Line/i }));
+      });
+
+      // Wait for create form heading
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { name: /Create Budget Line/i })).toBeInTheDocument(),
+      );
+    }
+
+    it('renders "Funding Source" dropdown when create form opens', async () => {
+      await openCreateForm();
+      expect(screen.getByLabelText(/Funding Source/i)).toBeInTheDocument();
+    });
+
+    it('pre-selects the discretionary budget source in the dropdown', async () => {
+      await openCreateForm();
+      const select = screen.getByLabelText(/Funding Source/i) as HTMLSelectElement;
+      expect(select.value).toBe('bs-disc');
+    });
+
+    it('lists all budget sources as options including "No funding source"', async () => {
+      await openCreateForm();
+      const select = screen.getByLabelText(/Funding Source/i);
+      expect(select).toContainElement(select.querySelector('option[value=""]') as HTMLElement);
+      expect(select).toContainElement(
+        select.querySelector('option[value="bs-disc"]') as HTMLElement,
+      );
+      expect(select).toContainElement(
+        select.querySelector('option[value="bs-loan"]') as HTMLElement,
+      );
+    });
+
+    it('pre-fills planned amount with remaining invoice balance', async () => {
+      // remainingAmount starts at INVOICE_TOTAL = 1500.00 (nothing linked yet)
+      await openCreateForm();
+      const amountInput = screen.getByLabelText(/Planned Amount/i) as HTMLInputElement;
+      expect(amountInput.value).toBe('1500.00');
+    });
+
+    it('includes budgetSourceId in the API payload when creating a budget line', async () => {
+      // The test cares about the *call arguments*, not the return value.
+      // Return a minimal stub — the component only iterates the re-fetched list.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockCreateWorkItemBudget.mockResolvedValue({} as any);
+
+      // After creation, re-fetching returns an empty list (new line already linked)
+      mockFetchWorkItemBudgets.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+      await openCreateForm();
+
+      // Fill in the required description field
+      fireEvent.change(screen.getByLabelText(/Description/i), {
+        target: { value: 'Test line' },
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Create$/i }));
+      });
+
+      expect(mockCreateWorkItemBudget).toHaveBeenCalledWith(
+        'wi-001',
+        expect.objectContaining({
+          budgetSourceId: 'bs-disc',
+        }),
+      );
+    });
+
+    it('shows error banner when fetchBudgetSources fails during create form open', async () => {
+      mockFetchBudgetSources.mockRejectedValue(new Error('Sources unavailable'));
+
+      renderSection(INVOICE_ID, 1500.0);
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /\+ Add Budget Line/i })).not.toBeDisabled(),
+      );
+
+      // Open picker and navigate to step 2
+      fireEvent.click(screen.getByRole('button', { name: /\+ Add Budget Line/i }));
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('work-item-picker'));
+      });
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /Create Budget Line/i })).toBeInTheDocument(),
+      );
+
+      // Click "Create Budget Line" — fetchBudgetSources will reject
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Create Budget Line/i }));
+      });
+
+      // Error banner should appear in the picker step
+      await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+      expect(screen.getByText('Failed to load form data.')).toBeInTheDocument();
     });
   });
 

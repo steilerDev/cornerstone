@@ -86,9 +86,13 @@ function resolveColors(): ChartColors {
       completeStroke: readCssVar('--color-milestone-complete-stroke'),
       lateFill: readCssVar('--color-milestone-late-fill') || readCssVar('--color-danger'),
       lateStroke: readCssVar('--color-milestone-late-stroke') || readCssVar('--color-danger'),
+      aheadFill: readCssVar('--color-milestone-ahead-fill') || readCssVar('--color-success'),
+      aheadStroke: readCssVar('--color-milestone-ahead-stroke') || readCssVar('--color-success'),
       hoverGlow: readCssVar('--color-milestone-hover-glow'),
       completeHoverGlow: readCssVar('--color-milestone-complete-hover-glow'),
       lateHoverGlow: readCssVar('--color-milestone-late-hover-glow') || 'rgba(220, 38, 38, 0.25)',
+      aheadHoverGlow:
+        readCssVar('--color-milestone-ahead-hover-glow') || 'rgba(16, 185, 129, 0.25)',
     },
     householdItem: {
       fill: readCssVar('--color-gantt-hi-fill'),
@@ -369,7 +373,7 @@ export function GanttChart({
 
     const all = [...workItemRows, ...milestoneRows, ...hiRows];
 
-    // Sort: by effective date ascending, nulls last; order on same date: work items, then milestones, then HIs
+    // Sort: by effective date ascending, nulls last; order on same date: milestones, then HIs, then work items
     all.sort((a, b) => {
       const getDate = (row: UnifiedRow): string | null => {
         if (row.kind === 'workItem') return row.item.startDate;
@@ -385,9 +389,20 @@ export function GanttChart({
       if (dateB === null) return -1;
       if (dateA < dateB) return -1;
       if (dateA > dateB) return 1;
-      // Same date: work items, then milestones, then HIs
-      const kindOrder = { workItem: 0, milestone: 1, householdItem: 2 };
-      return kindOrder[a.kind] - kindOrder[b.kind];
+
+      // Same date: sort by type (milestones, then HIs, then work items)
+      const kindOrder = { milestone: 0, householdItem: 1, workItem: 2 };
+      if (a.kind !== b.kind) return kindOrder[a.kind] - kindOrder[b.kind];
+
+      // Same date and type: sort by duration (longest first)
+      const getDuration = (row: UnifiedRow): number => {
+        if (row.kind === 'milestone') return 0; // milestones have no duration
+        const start = row.kind === 'workItem' ? row.item.startDate : row.item.earliestDeliveryDate;
+        const end = row.kind === 'workItem' ? row.item.endDate : row.item.latestDeliveryDate;
+        if (!start || !end) return 0;
+        return new Date(end).getTime() - new Date(start).getTime();
+      };
+      return getDuration(b) - getDuration(a); // descending (longest first)
     });
 
     return all;
@@ -1100,6 +1115,27 @@ export function GanttChart({
     });
   }, []);
 
+  /**
+   * Sync sidebar scroll back to chart.
+   * This is called when the user scrolls the sidebar independently.
+   */
+  const handleSidebarScroll = useCallback(() => {
+    if (isScrollSyncing.current) return;
+
+    const sidebarEl = sidebarScrollRef.current;
+    if (!sidebarEl) return;
+
+    requestAnimationFrame(() => {
+      isScrollSyncing.current = true;
+
+      if (chartScrollRef.current) {
+        chartScrollRef.current.scrollTop = sidebarEl.scrollTop;
+      }
+
+      isScrollSyncing.current = false;
+    });
+  }, []);
+
   // Scroll to today on first render and when zoom changes
   useEffect(() => {
     if (todayX !== null && chartScrollRef.current) {
@@ -1131,6 +1167,7 @@ export function GanttChart({
         onItemClick={handleBarOrSidebarClick}
         onMilestoneClick={onMilestoneClick}
         onHouseholdItemClick={handleHiClick}
+        onScroll={handleSidebarScroll}
         ref={sidebarScrollRef}
       />
 

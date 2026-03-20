@@ -28,7 +28,8 @@ function makeItem(overrides: Partial<TimelineWorkItem> = {}): TimelineWorkItem {
     startAfter: null,
     startBefore: null,
     assignedUser: null,
-    tags: [],
+    assignedVendor: null,
+    area: null,
     ...overrides,
   };
 }
@@ -63,9 +64,9 @@ describe('GanttSidebar', () => {
     expect(screen.getByTestId('gantt-sidebar')).toBeInTheDocument();
   });
 
-  it('renders the "Work Item" header', () => {
+  it('renders the "Items" header', () => {
     render(<GanttSidebar items={[]} />);
-    expect(screen.getByText('Work Item')).toBeInTheDocument();
+    expect(screen.getByText('Items')).toBeInTheDocument();
   });
 
   it('header has height matching HEADER_HEIGHT', () => {
@@ -177,9 +178,12 @@ describe('GanttSidebar', () => {
     expect(screen.getByRole('list')).toBeInTheDocument();
   });
 
-  it('rows container has aria-label describing work items and milestones', () => {
+  it('rows container has aria-label describing work items, milestones, and household items', () => {
     render(<GanttSidebar items={[makeItem()]} />);
-    expect(screen.getByRole('list')).toHaveAttribute('aria-label', 'Work items and milestones');
+    expect(screen.getByRole('list')).toHaveAttribute(
+      'aria-label',
+      'Work items, milestones, and household items',
+    );
   });
 
   it('each row has aria-label describing the work item', () => {

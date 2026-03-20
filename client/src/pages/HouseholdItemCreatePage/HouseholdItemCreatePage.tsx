@@ -2,17 +2,16 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
-  TagResponse,
   HouseholdItemCategory,
   HouseholdItemStatus,
   HouseholdItemCategoryEntity,
 } from '@cornerstone/shared';
 import { createHouseholdItem } from '../../lib/householdItemsApi.js';
-import { fetchTags, createTag } from '../../lib/tagsApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
-import { TagPicker } from '../../components/TagPicker/TagPicker.js';
+import { useAreas } from '../../hooks/useAreas.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
+import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import styles from './HouseholdItemCreatePage.module.css';
 
 interface Vendor {
@@ -24,6 +23,7 @@ export function HouseholdItemCreatePage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { t } = useTranslation('householdItems');
+  const { areas, isLoading: areasLoading } = useAreas();
 
   const STATUSES: Array<{ value: HouseholdItemStatus; label: string }> = [
     { value: 'planned', label: t('status.planned') },
@@ -37,16 +37,13 @@ export function HouseholdItemCreatePage() {
   const [category, setCategory] = useState<HouseholdItemCategory>('' as HouseholdItemCategory);
   const [status, setStatus] = useState<HouseholdItemStatus>('planned');
   const [quantity, setQuantity] = useState(1);
+  const [areaId, setAreaId] = useState('');
   const [vendorId, setVendorId] = useState('');
   const [url, setUrl] = useState('');
-  const [room, setRoom] = useState('');
   const [orderDate, setOrderDate] = useState('');
   const [earliestDeliveryDate, setEarliestDeliveryDate] = useState('');
   const [latestDeliveryDate, setLatestDeliveryDate] = useState('');
   const [actualDeliveryDate, setActualDeliveryDate] = useState('');
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-
-  const [availableTags, setAvailableTags] = useState<TagResponse[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
 
@@ -55,17 +52,15 @@ export function HouseholdItemCreatePage() {
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  // Load tags, vendors, and categories on mount
+  // Load vendors and categories on mount
   useEffect(() => {
     async function loadData() {
       setIsLoadingData(true);
       try {
-        const [tagsResponse, vendorsResponse, categoriesResponse] = await Promise.all([
-          fetchTags(),
+        const [vendorsResponse, categoriesResponse] = await Promise.all([
           fetchVendors({ pageSize: 100 }),
           fetchHouseholdItemCategories(),
         ]);
-        setAvailableTags(tagsResponse.tags);
         setVendors(vendorsResponse.vendors);
         setCategories(categoriesResponse.categories);
         // Set default category to first one from API for better UX
@@ -82,12 +77,6 @@ export function HouseholdItemCreatePage() {
 
     loadData();
   }, []);
-
-  const handleCreateTag = async (name: string, color: string | null): Promise<TagResponse> => {
-    const newTag = await createTag({ name, color });
-    setAvailableTags((prev) => [...prev, newTag]);
-    return newTag;
-  };
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
@@ -133,14 +122,13 @@ export function HouseholdItemCreatePage() {
         category,
         status,
         quantity,
+        areaId: areaId || null,
         vendorId: vendorId || null,
         url: url.trim() || null,
-        room: room.trim() || null,
         orderDate: orderDate || null,
         earliestDeliveryDate: earliestDeliveryDate || undefined,
         latestDeliveryDate: latestDeliveryDate || undefined,
         actualDeliveryDate: actualDeliveryDate || null,
-        tagIds: selectedTagIds,
       });
 
       showToast('success', t('create.success'));
@@ -291,6 +279,25 @@ export function HouseholdItemCreatePage() {
         </div>
 
         <div className={styles.formGroup}>
+          <label htmlFor="area" className={styles.label}>
+            {t('create.form.area.label')}
+          </label>
+          {areasLoading ? (
+            <div className={styles.select} style={{ opacity: 0.6 }}>
+              {t('create.loading')}
+            </div>
+          ) : (
+            <AreaPicker
+              areas={areas}
+              value={areaId}
+              onChange={setAreaId}
+              disabled={isSubmitting}
+              nullable
+            />
+          )}
+        </div>
+
+        <div className={styles.formGroup}>
           <label htmlFor="vendorId" className={styles.label}>
             {t('create.form.vendor.label')}
           </label>
@@ -322,21 +329,6 @@ export function HouseholdItemCreatePage() {
             onChange={(e) => setUrl(e.target.value)}
             disabled={isSubmitting}
             placeholder={t('create.form.url.placeholder')}
-          />
-        </div>
-
-        <div className={styles.formGroup}>
-          <label htmlFor="room" className={styles.label}>
-            {t('create.form.room.label')}
-          </label>
-          <input
-            type="text"
-            id="room"
-            className={styles.input}
-            value={room}
-            onChange={(e) => setRoom(e.target.value)}
-            disabled={isSubmitting}
-            placeholder={t('create.form.room.placeholder')}
           />
         </div>
 
@@ -420,17 +412,6 @@ export function HouseholdItemCreatePage() {
               </div>
             )}
           </div>
-        </div>
-
-        <div className={styles.formGroup}>
-          <label className={styles.label}>{t('create.form.tags.label')}</label>
-          <TagPicker
-            availableTags={availableTags}
-            selectedTagIds={selectedTagIds}
-            onSelectionChange={setSelectedTagIds}
-            onCreateTag={handleCreateTag}
-            disabled={isSubmitting}
-          />
         </div>
 
         <div className={styles.formActions}>

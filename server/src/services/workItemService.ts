@@ -1,31 +1,33 @@
 import { randomUUID } from 'node:crypto';
-import { eq, sql, and, or, desc, asc } from 'drizzle-orm';
+import { eq, sql, and, or, desc, asc, inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import {
   workItems,
-  workItemTags,
-  tags,
   users,
   workItemSubtasks,
   workItemDependencies,
   householdItemDeps,
+  workItemBudgets,
+  vendors,
+  areas,
+  trades,
 } from '../db/schema.js';
 import { listWorkItemBudgets } from './workItemBudgetService.js';
 import { autoReschedule } from './schedulingEngine.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
+import { getDescendantIds } from './areaService.js';
 import {
   onWorkItemStatusChanged,
   onMilestoneDelayed,
   onAutoRescheduleCompleted,
 } from './diaryAutoEventService.js';
-import { toUserSummary, toTagResponse } from './shared/converters.js';
-import { validateTagIds } from './shared/validators.js';
+import { toUserSummary, toAreaSummary, toVendorSummaryWithTrade } from './shared/converters.js';
+import { validateAreaId } from './shared/validators.js';
 import type {
   WorkItemDetail,
   WorkItemSummary,
   UserSummary,
-  TagResponse,
   SubtaskResponse,
   DependencyResponse,
   CreateWorkItemRequest,
@@ -37,6 +39,18 @@ import type {
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
+
+/**
+ * Count budget lines for a work item.
+ */
+function getBudgetLineCount(db: DbType, workItemId: string): number {
+  const result = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(workItemBudgets)
+    .where(eq(workItemBudgets.workItemId, workItemId))
+    .get();
+  return result?.count ?? 0;
+}
 
 /**
  * Convert database subtask row to SubtaskResponse shape.
@@ -53,26 +67,33 @@ function toSubtaskResponse(subtask: typeof workItemSubtasks.$inferSelect): Subta
 }
 
 /**
- * Fetch tags for a work item.
- */
-function getWorkItemTags(db: DbType, workItemId: string): TagResponse[] {
-  const tagRows = db
-    .select({ tag: tags })
-    .from(workItemTags)
-    .innerJoin(tags, eq(tags.id, workItemTags.tagId))
-    .where(eq(workItemTags.workItemId, workItemId))
-    .all();
-
-  return tagRows.map((row) => toTagResponse(row.tag));
-}
-
-/**
  * Fetch assigned user for a work item.
  */
 function getAssignedUser(db: DbType, assignedUserId: string | null): UserSummary | null {
   if (!assignedUserId) return null;
   const user = db.select().from(users).where(eq(users.id, assignedUserId)).get();
   return toUserSummary(user || null);
+}
+
+/**
+ * Fetch assigned vendor for a work item, with trade resolution.
+ */
+function getAssignedVendor(
+  db: DbType,
+  assignedVendorId: string | null,
+): ReturnType<typeof toVendorSummaryWithTrade> {
+  if (!assignedVendorId) return null;
+  const vendor = db.select().from(vendors).where(eq(vendors.id, assignedVendorId)).get();
+  return toVendorSummaryWithTrade(db, vendor || null);
+}
+
+/**
+ * Fetch area for a work item.
+ */
+function getArea(db: DbType, areaId: string | null): ReturnType<typeof toAreaSummary> {
+  if (!areaId) return null;
+  const area = db.select().from(areas).where(eq(areas.id, areaId)).get();
+  return toAreaSummary(area || null);
 }
 
 /**
@@ -83,7 +104,9 @@ export function toWorkItemSummary(
   workItem: typeof workItems.$inferSelect,
 ): WorkItemSummary {
   const assignedUser = getAssignedUser(db, workItem.assignedUserId);
-  const itemTags = getWorkItemTags(db, workItem.id);
+  const assignedVendor = getAssignedVendor(db, workItem.assignedVendorId);
+  const area = getArea(db, workItem.areaId);
+  const budgetLineCount = getBudgetLineCount(db, workItem.id);
 
   return {
     id: workItem.id,
@@ -95,7 +118,9 @@ export function toWorkItemSummary(
     actualEndDate: workItem.actualEndDate,
     durationDays: workItem.durationDays,
     assignedUser,
-    tags: itemTags,
+    assignedVendor,
+    area,
+    budgetLineCount,
     createdAt: workItem.createdAt,
     updatedAt: workItem.updatedAt,
   };
@@ -167,10 +192,11 @@ export function toWorkItemDetail(
   workItem: typeof workItems.$inferSelect,
 ): WorkItemDetail {
   const assignedUser = getAssignedUser(db, workItem.assignedUserId);
+  const assignedVendor = getAssignedVendor(db, workItem.assignedVendorId);
+  const area = getArea(db, workItem.areaId);
   const createdByUser = workItem.createdBy
     ? db.select().from(users).where(eq(users.id, workItem.createdBy)).get()
     : null;
-  const itemTags = getWorkItemTags(db, workItem.id);
   const subtasks = getWorkItemSubtasks(db, workItem.id);
   const dependencies = getWorkItemDependencies(db, workItem.id);
 
@@ -189,8 +215,9 @@ export function toWorkItemDetail(
     startAfter: workItem.startAfter,
     startBefore: workItem.startBefore,
     assignedUser,
+    assignedVendor,
+    area,
     createdBy: toUserSummary(createdByUser || null),
-    tags: itemTags,
     subtasks,
     dependencies,
     budgets,
@@ -244,20 +271,6 @@ function validateAssignedUser(db: DbType, userId: string): void {
  * Replace all tags for a work item (set-semantics).
  * Deletes existing associations not in the new set, inserts new ones.
  */
-function replaceWorkItemTags(db: DbType, workItemId: string, tagIds: string[]): void {
-  // Delete all existing tags
-  db.delete(workItemTags).where(eq(workItemTags.workItemId, workItemId)).run();
-
-  // Insert new tags
-  if (tagIds.length > 0) {
-    const values = tagIds.map((tagId) => ({
-      workItemId,
-      tagId,
-    }));
-    db.insert(workItemTags).values(values).run();
-  }
-}
-
 /**
  * Create a new work item.
  */
@@ -279,9 +292,17 @@ export function createWorkItem(
     validateAssignedUser(db, data.assignedUserId);
   }
 
-  // Validate tagIds if provided
-  if (data.tagIds && data.tagIds.length > 0) {
-    validateTagIds(db, data.tagIds);
+  // Validate areaId if provided
+  if (data.areaId) {
+    validateAreaId(db, data.areaId);
+  }
+
+  // Validate assignedVendorId if provided
+  if (data.assignedVendorId) {
+    const vendor = db.select().from(vendors).where(eq(vendors.id, data.assignedVendorId)).get();
+    if (!vendor) {
+      throw new ValidationError(`Vendor not found: ${data.assignedVendorId}`);
+    }
   }
 
   const now = new Date().toISOString();
@@ -302,16 +323,13 @@ export function createWorkItem(
       startAfter: data.startAfter ?? null,
       startBefore: data.startBefore ?? null,
       assignedUserId: data.assignedUserId ?? null,
+      areaId: data.areaId ?? null,
+      assignedVendorId: data.assignedVendorId ?? null,
       createdBy: userId,
       createdAt: now,
       updatedAt: now,
     })
     .run();
-
-  // Insert tags if provided
-  if (data.tagIds && data.tagIds.length > 0) {
-    replaceWorkItemTags(db, id, data.tagIds);
-  }
 
   // Fetch and return the created work item
   const workItem = db.select().from(workItems).where(eq(workItems.id, id)).get();
@@ -421,6 +439,23 @@ export function updateWorkItem(
     updateData.assignedUserId = data.assignedUserId ?? null;
   }
 
+  if ('areaId' in data) {
+    if (data.areaId) {
+      validateAreaId(db, data.areaId);
+    }
+    updateData.areaId = data.areaId ?? null;
+  }
+
+  if ('assignedVendorId' in data) {
+    if (data.assignedVendorId) {
+      const vendor = db.select().from(vendors).where(eq(vendors.id, data.assignedVendorId)).get();
+      if (!vendor) {
+        throw new ValidationError(`Vendor not found: ${data.assignedVendorId}`);
+      }
+    }
+    updateData.assignedVendorId = data.assignedVendorId ?? null;
+  }
+
   if ('actualStartDate' in data) {
     updateData.actualStartDate = data.actualStartDate ?? null;
   }
@@ -485,15 +520,6 @@ export function updateWorkItem(
   // Update work item
   updateData.updatedAt = new Date().toISOString();
   db.update(workItems).set(updateData).where(eq(workItems.id, id)).run();
-
-  // Update tags if provided
-  if ('tagIds' in data) {
-    const tagIds = data.tagIds ?? [];
-    if (tagIds.length > 0) {
-      validateTagIds(db, tagIds);
-    }
-    replaceWorkItemTags(db, id, tagIds);
-  }
 
   // Trigger auto-reschedule when any scheduling-relevant field changed.
   // actualStartDate and actualEndDate are included because the engine uses them
@@ -585,6 +611,15 @@ export function listWorkItems(
     conditions.push(eq(workItems.assignedUserId, query.assignedUserId));
   }
 
+  if (query.areaId) {
+    const areaIds = getDescendantIds(db, query.areaId);
+    conditions.push(inArray(workItems.areaId, areaIds));
+  }
+
+  if (query.assignedVendorId) {
+    conditions.push(eq(workItems.assignedVendorId, query.assignedVendorId));
+  }
+
   if (query.q) {
     // Escape SQL LIKE wildcards (% and _) in user input
     const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
@@ -597,10 +632,10 @@ export function listWorkItems(
     );
   }
 
-  // Tag filter requires a JOIN
-  if (query.tagId) {
+  // Filter for work items with no budget lines
+  if (query.noBudget) {
     conditions.push(
-      sql`${workItems.id} IN (SELECT ${workItemTags.workItemId} FROM ${workItemTags} WHERE ${workItemTags.tagId} = ${query.tagId})`,
+      sql`${workItems.id} NOT IN (SELECT ${workItemBudgets.workItemId} FROM ${workItemBudgets})`,
     );
   }
 

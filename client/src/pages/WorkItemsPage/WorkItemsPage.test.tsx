@@ -2,11 +2,10 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render } from '@testing-library/react';
+import { screen, waitFor, render, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
-import type * as TagsApiTypes from '../../lib/tagsApi.js';
 import type { WorkItemListResponse, WorkItemSummary } from '@cornerstone/shared';
 
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
@@ -15,7 +14,6 @@ const mockGetWorkItem = jest.fn<typeof WorkItemsApiTypes.getWorkItem>();
 const mockCreateWorkItem = jest.fn<typeof WorkItemsApiTypes.createWorkItem>();
 const mockUpdateWorkItem = jest.fn<typeof WorkItemsApiTypes.updateWorkItem>();
 const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
-const mockFetchTags = jest.fn<typeof TagsApiTypes.fetchTags>();
 
 // Mock API modules BEFORE importing components
 jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
@@ -28,10 +26,6 @@ jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
   listUsers: mockListUsers,
-}));
-
-jest.unstable_mockModule('../../lib/tagsApi.js', () => ({
-  fetchTags: mockFetchTags,
 }));
 
 // ─── Mock: formatters — provides useFormatters() hook ────────────────────────
@@ -88,7 +82,9 @@ describe('WorkItemsPage', () => {
       actualStartDate: null,
       actualEndDate: null,
       assignedUser: { id: 'user-1', displayName: 'John Doe', email: 'john@example.com' },
-      tags: [{ id: 'tag-1', name: 'Electrical', color: '#FF0000' }],
+      assignedVendor: null,
+      area: null,
+      budgetLineCount: 0,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     },
@@ -102,7 +98,9 @@ describe('WorkItemsPage', () => {
       actualStartDate: null,
       actualEndDate: null,
       assignedUser: null,
-      tags: [],
+      assignedVendor: null,
+      area: null,
+      budgetLineCount: 0,
       createdAt: '2026-01-02T00:00:00.000Z',
       updatedAt: '2026-01-02T00:00:00.000Z',
     },
@@ -129,7 +127,6 @@ describe('WorkItemsPage', () => {
     mockListWorkItems.mockReset();
     mockDeleteWorkItem.mockReset();
     mockListUsers.mockReset();
-    mockFetchTags.mockReset();
 
     // Default mock responses
     mockListUsers.mockResolvedValue({
@@ -145,10 +142,6 @@ describe('WorkItemsPage', () => {
           deactivatedAt: null,
         },
       ],
-    });
-
-    mockFetchTags.mockResolvedValue({
-      tags: [{ id: 'tag-1', name: 'Electrical', color: '#FF0000' }],
     });
   });
 
@@ -310,14 +303,9 @@ describe('WorkItemsPage', () => {
       });
     });
 
-    it('renders tag filter dropdown', async () => {
-      mockListWorkItems.mockResolvedValueOnce(listResponse);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByLabelText(/tag:/i)).toBeInTheDocument();
-      });
+    it.skip('renders tag filter dropdown — tags table dropped in migration 0028', () => {
+      // Tags (work_item_tags, household_item_tags, tags tables) were dropped in migration 0028.
+      // Tag filtering is no longer available on the work items page.
     });
 
     it('renders sort dropdown', async () => {
@@ -328,6 +316,222 @@ describe('WorkItemsPage', () => {
       await waitFor(() => {
         expect(screen.getByLabelText(/sort by:/i)).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('Budget line count pill', () => {
+    it('renders a span with budgetLineCountZero class and text "0" for a work item with budgetLineCount 0', async () => {
+      mockListWorkItems.mockResolvedValueOnce(listResponse);
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Install electrical wiring').length).toBeGreaterThan(0);
+      });
+
+      // identity-obj-proxy returns class names as-is, so the class attribute value is "budgetLineCountZero"
+      const zeroSpans = container.querySelectorAll('[class="budgetLineCountZero"]');
+      expect(zeroSpans.length).toBeGreaterThan(0);
+      expect(zeroSpans[0].textContent).toBe('0');
+    });
+
+    it('renders a span with budgetLineCountPositive class and text "3" for a work item with budgetLineCount 3', async () => {
+      const itemWithBudget: WorkItemSummary = {
+        id: 'work-3',
+        title: 'Install flooring',
+        status: 'not_started',
+        startDate: null,
+        endDate: null,
+        durationDays: null,
+        actualStartDate: null,
+        actualEndDate: null,
+        assignedUser: null,
+        assignedVendor: null,
+        area: null,
+        budgetLineCount: 3,
+        createdAt: '2026-01-03T00:00:00.000Z',
+        updatedAt: '2026-01-03T00:00:00.000Z',
+      };
+
+      const responseWithBudget: WorkItemListResponse = {
+        items: [itemWithBudget],
+        pagination: { page: 1, pageSize: 25, totalPages: 1, totalItems: 1 },
+      };
+
+      mockListWorkItems.mockResolvedValueOnce(responseWithBudget);
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Install flooring').length).toBeGreaterThan(0);
+      });
+
+      const positiveSpans = container.querySelectorAll('[class="budgetLineCountPositive"]');
+      expect(positiveSpans.length).toBeGreaterThan(0);
+      expect(positiveSpans[0].textContent).toBe('3');
+    });
+
+    it('applies aria-label containing the budget line count to the pill span', async () => {
+      const itemWithBudget: WorkItemSummary = {
+        id: 'work-3',
+        title: 'Install flooring',
+        status: 'not_started',
+        startDate: null,
+        endDate: null,
+        durationDays: null,
+        actualStartDate: null,
+        actualEndDate: null,
+        assignedUser: null,
+        assignedVendor: null,
+        area: null,
+        budgetLineCount: 3,
+        createdAt: '2026-01-03T00:00:00.000Z',
+        updatedAt: '2026-01-03T00:00:00.000Z',
+      };
+
+      const responseWithBudget: WorkItemListResponse = {
+        items: [itemWithBudget],
+        pagination: { page: 1, pageSize: 25, totalPages: 1, totalItems: 1 },
+      };
+
+      mockListWorkItems.mockResolvedValueOnce(responseWithBudget);
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Install flooring').length).toBeGreaterThan(0);
+      });
+
+      const positiveSpans = container.querySelectorAll('[class="budgetLineCountPositive"]');
+      expect(positiveSpans.length).toBeGreaterThan(0);
+      expect(positiveSpans[0].getAttribute('aria-label')).toContain('3');
+    });
+
+    it('applies aria-label containing "0" for the zero-count pill span', async () => {
+      mockListWorkItems.mockResolvedValueOnce(listResponse);
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Install electrical wiring').length).toBeGreaterThan(0);
+      });
+
+      const zeroSpans = container.querySelectorAll('[class="budgetLineCountZero"]');
+      expect(zeroSpans.length).toBeGreaterThan(0);
+      expect(zeroSpans[0].getAttribute('aria-label')).toContain('0');
+    });
+
+    it('renders the budget lines cell td with budgetLinesCell class', async () => {
+      mockListWorkItems.mockResolvedValueOnce(listResponse);
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Install electrical wiring').length).toBeGreaterThan(0);
+      });
+
+      const budgetCells = container.querySelectorAll('td[class="budgetLinesCell"]');
+      expect(budgetCells.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('No Budget toggle button', () => {
+    it('renders the No Budget filter as a <button> element (not a checkbox)', async () => {
+      mockListWorkItems.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByLabelText(/show only work items without budget lines/i),
+        ).toBeInTheDocument();
+      });
+
+      const toggle = screen.getByLabelText(/show only work items without budget lines/i);
+      expect(toggle.tagName).toBe('BUTTON');
+    });
+
+    it('renders the toggle with aria-pressed attribute', async () => {
+      mockListWorkItems.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByLabelText(/show only work items without budget lines/i),
+        ).toBeInTheDocument();
+      });
+
+      const toggle = screen.getByLabelText(/show only work items without budget lines/i);
+      expect(toggle).toHaveAttribute('aria-pressed');
+    });
+
+    it('renders the toggle with aria-pressed="false" when noBudget is not in URL params', async () => {
+      mockListWorkItems.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByLabelText(/show only work items without budget lines/i),
+        ).toBeInTheDocument();
+      });
+
+      const toggle = screen.getByLabelText(/show only work items without budget lines/i);
+      expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('has an aria-label attribute on the toggle button', async () => {
+      mockListWorkItems.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByLabelText(/show only work items without budget lines/i),
+        ).toBeInTheDocument();
+      });
+
+      const toggle = screen.getByLabelText(/show only work items without budget lines/i);
+      expect(toggle.getAttribute('aria-label')).toBeTruthy();
+    });
+
+    it('clicking the toggle sets aria-pressed to "true"', async () => {
+      mockListWorkItems.mockResolvedValue(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByLabelText(/show only work items without budget lines/i),
+        ).toBeInTheDocument();
+      });
+
+      const toggle = screen.getByLabelText(/show only work items without budget lines/i);
+      fireEvent.click(toggle);
+
+      await waitFor(() => {
+        expect(toggle).toHaveAttribute('aria-pressed', 'true');
+      });
+    });
+
+    it('does not render any checkbox input for budget filtering', async () => {
+      mockListWorkItems.mockResolvedValueOnce(listResponse);
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Install electrical wiring').length).toBeGreaterThan(0);
+      });
+
+      const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+      // None of the checkboxes should be related to budget filtering
+      const budgetCheckboxes = Array.from(checkboxes).filter((el) => {
+        const label = el.getAttribute('aria-label') || '';
+        const id = el.getAttribute('id') || '';
+        return label.toLowerCase().includes('budget') || id.toLowerCase().includes('budget');
+      });
+      expect(budgetCheckboxes).toHaveLength(0);
     });
   });
 });

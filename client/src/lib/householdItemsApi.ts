@@ -31,14 +31,14 @@ export function listHouseholdItems(
   if (params?.status) {
     queryParams.set('status', params.status);
   }
-  if (params?.room) {
-    queryParams.set('room', params.room);
-  }
   if (params?.vendorId) {
     queryParams.set('vendorId', params.vendorId);
   }
-  if (params?.tagId) {
-    queryParams.set('tagId', params.tagId);
+  if (params?.noBudget) {
+    queryParams.set('noBudget', 'true');
+  }
+  if (params?.areaId) {
+    queryParams.set('areaId', params.areaId);
   }
   if (params?.sortBy) {
     queryParams.set('sortBy', params.sortBy);

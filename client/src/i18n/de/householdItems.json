@@ -10,11 +10,17 @@
   "filters": {
     "ariaLabel": "Haushaltsartikel-Filter",
     "category": "Kategorie:",
+    "area": "Bereich:",
     "status": "Status:",
     "room": "Raum:",
     "vendor": "Auftragnehmer:",
+    "noBudget": "Keine Budgetpositionen",
+    "noBudgetAriaLabel": "Nur Haushaltsartikel ohne Budgetpositionen anzeigen",
+    "noBudgetActive": "Kein-Budgetpositionen-Filter aktiv",
+    "noBudgetInactive": "Kein-Budgetpositionen-Filter aufgehoben",
     "sortBy": "Sortieren nach:",
     "allCategories": "Alle Kategorien",
+    "allAreas": "Alle Bereiche",
     "allStatuses": "Alle Status",
     "allVendors": "Alle Auftragnehmer",
     "roomPlaceholder": "Nach Raum filtern...",
@@ -139,6 +145,9 @@
         "label": "Auftragnehmer",
         "placeholder": "Kein Auftragnehmer"
       },
+      "area": {
+        "label": "Bereich"
+      },
       "url": {
         "label": "URL",
         "placeholder": "https://example.com"
@@ -206,6 +215,9 @@
         "label": "Auftragnehmer",
         "placeholder": "Kein Auftragnehmer"
       },
+      "area": {
+        "label": "Bereich"
+      },
       "url": {
         "label": "URL",
         "placeholder": "https://example.com"
@@ -253,6 +265,12 @@
       "tags": "Tags",
       "noTags": "Keine Tags"
     },
+    "area": {
+      "title": "Bereich",
+      "label": "Bereich",
+      "updated": "Bereich erfolgreich aktualisiert",
+      "updateFailed": "Bereich konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
+    },
     "datesDelivery": {
       "title": "Daten & Lieferung",
       "purchaseStatus": "Kaufstatus",
@@ -279,7 +297,7 @@
       "removeDependency": "Abhängigkeit entfernen von",
       "confirm": "Bestätigen",
       "cancel": "Abbrechen",
-      "search": "Arbeitsgegenstände oder Meilensteine zum Hinzufügen durchsuchen...",
+      "search": "Arbeitspakete oder Meilensteine zum Hinzufügen durchsuchen...",
       "noMatches": "Keine Artikel entsprechen Ihrer Suche",
       "failedAdd": "Fehler beim Hinzufügen der Abhängigkeit",
       "failedRemove": "Fehler beim Entfernen der Abhängigkeit",
@@ -309,7 +327,7 @@
     },
     "budget": {
       "title": "Budget",
-      "emptyState": "Noch keine Budgetzeilen. Fügen Sie die erste Zeile hinzu, um Kosten zu verfolgen.",
+      "emptyState": "Noch keine Budgetpositionen. Fügen Sie die erste Position hinzu, um Kosten zu verfolgen.",
       "addLineButton": "+ Zeile hinzufügen",
       "linkInvoiceButton": "Mit Rechnung verknüpfen",
       "confidenceLabel": "Konfidenz:",

@@ -21,7 +21,11 @@
       "columnZoom": "Spalten-Zoom",
       "zoomOutColumns": "Spalten verkleinern",
       "zoomInColumns": "Spalten vergrößern",
-      "adjustColumnWidth": "Spaltenbreite anpassen (Strg+Bildlauf oder Strg+=/−)"
+      "adjustColumnWidth": "Spaltenbreite anpassen (Strg+Bildlauf oder Strg+=/−)",
+      "addButton": "Hinzufügen",
+      "addWorkItem": "Arbeitspaket Hinzufügen",
+      "addHouseholdItem": "Haushaltsartikel Hinzufügen",
+      "addMilestone": "Meilenstein Hinzufügen"
     },
     "zoomOptions": {
       "day": "Tag",
@@ -45,6 +49,10 @@
       "gantt": "Gantt-Diagramm",
       "calendar": "Kalender"
     }
+  },
+  "ganttSidebar": {
+    "header": "Elemente",
+    "ariaLabel": "Arbeitspakete, Meilensteine und Haushaltsartikel"
   },
   "gantt": {
     "tooltip": {

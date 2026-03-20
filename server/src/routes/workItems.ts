@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as workItemService from '../services/workItemService.js';
 import * as householdItemWorkItemService from '../services/householdItemWorkItemService.js';
-import { ensureDailyReschedule } from '../services/schedulingEngine.js';
+import { autoReschedule, ensureDailyReschedule } from '../services/schedulingEngine.js';
 import type {
   CreateWorkItemRequest,
   UpdateWorkItemRequest,
@@ -29,11 +29,8 @@ const createWorkItemSchema = {
       startAfter: { type: ['string', 'null'], format: 'date' },
       startBefore: { type: ['string', 'null'], format: 'date' },
       assignedUserId: { type: ['string', 'null'] },
-      tagIds: {
-        type: 'array',
-        items: { type: 'string' },
-        uniqueItems: true,
-      },
+      areaId: { type: ['string', 'null'] },
+      assignedVendorId: { type: ['string', 'null'] },
     },
     additionalProperties: false,
   },
@@ -51,13 +48,15 @@ const listWorkItemsSchema = {
         enum: ['not_started', 'in_progress', 'completed'],
       },
       assignedUserId: { type: 'string' },
-      tagId: { type: 'string' },
+      areaId: { type: 'string' },
+      assignedVendorId: { type: 'string' },
       q: { type: 'string' },
       sortBy: {
         type: 'string',
         enum: ['title', 'status', 'start_date', 'end_date', 'created_at', 'updated_at'],
       },
       sortOrder: { type: 'string', enum: ['asc', 'desc'] },
+      noBudget: { type: 'boolean' },
     },
     additionalProperties: false,
   },
@@ -82,11 +81,8 @@ const updateWorkItemSchema = {
       startAfter: { type: ['string', 'null'], format: 'date' },
       startBefore: { type: ['string', 'null'], format: 'date' },
       assignedUserId: { type: ['string', 'null'] },
-      tagIds: {
-        type: 'array',
-        items: { type: 'string' },
-        uniqueItems: true,
-      },
+      areaId: { type: ['string', 'null'] },
+      assignedVendorId: { type: ['string', 'null'] },
     },
     additionalProperties: false,
     minProperties: 1,
@@ -138,7 +134,13 @@ export default async function workItemRoutes(fastify: FastifyInstance) {
 
     const workItem = workItemService.createWorkItem(fastify.db, request.user.id, data);
 
-    return reply.status(201).send(workItem);
+    // Schedule the newly created work item via CPM algorithm
+    autoReschedule(fastify.db);
+
+    // Re-fetch the work item to include any updated dates from scheduling
+    const scheduled = workItemService.getWorkItemDetail(fastify.db, workItem.id);
+
+    return reply.status(201).send(scheduled);
   });
 
   /**

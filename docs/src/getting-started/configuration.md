@@ -49,6 +49,24 @@ OIDC is automatically enabled when `OIDC_ISSUER`, `OIDC_CLIENT_ID`, and `OIDC_CL
 
 The OIDC callback URL is automatically derived as `<EXTERNAL_URL>/api/auth/oidc/callback`. If `EXTERNAL_URL` is not set, it falls back to the request's protocol and host. See [OIDC Setup](../guides/users/oidc-setup) for details on registering this URL with your identity provider.
 
+## Localization
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CURRENCY` | `EUR` | ISO 4217 currency code (e.g., `EUR`, `USD`, `CHF`) used for formatting monetary values |
+
+## Diary
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DIARY_AUTO_EVENTS` | `true` | Whether the construction diary automatically logs system events (status changes, invoice updates, etc.). Set to `false` to disable automatic entries. |
+| `PHOTO_STORAGE_PATH` | `<data-dir>/photos` | Directory where diary photo attachments are stored. Defaults to a `photos` folder next to the database file. |
+| `PHOTO_MAX_FILE_SIZE_MB` | `20` | Maximum file size in megabytes for photo uploads |
+
+:::note
+`PHOTO_STORAGE_PATH` defaults to a `photos` directory alongside your database file. If you use a custom `DATABASE_URL`, the photo directory is created relative to it. Make sure the path is within a persistent Docker volume so photos survive container restarts.
+:::
+
 ## Paperless-ngx (Document Integration)
 
 The document integration is automatically enabled when both `PAPERLESS_URL` and `PAPERLESS_API_TOKEN` are set.

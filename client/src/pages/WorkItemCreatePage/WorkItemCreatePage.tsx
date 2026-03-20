@@ -1,22 +1,22 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type {
-  TagResponse,
-  UserResponse,
-  WorkItemStatus,
-  DependencyType,
-} from '@cornerstone/shared';
+import type { UserResponse, WorkItemStatus, DependencyType } from '@cornerstone/shared';
 import { createWorkItem } from '../../lib/workItemsApi.js';
 import { createDependency } from '../../lib/dependenciesApi.js';
-import { fetchTags, createTag } from '../../lib/tagsApi.js';
 import { listUsers } from '../../lib/usersApi.js';
-import { TagPicker } from '../../components/TagPicker/TagPicker.js';
+import { fetchVendors } from '../../lib/vendorsApi.js';
+import { useAreas } from '../../hooks/useAreas.js';
 import {
   DependencySentenceBuilder,
   THIS_ITEM_ID,
   dependencyTypeToVerbs,
 } from '../../components/DependencySentenceBuilder/index.js';
+import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
+import {
+  AssignmentPicker,
+  decodeAssignment,
+} from '../../components/AssignmentPicker/AssignmentPicker.js';
 import styles from './WorkItemCreatePage.module.css';
 
 interface PendingDependency {
@@ -30,6 +30,7 @@ interface PendingDependency {
 export default function WorkItemCreatePage() {
   const navigate = useNavigate();
   const { t } = useTranslation('workItems');
+  const { areas, isLoading: areasLoading } = useAreas();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -37,28 +38,30 @@ export default function WorkItemCreatePage() {
   const [durationDays, setDurationDays] = useState('');
   const [startAfter, setStartAfter] = useState('');
   const [startBefore, setStartBefore] = useState('');
-  const [assignedUserId, setAssignedUserId] = useState('');
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [areaId, setAreaId] = useState('');
+  const [assignmentValue, setAssignmentValue] = useState('');
 
   // Dependency state
   const [pendingDependencies, setPendingDependencies] = useState<PendingDependency[]>([]);
-
-  const [availableTags, setAvailableTags] = useState<TagResponse[]>([]);
   const [users, setUsers] = useState<UserResponse[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
 
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
-  // Load tags and users on mount
+  // Load users and vendors on mount
   useEffect(() => {
     async function loadData() {
       setIsLoadingData(true);
       try {
-        const [tagsResponse, usersResponse] = await Promise.all([fetchTags(), listUsers()]);
-        setAvailableTags(tagsResponse.tags);
+        const [usersResponse, vendorsResponse] = await Promise.all([
+          listUsers(),
+          fetchVendors({ pageSize: 100 }),
+        ]);
         setUsers(usersResponse.users.filter((u) => !u.deactivatedAt));
+        setVendors(vendorsResponse.vendors);
       } catch (err) {
         setError(t('create.errors.loadFailed'));
         console.error('Failed to load data:', err);
@@ -68,13 +71,7 @@ export default function WorkItemCreatePage() {
     }
 
     loadData();
-  }, []);
-
-  const handleCreateTag = async (name: string, color: string | null): Promise<TagResponse> => {
-    const newTag = await createTag({ name, color });
-    setAvailableTags((prev) => [...prev, newTag]);
-    return newTag;
-  };
+  }, [t]);
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
@@ -140,6 +137,8 @@ export default function WorkItemCreatePage() {
     setIsSubmitting(true);
 
     try {
+      const { userId, vendorId } = decodeAssignment(assignmentValue);
+
       const workItem = await createWorkItem({
         title: title.trim(),
         description: description.trim() || null,
@@ -147,8 +146,9 @@ export default function WorkItemCreatePage() {
         durationDays: durationDays ? Number(durationDays) : null,
         startAfter: startAfter || null,
         startBefore: startBefore || null,
-        assignedUserId: assignedUserId || null,
-        tagIds: selectedTagIds,
+        areaId: areaId || null,
+        assignedUserId: userId || null,
+        assignedVendorId: vendorId || null,
         // NOTE: Story 5.9 rework — budget fields removed from work items.
         // Budget data is managed via the /api/work-items/:id/budgets endpoint.
         // NOTE: startDate/endDate are not set at creation — computed by the scheduling engine.
@@ -264,23 +264,36 @@ export default function WorkItemCreatePage() {
           </div>
 
           <div className={styles.formGroup}>
-            <label htmlFor="assignedUserId" className={styles.label}>
+            <label htmlFor="area" className={styles.label}>
+              {t('create.fields.area')}
+            </label>
+            {areasLoading ? (
+              <div className={styles.select} style={{ opacity: 0.6 }}>
+                {t('create.loading')}
+              </div>
+            ) : (
+              <AreaPicker
+                areas={areas}
+                value={areaId}
+                onChange={setAreaId}
+                disabled={isSubmitting}
+                nullable
+              />
+            )}
+          </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="assignment" className={styles.label}>
               {t('create.fields.assignedTo')}
             </label>
-            <select
-              id="assignedUserId"
-              className={styles.select}
-              value={assignedUserId}
-              onChange={(e) => setAssignedUserId(e.target.value)}
+            <AssignmentPicker
+              id="assignment"
+              users={users}
+              vendors={vendors}
+              value={assignmentValue}
+              onChange={setAssignmentValue}
               disabled={isSubmitting}
-            >
-              <option value="">{t('create.fields.unassigned')}</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.displayName}
-                </option>
-              ))}
-            </select>
+            />
           </div>
         </div>
 
@@ -336,17 +349,6 @@ export default function WorkItemCreatePage() {
         {validationErrors.constraints && (
           <div className={styles.errorText}>{validationErrors.constraints}</div>
         )}
-
-        <div className={styles.formGroup}>
-          <label className={styles.label}>{t('create.fields.tags')}</label>
-          <TagPicker
-            availableTags={availableTags}
-            selectedTagIds={selectedTagIds}
-            onSelectionChange={setSelectedTagIds}
-            onCreateTag={handleCreateTag}
-            disabled={isSubmitting}
-          />
-        </div>
 
         {/* Dependencies Section */}
         <div className={styles.formGroup}>

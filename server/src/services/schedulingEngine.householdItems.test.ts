@@ -126,7 +126,7 @@ function insertHouseholdItem(
       description: null,
       vendorId: null,
       url: null,
-      room: null,
+      areaId: null,
       orderDate: null,
       actualDeliveryDate: null,
       createdBy: null,

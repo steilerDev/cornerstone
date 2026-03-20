@@ -56,6 +56,24 @@
   color: var(--color-success-text-on-light);
 }
 
+.amountQuoted {
+  color: var(--color-gray-700);
+}
+
+.quotedLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-gray-700);
+}
+
+[data-theme='dark'] .amountQuoted {
+  color: var(--color-slate-200);
+}
+
+[data-theme='dark'] .quotedLabel {
+  color: var(--color-slate-200);
+}
+
 .plannedSecondary {
   font-size: var(--font-size-sm);
   color: var(--color-text-placeholder);

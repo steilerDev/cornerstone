@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   BudgetOverview,
@@ -305,6 +306,7 @@ function computeFilteredTotals(
 
 export function BudgetOverviewPage() {
   const { t } = useTranslation('budget');
+  const navigate = useNavigate();
   const { formatCurrency } = useFormatters();
 
   function formatShort(value: number): string {
@@ -343,6 +345,32 @@ export function BudgetOverviewPage() {
 
   // Remaining detail open (hover or tap)
   const [remainingDetailOpen, setRemainingDetailOpen] = useState(false);
+
+  // Add dropdown state
+  const [addOpen, setAddOpen] = useState(false);
+  const addRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!addOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (addRef.current && !addRef.current.contains(e.target as Node)) {
+        setAddOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [addOpen]);
+
+  // Close dropdown on Escape
+  useEffect(() => {
+    if (!addOpen) return;
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setAddOpen(false);
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [addOpen]);
 
   useEffect(() => {
     void loadOverview();
@@ -395,14 +423,60 @@ export function BudgetOverviewPage() {
     setMobileBarOpen((v) => !v);
   }, []);
 
+  // Page header JSX (reused across loading, error, and main states)
+  const pageHeaderJsx = (
+    <div className={styles.pageHeader}>
+      <h1 className={styles.pageTitle}>{t('overview.title')}</h1>
+      <div className={styles.addContainer} ref={addRef}>
+        <button
+          type="button"
+          className={styles.addButton}
+          onClick={() => setAddOpen((v) => !v)}
+          aria-haspopup="menu"
+          aria-expanded={addOpen}
+          aria-label={t('overview.actions.addButton')}
+          data-testid="budget-overview-add-button"
+        >
+          {t('overview.actions.addButton')}
+        </button>
+        {addOpen && (
+          <div className={styles.addDropdown} role="menu">
+            <button
+              type="button"
+              className={styles.addMenuItem}
+              role="menuitem"
+              onClick={() => {
+                setAddOpen(false);
+                void navigate('/budget/invoices');
+              }}
+              data-testid="budget-overview-add-invoice"
+            >
+              {t('overview.actions.addInvoice')}
+            </button>
+            <button
+              type="button"
+              className={styles.addMenuItem}
+              role="menuitem"
+              onClick={() => {
+                setAddOpen(false);
+                void navigate('/budget/vendors');
+              }}
+              data-testid="budget-overview-add-vendor"
+            >
+              {t('overview.actions.addVendor')}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   // ---- Loading state ----
   if (isLoading) {
     return (
       <div className={styles.container}>
         <div className={styles.content}>
-          <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>{t('overview.title')}</h1>
-          </div>
+          {pageHeaderJsx}
           <BudgetSubNav />
           <div className={styles.loading} role="status" aria-label={t('overview.loading')}>
             {t('overview.loading')}
@@ -417,9 +491,7 @@ export function BudgetOverviewPage() {
     return (
       <div className={styles.container}>
         <div className={styles.content}>
-          <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>{t('overview.title')}</h1>
-          </div>
+          {pageHeaderJsx}
           <BudgetSubNav />
           <div className={styles.errorCard} role="alert">
             <h2 className={styles.errorTitle}>{t('overview.error')}</h2>
@@ -574,9 +646,7 @@ export function BudgetOverviewPage() {
     <div className={styles.container}>
       <div className={styles.content}>
         {/* Page header */}
-        <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>{t('overview.title')}</h1>
-        </div>
+        {pageHeaderJsx}
 
         {/* Budget sub-navigation */}
         <BudgetSubNav />
@@ -633,6 +703,9 @@ export function BudgetOverviewPage() {
                     ) : null}
                   </span>
                 </span>
+                {overview.subsidySummary.oversubscribedSubsidies?.length > 0 && (
+                  <span className={styles.paybackCappedNote}>{t('overview.paybackCapped')}</span>
+                )}
               </div>
             )}
 

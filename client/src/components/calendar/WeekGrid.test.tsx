@@ -47,7 +47,8 @@ function makeWorkItem(
     startAfter: null,
     startBefore: null,
     assignedUser: null,
-    tags: [],
+    assignedVendor: null,
+    area: null,
   };
 }
 

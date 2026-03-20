@@ -470,6 +470,7 @@ describe('invoicesApi', () => {
         pending: { count: 1, totalAmount: 2500.0 },
         paid: { count: 0, totalAmount: 0 },
         claimed: { count: 0, totalAmount: 0 },
+        quotation: { count: 0, totalAmount: 0 },
       },
     };
 

@@ -26,6 +26,8 @@ Cornerstone is under active development. Here is the current state of planned fe
 - [x] **EPIC-15: Budget-Line Invoice Linking Rework** ([#602](https://github.com/steilerDev/cornerstone/issues/602)) -- Many-to-many invoice-budget-line linking with itemized amounts, bidirectional linking UI, invoice groups on item detail pages, subsidy recalculation using itemized amounts
 - [x] **EPIC-09: Dashboard and Overview** ([#9](https://github.com/steilerDev/cornerstone/issues/9)) -- Project dashboard with budget summary, timeline status, invoice and subsidy pipelines, mini Gantt preview, and customizable card layout
 - [x] **EPIC-13: Construction Diary** ([#446](https://github.com/steilerDev/cornerstone/issues/446)) -- Construction diary with manual entries, automatic system events, photo attachments, and signature capture
+- [x] **EPIC-17: Internationalization** ([#915](https://github.com/steilerDev/cornerstone/issues/915)) -- English and German language support with i18next, locale detection, and glossary-enforced translations
+- [x] **EPIC-18: Areas & Trades** ([#1029](https://github.com/steilerDev/cornerstone/issues/1029)) -- Hierarchical project areas and trade specialties replacing the flat tag system, with area-based filtering and vendor-trade linking
 
 ## Planned
 

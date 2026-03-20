@@ -12,8 +12,9 @@ import type { InvoiceBudgetLineSummary } from './invoiceBudgetLine.js';
 /**
  * Invoice payment status.
  * EPIC-05 Story 5.9: replaced 'overdue' with 'claimed'.
+ * 'quotation' represents a formal quote (not yet an actual cost).
  */
-export type InvoiceStatus = 'pending' | 'paid' | 'claimed';
+export type InvoiceStatus = 'pending' | 'paid' | 'claimed' | 'quotation';
 
 /**
  * Invoice entity as returned by the API.
@@ -94,6 +95,7 @@ export interface InvoiceStatusBreakdown {
   pending: InvoiceStatusSummary;
   paid: InvoiceStatusSummary;
   claimed: InvoiceStatusSummary;
+  quotation: InvoiceStatusSummary;
 }
 
 /**

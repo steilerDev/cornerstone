@@ -31,7 +31,7 @@ function toVendor(db: DbType, row: typeof vendors.$inferSelect): Vendor {
   return {
     id: row.id,
     name: row.name,
-    specialty: row.specialty,
+    trade: null, // TODO: JOIN to trades table in Story 3
     phone: row.phone,
     email: row.email,
     address: row.address,

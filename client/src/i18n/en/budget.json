@@ -7,9 +7,15 @@
     "retry": "Retry",
     "emptyStateTitle": "No budget data yet",
     "emptyStateDescription": "Start by adding budget categories, work items with planned costs, and financing sources. Your project budget overview will appear here once data is entered.",
+    "actions": {
+      "addButton": "Add",
+      "addInvoice": "Add Invoice",
+      "addVendor": "Add Vendor"
+    },
     "availableFunds": "Available Funds",
     "projectedCostRange": "Projected Cost Range",
     "expectedPayback": "Expected Payback",
+    "paybackCapped": "Some subsidies are oversubscribed — payback values are capped",
     "remaining": "Remaining",
     "remainingDetail": "Remaining budget — tap for details",
     "categories": "Categories",
@@ -45,12 +51,15 @@
       "sum": "Sum",
       "availableFunds": "Available funds",
       "remainingBudget": "Remaining Budget",
+      "quoted": "Quoted",
       "tableHeaders": {
         "name": "Name",
         "cost": "Cost",
         "payback": "Payback",
         "net": "Net"
-      }
+      },
+      "subsidyAdjustments": "Subsidies",
+      "oversubscribed": "This subsidy is oversubscribed, maximum amount is {{amount}}"
     }
   },
   "sources": {
@@ -170,6 +179,7 @@
       "email": "Email",
       "address": "Address",
       "notes": "Notes",
+      "trade": "Trade",
       "required": "*",
       "placeholders": {
         "name": "e.g., Smith Plumbing Co.",
@@ -177,7 +187,8 @@
         "phone": "e.g., +1 555-123-4567",
         "email": "e.g., contact@smithplumbing.com",
         "address": "e.g., 123 Main St, Springfield, IL 62701",
-        "notes": "Any additional notes about this vendor..."
+        "notes": "Any additional notes about this vendor...",
+        "trade": "Select a trade..."
       }
     },
     "validation": {
@@ -194,8 +205,13 @@
       "delete": "Delete",
       "deleting": "Deleting...",
       "view": "View",
-      "viewDetails": "View Details"
+      "viewDetails": "View Details",
+      "retry": "Retry"
     },
+    "tableHeaders": {
+      "actions": "Actions"
+    },
+    "searchAriaLabel": "Search vendors",
     "modal": {
       "title": "Add Vendor",
       "description": "Add a vendor or contractor involved in your construction project.",
@@ -233,6 +249,7 @@
       "email": "Email",
       "address": "Address",
       "notes": "Notes",
+      "trade": "Trade",
       "createdBy": "Created by"
     },
     "form": {
@@ -242,7 +259,9 @@
       "email": "Email",
       "address": "Address",
       "notes": "Notes",
+      "trade": "Trade",
       "required": "*",
+      "tradePlaceholder": "Select a trade...",
       "placeholders": {
         "specialty": "e.g., Plumbing, Electrical, Roofing",
         "phone": "e.g., +1 555-123-4567",
@@ -256,14 +275,49 @@
       "save": "Save Changes",
       "saving": "Saving...",
       "cancel": "Cancel",
+      "retry": "Retry",
       "editRow": "Edit",
       "deleteRow": "Delete"
+    },
+    "deleteModal": {
+      "title": "Delete Vendor",
+      "confirm": "Are you sure you want to delete \"{{name}}\"?",
+      "warning": "This action cannot be undone.",
+      "delete": "Delete Vendor",
+      "deleting": "Deleting..."
+    },
+    "invoiceForm": {
+      "title": "Add Invoice",
+      "invoiceNumber": "Invoice #",
+      "invoiceNumberPlaceholder": "e.g., INV-001",
+      "amount": "Amount",
+      "invoiceDate": "Invoice Date",
+      "dueDate": "Due Date",
+      "status": "Status",
+      "statusQuotation": "Quotation",
+      "statusPending": "Pending",
+      "statusPaid": "Paid",
+      "statusClaimed": "Claimed",
+      "notes": "Notes",
+      "add": "Add Invoice",
+      "adding": "Adding..."
+    },
+    "deleteInvoiceModal": {
+      "title": "Delete Invoice",
+      "confirm": "Are you sure you want to delete invoice {{number}} for {{amount}}?",
+      "noNumber": "this invoice",
+      "warning": "This action cannot be undone.",
+      "delete": "Delete Invoice",
+      "deleting": "Deleting..."
     },
     "invoiceStatusLabels": {
       "pending": "Pending",
       "paid": "Paid",
-      "claimed": "Claimed"
+      "claimed": "Claimed",
+      "quotation": "Quotation"
     },
+    "quotedLabel": "Quoted",
+    "quotedAmount": "Quoted Amount",
     "invoiceTable": {
       "invoiceNumber": "Invoice #",
       "amount": "Amount",
@@ -305,6 +359,7 @@
     "summaryPending": "Pending",
     "summaryPaid": "Paid",
     "summaryClaimed": "Claimed",
+    "summaryQuotation": "Quotation",
     "filterByStatus": "Filter by status",
     "filterByVendor": "Filter by vendor",
     "allStatuses": "All Statuses",
@@ -363,7 +418,8 @@
     "statusLabels": {
       "pending": "Pending",
       "paid": "Paid",
-      "claimed": "Claimed"
+      "claimed": "Claimed",
+      "quotation": "Quotation"
     },
     "modal": {
       "title": "Add Invoice",
@@ -439,7 +495,8 @@
     "statusLabels": {
       "pending": "Pending",
       "paid": "Paid",
-      "claimed": "Claimed"
+      "claimed": "Claimed",
+      "quotation": "Quotation"
     },
     "modal": {
       "editTitle": "Edit Invoice",
@@ -501,6 +558,7 @@
       "percentage": "Percentage (%)",
       "fixed": "Fixed Amount (€)"
     },
+    "oversubscribed": "Oversubscribed",
     "statusLabels": {
       "eligible": "Eligible",
       "applied": "Applied",

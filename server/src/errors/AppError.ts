@@ -151,16 +151,6 @@ export class ItemizedSumExceedsInvoiceError extends AppError {
   }
 }
 
-export class SubsidyOversubscribedError extends AppError {
-  constructor(
-    message = 'Subsidy program is oversubscribed',
-    details?: { currentAllocation: number; maximumAmount: number; excess: number },
-  ) {
-    super('SUBSIDY_OVERSUBSCRIBED', 409, message, details);
-    this.name = 'SubsidyOversubscribedError';
-  }
-}
-
 export class DiscretionarySourceError extends AppError {
   constructor(
     message = 'The Discretionary Funding source cannot be deleted',
@@ -201,5 +191,25 @@ export class InvalidEntryTypeError extends AppError {
   constructor(message = 'Entry type must be a manual type for user-created entries') {
     super('INVALID_ENTRY_TYPE', 400, message);
     this.name = 'InvalidEntryTypeError';
+  }
+}
+
+export class AreaInUseError extends AppError {
+  constructor(
+    message = 'Area is in use and cannot be deleted',
+    details?: { workItemCount: number; householdItemCount: number },
+  ) {
+    super('AREA_IN_USE', 409, message, details, true);
+    this.name = 'AreaInUseError';
+  }
+}
+
+export class TradeInUseError extends AppError {
+  constructor(
+    message = 'Trade is in use and cannot be deleted',
+    details?: { vendorCount: number },
+  ) {
+    super('TRADE_IN_USE', 409, message, details, true);
+    this.name = 'TradeInUseError';
   }
 }

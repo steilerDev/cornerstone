@@ -5,7 +5,6 @@ import {
   toBudgetCategory,
   toBudgetSourceSummary,
   toVendorSummary,
-  toTagResponse,
 } from './converters.js';
 
 // ─── Mock row helpers ───────────────────────────────────────────────────────
@@ -72,7 +71,7 @@ function makeVendorRow(
   return {
     id: 'vendor-1',
     name: 'ACME Contractors',
-    specialty: 'Plumbing',
+    tradeId: null,
     phone: null,
     email: null,
     address: null,
@@ -80,18 +79,6 @@ function makeVendorRow(
     createdBy: null,
     createdAt: '2025-01-01T00:00:00.000Z',
     updatedAt: '2025-01-01T00:00:00.000Z',
-    ...overrides,
-  };
-}
-
-function makeTagRow(
-  overrides: Partial<typeof schema.tags.$inferSelect> = {},
-): typeof schema.tags.$inferSelect {
-  return {
-    id: 'tag-1',
-    name: 'Urgent',
-    color: '#EF4444',
-    createdAt: '2025-01-01T00:00:00.000Z',
     ...overrides,
   };
 }
@@ -274,28 +261,17 @@ describe('toVendorSummary()', () => {
     expect(toVendorSummary(undefined)).toBeNull();
   });
 
-  it('maps id, name, and specialty correctly', () => {
+  it('maps id and name correctly', () => {
     const row = makeVendorRow({
       id: 'vendor-77',
       name: 'Best Electric Co.',
-      specialty: 'Electrical',
     });
 
-    const result = toVendorSummary(row);
-
-    expect(result).toEqual({
-      id: 'vendor-77',
-      name: 'Best Electric Co.',
-      specialty: 'Electrical',
-    });
-  });
-
-  it('passes through null specialty', () => {
-    const row = makeVendorRow({ specialty: null });
     const result = toVendorSummary(row);
 
     expect(result).not.toBeNull();
-    expect(result!.specialty).toBeNull();
+    expect(result!.id).toBe('vendor-77');
+    expect(result!.name).toBe('Best Electric Co.');
   });
 
   it('does not include extra fields like phone, email, or address', () => {
@@ -307,53 +283,5 @@ describe('toVendorSummary()', () => {
     expect(result).not.toHaveProperty('address');
     expect(result).not.toHaveProperty('notes');
     expect(result).not.toHaveProperty('createdAt');
-  });
-
-  it('returns only the three summary fields', () => {
-    const row = makeVendorRow();
-    const result = toVendorSummary(row);
-
-    expect(Object.keys(result!).sort()).toEqual(['id', 'name', 'specialty']);
-  });
-});
-
-// ─── toTagResponse ──────────────────────────────────────────────────────────
-
-describe('toTagResponse()', () => {
-  it('maps id, name, and color correctly', () => {
-    const row = makeTagRow({
-      id: 'tag-99',
-      name: 'Structural',
-      color: '#8B5CF6',
-    });
-
-    const result = toTagResponse(row);
-
-    expect(result).toEqual({
-      id: 'tag-99',
-      name: 'Structural',
-      color: '#8B5CF6',
-    });
-  });
-
-  it('passes through null color', () => {
-    const row = makeTagRow({ color: null });
-    const result = toTagResponse(row);
-
-    expect(result.color).toBeNull();
-  });
-
-  it('does not include extra fields like createdAt', () => {
-    const row = makeTagRow();
-    const result = toTagResponse(row);
-
-    expect(result).not.toHaveProperty('createdAt');
-  });
-
-  it('returns only the three response fields', () => {
-    const row = makeTagRow();
-    const result = toTagResponse(row);
-
-    expect(Object.keys(result).sort()).toEqual(['color', 'id', 'name']);
   });
 });

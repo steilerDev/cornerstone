@@ -7,9 +7,15 @@
     "retry": "Erneut versuchen",
     "emptyStateTitle": "Noch keine Budgetdaten",
     "emptyStateDescription": "Beginnen Sie mit dem Hinzufügen von Budgekategorien, Arbeitspaketen mit geplanten Kosten und Finanzierungsquellen. Ihre Projektbudget-Übersicht wird hier angezeigt, sobald Daten eingegeben werden.",
+    "actions": {
+      "addButton": "Hinzufügen",
+      "addInvoice": "Rechnung Hinzufügen",
+      "addVendor": "Auftragnehmer Hinzufügen"
+    },
     "availableFunds": "Verfügbare Mittel",
     "projectedCostRange": "Geplanter Kostenbereich",
     "expectedPayback": "Erwartete Rückzahlung",
+    "paybackCapped": "Einige Förderprogramme sind überzeichnet – Rückzahlungswerte sind begrenzt",
     "remaining": "Verbleibend",
     "remainingDetail": "Verbleibendes Budget – tippen Sie für Details",
     "categories": "Kategorien",
@@ -45,12 +51,15 @@
       "sum": "Summe",
       "availableFunds": "Verfügbare Mittel",
       "remainingBudget": "Verbleibendes Budget",
+      "quoted": "Angebot",
       "tableHeaders": {
         "name": "Name",
         "cost": "Kosten",
         "payback": "Rückzahlung",
         "net": "Netto"
-      }
+      },
+      "subsidyAdjustments": "Förderprogramme",
+      "oversubscribed": "Dieses Förderprogramm ist überzeichnet, der Maximalbetrag beträgt {{amount}}"
     }
   },
   "sources": {
@@ -170,6 +179,7 @@
       "email": "E-Mail",
       "address": "Adresse",
       "notes": "Notizen",
+      "trade": "Gewerk",
       "required": "*",
       "placeholders": {
         "name": "z. B. Müller Klempner GmbH",
@@ -177,7 +187,8 @@
         "phone": "z. B. +49 555-123-4567",
         "email": "z. B. kontakt@mueller-klemner.de",
         "address": "z. B. Hauptstr. 123, 12345 Musterstadt",
-        "notes": "Zusätzliche Notizen zu diesem Auftragnehmer..."
+        "notes": "Zusätzliche Notizen zu diesem Auftragnehmer...",
+        "trade": "Gewerk auswählen..."
       }
     },
     "validation": {
@@ -194,8 +205,13 @@
       "delete": "Löschen",
       "deleting": "Wird gelöscht...",
       "view": "Anzeigen",
-      "viewDetails": "Details Anzeigen"
+      "viewDetails": "Details Anzeigen",
+      "retry": "Erneut versuchen"
     },
+    "tableHeaders": {
+      "actions": "Aktionen"
+    },
+    "searchAriaLabel": "Auftragnehmer durchsuchen",
     "modal": {
       "title": "Auftragnehmer Hinzufügen",
       "description": "Fügen Sie einen Auftragnehmer oder Unternehmer hinzu, der an Ihrem Bauprojekt beteiligt ist.",
@@ -233,6 +249,7 @@
       "email": "E-Mail",
       "address": "Adresse",
       "notes": "Notizen",
+      "trade": "Gewerk",
       "createdBy": "Erstellt von"
     },
     "form": {
@@ -242,7 +259,9 @@
       "email": "E-Mail",
       "address": "Adresse",
       "notes": "Notizen",
+      "trade": "Gewerk",
       "required": "*",
+      "tradePlaceholder": "Gewerk auswählen...",
       "placeholders": {
         "specialty": "z. B. Sanitär, Elektrik, Dachdeckerei",
         "phone": "z. B. +49 555-123-4567",
@@ -256,14 +275,49 @@
       "save": "Änderungen Speichern",
       "saving": "Wird gespeichert...",
       "cancel": "Abbrechen",
+      "retry": "Erneut versuchen",
       "editRow": "Bearbeiten",
       "deleteRow": "Löschen"
+    },
+    "deleteModal": {
+      "title": "Auftragnehmer Löschen",
+      "confirm": "Sind Sie sicher, dass Sie \"{{name}}\" löschen möchten?",
+      "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+      "delete": "Auftragnehmer Löschen",
+      "deleting": "Wird gelöscht..."
+    },
+    "invoiceForm": {
+      "title": "Rechnung Hinzufügen",
+      "invoiceNumber": "Rechnung #",
+      "invoiceNumberPlaceholder": "z. B. ReCH-001",
+      "amount": "Betrag",
+      "invoiceDate": "Rechnungsdatum",
+      "dueDate": "Fälligkeitsdatum",
+      "status": "Status",
+      "statusQuotation": "Angebot",
+      "statusPending": "Ausstehend",
+      "statusPaid": "Bezahlt",
+      "statusClaimed": "Eingereicht",
+      "notes": "Notizen",
+      "add": "Rechnung Hinzufügen",
+      "adding": "Wird hinzugefügt..."
+    },
+    "deleteInvoiceModal": {
+      "title": "Rechnung Löschen",
+      "confirm": "Sind Sie sicher, dass Sie die Rechnung {{number}} über {{amount}} löschen möchten?",
+      "noNumber": "diese Rechnung",
+      "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+      "delete": "Rechnung Löschen",
+      "deleting": "Wird gelöscht..."
     },
     "invoiceStatusLabels": {
       "pending": "Ausstehend",
       "paid": "Bezahlt",
-      "claimed": "Eingereicht"
+      "claimed": "Eingereicht",
+      "quotation": "Angebot"
     },
+    "quotedLabel": "Angebot",
+    "quotedAmount": "Angebotsbetrag",
     "invoiceTable": {
       "invoiceNumber": "Rechnung #",
       "amount": "Betrag",
@@ -337,7 +391,8 @@
     "statusLabels": {
       "pending": "Ausstehend",
       "paid": "Bezahlt",
-      "claimed": "Eingereicht"
+      "claimed": "Eingereicht",
+      "quotation": "Angebot"
     },
     "modal": {
       "editTitle": "Rechnung Bearbeiten",
@@ -399,6 +454,7 @@
       "percentage": "Prozentual (%)",
       "fixed": "Festbetrag (€)"
     },
+    "oversubscribed": "Überzeichnet",
     "statusLabels": {
       "eligible": "Berechtigt",
       "applied": "Eingereicht",
@@ -482,6 +538,7 @@
     "summaryPending": "Ausstehend",
     "summaryPaid": "Bezahlt",
     "summaryClaimed": "Eingereicht",
+    "summaryQuotation": "Angebot",
     "filterByStatus": "Nach Status filtern",
     "filterByVendor": "Nach Auftragnehmer filtern",
     "allStatuses": "Alle Status",
@@ -540,7 +597,8 @@
     "statusLabels": {
       "pending": "Ausstehend",
       "paid": "Bezahlt",
-      "claimed": "Eingereicht"
+      "claimed": "Eingereicht",
+      "quotation": "Angebot"
     },
     "modal": {
       "title": "Rechnung Hinzufügen",

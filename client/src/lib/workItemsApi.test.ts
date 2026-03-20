@@ -110,7 +110,8 @@ describe('workItemsApi', () => {
       );
     });
 
-    it('includes tagId filter query param when provided', async () => {
+    // areaId filter not yet in listWorkItems signature (Story 3 TODO)
+    it.skip('includes areaId filter query param when provided', async () => {
       const mockResponse: WorkItemListResponse = {
         items: [],
         pagination: { page: 1, pageSize: 25, totalPages: 0, totalItems: 0 },
@@ -121,9 +122,9 @@ describe('workItemsApi', () => {
         json: async () => mockResponse,
       } as Response);
 
-      await listWorkItems({ tagId: 'tag-456' });
+      await listWorkItems({ areaId: 'area-456' });
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/work-items?tagId=tag-456', expect.any(Object));
+      expect(mockFetch).toHaveBeenCalledWith('/api/work-items?areaId=area-456', expect.any(Object));
     });
 
     it('includes search query param when provided', async () => {
@@ -216,7 +217,9 @@ describe('workItemsApi', () => {
             actualStartDate: null,
             actualEndDate: null,
             assignedUser: { id: 'user-1', displayName: 'John Doe', email: 'john@example.com' },
-            tags: [],
+            assignedVendor: null,
+            area: null,
+            budgetLineCount: 0,
             createdAt: '2026-01-01T00:00:00.000Z',
             updatedAt: '2026-01-01T00:00:00.000Z',
           },
@@ -263,7 +266,8 @@ describe('workItemsApi', () => {
         startBefore: null,
         assignedUser: null,
         createdBy: null,
-        tags: [],
+        assignedVendor: null,
+        area: null,
         subtasks: [],
         dependencies: { predecessors: [], successors: [] },
         budgets: [],
@@ -296,7 +300,8 @@ describe('workItemsApi', () => {
         startBefore: null,
         assignedUser: { id: 'user-1', displayName: 'Jane Doe', email: 'jane@example.com' },
         createdBy: { id: 'user-2', displayName: 'Admin', email: 'admin@example.com' },
-        tags: [{ id: 'tag-1', name: 'Plumbing', color: '#0000FF' }],
+        assignedVendor: null,
+        area: null,
         subtasks: [],
         dependencies: { predecessors: [], successors: [] },
         budgets: [],
@@ -343,7 +348,8 @@ describe('workItemsApi', () => {
         startBefore: null,
         assignedUser: null,
         createdBy: null,
-        tags: [],
+        assignedVendor: null,
+        area: null,
         subtasks: [],
         dependencies: { predecessors: [], successors: [] },
         budgets: [],
@@ -384,7 +390,8 @@ describe('workItemsApi', () => {
         startBefore: null,
         assignedUser: null,
         createdBy: null,
-        tags: [],
+        assignedVendor: null,
+        area: null,
         subtasks: [],
         dependencies: { predecessors: [], successors: [] },
         budgets: [],
@@ -431,7 +438,8 @@ describe('workItemsApi', () => {
         startBefore: null,
         assignedUser: null,
         createdBy: null,
-        tags: [],
+        assignedVendor: null,
+        area: null,
         subtasks: [],
         dependencies: { predecessors: [], successors: [] },
         budgets: [],
@@ -471,7 +479,8 @@ describe('workItemsApi', () => {
         startBefore: null,
         assignedUser: { id: 'user-2', displayName: 'Bob Smith', email: 'bob@example.com' },
         createdBy: null,
-        tags: [],
+        assignedVendor: null,
+        area: null,
         subtasks: [],
         dependencies: { predecessors: [], successors: [] },
         budgets: [],

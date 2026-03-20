@@ -8,9 +8,9 @@ import * as sessionService from '../services/sessionService.js';
 import * as householdItemService from '../services/householdItemService.js';
 import * as milestoneService from '../services/milestoneService.js';
 import * as workItemService from '../services/workItemService.js';
+import * as schema from '../db/schema.js';
 import type { FastifyInstance } from 'fastify';
 import type { ApiErrorResponse } from '@cornerstone/shared';
-import { tags } from '../db/schema.js';
 
 describe('Household Item Routes', () => {
   let app: FastifyInstance;
@@ -65,20 +65,25 @@ describe('Household Item Routes', () => {
   }
 
   /**
-   * Helper: Create a test tag.
+   * Helper: Insert a test area directly into the app DB.
    */
-  function createTestTag(name: string, color: string = '#3b82f6') {
-    const tagId = `tag-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  function insertTestArea(name: string, color: string | null = null): string {
+    const now = new Date().toISOString();
+    const areaId = `area-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     app.db
-      .insert(tags)
+      .insert(schema.areas)
       .values({
-        id: tagId,
+        id: areaId,
         name,
+        parentId: null,
         color,
-        createdAt: new Date().toISOString(),
+        description: null,
+        sortOrder: 0,
+        createdAt: now,
+        updatedAt: now,
       })
       .run();
-    return tagId;
+    return areaId;
   }
 
   // ---------------------------------------------------------------------------
@@ -117,13 +122,11 @@ describe('Household Item Routes', () => {
       expect(item.status).toBe('planned');
       expect(item.quantity).toBe(1);
       expect(item.vendor).toBeNull();
-      expect(item.room).toBeNull();
+      expect(item.area).toBeNull();
       expect(item.url).toBeNull();
       expect(item.orderDate).toBeNull();
       expect(item.targetDeliveryDate).toBeNull();
       expect(item.actualDeliveryDate).toBeNull();
-      expect(item.tagIds).toEqual([]);
-      expect(item.tags).toEqual([]);
       expect(item.dependencies).toEqual([]);
       expect(item.subsidies).toEqual([]);
       expect(item.budgetLineCount).toBe(0);
@@ -134,14 +137,13 @@ describe('Household Item Routes', () => {
     });
 
     it('creates item with all optional fields and returns 201', async () => {
-      // Given: Authenticated user and a tag
+      // Given: Authenticated user
       const { cookie } = await createUserWithSession(
         'admin@example.com',
         'Admin',
         'password',
         'admin',
       );
-      const tagId = createTestTag('Living Room');
 
       const body = {
         name: 'King Bed Frame',
@@ -149,12 +151,10 @@ describe('Household Item Routes', () => {
         category: 'hic-furniture',
         status: 'purchased',
         url: 'https://ikea.com/bed',
-        room: 'Bedroom',
         quantity: 1,
         orderDate: '2026-03-01',
         earliestDeliveryDate: '2026-04-01',
         latestDeliveryDate: '2026-04-30',
-        tagIds: [tagId],
       };
 
       // When: Creating with all fields
@@ -175,13 +175,11 @@ describe('Household Item Routes', () => {
       expect(item.category).toBe('hic-furniture');
       expect(item.status).toBe('purchased');
       expect(item.url).toBe('https://ikea.com/bed');
-      expect(item.room).toBe('Bedroom');
+      expect(item.area).toBeNull();
       expect(item.quantity).toBe(1);
       expect(item.orderDate).toBe('2026-03-01');
       expect(item.earliestDeliveryDate).toBe('2026-04-01');
       expect(item.latestDeliveryDate).toBe('2026-04-30');
-      expect(item.tagIds as string[]).toHaveLength(1);
-      expect((item.tags as unknown[])?.length).toBe(1);
     });
 
     it('returns 400 when name is missing', async () => {
@@ -275,23 +273,23 @@ describe('Household Item Routes', () => {
       expect(error.error.message).toContain('Vendor not found');
     });
 
-    it('returns 400 when tagId does not exist', async () => {
+    it('returns 400 when areaId does not exist', async () => {
       // Given: Authenticated user
       const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
 
-      // When: Creating with non-existent tag
+      // When: Creating with non-existent area
       const response = await app.inject({
         method: 'POST',
         url: '/api/household-items',
         headers: { cookie },
-        payload: { name: 'Test Item', tagIds: ['non-existent-tag-id'] },
+        payload: { name: 'Test Item', areaId: 'non-existent-area-id' },
       });
 
       // Then: Returns 400 VALIDATION_ERROR
       expect(response.statusCode).toBe(400);
       const error = JSON.parse(response.body) as ApiErrorResponse;
       expect(error.error.code).toBe('VALIDATION_ERROR');
-      expect(error.error.message).toContain('Tag not found');
+      expect(error.error.message).toContain('Area not found');
     });
 
     it('returns 400 when quantity is less than 1', async () => {
@@ -387,7 +385,7 @@ describe('Household Item Routes', () => {
       const item = parsed.householdItem as Record<string, unknown>;
       expect(item).toHaveProperty('id');
       expect(item).toHaveProperty('name');
-      expect(item).toHaveProperty('tags');
+      expect(item).toHaveProperty('area');
       expect(item).toHaveProperty('dependencies');
       expect(item).toHaveProperty('subsidies');
     });
@@ -699,7 +697,7 @@ describe('Household Item Routes', () => {
       );
       const created = householdItemService.createHouseholdItem(app.db, userId, {
         name: 'Bookshelf',
-        category: 'hic-storage',
+        category: 'hic-furniture',
       });
 
       // When: Getting by ID
@@ -715,8 +713,9 @@ describe('Household Item Routes', () => {
       const item = parsed.householdItem;
       expect(item.id).toBe(created.id);
       expect(item.name).toBe('Bookshelf');
-      expect(item.category).toBe('hic-storage');
-      expect(item).toHaveProperty('tags');
+      expect(item.category).toBe('hic-furniture');
+      // tags table was dropped in migration 0028 — tags field no longer present
+      expect(item).not.toHaveProperty('tags');
       expect(item).toHaveProperty('dependencies');
       expect(item).toHaveProperty('subsidies');
     });
@@ -776,17 +775,15 @@ describe('Household Item Routes', () => {
       expect(body).toHaveProperty('householdItem');
     });
 
-    it('includes linked tags in detail response', async () => {
-      // Given: An item with a tag
+    it('includes area in detail response', async () => {
+      // Given: An item
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'User',
         'password',
       );
-      const tagId = createTestTag('Bedroom');
       const created = householdItemService.createHouseholdItem(app.db, userId, {
         name: 'Dresser',
-        tagIds: [tagId],
       });
 
       // When: Getting by ID
@@ -796,12 +793,12 @@ describe('Household Item Routes', () => {
         headers: { cookie },
       });
 
-      // Then: Tags are included
+      // Then: Area field is present (null when not set)
       expect(response.statusCode).toBe(200);
       const item = (JSON.parse(response.body) as { householdItem: Record<string, unknown> })
         .householdItem;
-      expect((item.tags as unknown[])?.length).toBe(1);
-      expect((item.tags as Array<{ name: string }>)[0].name).toBe('Bedroom');
+      expect(item).toHaveProperty('area');
+      expect(item.area).toBeNull();
     });
   });
 
@@ -864,33 +861,33 @@ describe('Household Item Routes', () => {
       expect(item.name).toBe('New Name');
     });
 
-    it('replaces tags via tagIds', async () => {
-      // Given: An item with one tag
+    it('updates areaId to null (clears area)', async () => {
+      // Given: An item with an area assigned
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'User',
         'password',
       );
-      const oldTag = createTestTag('OldTag');
-      const newTag = createTestTag('NewTag');
+      const areaId = insertTestArea('Living Room');
       const created = householdItemService.createHouseholdItem(app.db, userId, {
         name: 'Lamp',
-        tagIds: [oldTag],
+        areaId,
       });
+      expect(created.area?.id).toBe(areaId);
 
-      // When: Replacing tags
+      // When: Clearing the area
       const response = await app.inject({
         method: 'PATCH',
         url: `/api/household-items/${created.id}`,
         headers: { cookie },
-        payload: { tagIds: [newTag] },
+        payload: { areaId: null },
       });
 
-      // Then: Tags replaced
+      // Then: Returns 200 with area cleared
       expect(response.statusCode).toBe(200);
       const item = (JSON.parse(response.body) as { householdItem: Record<string, unknown> })
         .householdItem;
-      expect((item.tags as Array<{ name: string }>).map((t) => t.name)).toEqual(['NewTag']);
+      expect(item.area).toBeNull();
     });
 
     it('returns 404 for non-existent ID', async () => {
@@ -1013,7 +1010,7 @@ describe('Household Item Routes', () => {
         method: 'PATCH',
         url: `/api/household-items/${created.id}`,
         headers: { cookie },
-        payload: { room: 'Living Room' },
+        payload: { name: 'Updated Lamp' },
       });
 
       // Then: Response is wrapped

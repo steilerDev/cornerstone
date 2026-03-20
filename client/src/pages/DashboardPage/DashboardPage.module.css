@@ -19,6 +19,87 @@
   flex-wrap: wrap;
 }
 
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+}
+
+/* ---- Add dropdown button ---- */
+
+.addContainer {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.addButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  padding: var(--spacing-1-5) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-primary-text);
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+.addButton:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.addButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  position: relative;
+  z-index: 1;
+}
+
+.addDropdown {
+  position: absolute;
+  top: calc(100% + var(--spacing-2));
+  right: 0;
+  z-index: var(--z-dropdown);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 180px;
+  overflow-y: auto;
+  padding: var(--spacing-1) 0;
+}
+
+.addMenuItem {
+  display: block;
+  width: 100%;
+  padding: var(--spacing-2) var(--spacing-3);
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--transition-normal);
+  min-height: 44px;
+}
+
+.addMenuItem:hover {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+
+.addMenuItem:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
 .title {
   margin: 0;
   font-size: var(--font-size-4xl);
@@ -225,6 +306,10 @@ details[open] > .sectionSummary > .sectionChevron {
     gap: var(--spacing-5);
   }
 
+  .addButton {
+    min-height: 44px;
+  }
+
   .customizeButton {
     min-height: 44px;
   }
@@ -251,6 +336,16 @@ details[open] > .sectionSummary > .sectionChevron {
 
   .title {
     font-size: var(--font-size-2xl);
+  }
+
+  .headerRight {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .addButton {
+    width: 100%;
+    min-height: 44px;
   }
 
   .customizeButton {

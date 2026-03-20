@@ -28,19 +28,27 @@ export interface MilestoneColors {
   completeStroke: string;
   lateFill: string;
   lateStroke: string;
+  aheadFill: string;
+  aheadStroke: string;
   hoverGlow: string;
   completeHoverGlow: string;
   lateHoverGlow: string;
+  aheadHoverGlow: string;
 }
 
 /** Derived status for a milestone based on completion and projected vs target date. */
-export type MilestoneStatus = 'completed' | 'late' | 'on_track';
+export type MilestoneStatus = 'completed' | 'late' | 'ahead' | 'on_track';
 
 /** Compute the milestone status from its data fields. */
 export function computeMilestoneStatus(milestone: TimelineMilestone): MilestoneStatus {
   if (milestone.isCompleted) return 'completed';
-  if (milestone.projectedDate !== null && milestone.projectedDate > milestone.targetDate) {
-    return 'late';
+  if (milestone.projectedDate !== null) {
+    if (milestone.projectedDate > milestone.targetDate) {
+      return 'late';
+    }
+    if (milestone.projectedDate < milestone.targetDate) {
+      return 'ahead';
+    }
   }
   return 'on_track';
 }
@@ -161,6 +169,11 @@ const DiamondMarker = memo(function DiamondMarker({
     stroke = colors.lateStroke;
     hoverGlow = colors.lateHoverGlow;
     statusClass = styles.diamondLate;
+  } else if (status === 'ahead') {
+    fill = colors.aheadFill;
+    stroke = colors.aheadStroke;
+    hoverGlow = colors.aheadHoverGlow;
+    statusClass = styles.diamondAhead;
   } else {
     fill = colors.incompleteFill;
     stroke = colors.incompleteStroke;
@@ -281,7 +294,13 @@ export const GanttMilestones = memo(function GanttMilestones({
       {milestones.map((milestone) => {
         const status = computeMilestoneStatus(milestone);
         const statusLabel =
-          status === 'completed' ? 'completed' : status === 'late' ? 'late' : 'incomplete';
+          status === 'completed'
+            ? 'completed'
+            : status === 'late'
+              ? 'late'
+              : status === 'ahead'
+                ? 'ahead'
+                : 'incomplete';
         const isCriticalMilestone = criticalMilestoneIds?.has(milestone.id) ?? false;
         const ariaLabel = `Milestone: ${milestone.title}, ${statusLabel}${isCriticalMilestone ? ', critical path' : ''}, target date ${milestone.targetDate}`;
 
@@ -305,29 +324,34 @@ export const GanttMilestones = memo(function GanttMilestones({
               )
             : null;
 
-        // For late milestones, also compute projected date position
-        const isLate = status === 'late' && milestone.projectedDate !== null;
+        // For late/ahead milestones, also compute projected date position
+        const hasProjectedDate =
+          (status === 'late' || status === 'ahead') && milestone.projectedDate !== null;
         const projectedX =
-          isLate && milestone.projectedDate !== null
+          hasProjectedDate && milestone.projectedDate !== null
             ? dateToX(toUtcMidnight(milestone.projectedDate), chartRange, zoom, columnWidth)
             : null;
 
         const interactionState = milestoneInteractionStates?.get(milestone.id) ?? 'default';
 
+        // Determine connector stroke color based on status
+        const getConnectorStroke = () => {
+          if (isCriticalMilestone && criticalConnectorColor) {
+            return criticalConnectorColor;
+          }
+          return status === 'ahead' ? colors.aheadStroke : colors.lateStroke;
+        };
+
         return (
           <g key={milestone.id}>
-            {/* For late milestones: dashed connector line between ghost and projected */}
-            {isLate && projectedX !== null && (
+            {/* For late/ahead milestones: dashed connector line between ghost and projected */}
+            {hasProjectedDate && projectedX !== null && (
               <line
                 x1={targetX}
                 y1={y}
                 x2={projectedX}
                 y2={y}
-                stroke={
-                  isCriticalMilestone && criticalConnectorColor
-                    ? criticalConnectorColor
-                    : colors.lateStroke
-                }
+                stroke={getConnectorStroke()}
                 strokeWidth={isCriticalMilestone ? 2 : 1.5}
                 strokeDasharray="4 3"
                 strokeOpacity={interactionState === 'dimmed' ? 0.2 : 0.6}
@@ -335,8 +359,8 @@ export const GanttMilestones = memo(function GanttMilestones({
               />
             )}
 
-            {/* For late milestones: ghost diamond at target date */}
-            {isLate && (
+            {/* For late/ahead milestones: ghost diamond at target date */}
+            {hasProjectedDate && (
               <DiamondMarker
                 x={targetX}
                 y={y}
@@ -353,9 +377,9 @@ export const GanttMilestones = memo(function GanttMilestones({
               />
             )}
 
-            {/* Active diamond: at completedAt for completed, projected for late, target for others */}
+            {/* Active diamond: at completedAt for completed, projected for late/ahead, target for others */}
             <DiamondMarker
-              x={completedX ?? (isLate && projectedX !== null ? projectedX : targetX)}
+              x={completedX ?? (hasProjectedDate && projectedX !== null ? projectedX : targetX)}
               y={y}
               status={status}
               label={ariaLabel}

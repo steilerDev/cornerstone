@@ -43,35 +43,7 @@ async function saveScreenshot(
 // Seed data via API to make pages look populated
 
 async function seedWorkItems(request: Parameters<typeof test>[2], baseUrl: string) {
-  const tags = [
-    { name: 'Electrical', color: '#f59e0b' },
-    { name: 'Plumbing', color: '#3b82f6' },
-    { name: 'Exterior', color: '#10b981' },
-  ];
-
-  // Create tags sequentially to avoid 409 conflicts when multiple parallel
-  // shard workers run this beforeAll concurrently against the same container.
-  // On 409 (tag name already exists), fall back to fetching all tags and
-  // finding the pre-existing one by name so work items can still reference it.
-  const tagIds: number[] = [];
-  for (const tag of tags) {
-    const res = await request.post(`${baseUrl}/api/tags`, { data: tag });
-    if (res.ok()) {
-      const body = (await res.json()) as { id: number };
-      tagIds.push(body.id);
-    } else if (res.status() === 409) {
-      // Tag already created by another parallel worker — look it up by name
-      const listRes = await request.get(`${baseUrl}/api/tags`);
-      if (listRes.ok()) {
-        const listBody = (await listRes.json()) as { tags: Array<{ id: number; name: string }> };
-        const existing = listBody.tags.find((t) => t.name === tag.name);
-        if (existing) {
-          tagIds.push(existing.id);
-        }
-      }
-    }
-  }
-
+  // Note: tags were removed in EPIC-18 (tagging system removed)
   const workItems = [
     {
       title: 'Install kitchen cabinets',
@@ -79,7 +51,6 @@ async function seedWorkItems(request: Parameters<typeof test>[2], baseUrl: strin
       status: 'in_progress',
       startDate: '2026-03-01',
       endDate: '2026-03-15',
-      tagIds: tagIds.slice(0, 1),
     },
     {
       title: 'Rough electrical wiring',
@@ -87,7 +58,6 @@ async function seedWorkItems(request: Parameters<typeof test>[2], baseUrl: strin
       status: 'completed',
       startDate: '2026-02-01',
       endDate: '2026-02-20',
-      tagIds: [tagIds[0]],
     },
     {
       title: 'Plumbing rough-in',
@@ -95,7 +65,6 @@ async function seedWorkItems(request: Parameters<typeof test>[2], baseUrl: strin
       status: 'completed',
       startDate: '2026-02-05',
       endDate: '2026-02-25',
-      tagIds: [tagIds[1]],
     },
     {
       title: 'Pour concrete foundation',
@@ -103,7 +72,6 @@ async function seedWorkItems(request: Parameters<typeof test>[2], baseUrl: strin
       status: 'completed',
       startDate: '2026-01-10',
       endDate: '2026-01-25',
-      tagIds: [],
     },
     {
       title: 'Install exterior windows',
@@ -111,7 +79,6 @@ async function seedWorkItems(request: Parameters<typeof test>[2], baseUrl: strin
       status: 'not_started',
       startDate: '2026-04-01',
       endDate: '2026-04-15',
-      tagIds: [tagIds[2]],
     },
     {
       title: 'Drywall installation',
@@ -119,7 +86,6 @@ async function seedWorkItems(request: Parameters<typeof test>[2], baseUrl: strin
       status: 'not_started',
       startDate: '2026-04-20',
       endDate: '2026-05-10',
-      tagIds: [],
     },
     {
       title: 'Paint interior rooms',
@@ -127,7 +93,6 @@ async function seedWorkItems(request: Parameters<typeof test>[2], baseUrl: strin
       status: 'not_started',
       startDate: '2026-05-15',
       endDate: '2026-06-01',
-      tagIds: [],
     },
     {
       title: 'Schedule building inspection',
@@ -135,7 +100,6 @@ async function seedWorkItems(request: Parameters<typeof test>[2], baseUrl: strin
       status: 'not_started',
       startDate: '2026-06-15',
       endDate: '2026-06-15',
-      tagIds: [],
     },
   ];
 
@@ -343,12 +307,12 @@ async function seedTimelineData(
 }
 
 async function seedHouseholdItems(request: Parameters<typeof test>[2], baseUrl: string) {
+  // Note: room field removed in EPIC-18 (replaced by AreaPicker; areas are not seeded here)
   const items = [
     {
       name: 'Kitchen island pendant lights',
       category: 'fixtures',
       status: 'purchased',
-      room: 'Kitchen',
       quantity: 3,
       description: 'Brass pendant lights for above the kitchen island.',
     },
@@ -356,7 +320,6 @@ async function seedHouseholdItems(request: Parameters<typeof test>[2], baseUrl: 
       name: 'Dishwasher',
       category: 'appliances',
       status: 'scheduled',
-      room: 'Kitchen',
       quantity: 1,
       description: 'Energy Star rated built-in dishwasher.',
     },
@@ -364,7 +327,6 @@ async function seedHouseholdItems(request: Parameters<typeof test>[2], baseUrl: 
       name: 'Living room sofa',
       category: 'furniture',
       status: 'planned',
-      room: 'Living Room',
       quantity: 1,
       description: 'L-shaped sectional sofa in charcoal grey.',
     },
@@ -372,7 +334,6 @@ async function seedHouseholdItems(request: Parameters<typeof test>[2], baseUrl: 
       name: 'Smart thermostat',
       category: 'electronics',
       status: 'arrived',
-      room: 'Hallway',
       quantity: 1,
       description: 'Wi-Fi connected programmable thermostat.',
     },
@@ -380,7 +341,6 @@ async function seedHouseholdItems(request: Parameters<typeof test>[2], baseUrl: 
       name: 'Bathroom vanity mirror',
       category: 'fixtures',
       status: 'planned',
-      room: 'Bathroom',
       quantity: 2,
       description: 'LED backlit vanity mirrors with anti-fog.',
     },
@@ -463,6 +423,19 @@ test.describe('Documentation screenshots', () => {
     });
   });
 
+  test('Dashboard', async ({ page }) => {
+    await page.goto(`${baseUrl}${ROUTES.home}`);
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { level: 1, name: 'Project' })).toBeVisible();
+    await page.waitForTimeout(500);
+
+    for (const theme of ['light', 'dark'] as const) {
+      await setTheme(page, theme);
+      await page.waitForTimeout(300);
+      await saveScreenshot(page, 'dashboard', theme);
+    }
+  });
+
   test('Work items list', async ({ page }) => {
     await page.goto(`${baseUrl}${ROUTES.workItems}`);
     await page.waitForLoadState('networkidle');
@@ -519,7 +492,8 @@ test.describe('Documentation screenshots', () => {
     }
   });
 
-  test('Tags page', async ({ page }) => {
+  test('Manage page', async ({ page }) => {
+    // Note: renamed from 'Tags page' in EPIC-18 (tagging system removed; page now shows Areas)
     await page.goto(`${baseUrl}/settings/manage`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
@@ -527,7 +501,7 @@ test.describe('Documentation screenshots', () => {
     for (const theme of ['light', 'dark'] as const) {
       await setTheme(page, theme);
       await page.waitForTimeout(300);
-      await saveScreenshot(page, 'tags', theme);
+      await saveScreenshot(page, 'manage', theme);
     }
   });
 

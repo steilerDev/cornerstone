@@ -27,8 +27,11 @@ export function listWorkItems(params?: WorkItemListQuery): Promise<WorkItemListR
   if (params?.assignedUserId) {
     queryParams.set('assignedUserId', params.assignedUserId);
   }
-  if (params?.tagId) {
-    queryParams.set('tagId', params.tagId);
+  if (params?.areaId) {
+    queryParams.set('areaId', params.areaId);
+  }
+  if (params?.assignedVendorId) {
+    queryParams.set('assignedVendorId', params.assignedVendorId);
   }
   if (params?.q) {
     queryParams.set('q', params.q);
@@ -38,6 +41,9 @@ export function listWorkItems(params?: WorkItemListQuery): Promise<WorkItemListR
   }
   if (params?.sortOrder) {
     queryParams.set('sortOrder', params.sortOrder);
+  }
+  if (params?.noBudget) {
+    queryParams.set('noBudget', 'true');
   }
 
   const queryString = queryParams.toString();

@@ -4,7 +4,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import type * as BudgetOverviewApiTypes from '../../lib/budgetOverviewApi.js';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -116,6 +116,7 @@ describe('BudgetOverviewPage', () => {
       activeSubsidyCount: 0,
       minTotalPayback: 0,
       maxTotalPayback: 0,
+      oversubscribedSubsidies: [],
     },
   };
 
@@ -166,6 +167,7 @@ describe('BudgetOverviewPage', () => {
       activeSubsidyCount: 3,
       minTotalPayback: 0,
       maxTotalPayback: 0,
+      oversubscribedSubsidies: [],
     },
   };
 
@@ -228,6 +230,7 @@ describe('BudgetOverviewPage', () => {
         minSubsidyPayback: 0,
       },
     },
+    subsidyAdjustments: [],
   };
 
   beforeEach(async () => {
@@ -919,6 +922,7 @@ describe('BudgetOverviewPage', () => {
           minSubsidyPayback: 0,
         },
       },
+      subsidyAdjustments: [],
     };
 
     it('selecting only one category updates Budget Health projected range but not Cost Breakdown', async () => {
@@ -1054,6 +1058,7 @@ describe('BudgetOverviewPage', () => {
           activeSubsidyCount: 3,
           minTotalPayback: 5000,
           maxTotalPayback: 7500,
+          oversubscribedSubsidies: [],
         },
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
@@ -1079,6 +1084,7 @@ describe('BudgetOverviewPage', () => {
           activeSubsidyCount: 3,
           minTotalPayback: 5000,
           maxTotalPayback: 5000,
+          oversubscribedSubsidies: [],
         },
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
@@ -1107,6 +1113,7 @@ describe('BudgetOverviewPage', () => {
           activeSubsidyCount: 3,
           minTotalPayback: 5000,
           maxTotalPayback: 7500,
+          oversubscribedSubsidies: [],
         },
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
@@ -1209,6 +1216,7 @@ describe('BudgetOverviewPage', () => {
             minSubsidyPayback: 0,
           },
         },
+        subsidyAdjustments: [],
       });
 
       renderPage();
@@ -1241,6 +1249,7 @@ describe('BudgetOverviewPage', () => {
           activeSubsidyCount: 3,
           minTotalPayback: 5000,
           maxTotalPayback: 5000,
+          oversubscribedSubsidies: [],
         },
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
@@ -1268,6 +1277,7 @@ describe('BudgetOverviewPage', () => {
           activeSubsidyCount: 3,
           minTotalPayback: 5000,
           maxTotalPayback: 5000,
+          oversubscribedSubsidies: [],
         },
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(paybackOverview);
@@ -1292,6 +1302,136 @@ describe('BudgetOverviewPage', () => {
       await waitFor(() => {
         expect(screen.queryByText(/incl\. payback/i)).not.toBeInTheDocument();
       });
+    });
+  });
+
+  // ─── Story #1039: Add dropdown button ─────────────────────────────────────
+
+  describe('Add dropdown button', () => {
+    /** Captures the current router location so we can assert navigation. */
+    function LocationDisplay() {
+      const location = useLocation();
+      return <div data-testid="location">{location.pathname}</div>;
+    }
+
+    function renderWithLocation() {
+      return render(
+        <MemoryRouter initialEntries={['/budget/overview']}>
+          <BudgetOverviewPage />
+          <LocationDisplay />
+        </MemoryRouter>,
+      );
+    }
+
+    it('renders the Add trigger button in the loading state', () => {
+      mockFetchBudgetOverview.mockReturnValueOnce(new Promise(() => {}));
+      mockFetchBudgetSources.mockReturnValueOnce(new Promise(() => {}));
+
+      renderPage();
+
+      expect(screen.getByTestId('budget-overview-add-button')).toBeInTheDocument();
+    });
+
+    it('renders the Add trigger button in the error state', async () => {
+      mockFetchBudgetOverview.mockRejectedValueOnce(new Error('Fetch failed'));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('budget-overview-add-button')).toBeInTheDocument();
+    });
+
+    it('renders the Add trigger button in the success state', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId('budget-overview-add-button')).toBeInTheDocument();
+    });
+
+    it('clicking the trigger opens the dropdown and sets aria-expanded="true"', async () => {
+      const user = userEvent.setup();
+      mockFetchBudgetOverview.mockReturnValueOnce(new Promise(() => {}));
+
+      renderPage();
+
+      const trigger = screen.getByTestId('budget-overview-add-button');
+      expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+      await user.click(trigger);
+
+      expect(trigger).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByTestId('budget-overview-add-invoice')).toBeInTheDocument();
+      expect(screen.getByTestId('budget-overview-add-vendor')).toBeInTheDocument();
+    });
+
+    it('clicking outside the dropdown closes it', async () => {
+      const user = userEvent.setup();
+      mockFetchBudgetOverview.mockReturnValueOnce(new Promise(() => {}));
+
+      renderPage();
+
+      // Open the dropdown
+      await user.click(screen.getByTestId('budget-overview-add-button'));
+      expect(screen.getByTestId('budget-overview-add-invoice')).toBeInTheDocument();
+
+      // Click outside by firing a mousedown on document.body
+      document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('budget-overview-add-invoice')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('budget-overview-add-vendor')).not.toBeInTheDocument();
+      });
+    });
+
+    it('pressing Escape closes the dropdown', async () => {
+      const user = userEvent.setup();
+      mockFetchBudgetOverview.mockReturnValueOnce(new Promise(() => {}));
+
+      renderPage();
+
+      // Open the dropdown
+      await user.click(screen.getByTestId('budget-overview-add-button'));
+      expect(screen.getByTestId('budget-overview-add-invoice')).toBeInTheDocument();
+
+      // Press Escape
+      await user.keyboard('{Escape}');
+
+      expect(screen.queryByTestId('budget-overview-add-invoice')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('budget-overview-add-vendor')).not.toBeInTheDocument();
+    });
+
+    it('clicking Add Invoice menu item navigates to /budget/invoices', async () => {
+      const user = userEvent.setup();
+      mockFetchBudgetOverview.mockReturnValueOnce(new Promise(() => {}));
+
+      renderWithLocation();
+
+      // Open dropdown then click the menu item
+      await user.click(screen.getByTestId('budget-overview-add-button'));
+      await user.click(screen.getByTestId('budget-overview-add-invoice'));
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/budget/invoices');
+    });
+
+    it('clicking Add Vendor menu item navigates to /budget/vendors', async () => {
+      const user = userEvent.setup();
+      mockFetchBudgetOverview.mockReturnValueOnce(new Promise(() => {}));
+
+      renderWithLocation();
+
+      // Open dropdown then click the menu item
+      await user.click(screen.getByTestId('budget-overview-add-button'));
+      await user.click(screen.getByTestId('budget-overview-add-vendor'));
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/budget/vendors');
     });
   });
 });

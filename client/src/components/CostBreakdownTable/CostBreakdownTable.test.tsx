@@ -258,6 +258,7 @@ function buildOverview(
       activeSubsidyCount: 0,
       minTotalPayback: opts.minTotalPayback ?? 0,
       maxTotalPayback: opts.maxTotalPayback ?? 0,
+      oversubscribedSubsidies: [],
     },
   };
 }
@@ -291,6 +292,7 @@ function buildEmptyBreakdown(): BudgetBreakdown {
         minSubsidyPayback: 0,
       },
     },
+    subsidyAdjustments: [],
   };
 }
 
@@ -363,6 +365,7 @@ function buildBreakdownWithWI(
                   confidence: 'own_estimate',
                   actualCost,
                   hasInvoice,
+                  isQuotation: false,
                 },
               ],
             },
@@ -391,6 +394,7 @@ function buildBreakdownWithWI(
         minSubsidyPayback: 0,
       },
     },
+    subsidyAdjustments: [],
   };
 }
 
@@ -467,6 +471,7 @@ function buildBreakdownWithHI(
                   confidence: 'own_estimate',
                   actualCost,
                   hasInvoice: actualCost > 0,
+                  isQuotation: false,
                 },
               ],
             },
@@ -483,6 +488,7 @@ function buildBreakdownWithHI(
         minSubsidyPayback,
       },
     },
+    subsidyAdjustments: [],
   };
 }
 
@@ -880,6 +886,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 0,
         },
       },
+      subsidyAdjustments: [],
     };
 
     const { container } = render(
@@ -951,6 +958,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 0,
         },
       },
+      subsidyAdjustments: [],
     };
 
     const { container } = render(
@@ -1022,6 +1030,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 0,
         },
       },
+      subsidyAdjustments: [],
     };
 
     render(
@@ -1349,6 +1358,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 0,
         },
       },
+      subsidyAdjustments: [],
     };
 
     render(
@@ -2542,6 +2552,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
           confidence: 'own_estimate' as const,
           actualCost: 0,
           hasInvoice: false,
+          isQuotation: false,
         },
       ],
     };
@@ -2595,6 +2606,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
           minSubsidyPayback: 0,
         },
       },
+      subsidyAdjustments: [],
     };
   }
 
@@ -2621,6 +2633,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
           confidence: 'own_estimate' as const,
           actualCost: 0,
           hasInvoice: false,
+          isQuotation: false,
         },
       ],
     };
@@ -2671,6 +2684,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
           minSubsidyPayback: 0,
         },
       },
+      subsidyAdjustments: [],
     };
   }
 

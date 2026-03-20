@@ -53,7 +53,7 @@ describe('Vendor Service', () => {
   function createTestVendor(
     name: string,
     options: {
-      specialty?: string | null;
+      tradeId?: string | null;
       phone?: string | null;
       email?: string | null;
       address?: string | null;
@@ -69,7 +69,7 @@ describe('Vendor Service', () => {
       .values({
         id,
         name,
-        specialty: options.specialty ?? null,
+        tradeId: options.tradeId ?? null,
         phone: options.phone ?? null,
         email: options.email ?? null,
         address: options.address ?? null,
@@ -144,11 +144,34 @@ describe('Vendor Service', () => {
     return workItemId;
   }
 
+  /**
+   * Helper: Insert a trade directly into the database.
+   */
+  function createTestTrade(name: string, options: { color?: string | null } = {}) {
+    const id = `trade-test-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const now = new Date().toISOString();
+    db.insert(schema.trades)
+      .values({
+        id,
+        name,
+        color: options.color ?? null,
+        description: null,
+        sortOrder: 0,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return { id, name, color: options.color ?? null };
+  }
+
   beforeEach(() => {
     const testDb = createTestDb();
     sqlite = testDb.sqlite;
     db = testDb.db;
     timestampOffset = 0;
+    // Migration 0028 seeds 15 default trades — delete them so tests start with an empty trades table.
+    // Tests that need trades create them explicitly via createTestTrade().
+    db.delete(schema.trades).run();
   });
 
   afterEach(() => {
@@ -181,8 +204,9 @@ describe('Vendor Service', () => {
 
     it('returns all vendor fields', () => {
       const userId = createTestUser('creator@test.com', 'Creator User');
+      const trade = createTestTrade('Test Plumbing Trade', { color: '#0EA5E9' });
       createTestVendor('Smith Plumbing', {
-        specialty: 'Plumbing',
+        tradeId: trade.id,
         phone: '+1 555-1234',
         email: 'smith@plumbing.com',
         address: '123 Main St',
@@ -195,7 +219,9 @@ describe('Vendor Service', () => {
       expect(result.vendors).toHaveLength(1);
       const vendor = result.vendors[0];
       expect(vendor.name).toBe('Smith Plumbing');
-      expect(vendor.specialty).toBe('Plumbing');
+      expect(vendor.trade).not.toBeNull();
+      expect(vendor.trade!.id).toBe(trade.id);
+      expect(vendor.trade!.name).toBe('Test Plumbing Trade');
       expect(vendor.phone).toBe('+1 555-1234');
       expect(vendor.email).toBe('smith@plumbing.com');
       expect(vendor.address).toBe('123 Main St');
@@ -236,16 +262,24 @@ describe('Vendor Service', () => {
       expect(result.vendors[1].name).toBe('Acme Plumbing');
     });
 
-    it('sorts by specialty ascending', () => {
-      createTestVendor('Vendor A', { specialty: 'Roofing' });
-      createTestVendor('Vendor B', { specialty: 'Electrical' });
-      createTestVendor('Vendor C', { specialty: 'Plumbing' });
+    it('sorts by trade name ascending', () => {
+      // Create real trades so sort-by-trade works correctly
+      const roofing = createTestTrade('Roofing');
+      const electrical = createTestTrade('Electrical');
+      const plumbing = createTestTrade('Plumbing');
 
-      const result = vendorService.listVendors(db, { sortBy: 'specialty', sortOrder: 'asc' });
+      createTestVendor('Vendor A', { tradeId: roofing.id });
+      createTestVendor('Vendor B', { tradeId: electrical.id });
+      createTestVendor('Vendor C', { tradeId: plumbing.id });
 
-      expect(result.vendors[0].specialty).toBe('Electrical');
-      expect(result.vendors[1].specialty).toBe('Plumbing');
-      expect(result.vendors[2].specialty).toBe('Roofing');
+      const result = vendorService.listVendors(db, { sortBy: 'trade', sortOrder: 'asc' });
+
+      // Sort by trade name: Electrical < Plumbing < Roofing
+      expect(result.vendors[0].name).toBe('Vendor B'); // Electrical
+      expect(result.vendors[1].name).toBe('Vendor C'); // Plumbing
+      expect(result.vendors[2].name).toBe('Vendor A'); // Roofing
+      // All vendors have their trade objects resolved
+      result.vendors.forEach((v) => expect(v.trade).not.toBeNull());
     });
 
     it('sorts by created_at', () => {
@@ -282,12 +316,15 @@ describe('Vendor Service', () => {
       expect(names).toContain('SMITH Roofing');
     });
 
-    it('searches by specialty (case-insensitive)', () => {
-      createTestVendor('Vendor A', { specialty: 'Plumbing' });
-      createTestVendor('Vendor B', { specialty: 'Electrical' });
-      createTestVendor('Vendor C', { specialty: 'PLUMBING SPECIALIST' });
+    it('searches by trade name (case-insensitive)', () => {
+      const plumbingTrade = createTestTrade('Plumbing');
+      const electricalTrade = createTestTrade('Electrical');
+      createTestVendor('Vendor A', { tradeId: plumbingTrade.id });
+      createTestVendor('Vendor B', { tradeId: electricalTrade.id });
+      createTestVendor('Vendor C', { tradeId: plumbingTrade.id });
 
-      const result = vendorService.listVendors(db, { q: 'plumbing' });
+      // 'Plumbing' matches trade name — should return vendors with that trade
+      const result = vendorService.listVendors(db, { q: 'Plumbing' });
 
       expect(result.vendors).toHaveLength(2);
     });
@@ -411,14 +448,26 @@ describe('Vendor Service', () => {
   // ─── getVendorById() ────────────────────────────────────────────────────────
 
   describe('getVendorById()', () => {
-    it('returns a vendor by ID', () => {
-      const vendor = createTestVendor('Test Vendor', { specialty: 'Roofing' });
+    it('returns a vendor by ID with trade null when no tradeId set', () => {
+      const vendor = createTestVendor('Test Vendor');
 
       const result = vendorService.getVendorById(db, vendor.id);
 
       expect(result.id).toBe(vendor.id);
       expect(result.name).toBe('Test Vendor');
-      expect(result.specialty).toBe('Roofing');
+      expect(result.trade).toBeNull();
+    });
+
+    it('returns a vendor by ID (trade populated when tradeId references existing trade)', () => {
+      const trade = createTestTrade('Roofing');
+      const vendor = createTestVendor('Roofing Vendor', { tradeId: trade.id });
+
+      const result = vendorService.getVendorById(db, vendor.id);
+
+      expect(result.id).toBe(vendor.id);
+      expect(result.trade).not.toBeNull();
+      expect(result.trade!.id).toBe(trade.id);
+      expect(result.trade!.name).toBe('Roofing');
     });
 
     it('throws NotFoundError when vendor does not exist', () => {
@@ -478,7 +527,7 @@ describe('Vendor Service', () => {
 
       const result = vendorService.getVendorById(db, vendor.id);
 
-      expect(result.specialty).toBeNull();
+      expect(result.trade).toBeNull();
       expect(result.phone).toBeNull();
       expect(result.email).toBeNull();
       expect(result.address).toBeNull();
@@ -522,7 +571,7 @@ describe('Vendor Service', () => {
 
       expect(result.id).toBeDefined();
       expect(result.name).toBe('New Vendor');
-      expect(result.specialty).toBeNull();
+      expect(result.trade).toBeNull();
       expect(result.phone).toBeNull();
       expect(result.email).toBeNull();
       expect(result.address).toBeNull();
@@ -533,9 +582,10 @@ describe('Vendor Service', () => {
 
     it('creates a vendor with all fields', () => {
       const userId = createTestUser('creator@test.com', 'Creator');
+      const trade = createTestTrade('Plumbing');
       const data: CreateVendorRequest = {
         name: 'Full Vendor',
-        specialty: 'Plumbing',
+        tradeId: trade.id,
         phone: '+1 555-0001',
         email: 'full@vendor.com',
         address: '100 Oak Ave, Springfield IL',
@@ -545,7 +595,9 @@ describe('Vendor Service', () => {
       const result = vendorService.createVendor(db, data, userId);
 
       expect(result.name).toBe('Full Vendor');
-      expect(result.specialty).toBe('Plumbing');
+      expect(result.trade).not.toBeNull();
+      expect(result.trade!.id).toBe(trade.id);
+      expect(result.trade!.name).toBe('Plumbing');
       expect(result.phone).toBe('+1 555-0001');
       expect(result.email).toBe('full@vendor.com');
       expect(result.address).toBe('100 Oak Ave, Springfield IL');
@@ -642,7 +694,7 @@ describe('Vendor Service', () => {
 
       const result = vendorService.createVendor(db, data, userId);
 
-      expect(result.specialty).toBeNull();
+      expect(result.trade).toBeNull();
       expect(result.phone).toBeNull();
       expect(result.email).toBeNull();
       expect(result.address).toBeNull();
@@ -696,16 +748,22 @@ describe('Vendor Service', () => {
       expect(result.outstandingBalance).toBe(750);
     });
 
-    it('updates specialty only (partial update)', () => {
+    it('updates tradeId only (partial update)', () => {
+      const roofing = createTestTrade('Roofing');
+      const electrical = createTestTrade('Electrical');
       const vendor = createTestVendor('Partial Vendor', {
-        specialty: 'Roofing',
+        tradeId: roofing.id,
         phone: '555-1234',
       });
 
-      const result = vendorService.updateVendor(db, vendor.id, { specialty: 'Electrical' });
+      const result = vendorService.updateVendor(db, vendor.id, {
+        tradeId: electrical.id,
+      });
 
       expect(result.name).toBe('Partial Vendor');
-      expect(result.specialty).toBe('Electrical');
+      expect(result.trade).not.toBeNull();
+      expect(result.trade!.id).toBe(electrical.id);
+      expect(result.trade!.name).toBe('Electrical');
       expect(result.phone).toBe('555-1234');
     });
 
@@ -742,12 +800,13 @@ describe('Vendor Service', () => {
       expect(result.notes).toBe('New notes');
     });
 
-    it('clears specialty by setting to null', () => {
-      const vendor = createTestVendor('Specialty Vendor', { specialty: 'Plumbing' });
+    it('clears tradeId by setting to null', () => {
+      const plumbing = createTestTrade('Plumbing');
+      const vendor = createTestVendor('Trade Vendor', { tradeId: plumbing.id });
 
-      const result = vendorService.updateVendor(db, vendor.id, { specialty: null });
+      const result = vendorService.updateVendor(db, vendor.id, { tradeId: null });
 
-      expect(result.specialty).toBeNull();
+      expect(result.trade).toBeNull();
     });
 
     it('clears phone by setting to null', () => {
@@ -759,20 +818,24 @@ describe('Vendor Service', () => {
     });
 
     it('updates multiple fields at once', () => {
+      const roofing = createTestTrade('Roofing');
+      const electrical = createTestTrade('Electrical');
       const vendor = createTestVendor('Multi Update Vendor', {
-        specialty: 'Old Specialty',
+        tradeId: roofing.id,
         phone: '555-0000',
       });
 
       const result = vendorService.updateVendor(db, vendor.id, {
         name: 'Updated Multi Vendor',
-        specialty: 'New Specialty',
+        tradeId: electrical.id,
         phone: '555-9999',
         email: 'multi@vendor.com',
       });
 
       expect(result.name).toBe('Updated Multi Vendor');
-      expect(result.specialty).toBe('New Specialty');
+      expect(result.trade).not.toBeNull();
+      expect(result.trade!.id).toBe(electrical.id);
+      expect(result.trade!.name).toBe('Electrical');
       expect(result.phone).toBe('555-9999');
       expect(result.email).toBe('multi@vendor.com');
     });

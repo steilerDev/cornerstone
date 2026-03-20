@@ -25,7 +25,7 @@ describe('vendorsApi', () => {
   const sampleVendor: Vendor = {
     id: 'vendor-1',
     name: 'Smith Plumbing',
-    specialty: 'Plumbing',
+    trade: { id: 'trade-1', name: 'Plumbing', color: null },
     phone: '+1 555-1234',
     email: 'smith@plumbing.com',
     address: '123 Main St',
@@ -143,10 +143,10 @@ describe('vendorsApi', () => {
         json: async () => mockResponse,
       } as Response);
 
-      await fetchVendors({ sortBy: 'specialty', sortOrder: 'desc' });
+      await fetchVendors({ sortBy: 'trade', sortOrder: 'desc' });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('sortBy=specialty'),
+        expect.stringContaining('sortBy=trade'),
         expect.any(Object),
       );
       expect(mockFetch).toHaveBeenCalledWith(
@@ -309,7 +309,7 @@ describe('vendorsApi', () => {
 
       const requestData = {
         name: 'Full Vendor',
-        specialty: 'Roofing',
+        tradeId: 'trade-roofing',
         phone: '555-1111',
         email: 'full@vendor.com',
         address: '100 Oak Ave',
@@ -392,7 +392,7 @@ describe('vendorsApi', () => {
       const updated: VendorDetail = {
         ...sampleVendorDetail,
         name: 'Updated Vendor',
-        specialty: 'Landscaping',
+        trade: { id: 'trade-landscaping', name: 'Landscaping', color: null },
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -407,15 +407,18 @@ describe('vendorsApi', () => {
       expect(result.invoiceCount).toBe(3);
     });
 
-    it('handles partial update (only specialty)', async () => {
-      const updated: VendorDetail = { ...sampleVendorDetail, specialty: 'New Specialty' };
+    it('handles partial update (only tradeId)', async () => {
+      const updated: VendorDetail = {
+        ...sampleVendorDetail,
+        trade: { id: 'trade-new', name: 'New Trade', color: null },
+      };
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ vendor: updated }),
       } as Response);
 
-      const updateData = { specialty: 'New Specialty' };
+      const updateData = { tradeId: 'trade-new' };
       await updateVendor('vendor-1', updateData);
 
       expect(mockFetch).toHaveBeenCalledWith(
@@ -428,14 +431,14 @@ describe('vendorsApi', () => {
     });
 
     it('handles null fields in update (clearing optional fields)', async () => {
-      const updated: VendorDetail = { ...sampleVendorDetail, specialty: null };
+      const updated: VendorDetail = { ...sampleVendorDetail, trade: null };
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ vendor: updated }),
       } as Response);
 
-      const updateData = { specialty: null };
+      const updateData = { tradeId: null };
       await updateVendor('vendor-1', updateData);
 
       expect(mockFetch).toHaveBeenCalledWith(

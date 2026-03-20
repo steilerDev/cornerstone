@@ -2,9 +2,9 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render } from '@testing-library/react';
+import { screen, waitFor, render, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import type * as BudgetOverviewApiTypes from '../../lib/budgetOverviewApi.js';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
@@ -140,6 +140,7 @@ const minimalBudgetOverview: BudgetOverview = {
     activeSubsidyCount: 0,
     minTotalPayback: 0,
     maxTotalPayback: 0,
+    oversubscribedSubsidies: [],
   },
 };
 
@@ -159,6 +160,7 @@ const emptyInvoicesResponse: InvoiceListPaginatedResponse = {
     pending: { count: 0, totalAmount: 0 },
     paid: { count: 0, totalAmount: 0 },
     claimed: { count: 0, totalAmount: 0 },
+    quotation: { count: 0, totalAmount: 0 },
   },
 };
 
@@ -606,7 +608,8 @@ describe('DashboardPage', () => {
           startAfter: null,
           startBefore: null,
           assignedUser: null,
-          tags: [],
+          assignedVendor: null,
+          area: null,
           requiredMilestoneIds: [],
         },
         {
@@ -621,7 +624,8 @@ describe('DashboardPage', () => {
           startAfter: null,
           startBefore: null,
           assignedUser: null,
-          tags: [],
+          assignedVendor: null,
+          area: null,
           requiredMilestoneIds: [],
         },
         {
@@ -636,7 +640,8 @@ describe('DashboardPage', () => {
           startAfter: null,
           startBefore: null,
           assignedUser: null,
-          tags: [],
+          assignedVendor: null,
+          area: null,
           requiredMilestoneIds: [],
         },
       ],
@@ -743,6 +748,123 @@ describe('DashboardPage', () => {
     const detailsEls = container.querySelectorAll('details');
     const budgetDetails = detailsEls[1];
     expect(budgetDetails?.textContent).toContain('No sources configured');
+  });
+
+  // ─── Story #1014 / Issue #1050: "Add" dropdown ──────────────────────────
+
+  describe('"Add" dropdown', () => {
+    /** Renders the page with a LocationDisplay helper to assert navigation. */
+    function LocationDisplay() {
+      const location = useLocation();
+      return <div data-testid="location">{location.pathname}</div>;
+    }
+
+    function renderWithLocation() {
+      return render(
+        <MemoryRouter initialEntries={['/']}>
+          <DashboardPage />
+          <LocationDisplay />
+        </MemoryRouter>,
+      );
+    }
+
+    it('"Add" button is present with text "Add"', () => {
+      renderPage();
+
+      const addBtn = screen.getByTestId('dashboard-add-button');
+      expect(addBtn).toBeInTheDocument();
+      expect(addBtn).toHaveTextContent('Add');
+    });
+
+    it('dropdown is closed by default — no add menu in document', () => {
+      renderPage();
+
+      // The customize dropdown may also render a role="menu" when Customize is clicked,
+      // but by default neither is open. We verify the add dropdown is absent specifically.
+      expect(screen.queryByTestId('dashboard-add-work-item')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('dashboard-add-household-item')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('dashboard-add-milestone')).not.toBeInTheDocument();
+    });
+
+    it('clicking "Add" opens the dropdown with 3 menu items', async () => {
+      renderPage();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-button'));
+
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-add-work-item')).toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-add-household-item')).toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-add-milestone')).toBeInTheDocument();
+    });
+
+    it('clicking outside the dropdown closes it', async () => {
+      renderPage();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-button'));
+      expect(screen.getByTestId('dashboard-add-work-item')).toBeInTheDocument();
+
+      fireEvent.mouseDown(document.body);
+
+      expect(screen.queryByTestId('dashboard-add-work-item')).not.toBeInTheDocument();
+    });
+
+    it('pressing Escape closes the dropdown', async () => {
+      renderPage();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-button'));
+      expect(screen.getByTestId('dashboard-add-work-item')).toBeInTheDocument();
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      expect(screen.queryByTestId('dashboard-add-work-item')).not.toBeInTheDocument();
+    });
+
+    it('"Add Work Item" menu item navigates to /project/work-items/new', async () => {
+      renderWithLocation();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-button'));
+      await userEvent.click(screen.getByTestId('dashboard-add-work-item'));
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/project/work-items/new');
+    });
+
+    it('"Add Household Item" menu item navigates to /project/household-items/new', async () => {
+      renderWithLocation();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-button'));
+      await userEvent.click(screen.getByTestId('dashboard-add-household-item'));
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/new');
+    });
+
+    it('"Add Milestone" menu item navigates to /project/milestones/new', async () => {
+      renderWithLocation();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-button'));
+      await userEvent.click(screen.getByTestId('dashboard-add-milestone'));
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/project/milestones/new');
+    });
+
+    it('"Add" button has aria-haspopup="menu"', () => {
+      renderPage();
+
+      expect(screen.getByTestId('dashboard-add-button')).toHaveAttribute('aria-haspopup', 'menu');
+    });
+
+    it('"Add" button has aria-expanded="false" when closed', () => {
+      renderPage();
+
+      expect(screen.getByTestId('dashboard-add-button')).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('"Add" button has aria-expanded="true" when open', async () => {
+      renderPage();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-button'));
+
+      expect(screen.getByTestId('dashboard-add-button')).toHaveAttribute('aria-expanded', 'true');
+    });
   });
 
   // ─── Test 22: Malformed JSON in preferences does not crash ───────────────

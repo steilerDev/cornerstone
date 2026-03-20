@@ -17,7 +17,6 @@ export const VENDORS_ROUTE = '/budget/vendors';
 
 export interface CreateVendorData {
   name: string;
-  specialty?: string;
   phone?: string;
   email?: string;
   address?: string;
@@ -60,11 +59,11 @@ export class VendorsPage {
   readonly createModal: Locator;
   readonly createModalTitle: Locator;
   readonly createNameInput: Locator;
-  readonly createSpecialtyInput: Locator;
   readonly createPhoneInput: Locator;
   readonly createEmailInput: Locator;
   readonly createAddressInput: Locator;
   readonly createNotesInput: Locator;
+  readonly createTradeSelect: Locator;
   readonly createSubmitButton: Locator;
   readonly createCancelButton: Locator;
   readonly createErrorBanner: Locator;
@@ -118,11 +117,11 @@ export class VendorsPage {
     this.createModal = page.getByRole('dialog', { name: 'Add Vendor' });
     this.createModalTitle = page.locator('#create-modal-title');
     this.createNameInput = this.createModal.locator('#vendor-name');
-    this.createSpecialtyInput = this.createModal.locator('#vendor-specialty');
     this.createPhoneInput = this.createModal.locator('#vendor-phone');
     this.createEmailInput = this.createModal.locator('#vendor-email');
     this.createAddressInput = this.createModal.locator('#vendor-address');
     this.createNotesInput = this.createModal.locator('#vendor-notes');
+    this.createTradeSelect = this.createModal.getByPlaceholder('Select a trade...');
     this.createSubmitButton = this.createModal.getByRole('button', {
       name: /Add Vendor|Adding\.\.\./,
     });
@@ -164,9 +163,6 @@ export class VendorsPage {
    */
   async createVendor(data: CreateVendorData): Promise<void> {
     await this.createNameInput.fill(data.name);
-    if (data.specialty !== undefined) {
-      await this.createSpecialtyInput.fill(data.specialty);
-    }
     if (data.phone !== undefined) {
       await this.createPhoneInput.fill(data.phone);
     }

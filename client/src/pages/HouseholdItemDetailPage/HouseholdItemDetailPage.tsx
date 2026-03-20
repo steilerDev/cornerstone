@@ -55,6 +55,7 @@ import {
 } from '../../lib/invoiceBudgetLinesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { useAreas } from '../../hooks/useAreas.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import { useToast } from '../../components/Toast/ToastContext.js';
@@ -62,6 +63,7 @@ import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumen
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { BudgetSection } from '../../components/budget/BudgetSection.js';
 import { InvoiceLinkModal } from '../../components/budget/InvoiceLinkModal.js';
+import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import styles from './HouseholdItemDetailPage.module.css';
 
 const HI_STATUS_VARIANTS = {
@@ -78,6 +80,7 @@ export function HouseholdItemDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast } = useToast();
+  const { areas } = useAreas();
 
   const locationState = location.state as { from?: string; view?: string } | null;
   const fromSchedule = locationState?.from === 'schedule';
@@ -449,9 +452,7 @@ export function HouseholdItemDetailPage() {
       await reloadSubsidyPayback();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        if (err.error.code === 'SUBSIDY_OVERSUBSCRIBED') {
-          setInlineError(err.error.message);
-        } else if (err.statusCode === 409) {
+        if (err.statusCode === 409) {
           setInlineError('This subsidy program is already linked');
         } else {
           setInlineError(err.error.message);
@@ -607,6 +608,19 @@ export function HouseholdItemDetailPage() {
       console.error('Failed to update status:', err);
     } finally {
       setIsChangingStatus(false);
+    }
+  };
+
+  const handleAreaChange = async (areaId: string) => {
+    if (!id) return;
+    setInlineError(null);
+    try {
+      const updated = await updateHouseholdItem(id, { areaId: areaId || null });
+      setItem(updated);
+      showToast('success', t('detail.area.updated'));
+    } catch (err) {
+      setInlineError(t('detail.area.updateFailed'));
+      console.error('Failed to update area:', err);
     }
   };
 
@@ -775,7 +789,7 @@ export function HouseholdItemDetailPage() {
           <dl className={styles.infoList}>
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>{t('detail.details.description')}</dt>
-              <dd className={styles.infoValue}>{item.description ?? '\u2014'}</dd>
+              <dd className={styles.descriptionValue}>{item.description ?? '\u2014'}</dd>
             </div>
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>{t('detail.details.vendor')}</dt>
@@ -807,30 +821,26 @@ export function HouseholdItemDetailPage() {
               </dd>
             </div>
             <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>{t('detail.details.room')}</dt>
-              <dd className={styles.infoValue}>{item.room ?? '\u2014'}</dd>
-            </div>
-            <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>{t('detail.details.quantity')}</dt>
               <dd className={styles.infoValue}>{item.quantity}</dd>
             </div>
-            <div className={styles.infoRow}>
-              <dt className={styles.infoLabel}>{t('detail.details.tags')}</dt>
-              <dd className={styles.infoValue}>
-                {item.tags.length > 0 ? (
-                  <div className={styles.tagList}>
-                    {item.tags.map((tag) => (
-                      <span key={tag.id} className={styles.tagPill}>
-                        {tag.name}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <span className={styles.emptyState}>{t('detail.details.noTags')}</span>
-                )}
-              </dd>
-            </div>
           </dl>
+        </section>
+
+        {/* Area card */}
+        <section className={styles.card}>
+          <div className={styles.cardHeader}>
+            <h2 className={styles.cardTitle}>{t('detail.area.title')}</h2>
+          </div>
+          <div className={styles.formGroup}>
+            <label className={styles.propertyLabel}>{t('detail.area.label')}</label>
+            <AreaPicker
+              areas={areas}
+              value={item.area?.id || ''}
+              onChange={handleAreaChange}
+              nullable
+            />
+          </div>
         </section>
 
         {/* Dates & Delivery card */}

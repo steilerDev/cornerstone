@@ -20,12 +20,13 @@ import authRoutes from './routes/auth.js';
 import oidcRoutes from './routes/oidc.js';
 import userRoutes from './routes/users.js';
 import workItemRoutes from './routes/workItems.js';
-import tagRoutes from './routes/tags.js';
 import noteRoutes from './routes/notes.js';
 import subtaskRoutes from './routes/subtasks.js';
 import dependencyRoutes from './routes/dependencies.js';
 import budgetCategoryRoutes from './routes/budgetCategories.js';
 import budgetSourceRoutes from './routes/budgetSources.js';
+import areaRoutes from './routes/areas.js';
+import tradeRoutes from './routes/trades.js';
 import vendorRoutes from './routes/vendors.js';
 import invoiceRoutes from './routes/invoices.js';
 import standaloneInvoiceRoutes from './routes/standaloneInvoices.js';
@@ -126,9 +127,6 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Work item routes
   await app.register(workItemRoutes, { prefix: '/api/work-items' });
 
-  // Tag routes
-  await app.register(tagRoutes, { prefix: '/api/tags' });
-
   // Note routes (nested under work items)
   await app.register(noteRoutes, { prefix: '/api/work-items/:workItemId/notes' });
 
@@ -143,6 +141,12 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Budget source routes
   await app.register(budgetSourceRoutes, { prefix: '/api/budget-sources' });
+
+  // Area routes (EPIC-18: Areas Management)
+  await app.register(areaRoutes, { prefix: '/api/areas' });
+
+  // Trade routes (EPIC-18: Trades Management)
+  await app.register(tradeRoutes, { prefix: '/api/trades' });
 
   // Vendor/contractor routes
   await app.register(vendorRoutes, { prefix: '/api/vendors' });

@@ -20,19 +20,9 @@ import type { Page } from '@playwright/test';
 import { BudgetCategoriesPage } from '../../pages/BudgetCategoriesPage.js';
 import { API } from '../../fixtures/testData.js';
 
-// The 10 default categories seeded by the EPIC-05 migration, in sort_order order
-const DEFAULT_CATEGORIES = [
-  'Materials',
-  'Labor',
-  'Permits',
-  'Design',
-  'Equipment',
-  'Landscaping',
-  'Utilities',
-  'Insurance',
-  'Contingency',
-  'Other',
-];
+// Default categories after EPIC-05 seeding + EPIC-18 migration 0028
+// (Equipment, Landscaping, Utilities, Insurance, Contingency conditionally deleted; Waste added)
+const DEFAULT_CATEGORIES = ['Materials', 'Labor', 'Permits', 'Design', 'Waste', 'Other'];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: create a temporary category via API and return its id for cleanup
@@ -55,7 +45,7 @@ async function deleteCategoryViaApi(page: Page, id: string): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Default categories (Scenario 1 & 2)', { tag: '@responsive' }, () => {
   test(
-    'All 10 default categories are present after fresh migration',
+    'All default categories are present after fresh migration',
     { tag: '@smoke' },
     async ({ page }) => {
       // Given: EPIC-05 migration applied; default seeds loaded
@@ -462,36 +452,36 @@ test.describe('Edit category (Scenario 8 & 9)', { tag: '@responsive' }, () => {
   test('Edit modal can be cancelled — original values retained', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
-    // Given: "Equipment" category exists
+    // Given: "Waste" category exists (added in migration 0028 alongside Materials, Labor, etc.)
     await categoriesPage.goto();
 
-    // When: I click "Edit" on "Equipment"
-    await categoriesPage.openEditForm('Equipment');
+    // When: I click "Edit" on "Waste"
+    await categoriesPage.openEditForm('Waste');
 
     const editInputs = await page.locator('[id^="edit-name-"]').all();
     const inputId = await editInputs[0].getAttribute('id');
     const categoryId = inputId?.replace('edit-name-', '') ?? '';
 
     // And: I change the name but click Cancel
-    await categoriesPage.fillEditForm(categoryId, { name: 'Modified Equipment Name' });
-    const cancelButton = categoriesPage.getEditCancelButton('Equipment');
+    await categoriesPage.fillEditForm(categoryId, { name: 'Modified Waste Name' });
+    const cancelButton = categoriesPage.getEditCancelButton('Waste');
     await cancelButton.click();
 
     // Then: The edit form is dismissed
-    await expect(categoriesPage.getEditForm('Equipment')).not.toBeVisible();
+    await expect(categoriesPage.getEditForm('Waste')).not.toBeVisible();
 
-    // And: The original name "Equipment" is still in the list
+    // And: The original name "Waste" is still in the list
     const names = await categoriesPage.getCategoryNames();
-    expect(names).toContain('Equipment');
-    expect(names).not.toContain('Modified Equipment Name');
+    expect(names).toContain('Waste');
+    expect(names).not.toContain('Modified Waste Name');
   });
 
   test('Edit with empty name shows error or disables save button', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
-    // Given: "Insurance" category exists
+    // Given: "Other" category exists (always present as a default seed)
     await categoriesPage.goto();
-    await categoriesPage.openEditForm('Insurance');
+    await categoriesPage.openEditForm('Other');
 
     const editInputs = await page.locator('[id^="edit-name-"]').all();
     const inputId = await editInputs[0].getAttribute('id');
@@ -501,11 +491,11 @@ test.describe('Edit category (Scenario 8 & 9)', { tag: '@responsive' }, () => {
     await categoriesPage.fillEditForm(categoryId, { name: '' });
 
     // Then: Save button should be disabled (JSX guard: disabled={isUpdating || !editingCategory.name.trim()})
-    const saveButton = categoriesPage.getEditSaveButton('Insurance');
+    const saveButton = categoriesPage.getEditSaveButton('Other');
     await expect(saveButton).toBeDisabled();
 
     // Cleanup: cancel the edit
-    const cancelButton = categoriesPage.getEditCancelButton('Insurance');
+    const cancelButton = categoriesPage.getEditCancelButton('Other');
     await cancelButton.click();
   });
 
@@ -514,9 +504,9 @@ test.describe('Edit category (Scenario 8 & 9)', { tag: '@responsive' }, () => {
   }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
-    // Given: I open the edit form for "Utilities"
+    // Given: I open the edit form for "Waste" (added in migration 0028)
     await categoriesPage.goto();
-    await categoriesPage.openEditForm('Utilities');
+    await categoriesPage.openEditForm('Waste');
 
     // Then: The edit button for another category (e.g., "Other") should be disabled
     const otherRow = await categoriesPage.getCategoryRow('Other');
@@ -527,7 +517,7 @@ test.describe('Edit category (Scenario 8 & 9)', { tag: '@responsive' }, () => {
     }
 
     // Cleanup: cancel the edit
-    const cancelButton = categoriesPage.getEditCancelButton('Utilities');
+    const cancelButton = categoriesPage.getEditCancelButton('Waste');
     await cancelButton.click();
   });
 });

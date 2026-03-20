@@ -52,7 +52,8 @@ function makeWorkItem(id: string, startDate: string, endDate: string): TimelineW
     startAfter: null,
     startBefore: null,
     assignedUser: null,
-    tags: [],
+    assignedVendor: null,
+    area: null,
   };
 }
 

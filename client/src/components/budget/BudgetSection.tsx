@@ -33,6 +33,7 @@ export interface BudgetSectionProps<T extends BaseBudgetLine> {
   onUnlinkInvoice?: (budgetLineId: string, invoiceBudgetLineId: string) => void;
   isUnlinking?: Record<string, boolean>;
   inlineError?: string | null;
+  oversubscribedSubsidyIds?: Set<string>;
 }
 
 export function BudgetSection<T extends BaseBudgetLine>({
@@ -53,6 +54,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
   onUnlinkInvoice,
   isUnlinking,
   inlineError,
+  oversubscribedSubsidyIds,
 }: BudgetSectionProps<T>) {
   const { t } = useTranslation(budgetLineType === 'household_item' ? 'householdItems' : 'budget');
 
@@ -104,7 +106,15 @@ export function BudgetSection<T extends BaseBudgetLine>({
       )}
 
       {/* Cost overview box */}
-      <BudgetCostOverview budgetLines={budgetLines} subsidyPayback={subsidyPayback} />
+      <BudgetCostOverview
+        budgetLines={budgetLines}
+        subsidyPayback={subsidyPayback}
+        oversubscribedSubsidyNames={
+          oversubscribedSubsidyIds && oversubscribedSubsidyIds.size > 0
+            ? linkedSubsidies.filter((s) => oversubscribedSubsidyIds.has(s.id)).map((s) => s.name)
+            : undefined
+        }
+      />
 
       {/* Budget line cards */}
       {budgetLines.length === 0 && !showBudgetForm && (
@@ -218,6 +228,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
           onLinkSubsidy={onLinkSubsidy}
           onUnlinkSubsidy={onUnlinkSubsidy}
           isLinking={isLinkingSubsidy}
+          oversubscribedIds={oversubscribedSubsidyIds}
         />
       </div>
     </>

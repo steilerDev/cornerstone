@@ -136,7 +136,9 @@ test.describe('i18n: Language Switching', () => {
     await setLanguage(page, 'de');
 
     // Then: Dashboard/project overview renders with German heading
+    // Reload after setLanguage to ensure the app re-reads locale from localStorage
     await page.goto(ROUTES.home);
+    await page.reload();
     await expect(page.getByRole('heading', { level: 1, name: 'Projekt' })).toBeVisible();
 
     // And: Budget page renders in German
@@ -145,6 +147,7 @@ test.describe('i18n: Language Switching', () => {
 
     // And: Schedule/timeline page renders in German
     await page.goto(ROUTES.timeline);
+    await page.waitForURL('**/schedule/gantt');
     await expect(page.getByRole('heading', { level: 1, name: 'Zeitplan' })).toBeVisible();
 
     // And: Diary page renders in German

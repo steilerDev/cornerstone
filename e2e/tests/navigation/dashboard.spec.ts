@@ -520,7 +520,14 @@ test.describe('Card dismiss (Scenario 6)', () => {
     await interceptDashboardApis(page);
 
     try {
+      // The prior test dismisses Quick Actions and beforeEach resets hiddenCards to [].
+      // Wait for the preferences API response after navigation to ensure the reset
+      // is fully applied before asserting card visibility (prevents state-leak flake).
+      const prefsLoaded = page.waitForResponse(
+        (resp) => resp.url().includes('/api/users/me/preferences') && resp.status() === 200,
+      );
       await dashboardPage.goto();
+      await prefsLoaded;
       await dashboardPage.waitForCardsLoaded();
 
       // Verify the Quick Actions card is visible before attempting to dismiss
@@ -875,6 +882,65 @@ test.describe('No horizontal scroll (Scenario 11)', { tag: '@responsive' }, () =
         return document.documentElement.scrollWidth > window.innerWidth;
       });
       expect(hasHorizontalScroll).toBe(false);
+    } finally {
+      await uninterceptDashboardApis(page);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 12: "Add" dropdown (issue #1050 — consolidated 3 individual buttons)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('"Add" dropdown (Scenario 12)', () => {
+  test('"Add" button is visible on the project overview page', async ({ page }) => {
+    const dashboardPage = new DashboardPage(page);
+
+    await interceptDashboardApis(page);
+
+    try {
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+
+      await expect(dashboardPage.addButton).toBeVisible();
+    } finally {
+      await uninterceptDashboardApis(page);
+    }
+  });
+
+  test('Clicking "Add" opens a dropdown with three menu items', async ({ page }) => {
+    const dashboardPage = new DashboardPage(page);
+
+    await interceptDashboardApis(page);
+
+    try {
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+
+      await dashboardPage.openAddDropdown();
+
+      await expect(page.getByTestId('dashboard-add-work-item')).toBeVisible();
+      await expect(page.getByTestId('dashboard-add-household-item')).toBeVisible();
+      await expect(page.getByTestId('dashboard-add-milestone')).toBeVisible();
+    } finally {
+      await uninterceptDashboardApis(page);
+    }
+  });
+
+  test('"Add Work Item" menu item navigates to the work item create page', async ({ page }) => {
+    const dashboardPage = new DashboardPage(page);
+
+    await interceptDashboardApis(page);
+
+    try {
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+
+      await dashboardPage.openAddDropdown();
+      await page.getByTestId('dashboard-add-work-item').click();
+
+      await page.waitForURL(/\/project\/work-items\/new/);
+      expect(page.url()).toContain('/project/work-items/new');
     } finally {
       await uninterceptDashboardApis(page);
     }

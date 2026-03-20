@@ -2,9 +2,17 @@ import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
-import type { BudgetOverview, CategoryBudgetSummary } from '@cornerstone/shared';
-import { computeSubsidyEffects } from './shared/subsidyCalculationEngine.js';
-import type { LinkedSubsidy } from './shared/subsidyCalculationEngine.js';
+import type {
+  BudgetOverview,
+  CategoryBudgetSummary,
+  OversubscribedSubsidy,
+} from '@cornerstone/shared';
+import { computeSubsidyEffects, applySubsidyCaps } from './shared/subsidyCalculationEngine.js';
+import type {
+  LinkedSubsidy,
+  SubsidyCapMeta,
+  PerSubsidyTotals,
+} from './shared/subsidyCalculationEngine.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -69,13 +77,17 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   // Returns one row per subsidy program (non-rejected).
   const subsidyRows = db.all<{
     subsidyId: string;
+    name: string;
     reductionType: string;
     reductionValue: number;
+    maximumAmount: number | null;
   }>(
     sql`SELECT
       id              AS subsidyId,
+      name            AS name,
       reduction_type  AS reductionType,
-      reduction_value AS reductionValue
+      reduction_value AS reductionValue,
+      maximum_amount  AS maximumAmount
     FROM subsidy_programs
     WHERE application_status != 'rejected'`,
   );
@@ -137,13 +149,16 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
 
   // ── 5. Per-line invoice aggregates (for blended projected model) ──────────────
   // Include both work item and household item budget lines
+  // Track whether each line's invoice is a quotation for margin calculation
   const lineInvoiceRows = db.all<{
     budgetLineId: string;
     actualCost: number;
+    invoiceStatus: string;
   }>(
     sql`SELECT
       ibl.work_item_budget_id AS budgetLineId,
-      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost
+      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost,
+      MAX(i.status) AS invoiceStatus
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     WHERE ibl.work_item_budget_id IS NOT NULL
@@ -151,16 +166,20 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     UNION ALL
     SELECT
       ibl.household_item_budget_id AS budgetLineId,
-      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost
+      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost,
+      MAX(i.status) AS invoiceStatus
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     WHERE ibl.household_item_budget_id IS NOT NULL
     GROUP BY ibl.household_item_budget_id`,
   );
 
-  const lineInvoiceMap = new Map<string, number>();
+  const lineInvoiceMap = new Map<string, { actualCost: number; isQuotation: boolean }>();
   for (const row of lineInvoiceRows) {
-    lineInvoiceMap.set(row.budgetLineId, row.actualCost);
+    lineInvoiceMap.set(row.budgetLineId, {
+      actualCost: row.actualCost,
+      isQuotation: row.invoiceStatus === 'quotation',
+    });
   }
 
   // ── 6. For fixed subsidies: count matching budget lines per work_item+subsidy ─
@@ -218,7 +237,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
 
         // Determine cost basis: use invoice amount if available, otherwise planned amount
         const costBasis = lineInvoiceMap.has(line.id)
-          ? lineInvoiceMap.get(line.id)!
+          ? lineInvoiceMap.get(line.id)!.actualCost
           : line.plannedAmount;
 
         // This subsidy applies to this line
@@ -253,11 +272,24 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     const rawMinPlanned = rawMin;
     const rawMaxPlanned = rawMax;
 
-    // If line has invoices, actual cost overrides planned values (the real cost is known)
-    const lineActualCost = lineInvoiceMap.get(line.id);
-    const hasInvoices = lineActualCost !== undefined;
-    const minPlanned = hasInvoices ? lineActualCost : rawMinPlanned;
-    const maxPlanned = hasInvoices ? lineActualCost : rawMaxPlanned;
+    // If line has invoices, determine if it's a quotation and calculate projections accordingly
+    const lineInvoiceData = lineInvoiceMap.get(line.id);
+    const hasInvoices = lineInvoiceData !== undefined;
+    let minPlanned = rawMinPlanned;
+    let maxPlanned = rawMaxPlanned;
+
+    if (hasInvoices) {
+      const { actualCost, isQuotation } = lineInvoiceData;
+      if (isQuotation) {
+        // Quotation invoices use ±5% margin around itemized amount
+        minPlanned = actualCost * 0.95;
+        maxPlanned = actualCost * 1.05;
+      } else {
+        // Non-quotation invoices: actual cost is fixed (no margin)
+        minPlanned = actualCost;
+        maxPlanned = actualCost;
+      }
+    }
 
     totalMinPlanned += minPlanned;
     totalMaxPlanned += maxPlanned;
@@ -282,6 +314,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
 
   // ── 8. Actual costs from invoices linked to budget lines ──────────────────
   // Include both work item and household item invoices
+  // Exclude quotation invoices from actual cost aggregates
   const invoiceTotalsRow = db.get<{
     actualCost: number | null;
     actualCostPaid: number | null;
@@ -292,7 +325,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       COALESCE(SUM(CASE WHEN i.status IN ('paid', 'claimed') THEN ibl.itemized_amount ELSE 0 END), 0) AS actualCostPaid,
       COALESCE(SUM(CASE WHEN i.status = 'claimed' THEN ibl.itemized_amount ELSE 0 END), 0)            AS actualCostClaimed
     FROM invoice_budget_lines ibl
-    INNER JOIN invoices i ON i.id = ibl.invoice_id`,
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    WHERE i.status != 'quotation'`,
   );
 
   const actualCost = invoiceTotalsRow?.actualCost ?? 0;
@@ -301,6 +335,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
 
   // ── 9. Per-category actual costs from invoices ────────────────────────────
   // Include both work item and household item budget invoices using UNION ALL
+  // Exclude quotation invoices from actual cost aggregates
   const categoryInvoiceRows = db.all<{
     budgetCategoryId: string | null;
     actualCost: number;
@@ -315,6 +350,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     INNER JOIN work_item_budgets wib ON wib.id = ibl.work_item_budget_id
+    WHERE i.status != 'quotation'
     GROUP BY wib.budget_category_id
     UNION ALL
     SELECT
@@ -325,6 +361,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     INNER JOIN household_item_budgets hib ON hib.id = ibl.household_item_budget_id
+    WHERE i.status != 'quotation'
     GROUP BY hib.budget_category_id`,
   );
 
@@ -408,8 +445,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   //
   // Note: subsidyMeta and workItemSubsidyMap already fetched above.
 
-  let totalMinPayback = 0;
-  let totalMaxPayback = 0;
+  // Aggregate per-subsidy payback totals across all entities
+  const perSubsidyPayback = new Map<string, { min: number; max: number }>();
 
   // Group budget lines by entityId for efficient per-entity processing
   const linesByEntity = new Map<
@@ -455,22 +492,67 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       });
     }
 
-    const { minTotalPayback: entityMin, maxTotalPayback: entityMax } = computeSubsidyEffects(
+    const { subsidies: entitySubsidyEffects } = computeSubsidyEffects(
       engineLines,
       engineSubsidies,
       subsidyCategoryMap,
       lineInvoiceMap,
     );
 
-    totalMinPayback += entityMin;
-    totalMaxPayback += entityMax;
+    // Accumulate per-subsidy totals
+    for (const effect of entitySubsidyEffects) {
+      const existing = perSubsidyPayback.get(effect.subsidyProgramId);
+      if (existing) {
+        existing.min += effect.minPayback;
+        existing.max += effect.maxPayback;
+      } else {
+        perSubsidyPayback.set(effect.subsidyProgramId, {
+          min: effect.minPayback,
+          max: effect.maxPayback,
+        });
+      }
+    }
   }
+
+  // Build per-subsidy totals and cap metadata for applySubsidyCaps
+  const perSubsidyTotals: PerSubsidyTotals[] = [];
+  for (const [subsidyProgramId, totals] of perSubsidyPayback) {
+    perSubsidyTotals.push({
+      subsidyProgramId,
+      uncappedMinPayback: totals.min,
+      uncappedMaxPayback: totals.max,
+    });
+  }
+
+  const subsidyCapMeta: SubsidyCapMeta[] = subsidyRows.map((row) => ({
+    subsidyProgramId: row.subsidyId,
+    name: row.name,
+    reductionType: row.reductionType as 'percentage' | 'fixed',
+    reductionValue: row.reductionValue,
+    maximumAmount: row.maximumAmount,
+  }));
+
+  const capResult = applySubsidyCaps(perSubsidyTotals, subsidyCapMeta);
+
+  const oversubscribedSubsidies: OversubscribedSubsidy[] = capResult.oversubscribedSubsidies.map(
+    (s) => ({
+      subsidyProgramId: s.subsidyProgramId,
+      name: s.name,
+      maximumAmount: s.maximumAmount,
+      maxPayout: s.maxPayout,
+      uncappedMinPayback: s.uncappedMinPayback,
+      uncappedMaxPayback: s.uncappedMaxPayback,
+      minExcess: s.minExcess,
+      maxExcess: s.maxExcess,
+    }),
+  );
 
   const subsidySummary = {
     totalReductions,
     activeSubsidyCount: subsidyCountRow?.activeSubsidyCount ?? 0,
-    minTotalPayback: totalMinPayback,
-    maxTotalPayback: totalMaxPayback,
+    minTotalPayback: capResult.cappedMinPayback,
+    maxTotalPayback: capResult.cappedMaxPayback,
+    oversubscribedSubsidies,
   };
 
   // ── 12. Remaining-funds perspectives ───────────────────────────────────────
@@ -480,9 +562,11 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   const remainingVsActualPaid = availableFunds - actualCostPaid;
   const remainingVsActualClaimed = availableFunds - actualCostClaimed;
 
-  // Payback-adjusted remaining perspectives
-  const remainingVsMinPlannedWithPayback = availableFunds + totalMinPayback - totalMinPlanned;
-  const remainingVsMaxPlannedWithPayback = availableFunds + totalMaxPayback - totalMaxPlanned;
+  // Payback-adjusted remaining perspectives (using capped payback values)
+  const remainingVsMinPlannedWithPayback =
+    availableFunds + capResult.cappedMinPayback - totalMinPlanned;
+  const remainingVsMaxPlannedWithPayback =
+    availableFunds + capResult.cappedMaxPayback - totalMaxPlanned;
 
   return {
     availableFunds,

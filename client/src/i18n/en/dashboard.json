@@ -3,7 +3,13 @@
     "title": "Project",
     "customize": "Customize",
     "hiddenCards": "Hidden Cards",
-    "showCard": "Show {{title}}"
+    "showCard": "Show {{title}}",
+    "actions": {
+      "addButton": "Add",
+      "addWorkItem": "Add Work Item",
+      "addHouseholdItem": "Add Household Item",
+      "addMilestone": "Add Milestone"
+    }
   },
   "sections": {
     "timeline": {
@@ -29,6 +35,7 @@
       "plannedCostRange": "Planned Cost Range",
       "actualSpend": "Actual Spend",
       "subsidySavings": "Subsidy Savings",
+      "subsidiesOversubscribed": "Some subsidies are oversubscribed",
       "viewBudgetOverview": "View Budget Overview →"
     },
     "sourceUtilization": {
@@ -86,6 +93,8 @@
       "noPendingInvoices": "No pending invoices",
       "overdue": "Overdue",
       "pendingTotal": "Pending Total:",
+      "quotesTitle": "Quotes",
+      "quotesTotal": "Total Quoted:",
       "viewAllInvoices": "View all invoices"
     },
     "subsidyPipeline": {

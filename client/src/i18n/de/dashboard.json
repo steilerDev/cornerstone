@@ -3,7 +3,13 @@
     "title": "Projekt",
     "customize": "Anpassen",
     "hiddenCards": "Ausgeblendete Karten",
-    "showCard": "{{title}} anzeigen"
+    "showCard": "{{title}} anzeigen",
+    "actions": {
+      "addButton": "Hinzufügen",
+      "addWorkItem": "Arbeitspaket Hinzufügen",
+      "addHouseholdItem": "Haushaltsartikel Hinzufügen",
+      "addMilestone": "Meilenstein Hinzufügen"
+    }
   },
   "sections": {
     "timeline": {
@@ -86,6 +92,8 @@
       "noPendingInvoices": "Keine ausstehenden Rechnungen",
       "overdue": "Überfällig",
       "pendingTotal": "Ausstehender Gesamtbetrag:",
+      "quotesTitle": "Angebote",
+      "quotesTotal": "Angebotssumme:",
       "viewAllInvoices": "Alle Rechnungen anzeigen"
     },
     "subsidyPipeline": {

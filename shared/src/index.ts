@@ -13,14 +13,27 @@ export type { User, UserResponse, UserRole, AuthProvider } from './types/user.js
 // Pagination
 export type { PaginationMeta, PaginatedResponse } from './types/pagination.js';
 
-// Tags
+// Areas
 export type {
-  Tag,
-  TagResponse,
-  CreateTagRequest,
-  UpdateTagRequest,
-  TagListResponse,
-} from './types/tag.js';
+  AreaSummary,
+  AreaResponse,
+  AreaListResponse,
+  AreaSingleResponse,
+  CreateAreaRequest,
+  UpdateAreaRequest,
+  AreaListQuery,
+} from './types/area.js';
+
+// Trades
+export type {
+  TradeSummary,
+  TradeResponse,
+  TradeListResponse,
+  TradeSingleResponse,
+  CreateTradeRequest,
+  UpdateTradeRequest,
+  TradeListQuery,
+} from './types/trade.js';
 
 // Work Items
 export type {
@@ -29,6 +42,7 @@ export type {
   WorkItemSummary,
   WorkItemDetail,
   UserSummary,
+  VendorSummary,
   CreateWorkItemRequest,
   UpdateWorkItemRequest,
   WorkItemListQuery,
@@ -167,6 +181,7 @@ export type {
   CategoryBudgetSummary,
   BudgetOverview,
   BudgetOverviewResponse,
+  OversubscribedSubsidy,
 } from './types/budgetOverview.js';
 
 // Budget Breakdown
@@ -180,13 +195,13 @@ export type {
   BreakdownTotals,
   BudgetBreakdown,
   BudgetBreakdownResponse,
+  SubsidyAdjustment,
 } from './types/budgetBreakdown.js';
 
 // Work Item Budgets
 export type {
   ConfidenceLevel,
   BudgetSourceSummary,
-  VendorSummary,
   InvoiceSummary,
   WorkItemBudgetLine,
   CreateWorkItemBudgetRequest,

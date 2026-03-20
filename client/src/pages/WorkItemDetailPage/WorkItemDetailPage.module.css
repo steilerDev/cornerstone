@@ -242,6 +242,7 @@
 .description {
   color: var(--color-text-secondary);
   line-height: 1.6;
+  white-space: pre-wrap;
   cursor: pointer;
   padding: 0.5rem;
   border-radius: 0.375rem;
@@ -474,6 +475,7 @@
 .noteContent {
   color: var(--color-text-secondary);
   line-height: 1.6;
+  white-space: pre-wrap;
   margin-bottom: 0.5rem;
 }
 

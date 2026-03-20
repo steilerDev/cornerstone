@@ -6,13 +6,21 @@ import { screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
-import type { HouseholdItemListResponse, HouseholdItemSummary } from '@cornerstone/shared';
+import type * as UseAreasTypes from '../../hooks/useAreas.js';
+import type {
+  HouseholdItemListResponse,
+  HouseholdItemSummary,
+  AreaResponse,
+  CreateAreaRequest,
+  UpdateAreaRequest,
+} from '@cornerstone/shared';
 
 const mockListHouseholdItems = jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>();
 const mockDeleteHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.deleteHouseholdItem>();
 const mockGetHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.getHouseholdItem>();
 const mockCreateHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.createHouseholdItem>();
 const mockUpdateHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.updateHouseholdItem>();
+const mockUseAreas = jest.fn<typeof UseAreasTypes.useAreas>();
 
 // Mock API modules BEFORE importing components
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
@@ -26,6 +34,34 @@ jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
 // Mock vendorsApi to avoid network calls in tests
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: jest.fn(() => new Promise(() => {})), // Never resolves
+}));
+
+jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
+  fetchHouseholdItemCategories: jest.fn(() => new Promise(() => {})), // Never resolves
+}));
+
+// Mock useAreas hook — HouseholdItemsPage uses useAreas to populate AreaPicker
+jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
+  useAreas: mockUseAreas,
+}));
+
+// Mock AreaPicker — renders as a simple <select> so we can trigger onChange reliably
+jest.unstable_mockModule('../../components/AreaPicker/AreaPicker.js', () => ({
+  AreaPicker: ({
+    value,
+    onChange,
+  }: {
+    value: string;
+    onChange: (val: string) => void;
+    nullable?: boolean;
+    areas: AreaResponse[];
+    specialOptions?: { id: string; label: string }[];
+  }) => (
+    <select data-testid="area-picker" value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">All Areas</option>
+      <option value="area-abc">Kitchen</option>
+    </select>
+  ),
 }));
 
 jest.unstable_mockModule('../../hooks/useKeyboardShortcuts.js', () => ({
@@ -87,7 +123,7 @@ describe('HouseholdItemsPage', () => {
       category: 'furniture',
       status: 'planned',
       vendor: null,
-      room: null,
+      area: null,
       quantity: 1,
       orderDate: null,
       targetDeliveryDate: null,
@@ -96,7 +132,6 @@ describe('HouseholdItemsPage', () => {
       latestDeliveryDate: null,
       isLate: false,
       url: null,
-      tagIds: [],
       budgetLineCount: 0,
       totalPlannedAmount: 0,
       budgetSummary: { totalPlanned: 0, totalActual: 0, subsidyReduction: 0, netCost: 0 },
@@ -113,8 +148,8 @@ describe('HouseholdItemsPage', () => {
       name: 'Coffee table',
       category: 'furniture',
       status: 'arrived',
-      vendor: { id: 'vendor-1', name: 'Furniture Plus', specialty: 'Furniture' },
-      room: 'living room',
+      vendor: { id: 'vendor-1', name: 'Furniture Plus', trade: null },
+      area: null,
       totalPlannedAmount: 200,
       targetDeliveryDate: '2026-01-10',
     }),
@@ -123,8 +158,8 @@ describe('HouseholdItemsPage', () => {
       name: 'Dining chair',
       category: 'furniture',
       status: 'purchased',
-      vendor: { id: 'vendor-1', name: 'Furniture Plus', specialty: 'Furniture' },
-      room: 'dining room',
+      vendor: { id: 'vendor-1', name: 'Furniture Plus', trade: null },
+      area: null,
       totalPlannedAmount: 150,
       targetDeliveryDate: '2026-01-15',
     }),
@@ -150,14 +185,37 @@ describe('HouseholdItemsPage', () => {
     // Reset all mocks
     mockListHouseholdItems.mockReset();
     mockDeleteHouseholdItem.mockReset();
+    mockUseAreas.mockReset();
 
     // Set default mock responses (tests can override with mockResolvedValueOnce)
     mockListHouseholdItems.mockResolvedValue(listResponse);
+
+    // Default useAreas mock — returns empty areas list (sufficient for most tests)
+    mockUseAreas.mockReturnValue({
+      areas: [],
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+      createArea: jest.fn() as unknown as (data: CreateAreaRequest) => Promise<AreaResponse | null>,
+      updateArea: jest.fn() as unknown as (
+        id: string,
+        data: UpdateAreaRequest,
+      ) => Promise<AreaResponse | null>,
+      deleteArea: jest.fn() as unknown as (id: string) => Promise<boolean>,
+    });
   });
 
   function renderPage() {
     return render(
       <MemoryRouter initialEntries={['/project/household-items']}>
+        <HouseholdItemsPage />
+      </MemoryRouter>,
+    );
+  }
+
+  function renderPageWithUrl(url: string) {
+    return render(
+      <MemoryRouter initialEntries={[url]}>
         <HouseholdItemsPage />
       </MemoryRouter>,
     );
@@ -268,14 +326,9 @@ describe('HouseholdItemsPage', () => {
       });
     });
 
-    it('renders room filter input', async () => {
-      mockListHouseholdItems.mockResolvedValueOnce(listResponse);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByLabelText(/filter by room/i)).toBeInTheDocument();
-      });
+    it.skip('renders room filter input — room removed in migration 0028 (replaced by area)', () => {
+      // room column dropped from household_items in migration 0028.
+      // Area-based filtering will be added when area_id display is implemented.
     });
 
     it('renders vendor filter dropdown', async () => {
@@ -506,6 +559,81 @@ describe('HouseholdItemsPage', () => {
     });
   });
 
+  describe('No Budget Lines toggle', () => {
+    it('toggle renders as button with aria-pressed false by default', async () => {
+      mockListHouseholdItems.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        const toggle = screen.getByRole('button', {
+          name: /show only household items without budget lines/i,
+        });
+        expect(toggle).toBeInTheDocument();
+        expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      });
+    });
+
+    it('toggle label text is "No Budget Lines"', async () => {
+      mockListHouseholdItems.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        const toggle = screen.getByRole('button', {
+          name: /show only household items without budget lines/i,
+        });
+        expect(toggle).toHaveTextContent('No Budget Lines');
+      });
+    });
+
+    it('clicking the toggle sets aria-pressed to true', async () => {
+      const user = userEvent.setup();
+      mockListHouseholdItems.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      const toggle = await screen.findByRole('button', {
+        name: /show only household items without budget lines/i,
+      });
+      await user.click(toggle);
+
+      await waitFor(() => {
+        expect(toggle).toHaveAttribute('aria-pressed', 'true');
+      });
+    });
+
+    it('toggle has a non-empty aria-label', async () => {
+      mockListHouseholdItems.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        const toggle = screen.getByRole('button', {
+          name: /show only household items without budget lines/i,
+        });
+        const ariaLabel = toggle.getAttribute('aria-label');
+        expect(ariaLabel).toBeTruthy();
+        expect(ariaLabel!.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('no checkbox input is used for budget filtering', async () => {
+      mockListHouseholdItems.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        // Filter panel must be visible
+        expect(screen.getByRole('search', { name: /household item filters/i })).toBeInTheDocument();
+      });
+
+      const filterPanel = screen.getByRole('search', { name: /household item filters/i });
+      const checkboxes = filterPanel.querySelectorAll('input[type="checkbox"]');
+      expect(checkboxes).toHaveLength(0);
+    });
+  });
+
   describe('Accessibility - Screen reader announcements', () => {
     it('renders SR announcement region with aria-live and aria-atomic', async () => {
       renderPage();
@@ -539,6 +667,77 @@ describe('HouseholdItemsPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/1 household item found/i)).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Area filter', () => {
+    it('reads areaId from URL and passes it to listHouseholdItems', async () => {
+      mockListHouseholdItems.mockResolvedValue(emptyResponse);
+
+      renderPageWithUrl('/project/household-items?areaId=area-abc');
+
+      await waitFor(() => {
+        expect(mockListHouseholdItems).toHaveBeenCalledWith(
+          expect.objectContaining({ areaId: 'area-abc' }),
+        );
+      });
+    });
+
+    it('combines areaId with other filters when both are present in URL', async () => {
+      mockListHouseholdItems.mockResolvedValue(emptyResponse);
+
+      renderPageWithUrl('/project/household-items?areaId=area-abc&status=planned');
+
+      await waitFor(() => {
+        expect(mockListHouseholdItems).toHaveBeenCalledWith(
+          expect.objectContaining({ areaId: 'area-abc', status: 'planned' }),
+        );
+      });
+    });
+
+    it('does not pass areaId to listHouseholdItems when no areaId in URL', async () => {
+      mockListHouseholdItems.mockResolvedValue(emptyResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(mockListHouseholdItems).toHaveBeenCalled();
+      });
+
+      const callArgs = mockListHouseholdItems.mock.calls[0][0];
+      expect(callArgs?.areaId).toBeUndefined();
+    });
+
+    it('renders the AreaPicker filter control', async () => {
+      mockListHouseholdItems.mockResolvedValue(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('area-picker')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Empty state with area filter active', () => {
+    it('shows "no results" empty state when area filter is active and no items match', async () => {
+      mockListHouseholdItems.mockResolvedValueOnce(emptyResponse);
+
+      renderPageWithUrl('/project/household-items?areaId=area-abc');
+
+      await waitFor(() => {
+        expect(screen.getByText(/no household items match your filters/i)).toBeInTheDocument();
+      });
+    });
+
+    it('shows "no items yet" empty state when no filters are active and no items exist', async () => {
+      mockListHouseholdItems.mockResolvedValueOnce(emptyResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/no household items yet/i)).toBeInTheDocument();
       });
     });
   });

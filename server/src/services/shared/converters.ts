@@ -5,14 +5,21 @@
  * They are extracted from duplicate implementations across multiple service files.
  */
 
-import type { budgetCategories, budgetSources, tags, users, vendors } from '../../db/schema.js';
+import type { budgetCategories, budgetSources, users, vendors, areas } from '../../db/schema.js';
+import { eq } from 'drizzle-orm';
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { trades } from '../../db/schema.js';
+import type * as schemaTypes from '../../db/schema.js';
 import type {
   BudgetCategory,
   BudgetSourceSummary,
-  TagResponse,
   UserSummary,
   VendorSummary,
+  AreaSummary,
+  TradeSummary,
 } from '@cornerstone/shared';
+
+type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 /**
  * Convert a database user row to UserSummary shape.
@@ -66,6 +73,9 @@ export function toBudgetSourceSummary(
 /**
  * Convert a database vendor row to VendorSummary shape.
  * Returns null if vendor is null or undefined.
+ *
+ * Note: This version does NOT resolve the trade. Use toVendorSummaryWithTrade
+ * when you need the trade resolved from the database.
  */
 export function toVendorSummary(
   vendor: typeof vendors.$inferSelect | null | undefined,
@@ -74,17 +84,58 @@ export function toVendorSummary(
   return {
     id: vendor.id,
     name: vendor.name,
-    specialty: vendor.specialty,
+    trade: null, // Use toVendorSummaryWithTrade for resolved trade
   };
 }
 
 /**
- * Convert a database tag row to TagResponse shape.
+ * Convert a database area row to AreaSummary shape.
+ * Returns null if area is null or undefined.
  */
-export function toTagResponse(tag: typeof tags.$inferSelect): TagResponse {
+export function toAreaSummary(
+  area: typeof areas.$inferSelect | null | undefined,
+): AreaSummary | null {
+  if (!area) return null;
   return {
-    id: tag.id,
-    name: tag.name,
-    color: tag.color,
+    id: area.id,
+    name: area.name,
+    color: area.color,
+  };
+}
+
+/**
+ * Convert a database trade row to TradeSummary shape.
+ * Returns null if trade is null or undefined.
+ */
+function toTradeSummary(trade: typeof trades.$inferSelect | null | undefined): TradeSummary | null {
+  if (!trade) return null;
+  return {
+    id: trade.id,
+    name: trade.name,
+    color: trade.color,
+  };
+}
+
+/**
+ * Convert a database vendor row to VendorSummary shape with trade resolved from database.
+ * Returns null if vendor is null or undefined.
+ * Resolves the trade by looking it up in the trades table if vendorId has a tradeId.
+ */
+export function toVendorSummaryWithTrade(
+  db: DbType,
+  vendor: typeof vendors.$inferSelect | null | undefined,
+): VendorSummary | null {
+  if (!vendor) return null;
+
+  let trade: TradeSummary | null = null;
+  if (vendor.tradeId) {
+    const tradeRow = db.select().from(trades).where(eq(trades.id, vendor.tradeId)).get();
+    trade = toTradeSummary(tradeRow ?? null);
+  }
+
+  return {
+    id: vendor.id,
+    name: vendor.name,
+    trade,
   };
 }

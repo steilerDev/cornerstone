@@ -276,8 +276,8 @@ describe('Budget Overview Routes', () => {
       expect(overview.remainingVsMaxPlanned).toBe(0);
       expect(overview.remainingVsActualCost).toBe(0);
       expect(overview.remainingVsActualPaid).toBe(0);
-      // 11 seeded categories (migration 0016 added 'bc-household-items')
-      expect(overview.categorySummaries).toHaveLength(11);
+      // 7 seeded categories after migration 0028 removes 5 unused defaults on fresh DB
+      expect(overview.categorySummaries).toHaveLength(7);
       expect(overview.sourceCount).toBe(1); // seeded discretionary source
       expect(overview.subsidySummary.activeSubsidyCount).toBe(0);
     });
