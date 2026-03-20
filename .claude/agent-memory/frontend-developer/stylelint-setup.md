@@ -9,6 +9,7 @@ type: reference
 Stylelint configured in `.stylelintrc.json` (project root) with design token enforcement.
 
 ### Versions
+
 - stylelint: 16.13.0
 - stylelint-config-standard: 37.0.0
 - Installed as root workspace devDependencies (shared)
@@ -16,16 +17,19 @@ Stylelint configured in `.stylelintrc.json` (project root) with design token enf
 ### Key Enforcement Rules
 
 **1. color-no-hex** — Prevents hardcoded hex colors
+
 - Catches: `color: #333`
 - Enforce: Use `var(--color-*)` instead
 - Disabled for: `tokens.css`, `docs/`
 
 **2. function-disallowed-list** — Prevents raw color functions
+
 - Catches: `rgb()`, `rgba()`, `hsl()`, `hsla()`
 - Enforce: Use `var(--color-*)` instead
 - Disabled for: `tokens.css`, `docs/`
 
 **3. declaration-property-value-disallowed-list** — Prevents numeric font-weight/z-index
+
 - Catches: `font-weight: 600` or `z-index: 50`
 - Enforce: Use `var(--font-weight-*)` and `var(--z-index-*)` instead
 - Disabled for: `tokens.css`, `docs/`

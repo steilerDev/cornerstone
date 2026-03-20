@@ -12,17 +12,17 @@ type: project
 
 ### Stories
 
-| Story | Issue | Title | Priority | Blocked By |
-|-------|-------|-------|----------|------------|
-| 17.1 | #916 | i18n Infrastructure & Shared Components | Must Have | — |
-| 17.2 | #917 | Auth & Settings Pages (incl. Language Setting) | Must Have | #916 |
-| 17.3 | #918 | Dashboard & Work Items Pages | Must Have | #916 |
-| 17.4 | #919 | Household Items & Milestones Pages | Must Have | #916 |
-| 17.5 | #920 | Budget Pages | Must Have | #916 |
-| 17.6 | #921 | Schedule & Diary Pages | Must Have | #916 |
-| 17.7 | #922 | Documents & Remaining Components | Must Have | #916 |
-| 17.8 | #923 | Docs Site German Translation | Should Have | — (independent) |
-| 17.9 | #924 | E2E Test Updates & Final Validation | Must Have | #916-#922 |
+| Story | Issue | Title                                          | Priority    | Blocked By      |
+| ----- | ----- | ---------------------------------------------- | ----------- | --------------- |
+| 17.1  | #916  | i18n Infrastructure & Shared Components        | Must Have   | —               |
+| 17.2  | #917  | Auth & Settings Pages (incl. Language Setting) | Must Have   | #916            |
+| 17.3  | #918  | Dashboard & Work Items Pages                   | Must Have   | #916            |
+| 17.4  | #919  | Household Items & Milestones Pages             | Must Have   | #916            |
+| 17.5  | #920  | Budget Pages                                   | Must Have   | #916            |
+| 17.6  | #921  | Schedule & Diary Pages                         | Must Have   | #916            |
+| 17.7  | #922  | Documents & Remaining Components               | Must Have   | #916            |
+| 17.8  | #923  | Docs Site German Translation                   | Should Have | — (independent) |
+| 17.9  | #924  | E2E Test Updates & Final Validation            | Must Have   | #916-#922       |
 
 ### Dependency Graph
 

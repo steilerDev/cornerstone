@@ -9,6 +9,7 @@ type: project
 **ADR-028** (Accepted) — replaces generic tags with Areas (hierarchical) and Trades (flat).
 
 ### Schema Changes (Migration 0018)
+
 - NEW: `areas` table (self-ref parent_id, ON DELETE CASCADE, UNIQUE(name, parent_id))
 - NEW: `trades` table (UNIQUE name, 15 seeded defaults)
 - MOD: `vendors` — add `trade_id` FK (ON DELETE SET NULL), ignore `specialty` (not dropped due to SQLite ALTER limitations)
@@ -19,6 +20,7 @@ type: project
 - HI category defaults: ADD hic-equipment, conditionally DELETE hic-outdoor/hic-storage
 
 ### API Changes
+
 - NEW: `/api/areas` CRUD (no pagination, search filter, tree built client-side)
 - NEW: `/api/trades` CRUD (no pagination, search filter)
 - REMOVED: All `/api/tags/*`
@@ -30,6 +32,7 @@ type: project
 - New error codes: `AREA_IN_USE`, `TRADE_IN_USE`
 
 ### Key Design Decisions
+
 - D1: Area hierarchy via self-referencing parent_id (arbitrary depth)
 - D2: Area cardinality M:1 (one area per item, nullable)
 - D3: Trade transitivity via JOINs (work_item -> vendor -> trade)
@@ -39,5 +42,6 @@ type: project
 - D7: Category default changes conditional (only delete unused)
 
 ### Stories
+
 #1030 Migration + Shared Types, #1031 Areas Backend, #1032 Trades Backend + Vendor Update,
 #1033 Work Item Rework, #1034 HI Rework, #1035 Frontend Manage Page, #1037 Frontend Entity Integration

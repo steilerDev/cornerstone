@@ -12,6 +12,7 @@ type: project
 ### What Was Done
 
 #### 1. SQL Migration (0028_areas_trades_rework.sql)
+
 - Created `trades` table with 15 default trades (Plumbing, HVAC, Electrical, etc.)
 - Migrated `vendor.specialty` string values to new trades lookup table
 - Recreated `vendors` table: removed specialty column, added trade_id FK
@@ -23,12 +24,14 @@ type: project
 - Updated default budget categories (added Waste, removed Equipment/Landscaping/Utilities/Insurance/Contingency if unused)
 
 #### 2. New Shared Type Files
+
 - **shared/src/types/area.ts** — AreaSummary, AreaResponse, AreaListResponse, CreateAreaRequest, UpdateAreaRequest, AreaListQuery
 - **shared/src/types/trade.ts** — TradeSummary, TradeResponse, TradeListResponse, CreateTradeRequest, UpdateTradeRequest, TradeListQuery
 
 #### 3. Updated Shared Types
 
 **workItem.ts**:
+
 - Removed `import type { TagResponse } from './tag.js'`
 - Added `VendorSummary` interface (id + name + trade)
 - WorkItemSummary: removed `tags`, added `assignedVendor` + `area`
@@ -37,6 +40,7 @@ type: project
 - WorkItemListQuery: removed `tagId`, added `assignedVendorId` + `areaId`
 
 **householdItem.ts**:
+
 - Updated HouseholdItemVendorSummary: `specialty: string | null` → `trade: TradeSummary | null`
 - HouseholdItemSummary: removed `room` + `tagIds`, added `area`
 - HouseholdItemDetail: removed `tags` field
@@ -44,24 +48,29 @@ type: project
 - HouseholdItemListQuery: removed `room` + `tagId`, added `areaId`, removed 'room' from sortBy
 
 **vendor.ts**:
+
 - Updated Vendor interface: `specialty: string | null` → `trade: TradeSummary | null`
 - CreateVendorRequest/UpdateVendorRequest: `specialty` → `tradeId`
 - VendorListQuery: `specialty` → `trade` in sortBy, added `tradeId` filter
 
 **timeline.ts**:
+
 - Added `assignedVendor: VendorSummary | null` to TimelineWorkItem
 - Added `area: AreaSummary | null` to TimelineWorkItem
 - Removed `tags: TagResponse[]` from TimelineWorkItem
 
 **budget.ts**:
+
 - Removed duplicate VendorSummary definition
 - Now imports VendorSummary from workItem.ts
 
 **errors.ts**:
+
 - Added `AREA_IN_USE` error code (409)
 - Added `TRADE_IN_USE` error code (409)
 
 **schema.ts** (Drizzle ORM):
+
 - Added `trades` table definition with indexes
 - Added `areas` table definition with hierarchical support (self-referencing parent_id)
 - Updated `vendors` table: removed specialty, added tradeId FK
@@ -71,6 +80,7 @@ type: project
 - Imported `type AnySQLiteColumn` for the self-referencing areas.parent_id type
 
 **index.ts**:
+
 - Removed tag exports (Tag, TagResponse, CreateTagRequest, UpdateTagRequest, TagListResponse)
 - Added area exports (AreaSummary, AreaResponse, AreaListResponse, AreaSingleResponse, CreateAreaRequest, UpdateAreaRequest, AreaListQuery)
 - Added trade exports (TradeSummary, TradeResponse, TradeListResponse, TradeSingleResponse, CreateTradeRequest, UpdateTradeRequest, TradeListQuery)
@@ -80,6 +90,7 @@ type: project
 ### Type Validation
 
 All production type definitions compile cleanly (verified individually):
+
 - area.ts ✓
 - trade.ts ✓
 - workItem.ts ✓
@@ -95,6 +106,7 @@ Test files in shared have expected failures (using old properties: room, tags, t
 ### Downstream Dependencies
 
 Subsequent stories depend on these foundation types:
+
 - **Story #1031 + #1032** (Areas + Trades Backend CRUD): Will implement GET/POST/PATCH/DELETE endpoints
 - **Story #1033 + #1034** (Work Item + HI Rework): Will update service/route handlers to use new fields
 - **Story #1035** (Frontend Manage Page): Will create UI for areas/trades management

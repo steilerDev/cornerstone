@@ -9,6 +9,7 @@ EPIC-17 adds i18n support with English and German. ADR-021.
 **Why:** Cornerstone targets German homeowners; UI must be available in German with locale-aware formatting.
 
 **How to apply:**
+
 - Library: react-i18next (pure JS, no native binaries)
 - Translations: statically bundled in `client/src/i18n/{en,de}/*.json` (11 namespaces per language)
 - Locale stored as user preference (key: `locale`, values: `en|de|system`) -- no schema changes
