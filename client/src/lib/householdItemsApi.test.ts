@@ -126,8 +126,7 @@ describe('householdItemsApi', () => {
       );
     });
 
-    // areaId filter not yet in listHouseholdItems signature (Story 3 TODO)
-    it.skip('includes areaId filter query param when provided', async () => {
+    it('includes areaId filter query param when provided', async () => {
       const mockResponse: HouseholdItemListResponse = {
         items: [],
         pagination: { page: 1, pageSize: 25, totalPages: 0, totalItems: 0 },
@@ -144,6 +143,40 @@ describe('householdItemsApi', () => {
         '/api/household-items?areaId=area-123',
         expect.any(Object),
       );
+    });
+
+    it('does not include areaId in URL when areaId is undefined', async () => {
+      const mockResponse: HouseholdItemListResponse = {
+        items: [],
+        pagination: { page: 1, pageSize: 25, totalPages: 0, totalItems: 0 },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      } as Response);
+
+      await listHouseholdItems({ page: 1 });
+
+      const callUrl = mockFetch.mock.calls[0][0] as string;
+      expect(callUrl).not.toContain('areaId');
+    });
+
+    it('does not include areaId in URL when called with areaId: undefined', async () => {
+      const mockResponse: HouseholdItemListResponse = {
+        items: [],
+        pagination: { page: 1, pageSize: 25, totalPages: 0, totalItems: 0 },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      } as Response);
+
+      await listHouseholdItems({ areaId: undefined });
+
+      const callUrl = mockFetch.mock.calls[0][0] as string;
+      expect(callUrl).not.toContain('areaId');
     });
 
     it('includes vendorId filter query param when provided', async () => {
@@ -165,7 +198,7 @@ describe('householdItemsApi', () => {
       );
     });
 
-    it('includes category filter query param when provided', async () => {
+    it('includes category filter query param for appliances category', async () => {
       const mockResponse: HouseholdItemListResponse = {
         items: [],
         pagination: { page: 1, pageSize: 25, totalPages: 0, totalItems: 0 },
@@ -176,10 +209,10 @@ describe('householdItemsApi', () => {
         json: async () => mockResponse,
       } as Response);
 
-      await listHouseholdItems({ category: 'furniture' });
+      await listHouseholdItems({ category: 'appliances' });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/household-items?category=furniture',
+        '/api/household-items?category=appliances',
         expect.any(Object),
       );
     });

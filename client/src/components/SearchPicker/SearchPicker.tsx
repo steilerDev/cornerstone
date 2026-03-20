@@ -9,6 +9,7 @@ export interface SpecialOption {
 }
 
 export interface SearchPickerProps<T> {
+  id?: string;
   value: string;
   onChange: (id: string) => void;
   onSelectItem?: (item: { id: string; label: string }) => void;
@@ -28,6 +29,7 @@ export interface SearchPickerProps<T> {
 }
 
 export function SearchPicker<T>({
+  id,
   value,
   onChange,
   onSelectItem,
@@ -272,6 +274,7 @@ export function SearchPicker<T>({
   return (
     <div className={styles.container} ref={containerRef}>
       <input
+        id={id}
         ref={inputRef}
         type="text"
         className={styles.input}

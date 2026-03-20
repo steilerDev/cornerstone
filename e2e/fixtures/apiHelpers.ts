@@ -127,6 +127,30 @@ export async function deleteHouseholdItemViaApi(page: Page, id: string): Promise
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Areas
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function createAreaViaApi(
+  page: Page,
+  data: {
+    name: string;
+    parentId?: string | null;
+    color?: string | null;
+    description?: string | null;
+    sortOrder?: number;
+  },
+): Promise<string> {
+  const response = await page.request.post(API.areas, { data });
+  expect(response.ok()).toBeTruthy();
+  const body = (await response.json()) as { area: { id: string } };
+  return body.area.id;
+}
+
+export async function deleteAreaViaApi(page: Page, id: string): Promise<void> {
+  await page.request.delete(`${API.areas}/${id}`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Diary Entries
 // ─────────────────────────────────────────────────────────────────────────────
 

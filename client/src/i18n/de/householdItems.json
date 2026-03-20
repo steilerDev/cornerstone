@@ -10,6 +10,7 @@
   "filters": {
     "ariaLabel": "Haushaltsartikel-Filter",
     "category": "Kategorie:",
+    "area": "Bereich:",
     "status": "Status:",
     "room": "Raum:",
     "vendor": "Auftragnehmer:",
@@ -19,6 +20,7 @@
     "noBudgetInactive": "Kein-Budgetpositionen-Filter aufgehoben",
     "sortBy": "Sortieren nach:",
     "allCategories": "Alle Kategorien",
+    "allAreas": "Alle Bereiche",
     "allStatuses": "Alle Status",
     "allVendors": "Alle Auftragnehmer",
     "roomPlaceholder": "Nach Raum filtern...",

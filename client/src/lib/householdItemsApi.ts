@@ -37,6 +37,9 @@ export function listHouseholdItems(
   if (params?.noBudget) {
     queryParams.set('noBudget', 'true');
   }
+  if (params?.areaId) {
+    queryParams.set('areaId', params.areaId);
+  }
   if (params?.sortBy) {
     queryParams.set('sortBy', params.sortBy);
   }
