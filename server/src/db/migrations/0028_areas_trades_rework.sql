@@ -60,7 +60,8 @@ UPDATE vendors SET trade_id = (
 UPDATE vendors SET trade_id = 'trade-other' WHERE trade_id IS NULL;
 
 -- Backup vendor_contacts before dropping vendors (FK cascade)
-CREATE TEMP TABLE _vendor_contacts_backup AS SELECT * FROM vendor_contacts;
+-- Use explicit column list to preserve column order (0026+0027 appended columns at end)
+CREATE TEMP TABLE _vendor_contacts_backup AS SELECT id, vendor_id, name, role, phone, email, notes, created_at, updated_at, first_name, last_name FROM vendor_contacts;
 
 -- Create new vendors table without specialty
 CREATE TABLE vendors_new (
@@ -105,8 +106,9 @@ CREATE TABLE vendor_contacts (
 
 CREATE INDEX idx_vendor_contacts_vendor_id ON vendor_contacts(vendor_id);
 
--- Restore vendor_contacts data
-INSERT INTO vendor_contacts SELECT * FROM _vendor_contacts_backup;
+-- Restore vendor_contacts data with explicit column mapping to match new table schema
+INSERT INTO vendor_contacts (id, vendor_id, name, first_name, last_name, role, phone, email, notes, created_at, updated_at)
+SELECT id, vendor_id, name, first_name, last_name, role, phone, email, notes, created_at, updated_at FROM _vendor_contacts_backup;
 DROP TABLE _vendor_contacts_backup;
 
 -- Step d: Create areas table
