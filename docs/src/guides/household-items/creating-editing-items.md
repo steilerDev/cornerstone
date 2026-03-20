@@ -20,7 +20,7 @@ Navigate to **Household Items** in the sidebar and click **New Household Item**.
 - **Order Date** -- When the item was or will be ordered
 - **Earliest Delivery Date** -- Start of the expected delivery window
 - **Latest Delivery Date** -- End of the expected delivery window
-- **Tags** -- Optional color-coded labels for organization
+- **Area** -- Optional location within your project (e.g., "Kitchen", "Master Bedroom")
 
 Click **Create** to save the new household item. You will be taken to the item's detail page where you can add budget lines, notes, dependencies, and more.
 
@@ -46,14 +46,14 @@ Click **Add Note** to expand the note editor, type your note, and click **Save**
 Deleting a note is permanent and cannot be undone.
 :::
 
-## Tags
+## Areas
 
-Household items share the same tag system as work items. You can assign any existing tag to a household item, or create new tags. Tags are useful for cross-cutting categorization -- for example, tagging items by priority ("Urgent", "Nice to have") or by source ("IKEA", "Local supplier").
+Household items share the same area system as work items. You can assign any existing area to a household item to indicate where it belongs in your home. The area picker displays the full hierarchy so you can quickly find the right location.
 
 ## Deleting a Household Item
 
 On the detail page, click the **Delete** button. A confirmation dialog will appear before the item is permanently removed.
 
 :::caution
-Deleting a household item also removes all associated budget lines, notes, tags, dependencies, subsidy links, and document links. This action cannot be undone.
+Deleting a household item also removes all associated budget lines, notes, dependencies, subsidy links, and document links. This action cannot be undone.
 :::

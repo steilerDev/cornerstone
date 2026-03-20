@@ -20,7 +20,7 @@ const sidebars = {
       link: { type: 'doc', id: 'guides/work-items/index' },
       items: [
         'guides/work-items/creating-work-items',
-        'guides/work-items/tags',
+        'guides/work-items/areas-and-trades',
         'guides/work-items/notes-and-subtasks',
         'guides/work-items/dependencies',
         'guides/work-items/keyboard-shortcuts',

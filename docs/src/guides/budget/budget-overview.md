@@ -24,7 +24,8 @@ Switch between perspectives to understand your financial position from different
 
 The budget overview uses a **blended projection model** that combines estimates and actuals:
 
-- **Budget lines linked to an invoice** use the itemized invoice amount (0% margin)
+- **Budget lines linked to a paid, pending, or claimed invoice** use the itemized invoice amount (0% margin)
+- **Budget lines linked to a quotation** use the itemized amount with a +/- 5% margin
 - **Budget lines without an invoice link** use the estimated amount with the confidence margin
 
 This means your projections automatically become more accurate as your project progresses and estimates are replaced by real invoices.
