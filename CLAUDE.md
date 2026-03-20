@@ -94,7 +94,8 @@ The orchestrator uses four skills to drive work. Each skill contains the full op
 | ------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------- |
 | `/epic-start` | Planning: PO creates stories, architect designs schema/API/ADRs            | Epic description or issue number                                |
 | `/develop`    | Full dev cycle for one or more stories/bug fixes, bundled into a single PR | Issue number, description, semicolon-separated list, or `@file` |
-| `/epic-close` | Refinement, E2E validation, UAT, docs, promotion to `main`                 | Epic issue number                                               |
+| `/epic-close` | Refinement, E2E validation, UAT, then delegates to `/release`              | Epic issue number                                               |
+| `/release`    | Promote `beta` to `main`: sync, PR, CI, approval loop, docs, merge        | Optional epic issue number (standalone if omitted)              |
 | `/epic-run`   | Autonomous end-to-end epic: plan, develop all stories, close               | Epic description or issue number                                |
 
 ## Acceptance & Validation
@@ -208,7 +209,7 @@ Production files: any file under `server/`, `client/`, or `shared/`.
 
 **NEVER `cd` to the base project directory to modify files.** All file edits, git operations, and commands must be performed from within the git worktree assigned at session start. The base project directory may have other sessions' uncommitted changes. This applies to subagents too — all file reads, writes, and exploration must use the worktree path.
 
-See the skill files (`.claude/skills/`) for the full operational checklists. The typical lifecycle is: `/epic-start` (once per epic) → `/develop` (once per story, or batched for multiple small items) → `/epic-close` (once per epic after all stories merged). Alternatively, `/epic-run` chains all three phases in a single session (only pauses for promotion approval).
+See the skill files (`.claude/skills/`) for the full operational checklists. The typical lifecycle is: `/epic-start` (once per epic) → `/develop` (once per story, or batched for multiple small items) → `/epic-close` (once per epic after all stories merged). Alternatively, `/epic-run` chains all three phases in a single session (only pauses for promotion approval). Use `/release` standalone to promote `beta` to `main` without a prior epic definition.
 
 Note: Dependabot auto-merge (`.github/workflows/dependabot-auto-merge.yml`) targets `beta` — it handles automated dependency updates, not agent work.
 
@@ -226,7 +227,7 @@ Cornerstone uses a two-tier release model:
 - **Feature PR -> `beta`**: Squash merge (clean history)
 - **`beta` -> `main`** (epic promotion): Merge commit (preserves individual commits so semantic-release can analyze them)
 
-- **Hotfixes:** Cherry-pick any `main` hotfix back to `beta` immediately. See `/epic-close` for merge-back, release summary, and DockerHub sync details.
+- **Hotfixes:** Cherry-pick any `main` hotfix back to `beta` immediately. See `/release` for merge-back, release summary, and DockerHub sync details.
 
 ### Branch Protection
 

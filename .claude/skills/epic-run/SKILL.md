@@ -64,10 +64,7 @@ Use tasks to track progress across the entire epic lifecycle. Tasks survive cont
 - **Refinement PR** — Address refinement items (skip if none)
 - **E2E validation** — Confirm E2E coverage and pass rate
 - **UAT validation** — Product-owner UAT scenarios
-- **Branch sync + promotion** — Sync main→beta if needed, create promotion PR + UAT criteria
-- **CI gate + promotion approval** — Wait for CI, present to user, handle feedback rounds
-- **Documentation + lessons learned** — Update docs/README/RELEASE_SUMMARY, sync implementation checklist
-- **Merge & post-merge** — Merge to main, close epic
+- **Release** — Delegate to /release for promotion, approval, docs, and merge
 
 **Progress rule:** Before starting each step, mark its task `in_progress`. After completing, mark it `completed`. If a step is skipped, mark it `completed` with a note.
 
@@ -196,9 +193,9 @@ gh issue comment <epic-number> --body "**[orchestrator]** Progress: <N>/<total> 
 
 If `failedStories` is non-empty, ask the user: proceed with completed stories only, retry failures, or abort. Note excluded stories for inclusion in the promotion PR body.
 
-### 3.1 Execute `/epic-close` steps 2–13
+### 3.1 Execute `/epic-close` steps 2–7
 
-Execute `/epic-close` steps 2 through 13 in order. Step 1 (Rebase) is skipped — the worktree is already on the latest beta from the story loop.
+Execute `/epic-close` steps 2 through 7 in order. Step 1 (Rebase) is skipped — the worktree is already on the latest beta from the story loop.
 
 - **Step 2** (Verify All Stories Merged)
 - **Step 2a** (Generate Epic Metrics Report)
@@ -207,12 +204,6 @@ Execute `/epic-close` steps 2 through 13 in order. Step 1 (Rebase) is skipped �
 - **Step 4** (Refinement PR)
 - **Step 5** (E2E Validation)
 - **Step 6** (UAT Validation)
-- **Step 7** (Branch Sync)
-- **Step 8** (Epic Promotion)
-- **Step 9** (Post Detailed UAT Criteria)
-- **Step 10** (CI Gate)
-- **Step 11** (Promotion Approval Loop) — **mandatory human gate** with autonomous feedback fix loop
-- **Step 12** (Documentation & Env Drift Check) — runs after user approval
-- **Step 13** (Merge & Post-Merge)
+- **Step 7** (Delegate to `/release`) — handles branch sync, promotion PR, CI gate, **mandatory human gate** with autonomous feedback fix loop, documentation, lessons learned, merge & post-merge
 
 If any step in `/epic-close` references "failed stories" or "excluded stories", use the `failedStories` list from Phase 2.
