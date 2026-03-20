@@ -95,7 +95,7 @@ The orchestrator uses four skills to drive work. Each skill contains the full op
 | `/epic-start` | Planning: PO creates stories, architect designs schema/API/ADRs            | Epic description or issue number                                |
 | `/develop`    | Full dev cycle for one or more stories/bug fixes, bundled into a single PR | Issue number, description, semicolon-separated list, or `@file` |
 | `/epic-close` | Refinement, E2E validation, UAT, then delegates to `/release`              | Epic issue number                                               |
-| `/release`    | Promote `beta` to `main`: sync, PR, CI, approval loop, docs, merge        | Optional epic issue number (standalone if omitted)              |
+| `/release`    | Promote `beta` to `main`: sync, PR, CI, approval loop, docs, merge         | Optional epic issue number (standalone if omitted)              |
 | `/epic-run`   | Autonomous end-to-end epic: plan, develop all stories, close               | Epic description or issue number                                |
 
 ## Acceptance & Validation
