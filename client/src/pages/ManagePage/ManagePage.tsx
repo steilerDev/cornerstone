@@ -15,6 +15,7 @@ import type {
   UpdateTradeRequest,
 } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { generateRandomColor } from '../../lib/colorUtils.js';
 import { useTranslation } from 'react-i18next';
 import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
@@ -69,7 +70,7 @@ function AreasTab() {
   // Create form state
   const [newName, setNewName] = useState('');
   const [newParentId, setNewParentId] = useState('');
-  const [newColor, setNewColor] = useState<string | null>(null);
+  const [newColor, setNewColor] = useState<string>(generateRandomColor);
   const [newDescription, setNewDescription] = useState('');
   const [newSortOrder, setNewSortOrder] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
@@ -113,7 +114,7 @@ function AreasTab() {
       } as CreateAreaRequest);
       setNewName('');
       setNewParentId('');
-      setNewColor(null);
+      setNewColor(generateRandomColor());
       setNewDescription('');
       setNewSortOrder('');
       setSuccessMessage(t('manage.areas.messages.created', { name: trimmedName }));
@@ -264,14 +265,14 @@ function AreasTab() {
                 <input
                   type="color"
                   id="areaColor"
-                  value={newColor || '#3b82f6'}
+                  value={newColor}
                   onChange={(e) => setNewColor(e.target.value)}
                   className={styles.colorInput}
                   disabled={isCreating}
                 />
                 <span
                   className={styles.colorSwatch}
-                  style={{ backgroundColor: newColor || '#3b82f6' }}
+                  style={{ backgroundColor: newColor }}
                   aria-hidden="true"
                 />
               </div>
@@ -587,7 +588,7 @@ function TradesTab() {
 
   // Create form state
   const [newName, setNewName] = useState('');
-  const [newColor, setNewColor] = useState<string | null>(null);
+  const [newColor, setNewColor] = useState<string>(generateRandomColor);
   const [newDescription, setNewDescription] = useState('');
   const [newSortOrder, setNewSortOrder] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
@@ -629,7 +630,7 @@ function TradesTab() {
         sortOrder: newSortOrder ? parseInt(newSortOrder, 10) : undefined,
       } as CreateTradeRequest);
       setNewName('');
-      setNewColor(null);
+      setNewColor(generateRandomColor());
       setNewDescription('');
       setNewSortOrder('');
       setSuccessMessage(t('manage.trades.messages.created', { name: trimmedName }));
@@ -778,14 +779,14 @@ function TradesTab() {
                 <input
                   type="color"
                   id="tradeColor"
-                  value={newColor || '#3b82f6'}
+                  value={newColor}
                   onChange={(e) => setNewColor(e.target.value)}
                   className={styles.colorInput}
                   disabled={isCreating}
                 />
                 <span
                   className={styles.colorSwatch}
-                  style={{ backgroundColor: newColor || '#3b82f6' }}
+                  style={{ backgroundColor: newColor }}
                   aria-hidden="true"
                 />
               </div>
@@ -1062,7 +1063,7 @@ function BudgetCategoriesTab() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [newColor, setNewColor] = useState(DEFAULT_COLOR);
+  const [newColor, setNewColor] = useState<string>(generateRandomColor);
   const [newSortOrder, setNewSortOrder] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string>('');
@@ -1129,7 +1130,7 @@ function BudgetCategoriesTab() {
       );
       setNewName('');
       setNewDescription('');
-      setNewColor(DEFAULT_COLOR);
+      setNewColor(generateRandomColor());
       setNewSortOrder('');
       setShowCreateForm(false);
       setSuccessMessage(t('manage.budgetCategories.messages.created', { name: created.name }));
@@ -1370,7 +1371,7 @@ function BudgetCategoriesTab() {
                   setCreateError('');
                   setNewName('');
                   setNewDescription('');
-                  setNewColor(DEFAULT_COLOR);
+                  setNewColor(generateRandomColor());
                   setNewSortOrder('');
                 }}
                 disabled={isCreating}
@@ -1647,7 +1648,7 @@ function HouseholdItemCategoriesTab() {
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newName, setNewName] = useState('');
-  const [newColor, setNewColor] = useState(DEFAULT_COLOR);
+  const [newColor, setNewColor] = useState<string>(generateRandomColor);
   const [newSortOrder, setNewSortOrder] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string>('');
@@ -1712,7 +1713,7 @@ function HouseholdItemCategoriesTab() {
         ),
       );
       setNewName('');
-      setNewColor(DEFAULT_COLOR);
+      setNewColor(generateRandomColor());
       setNewSortOrder('');
       setShowCreateForm(false);
       setSuccessMessage(
@@ -1942,7 +1943,7 @@ function HouseholdItemCategoriesTab() {
                   setShowCreateForm(false);
                   setCreateError('');
                   setNewName('');
-                  setNewColor(DEFAULT_COLOR);
+                  setNewColor(generateRandomColor());
                   setNewSortOrder('');
                 }}
                 disabled={isCreating}
