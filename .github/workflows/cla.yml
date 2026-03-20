@@ -29,6 +29,7 @@ jobs:
       - uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # v2.6.1
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          INPUT_GITHUB_TOKEN: ${{ github.token }}
           PERSONAL_ACCESS_TOKEN: ${{ steps.app-token.outputs.token }}
         with:
           remote-organization-name: steilerDev
