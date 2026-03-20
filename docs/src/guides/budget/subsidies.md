@@ -22,6 +22,7 @@ Navigate to **Budget > Subsidies** in the sidebar. Click **New Subsidy** and pro
 - **Type** -- Percentage or Fixed Amount
 - **Amount / Rate** -- The fixed amount or percentage rate
 - **Budget Category** -- Which category this subsidy applies to
+- **Maximum Amount** -- Optional cap on the total subsidy payout (for percentage subsidies)
 - **Status** -- The current status of the subsidy application
 
 ## Subsidy Statuses
@@ -43,6 +44,10 @@ Subsidies reduce the total cost shown in the [Budget Overview](budget-overview).
 - **Fixed-amount subsidy**: Subtracts the flat amount from the category total
 
 Multiple subsidies can apply to the same category, and their reductions stack.
+
+### Maximum Amount Cap
+
+For percentage-based subsidies, you can set a **maximum amount** to cap the payout. For example, a 15% rebate with a maximum of $5,000 will reduce costs by 15% up to $5,000 -- even if 15% of the category total exceeds that amount. The budget overview flags any subsidies that have hit their cap so you can see at a glance where the cap is limiting your savings.
 
 ### Cost Basis for Subsidy Calculations
 

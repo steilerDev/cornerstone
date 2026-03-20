@@ -12,7 +12,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/steilerDev/cornerstone/ci.yml?branch=main&label=CI)](https://github.com/steilerDev/cornerstone/actions/workflows/ci.yml)
 [![Docker Image](https://img.shields.io/docker/v/steilerdev/cornerstone?label=Docker&sort=semver)](https://hub.docker.com/r/steilerdev/cornerstone)
 
-A self-hosted home building project management tool for homeowners. Track work items, manage dependencies, organize with tags, and collaborate with your household -- all from a single Docker container backed by SQLite. No external database or cloud service required.
+A self-hosted home building project management tool for homeowners. Track work items, manage budgets across multiple financing sources, visualize your timeline on a Gantt chart, and organize everything by area and trade -- all from a single Docker container backed by SQLite. No external database or cloud service required.
 
 > [!NOTE]
 > This project is completely written using an Agentic Developmen Workflow with Claude Code and [Docker Sandbox VMs](https://docs.docker.com/ai/sandboxes/get-started/).
@@ -36,18 +36,19 @@ A self-hosted home building project management tool for homeowners. Track work i
 
 ## Features
 
-- **Work Items** -- CRUD, statuses, dates, assignments, tags, notes, subtasks, dependencies, keyboard shortcuts
-- **Budget Management** -- Budget categories, financing sources, multi-budget-line invoice linking with itemized amounts, subsidies, overview dashboard with projections
+- **Work Items** -- Manage construction tasks with statuses, dates, area assignments, notes, subtasks, dependencies, and keyboard shortcuts
+- **Areas & Trades** -- Organize your project with hierarchical areas (rooms, floors, zones) and trade specialties (Electrical, Plumbing, etc.) for vendors
+- **Budget Management** -- Budget categories, financing sources, multi-budget-line invoice linking with itemized amounts, subsidies with caps, quotation tracking, and an overview dashboard with projections
 - **Timeline & Gantt Chart** -- Interactive Gantt chart with dependency arrows, critical path, zoom controls, milestones, and CPM-based auto-scheduling
 - **Calendar View** -- Monthly and weekly calendar grids with work items and milestones
-- **Household Items** -- Track furniture, appliances, and fixtures with categories, delivery scheduling, budget integration, and work item linking
+- **Household Items** -- Track furniture, appliances, and fixtures with categories, area assignment, delivery scheduling, budget integration, and work item linking
 - **Project Dashboard** -- At-a-glance project health with budget, timeline, invoice, and subsidy cards, mini Gantt preview, and customizable layout
-- **Construction Diary** -- Construction diary with daily logs, site visits, delivery records, automatic system events, photo attachments, and digital signature capture
+- **Construction Diary** -- Daily logs, site visits, delivery records, automatic system events, photo attachments, and digital signature capture
 - **Document Integration** -- Browse and link documents from Paperless-ngx to work items, household items, and invoices
+- **Internationalization** -- English and German language support with automatic locale detection
 - **Authentication** -- Local accounts with setup wizard, OIDC single sign-on
 - **User Management** -- Admin and Member roles, admin panel
 - **Dark Mode** -- Light, Dark, or System theme
-- **Design System** -- CSS custom property token system, consistent visual language
 
 ## Quick Start
 
@@ -80,6 +81,8 @@ Open `http://localhost:3000` -- the setup wizard will guide you through creating
 - [x] **EPIC-15**: Budget-Line Invoice Linking Rework
 - [x] **EPIC-09**: Dashboard and Overview
 - [x] **EPIC-13**: Construction Diary
+- [x] **EPIC-17**: Internationalization (English + German)
+- [x] **EPIC-18**: Areas & Trades
 
 Track live progress on the [GitHub Projects board](https://github.com/users/steilerDev/projects/4).
 

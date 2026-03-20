@@ -12,7 +12,7 @@ Each work item can have one or more **budget lines** that track the estimated or
 On the work item detail page, switch to the **Budget** tab. Click **Add Budget Line** and provide:
 
 - **Budget Category** -- Which category this cost belongs to (e.g., "Electrical")
-- **Financing Source** -- Which funding source will pay for it
+- **Financing Source** -- Which funding source will pay for it (selected from a dropdown of your configured [financing sources](financing-sources))
 - **Estimated Amount** -- Your best estimate of the cost
 - **Confidence Level** -- How reliable the estimate is (see below)
 

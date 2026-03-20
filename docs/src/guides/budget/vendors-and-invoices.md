@@ -19,11 +19,11 @@ Navigate to **Budget > Vendors** in the sidebar to see all vendors. The list sup
 
 ### Creating a Vendor
 
-Click **New Vendor** and provide the vendor's name.
+Click **New Vendor** and provide the vendor's name and optionally assign a **trade** to indicate the vendor's specialty (e.g., Electrical, Plumbing). Trades are managed on the [Manage page](/guides/work-items/areas-and-trades).
 
 ### Vendor Detail
 
-Click a vendor to see their detail page, which shows the vendor's information and all their invoices.
+Click a vendor to see their detail page, which shows the vendor's information, assigned trade, and all their invoices. From the vendor edit page, you can navigate directly to any invoice detail by clicking on it.
 
 ![Vendor detail page](/img/screenshots/budget-vendor-detail-light.png)
 
@@ -34,7 +34,7 @@ Click a vendor to see their detail page, which shows the vendor's information an
 Navigate to **Budget > Invoices** in the sidebar to see all invoices across all vendors. The list supports:
 
 - **Search** -- Find invoices by number or vendor name
-- **Status Filter** -- Filter by Pending, Paid, or Claimed
+- **Status Filter** -- Filter by Quotation, Pending, Paid, or Claimed
 - **Sorting** -- Sort by date, amount, or status
 - **Pagination** -- Browse through large invoice lists
 
@@ -50,13 +50,18 @@ Budget lines are linked to the invoice after creation from the invoice detail pa
 
 ### Invoice Statuses
 
-Invoices progress through three statuses:
+Invoices have four statuses:
 
 | Status | Meaning |
 |--------|---------|
+| **Quotation** | A formal quote from the vendor -- not yet an actual cost |
 | **Pending** | Invoice received but not yet paid |
 | **Paid** | Invoice has been paid to the vendor |
 | **Claimed** | Payment has been claimed from / reimbursed by the financing source |
+
+:::tip
+Use the **Quotation** status for vendor quotes that you want to track alongside actual invoices. Quotation amounts are treated with a +/- 5% margin in budget projections, reflecting the typical variance from a formal quote.
+:::
 
 ### Invoice Detail
 
