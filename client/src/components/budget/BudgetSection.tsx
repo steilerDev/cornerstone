@@ -161,34 +161,51 @@ export function BudgetSection<T extends BaseBudgetLine>({
         {/* Unlinked budget lines */}
         {unlinkedLines.map((line) => (
           <div key={line.id} className={styles.unlinkedLineWrapper}>
-            <BudgetLineCard
-              line={line}
-              confidenceLabels={CONFIDENCE_LABELS}
-              onEdit={() => openEditBudgetForm(line)}
-              onDelete={() => handleDeleteBudgetLine(line.id)}
-              isDeleting={deletingBudgetId === line.id}
-              onConfirmDelete={onConfirmDeleteBudgetLine}
-              onCancelDelete={() => setDeletingBudgetId(null)}
-            >
-              {/* Link to invoice button */}
-              {budgetLineType && onLinkInvoice && (
-                <button
-                  type="button"
-                  className={styles.linkInvoiceBtn}
-                  onClick={() => onLinkInvoice(line.id)}
-                >
-                  {budgetLineType === 'household_item'
-                    ? t('detail.budget.linkInvoiceButton')
-                    : 'Link to Invoice'}
-                </button>
-              )}
-            </BudgetLineCard>
+            {editingBudgetId === line.id ? (
+              <BudgetLineForm
+                form={budgetForm}
+                onSubmit={handleSaveBudgetLine}
+                onFormChange={setBudgetFormPartial}
+                onCancel={closeBudgetForm}
+                error={budgetFormError}
+                isSaving={isSavingBudget}
+                isEditing={true}
+                confidenceLabels={CONFIDENCE_LABELS}
+                budgetSources={budgetSources}
+                vendors={vendors}
+                budgetCategories={budgetCategories}
+                staticCategoryLabel={staticCategoryLabel}
+              />
+            ) : (
+              <BudgetLineCard
+                line={line}
+                confidenceLabels={CONFIDENCE_LABELS}
+                onEdit={() => openEditBudgetForm(line)}
+                onDelete={() => handleDeleteBudgetLine(line.id)}
+                isDeleting={deletingBudgetId === line.id}
+                onConfirmDelete={onConfirmDeleteBudgetLine}
+                onCancelDelete={() => setDeletingBudgetId(null)}
+              >
+                {/* Link to invoice button */}
+                {budgetLineType && onLinkInvoice && (
+                  <button
+                    type="button"
+                    className={styles.linkInvoiceBtn}
+                    onClick={() => onLinkInvoice(line.id)}
+                  >
+                    {budgetLineType === 'household_item'
+                      ? t('detail.budget.linkInvoiceButton')
+                      : 'Link to Invoice'}
+                  </button>
+                )}
+              </BudgetLineCard>
+            )}
           </div>
         ))}
       </div>
 
-      {/* Budget line form (inline) */}
-      {showBudgetForm && (
+      {/* Budget line form for adding new lines (NOT editing — editing is handled inline above) */}
+      {showBudgetForm && editingBudgetId === null && (
         <BudgetLineForm
           form={budgetForm}
           onSubmit={handleSaveBudgetLine}
@@ -196,7 +213,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
           onCancel={closeBudgetForm}
           error={budgetFormError}
           isSaving={isSavingBudget}
-          isEditing={editingBudgetId !== null}
+          isEditing={false}
           confidenceLabels={CONFIDENCE_LABELS}
           budgetSources={budgetSources}
           vendors={vendors}
