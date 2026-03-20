@@ -82,10 +82,7 @@ function setupPreMigrationDb(db: Database.Database): void {
  * Apply migration 0029 directly on a DB that already has 0001–0028 applied.
  */
 function runMigration0029(db: Database.Database): void {
-  const sql = readFileSync(
-    join(MIGRATIONS_DIR, '0029_fix_vendor_contacts_columns.sql'),
-    'utf-8',
-  );
+  const sql = readFileSync(join(MIGRATIONS_DIR, '0029_fix_vendor_contacts_columns.sql'), 'utf-8');
   db.exec(sql);
   db.prepare('INSERT OR IGNORE INTO _migrations (name) VALUES (?)').run(
     '0029_fix_vendor_contacts_columns.sql',
@@ -125,9 +122,9 @@ interface VendorContactRow {
 }
 
 function getContact(db: Database.Database, id: string): VendorContactRow | undefined {
-  return db
-    .prepare('SELECT * FROM vendor_contacts WHERE id = ?')
-    .get(id) as VendorContactRow | undefined;
+  return db.prepare('SELECT * FROM vendor_contacts WHERE id = ?').get(id) as
+    | VendorContactRow
+    | undefined;
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -319,7 +316,7 @@ describe('Migration 0029: Fix vendor_contacts column corruption', () => {
         originalRole,
         originalPhone,
         originalEmail,
-        null,   // notes = NULL
+        null, // notes = NULL
         originalCreatedAt,
         originalUpdatedAt,
       );
