@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { Vendor, CreateVendorRequest } from '@cornerstone/shared';
+import type { Vendor, CreateVendorRequest, VendorListQuery } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { Modal } from '../../components/Modal/Modal.js';
@@ -75,7 +75,7 @@ export function VendorsPage() {
     setError('');
 
     try {
-      const response = await fetchVendors(toApiParams());
+      const response = await fetchVendors(toApiParams() as VendorListQuery);
       setVendors(response.vendors);
       setTotalPages(response.pagination.totalPages);
       setTotalItems(response.pagination.totalItems);
@@ -218,10 +218,7 @@ export function VendorsPage() {
         sortable: true,
         sortKey: 'trade',
         defaultVisible: true,
-        render: (v) => {
-          const trade = trades.find((t) => t.id === v.tradeId);
-          return trade ? trade.name : '—';
-        },
+        render: (v) => v.trade?.name ?? '—',
       },
       {
         key: 'contactInfo',
@@ -281,7 +278,7 @@ export function VendorsPage() {
         render: (v) => formatDate(v.updatedAt ?? v.createdAt),
       },
     ],
-    [t, trades, formatDate],
+    [t, formatDate],
   );
 
   // Render actions menu
