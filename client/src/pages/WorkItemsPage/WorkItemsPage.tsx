@@ -125,12 +125,16 @@ export function WorkItemsPage() {
     params.set('page', String(newState.page));
     params.set('pageSize', String(newState.pageSize));
 
+    // Delete all known filter param keys first
+    const knownFilterKeys = ['status', 'assignedUserId', 'assignedVendorId', 'areaId', 'noBudget'];
+    for (const key of knownFilterKeys) {
+      params.delete(key);
+    }
+
     // Sync filters
     for (const [paramKey, filter] of newState.filters.entries()) {
       if (filter.value) {
         params.set(paramKey, filter.value);
-      } else {
-        params.delete(paramKey);
       }
     }
 
