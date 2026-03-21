@@ -60,7 +60,7 @@ test.describe('User List Display', () => {
     }
   });
 
-  test('Table shows action buttons for each user', async ({ page }) => {
+  test('Table shows action menu for each user', async ({ page }) => {
     const userManagementPage = new UserManagementPage(page);
 
     // Given: User is on user management page
@@ -69,13 +69,10 @@ test.describe('User List Display', () => {
     // When: User views the table
     const adminRow = await userManagementPage.getUserRow(TEST_ADMIN.email);
 
-    // Then: Action buttons should be visible
+    // Then: The ⋮ action menu button should be visible (DataTable action menu)
     if (adminRow) {
-      const editButton = adminRow.getByRole('button', { name: 'Edit' });
-      const deactivateButton = adminRow.getByRole('button', { name: 'Deactivate' });
-
-      await expect(editButton).toBeVisible();
-      await expect(deactivateButton).toBeVisible();
+      const menuButton = adminRow.getByTestId(/^user-menu-button-/);
+      await expect(menuButton).toBeVisible();
     }
   });
 
