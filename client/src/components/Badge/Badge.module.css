@@ -86,6 +86,17 @@
   color: var(--color-diary-severity-critical-text);
 }
 
+/* Milestone status variants */
+.milestoneCompleted {
+  background-color: var(--color-status-completed-bg);
+  color: var(--color-status-completed-text);
+}
+
+.milestonePending {
+  background-color: var(--color-status-not-started-bg);
+  color: var(--color-status-not-started-text);
+}
+
 /* Responsive */
 @media (max-width: 767px) {
   .badge {
