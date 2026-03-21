@@ -197,18 +197,17 @@ HI Gantt: amber circle marker (r=7px). Add Dep modal: 36rem wide.
 `role="listbox"` requires arrow-key nav — use `role="list"` + `role="button"` items instead.
 `--color-primary-text` on `--color-primary-bg` chip = contrast failure; use `var(--color-primary)` for text.
 
-## PR #936 Review Findings — DAV Access Card + Vendor Contacts
+## DataTable Core (Issue #1099)
 
-Recurring misses to watch for in settings-card and sub-entity-list PRs:
+See `datatable-spec.md` for full token map. Key decisions:
 
-- Both CSS modules used hardcoded literals for ALL spacing/font/radius/transition — zero token usage
-- `--color-danger-active` misused as text color; correct token is `--color-danger-text-on-light` or `--color-danger`
-- `--color-border` as hover bg (recurring from PR #398) — always use `var(--color-bg-hover)`
-- Edit/Delete action buttons missing `aria-label` with entity name ("Edit contact {name}") — screen reader blocker
-- Missing `aria-live` announcement region for CRUD mutations
-- Missing `prefers-reduced-motion` guard in both CSS modules
-- Token reveal panel missing `role="status" aria-atomic="true"`
-- `copyButton` (primary surface) used `--shadow-focus-subtle` — primary buttons need `--shadow-focus`
+- FilterPopover uses `position: fixed` + `getBoundingClientRect()` — avoids `overflow-x: auto` clipping
+- Sort indicator: none=`var(--color-text-placeholder)`, active=`var(--color-primary)`; `aria-sort` on `<th>`
+- Active filter icon: `color: var(--color-primary)` + `background: var(--color-primary-bg)` (no new tokens)
+- Pagination min touch target: `min-width: 44px; min-height: 44px`
+- Mobile (< 768px): cards layout, no column visibility toggle, simplified pagination (Prev/Next only)
+- All strings under `common:dataTable.*` namespace
+- No new design tokens needed
 
 ## Story 4.11 — HI Detail Inline Edit (Issue #467)
 
