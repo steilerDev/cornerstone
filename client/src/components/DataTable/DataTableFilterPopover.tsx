@@ -111,6 +111,8 @@ export function DataTableFilterPopover<T>({
       style={popoverStyle}
       role="dialog"
       aria-label={t('dataTable.filter.filterByColumn', { column: column.label })}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       {renderFilterComponent()}
     </div>

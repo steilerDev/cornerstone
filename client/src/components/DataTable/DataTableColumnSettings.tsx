@@ -27,19 +27,6 @@ export function DataTableColumnSettings<T>({
   const [isOpen, setIsOpen] = useState(false);
   const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({});
 
-  // Position popover when opened
-  useEffect(() => {
-    if (isOpen && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      setPopoverStyle({
-        position: 'fixed',
-        top: `${rect.bottom + 4}px`,
-        right: `${window.innerWidth - rect.right}px`,
-        maxWidth: '250px',
-        zIndex: 1000,
-      });
-    }
-  }, [isOpen]);
 
   // Close on outside click
   useEffect(() => {
@@ -77,7 +64,19 @@ export function DataTableColumnSettings<T>({
         ref={triggerRef}
         type="button"
         className={styles.columnSettingsButton}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (!isOpen && triggerRef.current) {
+            const rect = triggerRef.current.getBoundingClientRect();
+            setPopoverStyle({
+              position: 'fixed',
+              top: `${rect.bottom + 4}px`,
+              right: `${window.innerWidth - rect.right}px`,
+              maxWidth: '250px',
+              zIndex: 1000,
+            });
+          }
+          setIsOpen(!isOpen);
+        }}
         aria-label={t('dataTable.columnSettings.ariaLabel')}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
