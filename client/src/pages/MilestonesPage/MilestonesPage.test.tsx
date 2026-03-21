@@ -9,8 +9,8 @@ import type React from 'react';
 // ── Minimal mocks ────────────────────────────────────────────────────────────
 
 const mockNavigate = jest.fn();
-const mockListMilestones = jest.fn();
-const mockDeleteMilestone = jest.fn();
+const mockListMilestones = jest.fn<() => Promise<MilestoneSummary[]>>();
+const mockDeleteMilestone = jest.fn<() => Promise<void>>();
 
 jest.unstable_mockModule('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
