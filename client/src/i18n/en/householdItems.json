@@ -48,14 +48,17 @@
     "arrived": "Arrived"
   },
   "table": {
+    "sectionTitle": "Household Items",
     "headers": {
       "name": "Name",
       "category": "Category",
       "status": "Status",
-      "room": "Room",
+      "area": "Area",
       "vendor": "Vendor",
       "plannedCost": "Planned Cost",
       "targetDelivery": "Target Delivery",
+      "orderDate": "Order Date",
+      "budgetLines": "Budget Lines",
       "actions": "Actions"
     }
   },
