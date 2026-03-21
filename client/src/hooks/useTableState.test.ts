@@ -101,9 +101,9 @@ describe('useTableState', () => {
       expect(result.current.tableState.search).toBe('');
     });
 
-    it('updates tableState.search after debounce fires (300ms)', async () => {
-      jest.useFakeTimers();
-      const { result } = renderHook(() => useTableState({ searchDebounceMs: 300 }), {
+    it('updates tableState.search after debounce fires (1ms debounce)', async () => {
+      // Use real timers with a 1ms debounce so we can simply await a tick
+      const { result } = renderHook(() => useTableState({ searchDebounceMs: 1 }), {
         wrapper: makeWrapper(),
       });
 
@@ -111,16 +111,17 @@ describe('useTableState', () => {
         result.current.setSearch('hello');
       });
 
-      await act(async () => {
-        await jest.runAllTimersAsync();
-      });
+      // Wait longer than the 1ms debounce to let the timer + React state settle
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      // Flush any pending React state updates
+      await act(async () => {});
 
       expect(result.current.tableState.search).toBe('hello');
     });
 
-    it('resets page to 1 when search changes after debounce', async () => {
-      jest.useFakeTimers();
-      const { result } = renderHook(() => useTableState(), {
+    it('resets page to 1 when search changes after debounce fires', async () => {
+      // Use real timers with a 1ms debounce so we can simply await a tick
+      const { result } = renderHook(() => useTableState({ searchDebounceMs: 1 }), {
         wrapper: makeWrapper(['/?page=3']),
       });
 
@@ -128,9 +129,8 @@ describe('useTableState', () => {
         result.current.setSearch('new search');
       });
 
-      await act(async () => {
-        await jest.runAllTimersAsync();
-      });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      await act(async () => {});
 
       expect(result.current.tableState.page).toBe(1);
     });
