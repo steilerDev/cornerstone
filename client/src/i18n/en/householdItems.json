@@ -57,6 +57,10 @@
       "vendor": "Vendor",
       "plannedCost": "Planned Cost",
       "targetDelivery": "Target Delivery",
+      "actualDelivery": "Actual Delivery",
+      "actualCost": "Actual Cost",
+      "subsidyReduction": "Subsidy Reduction",
+      "netCost": "Net Cost",
       "orderDate": "Order Date",
       "budgetLines": "Budget Lines",
       "actions": "Actions"

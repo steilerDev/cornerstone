@@ -147,6 +147,7 @@
         "status": "Status",
         "description": "Description",
         "linkedItems": "Linked Items",
+        "completedAt": "Completed Date",
         "actions": "Actions"
       }
     },

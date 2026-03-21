@@ -256,6 +256,13 @@ export function MilestonesPage() {
           return m.description.length > 60 ? `${m.description.substring(0, 60)}...` : m.description;
         },
       },
+      {
+        key: 'completedAt',
+        label: t('milestones.table.headers.completedAt'),
+        sortable: false,
+        defaultVisible: false,
+        render: (m) => (m.completedAt ? formatDate(m.completedAt) : '—'),
+      },
     ],
     [t, formatDate, milestoneStatusVariants],
   );
