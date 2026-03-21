@@ -27,7 +27,6 @@ export function DataTableColumnSettings<T>({
   const [isOpen, setIsOpen] = useState(false);
   const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({});
 
-
   // Close on outside click
   useEffect(() => {
     if (!isOpen) return;
