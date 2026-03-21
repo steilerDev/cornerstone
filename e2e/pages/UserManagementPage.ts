@@ -41,7 +41,7 @@ export class UserManagementPage {
   constructor(page: Page) {
     this.page = page;
     this.heading = page.getByRole('heading', { level: 1, name: 'User Management' });
-    this.searchInput = page.getByPlaceholder('Search by name or email...');
+    this.searchInput = page.getByPlaceholder('Search...');
     this.table = page.locator('table');
     this.emptyState = page.getByText(/No users found/);
 
@@ -82,9 +82,8 @@ export class UserManagementPage {
     await this.searchInput.waitFor({ state: 'visible' });
     await this.searchInput.scrollIntoViewIfNeeded();
     await this.searchInput.fill(query);
-    await this.page.waitForResponse(
-      (resp) => resp.url().includes('/api/users') && resp.status() === 200,
-    );
+    // Search is client-side — wait for debounce to settle
+    await this.page.waitForTimeout(400);
   }
 
   async getUserRows(): Promise<Locator[]> {
@@ -109,8 +108,11 @@ export class UserManagementPage {
     if (!row) {
       throw new Error(`User with email ${email} not found`);
     }
-    const editButton = row.getByRole('button', { name: 'Edit' });
-    await editButton.scrollIntoViewIfNeeded();
+    // DataTable: actions are behind a ⋮ menu — open it first
+    const menuButton = row.getByTestId(/^user-menu-button-/);
+    await menuButton.scrollIntoViewIfNeeded();
+    await menuButton.click();
+    const editButton = row.getByTestId(/^user-edit-/);
     await editButton.click();
     await this.editModalHeading.waitFor({ state: 'visible' });
   }
@@ -137,8 +139,11 @@ export class UserManagementPage {
     if (!row) {
       throw new Error(`User with email ${email} not found`);
     }
-    const deactivateButton = row.getByRole('button', { name: 'Deactivate' });
-    await deactivateButton.scrollIntoViewIfNeeded();
+    // DataTable: actions are behind a ⋮ menu — open it first
+    const menuButton = row.getByTestId(/^user-menu-button-/);
+    await menuButton.scrollIntoViewIfNeeded();
+    await menuButton.click();
+    const deactivateButton = row.getByTestId(/^user-deactivate-/);
     await deactivateButton.click();
     await this.deactivateModalHeading.waitFor({ state: 'visible' });
   }
