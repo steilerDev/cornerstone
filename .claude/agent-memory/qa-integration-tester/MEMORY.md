@@ -3,6 +3,23 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## useSearchParams + Debounce Testing Anti-Patterns (2026-03-21)
+
+**Context**: Testing `useTableState` hook — combines `useSearchParams` (MemoryRouter) with debounced state updates.
+
+**Key patterns — what FAILS:**
+- `jest.useFakeTimers()` + `waitFor()` — `waitFor` uses real `setInterval` for polling; blocked by fake timers
+- `jest.useFakeTimers()` + `await act(async () => { await jest.runAllTimersAsync(); })` — still fails because the URL sync `useEffect` in `useTableState` has `searchInput` in its dep array; it fires after `setSearch()` and reads stale `searchParams` (no `q` yet), resetting `searchInput` back to `''`
+- Testing `searchInput` immediately after `setSearch()` — the URL sync effect fires synchronously and overwrites it
+
+**Root cause**: `useTableState`'s URL sync effect (`useEffect(fn, [searchParams, ..., searchInput])`) runs whenever `searchInput` changes. After `setSearch('hello')`, `searchInput='hello'` triggers the effect, which reads `searchParams.get('q')=''` and calls `setSearchInput('')`, undoing the update before the debounce timer fires.
+
+**What WORKS:**
+- Test URL-initialized state: `makeWrapper(['/?q=hello'])` → assert `tableState.search === 'hello'`
+- Test the "not yet fired" side: `jest.useFakeTimers()` + `advanceTimersByTime(299)` + assert `tableState.search === ''`
+- Test URL params combos: `makeWrapper(['/?q=myquery&page=3'])` — reliable synchronous assertions
+- `user.type()` on controlled inputs without state propagation → use `fireEvent.change(input, { target: { value: 'hello' } })` instead
+
 ## Story #1035 ManagePage Rewrite — Areas + Trades Tabs (2026-03-19)
 
 **File rewritten**: `client/src/pages/ManagePage/ManagePage.test.tsx`
