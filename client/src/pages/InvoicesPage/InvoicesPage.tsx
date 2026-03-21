@@ -110,7 +110,9 @@ export function InvoicesPage() {
     setError('');
 
     try {
-      const response = await fetchAllInvoices(toApiParams() as Parameters<typeof fetchAllInvoices>[0]);
+      const response = await fetchAllInvoices(
+        toApiParams() as Parameters<typeof fetchAllInvoices>[0],
+      );
       setInvoices(response.invoices);
       setSummary(response.summary);
       setTotalPages(response.pagination.totalPages);
@@ -246,7 +248,10 @@ export function InvoicesPage() {
               {inv.invoiceNumber}
             </a>
           ) : (
-            <a href={`/budget/invoices/${inv.id}`} className={`${styles.invoiceLink} ${styles.invoiceLinkNoNumber}`}>
+            <a
+              href={`/budget/invoices/${inv.id}`}
+              className={`${styles.invoiceLink} ${styles.invoiceLinkNoNumber}`}
+            >
               —
             </a>
           ),
@@ -303,7 +308,11 @@ export function InvoicesPage() {
           { value: 'quotation', label: t('invoices.statusLabels.quotation') },
         ],
         render: (inv) => (
-          <Badge variants={invoiceStatusVariants} value={inv.status} testId={`invoice-status-${inv.id}`} />
+          <Badge
+            variants={invoiceStatusVariants}
+            value={inv.status}
+            testId={`invoice-status-${inv.id}`}
+          />
         ),
       },
       {
@@ -345,7 +354,9 @@ export function InvoicesPage() {
       <div className={styles.summaryCard}>
         <span className={styles.summaryLabel}>{t('invoices.summaryQuotation')}</span>
         <span className={styles.summaryCount}>{summary.quotation.count}</span>
-        <span className={styles.summaryAmount}>{formatCurrency(summary.quotation.totalAmount)}</span>
+        <span className={styles.summaryAmount}>
+          {formatCurrency(summary.quotation.totalAmount)}
+        </span>
       </div>
     </div>
   );
@@ -411,7 +422,9 @@ export function InvoicesPage() {
                 type="button"
                 className={sharedStyles.btnPrimary}
                 onClick={() => formRef.current?.requestSubmit()}
-                disabled={isCreating || !createForm.vendorId || !createForm.amount || !createForm.date}
+                disabled={
+                  isCreating || !createForm.vendorId || !createForm.amount || !createForm.date
+                }
               >
                 {isCreating ? t('invoices.buttons.creating') : t('invoices.buttons.create')}
               </button>
@@ -429,7 +442,8 @@ export function InvoicesPage() {
           <form onSubmit={handleCreateInvoice} className={styles.form} noValidate ref={formRef}>
             <div className={styles.field}>
               <label htmlFor="invoice-vendor" className={styles.label}>
-                {t('invoices.form.vendor')} <span className={styles.required}>{t('invoices.form.required')}</span>
+                {t('invoices.form.vendor')}{' '}
+                <span className={styles.required}>{t('invoices.form.required')}</span>
               </label>
               <select
                 id="invoice-vendor"
@@ -467,7 +481,8 @@ export function InvoicesPage() {
               </div>
               <div className={styles.fieldGrow}>
                 <label htmlFor="invoice-amount" className={styles.label}>
-                  {t('invoices.form.amount')} <span className={styles.required}>{t('invoices.form.required')}</span>
+                  {t('invoices.form.amount')}{' '}
+                  <span className={styles.required}>{t('invoices.form.required')}</span>
                 </label>
                 <input
                   type="number"
@@ -487,7 +502,8 @@ export function InvoicesPage() {
             <div className={styles.formRow}>
               <div className={styles.fieldGrow}>
                 <label htmlFor="invoice-date" className={styles.label}>
-                  {t('invoices.form.invoiceDate')} <span className={styles.required}>{t('invoices.form.required')}</span>
+                  {t('invoices.form.invoiceDate')}{' '}
+                  <span className={styles.required}>{t('invoices.form.required')}</span>
                 </label>
                 <input
                   type="date"
@@ -521,7 +537,9 @@ export function InvoicesPage() {
               <select
                 id="invoice-status"
                 value={createForm.status}
-                onChange={(e) => setCreateForm({ ...createForm, status: e.target.value as InvoiceStatus })}
+                onChange={(e) =>
+                  setCreateForm({ ...createForm, status: e.target.value as InvoiceStatus })
+                }
                 className={styles.select}
                 disabled={isCreating}
               >
