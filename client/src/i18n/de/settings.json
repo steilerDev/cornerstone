@@ -53,7 +53,8 @@
       "role": "Rolle",
       "authProvider": "Authentifizierung",
       "status": "Status",
-      "actions": "Aktionen"
+      "actions": "Aktionen",
+      "memberSince": "Mitglied seit"
     },
     "roles": {
       "admin": "Administrator",
@@ -69,7 +70,8 @@
     },
     "actions": {
       "edit": "Bearbeiten",
-      "deactivate": "Deaktivieren"
+      "deactivate": "Deaktivieren",
+      "menuAriaLabel": "Menü für Benutzeraktionen"
     },
     "editModal": {
       "title": "Benutzer bearbeiten",
