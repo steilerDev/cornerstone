@@ -288,7 +288,10 @@ export function HouseholdItemsPage() {
           <button
             type="button"
             className={styles.menuItem}
-            onClick={() => { navigate(`/project/household-items/${item.id}`); setActiveMenuId(null); }}
+            onClick={() => {
+              navigate(`/project/household-items/${item.id}`);
+              setActiveMenuId(null);
+            }}
             data-testid={`hi-view-${item.id}`}
           >
             {t('menu.edit')}
@@ -296,7 +299,10 @@ export function HouseholdItemsPage() {
           <button
             type="button"
             className={`${styles.menuItem} ${styles.menuItemDanger}`}
-            onClick={() => { openDeleteConfirm(item); setActiveMenuId(null); }}
+            onClick={() => {
+              openDeleteConfirm(item);
+              setActiveMenuId(null);
+            }}
             data-testid={`hi-delete-${item.id}`}
           >
             {t('menu.delete')}
