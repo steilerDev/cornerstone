@@ -75,7 +75,7 @@ async function waitForPage(page: Page) {
 async function openSidebarIfNeeded(page: Page) {
   const viewport = getViewportName();
   if (viewport === 'tablet' || viewport === 'mobile') {
-    const menuButton = page.getByRole('button', { name: /menu/i });
+    const menuButton = page.getByRole('button', { name: 'Open menu' });
     if (await menuButton.isVisible()) {
       await menuButton.click();
       await page.waitForTimeout(300);
