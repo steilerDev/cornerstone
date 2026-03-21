@@ -77,7 +77,9 @@ describe('EnumFilter', () => {
       await user.click(screen.getByRole('checkbox', { name: 'Active' }));
       await user.click(screen.getByRole('checkbox', { name: 'Pending' }));
       // Second call should contain both active and pending
-      const lastCallArg = (mockOnChange.mock.calls[mockOnChange.mock.calls.length - 1] as [string])[0];
+      const lastCallArg = (
+        mockOnChange.mock.calls[mockOnChange.mock.calls.length - 1] as [string]
+      )[0];
       expect(lastCallArg.split(',')).toEqual(expect.arrayContaining(['active', 'pending']));
       expect(lastCallArg.split(',')).toHaveLength(2);
     });

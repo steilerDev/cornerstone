@@ -83,9 +83,7 @@ describe('DateFilter', () => {
 
     it('calls onChange with empty string when from date is cleared', () => {
       const mockOnChange = jest.fn();
-      const { container } = render(
-        <DateFilter value="from:2026-01-01" onChange={mockOnChange} />,
-      );
+      const { container } = render(<DateFilter value="from:2026-01-01" onChange={mockOnChange} />);
       const [fromInput] = container.querySelectorAll('input[type="date"]');
       fireEvent.change(fromInput, { target: { value: '' } });
       expect(mockOnChange).toHaveBeenCalledWith('');
