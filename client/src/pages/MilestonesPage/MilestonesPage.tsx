@@ -114,16 +114,19 @@ export function MilestonesPage() {
   };
 
   // Status badge variants
-  const milestoneStatusVariants = useMemo((): BadgeVariantMap => ({
-    completed: {
-      label: t('milestones.status.completed'),
-      className: badgeStyles.milestoneCompleted,
-    },
-    pending: {
-      label: t('milestones.status.pending'),
-      className: badgeStyles.milestonePending,
-    },
-  }), [t]);
+  const milestoneStatusVariants = useMemo(
+    (): BadgeVariantMap => ({
+      completed: {
+        label: t('milestones.status.completed'),
+        className: badgeStyles.milestoneCompleted,
+      },
+      pending: {
+        label: t('milestones.status.pending'),
+        className: badgeStyles.milestonePending,
+      },
+    }),
+    [t],
+  );
 
   // Client-side filtering and sorting
   const filtered = useMemo(() => {
@@ -196,65 +199,66 @@ export function MilestonesPage() {
   }, [milestones, tableState]);
 
   // Column definitions
-  const columns = useMemo((): ColumnDef<MilestoneSummary>[] => [
-    {
-      key: 'title',
-      label: t('milestones.table.headers.title'),
-      sortable: true,
-      filterable: true,
-      filterType: 'string',
-      defaultVisible: true,
-      render: (m) => m.title,
-    },
-    {
-      key: 'targetDate',
-      label: t('milestones.table.headers.targetDate'),
-      sortable: true,
-      filterable: true,
-      filterType: 'date',
-      defaultVisible: true,
-      render: (m) => formatDate(m.targetDate),
-    },
-    {
-      key: 'status',
-      label: t('milestones.table.headers.status'),
-      sortable: true,
-      sortKey: 'isCompleted',
-      filterable: true,
-      filterType: 'enum',
-      filterParamKey: 'status',
-      enumOptions: [
-        { value: 'completed', label: t('milestones.status.completed') },
-        { value: 'pending', label: t('milestones.status.pending') },
-      ],
-      defaultVisible: true,
-      render: (m) => (
-        <Badge
-          variants={milestoneStatusVariants}
-          value={m.isCompleted ? 'completed' : 'pending'}
-        />
-      ),
-    },
-    {
-      key: 'workItemCount',
-      label: t('milestones.table.headers.linkedItems'),
-      sortable: true,
-      defaultVisible: true,
-      render: (m) => m.workItemCount ?? 0,
-    },
-    {
-      key: 'description',
-      label: t('milestones.table.headers.description'),
-      sortable: false,
-      defaultVisible: true,
-      render: (m) => {
-        if (!m.description) return '—';
-        return m.description.length > 60
-          ? `${m.description.substring(0, 60)}...`
-          : m.description;
+  const columns = useMemo(
+    (): ColumnDef<MilestoneSummary>[] => [
+      {
+        key: 'title',
+        label: t('milestones.table.headers.title'),
+        sortable: true,
+        filterable: true,
+        filterType: 'string',
+        defaultVisible: true,
+        render: (m) => m.title,
       },
-    },
-  ], [t, formatDate, milestoneStatusVariants]);
+      {
+        key: 'targetDate',
+        label: t('milestones.table.headers.targetDate'),
+        sortable: true,
+        filterable: true,
+        filterType: 'date',
+        defaultVisible: true,
+        render: (m) => formatDate(m.targetDate),
+      },
+      {
+        key: 'status',
+        label: t('milestones.table.headers.status'),
+        sortable: true,
+        sortKey: 'isCompleted',
+        filterable: true,
+        filterType: 'enum',
+        filterParamKey: 'status',
+        enumOptions: [
+          { value: 'completed', label: t('milestones.status.completed') },
+          { value: 'pending', label: t('milestones.status.pending') },
+        ],
+        defaultVisible: true,
+        render: (m) => (
+          <Badge
+            variants={milestoneStatusVariants}
+            value={m.isCompleted ? 'completed' : 'pending'}
+          />
+        ),
+      },
+      {
+        key: 'workItemCount',
+        label: t('milestones.table.headers.linkedItems'),
+        sortable: true,
+        defaultVisible: true,
+        render: (m) => m.workItemCount ?? 0,
+      },
+      {
+        key: 'description',
+        label: t('milestones.table.headers.description'),
+        sortable: false,
+        defaultVisible: true,
+        render: (m) => {
+          if (!m.description) return '—';
+          return m.description.length > 60 ? `${m.description.substring(0, 60)}...` : m.description;
+        },
+      },
+    ],
+    [t, formatDate, milestoneStatusVariants],
+  );
 
   // Render actions menu
   const renderActions = (milestone: MilestoneSummary) => (
