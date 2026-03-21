@@ -18,7 +18,8 @@
     "create": "Create",
     "confirm": "Confirm",
     "back": "Back",
-    "search": "Search"
+    "search": "Search",
+    "clearFilters": "Clear Filters"
   },
   "aria": {
     "closeMenu": "Close menu",
@@ -108,5 +109,49 @@
       "manage": "Manage",
       "userManagement": "User Management"
     }
+  },
+  "dataTable": {
+    "search": {
+      "placeholder": "Search...",
+      "ariaLabel": "Search items"
+    },
+    "filter": {
+      "all": "All",
+      "yes": "Yes",
+      "no": "No",
+      "min": "Min",
+      "max": "Max",
+      "from": "From",
+      "to": "To",
+      "clearFilter": "Clear",
+      "applyFilter": "Apply",
+      "filterByColumn": "Filter by {{column}}",
+      "textPlaceholder": "Search...",
+      "searchPlaceholder": "Search...",
+      "booleanAriaLabel": "Boolean filter"
+    },
+    "sort": {
+      "ascending": "Sort ascending",
+      "descending": "Sort descending",
+      "none": "No sort",
+      "ariaLabel": "Sort by {{column}}"
+    },
+    "columnSettings": {
+      "ariaLabel": "Column settings",
+      "title": "Visible columns",
+      "resetToDefaults": "Reset to defaults"
+    },
+    "pagination": {
+      "showing": "Showing {{from}}–{{to}} of {{total}} items",
+      "page": "Page {{page}} of {{totalPages}}",
+      "previous": "Previous",
+      "next": "Next",
+      "pageSize": "Per page"
+    },
+    "empty": {
+      "defaultMessage": "No items found",
+      "filteredMessage": "No items match the current filters"
+    },
+    "loading": "Loading table data..."
   }
 }
