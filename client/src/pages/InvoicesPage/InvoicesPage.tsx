@@ -234,14 +234,6 @@ export function InvoicesPage() {
   const columns = useMemo(
     (): ColumnDef<Invoice>[] => [
       {
-        key: 'date',
-        label: t('invoices.tableHeaders.date'),
-        sortable: true,
-        sortKey: 'date',
-        defaultVisible: true,
-        render: (inv) => formatDate(inv.date),
-      },
-      {
         key: 'invoiceNumber',
         label: t('invoices.tableHeaders.invoiceNumber'),
         sortable: false,
@@ -275,6 +267,14 @@ export function InvoicesPage() {
             {inv.vendorName}
           </Link>
         ),
+      },
+      {
+        key: 'date',
+        label: t('invoices.tableHeaders.date'),
+        sortable: true,
+        sortKey: 'date',
+        defaultVisible: true,
+        render: (inv) => formatDate(inv.date),
       },
       {
         key: 'amount',

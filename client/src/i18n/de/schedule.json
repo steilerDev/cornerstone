@@ -147,6 +147,7 @@
         "status": "Status",
         "description": "Beschreibung",
         "linkedItems": "Verknüpfte Artikel",
+        "completedAt": "Abgeschlossen am",
         "actions": "Aktionen"
       }
     },

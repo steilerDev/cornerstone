@@ -58,6 +58,10 @@
       "vendor": "Auftragnehmer",
       "plannedCost": "Geplante Kosten",
       "targetDelivery": "Ziellieferdatum",
+      "actualDelivery": "Tatsächliche Lieferung",
+      "actualCost": "Tatsächliche Kosten",
+      "subsidyReduction": "Förderabzug",
+      "netCost": "Nettokosten",
       "orderDate": "Bestelldatum",
       "budgetLines": "Budgetpositionen",
       "actions": "Aktionen"
