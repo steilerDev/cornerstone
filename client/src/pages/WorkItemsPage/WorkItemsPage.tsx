@@ -435,8 +435,6 @@ export function WorkItemsPage() {
 
       <ProjectSubNav />
 
-      <h2 className={styles.sectionTitle}>{t('list.sectionTitle')}</h2>
-
       <DataTable<WorkItemSummary>
         pageKey="workItems"
         columns={columns}
