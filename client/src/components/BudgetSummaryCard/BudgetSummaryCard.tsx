@@ -19,10 +19,13 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
     minPlanned,
     maxPlanned,
     actualCost,
-    remainingVsActualCost,
+    remainingVsMinPlanned,
     remainingVsMaxPlanned,
     subsidySummary,
   } = overview;
+
+  // Medium net remaining: average of min and max remaining
+  const mediumNetRemaining = (remainingVsMinPlanned + remainingVsMaxPlanned) / 2;
 
   // Build budget bar segments
   const segments: BudgetBarSegment[] = [
@@ -35,16 +38,16 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
   ];
 
   // Add remaining segment or overflow
-  if (remainingVsActualCost >= 0) {
+  if (mediumNetRemaining >= 0) {
     segments.push({
       key: 'remaining',
-      value: remainingVsActualCost,
+      value: mediumNetRemaining,
       color: 'var(--color-budget-track)',
       label: t('cards.budgetSummary.remainingBudget'),
     });
   }
 
-  const overflow = remainingVsActualCost < 0 ? Math.abs(remainingVsActualCost) : 0;
+  const overflow = mediumNetRemaining < 0 ? Math.abs(mediumNetRemaining) : 0;
 
   return (
     <div className={styles.content}>
@@ -52,7 +55,7 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
       <div className={styles.primaryMetric}>
         <span className={styles.metricLabel}>{t('cards.budgetSummary.remainingBudget')}</span>
         <span className={styles.metricValue} data-testid="remaining-budget">
-          {formatCurrency(remainingVsActualCost)}
+          {formatCurrency(mediumNetRemaining)}
         </span>
       </div>
 

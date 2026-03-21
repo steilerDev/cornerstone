@@ -108,13 +108,17 @@ describe('BudgetSummaryCard', () => {
 
   // ── Test 1: Remaining Budget ──────────────────────────────────────────────
 
-  it('renders remaining budget formatted as EUR currency', () => {
+  it('renders remaining budget as the average of remainingVsMinPlanned and remainingVsMaxPlanned', () => {
+    // mediumNetRemaining = (remainingVsMinPlanned + remainingVsMaxPlanned) / 2
+    //                    = (20000 + 10000) / 2 = 15000
     renderWithRouter(
-      <BudgetSummaryCard overview={{ ...baseOverview, remainingVsActualCost: 50000 }} />,
+      <BudgetSummaryCard
+        overview={{ ...baseOverview, remainingVsMinPlanned: 20000, remainingVsMaxPlanned: 10000 }}
+      />,
     );
 
     const el = screen.getByTestId('remaining-budget');
-    expect(el).toHaveTextContent('€50,000.00');
+    expect(el).toHaveTextContent('€15,000.00');
   });
 
   // ── Test 2: Planned Cost Range ────────────────────────────────────────────
