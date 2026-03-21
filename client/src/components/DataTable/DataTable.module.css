@@ -188,6 +188,57 @@
   box-shadow: var(--shadow-focus);
 }
 
+.columnDragHandle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background-color: transparent;
+  color: var(--color-text-muted);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: grab;
+  font-size: var(--font-size-sm);
+  transition: background-color var(--transition-normal);
+}
+
+.columnDragHandle:hover {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+}
+
+.columnDragHandle:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.columnDragHandle:active {
+  cursor: grabbing;
+}
+
+.columnCheckboxItemDragging {
+  opacity: 0.5;
+  background-color: var(--color-bg-secondary);
+}
+
+.columnCheckboxItemDragOver {
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.columnCheckboxItemDragOver .columnCheckboxLabel {
+  color: var(--color-primary-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .columnDragHandle,
+  .columnCheckboxItem {
+    transition: none;
+  }
+}
+
 /* Filter Popover */
 .filterPopover {
   background-color: var(--color-bg-primary);

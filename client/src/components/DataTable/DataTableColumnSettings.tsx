@@ -7,18 +7,20 @@ export interface DataTableColumnSettingsProps<T> {
   columns: ColumnDef<T>[];
   visibleColumns: Set<string>;
   onToggleColumn: (key: string) => void;
+  onMoveColumn: (from: number, to: number) => void;
   onResetToDefaults: () => void;
 }
 
 /**
- * Column visibility settings popover
- * Gear icon + checkbox list, desktop-only (hidden on mobile)
+ * Column visibility and ordering settings popover
+ * Gear icon + checkbox list with drag-and-drop reordering, desktop-only (hidden on mobile)
  * Uses position:fixed with getBoundingClientRect
  */
 export function DataTableColumnSettings<T>({
   columns,
   visibleColumns,
   onToggleColumn,
+  onMoveColumn,
   onResetToDefaults,
 }: DataTableColumnSettingsProps<T>) {
   const { t } = useTranslation('common');
@@ -26,6 +28,8 @@ export function DataTableColumnSettings<T>({
   const popoverRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({});
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // Close on outside click
   useEffect(() => {
@@ -94,8 +98,41 @@ export function DataTableColumnSettings<T>({
           <div className={styles.columnSettingsContent}>
             <h3 className={styles.columnSettingsTitle}>{t('dataTable.columnSettings.title')}</h3>
             <div className={styles.columnCheckboxGroup}>
-              {columns.map((col) => (
-                <div key={col.key} className={styles.columnCheckboxItem}>
+              {columns.map((col, index) => (
+                <div
+                  key={col.key}
+                  className={`${styles.columnCheckboxItem} ${draggedIndex === index ? styles.columnCheckboxItemDragging : ''} ${dragOverIndex === index ? styles.columnCheckboxItemDragOver : ''}`}
+                  draggable={index > 0}
+                  onDragStart={() => setDraggedIndex(index)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (index > 0) setDragOverIndex(index);
+                  }}
+                  onDragLeave={() => setDragOverIndex(null)}
+                  onDrop={() => {
+                    if (draggedIndex !== null && draggedIndex !== index && index > 0) {
+                      onMoveColumn(draggedIndex, index);
+                    }
+                    setDraggedIndex(null);
+                    setDragOverIndex(null);
+                  }}
+                  onDragEnd={() => {
+                    setDraggedIndex(null);
+                    setDragOverIndex(null);
+                  }}
+                >
+                  {index > 0 && (
+                    <button
+                      type="button"
+                      className={styles.columnDragHandle}
+                      aria-label={t('dataTable.columnSettings.dragHandleAriaLabel', {
+                        column: col.label,
+                      })}
+                      tabIndex={-1}
+                    >
+                      ⠿
+                    </button>
+                  )}
                   <input
                     type="checkbox"
                     id={`col-${col.key}`}

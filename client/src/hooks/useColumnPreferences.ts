@@ -4,20 +4,23 @@ import { usePreferences } from './usePreferences.js';
 
 export interface UseColumnPreferencesResult {
   visibleColumns: Set<string>;
+  columnOrder: string[];
   isLoaded: boolean;
   toggleColumn: (key: string) => void;
+  moveColumn: (from: number, to: number) => void;
   resetToDefaults: () => void;
 }
 
 /**
- * Hook managing column visibility preferences
+ * Hook managing column visibility and ordering preferences
  *
- * Persists visible column keys to user preferences under key `table.${pageKey}.columns`.
- * Value is JSON-encoded array of visible column keys.
+ * Persists column preferences to user preferences under key `table.${pageKey}.columns`.
+ * Value is JSON-encoded object: { visible: string[], order: string[] }
+ * For backwards compatibility, if stored value is a plain array, it's treated as visible list.
  *
  * @param pageKey Unique key for this table (e.g. "work-items", "invoices")
  * @param columns Column definitions
- * @returns Visible columns state and control functions
+ * @returns Visible columns, column order, and control functions
  */
 export function useColumnPreferences<T>(
   pageKey: string,
@@ -26,9 +29,13 @@ export function useColumnPreferences<T>(
   const preferenceKey = `table.${pageKey}.columns`;
   const { preferences, upsert } = usePreferences();
 
-  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(() => {
-    return new Set(columns.filter((col) => col.defaultVisible !== false).map((col) => col.key));
-  });
+  const defaultColumnOrder = columns.map((col) => col.key);
+  const defaultVisibleColumns = new Set(
+    columns.filter((col) => col.defaultVisible !== false).map((col) => col.key),
+  );
+
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(defaultVisibleColumns);
+  const [columnOrder, setColumnOrder] = useState<string[]>(defaultColumnOrder);
 
   const [isLoaded, setIsLoaded] = useState(false);
   const saveDebounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -38,14 +45,45 @@ export function useColumnPreferences<T>(
     const pref = preferences.find((p) => p.key === preferenceKey);
     if (pref) {
       try {
-        const saved = JSON.parse(pref.value) as string[];
-        setVisibleColumns(new Set(saved));
+        const saved = JSON.parse(pref.value);
+
+        // Handle backwards compatibility: if saved value is an array, treat as visible list
+        if (Array.isArray(saved)) {
+          setVisibleColumns(new Set(saved));
+          setColumnOrder(defaultColumnOrder);
+        } else if (saved && typeof saved === 'object') {
+          // New format: { visible: string[], order: string[] }
+          if (Array.isArray(saved.visible)) {
+            setVisibleColumns(new Set(saved.visible));
+          }
+          if (Array.isArray(saved.order)) {
+            setColumnOrder(saved.order);
+          }
+        }
       } catch {
         // If JSON parse fails, use defaults
       }
     }
     setIsLoaded(true);
   }, [preferences, preferenceKey]);
+
+  const savePreferences = useCallback(
+    (newVisible: Set<string>, newOrder: string[]) => {
+      if (saveDebounceRef.current) {
+        clearTimeout(saveDebounceRef.current);
+      }
+      saveDebounceRef.current = setTimeout(() => {
+        void upsert(
+          preferenceKey,
+          JSON.stringify({
+            visible: Array.from(newVisible),
+            order: newOrder,
+          }),
+        );
+      }, 500);
+    },
+    [preferenceKey, upsert],
+  );
 
   const toggleColumn = useCallback(
     (key: string) => {
@@ -56,19 +94,24 @@ export function useColumnPreferences<T>(
         } else {
           updated.add(key);
         }
-
-        // Debounce save to preferences (500ms)
-        if (saveDebounceRef.current) {
-          clearTimeout(saveDebounceRef.current);
-        }
-        saveDebounceRef.current = setTimeout(() => {
-          void upsert(preferenceKey, JSON.stringify(Array.from(updated)));
-        }, 500);
-
+        savePreferences(updated, columnOrder);
         return updated;
       });
     },
-    [preferenceKey, upsert],
+    [columnOrder, savePreferences],
+  );
+
+  const moveColumn = useCallback(
+    (from: number, to: number) => {
+      setColumnOrder((prev) => {
+        const updated = [...prev];
+        const [item] = updated.splice(from, 1);
+        updated.splice(to, 0, item);
+        savePreferences(visibleColumns, updated);
+        return updated;
+      });
+    },
+    [visibleColumns, savePreferences],
   );
 
   const resetToDefaults = useCallback(() => {
@@ -76,19 +119,16 @@ export function useColumnPreferences<T>(
       columns.filter((col) => col.defaultVisible !== false).map((col) => col.key),
     );
     setVisibleColumns(defaults);
-
-    if (saveDebounceRef.current) {
-      clearTimeout(saveDebounceRef.current);
-    }
-    saveDebounceRef.current = setTimeout(() => {
-      void upsert(preferenceKey, JSON.stringify(Array.from(defaults)));
-    }, 500);
-  }, [columns, preferenceKey, upsert]);
+    setColumnOrder(defaultColumnOrder);
+    savePreferences(defaults, defaultColumnOrder);
+  }, [columns, defaultColumnOrder, savePreferences]);
 
   return {
     visibleColumns,
+    columnOrder,
     isLoaded,
     toggleColumn,
+    moveColumn,
     resetToDefaults,
   };
 }

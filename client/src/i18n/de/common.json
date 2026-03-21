@@ -141,7 +141,8 @@
     "columnSettings": {
       "ariaLabel": "Spalteneinstellungen",
       "title": "Sichtbare Spalten",
-      "resetToDefaults": "Standardeinstellungen wiederherstellen"
+      "resetToDefaults": "Standardeinstellungen wiederherstellen",
+      "dragHandleAriaLabel": "{{column}}-Spalte zum Neuanordnen ziehen"
     },
     "pagination": {
       "showing": "Zeige {{from}}–{{to}} von {{total}} Einträgen",

@@ -26,6 +26,14 @@ export interface EnumOption {
 }
 
 /**
+ * Hierarchy item for enum filter (parent-child relationships)
+ */
+export interface EnumHierarchyItem {
+  id: string;
+  parentId: string | null;
+}
+
+/**
  * Column definition for DataTable
  */
 export interface ColumnDef<T> {
@@ -37,6 +45,7 @@ export interface ColumnDef<T> {
   filterType?: FilterType;
   filterParamKey?: string;
   enumOptions?: EnumOption[];
+  enumHierarchy?: EnumHierarchyItem[];
   entitySearchFn?: SearchPickerProps<unknown>['searchFn'];
   entityRenderItem?: SearchPickerProps<unknown>['renderItem'];
   entityPlaceholder?: string;
@@ -141,8 +150,31 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
   const { t } = useTranslation('common');
 
-  // Load column visibility preferences
-  const { visibleColumns, toggleColumn, resetToDefaults } = useColumnPreferences(pageKey, columns);
+  // Load column visibility and ordering preferences
+  const { visibleColumns, columnOrder, toggleColumn, moveColumn, resetToDefaults } =
+    useColumnPreferences(pageKey, columns);
+
+  // Sort columns by stored order
+  const sortedColumns = useMemo(() => {
+    const columnMap = new Map(columns.map((col) => [col.key, col]));
+    const ordered: typeof columns = [];
+
+    for (const key of columnOrder) {
+      const col = columnMap.get(key);
+      if (col) {
+        ordered.push(col);
+      }
+    }
+
+    // Add any columns not in the stored order (new columns added to page)
+    for (const col of columns) {
+      if (!columnOrder.includes(col.key)) {
+        ordered.push(col);
+      }
+    }
+
+    return ordered;
+  }, [columns, columnOrder]);
 
   const handleSearch = (query: string) => {
     const newState = { ...tableState, search: query, page: 1 };
@@ -243,9 +275,10 @@ export function DataTable<T>({
               </button>
             )}
             <DataTableColumnSettings<T>
-              columns={columns}
+              columns={sortedColumns}
               visibleColumns={visibleColumns}
               onToggleColumn={toggleColumn}
+              onMoveColumn={moveColumn}
               onResetToDefaults={resetToDefaults}
             />
           </div>
@@ -259,7 +292,7 @@ export function DataTable<T>({
       <div className={styles.tableContainer}>
         <table className={styles.table}>
           <DataTableHeader<T>
-            columns={columns}
+            columns={sortedColumns}
             visibleColumns={visibleColumns}
             tableState={tableState}
             onSort={handleSort}
@@ -270,7 +303,7 @@ export function DataTable<T>({
               <DataTableRow<T>
                 key={getRowKey(item)}
                 item={item}
-                columns={columns}
+                columns={sortedColumns}
                 visibleColumns={visibleColumns}
                 onClick={() => onRowClick?.(item)}
                 renderActions={renderActions ? () => renderActions(item) : undefined}
@@ -301,7 +334,7 @@ export function DataTable<T>({
             <DataTableCard<T>
               key={getRowKey(item)}
               item={item}
-              columns={columns}
+              columns={sortedColumns}
               visibleColumns={visibleColumns}
               onClick={() => onRowClick?.(item)}
               renderActions={renderActions ? () => renderActions(item) : undefined}

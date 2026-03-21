@@ -146,7 +146,7 @@ export function InvoicesPage() {
     params.set('pageSize', String(newState.pageSize));
 
     // Delete all known filter param keys first
-    const knownFilterKeys = ['status', 'vendorId'];
+    const knownFilterKeys = ['status', 'vendorId', 'amount'];
     for (const key of knownFilterKeys) {
       params.delete(key);
     }
@@ -282,6 +282,9 @@ export function InvoicesPage() {
         sortable: true,
         sortKey: 'amount',
         defaultVisible: true,
+        filterable: true,
+        filterType: 'number',
+        filterParamKey: 'amount',
         render: (inv) => formatCurrency(inv.amount),
         className: styles.amountCell,
       },

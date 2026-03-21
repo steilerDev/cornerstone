@@ -126,7 +126,7 @@ export function WorkItemsPage() {
     params.set('pageSize', String(newState.pageSize));
 
     // Delete all known filter param keys first
-    const knownFilterKeys = ['status', 'assignedUserId', 'assignedVendorId', 'areaId', 'noBudget'];
+    const knownFilterKeys = ['status', 'assignedUserId', 'assignedVendorId', 'areaId', 'noBudget', 'startDate', 'endDate'];
     for (const key of knownFilterKeys) {
       params.delete(key);
     }
@@ -255,6 +255,7 @@ export function WorkItemsPage() {
         filterType: 'enum',
         filterParamKey: 'areaId',
         enumOptions: areas.map((a) => ({ value: a.id, label: a.name })),
+        enumHierarchy: areas.map((a) => ({ id: a.id, parentId: a.parentId ?? null })),
         render: (item) => item.area?.name || '—',
       },
       {
@@ -263,6 +264,9 @@ export function WorkItemsPage() {
         sortable: true,
         sortKey: 'start_date',
         defaultVisible: true,
+        filterable: true,
+        filterType: 'date',
+        filterParamKey: 'startDate',
         render: (item) => formatDate(item.startDate),
       },
       {
@@ -271,6 +275,9 @@ export function WorkItemsPage() {
         sortable: true,
         sortKey: 'end_date',
         defaultVisible: true,
+        filterable: true,
+        filterType: 'date',
+        filterParamKey: 'endDate',
         render: (item) => formatDate(item.endDate),
       },
       {

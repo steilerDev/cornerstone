@@ -178,6 +178,12 @@
   cursor: pointer;
 }
 
+.filterCheckboxIndented {
+  padding-left: calc(var(--spacing-2) + 24px);
+  font-weight: var(--font-weight-normal);
+  opacity: 0.9;
+}
+
 .filterQuickActions {
   display: flex;
   gap: var(--spacing-2);
