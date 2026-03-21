@@ -19,8 +19,6 @@ jobs:
     if: >-
       (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA')
       || (github.event_name == 'pull_request_target' && github.event.pull_request.base.ref == 'beta')
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Generate app token
         id: app-token
@@ -30,8 +28,7 @@ jobs:
           private-key: ${{ secrets.BOT_PRIVATE_KEY }}
       - uses: contributor-assistant/github-action@ca4a40a7d1004f18d9960b404b97e5f30a505a08 # v2.6.1
         env:
-          GITHUB_TOKEN: ${{ github.token }}
-          INPUT_GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PERSONAL_ACCESS_TOKEN: ${{ steps.app-token.outputs.token }}
         with:
           remote-organization-name: steilerDev
@@ -47,4 +44,4 @@ jobs:
             To sign, please comment on this PR with:<br/>
             **I have read the CLA Document and I hereby sign the CLA**
           custom-pr-sign-comment: 'I have read the CLA Document and I hereby sign the CLA'
-          signed-commit-message: 'chore: record CLA signature for $contributorName (#$pullRequestNo) [skip ci]'
+          signed-commit-message: 'chore: record CLA signature for $contributorName [skip ci]'
