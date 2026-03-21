@@ -20,9 +20,6 @@ jest.unstable_mockModule('../../hooks/useColumnPreferences.js', () => ({
 import type * as DataTableModule from './DataTable.js';
 
 let DataTable: (typeof DataTableModule)['DataTable'];
-type ColumnDef<T> = (typeof DataTableModule)['ColumnDef'] extends never
-  ? never
-  : DataTableModule.ColumnDef<T>;
 type TableState = DataTableModule.TableState;
 
 const COLUMNS: DataTableModule.ColumnDef<TestItem>[] = [
@@ -70,7 +67,7 @@ function renderDataTable({
   tableState?: TableState;
   onStateChange?: jest.Mock;
   onRowClick?: jest.Mock;
-  emptyState?: { message: string; description?: string };
+  emptyState?: { message: string; description?: string; action?: { label: string; onClick: () => void } };
 } = {}) {
   return render(
     <DataTable<TestItem>

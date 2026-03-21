@@ -2,8 +2,8 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 
 // Mock the usePreferences hook that useColumnPreferences depends on
-const mockUpsert = jest.fn<() => Promise<void>>();
-const mockRemove = jest.fn<() => Promise<void>>();
+const mockUpsert = jest.fn<(key: string, value: string) => Promise<void>>();
+const mockRemove = jest.fn<(key: string) => Promise<void>>();
 const mockRefresh = jest.fn();
 const mockUsePreferences = jest.fn();
 
