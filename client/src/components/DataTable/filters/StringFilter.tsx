@@ -10,54 +10,29 @@ export interface StringFilterProps {
 
 /**
  * Text input filter for DataTable
+ * Auto-applies on input change
  */
 export function StringFilter({ value, onChange, placeholder = 'Filter...' }: StringFilterProps) {
   const { t } = useTranslation('common');
-  const [input, setInput] = useState(value);
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setInput(e.target.value);
-  }, []);
-
-  const handleApply = useCallback(() => {
-    onChange(input);
-  }, [input, onChange]);
-
-  const handleClear = useCallback(() => {
-    setInput('');
-    onChange('');
-  }, [onChange]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') {
-        handleApply();
-      }
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      // Auto-apply on every keystroke
+      onChange(e.target.value);
     },
-    [handleApply],
+    [onChange],
   );
 
   return (
     <div className={styles.filterContent}>
       <input
         type="text"
-        value={input}
+        value={value}
         onChange={handleChange}
-        onKeyDown={handleKeyDown}
         placeholder={placeholder}
         className={styles.filterInput}
         autoFocus
       />
-      <div className={styles.filterActions}>
-        <button type="button" className={styles.filterButton} onClick={handleApply}>
-          {t('dataTable.filter.applyFilter')}
-        </button>
-        {value && (
-          <button type="button" className={styles.filterButtonSecondary} onClick={handleClear}>
-            {t('dataTable.filter.clearFilter')}
-          </button>
-        )}
-      </div>
     </div>
   );
 }

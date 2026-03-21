@@ -10,6 +10,7 @@ export interface DateFilterProps {
 /**
  * From/to date range filter for DataTable
  * Stores as "from:YYYY-MM-DD,to:YYYY-MM-DD" format
+ * Auto-applies on date input change
  */
 export function DateFilter({ value, onChange }: DateFilterProps) {
   const { t } = useTranslation('common');
@@ -24,18 +25,31 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
   const [localFrom, setLocalFrom] = useState(from);
   const [localTo, setLocalTo] = useState(to);
 
-  const handleApply = useCallback(() => {
-    const parts = [];
-    if (localFrom) parts.push(`from:${localFrom}`);
-    if (localTo) parts.push(`to:${localTo}`);
-    onChange(parts.join(','));
-  }, [localFrom, localTo, onChange]);
+  const emitChange = useCallback(
+    (newFrom: string, newTo: string) => {
+      const parts = [];
+      if (newFrom) parts.push(`from:${newFrom}`);
+      if (newTo) parts.push(`to:${newTo}`);
+      onChange(parts.join(','));
+    },
+    [onChange],
+  );
 
-  const handleClear = useCallback(() => {
-    setLocalFrom('');
-    setLocalTo('');
-    onChange('');
-  }, [onChange]);
+  const handleFromChange = useCallback(
+    (newFrom: string) => {
+      setLocalFrom(newFrom);
+      emitChange(newFrom, localTo);
+    },
+    [localTo, emitChange],
+  );
+
+  const handleToChange = useCallback(
+    (newTo: string) => {
+      setLocalTo(newTo);
+      emitChange(localFrom, newTo);
+    },
+    [localFrom, emitChange],
+  );
 
   return (
     <div className={styles.filterContent}>
@@ -44,7 +58,7 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
         <input
           type="date"
           value={localFrom}
-          onChange={(e) => setLocalFrom(e.target.value)}
+          onChange={(e) => handleFromChange(e.target.value)}
           className={styles.filterDateInput}
           autoFocus
         />
@@ -54,19 +68,9 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
         <input
           type="date"
           value={localTo}
-          onChange={(e) => setLocalTo(e.target.value)}
+          onChange={(e) => handleToChange(e.target.value)}
           className={styles.filterDateInput}
         />
-      </div>
-      <div className={styles.filterActions}>
-        <button type="button" className={styles.filterButton} onClick={handleApply}>
-          {t('dataTable.filter.applyFilter')}
-        </button>
-        {value && (
-          <button type="button" className={styles.filterButtonSecondary} onClick={handleClear}>
-            {t('dataTable.filter.clearFilter')}
-          </button>
-        )}
       </div>
     </div>
   );

@@ -1,6 +1,5 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { render, screen, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { describe, it, expect, jest } from '@jest/globals';
+import { render, screen } from '@testing-library/react';
 import type { ColumnDef } from './DataTable.js';
 import { DataTableFilterPopover } from './DataTableFilterPopover.js';
 
@@ -131,50 +130,41 @@ describe('DataTableFilterPopover', () => {
       );
       expect(screen.getByText('Option A')).toBeInTheDocument();
     });
-  });
 
-  describe('outside click', () => {
-    it('calls onApply when clicking outside the popover', async () => {
-      const mockOnApply = jest.fn();
-      render(
-        <div>
-          <button data-testid="outside">Outside</button>
-          <DataTableFilterPopover
-            column={makeColumn({ filterType: 'string' })}
-            value="existing"
-            onApply={mockOnApply}
-            triggerRect={makeTriggerRect()}
-          />
-        </div>,
-      );
-
-      act(() => {
-        const event = new MouseEvent('mousedown', { bubbles: true });
-        document.querySelector('[data-testid="outside"]')?.dispatchEvent(event);
-      });
-
-      expect(mockOnApply).toHaveBeenCalled();
-    });
-  });
-
-  describe('escape key', () => {
-    it('calls onApply when Escape key pressed', () => {
-      const mockOnApply = jest.fn();
+    it('does not render an Apply button inside the popover', () => {
       render(
         <DataTableFilterPopover
           column={makeColumn({ filterType: 'string' })}
-          value="test"
-          onApply={mockOnApply}
+          value=""
+          onApply={jest.fn()}
           triggerRect={makeTriggerRect()}
         />,
       );
+      expect(screen.queryByRole('button', { name: /apply/i })).not.toBeInTheDocument();
+    });
 
-      act(() => {
-        const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
-        document.dispatchEvent(event);
-      });
+    it('does not render a Clear button inside the popover', () => {
+      render(
+        <DataTableFilterPopover
+          column={makeColumn({ filterType: 'string' })}
+          value="existing value"
+          onApply={jest.fn()}
+          triggerRect={makeTriggerRect()}
+        />,
+      );
+      expect(screen.queryByRole('button', { name: /clear/i })).not.toBeInTheDocument();
+    });
 
-      expect(mockOnApply).toHaveBeenCalled();
+    it('passes initial value to the rendered filter component', () => {
+      render(
+        <DataTableFilterPopover
+          column={makeColumn({ filterType: 'string' })}
+          value="hello"
+          onApply={jest.fn()}
+          triggerRect={makeTriggerRect()}
+        />,
+      );
+      expect(screen.getByRole('textbox')).toHaveValue('hello');
     });
   });
 

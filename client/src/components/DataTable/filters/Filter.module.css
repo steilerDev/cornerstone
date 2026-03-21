@@ -143,10 +143,18 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background-color var(--transition-normal);
+  /* Override default label styles */
+  margin: 0;
+  padding: var(--spacing-1-5) var(--spacing-2);
 }
 
 .filterCheckboxItem:hover {
   background-color: var(--color-bg-secondary);
+}
+
+.filterCheckboxItem:has(input:focus-visible) {
+  outline: none;
+  box-shadow: var(--shadow-focus-subtle);
 }
 
 .filterCheckbox {

@@ -200,9 +200,15 @@ describe('DataTable', () => {
       expect(mockAction).toHaveBeenCalledTimes(1);
     });
 
-    it('does not render table when items are empty', () => {
+    it('renders table header even when items are empty', () => {
       const { container } = renderDataTable({ items: [] });
-      expect(container.querySelector('tbody')).not.toBeInTheDocument();
+      expect(container.querySelector('thead')).toBeInTheDocument();
+    });
+
+    it('does not render table rows when items are empty', () => {
+      const { container } = renderDataTable({ items: [] });
+      expect(container.querySelector('tbody')).toBeInTheDocument();
+      expect(container.querySelectorAll('tbody tr')).toHaveLength(0);
     });
   });
 

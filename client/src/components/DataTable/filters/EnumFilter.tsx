@@ -12,6 +12,7 @@ export interface EnumFilterProps {
 /**
  * Checkbox list filter for enum/select values
  * Stores as comma-separated values
+ * Auto-applies on checkbox change
  */
 export function EnumFilter({ value, onChange, options }: EnumFilterProps) {
   const { t } = useTranslation('common');
@@ -19,35 +20,34 @@ export function EnumFilter({ value, onChange, options }: EnumFilterProps) {
   const parseValue = (v: string) => new Set(v ? v.split(',') : []);
   const [selected, setSelected] = useState(parseValue(value));
 
-  const handleToggle = useCallback((optionValue: string) => {
-    setSelected((prev) => {
-      const updated = new Set(prev);
-      if (updated.has(optionValue)) {
-        updated.delete(optionValue);
-      } else {
-        updated.add(optionValue);
-      }
-      return updated;
-    });
-  }, []);
-
-  const handleApply = useCallback(() => {
-    const joined = Array.from(selected).join(',');
-    onChange(joined);
-  }, [selected, onChange]);
-
-  const handleClear = useCallback(() => {
-    setSelected(new Set());
-    onChange('');
-  }, [onChange]);
+  const handleToggle = useCallback(
+    (optionValue: string) => {
+      setSelected((prev) => {
+        const updated = new Set(prev);
+        if (updated.has(optionValue)) {
+          updated.delete(optionValue);
+        } else {
+          updated.add(optionValue);
+        }
+        // Auto-apply by calling onChange immediately
+        const joined = Array.from(updated).join(',');
+        onChange(joined);
+        return updated;
+      });
+    },
+    [onChange],
+  );
 
   const handleSelectAll = useCallback(() => {
-    setSelected(new Set(options.map((opt) => opt.value)));
-  }, [options]);
+    const allValues = options.map((opt) => opt.value);
+    setSelected(new Set(allValues));
+    onChange(allValues.join(','));
+  }, [options, onChange]);
 
   const handleSelectNone = useCallback(() => {
     setSelected(new Set());
-  }, []);
+    onChange('');
+  }, [onChange]);
 
   return (
     <div className={styles.filterContent}>
@@ -61,33 +61,21 @@ export function EnumFilter({ value, onChange, options }: EnumFilterProps) {
       </div>
       <div className={styles.filterCheckboxGroup}>
         {options.map((option) => (
-          <div
+          <label
             key={option.value}
             className={styles.filterCheckboxItem}
-            onClick={() => handleToggle(option.value)}
+            htmlFor={`enum-${option.value}`}
           >
             <input
               type="checkbox"
               checked={selected.has(option.value)}
-              onChange={() => {}}
+              onChange={() => handleToggle(option.value)}
               className={styles.filterCheckbox}
               id={`enum-${option.value}`}
             />
-            <label htmlFor={`enum-${option.value}`} className={styles.filterCheckboxLabel}>
-              {option.label}
-            </label>
-          </div>
+            <span className={styles.filterCheckboxLabel}>{option.label}</span>
+          </label>
         ))}
-      </div>
-      <div className={styles.filterActions}>
-        <button type="button" className={styles.filterButton} onClick={handleApply}>
-          {t('dataTable.filter.applyFilter')}
-        </button>
-        {value && (
-          <button type="button" className={styles.filterButtonSecondary} onClick={handleClear}>
-            {t('dataTable.filter.clearFilter')}
-          </button>
-        )}
       </div>
     </div>
   );

@@ -255,44 +255,19 @@ export function DataTable<T>({
         {customFilters && <div className={styles.toolbarRow}>{customFilters}</div>}
       </div>
 
-      {/* Content: table or cards or empty state */}
-      {items.length === 0 ? (
-        <EmptyState
-          message={emptyState?.message || t('dataTable.empty.defaultMessage')}
-          description={emptyState?.description}
-          action={emptyState?.action}
-        />
-      ) : (
-        <>
-          {/* Desktop Table */}
-          <div className={styles.tableContainer}>
-            <table className={styles.table}>
-              <DataTableHeader<T>
-                columns={columns}
-                visibleColumns={visibleColumns}
-                tableState={tableState}
-                onSort={handleSort}
-                onFilter={handleFilter}
-              />
-              <tbody>
-                {items.map((item) => (
-                  <DataTableRow<T>
-                    key={getRowKey(item)}
-                    item={item}
-                    columns={columns}
-                    visibleColumns={visibleColumns}
-                    onClick={() => onRowClick?.(item)}
-                    renderActions={renderActions ? () => renderActions(item) : undefined}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile Cards */}
-          <div className={styles.cardsContainer}>
+      {/* Desktop Table — always show header */}
+      <div className={styles.tableContainer}>
+        <table className={styles.table}>
+          <DataTableHeader<T>
+            columns={columns}
+            visibleColumns={visibleColumns}
+            tableState={tableState}
+            onSort={handleSort}
+            onFilter={handleFilter}
+          />
+          <tbody>
             {items.map((item) => (
-              <DataTableCard<T>
+              <DataTableRow<T>
                 key={getRowKey(item)}
                 item={item}
                 columns={columns}
@@ -301,8 +276,38 @@ export function DataTable<T>({
                 renderActions={renderActions ? () => renderActions(item) : undefined}
               />
             ))}
-          </div>
-        </>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Empty state or mobile cards */}
+      {items.length === 0 ? (
+        <EmptyState
+          message={
+            hasActiveFilters
+              ? t('dataTable.empty.filteredMessage')
+              : emptyState?.message || t('dataTable.empty.defaultMessage')
+          }
+          description={!hasActiveFilters ? emptyState?.description : undefined}
+          action={
+            hasActiveFilters
+              ? { label: t('button.clearFilters'), onClick: handleResetFilters }
+              : emptyState?.action
+          }
+        />
+      ) : (
+        <div className={styles.cardsContainer}>
+          {items.map((item) => (
+            <DataTableCard<T>
+              key={getRowKey(item)}
+              item={item}
+              columns={columns}
+              visibleColumns={visibleColumns}
+              onClick={() => onRowClick?.(item)}
+              renderActions={renderActions ? () => renderActions(item) : undefined}
+            />
+          ))}
+        </div>
       )}
 
       {/* Pagination */}
