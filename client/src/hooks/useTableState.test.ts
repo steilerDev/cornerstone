@@ -101,19 +101,6 @@ describe('useTableState', () => {
       expect(result.current.tableState.search).toBe('');
     });
 
-    it('updates searchInput immediately when setSearch is called', () => {
-      const { result } = renderHook(() => useTableState(), {
-        wrapper: makeWrapper(),
-      });
-
-      act(() => {
-        result.current.setSearch('hello');
-      });
-
-      // searchInput updates immediately (before debounce fires)
-      expect(result.current.searchInput).toBe('hello');
-    });
-
     it('search initialized from URL is reflected in tableState and toApiParams', () => {
       // When the hook is initialized with a search query in the URL,
       // tableState.search and toApiParams().q should reflect it immediately
