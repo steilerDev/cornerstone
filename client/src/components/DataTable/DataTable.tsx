@@ -297,6 +297,7 @@ export function DataTable<T>({
             tableState={tableState}
             onSort={handleSort}
             onFilter={handleFilter}
+            hasActions={!!renderActions}
           />
           <tbody>
             {items.map((item) => (

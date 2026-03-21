@@ -10,6 +10,7 @@ export interface DataTableHeaderProps<T> {
   tableState: TableState;
   onSort: (columnKey: string, columnSortKey?: string) => void;
   onFilter: (paramKey: string, value: string | null) => void;
+  hasActions?: boolean;
 }
 
 /**
@@ -21,6 +22,7 @@ export function DataTableHeader<T>({
   tableState,
   onSort,
   onFilter,
+  hasActions,
 }: DataTableHeaderProps<T>) {
   const { t } = useTranslation('common');
   const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(null);
@@ -110,6 +112,7 @@ export function DataTableHeader<T>({
               )}
           </th>
         ))}
+        {hasActions && <th className={styles.tableHeader}>{t('common.actions')}</th>}
       </tr>
     </thead>
   );

@@ -422,8 +422,6 @@ export function HouseholdItemsPage() {
 
       <ProjectSubNav />
 
-      <h2 className={styles.sectionTitle}>{t('table.sectionTitle')}</h2>
-
       <DataTable<HouseholdItemSummary>
         pageKey="householdItems"
         columns={columns}

@@ -85,6 +85,29 @@ export function InvoicesPage() {
   // Form ref for submit button in modal
   const formRef = useRef<HTMLFormElement>(null);
 
+  // Actions menu state
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
+  // Close action menu on outside click and Escape key
+  useEffect(() => {
+    if (!activeMenuId) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(`.${styles.actionsMenu}`)) {
+        setActiveMenuId(null);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setActiveMenuId(null);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [activeMenuId]);
+
   // Load invoices when table state changes
   useEffect(() => {
     void loadInvoices();
@@ -347,6 +370,40 @@ export function InvoicesPage() {
     [t, formatDate, formatCurrency, invoiceStatusVariants, vendors],
   );
 
+  // Render actions menu
+  const renderActions = (invoice: Invoice) => (
+    <div className={styles.actionsMenu}>
+      <button
+        type="button"
+        className={styles.menuButton}
+        onClick={() =>
+          setActiveMenuId(activeMenuId === invoice.id ? null : invoice.id)
+        }
+        aria-label={t('invoices.actions.menuAriaLabel', {
+          number: invoice.invoiceNumber || 'Invoice',
+        })}
+        data-testid={`invoice-menu-button-${invoice.id}`}
+      >
+        ⋮
+      </button>
+      {activeMenuId === invoice.id && (
+        <div className={styles.menuDropdown}>
+          <button
+            type="button"
+            className={styles.menuItem}
+            onClick={() => {
+              navigate(`/budget/invoices/${invoice.id}`);
+              setActiveMenuId(null);
+            }}
+            data-testid={`invoice-view-${invoice.id}`}
+          >
+            {t('invoices.buttons.view')}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   // Summary cards as headerContent
   const headerContent = (
     <div className={styles.summaryGrid}>
@@ -401,6 +458,7 @@ export function InvoicesPage() {
         error={error}
         getRowKey={(inv) => inv.id}
         onRowClick={(inv) => navigate(`/budget/invoices/${inv.id}`)}
+        renderActions={renderActions}
         tableState={tableState}
         onStateChange={handleStateChange}
         headerContent={headerContent}
