@@ -207,9 +207,10 @@ describe('useColumnPreferences', () => {
       });
 
       expect(mockUpsert).toHaveBeenCalledWith('table.test-page.columns', expect.any(String));
-      const savedValue = JSON.parse(
-        (mockUpsert.mock.calls[0] as [string, string])[1],
-      ) as { visible: string[]; order: string[] };
+      const savedValue = JSON.parse((mockUpsert.mock.calls[0] as [string, string])[1]) as {
+        visible: string[];
+        order: string[];
+      };
       expect(savedValue.visible).toContain('id');
     });
   });
@@ -252,9 +253,10 @@ describe('useColumnPreferences', () => {
       });
 
       expect(mockUpsert).toHaveBeenCalledWith('table.test-page.columns', expect.any(String));
-      const savedValue = JSON.parse(
-        (mockUpsert.mock.calls[0] as [string, string])[1],
-      ) as { visible: string[]; order: string[] };
+      const savedValue = JSON.parse((mockUpsert.mock.calls[0] as [string, string])[1]) as {
+        visible: string[];
+        order: string[];
+      };
       expect(savedValue.visible).toContain('title');
       expect(savedValue.visible).toContain('amount');
       expect(savedValue.visible).not.toContain('id');

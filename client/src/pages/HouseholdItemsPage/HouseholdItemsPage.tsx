@@ -114,7 +114,15 @@ export function HouseholdItemsPage() {
     params.set('pageSize', String(newState.pageSize));
 
     // Delete all known filter param keys first
-    const knownFilterKeys = ['category', 'status', 'vendorId', 'areaId', 'noBudget', 'targetDelivery', 'actualDelivery'];
+    const knownFilterKeys = [
+      'category',
+      'status',
+      'vendorId',
+      'areaId',
+      'noBudget',
+      'targetDelivery',
+      'actualDelivery',
+    ];
     for (const key of knownFilterKeys) {
       params.delete(key);
     }

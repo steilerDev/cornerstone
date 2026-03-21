@@ -126,7 +126,15 @@ export function WorkItemsPage() {
     params.set('pageSize', String(newState.pageSize));
 
     // Delete all known filter param keys first
-    const knownFilterKeys = ['status', 'assignedUserId', 'assignedVendorId', 'areaId', 'noBudget', 'startDate', 'endDate'];
+    const knownFilterKeys = [
+      'status',
+      'assignedUserId',
+      'assignedVendorId',
+      'areaId',
+      'noBudget',
+      'startDate',
+      'endDate',
+    ];
     for (const key of knownFilterKeys) {
       params.delete(key);
     }
