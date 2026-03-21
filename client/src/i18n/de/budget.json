@@ -571,7 +571,9 @@
       "amount": "Betrag",
       "allocated": "Zugeordnet",
       "dueDate": "Fälligkeitsdatum",
-      "status": "Status"
+      "status": "Status",
+      "notes": "Notizen",
+      "remainingAmount": "Verbleibender Betrag"
     },
     "form": {
       "vendor": "Auftragnehmer",

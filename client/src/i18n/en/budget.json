@@ -391,7 +391,9 @@
       "amount": "Amount",
       "allocated": "Allocated",
       "dueDate": "Due Date",
-      "status": "Status"
+      "status": "Status",
+      "notes": "Notes",
+      "remainingAmount": "Remaining Amount"
     },
     "form": {
       "vendor": "Vendor",
