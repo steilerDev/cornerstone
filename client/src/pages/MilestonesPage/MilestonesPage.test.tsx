@@ -142,6 +142,10 @@ const ALL_COLUMN_KEYS = ['title', 'targetDate', 'status', 'workItemCount', 'desc
 describe('MilestonesPage', () => {
   let MilestonesPage: React.ComponentType;
 
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   beforeEach(async () => {
     if (!MilestonesPage) {
       const mod = await import('./MilestonesPage.js');
@@ -511,11 +515,9 @@ describe('MilestonesPage', () => {
       // Capture shortcuts passed to useKeyboardShortcuts
       let capturedShortcuts: { key: string; handler: () => void; description: string }[] = [];
 
-      mockUseKeyboardShortcuts.mockImplementation(
-        (shortcuts: { key: string; handler: () => void; description: string }[]) => {
-          capturedShortcuts = shortcuts;
-        },
-      );
+      mockUseKeyboardShortcuts.mockImplementation((...args: unknown[]) => {
+        capturedShortcuts = args[0] as { key: string; handler: () => void; description: string }[];
+      });
 
       mockListMilestones.mockResolvedValue(SAMPLE_MILESTONES);
 
