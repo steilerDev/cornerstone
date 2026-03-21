@@ -97,6 +97,30 @@
   color: var(--color-status-not-started-text);
 }
 
+/* Role badge: Admin */
+.roleAdmin {
+  background-color: var(--color-role-admin-bg);
+  color: var(--color-role-admin-text);
+}
+
+/* Role badge: Member */
+.roleMember {
+  background-color: var(--color-role-member-bg);
+  color: var(--color-role-member-text);
+}
+
+/* User status badge: Active */
+.userActive {
+  background-color: var(--color-user-active-bg);
+  color: var(--color-user-active-text);
+}
+
+/* User status badge: Deactivated/Inactive */
+.userDeactivated {
+  background-color: var(--color-user-inactive-bg);
+  color: var(--color-user-inactive-text);
+}
+
 /* Responsive */
 @media (max-width: 767px) {
   .badge {
