@@ -67,7 +67,11 @@ function renderDataTable({
   tableState?: TableState;
   onStateChange?: jest.Mock;
   onRowClick?: jest.Mock;
-  emptyState?: { message: string; description?: string; action?: { label: string; onClick: () => void } };
+  emptyState?: {
+    message: string;
+    description?: string;
+    action?: { label: string; onClick: () => void };
+  };
 } = {}) {
   return render(
     <DataTable<TestItem>
@@ -323,9 +327,7 @@ describe('DataTable', () => {
   describe('column settings integration', () => {
     it('renders column settings gear button', () => {
       renderDataTable();
-      expect(
-        screen.getByRole('button', { name: /column settings/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /column settings/i })).toBeInTheDocument();
     });
   });
 });

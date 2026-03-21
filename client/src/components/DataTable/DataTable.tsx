@@ -142,10 +142,7 @@ export function DataTable<T>({
   const { t } = useTranslation('common');
 
   // Load column visibility preferences
-  const { visibleColumns, toggleColumn, resetToDefaults } = useColumnPreferences(
-    pageKey,
-    columns,
-  );
+  const { visibleColumns, toggleColumn, resetToDefaults } = useColumnPreferences(pageKey, columns);
 
   const handleSearch = (query: string) => {
     const newState = { ...tableState, search: query, page: 1 };
@@ -217,7 +214,11 @@ export function DataTable<T>({
 
   return (
     <div className={`${styles.dataTableContainer} ${className || ''}`}>
-      {error && <div className={styles.errorBanner} role="alert">{error}</div>}
+      {error && (
+        <div className={styles.errorBanner} role="alert">
+          {error}
+        </div>
+      )}
 
       {/* Header content slot */}
       {headerContent}
@@ -237,11 +238,7 @@ export function DataTable<T>({
           </div>
           <div className={styles.toolbarButtons}>
             {hasActiveFilters && (
-              <button
-                type="button"
-                className={styles.resetButton}
-                onClick={handleResetFilters}
-              >
+              <button type="button" className={styles.resetButton} onClick={handleResetFilters}>
                 {t('button.clearFilters')}
               </button>
             )}

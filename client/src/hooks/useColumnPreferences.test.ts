@@ -21,7 +21,12 @@ interface TestItem {
   amount: number;
 }
 
-const COLUMNS: Array<{ key: string; label: string; defaultVisible?: boolean; render: () => string }> = [
+const COLUMNS: Array<{
+  key: string;
+  label: string;
+  defaultVisible?: boolean;
+  render: () => string;
+}> = [
   { key: 'title', label: 'Title', defaultVisible: true, render: () => '' },
   { key: 'amount', label: 'Amount', defaultVisible: true, render: () => '' },
   { key: 'id', label: 'ID', defaultVisible: false, render: () => '' },
@@ -43,7 +48,8 @@ function makeUsePreferencesResult(preferences = [] as ReturnType<typeof makePref
 }
 
 beforeEach(async () => {
-  ({ useColumnPreferences } = (await import('./useColumnPreferences.js')) as typeof UseColumnPreferencesModule);
+  ({ useColumnPreferences } =
+    (await import('./useColumnPreferences.js')) as typeof UseColumnPreferencesModule);
   mockUsePreferences.mockReset();
   mockUpsert.mockReset();
   mockUsePreferences.mockReturnValue(makeUsePreferencesResult());
@@ -57,9 +63,7 @@ afterEach(() => {
 describe('useColumnPreferences', () => {
   describe('initial state from defaults', () => {
     it('initializes visibleColumns from columns with defaultVisible !== false', () => {
-      const { result } = renderHook(() =>
-        useColumnPreferences('test-page', COLUMNS as any),
-      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
 
       expect(result.current.visibleColumns.has('title')).toBe(true);
       expect(result.current.visibleColumns.has('amount')).toBe(true);
@@ -71,18 +75,14 @@ describe('useColumnPreferences', () => {
         { key: 'name', label: 'Name', render: () => '' }, // no defaultVisible
         { key: 'hidden', label: 'Hidden', defaultVisible: false, render: () => '' },
       ];
-      const { result } = renderHook(() =>
-        useColumnPreferences('test-page', columns as any),
-      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', columns as any));
 
       expect(result.current.visibleColumns.has('name')).toBe(true);
       expect(result.current.visibleColumns.has('hidden')).toBe(false);
     });
 
     it('returns isLoaded=true immediately (preferences available synchronously)', () => {
-      const { result } = renderHook(() =>
-        useColumnPreferences('test-page', COLUMNS as any),
-      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
       expect(result.current.isLoaded).toBe(true);
     });
   });
@@ -95,9 +95,7 @@ describe('useColumnPreferences', () => {
         ]),
       );
 
-      const { result } = renderHook(() =>
-        useColumnPreferences('test-page', COLUMNS as any),
-      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
 
       await waitFor(() => {
         expect(result.current.visibleColumns.has('title')).toBe(true);
@@ -109,9 +107,7 @@ describe('useColumnPreferences', () => {
     it('falls back to defaults when no matching preference exists', async () => {
       mockUsePreferences.mockReturnValue(makeUsePreferencesResult([]));
 
-      const { result } = renderHook(() =>
-        useColumnPreferences('test-page', COLUMNS as any),
-      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
 
       await waitFor(() => {
         expect(result.current.visibleColumns.has('title')).toBe(true);
@@ -122,14 +118,10 @@ describe('useColumnPreferences', () => {
 
     it('falls back to defaults when stored JSON is invalid', async () => {
       mockUsePreferences.mockReturnValue(
-        makeUsePreferencesResult([
-          makePreference('table.test-page.columns', 'not-valid-json{{{'),
-        ]),
+        makeUsePreferencesResult([makePreference('table.test-page.columns', 'not-valid-json{{{')]),
       );
 
-      const { result } = renderHook(() =>
-        useColumnPreferences('test-page', COLUMNS as any),
-      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
 
       await waitFor(() => {
         // Should use defaults when JSON parse fails
@@ -146,9 +138,7 @@ describe('useColumnPreferences', () => {
         ]),
       );
 
-      const { result } = renderHook(() =>
-        useColumnPreferences('test-page', COLUMNS as any),
-      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
 
       await waitFor(() => {
         // Should use the 'test-page' key, not 'invoices'
@@ -161,9 +151,7 @@ describe('useColumnPreferences', () => {
   describe('toggleColumn', () => {
     it('removes a visible column from visibleColumns', async () => {
       jest.useFakeTimers();
-      const { result } = renderHook(() =>
-        useColumnPreferences('test-page', COLUMNS as any),
-      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
 
       act(() => {
         result.current.toggleColumn('title');
@@ -174,9 +162,7 @@ describe('useColumnPreferences', () => {
 
     it('adds a hidden column to visibleColumns', () => {
       jest.useFakeTimers();
-      const { result } = renderHook(() =>
-        useColumnPreferences('test-page', COLUMNS as any),
-      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
 
       act(() => {
         result.current.toggleColumn('id'); // id is hidden by default
@@ -187,9 +173,7 @@ describe('useColumnPreferences', () => {
 
     it('debounces upsert — rapid toggles result in one upsert call', async () => {
       jest.useFakeTimers();
-      const { result } = renderHook(() =>
-        useColumnPreferences('test-page', COLUMNS as any),
-      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
 
       act(() => {
         result.current.toggleColumn('title');
@@ -212,9 +196,7 @@ describe('useColumnPreferences', () => {
 
     it('saves updated visible columns as JSON after debounce', async () => {
       jest.useFakeTimers();
-      const { result } = renderHook(() =>
-        useColumnPreferences('test-page', COLUMNS as any),
-      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
 
       act(() => {
         result.current.toggleColumn('id'); // add id to visible
@@ -224,13 +206,8 @@ describe('useColumnPreferences', () => {
         jest.advanceTimersByTime(500);
       });
 
-      expect(mockUpsert).toHaveBeenCalledWith(
-        'table.test-page.columns',
-        expect.any(String),
-      );
-      const savedValue = JSON.parse(
-        (mockUpsert.mock.calls[0] as [string, string])[1],
-      ) as string[];
+      expect(mockUpsert).toHaveBeenCalledWith('table.test-page.columns', expect.any(String));
+      const savedValue = JSON.parse((mockUpsert.mock.calls[0] as [string, string])[1]) as string[];
       expect(savedValue).toContain('id');
     });
   });
@@ -245,9 +222,7 @@ describe('useColumnPreferences', () => {
         ]),
       );
 
-      const { result } = renderHook(() =>
-        useColumnPreferences('test-page', COLUMNS as any),
-      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
 
       await waitFor(() => {
         expect(result.current.visibleColumns.has('title')).toBe(false);
@@ -264,9 +239,7 @@ describe('useColumnPreferences', () => {
 
     it('saves defaults to preferences after debounce', async () => {
       jest.useFakeTimers();
-      const { result } = renderHook(() =>
-        useColumnPreferences('test-page', COLUMNS as any),
-      );
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
 
       act(() => {
         result.current.resetToDefaults();
@@ -276,13 +249,8 @@ describe('useColumnPreferences', () => {
         jest.advanceTimersByTime(500);
       });
 
-      expect(mockUpsert).toHaveBeenCalledWith(
-        'table.test-page.columns',
-        expect.any(String),
-      );
-      const savedValue = JSON.parse(
-        (mockUpsert.mock.calls[0] as [string, string])[1],
-      ) as string[];
+      expect(mockUpsert).toHaveBeenCalledWith('table.test-page.columns', expect.any(String));
+      const savedValue = JSON.parse((mockUpsert.mock.calls[0] as [string, string])[1]) as string[];
       expect(savedValue).toContain('title');
       expect(savedValue).toContain('amount');
       expect(savedValue).not.toContain('id');

@@ -74,9 +74,7 @@ export function DataTableHeader<T>({
                   }`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setActiveFilterColumn(
-                      activeFilterColumn === col.key ? null : col.key,
-                    );
+                    setActiveFilterColumn(activeFilterColumn === col.key ? null : col.key);
                   }}
                   aria-label={t('dataTable.filter.filterByColumn', { column: col.label })}
                   title={t('dataTable.filter.filterByColumn', { column: col.label })}

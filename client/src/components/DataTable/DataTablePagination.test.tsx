@@ -52,10 +52,7 @@ describe('DataTablePagination', () => {
 
     it('marks current page button with aria-current="page"', () => {
       renderPagination({ totalPages: 3, currentPage: 2 });
-      expect(screen.getByRole('button', { name: '2' })).toHaveAttribute(
-        'aria-current',
-        'page',
-      );
+      expect(screen.getByRole('button', { name: '2' })).toHaveAttribute('aria-current', 'page');
     });
 
     it('does not mark other pages with aria-current', () => {

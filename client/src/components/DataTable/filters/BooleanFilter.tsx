@@ -23,7 +23,11 @@ export function BooleanFilter({ value, onChange }: BooleanFilterProps) {
 
   return (
     <div className={styles.filterContent}>
-      <div className={styles.filterSegmentedControl} role="group" aria-label={t('dataTable.filter.booleanAriaLabel')}>
+      <div
+        className={styles.filterSegmentedControl}
+        role="group"
+        aria-label={t('dataTable.filter.booleanAriaLabel')}
+      >
         <button
           type="button"
           className={`${styles.filterSegmentedButton} ${

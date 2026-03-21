@@ -41,23 +41,23 @@ describe('DataTableColumnSettings', () => {
   describe('trigger button', () => {
     it('renders a gear/settings button', () => {
       renderSettings();
-      expect(
-        screen.getByRole('button', { name: /column settings/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /column settings/i })).toBeInTheDocument();
     });
 
     it('button has aria-expanded="false" initially', () => {
       renderSettings();
-      expect(
-        screen.getByRole('button', { name: /column settings/i }),
-      ).toHaveAttribute('aria-expanded', 'false');
+      expect(screen.getByRole('button', { name: /column settings/i })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
     });
 
     it('button has aria-haspopup="dialog"', () => {
       renderSettings();
-      expect(
-        screen.getByRole('button', { name: /column settings/i }),
-      ).toHaveAttribute('aria-haspopup', 'dialog');
+      expect(screen.getByRole('button', { name: /column settings/i })).toHaveAttribute(
+        'aria-haspopup',
+        'dialog',
+      );
     });
   });
 
@@ -78,9 +78,10 @@ describe('DataTableColumnSettings', () => {
       const user = userEvent.setup();
       renderSettings();
       await user.click(screen.getByRole('button', { name: /column settings/i }));
-      expect(
-        screen.getByRole('button', { name: /column settings/i }),
-      ).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByRole('button', { name: /column settings/i })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      );
     });
 
     it('hides popover after clicking trigger button again', async () => {
@@ -168,9 +169,7 @@ describe('DataTableColumnSettings', () => {
       const user = userEvent.setup();
       renderSettings();
       await user.click(screen.getByRole('button', { name: /column settings/i }));
-      expect(
-        screen.getByRole('button', { name: /reset to defaults/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /reset to defaults/i })).toBeInTheDocument();
     });
 
     it('calls onResetToDefaults when reset button clicked', async () => {

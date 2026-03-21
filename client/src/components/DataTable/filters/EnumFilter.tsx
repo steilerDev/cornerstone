@@ -19,20 +19,17 @@ export function EnumFilter({ value, onChange, options }: EnumFilterProps) {
   const parseValue = (v: string) => new Set(v ? v.split(',') : []);
   const [selected, setSelected] = useState(parseValue(value));
 
-  const handleToggle = useCallback(
-    (optionValue: string) => {
-      setSelected((prev) => {
-        const updated = new Set(prev);
-        if (updated.has(optionValue)) {
-          updated.delete(optionValue);
-        } else {
-          updated.add(optionValue);
-        }
-        return updated;
-      });
-    },
-    [],
-  );
+  const handleToggle = useCallback((optionValue: string) => {
+    setSelected((prev) => {
+      const updated = new Set(prev);
+      if (updated.has(optionValue)) {
+        updated.delete(optionValue);
+      } else {
+        updated.add(optionValue);
+      }
+      return updated;
+    });
+  }, []);
 
   const handleApply = useCallback(() => {
     const joined = Array.from(selected).join(',');
@@ -67,19 +64,11 @@ export function EnumFilter({ value, onChange, options }: EnumFilterProps) {
         ))}
       </div>
       <div className={styles.filterActions}>
-        <button
-          type="button"
-          className={styles.filterButton}
-          onClick={handleApply}
-        >
+        <button type="button" className={styles.filterButton} onClick={handleApply}>
           {t('dataTable.filter.applyFilter')}
         </button>
         {value && (
-          <button
-            type="button"
-            className={styles.filterButtonSecondary}
-            onClick={handleClear}
-          >
+          <button type="button" className={styles.filterButtonSecondary} onClick={handleClear}>
             {t('dataTable.filter.clearFilter')}
           </button>
         )}

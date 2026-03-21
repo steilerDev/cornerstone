@@ -61,19 +61,11 @@ export function NumberFilter({ value, onChange }: NumberFilterProps) {
         />
       </div>
       <div className={styles.filterActions}>
-        <button
-          type="button"
-          className={styles.filterButton}
-          onClick={handleApply}
-        >
+        <button type="button" className={styles.filterButton} onClick={handleApply}>
           {t('dataTable.filter.applyFilter')}
         </button>
         {value && (
-          <button
-            type="button"
-            className={styles.filterButtonSecondary}
-            onClick={handleClear}
-          >
+          <button type="button" className={styles.filterButtonSecondary} onClick={handleClear}>
             {t('dataTable.filter.clearFilter')}
           </button>
         )}

@@ -81,11 +81,7 @@ export function DataTableFilterPopover<T>({
       case 'enum':
         return (
           column.enumOptions && (
-            <EnumFilter
-              value={localValue}
-              onChange={setLocalValue}
-              options={column.enumOptions}
-            />
+            <EnumFilter value={localValue} onChange={setLocalValue} options={column.enumOptions} />
           )
         );
       case 'boolean':

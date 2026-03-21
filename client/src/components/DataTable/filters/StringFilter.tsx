@@ -11,20 +11,13 @@ export interface StringFilterProps {
 /**
  * Text input filter for DataTable
  */
-export function StringFilter({
-  value,
-  onChange,
-  placeholder = 'Filter...',
-}: StringFilterProps) {
+export function StringFilter({ value, onChange, placeholder = 'Filter...' }: StringFilterProps) {
   const { t } = useTranslation('common');
   const [input, setInput] = useState(value);
 
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setInput(e.target.value);
-    },
-    [],
-  );
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
+  }, []);
 
   const handleApply = useCallback(() => {
     onChange(input);
@@ -56,19 +49,11 @@ export function StringFilter({
         autoFocus
       />
       <div className={styles.filterActions}>
-        <button
-          type="button"
-          className={styles.filterButton}
-          onClick={handleApply}
-        >
+        <button type="button" className={styles.filterButton} onClick={handleApply}>
           {t('dataTable.filter.applyFilter')}
         </button>
         {value && (
-          <button
-            type="button"
-            className={styles.filterButtonSecondary}
-            onClick={handleClear}
-          >
+          <button type="button" className={styles.filterButtonSecondary} onClick={handleClear}>
             {t('dataTable.filter.clearFilter')}
           </button>
         )}

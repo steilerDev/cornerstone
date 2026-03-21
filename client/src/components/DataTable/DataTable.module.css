@@ -82,7 +82,9 @@
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   cursor: pointer;
-  transition: background-color var(--transition-normal), color var(--transition-normal);
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal);
   min-width: 44px;
   min-height: 44px;
   display: flex;
@@ -257,7 +259,10 @@
   border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
   cursor: pointer;
-  transition: background-color var(--transition-normal), color var(--transition-normal), border-color var(--transition-normal);
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal),
+    border-color var(--transition-normal);
   flex-shrink: 0;
 }
 
@@ -338,7 +343,9 @@
   box-shadow: var(--shadow-sm);
   padding: var(--spacing-4);
   cursor: pointer;
-  transition: box-shadow var(--transition-normal), border-color var(--transition-normal);
+  transition:
+    box-shadow var(--transition-normal),
+    border-color var(--transition-normal);
 }
 
 .card:hover {
@@ -477,7 +484,9 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: background-color var(--transition-normal), color var(--transition-normal);
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal);
   min-width: 44px;
   min-height: 44px;
 }

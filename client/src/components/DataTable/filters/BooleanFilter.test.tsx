@@ -21,50 +21,32 @@ describe('BooleanFilter', () => {
   describe('aria-pressed state', () => {
     it('All button has aria-pressed="true" when value is empty string', () => {
       render(<BooleanFilter value="" onChange={jest.fn()} />);
-      expect(screen.getByRole('button', { name: /all/i })).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      );
+      expect(screen.getByRole('button', { name: /all/i })).toHaveAttribute('aria-pressed', 'true');
     });
 
     it('Yes button has aria-pressed="true" when value is "true"', () => {
       render(<BooleanFilter value="true" onChange={jest.fn()} />);
-      expect(screen.getByRole('button', { name: /yes/i })).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      );
+      expect(screen.getByRole('button', { name: /yes/i })).toHaveAttribute('aria-pressed', 'true');
     });
 
     it('No button has aria-pressed="true" when value is "false"', () => {
       render(<BooleanFilter value="false" onChange={jest.fn()} />);
-      expect(screen.getByRole('button', { name: /no/i })).toHaveAttribute(
-        'aria-pressed',
-        'true',
-      );
+      expect(screen.getByRole('button', { name: /no/i })).toHaveAttribute('aria-pressed', 'true');
     });
 
     it('All button has aria-pressed="false" when value is "true"', () => {
       render(<BooleanFilter value="true" onChange={jest.fn()} />);
-      expect(screen.getByRole('button', { name: /all/i })).toHaveAttribute(
-        'aria-pressed',
-        'false',
-      );
+      expect(screen.getByRole('button', { name: /all/i })).toHaveAttribute('aria-pressed', 'false');
     });
 
     it('Yes button has aria-pressed="false" when value is "false"', () => {
       render(<BooleanFilter value="false" onChange={jest.fn()} />);
-      expect(screen.getByRole('button', { name: /yes/i })).toHaveAttribute(
-        'aria-pressed',
-        'false',
-      );
+      expect(screen.getByRole('button', { name: /yes/i })).toHaveAttribute('aria-pressed', 'false');
     });
 
     it('No button has aria-pressed="false" when value is "true"', () => {
       render(<BooleanFilter value="true" onChange={jest.fn()} />);
-      expect(screen.getByRole('button', { name: /no/i })).toHaveAttribute(
-        'aria-pressed',
-        'false',
-      );
+      expect(screen.getByRole('button', { name: /no/i })).toHaveAttribute('aria-pressed', 'false');
     });
   });
 

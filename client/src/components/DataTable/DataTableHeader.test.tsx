@@ -203,9 +203,7 @@ describe('DataTableHeader', () => {
   describe('filter button', () => {
     it('shows filter button for filterable column with filterParamKey and filterType', () => {
       renderHeader();
-      expect(
-        screen.getByRole('button', { name: /filter by title/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /filter by title/i })).toBeInTheDocument();
     });
 
     it('filter button click stops propagation and does not trigger sort', async () => {
