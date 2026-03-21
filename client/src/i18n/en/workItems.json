@@ -48,6 +48,8 @@
       "title": "Title",
       "status": "Status",
       "assignedTo": "Assigned To",
+      "vendor": "Vendor",
+      "area": "Area",
       "startDate": "Start Date",
       "endDate": "End Date",
       "tags": "Tags",

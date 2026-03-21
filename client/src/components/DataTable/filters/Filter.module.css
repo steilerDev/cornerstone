@@ -170,6 +170,36 @@
   cursor: pointer;
 }
 
+.filterQuickActions {
+  display: flex;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-1);
+}
+
+.filterQuickActionButton {
+  flex: 1;
+  padding: var(--spacing-1) var(--spacing-2);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal);
+}
+
+.filterQuickActionButton:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.filterQuickActionButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
 .filterSegmentedControl {
   display: flex;
   gap: 0;
@@ -211,6 +241,19 @@
   box-shadow: inset var(--shadow-focus-subtle);
 }
 
+.filterRangeSlider {
+  width: 100%;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  height: 4px;
+  margin: var(--spacing-1) 0;
+}
+
+.filterRangeSlider:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .filterInput,
   .filterDateInput,
@@ -218,7 +261,8 @@
   .filterButton,
   .filterButtonSecondary,
   .filterCheckboxItem,
-  .filterSegmentedButton {
+  .filterSegmentedButton,
+  .filterQuickActionButton {
     transition: none;
   }
 }

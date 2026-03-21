@@ -146,7 +146,7 @@ export function InvoicesPage() {
     params.set('pageSize', String(newState.pageSize));
 
     // Delete all known filter param keys first
-    const knownFilterKeys = ['status'];
+    const knownFilterKeys = ['status', 'vendorId'];
     for (const key of knownFilterKeys) {
       params.delete(key);
     }
@@ -266,6 +266,10 @@ export function InvoicesPage() {
         sortable: true,
         sortKey: 'vendor_name',
         defaultVisible: true,
+        filterable: true,
+        filterType: 'enum',
+        filterParamKey: 'vendorId',
+        enumOptions: vendors.map((v) => ({ value: v.id, label: v.name })),
         render: (inv) => (
           <Link to={`/budget/vendors/${inv.vendorId}`} className={styles.vendorLink}>
             {inv.vendorName}
@@ -337,7 +341,7 @@ export function InvoicesPage() {
         render: (inv) => formatCurrency(calculateRemaining(inv)),
       },
     ],
-    [t, formatDate, formatCurrency, invoiceStatusVariants],
+    [t, formatDate, formatCurrency, invoiceStatusVariants, vendors],
   );
 
   // Summary cards as headerContent

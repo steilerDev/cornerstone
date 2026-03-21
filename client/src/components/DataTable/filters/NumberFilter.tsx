@@ -50,6 +50,15 @@ export function NumberFilter({ value, onChange }: NumberFilterProps) {
           autoFocus
         />
       </div>
+      <input
+        type="range"
+        value={localMin || '0'}
+        onChange={(e) => setLocalMin(e.target.value)}
+        className={styles.filterRangeSlider}
+        min="0"
+        max="999999"
+        aria-label={t('dataTable.filter.min')}
+      />
       <div className={styles.filterRangeRow}>
         <label className={styles.filterRangeLabel}>{t('dataTable.filter.max')}</label>
         <input
@@ -60,6 +69,15 @@ export function NumberFilter({ value, onChange }: NumberFilterProps) {
           className={styles.filterRangeInput}
         />
       </div>
+      <input
+        type="range"
+        value={localMax || '999999'}
+        onChange={(e) => setLocalMax(e.target.value)}
+        className={styles.filterRangeSlider}
+        min="0"
+        max="999999"
+        aria-label={t('dataTable.filter.max')}
+      />
       <div className={styles.filterActions}>
         <button type="button" className={styles.filterButton} onClick={handleApply}>
           {t('dataTable.filter.applyFilter')}

@@ -79,7 +79,16 @@ export function DataTableHeader<T>({
                   aria-label={t('dataTable.filter.filterByColumn', { column: col.label })}
                   title={t('dataTable.filter.filterByColumn', { column: col.label })}
                 >
-                  🔽
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 12 12"
+                    fill="currentColor"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path d="M0.75 1.5h10.5L7.5 6v4.5L4.5 9V6L0.75 1.5z" />
+                  </svg>
                 </button>
               )}
             </div>

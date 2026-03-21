@@ -229,7 +229,33 @@ export function WorkItemsPage() {
         label: t('list.table.assignedTo'),
         sortable: false,
         defaultVisible: true,
+        filterable: true,
+        filterType: 'enum',
+        filterParamKey: 'assignedUserId',
+        enumOptions: users.map((u) => ({ value: u.id, label: u.displayName })),
         render: (item) => item.assignedUser?.displayName || '—',
+      },
+      {
+        key: 'vendor',
+        label: t('list.table.vendor'),
+        sortable: false,
+        defaultVisible: false,
+        filterable: true,
+        filterType: 'enum',
+        filterParamKey: 'assignedVendorId',
+        enumOptions: vendors.map((v) => ({ value: v.id, label: v.name })),
+        render: (item) => item.assignedVendor?.name || '—',
+      },
+      {
+        key: 'area',
+        label: t('list.table.area'),
+        sortable: false,
+        defaultVisible: false,
+        filterable: true,
+        filterType: 'enum',
+        filterParamKey: 'areaId',
+        enumOptions: areas.map((a) => ({ value: a.id, label: a.name })),
+        render: (item) => item.area?.name || '—',
       },
       {
         key: 'startDate',
@@ -255,7 +281,7 @@ export function WorkItemsPage() {
         render: (item) => item.budgetLineCount,
       },
     ],
-    [t, formatDate, wiStatusVariants],
+    [t, formatDate, wiStatusVariants, users, vendors, areas],
   );
 
   // Close action menu on outside click and Escape key
@@ -319,66 +345,9 @@ export function WorkItemsPage() {
     </div>
   );
 
-  // Custom filters: assignedUserId, assignedVendorId, areaId, noBudget
+  // Custom filters: noBudget (vendor, assignedTo, and area now use column-level enum filters)
   const customFilters = (
     <div className={styles.customFiltersRow}>
-      <div className={styles.customFilter}>
-        <label htmlFor="user-filter" className={styles.customFilterLabel}>
-          {t('list.filters.assignedTo')}
-        </label>
-        <select
-          id="user-filter"
-          value={tableState.filters.get('assignedUserId')?.value || ''}
-          onChange={(e) => setFilter('assignedUserId', e.target.value || null)}
-          className={styles.customFilterSelect}
-        >
-          <option value="">{t('list.filters.allUsers')}</option>
-          {users.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.displayName}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className={styles.customFilter}>
-        <label htmlFor="vendor-filter" className={styles.customFilterLabel}>
-          {t('list.filters.assignedVendor')}
-        </label>
-        <select
-          id="vendor-filter"
-          value={tableState.filters.get('assignedVendorId')?.value || ''}
-          onChange={(e) => setFilter('assignedVendorId', e.target.value || null)}
-          className={styles.customFilterSelect}
-        >
-          <option value="">{t('list.filters.allVendors')}</option>
-          {vendors.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className={styles.customFilter}>
-        <label htmlFor="area-filter" className={styles.customFilterLabel}>
-          {t('list.filters.area')}
-        </label>
-        <select
-          id="area-filter"
-          value={tableState.filters.get('areaId')?.value || ''}
-          onChange={(e) => setFilter('areaId', e.target.value || null)}
-          className={styles.customFilterSelect}
-        >
-          <option value="">{t('list.filters.allAreas')}</option>
-          {areas.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
       <button
         type="button"
         className={`${styles.noBudgetToggle} ${
