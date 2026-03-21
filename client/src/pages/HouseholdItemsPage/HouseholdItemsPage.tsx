@@ -52,9 +52,7 @@ export function HouseholdItemsPage() {
           fetchHouseholdItemCategories(),
         ]);
         setVendors(vendorsResponse.vendors.map((v) => ({ id: v.id, name: v.name })));
-        setCategories(
-          categoriesResponse.categories.map((c) => ({ id: c.id, name: c.name })),
-        );
+        setCategories(categoriesResponse.categories.map((c) => ({ id: c.id, name: c.name })));
       } catch (err) {
         console.error('Failed to load vendors or categories:', err);
       }
@@ -331,10 +329,7 @@ export function HouseholdItemsPage() {
           tableState.filters.get('noBudget')?.value ? styles.noBudgetToggleActive : ''
         }`}
         onClick={() =>
-          setFilter(
-            'noBudget',
-            tableState.filters.get('noBudget')?.value ? null : 'true',
-          )
+          setFilter('noBudget', tableState.filters.get('noBudget')?.value ? null : 'true')
         }
         aria-pressed={!!tableState.filters.get('noBudget')?.value}
         aria-label={t('filters.noBudgetAriaLabel')}
