@@ -1,4 +1,4 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
@@ -112,12 +112,10 @@ describe('useTableState', () => {
       });
 
       await act(async () => {
-        jest.advanceTimersByTime(300);
+        await jest.runAllTimersAsync();
       });
 
-      await waitFor(() => {
-        expect(result.current.tableState.search).toBe('hello');
-      });
+      expect(result.current.tableState.search).toBe('hello');
     });
 
     it('resets page to 1 when search changes after debounce', async () => {
@@ -131,12 +129,10 @@ describe('useTableState', () => {
       });
 
       await act(async () => {
-        jest.advanceTimersByTime(300);
+        await jest.runAllTimersAsync();
       });
 
-      await waitFor(() => {
-        expect(result.current.tableState.page).toBe(1);
-      });
+      expect(result.current.tableState.page).toBe(1);
     });
   });
 
