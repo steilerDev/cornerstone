@@ -276,6 +276,12 @@
   box-shadow: var(--shadow-focus);
 }
 
+.tableHeaderFilterButton svg {
+  display: block;
+  width: 12px;
+  height: 12px;
+}
+
 .tableHeaderFilterButtonActive {
   background-color: var(--color-primary-bg);
   color: var(--color-primary);

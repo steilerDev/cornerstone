@@ -48,6 +48,8 @@
       "title": "Titel",
       "status": "Status",
       "assignedTo": "Zugewiesen an",
+      "vendor": "Auftragnehmer",
+      "area": "Bereich",
       "startDate": "Startdatum",
       "endDate": "Enddatum",
       "tags": "Tags",

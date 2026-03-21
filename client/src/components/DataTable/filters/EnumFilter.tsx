@@ -41,8 +41,24 @@ export function EnumFilter({ value, onChange, options }: EnumFilterProps) {
     onChange('');
   }, [onChange]);
 
+  const handleSelectAll = useCallback(() => {
+    setSelected(new Set(options.map((opt) => opt.value)));
+  }, [options]);
+
+  const handleSelectNone = useCallback(() => {
+    setSelected(new Set());
+  }, []);
+
   return (
     <div className={styles.filterContent}>
+      <div className={styles.filterQuickActions}>
+        <button type="button" className={styles.filterQuickActionButton} onClick={handleSelectAll}>
+          {t('dataTable.filter.selectAll')}
+        </button>
+        <button type="button" className={styles.filterQuickActionButton} onClick={handleSelectNone}>
+          {t('dataTable.filter.selectNone')}
+        </button>
+      </div>
       <div className={styles.filterCheckboxGroup}>
         {options.map((option) => (
           <div

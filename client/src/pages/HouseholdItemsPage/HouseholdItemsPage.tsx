@@ -232,6 +232,10 @@ export function HouseholdItemsPage() {
         label: t('table.headers.area'),
         sortable: false,
         defaultVisible: true,
+        filterable: true,
+        filterType: 'enum',
+        filterParamKey: 'areaId',
+        enumOptions: areas.map((a) => ({ value: a.id, label: a.name })),
         render: (item) => item.area?.name || '—',
       },
       {
@@ -239,6 +243,10 @@ export function HouseholdItemsPage() {
         label: t('table.headers.vendor'),
         sortable: false,
         defaultVisible: true,
+        filterable: true,
+        filterType: 'enum',
+        filterParamKey: 'vendorId',
+        enumOptions: vendors.map((v) => ({ value: v.id, label: v.name })),
         render: (item) => item.vendor?.name || '—',
       },
       {
@@ -272,7 +280,7 @@ export function HouseholdItemsPage() {
         render: (item) => item.budgetLineCount,
       },
     ],
-    [t, categories, formatCurrency, formatDate, hiStatusVariants],
+    [t, categories, formatCurrency, formatDate, hiStatusVariants, vendors, areas],
   );
 
   // Close action menu on outside click and Escape key
@@ -336,47 +344,9 @@ export function HouseholdItemsPage() {
     </div>
   );
 
-  // Custom filters: vendor, area, noBudget
+  // Custom filters: noBudget (vendor and area now use column-level enum filters)
   const customFilters = (
     <div className={styles.customFiltersRow}>
-      <div className={styles.customFilter}>
-        <label htmlFor="vendor-filter" className={styles.customFilterLabel}>
-          {t('filters.vendor')}
-        </label>
-        <select
-          id="vendor-filter"
-          value={tableState.filters.get('vendorId')?.value || ''}
-          onChange={(e) => setFilter('vendorId', e.target.value || null)}
-          className={styles.customFilterSelect}
-        >
-          <option value="">{t('filters.allVendors')}</option>
-          {vendors.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className={styles.customFilter}>
-        <label htmlFor="area-filter" className={styles.customFilterLabel}>
-          {t('filters.area')}
-        </label>
-        <select
-          id="area-filter"
-          value={tableState.filters.get('areaId')?.value || ''}
-          onChange={(e) => setFilter('areaId', e.target.value || null)}
-          className={styles.customFilterSelect}
-        >
-          <option value="">{t('filters.allAreas')}</option>
-          {areas.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
       <button
         type="button"
         className={`${styles.noBudgetToggle} ${

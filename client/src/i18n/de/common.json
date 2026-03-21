@@ -128,7 +128,9 @@
       "filterByColumn": "Nach {{column}} filtern",
       "textPlaceholder": "Suchen...",
       "searchPlaceholder": "Suchen...",
-      "booleanAriaLabel": "Boolesche Filteroption"
+      "booleanAriaLabel": "Boolesche Filteroption",
+      "selectAll": "Alle auswählen",
+      "selectNone": "Keine auswählen"
     },
     "sort": {
       "ascending": "Aufsteigend sortieren",
