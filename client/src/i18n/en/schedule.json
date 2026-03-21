@@ -146,6 +146,7 @@
         "targetDate": "Target Date",
         "status": "Status",
         "description": "Description",
+        "linkedItems": "Linked Items",
         "actions": "Actions"
       }
     },
