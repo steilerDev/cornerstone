@@ -1,4 +1,4 @@
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
@@ -101,7 +101,7 @@ describe('useTableState', () => {
       expect(result.current.tableState.search).toBe('');
     });
 
-    it('updates tableState.search after debounce fires (300ms)', () => {
+    it('updates tableState.search after debounce fires (300ms)', async () => {
       jest.useFakeTimers();
       const { result } = renderHook(() => useTableState({ searchDebounceMs: 300 }), {
         wrapper: makeWrapper(),
@@ -109,13 +109,18 @@ describe('useTableState', () => {
 
       act(() => {
         result.current.setSearch('hello');
+      });
+
+      await act(async () => {
         jest.advanceTimersByTime(300);
       });
 
-      expect(result.current.tableState.search).toBe('hello');
+      await waitFor(() => {
+        expect(result.current.tableState.search).toBe('hello');
+      });
     });
 
-    it('resets page to 1 when search changes after debounce', () => {
+    it('resets page to 1 when search changes after debounce', async () => {
       jest.useFakeTimers();
       const { result } = renderHook(() => useTableState(), {
         wrapper: makeWrapper(['/?page=3']),
@@ -123,10 +128,15 @@ describe('useTableState', () => {
 
       act(() => {
         result.current.setSearch('new search');
+      });
+
+      await act(async () => {
         jest.advanceTimersByTime(300);
       });
 
-      expect(result.current.tableState.page).toBe(1);
+      await waitFor(() => {
+        expect(result.current.tableState.page).toBe(1);
+      });
     });
   });
 

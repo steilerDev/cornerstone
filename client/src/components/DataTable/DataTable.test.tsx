@@ -1,5 +1,5 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 interface TestItem {
@@ -252,11 +252,10 @@ describe('DataTable', () => {
       expect(screen.getByRole('searchbox')).toHaveValue('my search');
     });
 
-    it('calls onStateChange with new search when input changes', async () => {
-      const user = userEvent.setup();
+    it('calls onStateChange with new search when input changes', () => {
       const mockOnStateChange = jest.fn();
       renderDataTable({ onStateChange: mockOnStateChange });
-      await user.type(screen.getByRole('searchbox'), 'hello');
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'hello' } });
       expect(mockOnStateChange).toHaveBeenCalled();
       const calls = mockOnStateChange.mock.calls as [TableState][];
       const lastCall = calls[calls.length - 1];
