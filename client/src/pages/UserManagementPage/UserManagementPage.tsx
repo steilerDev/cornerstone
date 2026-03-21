@@ -223,27 +223,33 @@ export function UserManagementPage() {
   };
 
   // Badge variants
-  const roleVariants = useMemo((): BadgeVariantMap => ({
-    admin: {
-      label: t('userManagement.roles.admin'),
-      className: badgeStyles.roleAdmin,
-    },
-    member: {
-      label: t('userManagement.roles.member'),
-      className: badgeStyles.roleMember,
-    },
-  }), [t]);
+  const roleVariants = useMemo(
+    (): BadgeVariantMap => ({
+      admin: {
+        label: t('userManagement.roles.admin'),
+        className: badgeStyles.roleAdmin,
+      },
+      member: {
+        label: t('userManagement.roles.member'),
+        className: badgeStyles.roleMember,
+      },
+    }),
+    [t],
+  );
 
-  const statusVariants = useMemo((): BadgeVariantMap => ({
-    active: {
-      label: t('userManagement.status.active'),
-      className: badgeStyles.userActive,
-    },
-    deactivated: {
-      label: t('userManagement.status.deactivated'),
-      className: badgeStyles.userDeactivated,
-    },
-  }), [t]);
+  const statusVariants = useMemo(
+    (): BadgeVariantMap => ({
+      active: {
+        label: t('userManagement.status.active'),
+        className: badgeStyles.userActive,
+      },
+      deactivated: {
+        label: t('userManagement.status.deactivated'),
+        className: badgeStyles.userDeactivated,
+      },
+    }),
+    [t],
+  );
 
   // Client-side filtering and sorting
   const filtered = useMemo(() => {
@@ -305,74 +311,77 @@ export function UserManagementPage() {
   }, [users, tableState]);
 
   // Column definitions
-  const columns = useMemo((): ColumnDef<UserResponse>[] => [
-    {
-      key: 'displayName',
-      label: t('userManagement.tableHeaders.name'),
-      sortable: true,
-      filterable: false,
-      defaultVisible: true,
-      render: (u) => u.displayName,
-    },
-    {
-      key: 'email',
-      label: t('userManagement.tableHeaders.email'),
-      sortable: true,
-      filterable: false,
-      defaultVisible: true,
-      render: (u) => u.email,
-    },
-    {
-      key: 'role',
-      label: t('userManagement.tableHeaders.role'),
-      sortable: true,
-      filterable: true,
-      filterType: 'enum',
-      filterParamKey: 'role',
-      enumOptions: [
-        { value: 'admin', label: t('userManagement.roles.admin') },
-        { value: 'member', label: t('userManagement.roles.member') },
-      ],
-      defaultVisible: true,
-      render: (u) => <Badge variants={roleVariants} value={u.role} />,
-    },
-    {
-      key: 'createdAt',
-      label: t('userManagement.tableHeaders.memberSince'),
-      sortable: true,
-      filterable: false,
-      defaultVisible: true,
-      render: (u) => formatDate(u.createdAt),
-    },
-    {
-      key: 'authProvider',
-      label: t('userManagement.tableHeaders.authProvider'),
-      sortable: false,
-      filterable: false,
-      defaultVisible: false,
-      render: (u) =>
-        u.authProvider === 'local'
-          ? t('userManagement.authProviders.local')
-          : t('userManagement.authProviders.oidc'),
-    },
-    {
-      key: 'status',
-      label: t('userManagement.tableHeaders.status'),
-      sortable: true,
-      sortKey: 'deactivatedAt',
-      filterable: true,
-      filterType: 'enum',
-      filterParamKey: 'status',
-      enumOptions: [
-        { value: 'active', label: t('userManagement.status.active') },
-        { value: 'deactivated', label: t('userManagement.status.deactivated') },
-      ],
-      defaultVisible: true,
-      render: (u) => (
-        <Badge variants={statusVariants} value={!u.deactivatedAt ? 'active' : 'deactivated'} />
-      ),
-    },
-  ], [t, formatDate, roleVariants, statusVariants]);
+  const columns = useMemo(
+    (): ColumnDef<UserResponse>[] => [
+      {
+        key: 'displayName',
+        label: t('userManagement.tableHeaders.name'),
+        sortable: true,
+        filterable: false,
+        defaultVisible: true,
+        render: (u) => u.displayName,
+      },
+      {
+        key: 'email',
+        label: t('userManagement.tableHeaders.email'),
+        sortable: true,
+        filterable: false,
+        defaultVisible: true,
+        render: (u) => u.email,
+      },
+      {
+        key: 'role',
+        label: t('userManagement.tableHeaders.role'),
+        sortable: true,
+        filterable: true,
+        filterType: 'enum',
+        filterParamKey: 'role',
+        enumOptions: [
+          { value: 'admin', label: t('userManagement.roles.admin') },
+          { value: 'member', label: t('userManagement.roles.member') },
+        ],
+        defaultVisible: true,
+        render: (u) => <Badge variants={roleVariants} value={u.role} />,
+      },
+      {
+        key: 'createdAt',
+        label: t('userManagement.tableHeaders.memberSince'),
+        sortable: true,
+        filterable: false,
+        defaultVisible: true,
+        render: (u) => formatDate(u.createdAt),
+      },
+      {
+        key: 'authProvider',
+        label: t('userManagement.tableHeaders.authProvider'),
+        sortable: false,
+        filterable: false,
+        defaultVisible: false,
+        render: (u) =>
+          u.authProvider === 'local'
+            ? t('userManagement.authProviders.local')
+            : t('userManagement.authProviders.oidc'),
+      },
+      {
+        key: 'status',
+        label: t('userManagement.tableHeaders.status'),
+        sortable: true,
+        sortKey: 'deactivatedAt',
+        filterable: true,
+        filterType: 'enum',
+        filterParamKey: 'status',
+        enumOptions: [
+          { value: 'active', label: t('userManagement.status.active') },
+          { value: 'deactivated', label: t('userManagement.status.deactivated') },
+        ],
+        defaultVisible: true,
+        render: (u) => (
+          <Badge variants={statusVariants} value={!u.deactivatedAt ? 'active' : 'deactivated'} />
+        ),
+      },
+    ],
+    [t, formatDate, roleVariants, statusVariants],
+  );
 
   // Render actions menu
   const renderActions = (user: UserResponse) => {
@@ -459,9 +468,7 @@ export function UserManagementPage() {
                 type="text"
                 id="editDisplayName"
                 value={editFormData.displayName}
-                onChange={(e) =>
-                  setEditFormData({ ...editFormData, displayName: e.target.value })
-                }
+                onChange={(e) => setEditFormData({ ...editFormData, displayName: e.target.value })}
                 className={sharedStyles.input}
                 maxLength={100}
                 disabled={isUpdating}
