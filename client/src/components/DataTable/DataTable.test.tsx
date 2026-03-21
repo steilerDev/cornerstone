@@ -10,6 +10,7 @@ interface TestItem {
 
 // Mock useColumnPreferences to return all columns as visible by default
 const mockToggleColumn = jest.fn();
+const mockMoveColumn = jest.fn();
 const mockResetToDefaults = jest.fn();
 const mockUseColumnPreferences = jest.fn();
 
@@ -96,11 +97,14 @@ beforeEach(async () => {
   ({ DataTable } = (await import('./DataTable.js')) as typeof DataTableModule);
   mockUseColumnPreferences.mockReturnValue({
     visibleColumns: new Set(COLUMNS.map((c) => c.key)),
+    columnOrder: COLUMNS.map((c) => c.key),
     isLoaded: true,
     toggleColumn: mockToggleColumn,
+    moveColumn: mockMoveColumn,
     resetToDefaults: mockResetToDefaults,
   });
   mockToggleColumn.mockReset();
+  mockMoveColumn.mockReset();
   mockResetToDefaults.mockReset();
 });
 
