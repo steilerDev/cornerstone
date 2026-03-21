@@ -29,7 +29,7 @@ export function VendorsPage() {
   const [totalPages, setTotalPages] = useState(1);
 
   // Table state management with URL sync
-  const { tableState, searchInput, setSearch, toApiParams } = useTableState({
+  const { tableState, searchInput, setSearch, toApiParams, setFilter } = useTableState({
     defaultPageSize: 25,
   });
   const [searchParams, setSearchParams] = useSearchParams();
@@ -68,6 +68,7 @@ export function VendorsPage() {
     tableState.sortDir,
     tableState.page,
     tableState.pageSize,
+    tableState.filters,
   ]);
 
   const loadVendors = async () => {
@@ -106,6 +107,20 @@ export function VendorsPage() {
     }
     params.set('page', String(newState.page));
     params.set('pageSize', String(newState.pageSize));
+
+    // Delete all known filter param keys first
+    const knownFilterKeys = ['tradeId'];
+    for (const key of knownFilterKeys) {
+      params.delete(key);
+    }
+
+    // Sync filters
+    for (const [paramKey, filter] of newState.filters.entries()) {
+      if (filter.value) {
+        params.set(paramKey, filter.value);
+      }
+    }
+
     setSearchParams(params);
   };
 
@@ -218,6 +233,10 @@ export function VendorsPage() {
         sortable: true,
         sortKey: 'trade',
         defaultVisible: true,
+        filterable: true,
+        filterType: 'enum',
+        filterParamKey: 'tradeId',
+        enumOptions: trades.map((tr) => ({ value: tr.id, label: tr.name })),
         render: (v) => v.trade?.name ?? '—',
       },
       {
@@ -278,7 +297,7 @@ export function VendorsPage() {
         render: (v) => formatDate(v.updatedAt ?? v.createdAt),
       },
     ],
-    [t, formatDate],
+    [t, formatDate, trades],
   );
 
   // Close action menu on outside click and Escape key

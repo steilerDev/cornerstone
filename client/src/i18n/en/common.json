@@ -141,7 +141,8 @@
     "columnSettings": {
       "ariaLabel": "Column settings",
       "title": "Visible columns",
-      "resetToDefaults": "Reset to defaults"
+      "resetToDefaults": "Reset to defaults",
+      "dragHandleAriaLabel": "Drag to reorder {{column}} column"
     },
     "pagination": {
       "showing": "Showing {{from}}–{{to}} of {{total}} items",

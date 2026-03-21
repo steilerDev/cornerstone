@@ -114,7 +114,7 @@ export function HouseholdItemsPage() {
     params.set('pageSize', String(newState.pageSize));
 
     // Delete all known filter param keys first
-    const knownFilterKeys = ['category', 'status', 'vendorId', 'areaId', 'noBudget'];
+    const knownFilterKeys = ['category', 'status', 'vendorId', 'areaId', 'noBudget', 'targetDelivery', 'actualDelivery'];
     for (const key of knownFilterKeys) {
       params.delete(key);
     }
@@ -236,6 +236,7 @@ export function HouseholdItemsPage() {
         filterType: 'enum',
         filterParamKey: 'areaId',
         enumOptions: areas.map((a) => ({ value: a.id, label: a.name })),
+        enumHierarchy: areas.map((a) => ({ id: a.id, parentId: a.parentId ?? null })),
         render: (item) => item.area?.name || '—',
       },
       {
@@ -262,6 +263,9 @@ export function HouseholdItemsPage() {
         sortable: true,
         sortKey: 'target_delivery_date',
         defaultVisible: true,
+        filterable: true,
+        filterType: 'date',
+        filterParamKey: 'targetDelivery',
         render: (item) => formatDate(item.targetDeliveryDate),
       },
       {
@@ -270,6 +274,9 @@ export function HouseholdItemsPage() {
         sortable: true,
         sortKey: 'actual_delivery_date',
         defaultVisible: false,
+        filterable: true,
+        filterType: 'date',
+        filterParamKey: 'actualDelivery',
         render: (item) => (item.actualDeliveryDate ? formatDate(item.actualDeliveryDate) : '—'),
       },
       {
