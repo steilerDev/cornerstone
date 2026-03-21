@@ -106,8 +106,8 @@
 }
 
 .invoiceLink:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--shadow-focus);
   border-radius: var(--radius-sm);
 }
 
@@ -126,8 +126,8 @@
 }
 
 .vendorLink:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--shadow-focus);
   border-radius: var(--radius-sm);
 }
 
@@ -258,7 +258,7 @@
  * RESPONSIVE — Tablet (768px – 1024px)
  * ============================================================ */
 
-@media (min-width: 768px) and (max-width: 1024px) {
+@media (min-width: 768px) and (max-width: 1023px) {
   .container {
     padding: var(--spacing-6);
   }

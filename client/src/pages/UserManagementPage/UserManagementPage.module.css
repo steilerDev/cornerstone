@@ -141,7 +141,7 @@
   }
 }
 
-@media (min-width: 768px) and (max-width: 1024px) {
+@media (min-width: 768px) and (max-width: 1023px) {
   .container {
     padding: var(--spacing-6);
   }

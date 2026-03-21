@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Invoice, CreateInvoiceRequest, InvoiceStatus } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
@@ -244,16 +244,16 @@ export function InvoicesPage() {
         defaultVisible: true,
         render: (inv) =>
           inv.invoiceNumber ? (
-            <a href={`/budget/invoices/${inv.id}`} className={styles.invoiceLink}>
+            <Link to={`/budget/invoices/${inv.id}`} className={styles.invoiceLink}>
               {inv.invoiceNumber}
-            </a>
+            </Link>
           ) : (
-            <a
-              href={`/budget/invoices/${inv.id}`}
+            <Link
+              to={`/budget/invoices/${inv.id}`}
               className={`${styles.invoiceLink} ${styles.invoiceLinkNoNumber}`}
             >
               —
-            </a>
+            </Link>
           ),
       },
       {
@@ -263,9 +263,9 @@ export function InvoicesPage() {
         sortKey: 'vendor_name',
         defaultVisible: true,
         render: (inv) => (
-          <a href={`/budget/vendors/${inv.vendorId}`} className={styles.vendorLink}>
+          <Link to={`/budget/vendors/${inv.vendorId}`} className={styles.vendorLink}>
             {inv.vendorName}
-          </a>
+          </Link>
         ),
       },
       {

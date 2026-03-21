@@ -128,8 +128,8 @@
 }
 
 .itemLink:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--shadow-focus);
   border-radius: var(--radius-sm);
 }
 
@@ -171,7 +171,7 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   min-width: 120px;
-  z-index: 10;
+  z-index: var(--z-dropdown);
 }
 
 .menuItem {
