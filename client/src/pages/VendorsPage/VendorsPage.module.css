@@ -18,6 +18,13 @@
   margin: 0;
 }
 
+.sectionTitle {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-4) 0;
+}
+
 /* ---- Banners ---- */
 
 .errorBanner {

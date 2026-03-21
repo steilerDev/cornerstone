@@ -332,6 +332,8 @@ export function VendorsPage() {
 
       <BudgetSubNav />
 
+      <h2 className={styles.sectionTitle}>{t('vendors.sectionTitle')}</h2>
+
       <DataTable<Vendor>
         pageKey="vendors"
         columns={columns}
