@@ -89,8 +89,8 @@ export function EnumFilter({ value, onChange, options, hierarchy }: EnumFilterPr
   }, [onChange]);
 
   // Sort options: parents first (in order), then their children indented
-  const sortedOptions = (() => {
-    if (!hierarchy) return options;
+  const sortedOptions: Array<{ option: EnumOption; isChild: boolean }> = (() => {
+    if (!hierarchy) return options.map((o) => ({ option: o, isChild: false }));
 
     const result: Array<{ option: EnumOption; isChild: boolean }> = [];
     const optionMap = new Map(options.map((o) => [o.value, o]));
@@ -126,7 +126,7 @@ export function EnumFilter({ value, onChange, options, hierarchy }: EnumFilterPr
     const children = parentToChildren.get(parentId);
     if (!children || children.length === 0) return false;
 
-    const selectedChildren = children.filter((c) => selected.has(c));
+    const selectedChildren = children.filter((c: string) => selected.has(c));
     return selectedChildren.length > 0 && selectedChildren.length < children.length;
   };
 

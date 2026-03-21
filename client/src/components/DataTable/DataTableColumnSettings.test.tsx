@@ -20,11 +20,13 @@ function renderSettings({
   columns = COLUMNS,
   visibleColumns = new Set(['title', 'amount']),
   onToggleColumn = jest.fn(),
+  onMoveColumn = jest.fn(),
   onResetToDefaults = jest.fn(),
 }: {
   columns?: ColumnDef<TestItem>[];
   visibleColumns?: Set<string>;
   onToggleColumn?: jest.Mock;
+  onMoveColumn?: jest.Mock;
   onResetToDefaults?: jest.Mock;
 } = {}) {
   return render(
@@ -32,6 +34,7 @@ function renderSettings({
       columns={columns}
       visibleColumns={visibleColumns}
       onToggleColumn={onToggleColumn}
+      onMoveColumn={onMoveColumn}
       onResetToDefaults={onResetToDefaults}
     />,
   );
