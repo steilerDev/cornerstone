@@ -1,6 +1,7 @@
 {
   "list": {
     "pageTitle": "Project",
+    "sectionTitle": "Work Items",
     "newWorkItem": "New Work Item",
     "loading": "Loading work items...",
     "search": {
