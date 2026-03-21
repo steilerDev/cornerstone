@@ -188,7 +188,7 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
 .filterSegmentedButton:last-child {

@@ -8,6 +8,8 @@ import { DataTableCard } from './DataTableCard.js';
 import { DataTablePagination } from './DataTablePagination.js';
 import { DataTableColumnSettings } from './DataTableColumnSettings.js';
 import { useColumnPreferences } from '../../hooks/useColumnPreferences.js';
+import { Skeleton } from '../Skeleton/Skeleton.js';
+import { EmptyState } from '../EmptyState/EmptyState.js';
 import styles from './DataTable.module.css';
 
 /**
@@ -208,7 +210,7 @@ export function DataTable<T>({
   if (isLoading && items.length === 0) {
     return (
       <div className={`${styles.dataTableContainer} ${className || ''}`}>
-        <div className={styles.loading}>{t('dataTable.loading')}</div>
+        <Skeleton lines={5} loadingLabel={t('dataTable.loading')} />
       </div>
     );
   }
@@ -258,23 +260,11 @@ export function DataTable<T>({
 
       {/* Content: table or cards or empty state */}
       {items.length === 0 ? (
-        <div className={styles.emptyState}>
-          <h2 className={styles.emptyStateHeading}>
-            {emptyState?.message || t('dataTable.empty.defaultMessage')}
-          </h2>
-          {emptyState?.description && (
-            <p className={styles.emptyStateText}>{emptyState.description}</p>
-          )}
-          {emptyState?.action && (
-            <button
-              type="button"
-              className={styles.resetButton}
-              onClick={emptyState.action.onClick}
-            >
-              {emptyState.action.label}
-            </button>
-          )}
-        </div>
+        <EmptyState
+          message={emptyState?.message || t('dataTable.empty.defaultMessage')}
+          description={emptyState?.description}
+          action={emptyState?.action}
+        />
       ) : (
         <>
           {/* Desktop Table */}

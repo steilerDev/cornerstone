@@ -30,3 +30,9 @@ export type { DateFilterProps } from './filters/DateFilter.js';
 export type { EnumFilterProps } from './filters/EnumFilter.js';
 export type { BooleanFilterProps } from './filters/BooleanFilter.js';
 export type { EntityFilterProps } from './filters/EntityFilter.js';
+
+// Hooks
+export { useTableState } from '../../hooks/useTableState.js';
+export { useColumnPreferences } from '../../hooks/useColumnPreferences.js';
+export type { UseTableStateResult, UseTableStateOptions } from '../../hooks/useTableState.js';
+export type { UseColumnPreferencesResult } from '../../hooks/useColumnPreferences.js';

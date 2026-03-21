@@ -23,20 +23,18 @@ export function DataTableCard<T>({
   const visibleCols = columns.filter((col) => visibleColumns.has(col.key));
 
   return (
-    <div className={styles.card} onClick={onClick}>
+    <div className={styles.card} onClick={onClick} tabIndex={onClick ? 0 : -1}>
       <div className={styles.cardHeader}>
         <div className={styles.cardContent}>
           {visibleCols.map((col) => {
             // Use renderCard if available, otherwise use render
-            const content =
-              col.renderCard && col.renderCard(item) !== null && col.renderCard(item) !== undefined
-                ? col.renderCard(item)
-                : col.render(item) ?? '—';
+            const content = col.renderCard ? col.renderCard(item) : col.render(item);
+            if (content === null) return null;
 
             return (
               <div key={col.key} className={styles.cardRow}>
                 <span className={styles.cardLabel}>{col.label}</span>
-                <span className={styles.cardValue}>{content}</span>
+                <span className={styles.cardValue}>{content ?? '—'}</span>
               </div>
             );
           })}

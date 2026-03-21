@@ -28,6 +28,7 @@ export function DataTableRow<T>({
     <tr
       className={`${styles.tableRow} ${isSelected ? styles.tableRowSelected : ''}`}
       onClick={onClick}
+      tabIndex={onClick ? 0 : -1}
     >
       {visibleCols.map((col) => (
         <td key={col.key} className={`${styles.tableCell} ${col.className || ''}`}>
