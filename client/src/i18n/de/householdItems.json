@@ -48,14 +48,18 @@
     "arrived": "Angekommen"
   },
   "table": {
+    "sectionTitle": "Haushaltsartikel",
     "headers": {
       "name": "Name",
       "category": "Kategorie",
       "status": "Status",
+      "area": "Bereich",
       "room": "Raum",
       "vendor": "Auftragnehmer",
       "plannedCost": "Geplante Kosten",
       "targetDelivery": "Ziellieferdatum",
+      "orderDate": "Bestelldatum",
+      "budgetLines": "Budgetpositionen",
       "actions": "Aktionen"
     }
   },
