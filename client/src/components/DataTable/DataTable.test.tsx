@@ -104,7 +104,7 @@ describe('DataTable', () => {
   describe('loading state', () => {
     it('renders loading indicator when isLoading=true and items=[]', () => {
       renderDataTable({ isLoading: true, items: [] });
-      expect(screen.getByText(/loading/i)).toBeInTheDocument();
+      expect(screen.getByRole('status')).toBeInTheDocument();
     });
 
     it('does not render table rows when in loading state with empty items', () => {
