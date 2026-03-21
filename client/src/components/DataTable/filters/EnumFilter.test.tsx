@@ -27,9 +27,9 @@ describe('EnumFilter', () => {
 
     it('pre-checks options that are in the initial value', () => {
       render(<EnumFilter value="active,pending" onChange={jest.fn()} options={OPTIONS} />);
-      expect(screen.getByRole('checkbox', { name: /active/i })).toBeChecked();
-      expect(screen.getByRole('checkbox', { name: /inactive/i })).not.toBeChecked();
-      expect(screen.getByRole('checkbox', { name: /pending/i })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Active' })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Inactive' })).not.toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Pending' })).toBeChecked();
     });
 
     it('renders Apply button', () => {
@@ -52,7 +52,7 @@ describe('EnumFilter', () => {
     it('clicking an unchecked option checks it', async () => {
       const user = userEvent.setup();
       render(<EnumFilter value="" onChange={jest.fn()} options={OPTIONS} />);
-      const activeCheckbox = screen.getByRole('checkbox', { name: /active/i });
+      const activeCheckbox = screen.getByRole('checkbox', { name: 'Active' });
       expect(activeCheckbox).not.toBeChecked();
       await user.click(activeCheckbox);
       expect(activeCheckbox).toBeChecked();
@@ -61,7 +61,7 @@ describe('EnumFilter', () => {
     it('clicking a checked option unchecks it', async () => {
       const user = userEvent.setup();
       render(<EnumFilter value="active" onChange={jest.fn()} options={OPTIONS} />);
-      const activeCheckbox = screen.getByRole('checkbox', { name: /active/i });
+      const activeCheckbox = screen.getByRole('checkbox', { name: 'Active' });
       expect(activeCheckbox).toBeChecked();
       await user.click(activeCheckbox);
       expect(activeCheckbox).not.toBeChecked();
@@ -71,7 +71,7 @@ describe('EnumFilter', () => {
       const user = userEvent.setup();
       const mockOnChange = jest.fn();
       render(<EnumFilter value="" onChange={mockOnChange} options={OPTIONS} />);
-      await user.click(screen.getByRole('checkbox', { name: /active/i }));
+      await user.click(screen.getByRole('checkbox', { name: 'Active' }));
       expect(mockOnChange).not.toHaveBeenCalled();
     });
   });
@@ -81,8 +81,8 @@ describe('EnumFilter', () => {
       const user = userEvent.setup();
       const mockOnChange = jest.fn();
       render(<EnumFilter value="" onChange={mockOnChange} options={OPTIONS} />);
-      await user.click(screen.getByRole('checkbox', { name: /active/i }));
-      await user.click(screen.getByRole('checkbox', { name: /pending/i }));
+      await user.click(screen.getByRole('checkbox', { name: 'Active' }));
+      await user.click(screen.getByRole('checkbox', { name: 'Pending' }));
       await user.click(screen.getByRole('button', { name: /apply/i }));
       // The order depends on Set iteration order (insertion order)
       const callArg = (mockOnChange.mock.calls[0] as [string])[0];
@@ -102,7 +102,7 @@ describe('EnumFilter', () => {
       const user = userEvent.setup();
       const mockOnChange = jest.fn();
       render(<EnumFilter value="active" onChange={mockOnChange} options={OPTIONS} />);
-      await user.click(screen.getByRole('checkbox', { name: /inactive/i }));
+      await user.click(screen.getByRole('checkbox', { name: 'Inactive' }));
       await user.click(screen.getByRole('button', { name: /apply/i }));
       const callArg = (mockOnChange.mock.calls[0] as [string])[0];
       expect(callArg.split(',')).toEqual(expect.arrayContaining(['active', 'inactive']));

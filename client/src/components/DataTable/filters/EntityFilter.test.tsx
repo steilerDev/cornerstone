@@ -99,7 +99,8 @@ describe('EntityFilter', () => {
     await user.clear(input);
     await user.type(input, 'vendor-42');
     // The mock input calls onChange on each character — find the last call
-    const lastCall = (mockOnChange.mock.calls.at(-1) as [string])[0];
+    const calls = mockOnChange.mock.calls as [string][];
+    const lastCall = calls[calls.length - 1][0];
     expect(lastCall).toContain('vendor-4');
   });
 

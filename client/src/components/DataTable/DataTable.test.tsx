@@ -258,7 +258,8 @@ describe('DataTable', () => {
       renderDataTable({ onStateChange: mockOnStateChange });
       await user.type(screen.getByRole('searchbox'), 'hello');
       expect(mockOnStateChange).toHaveBeenCalled();
-      const lastCall = mockOnStateChange.mock.calls.at(-1) as [TableState];
+      const calls = mockOnStateChange.mock.calls as [TableState][];
+      const lastCall = calls[calls.length - 1];
       expect(lastCall[0].search).toBe('hello');
     });
 
@@ -280,7 +281,8 @@ describe('DataTable', () => {
         onStateChange: mockOnStateChange,
       });
       await user.click(screen.getByRole('button', { name: /clear filters/i }));
-      const lastCall = mockOnStateChange.mock.calls.at(-1) as [TableState];
+      const calls = mockOnStateChange.mock.calls as [TableState][];
+      const lastCall = calls[calls.length - 1];
       expect(lastCall[0].search).toBe('');
       expect(lastCall[0].filters.size).toBe(0);
     });

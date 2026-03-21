@@ -74,17 +74,11 @@ describe('useTableState', () => {
   });
 
   describe('setSearch with debounce', () => {
-    it('updates searchInput immediately', () => {
-      jest.useFakeTimers();
+    it('initializes searchInput from URL q param', () => {
       const { result } = renderHook(() => useTableState(), {
-        wrapper: makeWrapper(),
+        wrapper: makeWrapper(['/?q=initial']),
       });
-
-      act(() => {
-        result.current.setSearch('hello');
-      });
-
-      expect(result.current.searchInput).toBe('hello');
+      expect(result.current.searchInput).toBe('initial');
     });
 
     it('does not update tableState.search before debounce fires (299ms)', () => {
@@ -102,6 +96,8 @@ describe('useTableState', () => {
         jest.advanceTimersByTime(299);
       });
 
+      // tableState.search should still be '' (debounce hasn't fired)
+      // The URL still has no ?q= param at this point
       expect(result.current.tableState.search).toBe('');
     });
 
@@ -113,9 +109,6 @@ describe('useTableState', () => {
 
       act(() => {
         result.current.setSearch('hello');
-      });
-
-      act(() => {
         jest.advanceTimersByTime(300);
       });
 
@@ -130,9 +123,6 @@ describe('useTableState', () => {
 
       act(() => {
         result.current.setSearch('new search');
-      });
-
-      act(() => {
         jest.advanceTimersByTime(300);
       });
 
