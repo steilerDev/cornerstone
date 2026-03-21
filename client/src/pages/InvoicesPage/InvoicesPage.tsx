@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { Invoice, CreateInvoiceRequest, InvoiceListQuery, InvoiceStatus } from '@cornerstone/shared';
+import type { Invoice, CreateInvoiceRequest, InvoiceStatus } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { Modal } from '../../components/Modal/Modal.js';
@@ -110,7 +110,7 @@ export function InvoicesPage() {
     setError('');
 
     try {
-      const response = await fetchAllInvoices(toApiParams() as InvoiceListQuery);
+      const response = await fetchAllInvoices(toApiParams() as Parameters<typeof fetchAllInvoices>[0]);
       setInvoices(response.invoices);
       setSummary(response.summary);
       setTotalPages(response.pagination.totalPages);
