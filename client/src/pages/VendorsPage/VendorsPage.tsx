@@ -395,7 +395,8 @@ export function VendorsPage() {
           <form onSubmit={handleCreateVendor} className={styles.form} noValidate ref={formRef}>
             <div className={styles.field}>
               <label htmlFor="vendor-name" className={styles.label}>
-                {t('vendors.form.name')} <span className={styles.required}>{t('vendors.form.required')}</span>
+                {t('vendors.form.name')}{' '}
+                <span className={styles.required}>{t('vendors.form.required')}</span>
               </label>
               <input
                 type="text"
