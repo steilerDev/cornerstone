@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { WorkItemSummary, WorkItemListQuery } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
@@ -199,9 +199,9 @@ export function WorkItemsPage() {
         sortKey: 'title',
         defaultVisible: true,
         render: (item) => (
-          <a href={`/project/work-items/${item.id}`} className={styles.itemLink}>
+          <Link to={`/project/work-items/${item.id}`} className={styles.itemLink}>
             {item.title}
-          </a>
+          </Link>
         ),
       },
       {
@@ -253,6 +253,26 @@ export function WorkItemsPage() {
     ],
     [t, formatDate, wiStatusVariants],
   );
+
+  // Close action menu on outside click and Escape key
+  useEffect(() => {
+    if (!activeMenuId) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(`.${styles.actionsMenu}`)) {
+        setActiveMenuId(null);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setActiveMenuId(null);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [activeMenuId]);
 
   // Render actions menu
   const renderActions = (item: WorkItemSummary) => (

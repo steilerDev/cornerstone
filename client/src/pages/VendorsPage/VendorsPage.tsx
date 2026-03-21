@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Vendor, CreateVendorRequest, VendorListQuery } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
@@ -207,9 +207,9 @@ export function VendorsPage() {
         sortKey: 'name',
         defaultVisible: true,
         render: (v) => (
-          <a href={`/budget/vendors/${v.id}`} className={styles.vendorLink}>
+          <Link to={`/budget/vendors/${v.id}`} className={styles.vendorLink}>
             {v.name}
-          </a>
+          </Link>
         ),
       },
       {
@@ -280,6 +280,26 @@ export function VendorsPage() {
     ],
     [t, formatDate],
   );
+
+  // Close action menu on outside click and Escape key
+  useEffect(() => {
+    if (!activeMenuId) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(`.${styles.actionsMenu}`)) {
+        setActiveMenuId(null);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setActiveMenuId(null);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [activeMenuId]);
 
   // Render actions menu
   const renderActions = (vendor: Vendor) => (

@@ -48,7 +48,7 @@
   border: none;
   color: var(--color-text-muted);
   font-size: var(--font-size-xl);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   cursor: pointer;
   padding: var(--spacing-1) var(--spacing-2);
   border-radius: var(--radius-sm);
@@ -75,7 +75,7 @@
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   min-width: 120px;
-  z-index: 10;
+  z-index: var(--z-dropdown);
 }
 
 .menuItem {
@@ -131,8 +131,8 @@
 }
 
 .vendorLink:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--shadow-focus);
   border-radius: var(--radius-sm);
 }
 
@@ -147,8 +147,8 @@
 }
 
 .contactLink:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--shadow-focus);
   border-radius: var(--radius-sm);
 }
 
@@ -272,7 +272,7 @@
  * RESPONSIVE — Tablet (768px – 1024px)
  * ============================================================ */
 
-@media (min-width: 768px) and (max-width: 1024px) {
+@media (min-width: 768px) and (max-width: 1023px) {
   .container {
     padding: var(--spacing-6);
   }

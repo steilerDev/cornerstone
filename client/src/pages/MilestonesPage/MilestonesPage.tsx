@@ -260,6 +260,26 @@ export function MilestonesPage() {
     [t, formatDate, milestoneStatusVariants],
   );
 
+  // Close action menu on outside click and Escape key
+  useEffect(() => {
+    if (!activeMenuId) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(`.${styles.actionsMenu}`)) {
+        setActiveMenuId(null);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setActiveMenuId(null);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [activeMenuId]);
+
   // Render actions menu
   const renderActions = (milestone: MilestoneSummary) => (
     <div className={styles.actionsMenu}>
