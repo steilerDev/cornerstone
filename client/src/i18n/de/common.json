@@ -18,7 +18,8 @@
     "create": "Erstellen",
     "confirm": "Bestätigen",
     "back": "Zurück",
-    "search": "Suchen"
+    "search": "Suchen",
+    "clearFilters": "Filter zurücksetzen"
   },
   "aria": {
     "closeMenu": "Menü schließen",
@@ -108,5 +109,49 @@
       "manage": "Verwalten",
       "userManagement": "Benutzerverwaltung"
     }
+  },
+  "dataTable": {
+    "search": {
+      "placeholder": "Suchen...",
+      "ariaLabel": "Elemente suchen"
+    },
+    "filter": {
+      "all": "Alle",
+      "yes": "Ja",
+      "no": "Nein",
+      "min": "Min",
+      "max": "Max",
+      "from": "Von",
+      "to": "Bis",
+      "clearFilter": "Zurücksetzen",
+      "applyFilter": "Anwenden",
+      "filterByColumn": "Nach {{column}} filtern",
+      "textPlaceholder": "Suchen...",
+      "searchPlaceholder": "Suchen...",
+      "booleanAriaLabel": "Boolesche Filteroption"
+    },
+    "sort": {
+      "ascending": "Aufsteigend sortieren",
+      "descending": "Absteigend sortieren",
+      "none": "Keine Sortierung",
+      "ariaLabel": "Nach {{column}} sortieren"
+    },
+    "columnSettings": {
+      "ariaLabel": "Spalteneinstellungen",
+      "title": "Sichtbare Spalten",
+      "resetToDefaults": "Standardeinstellungen wiederherstellen"
+    },
+    "pagination": {
+      "showing": "Zeige {{from}}–{{to}} von {{total}} Einträgen",
+      "page": "Seite {{page}} von {{totalPages}}",
+      "previous": "Zurück",
+      "next": "Weiter",
+      "pageSize": "Pro Seite"
+    },
+    "empty": {
+      "defaultMessage": "Keine Einträge gefunden",
+      "filteredMessage": "Keine Einträge entsprechen den aktuellen Filtern"
+    },
+    "loading": "Tabellendaten werden geladen..."
   }
 }
