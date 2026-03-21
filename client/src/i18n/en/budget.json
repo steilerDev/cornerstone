@@ -209,7 +209,13 @@
       "retry": "Retry"
     },
     "tableHeaders": {
-      "actions": "Actions"
+      "name": "Name",
+      "trade": "Trade",
+      "contactInfo": "Contact",
+      "address": "Address",
+      "notes": "Notes",
+      "createdAt": "Date Added",
+      "updatedAt": "Last Updated"
     },
     "searchAriaLabel": "Search vendors",
     "modal": {

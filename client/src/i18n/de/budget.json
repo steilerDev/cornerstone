@@ -209,6 +209,13 @@
       "retry": "Erneut versuchen"
     },
     "tableHeaders": {
+      "name": "Name",
+      "trade": "Gewerk",
+      "contactInfo": "Kontakt",
+      "address": "Adresse",
+      "notes": "Notizen",
+      "createdAt": "Hinzugefügt am",
+      "updatedAt": "Zuletzt aktualisiert",
       "actions": "Aktionen"
     },
     "searchAriaLabel": "Auftragnehmer durchsuchen",
