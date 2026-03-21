@@ -1,5 +1,5 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, jest } from '@jest/globals';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NumberFilter } from './NumberFilter.js';
 
@@ -40,19 +40,59 @@ describe('NumberFilter', () => {
       expect(inputs[1]).toHaveValue(null);
     });
 
-    it('renders Apply button', () => {
+    it('does not render an Apply button', () => {
       render(<NumberFilter value="" onChange={jest.fn()} />);
-      expect(screen.getByRole('button', { name: /apply/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /apply/i })).not.toBeInTheDocument();
     });
 
-    it('does not render Clear button when value is empty', () => {
-      render(<NumberFilter value="" onChange={jest.fn()} />);
+    it('does not render a Clear button', () => {
+      render(<NumberFilter value="min:10" onChange={jest.fn()} />);
       expect(screen.queryByRole('button', { name: /clear/i })).not.toBeInTheDocument();
     });
+  });
 
-    it('renders Clear button when value is non-empty', () => {
-      render(<NumberFilter value="min:10" onChange={jest.fn()} />);
-      expect(screen.getByRole('button', { name: /clear/i })).toBeInTheDocument();
+  describe('auto-apply on input change', () => {
+    it('calls onChange immediately when min input changes', () => {
+      const mockOnChange = jest.fn();
+      render(<NumberFilter value="" onChange={mockOnChange} />);
+      const [minInput] = screen.getAllByRole('spinbutton');
+      fireEvent.change(minInput, { target: { value: '100' } });
+      expect(mockOnChange).toHaveBeenCalledWith('min:100');
+    });
+
+    it('calls onChange immediately when max input changes', () => {
+      const mockOnChange = jest.fn();
+      render(<NumberFilter value="" onChange={mockOnChange} />);
+      const [, maxInput] = screen.getAllByRole('spinbutton');
+      fireEvent.change(maxInput, { target: { value: '500' } });
+      expect(mockOnChange).toHaveBeenCalledWith('max:500');
+    });
+
+    it('calls onChange with "min:X,max:Y" when both values are set', () => {
+      const mockOnChange = jest.fn();
+      render(<NumberFilter value="" onChange={mockOnChange} />);
+      const [minInput, maxInput] = screen.getAllByRole('spinbutton');
+      fireEvent.change(minInput, { target: { value: '100' } });
+      mockOnChange.mockClear();
+      fireEvent.change(maxInput, { target: { value: '500' } });
+      expect(mockOnChange).toHaveBeenCalledWith('min:100,max:500');
+    });
+
+    it('calls onChange with empty string when min input is cleared', () => {
+      const mockOnChange = jest.fn();
+      render(<NumberFilter value="min:100" onChange={mockOnChange} />);
+      const [minInput] = screen.getAllByRole('spinbutton');
+      fireEvent.change(minInput, { target: { value: '' } });
+      expect(mockOnChange).toHaveBeenCalledWith('');
+    });
+
+    it('calls onChange without requiring a button click', () => {
+      const mockOnChange = jest.fn();
+      render(<NumberFilter value="" onChange={mockOnChange} />);
+      const [minInput] = screen.getAllByRole('spinbutton');
+      fireEvent.change(minInput, { target: { value: '42' } });
+      expect(mockOnChange).toHaveBeenCalledTimes(1);
+      expect(mockOnChange).toHaveBeenCalledWith('min:42');
     });
   });
 
@@ -73,60 +113,6 @@ describe('NumberFilter', () => {
       await user.clear(maxInput);
       await user.type(maxInput, '999');
       expect(maxInput).toHaveValue(999);
-    });
-  });
-
-  describe('Apply button', () => {
-    it('calls onChange with "min:X,max:Y" when both values set', async () => {
-      const user = userEvent.setup();
-      const mockOnChange = jest.fn();
-      render(<NumberFilter value="" onChange={mockOnChange} />);
-      const [minInput, maxInput] = screen.getAllByRole('spinbutton');
-      await user.type(minInput, '100');
-      await user.type(maxInput, '500');
-      await user.click(screen.getByRole('button', { name: /apply/i }));
-      expect(mockOnChange).toHaveBeenCalledWith('min:100,max:500');
-    });
-
-    it('calls onChange with only "min:X" when only min set', async () => {
-      const user = userEvent.setup();
-      const mockOnChange = jest.fn();
-      render(<NumberFilter value="" onChange={mockOnChange} />);
-      const [minInput] = screen.getAllByRole('spinbutton');
-      await user.type(minInput, '100');
-      await user.click(screen.getByRole('button', { name: /apply/i }));
-      expect(mockOnChange).toHaveBeenCalledWith('min:100');
-    });
-
-    it('calls onChange with only "max:Y" when only max set', async () => {
-      const user = userEvent.setup();
-      const mockOnChange = jest.fn();
-      render(<NumberFilter value="" onChange={mockOnChange} />);
-      const [, maxInput] = screen.getAllByRole('spinbutton');
-      await user.type(maxInput, '300');
-      await user.click(screen.getByRole('button', { name: /apply/i }));
-      expect(mockOnChange).toHaveBeenCalledWith('max:300');
-    });
-
-    it('calls onChange with empty string when neither min nor max set', async () => {
-      const user = userEvent.setup();
-      const mockOnChange = jest.fn();
-      render(<NumberFilter value="" onChange={mockOnChange} />);
-      await user.click(screen.getByRole('button', { name: /apply/i }));
-      expect(mockOnChange).toHaveBeenCalledWith('');
-    });
-  });
-
-  describe('Clear button', () => {
-    it('calls onChange with empty string and resets inputs', async () => {
-      const user = userEvent.setup();
-      const mockOnChange = jest.fn();
-      render(<NumberFilter value="min:100,max:500" onChange={mockOnChange} />);
-      await user.click(screen.getByRole('button', { name: /clear/i }));
-      expect(mockOnChange).toHaveBeenCalledWith('');
-      const inputs = screen.getAllByRole('spinbutton');
-      expect(inputs[0]).toHaveValue(null);
-      expect(inputs[1]).toHaveValue(null);
     });
   });
 });

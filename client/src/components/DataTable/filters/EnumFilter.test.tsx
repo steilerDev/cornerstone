@@ -32,96 +32,117 @@ describe('EnumFilter', () => {
       expect(screen.getByRole('checkbox', { name: 'Pending' })).toBeChecked();
     });
 
-    it('renders Apply button', () => {
+    it('does not render an Apply button', () => {
       render(<EnumFilter value="" onChange={jest.fn()} options={OPTIONS} />);
-      expect(screen.getByRole('button', { name: /apply/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /apply/i })).not.toBeInTheDocument();
     });
 
-    it('does not render Clear button when value is empty', () => {
-      render(<EnumFilter value="" onChange={jest.fn()} options={OPTIONS} />);
+    it('does not render a Clear button', () => {
+      render(<EnumFilter value="active" onChange={jest.fn()} options={OPTIONS} />);
       expect(screen.queryByRole('button', { name: /clear/i })).not.toBeInTheDocument();
     });
 
-    it('renders Clear button when value is non-empty', () => {
-      render(<EnumFilter value="active" onChange={jest.fn()} options={OPTIONS} />);
-      expect(screen.getByRole('button', { name: /clear/i })).toBeInTheDocument();
+    it('renders Select All quick action button', () => {
+      render(<EnumFilter value="" onChange={jest.fn()} options={OPTIONS} />);
+      expect(screen.getByRole('button', { name: /select all/i })).toBeInTheDocument();
+    });
+
+    it('renders Select None quick action button', () => {
+      render(<EnumFilter value="" onChange={jest.fn()} options={OPTIONS} />);
+      expect(screen.getByRole('button', { name: /select none/i })).toBeInTheDocument();
     });
   });
 
-  describe('checkbox interaction', () => {
-    it('clicking an unchecked option checks it', async () => {
-      const user = userEvent.setup();
-      render(<EnumFilter value="" onChange={jest.fn()} options={OPTIONS} />);
-      const activeCheckbox = screen.getByRole('checkbox', { name: 'Active' });
-      expect(activeCheckbox).not.toBeChecked();
-      await user.click(activeCheckbox);
-      expect(activeCheckbox).toBeChecked();
-    });
-
-    it('clicking a checked option unchecks it', async () => {
-      const user = userEvent.setup();
-      render(<EnumFilter value="active" onChange={jest.fn()} options={OPTIONS} />);
-      const activeCheckbox = screen.getByRole('checkbox', { name: 'Active' });
-      expect(activeCheckbox).toBeChecked();
-      await user.click(activeCheckbox);
-      expect(activeCheckbox).not.toBeChecked();
-    });
-
-    it('does not call onChange immediately on checkbox click (only on apply)', async () => {
+  describe('auto-apply on checkbox change', () => {
+    it('calls onChange immediately when an unchecked option is checked', async () => {
       const user = userEvent.setup();
       const mockOnChange = jest.fn();
       render(<EnumFilter value="" onChange={mockOnChange} options={OPTIONS} />);
       await user.click(screen.getByRole('checkbox', { name: 'Active' }));
-      expect(mockOnChange).not.toHaveBeenCalled();
+      expect(mockOnChange).toHaveBeenCalledWith('active');
     });
-  });
 
-  describe('Apply button', () => {
-    it('calls onChange with comma-separated selected values', async () => {
+    it('calls onChange immediately when a checked option is unchecked', async () => {
+      const user = userEvent.setup();
+      const mockOnChange = jest.fn();
+      render(<EnumFilter value="active" onChange={mockOnChange} options={OPTIONS} />);
+      await user.click(screen.getByRole('checkbox', { name: 'Active' }));
+      expect(mockOnChange).toHaveBeenCalledWith('');
+    });
+
+    it('calls onChange with comma-separated values when multiple options are selected', async () => {
       const user = userEvent.setup();
       const mockOnChange = jest.fn();
       render(<EnumFilter value="" onChange={mockOnChange} options={OPTIONS} />);
       await user.click(screen.getByRole('checkbox', { name: 'Active' }));
       await user.click(screen.getByRole('checkbox', { name: 'Pending' }));
-      await user.click(screen.getByRole('button', { name: /apply/i }));
-      // The order depends on Set iteration order (insertion order)
-      const callArg = (mockOnChange.mock.calls[0] as [string])[0];
-      expect(callArg.split(',')).toEqual(expect.arrayContaining(['active', 'pending']));
-      expect(callArg.split(',')).toHaveLength(2);
+      // Second call should contain both active and pending
+      const lastCallArg = (mockOnChange.mock.calls[mockOnChange.mock.calls.length - 1] as [string])[0];
+      expect(lastCallArg.split(',')).toEqual(expect.arrayContaining(['active', 'pending']));
+      expect(lastCallArg.split(',')).toHaveLength(2);
     });
 
-    it('calls onChange with empty string when no options checked', async () => {
+    it('calls onChange after each individual checkbox click, not batched', async () => {
       const user = userEvent.setup();
       const mockOnChange = jest.fn();
       render(<EnumFilter value="" onChange={mockOnChange} options={OPTIONS} />);
-      await user.click(screen.getByRole('button', { name: /apply/i }));
-      expect(mockOnChange).toHaveBeenCalledWith('');
+      await user.click(screen.getByRole('checkbox', { name: 'Active' }));
+      await user.click(screen.getByRole('checkbox', { name: 'Inactive' }));
+      expect(mockOnChange).toHaveBeenCalledTimes(2);
     });
 
-    it('includes pre-selected and newly added values on apply', async () => {
+    it('checkbox is visually checked after clicking an unchecked option', async () => {
       const user = userEvent.setup();
-      const mockOnChange = jest.fn();
-      render(<EnumFilter value="active" onChange={mockOnChange} options={OPTIONS} />);
-      await user.click(screen.getByRole('checkbox', { name: 'Inactive' }));
-      await user.click(screen.getByRole('button', { name: /apply/i }));
-      const callArg = (mockOnChange.mock.calls[0] as [string])[0];
-      expect(callArg.split(',')).toEqual(expect.arrayContaining(['active', 'inactive']));
+      render(<EnumFilter value="" onChange={jest.fn()} options={OPTIONS} />);
+      const activeCheckbox = screen.getByRole('checkbox', { name: 'Active' });
+      expect(activeCheckbox).not.toBeChecked();
+      await user.click(activeCheckbox);
+      expect(activeCheckbox).toBeChecked();
+    });
+
+    it('checkbox is visually unchecked after clicking a checked option', async () => {
+      const user = userEvent.setup();
+      render(<EnumFilter value="active" onChange={jest.fn()} options={OPTIONS} />);
+      const activeCheckbox = screen.getByRole('checkbox', { name: 'Active' });
+      expect(activeCheckbox).toBeChecked();
+      await user.click(activeCheckbox);
+      expect(activeCheckbox).not.toBeChecked();
     });
   });
 
-  describe('Clear button', () => {
-    it('calls onChange with empty string', async () => {
+  describe('Select All quick action', () => {
+    it('calls onChange with all option values when Select All clicked', async () => {
+      const user = userEvent.setup();
+      const mockOnChange = jest.fn();
+      render(<EnumFilter value="" onChange={mockOnChange} options={OPTIONS} />);
+      await user.click(screen.getByRole('button', { name: /select all/i }));
+      const callArg = (mockOnChange.mock.calls[0] as [string])[0];
+      expect(callArg.split(',')).toEqual(expect.arrayContaining(['active', 'inactive', 'pending']));
+      expect(callArg.split(',')).toHaveLength(3);
+    });
+
+    it('checks all checkboxes when Select All clicked', async () => {
+      const user = userEvent.setup();
+      render(<EnumFilter value="" onChange={jest.fn()} options={OPTIONS} />);
+      await user.click(screen.getByRole('button', { name: /select all/i }));
+      const checkboxes = screen.getAllByRole('checkbox');
+      checkboxes.forEach((cb) => expect(cb).toBeChecked());
+    });
+  });
+
+  describe('Select None quick action', () => {
+    it('calls onChange with empty string when Select None clicked', async () => {
       const user = userEvent.setup();
       const mockOnChange = jest.fn();
       render(<EnumFilter value="active,pending" onChange={mockOnChange} options={OPTIONS} />);
-      await user.click(screen.getByRole('button', { name: /clear/i }));
+      await user.click(screen.getByRole('button', { name: /select none/i }));
       expect(mockOnChange).toHaveBeenCalledWith('');
     });
 
-    it('unchecks all checkboxes after clear', async () => {
+    it('unchecks all checkboxes when Select None clicked', async () => {
       const user = userEvent.setup();
       render(<EnumFilter value="active,pending" onChange={jest.fn()} options={OPTIONS} />);
-      await user.click(screen.getByRole('button', { name: /clear/i }));
+      await user.click(screen.getByRole('button', { name: /select none/i }));
       const checkboxes = screen.getAllByRole('checkbox');
       checkboxes.forEach((cb) => expect(cb).not.toBeChecked());
     });

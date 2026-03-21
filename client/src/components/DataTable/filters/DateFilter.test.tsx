@@ -1,6 +1,5 @@
 import { describe, it, expect, jest } from '@jest/globals';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { DateFilter } from './DateFilter.js';
 
 describe('DateFilter', () => {
@@ -41,75 +40,63 @@ describe('DateFilter', () => {
       expect((toInput as HTMLInputElement).value).toBe('');
     });
 
-    it('renders Apply button', () => {
+    it('does not render Apply button', () => {
       render(<DateFilter value="" onChange={jest.fn()} />);
-      expect(screen.getByRole('button', { name: /apply/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /apply/i })).not.toBeInTheDocument();
     });
 
-    it('does not render Clear button when value is empty', () => {
-      render(<DateFilter value="" onChange={jest.fn()} />);
-      expect(screen.queryByRole('button', { name: /clear/i })).not.toBeInTheDocument();
-    });
-
-    it('renders Clear button when value is non-empty', () => {
+    it('does not render Clear button', () => {
       render(<DateFilter value="from:2026-01-01" onChange={jest.fn()} />);
-      expect(screen.getByRole('button', { name: /clear/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /clear/i })).not.toBeInTheDocument();
     });
   });
 
-  describe('Apply button', () => {
-    it('calls onChange with "from:X,to:Y" when both dates set', async () => {
-      const user = userEvent.setup();
+  describe('auto-apply on change', () => {
+    it('calls onChange with "from:X,to:Y" when both dates are set via input changes', () => {
       const mockOnChange = jest.fn();
       const { container } = render(<DateFilter value="" onChange={mockOnChange} />);
       const [fromInput, toInput] = container.querySelectorAll('input[type="date"]');
-      await user.type(fromInput as HTMLElement, '2026-01-01');
-      await user.type(toInput as HTMLElement, '2026-12-31');
-      await user.click(screen.getByRole('button', { name: /apply/i }));
+
+      fireEvent.change(fromInput, { target: { value: '2026-01-01' } });
+      expect(mockOnChange).toHaveBeenCalledWith('from:2026-01-01');
+
+      mockOnChange.mockClear();
+      fireEvent.change(toInput, { target: { value: '2026-12-31' } });
       expect(mockOnChange).toHaveBeenCalledWith('from:2026-01-01,to:2026-12-31');
     });
 
-    it('calls onChange with only "from:X" when only from date set', async () => {
-      const user = userEvent.setup();
+    it('calls onChange with only "from:X" when only from date is set', () => {
       const mockOnChange = jest.fn();
       const { container } = render(<DateFilter value="" onChange={mockOnChange} />);
       const [fromInput] = container.querySelectorAll('input[type="date"]');
-      await user.type(fromInput as HTMLElement, '2026-03-15');
-      await user.click(screen.getByRole('button', { name: /apply/i }));
+      fireEvent.change(fromInput, { target: { value: '2026-03-15' } });
       expect(mockOnChange).toHaveBeenCalledWith('from:2026-03-15');
     });
 
-    it('calls onChange with only "to:Y" when only to date set', async () => {
-      const user = userEvent.setup();
+    it('calls onChange with only "to:Y" when only to date is set', () => {
       const mockOnChange = jest.fn();
       const { container } = render(<DateFilter value="" onChange={mockOnChange} />);
       const [, toInput] = container.querySelectorAll('input[type="date"]');
-      await user.type(toInput as HTMLElement, '2026-06-30');
-      await user.click(screen.getByRole('button', { name: /apply/i }));
+      fireEvent.change(toInput, { target: { value: '2026-06-30' } });
       expect(mockOnChange).toHaveBeenCalledWith('to:2026-06-30');
     });
 
-    it('calls onChange with empty string when neither date set', async () => {
-      const user = userEvent.setup();
-      const mockOnChange = jest.fn();
-      render(<DateFilter value="" onChange={mockOnChange} />);
-      await user.click(screen.getByRole('button', { name: /apply/i }));
-      expect(mockOnChange).toHaveBeenCalledWith('');
-    });
-  });
-
-  describe('Clear button', () => {
-    it('calls onChange with empty string and resets inputs', async () => {
-      const user = userEvent.setup();
+    it('calls onChange with empty string when from date is cleared', () => {
       const mockOnChange = jest.fn();
       const { container } = render(
-        <DateFilter value="from:2026-01-01,to:2026-12-31" onChange={mockOnChange} />,
+        <DateFilter value="from:2026-01-01" onChange={mockOnChange} />,
       );
-      await user.click(screen.getByRole('button', { name: /clear/i }));
+      const [fromInput] = container.querySelectorAll('input[type="date"]');
+      fireEvent.change(fromInput, { target: { value: '' } });
       expect(mockOnChange).toHaveBeenCalledWith('');
-      const [fromInput, toInput] = container.querySelectorAll('input[type="date"]');
-      expect((fromInput as HTMLInputElement).value).toBe('');
-      expect((toInput as HTMLInputElement).value).toBe('');
+    });
+
+    it('calls onChange immediately on each input change without requiring a button click', () => {
+      const mockOnChange = jest.fn();
+      const { container } = render(<DateFilter value="" onChange={mockOnChange} />);
+      const [fromInput] = container.querySelectorAll('input[type="date"]');
+      fireEvent.change(fromInput, { target: { value: '2026-05-01' } });
+      expect(mockOnChange).toHaveBeenCalledTimes(1);
     });
   });
 });
