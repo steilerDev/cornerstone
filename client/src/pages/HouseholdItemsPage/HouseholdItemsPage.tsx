@@ -43,6 +43,9 @@ export function HouseholdItemsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
 
+  // Actions menu state
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
   // Load vendors, categories, and areas on mount
   useEffect(() => {
     const loadData = async () => {
@@ -274,11 +277,32 @@ export function HouseholdItemsPage() {
       <button
         type="button"
         className={styles.menuButton}
+        onClick={() => setActiveMenuId(activeMenuId === item.id ? null : item.id)}
         aria-label={t('menu.actions', { name: item.name })}
         data-testid={`hi-menu-button-${item.id}`}
       >
         ⋮
       </button>
+      {activeMenuId === item.id && (
+        <div className={styles.menuDropdown}>
+          <button
+            type="button"
+            className={styles.menuItem}
+            onClick={() => { navigate(`/project/household-items/${item.id}`); setActiveMenuId(null); }}
+            data-testid={`hi-view-${item.id}`}
+          >
+            {t('menu.edit')}
+          </button>
+          <button
+            type="button"
+            className={`${styles.menuItem} ${styles.menuItemDanger}`}
+            onClick={() => { openDeleteConfirm(item); setActiveMenuId(null); }}
+            data-testid={`hi-delete-${item.id}`}
+          >
+            {t('menu.delete')}
+          </button>
+        </div>
+      )}
     </div>
   );
 
