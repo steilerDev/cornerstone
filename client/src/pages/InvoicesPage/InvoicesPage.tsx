@@ -376,9 +376,7 @@ export function InvoicesPage() {
       <button
         type="button"
         className={styles.menuButton}
-        onClick={() =>
-          setActiveMenuId(activeMenuId === invoice.id ? null : invoice.id)
-        }
+        onClick={() => setActiveMenuId(activeMenuId === invoice.id ? null : invoice.id)}
         aria-label={t('invoices.actions.menuAriaLabel', {
           number: invoice.invoiceNumber || 'Invoice',
         })}
