@@ -39,17 +39,17 @@ export function DataTableFilterPopover<T>({
     zIndex: 1000,
   };
 
-  // Close on outside click
+  // Close on outside click or Escape
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
-        onApply(localValue);
+        // Popover closes without needing to apply — filters auto-apply
       }
     };
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onApply(localValue);
+        // Popover closes without needing to apply — filters auto-apply
       }
     };
 
@@ -60,7 +60,7 @@ export function DataTableFilterPopover<T>({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [localValue, onApply]);
+  }, []);
 
   const renderFilterComponent = () => {
     const filterType = column.filterType as FilterType;

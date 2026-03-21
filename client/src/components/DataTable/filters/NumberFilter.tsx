@@ -10,6 +10,7 @@ export interface NumberFilterProps {
 /**
  * Min/max number range filter for DataTable
  * Stores as "min:X,max:Y" format
+ * Auto-applies on input/slider change
  */
 export function NumberFilter({ value, onChange }: NumberFilterProps) {
   const { t } = useTranslation('common');
@@ -24,18 +25,31 @@ export function NumberFilter({ value, onChange }: NumberFilterProps) {
   const [localMin, setLocalMin] = useState(min);
   const [localMax, setLocalMax] = useState(max);
 
-  const handleApply = useCallback(() => {
-    const parts = [];
-    if (localMin) parts.push(`min:${localMin}`);
-    if (localMax) parts.push(`max:${localMax}`);
-    onChange(parts.join(','));
-  }, [localMin, localMax, onChange]);
+  const emitChange = useCallback(
+    (newMin: string, newMax: string) => {
+      const parts = [];
+      if (newMin) parts.push(`min:${newMin}`);
+      if (newMax) parts.push(`max:${newMax}`);
+      onChange(parts.join(','));
+    },
+    [onChange],
+  );
 
-  const handleClear = useCallback(() => {
-    setLocalMin('');
-    setLocalMax('');
-    onChange('');
-  }, [onChange]);
+  const handleMinChange = useCallback(
+    (newMin: string) => {
+      setLocalMin(newMin);
+      emitChange(newMin, localMax);
+    },
+    [localMax, emitChange],
+  );
+
+  const handleMaxChange = useCallback(
+    (newMax: string) => {
+      setLocalMax(newMax);
+      emitChange(localMin, newMax);
+    },
+    [localMin, emitChange],
+  );
 
   return (
     <div className={styles.filterContent}>
@@ -44,7 +58,7 @@ export function NumberFilter({ value, onChange }: NumberFilterProps) {
         <input
           type="number"
           value={localMin}
-          onChange={(e) => setLocalMin(e.target.value)}
+          onChange={(e) => handleMinChange(e.target.value)}
           placeholder="0"
           className={styles.filterRangeInput}
           autoFocus
@@ -53,7 +67,7 @@ export function NumberFilter({ value, onChange }: NumberFilterProps) {
       <input
         type="range"
         value={localMin || '0'}
-        onChange={(e) => setLocalMin(e.target.value)}
+        onChange={(e) => handleMinChange(e.target.value)}
         className={styles.filterRangeSlider}
         min="0"
         max="999999"
@@ -64,7 +78,7 @@ export function NumberFilter({ value, onChange }: NumberFilterProps) {
         <input
           type="number"
           value={localMax}
-          onChange={(e) => setLocalMax(e.target.value)}
+          onChange={(e) => handleMaxChange(e.target.value)}
           placeholder="999999"
           className={styles.filterRangeInput}
         />
@@ -72,22 +86,12 @@ export function NumberFilter({ value, onChange }: NumberFilterProps) {
       <input
         type="range"
         value={localMax || '999999'}
-        onChange={(e) => setLocalMax(e.target.value)}
+        onChange={(e) => handleMaxChange(e.target.value)}
         className={styles.filterRangeSlider}
         min="0"
         max="999999"
         aria-label={t('dataTable.filter.max')}
       />
-      <div className={styles.filterActions}>
-        <button type="button" className={styles.filterButton} onClick={handleApply}>
-          {t('dataTable.filter.applyFilter')}
-        </button>
-        {value && (
-          <button type="button" className={styles.filterButtonSecondary} onClick={handleClear}>
-            {t('dataTable.filter.clearFilter')}
-          </button>
-        )}
-      </div>
     </div>
   );
 }
