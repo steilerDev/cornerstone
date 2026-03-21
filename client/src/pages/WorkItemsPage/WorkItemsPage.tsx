@@ -59,10 +59,14 @@ export function WorkItemsPage() {
           listUsers(),
           fetchVendors({ pageSize: 100 }),
         ]);
-        setUsers(usersResponse.users.filter((u) => !u.deactivatedAt).map((u) => ({
-          id: u.id,
-          displayName: u.displayName
-        })));
+        setUsers(
+          usersResponse.users
+            .filter((u) => !u.deactivatedAt)
+            .map((u) => ({
+              id: u.id,
+              displayName: u.displayName,
+            })),
+        );
         setVendors(vendorsResponse.vendors.map((v) => ({ id: v.id, name: v.name })));
       } catch (err) {
         console.error('Failed to load vendors or users:', err);
@@ -176,7 +180,9 @@ export function WorkItemsPage() {
     ];
     for (const status of statuses) {
       variants[status] = {
-        label: t(`create.fields.statusOptions.${status === 'not_started' ? 'notStarted' : status === 'in_progress' ? 'inProgress' : 'completed'}`),
+        label: t(
+          `create.fields.statusOptions.${status === 'not_started' ? 'notStarted' : status === 'in_progress' ? 'inProgress' : 'completed'}`,
+        ),
         className: `badge-${status}`,
       };
     }
@@ -470,15 +476,15 @@ export function WorkItemsPage() {
                   onClick={() => void confirmDelete()}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? t('list.deleteModal.deletingLabel') : t('list.deleteModal.deleteLabel')}
+                  {isDeleting
+                    ? t('list.deleteModal.deletingLabel')
+                    : t('list.deleteModal.deleteLabel')}
                 </button>
               )}
             </>
           }
         >
-          <p>
-            {t('list.deleteModal.confirmation', { title: deletingItem.title })}
-          </p>
+          <p>{t('list.deleteModal.confirmation', { title: deletingItem.title })}</p>
           {deleteError ? (
             <div className={styles.errorBanner} role="alert">
               {deleteError}
