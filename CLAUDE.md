@@ -200,6 +200,7 @@ Production files: any file under `server/`, `client/`, or `shared/`.
 
 - **Branch naming**: `<type>/<issue-number>-<short-description>` (e.g., `feat/42-work-item-crud`, `fix/55-budget-calc`)
 - **Never push a `worktree-<anything>` branch.** Worktree branches carry auto-generated names. Before pushing, always rename the branch to match the naming convention above: `git branch -m <type>/<issue-number>-<short-description>`. If the scope of work is not yet clear, determine it before pushing — do not publish placeholder branch names.
+- **Branch cleanup after merge**: GitHub auto-deletes head branches when PRs are merged. As a safety net, agents must also delete the remote branch explicitly after merging (`git push origin --delete <branch-name>`) and clean up the local branch (`git branch -d <branch-name>`). Never leave stale branches behind.
 
 ### Session Isolation (Worktrees)
 
@@ -228,6 +229,7 @@ Cornerstone uses a two-tier release model:
 - **`beta` -> `main`** (epic promotion): Merge commit (preserves individual commits so semantic-release can analyze them)
 
 - **Hotfixes:** Cherry-pick any `main` hotfix back to `beta` immediately. See `/release` for merge-back, release summary, and DockerHub sync details.
+- **Beta tag cleanup:** When a stable release is published (beta promoted to main), all previous beta pre-release tags and releases must be deleted. Only beta tags from the current (active) release cycle should exist at any time. This cleanup is automated in the `/release` skill (step 7.3).
 
 ### Branch Protection
 
