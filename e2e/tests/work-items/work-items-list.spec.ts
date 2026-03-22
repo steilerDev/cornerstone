@@ -158,9 +158,12 @@ test.describe('Search filters (Scenario 4)', { tag: '@responsive' }, () => {
       // Search specifically for the alpha item
       await workItemsPage.search(`${testPrefix} Alpha`);
 
-      const titles = await workItemsPage.getWorkItemTitles();
-      expect(titles).toContain(alphaTitle);
-      expect(titles).not.toContain(betaTitle);
+      // Use expect() with Playwright's retry instead of getWorkItemTitles() —
+      // this handles the async gap between API response and React DOM update.
+      // getByText is scoped to the page so it finds items in either the table
+      // (desktop/tablet) or the mobile cards container.
+      await expect(page.getByRole('link', { name: alphaTitle }).first()).toBeVisible();
+      await expect(page.getByRole('link', { name: betaTitle })).not.toBeVisible();
     } finally {
       for (const id of created) {
         await deleteWorkItemViaApi(page, id);
@@ -183,21 +186,15 @@ test.describe('Search filters (Scenario 4)', { tag: '@responsive' }, () => {
 
       // Search so only alpha is shown
       await workItemsPage.search(`${testPrefix} Clear Search Alpha`);
-      let titles = await workItemsPage.getWorkItemTitles();
-      expect(titles).toContain(alphaTitle);
-      expect(titles).not.toContain(betaTitle);
+      // Use expect() with Playwright's retry for cross-viewport reliability.
+      await expect(page.getByRole('link', { name: alphaTitle }).first()).toBeVisible();
+      await expect(page.getByRole('link', { name: betaTitle })).not.toBeVisible();
 
       // Clear search — both should reappear.
-      // Wait 400ms after clearing to let the 300ms search debounce settle
-      // completely before issuing a new search. On slow WebKit runners the
-      // debounce from clear() can overlap with the next search(), causing
-      // waitForResponse() inside search() to capture the stale clear response.
       await workItemsPage.clearSearch();
-      await page.waitForTimeout(400);
       await workItemsPage.search(testPrefix);
-      titles = await workItemsPage.getWorkItemTitles();
-      expect(titles).toContain(alphaTitle);
-      expect(titles).toContain(betaTitle);
+      await expect(page.getByRole('link', { name: alphaTitle }).first()).toBeVisible();
+      await expect(page.getByRole('link', { name: betaTitle }).first()).toBeVisible();
     } finally {
       for (const id of created) {
         await deleteWorkItemViaApi(page, id);

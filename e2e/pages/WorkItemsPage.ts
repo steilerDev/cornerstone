@@ -138,6 +138,27 @@ export class WorkItemsPage {
   }
 
   /**
+   * Wait for search results to stabilize after a search() or clearSearch() call.
+   *
+   * waitForLoaded() is designed for the initial page load and resolves immediately
+   * when table rows/cards are already visible (old data). This method uses the URL
+   * search param as a proxy for React state settling — after the debounced search
+   * updates setSearchParams(), the DOM re-render follows in the same microtask batch.
+   *
+   * For search(query): waits until URL has q=query (exact match).
+   * For clearSearch(): waits until URL no longer has q=.
+   */
+  private async waitForSearchParams(hasQuery?: string): Promise<void> {
+    if (hasQuery !== undefined) {
+      await this.page.waitForURL((url) => url.searchParams.get('q') === hasQuery, {
+        timeout: 10000,
+      });
+    } else {
+      await this.page.waitForURL((url) => !url.searchParams.has('q'), { timeout: 10000 });
+    }
+  }
+
+  /**
    * Get the titles of all work items currently shown in the table (desktop)
    * or cards (mobile).
    */
@@ -193,11 +214,6 @@ export class WorkItemsPage {
       { timeout: 10000 },
     );
     await this.searchInput.fill(query);
-    // Wait for the URL to include ?q= — this confirms the debounce has fired and
-    // React state has updated. Without this, waitForLoaded() can return immediately
-    // when old cards are still visible (before the filtered results replace them),
-    // causing getWorkItemTitles() to return stale pre-search data.
-    await this.page.waitForURL((url) => url.searchParams.has('q'), { timeout: 10000 });
     await responsePromise;
     await this.waitForLoaded();
   }
@@ -215,9 +231,6 @@ export class WorkItemsPage {
       { timeout: 10000 },
     );
     await this.searchInput.clear();
-    // Wait for the URL to NOT have ?q= — confirms the debounce cleared the search param
-    // and React state has updated (same race-condition prevention as search()).
-    await this.page.waitForURL((url) => !url.searchParams.has('q'), { timeout: 10000 });
     await responsePromise;
     await this.waitForLoaded();
   }
