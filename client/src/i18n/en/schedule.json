@@ -23,9 +23,9 @@
       "zoomInColumns": "Zoom in columns",
       "adjustColumnWidth": "Adjust column width (Ctrl+scroll or Ctrl+=/−)",
       "addButton": "Add",
-      "addWorkItem": "Add Work Item",
-      "addHouseholdItem": "Add Household Item",
-      "addMilestone": "Add Milestone"
+      "addWorkItem": "New Work Item",
+      "addHouseholdItem": "New Household Item",
+      "addMilestone": "New Milestone"
     },
     "zoomOptions": {
       "day": "Day",

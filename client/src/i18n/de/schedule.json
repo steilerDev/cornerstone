@@ -23,9 +23,9 @@
       "zoomInColumns": "Spalten vergrößern",
       "adjustColumnWidth": "Spaltenbreite anpassen (Strg+Bildlauf oder Strg+=/−)",
       "addButton": "Hinzufügen",
-      "addWorkItem": "Arbeitspaket Hinzufügen",
-      "addHouseholdItem": "Haushaltsartikel Hinzufügen",
-      "addMilestone": "Meilenstein Hinzufügen"
+      "addWorkItem": "Neues Arbeitspaket",
+      "addHouseholdItem": "Neuer Haushaltsartikel",
+      "addMilestone": "Neuer Meilenstein"
     },
     "zoomOptions": {
       "day": "Tag",
