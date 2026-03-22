@@ -244,18 +244,10 @@ describe('DataTableColumnSettings', () => {
       const targetItem = checkboxItems[1] as HTMLElement;
 
       // Prototype mock ensures getBoundingClientRect is intercepted by React event delegation
+      const mockBCR = (): DOMRect =>
+        ({ top: 100, bottom: 140, height: 40, left: 0, right: 200, width: 200, x: 0, y: 100, toJSON: () => ({}) }) as DOMRect;
       const origGetBCR = Element.prototype.getBoundingClientRect;
-      Element.prototype.getBoundingClientRect = jest.fn().mockReturnValue({
-        top: 100,
-        bottom: 140,
-        height: 40,
-        left: 0,
-        right: 200,
-        width: 200,
-        x: 0,
-        y: 100,
-        toJSON: () => ({}),
-      } as DOMRect);
+      Element.prototype.getBoundingClientRect = mockBCR;
 
       try {
         fireEvent.dragOver(targetItem, {
@@ -279,18 +271,10 @@ describe('DataTableColumnSettings', () => {
 
       const targetItem = checkboxItems[1] as HTMLElement;
 
+      const mockBCR = (): DOMRect =>
+        ({ top: 100, bottom: 140, height: 40, left: 0, right: 200, width: 200, x: 0, y: 100, toJSON: () => ({}) }) as DOMRect;
       const origGetBCR = Element.prototype.getBoundingClientRect;
-      Element.prototype.getBoundingClientRect = jest.fn().mockReturnValue({
-        top: 100,
-        bottom: 140,
-        height: 40,
-        left: 0,
-        right: 200,
-        width: 200,
-        x: 0,
-        y: 100,
-        toJSON: () => ({}),
-      } as DOMRect);
+      Element.prototype.getBoundingClientRect = mockBCR;
 
       try {
         fireEvent.dragOver(targetItem, {
@@ -314,18 +298,10 @@ describe('DataTableColumnSettings', () => {
 
       const targetItem = checkboxItems[1] as HTMLElement;
 
+      const mockBCR = (): DOMRect =>
+        ({ top: 100, bottom: 140, height: 40, left: 0, right: 200, width: 200, x: 0, y: 100, toJSON: () => ({}) }) as DOMRect;
       const origGetBCR = Element.prototype.getBoundingClientRect;
-      Element.prototype.getBoundingClientRect = jest.fn().mockReturnValue({
-        top: 100,
-        bottom: 140,
-        height: 40,
-        left: 0,
-        right: 200,
-        width: 200,
-        x: 0,
-        y: 100,
-        toJSON: () => ({}),
-      } as DOMRect);
+      Element.prototype.getBoundingClientRect = mockBCR;
 
       try {
         fireEvent.dragOver(targetItem, { dataTransfer, clientY: 110 });
@@ -363,18 +339,10 @@ describe('DataTableColumnSettings', () => {
 
       fireEvent.dragStart(draggedItem, { dataTransfer });
 
+      const mockBCR = (): DOMRect =>
+        ({ top: 100, bottom: 140, height: 40, left: 0, right: 200, width: 200, x: 0, y: 100, toJSON: () => ({}) }) as DOMRect;
       const origGetBCR = Element.prototype.getBoundingClientRect;
-      Element.prototype.getBoundingClientRect = jest.fn().mockReturnValue({
-        top: 100,
-        bottom: 140,
-        height: 40,
-        left: 0,
-        right: 200,
-        width: 200,
-        x: 0,
-        y: 100,
-        toJSON: () => ({}),
-      } as DOMRect);
+      Element.prototype.getBoundingClientRect = mockBCR;
 
       try {
         fireEvent.dragOver(targetItem, { dataTransfer, clientY: 130 }); // lower half → below
