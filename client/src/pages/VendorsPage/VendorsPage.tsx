@@ -10,6 +10,7 @@ import { TradePicker } from '../../components/TradePicker/TradePicker.js';
 import { useTrades } from '../../hooks/useTrades.js';
 import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { fetchVendors, createVendor, deleteVendor } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import sharedStyles from '../../styles/shared.module.css';
@@ -17,6 +18,7 @@ import styles from './VendorsPage.module.css';
 
 export function VendorsPage() {
   const { t } = useTranslation('budget');
+  const { t: tSettings } = useTranslation('settings');
   const navigate = useNavigate();
   const { trades } = useTrades();
   const { formatDate } = useFormatters();
@@ -236,8 +238,12 @@ export function VendorsPage() {
         filterable: true,
         filterType: 'enum',
         filterParamKey: 'tradeId',
-        enumOptions: trades.map((tr) => ({ value: tr.id, label: tr.name })),
-        render: (v) => v.trade?.name ?? '—',
+        enumOptions: trades.map((tr) => ({
+          value: tr.id,
+          label: getCategoryDisplayName(tSettings, tr.name, tr.translationKey),
+        })),
+        render: (v) =>
+          v.trade ? getCategoryDisplayName(tSettings, v.trade.name, v.trade.translationKey) : '—',
       },
       {
         key: 'contactInfo',

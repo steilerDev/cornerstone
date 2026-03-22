@@ -12,6 +12,7 @@ import { useFormatters } from '../../lib/formatters.js';
 import { listHouseholdItems, deleteHouseholdItem } from '../../lib/householdItemsApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
+import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import sharedStyles from '../../styles/shared.module.css';
@@ -19,6 +20,7 @@ import styles from './HouseholdItemsPage.module.css';
 
 export function HouseholdItemsPage() {
   const { t } = useTranslation('householdItems');
+  const { t: tSettings } = useTranslation('settings');
   const navigate = useNavigate();
   const { formatCurrency, formatDate } = useFormatters();
   const { areas } = useAreas();
@@ -26,7 +28,7 @@ export function HouseholdItemsPage() {
   // Data state
   const [householdItems, setHouseholdItems] = useState<HouseholdItemSummary[]>([]);
   const [vendors, setVendors] = useState<Array<{ id: string; name: string }>>([]);
-  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; translationKey: string | null }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [totalItems, setTotalItems] = useState(0);
@@ -55,7 +57,13 @@ export function HouseholdItemsPage() {
           fetchHouseholdItemCategories(),
         ]);
         setVendors(vendorsResponse.vendors.map((v) => ({ id: v.id, name: v.name })));
-        setCategories(categoriesResponse.categories.map((c) => ({ id: c.id, name: c.name })));
+        setCategories(
+          categoriesResponse.categories.map((c) => ({
+            id: c.id,
+            name: c.name,
+            translationKey: c.translationKey,
+          })),
+        );
       } catch (err) {
         console.error('Failed to load vendors or categories:', err);
       }
@@ -212,10 +220,15 @@ export function HouseholdItemsPage() {
         filterable: true,
         filterType: 'enum',
         filterParamKey: 'category',
-        enumOptions: categories.map((c) => ({ value: c.id, label: c.name })),
+        enumOptions: categories.map((c) => ({
+          value: c.id,
+          label: getCategoryDisplayName(tSettings, c.name, c.translationKey),
+        })),
         render: (item) => {
           const cat = categories.find((c) => c.id === item.category);
-          return cat?.name || item.category;
+          return cat
+            ? getCategoryDisplayName(tSettings, cat.name, cat.translationKey)
+            : item.category;
         },
       },
       {
