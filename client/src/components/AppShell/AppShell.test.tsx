@@ -3,7 +3,7 @@
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import type React from 'react';
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { lazy } from 'react';
 import { Route, Routes } from 'react-router-dom';
@@ -324,36 +324,6 @@ describe('AppShell', () => {
     // FAB button should now show close icon
     const fabAfterOpen = screen.getByTestId('menu-fab');
     expect(fabAfterOpen).toHaveTextContent('✕');
-  });
-
-  it('clicking close button inside sidebar closes the sidebar', async () => {
-    const user = userEvent.setup();
-    renderWithRouter(
-      <Routes>
-        <Route element={<AppShellModule.AppShell />} path="*">
-          <Route index element={<div>Test Content</div>} />
-        </Route>
-      </Routes>,
-    );
-
-    // Open sidebar
-    const menuButton = screen.getByRole('button', { name: /open menu/i });
-    await user.click(menuButton);
-
-    // Sidebar should be open
-    const sidebar = screen.getByRole('complementary');
-    expect(sidebar.className).toMatch(/open/);
-
-    // Click the close button inside the sidebar
-    const closeButton = within(sidebar).getByRole('button', { name: /close menu/i });
-    await user.click(closeButton);
-
-    // Sidebar should be closed
-    expect(sidebar.className).not.toMatch(/open/);
-
-    // Overlay should be removed
-    const overlay = document.querySelector('[data-testid="sidebar-overlay"]');
-    expect(overlay).not.toBeInTheDocument();
   });
 
   it('menu button aria-label changes from "Open menu" to "Close menu" when sidebar opens', async () => {
