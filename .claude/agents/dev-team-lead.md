@@ -373,7 +373,7 @@ For multi-item batches, include per-item summary bullets and one `Fixes #N` line
 
 ### CI Monitoring
 
-Watch CI checks after pushing using the **CI Gate Polling** pattern from `CLAUDE.md` (use the beta or main variant based on the PR's target branch).
+After pushing, **wait 5 seconds** for GitHub to compute merge status, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if the result is `MERGEABLE`.** If `CONFLICTING`, rebase onto the target branch, force-push, and re-check. If `UNKNOWN`, wait a few more seconds and retry. Once mergeability is confirmed, watch CI checks using the **CI Gate Polling** pattern from `CLAUDE.md` (use the beta or main variant based on the PR's target branch).
 
 If CI fails:
 
@@ -437,7 +437,7 @@ In `[MODE: commit]`:
 2. Stage specific files and commit with conventional message + all contributing agent trailers
 3. Push: `git push -u origin <branch-name>`
 4. Create PR targeting `beta` (if not already created)
-5. Watch CI using the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant)
+5. **Wait 5 seconds**, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if `MERGEABLE`.** If `CONFLICTING`, rebase onto `beta`, force-push, and re-check. Once confirmed, watch CI using the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant)
 6. If CI fails, return a fix spec (do NOT fix directly)
 7. Return PR URL with CI status to orchestrator
 

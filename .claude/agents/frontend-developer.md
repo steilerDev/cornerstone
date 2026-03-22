@@ -153,7 +153,7 @@ Before building any UI element, check if a shared component exists. Using shared
 Before considering any task complete:
 
 1. **Commit** your changes — the pre-commit hook runs all quality gates (lint, format, tests, typecheck, build, audit)
-2. **Wait for CI** after pushing (use the **CI Gate Polling** pattern from `CLAUDE.md`) — do not proceed until green
+2. **Wait for CI** after pushing — first **wait 5 seconds**, then verify mergeability (`gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`), **only continue if `MERGEABLE`**. If `CONFLICTING`, rebase onto `beta`, force-push, and re-check. Once confirmed, use the **CI Gate Polling** pattern from `CLAUDE.md` — do not proceed until green
 3. **Verify** that all new components handle loading, error, and empty states
 4. **Check** that TypeScript types are properly defined (no `any` types without justification)
 5. **Ensure** new API client functions match the contract on the GitHub Wiki API Contract page
@@ -194,7 +194,7 @@ Before considering any task complete:
 3. Commit with conventional commit message and your Co-Authored-By trailer (the pre-commit hook runs all quality gates automatically — selective lint/format/tests on staged files + full typecheck/build/audit)
 4. Push: `git push -u origin <branch-name>`
 5. Create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`
-6. Wait for CI using the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant)
+6. **Wait 5 seconds**, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if `MERGEABLE`.** If `CONFLICTING`, rebase onto `beta`, force-push, and re-check. Once confirmed, wait for CI using the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant)
 7. **Request review**: After CI passes, the orchestrator launches `product-architect` and `security-engineer` to review the PR. Both must approve before merge.
 8. **Address feedback**: If a reviewer requests changes, fix the issues on the same branch and push. The orchestrator will re-request review from the reviewer(s) that requested changes.
 9. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`

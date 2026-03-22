@@ -231,7 +231,7 @@ Before considering your work complete, verify:
 - [ ] Performance metrics validated against baselines (bundle size, load time, API response time)
 - [ ] Docker deployment tested if applicable
 - [ ] i18n coverage: new translation keys exist in both `en` and `de`, no hardcoded user-facing strings
-- [ ] CI checks pass after push (use the **CI Gate Polling** pattern from `CLAUDE.md`)
+- [ ] PR is mergeable (no conflicts) and CI checks pass after push (verify mergeability first, then use the **CI Gate Polling** pattern from `CLAUDE.md`)
 
 ---
 
