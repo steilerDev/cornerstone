@@ -920,8 +920,12 @@ test.describe('Search vendors (Scenario 12)', { tag: '@responsive' }, () => {
       await vendorsPage.waitForVendorsLoaded();
       await vendorsPage.search(vendorName);
 
-      // The URL should contain the q param
-      expect(page.url()).toContain('q=');
+      // The URL should contain the q param.
+      // Use waitForURL (with retries via expect) rather than a synchronous check —
+      // on tablet the URL update from react-router can lag slightly after the API
+      // response returns, causing a synchronous expect(page.url()).toContain('q=')
+      // to fail intermittently.
+      await page.waitForURL((url) => url.searchParams.has('q'), { timeout: 5000 });
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
