@@ -76,6 +76,8 @@ export interface InvoiceBudgetLineSummary {
   categoryName: string | null;
   /** Budget category color. */
   categoryColor: string | null;
+  /** Budget category translation key. */
+  categoryTranslationKey: string | null;
   /** Planned amount on the budget line. */
   plannedAmount: number;
   /** Confidence level of the estimate. */
@@ -100,6 +102,7 @@ export interface InvoiceBudgetLineDetailResponse {
   categoryId: string | null;
   categoryName: string | null;
   categoryColor: string | null;
+  categoryTranslationKey: string | null;
   parentItemId: string;
   parentItemTitle: string;
   parentItemType: 'work_item' | 'household_item';

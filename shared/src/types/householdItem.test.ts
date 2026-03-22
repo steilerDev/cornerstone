@@ -89,7 +89,7 @@ describe('HouseholdItemVendorSummary interface', () => {
     const vendor: HouseholdItemVendorSummary = {
       id: 'vendor-1',
       name: 'IKEA',
-      trade: { id: 'trade-other', name: 'Other', color: '#6B7280' },
+      trade: { id: 'trade-other', name: 'Other', color: '#6B7280', translationKey: 'trades.other' },
     };
 
     expect(vendor.id).toBe('vendor-1');

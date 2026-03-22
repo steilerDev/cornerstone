@@ -29,6 +29,7 @@ describe('TradeSummary interface', () => {
       id: 'trade-plumbing',
       name: 'Plumbing',
       color: '#0EA5E9',
+      translationKey: 'trades.plumbing',
     };
 
     expect(trade.id).toBe('trade-plumbing');
@@ -41,6 +42,7 @@ describe('TradeSummary interface', () => {
       id: 'trade-custom',
       name: 'Custom Trade',
       color: null,
+      translationKey: null,
     };
 
     expect(trade.id).toBe('trade-custom');
@@ -70,7 +72,7 @@ describe('TradeSummary interface', () => {
     expect(defaultTradeIds).toHaveLength(15);
 
     for (const id of defaultTradeIds) {
-      const trade: TradeSummary = { id, name: id, color: null };
+      const trade: TradeSummary = { id, name: id, color: null, translationKey: null };
       expect(trade.id).toBe(id);
     }
   });
@@ -87,6 +89,7 @@ describe('TradeResponse interface', () => {
       name: 'Electrical',
       color: '#F59E0B',
       description: 'Wiring, lighting, power systems',
+      translationKey: 'trades.electrical',
       sortOrder: 2,
       createdAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-01-01T00:00:00Z',
@@ -106,6 +109,7 @@ describe('TradeResponse interface', () => {
       name: 'Custom',
       color: null,
       description: null,
+      translationKey: null,
       sortOrder: 100,
       createdAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-01-01T00:00:00Z',
@@ -122,6 +126,7 @@ describe('TradeResponse interface', () => {
       name: 'Other',
       color: '#6B7280',
       description: 'Miscellaneous trades',
+      translationKey: 'trades.other',
       sortOrder: 14,
       createdAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-01-01T00:00:00Z',
@@ -145,6 +150,7 @@ describe('TradeListResponse interface', () => {
           name: 'Plumbing',
           color: '#0EA5E9',
           description: 'Water supply, drainage, sanitary installations',
+          translationKey: 'trades.plumbing',
           sortOrder: 0,
           createdAt: '2026-01-01T00:00:00Z',
           updatedAt: '2026-01-01T00:00:00Z',
@@ -154,6 +160,7 @@ describe('TradeListResponse interface', () => {
           name: 'HVAC',
           color: '#8B5CF6',
           description: 'Heating, ventilation, air conditioning',
+          translationKey: 'trades.hvac',
           sortOrder: 1,
           createdAt: '2026-01-01T00:00:00Z',
           updatedAt: '2026-01-01T00:00:00Z',
@@ -184,6 +191,7 @@ describe('TradeSingleResponse interface', () => {
         name: 'Carpentry',
         color: '#92400E',
         description: 'Wood framing, trim, cabinetry',
+        translationKey: 'trades.carpentry',
         sortOrder: 4,
         createdAt: '2026-01-01T00:00:00Z',
         updatedAt: '2026-01-01T00:00:00Z',

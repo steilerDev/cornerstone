@@ -38,6 +38,7 @@ export interface HouseholdItemCategoryEntity {
   id: string;
   name: string;
   color: string | null;
+  translationKey: string | null;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;

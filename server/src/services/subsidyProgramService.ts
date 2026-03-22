@@ -53,6 +53,7 @@ function toBudgetCategory(row: typeof budgetCategories.$inferSelect): BudgetCate
     name: row.name,
     description: row.description ?? null,
     color: row.color ?? null,
+    translationKey: row.translationKey ?? null,
     sortOrder: row.sortOrder,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
