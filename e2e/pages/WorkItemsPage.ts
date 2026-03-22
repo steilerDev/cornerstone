@@ -160,8 +160,10 @@ export class WorkItemsPage {
       }
     }
 
-    // Mobile fallback (or empty table): card title elements
-    const cardTitles = await this.cardsContainer.locator('[class*="cardTitle"]').all();
+    // Mobile fallback (or empty table): DataTableCard renders the same cell content as the table.
+    // The title column uses styles.itemLink (CSS Modules) — same class as in the table rows.
+    // DataTableCard has NO "cardTitle" class; looking for itemLink inside cardsContainer is correct.
+    const cardTitles = await this.cardsContainer.locator('[class*="itemLink"]').all();
     const titles: string[] = [];
     for (const el of cardTitles) {
       const text = await el.textContent();

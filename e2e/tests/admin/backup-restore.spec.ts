@@ -80,18 +80,26 @@ test.describe('Backups tab — member access control', () => {
     // The SettingsSubNav reads from AuthContext (which uses /api/auth/me via useAuth),
     // so mocking the auth endpoint is the correct E2E approach for role-based UI tests
     // when no member storage state exists.
+    // Mock format: { user: { ... }, setupRequired, oidcEnabled }
+    // The flat format ({ id, role, ... }) does NOT work — useAuth() reads response.user.role;
+    // a flat response causes the auth context to treat the user as unauthenticated and
+    // redirect to /login, making the Profile heading and settings nav unreachable.
     await page.route('**/api/auth/me', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          id: 2,
-          email: 'member@e2e-test.local',
-          displayName: 'E2E Member',
-          role: 'member',
-          authProvider: 'local',
-          isActive: true,
-          createdAt: '2026-01-01T00:00:00.000Z',
+          user: {
+            id: 2,
+            email: 'member@e2e-test.local',
+            displayName: 'E2E Member',
+            role: 'member',
+            authProvider: 'local',
+            isActive: true,
+            createdAt: '2026-01-01T00:00:00.000Z',
+          },
+          setupRequired: false,
+          oidcEnabled: false,
         }),
       });
     });
