@@ -25,7 +25,7 @@ describe('vendorsApi', () => {
   const sampleVendor: Vendor = {
     id: 'vendor-1',
     name: 'Smith Plumbing',
-    trade: { id: 'trade-1', name: 'Plumbing', color: null },
+    trade: { id: 'trade-1', name: 'Plumbing', color: null, translationKey: null },
     phone: '+1 555-1234',
     email: 'smith@plumbing.com',
     address: '123 Main St',
@@ -392,7 +392,7 @@ describe('vendorsApi', () => {
       const updated: VendorDetail = {
         ...sampleVendorDetail,
         name: 'Updated Vendor',
-        trade: { id: 'trade-landscaping', name: 'Landscaping', color: null },
+        trade: { id: 'trade-landscaping', name: 'Landscaping', color: null, translationKey: null },
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -410,7 +410,7 @@ describe('vendorsApi', () => {
     it('handles partial update (only tradeId)', async () => {
       const updated: VendorDetail = {
         ...sampleVendorDetail,
-        trade: { id: 'trade-new', name: 'New Trade', color: null },
+        trade: { id: 'trade-new', name: 'New Trade', color: null, translationKey: null },
       };
 
       mockFetch.mockResolvedValueOnce({
