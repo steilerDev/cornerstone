@@ -532,8 +532,8 @@ export function listHouseholdItems(
     .select({
       plannedCostMin: sql<number>`COALESCE(MIN(COALESCE((SELECT SUM(${householdItemBudgets.plannedAmount}) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0)), 0)`,
       plannedCostMax: sql<number>`COALESCE(MAX(COALESCE((SELECT SUM(${householdItemBudgets.plannedAmount}) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0)), 0)`,
-      actualCostMin: sql<number>`COALESCE(MIN(COALESCE((SELECT SUM(${invoiceBudgetLines.itemizedAmount}) FROM ${invoiceBudgetLines} INNER JOIN ${householdItemBudgets} ON ${invoiceBudgetLines.householdItemBudgetId} = ${householdItemBudgets.id} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0)), 0)`,
-      actualCostMax: sql<number>`COALESCE(MAX(COALESCE((SELECT SUM(${invoiceBudgetLines.itemizedAmount}) FROM ${invoiceBudgetLines} INNER JOIN ${householdItemBudgets} ON ${invoiceBudgetLines.householdItemBudgetId} = ${householdItemBudgets.id} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0)), 0)`,
+      actualCostMin: sql<number>`COALESCE(MIN(COALESCE((SELECT SUM(${invoiceBudgetLines.itemizedAmount}) FROM ${invoiceBudgetLines} INNER JOIN ${householdItemBudgets} AS hib_meta ON ${invoiceBudgetLines.householdItemBudgetId} = hib_meta.id WHERE hib_meta.household_item_id = ${householdItems.id}), 0)), 0)`,
+      actualCostMax: sql<number>`COALESCE(MAX(COALESCE((SELECT SUM(${invoiceBudgetLines.itemizedAmount}) FROM ${invoiceBudgetLines} INNER JOIN ${householdItemBudgets} AS hib_meta ON ${invoiceBudgetLines.householdItemBudgetId} = hib_meta.id WHERE hib_meta.household_item_id = ${householdItems.id}), 0)), 0)`,
       budgetLinesMin: sql<number>`COALESCE(MIN(COALESCE((SELECT COUNT(*) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0)), 0)`,
       budgetLinesMax: sql<number>`COALESCE(MAX(COALESCE((SELECT COUNT(*) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0)), 0)`,
     })
