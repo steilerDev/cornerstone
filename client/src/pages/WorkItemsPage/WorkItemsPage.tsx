@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { WorkItemSummary, WorkItemListQuery } from '@cornerstone/shared';
+import type { WorkItemSummary, WorkItemListQuery, FilterMeta } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { Modal } from '../../components/Modal/Modal.js';
@@ -29,13 +29,14 @@ export function WorkItemsPage() {
   const [workItems, setWorkItems] = useState<WorkItemSummary[]>([]);
   const [users, setUsers] = useState<Array<{ id: string; displayName: string }>>([]);
   const [vendors, setVendors] = useState<Array<{ id: string; name: string }>>([]);
+  const [filterMeta, setFilterMeta] = useState<FilterMeta>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
   // Table state management with URL sync
-  const { tableState, toApiParams, setFilter } = useTableState({
+  const { tableState, toApiParams } = useTableState({
     defaultPageSize: 25,
   });
   const [searchParams, setSearchParams] = useSearchParams();
@@ -95,6 +96,7 @@ export function WorkItemsPage() {
     try {
       const response = await listWorkItems(toApiParams() as WorkItemListQuery);
       setWorkItems(response.items);
+      setFilterMeta(response.filterMeta ?? {});
       setTotalPages(response.pagination.totalPages);
       setTotalItems(response.pagination.totalItems);
     } catch (err) {
@@ -131,9 +133,9 @@ export function WorkItemsPage() {
       'assignedUserId',
       'assignedVendorId',
       'areaId',
-      'noBudget',
       'startDate',
       'endDate',
+      'budgetLines',
     ];
     for (const key of knownFilterKeys) {
       params.delete(key);
@@ -293,6 +295,11 @@ export function WorkItemsPage() {
         label: t('list.table.budgetLines'),
         sortable: false,
         defaultVisible: true,
+        filterable: true,
+        filterType: 'number' as const,
+        filterParamKey: 'budgetLines',
+        numberMin: 0,
+        numberStep: 1,
         render: (item) => item.budgetLineCount,
       },
     ],
@@ -357,25 +364,6 @@ export function WorkItemsPage() {
           </button>
         </div>
       )}
-    </div>
-  );
-
-  // Custom filters: noBudget (vendor, assignedTo, and area now use column-level enum filters)
-  const customFilters = (
-    <div className={styles.customFiltersRow}>
-      <button
-        type="button"
-        className={`${styles.noBudgetToggle} ${
-          tableState.filters.get('noBudget')?.value ? styles.noBudgetToggleActive : ''
-        }`}
-        onClick={() =>
-          setFilter('noBudget', tableState.filters.get('noBudget')?.value ? null : 'true')
-        }
-        aria-pressed={!!tableState.filters.get('noBudget')?.value}
-        aria-label={t('list.filters.noBudgetAriaLabel')}
-      >
-        {t('list.filters.noBudget')}
-      </button>
     </div>
   );
 
@@ -449,7 +437,7 @@ export function WorkItemsPage() {
         renderActions={renderActions}
         tableState={tableState}
         onStateChange={handleStateChange}
-        customFilters={customFilters}
+        filterMeta={filterMeta}
         emptyState={{
           message: t('list.empty.noItemsTitle'),
           description: t('list.empty.noItemsText'),

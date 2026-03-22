@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { HouseholdItemSummary, HouseholdItemListQuery } from '@cornerstone/shared';
+import type { HouseholdItemSummary, HouseholdItemListQuery, FilterMeta } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { Modal } from '../../components/Modal/Modal.js';
@@ -31,13 +31,14 @@ export function HouseholdItemsPage() {
   const [categories, setCategories] = useState<
     Array<{ id: string; name: string; translationKey: string | null }>
   >([]);
+  const [filterMeta, setFilterMeta] = useState<FilterMeta>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
   // Table state management with URL sync
-  const { tableState, toApiParams, setFilter } = useTableState({
+  const { tableState, toApiParams } = useTableState({
     defaultPageSize: 25,
   });
   const [searchParams, setSearchParams] = useSearchParams();
@@ -93,6 +94,7 @@ export function HouseholdItemsPage() {
     try {
       const response = await listHouseholdItems(toApiParams() as HouseholdItemListQuery);
       setHouseholdItems(response.items);
+      setFilterMeta(response.filterMeta ?? {});
       setTotalPages(response.pagination.totalPages);
       setTotalItems(response.pagination.totalItems);
     } catch (err) {
@@ -129,9 +131,11 @@ export function HouseholdItemsPage() {
       'status',
       'vendorId',
       'areaId',
-      'noBudget',
       'targetDelivery',
       'actualDelivery',
+      'plannedCost',
+      'actualCost',
+      'budgetLines',
     ];
     for (const key of knownFilterKeys) {
       params.delete(key);
@@ -278,6 +282,11 @@ export function HouseholdItemsPage() {
         label: t('table.headers.plannedCost'),
         sortable: false,
         defaultVisible: true,
+        filterable: true,
+        filterType: 'number' as const,
+        filterParamKey: 'plannedCost',
+        numberMin: 0,
+        numberStep: 0.01,
         render: (item) => formatCurrency(item.totalPlannedAmount),
       },
       {
@@ -303,17 +312,15 @@ export function HouseholdItemsPage() {
         render: (item) => (item.actualDeliveryDate ? formatDate(item.actualDeliveryDate) : '—'),
       },
       {
-        key: 'plannedCost',
-        label: t('table.headers.plannedCost'),
-        sortable: false,
-        defaultVisible: false,
-        render: (item) => formatCurrency(item.budgetSummary?.totalPlanned ?? 0),
-      },
-      {
         key: 'actualCost',
         label: t('table.headers.actualCost'),
         sortable: false,
         defaultVisible: false,
+        filterable: true,
+        filterType: 'number' as const,
+        filterParamKey: 'actualCost',
+        numberMin: 0,
+        numberStep: 0.01,
         render: (item) => formatCurrency(item.budgetSummary?.totalActual ?? 0),
       },
       {
@@ -321,6 +328,11 @@ export function HouseholdItemsPage() {
         label: t('table.headers.subsidyReduction'),
         sortable: false,
         defaultVisible: false,
+        filterable: true,
+        filterType: 'number' as const,
+        getValue: (item) => item.budgetSummary?.subsidyReduction ?? 0,
+        numberMin: 0,
+        numberStep: 0.01,
         render: (item) => formatCurrency(item.budgetSummary?.subsidyReduction ?? 0),
       },
       {
@@ -328,6 +340,11 @@ export function HouseholdItemsPage() {
         label: t('table.headers.netCost'),
         sortable: false,
         defaultVisible: false,
+        filterable: true,
+        filterType: 'number' as const,
+        getValue: (item) => item.budgetSummary?.netCost ?? 0,
+        numberMin: 0,
+        numberStep: 0.01,
         render: (item) => formatCurrency(item.budgetSummary?.netCost ?? 0),
       },
       {
@@ -343,6 +360,11 @@ export function HouseholdItemsPage() {
         label: t('table.headers.budgetLines'),
         sortable: false,
         defaultVisible: false,
+        filterable: true,
+        filterType: 'number' as const,
+        filterParamKey: 'budgetLines',
+        numberMin: 0,
+        numberStep: 1,
         render: (item) => item.budgetLineCount,
       },
     ],
@@ -410,25 +432,6 @@ export function HouseholdItemsPage() {
     </div>
   );
 
-  // Custom filters: noBudget (vendor and area now use column-level enum filters)
-  const customFilters = (
-    <div className={styles.customFiltersRow}>
-      <button
-        type="button"
-        className={`${styles.noBudgetToggle} ${
-          tableState.filters.get('noBudget')?.value ? styles.noBudgetToggleActive : ''
-        }`}
-        onClick={() =>
-          setFilter('noBudget', tableState.filters.get('noBudget')?.value ? null : 'true')
-        }
-        aria-pressed={!!tableState.filters.get('noBudget')?.value}
-        aria-label={t('filters.noBudgetAriaLabel')}
-      >
-        {t('filters.noBudget')}
-      </button>
-    </div>
-  );
-
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -459,7 +462,7 @@ export function HouseholdItemsPage() {
         renderActions={renderActions}
         tableState={tableState}
         onStateChange={handleStateChange}
-        customFilters={customFilters}
+        filterMeta={filterMeta}
         emptyState={{
           message: t('empty.noItems'),
           description: t('empty.noItemsMessage'),

@@ -50,6 +50,9 @@ export function fetchAllInvoices(params?: {
   q?: string;
   status?: 'pending' | 'paid' | 'claimed' | 'quotation';
   vendorId?: string;
+  amount?: string;
+  date?: string;
+  dueDate?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }): Promise<InvoiceListPaginatedResponse> {
@@ -59,6 +62,9 @@ export function fetchAllInvoices(params?: {
   if (params?.q) queryParams.set('q', params.q);
   if (params?.status) queryParams.set('status', params.status);
   if (params?.vendorId) queryParams.set('vendorId', params.vendorId);
+  if (params?.amount) queryParams.set('amount', params.amount);
+  if (params?.date) queryParams.set('date', params.date);
+  if (params?.dueDate) queryParams.set('dueDate', params.dueDate);
   if (params?.sortBy) queryParams.set('sortBy', params.sortBy);
   if (params?.sortOrder) queryParams.set('sortOrder', params.sortOrder);
   const queryString = queryParams.toString();
