@@ -416,21 +416,22 @@ export function HouseholdItemsPage() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.pageTitle}>{t('page.title')}</h1>
-        <button
-          type="button"
-          className={sharedStyles.btnPrimary}
-          onClick={() => navigate('/project/household-items/new')}
-          data-testid="new-household-item-button"
-        >
-          {t('newButton')}
-        </button>
-      </div>
+      <div className={styles.content}>
+        <div className={styles.header}>
+          <h1 className={styles.pageTitle}>{t('page.title')}</h1>
+          <button
+            type="button"
+            className={sharedStyles.btnPrimary}
+            onClick={() => navigate('/project/household-items/new')}
+            data-testid="new-household-item-button"
+          >
+            {t('newButton')}
+          </button>
+        </div>
 
-      <ProjectSubNav />
+        <ProjectSubNav />
 
-      <DataTable<HouseholdItemSummary>
+        <DataTable<HouseholdItemSummary>
         pageKey="householdItems"
         columns={columns}
         items={householdItems}
@@ -495,6 +496,7 @@ export function HouseholdItemsPage() {
           )}
         </Modal>
       )}
+      </div>
     </div>
   );
 }

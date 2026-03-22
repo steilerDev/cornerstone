@@ -357,23 +357,24 @@ export function VendorsPage() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.pageTitle}>{t('vendors.title')}</h1>
-        <button
-          type="button"
-          className={sharedStyles.btnPrimary}
-          onClick={openCreateModal}
-          data-testid="new-vendor-button"
-        >
-          {t('vendors.addVendor')}
-        </button>
-      </div>
+      <div className={styles.content}>
+        <div className={styles.header}>
+          <h1 className={styles.pageTitle}>{t('vendors.title')}</h1>
+          <button
+            type="button"
+            className={sharedStyles.btnPrimary}
+            onClick={openCreateModal}
+            data-testid="new-vendor-button"
+          >
+            {t('vendors.addVendor')}
+          </button>
+        </div>
 
-      <BudgetSubNav />
+        <BudgetSubNav />
 
-      <h2 className={styles.sectionTitle}>{t('vendors.sectionTitle')}</h2>
+        <h2 className={styles.sectionTitle}>{t('vendors.sectionTitle')}</h2>
 
-      <DataTable<Vendor>
+        <DataTable<Vendor>
         pageKey="vendors"
         columns={columns}
         items={vendors}
@@ -568,6 +569,7 @@ export function VendorsPage() {
           )}
         </Modal>
       )}
+      </div>
     </div>
   );
 }

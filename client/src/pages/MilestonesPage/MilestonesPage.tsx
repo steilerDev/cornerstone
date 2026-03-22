@@ -356,20 +356,21 @@ export function MilestonesPage() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.pageTitle}>{t('milestones.page.title')}</h1>
-        <button
-          type="button"
-          className={sharedStyles.btnPrimary}
-          onClick={() => navigate('/project/milestones/new')}
-          data-testid="new-milestone-button"
-        >
-          {t('milestones.newButton')}
-        </button>
-      </div>
-      <ProjectSubNav />
+      <div className={styles.content}>
+        <div className={styles.header}>
+          <h1 className={styles.pageTitle}>{t('milestones.page.title')}</h1>
+          <button
+            type="button"
+            className={sharedStyles.btnPrimary}
+            onClick={() => navigate('/project/milestones/new')}
+            data-testid="new-milestone-button"
+          >
+            {t('milestones.newButton')}
+          </button>
+        </div>
+        <ProjectSubNav />
 
-      <DataTable<MilestoneSummary>
+        <DataTable<MilestoneSummary>
         pageKey="milestones"
         columns={columns}
         items={filtered}
@@ -430,6 +431,7 @@ export function MilestonesPage() {
       {showShortcutsHelp && (
         <KeyboardShortcutsHelp shortcuts={shortcuts} onClose={() => setShowShortcutsHelp(false)} />
       )}
+      </div>
     </div>
   );
 }

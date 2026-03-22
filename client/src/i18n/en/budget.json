@@ -8,9 +8,9 @@
     "emptyStateTitle": "No budget data yet",
     "emptyStateDescription": "Start by adding budget categories, work items with planned costs, and financing sources. Your project budget overview will appear here once data is entered.",
     "actions": {
-      "addButton": "Add",
-      "addInvoice": "Add Invoice",
-      "addVendor": "Add Vendor"
+      "addButton": "New",
+      "addInvoice": "New Invoice",
+      "addVendor": "New Vendor"
     },
     "availableFunds": "Available Funds",
     "projectedCostRange": "Projected Cost Range",
@@ -65,7 +65,7 @@
   "sources": {
     "title": "Budget",
     "sectionTitle": "Sources",
-    "addSource": "Add Source",
+    "addSource": "New Source",
     "loading": "Loading budget sources...",
     "error": "Error",
     "errorMessage": "Failed to load budget sources. Please try again.",
@@ -152,7 +152,7 @@
   "vendors": {
     "title": "Budget",
     "sectionTitle": "Vendors",
-    "addVendor": "Add Vendor",
+    "addVendor": "New Vendor",
     "addFirstVendor": "Add First Vendor",
     "loading": "Loading vendors...",
     "error": "Error",
@@ -353,7 +353,7 @@
   "invoices": {
     "title": "Budget",
     "sectionTitle": "Invoices",
-    "addInvoice": "Add Invoice",
+    "addInvoice": "New Invoice",
     "addFirstInvoice": "Add First Invoice",
     "loading": "Loading invoices...",
     "error": "Error",
@@ -416,7 +416,7 @@
       "dateRequired": "Invoice date is required."
     },
     "buttons": {
-      "create": "Add Invoice",
+      "create": "New Invoice",
       "creating": "Adding...",
       "save": "Save Changes",
       "saving": "Saving...",
@@ -524,8 +524,9 @@
   },
   "subsidies": {
     "title": "Subsidy Programs",
+    "pageTitle": "Budget",
     "sectionTitle": "Subsidy Programs",
-    "addProgram": "Add Program",
+    "addProgram": "New Subsidy Program",
     "loading": "Loading subsidy programs...",
     "error": "Error",
     "errorMessage": "Failed to load subsidy programs. Please try again.",

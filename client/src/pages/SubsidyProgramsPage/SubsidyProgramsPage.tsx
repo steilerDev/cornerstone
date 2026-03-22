@@ -19,6 +19,7 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import styles from './SubsidyProgramsPage.module.css';
+import sharedStyles from '../../styles/shared.module.css';
 
 // ---- Display helpers ----
 
@@ -363,10 +364,10 @@ export function SubsidyProgramsPage() {
       <div className={styles.container}>
         <div className={styles.content}>
           <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>Budget</h1>
+            <h1 className={styles.pageTitle}>{t('subsidies.pageTitle')}</h1>
           </div>
           <BudgetSubNav />
-          <div className={styles.loading}>Loading subsidy programs...</div>
+          <div className={styles.loading}>{t('subsidies.loading')}</div>
         </div>
       </div>
     );
@@ -377,14 +378,14 @@ export function SubsidyProgramsPage() {
       <div className={styles.container}>
         <div className={styles.content}>
           <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>Budget</h1>
+            <h1 className={styles.pageTitle}>{t('subsidies.pageTitle')}</h1>
           </div>
           <BudgetSubNav />
           <div className={styles.errorCard} role="alert">
-            <h2 className={styles.errorTitle}>Error</h2>
+            <h2 className={styles.errorTitle}>{t('subsidies.error')}</h2>
             <p>{error}</p>
-            <button type="button" className={styles.button} onClick={() => void loadData()}>
-              Retry
+            <button type="button" className={sharedStyles.btnPrimary} onClick={() => void loadData()}>
+              {t('subsidies.retry')}
             </button>
           </div>
         </div>
@@ -397,7 +398,19 @@ export function SubsidyProgramsPage() {
       <div className={styles.content}>
         {/* Page header */}
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>Budget</h1>
+          <h1 className={styles.pageTitle}>{t('subsidies.pageTitle')}</h1>
+          <button
+            type="button"
+            className={sharedStyles.btnPrimary}
+            onClick={() => {
+              setShowCreateForm(true);
+              setCreateError('');
+              setNewCategoryIds(allCategories.map((c) => c.id));
+            }}
+            disabled={showCreateForm}
+          >
+            {t('subsidies.addProgram')}
+          </button>
         </div>
 
         {/* Budget sub-navigation */}
@@ -406,18 +419,6 @@ export function SubsidyProgramsPage() {
         {/* Section header */}
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{t('subsidies.title')}</h2>
-          <button
-            type="button"
-            className={styles.button}
-            onClick={() => {
-              setShowCreateForm(true);
-              setCreateError('');
-              setNewCategoryIds(allCategories.map((c) => c.id));
-            }}
-            disabled={showCreateForm}
-          >
-            Add Program
-          </button>
         </div>
 
         {successMessage && (
@@ -435,10 +436,9 @@ export function SubsidyProgramsPage() {
         {/* Create form */}
         {showCreateForm && (
           <section className={styles.card}>
-            <h2 className={styles.cardTitle}>New Subsidy Program</h2>
+            <h2 className={styles.cardTitle}>{t('subsidies.newSubsidyProgram')}</h2>
             <p className={styles.cardDescription}>
-              Subsidy programs represent government or institutional programs that reduce
-              construction costs through percentage or fixed-amount reductions.
+              {t('subsidies.subsidyDescription')}
             </p>
 
             {createError && (
@@ -451,7 +451,7 @@ export function SubsidyProgramsPage() {
               {/* Row 1: Name */}
               <div className={styles.field}>
                 <label htmlFor="programName" className={styles.label}>
-                  Name <span className={styles.required}>*</span>
+                  {t('subsidies.form.name')} <span className={styles.required}>{t('subsidies.form.required')}</span>
                 </label>
                 <input
                   type="text"
@@ -459,7 +459,7 @@ export function SubsidyProgramsPage() {
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   className={styles.input}
-                  placeholder="e.g., Energy Efficiency Rebate Program"
+                  placeholder={t('subsidies.form.placeholders.name')}
                   maxLength={200}
                   disabled={isCreating}
                   autoFocus

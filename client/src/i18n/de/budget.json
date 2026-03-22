@@ -8,9 +8,9 @@
     "emptyStateTitle": "Noch keine Budgetdaten",
     "emptyStateDescription": "Beginnen Sie mit dem Hinzufügen von Budgekategorien, Arbeitspaketen mit geplanten Kosten und Finanzierungsquellen. Ihre Projektbudget-Übersicht wird hier angezeigt, sobald Daten eingegeben werden.",
     "actions": {
-      "addButton": "Hinzufügen",
-      "addInvoice": "Rechnung Hinzufügen",
-      "addVendor": "Auftragnehmer Hinzufügen"
+      "addButton": "Neu",
+      "addInvoice": "Neue Rechnung",
+      "addVendor": "Neuer Auftragnehmer"
     },
     "availableFunds": "Verfügbare Mittel",
     "projectedCostRange": "Geplanter Kostenbereich",
@@ -65,7 +65,7 @@
   "sources": {
     "title": "Budget",
     "sectionTitle": "Quellen",
-    "addSource": "Quelle Hinzufügen",
+    "addSource": "Neue Quelle",
     "loading": "Budgetquellen werden geladen...",
     "error": "Fehler",
     "errorMessage": "Budgetquellen konnten nicht geladen werden. Bitte versuchen Sie es später erneut.",
@@ -152,7 +152,7 @@
   "vendors": {
     "title": "Budget",
     "sectionTitle": "Auftragnehmer",
-    "addVendor": "Auftragnehmer Hinzufügen",
+    "addVendor": "Neuer Auftragnehmer",
     "addFirstVendor": "Ersten Auftragnehmer Hinzufügen",
     "loading": "Auftragnehmer werden geladen...",
     "error": "Fehler",
@@ -196,7 +196,7 @@
       "nameTooLong": "Name des Auftragnehmers darf maximal 200 Zeichen lang sein."
     },
     "buttons": {
-      "create": "Auftragnehmer Hinzufügen",
+      "create": "Neuer Auftragnehmer",
       "creating": "Wird hinzugefügt...",
       "save": "Änderungen Speichern",
       "saving": "Wird gespeichert...",
@@ -415,8 +415,9 @@
   },
   "subsidies": {
     "title": "Förderprogramme",
+    "pageTitle": "Budget",
     "sectionTitle": "Förderprogramme",
-    "addProgram": "Programm Hinzufügen",
+    "addProgram": "Neues Förderprogramm",
     "loading": "Förderprogramme werden geladen...",
     "error": "Fehler",
     "errorMessage": "Förderprogramme konnten nicht geladen werden. Bitte versuchen Sie es später erneut.",
@@ -533,7 +534,7 @@
   "invoices": {
     "title": "Budget",
     "sectionTitle": "Rechnungen",
-    "addInvoice": "Rechnung Hinzufügen",
+    "addInvoice": "Neue Rechnung",
     "addFirstInvoice": "Erste Rechnung Hinzufügen",
     "loading": "Rechnungen werden geladen...",
     "error": "Fehler",
@@ -596,12 +597,16 @@
       "dateRequired": "Rechnungsdatum ist erforderlich."
     },
     "buttons": {
-      "create": "Rechnung Hinzufügen",
+      "create": "Neue Rechnung",
       "creating": "Wird hinzugefügt...",
       "save": "Änderungen Speichern",
       "saving": "Wird gespeichert...",
       "cancel": "Abbrechen",
-      "view": "Anzeigen"
+      "view": "Anzeigen",
+      "delete": "Löschen"
+    },
+    "actions": {
+      "menuAriaLabel": "Aktionen für Rechnung {{number}}"
     },
     "statusLabels": {
       "pending": "Ausstehend",

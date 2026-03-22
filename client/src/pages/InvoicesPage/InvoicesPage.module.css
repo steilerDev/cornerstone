@@ -1,24 +1,19 @@
 .container {
-  padding: var(--spacing-8);
-  max-width: 1200px;
-  margin: 0 auto;
+  composes: pageContainer from '../../styles/shared.module.css';
+}
+
+.content {
+  composes: pageContent from '../../styles/shared.module.css';
 }
 
 /* ---- Page header ---- */
 
 .header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-4);
-  margin-bottom: var(--spacing-6);
+  composes: pageHeader from '../../styles/shared.module.css';
 }
 
 .pageTitle {
-  font-size: var(--font-size-4xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  margin: 0;
+  composes: pageTitle from '../../styles/shared.module.css';
 }
 
 /* ---- Section title (below sub-nav) ---- */
