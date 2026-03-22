@@ -213,3 +213,31 @@ export class TradeInUseError extends AppError {
     this.name = 'TradeInUseError';
   }
 }
+
+export class BackupNotConfiguredError extends AppError {
+  constructor(message = 'Backup is not configured. Set BACKUP_DIR environment variable.') {
+    super('BACKUP_NOT_CONFIGURED', 503, message);
+    this.name = 'BackupNotConfiguredError';
+  }
+}
+
+export class BackupInProgressError extends AppError {
+  constructor(message = 'A backup or restore operation is already in progress') {
+    super('BACKUP_IN_PROGRESS', 409, message);
+    this.name = 'BackupInProgressError';
+  }
+}
+
+export class BackupNotFoundError extends AppError {
+  constructor(filename: string) {
+    super('BACKUP_NOT_FOUND', 404, `Backup not found: ${filename}`);
+    this.name = 'BackupNotFoundError';
+  }
+}
+
+export class RestoreFailedError extends AppError {
+  constructor(message = 'Restore operation failed', details?: Record<string, unknown>) {
+    super('RESTORE_FAILED', 500, message, details);
+    this.name = 'RestoreFailedError';
+  }
+}

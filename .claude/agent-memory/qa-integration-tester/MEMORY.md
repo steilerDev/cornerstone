@@ -3,6 +3,19 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1146 Backup/Restore Tests (2026-03-22)
+
+**Test files**: `backupService.test.ts`, `backups.test.ts` (routes), `backupsApi.test.ts`, `BackupsPage.test.tsx`.
+
+**Key patterns**:
+
+- **BACKUP_DIR must be outside app data dir**: config.ts validates `BACKUP_DIR` is not the same as or a subdirectory of `dirname(DATABASE_URL)`. In route tests: use TWO separate `mkdtempSync` calls — one for the DB (`tempDir`) and one for backups (`backupTempDir`). Using `join(tempDir, 'backups')` as `BACKUP_DIR` fails with config validation error.
+- **AppError has `.code` property, not the code in `.message`**: `BackupNotFoundError.message = 'Backup not found: filename'`, `BackupNotFoundError.code = 'BACKUP_NOT_FOUND'`. Use `rejects.toMatchObject({ code: 'BACKUP_NOT_FOUND' })`, NOT `stringContaining('BACKUP_NOT_FOUND')` on `.message`.
+- **`createError` state in BackupsPage not rendered**: `createError` state is set in `handleCreateBackup()` catch block but never displayed in JSX. Bug filed as #1164. Test for re-enabled button state instead of `role="alert"`.
+- **Delete modal opens showing filename in two places**: after clicking Delete, filename appears in both table `<td>` and modal `<strong>`. Use `getAllByText(filename)` not `getByText`.
+- **Config snapshot tests break on new AppConfig fields**: The 4 `toEqual` snapshot tests in `config.test.ts` fail whenever new fields are added to `AppConfig`. Backup feature added `backupDir/backupCadence/backupRetention/backupEnabled`. Add all 4 to each of the 4 full snapshot tests.
+- **German translations left uncommitted**: translator agent generated German translations but they were uncommitted in working tree, causing `errorTranslation.test.ts` failures (empty string translations). Commit them with translator co-author trailer.
+
 ## useSearchParams + Debounce Testing Anti-Patterns (2026-03-21)
 
 **Context**: Testing `useTableState` hook — combines `useSearchParams` (MemoryRouter) with debounced state updates.

@@ -34,6 +34,10 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         photoMaxFileSizeMb: 20,
         diaryAutoEvents: true,
         currency: 'EUR',
+        backupDir: undefined,
+        backupCadence: undefined,
+        backupRetention: undefined,
+        backupEnabled: false,
       });
     });
 
@@ -69,6 +73,10 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         photoMaxFileSizeMb: 20,
         diaryAutoEvents: true,
         currency: 'EUR',
+        backupDir: undefined,
+        backupCadence: undefined,
+        backupRetention: undefined,
+        backupEnabled: false,
       });
     });
   });
@@ -106,6 +114,10 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         photoMaxFileSizeMb: 20,
         diaryAutoEvents: true,
         currency: 'EUR',
+        backupDir: undefined,
+        backupCadence: undefined,
+        backupRetention: undefined,
+        backupEnabled: false,
       });
     });
 
@@ -138,6 +150,10 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         photoMaxFileSizeMb: 20,
         diaryAutoEvents: true,
         currency: 'EUR',
+        backupDir: undefined,
+        backupCadence: undefined,
+        backupRetention: undefined,
+        backupEnabled: false,
       });
     });
   });

@@ -34,14 +34,24 @@ export function SettingsSubNav() {
           </NavLink>
         ))}
         {user?.role === 'admin' && (
-          <NavLink
-            to="/settings/users"
-            end
-            className={({ isActive }) => `${styles.tab} ${isActive ? styles.tabActive : ''}`}
-            role="listitem"
-          >
-            {t('subnav.settings.userManagement')}
-          </NavLink>
+          <>
+            <NavLink
+              to="/settings/users"
+              end
+              className={({ isActive }) => `${styles.tab} ${isActive ? styles.tabActive : ''}`}
+              role="listitem"
+            >
+              {t('subnav.settings.userManagement')}
+            </NavLink>
+            <NavLink
+              to="/settings/backups"
+              end
+              className={({ isActive }) => `${styles.tab} ${isActive ? styles.tabActive : ''}`}
+              role="listitem"
+            >
+              {t('subnav.settings.backups')}
+            </NavLink>
+          </>
         )}
       </div>
     </nav>

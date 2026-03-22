@@ -153,3 +153,14 @@ Invoice-budget-line junction table (migration 0017). Request changes:
 ### Key Lesson: XOR CHECK + ON DELETE SET NULL Incompatibility (Bug #611)
 
 SQLite enforces CHECK constraints during FK SET NULL actions. If a table has `CHECK((a IS NOT NULL AND b IS NULL) OR ...)` and `ON DELETE SET NULL` on column `a`, deleting the referenced row triggers SET NULL which violates the XOR CHECK. Fix: use ON DELETE CASCADE instead.
+
+## PR #1150 Review (2026-03-22) -- EPIC-19 Backup & Restore
+
+Request changes (2 critical, 3 high, 2 medium):
+
+- CRITICAL: Wiki not updated (API-Contract.md, Architecture.md) -- zero wiki changes in PR
+- CRITICAL: CLAUDE.md env var table missing BACKUP_DIR, BACKUP_CADENCE, BACKUP_RETENTION
+- HIGH: stopScheduler() never called on app close -- needs onClose hook
+- HIGH: Module-level mutable state (operationInProgress, cronTask) -- testing concern
+- MEDIUM: process.exit(0) bypasses Fastify graceful shutdown
+- MEDIUM: createError state set but never rendered in UI (bug #1164)

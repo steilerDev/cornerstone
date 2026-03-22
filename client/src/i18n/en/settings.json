@@ -338,6 +338,47 @@
     "outdoor": "Outdoor",
     "storage": "Storage"
   },
+  "backups": {
+    "pageTitle": "Backup & Restore",
+    "createButton": "Create Backup",
+    "creating": "Creating backup...",
+    "loading": "Loading backups...",
+    "notConfiguredMessage": "Backup is not configured",
+    "notConfiguredDescription": "To enable backups, set the BACKUP_DIR environment variable to a directory outside the application data directory.",
+    "emptyStateMessage": "No backups yet",
+    "emptyStateDescription": "Click 'Create Backup' to create your first backup.",
+    "tableHeaders": {
+      "filename": "Filename",
+      "createdAt": "Created",
+      "size": "Size",
+      "actions": "Actions"
+    },
+    "actions": {
+      "delete": "Delete",
+      "restore": "Restore"
+    },
+    "deleteModal": {
+      "title": "Delete Backup",
+      "message": "Are you sure you want to delete {{filename}}?",
+      "warning": "This action cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Delete",
+      "confirming": "Deleting...",
+      "error": "Failed to delete backup. Please try again."
+    },
+    "restoreModal": {
+      "title": "Restore Backup",
+      "message": "You are about to restore from:",
+      "warning": "This will permanently replace all current application data with the backup contents. The server will restart automatically. All current data will be lost.",
+      "cancel": "Cancel",
+      "confirm": "Restore & Restart",
+      "confirming": "Restoring...",
+      "error": "Failed to initiate restore. Please try again."
+    },
+    "restartingMessage": "Server is restarting. Please wait a few moments and then refresh the page.",
+    "createError": "Failed to create backup. Please try again.",
+    "loadError": "Failed to load backups. Please try again."
+  },
   "vendors": {
     "contacts": {
       "heading": "Contacts",

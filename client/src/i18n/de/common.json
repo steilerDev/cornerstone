@@ -108,7 +108,8 @@
     "settings": {
       "profile": "Profil",
       "manage": "Verwalten",
-      "userManagement": "Benutzerverwaltung"
+      "userManagement": "Benutzerverwaltung",
+      "backups": "Sicherungen"
     }
   },
   "dataTable": {

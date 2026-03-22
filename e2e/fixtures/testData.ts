@@ -32,6 +32,7 @@ export const ROUTES = {
   profile: '/settings/profile',
   userManagement: '/settings/users',
   diary: '/diary',
+  backups: '/settings/backups',
 };
 
 export const API = {
@@ -55,4 +56,5 @@ export const API = {
   areas: '/api/areas',
   diaryEntries: '/api/diary-entries',
   diaryExport: '/api/diary-entries/export',
+  backups: '/api/backups',
 };
