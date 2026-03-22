@@ -669,7 +669,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       ...computed,
     }),
     buildCategory: (catMeta, totals, items) => ({
-      hiCategory: catMeta.categoryName,
+      hiCategory: catMeta.categoryId ?? '',
       categoryName: catMeta.categoryName,
       categoryTranslationKey: catMeta.categoryTranslationKey ?? null,
       ...totals,

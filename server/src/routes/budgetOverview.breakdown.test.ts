@@ -456,7 +456,12 @@ describe('GET /api/budget/breakdown', () => {
     const { breakdown } = response.json<BudgetBreakdownResponse>();
 
     expect(breakdown.householdItems.categories).toHaveLength(1);
-    expect(breakdown.householdItems.categories[0].hiCategory).toBe('Appliances');
-    expect(breakdown.householdItems.categories[0].items[0].costDisplay).toBe('projected');
+    const hiCat = breakdown.householdItems.categories[0];
+    expect(hiCat.hiCategory).toBe('hic-appliances');
+    expect(typeof hiCat.categoryName).toBe('string');
+    expect(hiCat.categoryName.length).toBeGreaterThan(0);
+    // categoryTranslationKey is either a string or null
+    expect(hiCat.categoryTranslationKey === null || typeof hiCat.categoryTranslationKey === 'string').toBe(true);
+    expect(hiCat.items[0].costDisplay).toBe('projected');
   });
 });
