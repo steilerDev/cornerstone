@@ -798,4 +798,114 @@ describe('Trade Routes', () => {
       expect(response.statusCode).toBe(204);
     });
   });
+
+  // ─── translationKey field in API responses ─────────────────────────────────
+
+  describe('translationKey field in API responses', () => {
+    it('GET /api/trades returns null translationKey for user-created trades', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      createTestTrade('Custom Scaffolding');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/trades',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<TradeListResponse>();
+      const found = body.trades.find((t) => t.name === 'Custom Scaffolding');
+      expect(found).toBeDefined();
+      expect(found!.translationKey).toBeNull();
+    });
+
+    it('GET /api/trades returns translationKey for predefined seeded trades', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      // Re-insert a predefined trade with its translation key (seeded tables were cleared in beforeEach)
+      const now = new Date().toISOString();
+      app.db
+        .insert(trades)
+        .values({
+          id: 'trade-plumbing',
+          name: 'Plumbing',
+          translationKey: 'trades.plumbing',
+          color: null,
+          description: null,
+          sortOrder: 1,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/trades',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<TradeListResponse>();
+      const found = body.trades.find((t) => t.id === 'trade-plumbing');
+      expect(found).toBeDefined();
+      expect(found!.translationKey).toBe('trades.plumbing');
+    });
+
+    it('GET /api/trades/:id returns null translationKey for user-created trade', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const trade = createTestTrade('Bespoke Ironwork');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/trades/${trade.id}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<TradeSingleResponse>();
+      expect(body.trade.translationKey).toBeNull();
+    });
+
+    it('GET /api/trades/:id returns translationKey when set on the row', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const now = new Date().toISOString();
+      app.db
+        .insert(trades)
+        .values({
+          id: 'trade-carpentry',
+          name: 'Carpentry',
+          translationKey: 'trades.carpentry',
+          color: null,
+          description: null,
+          sortOrder: 5,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/trades/trade-carpentry',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<TradeSingleResponse>();
+      expect(body.trade.translationKey).toBe('trades.carpentry');
+    });
+
+    it('POST /api/trades always creates trade with null translationKey', async () => {
+      const { cookie } = await createUserWithSession('admin@test.com', 'Admin', 'password', 'admin');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/trades',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'New Waterproofing Trade' }),
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<TradeSingleResponse>();
+      expect(body.trade.translationKey).toBeNull();
+    });
+  });
 });

@@ -624,4 +624,63 @@ describe('Household Item Category Service', () => {
       }).toThrow(NotFoundError);
     });
   });
+
+  // ─── translationKey field ──────────────────────────────────────────────────
+
+  describe('translationKey field', () => {
+    it('listHouseholdItemCategories() returns translationKey for predefined seeded categories', () => {
+      // hic-furniture is seeded and given 'householdItemCategories.furniture' by migration 0030
+      const result = householdItemCategoryService.listHouseholdItemCategories(db);
+      const furniture = result.find((c) => c.id === 'hic-furniture');
+      expect(furniture).toBeDefined();
+      expect(furniture!.translationKey).toBe('householdItemCategories.furniture');
+    });
+
+    it('listHouseholdItemCategories() returns null translationKey for user-created categories', () => {
+      createTestCategory('Test HIC Custom Artwork');
+
+      const result = householdItemCategoryService.listHouseholdItemCategories(db);
+      const found = result.find((c) => c.name === 'Test HIC Custom Artwork');
+      expect(found).toBeDefined();
+      expect(found!.translationKey).toBeNull();
+    });
+
+    it('listHouseholdItemCategories() returns correct translationKeys for all 7 seeded categories', () => {
+      const expectedKeys: Record<string, string> = {
+        'hic-furniture': 'householdItemCategories.furniture',
+        'hic-appliances': 'householdItemCategories.appliances',
+        'hic-fixtures': 'householdItemCategories.fixtures',
+        'hic-decor': 'householdItemCategories.decor',
+        'hic-electronics': 'householdItemCategories.electronics',
+        'hic-equipment': 'householdItemCategories.equipment',
+        'hic-other': 'householdItemCategories.other',
+      };
+
+      const result = householdItemCategoryService.listHouseholdItemCategories(db);
+
+      for (const [id, key] of Object.entries(expectedKeys)) {
+        const cat = result.find((c) => c.id === id);
+        expect(cat).toBeDefined();
+        expect(cat!.translationKey).toBe(key);
+      }
+    });
+
+    it('getHouseholdItemCategoryById() returns translationKey for a predefined category', () => {
+      const result = householdItemCategoryService.getHouseholdItemCategoryById(db, 'hic-appliances');
+      expect(result.translationKey).toBe('householdItemCategories.appliances');
+    });
+
+    it('getHouseholdItemCategoryById() returns null translationKey for user-created category', () => {
+      const cat = createTestCategory('Test HIC Planters');
+      const result = householdItemCategoryService.getHouseholdItemCategoryById(db, cat.id);
+      expect(result.translationKey).toBeNull();
+    });
+
+    it('createHouseholdItemCategory() always sets translationKey to null on new rows', () => {
+      const result = householdItemCategoryService.createHouseholdItemCategory(db, {
+        name: 'Test HIC Custom Mats',
+      });
+      expect(result.translationKey).toBeNull();
+    });
+  });
 });

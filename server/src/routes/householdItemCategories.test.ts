@@ -751,4 +751,61 @@ describe('Household Item Category Routes', () => {
       expect(response.statusCode).toBe(204);
     });
   });
+
+  // ─── translationKey field in API responses ─────────────────────────────────
+
+  describe('translationKey field in API responses', () => {
+    it('GET /api/household-item-categories returns translationKey for seeded predefined categories', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/household-item-categories',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<HICListResponse>();
+      const furniture = body.categories.find((c) => c.id === 'hic-furniture');
+      expect(furniture).toBeDefined();
+      expect(furniture!.translationKey).toBe('householdItemCategories.furniture');
+    });
+
+    it('GET /api/household-item-categories returns null translationKey for user-created categories', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
+      createTestCategory('Custom HIC Artwork');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/household-item-categories',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<HICListResponse>();
+      const found = body.categories.find((c) => c.name === 'Custom HIC Artwork');
+      expect(found).toBeDefined();
+      expect(found!.translationKey).toBeNull();
+    });
+
+    it('POST /api/household-item-categories always creates category with null translationKey', async () => {
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin',
+        'password',
+        'admin',
+      );
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/household-item-categories',
+        headers: { cookie },
+        payload: { name: 'Custom HIC New Mats' } satisfies CreateHouseholdItemCategoryRequest,
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<HouseholdItemCategoryEntity>();
+      expect(body.translationKey).toBeNull();
+    });
+  });
 });
