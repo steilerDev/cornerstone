@@ -371,66 +371,69 @@ export function MilestonesPage() {
         <ProjectSubNav />
 
         <DataTable<MilestoneSummary>
-        pageKey="milestones"
-        columns={columns}
-        items={filtered}
-        totalItems={filtered.length}
-        totalPages={1}
-        currentPage={1}
-        isLoading={isLoading}
-        error={error}
-        getRowKey={(m) => String(m.id)}
-        onRowClick={(m) => navigate(`/project/milestones/${m.id}`)}
-        renderActions={renderActions}
-        tableState={tableState}
-        onStateChange={setTableState}
-        emptyState={{
-          message: t('milestones.empty.noItems'),
-          description: t('milestones.empty.noItemsMessage'),
-          action: {
-            label: t('milestones.empty.createFirst'),
-            onClick: () => navigate('/project/milestones/new'),
-          },
-        }}
-      />
+          pageKey="milestones"
+          columns={columns}
+          items={filtered}
+          totalItems={filtered.length}
+          totalPages={1}
+          currentPage={1}
+          isLoading={isLoading}
+          error={error}
+          getRowKey={(m) => String(m.id)}
+          onRowClick={(m) => navigate(`/project/milestones/${m.id}`)}
+          renderActions={renderActions}
+          tableState={tableState}
+          onStateChange={setTableState}
+          emptyState={{
+            message: t('milestones.empty.noItems'),
+            description: t('milestones.empty.noItemsMessage'),
+            action: {
+              label: t('milestones.empty.createFirst'),
+              onClick: () => navigate('/project/milestones/new'),
+            },
+          }}
+        />
 
-      {/* Delete confirmation modal */}
-      {deletingMilestone && (
-        <Modal
-          title={t('milestones.delete.confirm')}
-          onClose={() => !isDeleting && setDeletingMilestone(null)}
-          footer={
-            <>
-              <button
-                type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={() => setDeletingMilestone(null)}
-                disabled={isDeleting}
-              >
-                {t('milestones.delete.cancel')}
-              </button>
-              <button
-                type="button"
-                className={sharedStyles.btnConfirmDelete}
-                onClick={confirmDelete}
-                disabled={isDeleting}
-              >
-                {isDeleting ? t('milestones.delete.deleting') : t('milestones.delete.delete')}
-              </button>
-            </>
-          }
-        >
-          <p>
-            {t('milestones.delete.message')} &quot;<strong>{deletingMilestone.title}</strong>
-            &quot;?
-          </p>
-        </Modal>
-      )}
+        {/* Delete confirmation modal */}
+        {deletingMilestone && (
+          <Modal
+            title={t('milestones.delete.confirm')}
+            onClose={() => !isDeleting && setDeletingMilestone(null)}
+            footer={
+              <>
+                <button
+                  type="button"
+                  className={sharedStyles.btnSecondary}
+                  onClick={() => setDeletingMilestone(null)}
+                  disabled={isDeleting}
+                >
+                  {t('milestones.delete.cancel')}
+                </button>
+                <button
+                  type="button"
+                  className={sharedStyles.btnConfirmDelete}
+                  onClick={confirmDelete}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? t('milestones.delete.deleting') : t('milestones.delete.delete')}
+                </button>
+              </>
+            }
+          >
+            <p>
+              {t('milestones.delete.message')} &quot;<strong>{deletingMilestone.title}</strong>
+              &quot;?
+            </p>
+          </Modal>
+        )}
 
-      {/* Keyboard shortcuts help */}
-      {showShortcutsHelp && (
-        <KeyboardShortcutsHelp shortcuts={shortcuts} onClose={() => setShowShortcutsHelp(false)} />
-      )}
+        {/* Keyboard shortcuts help */}
+        {showShortcutsHelp && (
+          <KeyboardShortcutsHelp
+            shortcuts={shortcuts}
+            onClose={() => setShowShortcutsHelp(false)}
+          />
+        )}
       </div>
     </div>
   );

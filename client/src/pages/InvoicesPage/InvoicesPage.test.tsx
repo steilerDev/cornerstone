@@ -115,7 +115,10 @@ describe('InvoicesPage — layout consistency (Issue #1142)', () => {
 
     // Default: empty results
     mockFetchAllInvoices.mockResolvedValue(emptyInvoiceResponse);
-    mockFetchVendors.mockResolvedValue({ vendors: [], pagination: { totalItems: 0, totalPages: 1, page: 1, pageSize: 100 } });
+    mockFetchVendors.mockResolvedValue({
+      vendors: [],
+      pagination: { totalItems: 0, totalPages: 1, page: 1, pageSize: 100 },
+    });
   });
 
   function renderPage() {

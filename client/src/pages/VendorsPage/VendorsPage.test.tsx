@@ -32,7 +32,13 @@ jest.unstable_mockModule('../../hooks/useTrades.js', () => ({
 // ─── Mock: TradePicker component ─────────────────────────────────────────────
 
 jest.unstable_mockModule('../../components/TradePicker/TradePicker.js', () => ({
-  TradePicker: ({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) => (
+  TradePicker: ({
+    value,
+    onChange,
+  }: {
+    value: string | null;
+    onChange: (v: string | null) => void;
+  }) => (
     <select
       data-testid="trade-picker"
       value={value ?? ''}

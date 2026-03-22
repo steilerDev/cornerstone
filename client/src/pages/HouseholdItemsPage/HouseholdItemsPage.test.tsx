@@ -128,7 +128,10 @@ describe('HouseholdItemsPage — layout consistency (Issue #1142)', () => {
     mockFetchHouseholdItemCategories.mockReset();
 
     mockListHouseholdItems.mockResolvedValue(emptyHouseholdItemsResponse);
-    mockFetchVendors.mockResolvedValue({ vendors: [], pagination: { totalItems: 0, totalPages: 1, page: 1, pageSize: 100 } });
+    mockFetchVendors.mockResolvedValue({
+      vendors: [],
+      pagination: { totalItems: 0, totalPages: 1, page: 1, pageSize: 100 },
+    });
     mockFetchHouseholdItemCategories.mockResolvedValue({ categories: [] });
   });
 
@@ -155,9 +158,7 @@ describe('HouseholdItemsPage — layout consistency (Issue #1142)', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /new household item/i }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /new household item/i })).toBeInTheDocument();
       });
     });
 

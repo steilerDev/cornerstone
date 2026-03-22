@@ -492,7 +492,11 @@ export function BudgetSourcesPage() {
           <div className={styles.errorCard} role="alert">
             <h2 className={styles.errorTitle}>{t('sources.error')}</h2>
             <p>{error}</p>
-            <button type="button" className={sharedStyles.btnPrimary} onClick={() => void loadSources()}>
+            <button
+              type="button"
+              className={sharedStyles.btnPrimary}
+              onClick={() => void loadSources()}
+            >
               {t('sources.retry')}
             </button>
           </div>

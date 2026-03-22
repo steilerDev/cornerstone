@@ -384,7 +384,11 @@ export function SubsidyProgramsPage() {
           <div className={styles.errorCard} role="alert">
             <h2 className={styles.errorTitle}>{t('subsidies.error')}</h2>
             <p>{error}</p>
-            <button type="button" className={sharedStyles.btnPrimary} onClick={() => void loadData()}>
+            <button
+              type="button"
+              className={sharedStyles.btnPrimary}
+              onClick={() => void loadData()}
+            >
               {t('subsidies.retry')}
             </button>
           </div>
@@ -437,9 +441,7 @@ export function SubsidyProgramsPage() {
         {showCreateForm && (
           <section className={styles.card}>
             <h2 className={styles.cardTitle}>{t('subsidies.newSubsidyProgram')}</h2>
-            <p className={styles.cardDescription}>
-              {t('subsidies.subsidyDescription')}
-            </p>
+            <p className={styles.cardDescription}>{t('subsidies.subsidyDescription')}</p>
 
             {createError && (
               <div className={styles.errorBanner} role="alert">
@@ -451,7 +453,8 @@ export function SubsidyProgramsPage() {
               {/* Row 1: Name */}
               <div className={styles.field}>
                 <label htmlFor="programName" className={styles.label}>
-                  {t('subsidies.form.name')} <span className={styles.required}>{t('subsidies.form.required')}</span>
+                  {t('subsidies.form.name')}{' '}
+                  <span className={styles.required}>{t('subsidies.form.required')}</span>
                 </label>
                 <input
                   type="text"

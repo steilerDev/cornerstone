@@ -432,70 +432,70 @@ export function HouseholdItemsPage() {
         <ProjectSubNav />
 
         <DataTable<HouseholdItemSummary>
-        pageKey="householdItems"
-        columns={columns}
-        items={householdItems}
-        totalItems={totalItems}
-        totalPages={totalPages}
-        currentPage={tableState.page}
-        isLoading={isLoading}
-        error={error}
-        getRowKey={(item) => item.id}
-        onRowClick={(item) => navigate(`/project/household-items/${item.id}`)}
-        renderActions={renderActions}
-        tableState={tableState}
-        onStateChange={handleStateChange}
-        customFilters={customFilters}
-        emptyState={{
-          message: t('empty.noItems'),
-          description: t('empty.noItemsMessage'),
-          action: {
-            label: t('empty.createFirstItem'),
-            onClick: () => navigate('/project/household-items/new'),
-          },
-        }}
-      />
+          pageKey="householdItems"
+          columns={columns}
+          items={householdItems}
+          totalItems={totalItems}
+          totalPages={totalPages}
+          currentPage={tableState.page}
+          isLoading={isLoading}
+          error={error}
+          getRowKey={(item) => item.id}
+          onRowClick={(item) => navigate(`/project/household-items/${item.id}`)}
+          renderActions={renderActions}
+          tableState={tableState}
+          onStateChange={handleStateChange}
+          customFilters={customFilters}
+          emptyState={{
+            message: t('empty.noItems'),
+            description: t('empty.noItemsMessage'),
+            action: {
+              label: t('empty.createFirstItem'),
+              onClick: () => navigate('/project/household-items/new'),
+            },
+          }}
+        />
 
-      {/* Delete confirmation modal */}
-      {deletingItem && (
-        <Modal
-          title={t('delete.confirm')}
-          onClose={closeDeleteConfirm}
-          footer={
-            <>
-              <button
-                type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={closeDeleteConfirm}
-                disabled={isDeleting}
-              >
-                {t('delete.cancel')}
-              </button>
-              {!deleteError && (
+        {/* Delete confirmation modal */}
+        {deletingItem && (
+          <Modal
+            title={t('delete.confirm')}
+            onClose={closeDeleteConfirm}
+            footer={
+              <>
                 <button
                   type="button"
-                  className={sharedStyles.btnConfirmDelete}
-                  onClick={() => void confirmDelete()}
+                  className={sharedStyles.btnSecondary}
+                  onClick={closeDeleteConfirm}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? t('delete.deleting') : t('delete.delete')}
+                  {t('delete.cancel')}
                 </button>
-              )}
-            </>
-          }
-        >
-          <p>
-            {t('delete.message')} &quot;<strong>{deletingItem.name}</strong>&quot;?
-          </p>
-          {deleteError ? (
-            <div className={styles.errorBanner} role="alert">
-              {deleteError}
-            </div>
-          ) : (
-            <p className={styles.modalWarning}>{t('delete.warning')}</p>
-          )}
-        </Modal>
-      )}
+                {!deleteError && (
+                  <button
+                    type="button"
+                    className={sharedStyles.btnConfirmDelete}
+                    onClick={() => void confirmDelete()}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? t('delete.deleting') : t('delete.delete')}
+                  </button>
+                )}
+              </>
+            }
+          >
+            <p>
+              {t('delete.message')} &quot;<strong>{deletingItem.name}</strong>&quot;?
+            </p>
+            {deleteError ? (
+              <div className={styles.errorBanner} role="alert">
+                {deleteError}
+              </div>
+            ) : (
+              <p className={styles.modalWarning}>{t('delete.warning')}</p>
+            )}
+          </Modal>
+        )}
       </div>
     </div>
   );

@@ -447,194 +447,196 @@ export function InvoicesPage() {
         <h2 className={styles.sectionTitle}>{t('invoices.sectionTitle')}</h2>
 
         <DataTable<Invoice>
-        pageKey="invoices"
-        columns={columns}
-        items={invoices}
-        totalItems={totalItems}
-        totalPages={totalPages}
-        currentPage={tableState.page}
-        isLoading={isLoading}
-        error={error}
-        getRowKey={(inv) => inv.id}
-        onRowClick={(inv) => navigate(`/budget/invoices/${inv.id}`)}
-        renderActions={renderActions}
-        tableState={tableState}
-        onStateChange={handleStateChange}
-        headerContent={headerContent}
-        emptyState={{
-          message: t('invoices.noInvoicesTitle'),
-          description: t('invoices.noInvoicesDescription'),
-          action: {
-            label: t('invoices.addFirstInvoice'),
-            onClick: openCreateModal,
-          },
-        }}
-      />
+          pageKey="invoices"
+          columns={columns}
+          items={invoices}
+          totalItems={totalItems}
+          totalPages={totalPages}
+          currentPage={tableState.page}
+          isLoading={isLoading}
+          error={error}
+          getRowKey={(inv) => inv.id}
+          onRowClick={(inv) => navigate(`/budget/invoices/${inv.id}`)}
+          renderActions={renderActions}
+          tableState={tableState}
+          onStateChange={handleStateChange}
+          headerContent={headerContent}
+          emptyState={{
+            message: t('invoices.noInvoicesTitle'),
+            description: t('invoices.noInvoicesDescription'),
+            action: {
+              label: t('invoices.addFirstInvoice'),
+              onClick: openCreateModal,
+            },
+          }}
+        />
 
-      {/* Create invoice modal */}
-      {showCreateModal && (
-        <Modal
-          title={t('invoices.modal.title')}
-          onClose={closeCreateModal}
-          footer={
-            <>
-              <button
-                type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={closeCreateModal}
-                disabled={isCreating}
-              >
-                {t('invoices.buttons.cancel')}
-              </button>
-              <button
-                type="button"
-                className={sharedStyles.btnPrimary}
-                onClick={() => formRef.current?.requestSubmit()}
-                disabled={
-                  isCreating || !createForm.vendorId || !createForm.amount || !createForm.date
-                }
-              >
-                {isCreating ? t('invoices.buttons.creating') : t('invoices.buttons.create')}
-              </button>
-            </>
-          }
-        >
-          <p>{t('invoices.modal.description') || t('invoices.form.vendor')}</p>
-
-          {createError && (
-            <div className={styles.errorBanner} role="alert">
-              {createError}
-            </div>
-          )}
-
-          <form onSubmit={handleCreateInvoice} className={styles.form} noValidate ref={formRef}>
-            <div className={styles.field}>
-              <label htmlFor="invoice-vendor" className={styles.label}>
-                {t('invoices.form.vendor')}{' '}
-                <span className={styles.required}>{t('invoices.form.required')}</span>
-              </label>
-              <select
-                id="invoice-vendor"
-                value={createForm.vendorId}
-                onChange={(e) => setCreateForm({ ...createForm, vendorId: e.target.value })}
-                className={styles.select}
-                disabled={isCreating}
-                required
-                autoFocus
-              >
-                <option value="">{t('invoices.form.placeholders.vendor')}</option>
-                {vendors.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className={styles.formRow}>
-              <div className={styles.fieldGrow}>
-                <label htmlFor="invoice-number" className={styles.label}>
-                  {t('invoices.form.invoiceNumber')}
-                </label>
-                <input
-                  type="text"
-                  id="invoice-number"
-                  value={createForm.invoiceNumber}
-                  onChange={(e) => setCreateForm({ ...createForm, invoiceNumber: e.target.value })}
-                  className={styles.input}
-                  placeholder={t('invoices.form.placeholders.invoiceNumber')}
-                  maxLength={100}
+        {/* Create invoice modal */}
+        {showCreateModal && (
+          <Modal
+            title={t('invoices.modal.title')}
+            onClose={closeCreateModal}
+            footer={
+              <>
+                <button
+                  type="button"
+                  className={sharedStyles.btnSecondary}
+                  onClick={closeCreateModal}
                   disabled={isCreating}
-                />
+                >
+                  {t('invoices.buttons.cancel')}
+                </button>
+                <button
+                  type="button"
+                  className={sharedStyles.btnPrimary}
+                  onClick={() => formRef.current?.requestSubmit()}
+                  disabled={
+                    isCreating || !createForm.vendorId || !createForm.amount || !createForm.date
+                  }
+                >
+                  {isCreating ? t('invoices.buttons.creating') : t('invoices.buttons.create')}
+                </button>
+              </>
+            }
+          >
+            <p>{t('invoices.modal.description') || t('invoices.form.vendor')}</p>
+
+            {createError && (
+              <div className={styles.errorBanner} role="alert">
+                {createError}
               </div>
-              <div className={styles.fieldGrow}>
-                <label htmlFor="invoice-amount" className={styles.label}>
-                  {t('invoices.form.amount')}{' '}
+            )}
+
+            <form onSubmit={handleCreateInvoice} className={styles.form} noValidate ref={formRef}>
+              <div className={styles.field}>
+                <label htmlFor="invoice-vendor" className={styles.label}>
+                  {t('invoices.form.vendor')}{' '}
                   <span className={styles.required}>{t('invoices.form.required')}</span>
                 </label>
-                <input
-                  type="number"
-                  id="invoice-amount"
-                  value={createForm.amount}
-                  onChange={(e) => setCreateForm({ ...createForm, amount: e.target.value })}
-                  className={styles.input}
-                  placeholder={t('invoices.form.placeholders.amount')}
-                  min="0.01"
-                  step="0.01"
+                <select
+                  id="invoice-vendor"
+                  value={createForm.vendorId}
+                  onChange={(e) => setCreateForm({ ...createForm, vendorId: e.target.value })}
+                  className={styles.select}
+                  disabled={isCreating}
                   required
-                  disabled={isCreating}
-                />
+                  autoFocus
+                >
+                  <option value="">{t('invoices.form.placeholders.vendor')}</option>
+                  {vendors.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </div>
 
-            <div className={styles.formRow}>
-              <div className={styles.fieldGrow}>
-                <label htmlFor="invoice-date" className={styles.label}>
-                  {t('invoices.form.invoiceDate')}{' '}
-                  <span className={styles.required}>{t('invoices.form.required')}</span>
+              <div className={styles.formRow}>
+                <div className={styles.fieldGrow}>
+                  <label htmlFor="invoice-number" className={styles.label}>
+                    {t('invoices.form.invoiceNumber')}
+                  </label>
+                  <input
+                    type="text"
+                    id="invoice-number"
+                    value={createForm.invoiceNumber}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, invoiceNumber: e.target.value })
+                    }
+                    className={styles.input}
+                    placeholder={t('invoices.form.placeholders.invoiceNumber')}
+                    maxLength={100}
+                    disabled={isCreating}
+                  />
+                </div>
+                <div className={styles.fieldGrow}>
+                  <label htmlFor="invoice-amount" className={styles.label}>
+                    {t('invoices.form.amount')}{' '}
+                    <span className={styles.required}>{t('invoices.form.required')}</span>
+                  </label>
+                  <input
+                    type="number"
+                    id="invoice-amount"
+                    value={createForm.amount}
+                    onChange={(e) => setCreateForm({ ...createForm, amount: e.target.value })}
+                    className={styles.input}
+                    placeholder={t('invoices.form.placeholders.amount')}
+                    min="0.01"
+                    step="0.01"
+                    required
+                    disabled={isCreating}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.formRow}>
+                <div className={styles.fieldGrow}>
+                  <label htmlFor="invoice-date" className={styles.label}>
+                    {t('invoices.form.invoiceDate')}{' '}
+                    <span className={styles.required}>{t('invoices.form.required')}</span>
+                  </label>
+                  <input
+                    type="date"
+                    id="invoice-date"
+                    value={createForm.date}
+                    onChange={(e) => setCreateForm({ ...createForm, date: e.target.value })}
+                    className={styles.input}
+                    required
+                    disabled={isCreating}
+                  />
+                </div>
+                <div className={styles.fieldGrow}>
+                  <label htmlFor="invoice-due-date" className={styles.label}>
+                    {t('invoices.form.dueDate')}
+                  </label>
+                  <input
+                    type="date"
+                    id="invoice-due-date"
+                    value={createForm.dueDate}
+                    onChange={(e) => setCreateForm({ ...createForm, dueDate: e.target.value })}
+                    className={styles.input}
+                    disabled={isCreating}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.field}>
+                <label htmlFor="invoice-status" className={styles.label}>
+                  {t('invoices.form.status')}
                 </label>
-                <input
-                  type="date"
-                  id="invoice-date"
-                  value={createForm.date}
-                  onChange={(e) => setCreateForm({ ...createForm, date: e.target.value })}
-                  className={styles.input}
-                  required
+                <select
+                  id="invoice-status"
+                  value={createForm.status}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, status: e.target.value as InvoiceStatus })
+                  }
+                  className={styles.select}
                   disabled={isCreating}
-                />
+                >
+                  <option value="pending">{t('invoices.statusLabels.pending')}</option>
+                  <option value="paid">{t('invoices.statusLabels.paid')}</option>
+                  <option value="claimed">{t('invoices.statusLabels.claimed')}</option>
+                  <option value="quotation">{t('invoices.statusLabels.quotation')}</option>
+                </select>
               </div>
-              <div className={styles.fieldGrow}>
-                <label htmlFor="invoice-due-date" className={styles.label}>
-                  {t('invoices.form.dueDate')}
+
+              <div className={styles.field}>
+                <label htmlFor="invoice-notes" className={styles.label}>
+                  {t('invoices.form.notes')}
                 </label>
-                <input
-                  type="date"
-                  id="invoice-due-date"
-                  value={createForm.dueDate}
-                  onChange={(e) => setCreateForm({ ...createForm, dueDate: e.target.value })}
-                  className={styles.input}
+                <textarea
+                  id="invoice-notes"
+                  value={createForm.notes}
+                  onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
+                  className={styles.textarea}
+                  placeholder={t('invoices.form.placeholders.notes') || ''}
+                  rows={3}
                   disabled={isCreating}
                 />
               </div>
-            </div>
-
-            <div className={styles.field}>
-              <label htmlFor="invoice-status" className={styles.label}>
-                {t('invoices.form.status')}
-              </label>
-              <select
-                id="invoice-status"
-                value={createForm.status}
-                onChange={(e) =>
-                  setCreateForm({ ...createForm, status: e.target.value as InvoiceStatus })
-                }
-                className={styles.select}
-                disabled={isCreating}
-              >
-                <option value="pending">{t('invoices.statusLabels.pending')}</option>
-                <option value="paid">{t('invoices.statusLabels.paid')}</option>
-                <option value="claimed">{t('invoices.statusLabels.claimed')}</option>
-                <option value="quotation">{t('invoices.statusLabels.quotation')}</option>
-              </select>
-            </div>
-
-            <div className={styles.field}>
-              <label htmlFor="invoice-notes" className={styles.label}>
-                {t('invoices.form.notes')}
-              </label>
-              <textarea
-                id="invoice-notes"
-                value={createForm.notes}
-                onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
-                className={styles.textarea}
-                placeholder={t('invoices.form.placeholders.notes') || ''}
-                rows={3}
-                disabled={isCreating}
-              />
-            </div>
-          </form>
-        </Modal>
-      )}
+            </form>
+          </Modal>
+        )}
       </div>
     </div>
   );

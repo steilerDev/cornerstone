@@ -62,10 +62,7 @@ test.describe('Page layout consistency — all 8 list pages', () => {
       // Budget Overview has a dropdown trigger ("New"); all other pages have
       // a named "New ..." button. We look for any primary-action button in the
       // page header area — a button whose text starts with "New" covers both cases.
-      const newButton = authenticatedPage
-        .locator('button')
-        .filter({ hasText: /^New/ })
-        .first();
+      const newButton = authenticatedPage.locator('button').filter({ hasText: /^New/ }).first();
       await expect(newButton).toBeVisible();
     });
   }
@@ -78,7 +75,9 @@ test.describe('Page layout consistency — all 8 list pages', () => {
 test.describe('Budget Overview — "New" dropdown', () => {
   test('Trigger button reads "New"', async ({ authenticatedPage }) => {
     await authenticatedPage.goto('/budget/overview');
-    await authenticatedPage.getByRole('heading', { level: 1, name: 'Budget', exact: true }).waitFor({ state: 'visible' });
+    await authenticatedPage
+      .getByRole('heading', { level: 1, name: 'Budget', exact: true })
+      .waitFor({ state: 'visible' });
 
     // The trigger button has data-testid="budget-overview-add-button" and text "New"
     const trigger = authenticatedPage.getByTestId('budget-overview-add-button');
@@ -88,7 +87,9 @@ test.describe('Budget Overview — "New" dropdown', () => {
 
   test('Dropdown shows "New Invoice" and "New Vendor" items', async ({ authenticatedPage }) => {
     await authenticatedPage.goto('/budget/overview');
-    await authenticatedPage.getByRole('heading', { level: 1, name: 'Budget', exact: true }).waitFor({ state: 'visible' });
+    await authenticatedPage
+      .getByRole('heading', { level: 1, name: 'Budget', exact: true })
+      .waitFor({ state: 'visible' });
 
     // Open the dropdown
     const trigger = authenticatedPage.getByTestId('budget-overview-add-button');
@@ -114,7 +115,9 @@ test.describe('Budget sub-pages — "New ..." button text', () => {
     authenticatedPage,
   }) => {
     await authenticatedPage.goto('/budget/sources');
-    await authenticatedPage.getByRole('heading', { level: 1, name: 'Budget', exact: true }).waitFor({ state: 'visible' });
+    await authenticatedPage
+      .getByRole('heading', { level: 1, name: 'Budget', exact: true })
+      .waitFor({ state: 'visible' });
 
     // The "New Source" button opens the inline create form
     const button = authenticatedPage.getByRole('button', { name: 'New Source', exact: true });
@@ -125,7 +128,9 @@ test.describe('Budget sub-pages — "New ..." button text', () => {
     authenticatedPage,
   }) => {
     await authenticatedPage.goto('/budget/subsidies');
-    await authenticatedPage.getByRole('heading', { level: 1, name: 'Budget', exact: true }).waitFor({ state: 'visible' });
+    await authenticatedPage
+      .getByRole('heading', { level: 1, name: 'Budget', exact: true })
+      .waitFor({ state: 'visible' });
 
     const button = authenticatedPage.getByRole('button', {
       name: 'New Subsidy Program',
@@ -138,7 +143,9 @@ test.describe('Budget sub-pages — "New ..." button text', () => {
     authenticatedPage,
   }) => {
     await authenticatedPage.goto('/budget/invoices');
-    await authenticatedPage.getByRole('heading', { level: 1, name: 'Budget', exact: true }).waitFor({ state: 'visible' });
+    await authenticatedPage
+      .getByRole('heading', { level: 1, name: 'Budget', exact: true })
+      .waitFor({ state: 'visible' });
 
     // data-testid="new-invoice-button" with text "New Invoice"
     const button = authenticatedPage.getByTestId('new-invoice-button');
@@ -146,11 +153,11 @@ test.describe('Budget sub-pages — "New ..." button text', () => {
     await expect(button).toHaveText('New Invoice');
   });
 
-  test('Vendors (/budget/vendors) — button reads "New Vendor"', async ({
-    authenticatedPage,
-  }) => {
+  test('Vendors (/budget/vendors) — button reads "New Vendor"', async ({ authenticatedPage }) => {
     await authenticatedPage.goto('/budget/vendors');
-    await authenticatedPage.getByRole('heading', { level: 1, name: 'Budget', exact: true }).waitFor({ state: 'visible' });
+    await authenticatedPage
+      .getByRole('heading', { level: 1, name: 'Budget', exact: true })
+      .waitFor({ state: 'visible' });
 
     // The vendor page add button renders "New Vendor" (t('vendors.addVendor'))
     const button = authenticatedPage.getByRole('button', { name: 'New Vendor', exact: true });
@@ -167,7 +174,9 @@ test.describe('Project sub-pages — "New ..." button text', () => {
     authenticatedPage,
   }) => {
     await authenticatedPage.goto('/project/work-items');
-    await authenticatedPage.getByRole('heading', { level: 1, name: 'Project', exact: true }).waitFor({ state: 'visible' });
+    await authenticatedPage
+      .getByRole('heading', { level: 1, name: 'Project', exact: true })
+      .waitFor({ state: 'visible' });
 
     const button = authenticatedPage.getByRole('button', { name: 'New Work Item', exact: true });
     await expect(button).toBeVisible();
@@ -177,7 +186,9 @@ test.describe('Project sub-pages — "New ..." button text', () => {
     authenticatedPage,
   }) => {
     await authenticatedPage.goto('/project/household-items');
-    await authenticatedPage.getByRole('heading', { level: 1, name: 'Project', exact: true }).waitFor({ state: 'visible' });
+    await authenticatedPage
+      .getByRole('heading', { level: 1, name: 'Project', exact: true })
+      .waitFor({ state: 'visible' });
 
     const button = authenticatedPage.getByRole('button', {
       name: 'New Household Item',
@@ -190,7 +201,9 @@ test.describe('Project sub-pages — "New ..." button text', () => {
     authenticatedPage,
   }) => {
     await authenticatedPage.goto('/project/milestones');
-    await authenticatedPage.getByRole('heading', { level: 1, name: 'Project', exact: true }).waitFor({ state: 'visible' });
+    await authenticatedPage
+      .getByRole('heading', { level: 1, name: 'Project', exact: true })
+      .waitFor({ state: 'visible' });
 
     // data-testid="new-milestone-button" with text "New Milestone"
     const button = authenticatedPage.getByTestId('new-milestone-button');
