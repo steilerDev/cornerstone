@@ -109,8 +109,9 @@ export class WorkItemsPage {
 
     // Delete confirmation modal — no aria-labelledby in the source; use role="dialog"
     this.deleteModal = page.locator('[role="dialog"]');
-    // Confirm button identified by CSS class (no accessible name distinguishes it)
-    this.deleteConfirmButton = this.deleteModal.locator('[class*="confirmDeleteButton"]');
+    // Confirm button uses sharedStyles.btnConfirmDelete (shared.module.css), CSS Modules hashes it
+    // to "btnConfirmDelete_XXXX". The class selector [class*="btnConfirmDelete"] matches it.
+    this.deleteConfirmButton = this.deleteModal.locator('[class*="btnConfirmDelete"]');
     this.deleteCancelButton = this.deleteModal.getByRole('button', { name: 'Cancel', exact: true });
   }
 

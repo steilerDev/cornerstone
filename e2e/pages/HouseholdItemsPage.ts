@@ -135,9 +135,12 @@ export class HouseholdItemsPage {
     // Error banner (outside modal)
     this.errorBanner = page.locator('[role="alert"][class*="errorBanner"]');
 
-    // Delete confirmation modal
-    this.deleteModal = page.locator('[role="dialog"][aria-labelledby="hi-delete-modal-title"]');
-    this.deleteConfirmButton = this.deleteModal.locator('[class*="confirmDeleteButton"]');
+    // Delete confirmation modal — Modal component uses useId() for the title, so aria-labelledby
+    // has a dynamic ID. Match by accessible name (title) using getByRole.
+    this.deleteModal = page.getByRole('dialog', { name: /delete/i });
+    // Confirm button uses sharedStyles.btnConfirmDelete (shared.module.css), CSS Modules hashes it
+    // to "btnConfirmDelete_XXXX". The class selector [class*="btnConfirmDelete"] matches it.
+    this.deleteConfirmButton = this.deleteModal.locator('[class*="btnConfirmDelete"]');
     this.deleteCancelButton = this.deleteModal.getByRole('button', {
       name: 'Cancel',
       exact: true,
@@ -225,7 +228,14 @@ export class HouseholdItemsPage {
       .locator(`[aria-label^="Actions for"][aria-label*="${name}"]:visible`)
       .first();
     await actionsBtn.click();
-    await this.page.getByRole('menuitem', { name: 'Delete' }).click();
+    // The dropdown renders <button> elements (not role="menuitem"). The delete button
+    // has class menuItemDanger and text "Delete". Use data-testid pattern: hi-delete-{id}
+    // falls back to searching for a visible button named "Delete" near the open menu.
+    const deleteBtn = this.page
+      .locator('[class*="menuItemDanger"]:visible')
+      .filter({ hasText: 'Delete' })
+      .first();
+    await deleteBtn.click();
     await this.deleteModal.waitFor({ state: 'visible' });
   }
 

@@ -119,9 +119,11 @@ export class VendorsPage {
     this.prevPageButton = page.getByLabel('Previous');
     this.nextPageButton = page.getByLabel('Next');
 
-    // Create modal
+    // Create modal — Modal uses useId() for its title, so no stable #id selector.
+    // Match by accessible name (title text) using getByRole.
     this.createModal = page.getByRole('dialog', { name: 'Add Vendor' });
-    this.createModalTitle = page.locator('#create-modal-title');
+    // createModalTitle: the <h2> inside the create modal
+    this.createModalTitle = this.createModal.getByRole('heading', { level: 2 });
     this.createNameInput = this.createModal.locator('#vendor-name');
     this.createPhoneInput = this.createModal.locator('#vendor-phone');
     this.createEmailInput = this.createModal.locator('#vendor-email');
@@ -134,9 +136,10 @@ export class VendorsPage {
     this.createCancelButton = this.createModal.getByRole('button', { name: 'Cancel', exact: true });
     this.createErrorBanner = this.createModal.locator('[role="alert"]');
 
-    // Delete modal
+    // Delete modal — Modal uses useId() for its title, so no stable #id selector.
     this.deleteModal = page.getByRole('dialog', { name: 'Delete Vendor' });
-    this.deleteModalTitle = page.locator('#delete-modal-title');
+    // deleteModalTitle: the <h2> inside the delete modal
+    this.deleteModalTitle = this.deleteModal.getByRole('heading', { level: 2 });
     // i18n: button label is now just "Delete" / "Deleting..." (not "Delete Vendor")
     // See budget.json vendors.buttons.delete = "Delete"
     this.deleteConfirmButton = this.deleteModal.getByRole('button', {
@@ -221,16 +224,21 @@ export class VendorsPage {
 
   /**
    * Get the names of all vendors currently shown in the table (desktop) or cards (mobile).
-   * Falls back to reading card names if the table body has no rows.
+   * On mobile the table container is CSS display:none (still in DOM) — check visibility
+   * before attempting to read table rows to avoid timeouts on hidden elements.
    */
   async getVendorNames(): Promise<string[]> {
-    const rows = await this.getTableRows();
-    if (rows.length > 0) {
+    const tableVisible = await this.tableContainer.isVisible();
+    if (tableVisible) {
+      const rows = await this.getTableRows();
       const names: string[] = [];
       for (const row of rows) {
         const link = row.locator('[class*="vendorLink"]');
-        const text = await link.textContent();
-        if (text) names.push(text.trim());
+        const linkCount = await link.count();
+        if (linkCount > 0) {
+          const text = await link.textContent();
+          if (text) names.push(text.trim());
+        }
       }
       return names;
     }
@@ -264,24 +272,54 @@ export class VendorsPage {
    * then click the Delete item.
    */
   async openDeleteModal(vendorName: string): Promise<void> {
-    // Find the row containing the vendor name link
-    await this.tableBody.locator('tr').first().waitFor({ state: 'visible' });
-    const rows = await this.tableBody.locator('tr').all();
-    for (const row of rows) {
-      const link = row.locator('[class*="vendorLink"]');
-      const text = await link.textContent();
-      if (text?.trim() === vendorName) {
-        // Open the actions menu (⋮ button)
-        const menuButton = row.locator('[class*="menuButton"]');
-        await menuButton.click();
-        // Click the Delete item that appears in the dropdown
-        const deleteButton = row.locator('[class*="menuItem"][class*="menuItemDanger"]');
-        await deleteButton.click();
-        await this.deleteModal.waitFor({ state: 'visible' });
-        return;
+    // VendorsPage uses a custom actions menu per row/card:
+    // - Menu button: class*="menuButton", aria-label=t('common:menu.actions')
+    // - Delete item: class*="menuItem" class*="menuItemDanger", text="Delete"
+    //
+    // On mobile the table container is CSS display:none — DataTableCard renders the same
+    // actions menu inside cards. Check table visibility and use the correct container.
+    const tableVisible = await this.tableContainer.isVisible();
+
+    if (tableVisible) {
+      // Desktop/tablet: find the row in the table by vendor name link
+      await this.tableBody.locator('tr').first().waitFor({ state: 'visible' });
+      const rows = await this.tableBody.locator('tr').all();
+      for (const row of rows) {
+        const link = row.locator('[class*="vendorLink"]');
+        const linkCount = await link.count();
+        if (linkCount > 0) {
+          const text = await link.textContent();
+          if (text?.trim() === vendorName) {
+            const menuButton = row.locator('[class*="menuButton"]');
+            await menuButton.click();
+            const deleteButton = row.locator('[class*="menuItem"][class*="menuItemDanger"]');
+            await deleteButton.click();
+            await this.deleteModal.waitFor({ state: 'visible' });
+            return;
+          }
+        }
+      }
+    } else {
+      // Mobile: find the card by vendor name and open its actions menu
+      await this.cardsContainer.locator('[class*="card"]').first().waitFor({ state: 'visible' });
+      const cards = await this.cardsContainer.locator('[class*="card"]').all();
+      for (const card of cards) {
+        const nameEl = card.locator('[class*="cardName"]');
+        const nameCount = await nameEl.count();
+        if (nameCount > 0) {
+          const text = await nameEl.textContent();
+          if (text?.trim() === vendorName) {
+            const menuButton = card.locator('[class*="menuButton"]');
+            await menuButton.click();
+            const deleteButton = card.locator('[class*="menuItem"][class*="menuItemDanger"]');
+            await deleteButton.click();
+            await this.deleteModal.waitFor({ state: 'visible' });
+            return;
+          }
+        }
       }
     }
-    throw new Error(`Vendor "${vendorName}" not found in table`);
+    throw new Error(`Vendor "${vendorName}" not found in list`);
   }
 
   /**
