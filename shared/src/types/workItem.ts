@@ -5,10 +5,11 @@
 
 import type { SubtaskResponse } from './subtask.js';
 import type { DependencyType } from './dependency.js';
-import type { PaginatedResponse } from './pagination.js';
+import type { PaginatedResponse, PaginationMeta } from './pagination.js';
 import type { WorkItemBudgetLine } from './workItemBudget.js';
 import type { AreaSummary } from './area.js';
 import type { TradeSummary } from './trade.js';
+import type { FilterMeta } from './filterMeta.js';
 
 /**
  * Work item status enum.
@@ -182,9 +183,13 @@ export interface WorkItemListQuery {
 }
 
 /**
- * Response for GET /api/work-items - paginated list of work items.
+ * Response for GET /api/work-items - paginated list of work items with filter metadata.
  */
-export type WorkItemListResponse = PaginatedResponse<WorkItemSummary>;
+export interface WorkItemListResponse {
+  items: WorkItemSummary[];
+  pagination: PaginationMeta;
+  filterMeta?: FilterMeta;
+}
 
 /**
  * Response for GET /api/work-items/:id/dependencies.

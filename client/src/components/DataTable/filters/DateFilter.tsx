@@ -21,10 +21,13 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
 
   const handleChange = useCallback(
     (newFrom: string, newTo: string) => {
-      const parts: string[] = [];
-      if (newFrom) parts.push(`from:${newFrom}`);
-      if (newTo) parts.push(`to:${newTo}`);
-      onChange(parts.join(','));
+      // Only emit onChange when BOTH dates are set or BOTH are cleared
+      if (newFrom && newTo) {
+        onChange(`from:${newFrom},to:${newTo}`);
+      } else if (!newFrom && !newTo) {
+        onChange('');
+      }
+      // Partial selection: don't emit — let user finish picking
     },
     [onChange],
   );

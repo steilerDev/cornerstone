@@ -42,6 +42,7 @@ import type {
   UpdateHouseholdItemRequest,
   HouseholdItemListQuery,
   PaginationMeta,
+  FilterMeta,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
@@ -486,43 +487,62 @@ export function deleteHouseholdItem(db: DbType, id: string): void {
 export function listHouseholdItems(
   db: DbType,
   query: HouseholdItemListQuery,
-): { items: HouseholdItemSummary[]; pagination: PaginationMeta } {
+): { items: HouseholdItemSummary[]; pagination: PaginationMeta; filterMeta: FilterMeta } {
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
   const sortBy = query.sortBy ?? 'created_at';
   const sortOrder = query.sortOrder ?? 'desc';
 
-  // Build WHERE conditions
-  const conditions = [];
+  // Build base conditions (excluding numeric range filters)
+  const baseConditions = [];
 
   if (query.category) {
-    conditions.push(eq(householdItems.categoryId, query.category));
+    baseConditions.push(eq(householdItems.categoryId, query.category));
   }
 
   if (query.status) {
-    conditions.push(eq(householdItems.status, query.status));
+    baseConditions.push(eq(householdItems.status, query.status));
   }
 
   if (query.vendorId) {
-    conditions.push(eq(householdItems.vendorId, query.vendorId));
+    baseConditions.push(eq(householdItems.vendorId, query.vendorId));
   }
 
   if (query.areaId) {
     const areaIds = getDescendantIds(db, query.areaId);
-    conditions.push(inArray(householdItems.areaId, areaIds));
+    baseConditions.push(inArray(householdItems.areaId, areaIds));
   }
 
   if (query.q) {
     // Escape SQL LIKE wildcards (% and _) in user input
     const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
     const pattern = `%${escapedQ}%`;
-    conditions.push(
+    baseConditions.push(
       or(
         sql`LOWER(${householdItems.name}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
         sql`LOWER(${householdItems.description}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
       )!,
     );
   }
+
+  const baseWhereClause = baseConditions.length > 0 ? and(...baseConditions) : undefined;
+
+  // Compute filterMeta from base conditions
+  const metaRow = db
+    .select({
+      plannedCostMin: sql<number>`COALESCE(MIN(COALESCE((SELECT SUM(planned_amount) FROM household_item_budgets WHERE household_item_id = household_items.id), 0)), 0)`,
+      plannedCostMax: sql<number>`COALESCE(MAX(COALESCE((SELECT SUM(planned_amount) FROM household_item_budgets WHERE household_item_id = household_items.id), 0)), 0)`,
+      actualCostMin: sql<number>`COALESCE(MIN(COALESCE((SELECT SUM(ibl.itemized_amount) FROM invoice_budget_lines ibl INNER JOIN household_item_budgets hib ON ibl.household_item_budget_id = hib.id WHERE hib.household_item_id = household_items.id), 0)), 0)`,
+      actualCostMax: sql<number>`COALESCE(MAX(COALESCE((SELECT SUM(ibl.itemized_amount) FROM invoice_budget_lines ibl INNER JOIN household_item_budgets hib ON ibl.household_item_budget_id = hib.id WHERE hib.household_item_id = household_items.id), 0)), 0)`,
+      budgetLinesMin: sql<number>`COALESCE(MIN(COALESCE((SELECT COUNT(*) FROM household_item_budgets WHERE household_item_id = household_items.id), 0)), 0)`,
+      budgetLinesMax: sql<number>`COALESCE(MAX(COALESCE((SELECT COUNT(*) FROM household_item_budgets WHERE household_item_id = household_items.id), 0)), 0)`,
+    })
+    .from(householdItems)
+    .where(baseWhereClause)
+    .get();
+
+  // Build full conditions with numeric range filters for main query
+  const conditions = [...baseConditions];
 
   // Filter by budget line count
   if (query.budgetLinesMin !== undefined) {
@@ -551,12 +571,12 @@ export function listHouseholdItems(
   // Filter by actual cost (from invoices)
   if (query.actualCostMin !== undefined) {
     conditions.push(
-      sql`COALESCE((SELECT SUM(${invoiceBudgetLines.itemizedAmount}) FROM ${invoiceBudgetLines} INNER JOIN ${householdItemBudgets} ON ${invoiceBudgetLines.householdItemBudgetId} = ${householdItemBudgets.id} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0) >= ${query.actualCostMin}`,
+      sql`COALESCE((SELECT SUM(ibl.itemized_amount) FROM invoice_budget_lines ibl INNER JOIN household_item_budgets hib ON ibl.household_item_budget_id = hib.id WHERE hib.household_item_id = household_items.id), 0) >= ${query.actualCostMin}`,
     );
   }
   if (query.actualCostMax !== undefined) {
     conditions.push(
-      sql`COALESCE((SELECT SUM(${invoiceBudgetLines.itemizedAmount}) FROM ${invoiceBudgetLines} INNER JOIN ${householdItemBudgets} ON ${invoiceBudgetLines.householdItemBudgetId} = ${householdItemBudgets.id} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0) <= ${query.actualCostMax}`,
+      sql`COALESCE((SELECT SUM(ibl.itemized_amount) FROM invoice_budget_lines ibl INNER JOIN household_item_budgets hib ON ibl.household_item_budget_id = hib.id WHERE hib.household_item_id = household_items.id), 0) <= ${query.actualCostMax}`,
     );
   }
 
@@ -602,6 +622,12 @@ export function listHouseholdItems(
 
   const items = itemRows.map((item) => toHouseholdItemSummary(db, item));
 
+  const filterMeta: FilterMeta = {
+    plannedCost: { min: metaRow?.plannedCostMin ?? 0, max: metaRow?.plannedCostMax ?? 0 },
+    actualCost: { min: metaRow?.actualCostMin ?? 0, max: metaRow?.actualCostMax ?? 0 },
+    budgetLines: { min: metaRow?.budgetLinesMin ?? 0, max: metaRow?.budgetLinesMax ?? 0 },
+  };
+
   return {
     items,
     pagination: {
@@ -610,5 +636,6 @@ export function listHouseholdItems(
       totalItems,
       totalPages,
     },
+    filterMeta,
   };
 }

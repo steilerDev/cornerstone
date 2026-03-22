@@ -90,12 +90,12 @@ describe('DateFilter', () => {
   });
 
   describe('auto-apply on selection', () => {
-    it('clicking a day when no start date calls onChange with "from:YYYY-MM-DD"', () => {
+    it('clicking a day when no start date does NOT call onChange (partial selection)', () => {
       const mockOnChange = jest.fn();
       const { container } = render(<DateFilter value="" onChange={mockOnChange} />);
       const dayBtn15 = findDayButton(container, 15);
       fireEvent.click(dayBtn15!);
-      expect(mockOnChange).toHaveBeenCalledWith(expect.stringMatching(/^from:2026-03-15$/));
+      expect(mockOnChange).not.toHaveBeenCalled();
     });
 
     it('after selecting start date, clicking end date calls onChange with "from:...,to:..."', () => {
@@ -118,23 +118,32 @@ describe('DateFilter', () => {
       );
     });
 
-    it('onChange is called immediately on selection (no Apply button needed)', () => {
+    it('onChange is called immediately when both dates are selected', () => {
       const mockOnChange = jest.fn();
-      const { container } = render(<DateFilter value="" onChange={mockOnChange} />);
-      const dayBtn15 = findDayButton(container, 15);
+      const { container: container1 } = render(<DateFilter value="" onChange={mockOnChange} />);
+      const dayBtn15 = findDayButton(container1, 15);
       fireEvent.click(dayBtn15!);
+
+      mockOnChange.mockClear();
+      // Now render with startDate set
+      const { container: container2 } = render(
+        <DateFilter value="from:2026-03-15" onChange={mockOnChange} />,
+      );
+
+      const dayBtn25 = findDayButton(container2, 25);
+      fireEvent.click(dayBtn25!);
+
       expect(mockOnChange).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('value format', () => {
-    it('never emits "from:,to:" with empty dates', () => {
+    it('partial selection does not emit onChange', () => {
       const mockOnChange = jest.fn();
       const { container } = render(<DateFilter value="" onChange={mockOnChange} />);
       const dayBtn15 = findDayButton(container, 15);
       fireEvent.click(dayBtn15!);
-      const calledValue = mockOnChange.mock.calls[0][0];
-      expect(calledValue).not.toMatch(/from:,/);
+      expect(mockOnChange).not.toHaveBeenCalled();
     });
 
     it('when both dates are empty, onChange receives empty string', () => {
@@ -150,11 +159,20 @@ describe('DateFilter', () => {
       expect(mockOnChange).toHaveBeenCalledWith('');
     });
 
-    it('from part uses "from:" prefix', () => {
+    it('from part uses "from:" prefix when both dates set', () => {
       const mockOnChange = jest.fn();
-      const { container } = render(<DateFilter value="" onChange={mockOnChange} />);
-      const dayBtn15 = findDayButton(container, 15);
+      const { container: container1 } = render(<DateFilter value="" onChange={mockOnChange} />);
+      const dayBtn15 = findDayButton(container1, 15);
       fireEvent.click(dayBtn15!);
+
+      mockOnChange.mockClear();
+      const { container: container2 } = render(
+        <DateFilter value="from:2026-03-15" onChange={mockOnChange} />,
+      );
+
+      const dayBtn25 = findDayButton(container2, 25);
+      fireEvent.click(dayBtn25!);
+
       const calledValue = mockOnChange.mock.calls[0][0];
       expect(calledValue).toMatch(/^from:/);
     });

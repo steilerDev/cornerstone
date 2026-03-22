@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { FilterMeta } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from './DataTable.js';
 import { DataTableFilterPopover } from './DataTableFilterPopover.js';
 import styles from './DataTable.module.css';
@@ -11,6 +12,7 @@ export interface DataTableHeaderProps<T> {
   onSort: (columnKey: string, columnSortKey?: string) => void;
   onFilter: (paramKey: string, value: string | null) => void;
   hasActions?: boolean;
+  filterMeta?: FilterMeta;
 }
 
 /**
@@ -23,6 +25,7 @@ export function DataTableHeader<T>({
   onSort,
   onFilter,
   hasActions,
+  filterMeta,
 }: DataTableHeaderProps<T>) {
   const { t } = useTranslation('common');
   const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(null);
@@ -86,14 +89,14 @@ export function DataTableHeader<T>({
                 {col.label}
                 {renderSortIcon(col.key, col.sortKey)}
               </span>
-              {col.filterable && col.filterParamKey && col.filterType && (
+              {col.filterable && col.filterType && (col.filterParamKey || col.getValue) && (
                 <button
                   ref={(el) => {
                     if (el) filterTriggerRefs.current[col.key] = el;
                   }}
                   type="button"
                   className={`${styles.tableHeaderFilterButton} ${
-                    tableState.filters.has(col.filterParamKey || '')
+                    tableState.filters.has(col.filterParamKey || col.key)
                       ? styles.tableHeaderFilterButtonActive
                       : ''
                   }`}
@@ -120,14 +123,15 @@ export function DataTableHeader<T>({
 
             {activeFilterColumn === col.key &&
               col.filterable &&
-              col.filterParamKey &&
               col.filterType &&
+              (col.filterParamKey || col.getValue) &&
               filterTriggerRefs.current[col.key] && (
                 <DataTableFilterPopover
                   column={col}
-                  value={tableState.filters.get(col.filterParamKey)?.value || ''}
+                  value={tableState.filters.get(col.filterParamKey || col.key)?.value || ''}
+                  filterMeta={filterMeta}
                   onApply={(value) => {
-                    onFilter(col.filterParamKey || '', value || null);
+                    onFilter(col.filterParamKey || col.key, value || null);
                   }}
                   triggerRect={filterTriggerRefs.current[col.key].getBoundingClientRect()}
                 />

@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { FilterMeta } from '@cornerstone/shared';
 import type { ColumnDef, FilterType } from './DataTable.js';
 import { StringFilter } from './filters/StringFilter.js';
 import { NumberFilter } from './filters/NumberFilter.js';
@@ -14,6 +15,7 @@ export interface DataTableFilterPopoverProps<T> {
   value: string;
   onApply: (value: string) => void;
   triggerRect: DOMRect;
+  filterMeta?: FilterMeta;
 }
 
 /**
@@ -25,6 +27,7 @@ export function DataTableFilterPopover<T>({
   value,
   onApply,
   triggerRect,
+  filterMeta,
 }: DataTableFilterPopoverProps<T>) {
   const { t } = useTranslation('common');
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -54,16 +57,20 @@ export function DataTableFilterPopover<T>({
             placeholder={t('dataTable.filter.textPlaceholder')}
           />
         );
-      case 'number':
+      case 'number': {
+        const apiMeta = filterMeta?.[column.key];
+        const effectiveMin = apiMeta?.min ?? column.numberMin;
+        const effectiveMax = apiMeta?.max ?? column.numberMax;
         return (
           <NumberFilter
             value={value}
             onChange={handleChange}
-            min={column.numberMin}
-            max={column.numberMax}
+            min={effectiveMin}
+            max={effectiveMax}
             step={column.numberStep}
           />
         );
+      }
       case 'date':
         return <DateFilter value={value} onChange={handleChange} />;
       case 'enum':

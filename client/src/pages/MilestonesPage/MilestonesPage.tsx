@@ -169,6 +169,21 @@ export function MilestonesPage() {
       }
     }
 
+    // Work item count filter (format: "min:X,max:Y")
+    const workItemCountFilter = tableState.filters.get('workItemCount')?.value;
+    if (workItemCountFilter) {
+      const minMatch = workItemCountFilter.match(/min:([\d.]+)/);
+      const maxMatch = workItemCountFilter.match(/max:([\d.]+)/);
+      const filterMin = minMatch ? parseFloat(minMatch[1]) : undefined;
+      const filterMax = maxMatch ? parseFloat(maxMatch[1]) : undefined;
+      result = result.filter((m) => {
+        const val = m.workItemCount ?? 0;
+        if (filterMin !== undefined && val < filterMin) return false;
+        if (filterMax !== undefined && val > filterMax) return false;
+        return true;
+      });
+    }
+
     // Sorting
     if (tableState.sortBy) {
       result.sort((a, b) => {
@@ -244,6 +259,11 @@ export function MilestonesPage() {
         label: t('milestones.table.headers.linkedItems'),
         sortable: true,
         defaultVisible: true,
+        filterable: true,
+        filterType: 'number' as const,
+        getValue: (m) => m.workItemCount ?? 0,
+        numberMin: 0,
+        numberStep: 1,
         render: (m) => m.workItemCount ?? 0,
       },
       {

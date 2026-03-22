@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { Invoice, CreateInvoiceRequest, InvoiceStatus } from '@cornerstone/shared';
+import type { Invoice, CreateInvoiceRequest, InvoiceStatus, FilterMeta } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { Modal } from '../../components/Modal/Modal.js';
@@ -62,6 +62,7 @@ export function InvoicesPage() {
     claimed: { count: 0, totalAmount: 0 },
     quotation: { count: 0, totalAmount: 0 },
   });
+  const [filterMeta, setFilterMeta] = useState<FilterMeta>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [totalItems, setTotalItems] = useState(0);
@@ -138,6 +139,7 @@ export function InvoicesPage() {
       );
       setInvoices(response.invoices);
       setSummary(response.summary);
+      setFilterMeta(response.filterMeta ?? {});
       setTotalPages(response.pagination.totalPages);
       setTotalItems(response.pagination.totalItems);
     } catch (err) {
@@ -169,7 +171,7 @@ export function InvoicesPage() {
     params.set('pageSize', String(newState.pageSize));
 
     // Delete all known filter param keys first
-    const knownFilterKeys = ['status', 'vendorId', 'amount', 'date', 'dueDate'];
+    const knownFilterKeys = ['status', 'vendorId', 'amount', 'date', 'dueDate', 'remainingAmount'];
     for (const key of knownFilterKeys) {
       params.delete(key);
     }
@@ -372,6 +374,11 @@ export function InvoicesPage() {
         label: t('invoices.tableHeaders.remainingAmount'),
         sortable: false,
         defaultVisible: false,
+        filterable: true,
+        filterType: 'number' as const,
+        getValue: (inv) => calculateRemaining(inv),
+        numberMin: 0,
+        numberStep: 0.01,
         render: (inv) => formatCurrency(calculateRemaining(inv)),
       },
     ],
@@ -468,6 +475,7 @@ export function InvoicesPage() {
         tableState={tableState}
         onStateChange={handleStateChange}
         headerContent={headerContent}
+        filterMeta={filterMeta}
         emptyState={{
           message: t('invoices.noInvoicesTitle'),
           description: t('invoices.noInvoicesDescription'),

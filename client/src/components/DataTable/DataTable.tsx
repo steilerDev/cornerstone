@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
+import type { FilterMeta } from '@cornerstone/shared';
 import type { SearchPickerProps } from '../SearchPicker/SearchPicker.js';
 import { DataTableHeader } from './DataTableHeader.js';
 import { DataTableRow } from './DataTableRow.js';
@@ -53,6 +54,8 @@ export interface ColumnDef<T> {
   numberMax?: number;
   numberStep?: number;
   defaultVisible?: boolean;
+  /** Raw numeric value for client-side number filtering (when no filterParamKey) */
+  getValue?: (item: T) => number;
   render: (item: T) => ReactNode;
   renderCard?: (item: T) => ReactNode;
   className?: string;
@@ -114,6 +117,7 @@ export interface DataTableProps<T> {
     description?: string;
     action?: { label: string; onClick: () => void };
   };
+  filterMeta?: FilterMeta;
   className?: string;
 }
 
@@ -149,9 +153,13 @@ export function DataTable<T>({
   headerContent,
   customFilters,
   emptyState,
+  filterMeta,
   className,
 }: DataTableProps<T>) {
   const { t } = useTranslation('common');
+
+  // Client-side filter state for columns without server-side support
+  const [clientFilters, setClientFilters] = useState<Map<string, { value: string }>>(new Map());
 
   // Load column visibility and ordering preferences
   const { visibleColumns, columnOrder, toggleColumn, moveColumn, resetToDefaults } =
@@ -179,6 +187,74 @@ export function DataTable<T>({
     return ordered;
   }, [columns, columnOrder]);
 
+  // Identify columns that filter client-side only (no filterParamKey)
+  const clientOnlyFilterKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const col of sortedColumns) {
+      if (col.filterable && col.filterType === 'number' && !col.filterParamKey && col.getValue) {
+        keys.add(col.key);
+      }
+    }
+    return keys;
+  }, [sortedColumns]);
+
+  // Apply client-side filters to the items list
+  const filteredItems = useMemo(() => {
+    let result = items;
+    for (const col of sortedColumns) {
+      if (!clientOnlyFilterKeys.has(col.key) || !col.getValue) continue;
+      const filterVal = clientFilters.get(col.key)?.value;
+      if (!filterVal) continue;
+      const minMatch = filterVal.match(/min:([\d.]+)/);
+      const maxMatch = filterVal.match(/max:([\d.]+)/);
+      const filterMin = minMatch ? parseFloat(minMatch[1]) : undefined;
+      const filterMax = maxMatch ? parseFloat(maxMatch[1]) : undefined;
+      result = result.filter((item) => {
+        const val = col.getValue!(item);
+        if (filterMin !== undefined && val < filterMin) return false;
+        if (filterMax !== undefined && val > filterMax) return false;
+        return true;
+      });
+    }
+    return result;
+  }, [items, sortedColumns, clientOnlyFilterKeys, clientFilters]);
+
+  // Compute client-side filterMeta bounds for columns without server support
+  const clientFilterMeta = useMemo(() => {
+    const meta: Record<string, { min: number; max: number }> = {};
+    for (const col of sortedColumns) {
+      if (clientOnlyFilterKeys.has(col.key) && col.getValue) {
+        let min = Infinity,
+          max = -Infinity;
+        for (const item of items) {
+          const v = col.getValue(item);
+          if (v < min) min = v;
+          if (v > max) max = v;
+        }
+        meta[col.key] = { min: min === Infinity ? 0 : min, max: max === -Infinity ? 0 : max };
+      }
+    }
+    return meta;
+  }, [items, sortedColumns, clientOnlyFilterKeys]);
+
+  // Merge API filterMeta with client-side computed meta
+  const mergedFilterMeta = useMemo(
+    () => ({
+      ...filterMeta,
+      ...clientFilterMeta,
+    }),
+    [filterMeta, clientFilterMeta],
+  );
+
+  // Combine server-side and client-side filters for header display
+  const allFilters = useMemo(() => {
+    const merged = new Map(tableState.filters);
+    for (const [key, val] of clientFilters) {
+      merged.set(key, val);
+    }
+    return merged;
+  }, [tableState.filters, clientFilters]);
+
   const handleSearch = (query: string) => {
     const newState = { ...tableState, search: query, page: 1 };
     onStateChange(newState);
@@ -204,6 +280,18 @@ export function DataTable<T>({
   };
 
   const handleFilter = (paramKey: string, value: string | null) => {
+    // Route client-side filters to internal state
+    if (clientOnlyFilterKeys.has(paramKey)) {
+      setClientFilters((prev) => {
+        const next = new Map(prev);
+        if (value === null || value === '') next.delete(paramKey);
+        else next.set(paramKey, { value });
+        return next;
+      });
+      return; // Don't propagate to parent for client-side filters
+    }
+
+    // Server-side filters: propagate to parent
     const newFilters = new Map(tableState.filters);
     if (value === null || value === '') {
       newFilters.delete(paramKey);
@@ -225,6 +313,7 @@ export function DataTable<T>({
   };
 
   const handleResetFilters = () => {
+    setClientFilters(new Map());
     const newState = {
       ...tableState,
       search: '',
@@ -235,8 +324,8 @@ export function DataTable<T>({
   };
 
   const hasActiveFilters = useMemo(
-    () => tableState.search !== '' || tableState.filters.size > 0,
-    [tableState.search, tableState.filters],
+    () => tableState.search !== '' || tableState.filters.size > 0 || clientFilters.size > 0,
+    [tableState.search, tableState.filters, clientFilters],
   );
 
   if (isLoading && items.length === 0) {
@@ -297,13 +386,14 @@ export function DataTable<T>({
           <DataTableHeader<T>
             columns={sortedColumns}
             visibleColumns={visibleColumns}
-            tableState={tableState}
+            tableState={{ ...tableState, filters: allFilters }}
+            filterMeta={mergedFilterMeta}
             onSort={handleSort}
             onFilter={handleFilter}
             hasActions={!!renderActions}
           />
           <tbody>
-            {items.map((item) => (
+            {filteredItems.map((item) => (
               <DataTableRow<T>
                 key={getRowKey(item)}
                 item={item}
@@ -318,7 +408,7 @@ export function DataTable<T>({
       </div>
 
       {/* Empty state or mobile cards */}
-      {items.length === 0 ? (
+      {filteredItems.length === 0 ? (
         <EmptyState
           message={
             hasActiveFilters
@@ -334,7 +424,7 @@ export function DataTable<T>({
         />
       ) : (
         <div className={styles.cardsContainer}>
-          {items.map((item) => (
+          {filteredItems.map((item) => (
             <DataTableCard<T>
               key={getRowKey(item)}
               item={item}
