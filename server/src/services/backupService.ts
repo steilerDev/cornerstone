@@ -155,15 +155,8 @@ export async function createBackup(
     const dataDir = path.dirname(config.databaseUrl);
 
     // Use better-sqlite3's backup API to safely snapshot the live database
-    await new Promise<void>((resolve, reject) => {
-      getClient(db).backup(backupPath.replace('.tar.gz', '.db'), (error: Error | null) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve();
-        }
-      });
-    });
+    const dbSnapshotPath = backupPath.replace('.tar.gz', '.db');
+    await getClient(db).backup(dbSnapshotPath);
 
     // Create tar.gz archive of the entire app data directory
     try {
