@@ -318,14 +318,14 @@ describe('TimelinePage', () => {
       expect(screen.getByTestId('timeline-add-milestone')).toBeInTheDocument();
     });
 
-    it('menu items have "Add ..." prefix labels', () => {
+    it('menu items have "New ..." prefix labels', () => {
       renderWithRouter();
       fireEvent.click(screen.getByTestId('timeline-add-button'));
-      expect(screen.getByTestId('timeline-add-work-item')).toHaveTextContent('Add Work Item');
+      expect(screen.getByTestId('timeline-add-work-item')).toHaveTextContent('New Work Item');
       expect(screen.getByTestId('timeline-add-household-item')).toHaveTextContent(
-        'Add Household Item',
+        'New Household Item',
       );
-      expect(screen.getByTestId('timeline-add-milestone')).toHaveTextContent('Add Milestone');
+      expect(screen.getByTestId('timeline-add-milestone')).toHaveTextContent('New Milestone');
     });
 
     it('clicking "Add" again closes the dropdown (toggle)', () => {
@@ -353,7 +353,7 @@ describe('TimelinePage', () => {
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     });
 
-    it('"Add Work Item" menu item navigates to /project/work-items/new', () => {
+    it('"New Work Item" menu item navigates to /project/work-items/new', () => {
       renderWithRouter();
       fireEvent.click(screen.getByTestId('timeline-add-button'));
       fireEvent.click(screen.getByTestId('timeline-add-work-item'));
@@ -361,7 +361,7 @@ describe('TimelinePage', () => {
       expect(screen.getByTestId('location-display')).toHaveTextContent('/project/work-items/new');
     });
 
-    it('"Add Household Item" menu item navigates to /project/household-items/new', () => {
+    it('"New Household Item" menu item navigates to /project/household-items/new', () => {
       renderWithRouter();
       fireEvent.click(screen.getByTestId('timeline-add-button'));
       fireEvent.click(screen.getByTestId('timeline-add-household-item'));
@@ -371,7 +371,7 @@ describe('TimelinePage', () => {
       );
     });
 
-    it('"Add Milestone" menu item navigates to /project/milestones/new', () => {
+    it('"New Milestone" menu item navigates to /project/milestones/new', () => {
       renderWithRouter();
       fireEvent.click(screen.getByTestId('timeline-add-button'));
       fireEvent.click(screen.getByTestId('timeline-add-milestone'));

@@ -819,7 +819,7 @@ describe('DashboardPage', () => {
       expect(screen.queryByTestId('dashboard-add-work-item')).not.toBeInTheDocument();
     });
 
-    it('"Add Work Item" menu item navigates to /project/work-items/new', async () => {
+    it('"New Work Item" menu item navigates to /project/work-items/new', async () => {
       renderWithLocation();
 
       await userEvent.click(screen.getByTestId('dashboard-add-button'));
@@ -828,7 +828,7 @@ describe('DashboardPage', () => {
       expect(screen.getByTestId('location')).toHaveTextContent('/project/work-items/new');
     });
 
-    it('"Add Household Item" menu item navigates to /project/household-items/new', async () => {
+    it('"New Household Item" menu item navigates to /project/household-items/new', async () => {
       renderWithLocation();
 
       await userEvent.click(screen.getByTestId('dashboard-add-button'));
@@ -837,7 +837,7 @@ describe('DashboardPage', () => {
       expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/new');
     });
 
-    it('"Add Milestone" menu item navigates to /project/milestones/new', async () => {
+    it('"New Milestone" menu item navigates to /project/milestones/new', async () => {
       renderWithLocation();
 
       await userEvent.click(screen.getByTestId('dashboard-add-button'));

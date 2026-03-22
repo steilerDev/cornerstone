@@ -6,9 +6,9 @@
     "showCard": "Show {{title}}",
     "actions": {
       "addButton": "Add",
-      "addWorkItem": "Add Work Item",
-      "addHouseholdItem": "Add Household Item",
-      "addMilestone": "Add Milestone"
+      "addWorkItem": "New Work Item",
+      "addHouseholdItem": "New Household Item",
+      "addMilestone": "New Milestone"
     }
   },
   "sections": {
