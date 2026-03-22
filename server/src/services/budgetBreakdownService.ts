@@ -48,6 +48,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     categoryName: string | null;
     categoryColor: string | null;
     categorySortOrder: number | null;
+    categoryTranslationKey: string | null;
   }>(
     sql`SELECT
       wi.id                  AS workItemId,
@@ -59,7 +60,8 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       wib.budget_category_id AS budgetCategoryId,
       bc.name                AS categoryName,
       bc.color               AS categoryColor,
-      bc.sort_order          AS categorySortOrder
+      bc.sort_order          AS categorySortOrder,
+      bc.translation_key     AS categoryTranslationKey
     FROM work_items wi
     INNER JOIN work_item_budgets wib ON wib.work_item_id = wi.id
     LEFT JOIN budget_categories bc ON bc.id = wib.budget_category_id
@@ -99,6 +101,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     hiCategoryName: string;
     hiCategoryColor: string | null;
     hiCategorySortOrder: number;
+    hiCategoryTranslationKey: string | null;
     budgetLineId: string;
     description: string | null;
     plannedAmount: number;
@@ -112,6 +115,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       hic.name                  AS hiCategoryName,
       hic.color                 AS hiCategoryColor,
       hic.sort_order            AS hiCategorySortOrder,
+      hic.translation_key       AS hiCategoryTranslationKey,
       hib.id                    AS budgetLineId,
       hib.description           AS description,
       hib.planned_amount        AS plannedAmount,
@@ -351,6 +355,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       categoryName: string;
       categoryColor: string | null;
       categorySortOrder: number | null;
+      categoryTranslationKey?: string | null;
     };
     getEntityKey: (row: TRow) => string;
     getEntityMeta: (row: TRow) => { entityId: string; entityLabel: string };
@@ -382,6 +387,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
         categoryName: string;
         categoryColor: string | null;
         categorySortOrder: number | null;
+        categoryTranslationKey?: string | null;
       },
       totals: {
         projectedMin: number;
@@ -620,6 +626,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       categoryName: row.budgetCategoryId === null ? 'Uncategorized' : row.categoryName!,
       categoryColor: row.categoryColor,
       categorySortOrder: row.categorySortOrder,
+      categoryTranslationKey: row.categoryTranslationKey,
     }),
     getEntityKey: (row) => row.workItemId,
     getEntityMeta: (row) => ({ entityId: row.workItemId, entityLabel: row.workItemTitle }),
@@ -632,6 +639,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       categoryId: catMeta.categoryId,
       categoryName: catMeta.categoryName,
       categoryColor: catMeta.categoryColor,
+      categoryTranslationKey: catMeta.categoryTranslationKey ?? null,
       ...totals,
       items,
     }),
@@ -651,6 +659,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       categoryName: row.hiCategoryName,
       categoryColor: row.hiCategoryColor ?? null,
       categorySortOrder: row.hiCategorySortOrder,
+      categoryTranslationKey: row.hiCategoryTranslationKey,
     }),
     getEntityKey: (row) => row.householdItemId,
     getEntityMeta: (row) => ({ entityId: row.householdItemId, entityLabel: row.itemName }),
@@ -661,6 +670,8 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     }),
     buildCategory: (catMeta, totals, items) => ({
       hiCategory: catMeta.categoryName,
+      categoryName: catMeta.categoryName,
+      categoryTranslationKey: catMeta.categoryTranslationKey ?? null,
       ...totals,
       items,
     }),

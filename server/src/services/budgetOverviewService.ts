@@ -384,13 +384,14 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     agg.actualCostClaimed += row.actualCostClaimed;
   }
 
-  // ── 10. Budget category metadata (name, color) ────────────────────────────
+  // ── 10. Budget category metadata (name, color, translation_key) ────────────────────────────
   const categoryMetaRows = db.all<{
     id: string;
     name: string;
     color: string | null;
+    translationKey: string | null;
   }>(
-    sql`SELECT id, name, color
+    sql`SELECT id, name, color, translation_key AS translationKey
     FROM budget_categories
     ORDER BY sort_order ASC, name ASC`,
   );
@@ -401,6 +402,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       categoryId: cat.id,
       categoryName: cat.name,
       categoryColor: cat.color,
+      categoryTranslationKey: cat.translationKey,
       minPlanned: agg?.minPlanned ?? 0,
       maxPlanned: agg?.maxPlanned ?? 0,
       actualCost: agg?.actualCost ?? 0,
@@ -417,6 +419,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       categoryId: null,
       categoryName: 'Uncategorized',
       categoryColor: null,
+      categoryTranslationKey: null,
       minPlanned: uncategorizedAgg.minPlanned,
       maxPlanned: uncategorizedAgg.maxPlanned,
       actualCost: uncategorizedAgg.actualCost,

@@ -55,6 +55,7 @@ export interface BreakdownWorkItemCategory {
   categoryId: string | null;
   categoryName: string;
   categoryColor: string | null;
+  categoryTranslationKey: string | null;
   projectedMin: number;
   projectedMax: number;
   actualCost: number;
@@ -88,6 +89,8 @@ export interface BreakdownHouseholdItem {
  */
 export interface BreakdownHouseholdItemCategory {
   hiCategory: HouseholdItemCategory;
+  categoryName: string;
+  categoryTranslationKey: string | null;
   projectedMin: number;
   projectedMax: number;
   actualCost: number;
