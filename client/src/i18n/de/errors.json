@@ -33,5 +33,9 @@
   "ACCOUNT_LOCKED": "Dieses Konto wurde aufgrund zu vieler fehlgeschlagener Anmeldeversuche vorübergehend gesperrt.",
   "INVALID_METADATA": "Die Eintragsmetadaten sind ungültig.",
   "INVALID_ENTRY_TYPE": "Dieser Tagebucheintrag-Typ ist für diese Operation nicht erlaubt.",
-  "IMMUTABLE_ENTRY": "Dieser Tagebucheintrag kann nicht bearbeitet werden."
+  "IMMUTABLE_ENTRY": "Dieser Tagebucheintrag kann nicht bearbeitet werden.",
+  "BACKUP_NOT_CONFIGURED": "",
+  "BACKUP_IN_PROGRESS": "",
+  "BACKUP_NOT_FOUND": "",
+  "RESTORE_FAILED": ""
 }
