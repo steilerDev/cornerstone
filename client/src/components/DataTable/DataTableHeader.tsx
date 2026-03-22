@@ -33,7 +33,10 @@ export function DataTableHeader<T>({
     if (!activeFilterColumn) return;
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest(`.${styles.filterPopover}`) && !target.closest(`.${styles.tableHeaderFilterButton}`)) {
+      if (
+        !target.closest(`.${styles.filterPopover}`) &&
+        !target.closest(`.${styles.tableHeaderFilterButton}`)
+      ) {
         setActiveFilterColumn(null);
       }
     };
