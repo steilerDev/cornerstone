@@ -32,7 +32,7 @@ export class VendorsPage {
 
   // Search/sort bar
   readonly searchInput: Locator;
-  readonly sortSelect: Locator;
+  // sortSelect removed — DataTable has no standalone sort select; sorting is column-header-based.
   readonly sortOrderButton: Locator;
 
   // Error banner (outside modals)
@@ -87,9 +87,7 @@ export class VendorsPage {
     this.searchInput = page.getByLabel('Search items');
     // DataTable sorting is column-header-based — no standalone sort select or order toggle button.
     // Sorting is triggered by clicking a sortable column header (th) in the table.
-    // These locators are kept for API compatibility but point to the column settings button
-    // which is the only sort-related toolbar element in DataTable.
-    this.sortSelect = page.getByLabel('Column settings');
+    // sortOrderButton points to the column settings button (the only sort-related toolbar element).
     this.sortOrderButton = page.getByLabel('Column settings');
 
     // Error banner outside modals

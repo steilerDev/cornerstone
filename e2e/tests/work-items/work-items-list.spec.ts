@@ -556,7 +556,9 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
     if (viewport && viewport.width >= 768) {
       await expect(workItemsPage.statusFilter).toBeVisible();
     }
-    // DataTable toolbar (search + column settings) is always visible across all viewports.
-    await expect(page.getByLabel('Column settings')).toBeVisible();
+    // Column settings button has display:none at max-width:767px — only visible on tablet+desktop.
+    if (viewport && viewport.width >= 768) {
+      await expect(page.getByLabel('Column settings')).toBeVisible();
+    }
   });
 });
