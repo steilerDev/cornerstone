@@ -159,6 +159,7 @@ describe('toBudgetCategory()', () => {
       name: 'Plumbing',
       description: 'All plumbing work',
       color: '#10B981',
+      translationKey: null,
       sortOrder: 3,
       createdAt: '2025-03-01T00:00:00.000Z',
       updatedAt: '2025-04-01T00:00:00.000Z',
