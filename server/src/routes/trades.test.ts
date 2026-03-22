@@ -894,7 +894,12 @@ describe('Trade Routes', () => {
     });
 
     it('POST /api/trades always creates trade with null translationKey', async () => {
-      const { cookie } = await createUserWithSession('admin@test.com', 'Admin', 'password', 'admin');
+      const { cookie } = await createUserWithSession(
+        'admin@test.com',
+        'Admin',
+        'password',
+        'admin',
+      );
 
       const response = await app.inject({
         method: 'POST',

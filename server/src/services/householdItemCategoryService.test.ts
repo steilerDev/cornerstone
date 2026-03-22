@@ -666,7 +666,10 @@ describe('Household Item Category Service', () => {
     });
 
     it('getHouseholdItemCategoryById() returns translationKey for a predefined category', () => {
-      const result = householdItemCategoryService.getHouseholdItemCategoryById(db, 'hic-appliances');
+      const result = householdItemCategoryService.getHouseholdItemCategoryById(
+        db,
+        'hic-appliances',
+      );
       expect(result.translationKey).toBe('householdItemCategories.appliances');
     });
 

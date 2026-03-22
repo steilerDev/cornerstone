@@ -28,7 +28,9 @@ export function HouseholdItemsPage() {
   // Data state
   const [householdItems, setHouseholdItems] = useState<HouseholdItemSummary[]>([]);
   const [vendors, setVendors] = useState<Array<{ id: string; name: string }>>([]);
-  const [categories, setCategories] = useState<Array<{ id: string; name: string; translationKey: string | null }>>([]);
+  const [categories, setCategories] = useState<
+    Array<{ id: string; name: string; translationKey: string | null }>
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [totalItems, setTotalItems] = useState(0);

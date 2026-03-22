@@ -569,7 +569,11 @@ export function VendorDetailPage() {
                 <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.trade')}</dt>
                 <dd className={styles.infoValue}>
                   {vendor.trade
-                    ? getCategoryDisplayName(tSettings, vendor.trade.name, vendor.trade.translationKey)
+                    ? getCategoryDisplayName(
+                        tSettings,
+                        vendor.trade.name,
+                        vendor.trade.translationKey,
+                      )
                     : '—'}
                 </dd>
               </div>

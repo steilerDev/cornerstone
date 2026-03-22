@@ -663,7 +663,11 @@ export function SubsidyProgramsPage() {
                           aria-hidden="true"
                         />
                         <span className={styles.categoryCheckboxLabel}>
-                          {getCategoryDisplayName(tSettings, category.name, category.translationKey)}
+                          {getCategoryDisplayName(
+                            tSettings,
+                            category.name,
+                            category.translationKey,
+                          )}
                         </span>
                       </label>
                     ))}
@@ -966,7 +970,11 @@ export function SubsidyProgramsPage() {
                                   aria-hidden="true"
                                 />
                                 <span className={styles.categoryCheckboxLabel}>
-                                  {getCategoryDisplayName(tSettings, category.name, category.translationKey)}
+                                  {getCategoryDisplayName(
+                                    tSettings,
+                                    category.name,
+                                    category.translationKey,
+                                  )}
                                 </span>
                               </label>
                             ))}
@@ -1049,7 +1057,11 @@ export function SubsidyProgramsPage() {
                                   style={{ backgroundColor: category.color ?? '#6b7280' }}
                                   aria-hidden="true"
                                 />
-                                {getCategoryDisplayName(tSettings, category.name, category.translationKey)}
+                                {getCategoryDisplayName(
+                                  tSettings,
+                                  category.name,
+                                  category.translationKey,
+                                )}
                               </span>
                             ))}
                           </div>

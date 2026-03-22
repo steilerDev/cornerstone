@@ -687,7 +687,9 @@ describe('getBudgetBreakdown', () => {
       expect(typeof cat.categoryName).toBe('string');
       expect(cat.categoryName.length).toBeGreaterThan(0);
       // categoryTranslationKey is either a string or null
-      expect(cat.categoryTranslationKey === null || typeof cat.categoryTranslationKey === 'string').toBe(true);
+      expect(
+        cat.categoryTranslationKey === null || typeof cat.categoryTranslationKey === 'string',
+      ).toBe(true);
       expect(cat.items).toHaveLength(1);
       expect(cat.items[0].name).toBe('Sofa');
     });

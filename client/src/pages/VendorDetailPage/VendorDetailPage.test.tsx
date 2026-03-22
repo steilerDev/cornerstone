@@ -568,7 +568,12 @@ describe('VendorDetailPage', () => {
       const updatedVendor: VendorDetail = {
         ...sampleVendor,
         name: 'Smith Plumbing Updated',
-        trade: { id: 'trade-plumbing', name: 'General Plumbing', color: null, translationKey: null },
+        trade: {
+          id: 'trade-plumbing',
+          name: 'General Plumbing',
+          color: null,
+          translationKey: null,
+        },
       };
 
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);

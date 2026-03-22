@@ -47,50 +47,50 @@ Action labels in German follow the pattern: `{Noun} {Verb}` with capitalised fir
 
 These are stored as top-level keys in `de/settings.json` (NOT inside `manage`):
 
-| English key (trades)    | German              |
-| ----------------------- | ------------------- |
-| plumbing                | Sanitär             |
-| hvac                    | Heizung, Klima, Lüftung |
-| electrical              | Elektrik            |
-| drywall                 | Trockenbau          |
-| carpentry               | Tischlerei          |
-| masonry                 | Maurerarbeiten      |
-| painting                | Malerei             |
-| roofing                 | Dacharbeiten        |
-| flooring                | Bodenbeläge         |
-| tiling                  | Fliesenarbeiten     |
-| landscaping             | Gartengestaltung    |
-| excavation              | Erdarbeiten         |
-| generalContractor       | Generalunternehmer  |
-| architectDesign         | Architektur / Planung |
-| other                   | Sonstige            |
+| English key (trades) | German                  |
+| -------------------- | ----------------------- |
+| plumbing             | Sanitär                 |
+| hvac                 | Heizung, Klima, Lüftung |
+| electrical           | Elektrik                |
+| drywall              | Trockenbau              |
+| carpentry            | Tischlerei              |
+| masonry              | Maurerarbeiten          |
+| painting             | Malerei                 |
+| roofing              | Dacharbeiten            |
+| flooring             | Bodenbeläge             |
+| tiling               | Fliesenarbeiten         |
+| landscaping          | Gartengestaltung        |
+| excavation           | Erdarbeiten             |
+| generalContractor    | Generalunternehmer      |
+| architectDesign      | Architektur / Planung   |
+| other                | Sonstige                |
 
-| English key (budgetCategories) | German                  |
-| ------------------------------ | ----------------------- |
-| materials                      | Materialien             |
-| labor                          | Arbeit                  |
-| permits                        | Genehmigungen           |
-| design                         | Planung                 |
-| householdItems                 | Haushaltsartikel        |
-| waste                          | Entsorgung              |
-| other                          | Sonstige                |
-| equipment                      | Geräte                  |
-| landscaping                    | Gartengestaltung        |
-| utilities                      | Versorgungsleistungen   |
-| insurance                      | Versicherung            |
-| contingency                    | Rücklagen               |
+| English key (budgetCategories) | German                |
+| ------------------------------ | --------------------- |
+| materials                      | Materialien           |
+| labor                          | Arbeit                |
+| permits                        | Genehmigungen         |
+| design                         | Planung               |
+| householdItems                 | Haushaltsartikel      |
+| waste                          | Entsorgung            |
+| other                          | Sonstige              |
+| equipment                      | Geräte                |
+| landscaping                    | Gartengestaltung      |
+| utilities                      | Versorgungsleistungen |
+| insurance                      | Versicherung          |
+| contingency                    | Rücklagen             |
 
-| English key (householdItemCategories) | German        |
-| ------------------------------------- | ------------- |
-| furniture                             | Möbel         |
-| appliances                            | Geräte        |
-| fixtures                              | Einbauten     |
-| decor                                 | Dekoration    |
-| electronics                           | Elektronik    |
-| equipment                             | Ausstattung   |
-| other                                 | Sonstige      |
-| outdoor                               | Außenbereich  |
-| storage                               | Aufbewahrung  |
+| English key (householdItemCategories) | German       |
+| ------------------------------------- | ------------ |
+| furniture                             | Möbel        |
+| appliances                            | Geräte       |
+| fixtures                              | Einbauten    |
+| decor                                 | Dekoration   |
+| electronics                           | Elektronik   |
+| equipment                             | Ausstattung  |
+| other                                 | Sonstige     |
+| outdoor                               | Außenbereich |
+| storage                               | Aufbewahrung |
 
 ## Initial Cleanup (2026-03-17)
 

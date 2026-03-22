@@ -177,7 +177,12 @@ describe('VendorSummary interface', () => {
     const vendor: VendorSummary = {
       id: 'v-001',
       name: 'Acme Plumbing',
-      trade: { id: 'trade-plumbing', name: 'Plumbing', color: '#0EA5E9', translationKey: 'trades.plumbing' },
+      trade: {
+        id: 'trade-plumbing',
+        name: 'Plumbing',
+        color: '#0EA5E9',
+        translationKey: 'trades.plumbing',
+      },
     };
 
     expect(vendor.id).toBe('v-001');
@@ -319,7 +324,12 @@ describe('BaseBudgetLine interface', () => {
       vendor: {
         id: 'v-001',
         name: 'Acme Concrete',
-        trade: { id: 'trade-masonry', name: 'Masonry', color: '#78716C', translationKey: 'trades.masonry' },
+        trade: {
+          id: 'trade-masonry',
+          name: 'Masonry',
+          color: '#78716C',
+          translationKey: 'trades.masonry',
+        },
       },
       actualCost: 24500,
       actualCostPaid: 24500,

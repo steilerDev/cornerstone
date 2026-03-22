@@ -32,10 +32,9 @@ describe('getCategoryDisplayName', () => {
     });
 
     it('uses the raw name as defaultValue so t() can fall back to it', () => {
-      const t = jest.fn((_key: string, opts?: { defaultValue: string }) => opts?.defaultValue ?? '') as (
-        key: string,
-        opts?: { defaultValue: string },
-      ) => string;
+      const t = jest.fn(
+        (_key: string, opts?: { defaultValue: string }) => opts?.defaultValue ?? '',
+      ) as (key: string, opts?: { defaultValue: string }) => string;
 
       const result = getCategoryDisplayName(t, 'Materials', 'budgetCategories.materials');
 
@@ -106,10 +105,9 @@ describe('getCategoryDisplayName', () => {
 
     it('returns defaultValue (raw name) when t() honours the defaultValue option', () => {
       // Simulate i18next using defaultValue when key is missing from locale
-      const t = jest.fn((_key: string, opts?: { defaultValue: string }) => opts?.defaultValue ?? '') as (
-        key: string,
-        opts?: { defaultValue: string },
-      ) => string;
+      const t = jest.fn(
+        (_key: string, opts?: { defaultValue: string }) => opts?.defaultValue ?? '',
+      ) as (key: string, opts?: { defaultValue: string }) => string;
 
       const result = getCategoryDisplayName(t, 'Plumbing', 'trades.missingKey');
 

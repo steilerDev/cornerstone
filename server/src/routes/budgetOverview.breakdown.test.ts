@@ -461,7 +461,9 @@ describe('GET /api/budget/breakdown', () => {
     expect(typeof hiCat.categoryName).toBe('string');
     expect(hiCat.categoryName.length).toBeGreaterThan(0);
     // categoryTranslationKey is either a string or null
-    expect(hiCat.categoryTranslationKey === null || typeof hiCat.categoryTranslationKey === 'string').toBe(true);
+    expect(
+      hiCat.categoryTranslationKey === null || typeof hiCat.categoryTranslationKey === 'string',
+    ).toBe(true);
     expect(hiCat.items[0].costDisplay).toBe('projected');
   });
 });

@@ -95,10 +95,7 @@ test.describe('i18n: Predefined category name translations', () => {
 
     // Wait for the trades list to load — the tab panel becomes active after navigation
     const tradesPanel = page.locator('#trades-panel');
-    await tradesPanel
-      .locator('[class*="itemRow"]')
-      .first()
-      .waitFor({ state: 'visible' });
+    await tradesPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });
 
     // Then: The predefined "Plumbing" trade is visible with its English name
     await expect(tradesPanel.getByText('Plumbing', { exact: true }).first()).toBeVisible();
@@ -118,10 +115,7 @@ test.describe('i18n: Predefined category name translations', () => {
     });
 
     const tradesPanel = page.locator('#trades-panel');
-    await tradesPanel
-      .locator('[class*="itemRow"]')
-      .first()
-      .waitFor({ state: 'visible' });
+    await tradesPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });
 
     // Then: The German translation "Sanitär" is shown for Plumbing
     await expect(tradesPanel.getByText('Sanitär', { exact: true }).first()).toBeVisible();
@@ -145,10 +139,7 @@ test.describe('i18n: Predefined category name translations', () => {
     });
 
     const budgetPanel = page.locator('#budget-categories-panel');
-    await budgetPanel
-      .locator('[class*="itemRow"]')
-      .first()
-      .waitFor({ state: 'visible' });
+    await budgetPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });
 
     // Then: The predefined "Materials" budget category is visible with its English name
     await expect(budgetPanel.getByText('Materials', { exact: true }).first()).toBeVisible();
@@ -167,10 +158,7 @@ test.describe('i18n: Predefined category name translations', () => {
     });
 
     const budgetPanel = page.locator('#budget-categories-panel');
-    await budgetPanel
-      .locator('[class*="itemRow"]')
-      .first()
-      .waitFor({ state: 'visible' });
+    await budgetPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });
 
     // Then: The German translation "Materialien" is shown for Materials
     await expect(budgetPanel.getByText('Materialien', { exact: true }).first()).toBeVisible();
@@ -196,10 +184,7 @@ test.describe('i18n: Predefined category name translations', () => {
     });
 
     const hiPanel = page.locator('#hi-categories-panel');
-    await hiPanel
-      .locator('[class*="itemRow"]')
-      .first()
-      .waitFor({ state: 'visible' });
+    await hiPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });
 
     // Then: The predefined "Furniture" household item category is visible with its English name
     await expect(hiPanel.getByText('Furniture', { exact: true }).first()).toBeVisible();
@@ -218,10 +203,7 @@ test.describe('i18n: Predefined category name translations', () => {
     });
 
     const hiPanel = page.locator('#hi-categories-panel');
-    await hiPanel
-      .locator('[class*="itemRow"]')
-      .first()
-      .waitFor({ state: 'visible' });
+    await hiPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });
 
     // Then: The German translation "Möbel" is shown for Furniture
     await expect(hiPanel.getByText('Möbel', { exact: true }).first()).toBeVisible();

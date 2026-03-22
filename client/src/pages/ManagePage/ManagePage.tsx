@@ -965,7 +965,9 @@ function TradesTab() {
                         aria-hidden="true"
                       />
                       <div className={styles.itemDetails}>
-                        <span className={styles.itemName}>{getCategoryDisplayName(t, trade.name, trade.translationKey)}</span>
+                        <span className={styles.itemName}>
+                          {getCategoryDisplayName(t, trade.name, trade.translationKey)}
+                        </span>
                         {trade.description && (
                           <span className={styles.itemDescription}>{trade.description}</span>
                         )}
@@ -1534,7 +1536,9 @@ function BudgetCategoriesTab() {
                         aria-hidden="true"
                       />
                       <div className={styles.itemDetails}>
-                        <span className={styles.itemName}>{getCategoryDisplayName(t, category.name, category.translationKey)}</span>
+                        <span className={styles.itemName}>
+                          {getCategoryDisplayName(t, category.name, category.translationKey)}
+                        </span>
                         {category.description && (
                           <span className={styles.itemDescription}>{category.description}</span>
                         )}
@@ -2085,7 +2089,9 @@ function HouseholdItemCategoriesTab() {
                         aria-hidden="true"
                       />
                       <div className={styles.itemDetails}>
-                        <span className={styles.itemName}>{getCategoryDisplayName(t, category.name, category.translationKey)}</span>
+                        <span className={styles.itemName}>
+                          {getCategoryDisplayName(t, category.name, category.translationKey)}
+                        </span>
                       </div>
                       <span
                         className={styles.itemSortOrder}
