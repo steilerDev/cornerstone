@@ -253,4 +253,67 @@ describe('DataTableHeader', () => {
       expect(filterBtn.className).toContain('tableHeaderFilterButtonActive');
     });
   });
+
+  describe('actions column translation (#1137)', () => {
+    it('renders an "Actions" column header when hasActions is true', () => {
+      const { container } = renderHeader({ columns: DEFAULT_COLUMNS });
+      // Re-render with hasActions
+      const { container: c } = render(
+        <table>
+          <DataTableHeader<TestItem>
+            columns={DEFAULT_COLUMNS}
+            visibleColumns={new Set(DEFAULT_COLUMNS.map((col) => col.key))}
+            tableState={makeTableState()}
+            onSort={jest.fn()}
+            onFilter={jest.fn()}
+            hasActions={true}
+          />
+        </table>,
+      );
+      const headers = c.querySelectorAll('th');
+      const headerTexts = Array.from(headers).map((th) => th.textContent?.trim());
+      expect(headerTexts).toContain('Actions');
+    });
+
+    it('does NOT render an "Actions" column header when hasActions is false', () => {
+      renderHeader();
+      // Default render has no hasActions prop (undefined = falsy)
+      expect(screen.queryByText('Actions')).not.toBeInTheDocument();
+    });
+
+    it('does NOT render an "Actions" column header when hasActions is omitted', () => {
+      const { container } = render(
+        <table>
+          <DataTableHeader<TestItem>
+            columns={DEFAULT_COLUMNS}
+            visibleColumns={new Set(DEFAULT_COLUMNS.map((col) => col.key))}
+            tableState={makeTableState()}
+            onSort={jest.fn()}
+            onFilter={jest.fn()}
+          />
+        </table>,
+      );
+      const headers = container.querySelectorAll('th');
+      const headerTexts = Array.from(headers).map((th) => th.textContent?.trim());
+      expect(headerTexts).not.toContain('Actions');
+    });
+
+    it('actions column is added after all data columns', () => {
+      const { container } = render(
+        <table>
+          <DataTableHeader<TestItem>
+            columns={DEFAULT_COLUMNS}
+            visibleColumns={new Set(DEFAULT_COLUMNS.map((col) => col.key))}
+            tableState={makeTableState()}
+            onSort={jest.fn()}
+            onFilter={jest.fn()}
+            hasActions={true}
+          />
+        </table>,
+      );
+      const headers = container.querySelectorAll('th');
+      // Actions should be the last header
+      expect(headers[headers.length - 1].textContent?.trim()).toBe('Actions');
+    });
+  });
 });

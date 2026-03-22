@@ -209,6 +209,13 @@ See `datatable-spec.md` for full token map. Key decisions:
 - All strings under `common:dataTable.*` namespace
 - No new design tokens needed
 
+## DataTable Bug Fix Specs (#1135–#1140)
+
+- Date range (#1135): `.filterDateInputConfirmed` = `border: var(--color-primary); bg: var(--color-primary-bg)`; range bridge pill uses `--color-primary-bg` + `--color-primary-badge-text`; auto-focus advance to "to" input
+- Toolbar height (#1136): three controls (search, reset, col-settings) all set to `height: 36px; box-sizing: border-box`; column icon = 3-bar vertical SVG (16×16), NOT gear emoji; `min-height: 44px` only on mobile
+- Number filter (#1139): existing `NumberFilter.tsx` visual is correct; fix is behavioral (`numberMin/Max/Step` props); compare mode uses existing `.filterSegmentedControl` classes
+- Drag indicator (#1140): replace full-row `--color-primary` bg with `::before` pseudo-element insertion line (2px, `--color-primary`, `--radius-full`); add `e.dataTransfer.effectAllowed = 'move'` on dragstart; drag handle needs `tabIndex={0}` + arrow-key keyboard reorder for a11y
+
 ## Story 4.11 — HI Detail Inline Edit (Issue #467)
 
 See `story-4-11-hi-detail-inline-edit.md` for full spec.

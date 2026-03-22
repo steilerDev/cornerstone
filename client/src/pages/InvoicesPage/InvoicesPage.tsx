@@ -169,7 +169,7 @@ export function InvoicesPage() {
     params.set('pageSize', String(newState.pageSize));
 
     // Delete all known filter param keys first
-    const knownFilterKeys = ['status', 'vendorId', 'amount'];
+    const knownFilterKeys = ['status', 'vendorId', 'amount', 'date', 'dueDate'];
     for (const key of knownFilterKeys) {
       params.delete(key);
     }
@@ -324,6 +324,9 @@ export function InvoicesPage() {
         sortable: true,
         sortKey: 'due_date',
         defaultVisible: true,
+        filterable: true,
+        filterType: 'date' as const,
+        filterParamKey: 'dueDate',
         render: (inv) => (inv.dueDate ? formatDate(inv.dueDate) : '—'),
       },
       {

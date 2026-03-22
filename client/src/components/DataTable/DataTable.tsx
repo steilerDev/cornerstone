@@ -49,6 +49,9 @@ export interface ColumnDef<T> {
   entitySearchFn?: SearchPickerProps<unknown>['searchFn'];
   entityRenderItem?: SearchPickerProps<unknown>['renderItem'];
   entityPlaceholder?: string;
+  numberMin?: number;
+  numberMax?: number;
+  numberStep?: number;
   defaultVisible?: boolean;
   render: (item: T) => ReactNode;
   renderCard?: (item: T) => ReactNode;

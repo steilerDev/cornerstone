@@ -86,6 +86,7 @@
   "toast": {
     "dismissAriaLabel": "Benachrichtigung schließen"
   },
+  "actions": "Aktionen",
   "assignmentPicker": {
     "usersGroup": "Benutzer",
     "vendorsGroup": "Auftragnehmer"

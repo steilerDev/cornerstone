@@ -55,7 +55,15 @@ export function DataTableFilterPopover<T>({
           />
         );
       case 'number':
-        return <NumberFilter value={value} onChange={handleChange} />;
+        return (
+          <NumberFilter
+            value={value}
+            onChange={handleChange}
+            min={column.numberMin}
+            max={column.numberMax}
+            step={column.numberStep}
+          />
+        );
       case 'date':
         return <DateFilter value={value} onChange={handleChange} />;
       case 'enum':

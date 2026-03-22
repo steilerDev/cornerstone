@@ -1,5 +1,5 @@
 import { describe, it, expect, jest } from '@jest/globals';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { DateFilter } from './DateFilter.js';
 
 describe('DateFilter', () => {
@@ -95,6 +95,79 @@ describe('DateFilter', () => {
       const [fromInput] = container.querySelectorAll('input[type="date"]');
       fireEvent.change(fromInput, { target: { value: '2026-05-01' } });
       expect(mockOnChange).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('auto-focus on start selection (#1135)', () => {
+    it('focuses the "to" input after a valid "from" date is entered', () => {
+      jest.useFakeTimers();
+      const { container } = render(<DateFilter value="" onChange={jest.fn()} />);
+      const [fromInput, toInput] = container.querySelectorAll('input[type="date"]');
+
+      fireEvent.change(fromInput, { target: { value: '2026-03-01' } });
+
+      act(() => {
+        jest.runAllTimers();
+      });
+
+      expect(document.activeElement).toBe(toInput);
+      jest.useRealTimers();
+    });
+
+    it('does NOT focus the "to" input when the "from" date is cleared', () => {
+      jest.useFakeTimers();
+      const { container } = render(<DateFilter value="from:2026-03-01" onChange={jest.fn()} />);
+      const [fromInput, toInput] = container.querySelectorAll('input[type="date"]');
+
+      fireEvent.change(fromInput, { target: { value: '' } });
+
+      act(() => {
+        jest.runAllTimers();
+      });
+
+      expect(document.activeElement).not.toBe(toInput);
+      jest.useRealTimers();
+    });
+  });
+
+  describe('confirmed visual state (#1135)', () => {
+    it('applies filterDateInputConfirmed class to "from" input after a date is entered', () => {
+      const { container } = render(<DateFilter value="" onChange={jest.fn()} />);
+      const [fromInput] = container.querySelectorAll('input[type="date"]');
+
+      fireEvent.change(fromInput, { target: { value: '2026-06-15' } });
+
+      expect((fromInput as HTMLElement).className).toContain('filterDateInputConfirmed');
+    });
+
+    it('does NOT apply filterDateInputConfirmed class when "from" input is empty', () => {
+      const { container } = render(<DateFilter value="" onChange={jest.fn()} />);
+      const [fromInput] = container.querySelectorAll('input[type="date"]');
+
+      expect((fromInput as HTMLElement).className).not.toContain('filterDateInputConfirmed');
+    });
+
+    it('applies filterDateInputConfirmed class when rendered with a pre-existing from date', () => {
+      const { container } = render(
+        <DateFilter value="from:2026-01-01" onChange={jest.fn()} />,
+      );
+      const [fromInput] = container.querySelectorAll('input[type="date"]');
+
+      expect((fromInput as HTMLElement).className).toContain('filterDateInputConfirmed');
+    });
+
+    it('removes filterDateInputConfirmed class after the "from" date is cleared', () => {
+      const { container } = render(
+        <DateFilter value="from:2026-01-01" onChange={jest.fn()} />,
+      );
+      const [fromInput] = container.querySelectorAll('input[type="date"]');
+
+      // Confirm initially has the class
+      expect((fromInput as HTMLElement).className).toContain('filterDateInputConfirmed');
+
+      fireEvent.change(fromInput, { target: { value: '' } });
+
+      expect((fromInput as HTMLElement).className).not.toContain('filterDateInputConfirmed');
     });
   });
 });
