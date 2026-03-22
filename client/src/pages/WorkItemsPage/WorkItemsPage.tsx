@@ -421,21 +421,22 @@ export function WorkItemsPage() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.pageTitle}>{t('list.pageTitle')}</h1>
-        <button
-          type="button"
-          className={sharedStyles.btnPrimary}
-          onClick={() => navigate('/project/work-items/new')}
-          data-testid="new-work-item-button"
-        >
-          {t('list.newWorkItem')}
-        </button>
-      </div>
+      <div className={styles.content}>
+        <div className={styles.header}>
+          <h1 className={styles.pageTitle}>{t('list.pageTitle')}</h1>
+          <button
+            type="button"
+            className={sharedStyles.btnPrimary}
+            onClick={() => navigate('/project/work-items/new')}
+            data-testid="new-work-item-button"
+          >
+            {t('list.newWorkItem')}
+          </button>
+        </div>
 
-      <ProjectSubNav />
+        <ProjectSubNav />
 
-      <DataTable<WorkItemSummary>
+        <DataTable<WorkItemSummary>
         pageKey="workItems"
         columns={columns}
         items={workItems}
@@ -505,6 +506,7 @@ export function WorkItemsPage() {
       {showShortcutsHelp && (
         <KeyboardShortcutsHelp shortcuts={shortcuts} onClose={() => setShowShortcutsHelp(false)} />
       )}
+      </div>
     </div>
   );
 }

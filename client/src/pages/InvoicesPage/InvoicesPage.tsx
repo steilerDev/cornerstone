@@ -169,7 +169,7 @@ export function InvoicesPage() {
     params.set('pageSize', String(newState.pageSize));
 
     // Delete all known filter param keys first
-    const knownFilterKeys = ['status', 'vendorId', 'amount', 'date', 'dueDate'];
+    const knownFilterKeys = ['status', 'vendorId', 'amount'];
     for (const key of knownFilterKeys) {
       params.delete(key);
     }
@@ -324,9 +324,6 @@ export function InvoicesPage() {
         sortable: true,
         sortKey: 'due_date',
         defaultVisible: true,
-        filterable: true,
-        filterType: 'date' as const,
-        filterParamKey: 'dueDate',
         render: (inv) => (inv.dueDate ? formatDate(inv.dueDate) : '—'),
       },
       {
@@ -432,23 +429,24 @@ export function InvoicesPage() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.pageTitle}>{t('invoices.title')}</h1>
-        <button
-          type="button"
-          className={sharedStyles.btnPrimary}
-          onClick={openCreateModal}
-          data-testid="new-invoice-button"
-        >
-          {t('invoices.addInvoice')}
-        </button>
-      </div>
+      <div className={styles.content}>
+        <div className={styles.header}>
+          <h1 className={styles.pageTitle}>{t('invoices.title')}</h1>
+          <button
+            type="button"
+            className={sharedStyles.btnPrimary}
+            onClick={openCreateModal}
+            data-testid="new-invoice-button"
+          >
+            {t('invoices.addInvoice')}
+          </button>
+        </div>
 
-      <BudgetSubNav />
+        <BudgetSubNav />
 
-      <h2 className={styles.sectionTitle}>{t('invoices.sectionTitle')}</h2>
+        <h2 className={styles.sectionTitle}>{t('invoices.sectionTitle')}</h2>
 
-      <DataTable<Invoice>
+        <DataTable<Invoice>
         pageKey="invoices"
         columns={columns}
         items={invoices}
@@ -637,6 +635,7 @@ export function InvoicesPage() {
           </form>
         </Modal>
       )}
+      </div>
     </div>
   );
 }

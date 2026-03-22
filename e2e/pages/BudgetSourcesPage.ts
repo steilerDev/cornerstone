@@ -4,8 +4,9 @@
  * The page renders:
  * - An h1 "Budget" page title
  * - BudgetSubNav
- * - An h2 "Sources" section header with an "Add Source" button
- * - An inline create form (h2 "New Budget Source") toggled by "Add Source"
+ * - A page header h1 "Budget" with a "New Source" primary action button
+ *   Note: button text was standardised from "Add Source" to "New Source" in issue #1142.
+ * - An inline create form (h2 "New Budget Source") toggled by "New Source"
  * - A sources list (class `.sourcesList`) with inline edit forms per row
  * - A delete confirmation modal (role="dialog", aria-labelledby="delete-modal-title")
  * - Success/error banners (role="alert")
@@ -70,7 +71,8 @@ export class BudgetSourcesPage {
     this.heading = page.getByRole('heading', { level: 1, name: 'Budget', exact: true });
 
     this.sectionTitle = page.getByRole('heading', { level: 2, name: 'Sources', exact: true });
-    this.addSourceButton = page.getByRole('button', { name: 'Add Source', exact: true });
+    // Button text standardised to "New Source" in issue #1142 (was "Add Source")
+    this.addSourceButton = page.getByRole('button', { name: 'New Source', exact: true });
 
     // Create form — identified by its h2 heading "New Budget Source"
     this.createFormHeading = page.getByRole('heading', {
@@ -129,7 +131,7 @@ export class BudgetSourcesPage {
   }
 
   /**
-   * Open the create form by clicking "Add Source".
+   * Open the create form by clicking "New Source".
    */
   async openCreateForm(): Promise<void> {
     await this.addSourceButton.click();

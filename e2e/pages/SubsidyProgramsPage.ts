@@ -4,8 +4,9 @@
  * The page renders:
  * - An h1 "Budget" page title
  * - BudgetSubNav
- * - An h2 "Subsidy Programs" section header with an "Add Program" button
- * - An inline create form (h2 "New Subsidy Program") toggled by "Add Program"
+ * - An h2 "Subsidy Programs" section header with a "New Subsidy Program" button
+ *   Note: button text was standardised from "Add Program" to "New Subsidy Program" in issue #1142.
+ * - An inline create form (h2 "New Subsidy Program") toggled by "New Subsidy Program"
  *   - `#programName` (text, required)
  *   - `#reductionType` (select: "percentage" | "fixed")
  *   - `#reductionValue` (number, required — label changes by type)
@@ -90,7 +91,8 @@ export class SubsidyProgramsPage {
       name: 'Subsidy Programs',
       exact: true,
     });
-    this.addProgramButton = page.getByRole('button', { name: 'Add Program', exact: true });
+    // Button text standardised to "New Subsidy Program" in issue #1142 (was "Add Program")
+    this.addProgramButton = page.getByRole('button', { name: 'New Subsidy Program', exact: true });
 
     // Create form — identified by its h2 heading "New Subsidy Program"
     this.createFormHeading = page.getByRole('heading', {

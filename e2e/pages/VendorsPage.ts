@@ -2,7 +2,8 @@
  * Page Object Model for the Vendors list page (/budget/vendors)
  *
  * The page renders:
- * - A page header with an "Add Vendor" button
+ * - A page header with a "New Vendor" button (data-testid="new-vendor-button")
+ *   Note: button text was standardised from "Add Vendor" to "New Vendor" in issue #1142.
  * - A search input and sort controls
  * - A data table (desktop) / card list (mobile) of vendors
  * - Pagination controls when totalPages > 1
@@ -80,7 +81,8 @@ export class VendorsPage {
 
     // Page header
     this.heading = page.getByRole('heading', { level: 1, name: 'Budget', exact: true });
-    this.addVendorButton = page.getByRole('button', { name: 'Add Vendor', exact: true });
+    // Button text standardised to "New Vendor" in issue #1142 (was "Add Vendor")
+    this.addVendorButton = page.getByTestId('new-vendor-button');
 
     // Search / sort
     this.searchInput = page.getByLabel('Search vendors');
