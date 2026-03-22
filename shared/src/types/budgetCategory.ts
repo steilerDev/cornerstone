@@ -11,6 +11,7 @@ export interface BudgetCategory {
   name: string;
   description: string | null;
   color: string | null;
+  translationKey: string | null;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;

@@ -48,6 +48,7 @@ function toVendor(db: DbType, row: typeof vendors.$inferSelect): Vendor {
         id: tradeRow.id,
         name: tradeRow.name,
         color: tradeRow.color,
+        translationKey: tradeRow.translationKey ?? null,
       };
     }
   }

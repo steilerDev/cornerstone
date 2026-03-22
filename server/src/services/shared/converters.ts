@@ -49,6 +49,7 @@ export function toBudgetCategory(
     name: category.name,
     description: category.description,
     color: category.color,
+    translationKey: category.translationKey ?? null,
     sortOrder: category.sortOrder,
     createdAt: category.createdAt,
     updatedAt: category.updatedAt,
@@ -113,6 +114,7 @@ function toTradeSummary(trade: typeof trades.$inferSelect | null | undefined): T
     id: trade.id,
     name: trade.name,
     color: trade.color,
+    translationKey: trade.translationKey ?? null,
   };
 }
 
