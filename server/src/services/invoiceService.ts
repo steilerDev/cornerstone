@@ -136,7 +136,12 @@ export function listAllInvoices(
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   },
-): { invoices: Invoice[]; pagination: PaginationMeta; summary: InvoiceStatusBreakdown; filterMeta: FilterMeta } {
+): {
+  invoices: Invoice[];
+  pagination: PaginationMeta;
+  summary: InvoiceStatusBreakdown;
+  filterMeta: FilterMeta;
+} {
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
   const sortOrder = query.sortOrder ?? 'desc';
