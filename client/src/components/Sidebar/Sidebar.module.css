@@ -5,6 +5,7 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
 }
 
 .logoArea {
@@ -138,6 +139,7 @@
     top: 0;
     left: 0;
     bottom: 0;
+    height: auto;
     width: 240px;
     z-index: var(--z-sidebar);
     transform: translateX(-100%);
