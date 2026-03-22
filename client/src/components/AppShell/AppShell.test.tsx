@@ -50,7 +50,7 @@ describe('AppShell', () => {
     }
   });
 
-  it('renders sidebar, header, and outlet area', () => {
+  it('renders sidebar, floating menu button, and outlet area', () => {
     renderWithRouter(
       <Routes>
         <Route element={<AppShellModule.AppShell />} path="*">
@@ -63,9 +63,9 @@ describe('AppShell', () => {
     const sidebar = screen.getByRole('complementary');
     expect(sidebar).toBeInTheDocument();
 
-    // Header should be present
-    const header = screen.getByRole('banner');
-    expect(header).toBeInTheDocument();
+    // Floating menu button (FAB) should be present
+    const fab = screen.getByTestId('menu-fab');
+    expect(fab).toBeInTheDocument();
 
     // Main content area should be present
     const main = screen.getByRole('main');
@@ -133,7 +133,7 @@ describe('AppShell', () => {
     expect(screen.getByRole('button', { name: /^settings$/i })).toBeInTheDocument();
   });
 
-  it('renders header with menu toggle button', () => {
+  it('renders floating menu button for mobile sidebar toggle', () => {
     renderWithRouter(
       <Routes>
         <Route element={<AppShellModule.AppShell />} path="*">
@@ -142,8 +142,24 @@ describe('AppShell', () => {
       </Routes>,
     );
 
-    const menuButton = screen.getByRole('button', { name: /open menu/i });
-    expect(menuButton).toBeInTheDocument();
+    const fab = screen.getByTestId('menu-fab');
+    expect(fab).toBeInTheDocument();
+    expect(fab).toHaveAttribute('type', 'button');
+  });
+
+  it('floating menu button has data-testid and type="button"', () => {
+    renderWithRouter(
+      <Routes>
+        <Route element={<AppShellModule.AppShell />} path="*">
+          <Route index element={<div>Test Content</div>} />
+        </Route>
+      </Routes>,
+    );
+
+    const fab = screen.getByTestId('menu-fab');
+    expect(fab).toBeInTheDocument();
+    expect(fab).toHaveAttribute('type', 'button');
+    expect(fab).toHaveAttribute('aria-label', 'Open menu');
   });
 
   it('overlay is not visible initially (sidebar starts closed)', () => {
@@ -270,9 +286,9 @@ describe('AppShell', () => {
     let overlay = document.querySelector('[data-testid="sidebar-overlay"]');
     expect(overlay).toBeInTheDocument();
 
-    // Header button should now say "Close menu"
-    const header = screen.getByRole('banner');
-    menuButton = within(header).getByRole('button', { name: /close menu/i });
+    // FAB button should now say "Close menu"
+    menuButton = screen.getByTestId('menu-fab');
+    expect(menuButton).toHaveAttribute('aria-label', 'Close menu');
 
     // Close
     await user.click(menuButton);
@@ -298,17 +314,16 @@ describe('AppShell', () => {
       </Routes>,
     );
 
-    // Initially button shows hamburger icon
-    let menuButton = screen.getByRole('button', { name: /open menu/i });
-    expect(menuButton).toHaveTextContent('☰');
+    // Initially FAB shows hamburger icon
+    const fab = screen.getByTestId('menu-fab');
+    expect(fab).toHaveTextContent('☰');
 
     // Click to open
-    await user.click(menuButton);
+    await user.click(fab);
 
-    // Header button should now show close icon
-    const header = screen.getByRole('banner');
-    menuButton = within(header).getByRole('button', { name: /close menu/i });
-    expect(menuButton).toHaveTextContent('✕');
+    // FAB button should now show close icon
+    const fabAfterOpen = screen.getByTestId('menu-fab');
+    expect(fabAfterOpen).toHaveTextContent('✕');
   });
 
   it('clicking close button inside sidebar closes the sidebar', async () => {
@@ -351,16 +366,15 @@ describe('AppShell', () => {
       </Routes>,
     );
 
-    // Initially button has "Open menu" label
-    let menuButton = screen.getByRole('button', { name: /open menu/i });
-    expect(menuButton).toHaveAttribute('aria-label', 'Open menu');
+    // Initially FAB has "Open menu" label
+    const fab = screen.getByTestId('menu-fab');
+    expect(fab).toHaveAttribute('aria-label', 'Open menu');
 
     // Click to open
-    await user.click(menuButton);
+    await user.click(fab);
 
-    // Header button should now have "Close menu" label
-    const header = screen.getByRole('banner');
-    menuButton = within(header).getByRole('button', { name: /close menu/i });
-    expect(menuButton).toHaveAttribute('aria-label', 'Close menu');
+    // FAB button should now have "Close menu" label
+    const fabAfterOpen = screen.getByTestId('menu-fab');
+    expect(fabAfterOpen).toHaveAttribute('aria-label', 'Close menu');
   });
 });
