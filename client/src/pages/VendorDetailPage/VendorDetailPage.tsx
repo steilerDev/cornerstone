@@ -11,6 +11,7 @@ import { fetchVendor, updateVendor, deleteVendor } from '../../lib/vendorsApi.js
 import { fetchInvoices, createInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useTrades } from '../../hooks/useTrades.js';
 import { VendorContactsSection } from '../../components/VendorContacts/VendorContactsSection.js';
 import { TradePicker } from '../../components/TradePicker/TradePicker.js';
@@ -39,6 +40,7 @@ const EMPTY_INVOICE_FORM: InvoiceFormState = {
 
 export function VendorDetailPage() {
   const { t } = useTranslation('budget');
+  const { t: tSettings } = useTranslation('settings');
   const { formatCurrency, formatDate } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -565,7 +567,11 @@ export function VendorDetailPage() {
               </div>
               <div className={styles.infoRow}>
                 <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.trade')}</dt>
-                <dd className={styles.infoValue}>{vendor.trade?.name ?? '—'}</dd>
+                <dd className={styles.infoValue}>
+                  {vendor.trade
+                    ? getCategoryDisplayName(tSettings, vendor.trade.name, vendor.trade.translationKey)
+                    : '—'}
+                </dd>
               </div>
               <div className={styles.infoRow}>
                 <dt className={styles.infoLabel}>{t('vendorDetail.detailFields.createdBy')}</dt>

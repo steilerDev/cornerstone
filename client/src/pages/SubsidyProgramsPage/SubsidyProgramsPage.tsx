@@ -15,6 +15,7 @@ import {
 } from '../../lib/subsidyProgramsApi.js';
 import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { fetchBudgetOverview } from '../../lib/budgetOverviewApi.js';
+import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
@@ -87,6 +88,7 @@ function programToEditState(program: SubsidyProgram): EditingProgram {
 
 export function SubsidyProgramsPage() {
   const { t } = useTranslation('budget');
+  const { t: tSettings } = useTranslation('settings');
   const { formatCurrency, formatDate } = useFormatters();
   const [programs, setPrograms] = useState<SubsidyProgram[]>([]);
   const [oversubscribedIds, setOversubscribedIds] = useState<Set<string>>(new Set());
@@ -657,7 +659,9 @@ export function SubsidyProgramsPage() {
                           style={{ backgroundColor: category.color ?? '#6b7280' }}
                           aria-hidden="true"
                         />
-                        <span className={styles.categoryCheckboxLabel}>{category.name}</span>
+                        <span className={styles.categoryCheckboxLabel}>
+                          {getCategoryDisplayName(tSettings, category.name, category.translationKey)}
+                        </span>
                       </label>
                     ))}
                   </div>
@@ -959,7 +963,7 @@ export function SubsidyProgramsPage() {
                                   aria-hidden="true"
                                 />
                                 <span className={styles.categoryCheckboxLabel}>
-                                  {category.name}
+                                  {getCategoryDisplayName(tSettings, category.name, category.translationKey)}
                                 </span>
                               </label>
                             ))}
@@ -1042,7 +1046,7 @@ export function SubsidyProgramsPage() {
                                   style={{ backgroundColor: category.color ?? '#6b7280' }}
                                   aria-hidden="true"
                                 />
-                                {category.name}
+                                {getCategoryDisplayName(tSettings, category.name, category.translationKey)}
                               </span>
                             ))}
                           </div>

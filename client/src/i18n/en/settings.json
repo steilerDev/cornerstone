@@ -296,6 +296,48 @@
     "generating": "Generating...",
     "revoking": "Revoking..."
   },
+  "trades": {
+    "plumbing": "Plumbing",
+    "hvac": "HVAC",
+    "electrical": "Electrical",
+    "drywall": "Drywall",
+    "carpentry": "Carpentry",
+    "masonry": "Masonry",
+    "painting": "Painting",
+    "roofing": "Roofing",
+    "flooring": "Flooring",
+    "tiling": "Tiling",
+    "landscaping": "Landscaping",
+    "excavation": "Excavation",
+    "generalContractor": "General Contractor",
+    "architectDesign": "Architect / Design",
+    "other": "Other"
+  },
+  "budgetCategories": {
+    "materials": "Materials",
+    "labor": "Labor",
+    "permits": "Permits",
+    "design": "Design",
+    "householdItems": "Household Items",
+    "waste": "Waste",
+    "other": "Other",
+    "equipment": "Equipment",
+    "landscaping": "Landscaping",
+    "utilities": "Utilities",
+    "insurance": "Insurance",
+    "contingency": "Contingency"
+  },
+  "householdItemCategories": {
+    "furniture": "Furniture",
+    "appliances": "Appliances",
+    "fixtures": "Fixtures",
+    "decor": "Decor",
+    "electronics": "Electronics",
+    "equipment": "Equipment",
+    "other": "Other",
+    "outdoor": "Outdoor",
+    "storage": "Storage"
+  },
   "vendors": {
     "contacts": {
       "heading": "Contacts",

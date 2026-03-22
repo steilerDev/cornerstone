@@ -2,6 +2,7 @@ import { type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ConfidenceLevel, Vendor, BudgetSource, BudgetCategory } from '@cornerstone/shared';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
+import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { FormError } from '../FormError/index.js';
 import styles from './BudgetLineForm.module.css';
 
@@ -37,6 +38,7 @@ export function BudgetLineForm({
   children,
 }: BudgetLineFormProps) {
   const { t } = useTranslation('budget');
+  const { t: tSettings } = useTranslation('settings');
 
   return (
     <div className={styles.container}>
@@ -268,7 +270,9 @@ export function BudgetLineForm({
             {vendors.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.name}
-                {v.trade?.name ? ` — ${v.trade.name}` : ''}
+                {v.trade?.name
+                  ? ` — ${getCategoryDisplayName(tSettings, v.trade.name, v.trade.translationKey)}`
+                  : ''}
               </option>
             ))}
           </select>

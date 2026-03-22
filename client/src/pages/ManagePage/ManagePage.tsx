@@ -16,6 +16,7 @@ import type {
 } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { generateRandomColor } from '../../lib/colorUtils.js';
+import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useTranslation } from 'react-i18next';
 import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
@@ -847,7 +848,7 @@ function TradesTab() {
                   <form
                     onSubmit={handleUpdateTrade}
                     className={styles.editForm}
-                    aria-label={`Edit ${trade.name}`}
+                    aria-label={`Edit ${getCategoryDisplayName(t, trade.name, trade.translationKey)}`}
                   >
                     {updateError && (
                       <div className={styles.errorBanner} role="alert">
@@ -964,7 +965,7 @@ function TradesTab() {
                         aria-hidden="true"
                       />
                       <div className={styles.itemDetails}>
-                        <span className={styles.itemName}>{trade.name}</span>
+                        <span className={styles.itemName}>{getCategoryDisplayName(t, trade.name, trade.translationKey)}</span>
                         {trade.description && (
                           <span className={styles.itemDescription}>{trade.description}</span>
                         )}
@@ -1533,7 +1534,7 @@ function BudgetCategoriesTab() {
                         aria-hidden="true"
                       />
                       <div className={styles.itemDetails}>
-                        <span className={styles.itemName}>{category.name}</span>
+                        <span className={styles.itemName}>{getCategoryDisplayName(t, category.name, category.translationKey)}</span>
                         {category.description && (
                           <span className={styles.itemDescription}>{category.description}</span>
                         )}
@@ -1551,7 +1552,7 @@ function BudgetCategoriesTab() {
                         className={styles.editButton}
                         onClick={() => startEdit(category)}
                         disabled={!!editingCategory}
-                        aria-label={`Edit ${category.name}`}
+                        aria-label={`Edit ${getCategoryDisplayName(t, category.name, category.translationKey)}`}
                       >
                         {t('manage.budgetCategories.edit')}
                       </button>
@@ -1560,7 +1561,7 @@ function BudgetCategoriesTab() {
                         className={styles.deleteButton}
                         onClick={() => openDeleteConfirm(category.id)}
                         disabled={!!editingCategory}
-                        aria-label={`Delete ${category.name}`}
+                        aria-label={`Delete ${getCategoryDisplayName(t, category.name, category.translationKey)}`}
                       >
                         {t('manage.budgetCategories.delete')}
                       </button>
@@ -2084,7 +2085,7 @@ function HouseholdItemCategoriesTab() {
                         aria-hidden="true"
                       />
                       <div className={styles.itemDetails}>
-                        <span className={styles.itemName}>{category.name}</span>
+                        <span className={styles.itemName}>{getCategoryDisplayName(t, category.name, category.translationKey)}</span>
                       </div>
                       <span
                         className={styles.itemSortOrder}
@@ -2099,7 +2100,7 @@ function HouseholdItemCategoriesTab() {
                         className={styles.editButton}
                         onClick={() => startEdit(category)}
                         disabled={!!editingCategory}
-                        aria-label={`Edit ${category.name}`}
+                        aria-label={`Edit ${getCategoryDisplayName(t, category.name, category.translationKey)}`}
                       >
                         {t('manage.householdItemCategories.edit')}
                       </button>
@@ -2108,7 +2109,7 @@ function HouseholdItemCategoriesTab() {
                         className={styles.deleteButton}
                         onClick={() => openDeleteConfirm(category.id)}
                         disabled={!!editingCategory}
-                        aria-label={`Delete ${category.name}`}
+                        aria-label={`Delete ${getCategoryDisplayName(t, category.name, category.translationKey)}`}
                       >
                         {t('manage.householdItemCategories.delete')}
                       </button>
