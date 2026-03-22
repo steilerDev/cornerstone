@@ -134,7 +134,7 @@ export function DataTableHeader<T>({
               )}
           </th>
         ))}
-        {hasActions && <th className={styles.tableHeader}>{t('common.actions')}</th>}
+        {hasActions && <th className={styles.tableHeader}>{t('actions')}</th>}
       </tr>
     </thead>
   );
