@@ -345,3 +345,11 @@ export type {
 
 // Application Config
 export type { AppConfigResponse } from './types/config.js';
+
+// Backup & Restore
+export type {
+  BackupMeta,
+  BackupResponse,
+  BackupListResponse,
+  RestoreInitiatedResponse,
+} from './types/backup.js';

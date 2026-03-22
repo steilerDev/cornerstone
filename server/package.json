@@ -24,11 +24,13 @@
     "fastify": "5.8.2",
     "fastify-plugin": "5.1.0",
     "ical-generator": "10.1.0",
+    "node-cron": "3.0.3",
     "openid-client": "6.8.2",
     "sharp": "0.34.5",
     "vcard-creator": "0.7.2"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "7.6.13"
+    "@types/better-sqlite3": "7.6.13",
+    "@types/node-cron": "3.0.11"
   }
 }
