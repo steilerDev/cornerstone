@@ -15,7 +15,11 @@ import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError, BackupNotConfiguredError } from '../errors/AppError.js';
 import { requireRole } from '../plugins/auth.js';
 import * as backupService from '../services/backupService.js';
-import type { BackupResponse, BackupListResponse, RestoreInitiatedResponse } from '@cornerstone/shared';
+import type {
+  BackupResponse,
+  BackupListResponse,
+  RestoreInitiatedResponse,
+} from '@cornerstone/shared';
 
 // JSON schemas
 const createBackupSchema = {

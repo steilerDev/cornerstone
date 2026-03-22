@@ -85,7 +85,12 @@ describe('Backup Routes', () => {
 
   describe('POST /api/backups', () => {
     it('returns 503 BACKUP_NOT_CONFIGURED when BACKUP_DIR is not set', async () => {
-      const { cookie } = await createUserWithSession('admin@test.com', 'Admin', 'password', 'admin');
+      const { cookie } = await createUserWithSession(
+        'admin@test.com',
+        'Admin',
+        'password',
+        'admin',
+      );
 
       const response = await app.inject({
         method: 'POST',
@@ -133,7 +138,12 @@ describe('Backup Routes', () => {
 
   describe('GET /api/backups', () => {
     it('returns 503 BACKUP_NOT_CONFIGURED when BACKUP_DIR is not set', async () => {
-      const { cookie } = await createUserWithSession('admin@test.com', 'Admin', 'password', 'admin');
+      const { cookie } = await createUserWithSession(
+        'admin@test.com',
+        'Admin',
+        'password',
+        'admin',
+      );
 
       const response = await app.inject({
         method: 'GET',
@@ -181,7 +191,12 @@ describe('Backup Routes', () => {
 
   describe('DELETE /api/backups/:filename', () => {
     it('returns 503 BACKUP_NOT_CONFIGURED when BACKUP_DIR is not set', async () => {
-      const { cookie } = await createUserWithSession('admin@test.com', 'Admin', 'password', 'admin');
+      const { cookie } = await createUserWithSession(
+        'admin@test.com',
+        'Admin',
+        'password',
+        'admin',
+      );
 
       const response = await app.inject({
         method: 'DELETE',
@@ -229,7 +244,12 @@ describe('Backup Routes', () => {
 
   describe('POST /api/backups/:filename/restore', () => {
     it('returns 503 BACKUP_NOT_CONFIGURED when BACKUP_DIR is not set', async () => {
-      const { cookie } = await createUserWithSession('admin@test.com', 'Admin', 'password', 'admin');
+      const { cookie } = await createUserWithSession(
+        'admin@test.com',
+        'Admin',
+        'password',
+        'admin',
+      );
 
       const response = await app.inject({
         method: 'POST',

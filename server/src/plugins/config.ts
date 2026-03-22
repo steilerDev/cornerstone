@@ -229,8 +229,13 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     const dataDir = path.dirname(databaseUrl);
     const resolvedBackupDir = path.resolve(backupDir);
     const resolvedDataDir = path.resolve(dataDir);
-    if (resolvedBackupDir.startsWith(resolvedDataDir + path.sep) || resolvedBackupDir === resolvedDataDir) {
-      errors.push(`BACKUP_DIR must not be the same as or a subdirectory of the app data directory (${dataDir})`);
+    if (
+      resolvedBackupDir.startsWith(resolvedDataDir + path.sep) ||
+      resolvedBackupDir === resolvedDataDir
+    ) {
+      errors.push(
+        `BACKUP_DIR must not be the same as or a subdirectory of the app data directory (${dataDir})`,
+      );
     }
   }
 

@@ -139,10 +139,7 @@ export function BackupsPage() {
     return (
       <div className={styles.page}>
         <SettingsSubNav />
-        <EmptyState
-          icon="⏳"
-          message={t('backups.restartingMessage')}
-        />
+        <EmptyState icon="⏳" message={t('backups.restartingMessage')} />
       </div>
     );
   }
@@ -272,7 +269,9 @@ export function BackupsPage() {
                 onClick={handleDeleteConfirm}
                 disabled={isDeleting}
               >
-                {isDeleting ? t('backups.deleteModal.confirming') : t('backups.deleteModal.confirm')}
+                {isDeleting
+                  ? t('backups.deleteModal.confirming')
+                  : t('backups.deleteModal.confirm')}
               </button>
             </>
           }
@@ -321,7 +320,9 @@ export function BackupsPage() {
                 onClick={handleRestoreConfirm}
                 disabled={isRestoring}
               >
-                {isRestoring ? t('backups.restoreModal.confirming') : t('backups.restoreModal.confirm')}
+                {isRestoring
+                  ? t('backups.restoreModal.confirming')
+                  : t('backups.restoreModal.confirm')}
               </button>
             </>
           }

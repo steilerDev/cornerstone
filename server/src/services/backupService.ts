@@ -71,7 +71,9 @@ export function generateBackupFilename(): string {
  */
 export function parseBackupFilename(filename: string): string | null {
   // Extract timestamp from format: cornerstone-backup-YYYY-MM-DDTHHMMSSZ.tar.gz
-  const match = filename.match(/cornerstone-backup-(\d{4})-(\d{2})-(\d{2})T(\d{2})(\d{2})(\d{2})Z\.tar\.gz/);
+  const match = filename.match(
+    /cornerstone-backup-(\d{4})-(\d{2})-(\d{2})T(\d{2})(\d{2})(\d{2})Z\.tar\.gz/,
+  );
   if (!match) return null;
 
   const [, year, month, day, hours, minutes, seconds] = match;
@@ -160,7 +162,13 @@ export async function createBackup(
 
     // Create tar.gz archive of the entire app data directory
     try {
-      await execFile('tar', ['-czf', backupPath, '-C', path.dirname(dataDir), path.basename(dataDir)]);
+      await execFile('tar', [
+        '-czf',
+        backupPath,
+        '-C',
+        path.dirname(dataDir),
+        path.basename(dataDir),
+      ]);
     } catch (error) {
       // Clean up backup database file on tar failure
       await fs.unlink(backupPath.replace('.tar.gz', '.db')).catch(() => {});
@@ -296,7 +304,11 @@ export async function restoreBackup(
 /**
  * Initialize the automatic backup scheduler if BACKUP_CADENCE is configured.
  */
-export function initScheduler(db: BetterSQLite3Database<any>, config: AppConfig, logger: FastifyInstance['log']): void {
+export function initScheduler(
+  db: BetterSQLite3Database<any>,
+  config: AppConfig,
+  logger: FastifyInstance['log'],
+): void {
   if (!config.backupCadence || !config.backupEnabled) {
     return;
   }

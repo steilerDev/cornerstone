@@ -91,7 +91,7 @@ See `review-history.md` for detailed findings per PR.
 | #936  | #933 CalDAV/CardDAV server with DAV token auth and vendor contacts                                | COMMENTED (1 low: WWW-Authenticate; 3 informational)                                                                          | 2026-03-17 |
 | #1047 | EPIC-18 Story #1030 — Migration + Shared Types (Areas & Trades foundation)                        | COMMENTED (2 informational: XOR CHECK deferred, UNIQUE(name,parent_id) NULL gap)                                              | 2026-03-19 |
 | #1054 | EPIC-18 Stories #1031+#1032 — Areas CRUD, Trades CRUD, Vendor trade linking                       | COMMENTED (3 informational: search no maxLength, parentId no minLength:1, sql.raw safe)                                       | 2026-03-19 |
-| #1150 | EPIC-19 Story #1146 — Backup & Restore                                                            | COMMENTED (3 informational: restore mid-op orphan dir, filename in 404 msg, node-cron 3.x not 4.x) | 2026-03-22 |
+| #1150 | EPIC-19 Story #1146 — Backup & Restore                                                            | COMMENTED (3 informational: restore mid-op orphan dir, filename in 404 msg, node-cron 3.x not 4.x)                            | 2026-03-22 |
 
 ## Known Open Recommendations (Low Priority)
 

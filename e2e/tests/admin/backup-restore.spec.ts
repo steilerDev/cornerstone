@@ -131,9 +131,7 @@ test.describe('Backups page — not-configured state', () => {
     await expect(backupsPage.notConfiguredState).toBeVisible();
 
     // And: The page describes how to enable backups
-    await expect(
-      page.getByText('BACKUP_DIR', { exact: false }),
-    ).toBeVisible();
+    await expect(page.getByText('BACKUP_DIR', { exact: false })).toBeVisible();
 
     // And: Create Backup button is NOT visible (feature not available)
     await expect(backupsPage.createBackupButton).not.toBeVisible();

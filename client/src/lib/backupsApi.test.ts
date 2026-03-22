@@ -6,7 +6,11 @@
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { listBackups, createBackup, deleteBackup, restoreBackup } from './backupsApi.js';
-import type { BackupListResponse, BackupResponse, RestoreInitiatedResponse } from '@cornerstone/shared';
+import type {
+  BackupListResponse,
+  BackupResponse,
+  RestoreInitiatedResponse,
+} from '@cornerstone/shared';
 
 describe('backupsApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
@@ -171,7 +175,10 @@ describe('backupsApi', () => {
         ok: false,
         status: 409,
         json: async () => ({
-          error: { code: 'BACKUP_IN_PROGRESS', message: 'A backup operation is already in progress' },
+          error: {
+            code: 'BACKUP_IN_PROGRESS',
+            message: 'A backup operation is already in progress',
+          },
         }),
       } as Response);
 
@@ -230,9 +237,7 @@ describe('backupsApi', () => {
         }),
       } as Response);
 
-      await expect(
-        deleteBackup('cornerstone-backup-2099-01-01T000000Z.tar.gz'),
-      ).rejects.toThrow();
+      await expect(deleteBackup('cornerstone-backup-2099-01-01T000000Z.tar.gz')).rejects.toThrow();
     });
   });
 
@@ -303,9 +308,7 @@ describe('backupsApi', () => {
         }),
       } as Response);
 
-      await expect(
-        restoreBackup('cornerstone-backup-2099-01-01T000000Z.tar.gz'),
-      ).rejects.toThrow();
+      await expect(restoreBackup('cornerstone-backup-2099-01-01T000000Z.tar.gz')).rejects.toThrow();
     });
 
     it('throws ApiClientError when server returns 503 BACKUP_NOT_CONFIGURED', async () => {
@@ -317,9 +320,7 @@ describe('backupsApi', () => {
         }),
       } as Response);
 
-      await expect(
-        restoreBackup('cornerstone-backup-2026-03-22T020000Z.tar.gz'),
-      ).rejects.toThrow();
+      await expect(restoreBackup('cornerstone-backup-2026-03-22T020000Z.tar.gz')).rejects.toThrow();
     });
   });
 });

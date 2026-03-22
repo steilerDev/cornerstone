@@ -13,7 +13,11 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type * as BackupsApiTypes from '../../lib/backupsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import type { BackupListResponse, BackupResponse, RestoreInitiatedResponse } from '@cornerstone/shared';
+import type {
+  BackupListResponse,
+  BackupResponse,
+  RestoreInitiatedResponse,
+} from '@cornerstone/shared';
 
 // ─── Mock modules BEFORE importing component ────────────────────────────────
 
@@ -135,9 +139,7 @@ describe('BackupsPage', () => {
       });
 
       // Description text from settings.json
-      expect(
-        screen.getByText(/set the BACKUP_DIR environment variable/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/set the BACKUP_DIR environment variable/i)).toBeInTheDocument();
     });
   });
 
@@ -453,7 +455,9 @@ describe('BackupsPage', () => {
 
       await waitFor(() => {
         // Warning text from settings.json restoreModal.warning
-        expect(screen.getByText(/permanently replace all current application data/i)).toBeInTheDocument();
+        expect(
+          screen.getByText(/permanently replace all current application data/i),
+        ).toBeInTheDocument();
       });
     });
 
@@ -510,9 +514,7 @@ describe('BackupsPage', () => {
 
       // Should now show the restarting message
       await waitFor(() => {
-        expect(
-          screen.getByText(/server is restarting/i),
-        ).toBeInTheDocument();
+        expect(screen.getByText(/server is restarting/i)).toBeInTheDocument();
       });
     });
   });
