@@ -62,11 +62,11 @@ test.describe('Backups page — admin access', () => {
 
     // Then: The "Backups" tab is visible in the sub-nav.
     // NavLink renders with role="listitem" (explicitly set in SettingsSubNav.tsx),
-    // so we must use getByRole('listitem') rather than getByRole('link').
+    // overriding the default link role. getByRole('link') won't match.
+    // Use getByText scoped to the settings navigation landmark instead.
     const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
     await expect(subNav).toBeVisible();
-    const backupsTab = subNav.getByRole('listitem', { name: 'Backups', exact: true });
-    await expect(backupsTab).toBeVisible();
+    await expect(subNav.getByText('Backups', { exact: true })).toBeVisible();
   });
 });
 
@@ -99,21 +99,23 @@ test.describe('Backups tab — member access control', () => {
     // Given: User navigating settings as a member role
     await page.goto('/settings/profile');
 
-    // Wait for the nav to render (use expect with retry instead of actionTimeout waitFor)
-    const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
-    await expect(subNav).toBeVisible();
+    // Wait for the profile page heading to confirm the page has rendered.
+    // Use the page heading rather than the settings nav because the auth mock
+    // triggers an AuthContext re-render that can delay nav rendering briefly.
+    await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();
 
     // Then: The "Backups" tab is NOT visible (admin-only).
-    // NavLink renders with role="listitem" (explicitly set in SettingsSubNav.tsx).
-    const backupsTab = subNav.getByRole('listitem', { name: 'Backups', exact: true });
-    await expect(backupsTab).not.toBeVisible();
+    const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
+    // Use not.toBeVisible() rather than not.toBeHidden() — admin-only tabs are not
+    // rendered at all for member role (conditional render), so the element is absent
+    // from the DOM entirely, not merely CSS-hidden.
+    await expect(subNav.getByText('Backups', { exact: true })).not.toBeVisible();
 
     // And: The "User Management" tab is also not visible for members
-    const usersTab = subNav.getByRole('listitem', { name: 'User Management', exact: true });
-    await expect(usersTab).not.toBeVisible();
+    await expect(subNav.getByText('User Management', { exact: true })).not.toBeVisible();
 
-    // And: The shared tabs (Profile, Manage) remain visible (also listitem role)
-    await expect(subNav.getByRole('listitem', { name: 'Profile', exact: true })).toBeVisible();
+    // And: The shared tabs (Profile, Manage) remain visible
+    await expect(subNav.getByText('Profile', { exact: true })).toBeVisible();
   });
 });
 
