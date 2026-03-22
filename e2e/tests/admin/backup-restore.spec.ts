@@ -177,7 +177,11 @@ test.describe('Backups page — configured state (mocked)', () => {
       sizeBytes: 2097152, // 2 MB
     };
 
-    // Mock POST /api/backups to return a new backup
+    // Mock POST /api/backups to return a new backup.
+    // Use route.fallback() (not route.continue()) for non-POST requests so they
+    // fall through to the beforeEach GET mock. route.continue() bypasses all
+    // registered handlers and goes to the network directly; route.fallback()
+    // passes to the next matching route handler in the stack.
     await page.route(`**${API.backups}`, async (route, request) => {
       if (request.method() === 'POST') {
         await route.fulfill({
@@ -186,7 +190,7 @@ test.describe('Backups page — configured state (mocked)', () => {
           body: JSON.stringify({ backup: newBackup }),
         });
       } else {
-        await route.continue();
+        await route.fallback();
       }
     });
 
