@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ColumnDef, FilterType } from './DataTable.js';
 import { StringFilter } from './filters/StringFilter.js';
@@ -28,7 +28,10 @@ export function DataTableFilterPopover<T>({
 }: DataTableFilterPopoverProps<T>) {
   const { t } = useTranslation('common');
   const popoverRef = useRef<HTMLDivElement>(null);
-  const [localValue, setLocalValue] = useState(value);
+
+  // Auto-apply: pass onApply directly to filter components as onChange
+  // No local state needed — filters propagate immediately
+  const handleChange = onApply;
 
   // Position the popover using getBoundingClientRect
   const popoverStyle = {
@@ -39,29 +42,6 @@ export function DataTableFilterPopover<T>({
     zIndex: 1000,
   };
 
-  // Close on outside click or Escape
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
-        // Popover closes without needing to apply — filters auto-apply
-      }
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        // Popover closes without needing to apply — filters auto-apply
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, []);
-
   const renderFilterComponent = () => {
     const filterType = column.filterType as FilterType;
 
@@ -69,35 +49,35 @@ export function DataTableFilterPopover<T>({
       case 'string':
         return (
           <StringFilter
-            value={localValue}
-            onChange={setLocalValue}
+            value={value}
+            onChange={handleChange}
             placeholder={t('dataTable.filter.textPlaceholder')}
           />
         );
       case 'number':
-        return <NumberFilter value={localValue} onChange={setLocalValue} />;
+        return <NumberFilter value={value} onChange={handleChange} />;
       case 'date':
-        return <DateFilter value={localValue} onChange={setLocalValue} />;
+        return <DateFilter value={value} onChange={handleChange} />;
       case 'enum':
         return (
           column.enumOptions && (
             <EnumFilter
-              value={localValue}
-              onChange={setLocalValue}
+              value={value}
+              onChange={handleChange}
               options={column.enumOptions}
               hierarchy={column.enumHierarchy}
             />
           )
         );
       case 'boolean':
-        return <BooleanFilter value={localValue} onChange={setLocalValue} />;
+        return <BooleanFilter value={value} onChange={handleChange} />;
       case 'entity':
         return (
           column.entitySearchFn &&
           column.entityRenderItem && (
             <EntityFilter
-              value={localValue}
-              onChange={setLocalValue}
+              value={value}
+              onChange={handleChange}
               searchFn={column.entitySearchFn}
               renderItem={column.entityRenderItem}
               placeholder={column.entityPlaceholder}
