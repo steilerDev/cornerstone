@@ -166,23 +166,6 @@ describe('Sidebar', () => {
     expect(activeLinks[0]).toHaveTextContent(/^budget$/i);
   });
 
-  it('renders a close button with correct aria-label', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} isOpen={true} />);
-
-    const closeButton = screen.getByRole('button', { name: /close menu/i });
-    expect(closeButton).toBeInTheDocument();
-  });
-
-  it('clicking close button calls onClose', async () => {
-    const user = userEvent.setup();
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} isOpen={true} />);
-
-    const closeButton = screen.getByRole('button', { name: /close menu/i });
-    await user.click(closeButton);
-
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
-  });
-
   it('sidebar has .open class when isOpen is true', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} isOpen={true} />);
 
@@ -312,10 +295,10 @@ describe('Sidebar', () => {
     // 4 main nav links (Project, Budget, Schedule, Diary) + 1 logo link + 1 GitHub link
     // (Settings is now a button, not a link)
     expect(links).toHaveLength(6);
-    // 4 buttons: close button + theme toggle + settings button + logout button
-    expect(buttons).toHaveLength(4);
-    expect(buttons[0]).toHaveAttribute('aria-label', 'Close menu');
-    expect(buttons[3]).toHaveTextContent(/logout/i);
+    // 3 buttons: theme toggle + settings button + logout button
+    expect(buttons).toHaveLength(3);
+    expect(buttons[0]).toHaveAttribute('aria-label', expect.stringMatching(/switch to .+ mode/i));
+    expect(buttons[2]).toHaveTextContent(/logout/i);
   });
 
   it('Settings button appears immediately before the Logout button in the footer', () => {

@@ -23,16 +23,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <Logo size={32} className={styles.logo} />
         <span className={styles.logoText}>{t('appName')}</span>
       </Link>
-      <div className={styles.sidebarHeader}>
-        <button
-          type="button"
-          className={styles.closeButton}
-          onClick={onClose}
-          aria-label={t('aria.closeMenu')}
-        >
-          ✕
-        </button>
-      </div>
       <nav className={styles.nav} aria-label="Main navigation">
         <NavLink
           to="/project"
