@@ -175,9 +175,10 @@ export interface WorkItemListQuery {
   assignedVendorId?: string;
   areaId?: string;
   q?: string;
+  budgetLinesMin?: number;
+  budgetLinesMax?: number;
   sortBy?: 'title' | 'status' | 'start_date' | 'end_date' | 'created_at' | 'updated_at';
   sortOrder?: 'asc' | 'desc';
-  noBudget?: boolean;
 }
 
 /**

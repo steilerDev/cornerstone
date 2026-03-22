@@ -472,7 +472,8 @@ describe('WorkItemListQuery interface', () => {
       q: 'tile',
       sortBy: 'title',
       sortOrder: 'asc',
-      noBudget: false,
+      budgetLinesMin: 0,
+      budgetLinesMax: 10,
     };
 
     expect(query.page).toBe(1);
@@ -480,7 +481,8 @@ describe('WorkItemListQuery interface', () => {
     expect(query.status).toBe('in_progress');
     expect(query.assignedVendorId).toBe('v-001');
     expect(query.areaId).toBe('area-kitchen');
-    expect(query.noBudget).toBe(false);
+    expect(query.budgetLinesMin).toBe(0);
+    expect(query.budgetLinesMax).toBe(10);
   });
 
   it('accepts all valid sortBy values', () => {

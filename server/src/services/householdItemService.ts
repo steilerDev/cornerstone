@@ -524,10 +524,39 @@ export function listHouseholdItems(
     );
   }
 
-  // Filter for household items with no budget lines
-  if (query.noBudget) {
+  // Filter by budget line count
+  if (query.budgetLinesMin !== undefined) {
     conditions.push(
-      sql`${householdItems.id} NOT IN (SELECT ${householdItemBudgets.householdItemId} FROM ${householdItemBudgets})`,
+      sql`(SELECT COUNT(*) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}) >= ${query.budgetLinesMin}`,
+    );
+  }
+  if (query.budgetLinesMax !== undefined) {
+    conditions.push(
+      sql`(SELECT COUNT(*) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}) <= ${query.budgetLinesMax}`,
+    );
+  }
+
+  // Filter by planned cost
+  if (query.plannedCostMin !== undefined) {
+    conditions.push(
+      sql`COALESCE((SELECT SUM(${householdItemBudgets.plannedAmount}) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0) >= ${query.plannedCostMin}`,
+    );
+  }
+  if (query.plannedCostMax !== undefined) {
+    conditions.push(
+      sql`COALESCE((SELECT SUM(${householdItemBudgets.plannedAmount}) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0) <= ${query.plannedCostMax}`,
+    );
+  }
+
+  // Filter by actual cost (from invoices)
+  if (query.actualCostMin !== undefined) {
+    conditions.push(
+      sql`COALESCE((SELECT SUM(${invoiceBudgetLines.itemizedAmount}) FROM ${invoiceBudgetLines} INNER JOIN ${householdItemBudgets} ON ${invoiceBudgetLines.householdItemBudgetId} = ${householdItemBudgets.id} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0) >= ${query.actualCostMin}`,
+    );
+  }
+  if (query.actualCostMax !== undefined) {
+    conditions.push(
+      sql`COALESCE((SELECT SUM(${invoiceBudgetLines.itemizedAmount}) FROM ${invoiceBudgetLines} INNER JOIN ${householdItemBudgets} ON ${invoiceBudgetLines.householdItemBudgetId} = ${householdItemBudgets.id} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0) <= ${query.actualCostMax}`,
     );
   }
 

@@ -36,14 +36,17 @@ export function listWorkItems(params?: WorkItemListQuery): Promise<WorkItemListR
   if (params?.q) {
     queryParams.set('q', params.q);
   }
+  if (params?.budgetLinesMin !== undefined) {
+    queryParams.set('budgetLinesMin', params.budgetLinesMin.toString());
+  }
+  if (params?.budgetLinesMax !== undefined) {
+    queryParams.set('budgetLinesMax', params.budgetLinesMax.toString());
+  }
   if (params?.sortBy) {
     queryParams.set('sortBy', params.sortBy);
   }
   if (params?.sortOrder) {
     queryParams.set('sortOrder', params.sortOrder);
-  }
-  if (params?.noBudget) {
-    queryParams.set('noBudget', 'true');
   }
 
   const queryString = queryParams.toString();

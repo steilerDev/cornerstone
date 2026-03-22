@@ -200,9 +200,9 @@ export function useTableState(options: UseTableStateOptions = {}): UseTableState
         const parts = value.split(',');
         for (const part of parts) {
           if (part.startsWith('min:')) {
-            params[`${paramKey}Min`] = parseInt(part.substring(4), 10);
+            params[`${paramKey}Min`] = parseFloat(part.substring(4));
           } else if (part.startsWith('max:')) {
-            params[`${paramKey}Max`] = parseInt(part.substring(4), 10);
+            params[`${paramKey}Max`] = parseFloat(part.substring(4));
           }
         }
       }

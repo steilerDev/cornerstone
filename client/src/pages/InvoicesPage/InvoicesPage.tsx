@@ -297,6 +297,9 @@ export function InvoicesPage() {
         sortable: true,
         sortKey: 'date',
         defaultVisible: true,
+        filterable: true,
+        filterType: 'date' as const,
+        filterParamKey: 'date',
         render: (inv) => formatDate(inv.date),
       },
       {
@@ -308,6 +311,8 @@ export function InvoicesPage() {
         filterable: true,
         filterType: 'number',
         filterParamKey: 'amount',
+        numberMin: 0,
+        numberStep: 0.01,
         render: (inv) => formatCurrency(inv.amount),
         className: styles.amountCell,
       },

@@ -34,11 +34,26 @@ export function listHouseholdItems(
   if (params?.vendorId) {
     queryParams.set('vendorId', params.vendorId);
   }
-  if (params?.noBudget) {
-    queryParams.set('noBudget', 'true');
-  }
   if (params?.areaId) {
     queryParams.set('areaId', params.areaId);
+  }
+  if (params?.plannedCostMin !== undefined) {
+    queryParams.set('plannedCostMin', params.plannedCostMin.toString());
+  }
+  if (params?.plannedCostMax !== undefined) {
+    queryParams.set('plannedCostMax', params.plannedCostMax.toString());
+  }
+  if (params?.actualCostMin !== undefined) {
+    queryParams.set('actualCostMin', params.actualCostMin.toString());
+  }
+  if (params?.actualCostMax !== undefined) {
+    queryParams.set('actualCostMax', params.actualCostMax.toString());
+  }
+  if (params?.budgetLinesMin !== undefined) {
+    queryParams.set('budgetLinesMin', params.budgetLinesMin.toString());
+  }
+  if (params?.budgetLinesMax !== undefined) {
+    queryParams.set('budgetLinesMax', params.budgetLinesMax.toString());
   }
   if (params?.sortBy) {
     queryParams.set('sortBy', params.sortBy);

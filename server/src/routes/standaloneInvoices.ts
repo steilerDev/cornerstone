@@ -11,6 +11,12 @@ const listAllInvoicesSchema = {
       q: { type: 'string', maxLength: 200 },
       status: { type: 'string', enum: ['pending', 'paid', 'claimed', 'quotation'] },
       vendorId: { type: 'string' },
+      amountMin: { type: 'number' },
+      amountMax: { type: 'number' },
+      dateFrom: { type: 'string' },
+      dateTo: { type: 'string' },
+      dueDateFrom: { type: 'string' },
+      dueDateTo: { type: 'string' },
       sortBy: { type: 'string', enum: ['date', 'amount', 'status', 'vendor_name', 'due_date'] },
       sortOrder: { type: 'string', enum: ['asc', 'desc'] },
     },
@@ -34,6 +40,12 @@ interface ListAllInvoicesQuery {
   q?: string;
   status?: 'pending' | 'paid' | 'claimed' | 'quotation';
   vendorId?: string;
+  amountMin?: number;
+  amountMax?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  dueDateFrom?: string;
+  dueDateTo?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }
