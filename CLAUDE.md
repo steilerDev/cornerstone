@@ -1,6 +1,6 @@
 # Cornerstone - Project Guide
 
-<!-- CLA test: this line will be removed -->
+<!-- CLA test: trigger re-run -->
 
 ## Project Overview
 
