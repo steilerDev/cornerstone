@@ -1,5 +1,5 @@
 import { describe, it, expect, jest } from '@jest/globals';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import type { ColumnDef } from './DataTable.js';
 import { DataTableFilterPopover } from './DataTableFilterPopover.js';
 
@@ -165,6 +165,42 @@ describe('DataTableFilterPopover', () => {
         />,
       );
       expect(screen.getByRole('textbox')).toHaveValue('hello');
+    });
+  });
+
+  describe('auto-apply', () => {
+    it('calls onApply immediately when string filter input changes', () => {
+      const mockOnApply = jest.fn();
+      render(
+        <DataTableFilterPopover
+          column={makeColumn({ filterType: 'string' })}
+          value=""
+          onApply={mockOnApply}
+          triggerRect={makeTriggerRect()}
+        />,
+      );
+      fireEvent.change(screen.getByRole('textbox'), { target: { value: 'test' } });
+      expect(mockOnApply).toHaveBeenCalledWith('test');
+    });
+
+    it('calls onApply immediately when enum filter checkbox is toggled', () => {
+      const mockOnApply = jest.fn();
+      render(
+        <DataTableFilterPopover
+          column={makeColumn({
+            filterType: 'enum',
+            enumOptions: [
+              { value: 'a', label: 'Option A' },
+              { value: 'b', label: 'Option B' },
+            ],
+          })}
+          value=""
+          onApply={mockOnApply}
+          triggerRect={makeTriggerRect()}
+        />,
+      );
+      fireEvent.click(screen.getByText('Option A'));
+      expect(mockOnApply).toHaveBeenCalledWith('a');
     });
   });
 

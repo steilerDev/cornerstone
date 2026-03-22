@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ColumnDef, TableState } from './DataTable.js';
 import { DataTableFilterPopover } from './DataTableFilterPopover.js';
@@ -27,6 +27,26 @@ export function DataTableHeader<T>({
   const { t } = useTranslation('common');
   const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(null);
   const filterTriggerRefs = useRef<Record<string, HTMLButtonElement>>({});
+
+  // Close filter popover on outside click or Escape
+  useEffect(() => {
+    if (!activeFilterColumn) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(`.${styles.filterPopover}`) && !target.closest(`.${styles.tableHeaderFilterButton}`)) {
+        setActiveFilterColumn(null);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setActiveFilterColumn(null);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [activeFilterColumn]);
 
   const visibleCols = columns.filter((col) => visibleColumns.has(col.key));
 
@@ -105,7 +125,6 @@ export function DataTableHeader<T>({
                   value={tableState.filters.get(col.filterParamKey)?.value || ''}
                   onApply={(value) => {
                     onFilter(col.filterParamKey || '', value || null);
-                    setActiveFilterColumn(null);
                   }}
                   triggerRect={filterTriggerRefs.current[col.key].getBoundingClientRect()}
                 />
