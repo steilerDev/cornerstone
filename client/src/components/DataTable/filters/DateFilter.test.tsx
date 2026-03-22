@@ -148,18 +148,14 @@ describe('DateFilter', () => {
     });
 
     it('applies filterDateInputConfirmed class when rendered with a pre-existing from date', () => {
-      const { container } = render(
-        <DateFilter value="from:2026-01-01" onChange={jest.fn()} />,
-      );
+      const { container } = render(<DateFilter value="from:2026-01-01" onChange={jest.fn()} />);
       const [fromInput] = container.querySelectorAll('input[type="date"]');
 
       expect((fromInput as HTMLElement).className).toContain('filterDateInputConfirmed');
     });
 
     it('removes filterDateInputConfirmed class after the "from" date is cleared', () => {
-      const { container } = render(
-        <DateFilter value="from:2026-01-01" onChange={jest.fn()} />,
-      );
+      const { container } = render(<DateFilter value="from:2026-01-01" onChange={jest.fn()} />);
       const [fromInput] = container.querySelectorAll('input[type="date"]');
 
       // Confirm initially has the class

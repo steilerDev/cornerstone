@@ -134,7 +134,12 @@ export function DataTableColumnSettings<T>({
                   }}
                   onDragLeave={() => setDragOverState(null)}
                   onDrop={() => {
-                    if (draggedIndex !== null && dragOverState !== null && dragOverState.index !== draggedIndex && dragOverState.index > 0) {
+                    if (
+                      draggedIndex !== null &&
+                      dragOverState !== null &&
+                      dragOverState.index !== draggedIndex &&
+                      dragOverState.index > 0
+                    ) {
                       onMoveColumn(draggedIndex, dragOverState.index);
                     }
                     setDraggedIndex(null);

@@ -15,7 +15,13 @@ export interface NumberFilterProps {
  * Stores as "min:X,max:Y" format
  * Auto-applies on input/slider change
  */
-export function NumberFilter({ value, onChange, min: minBound, max: maxBound, step }: NumberFilterProps) {
+export function NumberFilter({
+  value,
+  onChange,
+  min: minBound,
+  max: maxBound,
+  step,
+}: NumberFilterProps) {
   const { t } = useTranslation('common');
 
   const parseValue = (v: string) => {

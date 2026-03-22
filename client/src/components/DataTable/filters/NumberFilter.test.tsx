@@ -176,9 +176,7 @@ describe('NumberFilter', () => {
     });
 
     it('applies custom step to both number inputs and range sliders', () => {
-      const { container } = render(
-        <NumberFilter value="" onChange={jest.fn()} step={0.01} />,
-      );
+      const { container } = render(<NumberFilter value="" onChange={jest.fn()} step={0.01} />);
       const sliders = container.querySelectorAll('input[type="range"]');
       const spinbuttons = screen.getAllByRole('spinbutton');
 

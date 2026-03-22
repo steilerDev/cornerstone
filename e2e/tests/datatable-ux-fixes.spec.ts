@@ -70,7 +70,9 @@ test.describe('Date filter auto-chaining', () => {
     await expect(toInput).toBeFocused();
   });
 
-  test('"from" date input shows confirmed visual state after a date is entered', async ({ page }) => {
+  test('"from" date input shows confirmed visual state after a date is entered', async ({
+    page,
+  }) => {
     // Given: The date filter popover is open on the Due Date column
     await gotoInvoicesAndWait(page);
 
@@ -218,7 +220,9 @@ test.describe('Column drag-and-drop insertion line', () => {
     if ((page.viewportSize()?.width ?? 1280) < 768) test.skip();
   });
 
-  test('dragging a column item over another shows an insertion line indicator', async ({ page }) => {
+  test('dragging a column item over another shows an insertion line indicator', async ({
+    page,
+  }) => {
     // Given: Invoices page is loaded and column settings popover is open
     await gotoInvoicesAndWait(page);
 

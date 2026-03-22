@@ -311,7 +311,17 @@ describe('DataTableColumnSettings', () => {
       fireEvent.dragStart(draggedItem, { dataTransfer });
 
       const mockBCR = (): DOMRect =>
-        ({ top: 100, bottom: 140, height: 40, left: 0, right: 200, width: 200, x: 0, y: 100, toJSON: () => ({}) }) as DOMRect;
+        ({
+          top: 100,
+          bottom: 140,
+          height: 40,
+          left: 0,
+          right: 200,
+          width: 200,
+          x: 0,
+          y: 100,
+          toJSON: () => ({}),
+        }) as DOMRect;
       const origGetBCR = HTMLElement.prototype.getBoundingClientRect;
       HTMLElement.prototype.getBoundingClientRect = mockBCR;
 
