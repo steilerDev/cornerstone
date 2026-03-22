@@ -257,7 +257,12 @@ export interface HouseholdItemListQuery {
   status?: HouseholdItemStatus;
   areaId?: string;
   vendorId?: string;
-  noBudget?: boolean;
+  plannedCostMin?: number;
+  plannedCostMax?: number;
+  actualCostMin?: number;
+  actualCostMax?: number;
+  budgetLinesMin?: number;
+  budgetLinesMax?: number;
   sortBy?:
     | 'name'
     | 'category'

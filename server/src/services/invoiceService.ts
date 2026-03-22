@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, desc, and, asc, sql } from 'drizzle-orm';
+import { eq, desc, and, asc, sql, gte, lte } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { invoices, vendors, users } from '../db/schema.js';
@@ -126,6 +126,12 @@ export function listAllInvoices(
     q?: string;
     status?: InvoiceStatus;
     vendorId?: string;
+    amountMin?: number;
+    amountMax?: number;
+    dateFrom?: string;
+    dateTo?: string;
+    dueDateFrom?: string;
+    dueDateTo?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   },
@@ -146,6 +152,24 @@ export function listAllInvoices(
     const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
     const pattern = `%${escapedQ}%`;
     conditions.push(sql`LOWER(${invoices.invoiceNumber}) LIKE LOWER(${pattern}) ESCAPE '\\'`);
+  }
+  if (query.amountMin !== undefined) {
+    conditions.push(gte(invoices.amount, query.amountMin));
+  }
+  if (query.amountMax !== undefined) {
+    conditions.push(lte(invoices.amount, query.amountMax));
+  }
+  if (query.dateFrom) {
+    conditions.push(gte(invoices.date, query.dateFrom));
+  }
+  if (query.dateTo) {
+    conditions.push(lte(invoices.date, query.dateTo));
+  }
+  if (query.dueDateFrom) {
+    conditions.push(gte(invoices.dueDate, query.dueDateFrom));
+  }
+  if (query.dueDateTo) {
+    conditions.push(lte(invoices.dueDate, query.dueDateTo));
   }
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;

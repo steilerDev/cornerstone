@@ -632,10 +632,15 @@ export function listWorkItems(
     );
   }
 
-  // Filter for work items with no budget lines
-  if (query.noBudget) {
+  // Filter by budget line count
+  if (query.budgetLinesMin !== undefined) {
     conditions.push(
-      sql`${workItems.id} NOT IN (SELECT ${workItemBudgets.workItemId} FROM ${workItemBudgets})`,
+      sql`(SELECT COUNT(*) FROM ${workItemBudgets} WHERE ${workItemBudgets.workItemId} = ${workItems.id}) >= ${query.budgetLinesMin}`,
+    );
+  }
+  if (query.budgetLinesMax !== undefined) {
+    conditions.push(
+      sql`(SELECT COUNT(*) FROM ${workItemBudgets} WHERE ${workItemBudgets.workItemId} = ${workItems.id}) <= ${query.budgetLinesMax}`,
     );
   }
 
