@@ -369,11 +369,12 @@ test.describe('Budget Summary card (Scenario 3)', { tag: '@responsive' }, () => 
       const remainingBudget = page.getByTestId('remaining-budget');
       await expect(remainingBudget.first()).toBeVisible();
 
-      // With our mock data, remainingVsActualCost = 115000 (300000 - 185000)
+      // BudgetSummaryCard shows mediumNetRemaining = (remainingVsMinPlanned + remainingVsMaxPlanned) / 2
+      // With our mock data: (50000 + 25000) / 2 = 37500
       const text = await remainingBudget.first().textContent();
       expect(text).toBeTruthy();
-      // The value should be a formatted currency amount
-      expect(text?.replace(/\s/g, '')).toMatch(/115[,.]?000/);
+      // The value should be a formatted currency amount (37,500 or 37.500 depending on locale)
+      expect(text?.replace(/\s/g, '')).toMatch(/37[,.]?500/);
     } finally {
       await uninterceptDashboardApis(page);
     }

@@ -60,8 +60,12 @@ test.describe('Backups page — admin access', () => {
     // Given: Authenticated admin user on the profile page
     await page.goto('/settings/profile');
 
-    // Then: The "Backups" tab link is visible in the sub-nav
-    const backupsTab = page.getByRole('link', { name: 'Backups', exact: true });
+    // Then: The "Backups" tab is visible in the sub-nav.
+    // NavLink renders with role="listitem" (explicitly set in SettingsSubNav.tsx),
+    // so we must use getByRole('listitem') rather than getByRole('link').
+    const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
+    await expect(subNav).toBeVisible();
+    const backupsTab = subNav.getByRole('listitem', { name: 'Backups', exact: true });
     await expect(backupsTab).toBeVisible();
   });
 });
@@ -95,20 +99,21 @@ test.describe('Backups tab — member access control', () => {
     // Given: User navigating settings as a member role
     await page.goto('/settings/profile');
 
-    // Wait for the nav to render
+    // Wait for the nav to render (use expect with retry instead of actionTimeout waitFor)
     const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
-    await subNav.waitFor({ state: 'visible' });
+    await expect(subNav).toBeVisible();
 
-    // Then: The "Backups" tab link is NOT visible (admin-only)
-    const backupsTab = page.getByRole('link', { name: 'Backups', exact: true });
+    // Then: The "Backups" tab is NOT visible (admin-only).
+    // NavLink renders with role="listitem" (explicitly set in SettingsSubNav.tsx).
+    const backupsTab = subNav.getByRole('listitem', { name: 'Backups', exact: true });
     await expect(backupsTab).not.toBeVisible();
 
     // And: The "User Management" tab is also not visible for members
-    const usersTab = page.getByRole('link', { name: 'User Management', exact: true });
+    const usersTab = subNav.getByRole('listitem', { name: 'User Management', exact: true });
     await expect(usersTab).not.toBeVisible();
 
-    // And: The shared tabs (Profile, Manage) remain visible
-    await expect(page.getByRole('link', { name: 'Profile', exact: true })).toBeVisible();
+    // And: The shared tabs (Profile, Manage) remain visible (also listitem role)
+    await expect(subNav.getByRole('listitem', { name: 'Profile', exact: true })).toBeVisible();
   });
 });
 
@@ -187,7 +192,7 @@ test.describe('Backups page — configured state (mocked)', () => {
 
     // Given: Admin is on the configured Backups page
     await backupsPage.goto();
-    await backupsPage.backupTable.waitFor({ state: 'visible' });
+    await expect(backupsPage.backupTable).toBeVisible();
 
     // Verify initial state has two rows
     const initialRows = await backupsPage.getBackupRows();
@@ -211,7 +216,7 @@ test.describe('Backups page — configured state (mocked)', () => {
 
     // Given: Admin is on the Backups page with two backups
     await backupsPage.goto();
-    await backupsPage.backupTable.waitFor({ state: 'visible' });
+    await expect(backupsPage.backupTable).toBeVisible();
 
     // When: Admin clicks Delete for the first backup row
     await backupsPage.clickDeleteForRow(0);
@@ -231,7 +236,7 @@ test.describe('Backups page — configured state (mocked)', () => {
 
     // Given: Admin has the delete modal open for the first backup
     await backupsPage.goto();
-    await backupsPage.backupTable.waitFor({ state: 'visible' });
+    await expect(backupsPage.backupTable).toBeVisible();
     await backupsPage.clickDeleteForRow(0);
     await expect(backupsPage.deleteModal).toBeVisible();
 
@@ -282,7 +287,7 @@ test.describe('Backups page — configured state (mocked)', () => {
 
     // Given: Admin is on the Backups page with two backups
     await backupsPage.goto();
-    await backupsPage.backupTable.waitFor({ state: 'visible' });
+    await expect(backupsPage.backupTable).toBeVisible();
 
     // Verify initial count
     let rows = await backupsPage.getBackupRows();
@@ -311,7 +316,7 @@ test.describe('Backups page — configured state (mocked)', () => {
 
     // Given: Admin is on the Backups page with two backups
     await backupsPage.goto();
-    await backupsPage.backupTable.waitFor({ state: 'visible' });
+    await expect(backupsPage.backupTable).toBeVisible();
 
     // When: Admin clicks Restore for the first backup row
     await backupsPage.clickRestoreForRow(0);
@@ -331,7 +336,7 @@ test.describe('Backups page — configured state (mocked)', () => {
 
     // Given: Admin has the restore modal open
     await backupsPage.goto();
-    await backupsPage.backupTable.waitFor({ state: 'visible' });
+    await expect(backupsPage.backupTable).toBeVisible();
     await backupsPage.clickRestoreForRow(0);
     await expect(backupsPage.restoreModal).toBeVisible();
 

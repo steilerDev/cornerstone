@@ -142,19 +142,25 @@ export class WorkItemsPage {
    * or cards (mobile).
    */
   async getWorkItemTitles(): Promise<string[]> {
-    // Try table first — work items title column uses className={styles.itemLink} (CSS Modules),
-    // NOT "titleCell". Use [class*="itemLink"] which matches the hashed CSS Modules class.
-    const titleCells = await this.tableBody.locator('[class*="itemLink"]').all();
-    if (titleCells.length > 0) {
-      const titles: string[] = [];
-      for (const cell of titleCells) {
-        const text = await cell.textContent();
-        if (text) titles.push(text.trim());
+    // On mobile, tableContainer has display:none (CSS media query at max-width:767px).
+    // Elements inside a CSS-hidden table are still in the DOM so .all() returns them,
+    // but their text would include all items (search filter not reflected in DOM-hidden rows).
+    // Always check visibility before using the table path.
+    const tableVisible = await this.tableContainer.isVisible();
+    if (tableVisible) {
+      // Desktop/tablet: work items title column uses className={styles.itemLink} (CSS Modules).
+      const titleCells = await this.tableBody.locator('[class*="itemLink"]').all();
+      if (titleCells.length > 0) {
+        const titles: string[] = [];
+        for (const cell of titleCells) {
+          const text = await cell.textContent();
+          if (text) titles.push(text.trim());
+        }
+        return titles;
       }
-      return titles;
     }
 
-    // Mobile fallback: card title elements
+    // Mobile fallback (or empty table): card title elements
     const cardTitles = await this.cardsContainer.locator('[class*="cardTitle"]').all();
     const titles: string[] = [];
     for (const el of cardTitles) {
