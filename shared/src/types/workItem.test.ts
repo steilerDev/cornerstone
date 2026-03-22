@@ -58,7 +58,7 @@ describe('VendorSummary interface', () => {
     const vendor: VendorSummary = {
       id: 'v-001',
       name: 'Acme Plumbing',
-      trade: { id: 'trade-plumbing', name: 'Plumbing', color: '#0EA5E9' },
+      trade: { id: 'trade-plumbing', name: 'Plumbing', color: '#0EA5E9', translationKey: 'trades.plumbing' },
     };
 
     expect(vendor.id).toBe('v-001');
@@ -125,7 +125,7 @@ describe('WorkItemSummary interface', () => {
       assignedVendor: {
         id: 'v-001',
         name: 'Tile Masters',
-        trade: { id: 'trade-tiling', name: 'Tiling', color: '#06B6D4' },
+        trade: { id: 'trade-tiling', name: 'Tiling', color: '#06B6D4', translationKey: 'trades.tiling' },
       },
       area: { id: 'area-bathroom', name: 'Bathroom', color: '#3B82F6' },
       budgetLineCount: 3,
@@ -236,7 +236,7 @@ describe('WorkItemDetail interface', () => {
       assignedVendor: {
         id: 'v-001',
         name: 'Cabinet Co',
-        trade: { id: 'trade-carpentry', name: 'Carpentry', color: '#92400E' },
+        trade: { id: 'trade-carpentry', name: 'Carpentry', color: '#92400E', translationKey: 'trades.carpentry' },
       },
       area: { id: 'area-kitchen', name: 'Kitchen', color: '#FF5733' },
       subtasks: [],

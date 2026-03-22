@@ -13,6 +13,7 @@ export interface TradeSummary {
   id: string;
   name: string;
   color: string | null;
+  translationKey: string | null;
 }
 
 /**
@@ -23,6 +24,7 @@ export interface TradeResponse {
   name: string;
   color: string | null;
   description: string | null;
+  translationKey: string | null;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;

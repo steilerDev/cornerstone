@@ -105,11 +105,13 @@ function resolveDetail(
 
   let categoryName: string | null = null;
   let categoryColor: string | null = null;
+  let categoryTranslationKey: string | null = null;
   if (categoryId) {
     const cat = db.select().from(budgetCategories).where(eq(budgetCategories.id, categoryId)).get();
     if (cat) {
       categoryName = cat.name;
       categoryColor = cat.color;
+      categoryTranslationKey = cat.translationKey ?? null;
     }
   }
 
@@ -125,6 +127,7 @@ function resolveDetail(
     categoryId,
     categoryName,
     categoryColor,
+    categoryTranslationKey,
     parentItemId,
     parentItemTitle,
     parentItemType: budgetLineType,
@@ -443,6 +446,7 @@ export function getInvoiceBudgetLinesForInvoice(
     category_id: string | null;
     category_name: string | null;
     category_color: string | null;
+    category_translation_key: string | null;
     item_type: string;
     item_id: string;
     item_name: string;
@@ -458,6 +462,7 @@ export function getInvoiceBudgetLinesForInvoice(
       bc.id AS category_id,
       bc.name AS category_name,
       bc.color AS category_color,
+      bc.translation_key AS category_translation_key,
       CASE WHEN ibl.work_item_budget_id IS NOT NULL THEN 'work_item' ELSE 'household_item' END AS item_type,
       CASE WHEN ibl.work_item_budget_id IS NOT NULL THEN wi.id ELSE hi.id END AS item_id,
       CASE WHEN ibl.work_item_budget_id IS NOT NULL THEN wi.title ELSE hi.name END AS item_name
@@ -480,6 +485,7 @@ export function getInvoiceBudgetLinesForInvoice(
     budgetLineDescription: r.budget_line_description,
     categoryName: r.category_name,
     categoryColor: r.category_color,
+    categoryTranslationKey: r.category_translation_key ?? null,
     plannedAmount: r.planned_amount,
     confidence: r.confidence as ConfidenceLevel,
     itemizedAmount: r.itemized_amount,

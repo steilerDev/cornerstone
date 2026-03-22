@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { BaseBudgetLine, ConfidenceLevel } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '../../lib/budgetConstants.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import styles from './BudgetLineCard.module.css';
 
 export interface BudgetLineCardProps {
@@ -30,6 +31,7 @@ export function BudgetLineCard({
 }: BudgetLineCardProps) {
   const { formatCurrency } = useFormatters();
   const { t } = useTranslation('budget');
+  const { t: tSettings } = useTranslation('settings');
   const showInvoicedAmount = line.invoiceCount > 0;
   const isQuotation = line.invoiceLink?.invoiceStatus === 'quotation';
 
@@ -75,7 +77,13 @@ export function BudgetLineCard({
 
         <div className={styles.meta}>
           {line.budgetCategory && (
-            <span className={styles.metaItem}>{line.budgetCategory.name}</span>
+            <span className={styles.metaItem}>
+              {getCategoryDisplayName(
+                tSettings,
+                line.budgetCategory.name,
+                line.budgetCategory.translationKey,
+              )}
+            </span>
           )}
           {line.budgetSource && <span className={styles.metaItem}>{line.budgetSource.name}</span>}
           {line.vendor && <span className={styles.metaItem}>{line.vendor.name}</span>}

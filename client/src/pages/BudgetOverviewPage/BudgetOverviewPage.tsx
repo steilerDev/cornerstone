@@ -11,6 +11,7 @@ import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverv
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
@@ -39,7 +40,8 @@ interface CategoryFilterProps {
 }
 
 function CategoryFilter({ categories, selectedIds, onChange }: CategoryFilterProps) {
-  const { t } = useTranslation('budget');
+  const { t: tBudget } = useTranslation('budget');
+  const { t: tSettings } = useTranslation('settings');
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const allSelected = selectedIds.size === categories.length;
@@ -87,13 +89,13 @@ function CategoryFilter({ categories, selectedIds, onChange }: CategoryFilterPro
   // Button label
   let label: string;
   if (allSelected) {
-    label = t('overview.allCategories');
+    label = tBudget('overview.allCategories');
   } else if (selectedIds.size === 0) {
-    label = t('overview.noCategories');
+    label = tBudget('overview.noCategories');
   } else if (selectedIds.size <= 2) {
     label = categories
       .filter((c) => selectedIds.has(c.categoryId))
-      .map((c) => c.categoryName)
+      .map((c) => getCategoryDisplayName(tSettings, c.categoryName, c.categoryTranslationKey))
       .join(', ');
   } else {
     label = `${selectedIds.size} of ${categories.length} categories`;
@@ -109,7 +111,7 @@ function CategoryFilter({ categories, selectedIds, onChange }: CategoryFilterPro
         onClick={() => setOpen((v) => !v)}
       >
         <span>
-          {t('overview.categories')}: {label}
+          {tBudget('overview.categories')}: {label}
         </span>
         <span className={styles.categoryFilterChevron} aria-hidden="true">
           {open ? '▲' : '▼'}
@@ -121,10 +123,10 @@ function CategoryFilter({ categories, selectedIds, onChange }: CategoryFilterPro
           {/* Select All / Clear All */}
           <div className={styles.categoryDropdownActions}>
             <button type="button" className={styles.dropdownAction} onClick={selectAll}>
-              {t('overview.selectAll')}
+              {tBudget('overview.selectAll')}
             </button>
             <button type="button" className={styles.dropdownAction} onClick={clearAll}>
-              {t('overview.clearAll')}
+              {tBudget('overview.clearAll')}
             </button>
           </div>
 
@@ -151,7 +153,9 @@ function CategoryFilter({ categories, selectedIds, onChange }: CategoryFilterPro
                 ) : (
                   <span className={styles.categoryDot} aria-hidden="true" />
                 )}
-                <span className={styles.categoryOptionName}>{cat.categoryName}</span>
+                <span className={styles.categoryOptionName}>
+                  {getCategoryDisplayName(tSettings, cat.categoryName, cat.categoryTranslationKey)}
+                </span>
               </label>
             );
           })}

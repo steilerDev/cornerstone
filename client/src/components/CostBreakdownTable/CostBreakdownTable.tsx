@@ -15,6 +15,7 @@ import type {
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
+import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import styles from './CostBreakdownTable.module.css';
 
 // Context to pass formatCurrency down to sub-components that aren't React components (can't use hooks)
@@ -311,6 +312,7 @@ function WorkItemCategorySection({
   onToggle: (key: string) => void;
   perspective: CostPerspective;
 }) {
+  const { t: tSettings } = useTranslation('settings');
   const formatCurrencyFn = useFormatterContext();
   const key = `wi-cat-${category.categoryId ?? 'null'}`;
   const isExpanded = expandedKeys.has(key);
@@ -324,6 +326,11 @@ function WorkItemCategorySection({
     category.subsidyPayback,
     perspective,
   );
+  const displayName = getCategoryDisplayName(
+    tSettings,
+    category.categoryName,
+    category.categoryTranslationKey,
+  );
 
   return (
     <>
@@ -334,12 +341,12 @@ function WorkItemCategorySection({
               type="button"
               className={styles.expandBtn}
               aria-expanded={isExpanded}
-              aria-label={`Expand ${category.categoryName}`}
+              aria-label={`Expand ${displayName}`}
               onClick={() => onToggle(key)}
             >
               <ChevronSvg className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ''}`} />
             </button>
-            <span>{category.categoryName}</span>
+            <span>{displayName}</span>
           </div>
         </td>
         <td className={styles.colBudget}>-{formatCurrencyFn(resolvedRawCost)}</td>
@@ -473,6 +480,7 @@ function HouseholdItemCategorySection({
   onToggle: (key: string) => void;
   perspective: CostPerspective;
 }) {
+  const { t: tSettings } = useTranslation('settings');
   const formatCurrencyFn = useFormatterContext();
   const key = `hi-cat-${category.hiCategory}`;
   const isExpanded = expandedKeys.has(key);
@@ -486,6 +494,11 @@ function HouseholdItemCategorySection({
     category.subsidyPayback,
     perspective,
   );
+  const displayName = getCategoryDisplayName(
+    tSettings,
+    category.categoryName,
+    category.categoryTranslationKey,
+  );
 
   return (
     <>
@@ -496,12 +509,12 @@ function HouseholdItemCategorySection({
               type="button"
               className={styles.expandBtn}
               aria-expanded={isExpanded}
-              aria-label={`Expand ${category.hiCategory}`}
+              aria-label={`Expand ${displayName}`}
               onClick={() => onToggle(key)}
             >
               <ChevronSvg className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ''}`} />
             </button>
-            <span>{category.hiCategory}</span>
+            <span>{displayName}</span>
           </div>
         </td>
         <td className={styles.colBudget}>-{formatCurrencyFn(resolvedRawCost)}</td>

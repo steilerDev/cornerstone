@@ -795,4 +795,90 @@ describe('Budget Category Routes', () => {
       expect(response.statusCode).toBe(204);
     });
   });
+
+  // ─── translationKey field in API responses ─────────────────────────────────
+
+  describe('translationKey field in API responses', () => {
+    it('GET /api/budget-categories returns translationKey for seeded predefined categories', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/budget-categories',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<BudgetCategoryListResponse>();
+      const materials = body.categories.find((c) => c.id === 'bc-materials');
+      expect(materials).toBeDefined();
+      expect(materials!.translationKey).toBe('budgetCategories.materials');
+    });
+
+    it('GET /api/budget-categories returns null translationKey for user-created categories', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      createTestCategory('Custom Cladding');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/budget-categories',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<BudgetCategoryListResponse>();
+      const found = body.categories.find((c) => c.name === 'Custom Cladding');
+      expect(found).toBeDefined();
+      expect(found!.translationKey).toBeNull();
+    });
+
+    it('GET /api/budget-categories/:id returns translationKey for a seeded category', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/budget-categories/bc-labor',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<BudgetCategoryResponse>();
+      expect(body.budgetCategory.translationKey).toBe('budgetCategories.labor');
+    });
+
+    it('GET /api/budget-categories/:id returns null translationKey for user-created category', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const cat = createTestCategory('Custom Demolition');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/budget-categories/${cat.id}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<BudgetCategoryResponse>();
+      expect(body.budgetCategory.translationKey).toBeNull();
+    });
+
+    it('POST /api/budget-categories always creates category with null translationKey', async () => {
+      const { cookie } = await createUserWithSession(
+        'admin@test.com',
+        'Admin',
+        'password',
+        'admin',
+      );
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/budget-categories',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'Custom Groundworks' } satisfies CreateBudgetCategoryRequest),
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<BudgetCategoryResponse>();
+      expect(body.budgetCategory.translationKey).toBeNull();
+    });
+  });
 });

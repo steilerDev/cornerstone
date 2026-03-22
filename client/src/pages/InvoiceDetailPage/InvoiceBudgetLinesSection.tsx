@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   InvoiceBudgetLineDetailResponse,
   WorkItemBudgetLine,
@@ -21,6 +22,7 @@ import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import type { BudgetSource } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
 import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
 import styles from './InvoiceBudgetLinesSection.module.css';
@@ -51,7 +53,7 @@ interface PickerState {
     categoryId?: string;
     budgetSourceId?: string;
   };
-  categories?: Array<{ id: string; name: string }>;
+  categories?: Array<{ id: string; name: string; translationKey: string | null }>;
   budgetSources?: BudgetSource[];
   isCreatingBudgetLine?: boolean;
 }
@@ -61,6 +63,7 @@ export function InvoiceBudgetLinesSection({
   invoiceTotal,
 }: InvoiceBudgetLinesSectionProps) {
   const { formatCurrency } = useFormatters();
+  const { t: tSettings } = useTranslation('settings');
   const [budgetLines, setBudgetLines] = useState<InvoiceBudgetLineDetailResponse[]>([]);
   const [remainingAmount, setRemainingAmount] = useState(invoiceTotal);
   const [isLoading, setIsLoading] = useState(true);
@@ -530,7 +533,11 @@ export function InvoiceBudgetLinesSection({
                   tabIndex={-1}
                 >
                   <td className={styles.tdDescription}>{line.budgetLineDescription || '\u2014'}</td>
-                  <td className={styles.tdCategory}>{line.categoryName || '\u2014'}</td>
+                  <td className={styles.tdCategory}>
+                    {line.categoryName
+                      ? getCategoryDisplayName(tSettings, line.categoryName, line.categoryTranslationKey)
+                      : '—'}
+                  </td>
                   <td className={styles.tdPlanned}>{formatCurrency(line.plannedAmount)}</td>
                   <td className={styles.tdItemized}>
                     {editingLineId === line.id ? (
@@ -778,7 +785,7 @@ export function InvoiceBudgetLinesSection({
                           <option value="">No category</option>
                           {pickerState.categories?.map((cat) => (
                             <option key={cat.id} value={cat.id}>
-                              {cat.name}
+                              {getCategoryDisplayName(tSettings, cat.name, cat.translationKey)}
                             </option>
                           ))}
                         </select>
@@ -879,7 +886,11 @@ export function InvoiceBudgetLinesSection({
                                 <div className={styles.budgetLineDetails}>
                                   {line.budgetCategory && (
                                     <span className={styles.budgetLineCategory}>
-                                      {line.budgetCategory.name}
+                                      {getCategoryDisplayName(
+                                        tSettings,
+                                        line.budgetCategory.name,
+                                        line.budgetCategory.translationKey,
+                                      )}
                                     </span>
                                   )}
                                   <span className={styles.budgetLinePlanned}>
