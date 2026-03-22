@@ -188,7 +188,7 @@ export interface WorkItemListQuery {
 export interface WorkItemListResponse {
   items: WorkItemSummary[];
   pagination: PaginationMeta;
-  filterMeta: FilterMeta;
+  filterMeta?: FilterMeta;
 }
 
 /**

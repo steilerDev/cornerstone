@@ -281,7 +281,7 @@ export interface HouseholdItemListQuery {
 export interface HouseholdItemListResponse {
   items: HouseholdItemSummary[];
   pagination: PaginationMeta;
-  filterMeta: FilterMeta;
+  filterMeta?: FilterMeta;
 }
 
 /**

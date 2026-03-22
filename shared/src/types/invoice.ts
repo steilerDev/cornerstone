@@ -106,7 +106,7 @@ export interface InvoiceListPaginatedResponse {
   invoices: Invoice[];
   pagination: PaginationMeta;
   summary: InvoiceStatusBreakdown;
-  filterMeta: FilterMeta;
+  filterMeta?: FilterMeta;
 }
 
 /**
