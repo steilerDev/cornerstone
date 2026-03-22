@@ -302,11 +302,14 @@ export class VendorsPage {
         }
       }
     } else {
-      // Mobile: find the card by vendor name and open its actions menu
+      // Mobile: find the card by vendor name and open its actions menu.
+      // DataTableCard renders the name column via the same render() function as the table —
+      // the vendor name link uses class vendorLink (Link with styles.vendorLink). There is
+      // no separate cardName class. Match by vendorLink text inside each card.
       await this.cardsContainer.locator('[class*="card"]').first().waitFor({ state: 'visible' });
       const cards = await this.cardsContainer.locator('[class*="card"]').all();
       for (const card of cards) {
-        const nameEl = card.locator('[class*="cardName"]');
+        const nameEl = card.locator('[class*="vendorLink"]');
         const nameCount = await nameEl.count();
         if (nameCount > 0) {
           const text = await nameEl.textContent();
