@@ -255,14 +255,33 @@ export class VendorsPage {
 
   /**
    * Open the delete modal for the named vendor.
-   * Uses the aria-label="Delete <name>" button in the table row.
+   *
+   * VendorsPage uses a custom actions menu (not DataTable's built-in actions column):
+   * - Each row has a ⋮ menu button: aria-label=t('common:menu.actions'), data-testid="vendor-menu-button-{id}"
+   * - After opening the menu, the delete button renders: data-testid="vendor-delete-{id}", text="Delete"
+   *
+   * Strategy: find the table row that contains the vendor name, open its actions menu,
+   * then click the Delete item.
    */
   async openDeleteModal(vendorName: string): Promise<void> {
-    await this.page
-      .getByRole('button', { name: `Delete ${vendorName}` })
-      .first()
-      .click();
-    await this.deleteModal.waitFor({ state: 'visible' });
+    // Find the row containing the vendor name link
+    await this.tableBody.locator('tr').first().waitFor({ state: 'visible' });
+    const rows = await this.tableBody.locator('tr').all();
+    for (const row of rows) {
+      const link = row.locator('[class*="vendorLink"]');
+      const text = await link.textContent();
+      if (text?.trim() === vendorName) {
+        // Open the actions menu (⋮ button)
+        const menuButton = row.locator('[class*="menuButton"]');
+        await menuButton.click();
+        // Click the Delete item that appears in the dropdown
+        const deleteButton = row.locator('[class*="menuItem"][class*="menuItemDanger"]');
+        await deleteButton.click();
+        await this.deleteModal.waitFor({ state: 'visible' });
+        return;
+      }
+    }
+    throw new Error(`Vendor "${vendorName}" not found in table`);
   }
 
   /**

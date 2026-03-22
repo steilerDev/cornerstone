@@ -44,8 +44,11 @@ export class UserManagementPage {
     // DataTable renders a search input with aria-label="Search items" and placeholder="Search..."
     this.searchInput = page.getByLabel('Search items');
     this.table = page.locator('table');
-    // DataTable EmptyState renders t('userManagement.emptyState') = "No users found."
-    this.emptyState = page.getByText(/No users found/);
+    // DataTable EmptyState has two possible messages:
+    // 1. No search active: t('userManagement.emptyState') = "No users found."
+    // 2. Search active (hasActiveFilters): t('dataTable.empty.filteredMessage') = "No items match the current filters"
+    // Use .first() on the EmptyState component container to avoid strict mode with child elements.
+    this.emptyState = page.locator('[class*="emptyState"]').first();
 
     // Edit modal (uses role="dialog" with aria-label)
     this.editModal = page.getByRole('dialog', { name: 'Edit User' });

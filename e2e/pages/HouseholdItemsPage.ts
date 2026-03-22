@@ -169,8 +169,9 @@ export class HouseholdItemsPage {
    * or cards (mobile).
    */
   async getItemNames(): Promise<string[]> {
-    // Try table first (titleCell class)
-    const titleCells = await this.tableBody.locator('[class*="titleCell"]').all();
+    // Try table first — household items title column uses className={styles.itemLink} (CSS Modules),
+    // NOT "titleCell". Use [class*="itemLink"] which matches the hashed CSS Modules class.
+    const titleCells = await this.tableBody.locator('[class*="itemLink"]').all();
     if (titleCells.length > 0) {
       const names: string[] = [];
       for (const cell of titleCells) {
@@ -309,7 +310,10 @@ export class HouseholdItemsPage {
    */
   async clearAreaFilter(): Promise<void> {
     // DataTable renders a "Clear Filters" button when hasActiveFilters is true.
-    const clearButton = this.page.getByRole('button', { name: 'Clear Filters' });
+    // When items.length === 0 AND hasActiveFilters, BOTH the toolbar button AND the
+    // EmptyState action button render "Clear Filters" — causing strict mode violations.
+    // Use .first() to always target the toolbar button (it appears before the empty state).
+    const clearButton = this.page.getByRole('button', { name: 'Clear Filters' }).first();
     await clearButton.waitFor({ state: 'visible' });
     await clearButton.click();
   }

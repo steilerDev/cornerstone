@@ -141,8 +141,9 @@ export class WorkItemsPage {
    * or cards (mobile).
    */
   async getWorkItemTitles(): Promise<string[]> {
-    // Try table first (titleCell class)
-    const titleCells = await this.tableBody.locator('[class*="titleCell"]').all();
+    // Try table first — work items title column uses className={styles.itemLink} (CSS Modules),
+    // NOT "titleCell". Use [class*="itemLink"] which matches the hashed CSS Modules class.
+    const titleCells = await this.tableBody.locator('[class*="itemLink"]').all();
     if (titleCells.length > 0) {
       const titles: string[] = [];
       for (const cell of titleCells) {

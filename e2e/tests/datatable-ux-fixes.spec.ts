@@ -132,8 +132,10 @@ test.describe('Invoice due-date filter — apply and clear', () => {
     // Then: The filter button becomes active (visually highlighted)
     await expect(dueDateFilterButton).toHaveClass(/tableHeaderFilterButtonActive/);
 
-    // And: A "Clear Filters" button appears in the toolbar
-    const clearFiltersButton = page.getByRole('button', { name: /clear filters/i });
+    // And: A "Clear Filters" button appears in the toolbar.
+    // Use .first() — when no invoices match, DataTable renders "Clear Filters" in BOTH the
+    // toolbar AND the empty state action; .first() always targets the toolbar button.
+    const clearFiltersButton = page.getByRole('button', { name: /clear filters/i }).first();
     await expect(clearFiltersButton).toBeVisible();
 
     // When: I click "Clear Filters"
@@ -142,7 +144,7 @@ test.describe('Invoice due-date filter — apply and clear', () => {
     // Then: The filter button reverts to inactive state
     await expect(dueDateFilterButton).not.toHaveClass(/tableHeaderFilterButtonActive/);
 
-    // And: The "Clear Filters" button disappears
+    // And: The "Clear Filters" toolbar button disappears
     await expect(clearFiltersButton).not.toBeVisible();
   });
 });
@@ -206,8 +208,10 @@ test.describe('Toolbar height alignment', () => {
     expect(settingsBox).not.toBeNull();
     expect(settingsBox!.height).toBe(36);
 
-    // And: The clear-filters button (visible due to active search) is 36px tall
-    const clearFiltersButton = page.getByRole('button', { name: /clear filters/i });
+    // And: The clear-filters button (visible due to active search) is 36px tall.
+    // Use .first() — DataTable renders "Clear Filters" in both toolbar and empty state
+    // when no items match the active search query; .first() targets the toolbar button.
+    const clearFiltersButton = page.getByRole('button', { name: /clear filters/i }).first();
     await expect(clearFiltersButton).toBeVisible();
     const clearBox = await clearFiltersButton.boundingBox();
     expect(clearBox).not.toBeNull();
