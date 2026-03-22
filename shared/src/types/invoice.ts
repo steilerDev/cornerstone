@@ -8,6 +8,7 @@
 import type { PaginationMeta } from './pagination.js';
 import type { UserSummary } from './workItem.js';
 import type { InvoiceBudgetLineSummary } from './invoiceBudgetLine.js';
+import type { FilterMeta } from './filterMeta.js';
 
 /**
  * Invoice payment status.
@@ -105,6 +106,7 @@ export interface InvoiceListPaginatedResponse {
   invoices: Invoice[];
   pagination: PaginationMeta;
   summary: InvoiceStatusBreakdown;
+  filterMeta: FilterMeta;
 }
 
 /**
