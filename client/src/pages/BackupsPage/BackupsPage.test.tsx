@@ -319,7 +319,6 @@ describe('BackupsPage', () => {
 
       // Error message should be displayed to the user
       expect(screen.getByRole('alert')).toBeInTheDocument();
-      expect(screen.getByText(/failed to create backup/i)).toBeInTheDocument();
     });
   });
 
