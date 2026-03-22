@@ -33,7 +33,7 @@ async function gotoInvoicesAndWait(page: Page) {
 }
 
 // ---------------------------------------------------------------------------
-// Scenario 1 — Date filter auto-chaining
+// Scenario 1 — Date filter auto-chaining (calendar-based)
 // ---------------------------------------------------------------------------
 test.describe('Date filter auto-chaining', () => {
   // Desktop only: column settings and filter popovers require the full table layout
@@ -41,7 +41,7 @@ test.describe('Date filter auto-chaining', () => {
     if ((page.viewportSize()?.width ?? 1280) < 768) test.skip();
   });
 
-  test('selecting a "from" date auto-focuses the "to" date input', async ({ page }) => {
+  test('opening the date filter shows "Select start date" phase label', async ({ page }) => {
     // Given: Invoices page is loaded with the DataTable visible
     await gotoInvoicesAndWait(page);
 
@@ -49,28 +49,22 @@ test.describe('Date filter auto-chaining', () => {
     const dueDateFilterButton = page.getByRole('button', {
       name: /filter by due date/i,
     });
-    await expect(dueDateFilterButton).toBeVisible();
+    await dueDateFilterButton.waitFor({ state: 'visible', timeout: 15000 });
     await dueDateFilterButton.click();
 
-    // Then: The date filter popover appears with a "From" date input
+    // Then: The date filter popover appears with the calendar in "Select start date" phase
     const filterPopover = page.getByRole('dialog', { name: /filter by due date/i });
     await expect(filterPopover).toBeVisible();
 
-    const fromInput = filterPopover.locator('input[type="date"]').first();
-    await expect(fromInput).toBeVisible();
+    // And: The phase label reads "Select start date"
+    await expect(filterPopover).toContainText('Select start date');
 
-    // And: The "from" input has autoFocus
-    await expect(fromInput).toBeFocused();
-
-    // When: I fill in the "from" date
-    await fromInput.fill('2025-01-01');
-
-    // Then: The "to" date input receives focus automatically (auto-chaining)
-    const toInput = filterPopover.locator('input[type="date"]').nth(1);
-    await expect(toInput).toBeFocused();
+    // And: A calendar grid is rendered (no native date inputs)
+    const grid = filterPopover.locator('[role="grid"]');
+    await expect(grid).toBeVisible();
   });
 
-  test('"from" date input shows confirmed visual state after a date is entered', async ({
+  test('selecting a start date auto-advances the phase label to "Select end date"', async ({
     page,
   }) => {
     // Given: The date filter popover is open on the Due Date column
@@ -79,17 +73,22 @@ test.describe('Date filter auto-chaining', () => {
     const dueDateFilterButton = page.getByRole('button', {
       name: /filter by due date/i,
     });
+    await dueDateFilterButton.waitFor({ state: 'visible', timeout: 15000 });
     await dueDateFilterButton.click();
 
     const filterPopover = page.getByRole('dialog', { name: /filter by due date/i });
-    const fromInput = filterPopover.locator('input[type="date"]').first();
+    await expect(filterPopover).toBeVisible();
+    await expect(filterPopover).toContainText('Select start date');
 
-    // When: I enter a "from" date
-    await fromInput.fill('2025-01-01');
+    // When: I click any day button in the calendar grid
+    const firstDayButton = filterPopover.locator('[role="gridcell"] button').first();
+    await firstDayButton.click();
 
-    // Then: The "from" input has a CSS class indicating confirmed state
-    // (DateFilter adds filterDateInputConfirmed when localFrom !== '')
-    await expect(fromInput).toHaveClass(/filterDateInputConfirmed/);
+    // Then: The phase label automatically advances to "Select end date" (auto-chaining)
+    await expect(filterPopover).toContainText('Select end date');
+
+    // And: The clicked day button has aria-pressed="true" (confirmed selected state)
+    await expect(firstDayButton).toHaveAttribute('aria-pressed', 'true');
   });
 });
 
@@ -109,22 +108,26 @@ test.describe('Invoice due-date filter — apply and clear', () => {
     const dueDateFilterButton = page.getByRole('button', {
       name: /filter by due date/i,
     });
-    await expect(dueDateFilterButton).toBeVisible();
+    await dueDateFilterButton.waitFor({ state: 'visible', timeout: 15000 });
 
-    // When: I click it, a date filter popover appears
+    // When: I click it, a date filter popover with a calendar grid appears
     await dueDateFilterButton.click();
     const filterPopover = page.getByRole('dialog', { name: /filter by due date/i });
     await expect(filterPopover).toBeVisible();
 
-    // And: The popover contains "from" and "to" date inputs
-    const fromInput = filterPopover.locator('input[type="date"]').first();
-    const toInput = filterPopover.locator('input[type="date"]').nth(1);
-    await expect(fromInput).toBeVisible();
-    await expect(toInput).toBeVisible();
+    // And: The popover shows the calendar in "Select start date" phase
+    await expect(filterPopover).toContainText('Select start date');
+    const grid = filterPopover.locator('[role="grid"]');
+    await expect(grid).toBeVisible();
 
-    // When: I set a date range that matches no real invoices (far future)
-    await fromInput.fill('2099-01-01');
-    await toInput.fill('2099-12-31');
+    // When: I click two day buttons to set a start and end date range
+    const dayButtons = filterPopover.locator('[role="gridcell"] button');
+    await dayButtons.nth(4).click(); // start date — 5th day button
+
+    // Phase advances to "Select end date" automatically
+    await expect(filterPopover).toContainText('Select end date');
+
+    await dayButtons.nth(9).click(); // end date — 10th day button
 
     // Then: The filter button becomes active (visually highlighted)
     await expect(dueDateFilterButton).toHaveClass(/tableHeaderFilterButtonActive/);

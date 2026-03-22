@@ -363,219 +363,217 @@ export function VendorsPage() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.content}>
-        <div className={styles.header}>
-          <h1 className={styles.pageTitle}>{t('vendors.title')}</h1>
-          <button
-            type="button"
-            className={sharedStyles.btnPrimary}
-            onClick={openCreateModal}
-            data-testid="new-vendor-button"
-          >
-            {t('vendors.addVendor')}
-          </button>
-        </div>
+      <div className={styles.header}>
+        <h1 className={styles.pageTitle}>{t('vendors.title')}</h1>
+        <button
+          type="button"
+          className={sharedStyles.btnPrimary}
+          onClick={openCreateModal}
+          data-testid="new-vendor-button"
+        >
+          {t('vendors.addVendor')}
+        </button>
+      </div>
 
-        <BudgetSubNav />
+      <BudgetSubNav />
 
-        <h2 className={styles.sectionTitle}>{t('vendors.sectionTitle')}</h2>
+      <h2 className={styles.sectionTitle}>{t('vendors.sectionTitle')}</h2>
 
-        <DataTable<Vendor>
-          pageKey="vendors"
-          columns={columns}
-          items={vendors}
-          totalItems={totalItems}
-          totalPages={totalPages}
-          currentPage={tableState.page}
-          isLoading={isLoading}
-          error={error}
-          getRowKey={(v) => v.id}
-          onRowClick={(v) => navigate(`/budget/vendors/${v.id}`)}
-          renderActions={renderActions}
-          tableState={tableState}
-          onStateChange={handleStateChange}
-          emptyState={{
-            message: t('vendors.noVendorsTitle'),
-            description: t('vendors.noVendorsDescription'),
-            action: {
-              label: t('vendors.addFirstVendor'),
-              onClick: openCreateModal,
-            },
-          }}
-        />
+      <DataTable<Vendor>
+        pageKey="vendors"
+        columns={columns}
+        items={vendors}
+        totalItems={totalItems}
+        totalPages={totalPages}
+        currentPage={tableState.page}
+        isLoading={isLoading}
+        error={error}
+        getRowKey={(v) => v.id}
+        onRowClick={(v) => navigate(`/budget/vendors/${v.id}`)}
+        renderActions={renderActions}
+        tableState={tableState}
+        onStateChange={handleStateChange}
+        emptyState={{
+          message: t('vendors.noVendorsTitle'),
+          description: t('vendors.noVendorsDescription'),
+          action: {
+            label: t('vendors.addFirstVendor'),
+            onClick: openCreateModal,
+          },
+        }}
+      />
 
-        {/* Create vendor modal */}
-        {showCreateModal && (
-          <Modal
-            title={t('vendors.modal.title')}
-            onClose={closeCreateModal}
-            footer={
-              <>
-                <button
-                  type="button"
-                  className={sharedStyles.btnSecondary}
-                  onClick={closeCreateModal}
-                  disabled={isCreating}
-                >
-                  {t('vendors.buttons.cancel')}
-                </button>
-                <button
-                  type="button"
-                  className={sharedStyles.btnPrimary}
-                  onClick={() => formRef.current?.requestSubmit()}
-                  disabled={isCreating || !createForm.name.trim()}
-                >
-                  {isCreating ? t('vendors.buttons.creating') : t('vendors.buttons.create')}
-                </button>
-              </>
-            }
-          >
-            <p>{t('vendors.modal.description')}</p>
+      {/* Create vendor modal */}
+      {showCreateModal && (
+        <Modal
+          title={t('vendors.modal.title')}
+          onClose={closeCreateModal}
+          footer={
+            <>
+              <button
+                type="button"
+                className={sharedStyles.btnSecondary}
+                onClick={closeCreateModal}
+                disabled={isCreating}
+              >
+                {t('vendors.buttons.cancel')}
+              </button>
+              <button
+                type="button"
+                className={sharedStyles.btnPrimary}
+                onClick={() => formRef.current?.requestSubmit()}
+                disabled={isCreating || !createForm.name.trim()}
+              >
+                {isCreating ? t('vendors.buttons.creating') : t('vendors.buttons.create')}
+              </button>
+            </>
+          }
+        >
+          <p>{t('vendors.modal.description')}</p>
 
-            {createError && (
-              <div className={styles.errorBanner} role="alert">
-                {createError}
-              </div>
-            )}
+          {createError && (
+            <div className={styles.errorBanner} role="alert">
+              {createError}
+            </div>
+          )}
 
-            <form onSubmit={handleCreateVendor} className={styles.form} noValidate ref={formRef}>
-              <div className={styles.field}>
-                <label htmlFor="vendor-name" className={styles.label}>
-                  {t('vendors.form.name')}{' '}
-                  <span className={styles.required}>{t('vendors.form.required')}</span>
+          <form onSubmit={handleCreateVendor} className={styles.form} noValidate ref={formRef}>
+            <div className={styles.field}>
+              <label htmlFor="vendor-name" className={styles.label}>
+                {t('vendors.form.name')}{' '}
+                <span className={styles.required}>{t('vendors.form.required')}</span>
+              </label>
+              <input
+                type="text"
+                id="vendor-name"
+                value={createForm.name}
+                onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                className={styles.input}
+                placeholder={t('vendors.form.placeholders.name')}
+                maxLength={200}
+                disabled={isCreating}
+                autoFocus
+              />
+            </div>
+
+            <div className={styles.formRow}>
+              <div className={styles.fieldGrow}>
+                <label htmlFor="vendor-phone" className={styles.label}>
+                  {t('vendors.form.phone')}
                 </label>
                 <input
-                  type="text"
-                  id="vendor-name"
-                  value={createForm.name}
-                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  type="tel"
+                  id="vendor-phone"
+                  value={createForm.phone ?? ''}
+                  onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
                   className={styles.input}
-                  placeholder={t('vendors.form.placeholders.name')}
-                  maxLength={200}
+                  placeholder={t('vendors.form.placeholders.phone')}
+                  maxLength={50}
                   disabled={isCreating}
-                  autoFocus
                 />
               </div>
-
-              <div className={styles.formRow}>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="vendor-phone" className={styles.label}>
-                    {t('vendors.form.phone')}
-                  </label>
-                  <input
-                    type="tel"
-                    id="vendor-phone"
-                    value={createForm.phone ?? ''}
-                    onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
-                    className={styles.input}
-                    placeholder={t('vendors.form.placeholders.phone')}
-                    maxLength={50}
-                    disabled={isCreating}
-                  />
-                </div>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="vendor-email" className={styles.label}>
-                    {t('vendors.form.email')}
-                  </label>
-                  <input
-                    type="email"
-                    id="vendor-email"
-                    value={createForm.email ?? ''}
-                    onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                    className={styles.input}
-                    placeholder={t('vendors.form.placeholders.email')}
-                    maxLength={255}
-                    disabled={isCreating}
-                  />
-                </div>
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="vendor-address" className={styles.label}>
-                  {t('vendors.form.address')}
+              <div className={styles.fieldGrow}>
+                <label htmlFor="vendor-email" className={styles.label}>
+                  {t('vendors.form.email')}
                 </label>
                 <input
-                  type="text"
-                  id="vendor-address"
-                  value={createForm.address ?? ''}
-                  onChange={(e) => setCreateForm({ ...createForm, address: e.target.value })}
+                  type="email"
+                  id="vendor-email"
+                  value={createForm.email ?? ''}
+                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
                   className={styles.input}
-                  placeholder={t('vendors.form.placeholders.address')}
-                  maxLength={500}
+                  placeholder={t('vendors.form.placeholders.email')}
+                  maxLength={255}
                   disabled={isCreating}
                 />
               </div>
+            </div>
 
-              <div className={styles.field}>
-                <label htmlFor="vendor-notes" className={styles.label}>
-                  {t('vendors.form.notes')}
-                </label>
-                <textarea
-                  id="vendor-notes"
-                  value={createForm.notes ?? ''}
-                  onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
-                  className={styles.textarea}
-                  placeholder={t('vendors.form.placeholders.notes')}
-                  rows={3}
-                  disabled={isCreating}
-                />
-              </div>
+            <div className={styles.field}>
+              <label htmlFor="vendor-address" className={styles.label}>
+                {t('vendors.form.address')}
+              </label>
+              <input
+                type="text"
+                id="vendor-address"
+                value={createForm.address ?? ''}
+                onChange={(e) => setCreateForm({ ...createForm, address: e.target.value })}
+                className={styles.input}
+                placeholder={t('vendors.form.placeholders.address')}
+                maxLength={500}
+                disabled={isCreating}
+              />
+            </div>
 
-              <div className={styles.field}>
-                <label htmlFor="vendor-trade" className={styles.label}>
-                  {t('vendors.form.trade')}
-                </label>
-                <TradePicker
-                  trades={trades}
-                  value={createForm.tradeId ?? ''}
-                  onChange={(tradeId) => setCreateForm({ ...createForm, tradeId })}
-                  disabled={isCreating}
-                  placeholder={t('vendors.form.placeholders.trade')}
-                />
-              </div>
-            </form>
-          </Modal>
-        )}
+            <div className={styles.field}>
+              <label htmlFor="vendor-notes" className={styles.label}>
+                {t('vendors.form.notes')}
+              </label>
+              <textarea
+                id="vendor-notes"
+                value={createForm.notes ?? ''}
+                onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
+                className={styles.textarea}
+                placeholder={t('vendors.form.placeholders.notes')}
+                rows={3}
+                disabled={isCreating}
+              />
+            </div>
 
-        {/* Delete confirmation modal */}
-        {deletingVendor && (
-          <Modal
-            title={t('vendors.modal.deleteTitle')}
-            onClose={closeDeleteConfirm}
-            footer={
-              <>
+            <div className={styles.field}>
+              <label htmlFor="vendor-trade" className={styles.label}>
+                {t('vendors.form.trade')}
+              </label>
+              <TradePicker
+                trades={trades}
+                value={createForm.tradeId ?? ''}
+                onChange={(tradeId) => setCreateForm({ ...createForm, tradeId })}
+                disabled={isCreating}
+                placeholder={t('vendors.form.placeholders.trade')}
+              />
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deletingVendor && (
+        <Modal
+          title={t('vendors.modal.deleteTitle')}
+          onClose={closeDeleteConfirm}
+          footer={
+            <>
+              <button
+                type="button"
+                className={sharedStyles.btnSecondary}
+                onClick={closeDeleteConfirm}
+                disabled={isDeleting}
+              >
+                {t('vendors.buttons.cancel')}
+              </button>
+              {!deleteError && (
                 <button
                   type="button"
-                  className={sharedStyles.btnSecondary}
-                  onClick={closeDeleteConfirm}
+                  className={sharedStyles.btnConfirmDelete}
+                  onClick={() => void confirmDelete()}
                   disabled={isDeleting}
                 >
-                  {t('vendors.buttons.cancel')}
+                  {isDeleting ? t('vendors.buttons.deleting') : t('vendors.buttons.delete')}
                 </button>
-                {!deleteError && (
-                  <button
-                    type="button"
-                    className={sharedStyles.btnConfirmDelete}
-                    onClick={() => void confirmDelete()}
-                    disabled={isDeleting}
-                  >
-                    {isDeleting ? t('vendors.buttons.deleting') : t('vendors.buttons.delete')}
-                  </button>
-                )}
-              </>
-            }
-          >
-            <p>{t('vendors.modal.deleteConfirm', { name: deletingVendor.name })}</p>
-            {deleteError ? (
-              <div className={styles.errorBanner} role="alert">
-                {deleteError}
-              </div>
-            ) : (
-              <p className={styles.modalWarning}>{t('vendors.modal.deleteWarning')}</p>
-            )}
-          </Modal>
-        )}
-      </div>
+              )}
+            </>
+          }
+        >
+          <p>{t('vendors.modal.deleteConfirm', { name: deletingVendor.name })}</p>
+          {deleteError ? (
+            <div className={styles.errorBanner} role="alert">
+              {deleteError}
+            </div>
+          ) : (
+            <p className={styles.modalWarning}>{t('vendors.modal.deleteWarning')}</p>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

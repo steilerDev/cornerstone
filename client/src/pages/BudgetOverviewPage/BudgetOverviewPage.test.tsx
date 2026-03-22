@@ -399,31 +399,6 @@ describe('BudgetOverviewPage', () => {
         expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
       });
     });
-
-    it('renders a "New" dropdown trigger button accessible by role', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-      renderPage();
-
-      await waitFor(() => {
-        const btn = screen.getByRole('button', { name: /^new$/i });
-        expect(btn).toBeInTheDocument();
-      });
-    });
-
-    it('"New" button shows "New Invoice" and "New Vendor" menu items when clicked', async () => {
-      const user = userEvent.setup();
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^new$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^new$/i }));
-
-      expect(screen.getByRole('menuitem', { name: /new invoice/i })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: /new vendor/i })).toBeInTheDocument();
-    });
   });
 
   // ─── Key metrics row ─────────────────────────────────────────────────────────

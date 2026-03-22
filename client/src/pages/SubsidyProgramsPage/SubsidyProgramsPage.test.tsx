@@ -273,13 +273,13 @@ describe('SubsidyProgramsPage', () => {
       });
     });
 
-    it('renders "New Subsidy Program" button', async () => {
+    it('renders "Add Program" button', async () => {
       mockFetchSubsidyPrograms.mockResolvedValueOnce(emptyProgramsResponse);
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
     });
 
@@ -547,34 +547,34 @@ describe('SubsidyProgramsPage', () => {
   // ─── Create form ───────────────────────────────────────────────────────────
 
   describe('create form', () => {
-    it('shows create form after clicking "New Subsidy Program" button', async () => {
+    it('shows create form after clicking "Add Program" button', async () => {
       mockFetchSubsidyPrograms.mockResolvedValueOnce(emptyProgramsResponse);
       const user = userEvent.setup();
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
 
       expect(screen.getByRole('heading', { name: /new subsidy program/i })).toBeInTheDocument();
     });
 
-    it('disables "New Subsidy Program" button when create form is open', async () => {
+    it('disables "Add Program" button when create form is open', async () => {
       mockFetchSubsidyPrograms.mockResolvedValueOnce(emptyProgramsResponse);
       const user = userEvent.setup();
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).not.toBeDisabled();
+        expect(screen.getByRole('button', { name: /add program/i })).not.toBeDisabled();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
 
-      expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /add program/i })).toBeDisabled();
     });
 
     it('hides create form after clicking Cancel', async () => {
@@ -584,10 +584,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
       expect(screen.getByRole('heading', { name: /new subsidy program/i })).toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: /cancel/i }));
@@ -603,10 +603,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
 
       // Set a reduction value but leave name empty, then try to submit
       const reductionValueInput = screen.getByLabelText(/value \(%\)/i);
@@ -629,10 +629,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
 
       // Fill name, set invalid reduction value
       await user.type(screen.getByLabelText(/name/i), 'Test Program');
@@ -657,10 +657,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
 
       await user.type(screen.getByLabelText(/name/i), 'Pct Program');
       // reductionType defaults to 'percentage'
@@ -683,10 +683,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
 
       await user.type(screen.getByLabelText(/name/i), 'Energy Rebate');
       const reductionValueInput = screen.getByLabelText(/value \(%\)/i);
@@ -714,10 +714,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
 
       await user.type(screen.getByLabelText(/name/i), 'Energy Rebate');
       const reductionValueInput = screen.getByLabelText(/value \(%\)/i);
@@ -738,10 +738,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
 
       await user.type(screen.getByLabelText(/name/i), 'Energy Rebate');
       const reductionValueInput = screen.getByLabelText(/value \(%\)/i);
@@ -766,10 +766,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
       await user.type(screen.getByLabelText(/name/i), 'Dup Program');
       const reductionValueInput = screen.getByLabelText(/value \(%\)/i);
       fireEvent.change(reductionValueInput, { target: { value: '10' } });
@@ -788,10 +788,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
       await user.type(screen.getByLabelText(/name/i), 'Program Name');
       const reductionValueInput = screen.getByLabelText(/value \(%\)/i);
       fireEvent.change(reductionValueInput, { target: { value: '10' } });
@@ -809,10 +809,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
 
       // Name is empty by default
       const submitButton = screen.getByRole('button', { name: /create program/i });
@@ -826,10 +826,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
       await user.type(screen.getByLabelText(/name/i), 'Some Program');
 
       // reductionValue is empty
@@ -844,10 +844,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
       await user.type(screen.getByLabelText(/name/i), 'Some Program');
       const reductionValueInput = screen.getByLabelText(/value \(%\)/i);
       fireEvent.change(reductionValueInput, { target: { value: '10' } });
@@ -864,10 +864,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
 
       await waitFor(() => {
         expect(screen.getByLabelText('Materials')).toBeInTheDocument();
@@ -883,10 +883,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
 
       await waitFor(() => {
         expect(screen.queryByText(/applicable budget categories/i)).not.toBeInTheDocument();
@@ -901,10 +901,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
 
       await waitFor(() => {
         expect(screen.getByLabelText('Materials')).toBeInTheDocument();
@@ -930,10 +930,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
 
       await waitFor(() => {
         expect(screen.getByLabelText('Materials')).toBeInTheDocument();
@@ -1449,10 +1449,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
 
       expect(screen.getByLabelText(/maximum amount/i)).toBeInTheDocument();
     });
@@ -1464,10 +1464,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
 
       const maxAmountInput = screen.getByLabelText(/maximum amount/i);
       expect(maxAmountInput).toHaveAttribute('placeholder', 'No limit');
@@ -1481,10 +1481,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
       await user.type(screen.getByLabelText(/name/i), 'Capped Subsidy');
       const reductionValueInput = screen.getByLabelText(/value \(%\)/i);
       fireEvent.change(reductionValueInput, { target: { value: '15' } });
@@ -1506,10 +1506,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
       await user.type(screen.getByLabelText(/name/i), 'Energy Rebate');
       const reductionValueInput = screen.getByLabelText(/value \(%\)/i);
       fireEvent.change(reductionValueInput, { target: { value: '15' } });
@@ -1687,10 +1687,10 @@ describe('SubsidyProgramsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new subsidy program/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new subsidy program/i }));
+      await user.click(screen.getByRole('button', { name: /add program/i }));
       await user.type(screen.getByLabelText(/name/i), 'Energy Rebate');
       const reductionValueInput = screen.getByLabelText(/value \(%\)/i);
       fireEvent.change(reductionValueInput, { target: { value: '15' } });
