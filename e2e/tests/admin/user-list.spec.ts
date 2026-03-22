@@ -29,7 +29,8 @@ test.describe('User List Display', () => {
     await userManagementPage.goto();
 
     // Then: All expected column headers should be visible
-    const expectedColumns = ['Name', 'Email', 'Role', 'Auth Provider', 'Status'];
+    // Note: 'Auth Provider' column has defaultVisible: false — it is hidden by default.
+    const expectedColumns = ['Name', 'Email', 'Role', 'Member Since', 'Status'];
 
     for (const columnName of expectedColumns) {
       const columnHeader = page.locator('table thead th').filter({ hasText: columnName });
@@ -52,11 +53,12 @@ test.describe('User List Display', () => {
     // And: Admin row should show correct data
     if (adminRow) {
       const cells = await adminRow.locator('td').allTextContents();
-      expect(cells[0]).toContain(TEST_ADMIN.displayName); // Name
-      expect(cells[1]).toBe(TEST_ADMIN.email); // Email
-      expect(cells[2]).toBe('Administrator'); // Role
-      expect(cells[3]).toBe('Local'); // Auth Provider
-      expect(cells[4]).toBe('Active'); // Status
+      expect(cells[0]).toContain(TEST_ADMIN.displayName); // Name (index 0)
+      expect(cells[1]).toBe(TEST_ADMIN.email); // Email (index 1)
+      expect(cells[2]).toBe('Administrator'); // Role (index 2)
+      // cells[3] = Member Since (date) — not asserted (format varies by locale)
+      expect(cells[4]).toBe('Active'); // Status (index 4)
+      // Note: Auth Provider column (defaultVisible: false) is not rendered in the table
     }
   });
 

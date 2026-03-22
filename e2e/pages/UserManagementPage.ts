@@ -41,8 +41,10 @@ export class UserManagementPage {
   constructor(page: Page) {
     this.page = page;
     this.heading = page.getByRole('heading', { level: 1, name: 'User Management' });
-    this.searchInput = page.getByPlaceholder('Search...');
+    // DataTable renders a search input with aria-label="Search items" and placeholder="Search..."
+    this.searchInput = page.getByLabel('Search items');
     this.table = page.locator('table');
+    // DataTable EmptyState renders t('userManagement.emptyState') = "No users found."
     this.emptyState = page.getByText(/No users found/);
 
     // Edit modal (uses role="dialog" with aria-label)
