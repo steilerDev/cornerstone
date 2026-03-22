@@ -1,5 +1,6 @@
-import { useState, useCallback, useRef } from 'react';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { DateRangePicker } from '../../DateRangePicker/index.js';
 import styles from './Filter.module.css';
 
 export interface DateFilterProps {
@@ -10,27 +11,17 @@ export interface DateFilterProps {
 /**
  * From/to date range filter for DataTable
  * Stores as "from:YYYY-MM-DD,to:YYYY-MM-DD" format
- * Auto-applies on date input change
+ * Auto-applies on date selection change
  */
 export function DateFilter({ value, onChange }: DateFilterProps) {
   const { t } = useTranslation('common');
-  const toInputRef = useRef<HTMLInputElement>(null);
 
-  const parseValue = (v: string) => {
-    const from = v.match(/from:([\d-]+)/)?.[1] || '';
-    const to = v.match(/to:([\d-]+)/)?.[1] || '';
-    return { from, to };
-  };
+  const from = value.match(/from:(\d{4}-\d{2}-\d{2})/)?.[1] ?? '';
+  const to = value.match(/to:(\d{4}-\d{2}-\d{2})/)?.[1] ?? '';
 
-  const { from, to } = parseValue(value);
-  const [localFrom, setLocalFrom] = useState(from);
-  const [localTo, setLocalTo] = useState(to);
-
-  const fromConfirmed = localFrom !== '';
-
-  const emitChange = useCallback(
+  const handleChange = useCallback(
     (newFrom: string, newTo: string) => {
-      const parts = [];
+      const parts: string[] = [];
       if (newFrom) parts.push(`from:${newFrom}`);
       if (newTo) parts.push(`to:${newTo}`);
       onChange(parts.join(','));
@@ -38,47 +29,14 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
     [onChange],
   );
 
-  const handleFromChange = useCallback(
-    (newFrom: string) => {
-      setLocalFrom(newFrom);
-      emitChange(newFrom, localTo);
-      if (newFrom) {
-        setTimeout(() => toInputRef.current?.focus(), 0);
-      }
-    },
-    [localTo, emitChange],
-  );
-
-  const handleToChange = useCallback(
-    (newTo: string) => {
-      setLocalTo(newTo);
-      emitChange(localFrom, newTo);
-    },
-    [localFrom, emitChange],
-  );
-
   return (
     <div className={styles.filterContent}>
-      <div className={styles.filterRangeRow}>
-        <label className={styles.filterRangeLabel}>{t('dataTable.filter.from')}</label>
-        <input
-          type="date"
-          value={localFrom}
-          onChange={(e) => handleFromChange(e.target.value)}
-          className={`${styles.filterDateInput} ${fromConfirmed ? styles.filterDateInputConfirmed : ''}`}
-          autoFocus
-        />
-      </div>
-      <div className={styles.filterRangeRow}>
-        <label className={styles.filterRangeLabel}>{t('dataTable.filter.to')}</label>
-        <input
-          type="date"
-          value={localTo}
-          onChange={(e) => handleToChange(e.target.value)}
-          className={styles.filterDateInput}
-          ref={toInputRef}
-        />
-      </div>
+      <DateRangePicker
+        startDate={from}
+        endDate={to}
+        onChange={handleChange}
+        ariaLabel={t('dataTable.filter.dateRangeAriaLabel')}
+      />
     </div>
   );
 }

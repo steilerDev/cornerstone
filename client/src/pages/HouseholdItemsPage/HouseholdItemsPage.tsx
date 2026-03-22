@@ -431,87 +431,85 @@ export function HouseholdItemsPage() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.content}>
-        <div className={styles.header}>
-          <h1 className={styles.pageTitle}>{t('page.title')}</h1>
-          <button
-            type="button"
-            className={sharedStyles.btnPrimary}
-            onClick={() => navigate('/project/household-items/new')}
-            data-testid="new-household-item-button"
-          >
-            {t('newButton')}
-          </button>
-        </div>
+      <div className={styles.header}>
+        <h1 className={styles.pageTitle}>{t('page.title')}</h1>
+        <button
+          type="button"
+          className={sharedStyles.btnPrimary}
+          onClick={() => navigate('/project/household-items/new')}
+          data-testid="new-household-item-button"
+        >
+          {t('newButton')}
+        </button>
+      </div>
 
-        <ProjectSubNav />
+      <ProjectSubNav />
 
-        <DataTable<HouseholdItemSummary>
-          pageKey="householdItems"
-          columns={columns}
-          items={householdItems}
-          totalItems={totalItems}
-          totalPages={totalPages}
-          currentPage={tableState.page}
-          isLoading={isLoading}
-          error={error}
-          getRowKey={(item) => item.id}
-          onRowClick={(item) => navigate(`/project/household-items/${item.id}`)}
-          renderActions={renderActions}
-          tableState={tableState}
-          onStateChange={handleStateChange}
-          customFilters={customFilters}
-          emptyState={{
-            message: t('empty.noItems'),
-            description: t('empty.noItemsMessage'),
-            action: {
-              label: t('empty.createFirstItem'),
-              onClick: () => navigate('/project/household-items/new'),
-            },
-          }}
-        />
+      <DataTable<HouseholdItemSummary>
+        pageKey="householdItems"
+        columns={columns}
+        items={householdItems}
+        totalItems={totalItems}
+        totalPages={totalPages}
+        currentPage={tableState.page}
+        isLoading={isLoading}
+        error={error}
+        getRowKey={(item) => item.id}
+        onRowClick={(item) => navigate(`/project/household-items/${item.id}`)}
+        renderActions={renderActions}
+        tableState={tableState}
+        onStateChange={handleStateChange}
+        customFilters={customFilters}
+        emptyState={{
+          message: t('empty.noItems'),
+          description: t('empty.noItemsMessage'),
+          action: {
+            label: t('empty.createFirstItem'),
+            onClick: () => navigate('/project/household-items/new'),
+          },
+        }}
+      />
 
-        {/* Delete confirmation modal */}
-        {deletingItem && (
-          <Modal
-            title={t('delete.confirm')}
-            onClose={closeDeleteConfirm}
-            footer={
-              <>
+      {/* Delete confirmation modal */}
+      {deletingItem && (
+        <Modal
+          title={t('delete.confirm')}
+          onClose={closeDeleteConfirm}
+          footer={
+            <>
+              <button
+                type="button"
+                className={sharedStyles.btnSecondary}
+                onClick={closeDeleteConfirm}
+                disabled={isDeleting}
+              >
+                {t('delete.cancel')}
+              </button>
+              {!deleteError && (
                 <button
                   type="button"
-                  className={sharedStyles.btnSecondary}
-                  onClick={closeDeleteConfirm}
+                  className={sharedStyles.btnConfirmDelete}
+                  onClick={() => void confirmDelete()}
                   disabled={isDeleting}
                 >
-                  {t('delete.cancel')}
+                  {isDeleting ? t('delete.deleting') : t('delete.delete')}
                 </button>
-                {!deleteError && (
-                  <button
-                    type="button"
-                    className={sharedStyles.btnConfirmDelete}
-                    onClick={() => void confirmDelete()}
-                    disabled={isDeleting}
-                  >
-                    {isDeleting ? t('delete.deleting') : t('delete.delete')}
-                  </button>
-                )}
-              </>
-            }
-          >
-            <p>
-              {t('delete.message')} &quot;<strong>{deletingItem.name}</strong>&quot;?
-            </p>
-            {deleteError ? (
-              <div className={styles.errorBanner} role="alert">
-                {deleteError}
-              </div>
-            ) : (
-              <p className={styles.modalWarning}>{t('delete.warning')}</p>
-            )}
-          </Modal>
-        )}
-      </div>
+              )}
+            </>
+          }
+        >
+          <p>
+            {t('delete.message')} &quot;<strong>{deletingItem.name}</strong>&quot;?
+          </p>
+          {deleteError ? (
+            <div className={styles.errorBanner} role="alert">
+              {deleteError}
+            </div>
+          ) : (
+            <p className={styles.modalWarning}>{t('delete.warning')}</p>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

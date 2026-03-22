@@ -484,9 +484,8 @@ After merge:
 3. **Remove resolved line from source file** (only when input was a `@`-prefixed file path):
    - Remove the line from the source file that produced the resolved item (matched by original text).
    - Preserve comments (`#`-prefixed lines) and empty lines.
-4. Clean up the branch (remote and local):
+4. Clean up the branch:
    ```
-   git push origin --delete <branch-name> 2>/dev/null || true
    git checkout beta && git pull && git branch -d <branch-name>
    ```
 5. Exit the session and remove the worktree:
@@ -505,9 +504,8 @@ After merge:
    - For each closed issue, remove the line from the source file that produced it (matched by original text — the issue number or description as it appeared in the file).
    - Preserve comments (`#`-prefixed lines) and empty lines that were not part of the resolved items.
    - If all non-comment, non-empty lines have been removed, leave the file with only its comments (or empty).
-4. Clean up the branch (remote and local):
+4. Clean up the branch:
    ```
-   git push origin --delete <branch-name> 2>/dev/null || true
    git checkout beta && git pull && git branch -d <branch-name>
    ```
 5. Exit the session and remove the worktree:

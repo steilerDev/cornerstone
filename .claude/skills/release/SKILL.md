@@ -288,23 +288,13 @@ After user approval:
    ```bash
    git checkout beta && git pull && git merge origin/main && git push
    ```
-3. **Clean up old beta tags**: After the stable release is published by semantic-release, delete all beta pre-release tags and releases from previous release cycles. Only beta tags belonging to the **current** (post-merge) release cycle should remain:
-   ```bash
-   # Get the latest stable version from main
-   LATEST_STABLE=$(gh release list --repo steilerDev/cornerstone --exclude-pre-releases --limit 1 --json tagName -q '.[0].tagName')
-   echo "Latest stable: $LATEST_STABLE"
-   # Delete all beta releases and tags (the new cycle hasn't started yet, so all betas are old)
-   gh release list --repo steilerDev/cornerstone --json tagName,isPrerelease -q '.[] | select(.isPrerelease) | .tagName' | while read tag; do
-     gh release delete "$tag" --repo steilerDev/cornerstone --yes --cleanup-tag 2>/dev/null || true
-   done
-   ```
-4. **If epic context is provided**, close the epic issue and move to Done on the Projects board:
+3. **If epic context is provided**, close the epic issue and move to Done on the Projects board:
    ```bash
    gh issue close <epic-number>
    ITEM_ID=$(gh project item-list 4 --owner steilerDev --format json --limit 1 --query "is:issue #<epic-number>" --jq '.items[0].id')
    gh project item-edit --id "$ITEM_ID" --project-id PVT_kwHOAGtLQM4BOlve --field-id PVTSSF_lAHOAGtLQM4BOlvezg9P0yo --single-select-option-id c558f50d
    ```
-5. Exit the session and remove the worktree:
+4. Exit the session and remove the worktree:
    ```
    /exit
    ```

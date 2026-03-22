@@ -131,7 +131,8 @@
       "searchPlaceholder": "Search...",
       "booleanAriaLabel": "Boolean filter",
       "selectAll": "Select All",
-      "selectNone": "Select None"
+      "selectNone": "Select None",
+      "dateRangeAriaLabel": "Date range picker"
     },
     "sort": {
       "ascending": "Sort ascending",
@@ -157,5 +158,12 @@
       "filteredMessage": "No items match the current filters"
     },
     "loading": "Loading table data..."
+  },
+  "dateRangePicker": {
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "selectStart": "Select start date",
+    "selectEnd": "Select end date",
+    "calendarGridAriaLabel": "Calendar"
   }
 }

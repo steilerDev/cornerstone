@@ -18,7 +18,6 @@ import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
 import styles from './BudgetSourcesPage.module.css';
-import sharedStyles from '../../styles/shared.module.css';
 
 // ---- Display helpers ----
 
@@ -492,11 +491,7 @@ export function BudgetSourcesPage() {
           <div className={styles.errorCard} role="alert">
             <h2 className={styles.errorTitle}>{t('sources.error')}</h2>
             <p>{error}</p>
-            <button
-              type="button"
-              className={sharedStyles.btnPrimary}
-              onClick={() => void loadSources()}
-            >
+            <button type="button" className={styles.button} onClick={() => void loadSources()}>
               {t('sources.retry')}
             </button>
           </div>
@@ -511,17 +506,6 @@ export function BudgetSourcesPage() {
         {/* Page header */}
         <div className={styles.pageHeader}>
           <h1 className={styles.pageTitle}>{t('sources.title')}</h1>
-          <button
-            type="button"
-            className={sharedStyles.btnPrimary}
-            onClick={() => {
-              setShowCreateForm(true);
-              setCreateError('');
-            }}
-            disabled={showCreateForm}
-          >
-            {t('sources.addSource')}
-          </button>
         </div>
 
         {/* Budget sub-navigation */}
@@ -530,6 +514,17 @@ export function BudgetSourcesPage() {
         {/* Section header */}
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>{t('sources.sectionTitle')}</h2>
+          <button
+            type="button"
+            className={styles.button}
+            onClick={() => {
+              setShowCreateForm(true);
+              setCreateError('');
+            }}
+            disabled={showCreateForm}
+          >
+            {t('sources.addSource')}
+          </button>
         </div>
 
         {successMessage && (
