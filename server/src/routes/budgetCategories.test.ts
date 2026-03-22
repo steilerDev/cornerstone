@@ -843,7 +843,7 @@ describe('Budget Category Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<BudgetCategoryResponse>();
-      expect(body.category.translationKey).toBe('budgetCategories.labor');
+      expect(body.budgetCategory.translationKey).toBe('budgetCategories.labor');
     });
 
     it('GET /api/budget-categories/:id returns null translationKey for user-created category', async () => {
@@ -858,7 +858,7 @@ describe('Budget Category Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<BudgetCategoryResponse>();
-      expect(body.category.translationKey).toBeNull();
+      expect(body.budgetCategory.translationKey).toBeNull();
     });
 
     it('POST /api/budget-categories always creates category with null translationKey', async () => {
@@ -878,7 +878,7 @@ describe('Budget Category Routes', () => {
 
       expect(response.statusCode).toBe(201);
       const body = response.json<BudgetCategoryResponse>();
-      expect(body.category.translationKey).toBeNull();
+      expect(body.budgetCategory.translationKey).toBeNull();
     });
   });
 });
