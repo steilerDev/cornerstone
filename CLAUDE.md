@@ -1,6 +1,6 @@
 # Cornerstone - Project Guide
 
-<!-- CLA test: trigger re-run -->
+<!-- CLA test: trigger re-run v2 -->
 
 ## Project Overview
 
