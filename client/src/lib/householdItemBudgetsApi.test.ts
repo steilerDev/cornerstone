@@ -167,6 +167,7 @@ describe('householdItemBudgetsApi', () => {
           name: 'Materials',
           color: '#3b82f6',
           description: null,
+          translationKey: null,
           sortOrder: 1,
           createdAt: '2026-01-01T00:00:00.000Z',
           updatedAt: '2026-01-01T00:00:00.000Z',

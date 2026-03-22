@@ -37,6 +37,7 @@ describe('invoiceBudgetLinesApi', () => {
     categoryId: 'bc-construction',
     categoryName: 'Construction',
     categoryColor: '#ff0000',
+    categoryTranslationKey: null,
     parentItemId: 'wi-001',
     parentItemTitle: 'Foundation',
     parentItemType: 'work_item',
