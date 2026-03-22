@@ -169,20 +169,8 @@ export function MilestonesPage() {
       }
     }
 
-    // Work item count filter (format: "min:X,max:Y")
-    const workItemCountFilter = tableState.filters.get('workItemCount')?.value;
-    if (workItemCountFilter) {
-      const minMatch = workItemCountFilter.match(/min:([\d.]+)/);
-      const maxMatch = workItemCountFilter.match(/max:([\d.]+)/);
-      const filterMin = minMatch ? parseFloat(minMatch[1]) : undefined;
-      const filterMax = maxMatch ? parseFloat(maxMatch[1]) : undefined;
-      result = result.filter((m) => {
-        const val = m.workItemCount ?? 0;
-        if (filterMin !== undefined && val < filterMin) return false;
-        if (filterMax !== undefined && val > filterMax) return false;
-        return true;
-      });
-    }
+    // Note: workItemCount filtering is handled by DataTable's generic
+    // client-side filtering via the getValue prop on the column definition.
 
     // Sorting
     if (tableState.sortBy) {
