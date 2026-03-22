@@ -37,7 +37,7 @@ export function HouseholdItemsPage() {
   const [totalPages, setTotalPages] = useState(1);
 
   // Table state management with URL sync
-  const { tableState, toApiParams, setFilter } = useTableState({
+  const { tableState, toApiParams } = useTableState({
     defaultPageSize: 25,
   });
   const [searchParams, setSearchParams] = useSearchParams();
@@ -129,9 +129,11 @@ export function HouseholdItemsPage() {
       'status',
       'vendorId',
       'areaId',
-      'noBudget',
       'targetDelivery',
       'actualDelivery',
+      'plannedCost',
+      'actualCost',
+      'budgetLines',
     ];
     for (const key of knownFilterKeys) {
       params.delete(key);
@@ -278,6 +280,11 @@ export function HouseholdItemsPage() {
         label: t('table.headers.plannedCost'),
         sortable: false,
         defaultVisible: true,
+        filterable: true,
+        filterType: 'number' as const,
+        filterParamKey: 'plannedCost',
+        numberMin: 0,
+        numberStep: 0.01,
         render: (item) => formatCurrency(item.totalPlannedAmount),
       },
       {
@@ -314,6 +321,11 @@ export function HouseholdItemsPage() {
         label: t('table.headers.actualCost'),
         sortable: false,
         defaultVisible: false,
+        filterable: true,
+        filterType: 'number' as const,
+        filterParamKey: 'actualCost',
+        numberMin: 0,
+        numberStep: 0.01,
         render: (item) => formatCurrency(item.budgetSummary?.totalActual ?? 0),
       },
       {
@@ -343,6 +355,11 @@ export function HouseholdItemsPage() {
         label: t('table.headers.budgetLines'),
         sortable: false,
         defaultVisible: false,
+        filterable: true,
+        filterType: 'number' as const,
+        filterParamKey: 'budgetLines',
+        numberMin: 0,
+        numberStep: 1,
         render: (item) => item.budgetLineCount,
       },
     ],
@@ -410,24 +427,6 @@ export function HouseholdItemsPage() {
     </div>
   );
 
-  // Custom filters: noBudget (vendor and area now use column-level enum filters)
-  const customFilters = (
-    <div className={styles.customFiltersRow}>
-      <button
-        type="button"
-        className={`${styles.noBudgetToggle} ${
-          tableState.filters.get('noBudget')?.value ? styles.noBudgetToggleActive : ''
-        }`}
-        onClick={() =>
-          setFilter('noBudget', tableState.filters.get('noBudget')?.value ? null : 'true')
-        }
-        aria-pressed={!!tableState.filters.get('noBudget')?.value}
-        aria-label={t('filters.noBudgetAriaLabel')}
-      >
-        {t('filters.noBudget')}
-      </button>
-    </div>
-  );
 
   return (
     <div className={styles.container}>
@@ -460,7 +459,6 @@ export function HouseholdItemsPage() {
           renderActions={renderActions}
           tableState={tableState}
           onStateChange={handleStateChange}
-          customFilters={customFilters}
           emptyState={{
             message: t('empty.noItems'),
             description: t('empty.noItemsMessage'),

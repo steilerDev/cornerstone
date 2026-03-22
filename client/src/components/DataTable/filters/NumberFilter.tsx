@@ -25,8 +25,8 @@ export function NumberFilter({
   const { t } = useTranslation('common');
 
   const parseValue = (v: string) => {
-    const min = v.match(/min:(\d+)/)?.[1] || '';
-    const max = v.match(/max:(\d+)/)?.[1] || '';
+    const min = v.match(/min:([\d.]+)/)?.[1] || '';
+    const max = v.match(/max:([\d.]+)/)?.[1] || '';
     return { min, max };
   };
 

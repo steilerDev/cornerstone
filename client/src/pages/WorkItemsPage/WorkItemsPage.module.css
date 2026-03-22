@@ -71,37 +71,6 @@
   box-shadow: var(--shadow-focus);
 }
 
-.noBudgetToggle {
-  padding: var(--spacing-2) var(--spacing-4);
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: var(--transition-button);
-}
-
-.noBudgetToggle:hover {
-  background-color: var(--color-bg-hover);
-}
-
-.noBudgetToggle:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-
-.noBudgetToggleActive {
-  background-color: var(--color-primary);
-  color: var(--color-primary-text);
-  border-color: var(--color-primary);
-}
-
-.noBudgetToggleActive:hover {
-  background-color: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
-}
 
 /* Item link */
 .itemLink {
@@ -203,7 +172,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .customFilterSelect,
-  .noBudgetToggle,
   .menuButton,
   .menuItem {
     transition: none;
