@@ -338,6 +338,47 @@
     "outdoor": "Außenbereich",
     "storage": "Aufbewahrung"
   },
+  "backups": {
+    "pageTitle": "Sicherung & Wiederherstellung",
+    "createButton": "Sicherung erstellen",
+    "creating": "Sicherung wird erstellt...",
+    "loading": "Sicherungen werden geladen...",
+    "notConfiguredMessage": "Sicherung ist nicht konfiguriert",
+    "notConfiguredDescription": "Um Sicherungen zu aktivieren, setzen Sie die Umgebungsvariable BACKUP_DIR auf ein Verzeichnis außerhalb des Anwendungsdatenverzeichnisses.",
+    "emptyStateMessage": "Noch keine Sicherungen vorhanden",
+    "emptyStateDescription": "Klicken Sie auf 'Sicherung erstellen', um Ihre erste Sicherung anzulegen.",
+    "tableHeaders": {
+      "filename": "Dateiname",
+      "createdAt": "Erstellt",
+      "size": "Größe",
+      "actions": "Aktionen"
+    },
+    "actions": {
+      "delete": "Löschen",
+      "restore": "Wiederherstellen"
+    },
+    "deleteModal": {
+      "title": "Sicherung löschen",
+      "message": "Möchten Sie {{filename}} wirklich löschen?",
+      "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+      "cancel": "Abbrechen",
+      "confirm": "Löschen",
+      "confirming": "Wird gelöscht...",
+      "error": "Sicherung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut."
+    },
+    "restoreModal": {
+      "title": "Sicherung wiederherstellen",
+      "message": "Sie sind dabei, eine Wiederherstellung aus folgender Sicherung durchzuführen:",
+      "warning": "Dadurch werden alle aktuellen Anwendungsdaten unwiderruflich durch den Inhalt der Sicherung ersetzt. Der Server wird automatisch neu gestartet. Alle aktuellen Daten gehen verloren.",
+      "cancel": "Abbrechen",
+      "confirm": "Wiederherstellen & Neu starten",
+      "confirming": "Wird wiederhergestellt...",
+      "error": "Wiederherstellung konnte nicht gestartet werden. Bitte versuchen Sie es erneut."
+    },
+    "restartingMessage": "Der Server wird neu gestartet. Bitte warten Sie einen Moment und laden Sie dann die Seite neu.",
+    "createError": "Sicherung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "loadError": "Sicherungen konnten nicht geladen werden. Bitte versuchen Sie es erneut."
+  },
   "vendors": {
     "contacts": {
       "heading": "Kontakte",
