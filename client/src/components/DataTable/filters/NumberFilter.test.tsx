@@ -115,4 +115,86 @@ describe('NumberFilter', () => {
       expect(maxInput).toHaveValue(999);
     });
   });
+
+  describe('configurable min/max bounds (#1139)', () => {
+    it('applies custom min to both number inputs and range sliders', () => {
+      const { container } = render(
+        <NumberFilter value="" onChange={jest.fn()} min={100} max={10000} />,
+      );
+      const sliders = container.querySelectorAll('input[type="range"]');
+      const spinbuttons = screen.getAllByRole('spinbutton');
+
+      expect(sliders[0]).toHaveAttribute('min', '100');
+      expect(sliders[1]).toHaveAttribute('min', '100');
+      expect(spinbuttons[0]).toHaveAttribute('min', '100');
+      expect(spinbuttons[1]).toHaveAttribute('min', '100');
+    });
+
+    it('applies custom max to both number inputs and range sliders', () => {
+      const { container } = render(
+        <NumberFilter value="" onChange={jest.fn()} min={100} max={10000} />,
+      );
+      const sliders = container.querySelectorAll('input[type="range"]');
+      const spinbuttons = screen.getAllByRole('spinbutton');
+
+      expect(sliders[0]).toHaveAttribute('max', '10000');
+      expect(sliders[1]).toHaveAttribute('max', '10000');
+      expect(spinbuttons[0]).toHaveAttribute('max', '10000');
+      expect(spinbuttons[1]).toHaveAttribute('max', '10000');
+    });
+
+    it('uses custom min as placeholder for the min number input', () => {
+      render(<NumberFilter value="" onChange={jest.fn()} min={100} max={10000} />);
+      const [minInput] = screen.getAllByRole('spinbutton');
+      expect(minInput).toHaveAttribute('placeholder', '100');
+    });
+
+    it('uses custom max as placeholder for the max number input', () => {
+      render(<NumberFilter value="" onChange={jest.fn()} min={100} max={10000} />);
+      const [, maxInput] = screen.getAllByRole('spinbutton');
+      expect(maxInput).toHaveAttribute('placeholder', '10000');
+    });
+
+    it('defaults min to 0 when no min prop is provided', () => {
+      const { container } = render(<NumberFilter value="" onChange={jest.fn()} />);
+      const sliders = container.querySelectorAll('input[type="range"]');
+      const [minInput] = screen.getAllByRole('spinbutton');
+
+      expect(sliders[0]).toHaveAttribute('min', '0');
+      expect(minInput).toHaveAttribute('min', '0');
+      expect(minInput).toHaveAttribute('placeholder', '0');
+    });
+
+    it('defaults max to 999999 when no max prop is provided', () => {
+      const { container } = render(<NumberFilter value="" onChange={jest.fn()} />);
+      const sliders = container.querySelectorAll('input[type="range"]');
+      const [, maxInput] = screen.getAllByRole('spinbutton');
+
+      expect(sliders[1]).toHaveAttribute('max', '999999');
+      expect(maxInput).toHaveAttribute('max', '999999');
+      expect(maxInput).toHaveAttribute('placeholder', '999999');
+    });
+
+    it('applies custom step to both number inputs and range sliders', () => {
+      const { container } = render(
+        <NumberFilter value="" onChange={jest.fn()} step={0.01} />,
+      );
+      const sliders = container.querySelectorAll('input[type="range"]');
+      const spinbuttons = screen.getAllByRole('spinbutton');
+
+      expect(sliders[0]).toHaveAttribute('step', '0.01');
+      expect(sliders[1]).toHaveAttribute('step', '0.01');
+      expect(spinbuttons[0]).toHaveAttribute('step', '0.01');
+      expect(spinbuttons[1]).toHaveAttribute('step', '0.01');
+    });
+
+    it('defaults step to 1 when no step prop is provided', () => {
+      const { container } = render(<NumberFilter value="" onChange={jest.fn()} />);
+      const sliders = container.querySelectorAll('input[type="range"]');
+      const [minInput] = screen.getAllByRole('spinbutton');
+
+      expect(sliders[0]).toHaveAttribute('step', '1');
+      expect(minInput).toHaveAttribute('step', '1');
+    });
+  });
 });

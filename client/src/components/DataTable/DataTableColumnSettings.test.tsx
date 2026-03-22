@@ -1,5 +1,5 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ColumnDef } from './DataTable.js';
 import { DataTableColumnSettings } from './DataTableColumnSettings.js';
@@ -182,6 +182,187 @@ describe('DataTableColumnSettings', () => {
       await user.click(screen.getByRole('button', { name: /column settings/i }));
       await user.click(screen.getByRole('button', { name: /reset to defaults/i }));
       expect(mockReset).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('SVG icon in trigger button (#1136)', () => {
+    it('renders an SVG element inside the trigger button', () => {
+      renderSettings();
+      const triggerBtn = screen.getByRole('button', { name: /column settings/i });
+      expect(triggerBtn.querySelector('svg')).not.toBeNull();
+    });
+
+    it('does NOT contain an emoji character in the trigger button text', () => {
+      renderSettings();
+      const triggerBtn = screen.getByRole('button', { name: /column settings/i });
+      // The gear emoji ⚙️ was the prior implementation; verify it is no longer present
+      expect(triggerBtn.textContent).not.toContain('⚙️');
+    });
+
+    it('SVG has aria-hidden="true" so it is invisible to assistive technology', () => {
+      renderSettings();
+      const triggerBtn = screen.getByRole('button', { name: /column settings/i });
+      const svg = triggerBtn.querySelector('svg');
+      expect(svg).toHaveAttribute('aria-hidden', 'true');
+    });
+  });
+
+  describe('drag-and-drop column reordering (#1140)', () => {
+    async function openPopover() {
+      const user = userEvent.setup();
+      renderSettings();
+      await user.click(screen.getByRole('button', { name: /column settings/i }));
+      return user;
+    }
+
+    it('sets effectAllowed to "move" on dragStart', async () => {
+      await openPopover();
+
+      // The "Amount" item (index 1) is draggable; "Title" (index 0) is not
+      const checkboxItems = document.querySelectorAll('[draggable="true"]');
+      expect(checkboxItems.length).toBeGreaterThan(0);
+
+      const draggableItem = checkboxItems[0] as HTMLElement;
+      const dataTransfer = { effectAllowed: '', dropEffect: '' };
+
+      fireEvent.dragStart(draggableItem, { dataTransfer });
+
+      expect(dataTransfer.effectAllowed).toBe('move');
+    });
+
+    it('applies drop-above CSS class when dragging over the upper half of an item', async () => {
+      await openPopover();
+
+      const checkboxItems = document.querySelectorAll('[draggable="true"]');
+      const draggableItem = checkboxItems[0] as HTMLElement;
+      const dataTransfer = { effectAllowed: '', dropEffect: '' };
+
+      fireEvent.dragStart(draggableItem, { dataTransfer });
+
+      // Drag over a different draggable item in the upper half
+      const targetItem = checkboxItems[0] as HTMLElement;
+
+      // Mock getBoundingClientRect so clientY falls in the upper half
+      jest.spyOn(targetItem, 'getBoundingClientRect').mockReturnValue({
+        top: 100,
+        bottom: 140,
+        height: 40,
+        left: 0,
+        right: 200,
+        width: 200,
+        x: 0,
+        y: 100,
+        toJSON: () => ({}),
+      } as DOMRect);
+
+      fireEvent.dragOver(targetItem, {
+        dataTransfer,
+        clientY: 110, // 10px below top — upper half of a 40px element
+      });
+
+      expect(targetItem.className).toContain('columnCheckboxItemDropAbove');
+    });
+
+    it('applies drop-below CSS class when dragging over the lower half of an item', async () => {
+      await openPopover();
+
+      const checkboxItems = document.querySelectorAll('[draggable="true"]');
+      const draggableItem = checkboxItems[0] as HTMLElement;
+      const dataTransfer = { effectAllowed: '', dropEffect: '' };
+
+      fireEvent.dragStart(draggableItem, { dataTransfer });
+
+      const targetItem = checkboxItems[0] as HTMLElement;
+
+      jest.spyOn(targetItem, 'getBoundingClientRect').mockReturnValue({
+        top: 100,
+        bottom: 140,
+        height: 40,
+        left: 0,
+        right: 200,
+        width: 200,
+        x: 0,
+        y: 100,
+        toJSON: () => ({}),
+      } as DOMRect);
+
+      fireEvent.dragOver(targetItem, {
+        dataTransfer,
+        clientY: 130, // 30px below top — lower half of a 40px element
+      });
+
+      expect(targetItem.className).toContain('columnCheckboxItemDropBelow');
+    });
+
+    it('clears drop indicator classes on dragLeave', async () => {
+      await openPopover();
+
+      const checkboxItems = document.querySelectorAll('[draggable="true"]');
+      const draggableItem = checkboxItems[0] as HTMLElement;
+      const dataTransfer = { effectAllowed: '', dropEffect: '' };
+
+      fireEvent.dragStart(draggableItem, { dataTransfer });
+
+      jest.spyOn(draggableItem, 'getBoundingClientRect').mockReturnValue({
+        top: 100,
+        bottom: 140,
+        height: 40,
+        left: 0,
+        right: 200,
+        width: 200,
+        x: 0,
+        y: 100,
+        toJSON: () => ({}),
+      } as DOMRect);
+
+      fireEvent.dragOver(draggableItem, { dataTransfer, clientY: 110 });
+      // Should have a drop indicator class now
+      expect(draggableItem.className).toMatch(/columnCheckboxItemDrop(Above|Below)/);
+
+      fireEvent.dragLeave(draggableItem);
+      // After leave, neither above nor below class should be present
+      expect(draggableItem.className).not.toContain('columnCheckboxItemDropAbove');
+      expect(draggableItem.className).not.toContain('columnCheckboxItemDropBelow');
+    });
+
+    it('calls onMoveColumn with correct indices on drop', async () => {
+      const mockMoveColumn = jest.fn();
+      const user = userEvent.setup();
+      render(
+        <DataTableColumnSettings<TestItem>
+          columns={COLUMNS}
+          visibleColumns={new Set(['title', 'amount'])}
+          onToggleColumn={jest.fn()}
+          onMoveColumn={mockMoveColumn}
+          onResetToDefaults={jest.fn()}
+        />,
+      );
+      await user.click(screen.getByRole('button', { name: /column settings/i }));
+
+      const checkboxItems = document.querySelectorAll('[draggable="true"]');
+      // We have 2 draggable items (index 1: Amount, index 2: ID — index 0 Title is not draggable)
+      const draggedItem = checkboxItems[0] as HTMLElement; // Amount (col index 1)
+      const targetItem = checkboxItems[1] as HTMLElement; // ID (col index 2)
+      const dataTransfer = { effectAllowed: '', dropEffect: '' };
+
+      fireEvent.dragStart(draggedItem, { dataTransfer });
+
+      jest.spyOn(targetItem, 'getBoundingClientRect').mockReturnValue({
+        top: 100,
+        bottom: 140,
+        height: 40,
+        left: 0,
+        right: 200,
+        width: 200,
+        x: 0,
+        y: 100,
+        toJSON: () => ({}),
+      } as DOMRect);
+
+      fireEvent.dragOver(targetItem, { dataTransfer, clientY: 130 }); // lower half → below
+      fireEvent.drop(targetItem);
+
+      expect(mockMoveColumn).toHaveBeenCalledWith(1, 2);
     });
   });
 });
