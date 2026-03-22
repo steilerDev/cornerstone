@@ -133,28 +133,27 @@ test.describe('DateRangePicker — full range selection (happy path)', () => {
     await expect(filterPopover).toContainText('Select end date');
   });
 
-  test(
-    'selecting start then end date applies the filter and shows Clear Filters',
-    async ({ page }) => {
-      // Given: Invoices page loaded, filter popover open
-      await gotoInvoicesAndWait(page);
-      const filterPopover = await openDueDateFilter(page);
+  test('selecting start then end date applies the filter and shows Clear Filters', async ({
+    page,
+  }) => {
+    // Given: Invoices page loaded, filter popover open
+    await gotoInvoicesAndWait(page);
+    const filterPopover = await openDueDateFilter(page);
 
-      const dueDateFilterButton = page.getByRole('button', {
-        name: /filter by due date/i,
-      });
+    const dueDateFilterButton = page.getByRole('button', {
+      name: /filter by due date/i,
+    });
 
-      // When: I select a start and end date
-      await selectStartAndEndDays(filterPopover);
+    // When: I select a start and end date
+    await selectStartAndEndDays(filterPopover);
 
-      // Then: The filter button has the active CSS class (filter is applied)
-      await expect(dueDateFilterButton).toHaveClass(/tableHeaderFilterButtonActive/);
+    // Then: The filter button has the active CSS class (filter is applied)
+    await expect(dueDateFilterButton).toHaveClass(/tableHeaderFilterButtonActive/);
 
-      // And: "Clear Filters" button is visible in the toolbar
-      const clearFiltersButton = page.getByRole('button', { name: /clear filters/i });
-      await expect(clearFiltersButton).toBeVisible();
-    },
-  );
+    // And: "Clear Filters" button is visible in the toolbar
+    const clearFiltersButton = page.getByRole('button', { name: /clear filters/i });
+    await expect(clearFiltersButton).toBeVisible();
+  });
 });
 
 // ---------------------------------------------------------------------------

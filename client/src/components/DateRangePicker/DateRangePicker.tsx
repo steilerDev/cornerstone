@@ -84,17 +84,14 @@ function ChevronRightIcon() {
   );
 }
 
-export function DateRangePicker({
-  startDate,
-  endDate,
-  onChange,
-  ariaLabel,
-}: DateRangePickerProps) {
+export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: DateRangePickerProps) {
   const { t } = useTranslation('common');
   const { locale } = useLocale();
 
   // Initialize phase based on startDate
-  const [phase, setPhase] = useState<SelectionPhase>(startDate ? 'selecting-end' : 'selecting-start');
+  const [phase, setPhase] = useState<SelectionPhase>(
+    startDate ? 'selecting-end' : 'selecting-start',
+  );
 
   // Hover preview for range (only during end date selection)
   const [hoverDate, setHoverDate] = useState<string>('');
@@ -104,9 +101,7 @@ export function DateRangePicker({
   const todayDate = parseIsoDate(today);
   const startDateDate = startDate ? parseIsoDate(startDate) : null;
   const initYear = startDateDate ? startDateDate.getUTCFullYear() : todayDate.getUTCFullYear();
-  const initMonth = startDateDate
-    ? startDateDate.getUTCMonth() + 1
-    : todayDate.getUTCMonth() + 1;
+  const initMonth = startDateDate ? startDateDate.getUTCMonth() + 1 : todayDate.getUTCMonth() + 1;
 
   const [viewYear, setViewYear] = useState<number>(initYear);
   const [viewMonth, setViewMonth] = useState<number>(initMonth);
@@ -152,8 +147,7 @@ export function DateRangePicker({
   const isRangeStart = useCallback(
     (dateStr: string): boolean => {
       return (
-        dateStr === startDate &&
-        (endDate !== '' || (phase === 'selecting-end' && hoverDate !== ''))
+        dateStr === startDate && (endDate !== '' || (phase === 'selecting-end' && hoverDate !== ''))
       );
     },
     [startDate, endDate, phase, hoverDate],
@@ -227,35 +221,43 @@ export function DateRangePicker({
 
       switch (e.key) {
         case 'ArrowRight':
-          newDate = new Date(Date.UTC(
-            focusedDateObj.getUTCFullYear(),
-            focusedDateObj.getUTCMonth(),
-            focusedDateObj.getUTCDate() + 1,
-          ));
+          newDate = new Date(
+            Date.UTC(
+              focusedDateObj.getUTCFullYear(),
+              focusedDateObj.getUTCMonth(),
+              focusedDateObj.getUTCDate() + 1,
+            ),
+          );
           e.preventDefault();
           break;
         case 'ArrowLeft':
-          newDate = new Date(Date.UTC(
-            focusedDateObj.getUTCFullYear(),
-            focusedDateObj.getUTCMonth(),
-            focusedDateObj.getUTCDate() - 1,
-          ));
+          newDate = new Date(
+            Date.UTC(
+              focusedDateObj.getUTCFullYear(),
+              focusedDateObj.getUTCMonth(),
+              focusedDateObj.getUTCDate() - 1,
+            ),
+          );
           e.preventDefault();
           break;
         case 'ArrowDown':
-          newDate = new Date(Date.UTC(
-            focusedDateObj.getUTCFullYear(),
-            focusedDateObj.getUTCMonth(),
-            focusedDateObj.getUTCDate() + 7,
-          ));
+          newDate = new Date(
+            Date.UTC(
+              focusedDateObj.getUTCFullYear(),
+              focusedDateObj.getUTCMonth(),
+              focusedDateObj.getUTCDate() + 7,
+            ),
+          );
           e.preventDefault();
           break;
         case 'ArrowUp':
-          newDate = new Date(Date.UTC(
-            focusedDateObj.getUTCFullYear(),
-            focusedDateObj.getUTCMonth(),
-            focusedDateObj.getUTCDate() - 7,
-          ));
+          newDate = new Date(
+            Date.UTC(
+              focusedDateObj.getUTCFullYear(),
+              focusedDateObj.getUTCMonth(),
+              focusedDateObj.getUTCDate() - 7,
+            ),
+          );
           e.preventDefault();
           break;
         case 'Enter':

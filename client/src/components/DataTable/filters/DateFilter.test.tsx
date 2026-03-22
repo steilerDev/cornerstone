@@ -1,5 +1,5 @@
 import { describe, it, expect, jest } from '@jest/globals';
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
 import { DateFilter } from './DateFilter.js';
 import { LocaleProvider } from '../../../contexts/LocaleContext.js';
@@ -7,16 +7,8 @@ import { LocaleProvider } from '../../../contexts/LocaleContext.js';
 /**
  * Custom render function that wraps the component with LocaleProvider
  */
-function render(
-  component: ReactNode,
-  options?: Parameters<typeof rtlRender>[1],
-) {
-  return rtlRender(
-    <LocaleProvider>
-      {component}
-    </LocaleProvider>,
-    options,
-  );
+function render(component: ReactNode, options?: Parameters<typeof rtlRender>[1]) {
+  return rtlRender(<LocaleProvider>{component}</LocaleProvider>, options);
 }
 
 /**
@@ -24,7 +16,10 @@ function render(
  */
 function findDayButton(container: HTMLElement, dayNumber: number): HTMLButtonElement | null {
   const dayButtons = Array.from(container.querySelectorAll('button')).filter(
-    (btn) => btn.textContent === String(dayNumber) && !btn.getAttribute('aria-label')?.includes('Previous') && !btn.getAttribute('aria-label')?.includes('Next'),
+    (btn) =>
+      btn.textContent === String(dayNumber) &&
+      !btn.getAttribute('aria-label')?.includes('Previous') &&
+      !btn.getAttribute('aria-label')?.includes('Next'),
   );
   return dayButtons[0] || null;
 }
@@ -45,8 +40,8 @@ describe('DateFilter', () => {
 
     it('renders the calendar with day buttons', () => {
       const { container } = render(<DateFilter value="" onChange={jest.fn()} />);
-      const dayButtons = Array.from(container.querySelectorAll('button')).filter(
-        (btn) => /^\d{1,2}$/.test(btn.textContent?.trim() || ''),
+      const dayButtons = Array.from(container.querySelectorAll('button')).filter((btn) =>
+        /^\d{1,2}$/.test(btn.textContent?.trim() || ''),
       );
       expect(dayButtons.length).toBeGreaterThan(0);
     });
@@ -88,9 +83,7 @@ describe('DateFilter', () => {
     });
 
     it('handles "from:2026-03-15" format with no to date', () => {
-      const { container } = render(
-        <DateFilter value="from:2026-03-15" onChange={jest.fn()} />,
-      );
+      const { container } = render(<DateFilter value="from:2026-03-15" onChange={jest.fn()} />);
       const dayBtn15 = findDayButton(container, 15);
       expect(dayBtn15).toHaveAttribute('aria-pressed', 'true');
     });
@@ -107,9 +100,7 @@ describe('DateFilter', () => {
 
     it('after selecting start date, clicking end date calls onChange with "from:...,to:..."', () => {
       const mockOnChange = jest.fn();
-      const { container: container1 } = render(
-        <DateFilter value="" onChange={mockOnChange} />,
-      );
+      const { container: container1 } = render(<DateFilter value="" onChange={mockOnChange} />);
       const dayBtn15 = findDayButton(container1, 15);
       fireEvent.click(dayBtn15!);
 
@@ -170,9 +161,7 @@ describe('DateFilter', () => {
 
     it('to part uses "to:" prefix', () => {
       const mockOnChange = jest.fn();
-      const { container: container1 } = render(
-        <DateFilter value="" onChange={mockOnChange} />,
-      );
+      const { container: container1 } = render(<DateFilter value="" onChange={mockOnChange} />);
       const dayBtn15 = findDayButton(container1, 15);
       fireEvent.click(dayBtn15!);
 
@@ -190,9 +179,7 @@ describe('DateFilter', () => {
 
     it('parts are comma-separated', () => {
       const mockOnChange = jest.fn();
-      const { container: container1 } = render(
-        <DateFilter value="" onChange={mockOnChange} />,
-      );
+      const { container: container1 } = render(<DateFilter value="" onChange={mockOnChange} />);
       const dayBtn15 = findDayButton(container1, 15);
       fireEvent.click(dayBtn15!);
 
@@ -222,9 +209,7 @@ describe('DateFilter', () => {
     });
 
     it('clicking before start date should be disabled', () => {
-      const { container } = render(
-        <DateFilter value="from:2026-03-20" onChange={jest.fn()} />,
-      );
+      const { container } = render(<DateFilter value="from:2026-03-20" onChange={jest.fn()} />);
       const dayBtn10 = findDayButton(container, 10);
       expect(dayBtn10).toBeTruthy();
       expect(dayBtn10).toBeDisabled();
@@ -245,9 +230,7 @@ describe('DateFilter', () => {
     });
 
     it('ignores malformed date strings in filter value', () => {
-      const { container } = render(
-        <DateFilter value="from:invalid-date" onChange={jest.fn()} />,
-      );
+      const { container } = render(<DateFilter value="from:invalid-date" onChange={jest.fn()} />);
       const grid = container.querySelector('[role="grid"]');
       expect(grid).toBeInTheDocument(); // Should render without crashing
     });

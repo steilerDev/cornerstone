@@ -1,5 +1,5 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { render as rtlRender, screen, fireEvent, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DateRangePicker } from './DateRangePicker.js';
@@ -9,16 +9,8 @@ import styles from './DateRangePicker.module.css';
 /**
  * Custom render function that wraps the component with LocaleProvider
  */
-function render(
-  component: ReactNode,
-  options?: Parameters<typeof rtlRender>[1],
-) {
-  return rtlRender(
-    <LocaleProvider>
-      {component}
-    </LocaleProvider>,
-    options,
-  );
+function render(component: ReactNode, options?: Parameters<typeof rtlRender>[1]) {
+  return rtlRender(<LocaleProvider>{component}</LocaleProvider>, options);
 }
 
 /**
@@ -141,7 +133,7 @@ describe('DateRangePicker', () => {
       expect(otherMonthBtns.length).toBeGreaterThan(0);
     });
 
-    it('applies today styling to today\'s date', () => {
+    it("applies today styling to today's date", () => {
       const today = new Date();
       const year = today.getFullYear();
       const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -324,7 +316,7 @@ describe('DateRangePicker', () => {
       const grid = container.querySelector(`.${styles.grid}`);
 
       // Initial focused button should be on startDate (2026-03-15)
-      let initialFocused = container.querySelector('button[tabindex="0"]');
+      const initialFocused = container.querySelector('button[tabindex="0"]');
       expect(initialFocused).toHaveAttribute('aria-label', expect.stringContaining('15'));
 
       // Fire ArrowRight keyboard event on grid
@@ -343,7 +335,7 @@ describe('DateRangePicker', () => {
       const grid = container.querySelector(`.${styles.grid}`);
 
       // Initial focused button should be on startDate (2026-03-15)
-      let initialFocused = container.querySelector('button[tabindex="0"]');
+      const initialFocused = container.querySelector('button[tabindex="0"]');
       expect(initialFocused).toHaveAttribute('aria-label', expect.stringContaining('15'));
 
       // Fire ArrowLeft keyboard event on grid
@@ -362,7 +354,7 @@ describe('DateRangePicker', () => {
       const grid = container.querySelector(`.${styles.grid}`);
 
       // Initial focused button should be on startDate (2026-03-15)
-      let initialFocused = container.querySelector('button[tabindex="0"]');
+      const initialFocused = container.querySelector('button[tabindex="0"]');
       expect(initialFocused).toHaveAttribute('aria-label', expect.stringContaining('15'));
 
       // Fire ArrowDown keyboard event on grid
@@ -381,7 +373,7 @@ describe('DateRangePicker', () => {
       const grid = container.querySelector(`.${styles.grid}`);
 
       // Initial focused button should be on startDate (2026-03-15)
-      let initialFocused = container.querySelector('button[tabindex="0"]');
+      const initialFocused = container.querySelector('button[tabindex="0"]');
       expect(initialFocused).toHaveAttribute('aria-label', expect.stringContaining('15'));
 
       // Fire ArrowUp keyboard event on grid
