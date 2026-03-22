@@ -229,7 +229,7 @@ export function BudgetLineForm({
               <option value="">{t('budgetLineForm.categoryNone')}</option>
               {budgetCategories.map((cat) => (
                 <option key={cat.id} value={cat.id}>
-                  {cat.name}
+                  {getCategoryDisplayName(tSettings, cat.name, cat.translationKey)}
                 </option>
               ))}
             </select>

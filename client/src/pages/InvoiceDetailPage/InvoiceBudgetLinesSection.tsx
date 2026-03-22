@@ -533,7 +533,11 @@ export function InvoiceBudgetLinesSection({
                   tabIndex={-1}
                 >
                   <td className={styles.tdDescription}>{line.budgetLineDescription || '\u2014'}</td>
-                  <td className={styles.tdCategory}>{line.categoryName || '\u2014'}</td>
+                  <td className={styles.tdCategory}>
+                    {line.categoryName
+                      ? getCategoryDisplayName(tSettings, line.categoryName, line.categoryTranslationKey)
+                      : '—'}
+                  </td>
                   <td className={styles.tdPlanned}>{formatCurrency(line.plannedAmount)}</td>
                   <td className={styles.tdItemized}>
                     {editingLineId === line.id ? (
