@@ -571,12 +571,12 @@ export function listHouseholdItems(
   // Filter by actual cost (from invoices)
   if (query.actualCostMin !== undefined) {
     conditions.push(
-      sql`COALESCE((SELECT SUM(${invoiceBudgetLines.itemizedAmount}) FROM ${invoiceBudgetLines} INNER JOIN ${householdItemBudgets} ON ${invoiceBudgetLines.householdItemBudgetId} = ${householdItemBudgets.id} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0) >= ${query.actualCostMin}`,
+      sql`COALESCE((SELECT SUM(${invoiceBudgetLines.itemizedAmount}) FROM ${invoiceBudgetLines} INNER JOIN ${householdItemBudgets} AS hib_f ON ${invoiceBudgetLines.householdItemBudgetId} = hib_f.id WHERE hib_f.household_item_id = ${householdItems.id}), 0) >= ${query.actualCostMin}`,
     );
   }
   if (query.actualCostMax !== undefined) {
     conditions.push(
-      sql`COALESCE((SELECT SUM(${invoiceBudgetLines.itemizedAmount}) FROM ${invoiceBudgetLines} INNER JOIN ${householdItemBudgets} ON ${invoiceBudgetLines.householdItemBudgetId} = ${householdItemBudgets.id} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0) <= ${query.actualCostMax}`,
+      sql`COALESCE((SELECT SUM(${invoiceBudgetLines.itemizedAmount}) FROM ${invoiceBudgetLines} INNER JOIN ${householdItemBudgets} AS hib_f ON ${invoiceBudgetLines.householdItemBudgetId} = hib_f.id WHERE hib_f.household_item_id = ${householdItems.id}), 0) <= ${query.actualCostMax}`,
     );
   }
 
