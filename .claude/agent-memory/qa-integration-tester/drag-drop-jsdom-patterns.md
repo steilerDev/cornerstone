@@ -11,6 +11,7 @@ type: feedback
 **Why**: The call in `(e.currentTarget as HTMLElement).getBoundingClientRect()` during a React 19 synthetic event handler always returns zeros regardless of prototype mocks. Neither `jest.spyOn(element, 'getBoundingClientRect')` (instance mock) nor `Element.prototype.getBoundingClientRect = ...` (prototype mock) are intercepted.
 
 **How to apply**:
+
 - Do NOT write tests that assert "above vs below" drop position based on `clientY` relative to `getBoundingClientRect()` output — they will always resolve to "below" (since `clientY > 0 >= 0 + 0/2`).
 - Instead, assert that SOME drop indicator class is applied (use `.toMatch(/columnCheckboxItemDrop(Above|Below)/)`).
 - For the "below" direction specifically: any `clientY > 0` will always produce "below" — this IS testable.
@@ -22,6 +23,7 @@ type: feedback
 **Rule**: `jest.useFakeTimers()` + `act(() => { jest.runAllTimers(); })` works for testing `setTimeout(() => element.focus(), 0)` in React event handlers.
 
 **How to apply**:
+
 - Use synchronous `act(() => { jest.runAllTimers(); })` (not async) — `runAllTimers` inside a synchronous `act` correctly flushes the timer and React state updates.
 - Always restore real timers with `jest.useRealTimers()` in cleanup (or in the test body after assertions).
 - `document.activeElement` correctly reflects `element.focus()` called inside a flushed `setTimeout`.

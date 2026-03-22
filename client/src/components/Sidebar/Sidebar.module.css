@@ -128,7 +128,6 @@
   background-color: var(--color-sidebar-active);
 }
 
-
 /* Mobile and tablet: fixed position, hidden by default */
 @media (max-width: 1024px) {
   .sidebar {

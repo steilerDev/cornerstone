@@ -365,7 +365,6 @@ export function WorkItemsPage() {
     </div>
   );
 
-
   // Keyboard shortcuts (n, /, ?, Escape)
   const shortcuts = useMemo(
     () => [

@@ -427,7 +427,6 @@ export function HouseholdItemsPage() {
     </div>
   );
 
-
   return (
     <div className={styles.container}>
       <div className={styles.content}>
