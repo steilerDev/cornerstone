@@ -37,7 +37,7 @@ export function HouseholdItemsPage() {
   const [totalPages, setTotalPages] = useState(1);
 
   // Table state management with URL sync
-  const { tableState, toApiParams } = useTableState({
+  const { tableState, toApiParams, setFilter } = useTableState({
     defaultPageSize: 25,
   });
   const [searchParams, setSearchParams] = useSearchParams();
@@ -129,11 +129,9 @@ export function HouseholdItemsPage() {
       'status',
       'vendorId',
       'areaId',
+      'noBudget',
       'targetDelivery',
       'actualDelivery',
-      'plannedCost',
-      'actualCost',
-      'budgetLines',
     ];
     for (const key of knownFilterKeys) {
       params.delete(key);
@@ -280,11 +278,6 @@ export function HouseholdItemsPage() {
         label: t('table.headers.plannedCost'),
         sortable: false,
         defaultVisible: true,
-        filterable: true,
-        filterType: 'number' as const,
-        filterParamKey: 'plannedCost',
-        numberMin: 0,
-        numberStep: 0.01,
         render: (item) => formatCurrency(item.totalPlannedAmount),
       },
       {
@@ -321,11 +314,6 @@ export function HouseholdItemsPage() {
         label: t('table.headers.actualCost'),
         sortable: false,
         defaultVisible: false,
-        filterable: true,
-        filterType: 'number' as const,
-        filterParamKey: 'actualCost',
-        numberMin: 0,
-        numberStep: 0.01,
         render: (item) => formatCurrency(item.budgetSummary?.totalActual ?? 0),
       },
       {
@@ -355,11 +343,6 @@ export function HouseholdItemsPage() {
         label: t('table.headers.budgetLines'),
         sortable: false,
         defaultVisible: false,
-        filterable: true,
-        filterType: 'number' as const,
-        filterParamKey: 'budgetLines',
-        numberMin: 0,
-        numberStep: 1,
         render: (item) => item.budgetLineCount,
       },
     ],
@@ -427,88 +410,106 @@ export function HouseholdItemsPage() {
     </div>
   );
 
+  // Custom filters: noBudget (vendor and area now use column-level enum filters)
+  const customFilters = (
+    <div className={styles.customFiltersRow}>
+      <button
+        type="button"
+        className={`${styles.noBudgetToggle} ${
+          tableState.filters.get('noBudget')?.value ? styles.noBudgetToggleActive : ''
+        }`}
+        onClick={() =>
+          setFilter('noBudget', tableState.filters.get('noBudget')?.value ? null : 'true')
+        }
+        aria-pressed={!!tableState.filters.get('noBudget')?.value}
+        aria-label={t('filters.noBudgetAriaLabel')}
+      >
+        {t('filters.noBudget')}
+      </button>
+    </div>
+  );
+
   return (
     <div className={styles.container}>
-      <div className={styles.content}>
-        <div className={styles.header}>
-          <h1 className={styles.pageTitle}>{t('page.title')}</h1>
-          <button
-            type="button"
-            className={sharedStyles.btnPrimary}
-            onClick={() => navigate('/project/household-items/new')}
-            data-testid="new-household-item-button"
-          >
-            {t('newButton')}
-          </button>
-        </div>
+      <div className={styles.header}>
+        <h1 className={styles.pageTitle}>{t('page.title')}</h1>
+        <button
+          type="button"
+          className={sharedStyles.btnPrimary}
+          onClick={() => navigate('/project/household-items/new')}
+          data-testid="new-household-item-button"
+        >
+          {t('newButton')}
+        </button>
+      </div>
 
-        <ProjectSubNav />
+      <ProjectSubNav />
 
-        <DataTable<HouseholdItemSummary>
-          pageKey="householdItems"
-          columns={columns}
-          items={householdItems}
-          totalItems={totalItems}
-          totalPages={totalPages}
-          currentPage={tableState.page}
-          isLoading={isLoading}
-          error={error}
-          getRowKey={(item) => item.id}
-          onRowClick={(item) => navigate(`/project/household-items/${item.id}`)}
-          renderActions={renderActions}
-          tableState={tableState}
-          onStateChange={handleStateChange}
-          emptyState={{
-            message: t('empty.noItems'),
-            description: t('empty.noItemsMessage'),
-            action: {
-              label: t('empty.createFirstItem'),
-              onClick: () => navigate('/project/household-items/new'),
-            },
-          }}
-        />
+      <DataTable<HouseholdItemSummary>
+        pageKey="householdItems"
+        columns={columns}
+        items={householdItems}
+        totalItems={totalItems}
+        totalPages={totalPages}
+        currentPage={tableState.page}
+        isLoading={isLoading}
+        error={error}
+        getRowKey={(item) => item.id}
+        onRowClick={(item) => navigate(`/project/household-items/${item.id}`)}
+        renderActions={renderActions}
+        tableState={tableState}
+        onStateChange={handleStateChange}
+        customFilters={customFilters}
+        emptyState={{
+          message: t('empty.noItems'),
+          description: t('empty.noItemsMessage'),
+          action: {
+            label: t('empty.createFirstItem'),
+            onClick: () => navigate('/project/household-items/new'),
+          },
+        }}
+      />
 
-        {/* Delete confirmation modal */}
-        {deletingItem && (
-          <Modal
-            title={t('delete.confirm')}
-            onClose={closeDeleteConfirm}
-            footer={
-              <>
+      {/* Delete confirmation modal */}
+      {deletingItem && (
+        <Modal
+          title={t('delete.confirm')}
+          onClose={closeDeleteConfirm}
+          footer={
+            <>
+              <button
+                type="button"
+                className={sharedStyles.btnSecondary}
+                onClick={closeDeleteConfirm}
+                disabled={isDeleting}
+              >
+                {t('delete.cancel')}
+              </button>
+              {!deleteError && (
                 <button
                   type="button"
-                  className={sharedStyles.btnSecondary}
-                  onClick={closeDeleteConfirm}
+                  className={sharedStyles.btnConfirmDelete}
+                  onClick={() => void confirmDelete()}
                   disabled={isDeleting}
                 >
-                  {t('delete.cancel')}
+                  {isDeleting ? t('delete.deleting') : t('delete.delete')}
                 </button>
-                {!deleteError && (
-                  <button
-                    type="button"
-                    className={sharedStyles.btnConfirmDelete}
-                    onClick={() => void confirmDelete()}
-                    disabled={isDeleting}
-                  >
-                    {isDeleting ? t('delete.deleting') : t('delete.delete')}
-                  </button>
-                )}
-              </>
-            }
-          >
-            <p>
-              {t('delete.message')} &quot;<strong>{deletingItem.name}</strong>&quot;?
-            </p>
-            {deleteError ? (
-              <div className={styles.errorBanner} role="alert">
-                {deleteError}
-              </div>
-            ) : (
-              <p className={styles.modalWarning}>{t('delete.warning')}</p>
-            )}
-          </Modal>
-        )}
-      </div>
+              )}
+            </>
+          }
+        >
+          <p>
+            {t('delete.message')} &quot;<strong>{deletingItem.name}</strong>&quot;?
+          </p>
+          {deleteError ? (
+            <div className={styles.errorBanner} role="alert">
+              {deleteError}
+            </div>
+          ) : (
+            <p className={styles.modalWarning}>{t('delete.warning')}</p>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

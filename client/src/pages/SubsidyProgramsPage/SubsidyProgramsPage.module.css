@@ -1,19 +1,29 @@
 .container {
-  composes: pageContainer from '../../styles/shared.module.css';
+  padding: var(--spacing-8);
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .content {
-  composes: pageContent from '../../styles/shared.module.css';
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
 }
 
 /* ---- Page header ---- */
 
 .pageHeader {
-  composes: pageHeader from '../../styles/shared.module.css';
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
 }
 
 .pageTitle {
-  composes: pageTitle from '../../styles/shared.module.css';
+  font-size: var(--font-size-4xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0;
 }
 
 /* ---- Section header (below sub-nav) ---- */
@@ -551,6 +561,14 @@
  * ============================================================ */
 
 @media (max-width: 767px) {
+  .container {
+    padding: var(--spacing-4);
+  }
+
+  .pageTitle {
+    font-size: var(--font-size-2xl);
+  }
+
   .card {
     padding: var(--spacing-4);
   }

@@ -146,16 +146,16 @@ If the state is `CONFLICTING`, rebase onto the target branch, force-push, and re
 
 **Step 2 — Poll for required gate checks.**
 
-**Beta PRs** (require `Quality Gates` + `CLA` — expected ~5 minutes):
+**Beta PRs** (require `Quality Gates` only — expected ~5 minutes):
 
 ```bash
-echo "Waiting for Quality Gates + CLA..."; SECONDS=0; while true; do if [ $SECONDS -ge 300 ]; then echo "TIMEOUT: CI gates did not complete within 5 minutes"; exit 1; fi; qg=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); cla=$(gh api repos/steilerDev/cornerstone/commits/$(gh pr view <PR> --repo steilerDev/cornerstone --json headRefOid -q .headRefOid)/status --jq '.statuses[] | select(.context == "CLA") | .state' 2>/dev/null); if [ "$qg" = "fail" ] || [ "$cla" = "failure" ]; then echo "CI FAILED (QG=$qg, CLA=$cla)"; exit 1; fi; if [ "$qg" = "pass" ] && [ "$cla" = "success" ]; then echo "All gates passed"; break; fi; sleep 30; done
+echo "Waiting for Quality Gates..."; SECONDS=0; while true; do if [ $SECONDS -ge 300 ]; then echo "TIMEOUT: Quality Gates did not complete within 5 minutes"; exit 1; fi; bucket=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); case "$bucket" in pass) echo "Quality Gates passed"; break ;; fail) echo "Quality Gates FAILED"; exit 1 ;; *) sleep 30 ;; esac; done
 ```
 
-**Main PRs** (require `Quality Gates` + `E2E Gates` + `CLA` — expected ~15 minutes):
+**Main PRs** (require `Quality Gates` + `E2E Gates` — expected ~15 minutes):
 
 ```bash
-echo "Waiting for Quality Gates + E2E Gates + CLA..."; SECONDS=0; while true; do if [ $SECONDS -ge 900 ]; then echo "TIMEOUT: CI gates did not complete within 15 minutes"; exit 1; fi; qg=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); e2e=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "E2E Gates") | .bucket' 2>/dev/null); cla=$(gh api repos/steilerDev/cornerstone/commits/$(gh pr view <PR> --repo steilerDev/cornerstone --json headRefOid -q .headRefOid)/status --jq '.statuses[] | select(.context == "CLA") | .state' 2>/dev/null); if [ "$qg" = "fail" ] || [ "$e2e" = "fail" ] || [ "$cla" = "failure" ]; then echo "CI FAILED (QG=$qg, E2E=$e2e, CLA=$cla)"; exit 1; fi; if [ "$qg" = "pass" ] && [ "$e2e" = "pass" ] && [ "$cla" = "success" ]; then echo "All gates passed"; break; fi; sleep 30; done
+echo "Waiting for Quality Gates + E2E Gates..."; SECONDS=0; while true; do if [ $SECONDS -ge 900 ]; then echo "TIMEOUT: CI gates did not complete within 15 minutes"; exit 1; fi; qg=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); e2e=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "E2E Gates") | .bucket' 2>/dev/null); if [ "$qg" = "fail" ] || [ "$e2e" = "fail" ]; then echo "CI FAILED (QG=$qg, E2E=$e2e)"; exit 1; fi; if [ "$qg" = "pass" ] && [ "$e2e" = "pass" ]; then echo "All gates passed"; break; fi; sleep 30; done
 ```
 
 Replace `<PR>` with the PR number. The polling loop handles the "checks not yet reported" edge case — an empty bucket means we retry after 30s. Timeouts prevent agents from polling indefinitely if CI hangs.
@@ -200,7 +200,6 @@ Production files: any file under `server/`, `client/`, or `shared/`.
 
 - **Branch naming**: `<type>/<issue-number>-<short-description>` (e.g., `feat/42-work-item-crud`, `fix/55-budget-calc`)
 - **Never push a `worktree-<anything>` branch.** Worktree branches carry auto-generated names. Before pushing, always rename the branch to match the naming convention above: `git branch -m <type>/<issue-number>-<short-description>`. If the scope of work is not yet clear, determine it before pushing — do not publish placeholder branch names.
-- **Branch cleanup after merge**: GitHub auto-deletes head branches when PRs are merged. As a safety net, agents must also delete the remote branch explicitly after merging (`git push origin --delete <branch-name>`) and clean up the local branch (`git branch -d <branch-name>`). Never leave stale branches behind.
 
 ### Session Isolation (Worktrees)
 
@@ -229,11 +228,10 @@ Cornerstone uses a two-tier release model:
 - **`beta` -> `main`** (epic promotion): Merge commit (preserves individual commits so semantic-release can analyze them)
 
 - **Hotfixes:** Cherry-pick any `main` hotfix back to `beta` immediately. See `/release` for merge-back, release summary, and DockerHub sync details.
-- **Beta tag cleanup:** When a stable release is published (beta promoted to main), all previous beta pre-release tags and releases must be deleted. Only beta tags from the current (active) release cycle should exist at any time. This cleanup is automated in the `/release` skill (step 7.3).
 
 ### Branch Protection
 
-Both `main` and `beta` require PRs with passing `Quality Gates` and `CLA` (commit status). `main` additionally requires `E2E Gates`. Force pushes and deletions are blocked on both branches. The `CLA` check is a commit status (not a check run) set by the custom CLA workflow — it verifies all PR authors have signed the CLA or are in the bot allowlist.
+Both `main` and `beta` require PRs with passing `Quality Gates`. `main` additionally requires `E2E Gates`. Force pushes and deletions are blocked on both branches.
 
 Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Quality Gates` covers static analysis, unit tests, Docker build, and E2E smoke tests — it does **not** wait for full E2E shards, so beta PRs can merge quickly. `E2E Gates` is a separate required check on `main` only — it waits for all E2E shards and blocks promotion if any fail. On `main`-targeted PRs, E2E shards also use fail-fast: the first non-recoverable failure stops the shard (`maxFailures: 1`) and cancels remaining shards.
 

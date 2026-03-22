@@ -35,7 +35,7 @@ export function WorkItemsPage() {
   const [totalPages, setTotalPages] = useState(1);
 
   // Table state management with URL sync
-  const { tableState, toApiParams } = useTableState({
+  const { tableState, toApiParams, setFilter } = useTableState({
     defaultPageSize: 25,
   });
   const [searchParams, setSearchParams] = useSearchParams();
@@ -131,9 +131,9 @@ export function WorkItemsPage() {
       'assignedUserId',
       'assignedVendorId',
       'areaId',
+      'noBudget',
       'startDate',
       'endDate',
-      'budgetLines',
     ];
     for (const key of knownFilterKeys) {
       params.delete(key);
@@ -293,11 +293,6 @@ export function WorkItemsPage() {
         label: t('list.table.budgetLines'),
         sortable: false,
         defaultVisible: true,
-        filterable: true,
-        filterType: 'number' as const,
-        filterParamKey: 'budgetLines',
-        numberMin: 0,
-        numberStep: 1,
         render: (item) => item.budgetLineCount,
       },
     ],
@@ -365,6 +360,25 @@ export function WorkItemsPage() {
     </div>
   );
 
+  // Custom filters: noBudget (vendor, assignedTo, and area now use column-level enum filters)
+  const customFilters = (
+    <div className={styles.customFiltersRow}>
+      <button
+        type="button"
+        className={`${styles.noBudgetToggle} ${
+          tableState.filters.get('noBudget')?.value ? styles.noBudgetToggleActive : ''
+        }`}
+        onClick={() =>
+          setFilter('noBudget', tableState.filters.get('noBudget')?.value ? null : 'true')
+        }
+        aria-pressed={!!tableState.filters.get('noBudget')?.value}
+        aria-label={t('list.filters.noBudgetAriaLabel')}
+      >
+        {t('list.filters.noBudget')}
+      </button>
+    </div>
+  );
+
   // Keyboard shortcuts (n, /, ?, Escape)
   const shortcuts = useMemo(
     () => [
@@ -407,94 +421,90 @@ export function WorkItemsPage() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.content}>
-        <div className={styles.header}>
-          <h1 className={styles.pageTitle}>{t('list.pageTitle')}</h1>
-          <button
-            type="button"
-            className={sharedStyles.btnPrimary}
-            onClick={() => navigate('/project/work-items/new')}
-            data-testid="new-work-item-button"
-          >
-            {t('list.newWorkItem')}
-          </button>
-        </div>
+      <div className={styles.header}>
+        <h1 className={styles.pageTitle}>{t('list.pageTitle')}</h1>
+        <button
+          type="button"
+          className={sharedStyles.btnPrimary}
+          onClick={() => navigate('/project/work-items/new')}
+          data-testid="new-work-item-button"
+        >
+          {t('list.newWorkItem')}
+        </button>
+      </div>
 
-        <ProjectSubNav />
+      <ProjectSubNav />
 
-        <DataTable<WorkItemSummary>
-          pageKey="workItems"
-          columns={columns}
-          items={workItems}
-          totalItems={totalItems}
-          totalPages={totalPages}
-          currentPage={tableState.page}
-          isLoading={isLoading}
-          error={error}
-          getRowKey={(item) => item.id}
-          onRowClick={(item) => navigate(`/project/work-items/${item.id}`)}
-          renderActions={renderActions}
-          tableState={tableState}
-          onStateChange={handleStateChange}
-          emptyState={{
-            message: t('list.empty.noItemsTitle'),
-            description: t('list.empty.noItemsText'),
-            action: {
-              label: t('list.empty.createFirst'),
-              onClick: () => navigate('/project/work-items/new'),
-            },
-          }}
-        />
+      <DataTable<WorkItemSummary>
+        pageKey="workItems"
+        columns={columns}
+        items={workItems}
+        totalItems={totalItems}
+        totalPages={totalPages}
+        currentPage={tableState.page}
+        isLoading={isLoading}
+        error={error}
+        getRowKey={(item) => item.id}
+        onRowClick={(item) => navigate(`/project/work-items/${item.id}`)}
+        renderActions={renderActions}
+        tableState={tableState}
+        onStateChange={handleStateChange}
+        customFilters={customFilters}
+        emptyState={{
+          message: t('list.empty.noItemsTitle'),
+          description: t('list.empty.noItemsText'),
+          action: {
+            label: t('list.empty.createFirst'),
+            onClick: () => navigate('/project/work-items/new'),
+          },
+        }}
+      />
 
-        {/* Delete confirmation modal */}
-        {deletingItem && (
-          <Modal
-            title={t('list.deleteModal.title')}
-            onClose={closeDeleteConfirm}
-            footer={
-              <>
+      {/* Delete confirmation modal */}
+      {deletingItem && (
+        <Modal
+          title={t('list.deleteModal.title')}
+          onClose={closeDeleteConfirm}
+          footer={
+            <>
+              <button
+                type="button"
+                className={sharedStyles.btnSecondary}
+                onClick={closeDeleteConfirm}
+                disabled={isDeleting}
+              >
+                {t('list.deleteModal.cancel')}
+              </button>
+              {!deleteError && (
                 <button
                   type="button"
-                  className={sharedStyles.btnSecondary}
-                  onClick={closeDeleteConfirm}
+                  className={sharedStyles.btnConfirmDelete}
+                  onClick={() => void confirmDelete()}
                   disabled={isDeleting}
                 >
-                  {t('list.deleteModal.cancel')}
+                  {isDeleting
+                    ? t('list.deleteModal.deletingLabel')
+                    : t('list.deleteModal.deleteLabel')}
                 </button>
-                {!deleteError && (
-                  <button
-                    type="button"
-                    className={sharedStyles.btnConfirmDelete}
-                    onClick={() => void confirmDelete()}
-                    disabled={isDeleting}
-                  >
-                    {isDeleting
-                      ? t('list.deleteModal.deletingLabel')
-                      : t('list.deleteModal.deleteLabel')}
-                  </button>
-                )}
-              </>
-            }
-          >
-            <p>{t('list.deleteModal.confirmation', { title: deletingItem.title })}</p>
-            {deleteError ? (
-              <div className={styles.errorBanner} role="alert">
-                {deleteError}
-              </div>
-            ) : (
-              <p className={styles.modalWarning}>{t('list.deleteModal.warning')}</p>
-            )}
-          </Modal>
-        )}
+              )}
+            </>
+          }
+        >
+          <p>{t('list.deleteModal.confirmation', { title: deletingItem.title })}</p>
+          {deleteError ? (
+            <div className={styles.errorBanner} role="alert">
+              {deleteError}
+            </div>
+          ) : (
+            <p className={styles.modalWarning}>{t('list.deleteModal.warning')}</p>
+          )}
+        </Modal>
+      )}
 
-        {/* Keyboard shortcuts help */}
-        {showShortcutsHelp && (
-          <KeyboardShortcutsHelp
-            shortcuts={shortcuts}
-            onClose={() => setShowShortcutsHelp(false)}
-          />
-        )}
-      </div>
+      {/* Keyboard shortcuts help */}
+      {showShortcutsHelp && (
+        <KeyboardShortcutsHelp shortcuts={shortcuts} onClose={() => setShowShortcutsHelp(false)} />
+      )}
     </div>
   );
 }

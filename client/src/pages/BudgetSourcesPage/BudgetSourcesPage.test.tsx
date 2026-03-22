@@ -202,13 +202,13 @@ describe('BudgetSourcesPage', () => {
       });
     });
 
-    it('renders "New Source" button', async () => {
+    it('renders "Add Source" button', async () => {
       mockFetchBudgetSources.mockResolvedValueOnce(emptyResponse);
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new source/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
       });
     });
 
@@ -553,34 +553,34 @@ describe('BudgetSourcesPage', () => {
   // ─── Create form ─────────────────────────────────────────────────────────────
 
   describe('create form', () => {
-    it('shows create form when "New Source" is clicked', async () => {
+    it('shows create form when "Add Source" is clicked', async () => {
       mockFetchBudgetSources.mockResolvedValueOnce(emptyResponse);
 
       const user = userEvent.setup();
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new source/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new source/i }));
+      await user.click(screen.getByRole('button', { name: /add source/i }));
 
       expect(screen.getByRole('heading', { name: /new budget source/i })).toBeInTheDocument();
     });
 
-    it('"New Source" button is disabled while create form is shown', async () => {
+    it('"Add Source" button is disabled while create form is shown', async () => {
       mockFetchBudgetSources.mockResolvedValueOnce(emptyResponse);
 
       const user = userEvent.setup();
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new source/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new source/i }));
+      await user.click(screen.getByRole('button', { name: /add source/i }));
 
-      expect(screen.getByRole('button', { name: /new source/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /add source/i })).toBeDisabled();
     });
 
     it('hides create form when Cancel is clicked', async () => {
@@ -590,10 +590,10 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new source/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new source/i }));
+      await user.click(screen.getByRole('button', { name: /add source/i }));
       await user.click(screen.getByRole('button', { name: /cancel/i }));
 
       expect(screen.queryByRole('heading', { name: /new budget source/i })).not.toBeInTheDocument();
@@ -606,10 +606,10 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new source/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new source/i }));
+      await user.click(screen.getByRole('button', { name: /add source/i }));
 
       const createButton = screen.getByRole('button', { name: /create source/i });
       expect(createButton).toBeDisabled();
@@ -622,10 +622,10 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new source/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new source/i }));
+      await user.click(screen.getByRole('button', { name: /add source/i }));
 
       // Fill name but leave totalAmount empty
       await user.type(screen.getByLabelText(/^name/i), 'Test Loan');
@@ -641,10 +641,10 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new source/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new source/i }));
+      await user.click(screen.getByRole('button', { name: /add source/i }));
 
       // Type spaces to enable the button (non-empty string that trims to empty)
       const nameInput = screen.getByLabelText(/^name/i);
@@ -671,10 +671,10 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new source/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new source/i }));
+      await user.click(screen.getByRole('button', { name: /add source/i }));
 
       await user.type(screen.getByLabelText(/^name/i), 'Loan');
       const amountInput = screen.getByLabelText(/total amount/i);
@@ -704,10 +704,10 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new source/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new source/i }));
+      await user.click(screen.getByRole('button', { name: /add source/i }));
 
       const nameInput = screen.getByLabelText(/^name/i);
       await user.type(nameInput, 'New Bank Loan');
@@ -744,10 +744,10 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new source/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new source/i }));
+      await user.click(screen.getByRole('button', { name: /add source/i }));
 
       await user.type(screen.getByLabelText(/^name/i), 'Post-Create');
       fireEvent.change(screen.getByLabelText(/total amount/i), { target: { value: '5000' } });
@@ -773,10 +773,10 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new source/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new source/i }));
+      await user.click(screen.getByRole('button', { name: /add source/i }));
 
       await user.type(screen.getByLabelText(/^name/i), 'Bad Source');
       fireEvent.change(screen.getByLabelText(/total amount/i), { target: { value: '100' } });
@@ -796,10 +796,10 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new source/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new source/i }));
+      await user.click(screen.getByRole('button', { name: /add source/i }));
 
       await user.type(screen.getByLabelText(/^name/i), 'Error Source');
       fireEvent.change(screen.getByLabelText(/total amount/i), { target: { value: '1000' } });
@@ -818,10 +818,10 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new source/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new source/i }));
+      await user.click(screen.getByRole('button', { name: /add source/i }));
 
       const typeSelect = screen.getByLabelText(/^type/i);
       expect(typeSelect).toBeInTheDocument();
@@ -842,10 +842,10 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new source/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new source/i }));
+      await user.click(screen.getByRole('button', { name: /add source/i }));
 
       const statusSelect = screen.getByLabelText(/^status/i);
       const options = statusSelect.querySelectorAll('option');
@@ -1333,10 +1333,10 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new source/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new source/i }));
+      await user.click(screen.getByRole('button', { name: /add source/i }));
       await user.type(screen.getByLabelText(/^name/i), 'New Source');
       fireEvent.change(screen.getByLabelText(/total amount/i), { target: { value: '10000' } });
       await user.click(screen.getByRole('button', { name: /create source/i }));
@@ -1360,11 +1360,11 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new source/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
       });
 
       // Create a source to get a success message
-      await user.click(screen.getByRole('button', { name: /new source/i }));
+      await user.click(screen.getByRole('button', { name: /add source/i }));
       await user.type(screen.getByLabelText(/^name/i), 'First Source');
       fireEvent.change(screen.getByLabelText(/total amount/i), { target: { value: '5000' } });
       await user.click(screen.getByRole('button', { name: /create source/i }));
@@ -1376,7 +1376,7 @@ describe('BudgetSourcesPage', () => {
       });
 
       // Re-open the create form — success message remains
-      await user.click(screen.getByRole('button', { name: /new source/i }));
+      await user.click(screen.getByRole('button', { name: /add source/i }));
 
       expect(
         screen.queryByText(/budget source "first source" created successfully/i),
@@ -1611,10 +1611,10 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /new source/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /new source/i }));
+      await user.click(screen.getByRole('button', { name: /add source/i }));
 
       const typeSelect = screen.getByLabelText(/^type/i);
       const options = Array.from(typeSelect.querySelectorAll('option')) as HTMLOptionElement[];
