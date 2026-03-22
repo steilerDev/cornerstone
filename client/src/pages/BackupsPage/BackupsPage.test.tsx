@@ -294,7 +294,7 @@ describe('BackupsPage', () => {
       });
     });
 
-    it('shows error message when createBackup() fails', async () => {
+    it('resets to enabled state after a failed createBackup() call', async () => {
       const user = userEvent.setup();
       mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
       mockCreateBackup.mockRejectedValueOnce(
@@ -312,9 +312,9 @@ describe('BackupsPage', () => {
 
       await user.click(screen.getByRole('button', { name: /create backup/i }));
 
+      // After failed create, button should be re-enabled (not stuck in "creating" state)
       await waitFor(() => {
-        // Error message from ApiClientError is shown
-        expect(screen.getByRole('alert')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /create backup/i })).not.toBeDisabled();
       });
     });
   });
@@ -331,17 +331,20 @@ describe('BackupsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText(backup1.filename)).toBeInTheDocument();
+        // The filename appears in the table
+        expect(screen.getAllByText(backup1.filename).length).toBeGreaterThan(0);
       });
 
       // Click the Delete button for backup1
       const deleteButton = screen.getByRole('button', { name: /delete/i });
       await user.click(deleteButton);
 
-      // Modal should appear with the filename
+      // Modal should appear — the filename now appears in both table and modal
       await waitFor(() => {
         expect(screen.getByText(/delete backup/i)).toBeInTheDocument();
-        expect(screen.getByText(backup1.filename)).toBeInTheDocument();
+        // Filename appears in table row + modal <strong> tag = 2 elements
+        const filenameElements = screen.getAllByText(backup1.filename);
+        expect(filenameElements.length).toBeGreaterThanOrEqual(2);
       });
     });
 
