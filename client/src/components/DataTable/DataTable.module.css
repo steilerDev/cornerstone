@@ -31,6 +31,7 @@
 
 .searchInput {
   width: 100%;
+  height: 36px;
   padding: var(--spacing-2) var(--spacing-3);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
@@ -38,6 +39,7 @@
   color: var(--color-text-primary);
   background-color: var(--color-bg-primary);
   transition: var(--transition-input);
+  box-sizing: border-box;
 }
 
 .searchInput:focus-visible {
@@ -53,7 +55,8 @@
 }
 
 .resetButton {
-  padding: var(--spacing-1-5) var(--spacing-3);
+  height: 36px;
+  padding: 0 var(--spacing-3);
   background-color: var(--color-bg-tertiary);
   color: var(--color-text-secondary);
   border: 1px solid var(--color-border-strong);
@@ -62,6 +65,7 @@
   font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: background-color var(--transition-normal);
+  box-sizing: border-box;
 }
 
 .resetButton:hover:not(:disabled) {
@@ -75,7 +79,9 @@
 
 /* Column Settings Button */
 .columnSettingsButton {
-  padding: var(--spacing-1-5) var(--spacing-2);
+  height: 36px;
+  width: 36px;
+  padding: 0;
   background-color: var(--color-bg-tertiary);
   color: var(--color-text-secondary);
   border: 1px solid var(--color-border-strong);
@@ -85,11 +91,10 @@
   transition:
     background-color var(--transition-normal),
     color var(--transition-normal);
-  min-width: 44px;
-  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
 }
 
 .columnSettingsButton:hover:not(:disabled) {
@@ -223,13 +228,34 @@
   background-color: var(--color-bg-secondary);
 }
 
-.columnCheckboxItemDragOver {
-  background-color: var(--color-primary);
-  color: var(--color-primary-text);
+.columnCheckboxItemDropAbove {
+  position: relative;
 }
 
-.columnCheckboxItemDragOver .columnCheckboxLabel {
-  color: var(--color-primary-text);
+.columnCheckboxItemDropAbove::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--color-primary);
+  border-radius: var(--radius-sm);
+}
+
+.columnCheckboxItemDropBelow {
+  position: relative;
+}
+
+.columnCheckboxItemDropBelow::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--color-primary);
+  border-radius: var(--radius-sm);
 }
 
 @media (prefers-reduced-motion: reduce) {

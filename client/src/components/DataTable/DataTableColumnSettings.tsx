@@ -3,6 +3,11 @@ import { useTranslation } from 'react-i18next';
 import type { ColumnDef } from './DataTable.js';
 import styles from './DataTable.module.css';
 
+interface DragOverState {
+  index: number;
+  position: 'above' | 'below';
+}
+
 export interface DataTableColumnSettingsProps<T> {
   columns: ColumnDef<T>[];
   visibleColumns: Set<string>;
@@ -29,7 +34,7 @@ export function DataTableColumnSettings<T>({
   const [isOpen, setIsOpen] = useState(false);
   const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({});
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [dragOverState, setDragOverState] = useState<DragOverState | null>(null);
 
   // Close on outside click
   useEffect(() => {
@@ -84,7 +89,18 @@ export function DataTableColumnSettings<T>({
         aria-expanded={isOpen}
         aria-haspopup="dialog"
       >
-        ⚙️
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 14 14"
+          fill="currentColor"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <rect x="1" y="2" width="12" height="2" rx="1" />
+          <rect x="1" y="6" width="12" height="2" rx="1" />
+          <rect x="1" y="10" width="12" height="2" rx="1" />
+        </svg>
       </button>
 
       {isOpen && (
@@ -101,24 +117,32 @@ export function DataTableColumnSettings<T>({
               {columns.map((col, index) => (
                 <div
                   key={col.key}
-                  className={`${styles.columnCheckboxItem} ${draggedIndex === index ? styles.columnCheckboxItemDragging : ''} ${dragOverIndex === index ? styles.columnCheckboxItemDragOver : ''}`}
+                  className={`${styles.columnCheckboxItem} ${draggedIndex === index ? styles.columnCheckboxItemDragging : ''} ${dragOverState?.index === index && dragOverState.position === 'above' ? styles.columnCheckboxItemDropAbove : ''} ${dragOverState?.index === index && dragOverState.position === 'below' ? styles.columnCheckboxItemDropBelow : ''}`}
                   draggable={index > 0}
-                  onDragStart={() => setDraggedIndex(index)}
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    setDraggedIndex(index);
+                  }}
                   onDragOver={(e) => {
                     e.preventDefault();
-                    if (index > 0) setDragOverIndex(index);
+                    e.dataTransfer.dropEffect = 'move';
+                    if (index > 0) {
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      const position = e.clientY < rect.top + rect.height / 2 ? 'above' : 'below';
+                      setDragOverState({ index, position });
+                    }
                   }}
-                  onDragLeave={() => setDragOverIndex(null)}
+                  onDragLeave={() => setDragOverState(null)}
                   onDrop={() => {
-                    if (draggedIndex !== null && draggedIndex !== index && index > 0) {
-                      onMoveColumn(draggedIndex, index);
+                    if (draggedIndex !== null && dragOverState !== null && dragOverState.index !== draggedIndex && dragOverState.index > 0) {
+                      onMoveColumn(draggedIndex, dragOverState.index);
                     }
                     setDraggedIndex(null);
-                    setDragOverIndex(null);
+                    setDragOverState(null);
                   }}
                   onDragEnd={() => {
                     setDraggedIndex(null);
-                    setDragOverIndex(null);
+                    setDragOverState(null);
                   }}
                 >
                   {index > 0 && (

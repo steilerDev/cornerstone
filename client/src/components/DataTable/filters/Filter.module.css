@@ -37,6 +37,15 @@
   box-shadow: var(--shadow-focus-subtle);
 }
 
+.filterDateInputConfirmed {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-bg);
+}
+
+.filterDateInputConfirmed:focus-visible {
+  box-shadow: var(--shadow-focus-subtle);
+}
+
 .filterActions {
   display: flex;
   gap: var(--spacing-2);

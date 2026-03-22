@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './Filter.module.css';
 
@@ -14,6 +14,7 @@ export interface DateFilterProps {
  */
 export function DateFilter({ value, onChange }: DateFilterProps) {
   const { t } = useTranslation('common');
+  const toInputRef = useRef<HTMLInputElement>(null);
 
   const parseValue = (v: string) => {
     const from = v.match(/from:([\d-]+)/)?.[1] || '';
@@ -24,6 +25,8 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
   const { from, to } = parseValue(value);
   const [localFrom, setLocalFrom] = useState(from);
   const [localTo, setLocalTo] = useState(to);
+
+  const fromConfirmed = localFrom !== '';
 
   const emitChange = useCallback(
     (newFrom: string, newTo: string) => {
@@ -39,6 +42,9 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
     (newFrom: string) => {
       setLocalFrom(newFrom);
       emitChange(newFrom, localTo);
+      if (newFrom) {
+        setTimeout(() => toInputRef.current?.focus(), 0);
+      }
     },
     [localTo, emitChange],
   );
@@ -59,7 +65,7 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
           type="date"
           value={localFrom}
           onChange={(e) => handleFromChange(e.target.value)}
-          className={styles.filterDateInput}
+          className={`${styles.filterDateInput} ${fromConfirmed ? styles.filterDateInputConfirmed : ''}`}
           autoFocus
         />
       </div>
@@ -70,6 +76,7 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
           value={localTo}
           onChange={(e) => handleToChange(e.target.value)}
           className={styles.filterDateInput}
+          ref={toInputRef}
         />
       </div>
     </div>

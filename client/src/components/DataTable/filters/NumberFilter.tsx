@@ -5,6 +5,9 @@ import styles from './Filter.module.css';
 export interface NumberFilterProps {
   value: string;
   onChange: (value: string) => void;
+  min?: number;
+  max?: number;
+  step?: number;
 }
 
 /**
@@ -12,7 +15,7 @@ export interface NumberFilterProps {
  * Stores as "min:X,max:Y" format
  * Auto-applies on input/slider change
  */
-export function NumberFilter({ value, onChange }: NumberFilterProps) {
+export function NumberFilter({ value, onChange, min: minBound, max: maxBound, step }: NumberFilterProps) {
   const { t } = useTranslation('common');
 
   const parseValue = (v: string) => {
@@ -51,6 +54,10 @@ export function NumberFilter({ value, onChange }: NumberFilterProps) {
     [localMin, emitChange],
   );
 
+  const defaultMin = minBound ?? 0;
+  const defaultMax = maxBound ?? 999999;
+  const defaultStep = step ?? 1;
+
   return (
     <div className={styles.filterContent}>
       <div className={styles.filterRangeRow}>
@@ -59,18 +66,22 @@ export function NumberFilter({ value, onChange }: NumberFilterProps) {
           type="number"
           value={localMin}
           onChange={(e) => handleMinChange(e.target.value)}
-          placeholder="0"
+          placeholder={String(defaultMin)}
           className={styles.filterRangeInput}
+          min={defaultMin}
+          max={defaultMax}
+          step={defaultStep}
           autoFocus
         />
       </div>
       <input
         type="range"
-        value={localMin || '0'}
+        value={localMin || String(defaultMin)}
         onChange={(e) => handleMinChange(e.target.value)}
         className={styles.filterRangeSlider}
-        min="0"
-        max="999999"
+        min={defaultMin}
+        max={defaultMax}
+        step={defaultStep}
         aria-label={t('dataTable.filter.min')}
       />
       <div className={styles.filterRangeRow}>
@@ -79,17 +90,21 @@ export function NumberFilter({ value, onChange }: NumberFilterProps) {
           type="number"
           value={localMax}
           onChange={(e) => handleMaxChange(e.target.value)}
-          placeholder="999999"
+          placeholder={String(defaultMax)}
           className={styles.filterRangeInput}
+          min={defaultMin}
+          max={defaultMax}
+          step={defaultStep}
         />
       </div>
       <input
         type="range"
-        value={localMax || '999999'}
+        value={localMax || String(defaultMax)}
         onChange={(e) => handleMaxChange(e.target.value)}
         className={styles.filterRangeSlider}
-        min="0"
-        max="999999"
+        min={defaultMin}
+        max={defaultMax}
+        step={defaultStep}
         aria-label={t('dataTable.filter.max')}
       />
     </div>
