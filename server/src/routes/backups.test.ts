@@ -25,14 +25,19 @@ import type { ApiErrorResponse, BackupListResponse, BackupResponse } from '@corn
 describe('Backup Routes', () => {
   let app: FastifyInstance;
   let tempDir: string;
+  let backupTempDir: string;
   let backupDir: string;
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
     originalEnv = { ...process.env };
 
+    // App data directory (DB lives here)
     tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-backup-routes-test-'));
-    backupDir = join(tempDir, 'backups');
+    // Backup directory MUST be outside the app data directory (config validation)
+    backupTempDir = mkdtempSync(join(tmpdir(), 'cornerstone-backup-backups-test-'));
+    backupDir = backupTempDir;
+
     process.env.DATABASE_URL = join(tempDir, 'test.db');
     process.env.SECURE_COOKIES = 'false';
     // Note: BACKUP_DIR is NOT set by default — routes should return 503
@@ -49,6 +54,11 @@ describe('Backup Routes', () => {
 
     try {
       rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+    try {
+      rmSync(backupTempDir, { recursive: true, force: true });
     } catch {
       // Ignore cleanup errors
     }
