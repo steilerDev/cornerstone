@@ -193,6 +193,11 @@ export class WorkItemsPage {
       { timeout: 10000 },
     );
     await this.searchInput.fill(query);
+    // Wait for the URL to include ?q= — this confirms the debounce has fired and
+    // React state has updated. Without this, waitForLoaded() can return immediately
+    // when old cards are still visible (before the filtered results replace them),
+    // causing getWorkItemTitles() to return stale pre-search data.
+    await this.page.waitForURL((url) => url.searchParams.has('q'), { timeout: 10000 });
     await responsePromise;
     await this.waitForLoaded();
   }
@@ -210,6 +215,9 @@ export class WorkItemsPage {
       { timeout: 10000 },
     );
     await this.searchInput.clear();
+    // Wait for the URL to NOT have ?q= — confirms the debounce cleared the search param
+    // and React state has updated (same race-condition prevention as search()).
+    await this.page.waitForURL((url) => !url.searchParams.has('q'), { timeout: 10000 });
     await responsePromise;
     await this.waitForLoaded();
   }
