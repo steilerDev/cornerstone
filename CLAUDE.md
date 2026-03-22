@@ -1,5 +1,7 @@
 # Cornerstone - Project Guide
 
+<!-- CLA test: this line will be removed -->
+
 ## Project Overview
 
 Cornerstone is a web-based home building project management application designed to help homeowners manage their construction project. It tracks work items, budgets (with multiple financing sources and subsidies), timelines (Gantt chart), and household item purchases.
