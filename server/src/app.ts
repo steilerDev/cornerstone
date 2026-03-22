@@ -244,6 +244,11 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Initialize automatic backup scheduler (if configured)
   backupService.initScheduler(app.db, app.config, app.log);
 
+  // Stop backup scheduler on shutdown
+  app.addHook('onClose', () => {
+    backupService.stopScheduler();
+  });
+
   // Well-known redirects for CalDAV/CardDAV discovery
   app.get('/.well-known/caldav', (request, reply) => {
     return reply.status(301).redirect('/dav/');
