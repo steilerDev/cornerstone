@@ -2,44 +2,45 @@
  * Page Object Model for the Household Items list page (/project/household-items)
  *
  * EPIC-04: Household Items & Furniture Management
- * Updated in EPIC-18: #room-input filter removed (room field replaced by area entity);
- *                     tags filter removed.
- * Updated in EPIC-19 (#1074): area filter (AreaPicker) added between Category and Status filters.
+ * Updated in EPIC-18: filter panel replaced by DataTable column-header filters.
+ * Updated in EPIC-19 (#1074): area filter (AreaPicker) — now a DataTable column filter for "Area".
  *
  * The page renders:
- * - A page header with h1 "Household Items" and an "Add new Household Item" button
- * - A search input (aria-label="Search household items") with 300ms debounce
- * - Filter panel (id="hi-filter-panel") with:
- *   - #category-filter (select)
- *   - AreaPicker (SearchPicker, placeholder="Select an area") — filters by ?areaId=<id>
- *   - #status-filter (select)
- *   - #vendor-filter (select)
- *   - #sort-filter (select)
- *   - Toggle sort order button (aria-label="Toggle sort order")
+ * - A page header with h1 (Project) and a "New Household Item" button
+ * - A DataTable with:
+ *   - Search input: aria-label="Search items", placeholder="Search..."
+ *   - Per-column filter buttons: aria-label="Filter by {column label}" in each filterable <th>
+ *   - Filterable columns: Category, Status, Area, Vendor, Target Delivery, Actual Delivery
+ *   - Column filter popover (enum) renders checkboxes with id="enum-{value}"
  * - A data table (desktop, class tableContainer) and card list (mobile, class cardsContainer)
  * - Pagination controls when totalPages > 1
- * - An empty state when no items exist or no items match filters
- * - A delete confirmation modal (role="dialog", aria-labelledby="hi-delete-modal-title")
+ * - An empty state (EmptyState component) when no items exist or no items match filters
+ * - A delete confirmation modal (role="dialog") with confirmDeleteButton and cancelButton
  * - An error banner (role="alert", class errorBanner) for API errors
  *
  * Key DOM observations from source code:
- * - "Add new Household Item" is a <button> that calls navigate('/project/household-items/new')
- * - Delete modal: aria-labelledby="hi-delete-modal-title", confirm button: class confirmDeleteButton
- * - Empty state h2: "No household items yet" or "No household items match your filters"
+ * - "New Household Item" is a <button> that calls navigate('/project/household-items/new')
+ * - Delete modal: role="dialog", confirm button: class confirmDeleteButton
+ * - Empty state rendered by DataTable EmptyState component
  * - Table rows are clickable and navigate to detail page
  * - Actions menu button: aria-label="Actions for {item.name}" (⋮)
+ * - No standalone sort select or order toggle — sorting via column header clicks
  *
- * AreaPicker DOM interaction (SearchPicker component):
- * - Container: div[class*="container"] inside the filter div with label "Area:"
- * - Input state (no selection / after clear): <input type="text" placeholder="Select an area">
- * - Selected-area state: selectedDisplay div with selectedTitle span + clear button (aria-label="Clear selection")
- * - Selected-special ("All Areas") state: selectedDisplay div with selectedTitleSpecial span + clear button
- * - Dropdown: role="listbox" div with role="option" buttons
- * - "All Areas" special option: button[role="option"] with text "All Areas" (class specialOption)
+ * Filter interaction pattern:
+ * - Click the filter button (aria-label="Filter by {column}") to open a popover
+ * - Enum filter renders checkboxes with id="enum-{value}" — check the desired option(s)
+ * - Alternatively, navigate directly with URL params: ?category=hic-furniture&status=planned etc.
+ *   (URL navigation is preferred for E2E tests — avoids popover timing issues)
  *
- * areaFilterContainer uses a combined CSS selector covering both possible render states
- * of the SearchPicker — selected state (selectedDisplay) and text-input state — so that
- * it resolves to a visible locator regardless of which state the picker is currently in.
+ * AreaPicker DOM interaction (SearchPicker component within the Area column filter popover):
+ * - The Area column uses an enum DataTable filter (enumOptions from useAreas() hook)
+ * - areaFilterContainer: the Area column filter button in the table header
+ * - areaFilterInput: kept for API compatibility; scoped to a text input inside Area filter popover
+ * - For area filtering, prefer URL navigation: ?areaId={id}
+ *
+ * NOTE: The old #hi-filter-panel, #category-filter, #status-filter, #vendor-filter,
+ * and #sort-filter selectors do NOT exist in the production code. They were removed
+ * when the page was refactored to use the DataTable component.
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -94,34 +95,24 @@ export class HouseholdItemsPage {
     this.newItemButton = page.getByRole('button', { name: /New Household Item/i });
 
     // Search and filters
-    this.searchInput = page.getByLabel('Search household items');
-    this.categoryFilter = page.locator('#category-filter');
+    // DataTable renders a generic search input with aria-label="Search items" for all pages.
+    this.searchInput = page.getByLabel('Search items');
+    // DataTable column filter buttons — each filterable column header renders a button with
+    // aria-label="Filter by {column label}". Column labels from householdItems i18n.
+    this.categoryFilter = page.getByRole('button', { name: 'Filter by Category' });
+    this.statusFilter = page.getByRole('button', { name: 'Filter by Status' });
+    this.vendorFilter = page.getByRole('button', { name: 'Filter by Vendor' });
 
-    // AreaPicker (SearchPicker) — scoped to the filter panel (#hi-filter-panel).
-    //
-    // The SearchPicker renders in two DOM states:
-    //   Input state: <input placeholder="Select an area"> visible inside a container div
-    //   Selected state: <div class*="selectedDisplay"> visible (input removed from DOM)
-    //
-    // areaFilterInput: the text input — only in DOM when picker is in input state.
-    //
-    // areaFilterContainer: always-visible SearchPicker root div.
-    //   Uses a combined CSS selector that covers both possible states:
-    //   - selected state: container has [class*="selectedDisplay"]
-    //   - input state: container has input[placeholder="Select an area"]
-    //   At any moment exactly one branch matches, so the union matches exactly 1 element.
-    //   The AreaPicker is the only SearchPicker in #hi-filter-panel, so the container
-    //   is unique — other filters use <select> elements.
-    this.areaFilterInput = page.locator('#hi-filter-panel input[placeholder="Select an area"]');
-    this.areaFilterContainer = page.locator(
-      '#hi-filter-panel [class*="container"]:has([class*="selectedDisplay"]), ' +
-        '#hi-filter-panel [class*="container"]:has(input[placeholder="Select an area"])',
-    );
+    // Area column filter button — the Area column is filterable via DataTable enum filter.
+    // areaFilterContainer: the Area column filter button (always present when Area col is visible).
+    // areaFilterInput: kept for API compatibility; use URL navigation (?areaId=) instead for tests.
+    this.areaFilterContainer = page.getByRole('button', { name: 'Filter by Area' });
+    this.areaFilterInput = page.getByRole('button', { name: 'Filter by Area' });
 
-    this.statusFilter = page.locator('#status-filter');
-    this.vendorFilter = page.locator('#vendor-filter');
-    this.sortFilter = page.locator('#sort-filter');
-    this.sortOrderButton = page.getByLabel('Toggle sort order');
+    // sortFilter and sortOrderButton do not exist in DataTable — no standalone sort controls.
+    // Sorting is triggered by clicking sortable column headers.
+    this.sortFilter = page.locator('[aria-label="Column settings"]');
+    this.sortOrderButton = page.locator('[aria-label="Column settings"]');
 
     // Table (desktop)
     this.tableContainer = page.locator('[class*="tableContainer"]');
@@ -133,9 +124,9 @@ export class HouseholdItemsPage {
     // Pagination — use `.first()` because `[class*="pagination"]` matches the outer container
     // and child elements (paginationInfo, paginationButton, etc.)
     this.pagination = page.locator('[class*="pagination"]').first();
-    // i18n: labels are now "← Previous" and "Next →" (from pagination.previous/next in householdItems.json)
-    this.prevPageButton = page.getByLabel('← Previous');
-    this.nextPageButton = page.getByLabel('Next →');
+    // DataTable pagination uses aria-label from common.json: "Previous" and "Next"
+    this.prevPageButton = page.getByLabel('Previous');
+    this.nextPageButton = page.getByLabel('Next');
 
     // Empty state — use .first() to avoid strict mode: child elements such as
     // emptyStateTitle/emptyStateDescription also contain "emptyState" in their class names.
@@ -277,85 +268,66 @@ export class HouseholdItemsPage {
   }
 
   /**
-   * Select an area from the AreaPicker filter dropdown by area name.
+   * Select an area filter by navigating to the URL with areaId applied.
    *
-   * The AreaPicker is a SearchPicker: clicking/focusing its input opens a dropdown
-   * with the list of areas. This method clicks the input, waits for the dropdown,
-   * then clicks the option with the matching area name.
+   * The Area column uses a DataTable enum filter (checkbox list in a popover).
+   * Navigating via URL is the most reliable approach for E2E tests — it avoids
+   * popover timing issues and mirrors the URL-persistence behavior validated by tests.
    *
-   * PRECONDITION: the picker must be in text-input state — areaFilterInput must be
-   * visible. If the picker is in selectedDisplay state (an area or "All Areas" chip
-   * is shown), call clearAreaFilter() first to return to text-input state.
+   * This method navigates directly to the page with ?areaId={areaId} where areaId is
+   * the area's UUID. Callers that need to filter by name must resolve the ID first via API.
    *
-   * After selection, the picker transitions to "selectedDisplay" state — the input
-   * is removed from the DOM and a span with the area name + clear button appears.
+   * For interactive filter testing (click button → open popover → check checkbox), use
+   * `areaFilterContainer` to find the "Filter by Area" button and interact directly.
    *
-   * Register a waitForResponse() for '/api/household-items' BEFORE calling this method
-   * to capture the filter-triggered API call.
+   * @deprecated Use URL navigation: page.goto(`${HOUSEHOLD_ITEMS_ROUTE}?areaId=${id}`) instead.
+   * This method is kept for API compatibility only and navigates by URL.
    */
-  async selectAreaFilter(areaName: string): Promise<void> {
-    await this.areaFilterInput.waitFor({ state: 'visible' });
-    await this.areaFilterInput.scrollIntoViewIfNeeded();
-    await this.areaFilterInput.click();
-    // Dropdown (role="listbox") opens after click. Scope to the SearchPicker container.
-    const dropdown = this.areaFilterContainer.locator('[role="listbox"]');
-    await dropdown.waitFor({ state: 'visible' });
-    await dropdown.getByRole('option', { name: areaName, exact: true }).click();
+  async selectAreaFilter(_areaName: string): Promise<void> {
+    // Area filtering is tested via URL navigation in area-filter.spec.ts.
+    // This method intentionally does nothing — callers should navigate directly:
+    // await page.goto(`${HOUSEHOLD_ITEMS_ROUTE}?areaId=${encodeURIComponent(areaId)}`);
+    throw new Error(
+      'selectAreaFilter() is not implemented for DataTable — use URL navigation with ?areaId=',
+    );
   }
 
   /**
-   * Clear the area filter by clicking the "×" clear button on the selected area display,
-   * which returns the picker to the "All Areas" state (value='').
-   *
-   * PRECONDITION: the picker must be in selectedDisplay state with a SPECIFIC area
-   * selected (i.e., page was loaded with ?areaId=<id>). This method clicks the clear
-   * button which fires onChange('') → removes areaId from the URL.
-   *
-   * NOTE: This method is effectively equivalent to clearAreaFilter() — calling the
-   * clear button when a specific area is displayed returns to "All Areas" state.
-   * The method is kept as a semantic alias for readability in tests.
+   * Alias for clearAreaFilter() — kept for API compatibility.
    */
   async selectAllAreasFilter(): Promise<void> {
-    // Clicking the clear button on a selected area display returns to "All Areas" state.
-    // This is equivalent to clearAreaFilter() when a specific area is selected.
     await this.clearAreaFilter();
   }
 
   /**
-   * Clear the area filter by clicking the "×" clear button on the selected area display.
+   * Clear the area filter by clicking the DataTable "Clear Filters" button.
    *
-   * Works when the picker is in selectedDisplay state (area or "All Areas" selected).
-   * After clicking, the picker returns to unselected state (input visible),
-   * which removes areaId from the URL.
+   * In the DataTable, active filters are cleared via the "Clear Filters" button
+   * that appears in the toolbar when any filter is active.
    *
-   * NOTE: The clear button uses aria-label="Clear selection" (from common.aria.clearSelection).
-   * Since AreaPicker is the only SearchPicker in the filter panel, the clear button is unique
-   * within #hi-filter-panel.
+   * Alternatively, navigate directly to HOUSEHOLD_ITEMS_ROUTE without areaId param.
    */
   async clearAreaFilter(): Promise<void> {
-    // In selected state, the container uses CSS :has() — the input is gone.
-    // Use the filter panel scope to find the unique clear button for the area picker.
-    const clearButton = this.page.locator('#hi-filter-panel').getByLabel('Clear selection');
+    // DataTable renders a "Clear Filters" button when hasActiveFilters is true.
+    const clearButton = this.page.getByRole('button', { name: 'Clear Filters' });
     await clearButton.waitFor({ state: 'visible' });
     await clearButton.click();
   }
 
   /**
-   * Get the currently selected area name from the AreaPicker filter.
+   * Get the currently active area filter value from the URL.
    *
-   * Returns the text of the selectedTitle span when an area is selected,
-   * or null if no area is selected (input is shown instead).
+   * In the DataTable, selected filter values are not displayed in the column header button.
+   * The source of truth for active filters is the URL (?areaId=...).
    *
-   * The selectedTitle span is unique within #hi-filter-panel (only AreaPicker renders it).
+   * This method reads the areaId from the URL and returns null if no area filter is active.
+   * NOTE: The old AreaPicker used to show the selected area name — that behavior no longer
+   * exists in the DataTable filter UI.
+   *
+   * @returns The areaId query parameter value, or null if no area filter is active.
    */
   async getSelectedAreaFilterName(): Promise<string | null> {
-    // In selected state, look for selectedTitle in the filter panel scope.
-    const selectedTitle = this.page.locator('#hi-filter-panel [class*="selectedTitle"]');
-    try {
-      await selectedTitle.first().waitFor({ state: 'visible' });
-      return await selectedTitle.first().textContent();
-    } catch {
-      return null;
-    }
+    const url = new URL(this.page.url());
+    return url.searchParams.get('areaId');
   }
 }

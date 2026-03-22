@@ -6,7 +6,6 @@ import type { Page, Locator } from '@playwright/test';
 
 export class AppShellPage {
   readonly page: Page;
-  readonly header: Locator;
   readonly sidebar: Locator;
   readonly menuButton: Locator;
   readonly sidebarCloseButton: Locator;
@@ -15,12 +14,11 @@ export class AppShellPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.header = page.locator('header');
     this.sidebar = page.locator('aside');
-    // Scope menuButton to header to avoid strict mode violation
-    // (sidebar also has a "Close menu" button)
-    this.menuButton = page.locator('header').getByRole('button', { name: /Open menu|Close menu/ });
-    // Scope sidebarCloseButton to aside to avoid matching header button when both say "Close menu"
+    // AppShell renders a floating action button with data-testid="menu-fab" — no <header> element.
+    // The FAB is the only menu toggle button; it is outside the sidebar (aside).
+    this.menuButton = page.getByTestId('menu-fab');
+    // Scope sidebarCloseButton to aside to avoid matching the FAB when both say "Close menu"
     this.sidebarCloseButton = page.locator('aside').getByRole('button', { name: 'Close menu' });
     this.nav = page.getByRole('navigation', { name: 'Main navigation' });
     this.overlay = page.locator('div[aria-hidden="true"]').last();

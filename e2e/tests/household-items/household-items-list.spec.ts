@@ -141,12 +141,14 @@ test.describe('Empty state — filter no match (Scenario 4)', { tag: '@responsiv
 
       await expect(async () => {
         await expect(listPage.emptyState).toBeVisible({ timeout: 5000 });
+        // DataTable renders t('dataTable.empty.filteredMessage') = "No items match the current filters"
+        // when hasActiveFilters is true (search or column filters active).
         const emptyText = await listPage.emptyState.textContent();
-        expect(emptyText?.toLowerCase()).toMatch(/no household items match your filters/);
+        expect(emptyText?.toLowerCase()).toMatch(/no items match the current filters/);
 
-        // "Clear All Filters" button visible
+        // DataTable renders "Clear Filters" button (t('button.clearFilters')) in filtered empty state.
         const clearButton = listPage.emptyState.getByRole('button', {
-          name: /Clear All Filters/i,
+          name: /Clear Filters/i,
         });
         await expect(clearButton).toBeVisible();
       }).toPass({ timeout: 30000 });
@@ -287,17 +289,18 @@ test.describe('Category filter (Scenario 7)', { tag: '@responsive' }, () => {
         await createHouseholdItemViaApi(page, { name: applianceName, category: 'hic-appliances' }),
       );
 
-      await listPage.goto();
+      // Navigate directly with the category filter in the URL — DataTable reads filter params
+      // from the URL on load. This is the reliable approach for DataTable enum column filters
+      // (the old #category-filter select element no longer exists).
+      await page.goto(
+        `/project/household-items?q=${encodeURIComponent(`${testPrefix} HI Cat`)}&category=hic-furniture`,
+      );
+      await listPage.heading.waitFor({ state: 'visible' });
       await listPage.waitForLoaded();
 
-      // First search to narrow to our prefix, then apply category filter
-      await listPage.search(`${testPrefix} HI Cat`);
-
-      // Select 'hic-furniture' category and wait for URL to reflect it
-      await listPage.categoryFilter.selectOption('hic-furniture');
-      await page.waitForURL((url) => url.searchParams.get('category') === 'hic-furniture', {
-        timeout: 10000,
-      });
+      // Verify URL contains category filter
+      const url = new URL(page.url());
+      expect(url.searchParams.get('category')).toBe('hic-furniture');
 
       await expect(async () => {
         const names = await listPage.getItemNames();
@@ -332,16 +335,18 @@ test.describe('Status filter (Scenario 8)', { tag: '@responsive' }, () => {
         await createHouseholdItemViaApi(page, { name: purchasedName, status: 'purchased' }),
       );
 
-      await listPage.goto();
+      // Navigate directly with the status filter in the URL — DataTable reads filter params
+      // from the URL on load. This is the reliable approach for DataTable enum column filters
+      // (the old #status-filter select element no longer exists).
+      await page.goto(
+        `/project/household-items?q=${encodeURIComponent(`${testPrefix} HI Status`)}&status=planned`,
+      );
+      await listPage.heading.waitFor({ state: 'visible' });
       await listPage.waitForLoaded();
 
-      await listPage.search(`${testPrefix} HI Status`);
-
-      // Select 'planned' status and wait for URL to reflect it
-      await listPage.statusFilter.selectOption('planned');
-      await page.waitForURL((url) => url.searchParams.get('status') === 'planned', {
-        timeout: 10000,
-      });
+      // Verify URL contains status filter
+      const statusUrl = new URL(page.url());
+      expect(statusUrl.searchParams.get('status')).toBe('planned');
 
       await expect(async () => {
         const names = await listPage.getItemNames();
@@ -643,9 +648,15 @@ test.describe('Dark mode rendering (Scenario 16)', { tag: '@responsive' }, () =>
     await listPage.heading.waitFor({ state: 'visible', timeout: 7000 });
 
     await expect(listPage.searchInput).toBeVisible();
-    await expect(listPage.categoryFilter).toBeVisible();
-    await expect(listPage.statusFilter).toBeVisible();
-    await expect(listPage.sortOrderButton).toBeVisible();
+    // Column filter buttons are in the table header (<thead>) which is CSS-hidden on mobile
+    // (tableContainer has display:none at max-width: 767px). Only check them on tablet+desktop.
+    const viewport = page.viewportSize();
+    if (viewport && viewport.width >= 768) {
+      await expect(listPage.categoryFilter).toBeVisible();
+      await expect(listPage.statusFilter).toBeVisible();
+    }
+    // DataTable toolbar (search + column settings) is always visible across all viewports.
+    await expect(page.getByLabel('Column settings')).toBeVisible();
   });
 });
 
@@ -653,14 +664,17 @@ test.describe('Dark mode rendering (Scenario 16)', { tag: '@responsive' }, () =>
 // Scenario 17: Filter panel accessible landmark
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Accessibility (Scenario 17)', { tag: '@responsive' }, () => {
-  test('Filter panel has accessible role="search" landmark', async ({ page }) => {
+  test('DataTable search input is accessible with aria-label', async ({ page }) => {
     const listPage = new HouseholdItemsPage(page);
 
     await listPage.goto();
 
-    // The filter panel has role="search" and aria-label="Household item filters"
-    const filterRegion = page.getByRole('search', { name: 'Household item filters' });
-    await expect(filterRegion).toBeVisible();
+    // DataTable renders a search input with type="search" and aria-label="Search items"
+    // (the old role="search" filter panel landmark was removed when the page was
+    // refactored to use the shared DataTable component).
+    await expect(listPage.searchInput).toBeVisible();
+    const searchInput = page.getByRole('searchbox', { name: 'Search items' });
+    await expect(searchInput).toBeVisible();
   });
 
   test('Search input has accessible label', async ({ page }) => {
@@ -669,8 +683,8 @@ test.describe('Accessibility (Scenario 17)', { tag: '@responsive' }, () => {
     await listPage.goto();
 
     await expect(listPage.searchInput).toBeVisible();
-    // The aria-label is "Search household items"
+    // DataTable renders aria-label="Search items" for all pages using the component.
     const label = await listPage.searchInput.getAttribute('aria-label');
-    expect(label).toBe('Search household items');
+    expect(label).toBe('Search items');
   });
 });

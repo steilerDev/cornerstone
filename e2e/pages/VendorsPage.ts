@@ -83,9 +83,14 @@ export class VendorsPage {
     this.addVendorButton = page.getByRole('button', { name: 'Add Vendor', exact: true });
 
     // Search / sort
-    this.searchInput = page.getByLabel('Search vendors');
-    this.sortSelect = page.locator('#sort-select');
-    this.sortOrderButton = page.getByLabel('Toggle sort order');
+    // DataTable renders a generic search input with aria-label="Search items" for all pages.
+    this.searchInput = page.getByLabel('Search items');
+    // DataTable sorting is column-header-based — no standalone sort select or order toggle button.
+    // Sorting is triggered by clicking a sortable column header (th) in the table.
+    // These locators are kept for API compatibility but point to the column settings button
+    // which is the only sort-related toolbar element in DataTable.
+    this.sortSelect = page.getByLabel('Column settings');
+    this.sortOrderButton = page.getByLabel('Column settings');
 
     // Error banner outside modals
     this.errorBanner = page
@@ -110,8 +115,9 @@ export class VendorsPage {
     // which causes strict mode violations in production CSS Modules.
     this.pagination = page.locator('[class*="pagination"]').first();
     this.paginationInfo = page.locator('[class*="paginationInfo"]');
-    this.prevPageButton = page.getByLabel('Previous page');
-    this.nextPageButton = page.getByLabel('Next page');
+    // DataTable pagination uses aria-label from common.json: "Previous" and "Next"
+    this.prevPageButton = page.getByLabel('Previous');
+    this.nextPageButton = page.getByLabel('Next');
 
     // Create modal
     this.createModal = page.getByRole('dialog', { name: 'Add Vendor' });

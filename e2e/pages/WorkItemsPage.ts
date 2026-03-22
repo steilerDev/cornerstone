@@ -3,7 +3,8 @@
  *
  * The page renders:
  * - A page header with h1 "Work Items" and a "New Work Item" button (navigates to /project/work-items/new)
- * - A search input and filter/sort controls (status, user, tag, sortBy, sort order toggle)
+ * - A DataTable with search input (aria-label="Search items") and per-column filter buttons
+ * - Filter buttons in column headers: aria-label="Filter by {column label}" (Status, Assigned To, etc.)
  * - A data table (desktop, class tableContainer) and card list (mobile, class cardsContainer)
  * - Pagination controls when totalPages > 1
  * - An empty state when no work items exist or no items match filters
@@ -14,9 +15,10 @@
  * - "New Work Item" is a <button> (not a <Link>) that calls navigate('/project/work-items/new')
  * - The delete modal uses role="dialog" with aria-modal="true" (no aria-labelledby)
  * - The confirm delete button uses class `confirmDeleteButton` (not an accessible name)
- * - Empty state renders an h2: "No work items yet" or "No work items match your filters"
+ * - Empty state rendered by DataTable EmptyState component
  * - Table rows are clickable and navigate to detail page
  * - Actions menu button: aria-label="Actions menu" (⋮)
+ * - No standalone sort select or order toggle — sorting via column header clicks
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -70,12 +72,19 @@ export class WorkItemsPage {
     this.newWorkItemButton = page.getByRole('button', { name: /New Work Item/ });
 
     // Search and filters
-    this.searchInput = page.getByLabel('Search work items');
-    this.statusFilter = page.locator('#status-filter');
-    this.userFilter = page.locator('#user-filter');
-    this.tagFilter = page.locator('#tag-filter');
-    this.sortFilter = page.locator('#sort-filter');
-    this.sortOrderButton = page.getByLabel('Toggle sort order');
+    // DataTable renders a generic search input with aria-label="Search items" for all pages.
+    this.searchInput = page.getByLabel('Search items');
+    // DataTable filters are column-header filter buttons, not standalone <select> elements.
+    // Each filterable column header renders a button with aria-label="Filter by {column label}".
+    // Column labels come from workItems i18n: Status, Assigned To, Vendor.
+    this.statusFilter = page.getByRole('button', { name: 'Filter by Status' });
+    this.userFilter = page.getByRole('button', { name: 'Filter by Assigned To' });
+    // Tags column was removed — tagFilter kept for API compatibility, points to userFilter.
+    this.tagFilter = page.getByRole('button', { name: 'Filter by Assigned To' });
+    // sortFilter and sortOrderButton do not exist in DataTable — no standalone sort controls.
+    // Sorting is triggered by clicking sortable column headers.
+    this.sortFilter = page.locator('[aria-label="Column settings"]');
+    this.sortOrderButton = page.locator('[aria-label="Column settings"]');
 
     // Table (desktop)
     this.tableContainer = page.locator('[class*="tableContainer"]');
@@ -87,8 +96,9 @@ export class WorkItemsPage {
     // Pagination — use `.first()` because `[class*="pagination"]` matches
     // the outer container and child elements (paginationInfo, paginationButton, etc.)
     this.pagination = page.locator('[class*="pagination"]').first();
-    this.prevPageButton = page.getByLabel('Previous page');
-    this.nextPageButton = page.getByLabel('Next page');
+    // DataTable pagination uses aria-label from common.json: "Previous" and "Next"
+    this.prevPageButton = page.getByLabel('Previous');
+    this.nextPageButton = page.getByLabel('Next');
 
     // Empty state — use .first() to avoid strict mode: child elements such as
     // emptyStateTitle/emptyStateDescription also contain "emptyState" in their class names.

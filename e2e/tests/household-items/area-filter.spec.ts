@@ -34,10 +34,16 @@ test.describe('Area filter visible (Scenario 1)', { tag: '@responsive' }, () => 
 
     await listPage.goto();
 
-    // Use areaFilterContainer (always-visible regardless of SearchPicker render state)
-    // rather than areaFilterInput which is only in the DOM when the picker is in
-    // the text-input state (no selection active).
-    await expect(listPage.areaFilterContainer).toBeVisible();
+    // areaFilterContainer points to the "Filter by Area" DataTable column filter button,
+    // which is in the table header. The table is CSS-hidden on mobile (< 768px).
+    // Skip this assertion on mobile viewports where the table header is not visible.
+    const viewport = page.viewportSize();
+    if (viewport && viewport.width >= 768) {
+      await expect(listPage.areaFilterContainer).toBeVisible();
+    } else {
+      // On mobile, verify the page loaded successfully instead.
+      await expect(listPage.heading).toBeVisible();
+    }
   });
 
   test('Area filter appears between category and status filters', async ({ page }) => {
@@ -45,11 +51,17 @@ test.describe('Area filter visible (Scenario 1)', { tag: '@responsive' }, () => 
 
     await listPage.goto();
 
-    // All three filter controls should be visible simultaneously.
-    // AreaPicker uses areaFilterContainer (always-visible regardless of picker render state).
-    await expect(listPage.categoryFilter).toBeVisible();
-    await expect(listPage.areaFilterContainer).toBeVisible();
-    await expect(listPage.statusFilter).toBeVisible();
+    // All three filter controls are DataTable column header filter buttons in the table header.
+    // The table (and its header) is CSS-hidden on mobile (< 768px), so skip on mobile.
+    const viewport = page.viewportSize();
+    if (viewport && viewport.width >= 768) {
+      await expect(listPage.categoryFilter).toBeVisible();
+      await expect(listPage.areaFilterContainer).toBeVisible();
+      await expect(listPage.statusFilter).toBeVisible();
+    } else {
+      // On mobile, verify the page loaded successfully instead.
+      await expect(listPage.heading).toBeVisible();
+    }
   });
 });
 
@@ -108,10 +120,10 @@ test.describe('Selecting area filters items (Scenario 2)', { tag: '@responsive' 
         expect(names).not.toContain(itemInBetaName);
       }).toPass({ timeout: 30_000 });
 
-      // The AreaPicker should show the pre-selected area name
+      // The area filter should be active — areaId must appear in the URL
       await expect(async () => {
-        const selectedName = await listPage.getSelectedAreaFilterName();
-        expect(selectedName?.trim()).toBe(areaAlphaName);
+        const selectedAreaId = await listPage.getSelectedAreaFilterName();
+        expect(selectedAreaId).toBe(areaAlphaId);
       }).toPass({ timeout: 20_000 });
     } finally {
       for (const id of itemIds) {
@@ -140,8 +152,12 @@ test.describe('Selecting All Areas clears filter (Scenario 3)', { tag: '@respons
     await listPage.goto();
     await listPage.waitForLoaded();
 
-    // The AreaPicker container (always-visible) must be present in the filter panel
-    await expect(listPage.areaFilterContainer).toBeVisible();
+    // The Area column filter button is in the DataTable header (thead).
+    // The table is CSS-hidden on mobile (< 768px), so only check on tablet+desktop.
+    const viewport = page.viewportSize();
+    if (viewport && viewport.width >= 768) {
+      await expect(listPage.areaFilterContainer).toBeVisible();
+    }
 
     // areaId must NOT appear in the URL on initial load
     const url = new URL(page.url());
@@ -240,10 +256,10 @@ test.describe('URL persistence on reload (Scenario 4)', { tag: '@responsive' }, 
       await listPage.heading.waitFor({ state: 'visible' });
       await listPage.waitForLoaded();
 
-      // The AreaPicker should show the pre-selected area name (initialTitle state)
+      // The area filter should be active — areaId must appear in the URL
       await expect(async () => {
-        const selectedName = await listPage.getSelectedAreaFilterName();
-        expect(selectedName?.trim()).toBe(areaName);
+        const selectedAreaId = await listPage.getSelectedAreaFilterName();
+        expect(selectedAreaId).toBe(areaId);
       }).toPass({ timeout: 20_000 });
 
       // Only the item in that area should be shown
@@ -369,13 +385,14 @@ test.describe('Empty state for area with no items (Scenario 6)', { tag: '@respon
         await expect(listPage.emptyState).toBeVisible();
       }).toPass({ timeout: 30_000 });
 
-      // Empty state should indicate filter-based no-results (not "no items yet")
+      // Empty state should indicate filter-based no-results (not "no items yet").
+      // DataTable renders t('dataTable.empty.filteredMessage') = "No items match the current filters"
       const emptyText = await listPage.emptyState.textContent();
-      expect(emptyText?.toLowerCase()).toMatch(/no household items match your filters/);
+      expect(emptyText?.toLowerCase()).toMatch(/no items match the current filters/);
 
-      // "Clear All Filters" button should be visible
+      // DataTable "Clear Filters" button should be visible in the empty state action.
       const clearButton = listPage.emptyState.getByRole('button', {
-        name: /Clear All Filters/i,
+        name: /Clear Filters/i,
       });
       await expect(clearButton).toBeVisible();
     } finally {
