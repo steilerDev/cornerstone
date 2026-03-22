@@ -23,13 +23,13 @@ import { API } from '../../fixtures/testData.js';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MOCK_BACKUP_1 = {
-  filename: 'cornerstone-backup-2026-03-22T10-00-00.tar.gz',
+  filename: 'cornerstone-backup-2026-03-22T100000Z.tar.gz',
   createdAt: '2026-03-22T10:00:00.000Z',
   sizeBytes: 1048576, // 1 MB
 };
 
 const MOCK_BACKUP_2 = {
-  filename: 'cornerstone-backup-2026-03-21T08-30-00.tar.gz',
+  filename: 'cornerstone-backup-2026-03-21T083000Z.tar.gz',
   createdAt: '2026-03-21T08:30:00.000Z',
   sizeBytes: 512000, // 500 KB
 };
@@ -167,7 +167,7 @@ test.describe('Backups page — configured state (mocked)', () => {
 
   test('Create backup adds new entry to the list', async ({ page }) => {
     const newBackup = {
-      filename: 'cornerstone-backup-2026-03-22T12-00-00.tar.gz',
+      filename: 'cornerstone-backup-2026-03-22T120000Z.tar.gz',
       createdAt: '2026-03-22T12:00:00.000Z',
       sizeBytes: 2097152, // 2 MB
     };

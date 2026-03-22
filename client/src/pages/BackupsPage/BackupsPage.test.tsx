@@ -316,6 +316,10 @@ describe('BackupsPage', () => {
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /create backup/i })).not.toBeDisabled();
       });
+
+      // Error message should be displayed to the user
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(screen.getByText(/failed to create backup/i)).toBeInTheDocument();
     });
   });
 

@@ -96,7 +96,7 @@
   font-size: var(--font-size-sm);
   margin: var(--spacing-3) 0 0 0;
   padding: var(--spacing-3);
-  background-color: var(--color-red-50);
+  background-color: var(--color-danger-bg);
   border-radius: var(--radius-sm);
   border-left: 3px solid var(--color-danger);
 }
@@ -139,10 +139,8 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .warningText {
-    background-color: rgba(220, 38, 38, 0.1);
-    color: var(--color-red-300);
-    border-left-color: var(--color-red-300);
+@media (prefers-reduced-motion: reduce) {
+  .table tbody tr {
+    transition: none;
   }
 }

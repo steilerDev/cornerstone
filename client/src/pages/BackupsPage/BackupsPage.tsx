@@ -193,6 +193,12 @@ export function BackupsPage() {
             </button>
           </div>
 
+          {createError && (
+            <div className={sharedStyles.bannerError} role="alert">
+              {createError}
+            </div>
+          )}
+
           {backups.length === 0 ? (
             <EmptyState
               icon="📦"

@@ -14,6 +14,7 @@ import { promisify } from 'node:util';
 import cron from 'node-cron';
 import type { FastifyInstance } from 'fastify';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type Database from 'better-sqlite3';
 import type { AppConfig } from '../plugins/config.js';
 import type { BackupMeta } from '@cornerstone/shared';
 import {
@@ -24,6 +25,14 @@ import {
 } from '../errors/AppError.js';
 
 const execFile = promisify(execFileCallback);
+
+/**
+ * Extract the underlying better-sqlite3 Database instance from a Drizzle ORM wrapper.
+ * The Drizzle wrapper augments the Database instance with a $client property.
+ */
+function getClient(db: BetterSQLite3Database<any>): Database.Database {
+  return (db as unknown as { $client: Database.Database }).$client;
+}
 
 /**
  * Backup filename format: cornerstone-backup-YYYY-MM-DDTHHMMSSZ.tar.gz
@@ -147,7 +156,7 @@ export async function createBackup(
 
     // Use better-sqlite3's backup API to safely snapshot the live database
     await new Promise<void>((resolve, reject) => {
-      (db as any).$client.backup(backupPath.replace('.tar.gz', '.db'), (error: Error | null) => {
+      getClient(db).backup(backupPath.replace('.tar.gz', '.db'), (error: Error | null) => {
         if (error) {
           reject(error);
         } else {
@@ -262,7 +271,7 @@ export async function restoreBackup(
       await execFile('tar', ['-xzf', backupPath, '-C', tempDir]);
 
       // Close database connection
-      (db as any).$client.close();
+      getClient(db).close();
 
       // Replace app data directory contents
       const extractedDataDir = path.join(tempDir, path.basename(dataDir));
