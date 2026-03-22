@@ -17,11 +17,15 @@ export class AppShellPage {
     this.sidebar = page.locator('aside');
     // AppShell renders a floating action button with data-testid="menu-fab" — no <header> element.
     // The FAB is the only menu toggle button; it is outside the sidebar (aside).
+    // When sidebar is open, the FAB aria-label becomes "Close menu" (from t('aria.closeMenu')).
+    // There is NO close button inside the <aside> — PR #1168 removed it.
     this.menuButton = page.getByTestId('menu-fab');
-    // Scope sidebarCloseButton to aside to avoid matching the FAB when both say "Close menu"
-    this.sidebarCloseButton = page.locator('aside').getByRole('button', { name: 'Close menu' });
+    // sidebarCloseButton is the FAB itself (it toggles: open→close, close→open).
+    // We keep it as a separate property for API compatibility; it points to the same FAB.
+    this.sidebarCloseButton = page.getByTestId('menu-fab');
     this.nav = page.getByRole('navigation', { name: 'Main navigation' });
-    this.overlay = page.locator('div[aria-hidden="true"]').last();
+    // Overlay uses data-testid="sidebar-overlay" (AppShell.tsx) — not a generic div[aria-hidden].
+    this.overlay = page.getByTestId('sidebar-overlay');
   }
 
   async openSidebar(): Promise<void> {

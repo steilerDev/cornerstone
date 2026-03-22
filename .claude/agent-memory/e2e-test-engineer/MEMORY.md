@@ -21,6 +21,24 @@ See `e2e-pom-patterns.md` for full details on:
 3. **Mobile CSS-hidden table** — `display:none` elements still in DOM; `textContent()` works,
    clicks fail — check `tableContainer.isVisible()` before using table rows
 
+## DataTable Migration (EPIC-18, PR #1177) POM Fixes (2026-03-22)
+
+After DataTable migration, three POM fix patterns applied:
+- **Modal `useId()` IDs broken**: `#create-modal-title`/`#delete-modal-title` don't exist.
+  Always use `getByRole('dialog', { name: ... })` + `getByRole('heading', { level: 2 })` inside.
+- **`confirmDeleteButton` → `btnConfirmDelete`**: WorkItems + HouseholdItems use
+  `sharedStyles.btnConfirmDelete` from `shared.module.css`. Selector: `[class*="btnConfirmDelete"]`.
+- **Mobile card name lookup**: DataTableCard has NO `cardName` class. The render() function
+  runs identically for table cells AND cards. Name column with `styles.vendorLink` → use
+  `[class*="vendorLink"]` inside `cardsContainer`. Applied in both getVendorNames() and
+  openDeleteModal() mobile paths in VendorsPage.
+- **HouseholdItems actions menu**: buttons are `role="button"` (default), NOT `role="menuitem"`.
+  Use `[class*="menuItemDanger"]:visible` filtered by text "Delete".
+- **Production bug #1178**: DateRangePicker phase resets after clicking start date.
+  DateFilter.handleChange only fires when both dates set; DateRangePicker useEffect resets
+  phase when startDate stays ''. Affects datatable-date-range-picker.spec.ts and
+  datatable-ux-fixes.spec.ts — PRODUCTION BUG, not a test issue.
+
 ## E2E Wait Patterns: waitForResponse BEFORE the action (2026-02-23)
 
 `page.waitForResponse(pred)` must ALWAYS be registered BEFORE the action that triggers the request.

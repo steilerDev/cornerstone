@@ -150,8 +150,10 @@ test.describe('DateRangePicker — full range selection (happy path)', () => {
     // Then: The filter button has the active CSS class (filter is applied)
     await expect(dueDateFilterButton).toHaveClass(/tableHeaderFilterButtonActive/);
 
-    // And: "Clear Filters" button is visible in the toolbar
-    const clearFiltersButton = page.getByRole('button', { name: /clear filters/i });
+    // And: "Clear Filters" button is visible in the toolbar.
+    // Use .first() — when no invoices match the date range, DataTable renders "Clear Filters"
+    // in BOTH the toolbar AND the empty state action; .first() targets the toolbar button.
+    const clearFiltersButton = page.getByRole('button', { name: /clear filters/i }).first();
     await expect(clearFiltersButton).toBeVisible();
   });
 });
@@ -172,13 +174,15 @@ test.describe('DateRangePicker — Clear Filters resets picker state', () => {
     const filterPopover = await openDueDateFilter(page);
     await selectStartAndEndDays(filterPopover);
 
-    const clearFiltersButton = page.getByRole('button', { name: /clear filters/i });
+    // Use .first() — when no invoices match the date range, DataTable renders "Clear Filters"
+    // in BOTH the toolbar AND the empty state action; .first() targets the toolbar button.
+    const clearFiltersButton = page.getByRole('button', { name: /clear filters/i }).first();
     await expect(clearFiltersButton).toBeVisible();
 
     // When: I click "Clear Filters"
     await clearFiltersButton.click();
 
-    // Then: The clear button disappears
+    // Then: The clear button disappears from the toolbar
     await expect(clearFiltersButton).not.toBeVisible();
 
     // When: I reopen the Due Date filter popover

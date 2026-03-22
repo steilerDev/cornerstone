@@ -109,8 +109,9 @@ export class WorkItemsPage {
 
     // Delete confirmation modal — no aria-labelledby in the source; use role="dialog"
     this.deleteModal = page.locator('[role="dialog"]');
-    // Confirm button identified by CSS class (no accessible name distinguishes it)
-    this.deleteConfirmButton = this.deleteModal.locator('[class*="confirmDeleteButton"]');
+    // Confirm button uses sharedStyles.btnConfirmDelete (shared.module.css), CSS Modules hashes it
+    // to "btnConfirmDelete_XXXX". The class selector [class*="btnConfirmDelete"] matches it.
+    this.deleteConfirmButton = this.deleteModal.locator('[class*="btnConfirmDelete"]');
     this.deleteCancelButton = this.deleteModal.getByRole('button', { name: 'Cancel', exact: true });
   }
 
@@ -137,23 +138,53 @@ export class WorkItemsPage {
   }
 
   /**
+   * Wait for search results to stabilize after a search() or clearSearch() call.
+   *
+   * waitForLoaded() is designed for the initial page load and resolves immediately
+   * when table rows/cards are already visible (old data). This method uses the URL
+   * search param as a proxy for React state settling — after the debounced search
+   * updates setSearchParams(), the DOM re-render follows in the same microtask batch.
+   *
+   * For search(query): waits until URL has q=query (exact match).
+   * For clearSearch(): waits until URL no longer has q=.
+   */
+  private async waitForSearchParams(hasQuery?: string): Promise<void> {
+    if (hasQuery !== undefined) {
+      await this.page.waitForURL((url) => url.searchParams.get('q') === hasQuery, {
+        timeout: 10000,
+      });
+    } else {
+      await this.page.waitForURL((url) => !url.searchParams.has('q'), { timeout: 10000 });
+    }
+  }
+
+  /**
    * Get the titles of all work items currently shown in the table (desktop)
    * or cards (mobile).
    */
   async getWorkItemTitles(): Promise<string[]> {
-    // Try table first (titleCell class)
-    const titleCells = await this.tableBody.locator('[class*="titleCell"]').all();
-    if (titleCells.length > 0) {
-      const titles: string[] = [];
-      for (const cell of titleCells) {
-        const text = await cell.textContent();
-        if (text) titles.push(text.trim());
+    // On mobile, tableContainer has display:none (CSS media query at max-width:767px).
+    // Elements inside a CSS-hidden table are still in the DOM so .all() returns them,
+    // but their text would include all items (search filter not reflected in DOM-hidden rows).
+    // Always check visibility before using the table path.
+    const tableVisible = await this.tableContainer.isVisible();
+    if (tableVisible) {
+      // Desktop/tablet: work items title column uses className={styles.itemLink} (CSS Modules).
+      const titleCells = await this.tableBody.locator('[class*="itemLink"]').all();
+      if (titleCells.length > 0) {
+        const titles: string[] = [];
+        for (const cell of titleCells) {
+          const text = await cell.textContent();
+          if (text) titles.push(text.trim());
+        }
+        return titles;
       }
-      return titles;
     }
 
-    // Mobile fallback: card title elements
-    const cardTitles = await this.cardsContainer.locator('[class*="cardTitle"]').all();
+    // Mobile fallback (or empty table): DataTableCard renders the same cell content as the table.
+    // The title column uses styles.itemLink (CSS Modules) — same class as in the table rows.
+    // DataTableCard has NO "cardTitle" class; looking for itemLink inside cardsContainer is correct.
+    const cardTitles = await this.cardsContainer.locator('[class*="itemLink"]').all();
     const titles: string[] = [];
     for (const el of cardTitles) {
       const text = await el.textContent();

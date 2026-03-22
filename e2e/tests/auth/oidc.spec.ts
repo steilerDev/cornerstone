@@ -120,8 +120,9 @@ test.describe('OIDC SSO Flow', () => {
       expect(cells[0]).toContain(TEST_MEMBER.displayName); // Name
       expect(cells[1]).toBe(TEST_MEMBER.email); // Email
       expect(cells[2]).toBe('Member'); // Role
-      expect(cells[3]).toBe('OIDC'); // Auth Provider
+      // cells[3] = Member Since (date) — not asserted (format varies by locale)
       expect(cells[4]).toBe('Active'); // Status
+      // Note: Auth Provider column has defaultVisible: false — not rendered in table by default
     }
 
     await adminContext.close();
