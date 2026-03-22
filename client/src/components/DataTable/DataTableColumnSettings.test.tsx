@@ -239,11 +239,13 @@ describe('DataTableColumnSettings', () => {
 
       fireEvent.dragStart(draggableItem, { dataTransfer });
 
-      // Drag over a different draggable item in the upper half
-      const targetItem = checkboxItems[0] as HTMLElement;
+      // Use a different target item to avoid dragging-onto-self guard
+      // (checkboxItems[1] is the "ID" column at col index 2)
+      const targetItem = checkboxItems[1] as HTMLElement;
 
-      // Mock getBoundingClientRect so clientY falls in the upper half
-      jest.spyOn(targetItem, 'getBoundingClientRect').mockReturnValue({
+      // Prototype mock ensures getBoundingClientRect is intercepted by React event delegation
+      const origGetBCR = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = jest.fn().mockReturnValue({
         top: 100,
         bottom: 140,
         height: 40,
@@ -255,12 +257,15 @@ describe('DataTableColumnSettings', () => {
         toJSON: () => ({}),
       } as DOMRect);
 
-      fireEvent.dragOver(targetItem, {
-        dataTransfer,
-        clientY: 110, // 10px below top — upper half of a 40px element
-      });
-
-      expect(targetItem.className).toContain('columnCheckboxItemDropAbove');
+      try {
+        fireEvent.dragOver(targetItem, {
+          dataTransfer,
+          clientY: 110, // 10px below top — upper half of a 40px element (midpoint = 120)
+        });
+        expect(targetItem.className).toContain('columnCheckboxItemDropAbove');
+      } finally {
+        Element.prototype.getBoundingClientRect = origGetBCR;
+      }
     });
 
     it('applies drop-below CSS class when dragging over the lower half of an item', async () => {
@@ -272,9 +277,10 @@ describe('DataTableColumnSettings', () => {
 
       fireEvent.dragStart(draggableItem, { dataTransfer });
 
-      const targetItem = checkboxItems[0] as HTMLElement;
+      const targetItem = checkboxItems[1] as HTMLElement;
 
-      jest.spyOn(targetItem, 'getBoundingClientRect').mockReturnValue({
+      const origGetBCR = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = jest.fn().mockReturnValue({
         top: 100,
         bottom: 140,
         height: 40,
@@ -286,12 +292,15 @@ describe('DataTableColumnSettings', () => {
         toJSON: () => ({}),
       } as DOMRect);
 
-      fireEvent.dragOver(targetItem, {
-        dataTransfer,
-        clientY: 130, // 30px below top — lower half of a 40px element
-      });
-
-      expect(targetItem.className).toContain('columnCheckboxItemDropBelow');
+      try {
+        fireEvent.dragOver(targetItem, {
+          dataTransfer,
+          clientY: 130, // 30px below top — lower half of a 40px element (midpoint = 120)
+        });
+        expect(targetItem.className).toContain('columnCheckboxItemDropBelow');
+      } finally {
+        Element.prototype.getBoundingClientRect = origGetBCR;
+      }
     });
 
     it('clears drop indicator classes on dragLeave', async () => {
@@ -303,7 +312,10 @@ describe('DataTableColumnSettings', () => {
 
       fireEvent.dragStart(draggableItem, { dataTransfer });
 
-      jest.spyOn(draggableItem, 'getBoundingClientRect').mockReturnValue({
+      const targetItem = checkboxItems[1] as HTMLElement;
+
+      const origGetBCR = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = jest.fn().mockReturnValue({
         top: 100,
         bottom: 140,
         height: 40,
@@ -315,14 +327,18 @@ describe('DataTableColumnSettings', () => {
         toJSON: () => ({}),
       } as DOMRect);
 
-      fireEvent.dragOver(draggableItem, { dataTransfer, clientY: 110 });
-      // Should have a drop indicator class now
-      expect(draggableItem.className).toMatch(/columnCheckboxItemDrop(Above|Below)/);
+      try {
+        fireEvent.dragOver(targetItem, { dataTransfer, clientY: 110 });
+        // Should have a drop indicator class after dragOver
+        expect(targetItem.className).toMatch(/columnCheckboxItemDrop(Above|Below)/);
+      } finally {
+        Element.prototype.getBoundingClientRect = origGetBCR;
+      }
 
-      fireEvent.dragLeave(draggableItem);
+      fireEvent.dragLeave(targetItem);
       // After leave, neither above nor below class should be present
-      expect(draggableItem.className).not.toContain('columnCheckboxItemDropAbove');
-      expect(draggableItem.className).not.toContain('columnCheckboxItemDropBelow');
+      expect(targetItem.className).not.toContain('columnCheckboxItemDropAbove');
+      expect(targetItem.className).not.toContain('columnCheckboxItemDropBelow');
     });
 
     it('calls onMoveColumn with correct indices on drop', async () => {
@@ -347,7 +363,8 @@ describe('DataTableColumnSettings', () => {
 
       fireEvent.dragStart(draggedItem, { dataTransfer });
 
-      jest.spyOn(targetItem, 'getBoundingClientRect').mockReturnValue({
+      const origGetBCR = Element.prototype.getBoundingClientRect;
+      Element.prototype.getBoundingClientRect = jest.fn().mockReturnValue({
         top: 100,
         bottom: 140,
         height: 40,
@@ -359,7 +376,12 @@ describe('DataTableColumnSettings', () => {
         toJSON: () => ({}),
       } as DOMRect);
 
-      fireEvent.dragOver(targetItem, { dataTransfer, clientY: 130 }); // lower half → below
+      try {
+        fireEvent.dragOver(targetItem, { dataTransfer, clientY: 130 }); // lower half → below
+      } finally {
+        Element.prototype.getBoundingClientRect = origGetBCR;
+      }
+
       fireEvent.drop(targetItem);
 
       expect(mockMoveColumn).toHaveBeenCalledWith(1, 2);
