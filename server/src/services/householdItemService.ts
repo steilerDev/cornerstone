@@ -530,12 +530,12 @@ export function listHouseholdItems(
   // Compute filterMeta from base conditions
   const metaRow = db
     .select({
-      plannedCostMin: sql<number>`COALESCE(MIN(COALESCE((SELECT SUM(${householdItemBudgets.plannedAmount}) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0)), 0)`,
-      plannedCostMax: sql<number>`COALESCE(MAX(COALESCE((SELECT SUM(${householdItemBudgets.plannedAmount}) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0)), 0)`,
-      actualCostMin: sql<number>`COALESCE(MIN(COALESCE((SELECT SUM(${invoiceBudgetLines.itemizedAmount}) FROM ${invoiceBudgetLines} INNER JOIN ${householdItemBudgets} AS hib_meta ON ${invoiceBudgetLines.householdItemBudgetId} = hib_meta.id WHERE hib_meta.household_item_id = ${householdItems.id}), 0)), 0)`,
-      actualCostMax: sql<number>`COALESCE(MAX(COALESCE((SELECT SUM(${invoiceBudgetLines.itemizedAmount}) FROM ${invoiceBudgetLines} INNER JOIN ${householdItemBudgets} AS hib_meta ON ${invoiceBudgetLines.householdItemBudgetId} = hib_meta.id WHERE hib_meta.household_item_id = ${householdItems.id}), 0)), 0)`,
-      budgetLinesMin: sql<number>`COALESCE(MIN(COALESCE((SELECT COUNT(*) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0)), 0)`,
-      budgetLinesMax: sql<number>`COALESCE(MAX(COALESCE((SELECT COUNT(*) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0)), 0)`,
+      plannedCostMin: sql<number>`COALESCE(MIN(COALESCE((SELECT SUM(planned_amount) FROM household_item_budgets WHERE household_item_id = household_items.id), 0)), 0)`,
+      plannedCostMax: sql<number>`COALESCE(MAX(COALESCE((SELECT SUM(planned_amount) FROM household_item_budgets WHERE household_item_id = household_items.id), 0)), 0)`,
+      actualCostMin: sql<number>`COALESCE(MIN(COALESCE((SELECT SUM(ibl.itemized_amount) FROM invoice_budget_lines ibl INNER JOIN household_item_budgets hib ON ibl.household_item_budget_id = hib.id WHERE hib.household_item_id = household_items.id), 0)), 0)`,
+      actualCostMax: sql<number>`COALESCE(MAX(COALESCE((SELECT SUM(ibl.itemized_amount) FROM invoice_budget_lines ibl INNER JOIN household_item_budgets hib ON ibl.household_item_budget_id = hib.id WHERE hib.household_item_id = household_items.id), 0)), 0)`,
+      budgetLinesMin: sql<number>`COALESCE(MIN(COALESCE((SELECT COUNT(*) FROM household_item_budgets WHERE household_item_id = household_items.id), 0)), 0)`,
+      budgetLinesMax: sql<number>`COALESCE(MAX(COALESCE((SELECT COUNT(*) FROM household_item_budgets WHERE household_item_id = household_items.id), 0)), 0)`,
     })
     .from(householdItems)
     .where(baseWhereClause)
@@ -571,12 +571,12 @@ export function listHouseholdItems(
   // Filter by actual cost (from invoices)
   if (query.actualCostMin !== undefined) {
     conditions.push(
-      sql`COALESCE((SELECT SUM(${invoiceBudgetLines.itemizedAmount}) FROM ${invoiceBudgetLines} INNER JOIN ${householdItemBudgets} AS hib_f ON ${invoiceBudgetLines.householdItemBudgetId} = hib_f.id WHERE hib_f.household_item_id = ${householdItems.id}), 0) >= ${query.actualCostMin}`,
+      sql`COALESCE((SELECT SUM(ibl.itemized_amount) FROM invoice_budget_lines ibl INNER JOIN household_item_budgets hib ON ibl.household_item_budget_id = hib.id WHERE hib.household_item_id = household_items.id), 0) >= ${query.actualCostMin}`,
     );
   }
   if (query.actualCostMax !== undefined) {
     conditions.push(
-      sql`COALESCE((SELECT SUM(${invoiceBudgetLines.itemizedAmount}) FROM ${invoiceBudgetLines} INNER JOIN ${householdItemBudgets} AS hib_f ON ${invoiceBudgetLines.householdItemBudgetId} = hib_f.id WHERE hib_f.household_item_id = ${householdItems.id}), 0) <= ${query.actualCostMax}`,
+      sql`COALESCE((SELECT SUM(ibl.itemized_amount) FROM invoice_budget_lines ibl INNER JOIN household_item_budgets hib ON ibl.household_item_budget_id = hib.id WHERE hib.household_item_id = household_items.id), 0) <= ${query.actualCostMax}`,
     );
   }
 
