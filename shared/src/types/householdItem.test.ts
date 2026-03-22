@@ -674,6 +674,7 @@ describe('HouseholdItemListResponse type', () => {
         totalItems: 1,
         totalPages: 1,
       },
+      filterMeta: {},
     };
 
     const paginated: PaginatedResponse<(typeof response.items)[0]> = response;
@@ -694,6 +695,7 @@ describe('HouseholdItemListResponse type', () => {
         totalItems: 0,
         totalPages: 0,
       },
+      filterMeta: {},
     };
 
     expect(response.items).toHaveLength(0);

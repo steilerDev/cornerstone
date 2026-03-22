@@ -654,6 +654,7 @@ describe('WorkItemListResponse type', () => {
         totalItems: 1,
         totalPages: 1,
       },
+      filterMeta: {},
     };
 
     expect(response.items).toHaveLength(1);
