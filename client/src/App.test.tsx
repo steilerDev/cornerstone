@@ -353,7 +353,7 @@ describe('App', () => {
     });
   });
 
-  it('renders the AppShell layout with sidebar and header', async () => {
+  it('renders the AppShell layout with sidebar and floating menu button', async () => {
     render(<App />);
 
     // Wait for auth loading to complete
@@ -365,9 +365,9 @@ describe('App', () => {
     const sidebar = screen.getByRole('complementary');
     expect(sidebar).toBeInTheDocument();
 
-    // Header should be present
-    const header = screen.getByRole('banner');
-    expect(header).toBeInTheDocument();
+    // Floating menu button (FAB) should be present
+    const fab = screen.getByTestId('menu-fab');
+    expect(fab).toBeInTheDocument();
 
     // Main content area should be present
     const main = screen.getByRole('main');
