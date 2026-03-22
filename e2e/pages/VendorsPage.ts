@@ -243,11 +243,13 @@ export class VendorsPage {
       return names;
     }
 
-    // Mobile fallback: card name links
-    const cardNames = await this.cardsContainer.locator('[class*="cardName"]').all();
+    // Mobile cards: the name column renders a vendorLink anchor inside a cardValue span.
+    // DataTable renders the same render() function inside cards, so vendorLink CSS class
+    // still appears inside the cardsContainer. Read from those links.
+    const cardLinks = await this.cardsContainer.locator('[class*="vendorLink"]').all();
     const names: string[] = [];
-    for (const nameEl of cardNames) {
-      const text = await nameEl.textContent();
+    for (const link of cardLinks) {
+      const text = await link.textContent();
       if (text) names.push(text.trim());
     }
     return names;
