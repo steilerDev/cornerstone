@@ -318,8 +318,6 @@ test.describe('Create vendor validation (Scenario 4)', { tag: '@responsive' }, (
     await vendorsPage.goto();
     await vendorsPage.waitForVendorsLoaded();
 
-    const namesBefore = await vendorsPage.getVendorNames();
-
     await vendorsPage.openCreateModal();
     await vendorsPage.createNameInput.fill('Should Not Be Created');
     await vendorsPage.createCancelButton.click();
@@ -327,10 +325,11 @@ test.describe('Create vendor validation (Scenario 4)', { tag: '@responsive' }, (
     // Modal closes
     await expect(vendorsPage.createModal).not.toBeVisible();
 
-    // List unchanged
+    // List does not contain the vendor name that was typed but not submitted
+    // Note: exact count check omitted — parallel tests may create/delete vendors
+    // concurrently, making a strict count comparison unreliable.
     const namesAfter = await vendorsPage.getVendorNames();
     expect(namesAfter).not.toContain('Should Not Be Created');
-    expect(namesAfter.length).toBe(namesBefore.length);
   });
 });
 

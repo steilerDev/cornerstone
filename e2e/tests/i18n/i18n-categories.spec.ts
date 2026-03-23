@@ -108,7 +108,11 @@ test.describe('i18n: Predefined category name translations', () => {
     await setLanguage(page, 'de');
 
     // When: User navigates to the Manage page trades tab
+    // Reload after setLanguage to ensure the app re-reads locale from localStorage
+    // (setLanguage navigates to '/' and writes localStorage, but the SPA may not
+    // re-initialize i18next until the next full page load)
     await page.goto(MANAGE_TRADES_URL);
+    await page.reload();
     // German heading for ManagePage is "Verwalten"
     await page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true }).waitFor({
       state: 'visible',
@@ -156,7 +160,9 @@ test.describe('i18n: Predefined category name translations', () => {
     await setLanguage(page, 'de');
 
     // When: User navigates to the Manage page budget categories tab
+    // Reload after setLanguage to ensure i18next re-reads locale from localStorage
     await page.goto(MANAGE_BUDGET_CATEGORIES_URL);
+    await page.reload();
     await page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true }).waitFor({
       state: 'visible',
     });
@@ -203,7 +209,9 @@ test.describe('i18n: Predefined category name translations', () => {
     await setLanguage(page, 'de');
 
     // When: User navigates to the Manage page household item categories tab
+    // Reload after setLanguage to ensure i18next re-reads locale from localStorage
     await page.goto(MANAGE_HI_CATEGORIES_URL);
+    await page.reload();
     await page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true }).waitFor({
       state: 'visible',
     });
