@@ -123,7 +123,9 @@ test.describe('i18n: Predefined category name translations', () => {
     // Use a 20s timeout: i18next cold-start locale initialization (fetching + parsing the 'de'
     // bundle) can take 10-15s on slow CI runners. The test.setTimeout(30s) gives enough budget
     // for setLanguage(~5s) + goto(~2s) + reload(~2s) + this assertion (up to 20s) = ~29s.
-    await expect(page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true })).toBeVisible({
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true }),
+    ).toBeVisible({
       timeout: 20000,
     });
 

@@ -271,17 +271,27 @@ Synthetic events via `dispatchEvent()` are untrusted — the setter is a no-op. 
 `effectAllowed` via synthetic events. Test `draggable="true"` attribute instead.
 
 **Working pattern** for insertion line test (tests CSS class after dragover):
+
 ```typescript
 const firstHandle = await firstItem.elementHandle();
 const secondHandle = await secondItem.elementHandle();
-await page.evaluate(({ source, target }) => {
-  const dataTransfer = new DataTransfer();
-  source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }));
-  target.dispatchEvent(new DragEvent('dragover', {
-    bubbles: true, cancelable: true, dataTransfer,
-    clientY: target.getBoundingClientRect().top + 1,
-  }));
-}, { source: firstHandle!, target: secondHandle! });
+await page.evaluate(
+  ({ source, target }) => {
+    const dataTransfer = new DataTransfer();
+    source.dispatchEvent(
+      new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }),
+    );
+    target.dispatchEvent(
+      new DragEvent('dragover', {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer,
+        clientY: target.getBoundingClientRect().top + 1,
+      }),
+    );
+  },
+  { source: firstHandle!, target: secondHandle! },
+);
 await expect(dropAboveItem.or(dropBelowItem).first()).toBeVisible(); // use retry
 ```
 
@@ -290,6 +300,7 @@ Use `expect().toBeVisible()` (NOT `.count()`) for React state changes — retry 
 ## Multiple Preferences GET on Page Load (2026-03-23, PR #1177)
 
 On dashboard load, TWO components independently call `GET /api/users/me/preferences`:
+
 1. `LocaleContext` — fetches for locale preference
 2. `usePreferences` hook — fetches all preferences (incl. `dashboard.hiddenCards`)
 

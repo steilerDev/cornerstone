@@ -56,6 +56,7 @@ See `e2e-pom-patterns.md` for full details on:
 ## DataTable Migration (EPIC-18, PR #1177) POM Fixes (2026-03-22)
 
 After DataTable migration, three POM fix patterns applied:
+
 - **Modal `useId()` IDs broken**: `#create-modal-title`/`#delete-modal-title` don't exist.
   Always use `getByRole('dialog', { name: ... })` + `getByRole('heading', { level: 2 })` inside.
 - **`confirmDeleteButton` → `btnConfirmDelete`**: WorkItems + HouseholdItems use
