@@ -114,20 +114,25 @@ test.describe('i18n: Predefined category name translations', () => {
     await setLanguage(page, 'de');
 
     // Warm up i18next on the home page before navigating to the settings manage page.
-    // This matches the pattern in i18n.spec.ts "Key page headings render in German":
-    // a goto('/') + reload() ensures the German locale bundle is fully loaded and the SPA
-    // has rendered at least once in German before we navigate to a different route.
-    // Without this warm-up, navigating directly to MANAGE_TRADES_URL can result in the
-    // heading staying in English (i18next hasn't finished loading the 'de' bundle).
+    // Pattern from i18n.spec.ts "Key page headings render in German": goto('/') + reload()
+    // ensures the German locale bundle is fully loaded and the SPA has rendered at least
+    // once in German. Without this, navigating directly to MANAGE_TRADES_URL leaves
+    // i18next in a cold-start state where the heading stays in English.
     await page.goto('/');
     await page.reload();
-    await page.waitForLoadState('networkidle', { timeout: 15000 });
+    // Wait for the home page German heading to confirm i18next has initialized in German.
+    // The home/project overview page h1 is 'Projekt' in German.
+    await expect(page.getByRole('heading', { level: 1, name: 'Projekt' })).toBeVisible({
+      timeout: 15000,
+    });
 
     // When: User navigates to the Manage page trades tab
     await page.goto(MANAGE_TRADES_URL);
-    // German heading for ManagePage is "Verwalten".
-    // Use expect.toBeVisible (retry-based) rather than waitFor — more resilient for text changes.
-    await expect(page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true })).toBeVisible();
+    // German heading for ManagePage is "Verwalten". i18next is already warm so this should
+    // render immediately — use expect.toBeVisible with a generous timeout for slow CI.
+    await expect(page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true })).toBeVisible({
+      timeout: 10000,
+    });
 
     const tradesPanel = page.locator('#trades-panel');
     await tradesPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });

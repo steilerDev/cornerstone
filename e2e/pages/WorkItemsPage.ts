@@ -194,30 +194,24 @@ export class WorkItemsPage {
   }
 
   /**
-   * Type a search query and wait for both the debounced API response and the
-   * DOM to re-render with the filtered results.
+   * Type a search query and wait for both the URL to update (debounce fired) and
+   * the API response to arrive (data fetched).
    *
-   * The response listener must be registered BEFORE the fill action to avoid a
-   * race condition where the debounced request resolves before the listener is
-   * attached (especially common on WebKit/tablet where the 300ms debounce can
-   * fire and complete before the next line executes).
+   * Strategy (three-step):
+   *  1. Register a response listener for `q=query` BEFORE fill to avoid missing
+   *     the response on fast CI runners.
+   *  2. fill() the input — WebKit may emit a clear event first, but the response
+   *     listener filters by exact query param and ignores that empty-query response.
+   *  3. Wait for the URL to update with q=query (confirms debounce fired and React
+   *     state is committed) then await the API response (confirms data received).
    *
-   * The listener filters by the query value in the response URL to avoid catching
-   * an unrelated prior response (e.g., the initial page-load fetch or a clear-event
-   * API call on mobile WebKit where fill() briefly emits an empty-value input event
-   * before setting the full value).
-   *
-   * After the network response is received we additionally call waitForLoaded()
-   * to ensure React has flushed the new data into the DOM before callers
-   * attempt to read titles or interact with list items.
+   * After the API response arrives React will commit the filtered results in the next
+   * render. Callers use expect().toBeVisible() / expect().not.toBeVisible() with the
+   * project-level expect.timeout to wait for that DOM update — no extra waitForLoaded()
+   * needed here, which avoids the race where waitForLoaded() resolves on stale DOM.
    */
   async search(query: string): Promise<void> {
-    // Explicit 10s timeout overrides global actionTimeout (5s): debounce + API
-    // round-trip can exceed 5s on slow CI runners.
-    //
-    // Filter responses by the exact query value in the URL (using URL.searchParams to handle
-    // encoding differences). This ensures we don't resolve on an earlier response triggered by
-    // an empty-value input event that WebKit fires before fill() sets the full value.
+    // Register BEFORE fill to avoid missing the response on fast runners.
     const responsePromise = this.page.waitForResponse(
       (resp) => {
         if (!resp.url().includes('/api/work-items') || resp.status() !== 200) return false;
@@ -231,19 +225,19 @@ export class WorkItemsPage {
       { timeout: 10000 },
     );
     await this.searchInput.fill(query);
+    // Wait for URL to update — confirms debounce fired and React committed search state.
+    // Must precede the response wait to ensure we don't assert before state is committed.
+    await this.page.waitForURL((url) => url.searchParams.get('q') === query, {
+      timeout: 10000,
+    });
     await responsePromise;
-    await this.waitForLoaded();
   }
 
   /**
-   * Clear the search input and wait for both the API response and the DOM to
-   * update.
+   * Clear the search input and wait for both the URL update and the API response.
    *
-   * The response listener must be registered BEFORE the clear action for the
-   * same race-condition reason as search().
-   *
-   * Filters for a response without a 'q' parameter to ensure we catch the
-   * cleared-search response, not a lingering response from a prior search.
+   * Same three-step pattern as search(): register response listener before clear(),
+   * clear the input, wait for URL (q= param removed), then await response.
    */
   async clearSearch(): Promise<void> {
     const responsePromise = this.page.waitForResponse(
@@ -251,7 +245,6 @@ export class WorkItemsPage {
         if (!resp.url().includes('/api/work-items') || resp.status() !== 200) return false;
         try {
           const url = new URL(resp.url());
-          // Cleared search: no 'q' param in the request URL
           return !url.searchParams.has('q');
         } catch {
           return false;
@@ -260,8 +253,8 @@ export class WorkItemsPage {
       { timeout: 10000 },
     );
     await this.searchInput.clear();
+    await this.page.waitForURL((url) => !url.searchParams.has('q'), { timeout: 10000 });
     await responsePromise;
-    await this.waitForLoaded();
   }
 
   /**
