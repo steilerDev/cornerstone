@@ -539,34 +539,21 @@ test.describe('Card dismiss (Scenario 6)', () => {
       // Dismiss the Quick Actions card
       await dashboardPage.dismissCard('Quick Actions');
 
+      // Reload the page. Use navigationTimeout (10s) for the heading waitFor since the SPA
+      // must fully initialize after a hard reload before the Dashboard heading appears.
+      await page.reload();
+      await dashboardPage.heading.waitFor({ state: 'visible', timeout: 10000 });
+
       // On page load, two contexts fetch preferences independently:
       //   1. LocaleContext — fetches to resolve locale preference
       //   2. usePreferences hook in DashboardPage — fetches all preferences incl. hiddenCards
-      // The hiddenCards state is only applied after both (1) and (2) have resolved and React
-      // has re-rendered.
+      // Both must resolve before React can hide the dismissed card.
       //
-      // Register the preferences response listener BEFORE reload so we don't miss the response
-      // if it arrives quickly (fast CI containers). This also ensures we wait for the server-side
-      // state (hiddenCards: ["quick-actions"]) to be reflected in the app before asserting.
-      const preferencesPromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/api/users/me/preferences') &&
-          resp.request().method() === 'GET' &&
-          resp.status() === 200,
-        { timeout: 15000 },
-      );
+      // waitForLoadState('networkidle') ensures all pending network requests (including both
+      // preference fetches) have completed and React has finished re-rendering before we assert.
+      await page.waitForLoadState('networkidle', { timeout: 15000 });
 
-      // Reload the page
-      await page.reload();
-      await dashboardPage.heading.waitFor({ state: 'visible' });
-
-      // Wait for preferences to load (hiddenCards: ["quick-actions"] is now in server state).
-      // Once this resolves, React has the data needed to hide the card.
-      await preferencesPromise;
-
-      // Wait for the Quick Actions card to disappear — React removes it once usePreferences
-      // has fetched and applied the hiddenCards: ["quick-actions"] preference from the server.
-      // expect().toHaveCount(0) retries for the project-level expect.timeout duration.
+      // The Quick Actions card must be absent — usePreferences applied hiddenCards: ["quick-actions"]
       await expect(dashboardPage.card('Quick Actions')).toHaveCount(0);
 
       // Clean up: re-enable the card via preferences API to not affect other tests

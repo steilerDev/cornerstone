@@ -104,6 +104,11 @@ test.describe('i18n: Predefined category name translations', () => {
   test('German locale: Manage trades tab shows "Sanitär" instead of "Plumbing"', async ({
     page,
   }) => {
+    // Extend test timeout to 30s: i18next cold-start locale initialization from localStorage
+    // can take 10-15s on the first German page load in CI; 15s test timeout is too short
+    // when combined with setLanguage(), page.goto(), page.reload(), and networkidle wait.
+    test.setTimeout(30000);
+
     // Given: locale is set to German
     await setLanguage(page, 'de');
 
@@ -113,14 +118,14 @@ test.describe('i18n: Predefined category name translations', () => {
     // re-initialize i18next until the next full page load)
     await page.goto(MANAGE_TRADES_URL);
     await page.reload();
+    // networkidle ensures all preference/config API calls (including the locale preference
+    // fetch) have completed before we look for the German heading. Without this, i18next may
+    // still be initializing when we assert, causing a timeout on slow CI runners.
+    await page.waitForLoadState('networkidle', { timeout: 20000 });
     // German heading for ManagePage is "Verwalten".
-    // Use explicit timeout (15s) because this is the first German navigation in this test file:
-    // i18next initialization from localStorage takes longer on the first locale switch than
-    // on subsequent ones (budget-categories and hi-categories tests run after this one).
-    // The project-level actionTimeout (5s) is too short for the first German page load on CI.
     await page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true }).waitFor({
       state: 'visible',
-      timeout: 15000,
+      timeout: 10000,
     });
 
     const tradesPanel = page.locator('#trades-panel');
