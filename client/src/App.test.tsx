@@ -402,14 +402,10 @@ describe('App', () => {
     render(<App />);
 
     // /budget/categories now redirects to /settings/manage?tab=budget-categories
-    // ManagePage renders an h1 heading of "Manage"
+    // ManagePage no longer renders an h1 heading — verify by the presence of the tab buttons
     // Extended timeout: requires lazy-load of ManagePage after redirect from /budget/categories
-    const heading = await screen.findByRole(
-      'heading',
-      { name: /^manage$/i, level: 1 },
-      { timeout: 5000 },
-    );
-    expect(heading).toBeInTheDocument();
+    const tab = await screen.findByRole('tab', { name: 'Budget Categories' }, { timeout: 5000 });
+    expect(tab).toBeInTheDocument();
   });
 
   it('navigates to Schedule page when /schedule/gantt path is accessed', async () => {

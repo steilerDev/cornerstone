@@ -4,7 +4,7 @@
  * The page renders:
  * - An h1 "Budget" page title
  * - BudgetSubNav
- * - An h2 "Subsidy Programs" section header with an "Add Program" button
+ * - An "Add Program" button (no h2 "Subsidy Programs" section heading — removed in visual cleanup #1185)
  * - An inline create form (h2 "New Subsidy Program") toggled by "Add Program"
  *   - `#programName` (text, required)
  *   - `#reductionType` (select: "percentage" | "fixed")
@@ -44,7 +44,11 @@ export class SubsidyProgramsPage {
   // Page heading
   readonly heading: Locator;
 
-  // Section header
+  /**
+   * @deprecated The h2 "Subsidy Programs" section heading was removed in visual cleanup #1185.
+   * This locator will not match any element. Tests should not assert on it.
+   * Kept so TypeScript callers compile without changes.
+   */
   readonly sectionTitle: Locator;
   readonly addProgramButton: Locator;
 
@@ -85,6 +89,8 @@ export class SubsidyProgramsPage {
 
     this.heading = page.getByRole('heading', { level: 1, name: 'Budget', exact: true });
 
+    // Visual cleanup #1185: the h2 "Subsidy Programs" section heading was removed.
+    // This locator is kept for TypeScript compatibility but will not match any element.
     this.sectionTitle = page.getByRole('heading', {
       level: 2,
       name: 'Subsidy Programs',

@@ -547,7 +547,11 @@ test.describe('Documentation screenshots', () => {
   test('Budget categories', async ({ page }) => {
     await page.goto(`${baseUrl}${ROUTES.budgetCategories}`);
     await page.waitForLoadState('networkidle');
-    await expect(page.getByRole('heading', { level: 1, name: /manage/i })).toBeVisible();
+    // Visual cleanup #1185: the h1 "Manage" heading was removed from ManagePage.
+    // Wait for the always-visible create form heading as the readiness indicator.
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Create New Budget Category' }),
+    ).toBeVisible();
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {

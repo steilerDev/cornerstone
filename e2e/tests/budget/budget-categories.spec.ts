@@ -188,8 +188,8 @@ test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive
     const successText = await categoriesPage.getSuccessBannerText();
     expect(successText).toContain(categoryName);
 
-    // And: The form closes
-    await expect(categoriesPage.createFormHeading).not.toBeVisible();
+    // And: The create form stays visible (visual cleanup #1185 — always-visible form, no toggle)
+    await expect(categoriesPage.createFormHeading).toBeVisible();
 
     // And: The new category appears in the list
     const names = await categoriesPage.getCategoryNames();
@@ -250,11 +250,9 @@ test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive
       // Wait for success
       await categoriesPage.getSuccessBannerText();
 
-      // Then: The create form is dismissed (collapsed)
-      await expect(categoriesPage.createFormHeading).not.toBeVisible();
-
-      // And: "Add Category" button is enabled again
-      await expect(categoriesPage.addCategoryButton).toBeEnabled();
+      // Then: Visual cleanup #1185 — form always visible; name input resets after creation
+      await expect(categoriesPage.createFormHeading).toBeVisible();
+      await expect(categoriesPage.createNameInput).toHaveValue('');
     } finally {
       // Cleanup via API
       const response = await page.request.get(API.budgetCategories);
@@ -314,24 +312,27 @@ test.describe('Create category validation (Scenario 5)', { tag: '@responsive' },
     expect(isDisabled).toBe(true);
   });
 
-  test('Cancel button dismisses create form without creating', async ({ page }) => {
+  // Visual cleanup #1185: the create form has no Cancel button (always visible, no toggle).
+  // This test verifies that clearing the name input and NOT submitting leaves no category created.
+  test('Clearing the create form without submitting does not create a category', async ({
+    page,
+  }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
-    // Given: I am on the Add Category form
+    // Given: The create form is always visible
     await categoriesPage.goto();
-    await categoriesPage.openCreateForm();
 
     const countBefore = await categoriesPage.getCategoriesCount();
 
-    // When: I fill in a name but then click Cancel
+    // When: I fill in a name but then clear it (simulate "cancel" intent)
     await categoriesPage.createNameInput.fill('Should Not Be Created');
-    const cancelButton = categoriesPage.page.getByRole('button', { name: 'Cancel', exact: true });
-    await cancelButton.click();
+    await categoriesPage.createNameInput.fill('');
 
-    // Then: The form should be dismissed
-    await expect(categoriesPage.createFormHeading).not.toBeVisible();
+    // Then: The form stays visible (always rendered)
+    await expect(categoriesPage.createFormHeading).toBeVisible();
 
-    // And: No new category was created
+    // And: No new category was created (submit button is disabled with empty name)
+    await expect(categoriesPage.createSubmitButton).toBeDisabled();
     const countAfter = await categoriesPage.getCategoriesCount();
     expect(countAfter).toBe(countBefore);
 
@@ -756,8 +757,8 @@ test.describe('Empty state (Scenario 18)', { tag: '@responsive' }, () => {
       expect(emptyText).toBeTruthy();
       expect(emptyText?.toLowerCase()).toMatch(/no.*categor|add.*first/);
 
-      // And: The "Add Category" button is still visible (call-to-action)
-      await expect(categoriesPage.addCategoryButton).toBeVisible();
+      // And: The create form is still visible (visual cleanup #1185 — always rendered)
+      await expect(categoriesPage.createFormHeading).toBeVisible();
     } finally {
       await page.unroute(`${API.budgetCategories}`);
     }
@@ -791,36 +792,40 @@ test.describe('Empty state (Scenario 18)', { tag: '@responsive' }, () => {
 // Page structure and navigation
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page structure and accessibility', { tag: '@responsive' }, () => {
-  test('Page has correct h1 heading "Manage"', async ({ page }) => {
+  // Visual cleanup #1185: the <h1>Manage</h1> heading was removed from ManagePage.
+  // Use the "Add Category" button and categories list heading as page identifiers instead.
+  test('Page loads ManagePage budget-categories tab — "Add Category" button and list are visible', async ({
+    page,
+  }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
     await categoriesPage.goto();
 
-    await expect(categoriesPage.heading).toBeVisible();
-    await expect(categoriesPage.heading).toHaveText('Manage');
+    // The create form heading is always visible — confirms the tab panel has mounted.
+    await expect(categoriesPage.createFormHeading).toBeVisible();
 
-    // Verify the correct sub-page loaded via the h2 section heading
+    // Verify the correct sub-page loaded via the h2 section heading (categories list)
     const sectionHeading = page.getByRole('heading', { level: 2, name: /^Categories \(/ });
     await expect(sectionHeading).toBeVisible();
   });
 
-  test('"Add Category" button is visible on page load', async ({ page }) => {
+  // Visual cleanup #1185: "Add Category" toggle button was removed; create form is always visible.
+  test('Create form is always visible on page load', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
     await categoriesPage.goto();
 
-    await expect(categoriesPage.addCategoryButton).toBeVisible();
-    await expect(categoriesPage.addCategoryButton).toBeEnabled();
+    await expect(categoriesPage.createFormHeading).toBeVisible();
+    await expect(categoriesPage.createSubmitButton).toBeVisible();
   });
 
-  test('"Add Category" button is disabled while create form is open', async ({ page }) => {
+  test('Create submit button is disabled when name is empty', async ({ page }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
 
     await categoriesPage.goto();
-    await categoriesPage.openCreateForm();
 
-    // The button becomes disabled once the create form is shown
-    await expect(categoriesPage.addCategoryButton).toBeDisabled();
+    // Name is empty by default — submit button is disabled
+    await expect(categoriesPage.createSubmitButton).toBeDisabled();
   });
 
   test('Page URL is /settings/manage?tab=budget-categories', async ({ page }) => {
@@ -868,10 +873,7 @@ test.describe('Responsive layout (Scenario 9)', { tag: '@responsive' }, () => {
     await expect(categoriesPage.createColorInput).toBeVisible();
     await expect(categoriesPage.createSortOrderInput).toBeVisible();
     await expect(categoriesPage.createSubmitButton).toBeVisible();
-
-    // Cancel and close the form
-    const cancelButton = page.getByRole('button', { name: 'Cancel', exact: true });
-    await cancelButton.click();
+    // Visual cleanup #1185: the create form has no Cancel button (always-visible form, no toggle).
   });
 
   test('Category list rows are visible and action buttons accessible on current viewport', async ({
@@ -928,9 +930,7 @@ test.describe('Responsive layout (Scenario 9)', { tag: '@responsive' }, () => {
       expect(Math.abs(nameInputBox.y - colorInputBox.y)).toBeLessThan(rowHeightTolerance);
       expect(Math.abs(nameInputBox.y - sortOrderBox.y)).toBeLessThan(rowHeightTolerance);
     }
-
-    const cancelButton = page.getByRole('button', { name: 'Cancel', exact: true });
-    await cancelButton.click();
+    // Visual cleanup #1185: the create form has no Cancel button (always-visible form, no toggle).
   });
 });
 
@@ -949,12 +949,12 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
       document.documentElement.setAttribute('data-theme', 'dark');
     });
 
-    // Wait for page heading and tab content to load
-    await categoriesPage.heading.waitFor({ state: 'visible', timeout: 8000 });
-    await categoriesPage.addCategoryButton.waitFor({ state: 'visible', timeout: 8000 });
+    // Wait for tab content to load — the "Add Category" button is the readiness indicator.
+    // Visual cleanup #1185: h1 and toggle button removed; use createFormHeading as readiness indicator.
+    await categoriesPage.createFormHeading.waitFor({ state: 'visible', timeout: 8000 });
 
-    // Then: The heading is visible (not hidden by theme issues)
-    await expect(categoriesPage.heading).toBeVisible();
+    // Then: The create form heading is visible (not hidden by theme issues)
+    await expect(categoriesPage.createFormHeading).toBeVisible();
 
     // And: The categories section is visible
     await expect(categoriesPage.categoriesListHeading).toBeVisible();
@@ -978,17 +978,13 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
       document.documentElement.setAttribute('data-theme', 'dark');
     });
 
-    await categoriesPage.heading.waitFor({ state: 'visible', timeout: 8000 });
-    await categoriesPage.addCategoryButton.waitFor({ state: 'visible', timeout: 8000 });
-    await categoriesPage.openCreateForm();
+    // Visual cleanup #1185: h1 and toggle button removed; the create form is always visible.
+    // Wait for the create form heading as the readiness indicator.
+    await categoriesPage.createFormHeading.waitFor({ state: 'visible', timeout: 8000 });
 
     // Form inputs should be visible in dark mode
     await expect(categoriesPage.createNameInput).toBeVisible();
     await expect(categoriesPage.createSubmitButton).toBeVisible();
-
-    // Cancel form
-    const cancelButton = page.getByRole('button', { name: 'Cancel', exact: true });
-    await cancelButton.click();
   });
 
   test('Delete modal is usable in dark mode', async ({ page, testPrefix }) => {
@@ -1004,8 +1000,9 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
         document.documentElement.setAttribute('data-theme', 'dark');
       });
 
-      await categoriesPage.heading.waitFor({ state: 'visible', timeout: 8000 });
-      await categoriesPage.addCategoryButton.waitFor({ state: 'visible', timeout: 8000 });
+      // Visual cleanup #1185: h1 and toggle button removed; the create form is always visible.
+      // Wait for the create form heading as the readiness indicator.
+      await categoriesPage.createFormHeading.waitFor({ state: 'visible', timeout: 8000 });
 
       // Open delete modal in dark mode
       await categoriesPage.openDeleteModal(categoryName);
@@ -1039,9 +1036,7 @@ test.describe('Color field (Scenario 17)', { tag: '@responsive' }, () => {
     const defaultColor = await categoriesPage.createColorInput.inputValue();
     expect(defaultColor).toMatch(/^#[0-9a-fA-F]{6}$/);
 
-    // Cancel form
-    const cancelButton = page.getByRole('button', { name: 'Cancel', exact: true });
-    await cancelButton.click();
+    // Visual cleanup #1185: the create form has no Cancel button (always-visible form, no toggle).
   });
 
   test('Color input accepts hex color values', async ({ page, testPrefix }) => {

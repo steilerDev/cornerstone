@@ -1063,7 +1063,6 @@ function BudgetCategoriesTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
-  const [showCreateForm, setShowCreateForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newColor, setNewColor] = useState<string>(generateRandomColor);
@@ -1135,7 +1134,6 @@ function BudgetCategoriesTab() {
       setNewDescription('');
       setNewColor(generateRandomColor());
       setNewSortOrder('');
-      setShowCreateForm(false);
       setSuccessMessage(t('manage.budgetCategories.messages.created', { name: created.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -1271,9 +1269,8 @@ function BudgetCategoriesTab() {
       )}
 
       {/* Create form */}
-      {showCreateForm && (
-        <section className={styles.card}>
-          <h2 className={styles.cardTitle}>{t('manage.budgetCategories.createTitle')}</h2>
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>{t('manage.budgetCategories.createTitle')}</h2>
           <p className={styles.cardDescription}>{t('manage.budgetCategories.createDescription')}</p>
 
           {createError && (
@@ -1366,44 +1363,15 @@ function BudgetCategoriesTab() {
                   ? t('manage.budgetCategories.creating')
                   : t('manage.budgetCategories.createButton')}
               </button>
-              <button
-                type="button"
-                className={styles.cancelButton}
-                onClick={() => {
-                  setShowCreateForm(false);
-                  setCreateError('');
-                  setNewName('');
-                  setNewDescription('');
-                  setNewColor(generateRandomColor());
-                  setNewSortOrder('');
-                }}
-                disabled={isCreating}
-              >
-                {t('manage.budgetCategories.cancel')}
-              </button>
             </div>
           </form>
-        </section>
-      )}
+      </section>
 
       {/* Categories list */}
       <section className={styles.card}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 className={styles.cardTitle}>
-            {t('manage.budgetCategories.listTitle', { count: categories.length })}
-          </h2>
-          <button
-            type="button"
-            className={styles.button}
-            onClick={() => {
-              setShowCreateForm(true);
-              setCreateError('');
-            }}
-            disabled={showCreateForm}
-          >
-            {t('manage.budgetCategories.addButton')}
-          </button>
-        </div>
+        <h2 className={styles.cardTitle}>
+          {t('manage.budgetCategories.listTitle', { count: categories.length })}
+        </h2>
 
         {categories.length === 0 ? (
           <EmptyState icon="💰" message={t('manage.budgetCategories.emptyState')} />
@@ -1651,7 +1619,6 @@ function HouseholdItemCategoriesTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
-  const [showCreateForm, setShowCreateForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState<string>(generateRandomColor);
   const [newSortOrder, setNewSortOrder] = useState<string>('');
@@ -1720,7 +1687,6 @@ function HouseholdItemCategoriesTab() {
       setNewName('');
       setNewColor(generateRandomColor());
       setNewSortOrder('');
-      setShowCreateForm(false);
       setSuccessMessage(
         t('manage.householdItemCategories.messages.created', { name: created.name }),
       );
@@ -1860,9 +1826,8 @@ function HouseholdItemCategoriesTab() {
       )}
 
       {/* Create form */}
-      {showCreateForm && (
-        <section className={styles.card}>
-          <h2 className={styles.cardTitle}>{t('manage.householdItemCategories.createTitle')}</h2>
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>{t('manage.householdItemCategories.createTitle')}</h2>
           <p className={styles.cardDescription}>
             {t('manage.householdItemCategories.createDescription')}
           </p>
@@ -1941,43 +1906,15 @@ function HouseholdItemCategoriesTab() {
                   ? t('manage.householdItemCategories.creating')
                   : t('manage.householdItemCategories.createButton')}
               </button>
-              <button
-                type="button"
-                className={styles.cancelButton}
-                onClick={() => {
-                  setShowCreateForm(false);
-                  setCreateError('');
-                  setNewName('');
-                  setNewColor(generateRandomColor());
-                  setNewSortOrder('');
-                }}
-                disabled={isCreating}
-              >
-                {t('manage.householdItemCategories.cancel')}
-              </button>
             </div>
           </form>
-        </section>
-      )}
+      </section>
 
       {/* Categories list */}
       <section className={styles.card}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 className={styles.cardTitle}>
-            {t('manage.householdItemCategories.listTitle', { count: categories.length })}
-          </h2>
-          <button
-            type="button"
-            className={styles.button}
-            onClick={() => {
-              setShowCreateForm(true);
-              setCreateError('');
-            }}
-            disabled={showCreateForm}
-          >
-            {t('manage.householdItemCategories.addButton')}
-          </button>
-        </div>
+        <h2 className={styles.cardTitle}>
+          {t('manage.householdItemCategories.listTitle', { count: categories.length })}
+        </h2>
 
         {categories.length === 0 ? (
           <EmptyState icon="🛋️" message={t('manage.householdItemCategories.emptyState')} />
@@ -2200,57 +2137,53 @@ export function ManagePage() {
   }, [activeTab, setSearchParams]);
 
   return (
-    <>
-      <SettingsSubNav />
+    <div className={styles.container}>
+      <div className={styles.content}>
+        <SettingsSubNav />
 
-      <div className={styles.container}>
-        <div className={styles.content}>
-          <h1 className={styles.pageTitle}>{t('manage.pageTitle')}</h1>
+        <div className={styles.tabList} role="tablist">
+          <button
+            role="tab"
+            aria-selected={activeTab === 'areas'}
+            className={`${styles.tab} ${activeTab === 'areas' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('areas')}
+          >
+            {t('manage.tabs.areas')}
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'trades'}
+            className={`${styles.tab} ${activeTab === 'trades' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('trades')}
+          >
+            {t('manage.tabs.trades')}
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'budget-categories'}
+            className={`${styles.tab} ${activeTab === 'budget-categories' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('budget-categories')}
+          >
+            {t('manage.tabs.budgetCategories')}
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'hi-categories'}
+            className={`${styles.tab} ${activeTab === 'hi-categories' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('hi-categories')}
+          >
+            {t('manage.tabs.householdItemCategories')}
+          </button>
+        </div>
 
-          <div className={styles.tabList} role="tablist">
-            <button
-              role="tab"
-              aria-selected={activeTab === 'areas'}
-              className={`${styles.tab} ${activeTab === 'areas' ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab('areas')}
-            >
-              {t('manage.tabs.areas')}
-            </button>
-            <button
-              role="tab"
-              aria-selected={activeTab === 'trades'}
-              className={`${styles.tab} ${activeTab === 'trades' ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab('trades')}
-            >
-              {t('manage.tabs.trades')}
-            </button>
-            <button
-              role="tab"
-              aria-selected={activeTab === 'budget-categories'}
-              className={`${styles.tab} ${activeTab === 'budget-categories' ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab('budget-categories')}
-            >
-              {t('manage.tabs.budgetCategories')}
-            </button>
-            <button
-              role="tab"
-              aria-selected={activeTab === 'hi-categories'}
-              className={`${styles.tab} ${activeTab === 'hi-categories' ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab('hi-categories')}
-            >
-              {t('manage.tabs.householdItemCategories')}
-            </button>
-          </div>
-
-          <div className={styles.tabPanel} role="tabpanel" id={`${activeTab}-panel`}>
-            {activeTab === 'areas' && <AreasTab />}
-            {activeTab === 'trades' && <TradesTab />}
-            {activeTab === 'budget-categories' && <BudgetCategoriesTab />}
-            {activeTab === 'hi-categories' && <HouseholdItemCategoriesTab />}
-          </div>
+        <div className={styles.tabPanel} role="tabpanel" id={`${activeTab}-panel`}>
+          {activeTab === 'areas' && <AreasTab />}
+          {activeTab === 'trades' && <TradesTab />}
+          {activeTab === 'budget-categories' && <BudgetCategoriesTab />}
+          {activeTab === 'hi-categories' && <HouseholdItemCategoriesTab />}
         </div>
       </div>
-    </>
+    </div>
   );
 }
 

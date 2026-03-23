@@ -458,8 +458,6 @@ export function InvoicesPage() {
 
       <BudgetSubNav />
 
-      <h2 className={styles.sectionTitle}>{t('invoices.sectionTitle')}</h2>
-
       <DataTable<Invoice>
         pageKey="invoices"
         columns={columns}

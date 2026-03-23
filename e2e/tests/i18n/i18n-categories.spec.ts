@@ -88,10 +88,9 @@ test.describe('i18n: Predefined category name translations', () => {
   test('English baseline: Manage trades tab shows "Plumbing"', async ({ page }) => {
     // Given: locale is English (default in CI)
     // When: User navigates to the Manage page trades tab
+    // Visual cleanup #1185: the <h1>Manage</h1> heading was removed; wait for the tab panel instead.
     await page.goto(MANAGE_TRADES_URL);
-    await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
-      state: 'visible',
-    });
+    await page.locator('#trades-panel').waitFor({ state: 'attached' });
 
     // Wait for the trades list to load — the tab panel becomes active after navigation
     const tradesPanel = page.locator('#trades-panel');
@@ -119,18 +118,15 @@ test.describe('i18n: Predefined category name translations', () => {
     // — this matches the i18n.spec.ts "Key page headings render in German" pattern that passes.
     await page.goto(MANAGE_TRADES_URL);
     await page.reload();
-    // German heading for ManagePage is "Verwalten".
-    // Use a 20s timeout: i18next cold-start locale initialization (fetching + parsing the 'de'
-    // bundle) can take 10-15s on slow CI runners. The test.setTimeout(30s) gives enough budget
-    // for setLanguage(~5s) + goto(~2s) + reload(~2s) + this assertion (up to 20s) = ~29s.
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true }),
-    ).toBeVisible({
-      timeout: 20000,
-    });
-
+    // Visual cleanup #1185: the <h1>Manage</h1> (German: "Verwalten") heading was removed.
+    // Wait for the trades panel to attach (it renders once ManagePage mounts its tabs),
+    // then wait for the first item row — this serves as the i18n readiness indicator.
+    // Use a 20s timeout on the item row wait: i18next cold-start locale initialization
+    // (fetching + parsing the 'de' bundle) can take 10-15s on slow CI runners.
+    // The test.setTimeout(30s) gives enough budget:
+    // setLanguage(~5s) + goto(~2s) + reload(~2s) + item row wait (up to 20s) = ~29s.
     const tradesPanel = page.locator('#trades-panel');
-    await tradesPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });
+    await tradesPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible', timeout: 20000 });
 
     // Then: The German translation "Sanitär" is shown for Plumbing
     await expect(tradesPanel.getByText('Sanitär', { exact: true }).first()).toBeVisible();
@@ -152,10 +148,9 @@ test.describe('i18n: Predefined category name translations', () => {
     await setLanguage(page, 'en');
 
     // When: User navigates to the Manage page budget categories tab
+    // Visual cleanup #1185: the <h1>Manage</h1> heading was removed; wait for the tab panel instead.
     await page.goto(MANAGE_BUDGET_CATEGORIES_URL);
-    await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
-      state: 'visible',
-    });
+    await page.locator('#budget-categories-panel').waitFor({ state: 'attached' });
 
     const budgetPanel = page.locator('#budget-categories-panel');
     await budgetPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });
@@ -172,14 +167,13 @@ test.describe('i18n: Predefined category name translations', () => {
 
     // When: User navigates to the Manage page budget categories tab
     // Reload after setLanguage to ensure i18next re-reads locale from localStorage
+    // Visual cleanup #1185: the <h1>Manage</h1> / "Verwalten" heading was removed.
+    // Wait directly for the item row as the i18n readiness indicator.
     await page.goto(MANAGE_BUDGET_CATEGORIES_URL);
     await page.reload();
-    await page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true }).waitFor({
-      state: 'visible',
-    });
 
     const budgetPanel = page.locator('#budget-categories-panel');
-    await budgetPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });
+    await budgetPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible', timeout: 20000 });
 
     // Then: The German translation "Materialien" is shown for Materials
     await expect(budgetPanel.getByText('Materialien', { exact: true }).first()).toBeVisible();
@@ -201,10 +195,9 @@ test.describe('i18n: Predefined category name translations', () => {
     await setLanguage(page, 'en');
 
     // When: User navigates to the Manage page household item categories tab
+    // Visual cleanup #1185: the <h1>Manage</h1> heading was removed; wait for the tab panel instead.
     await page.goto(MANAGE_HI_CATEGORIES_URL);
-    await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
-      state: 'visible',
-    });
+    await page.locator('#hi-categories-panel').waitFor({ state: 'attached' });
 
     const hiPanel = page.locator('#hi-categories-panel');
     await hiPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });
@@ -221,14 +214,13 @@ test.describe('i18n: Predefined category name translations', () => {
 
     // When: User navigates to the Manage page household item categories tab
     // Reload after setLanguage to ensure i18next re-reads locale from localStorage
+    // Visual cleanup #1185: the <h1>Manage</h1> / "Verwalten" heading was removed.
+    // Wait directly for the item row as the i18n readiness indicator.
     await page.goto(MANAGE_HI_CATEGORIES_URL);
     await page.reload();
-    await page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true }).waitFor({
-      state: 'visible',
-    });
 
     const hiPanel = page.locator('#hi-categories-panel');
-    await hiPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });
+    await hiPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible', timeout: 20000 });
 
     // Then: The German translation "Möbel" is shown for Furniture
     await expect(hiPanel.getByText('Möbel', { exact: true }).first()).toBeVisible();

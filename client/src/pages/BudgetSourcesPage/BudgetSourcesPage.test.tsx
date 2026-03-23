@@ -191,14 +191,13 @@ describe('BudgetSourcesPage', () => {
   // ─── Page structure ──────────────────────────────────────────────────────────
 
   describe('page structure', () => {
-    it('renders the page heading "Budget" and section heading "Sources"', async () => {
+    it('renders the page heading "Budget"', async () => {
       mockFetchBudgetSources.mockResolvedValueOnce(emptyResponse);
 
       renderPage();
 
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
-        expect(screen.getByRole('heading', { name: /^sources$/i, level: 2 })).toBeInTheDocument();
       });
     });
 

@@ -405,22 +405,19 @@ export function SubsidyProgramsPage() {
         {/* Budget sub-navigation */}
         <BudgetSubNav />
 
-        {/* Section header */}
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>{t('subsidies.title')}</h2>
-          <button
-            type="button"
-            className={styles.button}
-            onClick={() => {
-              setShowCreateForm(true);
-              setCreateError('');
-              setNewCategoryIds(allCategories.map((c) => c.id));
-            }}
-            disabled={showCreateForm}
-          >
-            Add Program
-          </button>
-        </div>
+        {/* Add button */}
+        <button
+          type="button"
+          className={styles.button}
+          onClick={() => {
+            setShowCreateForm(true);
+            setCreateError('');
+            setNewCategoryIds(allCategories.map((c) => c.id));
+          }}
+          disabled={showCreateForm}
+        >
+          Add Program
+        </button>
 
         {successMessage && (
           <div className={styles.successBanner} role="alert">
