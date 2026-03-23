@@ -126,7 +126,10 @@ test.describe('i18n: Predefined category name translations', () => {
     // The test.setTimeout(30s) gives enough budget:
     // setLanguage(~5s) + goto(~2s) + reload(~2s) + item row wait (up to 20s) = ~29s.
     const tradesPanel = page.locator('#trades-panel');
-    await tradesPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible', timeout: 20000 });
+    await tradesPanel
+      .locator('[class*="itemRow"]')
+      .first()
+      .waitFor({ state: 'visible', timeout: 20000 });
 
     // Then: The German translation "Sanitär" is shown for Plumbing
     await expect(tradesPanel.getByText('Sanitär', { exact: true }).first()).toBeVisible();
@@ -173,7 +176,10 @@ test.describe('i18n: Predefined category name translations', () => {
     await page.reload();
 
     const budgetPanel = page.locator('#budget-categories-panel');
-    await budgetPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible', timeout: 20000 });
+    await budgetPanel
+      .locator('[class*="itemRow"]')
+      .first()
+      .waitFor({ state: 'visible', timeout: 20000 });
 
     // Then: The German translation "Materialien" is shown for Materials
     await expect(budgetPanel.getByText('Materialien', { exact: true }).first()).toBeVisible();
@@ -220,7 +226,10 @@ test.describe('i18n: Predefined category name translations', () => {
     await page.reload();
 
     const hiPanel = page.locator('#hi-categories-panel');
-    await hiPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible', timeout: 20000 });
+    await hiPanel
+      .locator('[class*="itemRow"]')
+      .first()
+      .waitFor({ state: 'visible', timeout: 20000 });
 
     // Then: The German translation "Möbel" is shown for Furniture
     await expect(hiPanel.getByText('Möbel', { exact: true }).first()).toBeVisible();

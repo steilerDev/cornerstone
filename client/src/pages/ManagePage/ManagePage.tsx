@@ -1271,100 +1271,99 @@ function BudgetCategoriesTab() {
       {/* Create form */}
       <section className={styles.card}>
         <h2 className={styles.cardTitle}>{t('manage.budgetCategories.createTitle')}</h2>
-          <p className={styles.cardDescription}>{t('manage.budgetCategories.createDescription')}</p>
+        <p className={styles.cardDescription}>{t('manage.budgetCategories.createDescription')}</p>
 
-          {createError && (
-            <div className={styles.errorBanner} role="alert">
-              {createError}
-            </div>
-          )}
+        {createError && (
+          <div className={styles.errorBanner} role="alert">
+            {createError}
+          </div>
+        )}
 
-          <form onSubmit={handleCreateCategory} className={styles.form}>
-            <div className={styles.formRow}>
-              <div className={styles.fieldGrow}>
-                <label htmlFor="categoryName" className={styles.label}>
-                  {t('manage.budgetCategories.nameLabel')}{' '}
-                  <span className={styles.required}>*</span>
-                </label>
-                <input
-                  type="text"
-                  id="categoryName"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  className={styles.input}
-                  placeholder={t('manage.budgetCategories.namePlaceholder')}
-                  maxLength={100}
-                  disabled={isCreating}
-                  autoFocus
-                />
-              </div>
-
-              <div className={styles.fieldFixed}>
-                <label htmlFor="categoryColor" className={styles.label}>
-                  {t('manage.budgetCategories.colorLabel')}
-                </label>
-                <div className={styles.colorWrapper}>
-                  <input
-                    type="color"
-                    id="categoryColor"
-                    value={newColor}
-                    onChange={(e) => setNewColor(e.target.value)}
-                    className={styles.colorInput}
-                    disabled={isCreating}
-                  />
-                  <span
-                    className={styles.colorSwatch}
-                    style={{ backgroundColor: newColor }}
-                    aria-hidden="true"
-                  />
-                </div>
-              </div>
-
-              <div className={styles.fieldNarrow}>
-                <label htmlFor="categorySortOrder" className={styles.label}>
-                  {t('manage.budgetCategories.sortOrderLabel')}
-                </label>
-                <input
-                  type="number"
-                  id="categorySortOrder"
-                  value={newSortOrder}
-                  onChange={(e) => setNewSortOrder(e.target.value)}
-                  className={styles.input}
-                  placeholder="0"
-                  min={0}
-                  disabled={isCreating}
-                />
-              </div>
-            </div>
-
-            <div className={styles.field}>
-              <label htmlFor="categoryDescription" className={styles.label}>
-                {t('manage.budgetCategories.descriptionLabel')}
+        <form onSubmit={handleCreateCategory} className={styles.form}>
+          <div className={styles.formRow}>
+            <div className={styles.fieldGrow}>
+              <label htmlFor="categoryName" className={styles.label}>
+                {t('manage.budgetCategories.nameLabel')} <span className={styles.required}>*</span>
               </label>
               <input
                 type="text"
-                id="categoryDescription"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
+                id="categoryName"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
                 className={styles.input}
-                placeholder={t('manage.budgetCategories.descriptionPlaceholder')}
-                maxLength={500}
+                placeholder={t('manage.budgetCategories.namePlaceholder')}
+                maxLength={100}
                 disabled={isCreating}
+                autoFocus
               />
             </div>
 
-            <div className={styles.formActions}>
-              <button
-                type="submit"
-                className={styles.button}
-                disabled={isCreating || !newName.trim()}
-              >
-                {isCreating
-                  ? t('manage.budgetCategories.creating')
-                  : t('manage.budgetCategories.createButton')}
-              </button>
+            <div className={styles.fieldFixed}>
+              <label htmlFor="categoryColor" className={styles.label}>
+                {t('manage.budgetCategories.colorLabel')}
+              </label>
+              <div className={styles.colorWrapper}>
+                <input
+                  type="color"
+                  id="categoryColor"
+                  value={newColor}
+                  onChange={(e) => setNewColor(e.target.value)}
+                  className={styles.colorInput}
+                  disabled={isCreating}
+                />
+                <span
+                  className={styles.colorSwatch}
+                  style={{ backgroundColor: newColor }}
+                  aria-hidden="true"
+                />
+              </div>
             </div>
-          </form>
+
+            <div className={styles.fieldNarrow}>
+              <label htmlFor="categorySortOrder" className={styles.label}>
+                {t('manage.budgetCategories.sortOrderLabel')}
+              </label>
+              <input
+                type="number"
+                id="categorySortOrder"
+                value={newSortOrder}
+                onChange={(e) => setNewSortOrder(e.target.value)}
+                className={styles.input}
+                placeholder="0"
+                min={0}
+                disabled={isCreating}
+              />
+            </div>
+          </div>
+
+          <div className={styles.field}>
+            <label htmlFor="categoryDescription" className={styles.label}>
+              {t('manage.budgetCategories.descriptionLabel')}
+            </label>
+            <input
+              type="text"
+              id="categoryDescription"
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              className={styles.input}
+              placeholder={t('manage.budgetCategories.descriptionPlaceholder')}
+              maxLength={500}
+              disabled={isCreating}
+            />
+          </div>
+
+          <div className={styles.formActions}>
+            <button
+              type="submit"
+              className={styles.button}
+              disabled={isCreating || !newName.trim()}
+            >
+              {isCreating
+                ? t('manage.budgetCategories.creating')
+                : t('manage.budgetCategories.createButton')}
+            </button>
+          </div>
+        </form>
       </section>
 
       {/* Categories list */}
@@ -1828,86 +1827,86 @@ function HouseholdItemCategoriesTab() {
       {/* Create form */}
       <section className={styles.card}>
         <h2 className={styles.cardTitle}>{t('manage.householdItemCategories.createTitle')}</h2>
-          <p className={styles.cardDescription}>
-            {t('manage.householdItemCategories.createDescription')}
-          </p>
+        <p className={styles.cardDescription}>
+          {t('manage.householdItemCategories.createDescription')}
+        </p>
 
-          {createError && (
-            <div className={styles.errorBanner} role="alert">
-              {createError}
+        {createError && (
+          <div className={styles.errorBanner} role="alert">
+            {createError}
+          </div>
+        )}
+
+        <form onSubmit={handleCreateCategory} className={styles.form}>
+          <div className={styles.formRow}>
+            <div className={styles.fieldGrow}>
+              <label htmlFor="categoryName" className={styles.label}>
+                {t('manage.householdItemCategories.nameLabel')}{' '}
+                <span className={styles.required}>*</span>
+              </label>
+              <input
+                type="text"
+                id="categoryName"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className={styles.input}
+                placeholder={t('manage.householdItemCategories.namePlaceholder')}
+                maxLength={100}
+                disabled={isCreating}
+                autoFocus
+              />
             </div>
-          )}
 
-          <form onSubmit={handleCreateCategory} className={styles.form}>
-            <div className={styles.formRow}>
-              <div className={styles.fieldGrow}>
-                <label htmlFor="categoryName" className={styles.label}>
-                  {t('manage.householdItemCategories.nameLabel')}{' '}
-                  <span className={styles.required}>*</span>
-                </label>
+            <div className={styles.fieldFixed}>
+              <label htmlFor="categoryColor" className={styles.label}>
+                {t('manage.householdItemCategories.colorLabel')}
+              </label>
+              <div className={styles.colorWrapper}>
                 <input
-                  type="text"
-                  id="categoryName"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  className={styles.input}
-                  placeholder={t('manage.householdItemCategories.namePlaceholder')}
-                  maxLength={100}
+                  type="color"
+                  id="categoryColor"
+                  value={newColor}
+                  onChange={(e) => setNewColor(e.target.value)}
+                  className={styles.colorInput}
                   disabled={isCreating}
-                  autoFocus
                 />
-              </div>
-
-              <div className={styles.fieldFixed}>
-                <label htmlFor="categoryColor" className={styles.label}>
-                  {t('manage.householdItemCategories.colorLabel')}
-                </label>
-                <div className={styles.colorWrapper}>
-                  <input
-                    type="color"
-                    id="categoryColor"
-                    value={newColor}
-                    onChange={(e) => setNewColor(e.target.value)}
-                    className={styles.colorInput}
-                    disabled={isCreating}
-                  />
-                  <span
-                    className={styles.colorSwatch}
-                    style={{ backgroundColor: newColor }}
-                    aria-hidden="true"
-                  />
-                </div>
-              </div>
-
-              <div className={styles.fieldNarrow}>
-                <label htmlFor="categorySortOrder" className={styles.label}>
-                  {t('manage.householdItemCategories.sortOrderLabel')}
-                </label>
-                <input
-                  type="number"
-                  id="categorySortOrder"
-                  value={newSortOrder}
-                  onChange={(e) => setNewSortOrder(e.target.value)}
-                  className={styles.input}
-                  placeholder="0"
-                  min={0}
-                  disabled={isCreating}
+                <span
+                  className={styles.colorSwatch}
+                  style={{ backgroundColor: newColor }}
+                  aria-hidden="true"
                 />
               </div>
             </div>
 
-            <div className={styles.formActions}>
-              <button
-                type="submit"
-                className={styles.button}
-                disabled={isCreating || !newName.trim()}
-              >
-                {isCreating
-                  ? t('manage.householdItemCategories.creating')
-                  : t('manage.householdItemCategories.createButton')}
-              </button>
+            <div className={styles.fieldNarrow}>
+              <label htmlFor="categorySortOrder" className={styles.label}>
+                {t('manage.householdItemCategories.sortOrderLabel')}
+              </label>
+              <input
+                type="number"
+                id="categorySortOrder"
+                value={newSortOrder}
+                onChange={(e) => setNewSortOrder(e.target.value)}
+                className={styles.input}
+                placeholder="0"
+                min={0}
+                disabled={isCreating}
+              />
             </div>
-          </form>
+          </div>
+
+          <div className={styles.formActions}>
+            <button
+              type="submit"
+              className={styles.button}
+              disabled={isCreating || !newName.trim()}
+            >
+              {isCreating
+                ? t('manage.householdItemCategories.creating')
+                : t('manage.householdItemCategories.createButton')}
+            </button>
+          </div>
+        </form>
       </section>
 
       {/* Categories list */}
