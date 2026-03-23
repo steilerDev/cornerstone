@@ -131,7 +131,11 @@ test.describe('i18n: Predefined category name translations', () => {
   // ───────────────────────────────────────────────────────────────────────────
 
   test('English baseline: Manage budget categories tab shows "Materials"', async ({ page }) => {
-    // Given: locale is English (default in CI)
+    // Given: locale is English — set explicitly to avoid state leakage from a prior German test
+    // in the same shard. setLanguage() patches the API preference AND writes localStorage,
+    // ensuring i18next is fully initialized to English before we navigate to the Manage page.
+    await setLanguage(page, 'en');
+
     // When: User navigates to the Manage page budget categories tab
     await page.goto(MANAGE_BUDGET_CATEGORIES_URL);
     await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
@@ -176,7 +180,9 @@ test.describe('i18n: Predefined category name translations', () => {
   test('English baseline: Manage household item categories tab shows "Furniture"', async ({
     page,
   }) => {
-    // Given: locale is English (default in CI)
+    // Given: locale is English — set explicitly to avoid state leakage from a prior German test
+    await setLanguage(page, 'en');
+
     // When: User navigates to the Manage page household item categories tab
     await page.goto(MANAGE_HI_CATEGORIES_URL);
     await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({

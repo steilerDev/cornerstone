@@ -148,7 +148,7 @@ export class WorkItemsPage {
    * For search(query): waits until URL has q=query (exact match).
    * For clearSearch(): waits until URL no longer has q=.
    */
-  private async waitForSearchParams(hasQuery?: string): Promise<void> {
+  async waitForSearchParams(hasQuery?: string): Promise<void> {
     if (hasQuery !== undefined) {
       await this.page.waitForURL((url) => url.searchParams.get('q') === hasQuery, {
         timeout: 10000,
@@ -215,6 +215,10 @@ export class WorkItemsPage {
     );
     await this.searchInput.fill(query);
     await responsePromise;
+    // Wait for the URL search param to update — this confirms the debounced setSearchParams()
+    // has fired and React has committed the filtered data to the DOM. Required on mobile where
+    // waitForLoaded() resolves immediately (old cards still visible) before new results render.
+    await this.waitForSearchParams(query);
     await this.waitForLoaded();
   }
 
@@ -232,6 +236,8 @@ export class WorkItemsPage {
     );
     await this.searchInput.clear();
     await responsePromise;
+    // Wait for the URL search param to clear — confirms React state has settled.
+    await this.waitForSearchParams(undefined);
     await this.waitForLoaded();
   }
 

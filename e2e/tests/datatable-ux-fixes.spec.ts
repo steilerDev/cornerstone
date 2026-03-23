@@ -250,37 +250,53 @@ test.describe('Column drag-and-drop insertion line', () => {
       return;
     }
 
-    // Get bounding boxes of the first two draggable items (the parent divs)
-    // The parent div contains the drag handle button
+    // Get the first two draggable items (the parent divs of the drag handle buttons)
     const firstItem = dragHandles.first().locator('xpath=..');
     const secondItem = dragHandles.nth(1).locator('xpath=..');
 
-    const firstBox = await firstItem.boundingBox();
-    const secondBox = await secondItem.boundingBox();
-    expect(firstBox).not.toBeNull();
-    expect(secondBox).not.toBeNull();
+    // When: dispatch a synthetic dragstart on the first item, then dragover on the second.
+    // page.mouse simulation does NOT fire HTML5 drag events (dragstart/dragover/drop).
+    // Use page.evaluate() to dispatch DragEvents with a real DataTransfer object, because
+    // browsers set dataTransfer to null when using Playwright's dispatchEvent() with a plain
+    // object init — and the React handlers access e.dataTransfer without null checks.
+    const firstHandle = await firstItem.elementHandle();
+    const secondHandle = await secondItem.elementHandle();
+    expect(firstHandle).not.toBeNull();
+    expect(secondHandle).not.toBeNull();
 
-    // When: I perform a drag from the first item to the second item
-    // Use mouse drag: mousedown on source, move to target, hover over target
-    await page.mouse.move(firstBox!.x + firstBox!.width / 2, firstBox!.y + firstBox!.height / 2);
-    await page.mouse.down();
-    // Move partway toward the target
-    await page.mouse.move(
-      secondBox!.x + secondBox!.width / 2,
-      secondBox!.y + secondBox!.height / 2,
-      { steps: 5 },
+    await page.evaluate(
+      ({ source, target }) => {
+        const dataTransfer = new DataTransfer();
+        // Fire dragstart on the first item to activate dragging React state
+        source.dispatchEvent(
+          new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }),
+        );
+        // Fire dragover on the second item — the React onDragOver handler reads clientY
+        // to determine 'above'/'below' and sets dragOverState with the target's index
+        target.dispatchEvent(
+          new DragEvent('dragover', {
+            bubbles: true,
+            cancelable: true,
+            dataTransfer,
+            // clientY at the center of the target triggers 'above' or 'below' logic
+            clientY: target.getBoundingClientRect().top + 1,
+          }),
+        );
+      },
+      { source: firstHandle!, target: secondHandle! },
     );
 
     // Then: One of the column items has the drop-above or drop-below CSS class (insertion line)
-    // These classes are applied via CSS ::before pseudo-elements using position:absolute
+    // These classes are applied via CSS ::before pseudo-elements using position:absolute.
+    // Use expect().toBeVisible() to leverage Playwright's auto-retry mechanism — React's
+    // state update from onDragOver runs asynchronously and we need to wait for re-render.
     const dropAboveItem = popover.locator('[class*="columnCheckboxItemDropAbove"]');
     const dropBelowItem = popover.locator('[class*="columnCheckboxItemDropBelow"]');
-    const hasInsertionIndicator =
-      (await dropAboveItem.count()) > 0 || (await dropBelowItem.count()) > 0;
-    expect(hasInsertionIndicator).toBe(true);
+    // At least one insertion indicator must appear after the dragover event
+    await expect(dropAboveItem.or(dropBelowItem).first()).toBeVisible();
 
-    // Cleanup: release mouse
-    await page.mouse.up();
+    // Cleanup: fire dragend to reset drag state
+    await firstItem.dispatchEvent('dragend', { bubbles: true, cancelable: true });
   });
 });
 
@@ -310,35 +326,34 @@ test.describe('Column drag uses move semantics', () => {
       return;
     }
 
-    // Register the dragstart listener in the page BEFORE triggering the drag.
-    // page.evaluate() returns a Promise that resolves when the in-page Promise resolves,
-    // so we start evaluating (registers listener) then trigger the drag, then await.
-    const effectAllowedPromise = page.evaluate(
-      () =>
-        new Promise<string>((resolve) => {
-          const handler = (e: Event) => {
-            const dragEvent = e as DragEvent;
-            // effectAllowed is set synchronously in the React onDragStart handler
-            resolve(dragEvent.dataTransfer?.effectAllowed ?? 'none');
-            document.removeEventListener('dragstart', handler, true);
-          };
-          document.addEventListener('dragstart', handler, true);
-        }),
-    );
-
-    // Trigger the drag on the first draggable item
+    // Use page.evaluate to dispatch a DragEvent with a proper DataTransfer object and
+    // simultaneously capture the effectAllowed set by the React onDragStart handler.
+    //
+    // page.dispatchEvent() passes init params to the DragEvent constructor, but browsers
+    // set dataTransfer to null when the init value is not a real DataTransfer instance.
+    // Using page.evaluate() gives us full control: we create a real DataTransfer, attach
+    // a capture listener, fire the event, and read effectAllowed after the handler runs.
     const firstDraggableItem = dragHandles.first().locator('xpath=..');
-    const box = await firstDraggableItem.boundingBox();
-    expect(box).not.toBeNull();
+    const draggableElementHandle = await firstDraggableItem.elementHandle();
+    expect(draggableElementHandle).not.toBeNull();
 
-    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(box!.x + box!.width / 2 + 10, box!.y + box!.height / 2 + 10);
+    const effectAllowed = await page.evaluate((element) => {
+      const dataTransfer = new DataTransfer();
+      const event = new DragEvent('dragstart', {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer,
+      });
+      // Dispatch on the element — this triggers the React onDragStart handler
+      // which synchronously sets dataTransfer.effectAllowed = 'move'
+      element.dispatchEvent(event);
+      // Read effectAllowed after the synchronous handler has run
+      return dataTransfer.effectAllowed;
+    }, draggableElementHandle!);
 
-    // Await the captured effectAllowed value from the page
-    const effectAllowed = await effectAllowedPromise;
     expect(effectAllowed).toBe('move');
 
-    await page.mouse.up();
+    // Cleanup: fire dragend to reset drag state
+    await firstDraggableItem.dispatchEvent('dragend', { bubbles: true, cancelable: true });
   });
 });

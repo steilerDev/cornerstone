@@ -522,10 +522,14 @@ test.describe('Card dismiss (Scenario 6)', () => {
 
     try {
       // The prior test dismisses Quick Actions and beforeEach resets hiddenCards to [].
-      // Wait for the preferences API response after navigation to ensure the reset
+      // Wait for the preferences GET response after navigation to ensure the reset
       // is fully applied before asserting card visibility (prevents state-leak flake).
+      // Use GET filter to avoid matching the PATCH from beforeEach that may still be in-flight.
       const prefsLoaded = page.waitForResponse(
-        (resp) => resp.url().includes('/api/users/me/preferences') && resp.status() === 200,
+        (resp) =>
+          resp.url().includes('/api/users/me/preferences') &&
+          resp.request().method() === 'GET' &&
+          resp.status() === 200,
       );
       await dashboardPage.goto();
       await prefsLoaded;
@@ -538,22 +542,24 @@ test.describe('Card dismiss (Scenario 6)', () => {
       // Dismiss the Quick Actions card
       await dashboardPage.dismissCard('Quick Actions');
 
-      // Register preferences response listener BEFORE reload (per waitForResponse-before-action
-      // pattern). The preferences API is NOT intercepted, so the real server response arrives
-      // after reload. We must wait for it before asserting card visibility.
+      // Register preferences GET response listener BEFORE reload (per waitForResponse-before-action
+      // pattern). Filter specifically for GET requests to avoid accidentally matching the PATCH
+      // that dismissCard already awaited. The GET is the browser fetching persisted state.
       const prefsResponse = page.waitForResponse(
-        (resp) => resp.url().includes('/api/users/me/preferences') && resp.status() === 200,
+        (resp) =>
+          resp.url().includes('/api/users/me/preferences') &&
+          resp.request().method() === 'GET' &&
+          resp.status() === 200,
       );
 
       // Reload the page
       await page.reload();
       await dashboardPage.heading.waitFor({ state: 'visible' });
 
-      // Wait for preferences to be fetched and applied before checking card state.
+      // Wait for the GET preferences response to be received and the React state to update.
       await prefsResponse;
-      await dashboardPage.waitForCardsLoaded();
-
-      // Card should still be hidden — preferences persisted Quick Actions as hidden.
+      // After preferences are fetched, the dashboard hides the dismissed card.
+      // Use expect() retry to wait for the card to be removed from DOM after state update.
       await expect(dashboardPage.card('Quick Actions')).toHaveCount(0);
 
       // Clean up: re-enable the card via preferences API to not affect other tests
