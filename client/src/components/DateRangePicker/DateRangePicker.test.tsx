@@ -218,14 +218,14 @@ describe('DateRangePicker', () => {
       expect(mockOnChange).toHaveBeenCalledWith('2026-03-15', '2026-03-25');
     });
 
-    it('days before start date are disabled during selecting-end phase', () => {
+    it('days before start date have dayDisabled class during selecting-end phase', () => {
       const { container } = render(
         <DateRangePicker startDate="2026-03-20" endDate="" onChange={jest.fn()} />,
       );
-      // Day 10 is before day 20, so it should be disabled
+      // Day 10 is before day 20, so it should have the dayDisabled CSS class but remain clickable
       const dayBtn10 = findDayButton(container, 10);
       expect(dayBtn10).toBeTruthy();
-      expect(dayBtn10).toBeDisabled();
+      expect(dayBtn10).not.toBeDisabled();
       expect(dayBtn10).toHaveClass(styles.dayDisabled);
     });
 
@@ -256,13 +256,13 @@ describe('DateRangePicker', () => {
       expect(dayCellContainer).not.toHaveClass(styles.dayInRange);
     });
 
-    it('disables days before start date (applying dayDisabled class)', () => {
+    it('days before start date have dayDisabled CSS class (visually styled, not disabled)', () => {
       const { container } = render(
         <DateRangePicker startDate="2026-03-15" endDate="" onChange={jest.fn()} />,
       );
       const dayBtn10 = findDayButton(container, 10);
       expect(dayBtn10).toHaveClass(styles.dayDisabled);
-      expect(dayBtn10).toBeDisabled();
+      expect(dayBtn10).not.toBeDisabled();
     });
   });
 
