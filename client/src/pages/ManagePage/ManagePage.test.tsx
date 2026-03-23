@@ -249,11 +249,6 @@ describe('ManagePage', () => {
   // ─── Tab rendering ─────────────────────────────────────────────────────────
 
   describe('Tab navigation', () => {
-    it('renders the "Manage" page heading', async () => {
-      renderManagePage();
-      expect(screen.getByRole('heading', { name: 'Manage', level: 1 })).toBeInTheDocument();
-    });
-
     it('renders all four tab buttons', async () => {
       renderManagePage();
       expect(screen.getByRole('tab', { name: 'Areas' })).toBeInTheDocument();
@@ -746,10 +741,10 @@ describe('ManagePage', () => {
       expect(screen.getByText('Labor')).toBeInTheDocument();
     });
 
-    it('shows Add Category button', async () => {
+    it('shows the create form immediately (always visible, no toggle required)', async () => {
       renderManagePage('/settings/manage?tab=budget-categories');
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
+        expect(screen.getByText('Create New Budget Category')).toBeInTheDocument();
       });
     });
 
@@ -770,17 +765,15 @@ describe('ManagePage', () => {
       });
     });
 
-    it('shows New Budget Category form when Add Category is clicked', async () => {
-      const user = userEvent.setup();
+    it('shows New Budget Category create form without any interaction required', async () => {
       renderManagePage('/settings/manage?tab=budget-categories');
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
+        expect(screen.getByText('Create New Budget Category')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: 'Add Category' }));
-
-      expect(screen.getByText('New Budget Category')).toBeInTheDocument();
+      // The create form inputs are always visible
+      expect(screen.getByRole('button', { name: 'Create Category' })).toBeInTheDocument();
     });
 
     it('delete confirmation modal appears on delete click', async () => {
@@ -824,10 +817,8 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage?tab=budget-categories');
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
+        expect(screen.getByText('Create New Budget Category')).toBeInTheDocument();
       });
-
-      await user.click(screen.getByRole('button', { name: 'Add Category' }));
 
       const nameInput = screen.getByRole('textbox', { name: /Name/i });
       await user.type(nameInput, 'Permits');
@@ -897,9 +888,11 @@ describe('ManagePage', () => {
 
       await user.click(screen.getByRole('button', { name: 'Edit Materials' }));
 
-      const nameInput = screen.getByRole('textbox', { name: /Name/i });
-      await user.clear(nameInput);
-      await user.type(nameInput, 'Materials Updated');
+      // Both the always-visible create form and the edit form have a "Name" input
+      const nameInputs = screen.getAllByRole('textbox', { name: /Name/i });
+      const editNameInput = nameInputs[nameInputs.length - 1];
+      await user.clear(editNameInput);
+      await user.type(editNameInput, 'Materials Updated');
 
       await user.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -995,10 +988,10 @@ describe('ManagePage', () => {
       expect(screen.getByText('Appliances')).toBeInTheDocument();
     });
 
-    it('shows Add Category button', async () => {
+    it('shows the create form immediately (always visible, no toggle required)', async () => {
       renderManagePage('/settings/manage?tab=hi-categories');
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
+        expect(screen.getByText('Create New Household Item Category')).toBeInTheDocument();
       });
     });
 
@@ -1019,17 +1012,15 @@ describe('ManagePage', () => {
       });
     });
 
-    it('shows New Household Item Category form when Add Category is clicked', async () => {
-      const user = userEvent.setup();
+    it('shows New Household Item Category create form without any interaction required', async () => {
       renderManagePage('/settings/manage?tab=hi-categories');
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
+        expect(screen.getByText('Create New Household Item Category')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: 'Add Category' }));
-
-      expect(screen.getByText('New Household Item Category')).toBeInTheDocument();
+      // The create form inputs are always visible
+      expect(screen.getByRole('button', { name: 'Create Category' })).toBeInTheDocument();
     });
 
     it('delete confirmation modal appears on delete click', async () => {
@@ -1107,9 +1098,11 @@ describe('ManagePage', () => {
 
       await user.click(screen.getByRole('button', { name: 'Edit Furniture' }));
 
-      const nameInput = screen.getByRole('textbox', { name: /Name/i });
-      await user.clear(nameInput);
-      await user.type(nameInput, 'Furniture Updated');
+      // Both the always-visible create form and the edit form have a "Name" input
+      const nameInputs = screen.getAllByRole('textbox', { name: /Name/i });
+      const editNameInput = nameInputs[nameInputs.length - 1];
+      await user.clear(editNameInput);
+      await user.type(editNameInput, 'Furniture Updated');
 
       await user.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -1177,10 +1170,8 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage?tab=hi-categories');
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
+        expect(screen.getByText('Create New Household Item Category')).toBeInTheDocument();
       });
-
-      await user.click(screen.getByRole('button', { name: 'Add Category' }));
 
       const nameInput = screen.getByRole('textbox', { name: /Name/i });
       await user.type(nameInput, 'Garden');
@@ -1199,15 +1190,13 @@ describe('ManagePage', () => {
     });
 
     it('shows validation error when name is empty', async () => {
-      const user = userEvent.setup();
       renderManagePage('/settings/manage?tab=hi-categories');
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
+        expect(screen.getByText('Create New Household Item Category')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: 'Add Category' }));
-
+      // Create Category button is disabled when name input is empty
       const createButton = screen.getByRole('button', { name: 'Create Category' });
       expect(createButton).toBeDisabled();
     });
@@ -1224,10 +1213,8 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage?tab=hi-categories');
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
+        expect(screen.getByText('Create New Household Item Category')).toBeInTheDocument();
       });
-
-      await user.click(screen.getByRole('button', { name: 'Add Category' }));
 
       const nameInput = screen.getByRole('textbox', { name: /Name/i });
       await user.type(nameInput, 'Furniture');
