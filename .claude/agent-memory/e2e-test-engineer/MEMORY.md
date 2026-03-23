@@ -6,9 +6,28 @@
 ## i18n German Locale: page.reload() Required After setLanguage() + page.goto() (2026-03-23)
 
 After `setLanguage(page, 'de')` + `page.goto(targetUrl)`, always add `page.reload()` before
-asserting German text. The SPA may not re-initialize i18next from localStorage until the next
-full page load. Pattern from "Key page headings render in German" test (passing) confirms this.
+asserting German text. Pattern from "Key page headings render in German" test (passing) confirms.
 Applied in i18n.spec.ts "German sidebar" test and all three i18n-categories.spec.ts German tests.
+**The FIRST German locale switch in a test file needs `test.setTimeout(30000)` and a 20s expect
+timeout** for the heading assertion — i18next cold-start initialization takes 10-15s on CI.
+Pattern: `test.setTimeout(30000); setLanguage(de); goto(URL); reload(); expect(heading).toBeVisible({ timeout: 20000 })`.
+Extra warm-up navigations (goto('/') to confirm 'Projekt') consume the 30s budget — avoid them.
+
+## WorkItemsPage.search(): URL-based Wait Prevents Stale-DOM Race (2026-03-23)
+
+After `fill(query)`, add `page.waitForURL(url => url.searchParams.get('q') === query)` BEFORE
+awaiting the `waitForResponse`. This confirms the debounce fired and React committed search state.
+Do NOT call `waitForLoaded()` after the response — it resolves on stale DOM rows from the WebKit
+clear-event response and creates a race where betaTitle stays visible for 10s. The test's own
+`expect().not.toBeVisible()` retry handles DOM convergence. Same pattern for `clearSearch()`.
+
+## Dashboard Card Dismiss Reload: Use networkidle, Not waitForResponse (2026-03-23)
+
+For "dismissed card stays hidden after page reload" test: register `waitForResponse(GET preferences)`
+before reload failed — LocaleContext fires FIRST GET and resolves the promise, but usePreferences
+hook's second GET (which applies hiddenCards) arrives later. Fix: use `page.waitForLoadState('networkidle')`
+AFTER `heading.waitFor({ state: 'visible', timeout: 10000 })` to ensure BOTH preference fetches
+complete. The heading waitFor needs 10s timeout (not 5s actionTimeout) since SPA reinit takes time.
 
 ## Vendor Count Assertions Are Fragile (2026-03-23)
 
