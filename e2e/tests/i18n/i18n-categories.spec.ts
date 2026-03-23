@@ -106,27 +106,28 @@ test.describe('i18n: Predefined category name translations', () => {
   }) => {
     // Extend test timeout to 30s: i18next cold-start locale initialization from localStorage
     // can take 10-15s on the first German page load in CI; 15s test timeout is too short
-    // when combined with setLanguage(), page.goto(), page.reload(), and networkidle wait.
+    // when combined with the warm-up navigation and manage page load.
     test.setTimeout(30000);
 
     // Given: locale is set to German
+    // setLanguage() patches preferences API + navigates to '/' + writes localStorage.
     await setLanguage(page, 'de');
 
-    // When: User navigates to the Manage page trades tab
-    // Reload after setLanguage to ensure the app re-reads locale from localStorage
-    // (setLanguage navigates to '/' and writes localStorage, but the SPA may not
-    // re-initialize i18next until the next full page load)
-    await page.goto(MANAGE_TRADES_URL);
+    // Warm up i18next on the home page before navigating to the settings manage page.
+    // This matches the pattern in i18n.spec.ts "Key page headings render in German":
+    // a goto('/') + reload() ensures the German locale bundle is fully loaded and the SPA
+    // has rendered at least once in German before we navigate to a different route.
+    // Without this warm-up, navigating directly to MANAGE_TRADES_URL can result in the
+    // heading staying in English (i18next hasn't finished loading the 'de' bundle).
+    await page.goto('/');
     await page.reload();
-    // networkidle ensures all preference/config API calls (including the locale preference
-    // fetch) have completed before we look for the German heading. Without this, i18next may
-    // still be initializing when we assert, causing a timeout on slow CI runners.
-    await page.waitForLoadState('networkidle', { timeout: 20000 });
+    await page.waitForLoadState('networkidle', { timeout: 15000 });
+
+    // When: User navigates to the Manage page trades tab
+    await page.goto(MANAGE_TRADES_URL);
     // German heading for ManagePage is "Verwalten".
-    await page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true }).waitFor({
-      state: 'visible',
-      timeout: 10000,
-    });
+    // Use expect.toBeVisible (retry-based) rather than waitFor — more resilient for text changes.
+    await expect(page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true })).toBeVisible();
 
     const tradesPanel = page.locator('#trades-panel');
     await tradesPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });
