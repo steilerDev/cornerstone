@@ -2,12 +2,12 @@
  * Page Object Model for the Budget Categories tab on the Manage page (/settings/manage?tab=budget-categories)
  *
  * Note: /budget/categories now redirects to /settings/manage?tab=budget-categories.
- * The page uses an inline create form toggled by "Add Category",
+ * The page uses an always-visible inline create form (h2 "Create New Budget Category"),
  * a list of categories with inline edit forms, and a delete confirmation modal.
  *
- * Visual cleanup (#1185): The <h1>Manage</h1> heading was removed from ManagePage.
- * The page now uses SettingsSubNav (with "Profile" and "Manage" tabs) inside the
- * content area. The "Add Category" button is the readiness indicator for goto().
+ * Visual cleanup (#1185): The <h1>Manage</h1> heading and "Add Category" toggle button
+ * were removed. The create form is now always rendered. The createFormHeading is the
+ * readiness indicator for goto().
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -33,20 +33,23 @@ export class BudgetCategoriesPage {
 
   /**
    * @deprecated The <h1>Manage</h1> heading was removed in visual cleanup #1185.
-   * This locator will never match a visible element. Use `addCategoryButton` as
-   * the page readiness indicator instead (it is still rendered and always visible).
+   * This locator will never match a visible element.
+   * Use `createFormHeading` or `categoriesListHeading` to verify the page is loaded.
    */
   readonly heading: Locator;
 
-  // The "Add Category" button — opens the inline create form.
-  // This is also the page readiness indicator for goto() since the h1 was removed (#1185).
+  /**
+   * @deprecated The "Add Category" toggle button was removed in visual cleanup #1185.
+   * The create form is now always visible. This locator will not match any element.
+   * Kept for TypeScript compatibility only.
+   */
   readonly addCategoryButton: Locator;
 
   // Global banners
   readonly successBanner: Locator;
   readonly errorBanner: Locator;
 
-  // Create form (only visible after clicking "Add Category")
+  // Create form — always visible (visual cleanup #1185 removed the "Add Category" toggle)
   readonly createFormSection: Locator;
   readonly createFormHeading: Locator;
   readonly createNameInput: Locator;
@@ -85,9 +88,7 @@ export class BudgetCategoriesPage {
     // Visual cleanup #1185: the h1 "Manage" heading was removed — this locator will not match.
     this.heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
 
-    // "Add Category" appears in both BudgetCategoriesTab and HouseholdItemCategoriesTab;
-    // scope to the budget-categories tab panel to avoid ambiguity.
-    // Used as the page readiness indicator in goto() since the h1 heading was removed.
+    // Visual cleanup #1185: "Add Category" toggle button was removed — this locator will not match.
     this.addCategoryButton = tabPanel.getByRole('button', { name: 'Add Category', exact: true });
 
     // Banners — inside the budget-categories tab panel
@@ -100,13 +101,13 @@ export class BudgetCategoriesPage {
       .filter({ hasText: /error|failed/i })
       .first();
 
-    // Create form — inside the section with heading "New Budget Category" (scoped to tab panel)
+    // Create form — always visible (visual cleanup #1185); h2 text is "Create New Budget Category"
     this.createFormSection = tabPanel
-      .getByRole('heading', { level: 2, name: 'New Budget Category', exact: true })
+      .getByRole('heading', { level: 2, name: 'Create New Budget Category', exact: true })
       .locator('..');
     this.createFormHeading = tabPanel.getByRole('heading', {
       level: 2,
-      name: 'New Budget Category',
+      name: 'Create New Budget Category',
       exact: true,
     });
     // Input IDs are unique across the page (only one category form is active at a time)
@@ -117,9 +118,11 @@ export class BudgetCategoriesPage {
     this.createSubmitButton = tabPanel.getByRole('button', {
       name: /Create Category|Creating\.\.\./,
     });
+    // The create form has no Cancel button (visual cleanup #1185 — always-visible form).
+    // This locator is kept for TypeScript compatibility; it will match edit-form cancel buttons.
     this.createCancelButton = tabPanel.getByRole('button', { name: 'Cancel', exact: true }).first();
     this.createErrorBanner = tabPanel
-      .getByRole('heading', { level: 2, name: 'New Budget Category', exact: true })
+      .getByRole('heading', { level: 2, name: 'Create New Budget Category', exact: true })
       .locator('..')
       .locator('[role="alert"]');
 
@@ -149,16 +152,18 @@ export class BudgetCategoriesPage {
 
   async goto(): Promise<void> {
     await this.page.goto(BUDGET_CATEGORIES_ROUTE);
-    // Visual cleanup #1185: the <h1>Manage</h1> heading was removed.
-    // Wait on the "Add Category" button — it is always rendered once the tab panel has mounted.
-    await this.addCategoryButton.waitFor({ state: 'visible' });
+    // Visual cleanup #1185: the <h1>Manage</h1> heading was removed and the "Add Category"
+    // toggle button was removed. The create form is always rendered.
+    // Wait for createFormHeading ("Create New Budget Category") as the readiness indicator.
+    await this.createFormHeading.waitFor({ state: 'visible' });
   }
 
   /**
-   * Open the create form by clicking "Add Category".
+   * No-op — the create form is always visible after visual cleanup #1185.
+   * Kept so existing test callers compile without modification.
+   * Simply waits for the form heading to confirm it is ready.
    */
   async openCreateForm(): Promise<void> {
-    await this.addCategoryButton.click();
     await this.createFormHeading.waitFor({ state: 'visible' });
   }
 
