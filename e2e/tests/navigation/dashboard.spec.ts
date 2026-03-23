@@ -491,6 +491,12 @@ test.describe('Quick Actions card (Scenario 5)', { tag: '@responsive' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Card dismiss (Scenario 6)', () => {
+  // Serial mode: the first test dismisses Quick Actions and leaves server-side state dirty
+  // until beforeEach of the second test resets it. Running in parallel risks another worker
+  // resetting preferences between the dismiss PATCH and the reload assertion in the second
+  // test, causing the card to reappear after reload.
+  test.describe.configure({ mode: 'serial' });
+
   test('Dismissing a card hides it from the dashboard', async ({ page }) => {
     const dashboardPage = new DashboardPage(page);
 
@@ -537,14 +543,26 @@ test.describe('Card dismiss (Scenario 6)', () => {
       //   1. LocaleContext — fetches to resolve locale preference
       //   2. usePreferences hook in DashboardPage — fetches all preferences incl. hiddenCards
       // The hiddenCards state is only applied after both (1) and (2) have resolved and React
-      // has re-rendered. Rather than tracking individual responses, we reload and then use
-      // expect() with Playwright's auto-retry (project-level expect.timeout) to wait for the
-      // card to be removed from the DOM. The retry window accounts for the sequential fetches
-      // and React render cycle that removes the dismissed card.
+      // has re-rendered.
+      //
+      // Register the preferences response listener BEFORE reload so we don't miss the response
+      // if it arrives quickly (fast CI containers). This also ensures we wait for the server-side
+      // state (hiddenCards: ["quick-actions"]) to be reflected in the app before asserting.
+      const preferencesPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/users/me/preferences') &&
+          resp.request().method() === 'GET' &&
+          resp.status() === 200,
+        { timeout: 15000 },
+      );
 
       // Reload the page
       await page.reload();
       await dashboardPage.heading.waitFor({ state: 'visible' });
+
+      // Wait for preferences to load (hiddenCards: ["quick-actions"] is now in server state).
+      // Once this resolves, React has the data needed to hide the card.
+      await preferencesPromise;
 
       // Wait for the Quick Actions card to disappear — React removes it once usePreferences
       // has fetched and applied the hiddenCards: ["quick-actions"] preference from the server.

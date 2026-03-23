@@ -3,6 +3,19 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`
 
+## i18n German Locale: page.reload() Required After setLanguage() + page.goto() (2026-03-23)
+
+After `setLanguage(page, 'de')` + `page.goto(targetUrl)`, always add `page.reload()` before
+asserting German text. The SPA may not re-initialize i18next from localStorage until the next
+full page load. Pattern from "Key page headings render in German" test (passing) confirms this.
+Applied in i18n.spec.ts "German sidebar" test and all three i18n-categories.spec.ts German tests.
+
+## Vendor Count Assertions Are Fragile (2026-03-23)
+
+`getVendorNames().length` assertions are unreliable with parallel workers sharing the same DB.
+Use `not.toContain(specificName)` instead of exact count equality. Remove `namesBefore`/
+`namesAfter` length comparisons in cancel/no-create tests.
+
 ## E2E Parallel Isolation (2026-02-20)
 
 `testPrefix` fixture in `e2e/fixtures/auth.ts` — use `async (_fixtures, use, testInfo)` (NOT `{}` — ESLint `no-empty-pattern`).

@@ -30,6 +30,9 @@ async function gotoInvoicesAndWait(page: Page) {
   await page.goto(INVOICES_URL);
   // Wait for the table header row — the table is always rendered (even when empty)
   await expect(page.getByRole('table')).toBeVisible();
+  // Wait for all network requests to settle so React doesn't re-render the DataTable
+  // (and detach popover DOM nodes) during interaction — matches datatable-date-range-picker.spec.ts
+  await page.waitForLoadState('networkidle');
 }
 
 // ---------------------------------------------------------------------------
@@ -120,14 +123,25 @@ test.describe('Invoice due-date filter — apply and clear', () => {
     const grid = filterPopover.locator('[role="grid"]');
     await expect(grid).toBeVisible();
 
-    // When: I click two day buttons to set a start and end date range
-    const dayButtons = filterPopover.locator('[role="gridcell"] button');
-    await dayButtons.nth(4).click(); // start date — 5th day button
+    // When: I click two day buttons to set a start and end date range.
+    // Wait for the grid to be stable before interacting (mirrors datatable-date-range-picker.spec.ts).
+    await grid.waitFor({ state: 'visible' });
 
-    // Phase advances to "Select end date" automatically
-    await expect(filterPopover).toContainText('Select end date');
+    const startButton = filterPopover.locator('[role="gridcell"] button').nth(4);
+    await startButton.waitFor({ state: 'visible' });
+    await startButton.click();
 
-    await dayButtons.nth(9).click(); // end date — 10th day button
+    // Phase advances to "Select end date" automatically — wait for text to appear in popover.
+    // Use getByText() scoped to the popover (not toContainText on the dialog role element)
+    // to avoid "element not found" when the popover is re-rendered after the first click.
+    await expect(filterPopover.getByText('Select end date')).toBeVisible({ timeout: 10000 });
+
+    // Click the 15th day button as end date — well after start, avoids disabled buttons.
+    // Using nth(14) (15th button) matches the pattern from datatable-date-range-picker.spec.ts
+    // which selects a date far enough from the start to avoid disabled-state issues.
+    const endButton = filterPopover.locator('[role="gridcell"] button').nth(14);
+    await endButton.waitFor({ state: 'visible', timeout: 10000 });
+    await endButton.click();
 
     // Then: The filter button becomes active (visually highlighted)
     await expect(dueDateFilterButton).toHaveClass(/tableHeaderFilterButtonActive/);

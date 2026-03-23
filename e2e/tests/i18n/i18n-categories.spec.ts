@@ -113,9 +113,14 @@ test.describe('i18n: Predefined category name translations', () => {
     // re-initialize i18next until the next full page load)
     await page.goto(MANAGE_TRADES_URL);
     await page.reload();
-    // German heading for ManagePage is "Verwalten"
+    // German heading for ManagePage is "Verwalten".
+    // Use explicit timeout (15s) because this is the first German navigation in this test file:
+    // i18next initialization from localStorage takes longer on the first locale switch than
+    // on subsequent ones (budget-categories and hi-categories tests run after this one).
+    // The project-level actionTimeout (5s) is too short for the first German page load on CI.
     await page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true }).waitFor({
       state: 'visible',
+      timeout: 15000,
     });
 
     const tradesPanel = page.locator('#trades-panel');
