@@ -511,21 +511,18 @@ export function BudgetSourcesPage() {
         {/* Budget sub-navigation */}
         <BudgetSubNav />
 
-        {/* Section header */}
-        <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>{t('sources.sectionTitle')}</h2>
-          <button
-            type="button"
-            className={styles.button}
-            onClick={() => {
-              setShowCreateForm(true);
-              setCreateError('');
-            }}
-            disabled={showCreateForm}
-          >
-            {t('sources.addSource')}
-          </button>
-        </div>
+        {/* Add button */}
+        <button
+          type="button"
+          className={styles.button}
+          onClick={() => {
+            setShowCreateForm(true);
+            setCreateError('');
+          }}
+          disabled={showCreateForm}
+        >
+          {t('sources.addSource')}
+        </button>
 
         {successMessage && (
           <div className={styles.successBanner} role="alert">
