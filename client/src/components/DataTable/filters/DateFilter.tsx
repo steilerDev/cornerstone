@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DateRangePicker } from '../../DateRangePicker/index.js';
 import styles from './Filter.module.css';
@@ -19,15 +19,30 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
   const from = value.match(/from:(\d{4}-\d{2}-\d{2})/)?.[1] ?? '';
   const to = value.match(/to:(\d{4}-\d{2}-\d{2})/)?.[1] ?? '';
 
+  // Track intermediate dates locally so DateRangePicker sees updates immediately
+  const [localFrom, setLocalFrom] = useState('');
+  const [localTo, setLocalTo] = useState('');
+
+  // Sync local state when the parent value prop changes (e.g., clear filters)
+  useEffect(() => {
+    setLocalFrom(from);
+    setLocalTo(to);
+  }, [from, to]);
+
   const handleChange = useCallback(
     (newFrom: string, newTo: string) => {
+      // Always update local state so DateRangePicker sees the updated dates
+      setLocalFrom(newFrom);
+      setLocalTo(newTo);
+
       // Only emit onChange when BOTH dates are set or BOTH are cleared
       if (newFrom && newTo) {
         onChange(`from:${newFrom},to:${newTo}`);
       } else if (!newFrom && !newTo) {
         onChange('');
       }
-      // Partial selection: don't emit — let user finish picking
+      // Partial selection: don't emit to parent — let user finish picking
+      // But DateRangePicker will see the updated localFrom/localTo via re-render
     },
     [onChange],
   );
@@ -35,8 +50,8 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
   return (
     <div className={styles.filterContent}>
       <DateRangePicker
-        startDate={from}
-        endDate={to}
+        startDate={localFrom}
+        endDate={localTo}
         onChange={handleChange}
         ariaLabel={t('dataTable.filter.dateRangeAriaLabel')}
       />
