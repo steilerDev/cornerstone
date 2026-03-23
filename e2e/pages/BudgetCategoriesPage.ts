@@ -2,13 +2,12 @@
  * Page Object Model for the Budget Categories tab on the Manage page (/settings/manage?tab=budget-categories)
  *
  * Note: /budget/categories now redirects to /settings/manage?tab=budget-categories.
- * The page uses an always-visible inline create form (no toggle button),
+ * The page uses an inline create form toggled by "Add Category",
  * a list of categories with inline edit forms, and a delete confirmation modal.
  *
  * Visual cleanup (#1185): The <h1>Manage</h1> heading was removed from ManagePage.
  * The page now uses SettingsSubNav (with "Profile" and "Manage" tabs) inside the
- * content area. Use the create form heading or categories list heading as readiness
- * indicators instead.
+ * content area. The "Add Category" button is the readiness indicator for goto().
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -32,22 +31,15 @@ export interface EditCategoryData {
 export class BudgetCategoriesPage {
   readonly page: Page;
 
-  // Page readiness indicator — the "Budget Categories" internal tab button confirms the tab is active.
-  // (The <h1>Manage</h1> page heading was removed in visual cleanup #1185.)
-  readonly activeManagedTab: Locator;
-
   /**
    * @deprecated The <h1>Manage</h1> heading was removed in visual cleanup #1185.
-   * Use `activeManagedTab` or `createFormHeading` to verify the page is loaded.
-   * This property is kept for backward compatibility but will always be hidden.
+   * This locator will never match a visible element. Use `addCategoryButton` as
+   * the page readiness indicator instead (it is still rendered and always visible).
    */
   readonly heading: Locator;
 
-  /**
-   * @deprecated The "Add Category" toggle button was removed in visual cleanup #1185.
-   * The create form is now always visible. Use `createFormHeading` to check form presence.
-   * This property is kept so callers compile but clicks will have no effect if removed.
-   */
+  // The "Add Category" button — opens the inline create form.
+  // This is also the page readiness indicator for goto() since the h1 was removed (#1185).
   readonly addCategoryButton: Locator;
 
   // Global banners
@@ -90,13 +82,12 @@ export class BudgetCategoriesPage {
     // Readiness indicator: the internal "Budget Categories" tab button in the manage page tab list.
     // Visual cleanup #1185 removed the <h1>Manage</h1> heading; the tab button is always
     // present when ManagePage has mounted its internal tabs.
-    this.activeManagedTab = page.getByRole('tab', { name: 'Budget Categories' });
-
-    // Kept for backward compatibility — the h1 "Manage" heading was removed in #1185.
+    // Visual cleanup #1185: the h1 "Manage" heading was removed — this locator will not match.
     this.heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
 
-    // Kept for backward compatibility — the "Add Category" toggle button was removed in #1185.
-    // The create form is always visible; this locator will not match any element.
+    // "Add Category" appears in both BudgetCategoriesTab and HouseholdItemCategoriesTab;
+    // scope to the budget-categories tab panel to avoid ambiguity.
+    // Used as the page readiness indicator in goto() since the h1 heading was removed.
     this.addCategoryButton = tabPanel.getByRole('button', { name: 'Add Category', exact: true });
 
     // Banners — inside the budget-categories tab panel
@@ -158,19 +149,16 @@ export class BudgetCategoriesPage {
 
   async goto(): Promise<void> {
     await this.page.goto(BUDGET_CATEGORIES_ROUTE);
-    // Wait for the create form heading — it is always visible once the tab panel has mounted.
-    // Visual cleanup #1185: the <h1>Manage</h1> heading and "Add Category" toggle button
-    // were removed; the create form is now always rendered.
-    await this.createFormHeading.waitFor({ state: 'visible' });
+    // Visual cleanup #1185: the <h1>Manage</h1> heading was removed.
+    // Wait on the "Add Category" button — it is always rendered once the tab panel has mounted.
+    await this.addCategoryButton.waitFor({ state: 'visible' });
   }
 
   /**
-   * No-op — the create form is always visible after visual cleanup #1185.
-   * Kept for backward compatibility so existing test callers do not need to be
-   * rewritten. Simply waits for the create form heading to confirm the form is ready.
+   * Open the create form by clicking "Add Category".
    */
   async openCreateForm(): Promise<void> {
-    // Form is always rendered; just confirm it is visible before callers interact with it.
+    await this.addCategoryButton.click();
     await this.createFormHeading.waitFor({ state: 'visible' });
   }
 
