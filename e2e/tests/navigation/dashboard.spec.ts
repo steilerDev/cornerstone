@@ -522,17 +522,8 @@ test.describe('Card dismiss (Scenario 6)', () => {
 
     try {
       // The prior test dismisses Quick Actions and beforeEach resets hiddenCards to [].
-      // Wait for the preferences GET response after navigation to ensure the reset
-      // is fully applied before asserting card visibility (prevents state-leak flake).
-      // Use GET filter to avoid matching the PATCH from beforeEach that may still be in-flight.
-      const prefsLoaded = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/api/users/me/preferences') &&
-          resp.request().method() === 'GET' &&
-          resp.status() === 200,
-      );
+      // Navigate to the dashboard and wait for cards to load before asserting card visibility.
       await dashboardPage.goto();
-      await prefsLoaded;
       await dashboardPage.waitForCardsLoaded();
 
       // Verify the Quick Actions card is visible before attempting to dismiss
@@ -542,24 +533,22 @@ test.describe('Card dismiss (Scenario 6)', () => {
       // Dismiss the Quick Actions card
       await dashboardPage.dismissCard('Quick Actions');
 
-      // Register preferences GET response listener BEFORE reload (per waitForResponse-before-action
-      // pattern). Filter specifically for GET requests to avoid accidentally matching the PATCH
-      // that dismissCard already awaited. The GET is the browser fetching persisted state.
-      const prefsResponse = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/api/users/me/preferences') &&
-          resp.request().method() === 'GET' &&
-          resp.status() === 200,
-      );
+      // On page load, two contexts fetch preferences independently:
+      //   1. LocaleContext — fetches to resolve locale preference
+      //   2. usePreferences hook in DashboardPage — fetches all preferences incl. hiddenCards
+      // The hiddenCards state is only applied after both (1) and (2) have resolved and React
+      // has re-rendered. Rather than tracking individual responses, we reload and then use
+      // expect() with Playwright's auto-retry (project-level expect.timeout) to wait for the
+      // card to be removed from the DOM. The retry window accounts for the sequential fetches
+      // and React render cycle that removes the dismissed card.
 
       // Reload the page
       await page.reload();
       await dashboardPage.heading.waitFor({ state: 'visible' });
 
-      // Wait for the GET preferences response to be received and the React state to update.
-      await prefsResponse;
-      // After preferences are fetched, the dashboard hides the dismissed card.
-      // Use expect() retry to wait for the card to be removed from DOM after state update.
+      // Wait for the Quick Actions card to disappear — React removes it once usePreferences
+      // has fetched and applied the hiddenCards: ["quick-actions"] preference from the server.
+      // expect().toHaveCount(0) retries for the project-level expect.timeout duration.
       await expect(dashboardPage.card('Quick Actions')).toHaveCount(0);
 
       // Clean up: re-enable the card via preferences API to not affect other tests
