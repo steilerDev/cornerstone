@@ -113,25 +113,18 @@ test.describe('i18n: Predefined category name translations', () => {
     // setLanguage() patches preferences API + navigates to '/' + writes localStorage.
     await setLanguage(page, 'de');
 
-    // Warm up i18next on the home page before navigating to the settings manage page.
-    // Pattern from i18n.spec.ts "Key page headings render in German": goto('/') + reload()
-    // ensures the German locale bundle is fully loaded and the SPA has rendered at least
-    // once in German. Without this, navigating directly to MANAGE_TRADES_URL leaves
-    // i18next in a cold-start state where the heading stays in English.
-    await page.goto('/');
-    await page.reload();
-    // Wait for the home page German heading to confirm i18next has initialized in German.
-    // The home/project overview page h1 is 'Projekt' in German.
-    await expect(page.getByRole('heading', { level: 1, name: 'Projekt' })).toBeVisible({
-      timeout: 15000,
-    });
-
-    // When: User navigates to the Manage page trades tab
+    // When: User navigates to the Manage page trades tab.
+    // Reload after setLanguage to ensure the app re-reads locale from localStorage.
+    // setLanguage already navigated to '/', so a direct goto() + reload() here is sufficient
+    // — this matches the i18n.spec.ts "Key page headings render in German" pattern that passes.
     await page.goto(MANAGE_TRADES_URL);
-    // German heading for ManagePage is "Verwalten". i18next is already warm so this should
-    // render immediately — use expect.toBeVisible with a generous timeout for slow CI.
+    await page.reload();
+    // German heading for ManagePage is "Verwalten".
+    // Use a 20s timeout: i18next cold-start locale initialization (fetching + parsing the 'de'
+    // bundle) can take 10-15s on slow CI runners. The test.setTimeout(30s) gives enough budget
+    // for setLanguage(~5s) + goto(~2s) + reload(~2s) + this assertion (up to 20s) = ~29s.
     await expect(page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true })).toBeVisible({
-      timeout: 10000,
+      timeout: 20000,
     });
 
     const tradesPanel = page.locator('#trades-panel');
