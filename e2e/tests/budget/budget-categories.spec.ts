@@ -188,8 +188,8 @@ test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive
     const successText = await categoriesPage.getSuccessBannerText();
     expect(successText).toContain(categoryName);
 
-    // And: The form closes
-    await expect(categoriesPage.createFormHeading).not.toBeVisible();
+    // And: The create form stays visible (visual cleanup #1185 — always-visible form, no toggle)
+    await expect(categoriesPage.createFormHeading).toBeVisible();
 
     // And: The new category appears in the list
     const names = await categoriesPage.getCategoryNames();
@@ -873,10 +873,7 @@ test.describe('Responsive layout (Scenario 9)', { tag: '@responsive' }, () => {
     await expect(categoriesPage.createColorInput).toBeVisible();
     await expect(categoriesPage.createSortOrderInput).toBeVisible();
     await expect(categoriesPage.createSubmitButton).toBeVisible();
-
-    // Cancel and close the form
-    const cancelButton = page.getByRole('button', { name: 'Cancel', exact: true });
-    await cancelButton.click();
+    // Visual cleanup #1185: the create form has no Cancel button (always-visible form, no toggle).
   });
 
   test('Category list rows are visible and action buttons accessible on current viewport', async ({
@@ -933,9 +930,7 @@ test.describe('Responsive layout (Scenario 9)', { tag: '@responsive' }, () => {
       expect(Math.abs(nameInputBox.y - colorInputBox.y)).toBeLessThan(rowHeightTolerance);
       expect(Math.abs(nameInputBox.y - sortOrderBox.y)).toBeLessThan(rowHeightTolerance);
     }
-
-    const cancelButton = page.getByRole('button', { name: 'Cancel', exact: true });
-    await cancelButton.click();
+    // Visual cleanup #1185: the create form has no Cancel button (always-visible form, no toggle).
   });
 });
 
@@ -1041,9 +1036,7 @@ test.describe('Color field (Scenario 17)', { tag: '@responsive' }, () => {
     const defaultColor = await categoriesPage.createColorInput.inputValue();
     expect(defaultColor).toMatch(/^#[0-9a-fA-F]{6}$/);
 
-    // Cancel form
-    const cancelButton = page.getByRole('button', { name: 'Cancel', exact: true });
-    await cancelButton.click();
+    // Visual cleanup #1185: the create form has no Cancel button (always-visible form, no toggle).
   });
 
   test('Color input accepts hex color values', async ({ page, testPrefix }) => {
