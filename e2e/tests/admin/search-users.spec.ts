@@ -71,9 +71,11 @@ test.describe('Search Users', () => {
     await userManagementPage.searchUsers('nonexistent-user-xyz');
 
     // Then: Empty state message should be shown
+    // When search is active, DataTable shows t('dataTable.empty.filteredMessage') =
+    // "No items match the current filters" (not the page-specific "No users found." message)
     const emptyState = await userManagementPage.getEmptyState();
     expect(emptyState).toBeTruthy();
-    expect(emptyState?.toLowerCase()).toContain('no users');
+    expect(emptyState?.toLowerCase()).toMatch(/no users|no items match/);
   });
 
   test('Search is case-insensitive', async ({ page }) => {

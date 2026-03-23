@@ -32,7 +32,7 @@ export class VendorsPage {
 
   // Search/sort bar
   readonly searchInput: Locator;
-  readonly sortSelect: Locator;
+  // sortSelect removed — DataTable has no standalone sort select; sorting is column-header-based.
   readonly sortOrderButton: Locator;
 
   // Error banner (outside modals)
@@ -87,9 +87,7 @@ export class VendorsPage {
     this.searchInput = page.getByLabel('Search items');
     // DataTable sorting is column-header-based — no standalone sort select or order toggle button.
     // Sorting is triggered by clicking a sortable column header (th) in the table.
-    // These locators are kept for API compatibility but point to the column settings button
-    // which is the only sort-related toolbar element in DataTable.
-    this.sortSelect = page.getByLabel('Column settings');
+    // sortOrderButton points to the column settings button (the only sort-related toolbar element).
     this.sortOrderButton = page.getByLabel('Column settings');
 
     // Error banner outside modals
@@ -119,9 +117,11 @@ export class VendorsPage {
     this.prevPageButton = page.getByLabel('Previous');
     this.nextPageButton = page.getByLabel('Next');
 
-    // Create modal
+    // Create modal — Modal uses useId() for its title, so no stable #id selector.
+    // Match by accessible name (title text) using getByRole.
     this.createModal = page.getByRole('dialog', { name: 'Add Vendor' });
-    this.createModalTitle = page.locator('#create-modal-title');
+    // createModalTitle: the <h2> inside the create modal
+    this.createModalTitle = this.createModal.getByRole('heading', { level: 2 });
     this.createNameInput = this.createModal.locator('#vendor-name');
     this.createPhoneInput = this.createModal.locator('#vendor-phone');
     this.createEmailInput = this.createModal.locator('#vendor-email');
@@ -134,9 +134,10 @@ export class VendorsPage {
     this.createCancelButton = this.createModal.getByRole('button', { name: 'Cancel', exact: true });
     this.createErrorBanner = this.createModal.locator('[role="alert"]');
 
-    // Delete modal
+    // Delete modal — Modal uses useId() for its title, so no stable #id selector.
     this.deleteModal = page.getByRole('dialog', { name: 'Delete Vendor' });
-    this.deleteModalTitle = page.locator('#delete-modal-title');
+    // deleteModalTitle: the <h2> inside the delete modal
+    this.deleteModalTitle = this.deleteModal.getByRole('heading', { level: 2 });
     // i18n: button label is now just "Delete" / "Deleting..." (not "Delete Vendor")
     // See budget.json vendors.buttons.delete = "Delete"
     this.deleteConfirmButton = this.deleteModal.getByRole('button', {
@@ -221,25 +222,32 @@ export class VendorsPage {
 
   /**
    * Get the names of all vendors currently shown in the table (desktop) or cards (mobile).
-   * Falls back to reading card names if the table body has no rows.
+   * On mobile the table container is CSS display:none (still in DOM) — check visibility
+   * before attempting to read table rows to avoid timeouts on hidden elements.
    */
   async getVendorNames(): Promise<string[]> {
-    const rows = await this.getTableRows();
-    if (rows.length > 0) {
+    const tableVisible = await this.tableContainer.isVisible();
+    if (tableVisible) {
+      const rows = await this.getTableRows();
       const names: string[] = [];
       for (const row of rows) {
         const link = row.locator('[class*="vendorLink"]');
-        const text = await link.textContent();
-        if (text) names.push(text.trim());
+        const linkCount = await link.count();
+        if (linkCount > 0) {
+          const text = await link.textContent();
+          if (text) names.push(text.trim());
+        }
       }
       return names;
     }
 
-    // Mobile fallback: card name links
-    const cardNames = await this.cardsContainer.locator('[class*="cardName"]').all();
+    // Mobile cards: the name column renders a vendorLink anchor inside a cardValue span.
+    // DataTable renders the same render() function inside cards, so vendorLink CSS class
+    // still appears inside the cardsContainer. Read from those links.
+    const cardLinks = await this.cardsContainer.locator('[class*="vendorLink"]').all();
     const names: string[] = [];
-    for (const nameEl of cardNames) {
-      const text = await nameEl.textContent();
+    for (const link of cardLinks) {
+      const text = await link.textContent();
       if (text) names.push(text.trim());
     }
     return names;
@@ -255,14 +263,66 @@ export class VendorsPage {
 
   /**
    * Open the delete modal for the named vendor.
-   * Uses the aria-label="Delete <name>" button in the table row.
+   *
+   * VendorsPage uses a custom actions menu (not DataTable's built-in actions column):
+   * - Each row has a ⋮ menu button: aria-label=t('common:menu.actions'), data-testid="vendor-menu-button-{id}"
+   * - After opening the menu, the delete button renders: data-testid="vendor-delete-{id}", text="Delete"
+   *
+   * Strategy: find the table row that contains the vendor name, open its actions menu,
+   * then click the Delete item.
    */
   async openDeleteModal(vendorName: string): Promise<void> {
-    await this.page
-      .getByRole('button', { name: `Delete ${vendorName}` })
-      .first()
-      .click();
-    await this.deleteModal.waitFor({ state: 'visible' });
+    // VendorsPage uses a custom actions menu per row/card:
+    // - Menu button: class*="menuButton", aria-label=t('common:menu.actions')
+    // - Delete item: class*="menuItem" class*="menuItemDanger", text="Delete"
+    //
+    // On mobile the table container is CSS display:none — DataTableCard renders the same
+    // actions menu inside cards. Check table visibility and use the correct container.
+    const tableVisible = await this.tableContainer.isVisible();
+
+    if (tableVisible) {
+      // Desktop/tablet: find the row in the table by vendor name link
+      await this.tableBody.locator('tr').first().waitFor({ state: 'visible' });
+      const rows = await this.tableBody.locator('tr').all();
+      for (const row of rows) {
+        const link = row.locator('[class*="vendorLink"]');
+        const linkCount = await link.count();
+        if (linkCount > 0) {
+          const text = await link.textContent();
+          if (text?.trim() === vendorName) {
+            const menuButton = row.locator('[class*="menuButton"]');
+            await menuButton.click();
+            const deleteButton = row.locator('[class*="menuItem"][class*="menuItemDanger"]');
+            await deleteButton.click();
+            await this.deleteModal.waitFor({ state: 'visible' });
+            return;
+          }
+        }
+      }
+    } else {
+      // Mobile: find the card by vendor name and open its actions menu.
+      // DataTableCard renders the name column via the same render() function as the table —
+      // the vendor name link uses class vendorLink (Link with styles.vendorLink). There is
+      // no separate cardName class. Match by vendorLink text inside each card.
+      await this.cardsContainer.locator('[class*="card"]').first().waitFor({ state: 'visible' });
+      const cards = await this.cardsContainer.locator('[class*="card"]').all();
+      for (const card of cards) {
+        const nameEl = card.locator('[class*="vendorLink"]');
+        const nameCount = await nameEl.count();
+        if (nameCount > 0) {
+          const text = await nameEl.textContent();
+          if (text?.trim() === vendorName) {
+            const menuButton = card.locator('[class*="menuButton"]');
+            await menuButton.click();
+            const deleteButton = card.locator('[class*="menuItem"][class*="menuItemDanger"]');
+            await deleteButton.click();
+            await this.deleteModal.waitFor({ state: 'visible' });
+            return;
+          }
+        }
+      }
+    }
+    throw new Error(`Vendor "${vendorName}" not found in list`);
   }
 
   /**

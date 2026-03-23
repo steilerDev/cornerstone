@@ -369,11 +369,12 @@ test.describe('Budget Summary card (Scenario 3)', { tag: '@responsive' }, () => 
       const remainingBudget = page.getByTestId('remaining-budget');
       await expect(remainingBudget.first()).toBeVisible();
 
-      // With our mock data, remainingVsActualCost = 115000 (300000 - 185000)
+      // BudgetSummaryCard shows mediumNetRemaining = (remainingVsMinPlanned + remainingVsMaxPlanned) / 2
+      // With our mock data: (50000 + 25000) / 2 = 37500
       const text = await remainingBudget.first().textContent();
       expect(text).toBeTruthy();
-      // The value should be a formatted currency amount
-      expect(text?.replace(/\s/g, '')).toMatch(/115[,.]?000/);
+      // The value should be a formatted currency amount (37,500 or 37.500 depending on locale)
+      expect(text?.replace(/\s/g, '')).toMatch(/37[,.]?500/);
     } finally {
       await uninterceptDashboardApis(page);
     }
@@ -490,6 +491,12 @@ test.describe('Quick Actions card (Scenario 5)', { tag: '@responsive' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Card dismiss (Scenario 6)', () => {
+  // Serial mode: the first test dismisses Quick Actions and leaves server-side state dirty
+  // until beforeEach of the second test resets it. Running in parallel risks another worker
+  // resetting preferences between the dismiss PATCH and the reload assertion in the second
+  // test, causing the card to reappear after reload.
+  test.describe.configure({ mode: 'serial' });
+
   test('Dismissing a card hides it from the dashboard', async ({ page }) => {
     const dashboardPage = new DashboardPage(page);
 
@@ -521,13 +528,8 @@ test.describe('Card dismiss (Scenario 6)', () => {
 
     try {
       // The prior test dismisses Quick Actions and beforeEach resets hiddenCards to [].
-      // Wait for the preferences API response after navigation to ensure the reset
-      // is fully applied before asserting card visibility (prevents state-leak flake).
-      const prefsLoaded = page.waitForResponse(
-        (resp) => resp.url().includes('/api/users/me/preferences') && resp.status() === 200,
-      );
+      // Navigate to the dashboard and wait for cards to load before asserting card visibility.
       await dashboardPage.goto();
-      await prefsLoaded;
       await dashboardPage.waitForCardsLoaded();
 
       // Verify the Quick Actions card is visible before attempting to dismiss
@@ -537,22 +539,21 @@ test.describe('Card dismiss (Scenario 6)', () => {
       // Dismiss the Quick Actions card
       await dashboardPage.dismissCard('Quick Actions');
 
-      // Register preferences response listener BEFORE reload (per waitForResponse-before-action
-      // pattern). The preferences API is NOT intercepted, so the real server response arrives
-      // after reload. We must wait for it before asserting card visibility.
-      const prefsResponse = page.waitForResponse(
-        (resp) => resp.url().includes('/api/users/me/preferences') && resp.status() === 200,
-      );
-
-      // Reload the page
+      // Reload the page. Use navigationTimeout (10s) for the heading waitFor since the SPA
+      // must fully initialize after a hard reload before the Dashboard heading appears.
       await page.reload();
-      await dashboardPage.heading.waitFor({ state: 'visible' });
+      await dashboardPage.heading.waitFor({ state: 'visible', timeout: 10000 });
 
-      // Wait for preferences to be fetched and applied before checking card state.
-      await prefsResponse;
-      await dashboardPage.waitForCardsLoaded();
+      // On page load, two contexts fetch preferences independently:
+      //   1. LocaleContext — fetches to resolve locale preference
+      //   2. usePreferences hook in DashboardPage — fetches all preferences incl. hiddenCards
+      // Both must resolve before React can hide the dismissed card.
+      //
+      // waitForLoadState('networkidle') ensures all pending network requests (including both
+      // preference fetches) have completed and React has finished re-rendering before we assert.
+      await page.waitForLoadState('networkidle', { timeout: 15000 });
 
-      // Card should still be hidden — preferences persisted Quick Actions as hidden.
+      // The Quick Actions card must be absent — usePreferences applied hiddenCards: ["quick-actions"]
       await expect(dashboardPage.card('Quick Actions')).toHaveCount(0);
 
       // Clean up: re-enable the card via preferences API to not affect other tests

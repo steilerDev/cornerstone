@@ -60,9 +60,13 @@ test.describe('Backups page — admin access', () => {
     // Given: Authenticated admin user on the profile page
     await page.goto('/settings/profile');
 
-    // Then: The "Backups" tab link is visible in the sub-nav
-    const backupsTab = page.getByRole('link', { name: 'Backups', exact: true });
-    await expect(backupsTab).toBeVisible();
+    // Then: The "Backups" tab is visible in the sub-nav.
+    // NavLink renders with role="listitem" (explicitly set in SettingsSubNav.tsx),
+    // overriding the default link role. getByRole('link') won't match.
+    // Use getByText scoped to the settings navigation landmark instead.
+    const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
+    await expect(subNav).toBeVisible();
+    await expect(subNav.getByText('Backups', { exact: true })).toBeVisible();
   });
 });
 
@@ -76,18 +80,26 @@ test.describe('Backups tab — member access control', () => {
     // The SettingsSubNav reads from AuthContext (which uses /api/auth/me via useAuth),
     // so mocking the auth endpoint is the correct E2E approach for role-based UI tests
     // when no member storage state exists.
+    // Mock format: { user: { ... }, setupRequired, oidcEnabled }
+    // The flat format ({ id, role, ... }) does NOT work — useAuth() reads response.user.role;
+    // a flat response causes the auth context to treat the user as unauthenticated and
+    // redirect to /login, making the Profile heading and settings nav unreachable.
     await page.route('**/api/auth/me', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          id: 2,
-          email: 'member@e2e-test.local',
-          displayName: 'E2E Member',
-          role: 'member',
-          authProvider: 'local',
-          isActive: true,
-          createdAt: '2026-01-01T00:00:00.000Z',
+          user: {
+            id: 2,
+            email: 'member@e2e-test.local',
+            displayName: 'E2E Member',
+            role: 'member',
+            authProvider: 'local',
+            isActive: true,
+            createdAt: '2026-01-01T00:00:00.000Z',
+          },
+          setupRequired: false,
+          oidcEnabled: false,
         }),
       });
     });
@@ -95,20 +107,23 @@ test.describe('Backups tab — member access control', () => {
     // Given: User navigating settings as a member role
     await page.goto('/settings/profile');
 
-    // Wait for the nav to render
-    const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
-    await subNav.waitFor({ state: 'visible' });
+    // Wait for the profile page heading to confirm the page has rendered.
+    // Use the page heading rather than the settings nav because the auth mock
+    // triggers an AuthContext re-render that can delay nav rendering briefly.
+    await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();
 
-    // Then: The "Backups" tab link is NOT visible (admin-only)
-    const backupsTab = page.getByRole('link', { name: 'Backups', exact: true });
-    await expect(backupsTab).not.toBeVisible();
+    // Then: The "Backups" tab is NOT visible (admin-only).
+    const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
+    // Use not.toBeVisible() rather than not.toBeHidden() — admin-only tabs are not
+    // rendered at all for member role (conditional render), so the element is absent
+    // from the DOM entirely, not merely CSS-hidden.
+    await expect(subNav.getByText('Backups', { exact: true })).not.toBeVisible();
 
     // And: The "User Management" tab is also not visible for members
-    const usersTab = page.getByRole('link', { name: 'User Management', exact: true });
-    await expect(usersTab).not.toBeVisible();
+    await expect(subNav.getByText('User Management', { exact: true })).not.toBeVisible();
 
     // And: The shared tabs (Profile, Manage) remain visible
-    await expect(page.getByRole('link', { name: 'Profile', exact: true })).toBeVisible();
+    await expect(subNav.getByText('Profile', { exact: true })).toBeVisible();
   });
 });
 
@@ -170,7 +185,11 @@ test.describe('Backups page — configured state (mocked)', () => {
       sizeBytes: 2097152, // 2 MB
     };
 
-    // Mock POST /api/backups to return a new backup
+    // Mock POST /api/backups to return a new backup.
+    // Use route.fallback() (not route.continue()) for non-POST requests so they
+    // fall through to the beforeEach GET mock. route.continue() bypasses all
+    // registered handlers and goes to the network directly; route.fallback()
+    // passes to the next matching route handler in the stack.
     await page.route(`**${API.backups}`, async (route, request) => {
       if (request.method() === 'POST') {
         await route.fulfill({
@@ -179,7 +198,7 @@ test.describe('Backups page — configured state (mocked)', () => {
           body: JSON.stringify({ backup: newBackup }),
         });
       } else {
-        await route.continue();
+        await route.fallback();
       }
     });
 
@@ -187,7 +206,7 @@ test.describe('Backups page — configured state (mocked)', () => {
 
     // Given: Admin is on the configured Backups page
     await backupsPage.goto();
-    await backupsPage.backupTable.waitFor({ state: 'visible' });
+    await expect(backupsPage.backupTable).toBeVisible();
 
     // Verify initial state has two rows
     const initialRows = await backupsPage.getBackupRows();
@@ -211,7 +230,7 @@ test.describe('Backups page — configured state (mocked)', () => {
 
     // Given: Admin is on the Backups page with two backups
     await backupsPage.goto();
-    await backupsPage.backupTable.waitFor({ state: 'visible' });
+    await expect(backupsPage.backupTable).toBeVisible();
 
     // When: Admin clicks Delete for the first backup row
     await backupsPage.clickDeleteForRow(0);
@@ -231,7 +250,7 @@ test.describe('Backups page — configured state (mocked)', () => {
 
     // Given: Admin has the delete modal open for the first backup
     await backupsPage.goto();
-    await backupsPage.backupTable.waitFor({ state: 'visible' });
+    await expect(backupsPage.backupTable).toBeVisible();
     await backupsPage.clickDeleteForRow(0);
     await expect(backupsPage.deleteModal).toBeVisible();
 
@@ -282,7 +301,7 @@ test.describe('Backups page — configured state (mocked)', () => {
 
     // Given: Admin is on the Backups page with two backups
     await backupsPage.goto();
-    await backupsPage.backupTable.waitFor({ state: 'visible' });
+    await expect(backupsPage.backupTable).toBeVisible();
 
     // Verify initial count
     let rows = await backupsPage.getBackupRows();
@@ -311,7 +330,7 @@ test.describe('Backups page — configured state (mocked)', () => {
 
     // Given: Admin is on the Backups page with two backups
     await backupsPage.goto();
-    await backupsPage.backupTable.waitFor({ state: 'visible' });
+    await expect(backupsPage.backupTable).toBeVisible();
 
     // When: Admin clicks Restore for the first backup row
     await backupsPage.clickRestoreForRow(0);
@@ -331,7 +350,7 @@ test.describe('Backups page — configured state (mocked)', () => {
 
     // Given: Admin has the restore modal open
     await backupsPage.goto();
-    await backupsPage.backupTable.waitFor({ state: 'visible' });
+    await expect(backupsPage.backupTable).toBeVisible();
     await backupsPage.clickRestoreForRow(0);
     await expect(backupsPage.restoreModal).toBeVisible();
 

@@ -365,7 +365,7 @@ export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: Dat
               const inRange = isInRange(day.dateStr);
               const isStart = isRangeStart(day.dateStr);
               const isEnd = isRangeEnd(day.dateStr);
-              const isDisabled = phase === 'selecting-end' && day.dateStr < startDate!;
+              const isBeforeStart = phase === 'selecting-end' && day.dateStr < startDate!;
               const isFocused = day.dateStr === focusedDate;
 
               return (
@@ -382,7 +382,7 @@ export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: Dat
                     className={`${styles.dayButton} ${isSelected ? styles.daySelected : ''} ${
                       day.isToday ? styles.dayToday : ''
                     } ${!day.isCurrentMonth ? styles.dayOtherMonth : ''} ${
-                      isDisabled ? styles.dayDisabled : ''
+                      isBeforeStart ? styles.dayDisabled : ''
                     }`}
                     onClick={() => handleDayClick(day.dateStr)}
                     onMouseEnter={() => handleDayMouseEnter(day.dateStr)}
@@ -390,7 +390,6 @@ export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: Dat
                     aria-label={formatDateForAria(day.dateStr)}
                     aria-pressed={isSelected}
                     tabIndex={isFocused ? 0 : -1}
-                    disabled={isDisabled}
                   >
                     {day.dayOfMonth}
                   </button>

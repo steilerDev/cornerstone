@@ -206,7 +206,11 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
     await setLanguage(page, 'de');
 
     // When: User navigates to dashboard
+    // Reload after setLanguage to ensure the app re-reads locale from localStorage
+    // (setLanguage navigates to '/' and writes localStorage, but the SPA may not
+    // re-initialize i18next until the next full page load)
     await page.goto(ROUTES.home);
+    await page.reload();
     await page.waitForLoadState('networkidle');
 
     // Then: All navigation links are visible and not overflowing

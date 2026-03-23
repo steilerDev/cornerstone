@@ -226,11 +226,12 @@ describe('DateFilter', () => {
       expect(dayCellContainer).toBeInTheDocument();
     });
 
-    it('clicking before start date should be disabled', () => {
+    it('dates before start date have dayDisabled CSS class but remain clickable to reset selection', () => {
       const { container } = render(<DateFilter value="from:2026-03-20" onChange={jest.fn()} />);
       const dayBtn10 = findDayButton(container, 10);
       expect(dayBtn10).toBeTruthy();
-      expect(dayBtn10).toBeDisabled();
+      expect(dayBtn10).not.toBeDisabled();
+      expect(dayBtn10).toHaveClass('dayDisabled');
     });
   });
 

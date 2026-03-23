@@ -104,14 +104,27 @@ test.describe('i18n: Predefined category name translations', () => {
   test('German locale: Manage trades tab shows "Sanitär" instead of "Plumbing"', async ({
     page,
   }) => {
+    // Extend test timeout to 30s: i18next cold-start locale initialization from localStorage
+    // can take 10-15s on the first German page load in CI; 15s test timeout is too short
+    // when combined with the warm-up navigation and manage page load.
+    test.setTimeout(30000);
+
     // Given: locale is set to German
+    // setLanguage() patches preferences API + navigates to '/' + writes localStorage.
     await setLanguage(page, 'de');
 
-    // When: User navigates to the Manage page trades tab
+    // When: User navigates to the Manage page trades tab.
+    // Reload after setLanguage to ensure the app re-reads locale from localStorage.
+    // setLanguage already navigated to '/', so a direct goto() + reload() here is sufficient
+    // — this matches the i18n.spec.ts "Key page headings render in German" pattern that passes.
     await page.goto(MANAGE_TRADES_URL);
-    // German heading for ManagePage is "Verwalten"
-    await page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true }).waitFor({
-      state: 'visible',
+    await page.reload();
+    // German heading for ManagePage is "Verwalten".
+    // Use a 20s timeout: i18next cold-start locale initialization (fetching + parsing the 'de'
+    // bundle) can take 10-15s on slow CI runners. The test.setTimeout(30s) gives enough budget
+    // for setLanguage(~5s) + goto(~2s) + reload(~2s) + this assertion (up to 20s) = ~29s.
+    await expect(page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true })).toBeVisible({
+      timeout: 20000,
     });
 
     const tradesPanel = page.locator('#trades-panel');
@@ -131,7 +144,11 @@ test.describe('i18n: Predefined category name translations', () => {
   // ───────────────────────────────────────────────────────────────────────────
 
   test('English baseline: Manage budget categories tab shows "Materials"', async ({ page }) => {
-    // Given: locale is English (default in CI)
+    // Given: locale is English — set explicitly to avoid state leakage from a prior German test
+    // in the same shard. setLanguage() patches the API preference AND writes localStorage,
+    // ensuring i18next is fully initialized to English before we navigate to the Manage page.
+    await setLanguage(page, 'en');
+
     // When: User navigates to the Manage page budget categories tab
     await page.goto(MANAGE_BUDGET_CATEGORIES_URL);
     await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
@@ -152,7 +169,9 @@ test.describe('i18n: Predefined category name translations', () => {
     await setLanguage(page, 'de');
 
     // When: User navigates to the Manage page budget categories tab
+    // Reload after setLanguage to ensure i18next re-reads locale from localStorage
     await page.goto(MANAGE_BUDGET_CATEGORIES_URL);
+    await page.reload();
     await page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true }).waitFor({
       state: 'visible',
     });
@@ -176,7 +195,9 @@ test.describe('i18n: Predefined category name translations', () => {
   test('English baseline: Manage household item categories tab shows "Furniture"', async ({
     page,
   }) => {
-    // Given: locale is English (default in CI)
+    // Given: locale is English — set explicitly to avoid state leakage from a prior German test
+    await setLanguage(page, 'en');
+
     // When: User navigates to the Manage page household item categories tab
     await page.goto(MANAGE_HI_CATEGORIES_URL);
     await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
@@ -197,7 +218,9 @@ test.describe('i18n: Predefined category name translations', () => {
     await setLanguage(page, 'de');
 
     // When: User navigates to the Manage page household item categories tab
+    // Reload after setLanguage to ensure i18next re-reads locale from localStorage
     await page.goto(MANAGE_HI_CATEGORIES_URL);
+    await page.reload();
     await page.getByRole('heading', { level: 1, name: 'Verwalten', exact: true }).waitFor({
       state: 'visible',
     });
