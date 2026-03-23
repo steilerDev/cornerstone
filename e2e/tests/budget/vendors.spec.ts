@@ -1109,9 +1109,10 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
     await expect(vendorsPage.heading).toBeVisible();
     await expect(vendorsPage.heading).toHaveText('Budget');
 
-    // Verify the correct sub-page loaded via the h2 section heading
-    const sectionHeading = page.getByRole('heading', { level: 2, name: 'Vendors', exact: true });
-    await expect(sectionHeading).toBeVisible();
+    // Visual cleanup #1185: the h2 "Vendors" section heading was removed.
+    // Verify correct sub-page loaded via the BudgetSubNav "Vendors" tab being visible.
+    const subNav = page.getByRole('navigation', { name: 'Budget section navigation' });
+    await expect(subNav.getByRole('listitem').filter({ hasText: 'Vendors' })).toBeVisible();
   });
 });
 

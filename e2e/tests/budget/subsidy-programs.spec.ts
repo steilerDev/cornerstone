@@ -77,7 +77,9 @@ async function deleteProgramViaApi(page: Page, id: string): Promise<void> {
 // Page heading and navigation
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
-  test('Page loads with h1 "Budget" and h2 "Subsidy Programs"', async ({ page }) => {
+  // Visual cleanup #1185: the h2 "Subsidy Programs" section heading was removed.
+  // Test name updated to reflect that only the h1 is asserted.
+  test('Page loads with h1 "Budget"', async ({ page }) => {
     const subsidyPage = new SubsidyProgramsPage(page);
 
     await subsidyPage.goto();
@@ -87,8 +89,7 @@ test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
     await expect(subsidyPage.heading).toBeVisible();
     await expect(subsidyPage.heading).toHaveText('Budget');
 
-    await expect(subsidyPage.sectionTitle).toBeVisible();
-    await expect(subsidyPage.sectionTitle).toHaveText('Subsidy Programs');
+    // h2 "Subsidy Programs" was removed in visual cleanup #1185 — no longer asserted.
   });
 
   test('Budget sub-navigation is visible', async ({ page }) => {
