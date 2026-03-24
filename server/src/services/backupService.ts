@@ -11,7 +11,7 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { execFile as execFileCallback } from 'node:child_process';
 import { promisify } from 'node:util';
-import cron from 'node-cron';
+import cron, { type ScheduledTask } from 'node-cron';
 import type { FastifyInstance } from 'fastify';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type Database from 'better-sqlite3';
@@ -48,7 +48,7 @@ let operationInProgress = false;
 /**
  * Cron task handle for scheduled backups (if configured).
  */
-let cronTask: cron.ScheduledTask | undefined;
+let cronTask: ScheduledTask | undefined;
 
 /**
  * Generate a backup filename with UTC timestamp.
