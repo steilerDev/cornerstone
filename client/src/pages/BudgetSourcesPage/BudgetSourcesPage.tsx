@@ -479,6 +479,7 @@ export function BudgetSourcesPage() {
     return (
       <PageLayout
         title={t('sources.title')}
+        maxWidth="wide"
         subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
       >
         <div className={styles.loading}>{t('sources.loading')}</div>
@@ -490,6 +491,7 @@ export function BudgetSourcesPage() {
     return (
       <PageLayout
         title={t('sources.title')}
+        maxWidth="wide"
         subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
       >
         <div className={styles.errorCard} role="alert">
@@ -506,10 +508,8 @@ export function BudgetSourcesPage() {
   return (
     <PageLayout
       title={t('sources.title')}
-      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
-    >
-
-        {/* Add button */}
+      maxWidth="wide"
+      action={
         <button
           type="button"
           className={styles.button}
@@ -521,442 +521,444 @@ export function BudgetSourcesPage() {
         >
           {t('sources.addSource')}
         </button>
+      }
+      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+    >
+      {successMessage && (
+        <div className={styles.successBanner} role="alert">
+          {successMessage}
+        </div>
+      )}
 
-        {successMessage && (
-          <div className={styles.successBanner} role="alert">
-            {successMessage}
-          </div>
-        )}
+      {error && (
+        <div className={styles.errorBanner} role="alert">
+          {error}
+        </div>
+      )}
 
-        {error && (
-          <div className={styles.errorBanner} role="alert">
-            {error}
-          </div>
-        )}
+      {/* Create form */}
+      {showCreateForm && (
+        <section className={styles.card}>
+          <h2 className={styles.cardTitle}>{t('sources.newBudgetSource')}</h2>
+          <p className={styles.cardDescription}>{t('sources.newBudgetSourceDescription')}</p>
 
-        {/* Create form */}
-        {showCreateForm && (
-          <section className={styles.card}>
-            <h2 className={styles.cardTitle}>{t('sources.newBudgetSource')}</h2>
-            <p className={styles.cardDescription}>{t('sources.newBudgetSourceDescription')}</p>
+          {createError && (
+            <div className={styles.errorBanner} role="alert">
+              {createError}
+            </div>
+          )}
 
-            {createError && (
-              <div className={styles.errorBanner} role="alert">
-                {createError}
+          <form onSubmit={handleCreateSource} className={styles.form}>
+            <div className={styles.formRow}>
+              <div className={styles.fieldGrow}>
+                <label htmlFor="sourceName" className={styles.label}>
+                  {t('sources.form.name')}{' '}
+                  <span className={styles.required}>{t('sources.form.required')}</span>
+                </label>
+                <input
+                  type="text"
+                  id="sourceName"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className={styles.input}
+                  placeholder={t('sources.form.placeholders.name')}
+                  maxLength={200}
+                  disabled={isCreating}
+                  autoFocus
+                />
               </div>
-            )}
 
-            <form onSubmit={handleCreateSource} className={styles.form}>
-              <div className={styles.formRow}>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="sourceName" className={styles.label}>
-                    {t('sources.form.name')}{' '}
-                    <span className={styles.required}>{t('sources.form.required')}</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="sourceName"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    className={styles.input}
-                    placeholder={t('sources.form.placeholders.name')}
-                    maxLength={200}
-                    disabled={isCreating}
-                    autoFocus
-                  />
-                </div>
-
-                <div className={styles.fieldSelect}>
-                  <label htmlFor="sourceType" className={styles.label}>
-                    {t('sources.form.type')}{' '}
-                    <span className={styles.required}>{t('sources.form.required')}</span>
-                  </label>
-                  <select
-                    id="sourceType"
-                    value={newSourceType}
-                    onChange={(e) => setNewSourceType(e.target.value as BudgetSourceType)}
-                    className={styles.select}
-                    disabled={isCreating}
-                  >
-                    {Object.entries(SOURCE_TYPE_LABELS)
-                      .filter(([value]) => value !== 'discretionary')
-                      .map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                <div className={styles.fieldSelect}>
-                  <label htmlFor="sourceStatus" className={styles.label}>
-                    {t('sources.form.status')}
-                  </label>
-                  <select
-                    id="sourceStatus"
-                    value={newStatus}
-                    onChange={(e) => setNewStatus(e.target.value as BudgetSourceStatus)}
-                    className={styles.select}
-                    disabled={isCreating}
-                  >
-                    {Object.entries(STATUS_LABELS).map(([value, label]) => (
+              <div className={styles.fieldSelect}>
+                <label htmlFor="sourceType" className={styles.label}>
+                  {t('sources.form.type')}{' '}
+                  <span className={styles.required}>{t('sources.form.required')}</span>
+                </label>
+                <select
+                  id="sourceType"
+                  value={newSourceType}
+                  onChange={(e) => setNewSourceType(e.target.value as BudgetSourceType)}
+                  className={styles.select}
+                  disabled={isCreating}
+                >
+                  {Object.entries(SOURCE_TYPE_LABELS)
+                    .filter(([value]) => value !== 'discretionary')
+                    .map(([value, label]) => (
                       <option key={value} value={value}>
                         {label}
                       </option>
                     ))}
-                  </select>
-                </div>
+                </select>
               </div>
 
-              <div className={styles.formRow}>
-                <div className={styles.fieldGrow}>
-                  <label htmlFor="sourceTotalAmount" className={styles.label}>
-                    {t('sources.form.totalAmount')}{' '}
-                    <span className={styles.required}>{t('sources.form.required')}</span>
-                  </label>
-                  <input
-                    type="number"
-                    id="sourceTotalAmount"
-                    value={newTotalAmount}
-                    onChange={(e) => setNewTotalAmount(e.target.value)}
-                    className={styles.input}
-                    placeholder="0.00"
-                    min={0}
-                    step="0.01"
-                    disabled={isCreating}
-                  />
-                </div>
-
-                <div className={styles.fieldNarrow}>
-                  <label htmlFor="sourceInterestRate" className={styles.label}>
-                    {t('sources.form.interestRate')}
-                  </label>
-                  <input
-                    type="number"
-                    id="sourceInterestRate"
-                    value={newInterestRate}
-                    onChange={(e) => setNewInterestRate(e.target.value)}
-                    className={styles.input}
-                    placeholder={t('sources.form.placeholders.interestRate')}
-                    min={0}
-                    step="0.01"
-                    disabled={isCreating}
-                  />
-                </div>
+              <div className={styles.fieldSelect}>
+                <label htmlFor="sourceStatus" className={styles.label}>
+                  {t('sources.form.status')}
+                </label>
+                <select
+                  id="sourceStatus"
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value as BudgetSourceStatus)}
+                  className={styles.select}
+                  disabled={isCreating}
+                >
+                  {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
               </div>
+            </div>
 
-              <div className={styles.field}>
-                <label htmlFor="sourceTerms" className={styles.label}>
-                  {t('sources.form.terms')}
+            <div className={styles.formRow}>
+              <div className={styles.fieldGrow}>
+                <label htmlFor="sourceTotalAmount" className={styles.label}>
+                  {t('sources.form.totalAmount')}{' '}
+                  <span className={styles.required}>{t('sources.form.required')}</span>
                 </label>
                 <input
-                  type="text"
-                  id="sourceTerms"
-                  value={newTerms}
-                  onChange={(e) => setNewTerms(e.target.value)}
+                  type="number"
+                  id="sourceTotalAmount"
+                  value={newTotalAmount}
+                  onChange={(e) => setNewTotalAmount(e.target.value)}
                   className={styles.input}
-                  placeholder={t('sources.form.placeholders.terms')}
-                  maxLength={500}
+                  placeholder="0.00"
+                  min={0}
+                  step="0.01"
                   disabled={isCreating}
                 />
               </div>
 
-              <div className={styles.field}>
-                <label htmlFor="sourceNotes" className={styles.label}>
-                  {t('sources.form.notes')}
+              <div className={styles.fieldNarrow}>
+                <label htmlFor="sourceInterestRate" className={styles.label}>
+                  {t('sources.form.interestRate')}
                 </label>
-                <textarea
-                  id="sourceNotes"
-                  value={newNotes}
-                  onChange={(e) => setNewNotes(e.target.value)}
-                  className={styles.textarea}
-                  placeholder={t('sources.form.placeholders.notes')}
-                  maxLength={2000}
+                <input
+                  type="number"
+                  id="sourceInterestRate"
+                  value={newInterestRate}
+                  onChange={(e) => setNewInterestRate(e.target.value)}
+                  className={styles.input}
+                  placeholder={t('sources.form.placeholders.interestRate')}
+                  min={0}
+                  step="0.01"
                   disabled={isCreating}
-                  rows={3}
                 />
               </div>
+            </div>
 
-              <div className={styles.formActions}>
-                <button
-                  type="submit"
-                  className={styles.button}
-                  disabled={isCreating || !newName.trim() || !newTotalAmount.trim()}
-                >
-                  {isCreating ? t('sources.buttons.creating') : t('sources.buttons.create')}
-                </button>
-                <button
-                  type="button"
-                  className={styles.cancelButton}
-                  onClick={() => {
-                    setShowCreateForm(false);
-                    resetCreateForm();
-                  }}
-                  disabled={isCreating}
-                >
-                  {t('sources.buttons.cancel')}
-                </button>
-              </div>
-            </form>
-          </section>
-        )}
+            <div className={styles.field}>
+              <label htmlFor="sourceTerms" className={styles.label}>
+                {t('sources.form.terms')}
+              </label>
+              <input
+                type="text"
+                id="sourceTerms"
+                value={newTerms}
+                onChange={(e) => setNewTerms(e.target.value)}
+                className={styles.input}
+                placeholder={t('sources.form.placeholders.terms')}
+                maxLength={500}
+                disabled={isCreating}
+              />
+            </div>
 
-        {/* Sources list */}
-        <section className={styles.card}>
-          <h2 className={styles.cardTitle}>
-            {t('sources.sourcesList.title')} ({sources.length})
-          </h2>
+            <div className={styles.field}>
+              <label htmlFor="sourceNotes" className={styles.label}>
+                {t('sources.form.notes')}
+              </label>
+              <textarea
+                id="sourceNotes"
+                value={newNotes}
+                onChange={(e) => setNewNotes(e.target.value)}
+                className={styles.textarea}
+                placeholder={t('sources.form.placeholders.notes')}
+                maxLength={2000}
+                disabled={isCreating}
+                rows={3}
+              />
+            </div>
 
-          {sources.length === 0 ? (
-            <p className={styles.emptyState}>{t('sources.sourcesList.empty')}</p>
-          ) : (
-            <div className={styles.sourcesList}>
-              {sources.map((source) => (
-                <div key={source.id} className={styles.sourceRow}>
-                  {editingSource?.id === source.id ? (
-                    <form
-                      onSubmit={handleUpdateSource}
-                      className={styles.editForm}
-                      aria-label={`Edit ${source.name}`}
-                    >
-                      {updateError && (
-                        <div className={styles.errorBanner} role="alert">
-                          {updateError}
-                        </div>
-                      )}
+            <div className={styles.formActions}>
+              <button
+                type="submit"
+                className={styles.button}
+                disabled={isCreating || !newName.trim() || !newTotalAmount.trim()}
+              >
+                {isCreating ? t('sources.buttons.creating') : t('sources.buttons.create')}
+              </button>
+              <button
+                type="button"
+                className={styles.cancelButton}
+                onClick={() => {
+                  setShowCreateForm(false);
+                  resetCreateForm();
+                }}
+                disabled={isCreating}
+              >
+                {t('sources.buttons.cancel')}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
 
-                      <div className={styles.editFormRow}>
-                        <div className={styles.fieldGrow}>
-                          <label htmlFor={`edit-name-${source.id}`} className={styles.label}>
-                            {t('sources.form.name')}{' '}
-                            <span className={styles.required}>{t('sources.form.required')}</span>
-                          </label>
-                          <input
-                            type="text"
-                            id={`edit-name-${source.id}`}
-                            value={editingSource.name}
-                            onChange={(e) =>
-                              setEditingSource({ ...editingSource, name: e.target.value })
-                            }
-                            className={styles.input}
-                            maxLength={200}
-                            disabled={isUpdating}
-                            autoFocus
-                          />
-                        </div>
+      {/* Sources list */}
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>
+          {t('sources.sourcesList.title')} ({sources.length})
+        </h2>
 
-                        <div className={styles.fieldSelect}>
-                          <label htmlFor={`edit-type-${source.id}`} className={styles.label}>
-                            {t('sources.form.type')}
-                          </label>
-                          <select
-                            id={`edit-type-${source.id}`}
-                            value={editingSource.sourceType}
-                            onChange={(e) =>
-                              setEditingSource({
-                                ...editingSource,
-                                sourceType: e.target.value as BudgetSourceType,
-                              })
-                            }
-                            className={styles.select}
-                            disabled={isUpdating || source.isDiscretionary}
-                          >
-                            {Object.entries(SOURCE_TYPE_LABELS).map(([value, label]) => (
-                              <option key={value} value={value}>
-                                {label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className={styles.fieldSelect}>
-                          <label htmlFor={`edit-status-${source.id}`} className={styles.label}>
-                            {t('sources.form.status')}
-                          </label>
-                          <select
-                            id={`edit-status-${source.id}`}
-                            value={editingSource.status}
-                            onChange={(e) =>
-                              setEditingSource({
-                                ...editingSource,
-                                status: e.target.value as BudgetSourceStatus,
-                              })
-                            }
-                            className={styles.select}
-                            disabled={isUpdating}
-                          >
-                            {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                              <option key={value} value={value}>
-                                {label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+        {sources.length === 0 ? (
+          <p className={styles.emptyState}>{t('sources.sourcesList.empty')}</p>
+        ) : (
+          <div className={styles.sourcesList}>
+            {sources.map((source) => (
+              <div key={source.id} className={styles.sourceRow}>
+                {editingSource?.id === source.id ? (
+                  <form
+                    onSubmit={handleUpdateSource}
+                    className={styles.editForm}
+                    aria-label={`Edit ${source.name}`}
+                  >
+                    {updateError && (
+                      <div className={styles.errorBanner} role="alert">
+                        {updateError}
                       </div>
+                    )}
 
-                      <div className={styles.editFormRow}>
-                        <div className={styles.fieldGrow}>
-                          <label htmlFor={`edit-amount-${source.id}`} className={styles.label}>
-                            {t('sources.form.totalAmount')}{' '}
-                            <span className={styles.required}>{t('sources.form.required')}</span>
-                          </label>
-                          <input
-                            type="number"
-                            id={`edit-amount-${source.id}`}
-                            value={editingSource.totalAmount}
-                            onChange={(e) =>
-                              setEditingSource({ ...editingSource, totalAmount: e.target.value })
-                            }
-                            className={styles.input}
-                            min={0}
-                            step="0.01"
-                            disabled={isUpdating}
-                          />
-                        </div>
-
-                        <div className={styles.fieldNarrow}>
-                          <label htmlFor={`edit-rate-${source.id}`} className={styles.label}>
-                            {t('sources.form.interestRate')}
-                          </label>
-                          <input
-                            type="number"
-                            id={`edit-rate-${source.id}`}
-                            value={editingSource.interestRate}
-                            onChange={(e) =>
-                              setEditingSource({ ...editingSource, interestRate: e.target.value })
-                            }
-                            className={styles.input}
-                            min={0}
-                            step="0.01"
-                            disabled={isUpdating}
-                          />
-                        </div>
-                      </div>
-
-                      <div className={styles.field}>
-                        <label htmlFor={`edit-terms-${source.id}`} className={styles.label}>
-                          {t('sources.form.terms')}
+                    <div className={styles.editFormRow}>
+                      <div className={styles.fieldGrow}>
+                        <label htmlFor={`edit-name-${source.id}`} className={styles.label}>
+                          {t('sources.form.name')}{' '}
+                          <span className={styles.required}>{t('sources.form.required')}</span>
                         </label>
                         <input
                           type="text"
-                          id={`edit-terms-${source.id}`}
-                          value={editingSource.terms}
+                          id={`edit-name-${source.id}`}
+                          value={editingSource.name}
                           onChange={(e) =>
-                            setEditingSource({ ...editingSource, terms: e.target.value })
+                            setEditingSource({ ...editingSource, name: e.target.value })
                           }
                           className={styles.input}
-                          placeholder="e.g., 30-year fixed, monthly payments"
-                          maxLength={500}
+                          maxLength={200}
                           disabled={isUpdating}
+                          autoFocus
                         />
                       </div>
 
-                      <div className={styles.field}>
-                        <label htmlFor={`edit-notes-${source.id}`} className={styles.label}>
-                          {t('sources.form.notes')}
+                      <div className={styles.fieldSelect}>
+                        <label htmlFor={`edit-type-${source.id}`} className={styles.label}>
+                          {t('sources.form.type')}
                         </label>
-                        <textarea
-                          id={`edit-notes-${source.id}`}
-                          value={editingSource.notes}
+                        <select
+                          id={`edit-type-${source.id}`}
+                          value={editingSource.sourceType}
                           onChange={(e) =>
-                            setEditingSource({ ...editingSource, notes: e.target.value })
+                            setEditingSource({
+                              ...editingSource,
+                              sourceType: e.target.value as BudgetSourceType,
+                            })
                           }
-                          className={styles.textarea}
-                          placeholder="Optional notes"
-                          maxLength={2000}
+                          className={styles.select}
+                          disabled={isUpdating || source.isDiscretionary}
+                        >
+                          {Object.entries(SOURCE_TYPE_LABELS).map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className={styles.fieldSelect}>
+                        <label htmlFor={`edit-status-${source.id}`} className={styles.label}>
+                          {t('sources.form.status')}
+                        </label>
+                        <select
+                          id={`edit-status-${source.id}`}
+                          value={editingSource.status}
+                          onChange={(e) =>
+                            setEditingSource({
+                              ...editingSource,
+                              status: e.target.value as BudgetSourceStatus,
+                            })
+                          }
+                          className={styles.select}
                           disabled={isUpdating}
-                          rows={3}
+                        >
+                          {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className={styles.editFormRow}>
+                      <div className={styles.fieldGrow}>
+                        <label htmlFor={`edit-amount-${source.id}`} className={styles.label}>
+                          {t('sources.form.totalAmount')}{' '}
+                          <span className={styles.required}>{t('sources.form.required')}</span>
+                        </label>
+                        <input
+                          type="number"
+                          id={`edit-amount-${source.id}`}
+                          value={editingSource.totalAmount}
+                          onChange={(e) =>
+                            setEditingSource({ ...editingSource, totalAmount: e.target.value })
+                          }
+                          className={styles.input}
+                          min={0}
+                          step="0.01"
+                          disabled={isUpdating}
                         />
                       </div>
 
-                      <div className={styles.editActions}>
-                        <button
-                          type="submit"
-                          className={styles.saveButton}
-                          disabled={
-                            isUpdating ||
-                            !editingSource.name.trim() ||
-                            !editingSource.totalAmount.trim()
+                      <div className={styles.fieldNarrow}>
+                        <label htmlFor={`edit-rate-${source.id}`} className={styles.label}>
+                          {t('sources.form.interestRate')}
+                        </label>
+                        <input
+                          type="number"
+                          id={`edit-rate-${source.id}`}
+                          value={editingSource.interestRate}
+                          onChange={(e) =>
+                            setEditingSource({ ...editingSource, interestRate: e.target.value })
                           }
-                        >
-                          {isUpdating ? t('sources.buttons.saving') : t('sources.buttons.save')}
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.cancelButton}
-                          onClick={cancelEdit}
+                          className={styles.input}
+                          min={0}
+                          step="0.01"
                           disabled={isUpdating}
-                        >
-                          {t('sources.buttons.cancel')}
-                        </button>
-                      </div>
-                    </form>
-                  ) : (
-                    <>
-                      <div className={styles.sourceInfo}>
-                        <div className={styles.sourceMain}>
-                          <span className={styles.sourceName}>{source.name}</span>
-                          <div className={styles.sourceBadges}>
-                            <span
-                              className={`${styles.typeBadge} ${getSourceTypeClass(styles, source.sourceType)}`}
-                            >
-                              {SOURCE_TYPE_LABELS[source.sourceType]}
-                            </span>
-                            <span
-                              className={`${styles.statusBadge} ${getStatusClass(styles, source.status)}`}
-                            >
-                              {STATUS_LABELS[source.status]}
-                            </span>
-                            {source.isDiscretionary && (
-                              <span className={styles.systemBadge}>
-                                {t('sources.sourcesList.system')}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <SourceBarChart
-                          source={source}
-                          formatCurrency={formatCurrency}
-                          formatPercent={formatPercent}
                         />
-
-                        {source.terms && (
-                          <p className={styles.sourceTerms} title="Terms">
-                            {source.terms}
-                          </p>
-                        )}
                       </div>
+                    </div>
 
-                      <div className={styles.sourceActions}>
-                        <button
-                          type="button"
-                          className={styles.editButton}
-                          onClick={() => startEdit(source)}
-                          disabled={!!editingSource}
-                          aria-label={`${t('sources.buttons.edit')} ${source.name}`}
-                        >
-                          {t('sources.buttons.edit')}
-                        </button>
-                        {!source.isDiscretionary && (
-                          <button
-                            type="button"
-                            className={styles.deleteButton}
-                            onClick={() => openDeleteConfirm(source.id)}
-                            disabled={!!editingSource}
-                            aria-label={`${t('sources.buttons.delete')} ${source.name}`}
+                    <div className={styles.field}>
+                      <label htmlFor={`edit-terms-${source.id}`} className={styles.label}>
+                        {t('sources.form.terms')}
+                      </label>
+                      <input
+                        type="text"
+                        id={`edit-terms-${source.id}`}
+                        value={editingSource.terms}
+                        onChange={(e) =>
+                          setEditingSource({ ...editingSource, terms: e.target.value })
+                        }
+                        className={styles.input}
+                        placeholder="e.g., 30-year fixed, monthly payments"
+                        maxLength={500}
+                        disabled={isUpdating}
+                      />
+                    </div>
+
+                    <div className={styles.field}>
+                      <label htmlFor={`edit-notes-${source.id}`} className={styles.label}>
+                        {t('sources.form.notes')}
+                      </label>
+                      <textarea
+                        id={`edit-notes-${source.id}`}
+                        value={editingSource.notes}
+                        onChange={(e) =>
+                          setEditingSource({ ...editingSource, notes: e.target.value })
+                        }
+                        className={styles.textarea}
+                        placeholder="Optional notes"
+                        maxLength={2000}
+                        disabled={isUpdating}
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className={styles.editActions}>
+                      <button
+                        type="submit"
+                        className={styles.saveButton}
+                        disabled={
+                          isUpdating ||
+                          !editingSource.name.trim() ||
+                          !editingSource.totalAmount.trim()
+                        }
+                      >
+                        {isUpdating ? t('sources.buttons.saving') : t('sources.buttons.save')}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.cancelButton}
+                        onClick={cancelEdit}
+                        disabled={isUpdating}
+                      >
+                        {t('sources.buttons.cancel')}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <div className={styles.sourceInfo}>
+                      <div className={styles.sourceMain}>
+                        <span className={styles.sourceName}>{source.name}</span>
+                        <div className={styles.sourceBadges}>
+                          <span
+                            className={`${styles.typeBadge} ${getSourceTypeClass(styles, source.sourceType)}`}
                           >
-                            {t('sources.buttons.delete')}
-                          </button>
-                        )}
+                            {SOURCE_TYPE_LABELS[source.sourceType]}
+                          </span>
+                          <span
+                            className={`${styles.statusBadge} ${getStatusClass(styles, source.status)}`}
+                          >
+                            {STATUS_LABELS[source.status]}
+                          </span>
+                          {source.isDiscretionary && (
+                            <span className={styles.systemBadge}>
+                              {t('sources.sourcesList.system')}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+
+                      <SourceBarChart
+                        source={source}
+                        formatCurrency={formatCurrency}
+                        formatPercent={formatPercent}
+                      />
+
+                      {source.terms && (
+                        <p className={styles.sourceTerms} title="Terms">
+                          {source.terms}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className={styles.sourceActions}>
+                      <button
+                        type="button"
+                        className={styles.editButton}
+                        onClick={() => startEdit(source)}
+                        disabled={!!editingSource}
+                        aria-label={`${t('sources.buttons.edit')} ${source.name}`}
+                      >
+                        {t('sources.buttons.edit')}
+                      </button>
+                      {!source.isDiscretionary && (
+                        <button
+                          type="button"
+                          className={styles.deleteButton}
+                          onClick={() => openDeleteConfirm(source.id)}
+                          disabled={!!editingSource}
+                          aria-label={`${t('sources.buttons.delete')} ${source.name}`}
+                        >
+                          {t('sources.buttons.delete')}
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Delete confirmation modal */}
       {deletingSourceId && (

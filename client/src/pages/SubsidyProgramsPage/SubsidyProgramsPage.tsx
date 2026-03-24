@@ -403,10 +403,7 @@ export function SubsidyProgramsPage() {
     <PageLayout
       title={t('overview.title')}
       maxWidth="wide"
-      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
-    >
-
-        {/* Add button */}
+      action={
         <button
           type="button"
           className={styles.button}
@@ -417,678 +414,673 @@ export function SubsidyProgramsPage() {
           }}
           disabled={showCreateForm}
         >
-          Add Program
+          {t('subsidies.addProgram')}
         </button>
+      }
+      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+    >
+      {successMessage && (
+        <div className={styles.successBanner} role="alert">
+          {successMessage}
+        </div>
+      )}
 
-        {successMessage && (
-          <div className={styles.successBanner} role="alert">
-            {successMessage}
-          </div>
-        )}
+      {error && (
+        <div className={styles.errorBanner} role="alert">
+          {error}
+        </div>
+      )}
 
-        {error && (
-          <div className={styles.errorBanner} role="alert">
-            {error}
-          </div>
-        )}
+      {/* Create form */}
+      {showCreateForm && (
+        <section className={styles.card}>
+          <h2 className={styles.cardTitle}>New Subsidy Program</h2>
+          <p className={styles.cardDescription}>
+            Subsidy programs represent government or institutional programs that reduce construction
+            costs through percentage or fixed-amount reductions.
+          </p>
 
-        {/* Create form */}
-        {showCreateForm && (
-          <section className={styles.card}>
-            <h2 className={styles.cardTitle}>New Subsidy Program</h2>
-            <p className={styles.cardDescription}>
-              Subsidy programs represent government or institutional programs that reduce
-              construction costs through percentage or fixed-amount reductions.
-            </p>
+          {createError && (
+            <div className={styles.errorBanner} role="alert">
+              {createError}
+            </div>
+          )}
 
-            {createError && (
-              <div className={styles.errorBanner} role="alert">
-                {createError}
-              </div>
-            )}
+          <form onSubmit={handleCreateProgram} className={styles.form}>
+            {/* Row 1: Name */}
+            <div className={styles.field}>
+              <label htmlFor="programName" className={styles.label}>
+                Name <span className={styles.required}>*</span>
+              </label>
+              <input
+                type="text"
+                id="programName"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className={styles.input}
+                placeholder="e.g., Energy Efficiency Rebate Program"
+                maxLength={200}
+                disabled={isCreating}
+                autoFocus
+              />
+            </div>
 
-            <form onSubmit={handleCreateProgram} className={styles.form}>
-              {/* Row 1: Name */}
-              <div className={styles.field}>
-                <label htmlFor="programName" className={styles.label}>
-                  Name <span className={styles.required}>*</span>
+            {/* Row 2: Reduction type + value */}
+            <div className={styles.formRow}>
+              <div className={styles.fieldSelect}>
+                <label htmlFor="reductionType" className={styles.label}>
+                  {t('subsidies.form.reductionType')}{' '}
+                  <span className={styles.required}>{t('subsidies.form.required')}</span>
                 </label>
-                <input
-                  type="text"
-                  id="programName"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  className={styles.input}
-                  placeholder="e.g., Energy Efficiency Rebate Program"
-                  maxLength={200}
+                <select
+                  id="reductionType"
+                  value={newReductionType}
+                  onChange={(e) => setNewReductionType(e.target.value as SubsidyReductionType)}
+                  className={styles.select}
                   disabled={isCreating}
-                  autoFocus
-                />
+                >
+                  {Object.entries({
+                    percentage: t('subsidies.reductionTypeLabels.percentage'),
+                    fixed: t('subsidies.reductionTypeLabels.fixed'),
+                  }).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* Row 2: Reduction type + value */}
-              <div className={styles.formRow}>
-                <div className={styles.fieldSelect}>
-                  <label htmlFor="reductionType" className={styles.label}>
-                    {t('subsidies.form.reductionType')}{' '}
-                    <span className={styles.required}>{t('subsidies.form.required')}</span>
-                  </label>
-                  <select
-                    id="reductionType"
-                    value={newReductionType}
-                    onChange={(e) => setNewReductionType(e.target.value as SubsidyReductionType)}
-                    className={styles.select}
-                    disabled={isCreating}
-                  >
-                    {Object.entries({
-                      percentage: t('subsidies.reductionTypeLabels.percentage'),
-                      fixed: t('subsidies.reductionTypeLabels.fixed'),
-                    }).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className={styles.fieldNarrow}>
-                  <label htmlFor="reductionValue" className={styles.label}>
-                    {newReductionType === 'percentage'
-                      ? t('subsidies.form.valuePercentage')
-                      : t('subsidies.form.valueFixed')}{' '}
-                    <span className={styles.required}>{t('subsidies.form.required')}</span>
-                  </label>
-                  <input
-                    type="number"
-                    id="reductionValue"
-                    value={newReductionValue}
-                    onChange={(e) => setNewReductionValue(e.target.value)}
-                    className={styles.input}
-                    placeholder={newReductionType === 'percentage' ? '15' : '5000'}
-                    min={0}
-                    max={newReductionType === 'percentage' ? 100 : undefined}
-                    step={newReductionType === 'percentage' ? '0.01' : '0.01'}
-                    disabled={isCreating}
-                  />
-                </div>
-
-                <div className={styles.fieldSelect}>
-                  <label htmlFor="applicationStatus" className={styles.label}>
-                    {t('subsidies.form.applicationStatus')}
-                  </label>
-                  <select
-                    id="applicationStatus"
-                    value={newApplicationStatus}
-                    onChange={(e) =>
-                      setNewApplicationStatus(e.target.value as SubsidyApplicationStatus)
-                    }
-                    className={styles.select}
-                    disabled={isCreating}
-                  >
-                    {Object.entries({
-                      eligible: t('subsidies.statusLabels.eligible'),
-                      applied: t('subsidies.statusLabels.applied'),
-                      approved: t('subsidies.statusLabels.approved'),
-                      received: t('subsidies.statusLabels.received'),
-                      rejected: t('subsidies.statusLabels.rejected'),
-                    }).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className={styles.fieldNarrow}>
-                  <label htmlFor="applicationDeadline" className={styles.label}>
-                    {t('subsidies.form.deadline')}
-                  </label>
-                  <input
-                    type="date"
-                    id="applicationDeadline"
-                    value={newApplicationDeadline}
-                    onChange={(e) => setNewApplicationDeadline(e.target.value)}
-                    className={styles.input}
-                    disabled={isCreating}
-                  />
-                </div>
-              </div>
-
-              {/* Row 3: Maximum Amount */}
-              <div className={styles.field}>
-                <label htmlFor="maximumAmount" className={styles.label}>
-                  {t('subsidies.form.maximumAmount')}
+              <div className={styles.fieldNarrow}>
+                <label htmlFor="reductionValue" className={styles.label}>
+                  {newReductionType === 'percentage'
+                    ? t('subsidies.form.valuePercentage')
+                    : t('subsidies.form.valueFixed')}{' '}
+                  <span className={styles.required}>{t('subsidies.form.required')}</span>
                 </label>
                 <input
                   type="number"
-                  id="maximumAmount"
-                  value={newMaximumAmount}
-                  onChange={(e) => setNewMaximumAmount(e.target.value)}
+                  id="reductionValue"
+                  value={newReductionValue}
+                  onChange={(e) => setNewReductionValue(e.target.value)}
                   className={styles.input}
-                  placeholder={t('subsidies.form.placeholders.maximumAmount')}
+                  placeholder={newReductionType === 'percentage' ? '15' : '5000'}
                   min={0}
-                  step="0.01"
+                  max={newReductionType === 'percentage' ? 100 : undefined}
+                  step={newReductionType === 'percentage' ? '0.01' : '0.01'}
                   disabled={isCreating}
                 />
               </div>
 
-              {/* Row 4: Description */}
-              <div className={styles.field}>
-                <label htmlFor="programDescription" className={styles.label}>
-                  {t('subsidies.form.description')}
+              <div className={styles.fieldSelect}>
+                <label htmlFor="applicationStatus" className={styles.label}>
+                  {t('subsidies.form.applicationStatus')}
                 </label>
-                <textarea
-                  id="programDescription"
-                  value={newDescription}
-                  onChange={(e) => setNewDescription(e.target.value)}
-                  className={styles.textarea}
-                  placeholder="Optional description of this program"
-                  maxLength={2000}
+                <select
+                  id="applicationStatus"
+                  value={newApplicationStatus}
+                  onChange={(e) =>
+                    setNewApplicationStatus(e.target.value as SubsidyApplicationStatus)
+                  }
+                  className={styles.select}
                   disabled={isCreating}
-                  rows={2}
-                />
+                >
+                  {Object.entries({
+                    eligible: t('subsidies.statusLabels.eligible'),
+                    applied: t('subsidies.statusLabels.applied'),
+                    approved: t('subsidies.statusLabels.approved'),
+                    received: t('subsidies.statusLabels.received'),
+                    rejected: t('subsidies.statusLabels.rejected'),
+                  }).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* Row 4: Eligibility */}
-              <div className={styles.field}>
-                <label htmlFor="programEligibility" className={styles.label}>
-                  {t('subsidies.form.eligibility')}
+              <div className={styles.fieldNarrow}>
+                <label htmlFor="applicationDeadline" className={styles.label}>
+                  {t('subsidies.form.deadline')}
                 </label>
-                <textarea
-                  id="programEligibility"
-                  value={newEligibility}
-                  onChange={(e) => setNewEligibility(e.target.value)}
-                  className={styles.textarea}
-                  placeholder="Optional eligibility criteria or requirements"
-                  maxLength={2000}
+                <input
+                  type="date"
+                  id="applicationDeadline"
+                  value={newApplicationDeadline}
+                  onChange={(e) => setNewApplicationDeadline(e.target.value)}
+                  className={styles.input}
                   disabled={isCreating}
-                  rows={2}
                 />
               </div>
+            </div>
 
-              {/* Row 5: Notes */}
+            {/* Row 3: Maximum Amount */}
+            <div className={styles.field}>
+              <label htmlFor="maximumAmount" className={styles.label}>
+                {t('subsidies.form.maximumAmount')}
+              </label>
+              <input
+                type="number"
+                id="maximumAmount"
+                value={newMaximumAmount}
+                onChange={(e) => setNewMaximumAmount(e.target.value)}
+                className={styles.input}
+                placeholder={t('subsidies.form.placeholders.maximumAmount')}
+                min={0}
+                step="0.01"
+                disabled={isCreating}
+              />
+            </div>
+
+            {/* Row 4: Description */}
+            <div className={styles.field}>
+              <label htmlFor="programDescription" className={styles.label}>
+                {t('subsidies.form.description')}
+              </label>
+              <textarea
+                id="programDescription"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                className={styles.textarea}
+                placeholder="Optional description of this program"
+                maxLength={2000}
+                disabled={isCreating}
+                rows={2}
+              />
+            </div>
+
+            {/* Row 4: Eligibility */}
+            <div className={styles.field}>
+              <label htmlFor="programEligibility" className={styles.label}>
+                {t('subsidies.form.eligibility')}
+              </label>
+              <textarea
+                id="programEligibility"
+                value={newEligibility}
+                onChange={(e) => setNewEligibility(e.target.value)}
+                className={styles.textarea}
+                placeholder="Optional eligibility criteria or requirements"
+                maxLength={2000}
+                disabled={isCreating}
+                rows={2}
+              />
+            </div>
+
+            {/* Row 5: Notes */}
+            <div className={styles.field}>
+              <label htmlFor="programNotes" className={styles.label}>
+                {t('subsidies.form.notes')}
+              </label>
+              <textarea
+                id="programNotes"
+                value={newNotes}
+                onChange={(e) => setNewNotes(e.target.value)}
+                className={styles.textarea}
+                placeholder="Optional additional notes"
+                maxLength={2000}
+                disabled={isCreating}
+                rows={2}
+              />
+            </div>
+
+            {/* Row 6: Category picker */}
+            {allCategories.length > 0 && (
               <div className={styles.field}>
-                <label htmlFor="programNotes" className={styles.label}>
-                  {t('subsidies.form.notes')}
-                </label>
-                <textarea
-                  id="programNotes"
-                  value={newNotes}
-                  onChange={(e) => setNewNotes(e.target.value)}
-                  className={styles.textarea}
-                  placeholder="Optional additional notes"
-                  maxLength={2000}
-                  disabled={isCreating}
-                  rows={2}
-                />
-              </div>
-
-              {/* Row 6: Category picker */}
-              {allCategories.length > 0 && (
-                <div className={styles.field}>
-                  <div className={styles.categoryFieldHeader}>
-                    <span className={styles.label}>{t('subsidies.form.applicableCategories')}</span>
-                    <button
-                      type="button"
-                      className={styles.selectAllToggle}
-                      onClick={handleToggleAllNew}
-                      disabled={isCreating}
-                    >
-                      {newCategoryIds.length === allCategories.length
-                        ? t('subsidies.form.deselectAll')
-                        : t('subsidies.form.selectAll')}
-                    </button>
-                  </div>
-                  <div className={styles.categoryCheckboxList}>
-                    {allCategories.map((category) => (
-                      <label
-                        key={category.id}
-                        className={`${styles.categoryCheckboxItem} ${isCreating ? styles.categoryCheckboxItemDisabled : ''}`}
-                      >
-                        <input
-                          type="checkbox"
-                          className={styles.checkbox}
-                          checked={newCategoryIds.includes(category.id)}
-                          onChange={() => toggleNewCategory(category.id)}
-                          disabled={isCreating}
-                        />
-                        <span
-                          className={styles.categoryDot}
-                          style={{ backgroundColor: category.color ?? '#6b7280' }}
-                          aria-hidden="true"
-                        />
-                        <span className={styles.categoryCheckboxLabel}>
-                          {getCategoryDisplayName(
-                            tSettings,
-                            category.name,
-                            category.translationKey,
-                          )}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
+                <div className={styles.categoryFieldHeader}>
+                  <span className={styles.label}>{t('subsidies.form.applicableCategories')}</span>
+                  <button
+                    type="button"
+                    className={styles.selectAllToggle}
+                    onClick={handleToggleAllNew}
+                    disabled={isCreating}
+                  >
+                    {newCategoryIds.length === allCategories.length
+                      ? t('subsidies.form.deselectAll')
+                      : t('subsidies.form.selectAll')}
+                  </button>
                 </div>
-              )}
-
-              <div className={styles.formActions}>
-                <button
-                  type="submit"
-                  className={styles.button}
-                  disabled={isCreating || !newName.trim() || !newReductionValue.trim()}
-                >
-                  {isCreating ? t('subsidies.buttons.creating') : t('subsidies.buttons.create')}
-                </button>
-                <button
-                  type="button"
-                  className={styles.cancelButton}
-                  onClick={() => {
-                    setShowCreateForm(false);
-                    resetCreateForm();
-                  }}
-                  disabled={isCreating}
-                >
-                  {t('subsidies.buttons.cancel')}
-                </button>
-              </div>
-            </form>
-          </section>
-        )}
-
-        {/* Programs list */}
-        <section className={styles.card}>
-          <h2 className={styles.cardTitle}>Programs ({programs.length})</h2>
-
-          {programs.length === 0 ? (
-            <p className={styles.emptyState}>
-              No subsidy programs yet. Add your first program to start tracking available subsidies
-              and government incentives for your project.
-            </p>
-          ) : (
-            <div className={styles.programsList}>
-              {programs.map((program) => (
-                <div key={program.id} className={styles.programRow}>
-                  {editingProgram?.id === program.id ? (
-                    <form
-                      onSubmit={handleUpdateProgram}
-                      className={styles.editForm}
-                      aria-label={`Edit ${program.name}`}
+                <div className={styles.categoryCheckboxList}>
+                  {allCategories.map((category) => (
+                    <label
+                      key={category.id}
+                      className={`${styles.categoryCheckboxItem} ${isCreating ? styles.categoryCheckboxItemDisabled : ''}`}
                     >
-                      {updateError && (
-                        <div className={styles.errorBanner} role="alert">
-                          {updateError}
-                        </div>
-                      )}
+                      <input
+                        type="checkbox"
+                        className={styles.checkbox}
+                        checked={newCategoryIds.includes(category.id)}
+                        onChange={() => toggleNewCategory(category.id)}
+                        disabled={isCreating}
+                      />
+                      <span
+                        className={styles.categoryDot}
+                        style={{ backgroundColor: category.color ?? '#6b7280' }}
+                        aria-hidden="true"
+                      />
+                      <span className={styles.categoryCheckboxLabel}>
+                        {getCategoryDisplayName(tSettings, category.name, category.translationKey)}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
-                      {/* Edit Row 1: Name */}
-                      <div className={styles.field}>
-                        <label htmlFor={`edit-name-${program.id}`} className={styles.label}>
-                          Name <span className={styles.required}>*</span>
-                        </label>
-                        <input
-                          type="text"
-                          id={`edit-name-${program.id}`}
-                          value={editingProgram.name}
-                          onChange={(e) =>
-                            setEditingProgram({ ...editingProgram, name: e.target.value })
-                          }
-                          className={styles.input}
-                          maxLength={200}
-                          disabled={isUpdating}
-                          autoFocus
-                        />
+            <div className={styles.formActions}>
+              <button
+                type="submit"
+                className={styles.button}
+                disabled={isCreating || !newName.trim() || !newReductionValue.trim()}
+              >
+                {isCreating ? t('subsidies.buttons.creating') : t('subsidies.buttons.create')}
+              </button>
+              <button
+                type="button"
+                className={styles.cancelButton}
+                onClick={() => {
+                  setShowCreateForm(false);
+                  resetCreateForm();
+                }}
+                disabled={isCreating}
+              >
+                {t('subsidies.buttons.cancel')}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      {/* Programs list */}
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>Programs ({programs.length})</h2>
+
+        {programs.length === 0 ? (
+          <p className={styles.emptyState}>
+            No subsidy programs yet. Add your first program to start tracking available subsidies
+            and government incentives for your project.
+          </p>
+        ) : (
+          <div className={styles.programsList}>
+            {programs.map((program) => (
+              <div key={program.id} className={styles.programRow}>
+                {editingProgram?.id === program.id ? (
+                  <form
+                    onSubmit={handleUpdateProgram}
+                    className={styles.editForm}
+                    aria-label={`Edit ${program.name}`}
+                  >
+                    {updateError && (
+                      <div className={styles.errorBanner} role="alert">
+                        {updateError}
                       </div>
+                    )}
 
-                      {/* Edit Row 2: Reduction type + value + status + deadline */}
-                      <div className={styles.editFormRow}>
-                        <div className={styles.fieldSelect}>
-                          <label
-                            htmlFor={`edit-reductiontype-${program.id}`}
-                            className={styles.label}
-                          >
-                            Reduction Type
-                          </label>
-                          <select
-                            id={`edit-reductiontype-${program.id}`}
-                            value={editingProgram.reductionType}
-                            onChange={(e) =>
-                              setEditingProgram({
-                                ...editingProgram,
-                                reductionType: e.target.value as SubsidyReductionType,
-                              })
-                            }
-                            className={styles.select}
-                            disabled={isUpdating}
-                          >
-                            {Object.entries({
-                              percentage: t('subsidies.reductionTypeLabels.percentage'),
-                              fixed: t('subsidies.reductionTypeLabels.fixed'),
-                            }).map(([value, label]) => (
-                              <option key={value} value={value}>
-                                {label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                    {/* Edit Row 1: Name */}
+                    <div className={styles.field}>
+                      <label htmlFor={`edit-name-${program.id}`} className={styles.label}>
+                        Name <span className={styles.required}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        id={`edit-name-${program.id}`}
+                        value={editingProgram.name}
+                        onChange={(e) =>
+                          setEditingProgram({ ...editingProgram, name: e.target.value })
+                        }
+                        className={styles.input}
+                        maxLength={200}
+                        disabled={isUpdating}
+                        autoFocus
+                      />
+                    </div>
 
-                        <div className={styles.fieldNarrow}>
-                          <label
-                            htmlFor={`edit-reductionvalue-${program.id}`}
-                            className={styles.label}
-                          >
-                            {editingProgram.reductionType === 'percentage'
-                              ? t('subsidies.form.valuePercentage')
-                              : t('subsidies.form.valueFixed')}{' '}
-                            <span className={styles.required}>*</span>
-                          </label>
-                          <input
-                            type="number"
-                            id={`edit-reductionvalue-${program.id}`}
-                            value={editingProgram.reductionValue}
-                            onChange={(e) =>
-                              setEditingProgram({
-                                ...editingProgram,
-                                reductionValue: e.target.value,
-                              })
-                            }
-                            className={styles.input}
-                            min={0}
-                            max={editingProgram.reductionType === 'percentage' ? 100 : undefined}
-                            step="0.01"
-                            disabled={isUpdating}
-                          />
-                        </div>
-
-                        <div className={styles.fieldSelect}>
-                          <label htmlFor={`edit-status-${program.id}`} className={styles.label}>
-                            Status
-                          </label>
-                          <select
-                            id={`edit-status-${program.id}`}
-                            value={editingProgram.applicationStatus}
-                            onChange={(e) =>
-                              setEditingProgram({
-                                ...editingProgram,
-                                applicationStatus: e.target.value as SubsidyApplicationStatus,
-                              })
-                            }
-                            className={styles.select}
-                            disabled={isUpdating}
-                          >
-                            {Object.entries({
-                              eligible: t('subsidies.statusLabels.eligible'),
-                              applied: t('subsidies.statusLabels.applied'),
-                              approved: t('subsidies.statusLabels.approved'),
-                              received: t('subsidies.statusLabels.received'),
-                              rejected: t('subsidies.statusLabels.rejected'),
-                            }).map(([value, label]) => (
-                              <option key={value} value={value}>
-                                {label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className={styles.fieldNarrow}>
-                          <label htmlFor={`edit-deadline-${program.id}`} className={styles.label}>
-                            Deadline
-                          </label>
-                          <input
-                            type="date"
-                            id={`edit-deadline-${program.id}`}
-                            value={editingProgram.applicationDeadline}
-                            onChange={(e) =>
-                              setEditingProgram({
-                                ...editingProgram,
-                                applicationDeadline: e.target.value,
-                              })
-                            }
-                            className={styles.input}
-                            disabled={isUpdating}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Edit Row 3: Maximum Amount */}
-                      <div className={styles.field}>
+                    {/* Edit Row 2: Reduction type + value + status + deadline */}
+                    <div className={styles.editFormRow}>
+                      <div className={styles.fieldSelect}>
                         <label
-                          htmlFor={`edit-maximumamount-${program.id}`}
+                          htmlFor={`edit-reductiontype-${program.id}`}
                           className={styles.label}
                         >
-                          Maximum Amount (€)
+                          Reduction Type
+                        </label>
+                        <select
+                          id={`edit-reductiontype-${program.id}`}
+                          value={editingProgram.reductionType}
+                          onChange={(e) =>
+                            setEditingProgram({
+                              ...editingProgram,
+                              reductionType: e.target.value as SubsidyReductionType,
+                            })
+                          }
+                          className={styles.select}
+                          disabled={isUpdating}
+                        >
+                          {Object.entries({
+                            percentage: t('subsidies.reductionTypeLabels.percentage'),
+                            fixed: t('subsidies.reductionTypeLabels.fixed'),
+                          }).map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className={styles.fieldNarrow}>
+                        <label
+                          htmlFor={`edit-reductionvalue-${program.id}`}
+                          className={styles.label}
+                        >
+                          {editingProgram.reductionType === 'percentage'
+                            ? t('subsidies.form.valuePercentage')
+                            : t('subsidies.form.valueFixed')}{' '}
+                          <span className={styles.required}>*</span>
                         </label>
                         <input
                           type="number"
-                          id={`edit-maximumamount-${program.id}`}
-                          value={editingProgram.maximumAmount}
+                          id={`edit-reductionvalue-${program.id}`}
+                          value={editingProgram.reductionValue}
                           onChange={(e) =>
-                            setEditingProgram({ ...editingProgram, maximumAmount: e.target.value })
+                            setEditingProgram({
+                              ...editingProgram,
+                              reductionValue: e.target.value,
+                            })
                           }
                           className={styles.input}
-                          placeholder="No limit"
                           min={0}
+                          max={editingProgram.reductionType === 'percentage' ? 100 : undefined}
                           step="0.01"
                           disabled={isUpdating}
                         />
                       </div>
 
-                      {/* Edit Row 4: Description */}
-                      <div className={styles.field}>
-                        <label htmlFor={`edit-description-${program.id}`} className={styles.label}>
-                          {t('subsidies.form.description')}
+                      <div className={styles.fieldSelect}>
+                        <label htmlFor={`edit-status-${program.id}`} className={styles.label}>
+                          Status
                         </label>
-                        <textarea
-                          id={`edit-description-${program.id}`}
-                          value={editingProgram.description}
+                        <select
+                          id={`edit-status-${program.id}`}
+                          value={editingProgram.applicationStatus}
                           onChange={(e) =>
-                            setEditingProgram({ ...editingProgram, description: e.target.value })
+                            setEditingProgram({
+                              ...editingProgram,
+                              applicationStatus: e.target.value as SubsidyApplicationStatus,
+                            })
                           }
-                          className={styles.textarea}
-                          placeholder="Optional description"
-                          maxLength={2000}
-                          disabled={isUpdating}
-                          rows={2}
-                        />
-                      </div>
-
-                      {/* Edit Row 4: Eligibility */}
-                      <div className={styles.field}>
-                        <label htmlFor={`edit-eligibility-${program.id}`} className={styles.label}>
-                          {t('subsidies.form.eligibility')}
-                        </label>
-                        <textarea
-                          id={`edit-eligibility-${program.id}`}
-                          value={editingProgram.eligibility}
-                          onChange={(e) =>
-                            setEditingProgram({ ...editingProgram, eligibility: e.target.value })
-                          }
-                          className={styles.textarea}
-                          placeholder="Optional eligibility criteria"
-                          maxLength={2000}
-                          disabled={isUpdating}
-                          rows={2}
-                        />
-                      </div>
-
-                      {/* Edit Row 5: Notes */}
-                      <div className={styles.field}>
-                        <label htmlFor={`edit-notes-${program.id}`} className={styles.label}>
-                          {t('subsidies.form.notes')}
-                        </label>
-                        <textarea
-                          id={`edit-notes-${program.id}`}
-                          value={editingProgram.notes}
-                          onChange={(e) =>
-                            setEditingProgram({ ...editingProgram, notes: e.target.value })
-                          }
-                          className={styles.textarea}
-                          placeholder="Optional notes"
-                          maxLength={2000}
-                          disabled={isUpdating}
-                          rows={2}
-                        />
-                      </div>
-
-                      {/* Edit Row 6: Category picker */}
-                      {allCategories.length > 0 && (
-                        <div className={styles.field}>
-                          <div className={styles.categoryFieldHeader}>
-                            <span className={styles.label}>
-                              {t('subsidies.form.applicableCategories')}
-                            </span>
-                            <button
-                              type="button"
-                              className={styles.selectAllToggle}
-                              onClick={handleToggleAllEdit}
-                              disabled={isUpdating}
-                            >
-                              {editingProgram.categoryIds.length === allCategories.length
-                                ? t('subsidies.form.deselectAll')
-                                : t('subsidies.form.selectAll')}
-                            </button>
-                          </div>
-                          <div className={styles.categoryCheckboxList}>
-                            {allCategories.map((category) => (
-                              <label
-                                key={category.id}
-                                className={`${styles.categoryCheckboxItem} ${isUpdating ? styles.categoryCheckboxItemDisabled : ''}`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  className={styles.checkbox}
-                                  checked={editingProgram.categoryIds.includes(category.id)}
-                                  onChange={() => toggleEditCategory(category.id)}
-                                  disabled={isUpdating}
-                                />
-                                <span
-                                  className={styles.categoryDot}
-                                  style={{ backgroundColor: category.color ?? '#6b7280' }}
-                                  aria-hidden="true"
-                                />
-                                <span className={styles.categoryCheckboxLabel}>
-                                  {getCategoryDisplayName(
-                                    tSettings,
-                                    category.name,
-                                    category.translationKey,
-                                  )}
-                                </span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className={styles.editActions}>
-                        <button
-                          type="submit"
-                          className={styles.saveButton}
-                          disabled={
-                            isUpdating ||
-                            !editingProgram.name.trim() ||
-                            !editingProgram.reductionValue.trim()
-                          }
-                        >
-                          {isUpdating ? t('subsidies.buttons.saving') : t('subsidies.buttons.save')}
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.cancelButton}
-                          onClick={cancelEdit}
+                          className={styles.select}
                           disabled={isUpdating}
                         >
-                          {t('subsidies.buttons.cancel')}
-                        </button>
+                          {Object.entries({
+                            eligible: t('subsidies.statusLabels.eligible'),
+                            applied: t('subsidies.statusLabels.applied'),
+                            approved: t('subsidies.statusLabels.approved'),
+                            received: t('subsidies.statusLabels.received'),
+                            rejected: t('subsidies.statusLabels.rejected'),
+                          }).map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                    </form>
-                  ) : (
-                    <>
-                      <div className={styles.programInfo}>
-                        <div className={styles.programMain}>
-                          <span className={styles.programName}>{program.name}</span>
-                          <div className={styles.programBadges}>
-                            <span
-                              className={`${styles.statusBadge} ${getStatusClassName(styles, program.applicationStatus)}`}
-                            >
-                              {t(`subsidies.statusLabels.${program.applicationStatus}`)}
-                            </span>
-                            <span className={styles.reductionBadge}>
-                              {formatReduction(
-                                program.reductionType,
-                                program.reductionValue,
-                                formatCurrency,
-                              )}
-                            </span>
-                            {program.maximumAmount != null && (
-                              <span className={styles.maxAmountBadge}>
-                                Cap: {formatCurrency(program.maximumAmount)}
-                              </span>
-                            )}
-                            {oversubscribedIds.has(program.id) && (
-                              <span className={styles.oversubscribedBadge}>
-                                {t('subsidies.oversubscribed')}
-                              </span>
-                            )}
-                          </div>
+
+                      <div className={styles.fieldNarrow}>
+                        <label htmlFor={`edit-deadline-${program.id}`} className={styles.label}>
+                          Deadline
+                        </label>
+                        <input
+                          type="date"
+                          id={`edit-deadline-${program.id}`}
+                          value={editingProgram.applicationDeadline}
+                          onChange={(e) =>
+                            setEditingProgram({
+                              ...editingProgram,
+                              applicationDeadline: e.target.value,
+                            })
+                          }
+                          className={styles.input}
+                          disabled={isUpdating}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Edit Row 3: Maximum Amount */}
+                    <div className={styles.field}>
+                      <label htmlFor={`edit-maximumamount-${program.id}`} className={styles.label}>
+                        Maximum Amount (€)
+                      </label>
+                      <input
+                        type="number"
+                        id={`edit-maximumamount-${program.id}`}
+                        value={editingProgram.maximumAmount}
+                        onChange={(e) =>
+                          setEditingProgram({ ...editingProgram, maximumAmount: e.target.value })
+                        }
+                        className={styles.input}
+                        placeholder="No limit"
+                        min={0}
+                        step="0.01"
+                        disabled={isUpdating}
+                      />
+                    </div>
+
+                    {/* Edit Row 4: Description */}
+                    <div className={styles.field}>
+                      <label htmlFor={`edit-description-${program.id}`} className={styles.label}>
+                        {t('subsidies.form.description')}
+                      </label>
+                      <textarea
+                        id={`edit-description-${program.id}`}
+                        value={editingProgram.description}
+                        onChange={(e) =>
+                          setEditingProgram({ ...editingProgram, description: e.target.value })
+                        }
+                        className={styles.textarea}
+                        placeholder="Optional description"
+                        maxLength={2000}
+                        disabled={isUpdating}
+                        rows={2}
+                      />
+                    </div>
+
+                    {/* Edit Row 4: Eligibility */}
+                    <div className={styles.field}>
+                      <label htmlFor={`edit-eligibility-${program.id}`} className={styles.label}>
+                        {t('subsidies.form.eligibility')}
+                      </label>
+                      <textarea
+                        id={`edit-eligibility-${program.id}`}
+                        value={editingProgram.eligibility}
+                        onChange={(e) =>
+                          setEditingProgram({ ...editingProgram, eligibility: e.target.value })
+                        }
+                        className={styles.textarea}
+                        placeholder="Optional eligibility criteria"
+                        maxLength={2000}
+                        disabled={isUpdating}
+                        rows={2}
+                      />
+                    </div>
+
+                    {/* Edit Row 5: Notes */}
+                    <div className={styles.field}>
+                      <label htmlFor={`edit-notes-${program.id}`} className={styles.label}>
+                        {t('subsidies.form.notes')}
+                      </label>
+                      <textarea
+                        id={`edit-notes-${program.id}`}
+                        value={editingProgram.notes}
+                        onChange={(e) =>
+                          setEditingProgram({ ...editingProgram, notes: e.target.value })
+                        }
+                        className={styles.textarea}
+                        placeholder="Optional notes"
+                        maxLength={2000}
+                        disabled={isUpdating}
+                        rows={2}
+                      />
+                    </div>
+
+                    {/* Edit Row 6: Category picker */}
+                    {allCategories.length > 0 && (
+                      <div className={styles.field}>
+                        <div className={styles.categoryFieldHeader}>
+                          <span className={styles.label}>
+                            {t('subsidies.form.applicableCategories')}
+                          </span>
+                          <button
+                            type="button"
+                            className={styles.selectAllToggle}
+                            onClick={handleToggleAllEdit}
+                            disabled={isUpdating}
+                          >
+                            {editingProgram.categoryIds.length === allCategories.length
+                              ? t('subsidies.form.deselectAll')
+                              : t('subsidies.form.selectAll')}
+                          </button>
                         </div>
-
-                        {program.applicationDeadline && (
-                          <div className={styles.programDeadline}>
-                            <span className={styles.deadlineLabel}>Deadline:</span>{' '}
-                            <span className={styles.deadlineValue}>
-                              {formatDate(program.applicationDeadline)}
-                            </span>
-                          </div>
-                        )}
-
-                        {program.description && (
-                          <p className={styles.programDescription}>{program.description}</p>
-                        )}
-
-                        {program.applicableCategories.length > 0 && (
-                          <div className={styles.categoryPills}>
-                            {program.applicableCategories.map((category) => (
-                              <span key={category.id} className={styles.categoryPill}>
-                                <span
-                                  className={styles.categoryDot}
-                                  style={{ backgroundColor: category.color ?? '#6b7280' }}
-                                  aria-hidden="true"
-                                />
+                        <div className={styles.categoryCheckboxList}>
+                          {allCategories.map((category) => (
+                            <label
+                              key={category.id}
+                              className={`${styles.categoryCheckboxItem} ${isUpdating ? styles.categoryCheckboxItemDisabled : ''}`}
+                            >
+                              <input
+                                type="checkbox"
+                                className={styles.checkbox}
+                                checked={editingProgram.categoryIds.includes(category.id)}
+                                onChange={() => toggleEditCategory(category.id)}
+                                disabled={isUpdating}
+                              />
+                              <span
+                                className={styles.categoryDot}
+                                style={{ backgroundColor: category.color ?? '#6b7280' }}
+                                aria-hidden="true"
+                              />
+                              <span className={styles.categoryCheckboxLabel}>
                                 {getCategoryDisplayName(
                                   tSettings,
                                   category.name,
                                   category.translationKey,
                                 )}
                               </span>
-                            ))}
-                          </div>
-                        )}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className={styles.editActions}>
+                      <button
+                        type="submit"
+                        className={styles.saveButton}
+                        disabled={
+                          isUpdating ||
+                          !editingProgram.name.trim() ||
+                          !editingProgram.reductionValue.trim()
+                        }
+                      >
+                        {isUpdating ? t('subsidies.buttons.saving') : t('subsidies.buttons.save')}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.cancelButton}
+                        onClick={cancelEdit}
+                        disabled={isUpdating}
+                      >
+                        {t('subsidies.buttons.cancel')}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <>
+                    <div className={styles.programInfo}>
+                      <div className={styles.programMain}>
+                        <span className={styles.programName}>{program.name}</span>
+                        <div className={styles.programBadges}>
+                          <span
+                            className={`${styles.statusBadge} ${getStatusClassName(styles, program.applicationStatus)}`}
+                          >
+                            {t(`subsidies.statusLabels.${program.applicationStatus}`)}
+                          </span>
+                          <span className={styles.reductionBadge}>
+                            {formatReduction(
+                              program.reductionType,
+                              program.reductionValue,
+                              formatCurrency,
+                            )}
+                          </span>
+                          {program.maximumAmount != null && (
+                            <span className={styles.maxAmountBadge}>
+                              Cap: {formatCurrency(program.maximumAmount)}
+                            </span>
+                          )}
+                          {oversubscribedIds.has(program.id) && (
+                            <span className={styles.oversubscribedBadge}>
+                              {t('subsidies.oversubscribed')}
+                            </span>
+                          )}
+                        </div>
                       </div>
 
-                      <div className={styles.programActions}>
-                        <button
-                          type="button"
-                          className={styles.editButton}
-                          onClick={() => startEdit(program)}
-                          disabled={!!editingProgram}
-                          aria-label={`Edit ${program.name}`}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.deleteButton}
-                          onClick={() => openDeleteConfirm(program.id)}
-                          disabled={!!editingProgram}
-                          aria-label={`Delete ${program.name}`}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                      {program.applicationDeadline && (
+                        <div className={styles.programDeadline}>
+                          <span className={styles.deadlineLabel}>Deadline:</span>{' '}
+                          <span className={styles.deadlineValue}>
+                            {formatDate(program.applicationDeadline)}
+                          </span>
+                        </div>
+                      )}
+
+                      {program.description && (
+                        <p className={styles.programDescription}>{program.description}</p>
+                      )}
+
+                      {program.applicableCategories.length > 0 && (
+                        <div className={styles.categoryPills}>
+                          {program.applicableCategories.map((category) => (
+                            <span key={category.id} className={styles.categoryPill}>
+                              <span
+                                className={styles.categoryDot}
+                                style={{ backgroundColor: category.color ?? '#6b7280' }}
+                                aria-hidden="true"
+                              />
+                              {getCategoryDisplayName(
+                                tSettings,
+                                category.name,
+                                category.translationKey,
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className={styles.programActions}>
+                      <button
+                        type="button"
+                        className={styles.editButton}
+                        onClick={() => startEdit(program)}
+                        disabled={!!editingProgram}
+                        aria-label={`Edit ${program.name}`}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.deleteButton}
+                        onClick={() => openDeleteConfirm(program.id)}
+                        disabled={!!editingProgram}
+                        aria-label={`Delete ${program.name}`}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* Delete confirmation modal */}
