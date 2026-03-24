@@ -479,8 +479,7 @@ export function BudgetSourcesPage() {
     return (
       <PageLayout
         title={t('sources.title')}
-        maxWidth="wide"
-        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+          subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
       >
         <div className={styles.loading}>{t('sources.loading')}</div>
       </PageLayout>
@@ -491,8 +490,7 @@ export function BudgetSourcesPage() {
     return (
       <PageLayout
         title={t('sources.title')}
-        maxWidth="wide"
-        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+          subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
       >
         <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>{t('sources.error')}</h2>
@@ -508,7 +506,6 @@ export function BudgetSourcesPage() {
   return (
     <PageLayout
       title={t('sources.title')}
-      maxWidth="wide"
       action={
         <button
           type="button"

@@ -418,7 +418,6 @@ export function WorkItemsPage() {
   return (
     <PageLayout
       title={t('list.pageTitle')}
-      maxWidth="wide"
       action={
         <button
           type="button"

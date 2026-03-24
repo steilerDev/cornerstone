@@ -443,7 +443,6 @@ export function HouseholdItemsPage() {
   return (
     <PageLayout
       title={t('page.title')}
-      maxWidth="wide"
       action={
         <button
           type="button"

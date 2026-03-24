@@ -76,7 +76,7 @@ describe('PageLayout', () => {
 
   // ── maxWidth prop ─────────────────────────────────────────────────────────
 
-  it('does not apply containerWide class by default (narrow)', () => {
+  it('does not apply containerNarrow class by default (wide)', () => {
     const { container } = render(
       <PageLayout title="Test">
         <p>content</p>
@@ -84,21 +84,10 @@ describe('PageLayout', () => {
     );
 
     const outer = container.firstElementChild as HTMLElement;
-    expect(outer.className).not.toContain('containerWide');
+    expect(outer.className).not.toContain('containerNarrow');
   });
 
-  it('applies containerWide class when maxWidth is "wide"', () => {
-    const { container } = render(
-      <PageLayout title="Test" maxWidth="wide">
-        <p>content</p>
-      </PageLayout>,
-    );
-
-    const outer = container.firstElementChild as HTMLElement;
-    expect(outer.className).toContain('containerWide');
-  });
-
-  it('does not apply containerWide class when maxWidth is "narrow"', () => {
+  it('applies containerNarrow class when maxWidth is "narrow"', () => {
     const { container } = render(
       <PageLayout title="Test" maxWidth="narrow">
         <p>content</p>
@@ -106,7 +95,18 @@ describe('PageLayout', () => {
     );
 
     const outer = container.firstElementChild as HTMLElement;
-    expect(outer.className).not.toContain('containerWide');
+    expect(outer.className).toContain('containerNarrow');
+  });
+
+  it('does not apply containerNarrow class when maxWidth is "wide"', () => {
+    const { container } = render(
+      <PageLayout title="Test" maxWidth="wide">
+        <p>content</p>
+      </PageLayout>,
+    );
+
+    const outer = container.firstElementChild as HTMLElement;
+    expect(outer.className).not.toContain('containerNarrow');
   });
 
   // ── testId prop ───────────────────────────────────────────────────────────

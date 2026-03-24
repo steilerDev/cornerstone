@@ -454,7 +454,6 @@ export function InvoicesPage() {
   return (
     <PageLayout
       title={t('invoices.title')}
-      maxWidth="wide"
       action={
         <button
           type="button"

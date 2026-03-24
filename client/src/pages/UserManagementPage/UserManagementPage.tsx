@@ -458,6 +458,7 @@ export function UserManagementPage() {
 
   return (
     <PageLayout
+      maxWidth="narrow"
       title={t('userManagement.pageTitle')}
       subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
     >

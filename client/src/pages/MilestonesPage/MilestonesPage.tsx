@@ -373,7 +373,6 @@ export function MilestonesPage() {
   return (
     <PageLayout
       title={t('milestones.page.title')}
-      maxWidth="wide"
       action={
         <button
           type="button"

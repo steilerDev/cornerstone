@@ -2149,6 +2149,7 @@ export function ManagePage() {
 
   return (
     <PageLayout
+      maxWidth="narrow"
       title={t('manage.pageTitle')}
       subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
     >

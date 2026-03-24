@@ -18,7 +18,7 @@ export interface PageLayoutProps {
  */
 export function PageLayout({
   title,
-  maxWidth = 'narrow',
+  maxWidth = 'wide',
   action,
   subNav,
   children,
@@ -26,7 +26,7 @@ export function PageLayout({
 }: PageLayoutProps) {
   return (
     <div
-      className={`${styles.container} ${maxWidth === 'wide' ? styles.containerWide : ''}`}
+      className={`${styles.container} ${maxWidth === 'narrow' ? styles.containerNarrow : ''}`}
       {...(testId ? { 'data-testid': testId } : {})}
     >
       <div className={styles.header}>

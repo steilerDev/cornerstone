@@ -373,7 +373,6 @@ export function VendorsPage() {
   return (
     <PageLayout
       title={t('vendors.title')}
-      maxWidth="wide"
       action={
         <button
           type="button"

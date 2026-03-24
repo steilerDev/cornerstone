@@ -144,6 +144,7 @@ export function ProfilePage() {
   if (isLoading) {
     return (
       <PageLayout
+      maxWidth="narrow"
         title={t('profile.pageTitle')}
         subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
       >
@@ -155,6 +156,7 @@ export function ProfilePage() {
   if (loadError) {
     return (
       <PageLayout
+      maxWidth="narrow"
         title={t('profile.pageTitle')}
         subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
       >
@@ -174,6 +176,7 @@ export function ProfilePage() {
 
   return (
     <PageLayout
+      maxWidth="narrow"
       title={t('profile.pageTitle')}
       subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
     >

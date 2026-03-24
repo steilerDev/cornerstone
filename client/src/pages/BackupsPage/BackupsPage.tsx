@@ -150,6 +150,7 @@ export function BackupsPage() {
   if (restoreInitiated) {
     return (
       <PageLayout
+      maxWidth="narrow"
         title={t('backups.pageTitle')}
         subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
       >
@@ -162,6 +163,7 @@ export function BackupsPage() {
   if (isNotConfigured && !isLoading) {
     return (
       <PageLayout
+      maxWidth="narrow"
         title={t('backups.pageTitle')}
         subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
       >
@@ -176,6 +178,7 @@ export function BackupsPage() {
 
   return (
     <PageLayout
+      maxWidth="narrow"
       title={t('backups.pageTitle')}
       subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
     >

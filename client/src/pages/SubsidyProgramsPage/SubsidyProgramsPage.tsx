@@ -373,7 +373,6 @@ export function SubsidyProgramsPage() {
     return (
       <PageLayout
         title={t('overview.title')}
-        maxWidth="wide"
         subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
       >
         <div className={styles.loading}>{t('subsidies.loading')}</div>
@@ -385,7 +384,6 @@ export function SubsidyProgramsPage() {
     return (
       <PageLayout
         title={t('overview.title')}
-        maxWidth="wide"
         subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
       >
         <div className={styles.errorCard} role="alert">
@@ -402,7 +400,6 @@ export function SubsidyProgramsPage() {
   return (
     <PageLayout
       title={t('overview.title')}
-      maxWidth="wide"
       action={
         <button
           type="button"
