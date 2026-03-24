@@ -6,7 +6,8 @@ import type { ColumnDef, TableState } from '../../components/DataTable/DataTable
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
-import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
+import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { listWorkItems, deleteWorkItem } from '../../lib/workItemsApi.js';
@@ -18,6 +19,13 @@ import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/Ke
 import { ApiClientError } from '../../lib/apiClient.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './WorkItemsPage.module.css';
+
+const PROJECT_TABS: SubNavTab[] = [
+  { labelKey: 'subnav.project.overview', to: '/project/overview' },
+  { labelKey: 'subnav.project.workItems', to: '/project/work-items' },
+  { labelKey: 'subnav.project.householdItems', to: '/project/household-items' },
+  { labelKey: 'subnav.project.milestones', to: '/project/milestones' },
+];
 
 export function WorkItemsPage() {
   const { t } = useTranslation('workItems');
@@ -408,9 +416,10 @@ export function WorkItemsPage() {
   useKeyboardShortcuts(shortcuts);
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.pageTitle}>{t('list.pageTitle')}</h1>
+    <PageLayout
+      title={t('list.pageTitle')}
+      maxWidth="wide"
+      action={
         <button
           type="button"
           className={sharedStyles.btnPrimary}
@@ -419,9 +428,9 @@ export function WorkItemsPage() {
         >
           {t('list.newWorkItem')}
         </button>
-      </div>
-
-      <ProjectSubNav />
+      }
+      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel="Project section navigation" />}
+    >
 
       <DataTable<WorkItemSummary>
         pageKey="workItems"
@@ -493,7 +502,7 @@ export function WorkItemsPage() {
       {showShortcutsHelp && (
         <KeyboardShortcutsHelp shortcuts={shortcuts} onClose={() => setShowShortcutsHelp(false)} />
       )}
-    </div>
+    </PageLayout>
   );
 }
 

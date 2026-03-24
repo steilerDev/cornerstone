@@ -1,21 +1,3 @@
-.page {
-  padding: var(--spacing-6);
-  max-width: 100%;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--spacing-6);
-}
-
-.pageTitle {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  margin: 0;
-}
 
 .toolbar {
   margin-bottom: var(--spacing-4);

@@ -18,8 +18,17 @@ import { fetchBudgetOverview } from '../../lib/budgetOverviewApi.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
-import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
+import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import styles from './SubsidyProgramsPage.module.css';
+
+const BUDGET_TABS: SubNavTab[] = [
+  { labelKey: 'subnav.budget.overview', to: '/budget/overview', ns: 'common' },
+  { labelKey: 'subnav.budget.invoices', to: '/budget/invoices', ns: 'common' },
+  { labelKey: 'subnav.budget.vendors', to: '/budget/vendors', ns: 'common' },
+  { labelKey: 'subnav.budget.sources', to: '/budget/sources', ns: 'common' },
+  { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies', ns: 'common' },
+];
 
 // ---- Display helpers ----
 
@@ -362,48 +371,40 @@ export function SubsidyProgramsPage() {
 
   if (isLoading) {
     return (
-      <div className={styles.container}>
-        <div className={styles.content}>
-          <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>Budget</h1>
-          </div>
-          <BudgetSubNav />
-          <div className={styles.loading}>Loading subsidy programs...</div>
-        </div>
-      </div>
+      <PageLayout
+        title={t('overview.title')}
+        maxWidth="wide"
+        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+      >
+        <div className={styles.loading}>{t('subsidies.loading')}</div>
+      </PageLayout>
     );
   }
 
   if (error && programs.length === 0) {
     return (
-      <div className={styles.container}>
-        <div className={styles.content}>
-          <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>Budget</h1>
-          </div>
-          <BudgetSubNav />
-          <div className={styles.errorCard} role="alert">
-            <h2 className={styles.errorTitle}>Error</h2>
-            <p>{error}</p>
-            <button type="button" className={styles.button} onClick={() => void loadData()}>
-              Retry
-            </button>
-          </div>
+      <PageLayout
+        title={t('overview.title')}
+        maxWidth="wide"
+        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+      >
+        <div className={styles.errorCard} role="alert">
+          <h2 className={styles.errorTitle}>{t('subsidies.error')}</h2>
+          <p>{error}</p>
+          <button type="button" className={styles.button} onClick={() => void loadData()}>
+            {t('subsidies.retry')}
+          </button>
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.content}>
-        {/* Page header */}
-        <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>Budget</h1>
-        </div>
-
-        {/* Budget sub-navigation */}
-        <BudgetSubNav />
+    <PageLayout
+      title={t('overview.title')}
+      maxWidth="wide"
+      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+    >
 
         {/* Add button */}
         <button
@@ -1088,8 +1089,7 @@ export function SubsidyProgramsPage() {
               ))}
             </div>
           )}
-        </section>
-      </div>
+      </section>
 
       {/* Delete confirmation modal */}
       {deletingProgramId && (
@@ -1143,7 +1143,7 @@ export function SubsidyProgramsPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 }
 

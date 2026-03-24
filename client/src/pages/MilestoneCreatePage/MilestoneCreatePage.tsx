@@ -4,8 +4,15 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { createMilestone } from '../../lib/milestonesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
+import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import styles from './MilestoneCreatePage.module.css';
+
+const PROJECT_TABS: SubNavTab[] = [
+  { labelKey: 'subnav.project.overview', to: '/project/overview', ns: 'common' },
+  { labelKey: 'subnav.project.workItems', to: '/project/work-items', ns: 'common' },
+  { labelKey: 'subnav.project.householdItems', to: '/project/household-items', ns: 'common' },
+  { labelKey: 'subnav.project.milestones', to: '/project/milestones', ns: 'common' },
+];
 
 export function MilestoneCreatePage() {
   const { t } = useTranslation('schedule');
@@ -70,7 +77,7 @@ export function MilestoneCreatePage() {
           <h1 className={styles.pageTitle}>{t('milestones.page.title')}</h1>
         </div>
       </div>
-      <ProjectSubNav />
+      <SubNav tabs={PROJECT_TABS} ariaLabel="Project section navigation" />
 
       <form onSubmit={handleSubmit} className={styles.formCard}>
         <h2 className={styles.formTitle}>{t('milestones.create.title')}</h2>

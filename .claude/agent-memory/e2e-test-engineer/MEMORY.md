@@ -13,6 +13,10 @@ timeout** for the heading assertion — i18next cold-start initialization takes 
 Pattern: `test.setTimeout(30000); setLanguage(de); goto(URL); reload(); expect(heading).toBeVisible({ timeout: 20000 })`.
 Extra warm-up navigations (goto('/') to confirm 'Projekt') consume the 30s budget — avoid them.
 
+**Known flaky test**: "German locale: Manage trades tab shows 'Sanitär' instead of 'Plumbing'"
+(`i18n-categories.spec.ts`) fails intermittently on CI — locale doesn't initialize before the
+English page renders. Was failing before PR #1186 too (run 23429182196). Not blocking for beta PRs.
+
 ## WorkItemsPage.search(): URL-based Wait Prevents Stale-DOM Race (2026-03-23)
 
 After `fill(query)`, add `page.waitForURL(url => url.searchParams.get('q') === query)` BEFORE

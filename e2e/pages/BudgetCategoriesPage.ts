@@ -2,12 +2,12 @@
  * Page Object Model for the Budget Categories tab on the Manage page (/settings/manage?tab=budget-categories)
  *
  * Note: /budget/categories now redirects to /settings/manage?tab=budget-categories.
- * The page uses an always-visible inline create form (h2 "Create New Budget Category"),
+ * The page renders an h1 "Manage" heading (via PageLayout, restored in #1187) and uses
+ * an always-visible inline create form (h2 "Create New Budget Category"),
  * a list of categories with inline edit forms, and a delete confirmation modal.
  *
- * Visual cleanup (#1185): The <h1>Manage</h1> heading and "Add Category" toggle button
- * were removed. The create form is now always rendered. The createFormHeading is the
- * readiness indicator for goto().
+ * Visual cleanup (#1185): The "Add Category" toggle button was removed.
+ * The create form is now always rendered.
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -31,11 +31,6 @@ export interface EditCategoryData {
 export class BudgetCategoriesPage {
   readonly page: Page;
 
-  /**
-   * @deprecated The <h1>Manage</h1> heading was removed in visual cleanup #1185.
-   * This locator will never match a visible element.
-   * Use `createFormHeading` or `categoriesListHeading` to verify the page is loaded.
-   */
   readonly heading: Locator;
 
   /**
@@ -82,10 +77,6 @@ export class BudgetCategoriesPage {
     // to avoid matching identical CSS classes used in the other tab panels (tags, hi-categories)
     const tabPanel = page.locator('#budget-categories-panel');
 
-    // Readiness indicator: the internal "Budget Categories" tab button in the manage page tab list.
-    // Visual cleanup #1185 removed the <h1>Manage</h1> heading; the tab button is always
-    // present when ManagePage has mounted its internal tabs.
-    // Visual cleanup #1185: the h1 "Manage" heading was removed — this locator will not match.
     this.heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
 
     // Visual cleanup #1185: "Add Category" toggle button was removed — this locator will not match.
@@ -152,9 +143,9 @@ export class BudgetCategoriesPage {
 
   async goto(): Promise<void> {
     await this.page.goto(BUDGET_CATEGORIES_ROUTE);
-    // Visual cleanup #1185: the <h1>Manage</h1> heading was removed and the "Add Category"
-    // toggle button was removed. The create form is always rendered.
     // Wait for createFormHeading ("Create New Budget Category") as the readiness indicator.
+    // The "Add Category" toggle button was removed in visual cleanup #1185 — the create
+    // form is always rendered. The h1 "Manage" heading is restored via PageLayout (#1187).
     await this.createFormHeading.waitFor({ state: 'visible' });
   }
 

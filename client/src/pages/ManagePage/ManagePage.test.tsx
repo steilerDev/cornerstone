@@ -5,10 +5,12 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import type * as UseAreasTypes from '../../hooks/useAreas.js';
 import type * as UseTradesTypes from '../../hooks/useTrades.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
 import type * as HICApiTypes from '../../lib/householdItemCategoriesApi.js';
+import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type {
   BudgetCategory,
@@ -18,6 +20,13 @@ import type {
 } from '@cornerstone/shared';
 
 // ─── Mock hooks and API modules BEFORE importing components ───────────────────
+
+// Mock AuthContext — ManagePage uses useAuth() to compute isAdmin for tab visibility
+const mockUseAuth = jest.fn<typeof AuthContextTypes.useAuth>();
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: mockUseAuth,
+  AuthProvider: ({ children }: { children: ReactNode }) => children,
+}));
 
 const mockUseAreas = jest.fn<typeof UseAreasTypes.useAreas>();
 jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
@@ -51,11 +60,6 @@ jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
   createHouseholdItemCategory: mockCreateHICCategory,
   updateHouseholdItemCategory: mockUpdateHICCategory,
   deleteHouseholdItemCategory: mockDeleteHICCategory,
-}));
-
-// Mock SettingsSubNav to avoid AuthContext dependency
-jest.unstable_mockModule('../../components/SettingsSubNav/SettingsSubNav.js', () => ({
-  SettingsSubNav: () => null,
 }));
 
 // Mock AreaPicker — pure display component, no need for full rendering
@@ -234,6 +238,26 @@ describe('ManagePage', () => {
     mockCreateHICCategory.mockReset();
     mockUpdateHICCategory.mockReset();
     mockDeleteHICCategory.mockReset();
+    mockUseAuth.mockReset();
+
+    // Default: admin user so all settings tabs are visible
+    mockUseAuth.mockReturnValue({
+      user: {
+        id: 'user-admin',
+        email: 'admin@example.com',
+        displayName: 'Admin',
+        role: 'admin' as const,
+        authProvider: 'local' as const,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+        deactivatedAt: null,
+      },
+      oidcEnabled: false,
+      isLoading: false,
+      error: null,
+      refreshAuth: jest.fn(async () => Promise.resolve()),
+      logout: jest.fn(async () => Promise.resolve()),
+    });
 
     // Default hook return values
     mockUseAreas.mockReturnValue(makeAreasHookResult());

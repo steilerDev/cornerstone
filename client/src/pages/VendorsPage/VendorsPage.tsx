@@ -5,7 +5,8 @@ import type { Vendor, CreateVendorRequest, VendorListQuery } from '@cornerstone/
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { Modal } from '../../components/Modal/Modal.js';
-import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
+import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { TradePicker } from '../../components/TradePicker/TradePicker.js';
 import { useTrades } from '../../hooks/useTrades.js';
 import { useTableState } from '../../hooks/useTableState.js';
@@ -15,6 +16,14 @@ import { fetchVendors, createVendor, deleteVendor } from '../../lib/vendorsApi.j
 import { ApiClientError } from '../../lib/apiClient.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './VendorsPage.module.css';
+
+const BUDGET_TABS: SubNavTab[] = [
+  { labelKey: 'subnav.budget.overview', to: '/budget/overview' },
+  { labelKey: 'subnav.budget.invoices', to: '/budget/invoices' },
+  { labelKey: 'subnav.budget.vendors', to: '/budget/vendors' },
+  { labelKey: 'subnav.budget.sources', to: '/budget/sources' },
+  { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
+];
 
 export function VendorsPage() {
   const { t } = useTranslation('budget');
@@ -362,9 +371,10 @@ export function VendorsPage() {
   );
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.pageTitle}>{t('vendors.title')}</h1>
+    <PageLayout
+      title={t('vendors.title')}
+      maxWidth="wide"
+      action={
         <button
           type="button"
           className={sharedStyles.btnPrimary}
@@ -373,9 +383,9 @@ export function VendorsPage() {
         >
           {t('vendors.addVendor')}
         </button>
-      </div>
-
-      <BudgetSubNav />
+      }
+      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+    >
 
       <DataTable<Vendor>
         pageKey="vendors"
@@ -572,7 +582,7 @@ export function VendorsPage() {
           )}
         </Modal>
       )}
-    </div>
+    </PageLayout>
   );
 }
 

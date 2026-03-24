@@ -11,7 +11,9 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import type * as BackupsApiTypes from '../../lib/backupsApi.js';
+import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type {
   BackupListResponse,
@@ -20,6 +22,13 @@ import type {
 } from '@cornerstone/shared';
 
 // ─── Mock modules BEFORE importing component ────────────────────────────────
+
+// Mock AuthContext — BackupsPage uses useAuth() to compute isAdmin for tab visibility
+const mockUseAuth = jest.fn<typeof AuthContextTypes.useAuth>();
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: mockUseAuth,
+  AuthProvider: ({ children }: { children: ReactNode }) => children,
+}));
 
 const mockListBackups = jest.fn<typeof BackupsApiTypes.listBackups>();
 const mockCreateBackup = jest.fn<typeof BackupsApiTypes.createBackup>();
@@ -31,11 +40,6 @@ jest.unstable_mockModule('../../lib/backupsApi.js', () => ({
   createBackup: mockCreateBackup,
   deleteBackup: mockDeleteBackup,
   restoreBackup: mockRestoreBackup,
-}));
-
-// Mock SettingsSubNav to avoid AuthContext dependency
-jest.unstable_mockModule('../../components/SettingsSubNav/SettingsSubNav.js', () => ({
-  SettingsSubNav: () => null,
 }));
 
 // Mock formatters to provide stable date formatting in tests
@@ -99,6 +103,26 @@ describe('BackupsPage', () => {
     mockCreateBackup.mockReset();
     mockDeleteBackup.mockReset();
     mockRestoreBackup.mockReset();
+    mockUseAuth.mockReset();
+
+    // Default: admin user so all settings tabs are visible
+    mockUseAuth.mockReturnValue({
+      user: {
+        id: 'user-admin',
+        email: 'admin@example.com',
+        displayName: 'Admin',
+        role: 'admin' as const,
+        authProvider: 'local' as const,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+        deactivatedAt: null,
+      },
+      oidcEnabled: false,
+      isLoading: false,
+      error: null,
+      refreshAuth: jest.fn(async () => Promise.resolve()),
+      logout: jest.fn(async () => Promise.resolve()),
+    });
   });
 
   function renderPage() {

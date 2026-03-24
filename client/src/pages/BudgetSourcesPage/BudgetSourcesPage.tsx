@@ -14,10 +14,19 @@ import {
 } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
-import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
+import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
 import styles from './BudgetSourcesPage.module.css';
+
+const BUDGET_TABS: SubNavTab[] = [
+  { labelKey: 'subnav.budget.overview', to: '/budget/overview' },
+  { labelKey: 'subnav.budget.invoices', to: '/budget/invoices' },
+  { labelKey: 'subnav.budget.vendors', to: '/budget/vendors' },
+  { labelKey: 'subnav.budget.sources', to: '/budget/sources' },
+  { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
+];
 
 // ---- Display helpers ----
 
@@ -468,48 +477,37 @@ export function BudgetSourcesPage() {
 
   if (isLoading) {
     return (
-      <div className={styles.container}>
-        <div className={styles.content}>
-          <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>{t('sources.title')}</h1>
-          </div>
-          <BudgetSubNav />
-          <div className={styles.loading}>{t('sources.loading')}</div>
-        </div>
-      </div>
+      <PageLayout
+        title={t('sources.title')}
+        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+      >
+        <div className={styles.loading}>{t('sources.loading')}</div>
+      </PageLayout>
     );
   }
 
   if (error && sources.length === 0) {
     return (
-      <div className={styles.container}>
-        <div className={styles.content}>
-          <div className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>{t('sources.title')}</h1>
-          </div>
-          <BudgetSubNav />
-          <div className={styles.errorCard} role="alert">
-            <h2 className={styles.errorTitle}>{t('sources.error')}</h2>
-            <p>{error}</p>
-            <button type="button" className={styles.button} onClick={() => void loadSources()}>
-              {t('sources.retry')}
-            </button>
-          </div>
+      <PageLayout
+        title={t('sources.title')}
+        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+      >
+        <div className={styles.errorCard} role="alert">
+          <h2 className={styles.errorTitle}>{t('sources.error')}</h2>
+          <p>{error}</p>
+          <button type="button" className={styles.button} onClick={() => void loadSources()}>
+            {t('sources.retry')}
+          </button>
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.content}>
-        {/* Page header */}
-        <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>{t('sources.title')}</h1>
-        </div>
-
-        {/* Budget sub-navigation */}
-        <BudgetSubNav />
+    <PageLayout
+      title={t('sources.title')}
+      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+    >
 
         {/* Add button */}
         <button
@@ -959,7 +957,6 @@ export function BudgetSourcesPage() {
             </div>
           )}
         </section>
-      </div>
 
       {/* Delete confirmation modal */}
       {deletingSourceId && (
@@ -1011,7 +1008,7 @@ export function BudgetSourcesPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 }
 

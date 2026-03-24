@@ -5,7 +5,8 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { useLocale, type LocalePreference } from '../../contexts/LocaleContext.js';
 import { useFormatters } from '../../lib/formatters.js';
-import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.js';
+import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { DavAccessCard } from '../../components/DavAccessCard/DavAccessCard.js';
 import styles from './ProfilePage.module.css';
 
@@ -20,6 +21,13 @@ export function ProfilePage() {
   const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const { user, isLoading, error: loadError, refreshAuth } = useAuth();
   const { locale, setLocale } = useLocale();
+
+  const settingsTabs: SubNavTab[] = [
+    { labelKey: 'subnav.settings.profile', to: '/settings/profile', ns: 'common' },
+    { labelKey: 'subnav.settings.manage', to: '/settings/manage', ns: 'common' },
+    { labelKey: 'subnav.settings.userManagement', to: '/settings/users', ns: 'common', visible: user?.role === 'admin' },
+    { labelKey: 'subnav.settings.backups', to: '/settings/backups', ns: 'common', visible: user?.role === 'admin' },
+  ];
 
   // Display name state
   const [displayName, setDisplayName] = useState('');
@@ -135,20 +143,26 @@ export function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className={styles.container}>
+      <PageLayout
+        title={t('profile.pageTitle')}
+        subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+      >
         <div className={styles.loading}>{t('profile.loading')}</div>
-      </div>
+      </PageLayout>
     );
   }
 
   if (loadError) {
     return (
-      <div className={styles.container}>
+      <PageLayout
+        title={t('profile.pageTitle')}
+        subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+      >
         <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>{t('profile.error')}</h2>
           <p>{loadError}</p>
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
@@ -159,10 +173,10 @@ export function ProfilePage() {
   const isLocalAuth = user.authProvider === 'local';
 
   return (
-    <div className={styles.container}>
-      <div className={styles.content}>
-        <h1 className={styles.pageTitle}>{t('profile.pageTitle')}</h1>
-        <SettingsSubNav />
+    <PageLayout
+      title={t('profile.pageTitle')}
+      subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+    >
 
         {/* Profile Information Card */}
         <section className={styles.card}>
@@ -359,10 +373,9 @@ export function ProfilePage() {
           </div>
         </section>
 
-        {/* DAV Access Card */}
-        <DavAccessCard />
-      </div>
-    </div>
+      {/* DAV Access Card */}
+      <DavAccessCard />
+    </PageLayout>
   );
 }
 
