@@ -142,8 +142,8 @@ Before invoking, prepare the **epic context** that `/release` will use to enrich
 1. **Stories completed** — list of all sub-issues with titles
 2. **UAT scenarios** — from step 6, formatted as a manual validation checklist
 3. **Refinement summary** — from step 4 (if applicable)
-5. **E2E validation summary** — from step 5
-6. **Security findings summary** — resolved/outstanding from story PR reviews
+4. **E2E validation summary** — from step 5
+5. **Security findings summary** — resolved/outstanding from story PR reviews
 
 The `/release` skill uses this context to build the promotion PR body (see `/release` step 2b, epic-enriched variant). It also handles:
 

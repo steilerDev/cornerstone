@@ -488,4 +488,3 @@ The application supports multiple locales (English and German) via `i18next` and
 - **Glossary scope**: Domain-specific terms only (Work Item, Invoice, etc.), not common UI words
 - **Glossary updates**: Translator proposes additions for new domain terms; product-owner approves terminology
 - **Adding a locale**: Add locale code to `glossary.json` `_meta.locales`, add translations for all terms, create `client/src/i18n/{locale}/` directory with namespace files, register in `client/src/i18n/index.ts`
-

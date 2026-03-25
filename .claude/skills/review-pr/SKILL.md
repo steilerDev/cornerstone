@@ -124,4 +124,3 @@ Present to the user:
    - If blocked: list what the contributor needs to fix, suggest re-running `/review-pr <number>` after fixes are pushed
 
 **The orchestrator never merges.** The user decides when to merge.
-

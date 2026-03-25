@@ -263,7 +263,7 @@ Update the implementation checklist with patterns learned:
    - `ux-designer/MEMORY.md` — recurring token/pattern violations
    - `product-architect/MEMORY.md` — recurring architecture deviations
 2. Identify any new recurring patterns that are NOT yet in `.claude/checklists/implementation-checklist.md`
-4. If new patterns found, add them to the checklist and commit:
+3. If new patterns found, add them to the checklist and commit:
 
    ```bash
    git add .claude/checklists/implementation-checklist.md
@@ -273,7 +273,7 @@ Update the implementation checklist with patterns learned:
    git push
    ```
 
-5. If no new patterns, skip the commit
+4. If no new patterns, skip the commit
 
 ### 7. Merge & Post-Merge
 
