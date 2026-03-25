@@ -254,4 +254,35 @@ describe('DateFilter', () => {
       expect(grid).toBeInTheDocument(); // Should render without crashing
     });
   });
+
+  describe('single-instance two-click flow (issue #1178 regression)', () => {
+    it('clicking start then end within a single mounted instance calls onChange once with full range', () => {
+      // Regression test: without the fix, the DateRangePicker's phase reset to 'selecting-start'
+      // after the first click (because the startDate prop was still '' when the component re-rendered).
+      // With the fix (pendingStartDate internal state), the phase correctly stays 'selecting-end'
+      // so the second click completes the range without requiring a prop update between clicks.
+      const mockOnChange = jest.fn();
+      const { container } = render(<DateFilter value="" onChange={mockOnChange} />);
+
+      // Step 1: Click day 15 — partial selection (start date only)
+      const dayBtn15 = findDayButton(container, 15);
+      expect(dayBtn15).toBeTruthy();
+      fireEvent.click(dayBtn15!);
+      // DateFilter must NOT call onChange for a partial selection
+      expect(mockOnChange).not.toHaveBeenCalled();
+
+      // Phase label inside the DateRangePicker must immediately show "end" — no re-mount needed
+      const phaseLabel = container.querySelector('.phaseLabel');
+      expect(phaseLabel?.textContent?.toLowerCase()).toContain('end');
+
+      // Step 2: Click day 25 — completes the range within the same mounted component
+      const dayBtn25 = findDayButton(container, 25);
+      expect(dayBtn25).toBeTruthy();
+      fireEvent.click(dayBtn25!);
+
+      // DateFilter must now call onChange with the full range format
+      expect(mockOnChange).toHaveBeenCalledTimes(1);
+      expect(mockOnChange).toHaveBeenCalledWith('from:2026-03-15,to:2026-03-25');
+    });
+  });
 });

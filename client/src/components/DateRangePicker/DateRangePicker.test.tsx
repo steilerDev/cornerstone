@@ -176,7 +176,8 @@ describe('DateRangePicker', () => {
       expect(mockOnChange).toHaveBeenCalledWith('2026-03-15', '');
     });
 
-    it('advances to selecting-end phase after clicking start date', () => {
+    it('advances to selecting-end phase after clicking start date (single mounted instance)', () => {
+      // Regression: phase must update within the same mounted instance — no re-render needed
       const mockOnChange = jest.fn();
       const { container } = render(
         <DateRangePicker startDate="" endDate="" onChange={mockOnChange} />,
@@ -185,11 +186,8 @@ describe('DateRangePicker', () => {
       fireEvent.click(dayBtn!);
       expect(mockOnChange).toHaveBeenCalledWith('2026-03-15', '');
 
-      // Now render with startDate set to verify phase changes
-      const { container: container2 } = render(
-        <DateRangePicker startDate="2026-03-15" endDate="" onChange={mockOnChange} />,
-      );
-      const phaseLabel = getPhaseLabel(container2);
+      // Phase label must show "end" immediately — within the same mounted component
+      const phaseLabel = getPhaseLabel(container);
       expect(phaseLabel.toLowerCase()).toContain('end');
     });
   });
@@ -443,17 +441,24 @@ describe('DateRangePicker', () => {
   });
 
   describe('props sync', () => {
-    it('when startDate prop changes from a date to "" externally, phase resets to selecting-start', () => {
-      const { container: container1 } = render(
-        <DateRangePicker startDate="2026-03-15" endDate="" onChange={jest.fn()} />,
+    it('when both startDate and endDate props are externally cleared to "", phase resets to selecting-start', () => {
+      // Use rerender on a single instance to simulate parent clearing both dates externally
+      const mockOnChange = jest.fn();
+      const { container, rerender } = rtlRender(
+        <LocaleProvider>
+          <DateRangePicker startDate="2026-03-15" endDate="2026-03-25" onChange={mockOnChange} />
+        </LocaleProvider>,
       );
-      const phaseLabel1 = getPhaseLabel(container1);
+      const phaseLabel1 = getPhaseLabel(container);
       expect(phaseLabel1.toLowerCase()).toContain('end');
 
-      const { container: container2 } = render(
-        <DateRangePicker startDate="" endDate="" onChange={jest.fn()} />,
+      // Simulate external clear: both props set to ''
+      rerender(
+        <LocaleProvider>
+          <DateRangePicker startDate="" endDate="" onChange={mockOnChange} />
+        </LocaleProvider>,
       );
-      const phaseLabel2 = getPhaseLabel(container2);
+      const phaseLabel2 = getPhaseLabel(container);
       expect(phaseLabel2.toLowerCase()).toContain('start');
     });
 
@@ -469,6 +474,30 @@ describe('DateRangePicker', () => {
       );
       const phaseLabel2 = getPhaseLabel(container2);
       expect(phaseLabel2.toLowerCase()).toContain('end');
+    });
+
+    it('partial prop update (only startDate changes) does NOT reset phase to selecting-start', () => {
+      // After clicking a day, phase becomes selecting-end.
+      // When parent reflects onChange by setting startDate prop, phase must NOT reset.
+      const mockOnChange = jest.fn();
+      const { container, rerender } = rtlRender(
+        <LocaleProvider>
+          <DateRangePicker startDate="" endDate="" onChange={mockOnChange} />
+        </LocaleProvider>,
+      );
+      // Click day 15 → enters selecting-end phase
+      const dayBtn15 = findDayButton(container, 15);
+      fireEvent.click(dayBtn15!);
+      expect(getPhaseLabel(container).toLowerCase()).toContain('end');
+
+      // Parent reflects the onChange call by updating startDate prop only (endDate still empty)
+      rerender(
+        <LocaleProvider>
+          <DateRangePicker startDate="2026-03-15" endDate="" onChange={mockOnChange} />
+        </LocaleProvider>,
+      );
+      // Phase must remain 'selecting-end' — NOT reset to 'selecting-start'
+      expect(getPhaseLabel(container).toLowerCase()).toContain('end');
     });
   });
 
@@ -624,6 +653,160 @@ describe('DateRangePicker', () => {
       const dayBtn20 = findDayButton(container, 20);
       const dayCellContainer = dayBtn20?.closest(`.${styles.dayCell}`);
       expect(dayCellContainer).toHaveClass(styles.dayInRange);
+    });
+  });
+
+  describe('pendingStartDate regression tests (issue #1178)', () => {
+    it('phase persists as selecting-end immediately after clicking start date without re-render', () => {
+      // Regression: previously the phase reset to selecting-start after clicking a start date
+      // because phase depended on the startDate *prop* which hadn't been updated yet.
+      const mockOnChange = jest.fn();
+      const { container } = render(
+        <DateRangePicker startDate="" endDate="" onChange={mockOnChange} />,
+      );
+      // Click day 15 as the start date
+      const dayBtn15 = findDayButton(container, 15);
+      fireEvent.click(dayBtn15!);
+      // onChange emits partial selection
+      expect(mockOnChange).toHaveBeenCalledWith('2026-03-15', '');
+      // Phase label must immediately show "end" within the same mounted instance
+      // (props have NOT been updated — parent hasn't called setState yet)
+      expect(getPhaseLabel(container).toLowerCase()).toContain('end');
+    });
+
+    it('hover range preview uses pendingStartDate after clicking start (not the prop)', () => {
+      // After clicking day 10, pendingStartDate='2026-03-10', phase=selecting-end.
+      // Hovering day 20 should show day 15 (between 10 and 20) as in-range.
+      const mockOnChange = jest.fn();
+      const { container } = render(
+        <DateRangePicker startDate="" endDate="" onChange={mockOnChange} />,
+      );
+      // Click day 10 — startDate prop is still '' but pendingStartDate is now '2026-03-10'
+      const dayBtn10 = findDayButton(container, 10);
+      fireEvent.click(dayBtn10!);
+      expect(getPhaseLabel(container).toLowerCase()).toContain('end');
+
+      // Hover over day 20
+      const dayBtn20 = findDayButton(container, 20);
+      fireEvent.mouseEnter(dayBtn20!);
+
+      // Day 15 is strictly between 10 and 20, so it must show dayInRange
+      const dayBtn15 = findDayButton(container, 15);
+      const dayCellContainer = dayBtn15?.closest(`.${styles.dayCell}`);
+      expect(dayCellContainer).toHaveClass(styles.dayInRange);
+    });
+
+    it('dayDisabled uses pendingStartDate (not prop) after clicking start date', () => {
+      // After clicking day 20, pendingStartDate='2026-03-20'.
+      // Day 10 must have dayDisabled class even though startDate prop is still ''.
+      const mockOnChange = jest.fn();
+      const { container } = render(
+        <DateRangePicker startDate="" endDate="" onChange={mockOnChange} />,
+      );
+      // Click day 20 — startDate prop remains ''
+      const dayBtn20 = findDayButton(container, 20);
+      fireEvent.click(dayBtn20!);
+      expect(getPhaseLabel(container).toLowerCase()).toContain('end');
+
+      // Day 10 is before pendingStartDate ('2026-03-20'), so it must be visually disabled
+      const dayBtn10 = findDayButton(container, 10);
+      expect(dayBtn10).toHaveClass(styles.dayDisabled);
+      expect(dayBtn10).not.toBeDisabled(); // Visually styled, not functionally disabled
+    });
+
+    it('completing selection within single instance: click start then click end calls onChange correctly', () => {
+      const mockOnChange = jest.fn();
+      const { container } = render(
+        <DateRangePicker startDate="" endDate="" onChange={mockOnChange} />,
+      );
+      // First click: start date
+      const dayBtn10 = findDayButton(container, 10);
+      fireEvent.click(dayBtn10!);
+      expect(mockOnChange).toHaveBeenNthCalledWith(1, '2026-03-10', '');
+
+      // Second click: end date (startDate prop still '' but pendingStartDate='2026-03-10')
+      const dayBtn20 = findDayButton(container, 20);
+      fireEvent.click(dayBtn20!);
+      expect(mockOnChange).toHaveBeenNthCalledWith(2, '2026-03-10', '2026-03-20');
+
+      // After completing selection, phase resets to selecting-start
+      expect(getPhaseLabel(container).toLowerCase()).toContain('start');
+    });
+
+    it('Escape key during selecting-end resets pendingStartDate and phase to selecting-start', () => {
+      const mockOnChange = jest.fn();
+      const { container } = render(
+        <DateRangePicker startDate="" endDate="" onChange={mockOnChange} />,
+      );
+      // Click day 15 to enter selecting-end phase
+      const dayBtn15 = findDayButton(container, 15);
+      fireEvent.click(dayBtn15!);
+      expect(getPhaseLabel(container).toLowerCase()).toContain('end');
+
+      // Press Escape on the grid
+      const grid = container.querySelector('[role="grid"]');
+      fireEvent.keyDown(grid!, { key: 'Escape' });
+
+      // onChange called with both dates cleared
+      expect(mockOnChange).toHaveBeenLastCalledWith('', '');
+      // Phase resets to selecting-start
+      expect(getPhaseLabel(container).toLowerCase()).toContain('start');
+    });
+
+    it('clicking before pendingStartDate during selecting-end resets to new start and stays in selecting-end', () => {
+      // Click day 20 as start, then click day 10 (before start).
+      // Expected: onChange('2026-03-10', '') and phase remains selecting-end.
+      const mockOnChange = jest.fn();
+      const { container } = render(
+        <DateRangePicker startDate="" endDate="" onChange={mockOnChange} />,
+      );
+      // Click day 20 — enters selecting-end
+      const dayBtn20 = findDayButton(container, 20);
+      fireEvent.click(dayBtn20!);
+      expect(mockOnChange).toHaveBeenCalledWith('2026-03-20', '');
+      expect(getPhaseLabel(container).toLowerCase()).toContain('end');
+
+      // Click day 10 — before pendingStartDate, so it resets to new start
+      const dayBtn10 = findDayButton(container, 10);
+      fireEvent.click(dayBtn10!);
+      expect(mockOnChange).toHaveBeenLastCalledWith('2026-03-10', '');
+      // Phase must stay in selecting-end (new start selected, awaiting end)
+      expect(getPhaseLabel(container).toLowerCase()).toContain('end');
+    });
+
+    it('clicking exactly on pendingStartDate during selecting-end clears both dates', () => {
+      const mockOnChange = jest.fn();
+      const { container } = render(
+        <DateRangePicker startDate="" endDate="" onChange={mockOnChange} />,
+      );
+      // Click day 15 to enter selecting-end
+      const dayBtn15 = findDayButton(container, 15);
+      fireEvent.click(dayBtn15!);
+      expect(getPhaseLabel(container).toLowerCase()).toContain('end');
+
+      // Click day 15 again — same as pendingStartDate, clears everything
+      fireEvent.click(dayBtn15!);
+      expect(mockOnChange).toHaveBeenLastCalledWith('', '');
+      expect(getPhaseLabel(container).toLowerCase()).toContain('start');
+    });
+
+    it('external clear (both props set to empty string) resets phase via rerender', () => {
+      // Simulates parent calling setState({startDate:'', endDate:''}) after a clear action.
+      const mockOnChange = jest.fn();
+      const { container, rerender } = rtlRender(
+        <LocaleProvider>
+          <DateRangePicker startDate="2026-03-10" endDate="2026-03-20" onChange={mockOnChange} />
+        </LocaleProvider>,
+      );
+      expect(getPhaseLabel(container).toLowerCase()).toContain('end');
+
+      // Parent clears both props simultaneously
+      rerender(
+        <LocaleProvider>
+          <DateRangePicker startDate="" endDate="" onChange={mockOnChange} />
+        </LocaleProvider>,
+      );
+      expect(getPhaseLabel(container).toLowerCase()).toContain('start');
     });
   });
 });
