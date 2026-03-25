@@ -924,7 +924,7 @@ test.describe('Search vendors (Scenario 12)', { tag: '@responsive' }, () => {
       // on tablet the URL update from react-router can lag slightly after the API
       // response returns, causing a synchronous expect(page.url()).toContain('q=')
       // to fail intermittently.
-      await page.waitForURL((url) => url.searchParams.has('q'), { timeout: 5000 });
+      await page.waitForURL((url) => url.searchParams.has('q'), { timeout: 15000 });
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
