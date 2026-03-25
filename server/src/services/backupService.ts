@@ -137,7 +137,7 @@ export async function createBackup(
   db: BetterSQLite3Database<any>,
   config: AppConfig,
 ): Promise<BackupMeta> {
-  if (!config.backupEnabled || !config.backupDir) {
+  if (!config.backupEnabled) {
     throw new BackupNotConfiguredError();
   }
 
@@ -247,7 +247,7 @@ export async function restoreBackup(
   config: AppConfig,
   filename: string,
 ): Promise<void> {
-  if (!config.backupEnabled || !config.backupDir) {
+  if (!config.backupEnabled) {
     throw new BackupNotConfiguredError();
   }
 

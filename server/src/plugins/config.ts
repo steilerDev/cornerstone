@@ -25,7 +25,7 @@ export interface AppConfig {
   photoMaxFileSizeMb: number;
   diaryAutoEvents: boolean;
   currency: string;
-  backupDir?: string;
+  backupDir: string;
   backupCadence?: string;
   backupRetention?: number;
   backupEnabled: boolean;
@@ -210,7 +210,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   const currency = currencyRaw;
 
   // Backup configuration (all optional)
-  const backupDir = getValue('BACKUP_DIR');
+  const backupDir = getValue('BACKUP_DIR') ?? '/backups';
   const backupCadence = getValue('BACKUP_CADENCE');
 
   const backupRetentionStr = getValue('BACKUP_RETENTION');

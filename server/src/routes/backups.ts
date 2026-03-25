@@ -137,7 +137,7 @@ export default async function backupRoutes(fastify: FastifyInstance) {
         throw new BackupNotConfiguredError();
       }
 
-      const backups = await backupService.listBackups(fastify.config.backupDir!);
+      const backups = await backupService.listBackups(fastify.config.backupDir);
       return reply.status(200).send({ backups });
     },
   );
@@ -164,7 +164,7 @@ export default async function backupRoutes(fastify: FastifyInstance) {
         throw new BackupNotConfiguredError();
       }
 
-      await backupService.deleteBackup(fastify.config.backupDir!, request.params.filename);
+      await backupService.deleteBackup(fastify.config.backupDir, request.params.filename);
       return reply.status(204).send();
     },
   );
