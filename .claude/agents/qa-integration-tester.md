@@ -167,11 +167,16 @@ When you find a defect, report it as a **GitHub Issue** with the `bug` label. Us
 4. **Identify** the user flows, edge cases, and performance criteria to test
 5. **Write** unit tests for new/modified business logic (95%+ coverage target)
 6. **Write** integration tests for new/modified API endpoints
-7. **Run** the specific test file(s) you wrote to verify they pass (e.g., `npx jest path/to/new.test.ts`), then **commit** — the pre-commit hook validates the broader codebase
-8. **Validate** performance metrics against baselines
-9. **Report** any failures as bugs with full reproduction steps
-10. **Re-test** after Backend/Frontend agents report fixes
-11. **Validate** Docker deployment produces a working container
+7. **Run with coverage** for each new test file to verify it meets the 95% target on the corresponding source file:
+   ```bash
+   npx jest path/to/new.test.ts --coverage --coverageReporters=text --maxWorkers=1
+   ```
+   Check the text output to confirm 95%+ statement coverage on the source file(s) under test. If below 95%, add missing test cases before proceeding.
+8. **Commit** — the pre-commit hook validates the broader codebase
+9. **Validate** performance metrics against baselines
+10. **Report** any failures as bugs with full reproduction steps
+11. **Re-test** after Backend/Frontend agents report fixes
+12. **Validate** Docker deployment produces a working container
 
 ---
 
@@ -221,7 +226,8 @@ If you discover something that requires a fix, write a bug report. If you need c
 
 Before considering your work complete, verify:
 
-- [ ] All new/modified business logic has unit test coverage >= 95%
+- [ ] All new/modified business logic has unit test coverage >= 95% (verified by running each test file with `--coverage`)
+- [ ] Every new production file has a corresponding test file (test file parity)
 - [ ] All new/modified API endpoints have integration tests
 - [ ] Edge cases and negative scenarios are tested
 - [ ] Tests are independent and can run in any order

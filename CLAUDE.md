@@ -385,6 +385,32 @@ Before creating a new UI component, check if an existing shared component can be
 - No separate `__tests__/` directories -- tests live next to the code they test
 - **E2E page coverage requirement**: Every page/route in the application must have E2E test coverage. Fully implemented pages need comprehensive tests (CRUD flows, validation, responsive layout, dark mode). Stub/placeholder pages need at minimum a smoke test verifying the page loads and renders its heading.
 
+### Coverage Enforcement
+
+Coverage is tracked and enforced through three complementary mechanisms:
+
+**1. CI Coverage Reports (automated)**
+
+Every PR triggers coverage collection across 6 Jest shards. The `Coverage Report` CI job merges shard results and uploads a `coverage-report` artifact containing `coverage-summary.json` (per-file and total percentages) and `coverage-final.json` (raw Istanbul data). Coverage reports are retained for 30 days.
+
+- Test shards run with `--coverage --coverageReporters=json`
+- The merge script (`scripts/merge-coverage.mjs`) combines shard data and prints a text summary in CI logs
+- To inspect coverage for a PR: download the `coverage-report` artifact from the CI run
+
+**2. Test File Parity (enforced by dev-team-lead)**
+
+During `[MODE: review]`, the dev-team-lead verifies that **every new or modified production file has a corresponding test file**. Production files added without test files result in `VERDICT: CHANGES_REQUIRED` with a fix spec routed to `qa-integration-tester`. This prevents untested code from entering the codebase.
+
+**3. Local Coverage Verification (enforced by qa-integration-tester)**
+
+The QA agent runs coverage on each new test file before committing:
+
+```bash
+npx jest path/to/file.test.ts --coverage --coverageReporters=text --maxWorkers=1
+```
+
+This verifies 95%+ coverage on the corresponding source file before the code leaves the agent.
+
 ## Development Workflow
 
 ### Prerequisites

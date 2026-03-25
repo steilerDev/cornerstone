@@ -71,8 +71,10 @@ This checklist is updated after each epic's lessons-learned sync (see `/epic-clo
 ## Testing
 
 - [ ] **Co-located tests**: Test files (`*.test.ts` / `*.test.tsx`) live next to the source files they test, not in separate `__tests__/` directories.
-- [ ] **95% coverage target**: New and modified code must meet the 95% unit test coverage target.
+- [ ] **Test file parity**: Every new production file under `server/src/`, `client/src/`, or `shared/src/` must have a corresponding `.test.ts` or `.test.tsx` file. Type-only files (`**/types/**`), re-exports, and configuration files are exempt. The dev-team-lead enforces this during review.
+- [ ] **95% coverage target**: New and modified code must meet the 95% unit test coverage target. The QA agent must run each new test file with `--coverage` and verify 95%+ statement coverage before committing.
 - [ ] **No mocking of internal modules**: Integration tests should use real implementations where possible. Only mock external services and system boundaries.
+- [ ] **E2E route coverage**: Every application route must have at least smoke-level E2E test coverage. The E2E test engineer verifies route coverage as part of every E2E task.
 
 ## i18n — Translations
 
