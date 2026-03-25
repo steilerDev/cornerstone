@@ -103,26 +103,24 @@ test.describe('i18n: Predefined category name translations', () => {
   test('German locale: Manage trades tab shows "Sanitär" instead of "Plumbing"', async ({
     page,
   }) => {
-    // Extend test timeout to 30s: i18next cold-start locale initialization from localStorage
-    // can take 10-15s on the first German page load in CI; 15s test timeout is too short
-    // when combined with the warm-up navigation and manage page load.
-    test.setTimeout(30000);
+    // Extend test timeout to 60s: i18next cold-start locale initialization from localStorage
+    // can take 10-15s on the first German page load in CI; combined with warm-up navigation,
+    // manage page load, and potential retry on slow CI runners, 30s is too tight.
+    test.setTimeout(60000);
 
     // Given: locale is set to German
     // setLanguage() patches preferences API + navigates to '/' + writes localStorage.
     await setLanguage(page, 'de');
 
     // When: User navigates to the Manage page trades tab.
-    // setLanguage writes localStorage; goto() loads a fresh page that reads it on mount.
-    // No reload() needed — a single navigation is more reliable than goto+reload to the
-    // same URL, which can skip the full page load on some browsers.
-    await page.goto(MANAGE_TRADES_URL, { waitUntil: 'commit' });
+    // Use networkidle to ensure i18next has fully loaded the German bundle before asserting.
+    await page.goto(MANAGE_TRADES_URL, { waitUntil: 'networkidle' });
     // Wait for the trades panel to render with German content — use "Sanitär" as the
     // locale-readiness indicator instead of a generic item row (which could appear with
     // English text before i18next finishes loading the German bundle).
     const tradesPanel = page.locator('#trades-panel');
     await expect(tradesPanel.getByText('Sanitär', { exact: true }).first()).toBeVisible({
-      timeout: 20000,
+      timeout: 30000,
     });
 
     // And: The raw English name "Plumbing" is NOT shown as a category name
@@ -156,16 +154,18 @@ test.describe('i18n: Predefined category name translations', () => {
   test('German locale: Manage budget categories tab shows "Materialien" instead of "Materials"', async ({
     page,
   }) => {
+    test.setTimeout(60000);
+
     // Given: locale is set to German
     await setLanguage(page, 'de');
 
     // When: User navigates to the Manage page budget categories tab.
-    // setLanguage writes localStorage; goto() loads a fresh page that reads it on mount.
-    await page.goto(MANAGE_BUDGET_CATEGORIES_URL, { waitUntil: 'commit' });
+    // Use networkidle to ensure i18next has fully loaded the German bundle.
+    await page.goto(MANAGE_BUDGET_CATEGORIES_URL, { waitUntil: 'networkidle' });
     // Wait for the budget categories panel to render with German content.
     const budgetPanel = page.locator('#budget-categories-panel');
     await expect(budgetPanel.getByText('Materialien', { exact: true }).first()).toBeVisible({
-      timeout: 20000,
+      timeout: 30000,
     });
 
     // And: The raw English name "Materials" is NOT shown as a category name
@@ -199,16 +199,18 @@ test.describe('i18n: Predefined category name translations', () => {
   test('German locale: Manage household item categories tab shows "Möbel" instead of "Furniture"', async ({
     page,
   }) => {
+    test.setTimeout(60000);
+
     // Given: locale is set to German
     await setLanguage(page, 'de');
 
     // When: User navigates to the Manage page household item categories tab.
-    // setLanguage writes localStorage; goto() loads a fresh page that reads it on mount.
-    await page.goto(MANAGE_HI_CATEGORIES_URL, { waitUntil: 'commit' });
+    // Use networkidle to ensure i18next has fully loaded the German bundle.
+    await page.goto(MANAGE_HI_CATEGORIES_URL, { waitUntil: 'networkidle' });
     // Wait for the household item categories panel to render with German content.
     const hiPanel = page.locator('#hi-categories-panel');
     await expect(hiPanel.getByText('Möbel', { exact: true }).first()).toBeVisible({
-      timeout: 20000,
+      timeout: 30000,
     });
 
     // And: The raw English name "Furniture" is NOT shown as a category name
