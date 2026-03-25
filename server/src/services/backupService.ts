@@ -178,10 +178,9 @@ export async function createBackup(
 
     // Create tar.gz archive of the entire app data directory
     try {
-      await tar.create(
-        { gzip: true, file: backupPath, cwd: path.dirname(dataDir) },
-        [path.basename(dataDir)],
-      );
+      await tar.create({ gzip: true, file: backupPath, cwd: path.dirname(dataDir) }, [
+        path.basename(dataDir),
+      ]);
     } catch (tarErr) {
       // Clean up the snapshot DB file on tar failure
       await fs.unlink(dbSnapshotPath).catch(() => {});

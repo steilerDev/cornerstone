@@ -429,9 +429,7 @@ describe('backupService', () => {
       const result = await createBackup(db, config);
 
       // Returned BackupMeta must be well-formed
-      expect(result.filename).toMatch(
-        /^cornerstone-backup-\d{4}-\d{2}-\d{2}T\d{6}Z\.tar\.gz$/,
-      );
+      expect(result.filename).toMatch(/^cornerstone-backup-\d{4}-\d{2}-\d{2}T\d{6}Z\.tar\.gz$/);
       expect(result.createdAt).toBeTruthy();
       expect(typeof result.createdAt).toBe('string');
       expect(result.sizeBytes).toBeGreaterThan(0);
@@ -466,9 +464,9 @@ describe('backupService', () => {
 
     it('createBackup throws BackupFailedError (code BACKUP_FAILED) when db.backup() throws', async () => {
       // Create a mock db whose $client.backup throws a SqliteError-like object
-      const mockBackup = jest.fn<() => Promise<void>>().mockRejectedValue(
-        Object.assign(new Error('disk I/O error'), { code: 'SQLITE_IOERR' }),
-      );
+      const mockBackup = jest
+        .fn<() => Promise<void>>()
+        .mockRejectedValue(Object.assign(new Error('disk I/O error'), { code: 'SQLITE_IOERR' }));
       const db = {
         $client: {
           backup: mockBackup,
