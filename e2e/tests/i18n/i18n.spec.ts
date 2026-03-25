@@ -205,13 +205,14 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
     // Given: Language is set to German
     await setLanguage(page, 'de');
 
-    // When: User navigates to dashboard
-    // Reload after setLanguage to ensure the app re-reads locale from localStorage
-    // (setLanguage navigates to '/' and writes localStorage, but the SPA may not
-    // re-initialize i18next until the next full page load)
-    await page.goto(ROUTES.home);
-    await page.reload();
-    await page.waitForLoadState('networkidle');
+    // When: User navigates to dashboard with a fresh full page load
+    // setLanguage navigates to '/' (which redirects to /project/overview) and writes
+    // localStorage. A second goto to the same URL may not trigger a full reload, so
+    // we navigate with waitUntil: 'commit' and then wait for the German heading to
+    // confirm i18next has initialised with the correct locale.
+    await page.goto(ROUTES.home, { waitUntil: 'commit' });
+    // Wait for German page heading to confirm locale switch took effect
+    await page.getByRole('heading', { level: 1, name: 'Projekt' }).waitFor({ state: 'visible' });
 
     // Then: All navigation links are visible and not overflowing
     const sidebar = page.locator('aside');

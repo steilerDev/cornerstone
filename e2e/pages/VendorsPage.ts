@@ -343,29 +343,36 @@ export class VendorsPage {
   /**
    * Type into the search field and wait for the debounced API response.
    * Register the response listener BEFORE fill to avoid a race with the debounce.
-   * Explicit 10s timeout overrides global actionTimeout (5s) for slow CI runners.
+   * 15s timeout: mobile fill() may take up to 10s (actionTimeout) and the debounce +
+   * API round-trip adds latency on top, so 10s was too tight for mobile CI runners.
    */
   async search(query: string): Promise<void> {
     const responsePromise = this.page.waitForResponse(
       (resp) => resp.url().includes('/api/vendors') && resp.status() === 200,
-      { timeout: 10000 },
+      { timeout: 15000 },
     );
     await this.searchInput.fill(query);
     await responsePromise;
+    // Wait for React to commit the filtered results — the API response has arrived but
+    // the DOM may not yet reflect the new data on mobile viewports.
+    await this.waitForVendorsLoaded();
   }
 
   /**
    * Clear the search input and wait for the debounced API response.
    * Register the response listener BEFORE clear to avoid a race with the debounce.
-   * Explicit 10s timeout overrides global actionTimeout (5s) for slow CI runners.
+   * 15s timeout: mobile fill() may take up to 10s (actionTimeout) and the debounce +
+   * API round-trip adds latency on top, so 10s was too tight for mobile CI runners.
    */
   async clearSearch(): Promise<void> {
     const responsePromise = this.page.waitForResponse(
       (resp) => resp.url().includes('/api/vendors') && resp.status() === 200,
-      { timeout: 10000 },
+      { timeout: 15000 },
     );
     await this.searchInput.clear();
     await responsePromise;
+    // Wait for React to commit the updated results after clearing search.
+    await this.waitForVendorsLoaded();
   }
 
   /**

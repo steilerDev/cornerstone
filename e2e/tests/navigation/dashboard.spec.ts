@@ -577,6 +577,11 @@ test.describe('Card re-enable (Scenario 7)', () => {
     await interceptDashboardApis(page);
 
     try {
+      // Ensure a clean slate: clear hidden cards immediately before navigation to avoid
+      // state pollution from parallel workers sharing the same user preferences.
+      await page.request.patch('/api/users/me/preferences', {
+        data: { key: 'dashboard.hiddenCards', value: '[]' },
+      });
       await dashboardPage.goto();
       await dashboardPage.waitForCardsLoaded();
 
