@@ -45,7 +45,9 @@ A self-hosted home building project management tool for homeowners. Track work i
 - **Project Dashboard** -- At-a-glance project health with budget, timeline, invoice, and subsidy cards, mini Gantt preview, and customizable layout
 - **Construction Diary** -- Daily logs, site visits, delivery records, automatic system events, photo attachments, and digital signature capture
 - **Document Integration** -- Browse and link documents from Paperless-ngx to work items, household items, and invoices
-- **Internationalization** -- English and German language support with automatic locale detection
+- **Advanced List Views** -- Filter, sort, paginate, and customize columns across all list pages with the shared DataTable system
+- **Backup & Restore** -- Manual and scheduled backups with configurable retention, restore from the settings UI
+- **Internationalization** -- English and German language support with automatic locale detection, including translated category names
 - **Authentication** -- Local accounts with setup wizard, OIDC single sign-on
 - **User Management** -- Admin and Member roles, admin panel
 - **Dark Mode** -- Light, Dark, or System theme
@@ -83,6 +85,9 @@ Open `http://localhost:3000` -- the setup wizard will guide you through creating
 - [x] **EPIC-13**: Construction Diary
 - [x] **EPIC-17**: Internationalization (English + German)
 - [x] **EPIC-18**: Areas & Trades
+- [x] DataTable & List View Overhaul
+- [x] Backup & Restore
+- [ ] **EPIC-16**: Floor Plans & Utility Tracking
 
 Track live progress on the [GitHub Projects board](https://github.com/users/steilerDev/projects/4).
 
