@@ -3,6 +3,19 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Bug #1201 Backup Execution Path Tests (2026-03-25)
+
+**Test files modified**: `backupService.test.ts`, `backups.test.ts`.
+
+**Key patterns**:
+
+- **Real DB construction**: `import Database from 'better-sqlite3'; import { drizzle } from 'drizzle-orm/better-sqlite3'; const rawDb = new Database(join(tempDir, 'test.db')); const db = drizzle(rawDb);`. Close in `afterEach` with `if (rawDb && rawDb.open) rawDb.close()`.
+- **Mock `db.$client.backup`**: The service calls `getClient(db).backup(path)`. Mock with `{ $client: { backup: jest.fn().mockRejectedValue(...) } } as any`. Pass `Object.assign(new Error('...'), { code: 'SQLITE_IOERR' })` to simulate SqliteError.
+- **chmod read-only test requires non-root guard**: `if (process.getuid?.() === 0) { return; }` — chmod doesn't restrict root in CI containers. Restore permissions in `finally`/`afterEach` before directory cleanup.
+- **Two separate `mkdtempSync` calls for service tests**: Same pattern as route tests — `tempDir` for app data (DB path), `backupTempDir` for backups (must be outside app data dir per config validation).
+- **Retention test seeding**: Pre-write stub `.tar.gz` files with valid names (e.g. `cornerstone-backup-2026-01-01T000000Z.tar.gz`) using `writeFileSync`. After the real backup runs, assert `listBackups()` length equals retention limit and oldest stub is absent.
+- **Docker failure separate from tests**: All 6 test shards passed. Docker build failed because `COPY --from=deps /usr/bin/tar /usr/bin/tar` requires `tar` to be explicitly installed in the `deps` stage first (`apk add --no-cache tar`). This is a Dockerfile production fix, not a test issue.
+
 ## Story #1146 Backup/Restore Tests (2026-03-22)
 
 **Test files**: `backupService.test.ts`, `backups.test.ts` (routes), `backupsApi.test.ts`, `BackupsPage.test.tsx`.

@@ -241,3 +241,10 @@ export class RestoreFailedError extends AppError {
     this.name = 'RestoreFailedError';
   }
 }
+
+export class BackupFailedError extends AppError {
+  constructor(message = 'Backup operation failed', details?: Record<string, unknown>) {
+    super('BACKUP_FAILED', 500, message, details);
+    this.name = 'BackupFailedError';
+  }
+}
