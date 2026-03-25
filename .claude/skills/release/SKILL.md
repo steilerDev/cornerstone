@@ -147,7 +147,7 @@ EOF
 
 ### 3. CI Gate
 
-Wait for all required CI gates to pass on the promotion PR using the **CI Gate Polling** pattern from `CLAUDE.md` (main variant — wait for both `Quality Gates` + `E2E Gates`).
+After creating/pushing the promotion PR, **wait 5 seconds** for GitHub to compute merge status, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if the result is `MERGEABLE`.** If `CONFLICTING`, rebase onto `main`, force-push, and re-check. If `UNKNOWN`, wait a few more seconds and retry. Once mergeability is confirmed, use the **CI Gate Polling** pattern from `CLAUDE.md` (main variant — wait for `Quality Gates` + `E2E Gates` + `CLA`).
 
 If any gate fails, investigate and resolve before proceeding.
 
@@ -224,7 +224,7 @@ After all fix groups are merged to `beta`:
 
 #### 4g. CI Gate
 
-Wait for all required CI gates to pass on the new promotion PR using the **CI Gate Polling** pattern from `CLAUDE.md` (main variant — wait for both `Quality Gates` + `E2E Gates`).
+After creating/pushing the new promotion PR, **wait 5 seconds** for GitHub to compute merge status, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if the result is `MERGEABLE`.** If `CONFLICTING`, rebase onto `main`, force-push, and re-check. If `UNKNOWN`, wait a few more seconds and retry. Once mergeability is confirmed, use the **CI Gate Polling** pattern from `CLAUDE.md` (main variant — wait for `Quality Gates` + `E2E Gates` + `CLA`).
 
 If any gate fails, investigate and resolve before proceeding.
 

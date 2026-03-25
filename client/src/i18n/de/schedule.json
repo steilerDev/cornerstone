@@ -23,9 +23,9 @@
       "zoomInColumns": "Spalten vergrößern",
       "adjustColumnWidth": "Spaltenbreite anpassen (Strg+Bildlauf oder Strg+=/−)",
       "addButton": "Hinzufügen",
-      "addWorkItem": "Arbeitspaket Hinzufügen",
-      "addHouseholdItem": "Haushaltsartikel Hinzufügen",
-      "addMilestone": "Meilenstein Hinzufügen"
+      "addWorkItem": "Neues Arbeitspaket",
+      "addHouseholdItem": "Neuer Haushaltsartikel",
+      "addMilestone": "Neuer Meilenstein"
     },
     "zoomOptions": {
       "day": "Tag",
@@ -47,7 +47,8 @@
   "schedule": {
     "navigation": {
       "gantt": "Gantt-Diagramm",
-      "calendar": "Kalender"
+      "calendar": "Kalender",
+      "ariaLabel": "Zeitplan-Abschnittsnavigation"
     }
   },
   "ganttSidebar": {
@@ -146,6 +147,8 @@
         "targetDate": "Zieldatum",
         "status": "Status",
         "description": "Beschreibung",
+        "linkedItems": "Verknüpfte Artikel",
+        "completedAt": "Abgeschlossen am",
         "actions": "Aktionen"
       }
     },

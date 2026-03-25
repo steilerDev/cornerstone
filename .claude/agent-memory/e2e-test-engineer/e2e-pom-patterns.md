@@ -260,3 +260,59 @@ wraps responses in `{ budgetSource: {...} }` / `{ subsidyProgram: {...} }`.
 
 **Not fixable in test code**. Fix must be applied to `client/src/lib/budgetSourcesApi.ts`
 and `client/src/lib/subsidyProgramsApi.ts`. Tracked in GitHub issue #175.
+
+## HTML5 Drag Events via Synthetic Dispatch (2026-03-23, PR #1177)
+
+`page.mouse.down/move` does NOT fire HTML5 drag events (dragstart/dragover/drop).
+Use `page.evaluate()` with `new DragEvent(...)` for full control.
+
+**Critical**: `effectAllowed` can only be set in **trusted** (user-initiated) drag events.
+Synthetic events via `dispatchEvent()` are untrusted — the setter is a no-op. Never test
+`effectAllowed` via synthetic events. Test `draggable="true"` attribute instead.
+
+**Working pattern** for insertion line test (tests CSS class after dragover):
+
+```typescript
+const firstHandle = await firstItem.elementHandle();
+const secondHandle = await secondItem.elementHandle();
+await page.evaluate(
+  ({ source, target }) => {
+    const dataTransfer = new DataTransfer();
+    source.dispatchEvent(
+      new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }),
+    );
+    target.dispatchEvent(
+      new DragEvent('dragover', {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer,
+        clientY: target.getBoundingClientRect().top + 1,
+      }),
+    );
+  },
+  { source: firstHandle!, target: secondHandle! },
+);
+await expect(dropAboveItem.or(dropBelowItem).first()).toBeVisible(); // use retry
+```
+
+Use `expect().toBeVisible()` (NOT `.count()`) for React state changes — retry handles async.
+
+## Multiple Preferences GET on Page Load (2026-03-23, PR #1177)
+
+On dashboard load, TWO components independently call `GET /api/users/me/preferences`:
+
+1. `LocaleContext` — fetches for locale preference
+2. `usePreferences` hook — fetches all preferences (incl. `dashboard.hiddenCards`)
+
+A single `page.waitForResponse()` captures only the FIRST GET. If asserting on `hiddenCards`,
+you need React to process BOTH responses. Use `expect().toHaveCount(0)` with auto-retry instead
+of `waitForResponse` + immediate assertion.
+
+## waitForSearchParams After search() (2026-03-23, PR #1177)
+
+`WorkItemsPage.search()` was updated to call `waitForSearchParams(query)` AFTER the API
+response. This ensures the URL `?q=` param is updated AND React has committed new data.
+On mobile, `waitForLoaded()` resolves immediately (old cards visible) before re-render.
+The URL update is the reliable indicator that `setSearchParams` (React) has committed.
+
+`waitForSearchParams()` is now public on `WorkItemsPage` for direct use in tests.

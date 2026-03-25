@@ -1,6 +1,7 @@
 {
   "list": {
     "pageTitle": "Project",
+    "sectionTitle": "Work Items",
     "newWorkItem": "New Work Item",
     "loading": "Loading work items...",
     "search": {
@@ -18,10 +19,6 @@
       "allAreas": "All Areas",
       "assignedVendor": "Vendor:",
       "allVendors": "All Vendors",
-      "noBudget": "No Budget Lines",
-      "noBudgetAriaLabel": "Show only work items without budget lines",
-      "noBudgetActive": "No Budget filter active",
-      "noBudgetInactive": "No Budget filter cleared",
       "sortBy": "Sort by:",
       "sortAscending": "↑ Asc",
       "sortDescending": "↓ Desc",
@@ -47,6 +44,8 @@
       "title": "Title",
       "status": "Status",
       "assignedTo": "Assigned To",
+      "vendor": "Vendor",
+      "area": "Area",
       "startDate": "Start Date",
       "endDate": "End Date",
       "tags": "Tags",

@@ -119,9 +119,20 @@ export class DashboardPage {
   async dismissCard(title: string): Promise<void> {
     const btn = this.dismissButton(title);
     await btn.waitFor({ state: 'visible' });
+    // Register the preferences PATCH listener BEFORE clicking to avoid a race where
+    // the PATCH completes before the listener is attached (optimistic UI dismisses
+    // the card immediately while the server write is still in-flight).
+    const patchPromise = this.page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/api/users/me/preferences') &&
+        resp.request().method() === 'PATCH' &&
+        resp.status() === 200,
+    );
     await btn.click();
     // Wait for the card to disappear from DOM
     await this.card(title).waitFor({ state: 'detached' });
+    // Wait for preferences to be persisted on the server before any reload.
+    await patchPromise;
   }
 
   /**

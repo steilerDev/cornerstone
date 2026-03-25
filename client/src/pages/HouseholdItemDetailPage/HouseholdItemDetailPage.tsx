@@ -21,6 +21,7 @@ import {
   deleteHouseholdItem,
   updateHouseholdItem,
 } from '../../lib/householdItemsApi.js';
+import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import {
   AutosaveIndicator,
   type AutosaveState,
@@ -76,6 +77,7 @@ const HI_STATUS_VARIANTS = {
 export function HouseholdItemDetailPage() {
   const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const { t } = useTranslation('householdItems');
+  const { t: tSettings } = useTranslation('settings');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -762,7 +764,11 @@ export function HouseholdItemDetailPage() {
             <h1 className={styles.pageTitle}>{item.name}</h1>
             <div className={styles.headerBadges}>
               <span className={styles.categoryBadge}>
-                {categories.find((c) => c.id === item.category)?.name ?? item.category}
+                {(() => {
+                  const category = categories.find((c) => c.id === item.category);
+                  if (!category) return item.category;
+                  return getCategoryDisplayName(tSettings, category.name, category.translationKey);
+                })()}
               </span>
               <Badge variants={HI_STATUS_VARIANTS} value={item.status} />
             </div>

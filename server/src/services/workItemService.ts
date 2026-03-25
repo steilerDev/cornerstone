@@ -35,6 +35,7 @@ import type {
   WorkItemListQuery,
   PaginationMeta,
   WorkItemBudgetLine,
+  FilterMeta,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
@@ -594,37 +595,37 @@ export function deleteWorkItem(db: DbType, id: string): void {
 export function listWorkItems(
   db: DbType,
   query: WorkItemListQuery,
-): { items: WorkItemSummary[]; pagination: PaginationMeta } {
+): { items: WorkItemSummary[]; pagination: PaginationMeta; filterMeta: FilterMeta } {
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
   const sortBy = query.sortBy ?? 'created_at';
   const sortOrder = query.sortOrder ?? 'desc';
 
-  // Build WHERE conditions
-  const conditions = [];
+  // Build base conditions (excluding numeric range filters)
+  const baseConditions = [];
 
   if (query.status) {
-    conditions.push(eq(workItems.status, query.status));
+    baseConditions.push(eq(workItems.status, query.status));
   }
 
   if (query.assignedUserId) {
-    conditions.push(eq(workItems.assignedUserId, query.assignedUserId));
+    baseConditions.push(eq(workItems.assignedUserId, query.assignedUserId));
   }
 
   if (query.areaId) {
     const areaIds = getDescendantIds(db, query.areaId);
-    conditions.push(inArray(workItems.areaId, areaIds));
+    baseConditions.push(inArray(workItems.areaId, areaIds));
   }
 
   if (query.assignedVendorId) {
-    conditions.push(eq(workItems.assignedVendorId, query.assignedVendorId));
+    baseConditions.push(eq(workItems.assignedVendorId, query.assignedVendorId));
   }
 
   if (query.q) {
     // Escape SQL LIKE wildcards (% and _) in user input
     const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
     const pattern = `%${escapedQ}%`;
-    conditions.push(
+    baseConditions.push(
       or(
         sql`LOWER(${workItems.title}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
         sql`LOWER(${workItems.description}) LIKE LOWER(${pattern}) ESCAPE '\\'`,
@@ -632,10 +633,30 @@ export function listWorkItems(
     );
   }
 
-  // Filter for work items with no budget lines
-  if (query.noBudget) {
+  const baseWhereClause = baseConditions.length > 0 ? and(...baseConditions) : undefined;
+
+  // Compute filterMeta from base conditions
+  const metaRow = db
+    .select({
+      budgetLinesMin: sql<number>`COALESCE(MIN(COALESCE((SELECT COUNT(*) FROM ${workItemBudgets} WHERE ${workItemBudgets.workItemId} = ${workItems.id}), 0)), 0)`,
+      budgetLinesMax: sql<number>`COALESCE(MAX(COALESCE((SELECT COUNT(*) FROM ${workItemBudgets} WHERE ${workItemBudgets.workItemId} = ${workItems.id}), 0)), 0)`,
+    })
+    .from(workItems)
+    .where(baseWhereClause)
+    .get();
+
+  // Build full conditions with numeric range filters for main query
+  const conditions = [...baseConditions];
+
+  // Filter by budget line count
+  if (query.budgetLinesMin !== undefined) {
     conditions.push(
-      sql`${workItems.id} NOT IN (SELECT ${workItemBudgets.workItemId} FROM ${workItemBudgets})`,
+      sql`(SELECT COUNT(*) FROM ${workItemBudgets} WHERE ${workItemBudgets.workItemId} = ${workItems.id}) >= ${query.budgetLinesMin}`,
+    );
+  }
+  if (query.budgetLinesMax !== undefined) {
+    conditions.push(
+      sql`(SELECT COUNT(*) FROM ${workItemBudgets} WHERE ${workItemBudgets.workItemId} = ${workItems.id}) <= ${query.budgetLinesMax}`,
     );
   }
 
@@ -679,6 +700,10 @@ export function listWorkItems(
 
   const items = workItemRows.map((wi) => toWorkItemSummary(db, wi));
 
+  const filterMeta: FilterMeta = {
+    budgetLines: { min: metaRow?.budgetLinesMin ?? 0, max: metaRow?.budgetLinesMax ?? 0 },
+  };
+
   return {
     items,
     pagination: {
@@ -687,5 +712,6 @@ export function listWorkItems(
       totalItems,
       totalPages,
     },
+    filterMeta,
   };
 }

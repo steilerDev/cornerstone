@@ -13,6 +13,9 @@ export type { User, UserResponse, UserRole, AuthProvider } from './types/user.js
 // Pagination
 export type { PaginationMeta, PaginatedResponse } from './types/pagination.js';
 
+// Filter Metadata
+export type { FilterColumnMeta, FilterMeta } from './types/filterMeta.js';
+
 // Areas
 export type {
   AreaSummary,
@@ -345,3 +348,11 @@ export type {
 
 // Application Config
 export type { AppConfigResponse } from './types/config.js';
+
+// Backup & Restore
+export type {
+  BackupMeta,
+  BackupResponse,
+  BackupListResponse,
+  RestoreInitiatedResponse,
+} from './types/backup.js';

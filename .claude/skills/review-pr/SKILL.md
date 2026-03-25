@@ -129,7 +129,7 @@ Present the blocking findings to the user. **Do NOT wait for CI.**
 
 Post a consolidated `gh pr review --approve` comment on the PR summarizing the review outcome.
 
-Wait for CI using the **CI Gate Polling** pattern from `CLAUDE.md` (use the beta or main variant based on the PR's target branch).
+**Wait 5 seconds**, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if `MERGEABLE`.** If `CONFLICTING`, report the conflict to the user — do not attempt to resolve. Once mergeability is confirmed, wait for CI using the **CI Gate Polling** pattern from `CLAUDE.md` (use the beta or main variant based on the PR's target branch).
 
 If CI fails, report the specific failures to the user. **Do NOT merge.**
 

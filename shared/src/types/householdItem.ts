@@ -6,11 +6,12 @@
  * EPIC-04: Household Items & Furniture Management
  */
 
-import type { PaginatedResponse } from './pagination.js';
+import type { PaginatedResponse, PaginationMeta } from './pagination.js';
 import type { SubsidyApplicationStatus } from './subsidyProgram.js';
 import type { UserSummary, VendorSummary } from './workItem.js';
 import type { AreaSummary } from './area.js';
 import type { TradeSummary } from './trade.js';
+import type { FilterMeta } from './filterMeta.js';
 
 /**
  * Budget aggregates for a household item.
@@ -38,6 +39,7 @@ export interface HouseholdItemCategoryEntity {
   id: string;
   name: string;
   color: string | null;
+  translationKey: string | null;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -256,7 +258,12 @@ export interface HouseholdItemListQuery {
   status?: HouseholdItemStatus;
   areaId?: string;
   vendorId?: string;
-  noBudget?: boolean;
+  plannedCostMin?: number;
+  plannedCostMax?: number;
+  actualCostMin?: number;
+  actualCostMax?: number;
+  budgetLinesMin?: number;
+  budgetLinesMax?: number;
   sortBy?:
     | 'name'
     | 'category'
@@ -269,9 +276,13 @@ export interface HouseholdItemListQuery {
 }
 
 /**
- * Response for GET /api/household-items (paginated list).
+ * Response for GET /api/household-items (paginated list with filter metadata).
  */
-export type HouseholdItemListResponse = PaginatedResponse<HouseholdItemSummary>;
+export interface HouseholdItemListResponse {
+  items: HouseholdItemSummary[];
+  pagination: PaginationMeta;
+  filterMeta?: FilterMeta;
+}
 
 /**
  * Response for single household item endpoints (POST, GET by ID, PATCH).

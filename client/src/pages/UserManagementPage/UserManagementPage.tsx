@@ -1,5 +1,12 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { UserResponse } from '@cornerstone/shared';
+import type { BadgeVariantMap } from '../../components/Badge/Badge.js';
+import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
+import { DataTable } from '../../components/DataTable/DataTable.js';
+import { Badge } from '../../components/Badge/Badge.js';
+import { Modal } from '../../components/Modal/Modal.js';
+import badgeStyles from '../../components/Badge/Badge.module.css';
 import {
   listUsers,
   adminUpdateUser,
@@ -8,8 +15,11 @@ import {
   type AdminUpdateUserPayload,
 } from '../../lib/usersApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import type { UserResponse } from '@cornerstone/shared';
-import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.js';
+import { useFormatters } from '../../lib/formatters.js';
+import { useAuth } from '../../contexts/AuthContext.js';
+import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
+import sharedStyles from '../../styles/shared.module.css';
 import styles from './UserManagementPage.module.css';
 
 interface EditFormData {
@@ -24,12 +34,33 @@ interface FieldErrors {
 }
 
 export function UserManagementPage() {
+  const { formatDate } = useFormatters();
   const { t } = useTranslation('settings');
+  const { user: currentUser } = useAuth();
+
+  const isAdmin = currentUser?.role === 'admin';
+
+  const settingsTabs: SubNavTab[] = [
+    { labelKey: 'subnav.settings.profile', to: '/settings/profile', ns: 'common' },
+    { labelKey: 'subnav.settings.manage', to: '/settings/manage', ns: 'common' },
+    {
+      labelKey: 'subnav.settings.userManagement',
+      to: '/settings/users',
+      ns: 'common',
+      visible: isAdmin,
+    },
+    {
+      labelKey: 'subnav.settings.backups',
+      to: '/settings/backups',
+      ns: 'common',
+      visible: isAdmin,
+    },
+  ];
+
+  // Data state
   const [users, setUsers] = useState<UserResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchDebounce, setSearchDebounce] = useState<NodeJS.Timeout | null>(null);
+  const [error, setError] = useState<string>('');
 
   // Edit modal state
   const [editingUser, setEditingUser] = useState<UserResponse | null>(null);
@@ -47,46 +78,60 @@ export function UserManagementPage() {
   const [deactivateError, setDeactivateError] = useState<string>('');
   const [isDeactivating, setIsDeactivating] = useState(false);
 
-  const loadUsers = async (query?: string) => {
+  // Action menu state
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
+  // Table state
+  const [tableState, setTableState] = useState<TableState>({
+    search: '',
+    filters: new Map(),
+    sortBy: null,
+    sortDir: null,
+    page: 1,
+    pageSize: 100,
+  });
+
+  // Load users on mount
+  useEffect(() => {
+    const loadUsersData = async () => {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const response: ListUsersResponse = await listUsers();
+        setUsers(response.users);
+      } catch (err) {
+        if (err instanceof ApiClientError) {
+          setError(err.error.message);
+        } else {
+          setError(t('userManagement.loadError'));
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadUsersData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t]);
+
+  const reloadUsers = async () => {
+    setIsLoading(true);
+    setError('');
+
     try {
-      setLoadError('');
-      const response: ListUsersResponse = await listUsers(query);
+      const response: ListUsersResponse = await listUsers();
       setUsers(response.users);
-    } catch (error) {
-      if (error instanceof ApiClientError) {
-        setLoadError(error.error.message);
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.error.message);
       } else {
-        setLoadError(t('userManagement.loadError'));
+        setError(t('userManagement.loadError'));
       }
     } finally {
       setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    void loadUsers();
-  }, []);
-
-  useEffect(() => {
-    // Debounce search
-    if (searchDebounce) {
-      clearTimeout(searchDebounce);
-    }
-
-    const timeout = setTimeout(() => {
-      setIsLoading(true);
-      void loadUsers(searchQuery || undefined);
-    }, 300);
-
-    setSearchDebounce(timeout);
-
-    return () => {
-      if (searchDebounce) {
-        clearTimeout(searchDebounce);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery]);
 
   const openEditModal = (user: UserResponse) => {
     setEditingUser(user);
@@ -97,6 +142,7 @@ export function UserManagementPage() {
     });
     setEditErrors({});
     setEditApiError('');
+    setActiveMenuId(null);
   };
 
   const closeEditModal = () => {
@@ -153,9 +199,9 @@ export function UserManagementPage() {
       // Update users list
       setUsers(users.map((u) => (u.id === updatedUser.id ? updatedUser : u)));
       closeEditModal();
-    } catch (error) {
-      if (error instanceof ApiClientError) {
-        setEditApiError(error.error.message);
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setEditApiError(err.error.message);
       } else {
         setEditApiError(t('userManagement.editModal.error'));
       }
@@ -167,6 +213,7 @@ export function UserManagementPage() {
   const openDeactivateModal = (user: UserResponse) => {
     setDeactivatingUser(user);
     setDeactivateError('');
+    setActiveMenuId(null);
   };
 
   const closeDeactivateModal = () => {
@@ -184,13 +231,11 @@ export function UserManagementPage() {
 
     try {
       await deactivateUser(deactivatingUser.id);
-
-      // Reload users to get updated list
-      await loadUsers(searchQuery || undefined);
+      await reloadUsers();
       closeDeactivateModal();
-    } catch (error) {
-      if (error instanceof ApiClientError) {
-        setDeactivateError(error.error.message);
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setDeactivateError(err.error.message);
       } else {
         setDeactivateError(t('userManagement.deactivateModal.error'));
       }
@@ -199,284 +244,353 @@ export function UserManagementPage() {
     }
   };
 
-  if (isLoading && users.length === 0) {
-    return (
-      <div className={styles.container}>
-        <div className={styles.loading}>{t('userManagement.loading')}</div>
-      </div>
-    );
-  }
+  // Badge variants
+  const roleVariants = useMemo(
+    (): BadgeVariantMap => ({
+      admin: {
+        label: t('userManagement.roles.admin'),
+        className: badgeStyles.roleAdmin,
+      },
+      member: {
+        label: t('userManagement.roles.member'),
+        className: badgeStyles.roleMember,
+      },
+    }),
+    [t],
+  );
 
-  if (loadError && users.length === 0) {
+  const statusVariants = useMemo(
+    (): BadgeVariantMap => ({
+      active: {
+        label: t('userManagement.status.active'),
+        className: badgeStyles.userActive,
+      },
+      deactivated: {
+        label: t('userManagement.status.deactivated'),
+        className: badgeStyles.userDeactivated,
+      },
+    }),
+    [t],
+  );
+
+  // Client-side filtering and sorting
+  const filtered = useMemo(() => {
+    let result = [...users];
+
+    // Text search
+    const searchLower = tableState.search.toLowerCase();
+    if (searchLower) {
+      result = result.filter(
+        (u) =>
+          u.displayName.toLowerCase().includes(searchLower) ||
+          u.email.toLowerCase().includes(searchLower),
+      );
+    }
+
+    // Role filter
+    const roleFilter = tableState.filters.get('role')?.value;
+    if (roleFilter) {
+      result = result.filter((u) => u.role === roleFilter);
+    }
+
+    // Status filter
+    const statusFilter = tableState.filters.get('status')?.value;
+    if (statusFilter) {
+      result = result.filter((u) => {
+        if (statusFilter === 'active') return !u.deactivatedAt;
+        if (statusFilter === 'deactivated') return !!u.deactivatedAt;
+        return true;
+      });
+    }
+
+    // Sorting
+    if (tableState.sortBy) {
+      result.sort((a, b) => {
+        let aVal: unknown;
+        let bVal: unknown;
+
+        if (tableState.sortBy === 'displayName') {
+          aVal = a.displayName;
+          bVal = b.displayName;
+        } else if (tableState.sortBy === 'email') {
+          aVal = a.email;
+          bVal = b.email;
+        } else if (tableState.sortBy === 'role') {
+          aVal = a.role;
+          bVal = b.role;
+        } else if (tableState.sortBy === 'createdAt') {
+          aVal = new Date(a.createdAt).getTime();
+          bVal = new Date(b.createdAt).getTime();
+        }
+
+        if (aVal === bVal) return 0;
+        const comparison = (aVal as string | number) > (bVal as string | number) ? 1 : -1;
+        return tableState.sortDir === 'desc' ? -comparison : comparison;
+      });
+    }
+
+    return result;
+  }, [users, tableState]);
+
+  // Column definitions
+  const columns = useMemo(
+    (): ColumnDef<UserResponse>[] => [
+      {
+        key: 'displayName',
+        label: t('userManagement.tableHeaders.name'),
+        sortable: true,
+        filterable: false,
+        defaultVisible: true,
+        render: (u) => u.displayName,
+      },
+      {
+        key: 'email',
+        label: t('userManagement.tableHeaders.email'),
+        sortable: true,
+        filterable: false,
+        defaultVisible: true,
+        render: (u) => u.email,
+      },
+      {
+        key: 'role',
+        label: t('userManagement.tableHeaders.role'),
+        sortable: true,
+        filterable: true,
+        filterType: 'enum',
+        filterParamKey: 'role',
+        enumOptions: [
+          { value: 'admin', label: t('userManagement.roles.admin') },
+          { value: 'member', label: t('userManagement.roles.member') },
+        ],
+        defaultVisible: true,
+        render: (u) => <Badge variants={roleVariants} value={u.role} />,
+      },
+      {
+        key: 'createdAt',
+        label: t('userManagement.tableHeaders.memberSince'),
+        sortable: true,
+        filterable: false,
+        defaultVisible: true,
+        render: (u) => formatDate(u.createdAt),
+      },
+      {
+        key: 'authProvider',
+        label: t('userManagement.tableHeaders.authProvider'),
+        sortable: false,
+        filterable: false,
+        defaultVisible: false,
+        render: (u) =>
+          u.authProvider === 'local'
+            ? t('userManagement.authProviders.local')
+            : t('userManagement.authProviders.oidc'),
+      },
+      {
+        key: 'status',
+        label: t('userManagement.tableHeaders.status'),
+        sortable: true,
+        sortKey: 'deactivatedAt',
+        filterable: true,
+        filterType: 'enum',
+        filterParamKey: 'status',
+        enumOptions: [
+          { value: 'active', label: t('userManagement.status.active') },
+          { value: 'deactivated', label: t('userManagement.status.deactivated') },
+        ],
+        defaultVisible: true,
+        render: (u) => (
+          <Badge variants={statusVariants} value={!u.deactivatedAt ? 'active' : 'deactivated'} />
+        ),
+      },
+    ],
+    [t, formatDate, roleVariants, statusVariants],
+  );
+
+  // Close action menu on outside click and Escape key
+  useEffect(() => {
+    if (!activeMenuId) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(`.${styles.actionsMenu}`)) {
+        setActiveMenuId(null);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setActiveMenuId(null);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [activeMenuId]);
+
+  // Render actions menu
+  const renderActions = (user: UserResponse) => {
+    const isActive = !user.deactivatedAt;
     return (
-      <div className={styles.container}>
-        <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>{t('userManagement.errorTitle')}</h2>
-          <p>{loadError}</p>
-        </div>
+      <div className={styles.actionsMenu}>
+        <button
+          type="button"
+          className={styles.menuButton}
+          onClick={() => setActiveMenuId(activeMenuId === user.id ? null : user.id)}
+          aria-label={t('userManagement.actions.menuAriaLabel')}
+          data-testid={`user-menu-button-${user.id}`}
+        >
+          ⋮
+        </button>
+        {activeMenuId === user.id && (
+          <div className={styles.menuDropdown}>
+            <button
+              type="button"
+              className={styles.menuItem}
+              onClick={() => openEditModal(user)}
+              disabled={!isActive}
+              data-testid={`user-edit-${user.id}`}
+            >
+              {t('userManagement.actions.edit')}
+            </button>
+            {isActive && (
+              <button
+                type="button"
+                className={`${styles.menuItem} ${styles.menuItemDanger}`}
+                onClick={() => openDeactivateModal(user)}
+                data-testid={`user-deactivate-${user.id}`}
+              >
+                {t('userManagement.actions.deactivate')}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     );
-  }
+  };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.content}>
-        <div className={styles.header}>
-          <h1 className={styles.pageTitle}>{t('userManagement.pageTitle')}</h1>
-        </div>
-        <SettingsSubNav />
-        <div className={styles.header}>
-          <div className={styles.searchWrapper}>
-            <input
-              type="text"
-              placeholder={t('userManagement.searchPlaceholder')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={styles.searchInput}
-            />
-          </div>
-        </div>
-
-        {loadError && users.length > 0 && (
-          <div className={styles.errorBanner} role="alert">
-            {loadError}
-          </div>
-        )}
-
-        {users.length === 0 ? (
-          <div className={styles.emptyState}>
-            <p>
-              {searchQuery ? t('userManagement.emptyStateSearch') : t('userManagement.emptyState')}
-            </p>
-          </div>
-        ) : (
-          <div className={styles.tableWrapper}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>{t('userManagement.tableHeaders.name')}</th>
-                  <th>{t('userManagement.tableHeaders.email')}</th>
-                  <th>{t('userManagement.tableHeaders.role')}</th>
-                  <th>{t('userManagement.tableHeaders.authProvider')}</th>
-                  <th>{t('userManagement.tableHeaders.status')}</th>
-                  <th>{t('userManagement.tableHeaders.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => {
-                  const isActive = !user.deactivatedAt;
-                  return (
-                    <tr key={user.id}>
-                      <td>{user.displayName}</td>
-                      <td>{user.email}</td>
-                      <td>
-                        <span
-                          className={user.role === 'admin' ? styles.roleAdmin : styles.roleMember}
-                        >
-                          {user.role === 'admin'
-                            ? t('userManagement.roles.admin')
-                            : t('userManagement.roles.member')}
-                        </span>
-                      </td>
-                      <td>
-                        {user.authProvider === 'local'
-                          ? t('userManagement.authProviders.local')
-                          : t('userManagement.authProviders.oidc')}
-                      </td>
-                      <td>
-                        <span className={isActive ? styles.statusActive : styles.statusInactive}>
-                          {isActive
-                            ? t('userManagement.status.active')
-                            : t('userManagement.status.deactivated')}
-                        </span>
-                      </td>
-                      <td>
-                        <div className={styles.actions}>
-                          <button
-                            type="button"
-                            className={styles.editButton}
-                            onClick={() => openEditModal(user)}
-                            disabled={!isActive}
-                          >
-                            {t('userManagement.actions.edit')}
-                          </button>
-                          {isActive && (
-                            <button
-                              type="button"
-                              className={styles.deactivateButton}
-                              onClick={() => openDeactivateModal(user)}
-                            >
-                              {t('userManagement.actions.deactivate')}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+    <PageLayout
+      maxWidth="narrow"
+      title={t('userManagement.pageTitle')}
+      subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+    >
+      <DataTable<UserResponse>
+        pageKey="users"
+        columns={columns}
+        items={filtered}
+        totalItems={filtered.length}
+        totalPages={1}
+        currentPage={1}
+        isLoading={isLoading}
+        error={error}
+        getRowKey={(u) => u.id}
+        renderActions={renderActions}
+        tableState={tableState}
+        onStateChange={setTableState}
+        emptyState={{
+          message: t('userManagement.emptyState'),
+          description: t('userManagement.emptyStateSearch'),
+        }}
+      />
 
       {/* Edit Modal */}
       {editingUser && (
-        <div className={styles.modalOverlay}>
-          <div
-            className={styles.modal}
-            role="dialog"
-            aria-label={t('userManagement.editModal.title')}
-          >
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>{t('userManagement.editModal.title')}</h2>
-              <button
-                type="button"
-                className={styles.modalCloseButton}
-                onClick={closeEditModal}
-                aria-label={t('userManagement.editModal.closeAriaLabel')}
-              >
-                ✕
-              </button>
+        <Modal title={t('userManagement.editModal.title')} onClose={closeEditModal}>
+          {editApiError && (
+            <div className={sharedStyles.bannerError} role="alert">
+              {editApiError}
+            </div>
+          )}
+
+          <form onSubmit={handleEditSubmit} className={styles.modalForm}>
+            <div className={styles.field}>
+              <label htmlFor="editDisplayName" className={styles.label}>
+                {t('userManagement.editModal.displayNameLabel')}
+              </label>
+              <input
+                type="text"
+                id="editDisplayName"
+                value={editFormData.displayName}
+                onChange={(e) => setEditFormData({ ...editFormData, displayName: e.target.value })}
+                className={sharedStyles.input}
+                maxLength={100}
+                disabled={isUpdating}
+                aria-invalid={!!editErrors.displayName}
+                aria-describedby={editErrors.displayName ? 'editDisplayName-error' : undefined}
+              />
+              {editErrors.displayName && (
+                <span id="editDisplayName-error" className={styles.error} role="alert">
+                  {editErrors.displayName}
+                </span>
+              )}
             </div>
 
-            {editApiError && (
-              <div className={styles.errorBanner} role="alert">
-                {editApiError}
-              </div>
-            )}
+            <div className={styles.field}>
+              <label htmlFor="editEmail" className={styles.label}>
+                {t('userManagement.editModal.emailLabel')}
+              </label>
+              <input
+                type="email"
+                id="editEmail"
+                value={editFormData.email}
+                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                className={sharedStyles.input}
+                disabled={isUpdating}
+                aria-invalid={!!editErrors.email}
+                aria-describedby={editErrors.email ? 'editEmail-error' : undefined}
+              />
+              {editErrors.email && (
+                <span id="editEmail-error" className={styles.error} role="alert">
+                  {editErrors.email}
+                </span>
+              )}
+            </div>
 
-            <form onSubmit={handleEditSubmit} className={styles.modalForm}>
-              <div className={styles.field}>
-                <label htmlFor="editDisplayName" className={styles.label}>
-                  {t('userManagement.editModal.displayNameLabel')}
-                </label>
-                <input
-                  type="text"
-                  id="editDisplayName"
-                  value={editFormData.displayName}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, displayName: e.target.value })
-                  }
-                  className={styles.input}
-                  maxLength={100}
-                  disabled={isUpdating}
-                  aria-invalid={!!editErrors.displayName}
-                  aria-describedby={editErrors.displayName ? 'editDisplayName-error' : undefined}
-                />
-                {editErrors.displayName && (
-                  <span id="editDisplayName-error" className={styles.error} role="alert">
-                    {editErrors.displayName}
-                  </span>
-                )}
-              </div>
+            <div className={styles.field}>
+              <label htmlFor="editRole" className={styles.label}>
+                {t('userManagement.editModal.roleLabel')}
+              </label>
+              <select
+                id="editRole"
+                value={editFormData.role}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, role: e.target.value as 'admin' | 'member' })
+                }
+                className={sharedStyles.select}
+                disabled={isUpdating}
+              >
+                <option value="member">{t('userManagement.roles.member')}</option>
+                <option value="admin">{t('userManagement.roles.admin')}</option>
+              </select>
+            </div>
 
-              <div className={styles.field}>
-                <label htmlFor="editEmail" className={styles.label}>
-                  {t('userManagement.editModal.emailLabel')}
-                </label>
-                <input
-                  type="email"
-                  id="editEmail"
-                  value={editFormData.email}
-                  onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                  className={styles.input}
-                  disabled={isUpdating}
-                  aria-invalid={!!editErrors.email}
-                  aria-describedby={editErrors.email ? 'editEmail-error' : undefined}
-                />
-                {editErrors.email && (
-                  <span id="editEmail-error" className={styles.error} role="alert">
-                    {editErrors.email}
-                  </span>
-                )}
-              </div>
-
-              <div className={styles.field}>
-                <label htmlFor="editRole" className={styles.label}>
-                  {t('userManagement.editModal.roleLabel')}
-                </label>
-                <select
-                  id="editRole"
-                  value={editFormData.role}
-                  onChange={(e) =>
-                    setEditFormData({ ...editFormData, role: e.target.value as 'admin' | 'member' })
-                  }
-                  className={styles.select}
-                  disabled={isUpdating}
-                >
-                  <option value="member">{t('userManagement.roles.member')}</option>
-                  <option value="admin">{t('userManagement.roles.admin')}</option>
-                </select>
-              </div>
-
-              <div className={styles.modalActions}>
-                <button
-                  type="button"
-                  className={styles.cancelButton}
-                  onClick={closeEditModal}
-                  disabled={isUpdating}
-                >
-                  {t('userManagement.editModal.cancel')}
-                </button>
-                <button type="submit" className={styles.saveButton} disabled={isUpdating}>
-                  {isUpdating
-                    ? t('userManagement.editModal.saving')
-                    : t('userManagement.editModal.save')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <div className={sharedStyles.modalActions}>
+              <button
+                type="button"
+                className={sharedStyles.btnSecondary}
+                onClick={closeEditModal}
+                disabled={isUpdating}
+              >
+                {t('userManagement.editModal.cancel')}
+              </button>
+              <button type="submit" className={sharedStyles.btnPrimary} disabled={isUpdating}>
+                {isUpdating
+                  ? t('userManagement.editModal.saving')
+                  : t('userManagement.editModal.save')}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* Deactivate Confirmation Modal */}
       {deactivatingUser && (
-        <div className={styles.modalOverlay}>
-          <div
-            className={styles.modal}
-            role="dialog"
-            aria-label={t('userManagement.deactivateModal.title')}
-          >
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>{t('userManagement.deactivateModal.title')}</h2>
+        <Modal
+          title={t('userManagement.deactivateModal.title')}
+          onClose={() => !isDeactivating && closeDeactivateModal()}
+          footer={
+            <>
               <button
                 type="button"
-                className={styles.modalCloseButton}
-                onClick={closeDeactivateModal}
-                aria-label={t('userManagement.editModal.closeAriaLabel')}
-              >
-                ✕
-              </button>
-            </div>
-
-            {deactivateError && (
-              <div className={styles.errorBanner} role="alert">
-                {deactivateError}
-              </div>
-            )}
-
-            <div className={styles.modalBody}>
-              <p>
-                {(() => {
-                  const parts = t('userManagement.deactivateModal.message', {
-                    name: '\u0000',
-                  }).split('\u0000');
-                  return (
-                    <>
-                      {parts[0]}
-                      <strong>{deactivatingUser.displayName}</strong>
-                      {parts[1]}
-                    </>
-                  );
-                })()}
-              </p>
-            </div>
-
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.cancelButton}
+                className={sharedStyles.btnSecondary}
                 onClick={closeDeactivateModal}
                 disabled={isDeactivating}
               >
@@ -484,7 +598,7 @@ export function UserManagementPage() {
               </button>
               <button
                 type="button"
-                className={styles.dangerButton}
+                className={sharedStyles.btnConfirmDelete}
                 onClick={handleDeactivateConfirm}
                 disabled={isDeactivating}
               >
@@ -492,11 +606,31 @@ export function UserManagementPage() {
                   ? t('userManagement.deactivateModal.confirming')
                   : t('userManagement.deactivateModal.confirm')}
               </button>
+            </>
+          }
+        >
+          {deactivateError && (
+            <div className={sharedStyles.bannerError} role="alert">
+              {deactivateError}
             </div>
-          </div>
-        </div>
+          )}
+          <p>
+            {(() => {
+              const parts = t('userManagement.deactivateModal.message', {
+                name: '\u0000',
+              }).split('\u0000');
+              return (
+                <>
+                  {parts[0]}
+                  <strong>{deactivatingUser.displayName}</strong>
+                  {parts[1]}
+                </>
+              );
+            })()}
+          </p>
+        </Modal>
       )}
-    </div>
+    </PageLayout>
   );
 }
 

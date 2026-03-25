@@ -241,11 +241,11 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Project' })).toBeInTheDocument();
   });
 
-  // ─── Test 12: ProjectSubNav ──────────────────────────────────────────────
+  // ─── Test 12: project section SubNav ────────────────────────────────────
 
-  it('renders ProjectSubNav navigation', () => {
+  it('renders project section SubNav navigation', () => {
     renderPage();
-    // ProjectSubNav renders a <nav> element with project links
+    // SubNav renders a <nav> element with project links
     expect(screen.getByRole('navigation')).toBeInTheDocument();
   });
 
@@ -819,7 +819,7 @@ describe('DashboardPage', () => {
       expect(screen.queryByTestId('dashboard-add-work-item')).not.toBeInTheDocument();
     });
 
-    it('"Add Work Item" menu item navigates to /project/work-items/new', async () => {
+    it('"New Work Item" menu item navigates to /project/work-items/new', async () => {
       renderWithLocation();
 
       await userEvent.click(screen.getByTestId('dashboard-add-button'));
@@ -828,7 +828,7 @@ describe('DashboardPage', () => {
       expect(screen.getByTestId('location')).toHaveTextContent('/project/work-items/new');
     });
 
-    it('"Add Household Item" menu item navigates to /project/household-items/new', async () => {
+    it('"New Household Item" menu item navigates to /project/household-items/new', async () => {
       renderWithLocation();
 
       await userEvent.click(screen.getByTestId('dashboard-add-button'));
@@ -837,7 +837,7 @@ describe('DashboardPage', () => {
       expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/new');
     });
 
-    it('"Add Milestone" menu item navigates to /project/milestones/new', async () => {
+    it('"New Milestone" menu item navigates to /project/milestones/new', async () => {
       renderWithLocation();
 
       await userEvent.click(screen.getByTestId('dashboard-add-button'));

@@ -58,7 +58,12 @@ describe('VendorSummary interface', () => {
     const vendor: VendorSummary = {
       id: 'v-001',
       name: 'Acme Plumbing',
-      trade: { id: 'trade-plumbing', name: 'Plumbing', color: '#0EA5E9' },
+      trade: {
+        id: 'trade-plumbing',
+        name: 'Plumbing',
+        color: '#0EA5E9',
+        translationKey: 'trades.plumbing',
+      },
     };
 
     expect(vendor.id).toBe('v-001');
@@ -125,7 +130,12 @@ describe('WorkItemSummary interface', () => {
       assignedVendor: {
         id: 'v-001',
         name: 'Tile Masters',
-        trade: { id: 'trade-tiling', name: 'Tiling', color: '#06B6D4' },
+        trade: {
+          id: 'trade-tiling',
+          name: 'Tiling',
+          color: '#06B6D4',
+          translationKey: 'trades.tiling',
+        },
       },
       area: { id: 'area-bathroom', name: 'Bathroom', color: '#3B82F6' },
       budgetLineCount: 3,
@@ -236,7 +246,12 @@ describe('WorkItemDetail interface', () => {
       assignedVendor: {
         id: 'v-001',
         name: 'Cabinet Co',
-        trade: { id: 'trade-carpentry', name: 'Carpentry', color: '#92400E' },
+        trade: {
+          id: 'trade-carpentry',
+          name: 'Carpentry',
+          color: '#92400E',
+          translationKey: 'trades.carpentry',
+        },
       },
       area: { id: 'area-kitchen', name: 'Kitchen', color: '#FF5733' },
       subtasks: [],
@@ -457,7 +472,8 @@ describe('WorkItemListQuery interface', () => {
       q: 'tile',
       sortBy: 'title',
       sortOrder: 'asc',
-      noBudget: false,
+      budgetLinesMin: 0,
+      budgetLinesMax: 10,
     };
 
     expect(query.page).toBe(1);
@@ -465,7 +481,8 @@ describe('WorkItemListQuery interface', () => {
     expect(query.status).toBe('in_progress');
     expect(query.assignedVendorId).toBe('v-001');
     expect(query.areaId).toBe('area-kitchen');
-    expect(query.noBudget).toBe(false);
+    expect(query.budgetLinesMin).toBe(0);
+    expect(query.budgetLinesMax).toBe(10);
   });
 
   it('accepts all valid sortBy values', () => {

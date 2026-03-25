@@ -2,23 +2,6 @@
  * DashboardPage — CSS Module
  * ============================================================ */
 
-.page {
-  padding: var(--spacing-8);
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-/* ---- Page header ---- */
-
-.pageHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-4);
-  margin-bottom: var(--spacing-6);
-  flex-wrap: wrap;
-}
-
 .headerRight {
   display: flex;
   align-items: center;
@@ -98,13 +81,6 @@
 .addMenuItem:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
-}
-
-.title {
-  margin: 0;
-  font-size: var(--font-size-4xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
 }
 
 /* ---- Customize dropdown ---- */
@@ -289,18 +265,6 @@ details[open] > .sectionSummary > .sectionChevron {
  * ============================================================ */
 
 @media (min-width: 768px) and (max-width: 1023px) {
-  .page {
-    padding: var(--spacing-6);
-  }
-
-  .pageHeader {
-    margin-bottom: var(--spacing-4);
-  }
-
-  .title {
-    font-size: var(--font-size-2xl);
-  }
-
   .grid {
     grid-template-columns: repeat(2, 1fr);
     gap: var(--spacing-5);
@@ -324,20 +288,6 @@ details[open] > .sectionSummary > .sectionChevron {
  * ============================================================ */
 
 @media (max-width: 767px) {
-  .page {
-    padding: var(--spacing-4);
-  }
-
-  .pageHeader {
-    margin-bottom: var(--spacing-3);
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .title {
-    font-size: var(--font-size-2xl);
-  }
-
   .headerRight {
     flex-direction: column;
     align-items: stretch;

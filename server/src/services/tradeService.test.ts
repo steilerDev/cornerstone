@@ -724,4 +724,71 @@ describe('Trade Service', () => {
       expect(found.id).toBe(trade2.id);
     });
   });
+
+  // ─── translationKey field ──────────────────────────────────────────────────
+
+  describe('translationKey field', () => {
+    it('listTrades() returns null translationKey for user-created trades', () => {
+      createTestTrade('Custom Plastering');
+
+      const result = tradeService.listTrades(db);
+      const found = result.find((t) => t.name === 'Custom Plastering');
+      expect(found).toBeDefined();
+      expect(found!.translationKey).toBeNull();
+    });
+
+    it('listTrades() returns translationKey for predefined trades after migration', () => {
+      // Migration 0028 seeds trade-plumbing; migration 0030 sets translation_key on it.
+      // We deleted seeded trades in beforeEach, so re-insert plumbing with a key.
+      const now = new Date().toISOString();
+      db.insert(schema.trades)
+        .values({
+          id: 'trade-plumbing',
+          name: 'Plumbing',
+          translationKey: 'trades.plumbing',
+          color: null,
+          description: null,
+          sortOrder: 1,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const result = tradeService.listTrades(db);
+      const found = result.find((t) => t.id === 'trade-plumbing');
+      expect(found).toBeDefined();
+      expect(found!.translationKey).toBe('trades.plumbing');
+    });
+
+    it('getTradeById() returns null translationKey for user-created trade', () => {
+      const trade = createTestTrade('Bespoke Tiling');
+
+      const result = tradeService.getTradeById(db, trade.id);
+      expect(result.translationKey).toBeNull();
+    });
+
+    it('getTradeById() returns translationKey when the column is set in DB', () => {
+      const now = new Date().toISOString();
+      db.insert(schema.trades)
+        .values({
+          id: 'trade-electrical',
+          name: 'Electrical',
+          translationKey: 'trades.electrical',
+          color: null,
+          description: null,
+          sortOrder: 2,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const result = tradeService.getTradeById(db, 'trade-electrical');
+      expect(result.translationKey).toBe('trades.electrical');
+    });
+
+    it('createTrade() always sets translationKey to null on new rows', () => {
+      const result = tradeService.createTrade(db, { name: 'New Insulation Trade' });
+      expect(result.translationKey).toBeNull();
+    });
+  });
 });

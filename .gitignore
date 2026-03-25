@@ -55,3 +55,6 @@ data/
 tmp/
 temp/
 .claude/worktrees/
+
+# DS Store (sandbox)
+.ds/

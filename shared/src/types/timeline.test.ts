@@ -41,7 +41,12 @@ describe('TimelineWorkItem interface', () => {
       assignedVendor: {
         id: 'v-001',
         name: 'Tile Masters',
-        trade: { id: 'trade-tiling', name: 'Tiling', color: '#06B6D4' },
+        trade: {
+          id: 'trade-tiling',
+          name: 'Tiling',
+          color: '#06B6D4',
+          translationKey: 'trades.tiling',
+        },
       },
       area: { id: 'area-kitchen', name: 'Kitchen', color: '#FF5733' },
     };
@@ -336,7 +341,12 @@ describe('TimelineResponse interface', () => {
           assignedVendor: {
             id: 'v-001',
             name: 'Tile Co',
-            trade: { id: 'trade-tiling', name: 'Tiling', color: '#06B6D4' },
+            trade: {
+              id: 'trade-tiling',
+              name: 'Tiling',
+              color: '#06B6D4',
+              translationKey: 'trades.tiling',
+            },
           },
           area: { id: 'area-bathroom', name: 'Bathroom', color: '#3B82F6' },
         },

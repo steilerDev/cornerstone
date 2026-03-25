@@ -41,9 +41,14 @@ export class UserManagementPage {
   constructor(page: Page) {
     this.page = page;
     this.heading = page.getByRole('heading', { level: 1, name: 'User Management' });
-    this.searchInput = page.getByPlaceholder('Search by name or email...');
+    // DataTable renders a search input with aria-label="Search items" and placeholder="Search..."
+    this.searchInput = page.getByLabel('Search items');
     this.table = page.locator('table');
-    this.emptyState = page.getByText(/No users found/);
+    // DataTable EmptyState has two possible messages:
+    // 1. No search active: t('userManagement.emptyState') = "No users found."
+    // 2. Search active (hasActiveFilters): t('dataTable.empty.filteredMessage') = "No items match the current filters"
+    // Use .first() on the EmptyState component container to avoid strict mode with child elements.
+    this.emptyState = page.locator('[class*="emptyState"]').first();
 
     // Edit modal (uses role="dialog" with aria-label)
     this.editModal = page.getByRole('dialog', { name: 'Edit User' });
@@ -82,9 +87,8 @@ export class UserManagementPage {
     await this.searchInput.waitFor({ state: 'visible' });
     await this.searchInput.scrollIntoViewIfNeeded();
     await this.searchInput.fill(query);
-    await this.page.waitForResponse(
-      (resp) => resp.url().includes('/api/users') && resp.status() === 200,
-    );
+    // Search is client-side — wait for debounce to settle
+    await this.page.waitForTimeout(400);
   }
 
   async getUserRows(): Promise<Locator[]> {
@@ -109,8 +113,11 @@ export class UserManagementPage {
     if (!row) {
       throw new Error(`User with email ${email} not found`);
     }
-    const editButton = row.getByRole('button', { name: 'Edit' });
-    await editButton.scrollIntoViewIfNeeded();
+    // DataTable: actions are behind a ⋮ menu — open it first
+    const menuButton = row.getByTestId(/^user-menu-button-/);
+    await menuButton.scrollIntoViewIfNeeded();
+    await menuButton.click();
+    const editButton = row.getByTestId(/^user-edit-/);
     await editButton.click();
     await this.editModalHeading.waitFor({ state: 'visible' });
   }
@@ -137,8 +144,11 @@ export class UserManagementPage {
     if (!row) {
       throw new Error(`User with email ${email} not found`);
     }
-    const deactivateButton = row.getByRole('button', { name: 'Deactivate' });
-    await deactivateButton.scrollIntoViewIfNeeded();
+    // DataTable: actions are behind a ⋮ menu — open it first
+    const menuButton = row.getByTestId(/^user-menu-button-/);
+    await menuButton.scrollIntoViewIfNeeded();
+    await menuButton.click();
+    const deactivateButton = row.getByTestId(/^user-deactivate-/);
     await deactivateButton.click();
     await this.deactivateModalHeading.waitFor({ state: 'visible' });
   }

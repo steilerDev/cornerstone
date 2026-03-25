@@ -53,7 +53,8 @@
       "role": "Rolle",
       "authProvider": "Authentifizierung",
       "status": "Status",
-      "actions": "Aktionen"
+      "actions": "Aktionen",
+      "memberSince": "Mitglied seit"
     },
     "roles": {
       "admin": "Administrator",
@@ -69,7 +70,8 @@
     },
     "actions": {
       "edit": "Bearbeiten",
-      "deactivate": "Deaktivieren"
+      "deactivate": "Deaktivieren",
+      "menuAriaLabel": "Menü für Benutzeraktionen"
     },
     "editModal": {
       "title": "Benutzer bearbeiten",
@@ -194,7 +196,7 @@
       "errorTitle": "Fehler",
       "retry": "Erneut versuchen",
       "loadError": "Budgetkategorien konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
-      "createTitle": "Neue Budgetkategorie",
+      "createTitle": "Neue Budgetkategorie erstellen",
       "createDescription": "Budgetkategorien gruppieren Ihre Baukosten (z. B. Materialien, Arbeit, Genehmigungen).",
       "nameLabel": "Name",
       "nameRequired": "*",
@@ -238,7 +240,7 @@
       "errorTitle": "Fehler",
       "retry": "Erneut versuchen",
       "loadError": "Haushaltsartikel-Kategorien konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
-      "createTitle": "Neue Haushaltsartikel-Kategorie",
+      "createTitle": "Neue Haushaltsartikel-Kategorie erstellen",
       "createDescription": "Kategorien organisieren Ihre Haushaltsartikel und Möbelkäufe (z. B. Möbel, Geräte, Einbauten).",
       "nameLabel": "Name",
       "nameRequired": "*",
@@ -293,6 +295,89 @@
     "loading": "DAV-Zugang wird geladen...",
     "generating": "Wird generiert...",
     "revoking": "Wird widerrufen..."
+  },
+  "trades": {
+    "plumbing": "Sanitär",
+    "hvac": "Heizung, Klima, Lüftung",
+    "electrical": "Elektrik",
+    "drywall": "Trockenbau",
+    "carpentry": "Tischlerei",
+    "masonry": "Maurerarbeiten",
+    "painting": "Malerei",
+    "roofing": "Dacharbeiten",
+    "flooring": "Bodenbeläge",
+    "tiling": "Fliesenarbeiten",
+    "landscaping": "Gartengestaltung",
+    "excavation": "Erdarbeiten",
+    "generalContractor": "Generalunternehmer",
+    "architectDesign": "Architektur / Planung",
+    "other": "Sonstige"
+  },
+  "budgetCategories": {
+    "materials": "Materialien",
+    "labor": "Arbeit",
+    "permits": "Genehmigungen",
+    "design": "Planung",
+    "householdItems": "Haushaltsartikel",
+    "waste": "Entsorgung",
+    "other": "Sonstige",
+    "equipment": "Geräte",
+    "landscaping": "Gartengestaltung",
+    "utilities": "Versorgungsleistungen",
+    "insurance": "Versicherung",
+    "contingency": "Rücklagen"
+  },
+  "householdItemCategories": {
+    "furniture": "Möbel",
+    "appliances": "Geräte",
+    "fixtures": "Einbauten",
+    "decor": "Dekoration",
+    "electronics": "Elektronik",
+    "equipment": "Ausstattung",
+    "other": "Sonstige",
+    "outdoor": "Außenbereich",
+    "storage": "Aufbewahrung"
+  },
+  "backups": {
+    "pageTitle": "Sicherung & Wiederherstellung",
+    "createButton": "Sicherung erstellen",
+    "creating": "Sicherung wird erstellt...",
+    "loading": "Sicherungen werden geladen...",
+    "notConfiguredMessage": "Sicherung ist nicht konfiguriert",
+    "notConfiguredDescription": "Um Sicherungen zu aktivieren, setzen Sie die Umgebungsvariable BACKUP_DIR auf ein Verzeichnis außerhalb des Anwendungsdatenverzeichnisses.",
+    "emptyStateMessage": "Noch keine Sicherungen vorhanden",
+    "emptyStateDescription": "Klicken Sie auf 'Sicherung erstellen', um Ihre erste Sicherung anzulegen.",
+    "tableHeaders": {
+      "filename": "Dateiname",
+      "createdAt": "Erstellt",
+      "size": "Größe",
+      "actions": "Aktionen"
+    },
+    "actions": {
+      "delete": "Löschen",
+      "restore": "Wiederherstellen"
+    },
+    "deleteModal": {
+      "title": "Sicherung löschen",
+      "message": "Möchten Sie {{filename}} wirklich löschen?",
+      "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+      "cancel": "Abbrechen",
+      "confirm": "Löschen",
+      "confirming": "Wird gelöscht...",
+      "error": "Sicherung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut."
+    },
+    "restoreModal": {
+      "title": "Sicherung wiederherstellen",
+      "message": "Sie sind dabei, eine Wiederherstellung aus folgender Sicherung durchzuführen:",
+      "warning": "Dadurch werden alle aktuellen Anwendungsdaten unwiderruflich durch den Inhalt der Sicherung ersetzt. Der Server wird automatisch neu gestartet. Alle aktuellen Daten gehen verloren.",
+      "cancel": "Abbrechen",
+      "confirm": "Wiederherstellen & Neu starten",
+      "confirming": "Wird wiederhergestellt...",
+      "error": "Wiederherstellung konnte nicht gestartet werden. Bitte versuchen Sie es erneut."
+    },
+    "restartingMessage": "Der Server wird neu gestartet. Bitte warten Sie einen Moment und laden Sie dann die Seite neu.",
+    "createError": "Sicherung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "loadError": "Sicherungen konnten nicht geladen werden. Bitte versuchen Sie es erneut."
   },
   "vendors": {
     "contacts": {

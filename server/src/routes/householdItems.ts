@@ -50,6 +50,12 @@ const listHouseholdItemsSchema = {
       vendorId: { type: 'string' },
       areaId: { type: 'string' },
       q: { type: 'string' },
+      plannedCostMin: { type: 'number' },
+      plannedCostMax: { type: 'number' },
+      actualCostMin: { type: 'number' },
+      actualCostMax: { type: 'number' },
+      budgetLinesMin: { type: 'number' },
+      budgetLinesMax: { type: 'number' },
       sortBy: {
         type: 'string',
         enum: [
@@ -63,7 +69,6 @@ const listHouseholdItemsSchema = {
         ],
       },
       sortOrder: { type: 'string', enum: ['asc', 'desc'] },
-      noBudget: { type: 'boolean' },
     },
     additionalProperties: false,
   },

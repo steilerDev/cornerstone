@@ -122,10 +122,12 @@ test.describe('Empty state (Scenario 1)', { tag: '@responsive' }, () => {
       // When: I search for something that matches nothing
       await vendorsPage.search('ZZZNOMATCH99999');
 
-      // Then: Empty state appears with a search-specific message
+      // Then: Empty state appears — DataTable shows a generic "no items match" message
+      // when a search query is active (hasActiveFilters=true), regardless of page-specific
+      // empty state text. t('dataTable.empty.filteredMessage') = "No items match the current filters"
       await expect(vendorsPage.emptyState).toBeVisible({ timeout: 8000 });
       const emptyText = await vendorsPage.emptyState.textContent();
-      expect(emptyText?.toLowerCase()).toMatch(/no vendors match|try different/);
+      expect(emptyText?.toLowerCase()).toMatch(/no items match|no vendors match|try different/);
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
@@ -316,8 +318,6 @@ test.describe('Create vendor validation (Scenario 4)', { tag: '@responsive' }, (
     await vendorsPage.goto();
     await vendorsPage.waitForVendorsLoaded();
 
-    const namesBefore = await vendorsPage.getVendorNames();
-
     await vendorsPage.openCreateModal();
     await vendorsPage.createNameInput.fill('Should Not Be Created');
     await vendorsPage.createCancelButton.click();
@@ -325,10 +325,11 @@ test.describe('Create vendor validation (Scenario 4)', { tag: '@responsive' }, (
     // Modal closes
     await expect(vendorsPage.createModal).not.toBeVisible();
 
-    // List unchanged
+    // List does not contain the vendor name that was typed but not submitted
+    // Note: exact count check omitted — parallel tests may create/delete vendors
+    // concurrently, making a strict count comparison unreliable.
     const namesAfter = await vendorsPage.getVendorNames();
     expect(namesAfter).not.toContain('Should Not Be Created');
-    expect(namesAfter.length).toBe(namesBefore.length);
   });
 });
 
@@ -918,8 +919,12 @@ test.describe('Search vendors (Scenario 12)', { tag: '@responsive' }, () => {
       await vendorsPage.waitForVendorsLoaded();
       await vendorsPage.search(vendorName);
 
-      // The URL should contain the q param
-      expect(page.url()).toContain('q=');
+      // The URL should contain the q param.
+      // Use waitForURL (with retries via expect) rather than a synchronous check —
+      // on tablet the URL update from react-router can lag slightly after the API
+      // response returns, causing a synchronous expect(page.url()).toContain('q=')
+      // to fail intermittently.
+      await page.waitForURL((url) => url.searchParams.has('q'), { timeout: 15000 });
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
@@ -1036,12 +1041,13 @@ test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () =>
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
 
-      // Table headers should be present (Specialty column removed in EPIC-18)
+      // Table headers should be present (Specialty/Phone/Email columns merged into Contact in EPIC-18)
+      // VendorsPage DataTable columns: Name, Trade, Contact (combined phone/email), Address (hidden),
+      // Notes (hidden), createdAt (hidden), updatedAt (hidden). Default-visible: Name, Trade, Contact.
       const table = vendorsPage.tableContainer.locator('table');
       await expect(table.getByRole('columnheader', { name: 'Name' })).toBeVisible();
-      await expect(table.getByRole('columnheader', { name: 'Phone' })).toBeVisible();
-      await expect(table.getByRole('columnheader', { name: 'Email' })).toBeVisible();
-      await expect(table.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
+      await expect(table.getByRole('columnheader', { name: 'Trade' })).toBeVisible();
+      await expect(table.getByRole('columnheader', { name: 'Contact' })).toBeVisible();
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
@@ -1103,9 +1109,10 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
     await expect(vendorsPage.heading).toBeVisible();
     await expect(vendorsPage.heading).toHaveText('Budget');
 
-    // Verify the correct sub-page loaded via the h2 section heading
-    const sectionHeading = page.getByRole('heading', { level: 2, name: 'Vendors', exact: true });
-    await expect(sectionHeading).toBeVisible();
+    // Visual cleanup #1185: the h2 "Vendors" section heading was removed.
+    // Verify correct sub-page loaded via the BudgetSubNav "Vendors" tab being visible.
+    const subNav = page.getByRole('navigation', { name: 'Budget section navigation' });
+    await expect(subNav.getByRole('listitem').filter({ hasText: 'Vendors' })).toBeVisible();
   });
 });
 

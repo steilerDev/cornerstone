@@ -442,6 +442,9 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 | `PAPERLESS_API_TOKEN`    | (none)                     | Paperless-ngx API authentication token                                                |
 | `PAPERLESS_EXTERNAL_URL` | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset)   |
 | `PAPERLESS_FILTER_TAG`   | (none)                     | Tag name for automatic document pre-filtering                                         |
+| `BACKUP_DIR`             | (none)                     | Backup destination directory (must be outside app data directory)                     |
+| `BACKUP_CADENCE`         | (none)                     | Cron expression for automatic backups (e.g., `0 2 * * *` for daily at 2 AM)           |
+| `BACKUP_RETENTION`       | (none)                     | Maximum number of backup archives to retain (oldest deleted when exceeded)            |
 
 Production images use Docker Hardened Images (DHI). See `Dockerfile` and `docker-compose.yml` for build/deploy details.
 

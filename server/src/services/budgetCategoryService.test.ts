@@ -803,4 +803,61 @@ describe('Budget Category Service', () => {
       expect(thrownError?.statusCode).toBe(409);
     });
   });
+
+  // ─── translationKey field ──────────────────────────────────────────────────
+
+  describe('translationKey field', () => {
+    it('listBudgetCategories() returns translationKey for predefined seeded categories', () => {
+      // bc-materials is seeded by migrations and given 'budgetCategories.materials' by 0030
+      const result = budgetCategoryService.listBudgetCategories(db);
+      const materials = result.find((c) => c.id === 'bc-materials');
+      expect(materials).toBeDefined();
+      expect(materials!.translationKey).toBe('budgetCategories.materials');
+    });
+
+    it('listBudgetCategories() returns null translationKey for user-created categories', () => {
+      createTestCategory('Custom Insulation');
+
+      const result = budgetCategoryService.listBudgetCategories(db);
+      const found = result.find((c) => c.name === 'Custom Insulation');
+      expect(found).toBeDefined();
+      expect(found!.translationKey).toBeNull();
+    });
+
+    it('listBudgetCategories() returns correct translationKeys for all 7 seeded categories', () => {
+      const expectedKeys: Record<string, string> = {
+        'bc-materials': 'budgetCategories.materials',
+        'bc-labor': 'budgetCategories.labor',
+        'bc-permits': 'budgetCategories.permits',
+        'bc-design': 'budgetCategories.design',
+        'bc-household-items': 'budgetCategories.householdItems',
+        'bc-waste': 'budgetCategories.waste',
+        'bc-other': 'budgetCategories.other',
+      };
+
+      const result = budgetCategoryService.listBudgetCategories(db);
+
+      for (const [id, key] of Object.entries(expectedKeys)) {
+        const cat = result.find((c) => c.id === id);
+        expect(cat).toBeDefined();
+        expect(cat!.translationKey).toBe(key);
+      }
+    });
+
+    it('getBudgetCategoryById() returns translationKey for a predefined category', () => {
+      const result = budgetCategoryService.getBudgetCategoryById(db, 'bc-labor');
+      expect(result.translationKey).toBe('budgetCategories.labor');
+    });
+
+    it('getBudgetCategoryById() returns null translationKey for user-created category', () => {
+      const cat = createTestCategory('Custom Flooring');
+      const result = budgetCategoryService.getBudgetCategoryById(db, cat.id);
+      expect(result.translationKey).toBeNull();
+    });
+
+    it('createBudgetCategory() always sets translationKey to null on new rows', () => {
+      const result = budgetCategoryService.createBudgetCategory(db, { name: 'Custom Ventilation' });
+      expect(result.translationKey).toBeNull();
+    });
+  });
 });

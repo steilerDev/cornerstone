@@ -82,6 +82,7 @@ const MilestoneDetailPage = lazy(() => import('./pages/MilestoneDetailPage/Miles
 const ManagePage = lazy(() => import('./pages/ManagePage/ManagePage.js'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage/ProfilePage'));
 const UserManagementPage = lazy(() => import('./pages/UserManagementPage/UserManagementPage'));
+const BackupsPage = lazy(() => import('./pages/BackupsPage/BackupsPage'));
 const InvoicesPage = lazy(() => import('./pages/InvoicesPage/InvoicesPage'));
 const InvoiceDetailPage = lazy(() => import('./pages/InvoiceDetailPage/InvoiceDetailPage'));
 const DiaryPage = lazy(() => import('./pages/DiaryPage/DiaryPage'));
@@ -209,6 +210,7 @@ export function App() {
                       <Route path="profile" element={<ProfilePage />} />
                       <Route path="manage" element={<ManagePage />} />
                       <Route path="users" element={<UserManagementPage />} />
+                      <Route path="backups" element={<BackupsPage />} />
                     </Route>
 
                     {/* Legacy redirects — preserve old bookmarks */}

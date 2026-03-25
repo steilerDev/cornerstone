@@ -8,6 +8,7 @@ export interface CategoryBudgetSummary {
   categoryId: string | null;
   categoryName: string;
   categoryColor: string | null;
+  categoryTranslationKey: string | null;
   minPlanned: number; // invoiced lines use actualCost; non-invoiced use confidence margins
   maxPlanned: number; // invoiced lines use actualCost; non-invoiced use confidence margins
   actualCost: number;

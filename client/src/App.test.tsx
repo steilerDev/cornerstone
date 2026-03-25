@@ -353,7 +353,7 @@ describe('App', () => {
     });
   });
 
-  it('renders the AppShell layout with sidebar and header', async () => {
+  it('renders the AppShell layout with sidebar and floating menu button', async () => {
     render(<App />);
 
     // Wait for auth loading to complete
@@ -365,9 +365,9 @@ describe('App', () => {
     const sidebar = screen.getByRole('complementary');
     expect(sidebar).toBeInTheDocument();
 
-    // Header should be present
-    const header = screen.getByRole('banner');
-    expect(header).toBeInTheDocument();
+    // Floating menu button (FAB) should be present
+    const fab = screen.getByTestId('menu-fab');
+    expect(fab).toBeInTheDocument();
 
     // Main content area should be present
     const main = screen.getByRole('main');
@@ -402,14 +402,10 @@ describe('App', () => {
     render(<App />);
 
     // /budget/categories now redirects to /settings/manage?tab=budget-categories
-    // ManagePage renders an h1 heading of "Manage"
+    // ManagePage no longer renders an h1 heading — verify by the presence of the tab buttons
     // Extended timeout: requires lazy-load of ManagePage after redirect from /budget/categories
-    const heading = await screen.findByRole(
-      'heading',
-      { name: /^manage$/i, level: 1 },
-      { timeout: 5000 },
-    );
-    expect(heading).toBeInTheDocument();
+    const tab = await screen.findByRole('tab', { name: 'Budget Categories' }, { timeout: 5000 });
+    expect(tab).toBeInTheDocument();
   });
 
   it('navigates to Schedule page when /schedule/gantt path is accessed', async () => {

@@ -40,7 +40,18 @@ Action labels in German follow the pattern: `{Noun} {Verb}` with capitalised fir
 - `de/budget.json` was missing `overview.actions` entirely at initial rollout — added 2026-03-19
 - `de/common.json` was missing `aria.noArea`, `aria.noTrade`, `aria.selectArea`, `aria.selectTrade`, `aria.selectAssignment`, `aria.unassigned`, and `assignmentPicker.*` — added 2026-03-19 (Story #1035)
 - `de/settings.json` had `manage.tags` which was replaced by `manage.areas` + `manage.trades` in Story #1035
+- `de/common.json` was missing `subnav.settings.backups` — added 2026-03-22 (Issue #1146)
+- `de/settings.json` was missing `backups` section entirely — added 2026-03-22 (Issue #1146)
+- `de/errors.json` had four backup/restore keys with empty placeholder values (left by frontend-developer) — filled in 2026-03-22 (Issue #1146)
 - Always check key parity when picking up a new translator spec
+
+## Backup/Restore Terminology (2026-03-22)
+
+- "Backup" → "Sicherung" (noun, e.g. "Sicherung erstellen", "Sicherungen")
+- "Restore" / "Restore operation" → "Wiederherstellung" / "Wiederherstellungsoperation"
+- "Backup & Restore" (page title) → "Sicherung & Wiederherstellung"
+- "Restore & Restart" (button) → "Wiederherstellen & Neu starten"
+- Frontend-developer may leave empty placeholder values in error keys when adding new error codes — the translator must fill these in.
 
 ## Initial Cleanup (2026-03-17)
 

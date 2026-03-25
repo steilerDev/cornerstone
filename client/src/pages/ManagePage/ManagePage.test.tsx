@@ -5,10 +5,12 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import type * as UseAreasTypes from '../../hooks/useAreas.js';
 import type * as UseTradesTypes from '../../hooks/useTrades.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
 import type * as HICApiTypes from '../../lib/householdItemCategoriesApi.js';
+import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type {
   BudgetCategory,
@@ -18,6 +20,13 @@ import type {
 } from '@cornerstone/shared';
 
 // ─── Mock hooks and API modules BEFORE importing components ───────────────────
+
+// Mock AuthContext — ManagePage uses useAuth() to compute isAdmin for tab visibility
+const mockUseAuth = jest.fn<typeof AuthContextTypes.useAuth>();
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: mockUseAuth,
+  AuthProvider: ({ children }: { children: ReactNode }) => children,
+}));
 
 const mockUseAreas = jest.fn<typeof UseAreasTypes.useAreas>();
 jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
@@ -51,11 +60,6 @@ jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
   createHouseholdItemCategory: mockCreateHICCategory,
   updateHouseholdItemCategory: mockUpdateHICCategory,
   deleteHouseholdItemCategory: mockDeleteHICCategory,
-}));
-
-// Mock SettingsSubNav to avoid AuthContext dependency
-jest.unstable_mockModule('../../components/SettingsSubNav/SettingsSubNav.js', () => ({
-  SettingsSubNav: () => null,
 }));
 
 // Mock AreaPicker — pure display component, no need for full rendering
@@ -104,6 +108,7 @@ const sampleTrade1: TradeResponse = {
   id: 'trade-1',
   name: 'Plumbing',
   color: '#3B82F6',
+  translationKey: null,
   description: 'Water-related work',
   sortOrder: 0,
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -114,6 +119,7 @@ const sampleTrade2: TradeResponse = {
   id: 'trade-2',
   name: 'Electrical',
   color: '#F59E0B',
+  translationKey: null,
   description: null,
   sortOrder: 1,
   createdAt: '2026-01-02T00:00:00.000Z',
@@ -125,6 +131,7 @@ const sampleBudgetCat1: BudgetCategory = {
   name: 'Materials',
   description: 'Building materials',
   color: '#FF5733',
+  translationKey: null,
   sortOrder: 0,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
@@ -135,6 +142,7 @@ const sampleBudgetCat2: BudgetCategory = {
   name: 'Labor',
   description: null,
   color: '#3B82F6',
+  translationKey: null,
   sortOrder: 1,
   createdAt: '2026-01-02T00:00:00.000Z',
   updatedAt: '2026-01-02T00:00:00.000Z',
@@ -144,6 +152,7 @@ const sampleHICat1: HouseholdItemCategoryEntity = {
   id: 'hic-1',
   name: 'Furniture',
   color: '#8B5CF6',
+  translationKey: null,
   sortOrder: 0,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
@@ -153,6 +162,7 @@ const sampleHICat2: HouseholdItemCategoryEntity = {
   id: 'hic-2',
   name: 'Appliances',
   color: '#3B82F6',
+  translationKey: null,
   sortOrder: 1,
   createdAt: '2026-01-02T00:00:00.000Z',
   updatedAt: '2026-01-02T00:00:00.000Z',
@@ -228,6 +238,26 @@ describe('ManagePage', () => {
     mockCreateHICCategory.mockReset();
     mockUpdateHICCategory.mockReset();
     mockDeleteHICCategory.mockReset();
+    mockUseAuth.mockReset();
+
+    // Default: admin user so all settings tabs are visible
+    mockUseAuth.mockReturnValue({
+      user: {
+        id: 'user-admin',
+        email: 'admin@example.com',
+        displayName: 'Admin',
+        role: 'admin' as const,
+        authProvider: 'local' as const,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+        deactivatedAt: null,
+      },
+      oidcEnabled: false,
+      isLoading: false,
+      error: null,
+      refreshAuth: jest.fn(async () => Promise.resolve()),
+      logout: jest.fn(async () => Promise.resolve()),
+    });
 
     // Default hook return values
     mockUseAreas.mockReturnValue(makeAreasHookResult());
@@ -243,11 +273,6 @@ describe('ManagePage', () => {
   // ─── Tab rendering ─────────────────────────────────────────────────────────
 
   describe('Tab navigation', () => {
-    it('renders the "Manage" page heading', async () => {
-      renderManagePage();
-      expect(screen.getByRole('heading', { name: 'Manage', level: 1 })).toBeInTheDocument();
-    });
-
     it('renders all four tab buttons', async () => {
       renderManagePage();
       expect(screen.getByRole('tab', { name: 'Areas' })).toBeInTheDocument();
@@ -610,6 +635,7 @@ describe('ManagePage', () => {
         id: 'trade-3',
         name: 'Carpentry',
         color: '#22C55E',
+        translationKey: null,
         description: null,
         sortOrder: 2,
         createdAt: '2026-03-06T00:00:00.000Z',
@@ -739,10 +765,10 @@ describe('ManagePage', () => {
       expect(screen.getByText('Labor')).toBeInTheDocument();
     });
 
-    it('shows Add Category button', async () => {
+    it('shows the create form immediately (always visible, no toggle required)', async () => {
       renderManagePage('/settings/manage?tab=budget-categories');
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
+        expect(screen.getByText('Create New Budget Category')).toBeInTheDocument();
       });
     });
 
@@ -763,17 +789,15 @@ describe('ManagePage', () => {
       });
     });
 
-    it('shows New Budget Category form when Add Category is clicked', async () => {
-      const user = userEvent.setup();
+    it('shows New Budget Category create form without any interaction required', async () => {
       renderManagePage('/settings/manage?tab=budget-categories');
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
+        expect(screen.getByText('Create New Budget Category')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: 'Add Category' }));
-
-      expect(screen.getByText('New Budget Category')).toBeInTheDocument();
+      // The create form inputs are always visible
+      expect(screen.getByRole('button', { name: 'Create Category' })).toBeInTheDocument();
     });
 
     it('delete confirmation modal appears on delete click', async () => {
@@ -807,6 +831,7 @@ describe('ManagePage', () => {
         name: 'Permits',
         description: null,
         color: '#22C55E',
+        translationKey: null,
         sortOrder: 2,
         createdAt: '2026-03-06T00:00:00.000Z',
         updatedAt: '2026-03-06T00:00:00.000Z',
@@ -816,10 +841,8 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage?tab=budget-categories');
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
+        expect(screen.getByText('Create New Budget Category')).toBeInTheDocument();
       });
-
-      await user.click(screen.getByRole('button', { name: 'Add Category' }));
 
       const nameInput = screen.getByRole('textbox', { name: /Name/i });
       await user.type(nameInput, 'Permits');
@@ -874,6 +897,7 @@ describe('ManagePage', () => {
         name: 'Materials Updated',
         description: 'Building materials',
         color: '#FF5733',
+        translationKey: null,
         sortOrder: 0,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-03-06T00:00:00.000Z',
@@ -888,9 +912,11 @@ describe('ManagePage', () => {
 
       await user.click(screen.getByRole('button', { name: 'Edit Materials' }));
 
-      const nameInput = screen.getByRole('textbox', { name: /Name/i });
-      await user.clear(nameInput);
-      await user.type(nameInput, 'Materials Updated');
+      // Both the always-visible create form and the edit form have a "Name" input
+      const nameInputs = screen.getAllByRole('textbox', { name: /Name/i });
+      const editNameInput = nameInputs[nameInputs.length - 1];
+      await user.clear(editNameInput);
+      await user.type(editNameInput, 'Materials Updated');
 
       await user.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -986,10 +1012,10 @@ describe('ManagePage', () => {
       expect(screen.getByText('Appliances')).toBeInTheDocument();
     });
 
-    it('shows Add Category button', async () => {
+    it('shows the create form immediately (always visible, no toggle required)', async () => {
       renderManagePage('/settings/manage?tab=hi-categories');
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
+        expect(screen.getByText('Create New Household Item Category')).toBeInTheDocument();
       });
     });
 
@@ -1010,17 +1036,15 @@ describe('ManagePage', () => {
       });
     });
 
-    it('shows New Household Item Category form when Add Category is clicked', async () => {
-      const user = userEvent.setup();
+    it('shows New Household Item Category create form without any interaction required', async () => {
       renderManagePage('/settings/manage?tab=hi-categories');
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
+        expect(screen.getByText('Create New Household Item Category')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: 'Add Category' }));
-
-      expect(screen.getByText('New Household Item Category')).toBeInTheDocument();
+      // The create form inputs are always visible
+      expect(screen.getByRole('button', { name: 'Create Category' })).toBeInTheDocument();
     });
 
     it('delete confirmation modal appears on delete click', async () => {
@@ -1083,6 +1107,7 @@ describe('ManagePage', () => {
         id: 'hic-1',
         name: 'Furniture Updated',
         color: '#8B5CF6',
+        translationKey: null,
         sortOrder: 0,
         createdAt: '2026-01-01T00:00:00.000Z',
         updatedAt: '2026-03-06T00:00:00.000Z',
@@ -1097,9 +1122,11 @@ describe('ManagePage', () => {
 
       await user.click(screen.getByRole('button', { name: 'Edit Furniture' }));
 
-      const nameInput = screen.getByRole('textbox', { name: /Name/i });
-      await user.clear(nameInput);
-      await user.type(nameInput, 'Furniture Updated');
+      // Both the always-visible create form and the edit form have a "Name" input
+      const nameInputs = screen.getAllByRole('textbox', { name: /Name/i });
+      const editNameInput = nameInputs[nameInputs.length - 1];
+      await user.clear(editNameInput);
+      await user.type(editNameInput, 'Furniture Updated');
 
       await user.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -1157,6 +1184,7 @@ describe('ManagePage', () => {
         id: 'hic-new',
         name: 'Garden',
         color: '#22C55E',
+        translationKey: null,
         sortOrder: 2,
         createdAt: '2026-03-06T00:00:00.000Z',
         updatedAt: '2026-03-06T00:00:00.000Z',
@@ -1166,10 +1194,8 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage?tab=hi-categories');
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
+        expect(screen.getByText('Create New Household Item Category')).toBeInTheDocument();
       });
-
-      await user.click(screen.getByRole('button', { name: 'Add Category' }));
 
       const nameInput = screen.getByRole('textbox', { name: /Name/i });
       await user.type(nameInput, 'Garden');
@@ -1188,15 +1214,13 @@ describe('ManagePage', () => {
     });
 
     it('shows validation error when name is empty', async () => {
-      const user = userEvent.setup();
       renderManagePage('/settings/manage?tab=hi-categories');
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
+        expect(screen.getByText('Create New Household Item Category')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: 'Add Category' }));
-
+      // Create Category button is disabled when name input is empty
       const createButton = screen.getByRole('button', { name: 'Create Category' });
       expect(createButton).toBeDisabled();
     });
@@ -1213,10 +1237,8 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage?tab=hi-categories');
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Add Category' })).toBeInTheDocument();
+        expect(screen.getByText('Create New Household Item Category')).toBeInTheDocument();
       });
-
-      await user.click(screen.getByRole('button', { name: 'Add Category' }));
 
       const nameInput = screen.getByRole('textbox', { name: /Name/i });
       await user.type(nameInput, 'Furniture');

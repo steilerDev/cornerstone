@@ -5,6 +5,7 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
 }
 
 .logoArea {
@@ -127,10 +128,6 @@
   background-color: var(--color-sidebar-active);
 }
 
-.sidebarHeader {
-  display: none;
-}
-
 /* Mobile and tablet: fixed position, hidden by default */
 @media (max-width: 1024px) {
   .sidebar {
@@ -138,6 +135,7 @@
     top: 0;
     left: 0;
     bottom: 0;
+    height: auto;
     width: 240px;
     z-index: var(--z-sidebar);
     transform: translateX(-100%);
@@ -147,41 +145,6 @@
 
   .sidebar.open {
     transform: translateX(0);
-  }
-
-  .sidebarHeader {
-    display: flex;
-    justify-content: flex-start;
-    padding: var(--spacing-2);
-  }
-
-  .closeButton {
-    min-width: 44px;
-    min-height: 44px;
-    border: none;
-    background: transparent;
-    color: var(--color-sidebar-text);
-    font-size: var(--font-size-2xl);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--radius-sm);
-    opacity: 0;
-    transition: opacity var(--transition-fast) 0.2s;
-  }
-
-  .closeButton:hover {
-    background-color: var(--color-sidebar-hover);
-  }
-
-  .closeButton:focus-visible {
-    outline: 2px solid var(--color-sidebar-focus-ring);
-    outline-offset: 2px;
-  }
-
-  .sidebar.open .closeButton {
-    opacity: 1;
   }
 
   .navLink {

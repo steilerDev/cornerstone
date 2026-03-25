@@ -1,10 +1,11 @@
 import { Outlet } from 'react-router-dom';
 import { Suspense, useState, useCallback, useEffect } from 'react';
-import { Header } from '../Header/Header';
+import { useTranslation } from 'react-i18next';
 import { Sidebar } from '../Sidebar/Sidebar';
 import styles from './AppShell.module.css';
 
 export function AppShell() {
+  const { t } = useTranslation('common');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleToggleSidebar = useCallback(() => {
@@ -39,8 +40,16 @@ export function AppShell() {
           data-testid="sidebar-overlay"
         />
       )}
+      <button
+        type="button"
+        className={styles.menuFab}
+        onClick={handleToggleSidebar}
+        aria-label={isSidebarOpen ? t('aria.closeMenu') : t('aria.openMenu')}
+        data-testid="menu-fab"
+      >
+        {isSidebarOpen ? '✕' : '☰'}
+      </button>
       <div className={styles.mainContent}>
-        <Header onToggleSidebar={handleToggleSidebar} isSidebarOpen={isSidebarOpen} />
         <main className={styles.pageContent}>
           <Suspense fallback={<div className={styles.loading}>Loading...</div>}>
             <Outlet />

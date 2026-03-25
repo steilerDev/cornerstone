@@ -6,7 +6,6 @@ import type { Page, Locator } from '@playwright/test';
 
 export class AppShellPage {
   readonly page: Page;
-  readonly header: Locator;
   readonly sidebar: Locator;
   readonly menuButton: Locator;
   readonly sidebarCloseButton: Locator;
@@ -15,15 +14,18 @@ export class AppShellPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.header = page.locator('header');
     this.sidebar = page.locator('aside');
-    // Scope menuButton to header to avoid strict mode violation
-    // (sidebar also has a "Close menu" button)
-    this.menuButton = page.locator('header').getByRole('button', { name: /Open menu|Close menu/ });
-    // Scope sidebarCloseButton to aside to avoid matching header button when both say "Close menu"
-    this.sidebarCloseButton = page.locator('aside').getByRole('button', { name: 'Close menu' });
+    // AppShell renders a floating action button with data-testid="menu-fab" — no <header> element.
+    // The FAB is the only menu toggle button; it is outside the sidebar (aside).
+    // When sidebar is open, the FAB aria-label becomes "Close menu" (from t('aria.closeMenu')).
+    // There is NO close button inside the <aside> — PR #1168 removed it.
+    this.menuButton = page.getByTestId('menu-fab');
+    // sidebarCloseButton is the FAB itself (it toggles: open→close, close→open).
+    // We keep it as a separate property for API compatibility; it points to the same FAB.
+    this.sidebarCloseButton = page.getByTestId('menu-fab');
     this.nav = page.getByRole('navigation', { name: 'Main navigation' });
-    this.overlay = page.locator('div[aria-hidden="true"]').last();
+    // Overlay uses data-testid="sidebar-overlay" (AppShell.tsx) — not a generic div[aria-hidden].
+    this.overlay = page.getByTestId('sidebar-overlay');
   }
 
   async openSidebar(): Promise<void> {

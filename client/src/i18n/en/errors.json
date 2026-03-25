@@ -33,5 +33,9 @@
   "ACCOUNT_LOCKED": "This account has been temporarily locked due to too many failed login attempts.",
   "INVALID_METADATA": "The entry metadata is invalid.",
   "INVALID_ENTRY_TYPE": "This diary entry type is not allowed for this operation.",
-  "IMMUTABLE_ENTRY": "This diary entry cannot be modified."
+  "IMMUTABLE_ENTRY": "This diary entry cannot be modified.",
+  "BACKUP_NOT_CONFIGURED": "Backup is not configured. Set the BACKUP_DIR environment variable.",
+  "BACKUP_IN_PROGRESS": "A backup or restore operation is already in progress.",
+  "BACKUP_NOT_FOUND": "The requested backup archive was not found.",
+  "RESTORE_FAILED": "The restore operation failed. The server may be in an inconsistent state."
 }

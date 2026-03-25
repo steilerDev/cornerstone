@@ -29,7 +29,12 @@ describe('Vendor interface', () => {
     const vendor: Vendor = {
       id: 'v-001',
       name: 'Acme Plumbing',
-      trade: { id: 'trade-plumbing', name: 'Plumbing', color: '#0EA5E9' },
+      trade: {
+        id: 'trade-plumbing',
+        name: 'Plumbing',
+        color: '#0EA5E9',
+        translationKey: 'trades.plumbing',
+      },
       phone: '+1-555-0100',
       email: 'contact@acme-plumbing.com',
       address: '123 Pipe St',
@@ -90,6 +95,7 @@ describe('Vendor interface', () => {
       id: 'trade-electrical',
       name: 'Electrical',
       color: '#F59E0B',
+      translationKey: 'trades.electrical',
     };
 
     const vendor: Vendor = {
@@ -114,7 +120,7 @@ describe('Vendor interface', () => {
     const vendor: Vendor = {
       id: 'v-005',
       name: 'Custom Trade Vendor',
-      trade: { id: 'trade-custom', name: 'Custom Trade', color: null },
+      trade: { id: 'trade-custom', name: 'Custom Trade', color: null, translationKey: null },
       phone: null,
       email: null,
       address: null,
@@ -137,7 +143,12 @@ describe('VendorDetail interface', () => {
     const detail: VendorDetail = {
       id: 'v-detail-1',
       name: 'Master Builder',
-      trade: { id: 'trade-general-contractor', name: 'General Contractor', color: '#6366F1' },
+      trade: {
+        id: 'trade-general-contractor',
+        name: 'General Contractor',
+        color: '#6366F1',
+        translationKey: 'trades.generalContractor',
+      },
       phone: '+49-555-1234',
       email: 'info@masterbuilder.com',
       address: '1 Build Ave, Munich',
@@ -352,7 +363,12 @@ describe('VendorCreateResponse interface', () => {
       vendor: {
         id: 'v-new',
         name: 'Newly Created Vendor',
-        trade: { id: 'trade-flooring', name: 'Flooring', color: '#D97706' },
+        trade: {
+          id: 'trade-flooring',
+          name: 'Flooring',
+          color: '#D97706',
+          translationKey: 'trades.flooring',
+        },
         phone: null,
         email: null,
         address: null,

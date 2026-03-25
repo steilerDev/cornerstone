@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, desc, and, asc, sql } from 'drizzle-orm';
+import { eq, desc, and, asc, sql, gte, lte } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { invoices, vendors, users } from '../db/schema.js';
@@ -12,6 +12,7 @@ import type {
   PaginationMeta,
   InvoiceStatusBreakdown,
   InvoiceStatusSummary,
+  FilterMeta,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
@@ -126,26 +127,71 @@ export function listAllInvoices(
     q?: string;
     status?: InvoiceStatus;
     vendorId?: string;
+    amountMin?: number;
+    amountMax?: number;
+    dateFrom?: string;
+    dateTo?: string;
+    dueDateFrom?: string;
+    dueDateTo?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   },
-): { invoices: Invoice[]; pagination: PaginationMeta; summary: InvoiceStatusBreakdown } {
+): {
+  invoices: Invoice[];
+  pagination: PaginationMeta;
+  summary: InvoiceStatusBreakdown;
+  filterMeta: FilterMeta;
+} {
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
   const sortOrder = query.sortOrder ?? 'desc';
 
-  // Build WHERE conditions
-  const conditions = [];
+  // Build base conditions (excluding numeric amount range filter)
+  const baseConditions = [];
   if (query.status) {
-    conditions.push(eq(invoices.status, query.status));
+    baseConditions.push(eq(invoices.status, query.status));
   }
   if (query.vendorId) {
-    conditions.push(eq(invoices.vendorId, query.vendorId));
+    baseConditions.push(eq(invoices.vendorId, query.vendorId));
   }
   if (query.q) {
     const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
     const pattern = `%${escapedQ}%`;
-    conditions.push(sql`LOWER(${invoices.invoiceNumber}) LIKE LOWER(${pattern}) ESCAPE '\\'`);
+    baseConditions.push(sql`LOWER(${invoices.invoiceNumber}) LIKE LOWER(${pattern}) ESCAPE '\\'`);
+  }
+  if (query.dateFrom) {
+    baseConditions.push(gte(invoices.date, query.dateFrom));
+  }
+  if (query.dateTo) {
+    baseConditions.push(lte(invoices.date, query.dateTo));
+  }
+  if (query.dueDateFrom) {
+    baseConditions.push(gte(invoices.dueDate, query.dueDateFrom));
+  }
+  if (query.dueDateTo) {
+    baseConditions.push(lte(invoices.dueDate, query.dueDateTo));
+  }
+
+  const baseWhereClause = baseConditions.length > 0 ? and(...baseConditions) : undefined;
+
+  // Compute filterMeta from base conditions
+  const metaRow = db
+    .select({
+      amountMin: sql<number>`COALESCE(MIN(${invoices.amount}), 0)`,
+      amountMax: sql<number>`COALESCE(MAX(${invoices.amount}), 0)`,
+    })
+    .from(invoices)
+    .innerJoin(vendors, eq(invoices.vendorId, vendors.id))
+    .where(baseWhereClause)
+    .get();
+
+  // Build full conditions with numeric amount range filter for main query
+  const conditions = [...baseConditions];
+  if (query.amountMin !== undefined) {
+    conditions.push(gte(invoices.amount, query.amountMin));
+  }
+  if (query.amountMax !== undefined) {
+    conditions.push(lte(invoices.amount, query.amountMax));
   }
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -226,10 +272,15 @@ export function listAllInvoices(
     toInvoice(db, row, vendorName),
   );
 
+  const filterMeta: FilterMeta = {
+    amount: { min: metaRow?.amountMin ?? 0, max: metaRow?.amountMax ?? 0 },
+  };
+
   return {
     invoices: invoiceList,
     pagination: { page, pageSize, totalItems, totalPages },
     summary,
+    filterMeta,
   };
 }
 

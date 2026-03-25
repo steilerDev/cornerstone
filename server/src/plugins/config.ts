@@ -25,6 +25,10 @@ export interface AppConfig {
   photoMaxFileSizeMb: number;
   diaryAutoEvents: boolean;
   currency: string;
+  backupDir?: string;
+  backupCadence?: string;
+  backupRetention?: number;
+  backupEnabled: boolean;
 }
 
 // Type augmentation: makes fastify.config available across all routes/plugins
@@ -205,6 +209,38 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   }
   const currency = currencyRaw;
 
+  // Backup configuration (all optional)
+  const backupDir = getValue('BACKUP_DIR');
+  const backupCadence = getValue('BACKUP_CADENCE');
+
+  const backupRetentionStr = getValue('BACKUP_RETENTION');
+  let backupRetention: number | undefined = undefined;
+  if (backupRetentionStr !== undefined) {
+    const parsed = parseInt(backupRetentionStr, 10);
+    if (isNaN(parsed) || parsed <= 0) {
+      errors.push(`BACKUP_RETENTION must be a positive integer, got: ${backupRetentionStr}`);
+    } else {
+      backupRetention = parsed;
+    }
+  }
+
+  // Validate that BACKUP_DIR is not a child of the app data directory
+  if (backupDir) {
+    const dataDir = path.dirname(databaseUrl);
+    const resolvedBackupDir = path.resolve(backupDir);
+    const resolvedDataDir = path.resolve(dataDir);
+    if (
+      resolvedBackupDir.startsWith(resolvedDataDir + path.sep) ||
+      resolvedBackupDir === resolvedDataDir
+    ) {
+      errors.push(
+        `BACKUP_DIR must not be the same as or a subdirectory of the app data directory (${dataDir})`,
+      );
+    }
+  }
+
+  const backupEnabled = !!backupDir;
+
   // If there are any validation errors, throw a single error listing all of them
   if (errors.length > 0) {
     throw new Error(`Configuration validation failed:\n  - ${errors.join('\n  - ')}`);
@@ -233,6 +269,10 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     photoMaxFileSizeMb,
     diaryAutoEvents,
     currency,
+    backupDir,
+    backupCadence,
+    backupRetention,
+    backupEnabled,
   };
 }
 
@@ -262,6 +302,8 @@ export default fp(
         photoMaxFileSizeMb: config.photoMaxFileSizeMb,
         diaryAutoEvents: config.diaryAutoEvents,
         currency: config.currency,
+        backupEnabled: config.backupEnabled,
+        backupDir: config.backupDir,
       },
       'Configuration loaded',
     );

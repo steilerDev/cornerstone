@@ -205,9 +205,14 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
     // Given: Language is set to German
     await setLanguage(page, 'de');
 
-    // When: User navigates to dashboard
-    await page.goto(ROUTES.home);
-    await page.waitForLoadState('networkidle');
+    // When: User navigates to dashboard with a fresh full page load
+    // setLanguage navigates to '/' (which redirects to /project/overview) and writes
+    // localStorage. A second goto to the same URL may not trigger a full reload, so
+    // we navigate with waitUntil: 'commit' and then wait for the German heading to
+    // confirm i18next has initialised with the correct locale.
+    await page.goto(ROUTES.home, { waitUntil: 'commit' });
+    // Wait for German page heading to confirm locale switch took effect
+    await page.getByRole('heading', { level: 1, name: 'Projekt' }).waitFor({ state: 'visible' });
 
     // Then: All navigation links are visible and not overflowing
     const sidebar = page.locator('aside');
@@ -230,11 +235,11 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
     // German: "Budget" heading stays "Budget" in German (same word)
     await page.getByRole('heading', { level: 1, name: 'Budget' }).waitFor({ state: 'visible' });
 
-    // Then: The section heading is in German
-    // budget.json vendors.sectionTitle = "Auftragnehmer" (German for Vendors/Contractors)
-    await expect(
-      page.getByRole('heading', { level: 2, name: 'Auftragnehmer' }).first(),
-    ).toBeVisible();
+    // Then: The Budget sub-nav shows "Auftragnehmer" (German for Vendors/Contractors)
+    // Visual cleanup #1185: the h2 "Vendors" section heading was removed from VendorsPage.
+    // The sub-nav listitem is the reliable indicator that the page is in German and loaded.
+    const subNav = page.getByRole('navigation', { name: 'Budget section navigation' });
+    await expect(subNav.getByRole('listitem').filter({ hasText: 'Auftragnehmer' })).toBeVisible();
   });
 
   test('German text renders on work items page', async ({ page }) => {

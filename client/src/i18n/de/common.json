@@ -18,7 +18,8 @@
     "create": "Erstellen",
     "confirm": "Bestätigen",
     "back": "Zurück",
-    "search": "Suchen"
+    "search": "Suchen",
+    "clearFilters": "Filter zurücksetzen"
   },
   "aria": {
     "closeMenu": "Menü schließen",
@@ -85,6 +86,7 @@
   "toast": {
     "dismissAriaLabel": "Benachrichtigung schließen"
   },
+  "actions": "Aktionen",
   "assignmentPicker": {
     "usersGroup": "Benutzer",
     "vendorsGroup": "Auftragnehmer"
@@ -106,7 +108,63 @@
     "settings": {
       "profile": "Profil",
       "manage": "Verwalten",
-      "userManagement": "Benutzerverwaltung"
+      "userManagement": "Benutzerverwaltung",
+      "backups": "Sicherungen"
     }
+  },
+  "dataTable": {
+    "search": {
+      "placeholder": "Suchen...",
+      "ariaLabel": "Elemente suchen"
+    },
+    "filter": {
+      "all": "Alle",
+      "yes": "Ja",
+      "no": "Nein",
+      "min": "Min",
+      "max": "Max",
+      "from": "Von",
+      "to": "Bis",
+      "clearFilter": "Zurücksetzen",
+      "applyFilter": "Anwenden",
+      "filterByColumn": "Nach {{column}} filtern",
+      "textPlaceholder": "Suchen...",
+      "searchPlaceholder": "Suchen...",
+      "booleanAriaLabel": "Boolesche Filteroption",
+      "selectAll": "Alle auswählen",
+      "selectNone": "Keine auswählen",
+      "dateRangeAriaLabel": "Datumsbereichsauswahl"
+    },
+    "sort": {
+      "ascending": "Aufsteigend sortieren",
+      "descending": "Absteigend sortieren",
+      "none": "Keine Sortierung",
+      "ariaLabel": "Nach {{column}} sortieren"
+    },
+    "columnSettings": {
+      "ariaLabel": "Spalteneinstellungen",
+      "title": "Sichtbare Spalten",
+      "resetToDefaults": "Standardeinstellungen wiederherstellen",
+      "dragHandleAriaLabel": "{{column}}-Spalte zum Neuanordnen ziehen"
+    },
+    "pagination": {
+      "showing": "Zeige {{from}}–{{to}} von {{total}} Einträgen",
+      "page": "Seite {{page}} von {{totalPages}}",
+      "previous": "Zurück",
+      "next": "Weiter",
+      "pageSize": "Pro Seite"
+    },
+    "empty": {
+      "defaultMessage": "Keine Einträge gefunden",
+      "filteredMessage": "Keine Einträge entsprechen den aktuellen Filtern"
+    },
+    "loading": "Tabellendaten werden geladen..."
+  },
+  "dateRangePicker": {
+    "previousMonth": "Vorheriger Monat",
+    "nextMonth": "Nächster Monat",
+    "selectStart": "Startdatum auswählen",
+    "selectEnd": "Enddatum auswählen",
+    "calendarGridAriaLabel": "Kalender"
   }
 }

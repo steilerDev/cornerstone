@@ -11,12 +11,22 @@ import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverv
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
-import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
+import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
+import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
 import { Tooltip } from '../../components/Tooltip/Tooltip.js';
 import { CostBreakdownTable } from '../../components/CostBreakdownTable/CostBreakdownTable.js';
 import styles from './BudgetOverviewPage.module.css';
+
+const BUDGET_TABS: SubNavTab[] = [
+  { labelKey: 'subnav.budget.overview', to: '/budget/overview' },
+  { labelKey: 'subnav.budget.invoices', to: '/budget/invoices' },
+  { labelKey: 'subnav.budget.vendors', to: '/budget/vendors' },
+  { labelKey: 'subnav.budget.sources', to: '/budget/sources' },
+  { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
+];
 
 /** Stable empty set passed to CostBreakdownTable so it always shows all categories. */
 const emptyCategories = new Set<string | null>();
@@ -39,7 +49,8 @@ interface CategoryFilterProps {
 }
 
 function CategoryFilter({ categories, selectedIds, onChange }: CategoryFilterProps) {
-  const { t } = useTranslation('budget');
+  const { t: tBudget } = useTranslation('budget');
+  const { t: tSettings } = useTranslation('settings');
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const allSelected = selectedIds.size === categories.length;
@@ -87,13 +98,13 @@ function CategoryFilter({ categories, selectedIds, onChange }: CategoryFilterPro
   // Button label
   let label: string;
   if (allSelected) {
-    label = t('overview.allCategories');
+    label = tBudget('overview.allCategories');
   } else if (selectedIds.size === 0) {
-    label = t('overview.noCategories');
+    label = tBudget('overview.noCategories');
   } else if (selectedIds.size <= 2) {
     label = categories
       .filter((c) => selectedIds.has(c.categoryId))
-      .map((c) => c.categoryName)
+      .map((c) => getCategoryDisplayName(tSettings, c.categoryName, c.categoryTranslationKey))
       .join(', ');
   } else {
     label = `${selectedIds.size} of ${categories.length} categories`;
@@ -109,7 +120,7 @@ function CategoryFilter({ categories, selectedIds, onChange }: CategoryFilterPro
         onClick={() => setOpen((v) => !v)}
       >
         <span>
-          {t('overview.categories')}: {label}
+          {tBudget('overview.categories')}: {label}
         </span>
         <span className={styles.categoryFilterChevron} aria-hidden="true">
           {open ? '▲' : '▼'}
@@ -121,10 +132,10 @@ function CategoryFilter({ categories, selectedIds, onChange }: CategoryFilterPro
           {/* Select All / Clear All */}
           <div className={styles.categoryDropdownActions}>
             <button type="button" className={styles.dropdownAction} onClick={selectAll}>
-              {t('overview.selectAll')}
+              {tBudget('overview.selectAll')}
             </button>
             <button type="button" className={styles.dropdownAction} onClick={clearAll}>
-              {t('overview.clearAll')}
+              {tBudget('overview.clearAll')}
             </button>
           </div>
 
@@ -151,7 +162,9 @@ function CategoryFilter({ categories, selectedIds, onChange }: CategoryFilterPro
                 ) : (
                   <span className={styles.categoryDot} aria-hidden="true" />
                 )}
-                <span className={styles.categoryOptionName}>{cat.categoryName}</span>
+                <span className={styles.categoryOptionName}>
+                  {getCategoryDisplayName(tSettings, cat.categoryName, cat.categoryTranslationKey)}
+                </span>
               </label>
             );
           })}
@@ -423,89 +436,82 @@ export function BudgetOverviewPage() {
     setMobileBarOpen((v) => !v);
   }, []);
 
-  // Page header JSX (reused across loading, error, and main states)
-  const pageHeaderJsx = (
-    <div className={styles.pageHeader}>
-      <h1 className={styles.pageTitle}>{t('overview.title')}</h1>
-      <div className={styles.addContainer} ref={addRef}>
-        <button
-          type="button"
-          className={styles.addButton}
-          onClick={() => setAddOpen((v) => !v)}
-          aria-haspopup="menu"
-          aria-expanded={addOpen}
-          aria-label={t('overview.actions.addButton')}
-          data-testid="budget-overview-add-button"
-        >
-          {t('overview.actions.addButton')}
-        </button>
-        {addOpen && (
-          <div className={styles.addDropdown} role="menu">
-            <button
-              type="button"
-              className={styles.addMenuItem}
-              role="menuitem"
-              onClick={() => {
-                setAddOpen(false);
-                void navigate('/budget/invoices');
-              }}
-              data-testid="budget-overview-add-invoice"
-            >
-              {t('overview.actions.addInvoice')}
-            </button>
-            <button
-              type="button"
-              className={styles.addMenuItem}
-              role="menuitem"
-              onClick={() => {
-                setAddOpen(false);
-                void navigate('/budget/vendors');
-              }}
-              data-testid="budget-overview-add-vendor"
-            >
-              {t('overview.actions.addVendor')}
-            </button>
-          </div>
-        )}
-      </div>
+  // Action dropdown (reused across loading, error, and main states)
+  const actionDropdown = (
+    <div className={styles.addContainer} ref={addRef}>
+      <button
+        type="button"
+        className={styles.addButton}
+        onClick={() => setAddOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={addOpen}
+        aria-label={t('overview.actions.addButton')}
+        data-testid="budget-overview-add-button"
+      >
+        {t('overview.actions.addButton')}
+      </button>
+      {addOpen && (
+        <div className={styles.addDropdown} role="menu">
+          <button
+            type="button"
+            className={styles.addMenuItem}
+            role="menuitem"
+            onClick={() => {
+              setAddOpen(false);
+              void navigate('/budget/invoices');
+            }}
+            data-testid="budget-overview-add-invoice"
+          >
+            {t('overview.actions.addInvoice')}
+          </button>
+          <button
+            type="button"
+            className={styles.addMenuItem}
+            role="menuitem"
+            onClick={() => {
+              setAddOpen(false);
+              void navigate('/budget/vendors');
+            }}
+            data-testid="budget-overview-add-vendor"
+          >
+            {t('overview.actions.addVendor')}
+          </button>
+        </div>
+      )}
     </div>
   );
 
   // ---- Loading state ----
   if (isLoading) {
     return (
-      <div className={styles.container}>
-        <div className={styles.content}>
-          {pageHeaderJsx}
-          <BudgetSubNav />
-          <div className={styles.loading} role="status" aria-label={t('overview.loading')}>
-            {t('overview.loading')}
-          </div>
+      <PageLayout
+        title={t('overview.title')}
+        action={actionDropdown}
+        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+      >
+        <div className={styles.loading} role="status" aria-label={t('overview.loading')}>
+          {t('overview.loading')}
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   // ---- Error state ----
   if (error) {
     return (
-      <div className={styles.container}>
-        <div className={styles.content}>
-          {pageHeaderJsx}
-          <BudgetSubNav />
-          <div className={styles.errorCard} role="alert">
-            <h2 className={styles.errorTitle}>{t('overview.error')}</h2>
-            <p>{error}</p>
-            <button
-              type="button"
-              className={styles.retryButton}
-              onClick={() => void loadOverview()}
-            >
-              {t('overview.retry')}
-            </button>
-          </div>
+      <PageLayout
+        title={t('overview.title')}
+        action={actionDropdown}
+        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+      >
+        <div className={styles.errorCard} role="alert">
+          <h2 className={styles.errorTitle}>{t('overview.error')}</h2>
+          <p>{error}</p>
+          <button type="button" className={styles.retryButton} onClick={() => void loadOverview()}>
+            {t('overview.retry')}
+          </button>
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
@@ -643,181 +649,170 @@ export function BudgetOverviewPage() {
   );
 
   return (
-    <div className={styles.container}>
-      <div className={styles.content}>
-        {/* Page header */}
-        {pageHeaderJsx}
+    <PageLayout
+      title={t('overview.title')}
+      action={actionDropdown}
+      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+    >
+      {/* Empty state */}
+      {!hasData && (
+        <div className={styles.emptyState}>
+          <p className={styles.emptyStateTitle}>{t('overview.emptyStateTitle')}</p>
+          <p className={styles.emptyStateDescription}>{t('overview.emptyStateDescription')}</p>
+        </div>
+      )}
 
-        {/* Budget sub-navigation */}
-        <BudgetSubNav />
-
-        {/* Empty state */}
-        {!hasData && (
-          <div className={styles.emptyState}>
-            <p className={styles.emptyStateTitle}>{t('overview.emptyStateTitle')}</p>
-            <p className={styles.emptyStateDescription}>{t('overview.emptyStateDescription')}</p>
+      {/* ========================================================
+       * Budget Health Hero Card
+       * ======================================================== */}
+      <section className={styles.heroCard} aria-label="Budget overview">
+        {/* Key metrics row */}
+        <div className={`${styles.metricsRow} ${hasPayback ? styles.metricsRowWithPayback : ''}`}>
+          {/* Available Funds */}
+          <div className={styles.metricGroup}>
+            <span className={styles.metricLabel}>{t('overview.availableFunds')}</span>
+            <span className={styles.metricValue}>{formatCurrency(overview.availableFunds)}</span>
           </div>
-        )}
 
-        {/* ========================================================
-         * Budget Health Hero Card
-         * ======================================================== */}
-        <section className={styles.heroCard} aria-label="Budget overview">
-          {/* Key metrics row */}
-          <div className={`${styles.metricsRow} ${hasPayback ? styles.metricsRowWithPayback : ''}`}>
-            {/* Available Funds */}
-            <div className={styles.metricGroup}>
-              <span className={styles.metricLabel}>{t('overview.availableFunds')}</span>
-              <span className={styles.metricValue}>{formatCurrency(overview.availableFunds)}</span>
-            </div>
+          {/* Projected Cost Range */}
+          <div className={styles.metricGroup}>
+            <span className={styles.metricLabel}>{t('overview.projectedCostRange')}</span>
+            <span className={styles.metricValue}>
+              <span className={styles.metricRange}>
+                {formatShort(filtered.minPlanned)}
+                <span className={styles.metricRangeSep}>&ndash;</span>
+                {formatShort(filtered.maxPlanned)}
+              </span>
+            </span>
+          </div>
 
-            {/* Projected Cost Range */}
+          {/* Expected Payback (only when hasPayback) */}
+          {hasPayback && (
             <div className={styles.metricGroup}>
-              <span className={styles.metricLabel}>{t('overview.projectedCostRange')}</span>
-              <span className={styles.metricValue}>
+              <span className={styles.metricLabel}>{t('overview.expectedPayback')}</span>
+              <span
+                className={`${styles.metricValue} ${styles.metricPaybackValue}`}
+                aria-live="polite"
+                aria-atomic="true"
+              >
                 <span className={styles.metricRange}>
-                  {formatShort(filtered.minPlanned)}
-                  <span className={styles.metricRangeSep}>&ndash;</span>
-                  {formatShort(filtered.maxPlanned)}
+                  {formatShort(overview.subsidySummary.minTotalPayback)}
+                  {overview.subsidySummary.minTotalPayback !==
+                  overview.subsidySummary.maxTotalPayback ? (
+                    <>
+                      <span className={styles.metricRangeSep}>&ndash;</span>
+                      {formatShort(overview.subsidySummary.maxTotalPayback)}
+                    </>
+                  ) : null}
                 </span>
               </span>
+              {overview.subsidySummary.oversubscribedSubsidies?.length > 0 && (
+                <span className={styles.paybackCappedNote}>{t('overview.paybackCapped')}</span>
+              )}
             </div>
+          )}
 
-            {/* Expected Payback (only when hasPayback) */}
-            {hasPayback && (
-              <div className={styles.metricGroup}>
-                <span className={styles.metricLabel}>{t('overview.expectedPayback')}</span>
-                <span
-                  className={`${styles.metricValue} ${styles.metricPaybackValue}`}
-                  aria-live="polite"
-                  aria-atomic="true"
-                >
-                  <span className={styles.metricRange}>
-                    {formatShort(overview.subsidySummary.minTotalPayback)}
-                    {overview.subsidySummary.minTotalPayback !==
-                    overview.subsidySummary.maxTotalPayback ? (
-                      <>
-                        <span className={styles.metricRangeSep}>&ndash;</span>
-                        {formatShort(overview.subsidySummary.maxTotalPayback)}
-                      </>
-                    ) : null}
-                  </span>
-                </span>
-                {overview.subsidySummary.oversubscribedSubsidies?.length > 0 && (
-                  <span className={styles.paybackCappedNote}>{t('overview.paybackCapped')}</span>
-                )}
-              </div>
-            )}
-
-            {/* Remaining (best/worst) — with detail on hover/tap */}
-            <div className={styles.metricGroup}>
-              <span className={styles.metricLabel}>{t('overview.remaining')}</span>
-              <Tooltip content={remainingTooltipContent}>
-                <button
-                  type="button"
-                  className={`${styles.metricValue} ${styles.metricValueInteractive}`}
-                  aria-label={t('overview.remainingDetail')}
-                  onClick={() => setRemainingDetailOpen((v) => !v)}
-                >
-                  <span
-                    className={remainingMin >= 0 ? styles.metricPositive : styles.metricNegative}
-                  >
-                    {formatShort(remainingMin)}
-                  </span>
-                  <span className={styles.metricRangeSep}>&ndash;</span>
-                  <span
-                    className={remainingMax >= 0 ? styles.metricPositive : styles.metricNegative}
-                  >
-                    {formatShort(remainingMax)}
-                  </span>
-                  <span className={styles.metricHint} aria-hidden="true">
-                    &#9432;
-                  </span>
-                </button>
-              </Tooltip>
-
-              {/* Mobile inline remaining detail — toggled by tap */}
-              <div
-                className={`${styles.remainingDetailPanel} ${remainingDetailOpen ? styles.remainingDetailPanelOpen : ''}`}
-                aria-hidden={!remainingDetailOpen}
+          {/* Remaining (best/worst) — with detail on hover/tap */}
+          <div className={styles.metricGroup}>
+            <span className={styles.metricLabel}>{t('overview.remaining')}</span>
+            <Tooltip content={remainingTooltipContent}>
+              <button
+                type="button"
+                className={`${styles.metricValue} ${styles.metricValueInteractive}`}
+                aria-label={t('overview.remainingDetail')}
+                onClick={() => setRemainingDetailOpen((v) => !v)}
               >
-                <RemainingDetailPanel
-                  items={remainingDetailItems}
-                  formatCurrency={formatCurrency}
-                />
-              </div>
+                <span className={remainingMin >= 0 ? styles.metricPositive : styles.metricNegative}>
+                  {formatShort(remainingMin)}
+                </span>
+                <span className={styles.metricRangeSep}>&ndash;</span>
+                <span className={remainingMax >= 0 ? styles.metricPositive : styles.metricNegative}>
+                  {formatShort(remainingMax)}
+                </span>
+                <span className={styles.metricHint} aria-hidden="true">
+                  &#9432;
+                </span>
+              </button>
+            </Tooltip>
+
+            {/* Mobile inline remaining detail — toggled by tap */}
+            <div
+              className={`${styles.remainingDetailPanel} ${remainingDetailOpen ? styles.remainingDetailPanelOpen : ''}`}
+              aria-hidden={!remainingDetailOpen}
+            >
+              <RemainingDetailPanel items={remainingDetailItems} formatCurrency={formatCurrency} />
             </div>
           </div>
+        </div>
 
-          {/* Stacked bar */}
-          <div className={styles.barWrapper}>
-            <BudgetBar
-              segments={segmentsForBar}
-              maxValue={Math.max(overview.availableFunds, filtered.maxPlanned, 1)}
-              overflow={overflow}
-              height="lg"
-              onSegmentHover={handleSegmentHover}
-              onSegmentClick={handleSegmentClick}
-              formatValue={formatCurrency}
-            />
+        {/* Stacked bar */}
+        <div className={styles.barWrapper}>
+          <BudgetBar
+            segments={segmentsForBar}
+            maxValue={Math.max(overview.availableFunds, filtered.maxPlanned, 1)}
+            overflow={overflow}
+            height="lg"
+            onSegmentHover={handleSegmentHover}
+            onSegmentClick={handleSegmentClick}
+            formatValue={formatCurrency}
+          />
 
-            {/* Desktop floating tooltip anchored below bar */}
-            {hoveredSegment && (
-              <div className={styles.barTooltipAnchor} role="status" aria-live="polite">
-                <SegmentTooltipContent
-                  segment={hoveredSegment}
-                  availableFunds={overview.availableFunds}
-                  formatCurrency={formatCurrency}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Mobile bar detail panel */}
-          <div
-            className={`${styles.mobileDetail} ${mobileBarOpen ? styles.mobileDetailOpen : ''}`}
-            aria-hidden={!mobileBarOpen}
-          >
-            <MobileBarDetail
-              segments={segmentsForBar}
-              overflow={overflow}
-              availableFunds={overview.availableFunds}
-              formatCurrency={formatCurrency}
-            />
-          </div>
-
-          {/* Category filter */}
-          {overview.categorySummaries.length > 0 && (
-            <div className={styles.categoryFilterRow}>
-              <CategoryFilter
-                categories={overview.categorySummaries}
-                selectedIds={selectedCategories}
-                onChange={setSelectedCategories}
+          {/* Desktop floating tooltip anchored below bar */}
+          {hoveredSegment && (
+            <div className={styles.barTooltipAnchor} role="status" aria-live="polite">
+              <SegmentTooltipContent
+                segment={hoveredSegment}
+                availableFunds={overview.availableFunds}
+                formatCurrency={formatCurrency}
               />
             </div>
           )}
-        </section>
+        </div>
 
-        {/* Cost Breakdown Table */}
-        {overview &&
-          (isBreakdownLoading ? (
-            <div
-              className={styles.breakdownLoading}
-              role="status"
-              aria-label={t('overview.costBreakdown.loading')}
-            >
-              <p>{t('overview.costBreakdown.loading')}</p>
-            </div>
-          ) : breakdown ? (
-            <CostBreakdownTable
-              breakdown={breakdown}
-              overview={overview}
-              selectedCategories={emptyCategories}
-              budgetSources={budgetSources}
+        {/* Mobile bar detail panel */}
+        <div
+          className={`${styles.mobileDetail} ${mobileBarOpen ? styles.mobileDetailOpen : ''}`}
+          aria-hidden={!mobileBarOpen}
+        >
+          <MobileBarDetail
+            segments={segmentsForBar}
+            overflow={overflow}
+            availableFunds={overview.availableFunds}
+            formatCurrency={formatCurrency}
+          />
+        </div>
+
+        {/* Category filter */}
+        {overview.categorySummaries.length > 0 && (
+          <div className={styles.categoryFilterRow}>
+            <CategoryFilter
+              categories={overview.categorySummaries}
+              selectedIds={selectedCategories}
+              onChange={setSelectedCategories}
             />
-          ) : null)}
-      </div>
-    </div>
+          </div>
+        )}
+      </section>
+
+      {/* Cost Breakdown Table */}
+      {overview &&
+        (isBreakdownLoading ? (
+          <div
+            className={styles.breakdownLoading}
+            role="status"
+            aria-label={t('overview.costBreakdown.loading')}
+          >
+            <p>{t('overview.costBreakdown.loading')}</p>
+          </div>
+        ) : breakdown ? (
+          <CostBreakdownTable
+            breakdown={breakdown}
+            overview={overview}
+            selectedCategories={emptyCategories}
+            budgetSources={budgetSources}
+          />
+        ) : null)}
+    </PageLayout>
   );
 }
 

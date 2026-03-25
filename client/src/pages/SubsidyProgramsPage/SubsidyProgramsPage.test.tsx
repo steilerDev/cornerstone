@@ -98,6 +98,7 @@ describe('SubsidyProgramsPage', () => {
     name: 'Materials',
     description: null,
     color: '#ff0000',
+    translationKey: null,
     sortOrder: 1,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
@@ -108,6 +109,7 @@ describe('SubsidyProgramsPage', () => {
     name: 'Labor',
     description: null,
     color: '#0000ff',
+    translationKey: null,
     sortOrder: 2,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
@@ -258,16 +260,13 @@ describe('SubsidyProgramsPage', () => {
   // ─── Page structure ────────────────────────────────────────────────────────
 
   describe('page structure', () => {
-    it('renders the page heading "Budget" and section heading "Subsidy Programs"', async () => {
+    it('renders the page heading "Budget"', async () => {
       mockFetchSubsidyPrograms.mockResolvedValueOnce(emptyProgramsResponse);
 
       renderPage();
 
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
-        expect(
-          screen.getByRole('heading', { name: /subsidy programs/i, level: 2 }),
-        ).toBeInTheDocument();
       });
     });
 

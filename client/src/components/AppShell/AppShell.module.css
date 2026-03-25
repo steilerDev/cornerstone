@@ -38,3 +38,48 @@
     display: block;
   }
 }
+
+.menuFab {
+  display: none;
+  position: fixed;
+  bottom: var(--spacing-6);
+  right: var(--spacing-6);
+  min-width: 44px;
+  min-height: 44px;
+  width: var(--spacing-12);
+  height: var(--spacing-12);
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  font-size: var(--font-size-2xl);
+  border: none;
+  cursor: pointer;
+  z-index: calc(var(--z-overlay) + 10);
+  box-shadow: var(--shadow-md);
+  transition: var(--transition-button);
+}
+
+.menuFab:hover {
+  background-color: var(--color-primary-hover);
+  box-shadow: var(--shadow-lg);
+}
+
+.menuFab:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* Mobile and tablet: show floating menu button */
+@media (max-width: 1024px) {
+  .menuFab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menuFab {
+    transition: none;
+  }
+}

@@ -3,7 +3,8 @@
  *
  * The page renders:
  * - A page header with h1 "Work Items" and a "New Work Item" button (navigates to /project/work-items/new)
- * - A search input and filter/sort controls (status, user, tag, sortBy, sort order toggle)
+ * - A DataTable with search input (aria-label="Search items") and per-column filter buttons
+ * - Filter buttons in column headers: aria-label="Filter by {column label}" (Status, Assigned To, etc.)
  * - A data table (desktop, class tableContainer) and card list (mobile, class cardsContainer)
  * - Pagination controls when totalPages > 1
  * - An empty state when no work items exist or no items match filters
@@ -14,9 +15,10 @@
  * - "New Work Item" is a <button> (not a <Link>) that calls navigate('/project/work-items/new')
  * - The delete modal uses role="dialog" with aria-modal="true" (no aria-labelledby)
  * - The confirm delete button uses class `confirmDeleteButton` (not an accessible name)
- * - Empty state renders an h2: "No work items yet" or "No work items match your filters"
+ * - Empty state rendered by DataTable EmptyState component
  * - Table rows are clickable and navigate to detail page
  * - Actions menu button: aria-label="Actions menu" (⋮)
+ * - No standalone sort select or order toggle — sorting via column header clicks
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -70,12 +72,19 @@ export class WorkItemsPage {
     this.newWorkItemButton = page.getByRole('button', { name: /New Work Item/ });
 
     // Search and filters
-    this.searchInput = page.getByLabel('Search work items');
-    this.statusFilter = page.locator('#status-filter');
-    this.userFilter = page.locator('#user-filter');
-    this.tagFilter = page.locator('#tag-filter');
-    this.sortFilter = page.locator('#sort-filter');
-    this.sortOrderButton = page.getByLabel('Toggle sort order');
+    // DataTable renders a generic search input with aria-label="Search items" for all pages.
+    this.searchInput = page.getByLabel('Search items');
+    // DataTable filters are column-header filter buttons, not standalone <select> elements.
+    // Each filterable column header renders a button with aria-label="Filter by {column label}".
+    // Column labels come from workItems i18n: Status, Assigned To, Vendor.
+    this.statusFilter = page.getByRole('button', { name: 'Filter by Status' });
+    this.userFilter = page.getByRole('button', { name: 'Filter by Assigned To' });
+    // Tags column was removed — tagFilter kept for API compatibility, points to userFilter.
+    this.tagFilter = page.getByRole('button', { name: 'Filter by Assigned To' });
+    // sortFilter and sortOrderButton do not exist in DataTable — no standalone sort controls.
+    // Sorting is triggered by clicking sortable column headers.
+    this.sortFilter = page.locator('[aria-label="Column settings"]');
+    this.sortOrderButton = page.locator('[aria-label="Column settings"]');
 
     // Table (desktop)
     this.tableContainer = page.locator('[class*="tableContainer"]');
@@ -87,8 +96,9 @@ export class WorkItemsPage {
     // Pagination — use `.first()` because `[class*="pagination"]` matches
     // the outer container and child elements (paginationInfo, paginationButton, etc.)
     this.pagination = page.locator('[class*="pagination"]').first();
-    this.prevPageButton = page.getByLabel('Previous page');
-    this.nextPageButton = page.getByLabel('Next page');
+    // DataTable pagination uses aria-label from common.json: "Previous" and "Next"
+    this.prevPageButton = page.getByLabel('Previous');
+    this.nextPageButton = page.getByLabel('Next');
 
     // Empty state — use .first() to avoid strict mode: child elements such as
     // emptyStateTitle/emptyStateDescription also contain "emptyState" in their class names.
@@ -99,8 +109,9 @@ export class WorkItemsPage {
 
     // Delete confirmation modal — no aria-labelledby in the source; use role="dialog"
     this.deleteModal = page.locator('[role="dialog"]');
-    // Confirm button identified by CSS class (no accessible name distinguishes it)
-    this.deleteConfirmButton = this.deleteModal.locator('[class*="confirmDeleteButton"]');
+    // Confirm button uses sharedStyles.btnConfirmDelete (shared.module.css), CSS Modules hashes it
+    // to "btnConfirmDelete_XXXX". The class selector [class*="btnConfirmDelete"] matches it.
+    this.deleteConfirmButton = this.deleteModal.locator('[class*="btnConfirmDelete"]');
     this.deleteCancelButton = this.deleteModal.getByRole('button', { name: 'Cancel', exact: true });
   }
 
@@ -127,23 +138,53 @@ export class WorkItemsPage {
   }
 
   /**
+   * Wait for search results to stabilize after a search() or clearSearch() call.
+   *
+   * waitForLoaded() is designed for the initial page load and resolves immediately
+   * when table rows/cards are already visible (old data). This method uses the URL
+   * search param as a proxy for React state settling — after the debounced search
+   * updates setSearchParams(), the DOM re-render follows in the same microtask batch.
+   *
+   * For search(query): waits until URL has q=query (exact match).
+   * For clearSearch(): waits until URL no longer has q=.
+   */
+  async waitForSearchParams(hasQuery?: string): Promise<void> {
+    if (hasQuery !== undefined) {
+      await this.page.waitForURL((url) => url.searchParams.get('q') === hasQuery, {
+        timeout: 15000,
+      });
+    } else {
+      await this.page.waitForURL((url) => !url.searchParams.has('q'), { timeout: 15000 });
+    }
+  }
+
+  /**
    * Get the titles of all work items currently shown in the table (desktop)
    * or cards (mobile).
    */
   async getWorkItemTitles(): Promise<string[]> {
-    // Try table first (titleCell class)
-    const titleCells = await this.tableBody.locator('[class*="titleCell"]').all();
-    if (titleCells.length > 0) {
-      const titles: string[] = [];
-      for (const cell of titleCells) {
-        const text = await cell.textContent();
-        if (text) titles.push(text.trim());
+    // On mobile, tableContainer has display:none (CSS media query at max-width:767px).
+    // Elements inside a CSS-hidden table are still in the DOM so .all() returns them,
+    // but their text would include all items (search filter not reflected in DOM-hidden rows).
+    // Always check visibility before using the table path.
+    const tableVisible = await this.tableContainer.isVisible();
+    if (tableVisible) {
+      // Desktop/tablet: work items title column uses className={styles.itemLink} (CSS Modules).
+      const titleCells = await this.tableBody.locator('[class*="itemLink"]').all();
+      if (titleCells.length > 0) {
+        const titles: string[] = [];
+        for (const cell of titleCells) {
+          const text = await cell.textContent();
+          if (text) titles.push(text.trim());
+        }
+        return titles;
       }
-      return titles;
     }
 
-    // Mobile fallback: card title elements
-    const cardTitles = await this.cardsContainer.locator('[class*="cardTitle"]').all();
+    // Mobile fallback (or empty table): DataTableCard renders the same cell content as the table.
+    // The title column uses styles.itemLink (CSS Modules) — same class as in the table rows.
+    // DataTableCard has NO "cardTitle" class; looking for itemLink inside cardsContainer is correct.
+    const cardTitles = await this.cardsContainer.locator('[class*="itemLink"]').all();
     const titles: string[] = [];
     for (const el of cardTitles) {
       const text = await el.textContent();
@@ -153,45 +194,69 @@ export class WorkItemsPage {
   }
 
   /**
-   * Type a search query and wait for both the debounced API response and the
-   * DOM to re-render with the filtered results.
+   * Type a search query and wait for both the URL to update (debounce fired) and
+   * the API response to arrive (data fetched).
    *
-   * The response listener must be registered BEFORE the fill action to avoid a
-   * race condition where the debounced request resolves before the listener is
-   * attached (especially common on WebKit/tablet where the 300ms debounce can
-   * fire and complete before the next line executes).
+   * Strategy (three-step):
+   *  1. Register a response listener for `q=query` BEFORE fill to avoid missing
+   *     the response on fast CI runners.
+   *  2. fill() the input — WebKit may emit a clear event first, but the response
+   *     listener filters by exact query param and ignores that empty-query response.
+   *  3. Wait for the URL to update with q=query (confirms debounce fired and React
+   *     state is committed) then await the API response (confirms data received).
    *
-   * After the network response is received we additionally call waitForLoaded()
-   * to ensure React has flushed the new data into the DOM before callers
-   * attempt to read titles or interact with list items.
+   * After the API response arrives React will commit the filtered results in the next
+   * render. Callers use expect().toBeVisible() / expect().not.toBeVisible() with the
+   * project-level expect.timeout to wait for that DOM update — no extra waitForLoaded()
+   * needed here, which avoids the race where waitForLoaded() resolves on stale DOM.
    */
   async search(query: string): Promise<void> {
-    // Explicit 10s timeout overrides global actionTimeout (5s): debounce + API
-    // round-trip can exceed 5s on slow CI runners.
+    // Register BEFORE fill to avoid missing the response on fast runners.
+    // 15s timeout: mobile fill() may take up to 10s (actionTimeout) and the debounce +
+    // API round-trip adds latency on top, so 10s was too tight for mobile CI runners.
     const responsePromise = this.page.waitForResponse(
-      (resp) => resp.url().includes('/api/work-items') && resp.status() === 200,
-      { timeout: 10000 },
+      (resp) => {
+        if (!resp.url().includes('/api/work-items') || resp.status() !== 200) return false;
+        try {
+          const url = new URL(resp.url());
+          return url.searchParams.get('q') === query;
+        } catch {
+          return false;
+        }
+      },
+      { timeout: 15000 },
     );
     await this.searchInput.fill(query);
+    // Wait for URL to update — confirms debounce fired and React committed search state.
+    // Must precede the response wait to ensure we don't assert before state is committed.
+    await this.page.waitForURL((url) => url.searchParams.get('q') === query, {
+      timeout: 15000,
+    });
     await responsePromise;
-    await this.waitForLoaded();
   }
 
   /**
-   * Clear the search input and wait for both the API response and the DOM to
-   * update.
+   * Clear the search input and wait for both the URL update and the API response.
    *
-   * The response listener must be registered BEFORE the clear action for the
-   * same race-condition reason as search().
+   * Same three-step pattern as search(): register response listener before clear(),
+   * clear the input, wait for URL (q= param removed), then await response.
    */
   async clearSearch(): Promise<void> {
     const responsePromise = this.page.waitForResponse(
-      (resp) => resp.url().includes('/api/work-items') && resp.status() === 200,
+      (resp) => {
+        if (!resp.url().includes('/api/work-items') || resp.status() !== 200) return false;
+        try {
+          const url = new URL(resp.url());
+          return !url.searchParams.has('q');
+        } catch {
+          return false;
+        }
+      },
       { timeout: 10000 },
     );
     await this.searchInput.clear();
+    await this.page.waitForURL((url) => !url.searchParams.has('q'), { timeout: 10000 });
     await responsePromise;
-    await this.waitForLoaded();
   }
 
   /**

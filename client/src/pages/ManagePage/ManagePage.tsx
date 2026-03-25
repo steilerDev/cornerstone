@@ -15,14 +15,18 @@ import type {
   UpdateTradeRequest,
 } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { generateRandomColor } from '../../lib/colorUtils.js';
+import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useTranslation } from 'react-i18next';
-import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.js';
+import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import { buildTree } from '../../lib/areaTreeUtils.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { useTrades } from '../../hooks/useTrades.js';
+import { useAuth } from '../../contexts/AuthContext.js';
 import {
   fetchBudgetCategories,
   createBudgetCategory,
@@ -69,7 +73,7 @@ function AreasTab() {
   // Create form state
   const [newName, setNewName] = useState('');
   const [newParentId, setNewParentId] = useState('');
-  const [newColor, setNewColor] = useState<string | null>(null);
+  const [newColor, setNewColor] = useState<string>(generateRandomColor);
   const [newDescription, setNewDescription] = useState('');
   const [newSortOrder, setNewSortOrder] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
@@ -113,7 +117,7 @@ function AreasTab() {
       } as CreateAreaRequest);
       setNewName('');
       setNewParentId('');
-      setNewColor(null);
+      setNewColor(generateRandomColor());
       setNewDescription('');
       setNewSortOrder('');
       setSuccessMessage(t('manage.areas.messages.created', { name: trimmedName }));
@@ -264,14 +268,14 @@ function AreasTab() {
                 <input
                   type="color"
                   id="areaColor"
-                  value={newColor || '#3b82f6'}
+                  value={newColor}
                   onChange={(e) => setNewColor(e.target.value)}
                   className={styles.colorInput}
                   disabled={isCreating}
                 />
                 <span
                   className={styles.colorSwatch}
-                  style={{ backgroundColor: newColor || '#3b82f6' }}
+                  style={{ backgroundColor: newColor }}
                   aria-hidden="true"
                 />
               </div>
@@ -587,7 +591,7 @@ function TradesTab() {
 
   // Create form state
   const [newName, setNewName] = useState('');
-  const [newColor, setNewColor] = useState<string | null>(null);
+  const [newColor, setNewColor] = useState<string>(generateRandomColor);
   const [newDescription, setNewDescription] = useState('');
   const [newSortOrder, setNewSortOrder] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
@@ -629,7 +633,7 @@ function TradesTab() {
         sortOrder: newSortOrder ? parseInt(newSortOrder, 10) : undefined,
       } as CreateTradeRequest);
       setNewName('');
-      setNewColor(null);
+      setNewColor(generateRandomColor());
       setNewDescription('');
       setNewSortOrder('');
       setSuccessMessage(t('manage.trades.messages.created', { name: trimmedName }));
@@ -778,14 +782,14 @@ function TradesTab() {
                 <input
                   type="color"
                   id="tradeColor"
-                  value={newColor || '#3b82f6'}
+                  value={newColor}
                   onChange={(e) => setNewColor(e.target.value)}
                   className={styles.colorInput}
                   disabled={isCreating}
                 />
                 <span
                   className={styles.colorSwatch}
-                  style={{ backgroundColor: newColor || '#3b82f6' }}
+                  style={{ backgroundColor: newColor }}
                   aria-hidden="true"
                 />
               </div>
@@ -846,7 +850,7 @@ function TradesTab() {
                   <form
                     onSubmit={handleUpdateTrade}
                     className={styles.editForm}
-                    aria-label={`Edit ${trade.name}`}
+                    aria-label={`Edit ${getCategoryDisplayName(t, trade.name, trade.translationKey)}`}
                   >
                     {updateError && (
                       <div className={styles.errorBanner} role="alert">
@@ -963,7 +967,9 @@ function TradesTab() {
                         aria-hidden="true"
                       />
                       <div className={styles.itemDetails}>
-                        <span className={styles.itemName}>{trade.name}</span>
+                        <span className={styles.itemName}>
+                          {getCategoryDisplayName(t, trade.name, trade.translationKey)}
+                        </span>
                         {trade.description && (
                           <span className={styles.itemDescription}>{trade.description}</span>
                         )}
@@ -1059,10 +1065,9 @@ function BudgetCategoriesTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
-  const [showCreateForm, setShowCreateForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [newColor, setNewColor] = useState(DEFAULT_COLOR);
+  const [newColor, setNewColor] = useState<string>(generateRandomColor);
   const [newSortOrder, setNewSortOrder] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string>('');
@@ -1129,9 +1134,8 @@ function BudgetCategoriesTab() {
       );
       setNewName('');
       setNewDescription('');
-      setNewColor(DEFAULT_COLOR);
+      setNewColor(generateRandomColor());
       setNewSortOrder('');
-      setShowCreateForm(false);
       setSuccessMessage(t('manage.budgetCategories.messages.created', { name: created.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -1267,139 +1271,108 @@ function BudgetCategoriesTab() {
       )}
 
       {/* Create form */}
-      {showCreateForm && (
-        <section className={styles.card}>
-          <h2 className={styles.cardTitle}>{t('manage.budgetCategories.createTitle')}</h2>
-          <p className={styles.cardDescription}>{t('manage.budgetCategories.createDescription')}</p>
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>{t('manage.budgetCategories.createTitle')}</h2>
+        <p className={styles.cardDescription}>{t('manage.budgetCategories.createDescription')}</p>
 
-          {createError && (
-            <div className={styles.errorBanner} role="alert">
-              {createError}
-            </div>
-          )}
+        {createError && (
+          <div className={styles.errorBanner} role="alert">
+            {createError}
+          </div>
+        )}
 
-          <form onSubmit={handleCreateCategory} className={styles.form}>
-            <div className={styles.formRow}>
-              <div className={styles.fieldGrow}>
-                <label htmlFor="categoryName" className={styles.label}>
-                  {t('manage.budgetCategories.nameLabel')}{' '}
-                  <span className={styles.required}>*</span>
-                </label>
-                <input
-                  type="text"
-                  id="categoryName"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  className={styles.input}
-                  placeholder={t('manage.budgetCategories.namePlaceholder')}
-                  maxLength={100}
-                  disabled={isCreating}
-                  autoFocus
-                />
-              </div>
-
-              <div className={styles.fieldFixed}>
-                <label htmlFor="categoryColor" className={styles.label}>
-                  {t('manage.budgetCategories.colorLabel')}
-                </label>
-                <div className={styles.colorWrapper}>
-                  <input
-                    type="color"
-                    id="categoryColor"
-                    value={newColor}
-                    onChange={(e) => setNewColor(e.target.value)}
-                    className={styles.colorInput}
-                    disabled={isCreating}
-                  />
-                  <span
-                    className={styles.colorSwatch}
-                    style={{ backgroundColor: newColor }}
-                    aria-hidden="true"
-                  />
-                </div>
-              </div>
-
-              <div className={styles.fieldNarrow}>
-                <label htmlFor="categorySortOrder" className={styles.label}>
-                  {t('manage.budgetCategories.sortOrderLabel')}
-                </label>
-                <input
-                  type="number"
-                  id="categorySortOrder"
-                  value={newSortOrder}
-                  onChange={(e) => setNewSortOrder(e.target.value)}
-                  className={styles.input}
-                  placeholder="0"
-                  min={0}
-                  disabled={isCreating}
-                />
-              </div>
-            </div>
-
-            <div className={styles.field}>
-              <label htmlFor="categoryDescription" className={styles.label}>
-                {t('manage.budgetCategories.descriptionLabel')}
+        <form onSubmit={handleCreateCategory} className={styles.form}>
+          <div className={styles.formRow}>
+            <div className={styles.fieldGrow}>
+              <label htmlFor="categoryName" className={styles.label}>
+                {t('manage.budgetCategories.nameLabel')} <span className={styles.required}>*</span>
               </label>
               <input
                 type="text"
-                id="categoryDescription"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
+                id="categoryName"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
                 className={styles.input}
-                placeholder={t('manage.budgetCategories.descriptionPlaceholder')}
-                maxLength={500}
+                placeholder={t('manage.budgetCategories.namePlaceholder')}
+                maxLength={100}
                 disabled={isCreating}
+                autoFocus
               />
             </div>
 
-            <div className={styles.formActions}>
-              <button
-                type="submit"
-                className={styles.button}
-                disabled={isCreating || !newName.trim()}
-              >
-                {isCreating
-                  ? t('manage.budgetCategories.creating')
-                  : t('manage.budgetCategories.createButton')}
-              </button>
-              <button
-                type="button"
-                className={styles.cancelButton}
-                onClick={() => {
-                  setShowCreateForm(false);
-                  setCreateError('');
-                  setNewName('');
-                  setNewDescription('');
-                  setNewColor(DEFAULT_COLOR);
-                  setNewSortOrder('');
-                }}
-                disabled={isCreating}
-              >
-                {t('manage.budgetCategories.cancel')}
-              </button>
+            <div className={styles.fieldFixed}>
+              <label htmlFor="categoryColor" className={styles.label}>
+                {t('manage.budgetCategories.colorLabel')}
+              </label>
+              <div className={styles.colorWrapper}>
+                <input
+                  type="color"
+                  id="categoryColor"
+                  value={newColor}
+                  onChange={(e) => setNewColor(e.target.value)}
+                  className={styles.colorInput}
+                  disabled={isCreating}
+                />
+                <span
+                  className={styles.colorSwatch}
+                  style={{ backgroundColor: newColor }}
+                  aria-hidden="true"
+                />
+              </div>
             </div>
-          </form>
-        </section>
-      )}
+
+            <div className={styles.fieldNarrow}>
+              <label htmlFor="categorySortOrder" className={styles.label}>
+                {t('manage.budgetCategories.sortOrderLabel')}
+              </label>
+              <input
+                type="number"
+                id="categorySortOrder"
+                value={newSortOrder}
+                onChange={(e) => setNewSortOrder(e.target.value)}
+                className={styles.input}
+                placeholder="0"
+                min={0}
+                disabled={isCreating}
+              />
+            </div>
+          </div>
+
+          <div className={styles.field}>
+            <label htmlFor="categoryDescription" className={styles.label}>
+              {t('manage.budgetCategories.descriptionLabel')}
+            </label>
+            <input
+              type="text"
+              id="categoryDescription"
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              className={styles.input}
+              placeholder={t('manage.budgetCategories.descriptionPlaceholder')}
+              maxLength={500}
+              disabled={isCreating}
+            />
+          </div>
+
+          <div className={styles.formActions}>
+            <button
+              type="submit"
+              className={styles.button}
+              disabled={isCreating || !newName.trim()}
+            >
+              {isCreating
+                ? t('manage.budgetCategories.creating')
+                : t('manage.budgetCategories.createButton')}
+            </button>
+          </div>
+        </form>
+      </section>
 
       {/* Categories list */}
       <section className={styles.card}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 className={styles.cardTitle}>
-            {t('manage.budgetCategories.listTitle', { count: categories.length })}
-          </h2>
-          <button
-            type="button"
-            className={styles.button}
-            onClick={() => {
-              setShowCreateForm(true);
-              setCreateError('');
-            }}
-            disabled={showCreateForm}
-          >
-            {t('manage.budgetCategories.addButton')}
-          </button>
-        </div>
+        <h2 className={styles.cardTitle}>
+          {t('manage.budgetCategories.listTitle', { count: categories.length })}
+        </h2>
 
         {categories.length === 0 ? (
           <EmptyState icon="💰" message={t('manage.budgetCategories.emptyState')} />
@@ -1532,7 +1505,9 @@ function BudgetCategoriesTab() {
                         aria-hidden="true"
                       />
                       <div className={styles.itemDetails}>
-                        <span className={styles.itemName}>{category.name}</span>
+                        <span className={styles.itemName}>
+                          {getCategoryDisplayName(t, category.name, category.translationKey)}
+                        </span>
                         {category.description && (
                           <span className={styles.itemDescription}>{category.description}</span>
                         )}
@@ -1550,7 +1525,7 @@ function BudgetCategoriesTab() {
                         className={styles.editButton}
                         onClick={() => startEdit(category)}
                         disabled={!!editingCategory}
-                        aria-label={`Edit ${category.name}`}
+                        aria-label={`Edit ${getCategoryDisplayName(t, category.name, category.translationKey)}`}
                       >
                         {t('manage.budgetCategories.edit')}
                       </button>
@@ -1559,7 +1534,7 @@ function BudgetCategoriesTab() {
                         className={styles.deleteButton}
                         onClick={() => openDeleteConfirm(category.id)}
                         disabled={!!editingCategory}
-                        aria-label={`Delete ${category.name}`}
+                        aria-label={`Delete ${getCategoryDisplayName(t, category.name, category.translationKey)}`}
                       >
                         {t('manage.budgetCategories.delete')}
                       </button>
@@ -1645,9 +1620,8 @@ function HouseholdItemCategoriesTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
-  const [showCreateForm, setShowCreateForm] = useState(false);
   const [newName, setNewName] = useState('');
-  const [newColor, setNewColor] = useState(DEFAULT_COLOR);
+  const [newColor, setNewColor] = useState<string>(generateRandomColor);
   const [newSortOrder, setNewSortOrder] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string>('');
@@ -1712,9 +1686,8 @@ function HouseholdItemCategoriesTab() {
         ),
       );
       setNewName('');
-      setNewColor(DEFAULT_COLOR);
+      setNewColor(generateRandomColor());
       setNewSortOrder('');
-      setShowCreateForm(false);
       setSuccessMessage(
         t('manage.householdItemCategories.messages.created', { name: created.name }),
       );
@@ -1854,124 +1827,95 @@ function HouseholdItemCategoriesTab() {
       )}
 
       {/* Create form */}
-      {showCreateForm && (
-        <section className={styles.card}>
-          <h2 className={styles.cardTitle}>{t('manage.householdItemCategories.createTitle')}</h2>
-          <p className={styles.cardDescription}>
-            {t('manage.householdItemCategories.createDescription')}
-          </p>
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>{t('manage.householdItemCategories.createTitle')}</h2>
+        <p className={styles.cardDescription}>
+          {t('manage.householdItemCategories.createDescription')}
+        </p>
 
-          {createError && (
-            <div className={styles.errorBanner} role="alert">
-              {createError}
-            </div>
-          )}
+        {createError && (
+          <div className={styles.errorBanner} role="alert">
+            {createError}
+          </div>
+        )}
 
-          <form onSubmit={handleCreateCategory} className={styles.form}>
-            <div className={styles.formRow}>
-              <div className={styles.fieldGrow}>
-                <label htmlFor="categoryName" className={styles.label}>
-                  {t('manage.householdItemCategories.nameLabel')}{' '}
-                  <span className={styles.required}>*</span>
-                </label>
-                <input
-                  type="text"
-                  id="categoryName"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  className={styles.input}
-                  placeholder={t('manage.householdItemCategories.namePlaceholder')}
-                  maxLength={100}
-                  disabled={isCreating}
-                  autoFocus
-                />
-              </div>
-
-              <div className={styles.fieldFixed}>
-                <label htmlFor="categoryColor" className={styles.label}>
-                  {t('manage.householdItemCategories.colorLabel')}
-                </label>
-                <div className={styles.colorWrapper}>
-                  <input
-                    type="color"
-                    id="categoryColor"
-                    value={newColor}
-                    onChange={(e) => setNewColor(e.target.value)}
-                    className={styles.colorInput}
-                    disabled={isCreating}
-                  />
-                  <span
-                    className={styles.colorSwatch}
-                    style={{ backgroundColor: newColor }}
-                    aria-hidden="true"
-                  />
-                </div>
-              </div>
-
-              <div className={styles.fieldNarrow}>
-                <label htmlFor="categorySortOrder" className={styles.label}>
-                  {t('manage.householdItemCategories.sortOrderLabel')}
-                </label>
-                <input
-                  type="number"
-                  id="categorySortOrder"
-                  value={newSortOrder}
-                  onChange={(e) => setNewSortOrder(e.target.value)}
-                  className={styles.input}
-                  placeholder="0"
-                  min={0}
-                  disabled={isCreating}
-                />
-              </div>
-            </div>
-
-            <div className={styles.formActions}>
-              <button
-                type="submit"
-                className={styles.button}
-                disabled={isCreating || !newName.trim()}
-              >
-                {isCreating
-                  ? t('manage.householdItemCategories.creating')
-                  : t('manage.householdItemCategories.createButton')}
-              </button>
-              <button
-                type="button"
-                className={styles.cancelButton}
-                onClick={() => {
-                  setShowCreateForm(false);
-                  setCreateError('');
-                  setNewName('');
-                  setNewColor(DEFAULT_COLOR);
-                  setNewSortOrder('');
-                }}
+        <form onSubmit={handleCreateCategory} className={styles.form}>
+          <div className={styles.formRow}>
+            <div className={styles.fieldGrow}>
+              <label htmlFor="categoryName" className={styles.label}>
+                {t('manage.householdItemCategories.nameLabel')}{' '}
+                <span className={styles.required}>*</span>
+              </label>
+              <input
+                type="text"
+                id="categoryName"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className={styles.input}
+                placeholder={t('manage.householdItemCategories.namePlaceholder')}
+                maxLength={100}
                 disabled={isCreating}
-              >
-                {t('manage.householdItemCategories.cancel')}
-              </button>
+                autoFocus
+              />
             </div>
-          </form>
-        </section>
-      )}
+
+            <div className={styles.fieldFixed}>
+              <label htmlFor="categoryColor" className={styles.label}>
+                {t('manage.householdItemCategories.colorLabel')}
+              </label>
+              <div className={styles.colorWrapper}>
+                <input
+                  type="color"
+                  id="categoryColor"
+                  value={newColor}
+                  onChange={(e) => setNewColor(e.target.value)}
+                  className={styles.colorInput}
+                  disabled={isCreating}
+                />
+                <span
+                  className={styles.colorSwatch}
+                  style={{ backgroundColor: newColor }}
+                  aria-hidden="true"
+                />
+              </div>
+            </div>
+
+            <div className={styles.fieldNarrow}>
+              <label htmlFor="categorySortOrder" className={styles.label}>
+                {t('manage.householdItemCategories.sortOrderLabel')}
+              </label>
+              <input
+                type="number"
+                id="categorySortOrder"
+                value={newSortOrder}
+                onChange={(e) => setNewSortOrder(e.target.value)}
+                className={styles.input}
+                placeholder="0"
+                min={0}
+                disabled={isCreating}
+              />
+            </div>
+          </div>
+
+          <div className={styles.formActions}>
+            <button
+              type="submit"
+              className={styles.button}
+              disabled={isCreating || !newName.trim()}
+            >
+              {isCreating
+                ? t('manage.householdItemCategories.creating')
+                : t('manage.householdItemCategories.createButton')}
+            </button>
+          </div>
+        </form>
+      </section>
 
       {/* Categories list */}
       <section className={styles.card}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 className={styles.cardTitle}>
-            {t('manage.householdItemCategories.listTitle', { count: categories.length })}
-          </h2>
-          <button
-            type="button"
-            className={styles.button}
-            onClick={() => {
-              setShowCreateForm(true);
-              setCreateError('');
-            }}
-            disabled={showCreateForm}
-          >
-            {t('manage.householdItemCategories.addButton')}
-          </button>
-        </div>
+        <h2 className={styles.cardTitle}>
+          {t('manage.householdItemCategories.listTitle', { count: categories.length })}
+        </h2>
 
         {categories.length === 0 ? (
           <EmptyState icon="🛋️" message={t('manage.householdItemCategories.emptyState')} />
@@ -2083,7 +2027,9 @@ function HouseholdItemCategoriesTab() {
                         aria-hidden="true"
                       />
                       <div className={styles.itemDetails}>
-                        <span className={styles.itemName}>{category.name}</span>
+                        <span className={styles.itemName}>
+                          {getCategoryDisplayName(t, category.name, category.translationKey)}
+                        </span>
                       </div>
                       <span
                         className={styles.itemSortOrder}
@@ -2098,7 +2044,7 @@ function HouseholdItemCategoriesTab() {
                         className={styles.editButton}
                         onClick={() => startEdit(category)}
                         disabled={!!editingCategory}
-                        aria-label={`Edit ${category.name}`}
+                        aria-label={`Edit ${getCategoryDisplayName(t, category.name, category.translationKey)}`}
                       >
                         {t('manage.householdItemCategories.edit')}
                       </button>
@@ -2107,7 +2053,7 @@ function HouseholdItemCategoriesTab() {
                         className={styles.deleteButton}
                         onClick={() => openDeleteConfirm(category.id)}
                         disabled={!!editingCategory}
-                        aria-label={`Delete ${category.name}`}
+                        aria-label={`Delete ${getCategoryDisplayName(t, category.name, category.translationKey)}`}
                       >
                         {t('manage.householdItemCategories.delete')}
                       </button>
@@ -2184,65 +2130,81 @@ function HouseholdItemCategoriesTab() {
 
 export function ManagePage() {
   const { t } = useTranslation('settings');
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>((searchParams.get('tab') as Tab) || 'areas');
+
+  const isAdmin = user?.role === 'admin';
+
+  const settingsTabs: SubNavTab[] = [
+    { labelKey: 'subnav.settings.profile', to: '/settings/profile', ns: 'common' },
+    { labelKey: 'subnav.settings.manage', to: '/settings/manage', ns: 'common' },
+    {
+      labelKey: 'subnav.settings.userManagement',
+      to: '/settings/users',
+      ns: 'common',
+      visible: isAdmin,
+    },
+    {
+      labelKey: 'subnav.settings.backups',
+      to: '/settings/backups',
+      ns: 'common',
+      visible: isAdmin,
+    },
+  ];
 
   useEffect(() => {
     setSearchParams({ tab: activeTab });
   }, [activeTab, setSearchParams]);
 
   return (
-    <>
-      <SettingsSubNav />
-
-      <div className={styles.container}>
-        <div className={styles.content}>
-          <h1 className={styles.pageTitle}>{t('manage.pageTitle')}</h1>
-
-          <div className={styles.tabList} role="tablist">
-            <button
-              role="tab"
-              aria-selected={activeTab === 'areas'}
-              className={`${styles.tab} ${activeTab === 'areas' ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab('areas')}
-            >
-              {t('manage.tabs.areas')}
-            </button>
-            <button
-              role="tab"
-              aria-selected={activeTab === 'trades'}
-              className={`${styles.tab} ${activeTab === 'trades' ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab('trades')}
-            >
-              {t('manage.tabs.trades')}
-            </button>
-            <button
-              role="tab"
-              aria-selected={activeTab === 'budget-categories'}
-              className={`${styles.tab} ${activeTab === 'budget-categories' ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab('budget-categories')}
-            >
-              {t('manage.tabs.budgetCategories')}
-            </button>
-            <button
-              role="tab"
-              aria-selected={activeTab === 'hi-categories'}
-              className={`${styles.tab} ${activeTab === 'hi-categories' ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab('hi-categories')}
-            >
-              {t('manage.tabs.householdItemCategories')}
-            </button>
-          </div>
-
-          <div className={styles.tabPanel} role="tabpanel" id={`${activeTab}-panel`}>
-            {activeTab === 'areas' && <AreasTab />}
-            {activeTab === 'trades' && <TradesTab />}
-            {activeTab === 'budget-categories' && <BudgetCategoriesTab />}
-            {activeTab === 'hi-categories' && <HouseholdItemCategoriesTab />}
-          </div>
-        </div>
+    <PageLayout
+      maxWidth="narrow"
+      title={t('manage.pageTitle')}
+      subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+    >
+      <div className={styles.tabList} role="tablist">
+        <button
+          role="tab"
+          aria-selected={activeTab === 'areas'}
+          className={`${styles.tab} ${activeTab === 'areas' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('areas')}
+        >
+          {t('manage.tabs.areas')}
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === 'trades'}
+          className={`${styles.tab} ${activeTab === 'trades' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('trades')}
+        >
+          {t('manage.tabs.trades')}
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === 'budget-categories'}
+          className={`${styles.tab} ${activeTab === 'budget-categories' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('budget-categories')}
+        >
+          {t('manage.tabs.budgetCategories')}
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === 'hi-categories'}
+          className={`${styles.tab} ${activeTab === 'hi-categories' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('hi-categories')}
+        >
+          {t('manage.tabs.householdItemCategories')}
+        </button>
       </div>
-    </>
+
+      <div className={styles.tabPanel} role="tabpanel" id={`${activeTab}-panel`}>
+        {activeTab === 'areas' && <AreasTab />}
+        {activeTab === 'trades' && <TradesTab />}
+        {activeTab === 'budget-categories' && <BudgetCategoriesTab />}
+        {activeTab === 'hi-categories' && <HouseholdItemCategoriesTab />}
+      </div>
+    </PageLayout>
   );
 }
 

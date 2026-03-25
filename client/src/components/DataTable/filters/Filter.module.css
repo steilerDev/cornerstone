@@ -1,0 +1,291 @@
+.filterContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3);
+}
+
+.filterInput {
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  transition: var(--transition-input);
+}
+
+.filterInput:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.filterDateInput {
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  transition: var(--transition-input);
+}
+
+.filterDateInput:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.filterDateInputConfirmed {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-bg);
+}
+
+.filterDateInputConfirmed:focus-visible {
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.filterActions {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+.filterButton {
+  flex: 1;
+  padding: var(--spacing-1-5) var(--spacing-3);
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color var(--transition-normal);
+}
+
+.filterButton:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.filterButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.filterButton:disabled {
+  background-color: var(--color-text-placeholder);
+  cursor: not-allowed;
+}
+
+.filterButtonSecondary {
+  flex: 1;
+  padding: var(--spacing-1-5) var(--spacing-3);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color var(--transition-normal);
+}
+
+.filterButtonSecondary:hover:not(:disabled) {
+  background-color: var(--color-border);
+}
+
+.filterButtonSecondary:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.filterButtonSecondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.filterRangeRow {
+  display: flex;
+  gap: var(--spacing-2);
+  align-items: center;
+}
+
+.filterRangeInput {
+  flex: 1;
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  transition: var(--transition-input);
+}
+
+.filterRangeInput:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.filterRangeLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+  min-width: 30px;
+  text-align: center;
+}
+
+.filterCheckboxGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.filterCheckboxItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-1-5) var(--spacing-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--transition-normal);
+  /* Override default label styles */
+  margin: 0;
+  padding: var(--spacing-1-5) var(--spacing-2);
+}
+
+.filterCheckboxItem:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.filterCheckboxItem:has(input:focus-visible) {
+  outline: none;
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.filterCheckbox {
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.filterCheckbox:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.filterCheckboxLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  flex: 1;
+  cursor: pointer;
+}
+
+.filterCheckboxIndented {
+  padding-left: calc(var(--spacing-2) + 24px);
+  font-weight: var(--font-weight-normal);
+  opacity: 0.9;
+}
+
+.filterQuickActions {
+  display: flex;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-1);
+}
+
+.filterQuickActionButton {
+  flex: 1;
+  padding: var(--spacing-1) var(--spacing-2);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal);
+}
+
+.filterQuickActionButton:hover {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.filterQuickActionButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.filterSegmentedControl {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.filterSegmentedButton {
+  flex: 1;
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  border: none;
+  border-right: 1px solid var(--color-border-strong);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal);
+}
+
+.filterSegmentedButton:last-child {
+  border-right: none;
+}
+
+.filterSegmentedButton:hover:not(.filterSegmentedButtonActive) {
+  background-color: var(--color-bg-secondary);
+}
+
+.filterSegmentedButtonActive {
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.filterSegmentedButton:focus-visible {
+  outline: none;
+  box-shadow: inset var(--shadow-focus-subtle);
+}
+
+.filterRangeSlider {
+  width: 100%;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  height: 4px;
+  margin: var(--spacing-1) 0;
+}
+
+.filterRangeSlider:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filterInput,
+  .filterDateInput,
+  .filterRangeInput,
+  .filterButton,
+  .filterButtonSecondary,
+  .filterCheckboxItem,
+  .filterSegmentedButton,
+  .filterQuickActionButton {
+    transition: none;
+  }
+}

@@ -18,7 +18,8 @@
     "create": "Create",
     "confirm": "Confirm",
     "back": "Back",
-    "search": "Search"
+    "search": "Search",
+    "clearFilters": "Clear Filters"
   },
   "aria": {
     "closeMenu": "Close menu",
@@ -85,6 +86,7 @@
   "toast": {
     "dismissAriaLabel": "Dismiss notification"
   },
+  "actions": "Actions",
   "assignmentPicker": {
     "usersGroup": "Users",
     "vendorsGroup": "Vendors"
@@ -106,7 +108,63 @@
     "settings": {
       "profile": "Profile",
       "manage": "Manage",
-      "userManagement": "User Management"
+      "userManagement": "User Management",
+      "backups": "Backups"
     }
+  },
+  "dataTable": {
+    "search": {
+      "placeholder": "Search...",
+      "ariaLabel": "Search items"
+    },
+    "filter": {
+      "all": "All",
+      "yes": "Yes",
+      "no": "No",
+      "min": "Min",
+      "max": "Max",
+      "from": "From",
+      "to": "To",
+      "clearFilter": "Clear",
+      "applyFilter": "Apply",
+      "filterByColumn": "Filter by {{column}}",
+      "textPlaceholder": "Search...",
+      "searchPlaceholder": "Search...",
+      "booleanAriaLabel": "Boolean filter",
+      "selectAll": "Select All",
+      "selectNone": "Select None",
+      "dateRangeAriaLabel": "Date range picker"
+    },
+    "sort": {
+      "ascending": "Sort ascending",
+      "descending": "Sort descending",
+      "none": "No sort",
+      "ariaLabel": "Sort by {{column}}"
+    },
+    "columnSettings": {
+      "ariaLabel": "Column settings",
+      "title": "Visible columns",
+      "resetToDefaults": "Reset to defaults",
+      "dragHandleAriaLabel": "Drag to reorder {{column}} column"
+    },
+    "pagination": {
+      "showing": "Showing {{from}}–{{to}} of {{total}} items",
+      "page": "Page {{page}} of {{totalPages}}",
+      "previous": "Previous",
+      "next": "Next",
+      "pageSize": "Per page"
+    },
+    "empty": {
+      "defaultMessage": "No items found",
+      "filteredMessage": "No items match the current filters"
+    },
+    "loading": "Loading table data..."
+  },
+  "dateRangePicker": {
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "selectStart": "Select start date",
+    "selectEnd": "Select end date",
+    "calendarGridAriaLabel": "Calendar"
   }
 }

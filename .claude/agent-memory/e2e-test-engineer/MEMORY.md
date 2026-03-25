@@ -3,6 +3,42 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`
 
+## i18n German Locale: page.reload() Required After setLanguage() + page.goto() (2026-03-23)
+
+After `setLanguage(page, 'de')` + `page.goto(targetUrl)`, always add `page.reload()` before
+asserting German text. Pattern from "Key page headings render in German" test (passing) confirms.
+Applied in i18n.spec.ts "German sidebar" test and all three i18n-categories.spec.ts German tests.
+**The FIRST German locale switch in a test file needs `test.setTimeout(30000)` and a 20s expect
+timeout** for the heading assertion — i18next cold-start initialization takes 10-15s on CI.
+Pattern: `test.setTimeout(30000); setLanguage(de); goto(URL); reload(); expect(heading).toBeVisible({ timeout: 20000 })`.
+Extra warm-up navigations (goto('/') to confirm 'Projekt') consume the 30s budget — avoid them.
+
+**Known flaky test**: "German locale: Manage trades tab shows 'Sanitär' instead of 'Plumbing'"
+(`i18n-categories.spec.ts`) fails intermittently on CI — locale doesn't initialize before the
+English page renders. Was failing before PR #1186 too (run 23429182196). Not blocking for beta PRs.
+
+## WorkItemsPage.search(): URL-based Wait Prevents Stale-DOM Race (2026-03-23)
+
+After `fill(query)`, add `page.waitForURL(url => url.searchParams.get('q') === query)` BEFORE
+awaiting the `waitForResponse`. This confirms the debounce fired and React committed search state.
+Do NOT call `waitForLoaded()` after the response — it resolves on stale DOM rows from the WebKit
+clear-event response and creates a race where betaTitle stays visible for 10s. The test's own
+`expect().not.toBeVisible()` retry handles DOM convergence. Same pattern for `clearSearch()`.
+
+## Dashboard Card Dismiss Reload: Use networkidle, Not waitForResponse (2026-03-23)
+
+For "dismissed card stays hidden after page reload" test: register `waitForResponse(GET preferences)`
+before reload failed — LocaleContext fires FIRST GET and resolves the promise, but usePreferences
+hook's second GET (which applies hiddenCards) arrives later. Fix: use `page.waitForLoadState('networkidle')`
+AFTER `heading.waitFor({ state: 'visible', timeout: 10000 })` to ensure BOTH preference fetches
+complete. The heading waitFor needs 10s timeout (not 5s actionTimeout) since SPA reinit takes time.
+
+## Vendor Count Assertions Are Fragile (2026-03-23)
+
+`getVendorNames().length` assertions are unreliable with parallel workers sharing the same DB.
+Use `not.toContain(specificName)` instead of exact count equality. Remove `namesBefore`/
+`namesAfter` length comparisons in cancel/no-create tests.
+
 ## E2E Parallel Isolation (2026-02-20)
 
 `testPrefix` fixture in `e2e/fixtures/auth.ts` — use `async (_fixtures, use, testInfo)` (NOT `{}` — ESLint `no-empty-pattern`).
@@ -20,6 +56,25 @@ See `e2e-pom-patterns.md` for full details on:
    — Add element type: `div[class*="emptyState"]` instead of `[class*="emptyState"]`
 3. **Mobile CSS-hidden table** — `display:none` elements still in DOM; `textContent()` works,
    clicks fail — check `tableContainer.isVisible()` before using table rows
+
+## DataTable Migration (EPIC-18, PR #1177) POM Fixes (2026-03-22)
+
+After DataTable migration, three POM fix patterns applied:
+
+- **Modal `useId()` IDs broken**: `#create-modal-title`/`#delete-modal-title` don't exist.
+  Always use `getByRole('dialog', { name: ... })` + `getByRole('heading', { level: 2 })` inside.
+- **`confirmDeleteButton` → `btnConfirmDelete`**: WorkItems + HouseholdItems use
+  `sharedStyles.btnConfirmDelete` from `shared.module.css`. Selector: `[class*="btnConfirmDelete"]`.
+- **Mobile card name lookup**: DataTableCard has NO `cardName` class. The render() function
+  runs identically for table cells AND cards. Name column with `styles.vendorLink` → use
+  `[class*="vendorLink"]` inside `cardsContainer`. Applied in both getVendorNames() and
+  openDeleteModal() mobile paths in VendorsPage.
+- **HouseholdItems actions menu**: buttons are `role="button"` (default), NOT `role="menuitem"`.
+  Use `[class*="menuItemDanger"]:visible` filtered by text "Delete".
+- **Production bug #1178**: DateRangePicker phase resets after clicking start date.
+  DateFilter.handleChange only fires when both dates set; DateRangePicker useEffect resets
+  phase when startDate stays ''. Affects datatable-date-range-picker.spec.ts and
+  datatable-ux-fixes.spec.ts — PRODUCTION BUG, not a test issue.
 
 ## E2E Wait Patterns: waitForResponse BEFORE the action (2026-02-23)
 

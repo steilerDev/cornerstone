@@ -53,7 +53,8 @@
       "role": "Role",
       "authProvider": "Auth Provider",
       "status": "Status",
-      "actions": "Actions"
+      "actions": "Actions",
+      "memberSince": "Member Since"
     },
     "roles": {
       "admin": "Administrator",
@@ -69,7 +70,8 @@
     },
     "actions": {
       "edit": "Edit",
-      "deactivate": "Deactivate"
+      "deactivate": "Deactivate",
+      "menuAriaLabel": "User actions menu"
     },
     "editModal": {
       "title": "Edit User",
@@ -194,7 +196,7 @@
       "errorTitle": "Error",
       "retry": "Retry",
       "loadError": "Failed to load budget categories. Please try again.",
-      "createTitle": "New Budget Category",
+      "createTitle": "Create New Budget Category",
       "createDescription": "Budget categories group your construction costs (e.g., Materials, Labor, Permits).",
       "nameLabel": "Name",
       "nameRequired": "*",
@@ -238,7 +240,7 @@
       "errorTitle": "Error",
       "retry": "Retry",
       "loadError": "Failed to load household item categories. Please try again.",
-      "createTitle": "New Household Item Category",
+      "createTitle": "Create New Household Item Category",
       "createDescription": "Categories organize your household items and furniture purchases (e.g., Furniture, Appliances, Fixtures).",
       "nameLabel": "Name",
       "nameRequired": "*",
@@ -293,6 +295,89 @@
     "loading": "Loading DAV access status...",
     "generating": "Generating...",
     "revoking": "Revoking..."
+  },
+  "trades": {
+    "plumbing": "Plumbing",
+    "hvac": "HVAC",
+    "electrical": "Electrical",
+    "drywall": "Drywall",
+    "carpentry": "Carpentry",
+    "masonry": "Masonry",
+    "painting": "Painting",
+    "roofing": "Roofing",
+    "flooring": "Flooring",
+    "tiling": "Tiling",
+    "landscaping": "Landscaping",
+    "excavation": "Excavation",
+    "generalContractor": "General Contractor",
+    "architectDesign": "Architect / Design",
+    "other": "Other"
+  },
+  "budgetCategories": {
+    "materials": "Materials",
+    "labor": "Labor",
+    "permits": "Permits",
+    "design": "Design",
+    "householdItems": "Household Items",
+    "waste": "Waste",
+    "other": "Other",
+    "equipment": "Equipment",
+    "landscaping": "Landscaping",
+    "utilities": "Utilities",
+    "insurance": "Insurance",
+    "contingency": "Contingency"
+  },
+  "householdItemCategories": {
+    "furniture": "Furniture",
+    "appliances": "Appliances",
+    "fixtures": "Fixtures",
+    "decor": "Decor",
+    "electronics": "Electronics",
+    "equipment": "Equipment",
+    "other": "Other",
+    "outdoor": "Outdoor",
+    "storage": "Storage"
+  },
+  "backups": {
+    "pageTitle": "Backup & Restore",
+    "createButton": "Create Backup",
+    "creating": "Creating backup...",
+    "loading": "Loading backups...",
+    "notConfiguredMessage": "Backup is not configured",
+    "notConfiguredDescription": "To enable backups, set the BACKUP_DIR environment variable to a directory outside the application data directory.",
+    "emptyStateMessage": "No backups yet",
+    "emptyStateDescription": "Click 'Create Backup' to create your first backup.",
+    "tableHeaders": {
+      "filename": "Filename",
+      "createdAt": "Created",
+      "size": "Size",
+      "actions": "Actions"
+    },
+    "actions": {
+      "delete": "Delete",
+      "restore": "Restore"
+    },
+    "deleteModal": {
+      "title": "Delete Backup",
+      "message": "Are you sure you want to delete {{filename}}?",
+      "warning": "This action cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Delete",
+      "confirming": "Deleting...",
+      "error": "Failed to delete backup. Please try again."
+    },
+    "restoreModal": {
+      "title": "Restore Backup",
+      "message": "You are about to restore from:",
+      "warning": "This will permanently replace all current application data with the backup contents. The server will restart automatically. All current data will be lost.",
+      "cancel": "Cancel",
+      "confirm": "Restore & Restart",
+      "confirming": "Restoring...",
+      "error": "Failed to initiate restore. Please try again."
+    },
+    "restartingMessage": "Server is restarting. Please wait a few moments and then refresh the page.",
+    "createError": "Failed to create backup. Please try again.",
+    "loadError": "Failed to load backups. Please try again."
   },
   "vendors": {
     "contacts": {

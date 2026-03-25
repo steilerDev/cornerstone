@@ -1,6 +1,7 @@
 {
   "list": {
     "pageTitle": "Projekt",
+    "sectionTitle": "Arbeitspakete",
     "newWorkItem": "Neues Arbeitspaket",
     "loading": "Arbeitspakete werden geladen...",
     "search": {
@@ -18,10 +19,6 @@
       "allAreas": "Alle Bereiche",
       "assignedVendor": "Auftragnehmer:",
       "allVendors": "Alle Auftragnehmer",
-      "noBudget": "Keine Budgetpositionen",
-      "noBudgetAriaLabel": "Nur Arbeitspakete ohne Budgetpositionen anzeigen",
-      "noBudgetActive": "Kein-Budget-Filter aktiv",
-      "noBudgetInactive": "Kein-Budget-Filter aufgehoben",
       "sortBy": "Sortieren nach:",
       "sortAscending": "↑ Aufsteigend",
       "sortDescending": "↓ Absteigend",
@@ -47,6 +44,8 @@
       "title": "Titel",
       "status": "Status",
       "assignedTo": "Zugewiesen an",
+      "vendor": "Auftragnehmer",
+      "area": "Bereich",
       "startDate": "Startdatum",
       "endDate": "Enddatum",
       "tags": "Tags",

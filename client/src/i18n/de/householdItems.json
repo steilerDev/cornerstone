@@ -14,10 +14,6 @@
     "status": "Status:",
     "room": "Raum:",
     "vendor": "Auftragnehmer:",
-    "noBudget": "Keine Budgetpositionen",
-    "noBudgetAriaLabel": "Nur Haushaltsartikel ohne Budgetpositionen anzeigen",
-    "noBudgetActive": "Kein-Budgetpositionen-Filter aktiv",
-    "noBudgetInactive": "Kein-Budgetpositionen-Filter aufgehoben",
     "sortBy": "Sortieren nach:",
     "allCategories": "Alle Kategorien",
     "allAreas": "Alle Bereiche",
@@ -48,14 +44,22 @@
     "arrived": "Angekommen"
   },
   "table": {
+    "sectionTitle": "Haushaltsartikel",
     "headers": {
       "name": "Name",
       "category": "Kategorie",
       "status": "Status",
+      "area": "Bereich",
       "room": "Raum",
       "vendor": "Auftragnehmer",
       "plannedCost": "Geplante Kosten",
       "targetDelivery": "Ziellieferdatum",
+      "actualDelivery": "Tatsächliche Lieferung",
+      "actualCost": "Tatsächliche Kosten",
+      "subsidyReduction": "Förderabzug",
+      "netCost": "Nettokosten",
+      "orderDate": "Bestelldatum",
+      "budgetLines": "Budgetpositionen",
       "actions": "Aktionen"
     }
   },

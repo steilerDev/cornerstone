@@ -14,10 +14,6 @@
     "status": "Status:",
     "room": "Room:",
     "vendor": "Vendor:",
-    "noBudget": "No Budget Lines",
-    "noBudgetAriaLabel": "Show only household items without budget lines",
-    "noBudgetActive": "No Budget Lines filter active",
-    "noBudgetInactive": "No Budget Lines filter cleared",
     "sortBy": "Sort by:",
     "allCategories": "All Categories",
     "allAreas": "All Areas",
@@ -48,14 +44,21 @@
     "arrived": "Arrived"
   },
   "table": {
+    "sectionTitle": "Household Items",
     "headers": {
       "name": "Name",
       "category": "Category",
       "status": "Status",
-      "room": "Room",
+      "area": "Area",
       "vendor": "Vendor",
       "plannedCost": "Planned Cost",
       "targetDelivery": "Target Delivery",
+      "actualDelivery": "Actual Delivery",
+      "actualCost": "Actual Cost",
+      "subsidyReduction": "Subsidy Reduction",
+      "netCost": "Net Cost",
+      "orderDate": "Order Date",
+      "budgetLines": "Budget Lines",
       "actions": "Actions"
     }
   },

@@ -338,6 +338,7 @@ function buildBreakdownWithWI(
           categoryId,
           categoryName,
           categoryColor: null,
+          categoryTranslationKey: null,
           projectedMin,
           projectedMax,
           actualCost,
@@ -444,6 +445,8 @@ function buildBreakdownWithHI(
       categories: [
         {
           hiCategory,
+          categoryName: hiCategory,
+          categoryTranslationKey: null,
           projectedMin,
           projectedMax,
           actualCost,
@@ -841,6 +844,7 @@ describe('CostBreakdownTable', () => {
             categoryId: catId,
             categoryName: 'Materials',
             categoryColor: null,
+            categoryTranslationKey: null,
             projectedMin: 800,
             projectedMax: 1200,
             actualCost: 0,
@@ -854,6 +858,7 @@ describe('CostBreakdownTable', () => {
             categoryId: 'cat-labor',
             categoryName: 'Labor',
             categoryColor: null,
+            categoryTranslationKey: null,
             projectedMin: 1000,
             projectedMax: 1500,
             actualCost: 0,
@@ -913,6 +918,7 @@ describe('CostBreakdownTable', () => {
             categoryId: 'cat-a',
             categoryName: 'CategoryA',
             categoryColor: null,
+            categoryTranslationKey: null,
             projectedMin: 100,
             projectedMax: 200,
             actualCost: 0,
@@ -926,6 +932,7 @@ describe('CostBreakdownTable', () => {
             categoryId: 'cat-b',
             categoryName: 'CategoryB',
             categoryColor: null,
+            categoryTranslationKey: null,
             projectedMin: 300,
             projectedMax: 400,
             actualCost: 0,
@@ -986,6 +993,7 @@ describe('CostBreakdownTable', () => {
             categoryId: 'cat-x',
             categoryName: 'CategoryX',
             categoryColor: null,
+            categoryTranslationKey: null,
             projectedMin: 100,
             projectedMax: 200,
             actualCost: 0,
@@ -1010,6 +1018,8 @@ describe('CostBreakdownTable', () => {
         categories: [
           {
             hiCategory: 'Living Room',
+            categoryName: 'Living Room',
+            categoryTranslationKey: null,
             projectedMin: 300,
             projectedMax: 500,
             actualCost: 0,
@@ -1314,6 +1324,7 @@ describe('CostBreakdownTable', () => {
             categoryId: 'cat-1',
             categoryName: 'Materials',
             categoryColor: null,
+            categoryTranslationKey: null,
             projectedMin: 500,
             projectedMax: 700,
             actualCost: 0,
@@ -1338,6 +1349,8 @@ describe('CostBreakdownTable', () => {
         categories: [
           {
             hiCategory: 'Living Room',
+            categoryName: 'Living Room',
+            categoryTranslationKey: null,
             projectedMin: 200,
             projectedMax: 300,
             actualCost: 0,
@@ -2566,6 +2579,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
       rawProjectedMax: 700,
       minSubsidyPayback: 0,
       categoryColor: null as null,
+      categoryTranslationKey: null as null,
     };
 
     return {
@@ -2646,6 +2660,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
       rawProjectedMin: 300,
       rawProjectedMax: 500,
       minSubsidyPayback: 0,
+      categoryTranslationKey: null as null,
     };
 
     return {
@@ -2666,11 +2681,13 @@ describe('Bug #586 — item expand state is independent per category', () => {
           {
             ...hiCategoryBase,
             hiCategory: 'Furniture',
+            categoryName: 'Furniture',
             items: [{ ...sharedHIItem }],
           },
           {
             ...hiCategoryBase,
             hiCategory: 'Appliances',
+            categoryName: 'Appliances',
             items: [{ ...sharedHIItem }],
           },
         ],

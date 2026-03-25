@@ -54,6 +54,8 @@ import householdItemSubsidyPaybackRoutes from './routes/householdItemSubsidyPayb
 import vendorContactRoutes from './routes/vendorContacts.js';
 import davTokenRoutes from './routes/davTokens.js';
 import davRoutes from './routes/dav.js';
+import backupRoutes from './routes/backups.js';
+import * as backupService from './services/backupService.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -235,6 +237,17 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Diary entry routes (EPIC-13: Construction Diary)
   await app.register(diaryRoutes, { prefix: '/api/diary-entries' });
+
+  // Backup and restore routes (EPIC-19: Backup and Restore Feature)
+  await app.register(backupRoutes, { prefix: '/api/backups' });
+
+  // Initialize automatic backup scheduler (if configured)
+  backupService.initScheduler(app.db, app.config, app.log);
+
+  // Stop backup scheduler on shutdown
+  app.addHook('onClose', () => {
+    backupService.stopScheduler();
+  });
 
   // Well-known redirects for CalDAV/CardDAV discovery
   app.get('/.well-known/caldav', (request, reply) => {

@@ -99,16 +99,18 @@ test.describe('Empty state (Scenario 2)', { tag: '@responsive' }, () => {
       // Search for something that will not match any work item
       await workItemsPage.search('ZZZNOMATCH99999XYZABC');
 
-      // Empty state with filter message should appear
-      await expect(workItemsPage.emptyState).toBeVisible({ timeout: 7000 });
+      // Empty state with filter message should appear.
+      // DataTable renders t('dataTable.empty.filteredMessage') = "No items match the current filters"
+      // when hasActiveFilters is true (search or column filters active).
+      await expect(workItemsPage.emptyState).toBeVisible({ timeout: 15000 });
       const emptyText = await workItemsPage.emptyState.textContent();
-      expect(emptyText?.toLowerCase()).toMatch(/no work items match your filters/);
+      expect(emptyText?.toLowerCase()).toMatch(/no items match the current filters/);
 
-      // "Clear All Filters" button visible
+      // DataTable renders "Clear Filters" button (t('button.clearFilters')) in filtered empty state.
       const clearButton = workItemsPage.emptyState.getByRole('button', {
-        name: /Clear All Filters/i,
+        name: /Clear Filters/i,
       });
-      await expect(clearButton).toBeVisible();
+      await expect(clearButton).toBeVisible({ timeout: 10000 });
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
@@ -156,9 +158,12 @@ test.describe('Search filters (Scenario 4)', { tag: '@responsive' }, () => {
       // Search specifically for the alpha item
       await workItemsPage.search(`${testPrefix} Alpha`);
 
-      const titles = await workItemsPage.getWorkItemTitles();
-      expect(titles).toContain(alphaTitle);
-      expect(titles).not.toContain(betaTitle);
+      // Use expect() with Playwright's retry instead of getWorkItemTitles() —
+      // this handles the async gap between API response and React DOM update.
+      // getByText is scoped to the page so it finds items in either the table
+      // (desktop/tablet) or the mobile cards container.
+      await expect(page.getByRole('link', { name: alphaTitle }).first()).toBeVisible();
+      await expect(page.getByRole('link', { name: betaTitle })).not.toBeVisible();
     } finally {
       for (const id of created) {
         await deleteWorkItemViaApi(page, id);
@@ -181,21 +186,15 @@ test.describe('Search filters (Scenario 4)', { tag: '@responsive' }, () => {
 
       // Search so only alpha is shown
       await workItemsPage.search(`${testPrefix} Clear Search Alpha`);
-      let titles = await workItemsPage.getWorkItemTitles();
-      expect(titles).toContain(alphaTitle);
-      expect(titles).not.toContain(betaTitle);
+      // Use expect() with Playwright's retry for cross-viewport reliability.
+      await expect(page.getByRole('link', { name: alphaTitle }).first()).toBeVisible();
+      await expect(page.getByRole('link', { name: betaTitle })).not.toBeVisible();
 
       // Clear search — both should reappear.
-      // Wait 400ms after clearing to let the 300ms search debounce settle
-      // completely before issuing a new search. On slow WebKit runners the
-      // debounce from clear() can overlap with the next search(), causing
-      // waitForResponse() inside search() to capture the stale clear response.
       await workItemsPage.clearSearch();
-      await page.waitForTimeout(400);
       await workItemsPage.search(testPrefix);
-      titles = await workItemsPage.getWorkItemTitles();
-      expect(titles).toContain(alphaTitle);
-      expect(titles).toContain(betaTitle);
+      await expect(page.getByRole('link', { name: alphaTitle }).first()).toBeVisible();
+      await expect(page.getByRole('link', { name: betaTitle }).first()).toBeVisible();
     } finally {
       for (const id of created) {
         await deleteWorkItemViaApi(page, id);
@@ -548,7 +547,15 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
     await workItemsPage.heading.waitFor({ state: 'visible', timeout: 7000 });
 
     await expect(workItemsPage.searchInput).toBeVisible();
-    await expect(workItemsPage.statusFilter).toBeVisible();
-    await expect(workItemsPage.sortOrderButton).toBeVisible();
+    // Column filter buttons are in the table header (<thead>) which is CSS-hidden on mobile
+    // (tableContainer has display:none at max-width: 767px). Only check them on tablet+desktop.
+    const viewport = page.viewportSize();
+    if (viewport && viewport.width >= 768) {
+      await expect(workItemsPage.statusFilter).toBeVisible();
+    }
+    // Column settings button has display:none at max-width:767px — only visible on tablet+desktop.
+    if (viewport && viewport.width >= 768) {
+      await expect(page.getByLabel('Column settings')).toBeVisible();
+    }
   });
 });

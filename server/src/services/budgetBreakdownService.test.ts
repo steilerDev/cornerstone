@@ -682,9 +682,16 @@ describe('getBudgetBreakdown', () => {
       const result = getBudgetBreakdown(db);
 
       expect(result.householdItems.categories).toHaveLength(1);
-      expect(result.householdItems.categories[0].hiCategory).toBe('Furniture');
-      expect(result.householdItems.categories[0].items).toHaveLength(1);
-      expect(result.householdItems.categories[0].items[0].name).toBe('Sofa');
+      const cat = result.householdItems.categories[0];
+      expect(cat.hiCategory).toBe('hic-furniture');
+      expect(typeof cat.categoryName).toBe('string');
+      expect(cat.categoryName.length).toBeGreaterThan(0);
+      // categoryTranslationKey is either a string or null
+      expect(
+        cat.categoryTranslationKey === null || typeof cat.categoryTranslationKey === 'string',
+      ).toBe(true);
+      expect(cat.items).toHaveLength(1);
+      expect(cat.items[0].name).toBe('Sofa');
     });
 
     it('sets costDisplay to projected when no invoices', () => {
@@ -733,11 +740,11 @@ describe('getBudgetBreakdown', () => {
       const result = getBudgetBreakdown(db);
 
       const categories = result.householdItems.categories.map((c) => c.hiCategory);
-      expect(categories).toContain('Furniture');
-      expect(categories).toContain('Electronics');
+      expect(categories).toContain('hic-furniture');
+      expect(categories).toContain('hic-electronics');
       // Other categories not present (no items)
-      expect(categories).not.toContain('Appliances');
-      expect(categories).not.toContain('Fixtures');
+      expect(categories).not.toContain('hic-appliances');
+      expect(categories).not.toContain('hic-fixtures');
     });
 
     it('categories are in the canonical HI_CATEGORY_ORDER', () => {
@@ -750,9 +757,9 @@ describe('getBudgetBreakdown', () => {
 
       const categories = result.householdItems.categories.map((c) => c.hiCategory);
       // Furniture (sort_order=0) comes before Appliances (sort_order=1) comes before Other (sort_order=7)
-      const idxFurniture = categories.indexOf('Furniture');
-      const idxAppliances = categories.indexOf('Appliances');
-      const idxOther = categories.indexOf('Other');
+      const idxFurniture = categories.indexOf('hic-furniture');
+      const idxAppliances = categories.indexOf('hic-appliances');
+      const idxOther = categories.indexOf('hic-other');
       expect(idxFurniture).toBeLessThan(idxAppliances);
       expect(idxAppliances).toBeLessThan(idxOther);
     });
