@@ -455,7 +455,6 @@ export function HouseholdItemsPage() {
       }
       subNav={<SubNav tabs={PROJECT_TABS} ariaLabel="Project section navigation" />}
     >
-
       <DataTable<HouseholdItemSummary>
         pageKey="householdItems"
         columns={columns}

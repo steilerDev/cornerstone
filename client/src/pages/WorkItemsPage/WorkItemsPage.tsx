@@ -430,7 +430,6 @@ export function WorkItemsPage() {
       }
       subNav={<SubNav tabs={PROJECT_TABS} ariaLabel="Project section navigation" />}
     >
-
       <DataTable<WorkItemSummary>
         pageKey="workItems"
         columns={columns}

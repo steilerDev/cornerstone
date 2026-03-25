@@ -385,7 +385,6 @@ export function VendorsPage() {
       }
       subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
     >
-
       <DataTable<Vendor>
         pageKey="vendors"
         columns={columns}

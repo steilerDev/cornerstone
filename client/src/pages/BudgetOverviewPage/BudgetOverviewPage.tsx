@@ -507,11 +507,7 @@ export function BudgetOverviewPage() {
         <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>{t('overview.error')}</h2>
           <p>{error}</p>
-          <button
-            type="button"
-            className={styles.retryButton}
-            onClick={() => void loadOverview()}
-          >
+          <button type="button" className={styles.retryButton} onClick={() => void loadOverview()}>
             {t('overview.retry')}
           </button>
         </div>
@@ -666,163 +662,156 @@ export function BudgetOverviewPage() {
         </div>
       )}
 
-        {/* ========================================================
-         * Budget Health Hero Card
-         * ======================================================== */}
-        <section className={styles.heroCard} aria-label="Budget overview">
-          {/* Key metrics row */}
-          <div className={`${styles.metricsRow} ${hasPayback ? styles.metricsRowWithPayback : ''}`}>
-            {/* Available Funds */}
-            <div className={styles.metricGroup}>
-              <span className={styles.metricLabel}>{t('overview.availableFunds')}</span>
-              <span className={styles.metricValue}>{formatCurrency(overview.availableFunds)}</span>
-            </div>
+      {/* ========================================================
+       * Budget Health Hero Card
+       * ======================================================== */}
+      <section className={styles.heroCard} aria-label="Budget overview">
+        {/* Key metrics row */}
+        <div className={`${styles.metricsRow} ${hasPayback ? styles.metricsRowWithPayback : ''}`}>
+          {/* Available Funds */}
+          <div className={styles.metricGroup}>
+            <span className={styles.metricLabel}>{t('overview.availableFunds')}</span>
+            <span className={styles.metricValue}>{formatCurrency(overview.availableFunds)}</span>
+          </div>
 
-            {/* Projected Cost Range */}
+          {/* Projected Cost Range */}
+          <div className={styles.metricGroup}>
+            <span className={styles.metricLabel}>{t('overview.projectedCostRange')}</span>
+            <span className={styles.metricValue}>
+              <span className={styles.metricRange}>
+                {formatShort(filtered.minPlanned)}
+                <span className={styles.metricRangeSep}>&ndash;</span>
+                {formatShort(filtered.maxPlanned)}
+              </span>
+            </span>
+          </div>
+
+          {/* Expected Payback (only when hasPayback) */}
+          {hasPayback && (
             <div className={styles.metricGroup}>
-              <span className={styles.metricLabel}>{t('overview.projectedCostRange')}</span>
-              <span className={styles.metricValue}>
+              <span className={styles.metricLabel}>{t('overview.expectedPayback')}</span>
+              <span
+                className={`${styles.metricValue} ${styles.metricPaybackValue}`}
+                aria-live="polite"
+                aria-atomic="true"
+              >
                 <span className={styles.metricRange}>
-                  {formatShort(filtered.minPlanned)}
-                  <span className={styles.metricRangeSep}>&ndash;</span>
-                  {formatShort(filtered.maxPlanned)}
+                  {formatShort(overview.subsidySummary.minTotalPayback)}
+                  {overview.subsidySummary.minTotalPayback !==
+                  overview.subsidySummary.maxTotalPayback ? (
+                    <>
+                      <span className={styles.metricRangeSep}>&ndash;</span>
+                      {formatShort(overview.subsidySummary.maxTotalPayback)}
+                    </>
+                  ) : null}
                 </span>
               </span>
+              {overview.subsidySummary.oversubscribedSubsidies?.length > 0 && (
+                <span className={styles.paybackCappedNote}>{t('overview.paybackCapped')}</span>
+              )}
             </div>
+          )}
 
-            {/* Expected Payback (only when hasPayback) */}
-            {hasPayback && (
-              <div className={styles.metricGroup}>
-                <span className={styles.metricLabel}>{t('overview.expectedPayback')}</span>
-                <span
-                  className={`${styles.metricValue} ${styles.metricPaybackValue}`}
-                  aria-live="polite"
-                  aria-atomic="true"
-                >
-                  <span className={styles.metricRange}>
-                    {formatShort(overview.subsidySummary.minTotalPayback)}
-                    {overview.subsidySummary.minTotalPayback !==
-                    overview.subsidySummary.maxTotalPayback ? (
-                      <>
-                        <span className={styles.metricRangeSep}>&ndash;</span>
-                        {formatShort(overview.subsidySummary.maxTotalPayback)}
-                      </>
-                    ) : null}
-                  </span>
-                </span>
-                {overview.subsidySummary.oversubscribedSubsidies?.length > 0 && (
-                  <span className={styles.paybackCappedNote}>{t('overview.paybackCapped')}</span>
-                )}
-              </div>
-            )}
-
-            {/* Remaining (best/worst) — with detail on hover/tap */}
-            <div className={styles.metricGroup}>
-              <span className={styles.metricLabel}>{t('overview.remaining')}</span>
-              <Tooltip content={remainingTooltipContent}>
-                <button
-                  type="button"
-                  className={`${styles.metricValue} ${styles.metricValueInteractive}`}
-                  aria-label={t('overview.remainingDetail')}
-                  onClick={() => setRemainingDetailOpen((v) => !v)}
-                >
-                  <span
-                    className={remainingMin >= 0 ? styles.metricPositive : styles.metricNegative}
-                  >
-                    {formatShort(remainingMin)}
-                  </span>
-                  <span className={styles.metricRangeSep}>&ndash;</span>
-                  <span
-                    className={remainingMax >= 0 ? styles.metricPositive : styles.metricNegative}
-                  >
-                    {formatShort(remainingMax)}
-                  </span>
-                  <span className={styles.metricHint} aria-hidden="true">
-                    &#9432;
-                  </span>
-                </button>
-              </Tooltip>
-
-              {/* Mobile inline remaining detail — toggled by tap */}
-              <div
-                className={`${styles.remainingDetailPanel} ${remainingDetailOpen ? styles.remainingDetailPanelOpen : ''}`}
-                aria-hidden={!remainingDetailOpen}
+          {/* Remaining (best/worst) — with detail on hover/tap */}
+          <div className={styles.metricGroup}>
+            <span className={styles.metricLabel}>{t('overview.remaining')}</span>
+            <Tooltip content={remainingTooltipContent}>
+              <button
+                type="button"
+                className={`${styles.metricValue} ${styles.metricValueInteractive}`}
+                aria-label={t('overview.remainingDetail')}
+                onClick={() => setRemainingDetailOpen((v) => !v)}
               >
-                <RemainingDetailPanel
-                  items={remainingDetailItems}
-                  formatCurrency={formatCurrency}
-                />
-              </div>
+                <span className={remainingMin >= 0 ? styles.metricPositive : styles.metricNegative}>
+                  {formatShort(remainingMin)}
+                </span>
+                <span className={styles.metricRangeSep}>&ndash;</span>
+                <span className={remainingMax >= 0 ? styles.metricPositive : styles.metricNegative}>
+                  {formatShort(remainingMax)}
+                </span>
+                <span className={styles.metricHint} aria-hidden="true">
+                  &#9432;
+                </span>
+              </button>
+            </Tooltip>
+
+            {/* Mobile inline remaining detail — toggled by tap */}
+            <div
+              className={`${styles.remainingDetailPanel} ${remainingDetailOpen ? styles.remainingDetailPanelOpen : ''}`}
+              aria-hidden={!remainingDetailOpen}
+            >
+              <RemainingDetailPanel items={remainingDetailItems} formatCurrency={formatCurrency} />
             </div>
           </div>
+        </div>
 
-          {/* Stacked bar */}
-          <div className={styles.barWrapper}>
-            <BudgetBar
-              segments={segmentsForBar}
-              maxValue={Math.max(overview.availableFunds, filtered.maxPlanned, 1)}
-              overflow={overflow}
-              height="lg"
-              onSegmentHover={handleSegmentHover}
-              onSegmentClick={handleSegmentClick}
-              formatValue={formatCurrency}
-            />
+        {/* Stacked bar */}
+        <div className={styles.barWrapper}>
+          <BudgetBar
+            segments={segmentsForBar}
+            maxValue={Math.max(overview.availableFunds, filtered.maxPlanned, 1)}
+            overflow={overflow}
+            height="lg"
+            onSegmentHover={handleSegmentHover}
+            onSegmentClick={handleSegmentClick}
+            formatValue={formatCurrency}
+          />
 
-            {/* Desktop floating tooltip anchored below bar */}
-            {hoveredSegment && (
-              <div className={styles.barTooltipAnchor} role="status" aria-live="polite">
-                <SegmentTooltipContent
-                  segment={hoveredSegment}
-                  availableFunds={overview.availableFunds}
-                  formatCurrency={formatCurrency}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Mobile bar detail panel */}
-          <div
-            className={`${styles.mobileDetail} ${mobileBarOpen ? styles.mobileDetailOpen : ''}`}
-            aria-hidden={!mobileBarOpen}
-          >
-            <MobileBarDetail
-              segments={segmentsForBar}
-              overflow={overflow}
-              availableFunds={overview.availableFunds}
-              formatCurrency={formatCurrency}
-            />
-          </div>
-
-          {/* Category filter */}
-          {overview.categorySummaries.length > 0 && (
-            <div className={styles.categoryFilterRow}>
-              <CategoryFilter
-                categories={overview.categorySummaries}
-                selectedIds={selectedCategories}
-                onChange={setSelectedCategories}
+          {/* Desktop floating tooltip anchored below bar */}
+          {hoveredSegment && (
+            <div className={styles.barTooltipAnchor} role="status" aria-live="polite">
+              <SegmentTooltipContent
+                segment={hoveredSegment}
+                availableFunds={overview.availableFunds}
+                formatCurrency={formatCurrency}
               />
             </div>
           )}
-        </section>
+        </div>
 
-        {/* Cost Breakdown Table */}
-        {overview &&
-          (isBreakdownLoading ? (
-            <div
-              className={styles.breakdownLoading}
-              role="status"
-              aria-label={t('overview.costBreakdown.loading')}
-            >
-              <p>{t('overview.costBreakdown.loading')}</p>
-            </div>
-          ) : breakdown ? (
-            <CostBreakdownTable
-              breakdown={breakdown}
-              overview={overview}
-              selectedCategories={emptyCategories}
-              budgetSources={budgetSources}
+        {/* Mobile bar detail panel */}
+        <div
+          className={`${styles.mobileDetail} ${mobileBarOpen ? styles.mobileDetailOpen : ''}`}
+          aria-hidden={!mobileBarOpen}
+        >
+          <MobileBarDetail
+            segments={segmentsForBar}
+            overflow={overflow}
+            availableFunds={overview.availableFunds}
+            formatCurrency={formatCurrency}
+          />
+        </div>
+
+        {/* Category filter */}
+        {overview.categorySummaries.length > 0 && (
+          <div className={styles.categoryFilterRow}>
+            <CategoryFilter
+              categories={overview.categorySummaries}
+              selectedIds={selectedCategories}
+              onChange={setSelectedCategories}
             />
-          ) : null)}
+          </div>
+        )}
+      </section>
+
+      {/* Cost Breakdown Table */}
+      {overview &&
+        (isBreakdownLoading ? (
+          <div
+            className={styles.breakdownLoading}
+            role="status"
+            aria-label={t('overview.costBreakdown.loading')}
+          >
+            <p>{t('overview.costBreakdown.loading')}</p>
+          </div>
+        ) : breakdown ? (
+          <CostBreakdownTable
+            breakdown={breakdown}
+            overview={overview}
+            selectedCategories={emptyCategories}
+            budgetSources={budgetSources}
+          />
+        ) : null)}
     </PageLayout>
   );
 }

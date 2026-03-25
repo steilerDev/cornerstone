@@ -2139,8 +2139,18 @@ export function ManagePage() {
   const settingsTabs: SubNavTab[] = [
     { labelKey: 'subnav.settings.profile', to: '/settings/profile', ns: 'common' },
     { labelKey: 'subnav.settings.manage', to: '/settings/manage', ns: 'common' },
-    { labelKey: 'subnav.settings.userManagement', to: '/settings/users', ns: 'common', visible: isAdmin },
-    { labelKey: 'subnav.settings.backups', to: '/settings/backups', ns: 'common', visible: isAdmin },
+    {
+      labelKey: 'subnav.settings.userManagement',
+      to: '/settings/users',
+      ns: 'common',
+      visible: isAdmin,
+    },
+    {
+      labelKey: 'subnav.settings.backups',
+      to: '/settings/backups',
+      ns: 'common',
+      visible: isAdmin,
+    },
   ];
 
   useEffect(() => {
@@ -2153,41 +2163,40 @@ export function ManagePage() {
       title={t('manage.pageTitle')}
       subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
     >
-
-        <div className={styles.tabList} role="tablist">
-          <button
-            role="tab"
-            aria-selected={activeTab === 'areas'}
-            className={`${styles.tab} ${activeTab === 'areas' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('areas')}
-          >
-            {t('manage.tabs.areas')}
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'trades'}
-            className={`${styles.tab} ${activeTab === 'trades' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('trades')}
-          >
-            {t('manage.tabs.trades')}
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'budget-categories'}
-            className={`${styles.tab} ${activeTab === 'budget-categories' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('budget-categories')}
-          >
-            {t('manage.tabs.budgetCategories')}
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'hi-categories'}
-            className={`${styles.tab} ${activeTab === 'hi-categories' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('hi-categories')}
-          >
-            {t('manage.tabs.householdItemCategories')}
-          </button>
-        </div>
+      <div className={styles.tabList} role="tablist">
+        <button
+          role="tab"
+          aria-selected={activeTab === 'areas'}
+          className={`${styles.tab} ${activeTab === 'areas' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('areas')}
+        >
+          {t('manage.tabs.areas')}
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === 'trades'}
+          className={`${styles.tab} ${activeTab === 'trades' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('trades')}
+        >
+          {t('manage.tabs.trades')}
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === 'budget-categories'}
+          className={`${styles.tab} ${activeTab === 'budget-categories' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('budget-categories')}
+        >
+          {t('manage.tabs.budgetCategories')}
+        </button>
+        <button
+          role="tab"
+          aria-selected={activeTab === 'hi-categories'}
+          className={`${styles.tab} ${activeTab === 'hi-categories' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('hi-categories')}
+        >
+          {t('manage.tabs.householdItemCategories')}
+        </button>
+      </div>
 
       <div className={styles.tabPanel} role="tabpanel" id={`${activeTab}-panel`}>
         {activeTab === 'areas' && <AreasTab />}

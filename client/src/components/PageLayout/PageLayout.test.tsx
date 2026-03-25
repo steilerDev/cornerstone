@@ -11,7 +11,11 @@ describe('PageLayout', () => {
   // ── title prop ────────────────────────────────────────────────────────────
 
   it('renders h1 with the given title', () => {
-    render(<PageLayout title="Work Items"><p>content</p></PageLayout>);
+    render(
+      <PageLayout title="Work Items">
+        <p>content</p>
+      </PageLayout>,
+    );
 
     expect(screen.getByRole('heading', { level: 1, name: 'Work Items' })).toBeInTheDocument();
   });
@@ -144,7 +148,13 @@ describe('PageLayout', () => {
         action={<button type="button">Add</button>}
         subNav={<nav aria-label="Budget nav">tabs</nav>}
       >
-        <table><tbody><tr><td>Row 1</td></tr></tbody></table>
+        <table>
+          <tbody>
+            <tr>
+              <td>Row 1</td>
+            </tr>
+          </tbody>
+        </table>
       </PageLayout>,
     );
 

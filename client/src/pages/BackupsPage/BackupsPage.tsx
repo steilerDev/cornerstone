@@ -32,8 +32,18 @@ export function BackupsPage() {
   const settingsTabs: SubNavTab[] = [
     { labelKey: 'subnav.settings.profile', to: '/settings/profile', ns: 'common' },
     { labelKey: 'subnav.settings.manage', to: '/settings/manage', ns: 'common' },
-    { labelKey: 'subnav.settings.userManagement', to: '/settings/users', ns: 'common', visible: isAdmin },
-    { labelKey: 'subnav.settings.backups', to: '/settings/backups', ns: 'common', visible: isAdmin },
+    {
+      labelKey: 'subnav.settings.userManagement',
+      to: '/settings/users',
+      ns: 'common',
+      visible: isAdmin,
+    },
+    {
+      labelKey: 'subnav.settings.backups',
+      to: '/settings/backups',
+      ns: 'common',
+      visible: isAdmin,
+    },
   ];
 
   // Data state
@@ -150,7 +160,7 @@ export function BackupsPage() {
   if (restoreInitiated) {
     return (
       <PageLayout
-      maxWidth="narrow"
+        maxWidth="narrow"
         title={t('backups.pageTitle')}
         subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
       >
@@ -163,7 +173,7 @@ export function BackupsPage() {
   if (isNotConfigured && !isLoading) {
     return (
       <PageLayout
-      maxWidth="narrow"
+        maxWidth="narrow"
         title={t('backups.pageTitle')}
         subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
       >
@@ -182,7 +192,6 @@ export function BackupsPage() {
       title={t('backups.pageTitle')}
       subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
     >
-
       {/* Loading state */}
       {isLoading && <Skeleton lines={5} loadingLabel={t('backups.loading')} />}
 

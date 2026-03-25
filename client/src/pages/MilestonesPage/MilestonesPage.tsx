@@ -385,7 +385,6 @@ export function MilestonesPage() {
       }
       subNav={<SubNav tabs={PROJECT_TABS} ariaLabel="Project section navigation" />}
     >
-
       <DataTable<MilestoneSummary>
         pageKey="milestones"
         columns={columns}

@@ -43,8 +43,18 @@ export function UserManagementPage() {
   const settingsTabs: SubNavTab[] = [
     { labelKey: 'subnav.settings.profile', to: '/settings/profile', ns: 'common' },
     { labelKey: 'subnav.settings.manage', to: '/settings/manage', ns: 'common' },
-    { labelKey: 'subnav.settings.userManagement', to: '/settings/users', ns: 'common', visible: isAdmin },
-    { labelKey: 'subnav.settings.backups', to: '/settings/backups', ns: 'common', visible: isAdmin },
+    {
+      labelKey: 'subnav.settings.userManagement',
+      to: '/settings/users',
+      ns: 'common',
+      visible: isAdmin,
+    },
+    {
+      labelKey: 'subnav.settings.backups',
+      to: '/settings/backups',
+      ns: 'common',
+      visible: isAdmin,
+    },
   ];
 
   // Data state
