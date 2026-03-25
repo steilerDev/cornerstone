@@ -150,7 +150,6 @@ After implementation, the security engineer reviews every PR diff for security i
    - **Input validation issues**: Missing validation, insufficient sanitization, type coercion attacks
    - **Dependency security**: New packages with known CVEs, unmaintained dependencies, typosquatting
 4. Post review via `gh pr review` using the verdict decision matrix below.
-5. Append a `REVIEW_METRICS` block to your review body per the format defined in the "Review Metrics" section of CLAUDE.md.
 
 ### Verdict Decision Matrix
 
