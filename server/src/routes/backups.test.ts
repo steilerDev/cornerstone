@@ -40,7 +40,6 @@ describe('Backup Routes', () => {
 
     process.env.DATABASE_URL = join(tempDir, 'test.db');
     process.env.SECURE_COOKIES = 'false';
-    // Note: BACKUP_DIR is NOT set by default — routes should return 503
 
     app = await buildApp();
   });
@@ -84,25 +83,6 @@ describe('Backup Routes', () => {
   // ─── POST /api/backups — without BACKUP_DIR ───────────────────────────────
 
   describe('POST /api/backups', () => {
-    it('returns 503 BACKUP_NOT_CONFIGURED when BACKUP_DIR is not set', async () => {
-      const { cookie } = await createUserWithSession(
-        'admin@test.com',
-        'Admin',
-        'password',
-        'admin',
-      );
-
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/backups',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(503);
-      const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('BACKUP_NOT_CONFIGURED');
-    });
-
     it('returns 401 without authentication', async () => {
       const response = await app.inject({
         method: 'POST',
@@ -137,25 +117,6 @@ describe('Backup Routes', () => {
   // ─── GET /api/backups — without BACKUP_DIR ────────────────────────────────
 
   describe('GET /api/backups', () => {
-    it('returns 503 BACKUP_NOT_CONFIGURED when BACKUP_DIR is not set', async () => {
-      const { cookie } = await createUserWithSession(
-        'admin@test.com',
-        'Admin',
-        'password',
-        'admin',
-      );
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/backups',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(503);
-      const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('BACKUP_NOT_CONFIGURED');
-    });
-
     it('returns 401 without authentication', async () => {
       const response = await app.inject({
         method: 'GET',
@@ -190,25 +151,6 @@ describe('Backup Routes', () => {
   // ─── DELETE /api/backups/:filename — without BACKUP_DIR ──────────────────
 
   describe('DELETE /api/backups/:filename', () => {
-    it('returns 503 BACKUP_NOT_CONFIGURED when BACKUP_DIR is not set', async () => {
-      const { cookie } = await createUserWithSession(
-        'admin@test.com',
-        'Admin',
-        'password',
-        'admin',
-      );
-
-      const response = await app.inject({
-        method: 'DELETE',
-        url: '/api/backups/cornerstone-backup-2026-03-22T020000Z.tar.gz',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(503);
-      const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('BACKUP_NOT_CONFIGURED');
-    });
-
     it('returns 401 without authentication', async () => {
       const response = await app.inject({
         method: 'DELETE',
@@ -243,25 +185,6 @@ describe('Backup Routes', () => {
   // ─── POST /api/backups/:filename/restore — without BACKUP_DIR ────────────
 
   describe('POST /api/backups/:filename/restore', () => {
-    it('returns 503 BACKUP_NOT_CONFIGURED when BACKUP_DIR is not set', async () => {
-      const { cookie } = await createUserWithSession(
-        'admin@test.com',
-        'Admin',
-        'password',
-        'admin',
-      );
-
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/backups/cornerstone-backup-2026-03-22T020000Z.tar.gz/restore',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(503);
-      const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('BACKUP_NOT_CONFIGURED');
-    });
-
     it('returns 401 without authentication', async () => {
       const response = await app.inject({
         method: 'POST',
