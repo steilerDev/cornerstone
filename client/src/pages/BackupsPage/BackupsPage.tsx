@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { BackupMeta } from '@cornerstone/shared';
-import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.js';
+import { useAuth } from '../../contexts/AuthContext.js';
+import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
@@ -23,6 +25,16 @@ function formatFileSize(bytes: number): string {
 export function BackupsPage() {
   const { t } = useTranslation('settings');
   const { formatDate } = useFormatters();
+  const { user } = useAuth();
+
+  const isAdmin = user?.role === 'admin';
+
+  const settingsTabs: SubNavTab[] = [
+    { labelKey: 'subnav.settings.profile', to: '/settings/profile', ns: 'common' },
+    { labelKey: 'subnav.settings.manage', to: '/settings/manage', ns: 'common' },
+    { labelKey: 'subnav.settings.userManagement', to: '/settings/users', ns: 'common', visible: isAdmin },
+    { labelKey: 'subnav.settings.backups', to: '/settings/backups', ns: 'common', visible: isAdmin },
+  ];
 
   // Data state
   const [backups, setBackups] = useState<BackupMeta[]>([]);
@@ -137,34 +149,39 @@ export function BackupsPage() {
   // If restore has been initiated, show the restarting message
   if (restoreInitiated) {
     return (
-      <div className={styles.page}>
-        <SettingsSubNav />
+      <PageLayout
+      maxWidth="narrow"
+        title={t('backups.pageTitle')}
+        subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+      >
         <EmptyState icon="⏳" message={t('backups.restartingMessage')} />
-      </div>
+      </PageLayout>
     );
   }
 
   // If backup is not configured, show informational empty state
   if (isNotConfigured && !isLoading) {
     return (
-      <div className={styles.page}>
-        <SettingsSubNav />
-        <h1 className={styles.pageTitle}>{t('backups.pageTitle')}</h1>
+      <PageLayout
+      maxWidth="narrow"
+        title={t('backups.pageTitle')}
+        subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+      >
         <EmptyState
           icon="⚙️"
           message={t('backups.notConfiguredMessage')}
           description={t('backups.notConfiguredDescription')}
         />
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className={styles.page}>
-      <div className={styles.header}>
-        <h1 className={styles.pageTitle}>{t('backups.pageTitle')}</h1>
-      </div>
-      <SettingsSubNav />
+    <PageLayout
+      maxWidth="narrow"
+      title={t('backups.pageTitle')}
+      subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+    >
 
       {/* Loading state */}
       {isLoading && <Skeleton lines={5} loadingLabel={t('backups.loading')} />}
@@ -337,7 +354,7 @@ export function BackupsPage() {
           <p className={styles.warningText}>{t('backups.restoreModal.warning')}</p>
         </Modal>
       )}
-    </div>
+    </PageLayout>
   );
 }
 

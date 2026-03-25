@@ -19,7 +19,8 @@ import { fetchAllInvoices } from '../../lib/invoicesApi.js';
 import { listDiaryEntries } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { usePreferences } from '../../hooks/usePreferences.js';
-import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
+import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { DashboardCard } from '../../components/DashboardCard/DashboardCard.js';
 import { BudgetSummaryCard } from '../../components/BudgetSummaryCard/BudgetSummaryCard.js';
 import { SourceUtilizationCard } from '../../components/SourceUtilizationCard/SourceUtilizationCard.js';
@@ -32,6 +33,13 @@ import { InvoicePipelineCard } from '../../components/InvoicePipelineCard/Invoic
 import { SubsidyPipelineCard } from '../../components/SubsidyPipelineCard/SubsidyPipelineCard.js';
 import { RecentDiaryCard } from '../../components/RecentDiaryCard/RecentDiaryCard.js';
 import styles from './DashboardPage.module.css';
+
+const PROJECT_TABS: SubNavTab[] = [
+  { labelKey: 'subnav.project.overview', to: '/project/overview', ns: 'common' },
+  { labelKey: 'subnav.project.workItems', to: '/project/work-items', ns: 'common' },
+  { labelKey: 'subnav.project.householdItems', to: '/project/household-items', ns: 'common' },
+  { labelKey: 'subnav.project.milestones', to: '/project/milestones', ns: 'common' },
+];
 
 type DataSourceKey =
   | 'budgetOverview'
@@ -469,9 +477,9 @@ export function DashboardPage() {
   };
 
   return (
-    <div className={styles.page}>
-      <div className={styles.pageHeader}>
-        <h1 className={styles.title}>{t('page.title')}</h1>
+    <PageLayout
+      title={t('page.title')}
+      action={
         <div className={styles.headerRight}>
           <div className={styles.addContainer} ref={addRef}>
             <button
@@ -560,10 +568,9 @@ export function DashboardPage() {
             </div>
           )}
         </div>
-      </div>
-
-      <ProjectSubNav />
-
+      }
+      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel="Project section navigation" />}
+    >
       {/* Desktop/tablet: flat grid */}
       <div
         role="region"
@@ -639,7 +646,7 @@ export function DashboardPage() {
           </details>
         )}
       </div>
-    </div>
+    </PageLayout>
   );
 }
 

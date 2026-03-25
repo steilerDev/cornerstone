@@ -16,7 +16,9 @@ import {
 } from '../../lib/usersApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
-import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.js';
+import { useAuth } from '../../contexts/AuthContext.js';
+import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './UserManagementPage.module.css';
 
@@ -34,6 +36,16 @@ interface FieldErrors {
 export function UserManagementPage() {
   const { formatDate } = useFormatters();
   const { t } = useTranslation('settings');
+  const { user: currentUser } = useAuth();
+
+  const isAdmin = currentUser?.role === 'admin';
+
+  const settingsTabs: SubNavTab[] = [
+    { labelKey: 'subnav.settings.profile', to: '/settings/profile', ns: 'common' },
+    { labelKey: 'subnav.settings.manage', to: '/settings/manage', ns: 'common' },
+    { labelKey: 'subnav.settings.userManagement', to: '/settings/users', ns: 'common', visible: isAdmin },
+    { labelKey: 'subnav.settings.backups', to: '/settings/backups', ns: 'common', visible: isAdmin },
+  ];
 
   // Data state
   const [users, setUsers] = useState<UserResponse[]>([]);
@@ -445,12 +457,11 @@ export function UserManagementPage() {
   };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.pageTitle}>{t('userManagement.pageTitle')}</h1>
-      </div>
-      <SettingsSubNav />
-
+    <PageLayout
+      maxWidth="narrow"
+      title={t('userManagement.pageTitle')}
+      subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+    >
       <DataTable<UserResponse>
         pageKey="users"
         columns={columns}
@@ -609,7 +620,7 @@ export function UserManagementPage() {
           </p>
         </Modal>
       )}
-    </div>
+    </PageLayout>
   );
 }
 

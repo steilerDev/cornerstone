@@ -18,13 +18,15 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { generateRandomColor } from '../../lib/colorUtils.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useTranslation } from 'react-i18next';
-import { SettingsSubNav } from '../../components/SettingsSubNav/SettingsSubNav.js';
+import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import { buildTree } from '../../lib/areaTreeUtils.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { useTrades } from '../../hooks/useTrades.js';
+import { useAuth } from '../../contexts/AuthContext.js';
 import {
   fetchBudgetCategories,
   createBudgetCategory,
@@ -2128,17 +2130,29 @@ function HouseholdItemCategoriesTab() {
 
 export function ManagePage() {
   const { t } = useTranslation('settings');
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>((searchParams.get('tab') as Tab) || 'areas');
+
+  const isAdmin = user?.role === 'admin';
+
+  const settingsTabs: SubNavTab[] = [
+    { labelKey: 'subnav.settings.profile', to: '/settings/profile', ns: 'common' },
+    { labelKey: 'subnav.settings.manage', to: '/settings/manage', ns: 'common' },
+    { labelKey: 'subnav.settings.userManagement', to: '/settings/users', ns: 'common', visible: isAdmin },
+    { labelKey: 'subnav.settings.backups', to: '/settings/backups', ns: 'common', visible: isAdmin },
+  ];
 
   useEffect(() => {
     setSearchParams({ tab: activeTab });
   }, [activeTab, setSearchParams]);
 
   return (
-    <div className={styles.container}>
-      <div className={styles.content}>
-        <SettingsSubNav />
+    <PageLayout
+      maxWidth="narrow"
+      title={t('manage.pageTitle')}
+      subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+    >
 
         <div className={styles.tabList} role="tablist">
           <button
@@ -2175,14 +2189,13 @@ export function ManagePage() {
           </button>
         </div>
 
-        <div className={styles.tabPanel} role="tabpanel" id={`${activeTab}-panel`}>
-          {activeTab === 'areas' && <AreasTab />}
-          {activeTab === 'trades' && <TradesTab />}
-          {activeTab === 'budget-categories' && <BudgetCategoriesTab />}
-          {activeTab === 'hi-categories' && <HouseholdItemCategoriesTab />}
-        </div>
+      <div className={styles.tabPanel} role="tabpanel" id={`${activeTab}-panel`}>
+        {activeTab === 'areas' && <AreasTab />}
+        {activeTab === 'trades' && <TradesTab />}
+        {activeTab === 'budget-categories' && <BudgetCategoriesTab />}
+        {activeTab === 'hi-categories' && <HouseholdItemCategoriesTab />}
       </div>
-    </div>
+    </PageLayout>
   );
 }
 

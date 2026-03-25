@@ -401,9 +401,11 @@ describe('TimelinePage', () => {
   // ---------------------------------------------------------------------------
 
   describe('ScheduleSubNav integration', () => {
-    it('renders the ScheduleSubNav with aria-label "Gantt"', () => {
+    it('renders the ScheduleSubNav with aria-label "Schedule section navigation"', () => {
       renderWithRouter();
-      expect(screen.getByRole('navigation', { name: /^gantt$/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('navigation', { name: /schedule section navigation/i }),
+      ).toBeInTheDocument();
     });
 
     it('renders both Gantt and Calendar tabs', () => {

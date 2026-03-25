@@ -24,10 +24,12 @@ describe('ScheduleSubNav', () => {
     expect(screen.getByText('Calendar')).toBeInTheDocument();
   });
 
-  it('renders nav with aria-label="Schedule view navigation"', () => {
+  it('renders nav with aria-label="Schedule section navigation"', () => {
     renderNav();
 
-    expect(screen.getByRole('navigation', { name: 'Gantt' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('navigation', { name: 'Schedule section navigation' }),
+    ).toBeInTheDocument();
   });
 
   it('renders data-testid="schedule-view-gantt" on Gantt tab', () => {

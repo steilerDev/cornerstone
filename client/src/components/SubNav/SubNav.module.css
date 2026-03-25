@@ -1,5 +1,5 @@
 /* ============================================================
- * SettingsSubNav — horizontal tab navigation for the Settings section
+ * SubNav — unified horizontal tab navigation
  * ============================================================ */
 
 .subNav {
@@ -67,5 +67,11 @@
   .tab {
     padding: var(--spacing-2) var(--spacing-3);
     font-size: var(--font-size-xs);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab {
+    transition: none;
   }
 }

@@ -6,7 +6,8 @@ import type { ColumnDef, TableState } from '../../components/DataTable/DataTable
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
-import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
+import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { fetchAllInvoices, createInvoice } from '../../lib/invoicesApi.js';
@@ -14,6 +15,14 @@ import { fetchVendors } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './InvoicesPage.module.css';
+
+const BUDGET_TABS: SubNavTab[] = [
+  { labelKey: 'subnav.budget.overview', to: '/budget/overview' },
+  { labelKey: 'subnav.budget.invoices', to: '/budget/invoices' },
+  { labelKey: 'subnav.budget.vendors', to: '/budget/vendors' },
+  { labelKey: 'subnav.budget.sources', to: '/budget/sources' },
+  { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
+];
 
 interface InvoiceFormState {
   vendorId: string;
@@ -443,9 +452,9 @@ export function InvoicesPage() {
   );
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.pageTitle}>{t('invoices.title')}</h1>
+    <PageLayout
+      title={t('invoices.title')}
+      action={
         <button
           type="button"
           className={sharedStyles.btnPrimary}
@@ -454,10 +463,10 @@ export function InvoicesPage() {
         >
           {t('invoices.addInvoice')}
         </button>
-      </div>
-
-      <BudgetSubNav />
-
+      }
+      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+    >
+      {headerContent}
       <DataTable<Invoice>
         pageKey="invoices"
         columns={columns}
@@ -472,7 +481,6 @@ export function InvoicesPage() {
         renderActions={renderActions}
         tableState={tableState}
         onStateChange={handleStateChange}
-        headerContent={headerContent}
         filterMeta={filterMeta}
         emptyState={{
           message: t('invoices.noInvoicesTitle'),
@@ -648,7 +656,7 @@ export function InvoicesPage() {
           </form>
         </Modal>
       )}
-    </div>
+    </PageLayout>
   );
 }
 

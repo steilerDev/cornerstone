@@ -47,7 +47,8 @@
   "schedule": {
     "navigation": {
       "gantt": "Gantt",
-      "calendar": "Calendar"
+      "calendar": "Calendar",
+      "ariaLabel": "Schedule section navigation"
     }
   },
   "ganttSidebar": {

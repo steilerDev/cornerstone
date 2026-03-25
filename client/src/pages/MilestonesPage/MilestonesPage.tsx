@@ -7,14 +7,22 @@ import { DataTable } from '../../components/DataTable/DataTable.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import { Modal } from '../../components/Modal/Modal.js';
+import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { listMilestones, deleteMilestone } from '../../lib/milestonesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { useFormatters } from '../../lib/formatters.js';
-import { ProjectSubNav } from '../../components/ProjectSubNav/ProjectSubNav.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './MilestonesPage.module.css';
+
+const PROJECT_TABS: SubNavTab[] = [
+  { labelKey: 'subnav.project.overview', to: '/project/overview' },
+  { labelKey: 'subnav.project.workItems', to: '/project/work-items' },
+  { labelKey: 'subnav.project.householdItems', to: '/project/household-items' },
+  { labelKey: 'subnav.project.milestones', to: '/project/milestones' },
+];
 
 export function MilestonesPage() {
   const { formatDate } = useFormatters();
@@ -363,9 +371,9 @@ export function MilestonesPage() {
   useKeyboardShortcuts(shortcuts);
 
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.pageTitle}>{t('milestones.page.title')}</h1>
+    <PageLayout
+      title={t('milestones.page.title')}
+      action={
         <button
           type="button"
           className={sharedStyles.btnPrimary}
@@ -374,8 +382,9 @@ export function MilestonesPage() {
         >
           {t('milestones.newButton')}
         </button>
-      </div>
-      <ProjectSubNav />
+      }
+      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel="Project section navigation" />}
+    >
 
       <DataTable<MilestoneSummary>
         pageKey="milestones"
@@ -438,7 +447,7 @@ export function MilestonesPage() {
       {showShortcutsHelp && (
         <KeyboardShortcutsHelp shortcuts={shortcuts} onClose={() => setShowShortcutsHelp(false)} />
       )}
-    </div>
+    </PageLayout>
   );
 }
 

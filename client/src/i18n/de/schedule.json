@@ -47,7 +47,8 @@
   "schedule": {
     "navigation": {
       "gantt": "Gantt-Diagramm",
-      "calendar": "Kalender"
+      "calendar": "Kalender",
+      "ariaLabel": "Zeitplan-Abschnittsnavigation"
     }
   },
   "ganttSidebar": {

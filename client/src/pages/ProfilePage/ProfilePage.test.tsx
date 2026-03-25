@@ -23,9 +23,9 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   AuthProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
-// Mock SettingsSubNav to avoid transitive dependency issues
-jest.unstable_mockModule('../../components/SettingsSubNav/SettingsSubNav.js', () => ({
-  SettingsSubNav: () => null,
+// Mock SubNav — uses NavLink (requires Router context); stub it out since ProfilePage has no MemoryRouter
+jest.unstable_mockModule('../../components/SubNav/SubNav.js', () => ({
+  SubNav: () => null,
 }));
 
 // ─── Mock: formatters — provides useFormatters() hook ────────────────────────

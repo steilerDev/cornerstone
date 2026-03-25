@@ -12,12 +12,21 @@ import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
-import { BudgetSubNav } from '../../components/BudgetSubNav/BudgetSubNav.js';
+import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
 import { Tooltip } from '../../components/Tooltip/Tooltip.js';
 import { CostBreakdownTable } from '../../components/CostBreakdownTable/CostBreakdownTable.js';
 import styles from './BudgetOverviewPage.module.css';
+
+const BUDGET_TABS: SubNavTab[] = [
+  { labelKey: 'subnav.budget.overview', to: '/budget/overview' },
+  { labelKey: 'subnav.budget.invoices', to: '/budget/invoices' },
+  { labelKey: 'subnav.budget.vendors', to: '/budget/vendors' },
+  { labelKey: 'subnav.budget.sources', to: '/budget/sources' },
+  { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
+];
 
 /** Stable empty set passed to CostBreakdownTable so it always shows all categories. */
 const emptyCategories = new Set<string | null>();
@@ -427,89 +436,86 @@ export function BudgetOverviewPage() {
     setMobileBarOpen((v) => !v);
   }, []);
 
-  // Page header JSX (reused across loading, error, and main states)
-  const pageHeaderJsx = (
-    <div className={styles.pageHeader}>
-      <h1 className={styles.pageTitle}>{t('overview.title')}</h1>
-      <div className={styles.addContainer} ref={addRef}>
-        <button
-          type="button"
-          className={styles.addButton}
-          onClick={() => setAddOpen((v) => !v)}
-          aria-haspopup="menu"
-          aria-expanded={addOpen}
-          aria-label={t('overview.actions.addButton')}
-          data-testid="budget-overview-add-button"
-        >
-          {t('overview.actions.addButton')}
-        </button>
-        {addOpen && (
-          <div className={styles.addDropdown} role="menu">
-            <button
-              type="button"
-              className={styles.addMenuItem}
-              role="menuitem"
-              onClick={() => {
-                setAddOpen(false);
-                void navigate('/budget/invoices');
-              }}
-              data-testid="budget-overview-add-invoice"
-            >
-              {t('overview.actions.addInvoice')}
-            </button>
-            <button
-              type="button"
-              className={styles.addMenuItem}
-              role="menuitem"
-              onClick={() => {
-                setAddOpen(false);
-                void navigate('/budget/vendors');
-              }}
-              data-testid="budget-overview-add-vendor"
-            >
-              {t('overview.actions.addVendor')}
-            </button>
-          </div>
-        )}
-      </div>
+  // Action dropdown (reused across loading, error, and main states)
+  const actionDropdown = (
+    <div className={styles.addContainer} ref={addRef}>
+      <button
+        type="button"
+        className={styles.addButton}
+        onClick={() => setAddOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={addOpen}
+        aria-label={t('overview.actions.addButton')}
+        data-testid="budget-overview-add-button"
+      >
+        {t('overview.actions.addButton')}
+      </button>
+      {addOpen && (
+        <div className={styles.addDropdown} role="menu">
+          <button
+            type="button"
+            className={styles.addMenuItem}
+            role="menuitem"
+            onClick={() => {
+              setAddOpen(false);
+              void navigate('/budget/invoices');
+            }}
+            data-testid="budget-overview-add-invoice"
+          >
+            {t('overview.actions.addInvoice')}
+          </button>
+          <button
+            type="button"
+            className={styles.addMenuItem}
+            role="menuitem"
+            onClick={() => {
+              setAddOpen(false);
+              void navigate('/budget/vendors');
+            }}
+            data-testid="budget-overview-add-vendor"
+          >
+            {t('overview.actions.addVendor')}
+          </button>
+        </div>
+      )}
     </div>
   );
 
   // ---- Loading state ----
   if (isLoading) {
     return (
-      <div className={styles.container}>
-        <div className={styles.content}>
-          {pageHeaderJsx}
-          <BudgetSubNav />
-          <div className={styles.loading} role="status" aria-label={t('overview.loading')}>
-            {t('overview.loading')}
-          </div>
+      <PageLayout
+        title={t('overview.title')}
+        action={actionDropdown}
+        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+      >
+        <div className={styles.loading} role="status" aria-label={t('overview.loading')}>
+          {t('overview.loading')}
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   // ---- Error state ----
   if (error) {
     return (
-      <div className={styles.container}>
-        <div className={styles.content}>
-          {pageHeaderJsx}
-          <BudgetSubNav />
-          <div className={styles.errorCard} role="alert">
-            <h2 className={styles.errorTitle}>{t('overview.error')}</h2>
-            <p>{error}</p>
-            <button
-              type="button"
-              className={styles.retryButton}
-              onClick={() => void loadOverview()}
-            >
-              {t('overview.retry')}
-            </button>
-          </div>
+      <PageLayout
+        title={t('overview.title')}
+        action={actionDropdown}
+        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+      >
+        <div className={styles.errorCard} role="alert">
+          <h2 className={styles.errorTitle}>{t('overview.error')}</h2>
+          <p>{error}</p>
+          <button
+            type="button"
+            className={styles.retryButton}
+            onClick={() => void loadOverview()}
+          >
+            {t('overview.retry')}
+          </button>
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
@@ -647,21 +653,18 @@ export function BudgetOverviewPage() {
   );
 
   return (
-    <div className={styles.container}>
-      <div className={styles.content}>
-        {/* Page header */}
-        {pageHeaderJsx}
-
-        {/* Budget sub-navigation */}
-        <BudgetSubNav />
-
-        {/* Empty state */}
-        {!hasData && (
-          <div className={styles.emptyState}>
-            <p className={styles.emptyStateTitle}>{t('overview.emptyStateTitle')}</p>
-            <p className={styles.emptyStateDescription}>{t('overview.emptyStateDescription')}</p>
-          </div>
-        )}
+    <PageLayout
+      title={t('overview.title')}
+      action={actionDropdown}
+      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+    >
+      {/* Empty state */}
+      {!hasData && (
+        <div className={styles.emptyState}>
+          <p className={styles.emptyStateTitle}>{t('overview.emptyStateTitle')}</p>
+          <p className={styles.emptyStateDescription}>{t('overview.emptyStateDescription')}</p>
+        </div>
+      )}
 
         {/* ========================================================
          * Budget Health Hero Card
@@ -820,8 +823,7 @@ export function BudgetOverviewPage() {
               budgetSources={budgetSources}
             />
           ) : null)}
-      </div>
-    </div>
+    </PageLayout>
   );
 }
 

@@ -2,34 +2,6 @@
  * BudgetOverviewPage — CSS Module
  * ============================================================ */
 
-.container {
-  padding: var(--spacing-8);
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.content {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-6);
-}
-
-/* ---- Page header ---- */
-
-.pageHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-4);
-}
-
-.pageTitle {
-  font-size: var(--font-size-4xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  margin: 0;
-}
-
 /* ---- Add dropdown button ---- */
 
 .addContainer {

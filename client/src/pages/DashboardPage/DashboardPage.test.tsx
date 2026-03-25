@@ -241,11 +241,11 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Project' })).toBeInTheDocument();
   });
 
-  // ─── Test 12: ProjectSubNav ──────────────────────────────────────────────
+  // ─── Test 12: project section SubNav ────────────────────────────────────
 
-  it('renders ProjectSubNav navigation', () => {
+  it('renders project section SubNav navigation', () => {
     renderPage();
-    // ProjectSubNav renders a <nav> element with project links
+    // SubNav renders a <nav> element with project links
     expect(screen.getByRole('navigation')).toBeInTheDocument();
   });
 
