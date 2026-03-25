@@ -354,17 +354,7 @@ describe('backupService', () => {
   describe('createBackup() — guard conditions', () => {
     it('throws BackupNotConfiguredError (code BACKUP_NOT_CONFIGURED) when backupEnabled is false', async () => {
       const db = {} as any;
-      const config = makeConfig({ backupEnabled: false, backupDir: undefined });
-
-      await expect(createBackup(db, config)).rejects.toMatchObject({
-        code: 'BACKUP_NOT_CONFIGURED',
-      });
-    });
-
-    it('throws BackupNotConfiguredError (code BACKUP_NOT_CONFIGURED) when backupDir is not set', async () => {
-      const db = {} as any;
-      // The service checks !config.backupEnabled || !config.backupDir
-      const config = makeConfig({ backupEnabled: true, backupDir: undefined });
+      const config = makeConfig({ backupEnabled: false });
 
       await expect(createBackup(db, config)).rejects.toMatchObject({
         code: 'BACKUP_NOT_CONFIGURED',

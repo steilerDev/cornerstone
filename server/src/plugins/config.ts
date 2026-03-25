@@ -25,7 +25,7 @@ export interface AppConfig {
   photoMaxFileSizeMb: number;
   diaryAutoEvents: boolean;
   currency: string;
-  backupDir?: string;
+  backupDir: string;
   backupCadence?: string;
   backupRetention?: number;
   backupEnabled: boolean;
