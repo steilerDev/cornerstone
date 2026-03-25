@@ -113,26 +113,17 @@ test.describe('i18n: Predefined category name translations', () => {
     await setLanguage(page, 'de');
 
     // When: User navigates to the Manage page trades tab.
-    // Reload after setLanguage to ensure the app re-reads locale from localStorage.
-    // setLanguage already navigated to '/', so a direct goto() + reload() here is sufficient
-    // — this matches the i18n.spec.ts "Key page headings render in German" pattern that passes.
-    await page.goto(MANAGE_TRADES_URL);
-    await page.reload();
-    // Visual cleanup #1185: the <h1>Manage</h1> (German: "Verwalten") heading was removed.
-    // Wait for the trades panel to attach (it renders once ManagePage mounts its tabs),
-    // then wait for the first item row — this serves as the i18n readiness indicator.
-    // Use a 20s timeout on the item row wait: i18next cold-start locale initialization
-    // (fetching + parsing the 'de' bundle) can take 10-15s on slow CI runners.
-    // The test.setTimeout(30s) gives enough budget:
-    // setLanguage(~5s) + goto(~2s) + reload(~2s) + item row wait (up to 20s) = ~29s.
+    // setLanguage writes localStorage; goto() loads a fresh page that reads it on mount.
+    // No reload() needed — a single navigation is more reliable than goto+reload to the
+    // same URL, which can skip the full page load on some browsers.
+    await page.goto(MANAGE_TRADES_URL, { waitUntil: 'commit' });
+    // Wait for the trades panel to render with German content — use "Sanitär" as the
+    // locale-readiness indicator instead of a generic item row (which could appear with
+    // English text before i18next finishes loading the German bundle).
     const tradesPanel = page.locator('#trades-panel');
-    await tradesPanel
-      .locator('[class*="itemRow"]')
-      .first()
-      .waitFor({ state: 'visible', timeout: 20000 });
-
-    // Then: The German translation "Sanitär" is shown for Plumbing
-    await expect(tradesPanel.getByText('Sanitär', { exact: true }).first()).toBeVisible();
+    await expect(
+      tradesPanel.getByText('Sanitär', { exact: true }).first(),
+    ).toBeVisible({ timeout: 20000 });
 
     // And: The raw English name "Plumbing" is NOT shown as a category name
     await expect(
@@ -168,21 +159,14 @@ test.describe('i18n: Predefined category name translations', () => {
     // Given: locale is set to German
     await setLanguage(page, 'de');
 
-    // When: User navigates to the Manage page budget categories tab
-    // Reload after setLanguage to ensure i18next re-reads locale from localStorage
-    // Visual cleanup #1185: the <h1>Manage</h1> / "Verwalten" heading was removed.
-    // Wait directly for the item row as the i18n readiness indicator.
-    await page.goto(MANAGE_BUDGET_CATEGORIES_URL);
-    await page.reload();
-
+    // When: User navigates to the Manage page budget categories tab.
+    // setLanguage writes localStorage; goto() loads a fresh page that reads it on mount.
+    await page.goto(MANAGE_BUDGET_CATEGORIES_URL, { waitUntil: 'commit' });
+    // Wait for the budget categories panel to render with German content.
     const budgetPanel = page.locator('#budget-categories-panel');
-    await budgetPanel
-      .locator('[class*="itemRow"]')
-      .first()
-      .waitFor({ state: 'visible', timeout: 20000 });
-
-    // Then: The German translation "Materialien" is shown for Materials
-    await expect(budgetPanel.getByText('Materialien', { exact: true }).first()).toBeVisible();
+    await expect(
+      budgetPanel.getByText('Materialien', { exact: true }).first(),
+    ).toBeVisible({ timeout: 20000 });
 
     // And: The raw English name "Materials" is NOT shown as a category name
     await expect(
@@ -218,21 +202,14 @@ test.describe('i18n: Predefined category name translations', () => {
     // Given: locale is set to German
     await setLanguage(page, 'de');
 
-    // When: User navigates to the Manage page household item categories tab
-    // Reload after setLanguage to ensure i18next re-reads locale from localStorage
-    // Visual cleanup #1185: the <h1>Manage</h1> / "Verwalten" heading was removed.
-    // Wait directly for the item row as the i18n readiness indicator.
-    await page.goto(MANAGE_HI_CATEGORIES_URL);
-    await page.reload();
-
+    // When: User navigates to the Manage page household item categories tab.
+    // setLanguage writes localStorage; goto() loads a fresh page that reads it on mount.
+    await page.goto(MANAGE_HI_CATEGORIES_URL, { waitUntil: 'commit' });
+    // Wait for the household item categories panel to render with German content.
     const hiPanel = page.locator('#hi-categories-panel');
-    await hiPanel
-      .locator('[class*="itemRow"]')
-      .first()
-      .waitFor({ state: 'visible', timeout: 20000 });
-
-    // Then: The German translation "Möbel" is shown for Furniture
-    await expect(hiPanel.getByText('Möbel', { exact: true }).first()).toBeVisible();
+    await expect(
+      hiPanel.getByText('Möbel', { exact: true }).first(),
+    ).toBeVisible({ timeout: 20000 });
 
     // And: The raw English name "Furniture" is NOT shown as a category name
     await expect(
