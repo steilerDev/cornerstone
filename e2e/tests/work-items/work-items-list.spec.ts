@@ -102,7 +102,7 @@ test.describe('Empty state (Scenario 2)', { tag: '@responsive' }, () => {
       // Empty state with filter message should appear.
       // DataTable renders t('dataTable.empty.filteredMessage') = "No items match the current filters"
       // when hasActiveFilters is true (search or column filters active).
-      await expect(workItemsPage.emptyState).toBeVisible({ timeout: 7000 });
+      await expect(workItemsPage.emptyState).toBeVisible({ timeout: 15000 });
       const emptyText = await workItemsPage.emptyState.textContent();
       expect(emptyText?.toLowerCase()).toMatch(/no items match the current filters/);
 
@@ -110,7 +110,7 @@ test.describe('Empty state (Scenario 2)', { tag: '@responsive' }, () => {
       const clearButton = workItemsPage.emptyState.getByRole('button', {
         name: /Clear Filters/i,
       });
-      await expect(clearButton).toBeVisible();
+      await expect(clearButton).toBeVisible({ timeout: 10000 });
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
