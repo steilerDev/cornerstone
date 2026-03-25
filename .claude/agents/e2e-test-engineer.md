@@ -282,6 +282,15 @@ If you discover something that requires a fix, write a bug report. If you need c
 
 E2E smoke tests run automatically in CI (see `e2e-smoke` job in `.github/workflows/ci.yml`) — **do not run them locally**. After pushing your branch and creating a PR, **wait 5 seconds**, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if `MERGEABLE`.** If `CONFLICTING`, rebase onto `beta`, force-push, and re-check. Once confirmed, wait for CI using the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant). If CI E2E smoke tests fail, investigate and fix before proceeding.
 
+### 8. Route Coverage Verification
+
+Before completing any E2E work, verify that all application routes have test coverage:
+
+1. Read the client router configuration (e.g., `client/src/App.tsx` or route definitions) to get the full list of application routes
+2. For each route, verify that at least one E2E test file in `e2e/tests/` exercises that route (comprehensive CRUD test for fully implemented pages, smoke test for stubs)
+3. For each route, verify a corresponding page object exists in `e2e/pages/`
+4. Report any uncovered routes in your response to the orchestrator, even if they are outside the current story's scope — this builds a coverage gap inventory
+
 ## Quality Assurance Self-Checks
 
 Before considering your work complete, verify:
@@ -289,6 +298,7 @@ Before considering your work complete, verify:
 - [ ] 100% of happy paths have E2E test coverage
 - [ ] Reasonable error scenarios are tested (validation, not-found, auth)
 - [ ] Acceptance criteria have corresponding Playwright E2E tests
+- [ ] All application routes have at least smoke-level E2E coverage (route coverage verification)
 - [ ] Responsive layouts verified at all specified viewports (desktop, tablet, mobile)
 - [ ] Dark mode rendering verified where applicable
 - [ ] Page object models are up-to-date and reusable
