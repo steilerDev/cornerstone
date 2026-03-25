@@ -121,9 +121,9 @@ test.describe('i18n: Predefined category name translations', () => {
     // locale-readiness indicator instead of a generic item row (which could appear with
     // English text before i18next finishes loading the German bundle).
     const tradesPanel = page.locator('#trades-panel');
-    await expect(
-      tradesPanel.getByText('Sanitär', { exact: true }).first(),
-    ).toBeVisible({ timeout: 20000 });
+    await expect(tradesPanel.getByText('Sanitär', { exact: true }).first()).toBeVisible({
+      timeout: 20000,
+    });
 
     // And: The raw English name "Plumbing" is NOT shown as a category name
     await expect(
@@ -164,9 +164,9 @@ test.describe('i18n: Predefined category name translations', () => {
     await page.goto(MANAGE_BUDGET_CATEGORIES_URL, { waitUntil: 'commit' });
     // Wait for the budget categories panel to render with German content.
     const budgetPanel = page.locator('#budget-categories-panel');
-    await expect(
-      budgetPanel.getByText('Materialien', { exact: true }).first(),
-    ).toBeVisible({ timeout: 20000 });
+    await expect(budgetPanel.getByText('Materialien', { exact: true }).first()).toBeVisible({
+      timeout: 20000,
+    });
 
     // And: The raw English name "Materials" is NOT shown as a category name
     await expect(
@@ -207,9 +207,9 @@ test.describe('i18n: Predefined category name translations', () => {
     await page.goto(MANAGE_HI_CATEGORIES_URL, { waitUntil: 'commit' });
     // Wait for the household item categories panel to render with German content.
     const hiPanel = page.locator('#hi-categories-panel');
-    await expect(
-      hiPanel.getByText('Möbel', { exact: true }).first(),
-    ).toBeVisible({ timeout: 20000 });
+    await expect(hiPanel.getByText('Möbel', { exact: true }).first()).toBeVisible({
+      timeout: 20000,
+    });
 
     // And: The raw English name "Furniture" is NOT shown as a category name
     await expect(
