@@ -36,7 +36,7 @@ jobs:
           path-to-signatures: '.github/cla/signatures.json'
           path-to-document: 'https://github.com/steilerDev/cornerstone/blob/main/CLA.md'
           branch: 'beta'
-          allowlist: dependabot[bot],github-actions[bot],steilerdev-cornerstone-bot[bot],claude
+          allowlist: dependabot[bot],github-actions[bot],steilerdev-cornerstone-bot[bot],claude,Frontend Developer,Backend Developer
           custom-notsigned-prcomment: >-
             Thank you for your submission! We require all contributors to sign our
             [Contributor License Agreement](https://github.com/steilerDev/cornerstone/blob/main/CLA.md)
