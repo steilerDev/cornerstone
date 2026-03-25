@@ -73,6 +73,9 @@ COPY docs/package.json docs/
 # target platform — no compilation, no build-base/python3 needed.
 RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
 
+# Create backups directory (for copying into production stage)
+RUN mkdir -p /backups
+
 # ---------------------------------------------------------------------------
 # Stage 3: Production (no shell — exec form only)
 # ---------------------------------------------------------------------------
@@ -106,11 +109,17 @@ COPY --from=app-builder /app/client/dist/ client/dist/
 # Copy SQL migration files (tsc does not copy non-TS assets)
 COPY --from=app-builder /app/server/src/db/migrations/ server/dist/db/migrations/
 
+# Create backups directory with correct ownership
+COPY --from=deps --chown=node:node /backups /backups
+
 # Expose server port
 EXPOSE 3000
 
 # SQLite data volume
 VOLUME ["/app/data"]
+
+# Backups volume
+VOLUME ["/backups"]
 
 # Environment defaults
 ENV NODE_ENV=production
