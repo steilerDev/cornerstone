@@ -251,7 +251,7 @@ export function WorkItemsPage() {
         filterType: 'enum',
         filterParamKey: 'assignedUserId',
         enumOptions: users.map((u) => ({ value: u.id, label: u.displayName })),
-        render: (item) => item.assignedUser?.displayName || '—',
+        render: (item) => item.assignedUser?.displayName || item.assignedVendor?.name || '—',
       },
       {
         key: 'vendor',
