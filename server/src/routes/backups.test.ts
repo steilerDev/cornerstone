@@ -11,7 +11,7 @@
  */
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildApp } from '../app.js';
@@ -428,6 +428,33 @@ describe('Backup Routes', () => {
       expect(response.statusCode).toBe(202);
       const body = response.json<{ message: string }>();
       expect(body.message).toBeTruthy();
+    });
+
+    it('POST /api/backups returns 500 BACKUP_FAILED when backup directory exists but is read-only', async () => {
+      // chmod does not restrict root — skip this test when running as root
+      if (process.getuid?.() === 0) {
+        return;
+      }
+
+      const cookie = await createAdminWithSession();
+
+      // Make the backup directory read-only so the writability probe fails
+      chmodSync(backupDir, 0o444);
+
+      try {
+        const response = await appWithBackup.inject({
+          method: 'POST',
+          url: '/api/backups',
+          headers: { cookie },
+        });
+
+        expect(response.statusCode).toBe(500);
+        const body = response.json<ApiErrorResponse>();
+        expect(body.error.code).toBe('BACKUP_FAILED');
+      } finally {
+        // Restore permissions so afterEach cleanup can delete the directory
+        chmodSync(backupDir, 0o755);
+      }
     });
   });
 });
