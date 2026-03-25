@@ -151,10 +151,10 @@ export class WorkItemsPage {
   async waitForSearchParams(hasQuery?: string): Promise<void> {
     if (hasQuery !== undefined) {
       await this.page.waitForURL((url) => url.searchParams.get('q') === hasQuery, {
-        timeout: 10000,
+        timeout: 15000,
       });
     } else {
-      await this.page.waitForURL((url) => !url.searchParams.has('q'), { timeout: 10000 });
+      await this.page.waitForURL((url) => !url.searchParams.has('q'), { timeout: 15000 });
     }
   }
 
@@ -212,6 +212,8 @@ export class WorkItemsPage {
    */
   async search(query: string): Promise<void> {
     // Register BEFORE fill to avoid missing the response on fast runners.
+    // 15s timeout: mobile fill() may take up to 10s (actionTimeout) and the debounce +
+    // API round-trip adds latency on top, so 10s was too tight for mobile CI runners.
     const responsePromise = this.page.waitForResponse(
       (resp) => {
         if (!resp.url().includes('/api/work-items') || resp.status() !== 200) return false;
@@ -222,13 +224,13 @@ export class WorkItemsPage {
           return false;
         }
       },
-      { timeout: 10000 },
+      { timeout: 15000 },
     );
     await this.searchInput.fill(query);
     // Wait for URL to update — confirms debounce fired and React committed search state.
     // Must precede the response wait to ensure we don't assert before state is committed.
     await this.page.waitForURL((url) => url.searchParams.get('q') === query, {
-      timeout: 10000,
+      timeout: 15000,
     });
     await responsePromise;
   }
