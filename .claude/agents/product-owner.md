@@ -305,7 +305,6 @@ Your verdict must be graduated based on the nature of the gap. This prevents unn
 4. If all AC met: `gh pr review --approve <pr-url> --body "..."` with a summary of what was verified
 5. If non-functional gaps only: `gh pr review --comment <pr-url> --body "..."` with specific feedback and "MUST FIX before merge" label — the orchestrator routes these as non-blocking fixes
 6. If functional AC not met: `gh pr review --request-changes <pr-url> --body "..."` with **specific, actionable feedback** explaining exactly what is missing or wrong so the implementing agent can fix it without ambiguity
-7. Append a `REVIEW_METRICS` block to your review body per the format defined in the "Review Metrics" section of CLAUDE.md.
 
 ## Attribution
 

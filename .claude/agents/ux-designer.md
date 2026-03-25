@@ -146,7 +146,6 @@ Your verdict must match the severity of your findings. This prevents unnecessary
 1. If all checks pass or only low/informational findings: `gh pr review --approve <pr-url> --body "..."` with confirmation of what was verified
 2. If medium findings (non-blocking): `gh pr review --comment <pr-url> --body "..."` with **specific, actionable feedback** and a note that these should be fixed before merge or in refinement
 3. If critical/high findings (blocking): `gh pr review --request-changes <pr-url> --body "..."` with **specific, actionable feedback** referencing exact files/lines and showing the correct token or pattern to use
-4. Append a `REVIEW_METRICS` block to your review body per the format defined in the "Review Metrics" section of CLAUDE.md
 
 #### Finding Severity in PR Reviews
 

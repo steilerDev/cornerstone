@@ -60,7 +60,7 @@ If `DUPLICATE`, skip all remaining steps.
 
 ### 3. Parallel Agent Reviews
 
-Launch all applicable review agents simultaneously. Each agent posts its own `gh pr review` on the PR with a `REVIEW_METRICS` block (per the Cross-Team Convention in CLAUDE.md).
+Launch all applicable review agents simultaneously. Each agent posts its own `gh pr review` on the PR.
 
 **Always launch (every PR):**
 
@@ -79,7 +79,7 @@ Each agent receives:
 
 - The PR number and URL
 - The list of changed files relevant to their domain
-- Instruction to post a `gh pr review` with their findings and `REVIEW_METRICS` block
+- Instruction to post a `gh pr review` with their findings
 
 ### 4. Aggregate Reviews
 
@@ -89,33 +89,12 @@ After all agents complete, fetch all reviews:
 gh api repos/steilerDev/cornerstone/pulls/<pr-number>/reviews
 ```
 
-Parse each review body for the `REVIEW_METRICS` HTML comment block:
-
-```
-<!-- REVIEW_METRICS
-{
-  "agent": "<agent-name>",
-  "verdict": "<approve|request-changes|comment>",
-  "findings": { "critical": 0, "high": 0, "medium": 0, "low": 0, "informational": 0 }
-}
--->
-```
-
-Build a summary table:
-
-```
-| Agent              | Verdict         | C | H | M | L | I |
-| ------------------ | --------------- | - | - | - | - | - |
-| product-architect  | approve         | 0 | 0 | 0 | 0 | 1 |
-| security-engineer  | request-changes | 0 | 1 | 2 | 0 | 0 |
-| dev-team-lead      | approve         | 0 | 0 | 0 | 1 | 0 |
-| ux-designer        | approve         | 0 | 0 | 0 | 0 | 0 |
-```
+Parse each review to determine the agent's verdict (`approve`, `request-changes`, or `comment`) and summarize their findings.
 
 **Determine overall verdict:**
 
-- **BLOCK**: any agent has `critical > 0` OR `high > 0` OR any agent posted `request-changes`
-- **APPROVE**: all agents approved or commented with zero critical and zero high findings
+- **BLOCK**: any agent posted `request-changes`
+- **APPROVE**: all agents approved or commented
 
 ### 5. Verdict Action
 
@@ -146,45 +125,3 @@ Present to the user:
 
 **The orchestrator never merges.** The user decides when to merge.
 
-### 7. Persist Metrics
-
-Append a record to `.claude/metrics/review-metrics.jsonl`:
-
-```bash
-gh pr view <pr-number> --json number,additions,deletions,changedFiles,closingIssuesReferences
-```
-
-```json
-{
-  "pr": <number>,
-  "issues": [<linked-issue-numbers>],
-  "epic": null,
-  "type": "external-review",
-  "createdAt": "<ISO-8601 of PR creation>",
-  "reviewedAt": "<ISO-8601>",
-  "filesChanged": <changedFiles>,
-  "linesChanged": <additions + deletions>,
-  "touchesClient": <true|false>,
-  "touchesServer": <true|false>,
-  "fixLoopCount": 0,
-  "reviews": [
-    { "agent": "<name>", "verdict": "<approve|request-changes>", "findings": { "critical": 0, "high": 0, "medium": 0, "low": 0, "informational": 0 }, "round": 1 }
-  ],
-  "totalFindings": { "critical": 0, "high": 0, "medium": 0, "low": 0, "informational": 0 }
-}
-```
-
-**Schema rules:**
-
-- `verdict` must be `"approve"` or `"request-changes"` — never `"comment"`
-- `touchesClient` / `touchesServer` indicate whether files under `client/` or `server/`+`shared/` were changed
-
-Commit and push the updated metrics file:
-
-```bash
-git add .claude/metrics/review-metrics.jsonl
-git commit -m "chore: update review metrics for PR #<number>
-
-Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
-git push
-```
