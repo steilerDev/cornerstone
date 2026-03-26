@@ -4,7 +4,8 @@ import { jest } from '@jest/globals';
 // ─── Hoisted mocks (must precede dynamic import) ───────────────────────────────
 
 const mockGetPhotosForEntity = jest.fn<() => Promise<unknown>>();
-const mockUploadPhotoApi = jest.fn<() => Promise<unknown>>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockUploadPhotoApi = jest.fn<(...args: any[]) => Promise<unknown>>();
 const mockUpdatePhotoApi = jest.fn<() => Promise<unknown>>();
 const mockDeletePhotoApi = jest.fn<() => Promise<void>>();
 

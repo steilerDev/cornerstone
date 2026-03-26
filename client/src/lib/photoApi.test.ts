@@ -331,8 +331,8 @@ describe('photoApi', () => {
     // uploadPhoto uses XMLHttpRequest, so we mock it
 
     let mockXhr: {
-      open: jest.MockedFunction<() => void>;
-      send: jest.MockedFunction<() => void>;
+      open: jest.MockedFunction<(method: string, url: string) => void>;
+      send: jest.MockedFunction<(body?: FormData) => void>;
       setRequestHeader: jest.MockedFunction<() => void>;
       upload: {
         addEventListener: jest.MockedFunction<
@@ -386,8 +386,7 @@ describe('photoApi', () => {
       void uploadPhoto('diary_entry', 'entry-1', file);
 
       expect(mockXhr.send).toHaveBeenCalledWith(expect.any(FormData));
-      const formData = (mockXhr.send as jest.MockedFunction<(fd: FormData) => void>).mock
-        .calls[0][0];
+      const formData = mockXhr.send.mock.calls[0][0] as FormData;
       expect(formData.get('file')).toBe(file);
       expect(formData.get('entityType')).toBe('diary_entry');
       expect(formData.get('entityId')).toBe('entry-1');
@@ -397,8 +396,7 @@ describe('photoApi', () => {
       const file = makeFile();
       void uploadPhoto('diary_entry', 'entry-1', file, 'My caption');
 
-      const formData = (mockXhr.send as jest.MockedFunction<(fd: FormData) => void>).mock
-        .calls[0][0];
+      const formData = mockXhr.send.mock.calls[0][0] as FormData;
       expect(formData.get('caption')).toBe('My caption');
     });
 
@@ -406,8 +404,7 @@ describe('photoApi', () => {
       const file = makeFile();
       void uploadPhoto('diary_entry', 'entry-1', file);
 
-      const formData = (mockXhr.send as jest.MockedFunction<(fd: FormData) => void>).mock
-        .calls[0][0];
+      const formData = mockXhr.send.mock.calls[0][0] as FormData;
       expect(formData.get('caption')).toBeNull();
     });
 

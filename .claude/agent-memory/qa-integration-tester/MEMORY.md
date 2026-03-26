@@ -3,6 +3,18 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Gap 5 — Client Vendor/Trade/Area Utility Tests (2026-03-26)
+
+**Files** (10 new): `client/src/lib/areasApi.test.ts`, `tradesApi.test.ts`, `vendorContactsApi.test.ts`, `davTokensApi.test.ts`, `timelineApi.test.ts`, `areaTreeUtils.test.ts`, `client/src/hooks/useAreas.test.ts`, `useTrades.test.ts`, `useVendorContacts.test.ts`, `useDavToken.test.ts`.
+
+**Key patterns**:
+- **`makeArea` helper**: Use function body + `{ ...defaults, ...overrides }` — NOT inline object literal with explicit + spread of same key. TypeScript TS2783 fires when `id`/`name` appear both explicitly and in `...overrides`.
+- **API tests for DELETE**: Use `status: 204, text: async () => ''` not `json: async () => undefined`. apiClient short-circuits at 204 and never calls `.json()`.
+- **`fetchAreas`/`fetchTrades` empty search**: Passing `{ search: '' }` should NOT include `?search=` param (falsy guard in source).
+- **`useVendorContacts` empty vendorId**: When vendorId is empty string, hook skips fetch immediately — assert `not.toHaveBeenCalled()` for listVendorContacts.
+- **`useDavToken` generate flow**: After `generateDavToken()`, hook calls `getDavTokenStatus()` again. Mock `getDavTokenStatus` must return success twice (initial mount + after generate).
+- **Pre-existing TS errors in worktree**: `usePhotos.test.ts`, `HouseholdItemsPage.test.tsx`, `VendorsPage.test.tsx`, `UserManagementPage.test.tsx` had TypeScript errors from other agents' work BEFORE this session. These are not caused by Gap 5 files.
+
 ## Gap 3 — photoService + photos route Tests (2026-03-26)
 
 **Files**: `server/src/services/photoService.test.ts` (51 tests), `server/src/routes/photos.test.ts` (45 tests).
