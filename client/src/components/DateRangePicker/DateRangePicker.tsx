@@ -143,7 +143,12 @@ export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: Dat
   // Check if a day is in the highlighted range (strictly between start and end)
   const isInRange = useCallback(
     (dateStr: string): boolean => {
-      return !!(pendingStartDate && effectiveEnd && dateStr > pendingStartDate && dateStr < effectiveEnd);
+      return !!(
+        pendingStartDate &&
+        effectiveEnd &&
+        dateStr > pendingStartDate &&
+        dateStr < effectiveEnd
+      );
     },
     [pendingStartDate, effectiveEnd],
   );
@@ -152,7 +157,8 @@ export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: Dat
   const isRangeStart = useCallback(
     (dateStr: string): boolean => {
       return (
-        dateStr === pendingStartDate && (endDate !== '' || (phase === 'selecting-end' && hoverDate !== ''))
+        dateStr === pendingStartDate &&
+        (endDate !== '' || (phase === 'selecting-end' && hoverDate !== ''))
       );
     },
     [pendingStartDate, endDate, phase, hoverDate],
@@ -376,7 +382,8 @@ export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: Dat
               const inRange = isInRange(day.dateStr);
               const isStart = isRangeStart(day.dateStr);
               const isEnd = isRangeEnd(day.dateStr);
-              const isBeforeStart = phase === 'selecting-end' && pendingStartDate && day.dateStr < pendingStartDate;
+              const isBeforeStart =
+                phase === 'selecting-end' && pendingStartDate && day.dateStr < pendingStartDate;
               const isFocused = day.dateStr === focusedDate;
 
               return (
