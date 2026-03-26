@@ -3,6 +3,17 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Issue #1178 DateRangePicker Phase Persistence Tests (2026-03-26)
+
+**Test files modified**: `DateRangePicker.test.tsx`, `DateFilter.test.tsx`.
+
+**Key patterns**:
+
+- **Single-instance phase test**: After `fireEvent.click(dayBtn)`, assert `getPhaseLabel(container).toLowerCase().toContain('end')` — NO separate render call needed. The fix uses internal `pendingStartDate` state so phase updates immediately.
+- **`rerender` requires `rtlRender` directly**: When using `rerender` to simulate prop updates on a single instance, call `rtlRender(<LocaleProvider><Component .../></LocaleProvider>)` directly — the custom `render()` wrapper double-nests `LocaleProvider` when used with `rerender`.
+- **Pre-existing shard failures on branch**: `Test (Shard 2/6)` and `E2E Tests (Shard 10/16)` were failing on the branch BEFORE QA's test commit. Confirmed by comparing CI run for commit `2eb53d24` (production fix) vs `8f0e6dcd` (test commit) — same failures in both runs.
+- **CI log access blocked by network policy**: `productionresultssa14.blob.core.windows.net` is blocked. Use annotations API (`/check-runs/{id}/annotations`) instead for failure hints. Cross-reference runs on parent commits to distinguish pre-existing vs introduced failures.
+
 ## Bug #1201 Backup Execution Path Tests (2026-03-25)
 
 **Test files modified**: `backupService.test.ts`, `backups.test.ts`.
