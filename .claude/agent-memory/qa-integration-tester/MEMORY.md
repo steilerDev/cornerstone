@@ -3,6 +3,35 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Gap 3 — photoService + photos route Tests (2026-03-26)
+
+**Files**: `server/src/services/photoService.test.ts` (51 tests), `server/src/routes/photos.test.ts` (45 tests).
+
+**Key patterns**:
+- **Mock `sharp` with `jest.unstable_mockModule('sharp', () => ({ default: mockSharpFn }))`**: sharp is not compiled for the test environment (native binary). Return a chainable mock instance.
+- **`AnyMock` type**: `type AnyMock = jest.MockedFunction<(...args: any[]) => any>` — use this for all mock functions where TypeScript infers `never` from bare `jest.fn()`. Cast with `jest.fn() as AnyMock`.
+- **Chainable sharp mock**: `mockSharpInstance` object with each method typed `as AnyMock` and each chain method returning `mockSharpInstance`. Use `mockResolvedValue` (not `Once`) in `beforeEach` to avoid state leakage between tests.
+- **FK constraint for `photos.createdBy`**: Cannot pass non-existent userId — SQLite throws FK error. Test `createdBy: null` by: upload with real user, delete user (cascade sets NULL), then `getPhoto`.
+- **`route` tests mock ALL service exports**: `deletePhotosForEntity` must be in the mock even if not directly used by route handlers. ESM named export binding validation fails otherwise.
+- **Auth guard lines unreachable via inject()**: `if (!request.user) throw new UnauthorizedError()` inside route handlers is never reached when global auth hook fires first. This is a known coverage gap (~8% branch coverage).
+- **Multipart body builder**: Build raw `multipart/form-data` bodies using `Buffer.concat()` with CRLF boundaries. Use `buildMultipartBody()` helper pattern.
+- **`readdirSync` import**: ESM has no `require()`. Always import `readdirSync` from `'node:fs'` at top of file.
+
+## Gap 7 — calendarIcal + vendorVcard Unit Tests (2026-03-26)
+
+**Files**: `server/src/services/calendarIcal.test.ts` (49 tests), `server/src/services/vendorVcard.test.ts` (46 tests). Both files were in commit `ba297480` on branch `chore/1204-test-coverage-gaps`.
+
+**Key patterns**:
+- **`calendarIcal.ts` exports**: `toDateOnly`, `computeETag`, `computeCalendarETag` (needs DB), `buildCalendar`, `DescriptionMap` type
+- **`vendorVcard.ts` exports**: `computeAddressBookETag` (needs DB), `buildVendorVcard`, `buildContactVcard`
+- **DB for ETag tests**: Use `Object.assign(drizzle(sqliteDb, {schema}), { $client: sqliteDb }) as DbType` pattern for in-memory SQLite
+- **`HouseholdItemCategory = string`** (type alias, not interface) — use `'Furniture'` not `{ id, name }`
+- **`WorkItemStatus`**: `'not_started' | 'in_progress' | 'completed'` (not `'planned'`)
+- **DescriptionMap key format**: `wi-{id}` for work items, `milestone-{id}` for milestones, `hi-{id}` for household items — matches what `buildCalendar` uses
+- **`buildVendorVcard` injects `KIND:org\r\nUID:...\r\nREV:...`** before `END:VCARD` via string replace
+- **`buildContactVcard` injects `UID:...\r\nREV:...`** before `END:VCARD` (no KIND:org)
+- **Multi-agent branch**: When multiple agents push to the same branch, CI failures may be from OTHER agents' commits, not yours. Check commit SHA in CI run to identify which commit caused failures.
+
 ## Gap 2 — Invoice Budget Lines + Standalone Invoices Tests (2026-03-25)
 
 **Test files**: `invoiceBudgetLineService.test.ts` (service unit, ~40 tests), `invoiceBudgetLines.test.ts` (route integration, ~30 tests), `standaloneInvoices.test.ts` (route integration, ~30 tests).
