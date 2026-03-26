@@ -442,8 +442,8 @@ describe('DateRangePicker', () => {
 
   describe('props sync', () => {
     it('when both startDate and endDate props are externally cleared to "", phase resets to selecting-start', () => {
-      // Phase is internally managed. Mount with non-empty props (so the effect's deps start non-empty),
-      // click a day to enter selecting-end phase, then rerender with both props empty so the useEffect
+      // Phase is internally managed. Mount with non-empty startDate so useState initializes
+      // phase to 'selecting-end'. Then rerender with both props empty so the useEffect
       // fires (deps changed from non-empty to '') and resets phase to selecting-start.
       const mockOnChange = jest.fn();
       const { container, rerender } = rtlRender(
@@ -451,13 +451,10 @@ describe('DateRangePicker', () => {
           <DateRangePicker startDate="2026-03-15" endDate="2026-03-25" onChange={mockOnChange} />
         </LocaleProvider>,
       );
-      // Click a day to enter selecting-end phase (phase starts at selecting-start on mount)
-      const dayBtn15 = findDayButton(container, 15);
-      fireEvent.click(dayBtn15!);
+      // Initial phase is selecting-end (startDate non-empty → useState initializer)
       expect(getPhaseLabel(container).toLowerCase()).toContain('end');
 
       // Simulate external clear: parent rerenders with both props empty
-      // The useEffect fires because deps changed (non-empty → ''), resetting phase
       rerender(
         <LocaleProvider>
           <DateRangePicker startDate="" endDate="" onChange={mockOnChange} />
@@ -466,21 +463,21 @@ describe('DateRangePicker', () => {
       expect(getPhaseLabel(container).toLowerCase()).toContain('start');
     });
 
-    it('when both startDate and endDate props are set externally, phase shows selecting-start (ready for new selection)', () => {
-      // Phase is internally managed; mounting with both dates set means phase defaults to selecting-start.
-      // This verifies that externally-set date props do not corrupt the phase state.
+    it('when both startDate and endDate props are set externally, phase initializes to selecting-end', () => {
+      // When startDate is non-empty, useState initializes phase to 'selecting-end' (line 92-94 of component).
+      // This means phase reflects readiness to pick an end date when a start is already set.
       const { container: container1 } = render(
         <DateRangePicker startDate="2026-03-15" endDate="2026-03-25" onChange={jest.fn()} />,
       );
       const phaseLabel1 = getPhaseLabel(container1);
-      expect(phaseLabel1.toLowerCase()).toContain('start');
+      expect(phaseLabel1.toLowerCase()).toContain('end');
 
-      // Mounting with only startDate set also starts at selecting-start (no internal click yet)
+      // Mounting with only startDate set also starts at selecting-end
       const { container: container2 } = render(
         <DateRangePicker startDate="2026-03-15" endDate="" onChange={jest.fn()} />,
       );
       const phaseLabel2 = getPhaseLabel(container2);
-      expect(phaseLabel2.toLowerCase()).toContain('start');
+      expect(phaseLabel2.toLowerCase()).toContain('end');
     });
 
     it('partial prop update (only startDate changes) does NOT reset phase to selecting-start', () => {
@@ -799,17 +796,15 @@ describe('DateRangePicker', () => {
 
     it('external clear (both props set to empty string) resets phase via rerender', () => {
       // Simulates parent calling setState({startDate:'', endDate:''}) after a clear action.
-      // Mount with non-empty props (effect deps start non-empty), click a day to enter
-      // selecting-end phase, then rerender with both empty so the useEffect fires and resets phase.
+      // Mount with non-empty startDate so useState initializes phase to 'selecting-end'.
+      // Rerender with both empty so the useEffect fires (deps changed) and resets phase.
       const mockOnChange = jest.fn();
       const { container, rerender } = rtlRender(
         <LocaleProvider>
           <DateRangePicker startDate="2026-03-10" endDate="2026-03-20" onChange={mockOnChange} />
         </LocaleProvider>,
       );
-      // Click a day to enter selecting-end phase (phase starts at selecting-start on mount)
-      const dayBtn10 = findDayButton(container, 10);
-      fireEvent.click(dayBtn10!);
+      // Initial phase is selecting-end (startDate non-empty)
       expect(getPhaseLabel(container).toLowerCase()).toContain('end');
 
       // Parent clears both props simultaneously — effect fires (deps changed), resets phase

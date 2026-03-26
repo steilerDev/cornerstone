@@ -126,11 +126,14 @@ export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: Dat
     }
   }, [focusedDate]);
 
-  // Respond ONLY to external clear: parent sets startDate='' and endDate=''
+  // Sync phase and pendingStartDate with external prop changes
   useEffect(() => {
     if (startDate === '' && endDate === '') {
       setPhase('selecting-start');
       setPendingStartDate('');
+    } else if (startDate !== '' && endDate === '') {
+      setPhase('selecting-end');
+      setPendingStartDate(startDate);
     }
   }, [startDate, endDate]);
 
