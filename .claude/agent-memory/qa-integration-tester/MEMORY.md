@@ -15,6 +15,18 @@
 - **`useDavToken` generate flow**: After `generateDavToken()`, hook calls `getDavTokenStatus()` again. Mock `getDavTokenStatus` must return success twice (initial mount + after generate).
 - **Pre-existing TS errors in worktree**: `usePhotos.test.ts`, `HouseholdItemsPage.test.tsx`, `VendorsPage.test.tsx`, `UserManagementPage.test.tsx` had TypeScript errors from other agents' work BEFORE this session. These are not caused by Gap 5 files.
 
+## Gap 3 (Client) — usePhotos hook + photoApi client Tests (2026-03-26)
+
+**Files**: `client/src/hooks/usePhotos.test.ts` (40+ tests), `client/src/lib/photoApi.test.ts` (30+ tests).
+
+**Key patterns**:
+- **`mockUploadPhotoApi` needs variadic type**: Hook mock typed as `jest.fn<() => Promise<unknown>>()` fails when `mockImplementationOnce` passes a 5-arg function. Fix: `jest.fn<(...args: any[]) => Promise<unknown>>()`.
+- **`mockXhr.open` / `mockXhr.send` must match call signatures**: If typed as `() => void`, `toHaveBeenCalledWith('POST', '/api/photos')` fails TypeScript (expects 0 args, called with 2). Fix: type as `(method: string, url: string) => void` and `(body?: FormData) => void`.
+- **FormData access**: With typed `send: MockedFunction<(body?: FormData) => void>`, use `mockXhr.send.mock.calls[0][0] as FormData` — no extra cast needed.
+- **XHR mock pattern**: Build `mockXhr` object inside `beforeEach`, override `globalThis.XMLHttpRequest = jest.fn(() => mockXhr) as unknown as typeof XMLHttpRequest`. Capture event handlers in closure vars (`xhrEventHandlers`, `xhrUploadEventHandlers`). Fire `xhrEventHandlers['load']()` to trigger promise resolution.
+- **`upload.addEventListener` should NOT be called when `onProgress` is not provided**: The hook checks `if (onProgress)` before registering. Assert `mockXhr.upload.addEventListener.not.toHaveBeenCalled()`.
+- **Clearing upload progress**: After success/failure, progress map entry is deleted. Test by capturing the internal `progressWrapper` via `mockImplementationOnce`, calling it, then awaiting the upload and asserting `uploadProgress.has(filename) === false`.
+
 ## Gap 3 — photoService + photos route Tests (2026-03-26)
 
 **Files**: `server/src/services/photoService.test.ts` (51 tests), `server/src/routes/photos.test.ts` (45 tests).
