@@ -139,7 +139,8 @@ const defaultListResponse = (items: HouseholdItemSummary[] = []) => ({
 
 // ─── Component import (must be after mocks) ──────────────────────────────────
 
-const { HouseholdItemsPage } = await import('./HouseholdItemsPage.js');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let HouseholdItemsPage: any;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -154,7 +155,11 @@ function renderPage() {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('HouseholdItemsPage', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    if (!HouseholdItemsPage) {
+      const module = await import('./HouseholdItemsPage.js');
+      HouseholdItemsPage = module.HouseholdItemsPage;
+    }
     mockUseAreas.mockReturnValue({
       areas: [],
       isLoading: false,

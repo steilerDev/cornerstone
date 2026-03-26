@@ -124,7 +124,8 @@ const defaultFetchResponse = (vendors: Vendor[] = []) => ({
 
 // ─── Component import (must be after mocks) ──────────────────────────────────
 
-const { VendorsPage } = await import('./VendorsPage.js');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let VendorsPage: any;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -139,7 +140,11 @@ function renderPage() {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('VendorsPage', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    if (!VendorsPage) {
+      const module = await import('./VendorsPage.js');
+      VendorsPage = module.VendorsPage;
+    }
     mockUseTrades.mockReturnValue({
       trades: [],
       isLoading: false,

@@ -65,7 +65,8 @@ const adminUser = makeUser({ id: 'current-admin', role: 'admin', displayName: 'C
 
 // ─── Component import (must be after mocks) ──────────────────────────────────
 
-const { UserManagementPage } = await import('./UserManagementPage.js');
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let UserManagementPage: any;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -80,7 +81,11 @@ function renderPage() {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('UserManagementPage', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    if (!UserManagementPage) {
+      const module = await import('./UserManagementPage.js');
+      UserManagementPage = module.UserManagementPage;
+    }
     mockUseAuth.mockReturnValue({
       user: adminUser,
       oidcEnabled: false,
