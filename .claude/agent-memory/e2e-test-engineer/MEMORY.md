@@ -1,7 +1,25 @@
 # E2E Test Engineer — Agent Memory (Index)
 
 > Detailed notes live in topic files. This index links to them.
-> See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`
+> See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`
+
+## Invoices + Manage Settings E2E (2026-03-26) — Fixed 2026-03-26
+
+POMs: `InvoicesPage.ts`, `InvoiceDetailPage.ts`, `HouseholdItemEditPage.ts`.
+Tests: `e2e/tests/invoices/invoices.spec.ts`, `e2e/tests/navigation/settings-manage.spec.ts`.
+Key API response shapes: Areas POST → `{area:{id}}`, Trades POST → `{trade:{id}}`, HI-Categories POST → `{id}` (entity directly), Invoices POST → `{invoice:{id}}`.
+InvoicesPage.heading = "Budget" (from PageLayout title=t('invoices.title')). Modal locator: `getByRole('dialog',{name:/Invoice/i})`.
+InvoiceDetailPage: edit modal `[role="dialog"][aria-labelledby="edit-modal-title"]`, delete modal `[aria-labelledby="delete-modal-title"]`, confirm delete button `[class*="confirmDeleteButton"]`.
+ManagePage tab panel IDs: `areas-panel`, `trades-panel`, `budget-categories-panel`, `hi-categories-panel`. Create form IDs: `#areaName`, `#tradeName`, `#categoryName` (same for budget AND hi-cat tabs — only one renders at a time).
+**ManagePage area/trade delete buttons have NO aria-label** — only text "Delete". Must scope via
+`panel.locator('[class*="itemRow"]').filter({ hasText: entityName }).getByRole('button', { name: 'Delete', exact: true })`.
+HI-categories delete buttons DO have `aria-label={Delete \${name}}` — getByRole with name works.
+InvoicesPage.waitForLoaded() uses Promise.any() (not Promise.race()) to avoid dangling rejections.
+
+## Milestones E2E (2026-03-26) — See milestones-e2e.md
+Heading="Project", newMilestone=testId("new-milestone-button"), search=client-side (no waitForResponse).
+List deleteModal=`getByRole('dialog',{name:'Delete Milestone'})`. Detail deleteModal=`[role="dialog"][aria-modal="true"]` (own impl).
+Milestone IDs are integers (not strings). Back/cancel on CreatePage are `<Link>` anchors, not buttons.
 
 ## i18n German Locale: page.reload() Required After setLanguage() + page.goto() (2026-03-23)
 
