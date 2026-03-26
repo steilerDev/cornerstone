@@ -348,10 +348,10 @@ describe('Invoice Budget Lines Routes', () => {
       expect(response.statusCode).toBe(400);
     });
 
-    it('returns 400 VALIDATION_ERROR when unknown properties are provided (additionalProperties: false)', async () => {
+    it('strips unknown properties from request body (additionalProperties: false)', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
       const vendorId = createTestVendor('Vendor Extra');
-      const invoiceId = createTestInvoice(vendorId);
+      const invoiceId = createTestInvoice(vendorId, 1000);
       const wiId = createTestWorkItem('Task Extra');
       const wibId = createTestWorkItemBudget(wiId);
 
@@ -362,7 +362,8 @@ describe('Invoice Budget Lines Routes', () => {
         payload: { workItemBudgetId: wibId, itemizedAmount: 100, unknownField: 'oops' },
       });
 
-      expect(response.statusCode).toBe(400);
+      // Fastify strips extra properties (removeAdditional default) — request still succeeds
+      expect(response.statusCode).toBe(201);
     });
 
     it('returns 404 NOT_FOUND when invoice does not exist', async () => {
@@ -605,7 +606,7 @@ describe('Invoice Budget Lines Routes', () => {
       expect(body.error.code).toBe('VALIDATION_ERROR');
     });
 
-    it('returns 400 VALIDATION_ERROR when unknown properties are provided', async () => {
+    it('strips unknown properties from request body (additionalProperties: false)', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
       const vendorId = createTestVendor('Vendor PATCH Unknown');
       const invoiceId = createTestInvoice(vendorId, 1000);
@@ -627,7 +628,8 @@ describe('Invoice Budget Lines Routes', () => {
         payload: { itemizedAmount: 200, unknownField: 'oops' },
       });
 
-      expect(response.statusCode).toBe(400);
+      // Fastify strips extra properties (removeAdditional default) — request still succeeds
+      expect(response.statusCode).toBe(200);
     });
 
     it('returns 404 NOT_FOUND when invoice does not exist', async () => {

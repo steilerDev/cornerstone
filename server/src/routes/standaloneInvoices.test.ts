@@ -445,7 +445,7 @@ describe('Standalone Invoice Routes', () => {
       expect(response.statusCode).toBe(400);
     });
 
-    it('returns 400 for unknown query parameters (additionalProperties: false)', async () => {
+    it('strips unknown query parameters (additionalProperties: false removes them, does not reject)', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
 
       const response = await app.inject({
@@ -454,7 +454,8 @@ describe('Standalone Invoice Routes', () => {
         headers: { cookie },
       });
 
-      expect(response.statusCode).toBe(400);
+      // Fastify AJV default: removeAdditional=true strips unknown params instead of rejecting
+      expect(response.statusCode).toBe(200);
     });
 
     it('returns status summary breakdown with correct counts and totals', async () => {
