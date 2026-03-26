@@ -3,16 +3,38 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
-## Issue #1178 DateRangePicker Phase Persistence Tests (2026-03-26)
+## Gap 2 — Invoice Budget Lines + Standalone Invoices Tests (2026-03-25)
 
-**Test files modified**: `DateRangePicker.test.tsx`, `DateFilter.test.tsx`.
+**Test files**: `invoiceBudgetLineService.test.ts` (service unit, ~40 tests), `invoiceBudgetLines.test.ts` (route integration, ~30 tests), `standaloneInvoices.test.ts` (route integration, ~30 tests).
 
 **Key patterns**:
 
-- **Single-instance phase test**: After `fireEvent.click(dayBtn)`, assert `getPhaseLabel(container).toLowerCase().toContain('end')` — NO separate render call needed. The fix uses internal `pendingStartDate` state so phase updates immediately.
-- **`rerender` requires `rtlRender` directly**: When using `rerender` to simulate prop updates on a single instance, call `rtlRender(<LocaleProvider><Component .../></LocaleProvider>)` directly — the custom `render()` wrapper double-nests `LocaleProvider` when used with `rerender`.
-- **Pre-existing shard failures on branch**: `Test (Shard 2/6)` and `E2E Tests (Shard 10/16)` were failing on the branch BEFORE QA's test commit. Confirmed by comparing CI run for commit `2eb53d24` (production fix) vs `8f0e6dcd` (test commit) — same failures in both runs.
-- **CI log access blocked by network policy**: `productionresultssa14.blob.core.windows.net` is blocked. Use annotations API (`/check-runs/{id}/annotations`) instead for failure hints. Cross-reference runs on parent commits to distinguish pre-existing vs introduced failures.
+- **`invoiceBudgetLines` UNIQUE constraints**: `work_item_budget_id` and `household_item_budget_id` each have a partial unique index `WHERE NOT NULL`. This means each budget line can only link to ONE invoice. Test that linking same WIB to a 2nd invoice throws `BudgetLineAlreadyLinkedError` (409). Linking the same WIB to the SAME invoice throws `ValidationError` (400).
+- **`ItemizedSumExceedsInvoiceError` is 400**: Uses `super('ITEMIZED_SUM_EXCEEDS_INVOICE', 400, ...)`. Check body `error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE'`.
+- **`BudgetLineAlreadyLinkedError` is 409**: Uses `super('BUDGET_LINE_ALREADY_LINKED', 409, ...)`. Check body `error.code === 'BUDGET_LINE_ALREADY_LINKED'`.
+- **XOR validation**: Service checks `hasWorkItem` (non-null + defined) vs `hasHouseholdItem`. Providing `null` for one and a real ID for the other = valid one-sided link.
+- **`updateInvoiceBudgetLine` rejects budget ID changes**: Any attempt to set `workItemBudgetId` or `householdItemBudgetId` in update body → `ValidationError`, even if null.
+- **`householdItems` requires `categoryId: 'hic-furniture'`**: Seeded in migration; always use this. NOT NULL FK constraint.
+- **`listAllInvoices` returns `{ invoices, pagination, summary, filterMeta }`**: `summary` is GLOBAL (unfiltered); `filterMeta.amount` reflects base conditions (excluding amount range filter).
+- **`getInvoiceById` wraps result in `{ invoice }` envelope**: Route sends `{ invoice }` not bare object.
+- **Standalone invoice routes registered at `/api/invoices`**: Uses `standaloneInvoiceRoutes` prefix. Route for `/:invoiceId` conflicts with vendor subroutes at `/api/vendors/:vendorId/invoices/:invoiceId`.
+- **`additionalProperties: false` on `standaloneInvoices` querystring**: Unknown query params return 400.
+- **Sort options**: `sortBy` accepts `date|amount|status|vendor_name|due_date`. Invalid value → 400.
+- **`getInvoiceBudgetLinesForInvoice` uses raw SQL**: Uses `db.all<{...}>(sql\`...\`)` pattern for efficiency — test via `createInvoiceBudgetLine` first then verify `getInvoiceBudgetLinesForInvoice` result has correct `budgetLineId`, `budgetLineType`, `itemName`.
+
+## Gap 4+6 Client Page + API Tests (2026-03-25)
+
+**Files**: `VendorsPage.test.tsx`, `UserManagementPage.test.tsx`, `HouseholdItemsPage.test.tsx`, `workItemBudgetsApi.test.ts`, `workItemMilestonesApi.test.ts`.
+
+**Key patterns**:
+- **`WorkItemBudgetLine` fixture**: Uses `BaseBudgetLine` shape: `confidence: 'own_estimate'` (NOT `'medium'`), `confidenceMargin`, `budgetCategory/budgetSource/vendor: null`, `actualCost`, `actualCostPaid`, `invoiceLink: null`, `quantity/unit/unitPrice/includesVat: null`.
+- **`WorkItemMilestones` fixture**: `required/linked` arrays of `MilestoneSummaryForWorkItem` — only `{ id: number, name: string, targetDate: string | null }`. NOT `title`, `dueDate`, etc.
+- **`CreateBudgetLineRequest`**: `budgetSourceId`, `budgetCategoryId`, `plannedAmount`, `description` — NOT `sourceId/categoryId/notes`.
+- **Page tests need `useTableState` mock**: Pages using `useTableState` hook require mocking `../../hooks/useTableState.js` returning full object with `tableState`, `searchInput`, `setSearch`, `toApiParams`, `setFilter`.
+- **`HouseholdItemsPage` needs 4 mocks**: `householdItemsApi`, `vendorsApi`, `householdItemCategoriesApi`, `useAreas`.
+- **`UserManagementPage` needs `AuthContext` mock**: Imports `useAuth()` for `isAdmin` — mock `../../contexts/AuthContext.js`.
+- **`VendorsPage` needs `useTrades` + `TradePicker` mocks**: Both must be mocked to avoid cascading fetch calls in hook.
+- **Cannot run tests locally**: worktree node_modules/.bin is sparse (no jest binary). Commit and rely on CI.
 
 ## Bug #1201 Backup Execution Path Tests (2026-03-25)
 
