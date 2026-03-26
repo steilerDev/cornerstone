@@ -89,12 +89,19 @@ jobs:
       - name: Run tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
         run: node --experimental-vm-modules node_modules/.bin/jest --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }} --coverage --coverageReporters=json
 
+      - name: Rename coverage for merge
+        if: ${{ always() }}
+        run: |
+          if [ -f coverage/coverage-final.json ]; then
+            mv coverage/coverage-final.json coverage/coverage-shard-${{ matrix.shardIndex }}.json
+          fi
+
       - name: Upload coverage
         if: ${{ always() }}
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: coverage-shard-${{ matrix.shardIndex }}
-          path: coverage/coverage-final.json
+          path: coverage/coverage-shard-${{ matrix.shardIndex }}.json
           retention-days: 1
 
   coverage-report:
