@@ -319,9 +319,8 @@ describe('usePhotos', () => {
       mockUploadPhotoApi.mockImplementationOnce(
         (_entityType, _entityId, _file, _caption, onProgress) => {
           capturedProgressCallback = onProgress as (percent: number) => void;
-          // Use a deferred promise so upload does NOT resolve until we manually call resolveUpload.
-          // This prevents the immediate microtask flush from consuming the upload resolution
-          // before we can assert the progress value.
+          // Deferred promise — upload stays pending until resolveUpload() is called.
+          // This ensures the upload does NOT complete before we can check progress state.
           return new Promise((resolve) => {
             resolveUpload = resolve;
           });
@@ -335,27 +334,30 @@ describe('usePhotos', () => {
 
       const file = makeFile('progress.jpg');
 
-      // Start upload (does NOT resolve yet — deferred promise)
-      let uploadSettled = false;
-      const uploadPromise = act(async () => {
+      // Start the upload but do NOT await it — runs until it hits the deferred promise
+      // Using a separate variable to track the upload promise for cleanup
+      let uploadDone = false;
+      const runUpload = async () => {
         await result.current.uploadPhoto(file);
-      }).then(() => {
-        uploadSettled = true;
-      });
+        uploadDone = true;
+      };
+      // Fire the upload outside act to avoid nested act problems
+      const uploadPromise = runUpload().catch(() => { uploadDone = true; });
 
-      // capturedProgressCallback is set synchronously inside mockImplementationOnce
+      // The mock runs synchronously when uploadPhoto calls uploadPhotoApi,
+      // so capturedProgressCallback is set before the first await in uploadPhoto
       expect(capturedProgressCallback).toBeDefined();
 
-      // Simulate progress report from XHR — this calls setUploadProgress(75)
+      // Simulate a progress event inside act() so React flushes the state update
       await act(async () => {
         capturedProgressCallback!(75);
       });
 
-      // Upload has not resolved yet — progress should still be set
-      expect(uploadSettled).toBe(false);
+      // After act(), the state update has been committed
       expect(result.current.uploadProgress.get('progress.jpg')).toBe(75);
+      expect(uploadDone).toBe(false); // upload still pending
 
-      // Now resolve the upload to avoid dangling promises
+      // Resolve the upload to clean up
       await act(async () => {
         resolveUpload!(photo);
         await uploadPromise;
