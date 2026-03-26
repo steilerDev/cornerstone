@@ -3,6 +3,20 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Fastify AJV Default: removeAdditional=true (2026-03-26)
+
+**Critical pattern**: Fastify's `@fastify/ajv-compiler` defaults to `removeAdditional: true`. This means `additionalProperties: false` in body/querystring schemas does NOT reject unknown properties with 400 — it strips them and lets the request proceed. Tests that expect 400 for unknown fields are wrong. The correct test is to assert the request succeeds (201/200) with extra fields silently removed. See `server/src/routes/auth.test.ts` comment for reference.
+
+**Affected test files fixed (2026-03-26)**: `invoiceBudgetLines.test.ts` (POST + PATCH), `standaloneInvoices.test.ts` (GET querystring).
+
+**Correct test pattern** (from `invoices.test.ts`):
+```ts
+it('strips unknown properties from request body (additionalProperties: false)', async () => {
+  // ...send with unknownField...
+  expect(response.statusCode).toBe(201); // Fastify strips extra props — still succeeds
+});
+```
+
 ## Gap 5 — Client Vendor/Trade/Area Utility Tests (2026-03-26)
 
 **Files** (10 new): `client/src/lib/areasApi.test.ts`, `tradesApi.test.ts`, `vendorContactsApi.test.ts`, `davTokensApi.test.ts`, `timelineApi.test.ts`, `areaTreeUtils.test.ts`, `client/src/hooks/useAreas.test.ts`, `useTrades.test.ts`, `useVendorContacts.test.ts`, `useDavToken.test.ts`.
