@@ -86,8 +86,8 @@ describe('UserManagementPage', () => {
       oidcEnabled: false,
       isLoading: false,
       error: null,
-      refreshAuth: jest.fn(),
-      logout: jest.fn(),
+      refreshAuth: jest.fn<() => Promise<void>>(),
+      logout: jest.fn<() => Promise<void>>(),
     });
     mockListUsers.mockResolvedValue({ users: [] });
     mockAdminUpdateUser.mockResolvedValue(makeUser());
@@ -173,8 +173,8 @@ describe('UserManagementPage', () => {
   describe('error state', () => {
     it('shows error message when listUsers fails with ApiClientError', async () => {
       const error = new ApiClientError(
-        { code: 'FORBIDDEN', message: 'Access denied' },
         403,
+        { code: 'FORBIDDEN', message: 'Access denied' },
       );
       mockListUsers.mockRejectedValueOnce(error);
 
@@ -420,8 +420,8 @@ describe('UserManagementPage', () => {
       const user = makeUser({ id: 'user-1', displayName: 'Alice Admin', email: 'alice@example.com' });
       mockListUsers.mockResolvedValueOnce({ users: [user] });
       const apiError = new ApiClientError(
-        { code: 'CONFLICT', message: 'Email already in use' },
         409,
+        { code: 'CONFLICT', message: 'Email already in use' },
       );
       mockAdminUpdateUser.mockRejectedValueOnce(apiError);
 
@@ -542,8 +542,8 @@ describe('UserManagementPage', () => {
       const user = makeUser({ id: 'user-1', displayName: 'Alice Admin' });
       mockListUsers.mockResolvedValueOnce({ users: [user] });
       const error = new ApiClientError(
-        { code: 'FORBIDDEN', message: 'Cannot deactivate last admin' },
         403,
+        { code: 'FORBIDDEN', message: 'Cannot deactivate last admin' },
       );
       mockDeactivateUser.mockRejectedValueOnce(error);
 

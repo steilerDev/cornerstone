@@ -160,9 +160,9 @@ describe('HouseholdItemsPage', () => {
       isLoading: false,
       error: null,
       refetch: jest.fn(),
-      createArea: jest.fn(),
-      updateArea: jest.fn(),
-      deleteArea: jest.fn(),
+      createArea: jest.fn<UseAreasTypes.UseAreasResult['createArea']>(),
+      updateArea: jest.fn<UseAreasTypes.UseAreasResult['updateArea']>(),
+      deleteArea: jest.fn<UseAreasTypes.UseAreasResult['deleteArea']>(),
     });
     mockListHouseholdItems.mockResolvedValue(defaultListResponse());
     mockFetchVendors.mockResolvedValue({
@@ -269,8 +269,8 @@ describe('HouseholdItemsPage', () => {
   describe('error state', () => {
     it('shows error message when listHouseholdItems fails with ApiClientError', async () => {
       const error = new ApiClientError(
-        { code: 'INTERNAL_ERROR', message: 'Failed to load items' },
         500,
+        { code: 'INTERNAL_ERROR', message: 'Failed to load items' },
       );
       mockListHouseholdItems.mockRejectedValueOnce(error);
 
@@ -372,8 +372,8 @@ describe('HouseholdItemsPage', () => {
       const item = makeHouseholdItem({ id: 'hi-1', name: 'Living Room Sofa' });
       mockListHouseholdItems.mockResolvedValueOnce(defaultListResponse([item]));
       const error = new ApiClientError(
-        { code: 'CONFLICT', message: 'Item has linked invoices' },
         409,
+        { code: 'CONFLICT', message: 'Item has linked invoices' },
       );
       mockDeleteHouseholdItem.mockRejectedValueOnce(error);
 
@@ -456,9 +456,9 @@ describe('HouseholdItemsPage', () => {
         isLoading: false,
         error: null,
         refetch: jest.fn(),
-        createArea: jest.fn(),
-        updateArea: jest.fn(),
-        deleteArea: jest.fn(),
+        createArea: jest.fn<UseAreasTypes.UseAreasResult['createArea']>(),
+        updateArea: jest.fn<UseAreasTypes.UseAreasResult['updateArea']>(),
+        deleteArea: jest.fn<UseAreasTypes.UseAreasResult['deleteArea']>(),
       });
 
       renderPage();

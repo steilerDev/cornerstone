@@ -145,9 +145,9 @@ describe('VendorsPage', () => {
       isLoading: false,
       error: null,
       refetch: jest.fn(),
-      createTrade: jest.fn(),
-      updateTrade: jest.fn(),
-      deleteTrade: jest.fn(),
+      createTrade: jest.fn<UseTradesTypes.UseTradesResult['createTrade']>(),
+      updateTrade: jest.fn<UseTradesTypes.UseTradesResult['updateTrade']>(),
+      deleteTrade: jest.fn<UseTradesTypes.UseTradesResult['deleteTrade']>(),
     });
     mockFetchVendors.mockResolvedValue(defaultFetchResponse());
     mockCreateVendor.mockResolvedValue(makeVendor());
@@ -249,8 +249,8 @@ describe('VendorsPage', () => {
   describe('error state', () => {
     it('shows error message when vendor list fails to load', async () => {
       const error = new ApiClientError(
-        { code: 'INTERNAL_ERROR', message: 'Failed to load vendors' },
         500,
+        { code: 'INTERNAL_ERROR', message: 'Failed to load vendors' },
       );
       mockFetchVendors.mockRejectedValueOnce(error);
 
@@ -379,8 +379,8 @@ describe('VendorsPage', () => {
 
     it('shows API error when createVendor fails', async () => {
       const apiError = new ApiClientError(
-        { code: 'CONFLICT', message: 'Vendor already exists' },
         409,
+        { code: 'CONFLICT', message: 'Vendor already exists' },
       );
       mockCreateVendor.mockRejectedValueOnce(apiError);
 
@@ -480,8 +480,8 @@ describe('VendorsPage', () => {
       const vendor = makeVendor({ id: 'vendor-1', name: 'Acme Construction' });
       mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse([vendor]));
       const conflictError = new ApiClientError(
-        { code: 'CONFLICT', message: 'Vendor has associated invoices' },
         409,
+        { code: 'CONFLICT', message: 'Vendor has associated invoices' },
       );
       mockDeleteVendor.mockRejectedValueOnce(conflictError);
 
