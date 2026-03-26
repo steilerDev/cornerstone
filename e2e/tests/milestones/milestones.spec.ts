@@ -144,8 +144,9 @@ test.describe('Create milestone — title + date only (Scenario 4)', { tag: '@re
 
         const response = await responsePromise;
         expect(response.ok()).toBeTruthy();
-        const body = (await response.json()) as { milestone: { id: number } };
-        createdId = body.milestone?.id ?? null;
+        // POST /api/milestones returns MilestoneDetail directly (no wrapper object)
+        const body = (await response.json()) as { id: number };
+        createdId = body.id ?? null;
 
         // Should redirect to /project/milestones/:id
         await page.waitForURL('**/project/milestones/**');
@@ -193,8 +194,9 @@ test.describe('Create milestone — all fields (Scenario 5)', { tag: '@responsiv
 
       const response = await responsePromise;
       expect(response.ok()).toBeTruthy();
-      const body = (await response.json()) as { milestone: { id: number } };
-      createdId = body.milestone?.id ?? null;
+      // POST /api/milestones returns MilestoneDetail directly (no wrapper object)
+      const body = (await response.json()) as { id: number };
+      createdId = body.id ?? null;
 
       // Should redirect to detail page
       await page.waitForURL('**/project/milestones/**');

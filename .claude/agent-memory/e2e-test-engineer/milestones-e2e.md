@@ -60,5 +60,12 @@ type: project
 5. **createMilestoneViaApi returns number**: Unlike work items (string UUID), milestone IDs are
    integers. Use `createdId: number | null` in tests.
 
+6. **POST /api/milestones response shape — NO wrapper**: The server returns `MilestoneDetail`
+   directly (e.g. `{ id: 1, title: "...", ... }`), NOT wrapped in `{ milestone: { id: 1 } }`.
+   This was a bug in the original test/helper code — `body.milestone.id` caused
+   `TypeError: Cannot read properties of undefined (reading 'id')` in CI. Correct pattern:
+   `const body = (await response.json()) as { id: number }; return body.id;`
+   Same applies to in-test POST response parsing in Scenarios 4 and 5.
+
 **Why**: Milestones feature had zero E2E coverage. Written as part of Gap-1 E2E work (2026-03).
 **How to apply**: When adding more milestone-related tests, reuse these POMs and patterns.
