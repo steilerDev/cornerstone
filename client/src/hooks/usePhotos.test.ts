@@ -312,12 +312,19 @@ describe('usePhotos', () => {
 
     it('updates uploadProgress during upload via the progress wrapper', async () => {
       let capturedProgressCallback: ((percent: number) => void) | undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let resolveUpload: (value: any) => void;
       const photo = makePhoto('photo-progress');
 
       mockUploadPhotoApi.mockImplementationOnce(
         (_entityType, _entityId, _file, _caption, onProgress) => {
           capturedProgressCallback = onProgress as (percent: number) => void;
-          return Promise.resolve(photo);
+          // Use a deferred promise so upload does NOT resolve until we manually call resolveUpload.
+          // This prevents the immediate microtask flush from consuming the upload resolution
+          // before we can assert the progress value.
+          return new Promise((resolve) => {
+            resolveUpload = resolve;
+          });
         },
       );
 
@@ -328,19 +335,31 @@ describe('usePhotos', () => {
 
       const file = makeFile('progress.jpg');
 
+      // Start upload (does NOT resolve yet — deferred promise)
+      let uploadSettled = false;
       const uploadPromise = act(async () => {
         await result.current.uploadPhoto(file);
+      }).then(() => {
+        uploadSettled = true;
       });
 
-      // Before resolve, simulate progress
-      if (capturedProgressCallback) {
-        act(() => {
-          capturedProgressCallback!(75);
-        });
-        expect(result.current.uploadProgress.get('progress.jpg')).toBe(75);
-      }
+      // capturedProgressCallback is set synchronously inside mockImplementationOnce
+      expect(capturedProgressCallback).toBeDefined();
 
-      await uploadPromise;
+      // Simulate progress report from XHR — this calls setUploadProgress(75)
+      await act(async () => {
+        capturedProgressCallback!(75);
+      });
+
+      // Upload has not resolved yet — progress should still be set
+      expect(uploadSettled).toBe(false);
+      expect(result.current.uploadProgress.get('progress.jpg')).toBe(75);
+
+      // Now resolve the upload to avoid dangling promises
+      await act(async () => {
+        resolveUpload!(photo);
+        await uploadPromise;
+      });
     });
 
     it('clears uploadProgress entry after successful upload', async () => {

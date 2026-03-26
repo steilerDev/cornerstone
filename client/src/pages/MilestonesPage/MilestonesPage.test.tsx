@@ -148,10 +148,12 @@ describe('MilestonesPage', () => {
 
       renderPage();
 
+      // DataTable renders each item in both the table row and mobile card view,
+      // so getAllByText is used to handle duplicate occurrences
       await waitFor(() => {
-        expect(screen.getByText('Foundation Complete')).toBeInTheDocument();
+        expect(screen.getAllByText('Foundation Complete')[0]).toBeInTheDocument();
       });
-      expect(screen.getByText('Framing Complete')).toBeInTheDocument();
+      expect(screen.getAllByText('Framing Complete')[0]).toBeInTheDocument();
     });
 
     it('renders "New Milestone" button', async () => {
@@ -170,7 +172,7 @@ describe('MilestonesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Foundation Complete')).toBeInTheDocument();
+        expect(screen.getAllByText('Foundation Complete')[0]).toBeInTheDocument();
       });
     });
 
@@ -184,7 +186,7 @@ describe('MilestonesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText(`${'A'.repeat(60)}...`)).toBeInTheDocument();
+        expect(screen.getAllByText(`${'A'.repeat(60)}...`)[0]).toBeInTheDocument();
       });
     });
 
@@ -194,9 +196,10 @@ describe('MilestonesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Framing Complete')).toBeInTheDocument();
+        expect(screen.getAllByText('Framing Complete')[0]).toBeInTheDocument();
       });
-      expect(screen.getByText('—')).toBeInTheDocument();
+      // Multiple em-dashes may appear (table + card view), so use getAllByText
+      expect(screen.getAllByText('—').length).toBeGreaterThan(0);
     });
   });
 
@@ -220,9 +223,9 @@ describe('MilestonesPage', () => {
 
       renderPage();
 
-      // The DataTable shows the error string from setError()
+      // The DataTable shows the error banner (role="alert") with the generic message
       await waitFor(() => {
-        expect(document.body.textContent).toMatch(/error|Error/);
+        expect(screen.getByRole('alert')).toBeInTheDocument();
       });
     });
   });
@@ -250,8 +253,10 @@ describe('MilestonesPage', () => {
 
       renderPage();
 
+      // DataTable renders renderActions in both table and mobile card, so two elements
+      // with the same testid exist — use getAllByTestId
       await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
+        expect(screen.getAllByTestId('milestone-menu-button-1')[0]).toBeInTheDocument();
       });
     });
 
@@ -261,13 +266,13 @@ describe('MilestonesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
+        expect(screen.getAllByTestId('milestone-menu-button-1')[0]).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
+      fireEvent.click(screen.getAllByTestId('milestone-menu-button-1')[0]);
 
-      expect(screen.getByTestId('milestone-edit-1')).toBeInTheDocument();
-      expect(screen.getByTestId('milestone-delete-1')).toBeInTheDocument();
+      expect(screen.getAllByTestId('milestone-edit-1')[0]).toBeInTheDocument();
+      expect(screen.getAllByTestId('milestone-delete-1')[0]).toBeInTheDocument();
     });
 
     it('closes dropdown when menu button is clicked again', async () => {
@@ -276,13 +281,13 @@ describe('MilestonesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
+        expect(screen.getAllByTestId('milestone-menu-button-1')[0]).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
-      expect(screen.getByTestId('milestone-edit-1')).toBeInTheDocument();
+      fireEvent.click(screen.getAllByTestId('milestone-menu-button-1')[0]);
+      expect(screen.getAllByTestId('milestone-edit-1')[0]).toBeInTheDocument();
 
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
+      fireEvent.click(screen.getAllByTestId('milestone-menu-button-1')[0]);
       expect(screen.queryByTestId('milestone-edit-1')).not.toBeInTheDocument();
     });
   });
@@ -296,14 +301,14 @@ describe('MilestonesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
+        expect(screen.getAllByTestId('milestone-menu-button-1')[0]).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
-      fireEvent.click(screen.getByTestId('milestone-delete-1'));
+      fireEvent.click(screen.getAllByTestId('milestone-menu-button-1')[0]);
+      fireEvent.click(screen.getAllByTestId('milestone-delete-1')[0]);
 
-      // Modal should show milestone title in quote
-      expect(screen.getByText('Foundation Complete')).toBeInTheDocument();
+      // Modal should show milestone title
+      expect(screen.getAllByText('Foundation Complete')[0]).toBeInTheDocument();
     });
 
     it('closes modal when cancel button is clicked', async () => {
@@ -312,11 +317,11 @@ describe('MilestonesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
+        expect(screen.getAllByTestId('milestone-menu-button-1')[0]).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
-      fireEvent.click(screen.getByTestId('milestone-delete-1'));
+      fireEvent.click(screen.getAllByTestId('milestone-menu-button-1')[0]);
+      fireEvent.click(screen.getAllByTestId('milestone-delete-1')[0]);
 
       // Click cancel button (first secondary button in the modal)
       const cancelButtons = screen.getAllByRole('button');
@@ -336,15 +341,15 @@ describe('MilestonesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
+        expect(screen.getAllByTestId('milestone-menu-button-1')[0]).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
-      fireEvent.click(screen.getByTestId('milestone-delete-1'));
+      fireEvent.click(screen.getAllByTestId('milestone-menu-button-1')[0]);
+      fireEvent.click(screen.getAllByTestId('milestone-delete-1')[0]);
 
       // Find the confirm delete button
       const buttons = screen.getAllByRole('button');
-      const deleteConfirmBtn = buttons.find((btn) => btn.textContent?.match(/^delete$/i));
+      const deleteConfirmBtn = buttons.find((btn) => btn.textContent?.match(/delete milestone/i));
       expect(deleteConfirmBtn).toBeTruthy();
       if (deleteConfirmBtn) fireEvent.click(deleteConfirmBtn);
 
@@ -362,18 +367,18 @@ describe('MilestonesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
+        expect(screen.getAllByTestId('milestone-menu-button-1')[0]).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
-      fireEvent.click(screen.getByTestId('milestone-delete-1'));
+      fireEvent.click(screen.getAllByTestId('milestone-menu-button-1')[0]);
+      fireEvent.click(screen.getAllByTestId('milestone-delete-1')[0]);
 
       const buttons = screen.getAllByRole('button');
-      const deleteConfirmBtn = buttons.find((btn) => btn.textContent?.match(/^delete$/i));
+      const deleteConfirmBtn = buttons.find((btn) => btn.textContent?.match(/delete milestone/i));
       if (deleteConfirmBtn) fireEvent.click(deleteConfirmBtn);
 
       await waitFor(() => {
-        expect(screen.getByText('Delete failed')).toBeInTheDocument();
+        expect(screen.getAllByText('Delete failed')[0]).toBeInTheDocument();
       });
     });
   });
@@ -386,10 +391,11 @@ describe('MilestonesPage', () => {
 
       renderPage();
 
+      // DataTable renders items in both table and mobile card view (duplicate text)
       await waitFor(() => {
-        expect(screen.getByText('Foundation Complete')).toBeInTheDocument();
+        expect(screen.getAllByText('Foundation Complete')[0]).toBeInTheDocument();
       });
-      expect(screen.getByText('Framing Complete')).toBeInTheDocument();
+      expect(screen.getAllByText('Framing Complete')[0]).toBeInTheDocument();
     });
   });
 });

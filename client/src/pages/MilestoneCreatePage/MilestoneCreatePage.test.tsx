@@ -150,7 +150,8 @@ describe('MilestoneCreatePage', () => {
 
       // Set only date, not title
       await user.type(screen.getByTestId('milestone-target-date-input'), '2026-06-15');
-      await user.click(screen.getByTestId('create-milestone-button'));
+      // Use fireEvent.submit to bypass native HTML required validation
+      fireEvent.submit(screen.getByTestId('create-milestone-button').closest('form')!);
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -163,7 +164,8 @@ describe('MilestoneCreatePage', () => {
       renderPage();
 
       await user.type(screen.getByTestId('milestone-title-input'), 'My Milestone');
-      await user.click(screen.getByTestId('create-milestone-button'));
+      // Use fireEvent.submit to bypass native HTML required validation
+      fireEvent.submit(screen.getByTestId('create-milestone-button').closest('form')!);
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -172,10 +174,10 @@ describe('MilestoneCreatePage', () => {
     });
 
     it('shows error when both title and date are missing', async () => {
-      const user = userEvent.setup();
       renderPage();
 
-      await user.click(screen.getByTestId('create-milestone-button'));
+      // Use fireEvent.submit to bypass native HTML required validation
+      fireEvent.submit(screen.getByTestId('create-milestone-button').closest('form')!);
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();

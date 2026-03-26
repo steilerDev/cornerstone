@@ -215,8 +215,9 @@ describe('InvoicesPage', () => {
 
       renderPage();
 
+      // DataTable renders each item in both table row and mobile card (duplicate text)
       await waitFor(() => {
-        expect(screen.getByText('INV-2026-001')).toBeInTheDocument();
+        expect(screen.getAllByText('INV-2026-001')[0]).toBeInTheDocument();
       });
     });
 
@@ -225,10 +226,11 @@ describe('InvoicesPage', () => {
 
       renderPage();
 
+      // DataTable renders items in both table and mobile card view (duplicate text)
       await waitFor(() => {
-        expect(screen.getByText('ACME Construction')).toBeInTheDocument();
+        expect(screen.getAllByText('ACME Construction')[0]).toBeInTheDocument();
       });
-      expect(screen.getByText('Quality Plumbing')).toBeInTheDocument();
+      expect(screen.getAllByText('Quality Plumbing')[0]).toBeInTheDocument();
     });
 
     it('renders summary cards with correct counts', async () => {
@@ -237,10 +239,10 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('INV-2026-001')).toBeInTheDocument();
+        expect(screen.getAllByText('INV-2026-001')[0]).toBeInTheDocument();
       });
 
-      // Pending count = 1
+      // Pending count = 1 (shown in summary card)
       expect(screen.getByText('1')).toBeInTheDocument();
     });
 
@@ -260,7 +262,7 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('INV-2026-001')).toBeInTheDocument();
+        expect(screen.getAllByText('INV-2026-001')[0]).toBeInTheDocument();
       });
     });
   });
@@ -269,30 +271,31 @@ describe('InvoicesPage', () => {
 
   describe('error state', () => {
     it('shows API error message when fetchAllInvoices fails', async () => {
-      mockFetchAllInvoices.mockRejectedValueOnce(
+      // Use mockRejectedValue (not Once) so ALL calls fail consistently —
+      // useTableState may trigger multiple loadInvoices calls
+      mockFetchAllInvoices.mockRejectedValue(
         new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Service unavailable' }),
       );
 
       renderPage();
 
+      // DataTable renders the error via role="alert" banner
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.getByRole('alert')).toBeInTheDocument();
       });
-
       expect(screen.getByText('Service unavailable')).toBeInTheDocument();
     });
 
     it('shows generic error for non-ApiClientError', async () => {
-      mockFetchAllInvoices.mockRejectedValueOnce(new Error('Network error'));
+      // Use mockRejectedValue (not Once) so ALL calls fail consistently
+      mockFetchAllInvoices.mockRejectedValue(new Error('Network error'));
 
       renderPage();
 
+      // DataTable renders the error via role="alert" banner
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.getByRole('alert')).toBeInTheDocument();
       });
-
-      // Should show some error text
-      expect(document.body.textContent).toMatch(/error|Error/);
     });
   });
 
@@ -315,7 +318,8 @@ describe('InvoicesPage', () => {
   describe('create invoice modal', () => {
     it('opens modal when New Invoice button is clicked', async () => {
       const user = userEvent.setup();
-      mockFetchAllInvoices.mockResolvedValueOnce(emptyResponse);
+      // Use mockResolvedValue (not Once) to handle multiple loadInvoices calls from useTableState
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
 
       renderPage();
 
@@ -333,7 +337,7 @@ describe('InvoicesPage', () => {
 
     it('shows vendor select in modal', async () => {
       const user = userEvent.setup();
-      mockFetchAllInvoices.mockResolvedValueOnce(emptyResponse);
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
       mockFetchVendors.mockResolvedValue(vendorsResponse);
 
       renderPage();
@@ -354,7 +358,8 @@ describe('InvoicesPage', () => {
 
     it('shows validation error when submitting without vendor', async () => {
       const user = userEvent.setup();
-      mockFetchAllInvoices.mockResolvedValueOnce(emptyResponse);
+      // Use mockResolvedValue (not Once) to handle multiple loadInvoices calls from useTableState
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
 
       renderPage();
 
@@ -368,12 +373,11 @@ describe('InvoicesPage', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
 
-      // Try to submit by clicking the Create button (trigger form validation)
-      const createBtn = screen.getAllByRole('button').find((btn) =>
-        btn.textContent?.match(/^create$/i),
-      );
-      expect(createBtn).toBeTruthy();
-      if (createBtn) await user.click(createBtn);
+      // The Create button is disabled when no vendor is selected.
+      // Submit the form directly to trigger JS validation (form has noValidate).
+      const form = screen.getByRole('dialog').querySelector('form');
+      expect(form).toBeTruthy();
+      if (form) fireEvent.submit(form);
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -383,7 +387,7 @@ describe('InvoicesPage', () => {
 
     it('shows validation error for missing amount', async () => {
       const user = userEvent.setup();
-      mockFetchAllInvoices.mockResolvedValueOnce(emptyResponse);
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
       mockFetchVendors.mockResolvedValue(vendorsResponse);
 
       renderPage();
@@ -406,11 +410,10 @@ describe('InvoicesPage', () => {
       const dateInput = screen.getByLabelText(/invoice date/i);
       fireEvent.change(dateInput, { target: { value: '2026-02-01' } });
 
-      // Submit
-      const createBtn = screen.getAllByRole('button').find((btn) =>
-        btn.textContent?.match(/^create$/i),
-      );
-      if (createBtn) await user.click(createBtn);
+      // Create button is disabled when amount is missing; submit form directly
+      const form = screen.getByRole('dialog').querySelector('form');
+      expect(form).toBeTruthy();
+      if (form) fireEvent.submit(form);
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -420,9 +423,7 @@ describe('InvoicesPage', () => {
 
     it('calls createInvoice with correct data on valid submission', async () => {
       const user = userEvent.setup();
-      mockFetchAllInvoices
-        .mockResolvedValueOnce(emptyResponse)
-        .mockResolvedValueOnce(emptyResponse);
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
       mockFetchVendors.mockResolvedValue(vendorsResponse);
       mockCreateInvoice.mockResolvedValueOnce(sampleInvoice1);
 
@@ -443,7 +444,7 @@ describe('InvoicesPage', () => {
       await user.selectOptions(vendorSelect, 'v-1');
 
       // Fill amount
-      const amountInput = screen.getByLabelText(/amount.*required/i);
+      const amountInput = screen.getByLabelText(/^amount/i);
       await user.type(amountInput, '15000');
 
       // Fill date
@@ -469,7 +470,7 @@ describe('InvoicesPage', () => {
 
     it('shows API error when createInvoice fails', async () => {
       const user = userEvent.setup();
-      mockFetchAllInvoices.mockResolvedValueOnce(emptyResponse);
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
       mockFetchVendors.mockResolvedValue(vendorsResponse);
       mockCreateInvoice.mockRejectedValueOnce(
         new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Creation failed' }),
@@ -490,7 +491,7 @@ describe('InvoicesPage', () => {
       const vendorSelect = screen.getByRole('combobox', { name: /vendor/i });
       await user.selectOptions(vendorSelect, 'v-1');
 
-      const amountInput = screen.getByLabelText(/amount.*required/i);
+      const amountInput = screen.getByLabelText(/^amount/i);
       await user.type(amountInput, '5000');
 
       const dateInput = screen.getByLabelText(/invoice date/i);
@@ -509,7 +510,7 @@ describe('InvoicesPage', () => {
 
     it('closes modal when Cancel is clicked', async () => {
       const user = userEvent.setup();
-      mockFetchAllInvoices.mockResolvedValueOnce(emptyResponse);
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
 
       renderPage();
 
@@ -543,10 +544,11 @@ describe('InvoicesPage', () => {
 
       renderPage();
 
+      // DataTable renders renderActions in both table and mobile card — use getAllByTestId
       await waitFor(() => {
-        expect(screen.getByTestId('invoice-menu-button-inv-001')).toBeInTheDocument();
+        expect(screen.getAllByTestId('invoice-menu-button-inv-001')[0]).toBeInTheDocument();
       });
-      expect(screen.getByTestId('invoice-menu-button-inv-002')).toBeInTheDocument();
+      expect(screen.getAllByTestId('invoice-menu-button-inv-002')[0]).toBeInTheDocument();
     });
 
     it('shows view option in dropdown when menu opened', async () => {
@@ -556,12 +558,12 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('invoice-menu-button-inv-001')).toBeInTheDocument();
+        expect(screen.getAllByTestId('invoice-menu-button-inv-001')[0]).toBeInTheDocument();
       });
 
-      await user.click(screen.getByTestId('invoice-menu-button-inv-001'));
+      await user.click(screen.getAllByTestId('invoice-menu-button-inv-001')[0]);
 
-      expect(screen.getByTestId('invoice-view-inv-001')).toBeInTheDocument();
+      expect(screen.getAllByTestId('invoice-view-inv-001')[0]).toBeInTheDocument();
     });
 
     it('navigates to invoice detail on view click', async () => {
@@ -571,11 +573,11 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('invoice-menu-button-inv-001')).toBeInTheDocument();
+        expect(screen.getAllByTestId('invoice-menu-button-inv-001')[0]).toBeInTheDocument();
       });
 
-      await user.click(screen.getByTestId('invoice-menu-button-inv-001'));
-      await user.click(screen.getByTestId('invoice-view-inv-001'));
+      await user.click(screen.getAllByTestId('invoice-menu-button-inv-001')[0]);
+      await user.click(screen.getAllByTestId('invoice-view-inv-001')[0]);
 
       await waitFor(() => {
         expect(screen.getByTestId('location')).toHaveTextContent('/budget/invoices/inv-001');
@@ -591,8 +593,9 @@ describe('InvoicesPage', () => {
 
       renderPage();
 
+      // DataTable renders each item in both table row and mobile card (duplicate text)
       await waitFor(() => {
-        expect(screen.getByText('INV-2026-001')).toBeInTheDocument();
+        expect(screen.getAllByText('INV-2026-001')[0]).toBeInTheDocument();
       });
 
       // The summaryGrid renders labels for pending, paid, and quotation
@@ -618,7 +621,7 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Quality Plumbing')).toBeInTheDocument();
+        expect(screen.getAllByText('Quality Plumbing')[0]).toBeInTheDocument();
       });
     });
   });
