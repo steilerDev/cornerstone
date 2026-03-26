@@ -77,8 +77,8 @@ describe('buildTree', () => {
 
   it('places children directly after their parent in depth-first order', () => {
     const areas = [
-      makeArea({ id: 'a1', name: 'Kitchen' }),
-      makeArea({ id: 'a2', name: 'Bathroom' }),
+      makeArea({ id: 'a1', name: 'Kitchen', sortOrder: 0 }),
+      makeArea({ id: 'a2', name: 'Bathroom', sortOrder: 1 }),
       makeArea({ id: 'a3', name: 'Upper Cabinets', parentId: 'a1' }),
     ];
     const result = buildTree(areas);
