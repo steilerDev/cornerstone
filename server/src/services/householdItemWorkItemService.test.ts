@@ -238,13 +238,13 @@ describe('householdItemWorkItemService', () => {
     it('returns the correct status for the household item', () => {
       const userId = insertUser();
       const wiId = insertWorkItem(userId);
-      const hiId = insertHouseholdItem({ status: 'ordered' });
+      const hiId = insertHouseholdItem({ status: 'purchased' });
 
       insertDep(hiId, 'work_item', wiId);
 
       const result = listDependentHouseholdItemsForWorkItem(db, wiId);
 
-      expect(result[0].status).toBe('ordered');
+      expect(result[0].status).toBe('purchased');
     });
 
     it('returns delivery date fields as null when not set', () => {
@@ -366,7 +366,7 @@ describe('householdItemWorkItemService', () => {
       const userId = insertUser();
       const wiId = insertWorkItem(userId);
 
-      const statuses = ['planned', 'ordered', 'delivered', 'cancelled'] as const;
+      const statuses = ['planned', 'purchased', 'arrived', 'scheduled'] as const;
       const hiIds: string[] = [];
 
       for (const status of statuses) {
