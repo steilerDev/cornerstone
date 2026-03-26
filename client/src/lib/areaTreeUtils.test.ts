@@ -2,17 +2,19 @@ import { describe, it, expect } from '@jest/globals';
 import { buildTree } from './areaTreeUtils.js';
 import type { AreaResponse } from '@cornerstone/shared';
 
-const makeArea = (overrides: Partial<AreaResponse> & { id: string; name: string }): AreaResponse => ({
-  id: overrides.id,
-  name: overrides.name,
-  parentId: null,
-  color: null,
-  description: null,
-  sortOrder: 0,
-  createdAt: '2026-01-01T00:00:00.000Z',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-  ...overrides,
-});
+const makeArea = (overrides: Partial<AreaResponse> & { id: string; name: string }): AreaResponse => {
+  const defaults: AreaResponse = {
+    id: overrides.id,
+    name: overrides.name,
+    parentId: null,
+    color: null,
+    description: null,
+    sortOrder: 0,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  };
+  return { ...defaults, ...overrides };
+};
 
 describe('buildTree', () => {
   it('returns empty array when given empty input', () => {
