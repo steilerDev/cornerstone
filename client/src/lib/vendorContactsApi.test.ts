@@ -48,10 +48,7 @@ describe('vendorContactsApi', () => {
 
       await listVendorContacts('vendor-1');
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/vendors/vendor-1/contacts',
-        expect.any(Object),
-      );
+      expect(mockFetch).toHaveBeenCalledWith('/api/vendors/vendor-1/contacts', expect.any(Object));
     });
 
     it('returns the contacts list from the response', async () => {

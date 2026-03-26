@@ -228,7 +228,11 @@ describe('workItemBudgetsApi', () => {
     });
 
     it('returns the updated budget line from response', async () => {
-      const updatedBudget = { ...mockBudgetLine, plannedAmount: 7500, description: 'Updated notes' };
+      const updatedBudget = {
+        ...mockBudgetLine,
+        plannedAmount: 7500,
+        description: 'Updated notes',
+      };
 
       mockFetch.mockResolvedValueOnce({
         ok: true,

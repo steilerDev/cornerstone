@@ -77,11 +77,7 @@ async function createInvoiceViaApi(
   return body.invoice;
 }
 
-async function deleteInvoiceViaApi(
-  page: Page,
-  vendorId: string,
-  invoiceId: string,
-): Promise<void> {
+async function deleteInvoiceViaApi(page: Page, vendorId: string, invoiceId: string): Promise<void> {
   await page.request.delete(`${API.vendors}/${vendorId}/invoices/${invoiceId}`);
 }
 
@@ -90,53 +86,49 @@ async function deleteInvoiceViaApi(
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Invoices list — empty state (Scenario 12)', { tag: '@responsive' }, () => {
-  test(
-    'Empty state message shown when no invoices exist',
-    { tag: '@smoke' },
-    async ({ page }) => {
-      const invoicesPage = new InvoicesPage(page);
+  test('Empty state message shown when no invoices exist', { tag: '@smoke' }, async ({ page }) => {
+    const invoicesPage = new InvoicesPage(page);
 
-      // Intercept the invoices API to return an empty list
-      await page.route(`${API.vendors}/*/invoices*`, async (route) => {
-        if (route.request().method() === 'GET') {
-          await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify({ invoices: [] }),
-          });
-        } else {
-          await route.continue();
-        }
-      });
+    // Intercept the invoices API to return an empty list
+    await page.route(`${API.vendors}/*/invoices*`, async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ invoices: [] }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
 
-      await page.route('/api/invoices*', async (route) => {
-        if (route.request().method() === 'GET') {
-          await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify({
-              invoices: [],
-              pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
-              summary: {
-                pending: { count: 0, totalAmount: 0 },
-                paid: { count: 0, totalAmount: 0 },
-                claimed: { count: 0, totalAmount: 0 },
-                quotation: { count: 0, totalAmount: 0 },
-              },
-            }),
-          });
-        } else {
-          await route.continue();
-        }
-      });
+    await page.route('/api/invoices*', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            invoices: [],
+            pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+            summary: {
+              pending: { count: 0, totalAmount: 0 },
+              paid: { count: 0, totalAmount: 0 },
+              claimed: { count: 0, totalAmount: 0 },
+              quotation: { count: 0, totalAmount: 0 },
+            },
+          }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
 
-      await invoicesPage.goto();
+    await invoicesPage.goto();
 
-      // Empty state renders with message
-      await expect(invoicesPage.emptyState).toBeVisible();
-      await expect(invoicesPage.emptyState).toContainText('No invoices yet');
-    },
-  );
+    // Empty state renders with message
+    await expect(invoicesPage.emptyState).toBeVisible();
+    await expect(invoicesPage.emptyState).toContainText('No invoices yet');
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -185,102 +177,102 @@ test.describe('Invoices list page load (Scenario 1)', { tag: '@responsive' }, ()
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Create invoice (Scenarios 2 & 3)', { tag: '@responsive' }, () => {
-  test(
-    'Create invoice with required fields — invoice appears in list',
-    async ({ page, testPrefix }) => {
-      const invoicesPage = new InvoicesPage(page);
-      const vendorName = `${testPrefix} Invoice Vendor`;
-      let vendorId = '';
+  test('Create invoice with required fields — invoice appears in list', async ({
+    page,
+    testPrefix,
+  }) => {
+    const invoicesPage = new InvoicesPage(page);
+    const vendorName = `${testPrefix} Invoice Vendor`;
+    let vendorId = '';
 
-      try {
-        // Create a vendor via API for this test
-        const vendor = await createVendorViaApi(page, vendorName);
-        vendorId = vendor.id;
+    try {
+      // Create a vendor via API for this test
+      const vendor = await createVendorViaApi(page, vendorName);
+      vendorId = vendor.id;
 
-        await invoicesPage.goto();
+      await invoicesPage.goto();
 
-        // Open the create modal
-        await invoicesPage.openCreateModal();
-        await expect(invoicesPage.createModal).toBeVisible();
+      // Open the create modal
+      await invoicesPage.openCreateModal();
+      await expect(invoicesPage.createModal).toBeVisible();
 
-        // Fill required fields
-        await invoicesPage.createVendorSelect.selectOption({ label: vendorName });
-        await invoicesPage.createAmountInput.fill('1500.00');
-        await invoicesPage.createDateInput.fill('2026-01-15');
+      // Fill required fields
+      await invoicesPage.createVendorSelect.selectOption({ label: vendorName });
+      await invoicesPage.createAmountInput.fill('1500.00');
+      await invoicesPage.createDateInput.fill('2026-01-15');
 
-        // Register response listener BEFORE submit
-        const responsePromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes('/invoices') &&
-            resp.request().method() === 'POST' &&
-            resp.status() === 201,
-        );
-        await invoicesPage.createSubmitButton.click();
-        await responsePromise;
-        await invoicesPage.createModal.waitFor({ state: 'hidden' });
+      // Register response listener BEFORE submit
+      const responsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/invoices') &&
+          resp.request().method() === 'POST' &&
+          resp.status() === 201,
+      );
+      await invoicesPage.createSubmitButton.click();
+      await responsePromise;
+      await invoicesPage.createModal.waitFor({ state: 'hidden' });
 
-        // Wait for list to reload and show data
-        await invoicesPage.waitForLoaded();
+      // Wait for list to reload and show data
+      await invoicesPage.waitForLoaded();
 
-        // Verify summary cards update (pending count increased since new invoice is pending by default)
-        const pendingCount = await invoicesPage.getSummaryCount('pending');
-        expect(pendingCount).toBeGreaterThanOrEqual(1);
-      } finally {
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      // Verify summary cards update (pending count increased since new invoice is pending by default)
+      const pendingCount = await invoicesPage.getSummaryCount('pending');
+      expect(pendingCount).toBeGreaterThanOrEqual(1);
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 
-  test(
-    'Create invoice with all optional fields — invoice number and notes visible in list',
-    async ({ page, testPrefix }) => {
-      const invoicesPage = new InvoicesPage(page);
-      const vendorName = `${testPrefix} Opt Vendor`;
-      const invoiceNumber = `${testPrefix}-INV-001`;
-      let vendorId = '';
-      let invoiceId = '';
+  test('Create invoice with all optional fields — invoice number and notes visible in list', async ({
+    page,
+    testPrefix,
+  }) => {
+    const invoicesPage = new InvoicesPage(page);
+    const vendorName = `${testPrefix} Opt Vendor`;
+    const invoiceNumber = `${testPrefix}-INV-001`;
+    let vendorId = '';
+    let invoiceId = '';
 
-      try {
-        const vendor = await createVendorViaApi(page, vendorName);
-        vendorId = vendor.id;
+    try {
+      const vendor = await createVendorViaApi(page, vendorName);
+      vendorId = vendor.id;
 
-        await invoicesPage.goto();
-        await invoicesPage.openCreateModal();
-        await expect(invoicesPage.createModal).toBeVisible();
+      await invoicesPage.goto();
+      await invoicesPage.openCreateModal();
+      await expect(invoicesPage.createModal).toBeVisible();
 
-        await invoicesPage.createVendorSelect.selectOption({ label: vendorName });
-        await invoicesPage.createNumberInput.fill(invoiceNumber);
-        await invoicesPage.createAmountInput.fill('750.50');
-        await invoicesPage.createDateInput.fill('2026-02-01');
-        await invoicesPage.createDueDateInput.fill('2026-03-01');
-        await invoicesPage.createStatusSelect.selectOption('quotation');
-        await invoicesPage.createNotesInput.fill(`Notes for ${testPrefix}`);
+      await invoicesPage.createVendorSelect.selectOption({ label: vendorName });
+      await invoicesPage.createNumberInput.fill(invoiceNumber);
+      await invoicesPage.createAmountInput.fill('750.50');
+      await invoicesPage.createDateInput.fill('2026-02-01');
+      await invoicesPage.createDueDateInput.fill('2026-03-01');
+      await invoicesPage.createStatusSelect.selectOption('quotation');
+      await invoicesPage.createNotesInput.fill(`Notes for ${testPrefix}`);
 
-        const responsePromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes('/invoices') &&
-            resp.request().method() === 'POST' &&
-            resp.status() === 201,
-          { timeout: 15000 },
-        );
-        await invoicesPage.createSubmitButton.click();
-        const response = await responsePromise;
-        const body = (await response.json()) as { invoice: InvoiceApiResponse };
-        invoiceId = body.invoice.id;
-        await invoicesPage.createModal.waitFor({ state: 'hidden' });
+      const responsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/invoices') &&
+          resp.request().method() === 'POST' &&
+          resp.status() === 201,
+        { timeout: 15000 },
+      );
+      await invoicesPage.createSubmitButton.click();
+      const response = await responsePromise;
+      const body = (await response.json()) as { invoice: InvoiceApiResponse };
+      invoiceId = body.invoice.id;
+      await invoicesPage.createModal.waitFor({ state: 'hidden' });
 
-        await invoicesPage.waitForLoaded();
+      await invoicesPage.waitForLoaded();
 
-        // The invoice number should appear in the list
-        const numbers = await invoicesPage.getInvoiceNumbers();
-        expect(numbers).toContain(invoiceNumber);
-      } finally {
-        // No separate delete for invoice needed since deleting the vendor cascades
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-        void invoiceId; // referenced but cleanup is via vendor delete
-      }
-    },
-  );
+      // The invoice number should appear in the list
+      const numbers = await invoicesPage.getInvoiceNumbers();
+      expect(numbers).toContain(invoiceNumber);
+    } finally {
+      // No separate delete for invoice needed since deleting the vendor cascades
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      void invoiceId; // referenced but cleanup is via vendor delete
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -320,7 +312,10 @@ test.describe('Create invoice validation (Scenarios 4–6)', { tag: '@responsive
     await invoicesPage.closeCreateModal();
   });
 
-  test('Create invoice fails — date not filled shows submit disabled', async ({ page, testPrefix }) => {
+  test('Create invoice fails — date not filled shows submit disabled', async ({
+    page,
+    testPrefix,
+  }) => {
     const invoicesPage = new InvoicesPage(page);
     const vendorName = `${testPrefix} NoDate Vendor`;
     let vendorId = '';
@@ -346,7 +341,10 @@ test.describe('Create invoice validation (Scenarios 4–6)', { tag: '@responsive
     }
   });
 
-  test('Create modal can be cancelled without creating an invoice', async ({ page, testPrefix }) => {
+  test('Create modal can be cancelled without creating an invoice', async ({
+    page,
+    testPrefix,
+  }) => {
     const invoicesPage = new InvoicesPage(page);
     const vendorName = `${testPrefix} Cancel Vendor`;
     let vendorId = '';
@@ -375,40 +373,42 @@ test.describe('Create invoice validation (Scenarios 4–6)', { tag: '@responsive
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Invoice row click navigation (Scenario 7)', { tag: '@responsive' }, () => {
-  test(
-    'Clicking an invoice row navigates to the invoice detail page',
-    async ({ page, testPrefix }) => {
-      const invoicesPage = new InvoicesPage(page);
-      const detailPage = new InvoiceDetailPage(page);
-      const vendorName = `${testPrefix} Nav Vendor`;
-      let vendorId = '';
+  test('Clicking an invoice row navigates to the invoice detail page', async ({
+    page,
+    testPrefix,
+  }) => {
+    const invoicesPage = new InvoicesPage(page);
+    const detailPage = new InvoiceDetailPage(page);
+    const vendorName = `${testPrefix} Nav Vendor`;
+    let vendorId = '';
 
-      try {
-        const vendor = await createVendorViaApi(page, vendorName);
-        vendorId = vendor.id;
-        const invoice = await createInvoiceViaApi(page, vendorId, {
-          invoiceNumber: `${testPrefix}-ROW-001`,
-          amount: 2000,
-          date: '2026-01-10',
-        });
+    try {
+      const vendor = await createVendorViaApi(page, vendorName);
+      vendorId = vendor.id;
+      const invoice = await createInvoiceViaApi(page, vendorId, {
+        invoiceNumber: `${testPrefix}-ROW-001`,
+        amount: 2000,
+        date: '2026-01-10',
+      });
 
-        await invoicesPage.goto();
-        await invoicesPage.waitForLoaded();
+      await invoicesPage.goto();
+      await invoicesPage.waitForLoaded();
 
-        // Click the invoice number link — works on both desktop table and mobile cards
-        const invoiceLink = page.locator('[class*="invoiceLink"]', {
+      // Click the invoice number link — works on both desktop table and mobile cards
+      const invoiceLink = page
+        .locator('[class*="invoiceLink"]', {
           hasText: `${testPrefix}-ROW-001`,
-        }).first();
-        await invoiceLink.click();
+        })
+        .first();
+      await invoiceLink.click();
 
-        // Should navigate to the detail page
-        await page.waitForURL(`**/budget/invoices/${invoice.id}`);
-        await expect(detailPage.heading).toBeVisible();
-      } finally {
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      // Should navigate to the detail page
+      await page.waitForURL(`**/budget/invoices/${invoice.id}`);
+      await expect(detailPage.heading).toBeVisible();
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -528,43 +528,40 @@ test.describe('Invoice detail page (Scenario 8)', { tag: '@responsive' }, () => 
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Edit invoice (Scenario 9)', { tag: '@responsive' }, () => {
-  test(
-    'Edit invoice — change status to paid and add notes',
-    async ({ page, testPrefix }) => {
-      const detailPage = new InvoiceDetailPage(page);
-      const vendorName = `${testPrefix} Edit Vendor`;
-      let vendorId = '';
+  test('Edit invoice — change status to paid and add notes', async ({ page, testPrefix }) => {
+    const detailPage = new InvoiceDetailPage(page);
+    const vendorName = `${testPrefix} Edit Vendor`;
+    let vendorId = '';
 
-      try {
-        const vendor = await createVendorViaApi(page, vendorName);
-        vendorId = vendor.id;
-        const invoice = await createInvoiceViaApi(page, vendorId, {
-          invoiceNumber: `${testPrefix}-EDT-001`,
-          amount: 1000,
-          date: '2026-01-15',
-          status: 'pending',
-        });
+    try {
+      const vendor = await createVendorViaApi(page, vendorName);
+      vendorId = vendor.id;
+      const invoice = await createInvoiceViaApi(page, vendorId, {
+        invoiceNumber: `${testPrefix}-EDT-001`,
+        amount: 1000,
+        date: '2026-01-15',
+        status: 'pending',
+      });
 
-        await detailPage.goto(invoice.id);
-        await detailPage.openEditModal();
-        await expect(detailPage.editModal).toBeVisible();
+      await detailPage.goto(invoice.id);
+      await detailPage.openEditModal();
+      await expect(detailPage.editModal).toBeVisible();
 
-        // Change status to paid
-        await detailPage.fillEditForm({
-          status: 'paid',
-          notes: `Updated by ${testPrefix}`,
-        });
+      // Change status to paid
+      await detailPage.fillEditForm({
+        status: 'paid',
+        notes: `Updated by ${testPrefix}`,
+      });
 
-        await detailPage.saveEdit();
+      await detailPage.saveEdit();
 
-        // After save the modal closes and page shows updated status
-        await expect(detailPage.editModal).not.toBeVisible();
-        await expect(detailPage.statusBadge).toContainText('Paid');
-      } finally {
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      // After save the modal closes and page shows updated status
+      await expect(detailPage.editModal).not.toBeVisible();
+      await expect(detailPage.statusBadge).toContainText('Paid');
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 
   test('Edit invoice modal can be cancelled without saving', async ({ page, testPrefix }) => {
     const detailPage = new InvoiceDetailPage(page);
@@ -602,37 +599,34 @@ test.describe('Edit invoice (Scenario 9)', { tag: '@responsive' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Delete invoice (Scenario 10)', { tag: '@responsive' }, () => {
-  test(
-    'Delete invoice — navigates back to invoices list',
-    async ({ page, testPrefix }) => {
-      const detailPage = new InvoiceDetailPage(page);
-      const vendorName = `${testPrefix} Del Vendor`;
-      let vendorId = '';
+  test('Delete invoice — navigates back to invoices list', async ({ page, testPrefix }) => {
+    const detailPage = new InvoiceDetailPage(page);
+    const vendorName = `${testPrefix} Del Vendor`;
+    let vendorId = '';
 
-      try {
-        const vendor = await createVendorViaApi(page, vendorName);
-        vendorId = vendor.id;
-        const invoice = await createInvoiceViaApi(page, vendorId, {
-          invoiceNumber: `${testPrefix}-DEL-001`,
-          amount: 200,
-          date: '2026-01-01',
-        });
+    try {
+      const vendor = await createVendorViaApi(page, vendorName);
+      vendorId = vendor.id;
+      const invoice = await createInvoiceViaApi(page, vendorId, {
+        invoiceNumber: `${testPrefix}-DEL-001`,
+        amount: 200,
+        date: '2026-01-01',
+      });
 
-        await detailPage.goto(invoice.id);
-        await detailPage.openDeleteModal();
-        await expect(detailPage.deleteModal).toBeVisible();
+      await detailPage.goto(invoice.id);
+      await detailPage.openDeleteModal();
+      await expect(detailPage.deleteModal).toBeVisible();
 
-        await detailPage.confirmDelete();
+      await detailPage.confirmDelete();
 
-        // After deletion, page navigates to /budget/invoices
-        await page.waitForURL('**/budget/invoices');
-        expect(page.url()).toContain('/budget/invoices');
-      } finally {
-        // Vendor cleanup — invoice already deleted
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      // After deletion, page navigates to /budget/invoices
+      await page.waitForURL('**/budget/invoices');
+      expect(page.url()).toContain('/budget/invoices');
+    } finally {
+      // Vendor cleanup — invoice already deleted
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 
   test('Delete invoice modal can be cancelled', async ({ page, testPrefix }) => {
     const detailPage = new InvoiceDetailPage(page);
@@ -667,45 +661,45 @@ test.describe('Delete invoice (Scenario 10)', { tag: '@responsive' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Invoice status filter (Scenario 13)', { tag: '@responsive' }, () => {
-  test(
-    'Filter by status URL param shows only invoices with matching status',
-    async ({ page, testPrefix }) => {
-      const invoicesPage = new InvoicesPage(page);
-      const vendorName = `${testPrefix} Filter Vendor`;
-      let vendorId = '';
+  test('Filter by status URL param shows only invoices with matching status', async ({
+    page,
+    testPrefix,
+  }) => {
+    const invoicesPage = new InvoicesPage(page);
+    const vendorName = `${testPrefix} Filter Vendor`;
+    let vendorId = '';
 
-      try {
-        const vendor = await createVendorViaApi(page, vendorName);
-        vendorId = vendor.id;
+    try {
+      const vendor = await createVendorViaApi(page, vendorName);
+      vendorId = vendor.id;
 
-        // Create one pending and one paid invoice
-        await createInvoiceViaApi(page, vendorId, {
-          invoiceNumber: `${testPrefix}-PEND`,
-          amount: 100,
-          date: '2026-01-01',
-          status: 'pending',
-        });
-        await createInvoiceViaApi(page, vendorId, {
-          invoiceNumber: `${testPrefix}-PAID`,
-          amount: 200,
-          date: '2026-01-02',
-          status: 'paid',
-        });
+      // Create one pending and one paid invoice
+      await createInvoiceViaApi(page, vendorId, {
+        invoiceNumber: `${testPrefix}-PEND`,
+        amount: 100,
+        date: '2026-01-01',
+        status: 'pending',
+      });
+      await createInvoiceViaApi(page, vendorId, {
+        invoiceNumber: `${testPrefix}-PAID`,
+        amount: 200,
+        date: '2026-01-02',
+        status: 'paid',
+      });
 
-        // Navigate with status=paid filter via URL
-        await page.goto('/budget/invoices?status=paid');
-        await invoicesPage.heading.waitFor({ state: 'visible' });
-        await invoicesPage.waitForLoaded();
+      // Navigate with status=paid filter via URL
+      await page.goto('/budget/invoices?status=paid');
+      await invoicesPage.heading.waitFor({ state: 'visible' });
+      await invoicesPage.waitForLoaded();
 
-        // Only paid invoice should appear
-        const numbers = await invoicesPage.getInvoiceNumbers();
-        expect(numbers).toContain(`${testPrefix}-PAID`);
-        expect(numbers).not.toContain(`${testPrefix}-PEND`);
-      } finally {
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      // Only paid invoice should appear
+      const numbers = await invoicesPage.getInvoiceNumbers();
+      expect(numbers).toContain(`${testPrefix}-PAID`);
+      expect(numbers).not.toContain(`${testPrefix}-PEND`);
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

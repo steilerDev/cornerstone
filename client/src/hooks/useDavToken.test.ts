@@ -137,7 +137,10 @@ describe('useDavToken', () => {
 
       const tokenValue = 'b'.repeat(64);
       mockGenerateDavToken.mockResolvedValueOnce({ token: tokenValue });
-      mockGetDavTokenStatus.mockResolvedValueOnce({ hasToken: true, createdAt: '2026-01-20T10:00:00.000Z' });
+      mockGetDavTokenStatus.mockResolvedValueOnce({
+        hasToken: true,
+        createdAt: '2026-01-20T10:00:00.000Z',
+      });
 
       await act(async () => {
         await result.current.generate();
@@ -210,7 +213,10 @@ describe('useDavToken', () => {
 
   describe('revoke()', () => {
     it('calls revokeDavToken and then refreshes status', async () => {
-      mockGetDavTokenStatus.mockResolvedValue({ hasToken: true, createdAt: '2026-01-15T00:00:00.000Z' });
+      mockGetDavTokenStatus.mockResolvedValue({
+        hasToken: true,
+        createdAt: '2026-01-15T00:00:00.000Z',
+      });
 
       const { result } = renderHook(() => useDavToken());
       await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -227,14 +233,20 @@ describe('useDavToken', () => {
     });
 
     it('clears newToken after successful revocation', async () => {
-      mockGetDavTokenStatus.mockResolvedValue({ hasToken: true, createdAt: '2026-01-15T00:00:00.000Z' });
+      mockGetDavTokenStatus.mockResolvedValue({
+        hasToken: true,
+        createdAt: '2026-01-15T00:00:00.000Z',
+      });
 
       const { result } = renderHook(() => useDavToken());
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
       // First generate a token so newToken is set
       mockGenerateDavToken.mockResolvedValueOnce({ token: 'd'.repeat(64) });
-      mockGetDavTokenStatus.mockResolvedValueOnce({ hasToken: true, createdAt: '2026-01-20T00:00:00.000Z' });
+      mockGetDavTokenStatus.mockResolvedValueOnce({
+        hasToken: true,
+        createdAt: '2026-01-20T00:00:00.000Z',
+      });
 
       await act(async () => {
         await result.current.generate();
@@ -254,7 +266,10 @@ describe('useDavToken', () => {
     });
 
     it('updates status to hasToken=false after revocation', async () => {
-      mockGetDavTokenStatus.mockResolvedValue({ hasToken: true, createdAt: '2026-01-15T00:00:00.000Z' });
+      mockGetDavTokenStatus.mockResolvedValue({
+        hasToken: true,
+        createdAt: '2026-01-15T00:00:00.000Z',
+      });
 
       const { result } = renderHook(() => useDavToken());
       await waitFor(() => expect(result.current.status?.hasToken).toBe(true));
@@ -270,7 +285,10 @@ describe('useDavToken', () => {
     });
 
     it('sets error and re-throws on ApiClientError', async () => {
-      mockGetDavTokenStatus.mockResolvedValue({ hasToken: true, createdAt: '2026-01-15T00:00:00.000Z' });
+      mockGetDavTokenStatus.mockResolvedValue({
+        hasToken: true,
+        createdAt: '2026-01-15T00:00:00.000Z',
+      });
 
       const { result } = renderHook(() => useDavToken());
       await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -323,7 +341,10 @@ describe('useDavToken', () => {
 
       // Generate a token first
       mockGenerateDavToken.mockResolvedValueOnce({ token: 'e'.repeat(64) });
-      mockGetDavTokenStatus.mockResolvedValueOnce({ hasToken: true, createdAt: '2026-01-20T00:00:00.000Z' });
+      mockGetDavTokenStatus.mockResolvedValueOnce({
+        hasToken: true,
+        createdAt: '2026-01-20T00:00:00.000Z',
+      });
 
       await act(async () => {
         await result.current.generate();

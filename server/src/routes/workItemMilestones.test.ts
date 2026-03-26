@@ -92,7 +92,11 @@ describe('Work Item Milestone Routes', () => {
   /**
    * Helper: Create a milestone via the API and return its integer ID.
    */
-  async function createTestMilestone(cookie: string, title: string, targetDate = '2026-06-01'): Promise<number> {
+  async function createTestMilestone(
+    cookie: string,
+    title: string,
+    targetDate = '2026-06-01',
+  ): Promise<number> {
     const response = await app.inject({
       method: 'POST',
       url: '/api/milestones',

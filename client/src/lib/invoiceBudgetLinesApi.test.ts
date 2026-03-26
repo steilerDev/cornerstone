@@ -13,7 +13,9 @@ import type {
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-const makeDetailLine = (overrides: Partial<InvoiceBudgetLineDetailResponse> = {}): InvoiceBudgetLineDetailResponse => ({
+const makeDetailLine = (
+  overrides: Partial<InvoiceBudgetLineDetailResponse> = {},
+): InvoiceBudgetLineDetailResponse => ({
   id: 'ibl-1',
   invoiceId: 'inv-100',
   workItemBudgetId: 'wib-1',
@@ -141,7 +143,11 @@ describe('invoiceBudgetLinesApi', () => {
     });
 
     it('returns multiple budget lines with correct shapes', async () => {
-      const line1 = makeDetailLine({ id: 'ibl-1', workItemBudgetId: 'wib-1', householdItemBudgetId: null });
+      const line1 = makeDetailLine({
+        id: 'ibl-1',
+        workItemBudgetId: 'wib-1',
+        householdItemBudgetId: null,
+      });
       const line2 = makeDetailLine({
         id: 'ibl-2',
         workItemBudgetId: null,

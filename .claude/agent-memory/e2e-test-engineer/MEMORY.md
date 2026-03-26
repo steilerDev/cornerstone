@@ -17,6 +17,7 @@ HI-categories delete buttons DO have `aria-label={Delete \${name}}` — getByRol
 InvoicesPage.waitForLoaded() uses Promise.any() (not Promise.race()) to avoid dangling rejections.
 
 ## Milestones E2E (2026-03-26) — See milestones-e2e.md
+
 Heading="Project", newMilestone=testId("new-milestone-button"), search=client-side (no waitForResponse).
 List deleteModal=`getByRole('dialog',{name:'Delete Milestone'})`. Detail deleteModal=`[role="dialog"][aria-modal="true"]` (own impl).
 Milestone IDs are integers (not strings). Back/cancel on CreatePage are `<Link>` anchors, not buttons.

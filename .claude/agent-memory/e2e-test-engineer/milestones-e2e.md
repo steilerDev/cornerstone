@@ -11,6 +11,7 @@ type: project
 ## Key Selectors
 
 ### MilestonesPage (list)
+
 - Heading: `getByRole('heading', { level: 1, name: 'Project' })` — PageLayout h1 = "Project" (milestones.page.title)
 - New Milestone: `getByTestId('new-milestone-button')` — stable data-testid on the button
 - Search: `getByLabel('Search items')` — client-side filtering, NO waitForResponse needed after fill()
@@ -19,6 +20,7 @@ type: project
 - Actions menu: `[aria-label="Actions menu"]` in table row/card
 
 ### MilestoneCreatePage
+
 - Page h1: `getByRole('heading', { level: 1, name: 'Project' })` — same as list (PageLayout)
 - Form h2: `getByRole('heading', { level: 2, name: 'Create Milestone' })`
 - Back link: `getByRole('link', { name: '← Milestones' })` — it's an <a>, NOT <button>
@@ -29,6 +31,7 @@ type: project
 - Error banner: `locator('[role="alert"][class*="errorBanner"]')` — used for BOTH validation + server errors
 
 ### MilestoneDetailPage
+
 - h1: `getByRole('heading', { level: 1 })` — the milestone title (dynamic)
 - Back button: `getByRole('button', { name: /← Back to Milestones/i })` — <button> NOT <a>
 - Edit button: `getByTestId('edit-milestone-button')`

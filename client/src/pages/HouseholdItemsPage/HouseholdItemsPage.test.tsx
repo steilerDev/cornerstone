@@ -295,10 +295,10 @@ describe('HouseholdItemsPage', () => {
 
   describe('error state', () => {
     it('shows error message when listHouseholdItems fails with ApiClientError', async () => {
-      const error = new ApiClientError(
-        500,
-        { code: 'INTERNAL_ERROR', message: 'Failed to load items' },
-      );
+      const error = new ApiClientError(500, {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to load items',
+      });
       mockListHouseholdItems.mockRejectedValueOnce(error);
 
       renderPage();
@@ -399,10 +399,10 @@ describe('HouseholdItemsPage', () => {
     it('shows API error when deleteHouseholdItem fails', async () => {
       const item = makeHouseholdItem({ id: 'hi-1', name: 'Living Room Sofa' });
       mockListHouseholdItems.mockResolvedValueOnce(defaultListResponse([item]));
-      const error = new ApiClientError(
-        409,
-        { code: 'CONFLICT', message: 'Item has linked invoices' },
-      );
+      const error = new ApiClientError(409, {
+        code: 'CONFLICT',
+        message: 'Item has linked invoices',
+      });
       mockDeleteHouseholdItem.mockRejectedValueOnce(error);
 
       renderPage();
@@ -454,9 +454,9 @@ describe('HouseholdItemsPage', () => {
         expect(boldItems.length).toBeGreaterThan(0);
       });
 
-      const cancelBtn = screen.getAllByRole('button').find(
-        (btn) => btn.textContent?.toLowerCase() === 'cancel',
-      );
+      const cancelBtn = screen
+        .getAllByRole('button')
+        .find((btn) => btn.textContent?.toLowerCase() === 'cancel');
       expect(cancelBtn).toBeDefined();
       fireEvent.click(cancelBtn!);
 

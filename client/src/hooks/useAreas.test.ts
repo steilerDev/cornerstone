@@ -116,9 +116,7 @@ describe('useAreas', () => {
   });
 
   it('uses fallback error message when ApiClientError has no message', async () => {
-    mockFetchAreas.mockRejectedValueOnce(
-      new MockApiClientError(401, { code: 'UNAUTHORIZED' }),
-    );
+    mockFetchAreas.mockRejectedValueOnce(new MockApiClientError(401, { code: 'UNAUTHORIZED' }));
 
     const { result } = renderHook(() => useAreas());
 
@@ -162,9 +160,7 @@ describe('useAreas', () => {
         result.current.refetch();
       });
 
-      await waitFor(() =>
-        expect(mockFetchAreas.mock.calls.length).toBeGreaterThan(callsBefore),
-      );
+      await waitFor(() => expect(mockFetchAreas.mock.calls.length).toBeGreaterThan(callsBefore));
     });
 
     it('fetches fresh data after refetch', async () => {

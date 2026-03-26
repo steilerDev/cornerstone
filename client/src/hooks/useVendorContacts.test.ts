@@ -53,7 +53,8 @@ const makeContact = (id = 'contact-1', name = 'John Smith') => ({
 });
 
 beforeEach(async () => {
-  ({ useVendorContacts } = (await import('./useVendorContacts.js')) as typeof UseVendorContactsModule);
+  ({ useVendorContacts } =
+    (await import('./useVendorContacts.js')) as typeof UseVendorContactsModule);
   mockListVendorContacts.mockReset();
   mockCreateVendorContact.mockReset();
   mockUpdateVendorContact.mockReset();
@@ -200,9 +201,7 @@ describe('useVendorContacts', () => {
       });
 
       // After optimistic update + refresh, new contact should be present
-      await waitFor(() =>
-        expect(result.current.contacts.some((c) => c.id === 'c-new')).toBe(true),
-      );
+      await waitFor(() => expect(result.current.contacts.some((c) => c.id === 'c-new')).toBe(true));
     });
 
     it('sets error and re-throws on ApiClientError', async () => {
@@ -362,9 +361,7 @@ describe('useVendorContacts', () => {
       });
 
       // Optimistic removal happens immediately
-      await waitFor(() =>
-        expect(result.current.contacts.some((c) => c.id === 'c1')).toBe(false),
-      );
+      await waitFor(() => expect(result.current.contacts.some((c) => c.id === 'c1')).toBe(false));
     });
 
     it('sets error and re-throws on ApiClientError', async () => {

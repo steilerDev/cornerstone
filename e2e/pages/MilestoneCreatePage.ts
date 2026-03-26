@@ -63,7 +63,11 @@ export class MilestoneCreatePage {
     // PageLayout h1 = t('milestones.page.title') = "Project"
     this.heading = page.getByRole('heading', { level: 1, name: 'Project', exact: true });
     // Form h2 = t('milestones.create.title') = "Create Milestone"
-    this.formHeading = page.getByRole('heading', { level: 2, name: 'Create Milestone', exact: true });
+    this.formHeading = page.getByRole('heading', {
+      level: 2,
+      name: 'Create Milestone',
+      exact: true,
+    });
     // Back link is a <Link> = <a> element with text "← Milestones"
     this.backLink = page.getByRole('link', { name: '← Milestones', exact: true });
 

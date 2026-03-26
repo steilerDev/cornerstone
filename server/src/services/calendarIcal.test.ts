@@ -16,14 +16,13 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
-import {
-  toDateOnly,
-  computeETag,
-  computeCalendarETag,
-  buildCalendar,
-} from './calendarIcal.js';
+import { toDateOnly, computeETag, computeCalendarETag, buildCalendar } from './calendarIcal.js';
 import type { DescriptionMap } from './calendarIcal.js';
-import type { TimelineWorkItem, TimelineMilestone, TimelineHouseholdItem } from '@cornerstone/shared';
+import type {
+  TimelineWorkItem,
+  TimelineMilestone,
+  TimelineHouseholdItem,
+} from '@cornerstone/shared';
 
 // ─── DB helpers ───────────────────────────────────────────────────────────────
 
@@ -399,7 +398,11 @@ describe('buildCalendar', () => {
 
   describe('household items', () => {
     it('creates a VEVENT for a household item using targetDeliveryDate', () => {
-      const hi = makeHouseholdItem({ id: 'hi-sofa', name: 'Sofa', targetDeliveryDate: '2026-04-10' });
+      const hi = makeHouseholdItem({
+        id: 'hi-sofa',
+        name: 'Sofa',
+        targetDeliveryDate: '2026-04-10',
+      });
       const output = buildCalendar({ workItems: [], milestones: [], householdItems: [hi] });
       expect(output).toContain('BEGIN:VEVENT');
       expect(output).toContain('UID:hi-hi-sofa@cornerstone');

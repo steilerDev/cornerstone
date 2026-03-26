@@ -85,12 +85,14 @@ describe('Household Item Subsidy Payback Routes', () => {
   /**
    * Helper: Insert a subsidy program directly into the database.
    */
-  function createTestSubsidyProgram(options: {
-    name?: string;
-    reductionType?: 'percentage' | 'fixed';
-    reductionValue?: number;
-    applicationStatus?: 'eligible' | 'applied' | 'approved' | 'received' | 'rejected';
-  } = {}): string {
+  function createTestSubsidyProgram(
+    options: {
+      name?: string;
+      reductionType?: 'percentage' | 'fixed';
+      reductionValue?: number;
+      applicationStatus?: 'eligible' | 'applied' | 'approved' | 'received' | 'rejected';
+    } = {},
+  ): string {
     const id = `sp-${++entityCounter}`;
     const timestamp = new Date(Date.now() + entityCounter).toISOString();
 

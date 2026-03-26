@@ -163,9 +163,18 @@ describe('householdItemBudgetService', () => {
     it('returns multiple budget lines sorted by creation order', () => {
       const hiId = insertHouseholdItem();
 
-      createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 500 });
-      createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 750 });
-      createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 1200 });
+      createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 500,
+      });
+      createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 750,
+      });
+      createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 1200,
+      });
 
       const result = listHouseholdItemBudgets(db, hiId);
 
@@ -176,8 +185,14 @@ describe('householdItemBudgetService', () => {
       const hiId1 = insertHouseholdItem('HI 1');
       const hiId2 = insertHouseholdItem('HI 2');
 
-      createHouseholdItemBudget(db, hiId1, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 1000 });
-      createHouseholdItemBudget(db, hiId2, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 2000 });
+      createHouseholdItemBudget(db, hiId1, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 1000,
+      });
+      createHouseholdItemBudget(db, hiId2, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 2000,
+      });
 
       const result = listHouseholdItemBudgets(db, hiId1);
 
@@ -192,7 +207,10 @@ describe('householdItemBudgetService', () => {
     it('creates a budget line with minimum required fields', () => {
       const hiId = insertHouseholdItem();
 
-      const result = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 500 });
+      const result = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 500,
+      });
 
       expect(result.id).toBeDefined();
       expect(result.householdItemId).toBe(hiId);
@@ -202,7 +220,10 @@ describe('householdItemBudgetService', () => {
     it('always assigns bc-household-items as the budget category', () => {
       const hiId = insertHouseholdItem();
 
-      const result = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 100 });
+      const result = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 100,
+      });
 
       expect(result.budgetCategory).not.toBeNull();
       expect(result.budgetCategory?.id).toBe('bc-household-items');
@@ -224,19 +245,17 @@ describe('householdItemBudgetService', () => {
     it('defaults confidence to own_estimate when not provided', () => {
       const hiId = insertHouseholdItem();
 
-      const result = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 200 });
+      const result = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 200,
+      });
 
       expect(result.confidence).toBe('own_estimate');
     });
 
     it('accepts all confidence levels', () => {
       const hiId = insertHouseholdItem();
-      const confidences = [
-        'own_estimate',
-        'professional_estimate',
-        'quote',
-        'invoice',
-      ] as const;
+      const confidences = ['own_estimate', 'professional_estimate', 'quote', 'invoice'] as const;
 
       for (const confidence of confidences) {
         const result = createHouseholdItemBudget(db, hiId, 'user-001', {
@@ -279,7 +298,10 @@ describe('householdItemBudgetService', () => {
     it('sets description to null when not provided', () => {
       const hiId = insertHouseholdItem();
 
-      const result = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 100 });
+      const result = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 100,
+      });
 
       expect(result.description).toBeNull();
     });
@@ -287,7 +309,10 @@ describe('householdItemBudgetService', () => {
     it('includes budgetSource when budgetSourceId is provided', () => {
       const hiId = insertHouseholdItem();
 
-      const result = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 100 });
+      const result = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 100,
+      });
 
       expect(result.budgetSource).not.toBeNull();
       expect(result.budgetSource?.id).toBe(defaultSourceId);
@@ -296,7 +321,10 @@ describe('householdItemBudgetService', () => {
     it('sets vendor to null when vendorId is not provided', () => {
       const hiId = insertHouseholdItem();
 
-      const result = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 100 });
+      const result = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 100,
+      });
 
       expect(result.vendor).toBeNull();
     });
@@ -304,7 +332,10 @@ describe('householdItemBudgetService', () => {
     it('returns actualCost 0, actualCostPaid 0, invoiceCount 0 for a new line', () => {
       const hiId = insertHouseholdItem();
 
-      const result = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 200 });
+      const result = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 200,
+      });
 
       expect(result.actualCost).toBe(0);
       expect(result.actualCostPaid).toBe(0);
@@ -315,7 +346,10 @@ describe('householdItemBudgetService', () => {
     it('returns createdAt and updatedAt as ISO strings', () => {
       const hiId = insertHouseholdItem();
 
-      const result = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 100 });
+      const result = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 100,
+      });
 
       expect(typeof result.createdAt).toBe('string');
       expect(typeof result.updatedAt).toBe('string');
@@ -324,7 +358,10 @@ describe('householdItemBudgetService', () => {
     it('associates createdBy with the user who created it', () => {
       const hiId = insertHouseholdItem();
 
-      const result = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 100 });
+      const result = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 100,
+      });
 
       expect(result.createdBy).not.toBeNull();
       expect(result.createdBy?.id).toBe('user-001');
@@ -332,13 +369,19 @@ describe('householdItemBudgetService', () => {
 
     it('throws NotFoundError when household item does not exist', () => {
       expect(() =>
-        createHouseholdItemBudget(db, 'nonexistent-hi', 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 100 }),
+        createHouseholdItemBudget(db, 'nonexistent-hi', 'user-001', {
+          budgetSourceId: defaultSourceId,
+          plannedAmount: 100,
+        }),
       ).toThrow(NotFoundError);
     });
 
     it('throws NotFoundError with "Household item not found" when HI missing', () => {
       expect(() =>
-        createHouseholdItemBudget(db, 'nonexistent-hi', 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 100 }),
+        createHouseholdItemBudget(db, 'nonexistent-hi', 'user-001', {
+          budgetSourceId: defaultSourceId,
+          plannedAmount: 100,
+        }),
       ).toThrow('Household item not found');
     });
   });
@@ -390,7 +433,10 @@ describe('householdItemBudgetService', () => {
 
     it('updates quantity, unit, unitPrice and includesVat', () => {
       const hiId = insertHouseholdItem();
-      const created = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 1000 });
+      const created = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 1000,
+      });
 
       const result = updateHouseholdItemBudget(db, hiId, created.id, {
         quantity: 3,
@@ -408,7 +454,10 @@ describe('householdItemBudgetService', () => {
     it('updates budgetSourceId to a new source', () => {
       const hiId = insertHouseholdItem();
       const sourceId = insertBudgetSource();
-      const created = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 500 });
+      const created = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 500,
+      });
 
       const result = updateHouseholdItemBudget(db, hiId, created.id, {
         budgetSourceId: sourceId,
@@ -432,7 +481,10 @@ describe('householdItemBudgetService', () => {
 
     it('preserves bc-household-items category even after update (ignores budgetCategoryId)', () => {
       const hiId = insertHouseholdItem();
-      const created = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 200 });
+      const created = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 200,
+      });
 
       // budgetCategoryId is stripped by the service
       const result = updateHouseholdItemBudget(db, hiId, created.id, {
@@ -460,11 +512,14 @@ describe('householdItemBudgetService', () => {
     it('throws NotFoundError when budget belongs to a different household item', () => {
       const hiId1 = insertHouseholdItem('HI 1');
       const hiId2 = insertHouseholdItem('HI 2');
-      const budget = createHouseholdItemBudget(db, hiId1, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 100 });
+      const budget = createHouseholdItemBudget(db, hiId1, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 100,
+      });
 
-      expect(() =>
-        updateHouseholdItemBudget(db, hiId2, budget.id, { plannedAmount: 999 }),
-      ).toThrow(NotFoundError);
+      expect(() => updateHouseholdItemBudget(db, hiId2, budget.id, { plannedAmount: 999 })).toThrow(
+        NotFoundError,
+      );
     });
   });
 
@@ -473,14 +528,20 @@ describe('householdItemBudgetService', () => {
   describe('deleteHouseholdItemBudget', () => {
     it('deletes an existing budget line without throwing', () => {
       const hiId = insertHouseholdItem();
-      const budget = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 300 });
+      const budget = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 300,
+      });
 
       expect(() => deleteHouseholdItemBudget(db, hiId, budget.id)).not.toThrow();
     });
 
     it('removes the budget line from the list after deletion', () => {
       const hiId = insertHouseholdItem();
-      const budget = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 300 });
+      const budget = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 300,
+      });
 
       deleteHouseholdItemBudget(db, hiId, budget.id);
 
@@ -490,9 +551,18 @@ describe('householdItemBudgetService', () => {
 
     it('only deletes the targeted budget line, not others', () => {
       const hiId = insertHouseholdItem();
-      const b1 = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 100 });
-      const b2 = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 200 });
-      const b3 = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 300 });
+      const b1 = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 100,
+      });
+      const b2 = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 200,
+      });
+      const b3 = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 300,
+      });
 
       deleteHouseholdItemBudget(db, hiId, b2.id);
 
@@ -521,7 +591,10 @@ describe('householdItemBudgetService', () => {
     it('throws NotFoundError when budget belongs to a different household item', () => {
       const hiId1 = insertHouseholdItem('HI 1');
       const hiId2 = insertHouseholdItem('HI 2');
-      const budget = createHouseholdItemBudget(db, hiId1, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 100 });
+      const budget = createHouseholdItemBudget(db, hiId1, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 100,
+      });
 
       expect(() => deleteHouseholdItemBudget(db, hiId2, budget.id)).toThrow(NotFoundError);
     });
@@ -530,7 +603,10 @@ describe('householdItemBudgetService', () => {
       // householdItemBudgetService sets blockDeleteOnInvoices: false, so deletion
       // always succeeds regardless of invoice state.
       const hiId = insertHouseholdItem();
-      const budget = createHouseholdItemBudget(db, hiId, 'user-001', { budgetSourceId: defaultSourceId, plannedAmount: 1000 });
+      const budget = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 1000,
+      });
 
       // Should not throw even without checking invoice count
       expect(() => deleteHouseholdItemBudget(db, hiId, budget.id)).not.toThrow();

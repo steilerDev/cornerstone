@@ -1,11 +1,5 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import {
-  fetchAreas,
-  fetchArea,
-  createArea,
-  updateArea,
-  deleteArea,
-} from './areasApi.js';
+import { fetchAreas, fetchArea, createArea, updateArea, deleteArea } from './areasApi.js';
 import type { AreaListResponse, AreaSingleResponse, AreaResponse } from '@cornerstone/shared';
 
 const makeArea = (overrides?: Partial<AreaResponse>): AreaResponse => ({

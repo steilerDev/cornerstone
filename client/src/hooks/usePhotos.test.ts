@@ -179,9 +179,7 @@ describe('usePhotos', () => {
   });
 
   it('sets network error message on NetworkError', async () => {
-    mockGetPhotosForEntity.mockRejectedValueOnce(
-      new MockNetworkError('Connection refused'),
-    );
+    mockGetPhotosForEntity.mockRejectedValueOnce(new MockNetworkError('Connection refused'));
 
     const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
 
@@ -250,7 +248,8 @@ describe('usePhotos', () => {
   // ─── uploadPhoto() ─────────────────────────────────────────────────────────
 
   describe('uploadPhoto()', () => {
-    const makeFile = (name = 'test.jpg'): File => new File(['content'], name, { type: 'image/jpeg' });
+    const makeFile = (name = 'test.jpg'): File =>
+      new File(['content'], name, { type: 'image/jpeg' });
 
     it('calls uploadPhotoApi with entityType, entityId, file, and caption', async () => {
       const photo = makePhoto('photo-new');
@@ -342,7 +341,9 @@ describe('usePhotos', () => {
         uploadDone = true;
       };
       // Fire the upload outside act to avoid nested act problems
-      const uploadPromise = runUpload().catch(() => { uploadDone = true; });
+      const uploadPromise = runUpload().catch(() => {
+        uploadDone = true;
+      });
 
       // The mock runs synchronously when uploadPhoto calls uploadPhotoApi,
       // so capturedProgressCallback is set before the first await in uploadPhoto
@@ -519,7 +520,10 @@ describe('usePhotos', () => {
       });
 
       expect(result.current.photos).toHaveLength(2);
-      expect(result.current.photos.map((p: { id: string }) => p.id)).toEqual(['photo-1', 'photo-3']);
+      expect(result.current.photos.map((p: { id: string }) => p.id)).toEqual([
+        'photo-1',
+        'photo-3',
+      ]);
     });
 
     it('re-throws when deletePhotoApi rejects', async () => {
@@ -638,10 +642,9 @@ describe('usePhotos', () => {
   it('refetches when entityId changes', async () => {
     mockGetPhotosForEntity.mockResolvedValue([]);
 
-    const { result, rerender } = renderHook(
-      ({ entityId }) => usePhotos('diary_entry', entityId),
-      { initialProps: { entityId: 'entry-1' } },
-    );
+    const { result, rerender } = renderHook(({ entityId }) => usePhotos('diary_entry', entityId), {
+      initialProps: { entityId: 'entry-1' },
+    });
 
     await waitFor(() => expect(mockGetPhotosForEntity).toHaveBeenCalledTimes(1));
     expect(mockGetPhotosForEntity).toHaveBeenCalledWith('diary_entry', 'entry-1');
@@ -651,24 +654,23 @@ describe('usePhotos', () => {
 
     rerender({ entityId: 'entry-2' });
 
-    await waitFor(() => expect(mockGetPhotosForEntity).toHaveBeenCalledWith('diary_entry', 'entry-2'));
+    await waitFor(() =>
+      expect(mockGetPhotosForEntity).toHaveBeenCalledWith('diary_entry', 'entry-2'),
+    );
     await waitFor(() => expect(result.current.photos).toEqual(newPhotos));
   });
 
   it('refetches when entityType changes', async () => {
     mockGetPhotosForEntity.mockResolvedValue([]);
 
-    const { rerender } = renderHook(
-      ({ entityType }) => usePhotos(entityType, 'entity-1'),
-      { initialProps: { entityType: 'diary_entry' } },
-    );
+    const { rerender } = renderHook(({ entityType }) => usePhotos(entityType, 'entity-1'), {
+      initialProps: { entityType: 'diary_entry' },
+    });
 
     await waitFor(() => expect(mockGetPhotosForEntity).toHaveBeenCalledTimes(1));
 
     rerender({ entityType: 'room' });
 
-    await waitFor(() =>
-      expect(mockGetPhotosForEntity).toHaveBeenCalledWith('room', 'entity-1'),
-    );
+    await waitFor(() => expect(mockGetPhotosForEntity).toHaveBeenCalledWith('room', 'entity-1'));
   });
 });

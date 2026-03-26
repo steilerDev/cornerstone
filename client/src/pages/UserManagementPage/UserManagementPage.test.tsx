@@ -197,10 +197,7 @@ describe('UserManagementPage', () => {
 
   describe('error state', () => {
     it('shows error message when listUsers fails with ApiClientError', async () => {
-      const error = new ApiClientError(
-        403,
-        { code: 'FORBIDDEN', message: 'Access denied' },
-      );
+      const error = new ApiClientError(403, { code: 'FORBIDDEN', message: 'Access denied' });
       mockListUsers.mockRejectedValueOnce(error);
 
       renderPage();
@@ -410,7 +407,12 @@ describe('UserManagementPage', () => {
     });
 
     it('calls adminUpdateUser with changed fields only', async () => {
-      const user = makeUser({ id: 'user-1', displayName: 'Alice Admin', email: 'alice@example.com', role: 'member' });
+      const user = makeUser({
+        id: 'user-1',
+        displayName: 'Alice Admin',
+        email: 'alice@example.com',
+        role: 'member',
+      });
       mockListUsers.mockResolvedValueOnce({ users: [user] });
       const updatedUser = { ...user, displayName: 'Alice Updated' };
       mockAdminUpdateUser.mockResolvedValueOnce(updatedUser);
@@ -443,12 +445,16 @@ describe('UserManagementPage', () => {
     });
 
     it('shows API error when adminUpdateUser fails', async () => {
-      const user = makeUser({ id: 'user-1', displayName: 'Alice Admin', email: 'alice@example.com' });
+      const user = makeUser({
+        id: 'user-1',
+        displayName: 'Alice Admin',
+        email: 'alice@example.com',
+      });
       mockListUsers.mockResolvedValueOnce({ users: [user] });
-      const apiError = new ApiClientError(
-        409,
-        { code: 'CONFLICT', message: 'Email already in use' },
-      );
+      const apiError = new ApiClientError(409, {
+        code: 'CONFLICT',
+        message: 'Email already in use',
+      });
       mockAdminUpdateUser.mockRejectedValueOnce(apiError);
 
       renderPage();
@@ -496,9 +502,7 @@ describe('UserManagementPage', () => {
 
       // Find and click the cancel button
       const cancelBtns = screen.getAllByRole('button');
-      const cancelBtn = cancelBtns.find(
-        (btn) => btn.textContent?.toLowerCase() === 'cancel',
-      );
+      const cancelBtn = cancelBtns.find((btn) => btn.textContent?.toLowerCase() === 'cancel');
       expect(cancelBtn).toBeDefined();
       fireEvent.click(cancelBtn!);
 
@@ -568,10 +572,10 @@ describe('UserManagementPage', () => {
     it('shows error when deactivateUser API fails', async () => {
       const user = makeUser({ id: 'user-1', displayName: 'Alice Admin' });
       mockListUsers.mockResolvedValueOnce({ users: [user] });
-      const error = new ApiClientError(
-        403,
-        { code: 'FORBIDDEN', message: 'Cannot deactivate last admin' },
-      );
+      const error = new ApiClientError(403, {
+        code: 'FORBIDDEN',
+        message: 'Cannot deactivate last admin',
+      });
       mockDeactivateUser.mockRejectedValueOnce(error);
 
       renderPage();

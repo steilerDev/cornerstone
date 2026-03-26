@@ -278,10 +278,10 @@ describe('VendorsPage', () => {
 
   describe('error state', () => {
     it('shows error message when vendor list fails to load', async () => {
-      const error = new ApiClientError(
-        500,
-        { code: 'INTERNAL_ERROR', message: 'Failed to load vendors' },
-      );
+      const error = new ApiClientError(500, {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to load vendors',
+      });
       mockFetchVendors.mockRejectedValueOnce(error);
 
       renderPage();
@@ -411,10 +411,10 @@ describe('VendorsPage', () => {
     });
 
     it('shows API error when createVendor fails', async () => {
-      const apiError = new ApiClientError(
-        409,
-        { code: 'CONFLICT', message: 'Vendor already exists' },
-      );
+      const apiError = new ApiClientError(409, {
+        code: 'CONFLICT',
+        message: 'Vendor already exists',
+      });
       mockCreateVendor.mockRejectedValueOnce(apiError);
 
       renderPage();
@@ -507,19 +507,17 @@ describe('VendorsPage', () => {
       // Find and click the confirm delete button
       await waitFor(() => {
         // After modal opens, the delete button from menu is still present in the table row
-        expect(
-          screen.getAllByTestId('vendor-delete-vendor-1').length,
-        ).toBeGreaterThan(0);
+        expect(screen.getAllByTestId('vendor-delete-vendor-1').length).toBeGreaterThan(0);
       });
     });
 
     it('shows conflict error when deleting a vendor in use (409)', async () => {
       const vendor = makeVendor({ id: 'vendor-1', name: 'Acme Construction' });
       mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse([vendor]));
-      const conflictError = new ApiClientError(
-        409,
-        { code: 'CONFLICT', message: 'Vendor has associated invoices' },
-      );
+      const conflictError = new ApiClientError(409, {
+        code: 'CONFLICT',
+        message: 'Vendor has associated invoices',
+      });
       mockDeleteVendor.mockRejectedValueOnce(conflictError);
 
       renderPage();

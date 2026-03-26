@@ -351,7 +351,9 @@ describe('MilestoneDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId(`unlink-work-item-${sampleWorkItemSummary.id}`)).toBeInTheDocument();
+        expect(
+          screen.getByTestId(`unlink-work-item-${sampleWorkItemSummary.id}`),
+        ).toBeInTheDocument();
       });
     });
 

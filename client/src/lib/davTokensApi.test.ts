@@ -109,7 +109,9 @@ describe('davTokensApi', () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
-        json: async () => ({ error: { code: 'INTERNAL_ERROR', message: 'Token generation failed' } }),
+        json: async () => ({
+          error: { code: 'INTERNAL_ERROR', message: 'Token generation failed' },
+        }),
       } as Response);
 
       await expect(generateDavToken()).rejects.toThrow();

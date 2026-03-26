@@ -69,7 +69,11 @@ export class HouseholdItemEditPage {
     this.backButton = page.getByRole('button', { name: /Back to Item/i });
 
     // h1 heading
-    this.heading = page.getByRole('heading', { level: 1, name: 'Edit Household Item', exact: true });
+    this.heading = page.getByRole('heading', {
+      level: 1,
+      name: 'Edit Household Item',
+      exact: true,
+    });
 
     // Error banner for load failure (div.errorBanner, no role="alert" on this one)
     this.errorBanner = page.locator('[class*="errorBanner"]').first();

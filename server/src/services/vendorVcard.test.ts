@@ -15,11 +15,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
-import {
-  computeAddressBookETag,
-  buildVendorVcard,
-  buildContactVcard,
-} from './vendorVcard.js';
+import { computeAddressBookETag, buildVendorVcard, buildContactVcard } from './vendorVcard.js';
 
 // ─── DB helpers ───────────────────────────────────────────────────────────────
 
@@ -298,38 +294,26 @@ describe('buildContactVcard', () => {
   });
 
   it('includes REV with the contact updatedAt timestamp', () => {
-    const output = buildContactVcard(
-      makeContact({ updatedAt: '2026-03-20T10:30:00Z' }),
-      'Acme',
-    );
+    const output = buildContactVcard(makeContact({ updatedAt: '2026-03-20T10:30:00Z' }), 'Acme');
     expect(output).toContain('REV:2026-03-20T10:30:00Z');
   });
 
   // ── null firstName/lastName ───────────────────────────────────────────────────
 
   it('handles null firstName gracefully', () => {
-    const output = buildContactVcard(
-      makeContact({ firstName: null, lastName: 'Smith' }),
-      'Acme',
-    );
+    const output = buildContactVcard(makeContact({ firstName: null, lastName: 'Smith' }), 'Acme');
     expect(output).toContain('BEGIN:VCARD');
     expect(output).toContain('Smith');
   });
 
   it('handles null lastName gracefully', () => {
-    const output = buildContactVcard(
-      makeContact({ firstName: 'Alice', lastName: null }),
-      'Acme',
-    );
+    const output = buildContactVcard(makeContact({ firstName: 'Alice', lastName: null }), 'Acme');
     expect(output).toContain('BEGIN:VCARD');
     expect(output).toContain('Alice');
   });
 
   it('handles both firstName and lastName being null', () => {
-    const output = buildContactVcard(
-      makeContact({ firstName: null, lastName: null }),
-      'Acme',
-    );
+    const output = buildContactVcard(makeContact({ firstName: null, lastName: null }), 'Acme');
     expect(output).toContain('BEGIN:VCARD');
     expect(output).toContain('END:VCARD');
   });
@@ -367,7 +351,10 @@ describe('buildContactVcard', () => {
   });
 
   it('includes notes when provided', () => {
-    const output = buildContactVcard(makeContact({ notes: 'Primary contact for invoices' }), 'Acme');
+    const output = buildContactVcard(
+      makeContact({ notes: 'Primary contact for invoices' }),
+      'Acme',
+    );
     expect(output).toContain('Primary contact for invoices');
   });
 

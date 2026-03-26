@@ -2,7 +2,9 @@ import { describe, it, expect } from '@jest/globals';
 import { buildTree } from './areaTreeUtils.js';
 import type { AreaResponse } from '@cornerstone/shared';
 
-const makeArea = (overrides: Partial<AreaResponse> & { id: string; name: string }): AreaResponse => {
+const makeArea = (
+  overrides: Partial<AreaResponse> & { id: string; name: string },
+): AreaResponse => {
   const defaults: AreaResponse = {
     id: overrides.id,
     name: overrides.name,

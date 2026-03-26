@@ -510,7 +510,10 @@ describe('Invoice Budget Lines Routes', () => {
       });
 
       expect(response.statusCode).toBe(201);
-      const body = response.json<{ budgetLine: Record<string, unknown>; remainingAmount: number }>();
+      const body = response.json<{
+        budgetLine: Record<string, unknown>;
+        remainingAmount: number;
+      }>();
       expect(body.budgetLine.id).toBeDefined();
       expect(body.budgetLine.invoiceId).toBe(invoiceId);
       expect(body.budgetLine.workItemBudgetId).toBe(wibId);
@@ -535,7 +538,10 @@ describe('Invoice Budget Lines Routes', () => {
       });
 
       expect(response.statusCode).toBe(201);
-      const body = response.json<{ budgetLine: Record<string, unknown>; remainingAmount: number }>();
+      const body = response.json<{
+        budgetLine: Record<string, unknown>;
+        remainingAmount: number;
+      }>();
       expect(body.budgetLine.householdItemBudgetId).toBe(hibId);
       expect(body.budgetLine.parentItemType).toBe('household_item');
       expect(body.remainingAmount).toBe(300);
@@ -749,7 +755,10 @@ describe('Invoice Budget Lines Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const body = response.json<{ budgetLine: Record<string, unknown>; remainingAmount: number }>();
+      const body = response.json<{
+        budgetLine: Record<string, unknown>;
+        remainingAmount: number;
+      }>();
       expect(body.budgetLine.itemizedAmount).toBe(500);
       expect(body.remainingAmount).toBe(500);
     });

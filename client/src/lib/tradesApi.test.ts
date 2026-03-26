@@ -1,11 +1,5 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import {
-  fetchTrades,
-  fetchTrade,
-  createTrade,
-  updateTrade,
-  deleteTrade,
-} from './tradesApi.js';
+import { fetchTrades, fetchTrade, createTrade, updateTrade, deleteTrade } from './tradesApi.js';
 import type { TradeListResponse, TradeSingleResponse, TradeResponse } from '@cornerstone/shared';
 
 const makeTrade = (overrides?: Partial<TradeResponse>): TradeResponse => ({

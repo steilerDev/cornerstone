@@ -97,7 +97,10 @@ describe('Invoice Budget Line Service', () => {
     return id;
   }
 
-  function createTestWorkItemBudget(workItemId: string, options: { plannedAmount?: number } = {}): string {
+  function createTestWorkItemBudget(
+    workItemId: string,
+    options: { plannedAmount?: number } = {},
+  ): string {
     const id = `wib-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const ts = new Date(Date.now() + timestampOffset++).toISOString();
     db.insert(schema.workItemBudgets)
@@ -604,9 +607,14 @@ describe('Invoice Budget Line Service', () => {
       });
 
       expect(() => {
-        invoiceBudgetLineService.updateInvoiceBudgetLine(db, invoiceId, createResult.budgetLine.id, {
-          workItemBudgetId: 'other-wib',
-        });
+        invoiceBudgetLineService.updateInvoiceBudgetLine(
+          db,
+          invoiceId,
+          createResult.budgetLine.id,
+          {
+            workItemBudgetId: 'other-wib',
+          },
+        );
       }).toThrow(ValidationError);
     });
 
@@ -622,9 +630,14 @@ describe('Invoice Budget Line Service', () => {
       });
 
       expect(() => {
-        invoiceBudgetLineService.updateInvoiceBudgetLine(db, invoiceId, createResult.budgetLine.id, {
-          householdItemBudgetId: 'other-hib',
-        });
+        invoiceBudgetLineService.updateInvoiceBudgetLine(
+          db,
+          invoiceId,
+          createResult.budgetLine.id,
+          {
+            householdItemBudgetId: 'other-hib',
+          },
+        );
       }).toThrow(ValidationError);
     });
 
@@ -640,9 +653,14 @@ describe('Invoice Budget Line Service', () => {
       });
 
       expect(() => {
-        invoiceBudgetLineService.updateInvoiceBudgetLine(db, invoiceId, createResult.budgetLine.id, {
-          itemizedAmount: 0,
-        });
+        invoiceBudgetLineService.updateInvoiceBudgetLine(
+          db,
+          invoiceId,
+          createResult.budgetLine.id,
+          {
+            itemizedAmount: 0,
+          },
+        );
       }).toThrow(ValidationError);
     });
 
@@ -772,11 +790,7 @@ describe('Invoice Budget Line Service', () => {
       });
 
       // Should not throw
-      invoiceBudgetLineService.deleteInvoiceBudgetLine(
-        db,
-        invoiceId,
-        createResult.budgetLine.id,
-      );
+      invoiceBudgetLineService.deleteInvoiceBudgetLine(db, invoiceId, createResult.budgetLine.id);
 
       // Verify it's gone
       const listResult = invoiceBudgetLineService.listInvoiceBudgetLines(db, invoiceId);

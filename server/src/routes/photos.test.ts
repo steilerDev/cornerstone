@@ -473,11 +473,7 @@ describe('Photo Routes', () => {
     });
 
     it('returns 200 with list of photos', async () => {
-      const { cookie } = await createUserWithSession(
-        'list2@example.com',
-        'ListUser2',
-        'password',
-      );
+      const { cookie } = await createUserWithSession('list2@example.com', 'ListUser2', 'password');
       const photos = [makePhoto({ id: 'p1' }), makePhoto({ id: 'p2' })];
       mockGetPhotosForEntity.mockReturnValue(photos);
 
@@ -503,7 +499,11 @@ describe('Photo Routes', () => {
         headers: { cookie },
       });
 
-      expect(mockGetPhotosForEntity).toHaveBeenCalledWith(expect.anything(), 'diary_entry', 'entry-xyz');
+      expect(mockGetPhotosForEntity).toHaveBeenCalledWith(
+        expect.anything(),
+        'diary_entry',
+        'entry-xyz',
+      );
     });
 
     it('returns 400 when entityType is missing', async () => {
@@ -654,11 +654,7 @@ describe('Photo Routes', () => {
     });
 
     it('calls getPhotoFilePath with "original" variant', async () => {
-      const { cookie } = await createUserWithSession(
-        'variant@example.com',
-        'Variant',
-        'password',
-      );
+      const { cookie } = await createUserWithSession('variant@example.com', 'Variant', 'password');
       mockGetPhoto.mockReturnValue(makePhoto());
       mockGetPhotoFilePath.mockResolvedValue(null);
 
@@ -668,7 +664,11 @@ describe('Photo Routes', () => {
         headers: { cookie },
       });
 
-      expect(mockGetPhotoFilePath).toHaveBeenCalledWith(photoStoragePath, 'photo-id-123', 'original');
+      expect(mockGetPhotoFilePath).toHaveBeenCalledWith(
+        photoStoragePath,
+        'photo-id-123',
+        'original',
+      );
     });
   });
 
@@ -767,11 +767,7 @@ describe('Photo Routes', () => {
     });
 
     it('returns 404 when photo does not exist', async () => {
-      const { cookie } = await createUserWithSession(
-        'patch@example.com',
-        'PatchUser',
-        'password',
-      );
+      const { cookie } = await createUserWithSession('patch@example.com', 'PatchUser', 'password');
       mockUpdatePhoto.mockReturnValue(null);
 
       const response = await app.inject({
@@ -866,11 +862,7 @@ describe('Photo Routes', () => {
     });
 
     it('returns 400 when sortOrder is negative', async () => {
-      const { cookie } = await createUserWithSession(
-        'negord@example.com',
-        'NegOrd',
-        'password',
-      );
+      const { cookie } = await createUserWithSession('negord@example.com', 'NegOrd', 'password');
 
       const response = await app.inject({
         method: 'PATCH',
@@ -900,11 +892,7 @@ describe('Photo Routes', () => {
     });
 
     it('returns 204 on successful reorder', async () => {
-      const { cookie } = await createUserWithSession(
-        'reorder@example.com',
-        'Reorder',
-        'password',
-      );
+      const { cookie } = await createUserWithSession('reorder@example.com', 'Reorder', 'password');
       mockReorderPhotos.mockReturnValue(undefined);
 
       const response = await app.inject({
@@ -1040,11 +1028,7 @@ describe('Photo Routes', () => {
     });
 
     it('returns 204 on successful delete', async () => {
-      const { cookie } = await createUserWithSession(
-        'delete2@example.com',
-        'Delete2',
-        'password',
-      );
+      const { cookie } = await createUserWithSession('delete2@example.com', 'Delete2', 'password');
       mockGetPhoto.mockReturnValue(makePhoto());
       mockDeletePhoto.mockResolvedValue(undefined);
 

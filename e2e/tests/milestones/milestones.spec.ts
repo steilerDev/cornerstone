@@ -136,8 +136,7 @@ test.describe('Create milestone — title + date only (Scenario 4)', { tag: '@re
 
         // Register response listener BEFORE submit to avoid missing fast responses
         const responsePromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes('/api/milestones') && resp.request().method() === 'POST',
+          (resp) => resp.url().includes('/api/milestones') && resp.request().method() === 'POST',
         );
 
         await createPage.submit();
@@ -186,8 +185,7 @@ test.describe('Create milestone — all fields (Scenario 5)', { tag: '@responsiv
       });
 
       const responsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/api/milestones') && resp.request().method() === 'POST',
+        (resp) => resp.url().includes('/api/milestones') && resp.request().method() === 'POST',
       );
 
       await createPage.submit();
@@ -208,7 +206,9 @@ test.describe('Create milestone — all fields (Scenario 5)', { tag: '@responsiv
     }
   });
 
-  test('Form heading shows "Create Milestone" and required fields are visible', async ({ page }) => {
+  test('Form heading shows "Create Milestone" and required fields are visible', async ({
+    page,
+  }) => {
     const createPage = new MilestoneCreatePage(page);
 
     await createPage.goto();
@@ -225,26 +225,30 @@ test.describe('Create milestone — all fields (Scenario 5)', { tag: '@responsiv
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 6: Create form validation — title required
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Create form validation — title required (Scenario 6)', { tag: '@responsive' }, () => {
-  test('Submitting without title shows "Title is required." error', async ({ page }) => {
-    const createPage = new MilestoneCreatePage(page);
+test.describe(
+  'Create form validation — title required (Scenario 6)',
+  { tag: '@responsive' },
+  () => {
+    test('Submitting without title shows "Title is required." error', async ({ page }) => {
+      const createPage = new MilestoneCreatePage(page);
 
-    await createPage.goto();
+      await createPage.goto();
 
-    // Fill only the date, leave title empty
-    await createPage.fillForm({ targetDate: '2027-06-01' });
+      // Fill only the date, leave title empty
+      await createPage.fillForm({ targetDate: '2027-06-01' });
 
-    await createPage.submit();
+      await createPage.submit();
 
-    // Error banner should appear with the title validation message
-    const errorText = await createPage.getErrorBannerText();
-    expect(errorText).toBeTruthy();
-    expect(errorText?.toLowerCase()).toMatch(/title is required/i);
+      // Error banner should appear with the title validation message
+      const errorText = await createPage.getErrorBannerText();
+      expect(errorText).toBeTruthy();
+      expect(errorText?.toLowerCase()).toMatch(/title is required/i);
 
-    // Still on the create page
-    expect(page.url()).toContain('/project/milestones/new');
-  });
-});
+      // Still on the create page
+      expect(page.url()).toContain('/project/milestones/new');
+    });
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 7: Create form validation — targetDate required

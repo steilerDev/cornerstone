@@ -10,6 +10,7 @@
 **Affected test files fixed (2026-03-26)**: `invoiceBudgetLines.test.ts` (POST + PATCH), `standaloneInvoices.test.ts` (GET querystring).
 
 **Correct test pattern** (from `invoices.test.ts`):
+
 ```ts
 it('strips unknown properties from request body (additionalProperties: false)', async () => {
   // ...send with unknownField...
@@ -22,6 +23,7 @@ it('strips unknown properties from request body (additionalProperties: false)', 
 **Files** (10 new): `client/src/lib/areasApi.test.ts`, `tradesApi.test.ts`, `vendorContactsApi.test.ts`, `davTokensApi.test.ts`, `timelineApi.test.ts`, `areaTreeUtils.test.ts`, `client/src/hooks/useAreas.test.ts`, `useTrades.test.ts`, `useVendorContacts.test.ts`, `useDavToken.test.ts`.
 
 **Key patterns**:
+
 - **`makeArea` helper**: Use function body + `{ ...defaults, ...overrides }` — NOT inline object literal with explicit + spread of same key. TypeScript TS2783 fires when `id`/`name` appear both explicitly and in `...overrides`.
 - **API tests for DELETE**: Use `status: 204, text: async () => ''` not `json: async () => undefined`. apiClient short-circuits at 204 and never calls `.json()`.
 - **`fetchAreas`/`fetchTrades` empty search**: Passing `{ search: '' }` should NOT include `?search=` param (falsy guard in source).
@@ -34,6 +36,7 @@ it('strips unknown properties from request body (additionalProperties: false)', 
 **Files**: `client/src/hooks/usePhotos.test.ts` (40+ tests), `client/src/lib/photoApi.test.ts` (30+ tests).
 
 **Key patterns**:
+
 - **`mockUploadPhotoApi` needs variadic type**: Hook mock typed as `jest.fn<() => Promise<unknown>>()` fails when `mockImplementationOnce` passes a 5-arg function. Fix: `jest.fn<(...args: any[]) => Promise<unknown>>()`.
 - **`mockXhr.open` / `mockXhr.send` must match call signatures**: If typed as `() => void`, `toHaveBeenCalledWith('POST', '/api/photos')` fails TypeScript (expects 0 args, called with 2). Fix: type as `(method: string, url: string) => void` and `(body?: FormData) => void`.
 - **FormData access**: With typed `send: MockedFunction<(body?: FormData) => void>`, use `mockXhr.send.mock.calls[0][0] as FormData` — no extra cast needed.
@@ -46,6 +49,7 @@ it('strips unknown properties from request body (additionalProperties: false)', 
 **Files**: `server/src/services/photoService.test.ts` (51 tests), `server/src/routes/photos.test.ts` (45 tests).
 
 **Key patterns**:
+
 - **Mock `sharp` with `jest.unstable_mockModule('sharp', () => ({ default: mockSharpFn }))`**: sharp is not compiled for the test environment (native binary). Return a chainable mock instance.
 - **`AnyMock` type**: `type AnyMock = jest.MockedFunction<(...args: any[]) => any>` — use this for all mock functions where TypeScript infers `never` from bare `jest.fn()`. Cast with `jest.fn() as AnyMock`.
 - **Chainable sharp mock**: `mockSharpInstance` object with each method typed `as AnyMock` and each chain method returning `mockSharpInstance`. Use `mockResolvedValue` (not `Once`) in `beforeEach` to avoid state leakage between tests.
@@ -60,6 +64,7 @@ it('strips unknown properties from request body (additionalProperties: false)', 
 **Files**: `server/src/services/calendarIcal.test.ts` (49 tests), `server/src/services/vendorVcard.test.ts` (46 tests). Both files were in commit `ba297480` on branch `chore/1204-test-coverage-gaps`.
 
 **Key patterns**:
+
 - **`calendarIcal.ts` exports**: `toDateOnly`, `computeETag`, `computeCalendarETag` (needs DB), `buildCalendar`, `DescriptionMap` type
 - **`vendorVcard.ts` exports**: `computeAddressBookETag` (needs DB), `buildVendorVcard`, `buildContactVcard`
 - **DB for ETag tests**: Use `Object.assign(drizzle(sqliteDb, {schema}), { $client: sqliteDb }) as DbType` pattern for in-memory SQLite
@@ -87,13 +92,14 @@ it('strips unknown properties from request body (additionalProperties: false)', 
 - **Standalone invoice routes registered at `/api/invoices`**: Uses `standaloneInvoiceRoutes` prefix. Route for `/:invoiceId` conflicts with vendor subroutes at `/api/vendors/:vendorId/invoices/:invoiceId`.
 - **`additionalProperties: false` on `standaloneInvoices` querystring**: Unknown query params return 400.
 - **Sort options**: `sortBy` accepts `date|amount|status|vendor_name|due_date`. Invalid value → 400.
-- **`getInvoiceBudgetLinesForInvoice` uses raw SQL**: Uses `db.all<{...}>(sql\`...\`)` pattern for efficiency — test via `createInvoiceBudgetLine` first then verify `getInvoiceBudgetLinesForInvoice` result has correct `budgetLineId`, `budgetLineType`, `itemName`.
+- **`getInvoiceBudgetLinesForInvoice` uses raw SQL**: Uses `db.all<{...}>(sql\`...\`)`pattern for efficiency — test via`createInvoiceBudgetLine`first then verify`getInvoiceBudgetLinesForInvoice`result has correct`budgetLineId`, `budgetLineType`, `itemName`.
 
 ## Gap 4+6 Client Page + API Tests (2026-03-25)
 
 **Files**: `VendorsPage.test.tsx`, `UserManagementPage.test.tsx`, `HouseholdItemsPage.test.tsx`, `workItemBudgetsApi.test.ts`, `workItemMilestonesApi.test.ts`.
 
 **Key patterns**:
+
 - **`WorkItemBudgetLine` fixture**: Uses `BaseBudgetLine` shape: `confidence: 'own_estimate'` (NOT `'medium'`), `confidenceMargin`, `budgetCategory/budgetSource/vendor: null`, `actualCost`, `actualCostPaid`, `invoiceLink: null`, `quantity/unit/unitPrice/includesVat: null`.
 - **`WorkItemMilestones` fixture**: `required/linked` arrays of `MilestoneSummaryForWorkItem` — only `{ id: number, name: string, targetDate: string | null }`. NOT `title`, `dueDate`, etc.
 - **`CreateBudgetLineRequest`**: `budgetSourceId`, `budgetCategoryId`, `plannedAmount`, `description` — NOT `sourceId/categoryId/notes`.

@@ -239,55 +239,52 @@ test.describe('URL tab deep-linking', { tag: '@responsive' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Areas tab — CRUD', { tag: '@responsive' }, () => {
-  test(
-    'Create area — area appears in the Existing Areas list',
-    async ({ page, testPrefix }) => {
-      const areaName = `${testPrefix} Test Area`;
-      let areaId = '';
+  test('Create area — area appears in the Existing Areas list', async ({ page, testPrefix }) => {
+    const areaName = `${testPrefix} Test Area`;
+    let areaId = '';
 
-      try {
-        await page.goto(`${MANAGE_ROUTE}?tab=areas`);
-        const heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
-        await heading.waitFor({ state: 'visible' });
+    try {
+      await page.goto(`${MANAGE_ROUTE}?tab=areas`);
+      const heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
+      await heading.waitFor({ state: 'visible' });
 
-        // Wait for the create form
-        const createHeading = page.getByRole('heading', {
-          level: 2,
-          name: 'Create New Area',
-          exact: true,
-        });
-        await expect(createHeading).toBeVisible();
+      // Wait for the create form
+      const createHeading = page.getByRole('heading', {
+        level: 2,
+        name: 'Create New Area',
+        exact: true,
+      });
+      await expect(createHeading).toBeVisible();
 
-        // Fill the create form
-        const nameInput = page.locator('#areaName');
-        await nameInput.fill(areaName);
+      // Fill the create form
+      const nameInput = page.locator('#areaName');
+      await nameInput.fill(areaName);
 
-        // Register response BEFORE click
-        const responsePromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes('/api/areas') &&
-            resp.request().method() === 'POST' &&
-            resp.status() === 201,
-        );
-        await page.getByRole('button', { name: 'Create Area', exact: true }).click();
-        const response = await responsePromise;
-        // Server returns { area: { id, name, ... } }
-        const body = (await response.json()) as { area: { id: string } };
-        areaId = body.area.id;
+      // Register response BEFORE click
+      const responsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/areas') &&
+          resp.request().method() === 'POST' &&
+          resp.status() === 201,
+      );
+      await page.getByRole('button', { name: 'Create Area', exact: true }).click();
+      const response = await responsePromise;
+      // Server returns { area: { id, name, ... } }
+      const body = (await response.json()) as { area: { id: string } };
+      areaId = body.area.id;
 
-        // Success banner visible
-        const successBanner = page.locator('[class*="successBanner"][role="alert"]');
-        await expect(successBanner).toBeVisible();
+      // Success banner visible
+      const successBanner = page.locator('[class*="successBanner"][role="alert"]');
+      await expect(successBanner).toBeVisible();
 
-        // Area appears in the "Existing Areas" list
-        const panel = page.locator(`#${AREAS_PANEL_ID}`);
-        const itemNames = await panel.locator('[class*="itemName"]').allTextContents();
-        expect(itemNames.map((n) => n.trim())).toContain(areaName);
-      } finally {
-        if (areaId) await deleteAreaViaApi(page, areaId);
-      }
-    },
-  );
+      // Area appears in the "Existing Areas" list
+      const panel = page.locator(`#${AREAS_PANEL_ID}`);
+      const itemNames = await panel.locator('[class*="itemName"]').allTextContents();
+      expect(itemNames.map((n) => n.trim())).toContain(areaName);
+    } finally {
+      if (areaId) await deleteAreaViaApi(page, areaId);
+    }
+  });
 
   test('Existing Areas list shows at least one item (default areas or created)', async ({
     page,
@@ -378,52 +375,49 @@ test.describe('Areas tab — CRUD', { tag: '@responsive' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Trades tab — CRUD', { tag: '@responsive' }, () => {
-  test(
-    'Create trade — trade appears in the Existing Trades list',
-    async ({ page, testPrefix }) => {
-      const tradeName = `${testPrefix} Test Trade`;
-      let tradeId = '';
+  test('Create trade — trade appears in the Existing Trades list', async ({ page, testPrefix }) => {
+    const tradeName = `${testPrefix} Test Trade`;
+    let tradeId = '';
 
-      try {
-        await page.goto(`${MANAGE_ROUTE}?tab=trades`);
-        await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
-          state: 'visible',
-        });
+    try {
+      await page.goto(`${MANAGE_ROUTE}?tab=trades`);
+      await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+        state: 'visible',
+      });
 
-        const createHeading = page.getByRole('heading', {
-          level: 2,
-          name: 'Create New Trade',
-          exact: true,
-        });
-        await expect(createHeading).toBeVisible();
+      const createHeading = page.getByRole('heading', {
+        level: 2,
+        name: 'Create New Trade',
+        exact: true,
+      });
+      await expect(createHeading).toBeVisible();
 
-        const nameInput = page.locator('#tradeName');
-        await nameInput.fill(tradeName);
+      const nameInput = page.locator('#tradeName');
+      await nameInput.fill(tradeName);
 
-        const responsePromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes('/api/trades') &&
-            resp.request().method() === 'POST' &&
-            resp.status() === 201,
-        );
-        await page.getByRole('button', { name: 'Create Trade', exact: true }).click();
-        const response = await responsePromise;
-        const body = (await response.json()) as { trade: { id: string } };
-        tradeId = body.trade.id;
+      const responsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/trades') &&
+          resp.request().method() === 'POST' &&
+          resp.status() === 201,
+      );
+      await page.getByRole('button', { name: 'Create Trade', exact: true }).click();
+      const response = await responsePromise;
+      const body = (await response.json()) as { trade: { id: string } };
+      tradeId = body.trade.id;
 
-        // Success banner visible
-        const successBanner = page.locator('[class*="successBanner"][role="alert"]');
-        await expect(successBanner).toBeVisible();
+      // Success banner visible
+      const successBanner = page.locator('[class*="successBanner"][role="alert"]');
+      await expect(successBanner).toBeVisible();
 
-        // Trade appears in the list
-        const panel = page.locator(`#${TRADES_PANEL_ID}`);
-        const itemNames = await panel.locator('[class*="itemName"]').allTextContents();
-        expect(itemNames.map((n) => n.trim())).toContain(tradeName);
-      } finally {
-        if (tradeId) await deleteTradeViaApi(page, tradeId);
-      }
-    },
-  );
+      // Trade appears in the list
+      const panel = page.locator(`#${TRADES_PANEL_ID}`);
+      const itemNames = await panel.locator('[class*="itemName"]').allTextContents();
+      expect(itemNames.map((n) => n.trim())).toContain(tradeName);
+    } finally {
+      if (tradeId) await deleteTradeViaApi(page, tradeId);
+    }
+  });
 
   test('Existing Trades list shows default seeded trades', async ({ page }) => {
     await page.goto(`${MANAGE_ROUTE}?tab=trades`);
@@ -440,7 +434,10 @@ test.describe('Trades tab — CRUD', { tag: '@responsive' }, () => {
     expect(itemNames.length).toBeGreaterThan(0);
   });
 
-  test('Delete trade — trade removed from list after confirmation', async ({ page, testPrefix }) => {
+  test('Delete trade — trade removed from list after confirmation', async ({
+    page,
+    testPrefix,
+  }) => {
     const tradeName = `${testPrefix} Delete Trade`;
     let tradeId = '';
 
@@ -497,17 +494,13 @@ test.describe('Trades tab — CRUD', { tag: '@responsive' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Budget Categories tab — activation check', { tag: '@responsive' }, () => {
-  test(
-    'Budget Categories tab shows create form on load',
-    { tag: '@smoke' },
-    async ({ page }) => {
-      const categoriesPage = new BudgetCategoriesPage(page);
-      await categoriesPage.goto();
+  test('Budget Categories tab shows create form on load', { tag: '@smoke' }, async ({ page }) => {
+    const categoriesPage = new BudgetCategoriesPage(page);
+    await categoriesPage.goto();
 
-      await expect(categoriesPage.heading).toBeVisible();
-      await expect(categoriesPage.createFormHeading).toBeVisible();
-    },
-  );
+    await expect(categoriesPage.heading).toBeVisible();
+    await expect(categoriesPage.createFormHeading).toBeVisible();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -515,55 +508,55 @@ test.describe('Budget Categories tab — activation check', { tag: '@responsive'
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Household Item Categories tab — CRUD', { tag: '@responsive' }, () => {
-  test(
-    'Create HI category — category appears in the Categories list',
-    async ({ page, testPrefix }) => {
-      const catName = `${testPrefix} HI Cat`;
-      let catId = '';
+  test('Create HI category — category appears in the Categories list', async ({
+    page,
+    testPrefix,
+  }) => {
+    const catName = `${testPrefix} HI Cat`;
+    let catId = '';
 
-      try {
-        await page.goto(`${MANAGE_ROUTE}?tab=hi-categories`);
-        await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
-          state: 'visible',
-        });
+    try {
+      await page.goto(`${MANAGE_ROUTE}?tab=hi-categories`);
+      await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+        state: 'visible',
+      });
 
-        const createHeading = page.getByRole('heading', {
-          level: 2,
-          name: 'Create New Household Item Category',
-          exact: true,
-        });
-        await expect(createHeading).toBeVisible();
+      const createHeading = page.getByRole('heading', {
+        level: 2,
+        name: 'Create New Household Item Category',
+        exact: true,
+      });
+      await expect(createHeading).toBeVisible();
 
-        // HI Categories tab uses id="categoryName" (same as Budget Categories tab —
-        // but only one tab is active at a time, so no conflict)
-        const nameInput = page.locator('#categoryName');
-        await nameInput.fill(catName);
+      // HI Categories tab uses id="categoryName" (same as Budget Categories tab —
+      // but only one tab is active at a time, so no conflict)
+      const nameInput = page.locator('#categoryName');
+      await nameInput.fill(catName);
 
-        const responsePromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes('/api/household-item-categories') &&
-            resp.request().method() === 'POST' &&
-            resp.status() === 201,
-        );
-        await page.getByRole('button', { name: 'Create Category', exact: true }).first().click();
-        const response = await responsePromise;
-        // Server returns the entity directly: { id, name, color, ... }
-        const body = (await response.json()) as { id: string };
-        catId = body.id;
+      const responsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/household-item-categories') &&
+          resp.request().method() === 'POST' &&
+          resp.status() === 201,
+      );
+      await page.getByRole('button', { name: 'Create Category', exact: true }).first().click();
+      const response = await responsePromise;
+      // Server returns the entity directly: { id, name, color, ... }
+      const body = (await response.json()) as { id: string };
+      catId = body.id;
 
-        // Success banner
-        const successBanner = page.locator('[class*="successBanner"][role="alert"]');
-        await expect(successBanner).toBeVisible();
+      // Success banner
+      const successBanner = page.locator('[class*="successBanner"][role="alert"]');
+      await expect(successBanner).toBeVisible();
 
-        // Category appears in list
-        const panel = page.locator(`#${HI_CATEGORIES_PANEL_ID}`);
-        const itemNames = await panel.locator('[class*="itemName"]').allTextContents();
-        expect(itemNames.map((n) => n.trim())).toContain(catName);
-      } finally {
-        if (catId) await deleteHICategoryViaApi(page, catId);
-      }
-    },
-  );
+      // Category appears in list
+      const panel = page.locator(`#${HI_CATEGORIES_PANEL_ID}`);
+      const itemNames = await panel.locator('[class*="itemName"]').allTextContents();
+      expect(itemNames.map((n) => n.trim())).toContain(catName);
+    } finally {
+      if (catId) await deleteHICategoryViaApi(page, catId);
+    }
+  });
 
   test('HI Categories list shows seeded categories', async ({ page }) => {
     await page.goto(`${MANAGE_ROUTE}?tab=hi-categories`);

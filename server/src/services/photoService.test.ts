@@ -1015,12 +1015,20 @@ describe('photoService', () => {
 
   describe('getPhotoFilePath()', () => {
     it('returns null for original when photo directory does not exist', async () => {
-      const result = await photoService.getPhotoFilePath(tempStoragePath, 'no-such-photo', 'original');
+      const result = await photoService.getPhotoFilePath(
+        tempStoragePath,
+        'no-such-photo',
+        'original',
+      );
       expect(result).toBeNull();
     });
 
     it('returns null for thumbnail when photo directory does not exist', async () => {
-      const result = await photoService.getPhotoFilePath(tempStoragePath, 'no-such-photo', 'thumbnail');
+      const result = await photoService.getPhotoFilePath(
+        tempStoragePath,
+        'no-such-photo',
+        'thumbnail',
+      );
       expect(result).toBeNull();
     });
 

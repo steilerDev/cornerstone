@@ -159,8 +159,32 @@ const emptyVendorsResponse = {
 
 const vendorsResponse = {
   vendors: [
-    { id: 'v-1', name: 'ACME Construction', tradeId: null, notes: null, websiteUrl: null, contactEmail: null, contactPhone: null, trade: null, createdBy: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
-    { id: 'v-2', name: 'Quality Plumbing', tradeId: null, notes: null, websiteUrl: null, contactEmail: null, contactPhone: null, trade: null, createdBy: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+    {
+      id: 'v-1',
+      name: 'ACME Construction',
+      tradeId: null,
+      notes: null,
+      websiteUrl: null,
+      contactEmail: null,
+      contactPhone: null,
+      trade: null,
+      createdBy: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
+    {
+      id: 'v-2',
+      name: 'Quality Plumbing',
+      tradeId: null,
+      notes: null,
+      websiteUrl: null,
+      contactEmail: null,
+      contactPhone: null,
+      trade: null,
+      createdBy: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
   ],
   pagination: { page: 1, pageSize: 100, totalItems: 2, totalPages: 1 },
 };
@@ -526,9 +550,9 @@ describe('InvoicesPage', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
 
-      const cancelBtn = screen.getAllByRole('button').find((btn) =>
-        btn.textContent?.match(/cancel/i),
-      );
+      const cancelBtn = screen
+        .getAllByRole('button')
+        .find((btn) => btn.textContent?.match(/cancel/i));
       expect(cancelBtn).toBeTruthy();
       if (cancelBtn) await user.click(cancelBtn);
 

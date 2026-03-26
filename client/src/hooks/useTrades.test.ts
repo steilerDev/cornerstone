@@ -116,9 +116,7 @@ describe('useTrades', () => {
   });
 
   it('uses fallback error message when ApiClientError has no message', async () => {
-    mockFetchTrades.mockRejectedValueOnce(
-      new MockApiClientError(401, { code: 'UNAUTHORIZED' }),
-    );
+    mockFetchTrades.mockRejectedValueOnce(new MockApiClientError(401, { code: 'UNAUTHORIZED' }));
 
     const { result } = renderHook(() => useTrades());
 
@@ -162,9 +160,7 @@ describe('useTrades', () => {
         result.current.refetch();
       });
 
-      await waitFor(() =>
-        expect(mockFetchTrades.mock.calls.length).toBeGreaterThan(callsBefore),
-      );
+      await waitFor(() => expect(mockFetchTrades.mock.calls.length).toBeGreaterThan(callsBefore));
     });
 
     it('fetches fresh data after refetch', async () => {

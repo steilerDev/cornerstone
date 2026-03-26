@@ -219,9 +219,9 @@ describe('Work Item Milestone Service', () => {
 
     it('throws NotFoundError when work item does not exist', () => {
       // When/Then: Throws NotFoundError for a non-existent work item
-      expect(() =>
-        workItemMilestoneService.getWorkItemMilestones(db, 'non-existent-id'),
-      ).toThrow(NotFoundError);
+      expect(() => workItemMilestoneService.getWorkItemMilestones(db, 'non-existent-id')).toThrow(
+        NotFoundError,
+      );
     });
   });
 
@@ -260,9 +260,9 @@ describe('Work Item Milestone Service', () => {
       const workItemId = insertTestWorkItem(userId, 'Paint walls');
 
       // When/Then: Throws NotFoundError
-      expect(() =>
-        workItemMilestoneService.addRequiredMilestone(db, workItemId, 99999),
-      ).toThrow(NotFoundError);
+      expect(() => workItemMilestoneService.addRequiredMilestone(db, workItemId, 99999)).toThrow(
+        NotFoundError,
+      );
     });
 
     it('throws ConflictError when the required dependency already exists (duplicate)', () => {
@@ -346,9 +346,9 @@ describe('Work Item Milestone Service', () => {
       const workItemId = insertTestWorkItem(userId, 'Install cabinets');
 
       // When/Then: Throws NotFoundError
-      expect(() =>
-        workItemMilestoneService.removeRequiredMilestone(db, workItemId, 99999),
-      ).toThrow(NotFoundError);
+      expect(() => workItemMilestoneService.removeRequiredMilestone(db, workItemId, 99999)).toThrow(
+        NotFoundError,
+      );
     });
 
     it('throws NotFoundError when the dependency does not exist (work item and milestone exist but not linked)', () => {
@@ -418,9 +418,9 @@ describe('Work Item Milestone Service', () => {
       const workItemId = insertTestWorkItem(userId, 'Install roof decking');
 
       // When/Then: Throws NotFoundError
-      expect(() =>
-        workItemMilestoneService.addLinkedMilestone(db, workItemId, 99999),
-      ).toThrow(NotFoundError);
+      expect(() => workItemMilestoneService.addLinkedMilestone(db, workItemId, 99999)).toThrow(
+        NotFoundError,
+      );
     });
 
     it('throws ConflictError when the linked association already exists (duplicate)', () => {
@@ -504,9 +504,9 @@ describe('Work Item Milestone Service', () => {
       const workItemId = insertTestWorkItem(userId, 'Install gutters');
 
       // When/Then: Throws NotFoundError
-      expect(() =>
-        workItemMilestoneService.removeLinkedMilestone(db, workItemId, 99999),
-      ).toThrow(NotFoundError);
+      expect(() => workItemMilestoneService.removeLinkedMilestone(db, workItemId, 99999)).toThrow(
+        NotFoundError,
+      );
     });
 
     it('throws NotFoundError when the link does not exist (work item and milestone exist but not linked)', () => {
