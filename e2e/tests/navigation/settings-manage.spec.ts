@@ -327,8 +327,10 @@ test.describe('Areas tab — CRUD', { tag: '@responsive' }, () => {
 
       const panel = page.locator(`#${AREAS_PANEL_ID}`);
 
-      // Find the delete button for this area
-      const deleteButton = panel.getByRole('button', { name: `Delete ${areaName}` });
+      // Area delete buttons only have text "Delete" (no aria-label with the name).
+      // Scope to the itemRow containing the area name to target the right button.
+      const itemRow = panel.locator('[class*="itemRow"]').filter({ hasText: areaName });
+      const deleteButton = itemRow.getByRole('button', { name: 'Delete', exact: true });
       await deleteButton.waitFor({ state: 'visible' });
       await deleteButton.click();
 
@@ -451,7 +453,10 @@ test.describe('Trades tab — CRUD', { tag: '@responsive' }, () => {
       });
 
       const panel = page.locator(`#${TRADES_PANEL_ID}`);
-      const deleteButton = panel.getByRole('button', { name: `Delete ${tradeName}` });
+      // Trade delete buttons only have text "Delete" (no aria-label with the name).
+      // Scope to the itemRow containing the trade name to target the right button.
+      const itemRow = panel.locator('[class*="itemRow"]').filter({ hasText: tradeName });
+      const deleteButton = itemRow.getByRole('button', { name: 'Delete', exact: true });
       await deleteButton.waitFor({ state: 'visible' });
       await deleteButton.click();
 

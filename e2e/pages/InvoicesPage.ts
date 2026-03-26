@@ -170,10 +170,12 @@ export class InvoicesPage {
 
   /**
    * Wait for invoices to finish loading.
-   * Races: table rows visible, mobile cards visible, or empty state visible.
+   * Uses Promise.any() so that whichever condition resolves first wins without
+   * leaving the other two waitFor() promises as dangling unhandled rejections
+   * (which Promise.race() causes when the losers eventually time out).
    */
   async waitForLoaded(): Promise<void> {
-    await Promise.race([
+    await Promise.any([
       this.tableBody.locator('tr').first().waitFor({ state: 'visible' }),
       this.cardsContainer.locator('[class*="card"]').first().waitFor({ state: 'visible' }),
       this.emptyState.waitFor({ state: 'visible' }),
