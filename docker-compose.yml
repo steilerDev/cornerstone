@@ -5,6 +5,7 @@ services:
       - "${PORT:-3000}:3000"
     volumes:
       - cornerstone-data:/app/data
+      - cornerstone-backups:/backups
     env_file:
       - .env
     # Optional configuration — add to your .env file:
@@ -15,6 +16,9 @@ services:
     #   - PAPERLESS_API_TOKEN=your-paperless-api-token
     #   - PAPERLESS_EXTERNAL_URL=https://paperless.example.com  # Optional: browser-accessible URL for "View in Paperless-ngx" links
     #   - PAPERLESS_FILTER_TAG=cornerstone                      # Optional: only show documents with this Paperless-ngx tag
+    #   - BACKUP_DIR=/backups                                   # Backup destination directory (default: /backups)
+    #   - BACKUP_CADENCE=0 2 * * *                              # Cron expression for scheduled backups (e.g., daily at 2 AM)
+    #   - BACKUP_RETENTION=7                                    # Maximum number of backup archives to retain
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)throw r.status}).catch(()=>process.exit(1))"]
@@ -25,3 +29,4 @@ services:
 
 volumes:
   cornerstone-data:
+  cornerstone-backups:

@@ -385,6 +385,32 @@ Before creating a new UI component, check if an existing shared component can be
 - No separate `__tests__/` directories -- tests live next to the code they test
 - **E2E page coverage requirement**: Every page/route in the application must have E2E test coverage. Fully implemented pages need comprehensive tests (CRUD flows, validation, responsive layout, dark mode). Stub/placeholder pages need at minimum a smoke test verifying the page loads and renders its heading.
 
+### Coverage Enforcement
+
+Coverage is tracked and enforced through three complementary mechanisms:
+
+**1. CI Coverage Reports (automated)**
+
+Every PR triggers coverage collection across 6 Jest shards. The `Coverage Report` CI job merges shard results and uploads a `coverage-report` artifact containing `coverage-summary.json` (per-file and total percentages) and `coverage-final.json` (raw Istanbul data). Coverage reports are retained for 30 days.
+
+- Test shards run with `--coverage --coverageReporters=json`
+- The merge script (`scripts/merge-coverage.mjs`) combines shard data and prints a text summary in CI logs
+- To inspect coverage for a PR: download the `coverage-report` artifact from the CI run
+
+**2. Test File Parity (enforced by dev-team-lead)**
+
+During `[MODE: review]`, the dev-team-lead verifies that **every new or modified production file has a corresponding test file**. Production files added without test files result in `VERDICT: CHANGES_REQUIRED` with a fix spec routed to `qa-integration-tester`. This prevents untested code from entering the codebase.
+
+**3. Local Coverage Verification (enforced by qa-integration-tester)**
+
+The QA agent runs coverage on each new test file before committing:
+
+```bash
+npx jest path/to/file.test.ts --coverage --coverageReporters=text --maxWorkers=1
+```
+
+This verifies 95%+ coverage on the corresponding source file before the code leaves the agent.
+
 ## Development Workflow
 
 ### Prerequisites
@@ -442,7 +468,7 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 | `PAPERLESS_API_TOKEN`    | (none)                     | Paperless-ngx API authentication token                                                |
 | `PAPERLESS_EXTERNAL_URL` | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset)   |
 | `PAPERLESS_FILTER_TAG`   | (none)                     | Tag name for automatic document pre-filtering                                         |
-| `BACKUP_DIR`             | (none)                     | Backup destination directory (must be outside app data directory)                     |
+| `BACKUP_DIR`             | `/backups`                 | Backup destination directory (must be outside app data directory)                     |
 | `BACKUP_CADENCE`         | (none)                     | Cron expression for automatic backups (e.g., `0 2 * * *` for daily at 2 AM)           |
 | `BACKUP_RETENTION`       | (none)                     | Maximum number of backup archives to retain (oldest deleted when exceeded)            |
 
@@ -488,23 +514,3 @@ The application supports multiple locales (English and German) via `i18next` and
 - **Glossary scope**: Domain-specific terms only (Work Item, Invoice, etc.), not common UI words
 - **Glossary updates**: Translator proposes additions for new domain terms; product-owner approves terminology
 - **Adding a locale**: Add locale code to `glossary.json` `_meta.locales`, add translations for all terms, create `client/src/i18n/{locale}/` directory with namespace files, register in `client/src/i18n/index.ts`
-
-### Review Metrics
-
-All reviewing agents (product-architect, security-engineer, product-owner, ux-designer) must append a structured metrics block as an HTML comment at the end of every PR review body. This is invisible to GitHub readers but parsed by the orchestrator for performance tracking.
-
-**Format** — append to the `--body` argument of `gh pr review`:
-
-```
-<!-- REVIEW_METRICS
-{
-  "agent": "<agent-name>",
-  "verdict": "<approve|request-changes|comment>",
-  "findings": { "critical": 0, "high": 0, "medium": 0, "low": 0, "informational": 0 }
-}
--->
-```
-
-- `verdict` must match the `gh pr review` action (`--approve` → `"approve"`, `--request-changes` → `"request-changes"`, `--comment` → `"comment"`)
-- Count each distinct issue raised, classified by severity
-- If no issues found, all counts are 0

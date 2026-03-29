@@ -93,6 +93,9 @@ export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: Dat
     startDate ? 'selecting-end' : 'selecting-start',
   );
 
+  // Internal state for intermediate (uncommitted) start date
+  const [pendingStartDate, setPendingStartDate] = useState<string>(startDate);
+
   // Hover preview for range (only during end date selection)
   const [hoverDate, setHoverDate] = useState<string>('');
 
@@ -123,12 +126,14 @@ export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: Dat
     }
   }, [focusedDate]);
 
-  // Sync phase when incoming props change
+  // Sync phase and pendingStartDate with external prop changes
   useEffect(() => {
-    if (startDate === '') {
+    if (startDate === '' && endDate === '') {
       setPhase('selecting-start');
-    } else if (endDate === '') {
+      setPendingStartDate('');
+    } else if (startDate !== '' && endDate === '') {
       setPhase('selecting-end');
+      setPendingStartDate(startDate);
     }
   }, [startDate, endDate]);
 
@@ -138,27 +143,33 @@ export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: Dat
   // Check if a day is in the highlighted range (strictly between start and end)
   const isInRange = useCallback(
     (dateStr: string): boolean => {
-      return !!(startDate && effectiveEnd && dateStr > startDate && dateStr < effectiveEnd);
+      return !!(
+        pendingStartDate &&
+        effectiveEnd &&
+        dateStr > pendingStartDate &&
+        dateStr < effectiveEnd
+      );
     },
-    [startDate, effectiveEnd],
+    [pendingStartDate, effectiveEnd],
   );
 
   // Check if a day is the range start
   const isRangeStart = useCallback(
     (dateStr: string): boolean => {
       return (
-        dateStr === startDate && (endDate !== '' || (phase === 'selecting-end' && hoverDate !== ''))
+        dateStr === pendingStartDate &&
+        (endDate !== '' || (phase === 'selecting-end' && hoverDate !== ''))
       );
     },
-    [startDate, endDate, phase, hoverDate],
+    [pendingStartDate, endDate, phase, hoverDate],
   );
 
   // Check if a day is the range end
   const isRangeEnd = useCallback(
     (dateStr: string): boolean => {
-      return dateStr === effectiveEnd && startDate !== '';
+      return dateStr === effectiveEnd && pendingStartDate !== '';
     },
-    [startDate, effectiveEnd],
+    [pendingStartDate, effectiveEnd],
   );
 
   // Handle day cell click
@@ -166,43 +177,48 @@ export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: Dat
     (dateStr: string) => {
       if (phase === 'selecting-start') {
         // First selection: emit start date, switch to end selection
+        setPendingStartDate(dateStr);
         setPhase('selecting-end');
         setHoverDate('');
         onChange(dateStr, '');
         setFocusedDate(dateStr);
       } else {
-        // Second selection (selecting-end)
-        if (dateStr < startDate!) {
-          // Clicking before start date: reset to new start
+        // Second selection (selecting-end): compare against pendingStartDate (internal), not startDate (prop)
+        if (dateStr < pendingStartDate) {
+          // Clicking before pending start: reset to new start
+          setPendingStartDate(dateStr);
           setPhase('selecting-end');
           setHoverDate('');
           onChange(dateStr, '');
           setFocusedDate(dateStr);
-        } else if (dateStr === startDate!) {
-          // Clicking on start date again: clear everything
+        } else if (dateStr === pendingStartDate) {
+          // Clicking on pending start again: clear everything
+          setPendingStartDate('');
           setPhase('selecting-start');
           setHoverDate('');
           onChange('', '');
           setFocusedDate(dateStr);
         } else {
-          // Normal end date selection
+          // Normal end date selection: complete range
+          setPhase('selecting-start');
+          setPendingStartDate('');
           setHoverDate('');
-          onChange(startDate!, dateStr);
+          onChange(pendingStartDate, dateStr);
           setFocusedDate(dateStr);
         }
       }
     },
-    [phase, startDate, onChange],
+    [phase, pendingStartDate, onChange],
   );
 
   // Handle hover during end date selection
   const handleDayMouseEnter = useCallback(
     (dateStr: string) => {
-      if (phase === 'selecting-end' && startDate) {
+      if (phase === 'selecting-end' && pendingStartDate) {
         setHoverDate(dateStr);
       }
     },
-    [phase, startDate],
+    [phase, pendingStartDate],
   );
 
   const handleDayMouseLeave = useCallback(() => {
@@ -268,6 +284,7 @@ export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: Dat
           break;
         case 'Escape':
           if (phase === 'selecting-end' && endDate === '') {
+            setPendingStartDate('');
             setPhase('selecting-start');
             setHoverDate('');
             onChange('', '');
@@ -291,7 +308,7 @@ export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: Dat
         }
       }
     },
-    [focusedDate, viewYear, viewMonth, handleDayClick, phase, endDate, onChange],
+    [focusedDate, viewYear, viewMonth, handleDayClick, phase, pendingStartDate, endDate, onChange],
   );
 
   // Month navigation
@@ -365,7 +382,8 @@ export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: Dat
               const inRange = isInRange(day.dateStr);
               const isStart = isRangeStart(day.dateStr);
               const isEnd = isRangeEnd(day.dateStr);
-              const isBeforeStart = phase === 'selecting-end' && day.dateStr < startDate!;
+              const isBeforeStart =
+                phase === 'selecting-end' && pendingStartDate && day.dateStr < pendingStartDate;
               const isFocused = day.dateStr === focusedDate;
 
               return (

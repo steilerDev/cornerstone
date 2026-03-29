@@ -22,7 +22,7 @@ At the start of each `/epic-close` invocation, create tasks to track progress. T
 
 1. **Rebase** — Fetch and rebase worktree branch onto origin/beta
 2. **Verify all stories merged** — Confirm all sub-issues are closed
-3. **Epic metrics + lint check** — Generate metrics report (step 2a) and lint health check (step 2b)
+3. **Lint check** — Lint health check (step 2a)
 4. **Collect refinement items** — Review story PRs for non-blocking observations
 5. **Refinement PR** — Address refinement items via implementation agents (skip if none)
 6. **E2E validation** — Launch e2e-test-engineer to verify coverage and pass rate
@@ -58,21 +58,7 @@ gh issue view <epic-number>
 
 If any story is still open, stop and inform the user. All stories must be complete before proceeding.
 
-### 2a. Generate Epic Metrics Report
-
-Read `.claude/metrics/review-metrics.jsonl` and filter for records matching this epic. Generate a summary table:
-
-| Agent | PRs Reviewed | Approved | Req. Changes | Findings (C/H/M/L/I) | Fix Loops Caused |
-| ----- | ------------ | -------- | ------------ | -------------------- | ---------------- |
-
-Include:
-
-- Total PRs, average fix loops per PR, % of PRs requiring fix loops
-- Total findings breakdown by severity
-
-Post this report as a comment on the epic GitHub Issue. Include it in the promotion PR body (Step 8).
-
-### 2b. Lint Health Check
+### 2a. Lint Health Check
 
 Check the most recent auto-fix workflow run for unfixable lint issues:
 
@@ -154,11 +140,10 @@ Invoke `/release <epic-number>` to handle the remaining steps: branch sync, prom
 Before invoking, prepare the **epic context** that `/release` will use to enrich the promotion PR body:
 
 1. **Stories completed** — list of all sub-issues with titles
-2. **Metrics report** — from step 2a
-3. **UAT scenarios** — from step 6, formatted as a manual validation checklist
-4. **Refinement summary** — from step 4 (if applicable)
-5. **E2E validation summary** — from step 5
-6. **Security findings summary** — resolved/outstanding from story PR reviews
+2. **UAT scenarios** — from step 6, formatted as a manual validation checklist
+3. **Refinement summary** — from step 4 (if applicable)
+4. **E2E validation summary** — from step 5
+5. **Security findings summary** — resolved/outstanding from story PR reviews
 
 The `/release` skill uses this context to build the promotion PR body (see `/release` step 2b, epic-enriched variant). It also handles:
 

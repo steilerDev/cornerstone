@@ -17,7 +17,7 @@ You are the orchestrator promoting the `beta` branch to `main`. This skill handl
 - **Nothing** — standalone release of whatever is on `beta` beyond `main`
 - **An epic issue number** — passed from `/epic-close` to enrich the promotion PR with epic context
 
-When invoked from `/epic-close`, the calling skill provides **epic context** (stories completed, metrics report, UAT scenarios, refinement summary). Use this context to enrich the promotion PR body. When invoked standalone, generate the PR body from the git log diff between `main` and `beta`.
+When invoked from `/epic-close`, the calling skill provides **epic context** (stories completed, UAT scenarios, refinement summary). Use this context to enrich the promotion PR body. When invoked standalone, generate the PR body from the git log diff between `main` and `beta`.
 
 ## Task Tracking
 
@@ -73,7 +73,7 @@ Group changes by type (features, fixes, chores, docs, tests) and by area (backen
 
 **If epic context is provided** (invoked from `/epic-close`):
 
-Use the epic-enriched body provided by the calling skill — it includes stories completed, metrics report, validation report, and UAT scenarios as a manual validation checklist.
+Use the epic-enriched body provided by the calling skill — it includes stories completed, validation report, and UAT scenarios as a manual validation checklist.
 
 ```bash
 gh pr create --base main --head beta --title "release: promote epic #<epic-number> to main" --body "$(cat <<'EOF'
@@ -262,9 +262,8 @@ Update the implementation checklist with patterns learned:
    - `product-owner/MEMORY.md` — recurring acceptance criteria gaps
    - `ux-designer/MEMORY.md` — recurring token/pattern violations
    - `product-architect/MEMORY.md` — recurring architecture deviations
-2. Read `.claude/metrics/review-metrics.jsonl` filtered for recent PRs
-3. Identify any new recurring patterns that are NOT yet in `.claude/checklists/implementation-checklist.md`
-4. If new patterns found, add them to the checklist and commit:
+2. Identify any new recurring patterns that are NOT yet in `.claude/checklists/implementation-checklist.md`
+3. If new patterns found, add them to the checklist and commit:
 
    ```bash
    git add .claude/checklists/implementation-checklist.md
@@ -274,7 +273,7 @@ Update the implementation checklist with patterns learned:
    git push
    ```
 
-5. If no new patterns, skip the commit
+4. If no new patterns, skip the commit
 
 ### 7. Merge & Post-Merge
 
