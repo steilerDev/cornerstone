@@ -90,8 +90,9 @@ export async function createMilestoneViaApi(
 ): Promise<number> {
   const response = await page.request.post(API.milestones, { data });
   expect(response.ok()).toBeTruthy();
-  const body = (await response.json()) as { milestone: { id: number } };
-  return body.milestone.id;
+  // POST /api/milestones returns MilestoneDetail directly (no wrapper object)
+  const body = (await response.json()) as { id: number };
+  return body.id;
 }
 
 export async function deleteMilestoneViaApi(page: Page, id: number): Promise<void> {

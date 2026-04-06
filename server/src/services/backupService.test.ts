@@ -5,9 +5,11 @@
  */
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, chmodSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 
 // ─── Import service functions ───────────────────────────────────────────────
 
@@ -354,21 +356,151 @@ describe('backupService', () => {
   describe('createBackup() — guard conditions', () => {
     it('throws BackupNotConfiguredError (code BACKUP_NOT_CONFIGURED) when backupEnabled is false', async () => {
       const db = {} as any;
-      const config = makeConfig({ backupEnabled: false, backupDir: undefined });
+      const config = makeConfig({ backupEnabled: false });
 
       await expect(createBackup(db, config)).rejects.toMatchObject({
         code: 'BACKUP_NOT_CONFIGURED',
       });
     });
+  });
 
-    it('throws BackupNotConfiguredError (code BACKUP_NOT_CONFIGURED) when backupDir is not set', async () => {
-      const db = {} as any;
-      // The service checks !config.backupEnabled || !config.backupDir
-      const config = makeConfig({ backupEnabled: true, backupDir: undefined });
+  // ─── createBackup — execution path ───────────────────────────────────────
+
+  describe('createBackup() — execution path', () => {
+    let tempDir: string;
+    let backupTempDir: string;
+    let rawDb: Database.Database;
+
+    beforeEach(() => {
+      // App data directory (DB lives here) — separate from backup directory
+      tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-backup-exec-appdata-'));
+      // Backup directory MUST be outside the app data directory (config validation)
+      backupTempDir = mkdtempSync(join(tmpdir(), 'cornerstone-backup-exec-backups-'));
+    });
+
+    afterEach(() => {
+      // Close DB connection if open
+      try {
+        if (rawDb && rawDb.open) {
+          rawDb.close();
+        }
+      } catch {
+        // ignore
+      }
+      // Restore writable permissions before cleanup (in case a test made the dir read-only)
+      try {
+        chmodSync(backupTempDir, 0o755);
+      } catch {
+        // ignore
+      }
+      try {
+        rmSync(tempDir, { recursive: true, force: true });
+      } catch {
+        // ignore cleanup errors
+      }
+      try {
+        rmSync(backupTempDir, { recursive: true, force: true });
+      } catch {
+        // ignore cleanup errors
+      }
+    });
+
+    it('createBackup succeeds with a real DB and real tar: returns valid BackupMeta and writes the .tar.gz file', async () => {
+      rawDb = new Database(join(tempDir, 'test.db'));
+      const db = drizzle(rawDb);
+
+      const config = makeConfig({
+        databaseUrl: join(tempDir, 'test.db'),
+        backupDir: backupTempDir,
+        backupEnabled: true,
+        backupRetention: undefined,
+      });
+
+      const result = await createBackup(db, config);
+
+      // Returned BackupMeta must be well-formed
+      expect(result.filename).toMatch(/^cornerstone-backup-\d{4}-\d{2}-\d{2}T\d{6}Z\.tar\.gz$/);
+      expect(result.createdAt).toBeTruthy();
+      expect(typeof result.createdAt).toBe('string');
+      expect(result.sizeBytes).toBeGreaterThan(0);
+
+      // The archive file must exist on disk
+      const archivePath = join(backupTempDir, result.filename);
+      expect(existsSync(archivePath)).toBe(true);
+    });
+
+    it('createBackup throws BackupFailedError (code BACKUP_FAILED) when backup directory is not writable', async () => {
+      // chmod does not restrict root — skip this test when running as root
+      if (process.getuid?.() === 0) {
+        return;
+      }
+
+      rawDb = new Database(join(tempDir, 'test.db'));
+      const db = drizzle(rawDb);
+
+      // Make the backup directory read-only
+      chmodSync(backupTempDir, 0o444);
+
+      const config = makeConfig({
+        databaseUrl: join(tempDir, 'test.db'),
+        backupDir: backupTempDir,
+        backupEnabled: true,
+      });
 
       await expect(createBackup(db, config)).rejects.toMatchObject({
-        code: 'BACKUP_NOT_CONFIGURED',
+        code: 'BACKUP_FAILED',
       });
+    });
+
+    it('createBackup throws BackupFailedError (code BACKUP_FAILED) when db.backup() throws', async () => {
+      // Create a mock db whose $client.backup throws a SqliteError-like object
+      const mockBackup = jest
+        .fn<() => Promise<void>>()
+        .mockRejectedValue(Object.assign(new Error('disk I/O error'), { code: 'SQLITE_IOERR' }));
+      const db = {
+        $client: {
+          backup: mockBackup,
+        },
+      } as any;
+
+      const config = makeConfig({
+        databaseUrl: join(tempDir, 'test.db'),
+        backupDir: backupTempDir,
+        backupEnabled: true,
+      });
+
+      await expect(createBackup(db, config)).rejects.toMatchObject({
+        code: 'BACKUP_FAILED',
+      });
+    });
+
+    it('createBackup enforces retention policy and deletes oldest backups when limit is exceeded', async () => {
+      rawDb = new Database(join(tempDir, 'test.db'));
+      const db = drizzle(rawDb);
+
+      const config = makeConfig({
+        databaseUrl: join(tempDir, 'test.db'),
+        backupDir: backupTempDir,
+        backupEnabled: true,
+        backupRetention: 2,
+      });
+
+      // Pre-seed two older backup stubs with valid filenames
+      const stub1 = 'cornerstone-backup-2026-01-01T000000Z.tar.gz';
+      const stub2 = 'cornerstone-backup-2026-01-02T000000Z.tar.gz';
+      writeFileSync(join(backupTempDir, stub1), 'stub content 1');
+      writeFileSync(join(backupTempDir, stub2), 'stub content 2');
+
+      // Third backup created for real — this should push total to 3, triggering retention
+      await createBackup(db, config);
+
+      // After retention enforcement, only 2 files should remain
+      const remaining = await listBackups(backupTempDir);
+      expect(remaining).toHaveLength(2);
+
+      // The two oldest stubs should have been deleted; only the 2 newest remain
+      const filenames = remaining.map((b) => b.filename);
+      expect(filenames).not.toContain(stub1);
     });
   });
 });

@@ -131,6 +131,7 @@ The spec document you return must follow this structure exactly:
 ### Coverage Targets
 
 <95%+ coverage requirement, specific areas to cover>
+<list every new production file and its required test file path — test file parity is enforced during review>
 
 ### Test Scenarios
 
@@ -239,6 +240,7 @@ After the orchestrator routes work to implementation agents, you review all modi
 - Look for security issues (unsanitized input, missing auth checks, SQL injection)
 - Verify shared component usage — if the PR introduces new badge, picker, modal, skeleton, or empty state components instead of using the shared library, flag as CHANGES_REQUIRED
 - Verify CSS token compliance — no hardcoded color, spacing, radius, or font-size values (must use `var(--token-name)` from `tokens.css`)
+- **Verify test file parity** — for every production file (`server/src/`, `client/src/`, `shared/src/`) that was **added or modified** in this PR, verify a corresponding `.test.ts` or `.test.tsx` file exists (either already present or created as part of this PR). Files that are type-only (`**/types/**`), re-exports, or configuration are exempt. Missing test files are a blocking finding — emit a fix spec for the `qa-integration-tester` to create the missing tests.
 - **Verify i18n compliance** — all user-facing strings in frontend code must use `t()` from react-i18next (no hardcoded text in JSX — labels, headings, buttons, placeholders, tooltips, error messages, empty states, aria-labels, confirmation dialogs, toast messages). Hardcoded user-visible strings are a blocking finding. Translation keys must exist in `en` locale files (non-English locales are owned by the `translator` agent). API error responses must use `ErrorCode` enum values, not hardcoded messages. Date/currency/percent formatting must use the locale-aware formatters from `client/src/lib/formatters.ts`
 - **Verify glossary compliance** — domain terms in non-English locale files must match the approved translations in `client/src/i18n/glossary.json`. Flag any deviations as findings for the `translator` agent to fix
 

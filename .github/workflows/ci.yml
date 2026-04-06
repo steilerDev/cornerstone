@@ -87,7 +87,56 @@ jobs:
         run: npm run build -w shared
 
       - name: Run tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
-        run: node --experimental-vm-modules node_modules/.bin/jest --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+        run: node --experimental-vm-modules node_modules/.bin/jest --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }} --coverage --coverageReporters=json
+
+      - name: Rename coverage for merge
+        if: ${{ always() }}
+        run: |
+          if [ -f coverage/coverage-final.json ]; then
+            mv coverage/coverage-final.json coverage/coverage-shard-${{ matrix.shardIndex }}.json
+          fi
+
+      - name: Upload coverage
+        if: ${{ always() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: coverage-shard-${{ matrix.shardIndex }}
+          path: coverage/coverage-shard-${{ matrix.shardIndex }}.json
+          retention-days: 1
+
+  coverage-report:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: ${{ !cancelled() && needs.test.result == 'success' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: coverage-shard-*
+          path: coverage-parts
+          merge-multiple: true
+
+      - name: Merge coverage and generate report
+        run: node scripts/merge-coverage.mjs coverage-parts coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: coverage-report
+          path: |
+            coverage/coverage-summary.json
+            coverage/coverage-final.json
+          retention-days: 30
 
   quality-gates:
     name: Quality Gates
@@ -162,7 +211,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Login to DHI registry
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
         with:
           registry: dhi.io
           username: ${{ vars.DOCKERHUB_USERNAME }}
@@ -301,7 +350,7 @@ jobs:
         run: docker load -i cornerstone-e2e.tar
 
       - name: Login to Docker Hub
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}

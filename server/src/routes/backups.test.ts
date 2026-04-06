@@ -11,7 +11,7 @@
  */
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildApp } from '../app.js';
@@ -40,7 +40,6 @@ describe('Backup Routes', () => {
 
     process.env.DATABASE_URL = join(tempDir, 'test.db');
     process.env.SECURE_COOKIES = 'false';
-    // Note: BACKUP_DIR is NOT set by default — routes should return 503
 
     app = await buildApp();
   });
@@ -84,25 +83,6 @@ describe('Backup Routes', () => {
   // ─── POST /api/backups — without BACKUP_DIR ───────────────────────────────
 
   describe('POST /api/backups', () => {
-    it('returns 503 BACKUP_NOT_CONFIGURED when BACKUP_DIR is not set', async () => {
-      const { cookie } = await createUserWithSession(
-        'admin@test.com',
-        'Admin',
-        'password',
-        'admin',
-      );
-
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/backups',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(503);
-      const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('BACKUP_NOT_CONFIGURED');
-    });
-
     it('returns 401 without authentication', async () => {
       const response = await app.inject({
         method: 'POST',
@@ -137,25 +117,6 @@ describe('Backup Routes', () => {
   // ─── GET /api/backups — without BACKUP_DIR ────────────────────────────────
 
   describe('GET /api/backups', () => {
-    it('returns 503 BACKUP_NOT_CONFIGURED when BACKUP_DIR is not set', async () => {
-      const { cookie } = await createUserWithSession(
-        'admin@test.com',
-        'Admin',
-        'password',
-        'admin',
-      );
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/backups',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(503);
-      const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('BACKUP_NOT_CONFIGURED');
-    });
-
     it('returns 401 without authentication', async () => {
       const response = await app.inject({
         method: 'GET',
@@ -190,25 +151,6 @@ describe('Backup Routes', () => {
   // ─── DELETE /api/backups/:filename — without BACKUP_DIR ──────────────────
 
   describe('DELETE /api/backups/:filename', () => {
-    it('returns 503 BACKUP_NOT_CONFIGURED when BACKUP_DIR is not set', async () => {
-      const { cookie } = await createUserWithSession(
-        'admin@test.com',
-        'Admin',
-        'password',
-        'admin',
-      );
-
-      const response = await app.inject({
-        method: 'DELETE',
-        url: '/api/backups/cornerstone-backup-2026-03-22T020000Z.tar.gz',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(503);
-      const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('BACKUP_NOT_CONFIGURED');
-    });
-
     it('returns 401 without authentication', async () => {
       const response = await app.inject({
         method: 'DELETE',
@@ -243,25 +185,6 @@ describe('Backup Routes', () => {
   // ─── POST /api/backups/:filename/restore — without BACKUP_DIR ────────────
 
   describe('POST /api/backups/:filename/restore', () => {
-    it('returns 503 BACKUP_NOT_CONFIGURED when BACKUP_DIR is not set', async () => {
-      const { cookie } = await createUserWithSession(
-        'admin@test.com',
-        'Admin',
-        'password',
-        'admin',
-      );
-
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/backups/cornerstone-backup-2026-03-22T020000Z.tar.gz/restore',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(503);
-      const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('BACKUP_NOT_CONFIGURED');
-    });
-
     it('returns 401 without authentication', async () => {
       const response = await app.inject({
         method: 'POST',
@@ -428,6 +351,33 @@ describe('Backup Routes', () => {
       expect(response.statusCode).toBe(202);
       const body = response.json<{ message: string }>();
       expect(body.message).toBeTruthy();
+    });
+
+    it('POST /api/backups returns 500 BACKUP_FAILED when backup directory exists but is read-only', async () => {
+      // chmod does not restrict root — skip this test when running as root
+      if (process.getuid?.() === 0) {
+        return;
+      }
+
+      const cookie = await createAdminWithSession();
+
+      // Make the backup directory read-only so the writability probe fails
+      chmodSync(backupDir, 0o444);
+
+      try {
+        const response = await appWithBackup.inject({
+          method: 'POST',
+          url: '/api/backups',
+          headers: { cookie },
+        });
+
+        expect(response.statusCode).toBe(500);
+        const body = response.json<ApiErrorResponse>();
+        expect(body.error.code).toBe('BACKUP_FAILED');
+      } finally {
+        // Restore permissions so afterEach cleanup can delete the directory
+        chmodSync(backupDir, 0o755);
+      }
     });
   });
 });

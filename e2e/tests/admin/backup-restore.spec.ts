@@ -4,14 +4,13 @@
  * Coverage:
  * 1. [smoke] Admin can navigate to Backups page and see the heading
  * 2. Backups tab is not visible in SettingsSubNav for non-admin (member) users
- * 3. Not-configured empty state shown when BACKUP_DIR is not set (default in E2E env)
+ * 3. Not-configured empty state shown when API returns 503 (mocked)
  * 4. Create backup — requires BACKUP_DIR configured; covered via API mock
  * 5. Delete backup confirmation modal — cancel closes without deleting; delete removes row
  * 6. Restore confirmation modal shows warning text; cancel closes modal
  *
- * Environment note: The E2E testcontainer does NOT set BACKUP_DIR, so
- * scenarios 3–6 use page.route() to mock /api/backups responses.
- * This allows full modal interaction testing without a real backup directory.
+ * Environment note: BACKUP_DIR defaults to /backups, so the testcontainer always
+ * has backups enabled. Scenarios 3–6 use page.route() to mock /api/backups responses.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -43,7 +42,6 @@ test.describe('Backups page — admin access', () => {
     '[smoke] Admin can navigate to Backups page and sees heading',
     { tag: '@smoke' },
     async ({ page }) => {
-      // The real E2E environment returns 503 BACKUP_NOT_CONFIGURED — that is fine.
       // We only verify navigation works and the heading renders.
       const backupsPage = new BackupsPage(page);
 
@@ -132,11 +130,20 @@ test.describe('Backups tab — member access control', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Backups page — not-configured state', () => {
-  test('Shows not-configured message when BACKUP_DIR is not set', async ({ page }) => {
+  test('Shows not-configured message when API returns 503', async ({ page }) => {
     const backupsPage = new BackupsPage(page);
 
-    // Given: BACKUP_DIR is not configured (real E2E server returns 503)
-    // No mocking needed — the testcontainer has no BACKUP_DIR set
+    // Mock GET /api/backups to return 503 BACKUP_NOT_CONFIGURED
+    // (BACKUP_DIR now defaults to /backups, so we must mock to test this UI state)
+    await page.route(`**${API.backups}`, async (route) => {
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: { code: 'BACKUP_NOT_CONFIGURED', message: 'Backup is not configured' },
+        }),
+      });
+    });
 
     // When: Admin navigates to /settings/backups
     await backupsPage.goto();
