@@ -46,6 +46,8 @@ describe('budgetOverviewApi', () => {
         budgetLineCount: 2,
       },
     ],
+    areaSummaries: [],
+    unassignedSummary: null,
     subsidySummary: {
       totalReductions: 10000,
       activeSubsidyCount: 2,
@@ -189,6 +191,8 @@ describe('budgetOverviewApi', () => {
         remainingVsMinPlannedWithPayback: 0,
         remainingVsMaxPlannedWithPayback: 0,
         categorySummaries: [],
+        areaSummaries: [],
+        unassignedSummary: null,
         subsidySummary: {
           totalReductions: 0,
           activeSubsidyCount: 0,

@@ -253,6 +253,8 @@ function buildOverview(
     remainingVsMinPlannedWithPayback: 0,
     remainingVsMaxPlannedWithPayback: 0,
     categorySummaries: [],
+    areaSummaries: [],
+    unassignedSummary: null,
     subsidySummary: {
       totalReductions: 0,
       activeSubsidyCount: 0,

@@ -111,6 +111,8 @@ describe('BudgetOverviewPage', () => {
     remainingVsMinPlannedWithPayback: 0,
     remainingVsMaxPlannedWithPayback: 0,
     categorySummaries: [],
+    areaSummaries: [],
+    unassignedSummary: null,
     subsidySummary: {
       totalReductions: 0,
       activeSubsidyCount: 0,
@@ -164,6 +166,8 @@ describe('BudgetOverviewPage', () => {
         budgetLineCount: 3,
       },
     ],
+    areaSummaries: [],
+    unassignedSummary: null,
     subsidySummary: {
       totalReductions: 15000,
       activeSubsidyCount: 3,

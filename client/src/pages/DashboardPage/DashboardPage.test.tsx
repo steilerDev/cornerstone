@@ -135,6 +135,8 @@ const minimalBudgetOverview: BudgetOverview = {
   remainingVsMinPlannedWithPayback: 20000,
   remainingVsMaxPlannedWithPayback: 10000,
   categorySummaries: [],
+  areaSummaries: [],
+  unassignedSummary: null,
   subsidySummary: {
     totalReductions: 0,
     activeSubsidyCount: 0,
