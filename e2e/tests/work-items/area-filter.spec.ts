@@ -218,38 +218,42 @@ test.describe(
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 4: No area filter — baseline sanity
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('No area filter — work items with no area are visible (Scenario 4)', { tag: '@responsive' }, () => {
-  test.describe.configure({ timeout: 90_000 });
+test.describe(
+  'No area filter — work items with no area are visible (Scenario 4)',
+  { tag: '@responsive' },
+  () => {
+    test.describe.configure({ timeout: 90_000 });
 
-  test('Work item with no area appears when no area filter is applied', async ({
-    page,
-    testPrefix,
-  }) => {
-    const listPage = new WorkItemsPage(page);
-    const workItemIds: string[] = [];
+    test('Work item with no area appears when no area filter is applied', async ({
+      page,
+      testPrefix,
+    }) => {
+      const listPage = new WorkItemsPage(page);
+      const workItemIds: string[] = [];
 
-    const wiName = `${testPrefix} Wi-Unfiltered-No-Area`;
+      const wiName = `${testPrefix} Wi-Unfiltered-No-Area`;
 
-    try {
-      workItemIds.push(await createWorkItemViaApi(page, { title: wiName }));
+      try {
+        workItemIds.push(await createWorkItemViaApi(page, { title: wiName }));
 
-      // Navigate without any areaId param — all items should be visible
-      await listPage.goto();
-      await listPage.waitForLoaded();
+        // Navigate without any areaId param — all items should be visible
+        await listPage.goto();
+        await listPage.waitForLoaded();
 
-      // areaId must not appear in the URL (no filter applied)
-      const url = new URL(page.url());
-      expect(url.searchParams.has('areaId')).toBe(false);
+        // areaId must not appear in the URL (no filter applied)
+        const url = new URL(page.url());
+        expect(url.searchParams.has('areaId')).toBe(false);
 
-      // The item with no area must appear in the list
-      await expect(async () => {
-        const titles = await listPage.getWorkItemTitles();
-        expect(titles).toContain(wiName);
-      }).toPass({ timeout: 30_000 });
-    } finally {
-      for (const id of workItemIds) {
-        await deleteWorkItemViaApi(page, id);
+        // The item with no area must appear in the list
+        await expect(async () => {
+          const titles = await listPage.getWorkItemTitles();
+          expect(titles).toContain(wiName);
+        }).toPass({ timeout: 30_000 });
+      } finally {
+        for (const id of workItemIds) {
+          await deleteWorkItemViaApi(page, id);
+        }
       }
-    }
-  });
-});
+    });
+  },
+);

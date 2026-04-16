@@ -1328,12 +1328,7 @@ describe('Work Item Service', () => {
       // Then: All 4 items with an area are returned; no-area item excluded
       expect(result.items).toHaveLength(4);
       const titles = result.items.map((i) => i.title).sort();
-      expect(titles).toEqual([
-        'Child A Item',
-        'Child B Item',
-        'Grandchild A1 Item',
-        'Root Item',
-      ]);
+      expect(titles).toEqual(['Child A Item', 'Child B Item', 'Grandchild A1 Item', 'Root Item']);
     });
 
     it('case 4: CSV of two non-adjacent IDs returns exactly those subtrees', () => {
@@ -1364,10 +1359,9 @@ describe('Work Item Service', () => {
       // When: Passing an array (internal API usage pattern)
       // WorkItemListQuery.areaId is typed `string` on the wire, but resolveAreaIds
       // accepts `string | string[]` — cast to satisfy TS.
-      const result = workItemService.listWorkItems(
-        db,
-        { areaId: [childAId, childBId] } as unknown as WorkItemListQuery,
-      );
+      const result = workItemService.listWorkItems(db, {
+        areaId: [childAId, childBId],
+      } as unknown as WorkItemListQuery);
 
       // Then: 3 items — child-a, grandchild-a1 (descendant of child-a), child-b
       expect(result.items).toHaveLength(3);
