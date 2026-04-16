@@ -17,6 +17,22 @@ export interface CategoryBudgetSummary {
   budgetLineCount: number;
 }
 
+/**
+ * Budget summary for a single area node.
+ * planned = raw sum of work_item_budgets.planned_amount for all work items
+ *           in this area's subtree (no confidence-margin transformation).
+ * actual  = sum of non-quotation invoice amounts linked to those work items' budget lines.
+ * variance = planned - actual.
+ */
+export interface AreaBudgetSummary {
+  areaId: string;
+  name: string;
+  parentId: string | null;
+  planned: number;
+  actual: number;
+  variance: number;
+}
+
 export interface BudgetOverview {
   availableFunds: number; // SUM(active budget_sources.total_amount)
   sourceCount: number;
@@ -40,6 +56,14 @@ export interface BudgetOverview {
   remainingVsMaxPlannedWithPayback: number;
 
   categorySummaries: CategoryBudgetSummary[];
+
+  areaSummaries: AreaBudgetSummary[];
+
+  /**
+   * Aggregated budget totals for work items with no area assignment.
+   * null when no such work items exist.
+   */
+  unassignedSummary: { planned: number; actual: number; variance: number } | null;
 
   subsidySummary: {
     totalReductions: number;
