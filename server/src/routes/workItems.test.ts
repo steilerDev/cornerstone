@@ -71,7 +71,11 @@ describe('Work Item Routes', () => {
   /**
    * Helper: Insert a test area directly into the app DB.
    */
-  function insertTestArea(name: string, color: string | null = null): string {
+  function insertTestArea(
+    name: string,
+    color: string | null = null,
+    parentId: string | null = null,
+  ): string {
     const now = new Date().toISOString();
     const areaId = `area-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     app.db
@@ -79,7 +83,7 @@ describe('Work Item Routes', () => {
       .values({
         id: areaId,
         name,
-        parentId: null,
+        parentId,
         color,
         description: null,
         sortOrder: 0,
@@ -1487,6 +1491,109 @@ describe('Work Item Routes', () => {
 
       // Then: 400 validation error (blocked is not in the enum)
       expect(response.statusCode).toBe(400);
+    });
+
+    // ─── areaId CSV / hierarchy expansion — integration (#1241) ───────────────
+
+    it('GET ?areaId=<parent> returns descendant items (hierarchy expansion)', async () => {
+      // Given: A parent→child area hierarchy and work items in each level
+      const { userId, cookie } = await createUserWithSession(
+        'areahier@example.com',
+        'Area Hier User',
+        'password',
+      );
+      const parentId = insertTestArea('Floor 1');
+      const childId = insertTestArea('Floor 1 Kitchen', null, parentId);
+      workItemService.createWorkItem(app.db, userId, { title: 'Hallway Tiles', areaId: parentId });
+      workItemService.createWorkItem(app.db, userId, { title: 'Kitchen Sink', areaId: childId });
+      workItemService.createWorkItem(app.db, userId, { title: 'Unrelated Item' });
+
+      // When: Filtering by the parent area
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/work-items?areaId=${parentId}`,
+        headers: { cookie },
+      });
+
+      // Then: 200, both parent-level and child-level items are returned
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as WorkItemListResponse;
+      expect(body.items).toHaveLength(2);
+      const titles = body.items.map((i) => i.title).sort();
+      expect(titles).toEqual(['Hallway Tiles', 'Kitchen Sink']);
+    });
+
+    it('GET ?areaId=<a>,<b> returns union of both area subtrees', async () => {
+      // Given: Two sibling areas each with a work item
+      const { userId, cookie } = await createUserWithSession(
+        'areacsv@example.com',
+        'Area CSV User',
+        'password',
+      );
+      const areaAId = insertTestArea('Wing A');
+      const areaBId = insertTestArea('Wing B');
+      workItemService.createWorkItem(app.db, userId, { title: 'Wing A Task', areaId: areaAId });
+      workItemService.createWorkItem(app.db, userId, { title: 'Wing B Task', areaId: areaBId });
+      workItemService.createWorkItem(app.db, userId, { title: 'No Area Task' });
+
+      // When: Filtering by CSV of both area IDs
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/work-items?areaId=${areaAId},${areaBId}`,
+        headers: { cookie },
+      });
+
+      // Then: 200, items from both areas are included
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as WorkItemListResponse;
+      expect(body.items).toHaveLength(2);
+      const titles = body.items.map((i) => i.title).sort();
+      expect(titles).toEqual(['Wing A Task', 'Wing B Task']);
+    });
+
+    it('GET ?areaId=non-existent-area-uuid returns 200 with empty items array', async () => {
+      // Given: Authenticated user with some work items, but no matching area
+      const { userId, cookie } = await createUserWithSession(
+        'areanone@example.com',
+        'Area None User',
+        'password',
+      );
+      workItemService.createWorkItem(app.db, userId, { title: 'Some Item' });
+
+      // When: Filtering by a non-existent area ID
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/work-items?areaId=non-existent-area-uuid',
+        headers: { cookie },
+      });
+
+      // Then: 200, empty items array (unknown IDs silently ignored)
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as WorkItemListResponse;
+      expect(body.items).toHaveLength(0);
+    });
+
+    it('GET ?areaId=<leaf-area-with-no-items> returns 200 with empty items array', async () => {
+      // Given: A leaf area exists but has no work items assigned to it
+      const { userId, cookie } = await createUserWithSession(
+        'arealeaf@example.com',
+        'Area Leaf User',
+        'password',
+      );
+      const emptyAreaId = insertTestArea('Empty Room');
+      workItemService.createWorkItem(app.db, userId, { title: 'Item in Other Area' });
+
+      // When: Filtering by the empty area
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/work-items?areaId=${emptyAreaId}`,
+        headers: { cookie },
+      });
+
+      // Then: 200, no items in result
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as WorkItemListResponse;
+      expect(body.items).toHaveLength(0);
     });
   });
 });
