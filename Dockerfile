@@ -73,6 +73,12 @@ COPY docs/package.json docs/
 # target platform — no compilation, no build-base/python3 needed.
 RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
 
+# Ensure workspace node_modules directories exist even when npm hoists all
+# production dependencies to the root node_modules/. Without this, the
+# production stage's COPY --from=deps /app/server/node_modules/ fails with
+# "not found" whenever no packages remain workspace-local.
+RUN mkdir -p /app/server/node_modules /app/client/node_modules /app/shared/node_modules
+
 # Create backups directory (for copying into production stage)
 RUN mkdir -p /backups
 
