@@ -42,6 +42,28 @@ import { NotFoundError, ValidationError } from '../errors/AppError.js';
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 /**
+ * Parse the areaId filter (single ID, CSV string, or array) into an expanded,
+ * deduplicated array of area IDs including each supplied ID's descendants.
+ * Empty segments and unknown IDs are silently ignored (inArray on unknown IDs returns no rows).
+ */
+function resolveAreaIds(db: DbType, areaId: string | string[]): string[] {
+  const raw = Array.isArray(areaId)
+    ? areaId
+    : areaId
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+  const expanded = new Set<string>();
+  for (const id of raw) {
+    for (const descendant of getDescendantIds(db, id)) {
+      expanded.add(descendant);
+    }
+  }
+  return [...expanded];
+}
+
+/**
  * Count budget lines for a work item.
  */
 function getBudgetLineCount(db: DbType, workItemId: string): number {
@@ -613,8 +635,10 @@ export function listWorkItems(
   }
 
   if (query.areaId) {
-    const areaIds = getDescendantIds(db, query.areaId);
-    baseConditions.push(inArray(workItems.areaId, areaIds));
+    const areaIds = resolveAreaIds(db, query.areaId);
+    if (areaIds.length > 0) {
+      baseConditions.push(inArray(workItems.areaId, areaIds));
+    }
   }
 
   if (query.assignedVendorId) {
