@@ -48,7 +48,7 @@ describe('TimelineWorkItem interface', () => {
           translationKey: 'trades.tiling',
         },
       },
-      area: { id: 'area-kitchen', name: 'Kitchen', color: '#FF5733' },
+      area: { id: 'area-kitchen', name: 'Kitchen', color: '#FF5733', ancestors: [] },
     };
 
     expect(item.id).toBe('wi-001');
@@ -145,7 +145,7 @@ describe('TimelineWorkItem interface', () => {
   });
 
   it('area color can be null', () => {
-    const area: AreaSummary = { id: 'area-no-color', name: 'Uncolored Area', color: null };
+    const area: AreaSummary = { id: 'area-no-color', name: 'Uncolored Area', color: null, ancestors: [] };
     const item: TimelineWorkItem = {
       id: 'wi-006',
       title: 'Area No Color',
@@ -348,7 +348,7 @@ describe('TimelineResponse interface', () => {
               translationKey: 'trades.tiling',
             },
           },
-          area: { id: 'area-bathroom', name: 'Bathroom', color: '#3B82F6' },
+          area: { id: 'area-bathroom', name: 'Bathroom', color: '#3B82F6', ancestors: [] },
         },
       ],
       dependencies: [

@@ -18,6 +18,7 @@ export type { FilterColumnMeta, FilterMeta } from './types/filterMeta.js';
 
 // Areas
 export type {
+  AreaAncestor,
   AreaSummary,
   AreaResponse,
   AreaListResponse,

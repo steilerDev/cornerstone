@@ -32,6 +32,7 @@ import type {
   HouseholdItemCategory,
   HouseholdItemStatus,
   AreaSummary,
+  AreaAncestor,
   VendorSummary,
   TradeSummary,
 } from '@cornerstone/shared';
@@ -41,6 +42,8 @@ import type {
   SchedulingDependency,
   ScheduleResult,
 } from './schedulingEngine.js';
+import { resolveAreaAncestors } from './areaService.js';
+import type { AreaMapEntry } from './areaService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -57,14 +60,18 @@ function toUserSummary(user: typeof users.$inferSelect | null): UserSummary | nu
 }
 
 /**
- * Convert a database area row to AreaSummary shape.
+ * Convert an area map entry to AreaSummary shape.
  */
-function toAreaSummaryInternal(area: typeof areas.$inferSelect | null): AreaSummary | null {
+function toAreaSummaryInternal(
+  area: AreaMapEntry | null,
+  ancestors: AreaAncestor[] = [],
+): AreaSummary | null {
   if (!area) return null;
   return {
     id: area.id,
     name: area.name,
     color: area.color,
+    ancestors,
   };
 }
 
@@ -189,9 +196,17 @@ export function getTimeline(db: DbType): TimelineResponse {
     }
   }
 
-  const areaMap = new Map<string, typeof areas.$inferSelect>();
+  const areaMap = new Map<string, AreaMapEntry>();
   if (areaIds.length > 0) {
-    const areaRows = db.select().from(areas).all();
+    const areaRows = db
+      .select({
+        id: areas.id,
+        name: areas.name,
+        color: areas.color,
+        parentId: areas.parentId,
+      })
+      .from(areas)
+      .all();
     for (const a of areaRows) {
       areaMap.set(a.id, a);
     }
@@ -230,7 +245,12 @@ export function getTimeline(db: DbType): TimelineResponse {
       ? toUserSummary(userMap.get(wi.assignedUserId) ?? null)
       : null;
 
-    const area = wi.areaId ? toAreaSummaryInternal(areaMap.get(wi.areaId) ?? null) : null;
+    const area = wi.areaId
+      ? toAreaSummaryInternal(
+          areaMap.get(wi.areaId) ?? null,
+          resolveAreaAncestors(wi.areaId, areaMap),
+        )
+      : null;
 
     const assignedVendor = wi.assignedVendorId
       ? toVendorSummaryWithTrade(vendorMap.get(wi.assignedVendorId) ?? null, tradeMap)

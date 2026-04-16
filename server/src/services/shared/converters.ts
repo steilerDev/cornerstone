@@ -16,6 +16,7 @@ import type {
   UserSummary,
   VendorSummary,
   AreaSummary,
+  AreaAncestor,
   TradeSummary,
 } from '@cornerstone/shared';
 
@@ -92,15 +93,19 @@ export function toVendorSummary(
 /**
  * Convert a database area row to AreaSummary shape.
  * Returns null if area is null or undefined.
+ * @param area The area row to convert
+ * @param ancestors Optional ancestor chain (root-first order, not including the area itself)
  */
 export function toAreaSummary(
   area: typeof areas.$inferSelect | null | undefined,
+  ancestors: AreaAncestor[] = [],
 ): AreaSummary | null {
   if (!area) return null;
   return {
     id: area.id,
     name: area.name,
     color: area.color,
+    ancestors,
   };
 }
 
