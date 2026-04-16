@@ -1,4 +1,4 @@
-import { describe, it, expect, jest } from '@jest/globals';
+import { describe, it, expect, jest, beforeAll, afterAll } from '@jest/globals';
 import type { ReactNode } from 'react';
 import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
 import { DateFilter } from './DateFilter.js';
@@ -25,6 +25,22 @@ function findDayButton(container: HTMLElement, dayNumber: number): HTMLButtonEle
 }
 
 describe('DateFilter', () => {
+  // Freeze time to 2026-03-15 so the underlying DateRangePicker's default "current month" is
+  // always March 2026. Tests that click day numbers and assert March dates are time-bombs
+  // without this: once the real clock advances past March 2026 the picker shows a different
+  // month and the expected date strings no longer match.
+  // doNotFake preserves real async timers so React Testing Library's findBy* and internal
+  // microtasks (act, etc.) continue to work correctly.
+  beforeAll(() => {
+    jest.useFakeTimers({
+      doNotFake: ['setTimeout', 'setInterval', 'setImmediate', 'queueMicrotask', 'performance'],
+    });
+    jest.setSystemTime(new Date('2026-03-15T12:00:00Z'));
+  });
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
   describe('rendering', () => {
     it('renders the DateRangePicker component with calendar grid', () => {
       const { container } = render(<DateFilter value="" onChange={jest.fn()} />);

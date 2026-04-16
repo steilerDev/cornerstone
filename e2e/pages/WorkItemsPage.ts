@@ -37,6 +37,7 @@ export class WorkItemsPage {
   readonly statusFilter: Locator;
   readonly userFilter: Locator;
   readonly tagFilter: Locator;
+  readonly areaFilter: Locator;
   readonly sortFilter: Locator;
   readonly sortOrderButton: Locator;
 
@@ -76,11 +77,16 @@ export class WorkItemsPage {
     this.searchInput = page.getByLabel('Search items');
     // DataTable filters are column-header filter buttons, not standalone <select> elements.
     // Each filterable column header renders a button with aria-label="Filter by {column label}".
-    // Column labels come from workItems i18n: Status, Assigned To, Vendor.
+    // Column labels come from workItems i18n: Status, Assigned To, Vendor, Area.
     this.statusFilter = page.getByRole('button', { name: 'Filter by Status' });
     this.userFilter = page.getByRole('button', { name: 'Filter by Assigned To' });
     // Tags column was removed — tagFilter kept for API compatibility, points to userFilter.
     this.tagFilter = page.getByRole('button', { name: 'Filter by Assigned To' });
+    // Area column filter button — the Area column is filterable via DataTable enum filter.
+    // The Area column label comes from workItems i18n: list.table.area = "Area".
+    // aria-label rendered as "Filter by Area" (dataTable.filter.filterByColumn interpolation).
+    // The table header (and this button) is CSS-hidden on mobile (< 768px).
+    this.areaFilter = page.getByRole('button', { name: /Filter by Area/i });
     // sortFilter and sortOrderButton do not exist in DataTable — no standalone sort controls.
     // Sorting is triggered by clicking sortable column headers.
     this.sortFilter = page.locator('[aria-label="Column settings"]');

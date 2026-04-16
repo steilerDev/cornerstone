@@ -1,4 +1,4 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeAll, afterAll } from '@jest/globals';
 import type { ReactNode } from 'react';
 import { render as rtlRender, screen, fireEvent, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -51,6 +51,22 @@ function getPhaseLabel(container: HTMLElement): string {
 }
 
 describe('DateRangePicker', () => {
+  // Freeze time to 2026-03-15 so the picker's default "current month" is always March 2026.
+  // Without this, tests that click specific day numbers (e.g. day 15) and assert a March date
+  // become time-bombs: once the real clock advances to April 2026+ the picker shows a different
+  // month and the expected date strings no longer match.
+  // doNotFake preserves real async timers so React Testing Library's findBy* and internal
+  // microtasks (act, etc.) continue to work correctly.
+  beforeAll(() => {
+    jest.useFakeTimers({
+      doNotFake: ['setTimeout', 'setInterval', 'setImmediate', 'queueMicrotask', 'performance'],
+    });
+    jest.setSystemTime(new Date('2026-03-15T12:00:00Z'));
+  });
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
   describe('rendering', () => {
     it('renders a calendar grid with 7 day header columns', () => {
       const { container } = render(
