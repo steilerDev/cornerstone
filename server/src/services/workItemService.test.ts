@@ -594,15 +594,16 @@ describe('Work Item Service', () => {
         endDate: '2026-03-05',
       });
 
-      // When: Updating both dates
+      // When: Updating both dates (use far-future dates so the scheduler's "today floor"
+      // for not_started items never clamps them to the current date)
       const updated = workItemService.updateWorkItem(db, workItem.id, {
-        startDate: '2026-04-01',
-        endDate: '2026-04-10',
+        startDate: '2099-04-01',
+        endDate: '2099-04-10',
       });
 
       // Then: Both updated successfully
-      expect(updated.startDate).toBe('2026-04-01');
-      expect(updated.endDate).toBe('2026-04-10');
+      expect(updated.startDate).toBe('2099-04-01');
+      expect(updated.endDate).toBe('2099-04-10');
     });
 
     it('allows setting description to null', () => {
