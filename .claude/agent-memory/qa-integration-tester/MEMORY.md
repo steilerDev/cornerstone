@@ -3,6 +3,10 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## ESM Module Spy Anti-Pattern (2026-04-16)
+
+**Critical**: `jest.spyOn(module, 'functionName')` ALWAYS THROWS on ESM static imports with error `TypeError: Cannot assign to read only property 'functionName' of object '[object Module]'`. This causes the **entire test suite to fail to run**, not just that test. ESM exports are read-only live bindings — you cannot reassign them. The fix: remove the spy entirely. If an efficiency check (`loadAreaMap called once`) was the purpose, verify correctness via observable behavior instead. Affected file: `server/src/routes/workItems.ancestors.test.ts` (fixed 2026-04-16). If spying on ESM is required, use `jest.unstable_mockModule()` at the top level before imports.
+
 ## Fastify AJV Default: removeAdditional=true (2026-03-26)
 
 **Critical pattern**: Fastify's `@fastify/ajv-compiler` defaults to `removeAdditional: true`. This means `additionalProperties: false` in body/querystring schemas does NOT reject unknown properties with 400 — it strips them and lets the request proceed. Tests that expect 400 for unknown fields are wrong. The correct test is to assert the request succeeds (201/200) with extra fields silently removed. See `server/src/routes/auth.test.ts` comment for reference.

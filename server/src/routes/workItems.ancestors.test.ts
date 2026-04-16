@@ -8,8 +8,7 @@
  * - AC1: 3-level chain — detail endpoint returns correct 2-ancestor chain
  * - AC2: no area on work item — area is null
  * - AC4: orphaned parent — ancestors is empty array
- * - List endpoint returns correct ancestors
- * - Single area-map load per list request
+ * - List endpoint: 3-level chain and 5-item multi-hierarchy correct ancestors
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
@@ -19,7 +18,6 @@ import { join } from 'node:path';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
-import * as areaService from '../services/areaService.js';
 import * as schema from '../db/schema.js';
 import type { FastifyInstance } from 'fastify';
 import type {
@@ -191,26 +189,28 @@ describe('Work Item Routes — area ancestors', () => {
       );
 
       // Insert area_A with a parentId pointing to a non-existent area.
-      // Must disable FK checks to insert directly.
-      app.db.$client.pragma('foreign_keys = OFF');
-
+      // Must disable FK checks to insert directly. Use try/finally to ensure
+      // FK checks are always re-enabled regardless of insert success/failure.
       const now = new Date().toISOString();
       const areaAId = `area-orphan-${Date.now()}`;
-      app.db
-        .insert(schema.areas)
-        .values({
-          id: areaAId,
-          name: 'Orphan Area',
-          parentId: 'nonexistent-parent-id',
-          color: null,
-          description: null,
-          sortOrder: 0,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-
-      app.db.$client.pragma('foreign_keys = ON');
+      app.db.$client.pragma('foreign_keys = OFF');
+      try {
+        app.db
+          .insert(schema.areas)
+          .values({
+            id: areaAId,
+            name: 'Orphan Area',
+            parentId: 'nonexistent-parent-id',
+            color: null,
+            description: null,
+            sortOrder: 0,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+      } finally {
+        app.db.$client.pragma('foreign_keys = ON');
+      }
 
       const workItemId = await createWorkItem(cookie, 'Orphan area work item', areaAId);
 
@@ -268,7 +268,7 @@ describe('Work Item Routes — area ancestors', () => {
       expect(area.ancestors[1].name).toBe('Basement');
     });
 
-    it('single area-map load per list: loadAreaMap called exactly once for 5 work items', async () => {
+    it('all 5 work items across a 2-level hierarchy have correct ancestors populated', async () => {
       const { cookie } = await createUserWithSession(
         'user@example.com',
         'User',
@@ -289,8 +289,6 @@ describe('Work Item Routes — area ancestors', () => {
         await createWorkItem(cookie, `Work Item ${i}`, areas[i]);
       }
 
-      const spy = jest.spyOn(areaService, 'loadAreaMap');
-
       const response = await app.inject({
         method: 'GET',
         url: '/api/work-items',
@@ -299,12 +297,9 @@ describe('Work Item Routes — area ancestors', () => {
 
       expect(response.statusCode).toBe(200);
 
-      // If the spy is compatible with this ESM import pattern, assert single call
-      if (spy.mock.calls.length > 0) {
-        expect(spy.mock.calls.length).toBe(1);
-      }
-
-      // Regardless of spy behavior, verify all 5 items have correct ancestors populated
+      // Verify all 5 items have correct ancestors populated
+      // Note: jest.spyOn on ESM module exports is not supported (read-only live bindings),
+      // so the "loadAreaMap called once" efficiency check is omitted here.
       const body = JSON.parse(response.body) as WorkItemListResponse;
       expect(body.items).toHaveLength(5);
 

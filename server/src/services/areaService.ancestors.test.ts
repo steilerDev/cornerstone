@@ -162,9 +162,13 @@ describe('areaService — loadAreaMap and resolveAreaAncestors', () => {
     it('AC4 — orphaned parent: returns empty array when parentId points to non-existent area', () => {
       // floor1 has parentId pointing to an area that is not in the DB.
       // Must disable FK checks to insert directly with a dangling parentId.
+      // Use try/finally to ensure FK checks are always re-enabled.
       sqlite.pragma('foreign_keys = OFF');
-      insertArea('floor1-1', 'Floor 1', { parentId: 'nonexistent-parent-id' });
-      sqlite.pragma('foreign_keys = ON');
+      try {
+        insertArea('floor1-1', 'Floor 1', { parentId: 'nonexistent-parent-id' });
+      } finally {
+        sqlite.pragma('foreign_keys = ON');
+      }
 
       const map = loadAreaMap(db);
       const ancestors = resolveAreaAncestors('floor1-1', map);
@@ -177,9 +181,13 @@ describe('areaService — loadAreaMap and resolveAreaAncestors', () => {
       // House → (orphan) → Room
       // Room.parentId = 'orphan-id' which is not in the DB.
       // Must disable FK checks to insert the dangling parentId.
+      // Use try/finally to ensure FK checks are always re-enabled.
       sqlite.pragma('foreign_keys = OFF');
-      insertArea('room-1', 'Room', { parentId: 'orphan-id' });
-      sqlite.pragma('foreign_keys = ON');
+      try {
+        insertArea('room-1', 'Room', { parentId: 'orphan-id' });
+      } finally {
+        sqlite.pragma('foreign_keys = ON');
+      }
       // House is a separate root that is NOT directly connected to Room
       insertArea('house-1', 'House');
 
@@ -192,13 +200,15 @@ describe('areaService — loadAreaMap and resolveAreaAncestors', () => {
 
     it('cycle protection: does not throw or loop infinitely when A→B→A', () => {
       // Bypass service validation to insert a cycle directly
-      // We must disable FK checks first since parentId FK references same table
+      // We must disable FK checks first since parentId FK references same table.
+      // Use try/finally to ensure FK checks are always re-enabled.
       sqlite.pragma('foreign_keys = OFF');
-
-      insertArea('a-1', 'Area A', { parentId: 'b-1' });
-      insertArea('b-1', 'Area B', { parentId: 'a-1' });
-
-      sqlite.pragma('foreign_keys = ON');
+      try {
+        insertArea('a-1', 'Area A', { parentId: 'b-1' });
+        insertArea('b-1', 'Area B', { parentId: 'a-1' });
+      } finally {
+        sqlite.pragma('foreign_keys = ON');
+      }
 
       const map = loadAreaMap(db);
 
