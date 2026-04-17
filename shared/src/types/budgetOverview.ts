@@ -4,19 +4,6 @@
  * subsidy reductions, and four remaining-funds perspectives.
  */
 
-export interface CategoryBudgetSummary {
-  categoryId: string | null;
-  categoryName: string;
-  categoryColor: string | null;
-  categoryTranslationKey: string | null;
-  minPlanned: number; // invoiced lines use actualCost; non-invoiced use confidence margins
-  maxPlanned: number; // invoiced lines use actualCost; non-invoiced use confidence margins
-  actualCost: number;
-  actualCostPaid: number;
-  actualCostClaimed: number;
-  budgetLineCount: number;
-}
-
 /**
  * Budget summary for a single area node.
  * planned = raw sum of work_item_budgets.planned_amount for all work items
@@ -54,8 +41,6 @@ export interface BudgetOverview {
   remainingVsMinPlannedWithPayback: number;
   /** Payback-adjusted remaining vs max planned: availableFunds + maxTotalPayback - maxPlanned */
   remainingVsMaxPlannedWithPayback: number;
-
-  categorySummaries: CategoryBudgetSummary[];
 
   areaSummaries: AreaBudgetSummary[];
 

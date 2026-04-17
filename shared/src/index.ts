@@ -187,7 +187,6 @@ export type {
 // Budget Overview
 export type {
   AreaBudgetSummary,
-  CategoryBudgetSummary,
   BudgetOverview,
   BudgetOverviewResponse,
   OversubscribedSubsidy,
