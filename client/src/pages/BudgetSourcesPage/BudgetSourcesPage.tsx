@@ -5,12 +5,14 @@ import type {
   BudgetSourceType,
   BudgetSourceStatus,
   CreateBudgetSourceRequest,
+  BudgetSourceBudgetLinesResponse,
 } from '@cornerstone/shared';
 import {
   fetchBudgetSources,
   createBudgetSource,
   updateBudgetSource,
   deleteBudgetSource,
+  fetchBudgetLinesForSource,
 } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -18,6 +20,7 @@ import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
+import { SourceBudgetLinePanel } from '../../components/SourceBudgetLinePanel/SourceBudgetLinePanel.js';
 import styles from './BudgetSourcesPage.module.css';
 
 const BUDGET_TABS: SubNavTab[] = [
@@ -269,6 +272,12 @@ export function BudgetSourcesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
 
+  // Budget lines expansion state
+  const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
+  const [linesCache, setLinesCache] = useState<Map<string, BudgetSourceBudgetLinesResponse>>(new Map());
+  const [linesLoading, setLinesLoading] = useState<Set<string>>(new Set());
+  const [linesError, setLinesError] = useState<Map<string, string>>(new Map());
+
   // Translation-dependent label maps
   const SOURCE_TYPE_LABELS: Record<BudgetSourceType, string> = {
     bank_loan: t('sources.sourceTypes.bank_loan'),
@@ -472,6 +481,77 @@ export function BudgetSourcesPage() {
       }
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleToggleLines = async (sourceId: string) => {
+    const isCurrentlyExpanded = expandedSources.has(sourceId);
+
+    if (isCurrentlyExpanded) {
+      // Collapse: just remove from expanded set
+      const newExpanded = new Set(expandedSources);
+      newExpanded.delete(sourceId);
+      setExpandedSources(newExpanded);
+    } else {
+      // Expand: fetch if not cached
+      const isAlreadyCached = linesCache.has(sourceId);
+
+      if (!isAlreadyCached) {
+        setLinesLoading((prev) => new Set(prev).add(sourceId));
+        setLinesError((prev) => {
+          const newErr = new Map(prev);
+          newErr.delete(sourceId);
+          return newErr;
+        });
+
+        try {
+          const data = await fetchBudgetLinesForSource(sourceId);
+          setLinesCache((prev) => new Map(prev).set(sourceId, data));
+        } catch (err) {
+          let errorMsg = t('sources.lines.fetchError');
+          if (err instanceof ApiClientError) {
+            errorMsg = err.error.message;
+          }
+          setLinesError((prev) => new Map(prev).set(sourceId, errorMsg));
+        } finally {
+          setLinesLoading((prev) => {
+            const newLoading = new Set(prev);
+            newLoading.delete(sourceId);
+            return newLoading;
+          });
+        }
+      }
+
+      // Add to expanded set
+      const newExpanded = new Set(expandedSources);
+      newExpanded.add(sourceId);
+      setExpandedSources(newExpanded);
+    }
+  };
+
+  const handleRetryLines = async (sourceId: string) => {
+    setLinesLoading((prev) => new Set(prev).add(sourceId));
+    setLinesError((prev) => {
+      const newErr = new Map(prev);
+      newErr.delete(sourceId);
+      return newErr;
+    });
+
+    try {
+      const data = await fetchBudgetLinesForSource(sourceId);
+      setLinesCache((prev) => new Map(prev).set(sourceId, data));
+    } catch (err) {
+      let errorMsg = t('sources.lines.fetchError');
+      if (err instanceof ApiClientError) {
+        errorMsg = err.error.message;
+      }
+      setLinesError((prev) => new Map(prev).set(sourceId, errorMsg));
+    } finally {
+      setLinesLoading((prev) => {
+        const newLoading = new Set(prev);
+        newLoading.delete(sourceId);
+        return newLoading;
+      });
     }
   };
 
@@ -912,6 +992,33 @@ export function BudgetSourcesPage() {
                             </span>
                           )}
                         </div>
+                        <button
+                          type="button"
+                          className={`${styles.expandToggle} ${expandedSources.has(source.id) ? styles.expandToggleActive : ''}`}
+                          onClick={() => handleToggleLines(source.id)}
+                          disabled={!!editingSource}
+                          aria-expanded={expandedSources.has(source.id)}
+                          aria-controls={`source-lines-${source.id}`}
+                          aria-label={
+                            expandedSources.has(source.id)
+                              ? t('sources.lines.collapseAriaLabel', { name: source.name })
+                              : t('sources.lines.expandAriaLabel', { name: source.name })
+                          }
+                        >
+                          <svg
+                            className={`${styles.chevronIcon} ${expandedSources.has(source.id) ? styles.chevronExpanded : ''}`}
+                            viewBox="0 0 16 16"
+                            fill="currentColor"
+                            aria-hidden="true"
+                          >
+                            <path d="M6 5l4 4-4 4" stroke="currentColor" strokeWidth="2" fill="none" />
+                          </svg>
+                          <span>
+                            {expandedSources.has(source.id)
+                              ? t('sources.lines.collapse')
+                              : t('sources.lines.expand')}
+                          </span>
+                        </button>
                       </div>
 
                       <SourceBarChart
@@ -926,6 +1033,17 @@ export function BudgetSourcesPage() {
                         </p>
                       )}
                     </div>
+
+                    {expandedSources.has(source.id) && (
+                      <SourceBudgetLinePanel
+                        sourceId={source.id}
+                        sourceName={source.name}
+                        data={linesCache.get(source.id) ?? null}
+                        isLoading={linesLoading.has(source.id)}
+                        error={linesError.get(source.id) ?? null}
+                        onRetry={() => handleRetryLines(source.id)}
+                      />
+                    )}
 
                     <div className={styles.sourceActions}>
                       <button
