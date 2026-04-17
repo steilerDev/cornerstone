@@ -106,9 +106,10 @@ export class WorkItemsPage {
     this.prevPageButton = page.getByLabel('Previous');
     this.nextPageButton = page.getByLabel('Next');
 
-    // Empty state — use .first() to avoid strict mode: child elements such as
-    // emptyStateTitle/emptyStateDescription also contain "emptyState" in their class names.
-    this.emptyState = page.locator('[class*="emptyState"]').first();
+    // Empty state — EmptyState component's outer wrapper uses the CSS-module-hashed
+    // `emptyState_abc123` class. Scope by prefix so sub-element classes like
+    // `emptyStateTitle_/emptyStateDescription_` don't get picked up first.
+    this.emptyState = page.locator('[class^="emptyState_"], [class*=" emptyState_"]').first();
 
     // Error banner (outside modal)
     this.errorBanner = page.locator('[role="alert"][class*="errorBanner"]');
