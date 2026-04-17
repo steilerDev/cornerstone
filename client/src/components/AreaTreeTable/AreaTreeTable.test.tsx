@@ -547,21 +547,15 @@ describe('AreaTreeTable — leaf node placeholder', () => {
   });
 
   it('leaf rows have expandBtnPlaceholder class in their name cell', () => {
-    render(
+    const { container } = render(
       <AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />,
     );
 
     fireEvent.click(screen.getByRole('button', { name: /expand root a/i }));
 
-    const { container } = render(
-      <AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />,
-    );
-
-    // After expanding, the leaf row should contain expandBtnPlaceholder
+    // After expanding, the leaf child row should contain expandBtnPlaceholder
     // (identity-obj-proxy makes class attributes carry the original key name)
     const placeholders = container.querySelectorAll('[class*="expandBtnPlaceholder"]');
-    // Root A's expand btn is replaced by a placeholder on the unassigned/other leaf rows
-    // For leaf children, placeholder should appear
     expect(placeholders.length).toBeGreaterThan(0);
   });
 });
