@@ -12,6 +12,8 @@ import type {
 import { NotFoundError, ValidationError, ConflictError } from '../errors/AppError.js';
 import { toWorkItemSummary } from './workItemService.js';
 import { autoReschedule } from './schedulingEngine.js';
+import { loadAreaMap } from './areaService.js';
+import type { AreaMapEntry } from './areaService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -241,6 +243,9 @@ export function getDependencies(db: DbType, workItemId: string): WorkItemDepende
   // Ensure work item exists
   ensureWorkItemExists(db, workItemId, 'Work item');
 
+  // Load area map once for all work item summaries
+  const areaMap = loadAreaMap(db);
+
   // Fetch predecessors: work items that this item depends on
   const predecessorRows = db
     .select({
@@ -253,7 +258,7 @@ export function getDependencies(db: DbType, workItemId: string): WorkItemDepende
     .all();
 
   const predecessors: DependencyResponse[] = predecessorRows.map((row) => ({
-    workItem: toWorkItemSummary(db, row.workItem),
+    workItem: toWorkItemSummary(db, row.workItem, areaMap),
     dependencyType: row.dependency.dependencyType,
     leadLagDays: row.dependency.leadLagDays,
   }));
@@ -270,7 +275,7 @@ export function getDependencies(db: DbType, workItemId: string): WorkItemDepende
     .all();
 
   const successors: DependencyResponse[] = successorRows.map((row) => ({
-    workItem: toWorkItemSummary(db, row.workItem),
+    workItem: toWorkItemSummary(db, row.workItem, areaMap),
     dependencyType: row.dependency.dependencyType,
     leadLagDays: row.dependency.leadLagDays,
   }));
