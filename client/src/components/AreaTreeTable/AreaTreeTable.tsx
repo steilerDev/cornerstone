@@ -329,7 +329,6 @@ export function AreaTreeTable({ areas, unassigned, formatCurrency }: AreaTreeTab
   // Keyboard navigation
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLButtonElement>, nodeId: string) => {
-      const visibleButtonIds: string[] = [];
       const allButtons = Array.from(buttonRefs.current.entries())
         .filter(([, btn]) => btn && btn.offsetParent !== null) // visible
         .map(([id]) => id);
@@ -447,7 +446,7 @@ export function AreaTreeTable({ areas, unassigned, formatCurrency }: AreaTreeTab
       <div className={styles.tableWrapper}>
         <table className={styles.table} role="treegrid">
           <caption className={styles.srOnly}>
-            Area budget breakdown with expandable tree
+            {t('overview.areaBreakdown.tableCaption')}
           </caption>
           <thead>
             <tr>

@@ -54,7 +54,6 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  role: treegrid;
 }
 
 .table thead th {

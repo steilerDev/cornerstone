@@ -55,7 +55,8 @@
       "unassignedBucket": "Unassigned",
       "emptyMessage": "No areas have been set up yet. Assign areas to work items to see spending by location.",
       "expanded": "{{name}} expanded",
-      "collapsed": "{{name}} collapsed"
+      "collapsed": "{{name}} collapsed",
+      "tableCaption": "Area budget breakdown with expandable tree"
     },
     "costBreakdown": {
       "loading": "Loading cost breakdown…",
