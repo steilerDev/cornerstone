@@ -540,7 +540,12 @@ export function deleteBudgetSource(db: DbType, id: string): void {
 function getWorkItemLineInvoiceData(
   db: DbType,
   lineId: string,
-): { actualCost: number; actualCostPaid: number; invoiceCount: number; hasClaimedInvoice: boolean } {
+): {
+  actualCost: number;
+  actualCostPaid: number;
+  invoiceCount: number;
+  hasClaimedInvoice: boolean;
+} {
   const result = db.get<{
     actualCost: number;
     actualCostPaid: number;
@@ -573,7 +578,12 @@ function getWorkItemLineInvoiceData(
 function getHouseholdItemLineInvoiceData(
   db: DbType,
   lineId: string,
-): { actualCost: number; actualCostPaid: number; invoiceCount: number; hasClaimedInvoice: boolean } {
+): {
+  actualCost: number;
+  actualCostPaid: number;
+  invoiceCount: number;
+  hasClaimedInvoice: boolean;
+} {
   const result = db.get<{
     actualCost: number;
     actualCostPaid: number;
@@ -602,10 +612,7 @@ function getHouseholdItemLineInvoiceData(
  * Get the first linked invoice for a budget line (or null if none).
  * Used for work item budget lines.
  */
-function getWorkItemLineInvoiceLink(
-  db: DbType,
-  lineId: string,
-): BudgetLineInvoiceLink | null {
+function getWorkItemLineInvoiceLink(db: DbType, lineId: string): BudgetLineInvoiceLink | null {
   const row = db.get<{
     ibl_id: string;
     invoice_id: string;
@@ -636,10 +643,7 @@ function getWorkItemLineInvoiceLink(
  * Get the first linked invoice for a budget line (or null if none).
  * Used for household item budget lines.
  */
-function getHouseholdItemLineInvoiceLink(
-  db: DbType,
-  lineId: string,
-): BudgetLineInvoiceLink | null {
+function getHouseholdItemLineInvoiceLink(db: DbType, lineId: string): BudgetLineInvoiceLink | null {
   const row = db.get<{
     ibl_id: string;
     invoice_id: string;
@@ -670,11 +674,15 @@ function getHouseholdItemLineInvoiceLink(
  * Build a BudgetSourceBudgetLine from a work item budget row.
  * Resolves related entities (work item, area, category, source, vendor, user) and invoice data.
  */
-function buildWorkItemBudgetLine(db: DbType, line: typeof workItemBudgets.$inferSelect): BudgetSourceBudgetLine {
+function buildWorkItemBudgetLine(
+  db: DbType,
+  line: typeof workItemBudgets.$inferSelect,
+): BudgetSourceBudgetLine {
   const workItem = db.select().from(workItems).where(eq(workItems.id, line.workItemId)).get();
-  const area = workItem && workItem.areaId
-    ? db.select().from(areas).where(eq(areas.id, workItem.areaId)).get()
-    : null;
+  const area =
+    workItem && workItem.areaId
+      ? db.select().from(areas).where(eq(areas.id, workItem.areaId)).get()
+      : null;
   const category = line.budgetCategoryId
     ? db.select().from(budgetCategories).where(eq(budgetCategories.id, line.budgetCategoryId)).get()
     : null;
@@ -722,11 +730,19 @@ function buildWorkItemBudgetLine(db: DbType, line: typeof workItemBudgets.$infer
  * Build a BudgetSourceBudgetLine from a household item budget row.
  * Resolves related entities (household item, area, category, source, vendor, user) and invoice data.
  */
-function buildHouseholdItemBudgetLine(db: DbType, line: typeof householdItemBudgets.$inferSelect): BudgetSourceBudgetLine {
-  const householdItem = db.select().from(householdItems).where(eq(householdItems.id, line.householdItemId)).get();
-  const area = householdItem && householdItem.areaId
-    ? db.select().from(areas).where(eq(areas.id, householdItem.areaId)).get()
-    : null;
+function buildHouseholdItemBudgetLine(
+  db: DbType,
+  line: typeof householdItemBudgets.$inferSelect,
+): BudgetSourceBudgetLine {
+  const householdItem = db
+    .select()
+    .from(householdItems)
+    .where(eq(householdItems.id, line.householdItemId))
+    .get();
+  const area =
+    householdItem && householdItem.areaId
+      ? db.select().from(areas).where(eq(areas.id, householdItem.areaId)).get()
+      : null;
   const category = line.budgetCategoryId
     ? db.select().from(budgetCategories).where(eq(budgetCategories.id, line.budgetCategoryId)).get()
     : null;
@@ -774,10 +790,7 @@ function buildHouseholdItemBudgetLine(db: DbType, line: typeof householdItemBudg
  * Comparator for sorting budget source budget lines.
  * Sort by: area name (nulls last) → parent item name → createdAt (all ascending).
  */
-function compareBudgetSourceLines(
-  a: BudgetSourceBudgetLine,
-  b: BudgetSourceBudgetLine,
-): number {
+function compareBudgetSourceLines(a: BudgetSourceBudgetLine, b: BudgetSourceBudgetLine): number {
   // Area name: nulls last
   if (a.area === null && b.area !== null) return 1;
   if (a.area !== null && b.area === null) return -1;
@@ -904,7 +917,10 @@ export function moveBudgetSourceBudgetLines(
     // Validate household item budget IDs if provided
     if (householdItemBudgetIds.length > 0) {
       const foundHib = tx
-        .select({ id: householdItemBudgets.id, budgetSourceId: householdItemBudgets.budgetSourceId })
+        .select({
+          id: householdItemBudgets.id,
+          budgetSourceId: householdItemBudgets.budgetSourceId,
+        })
         .from(householdItemBudgets)
         .where(inArray(householdItemBudgets.id, householdItemBudgetIds))
         .all();

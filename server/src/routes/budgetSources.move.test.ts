@@ -463,7 +463,12 @@ describe('PATCH /api/budget-sources/:sourceId/budget-lines/move', () => {
 
   // Extra: member role can use the endpoint
   it('member user can move budget lines', async () => {
-    const { cookie } = await createUserWithSession('member@test.com', 'Member', 'password', 'member');
+    const { cookie } = await createUserWithSession(
+      'member@test.com',
+      'Member',
+      'password',
+      'member',
+    );
     const srcA = createTestSource();
     const srcB = createTestSource();
     const wi = createWorkItem();

@@ -905,9 +905,7 @@ describe('renderSecondary slot', () => {
     const user = userEvent.setup();
     renderPicker({
       showItemsOnFocus: true,
-      renderSecondary: (item: TestItem) => (
-        <span data-testid="secondary-line">{item.status}</span>
-      ),
+      renderSecondary: (item: TestItem) => <span data-testid="secondary-line">{item.status}</span>,
       placeholder: 'Search...',
     });
 
@@ -926,9 +924,7 @@ describe('renderSecondary slot', () => {
     const user = userEvent.setup();
     renderPicker({
       showItemsOnFocus: true,
-      renderSecondary: (item: TestItem) => (
-        <span data-testid="secondary-line">{item.status}</span>
-      ),
+      renderSecondary: (item: TestItem) => <span data-testid="secondary-line">{item.status}</span>,
       placeholder: 'Search...',
     });
 
@@ -972,9 +968,7 @@ describe('renderSecondary slot', () => {
     const user = userEvent.setup();
     renderPicker({
       showItemsOnFocus: true,
-      renderSecondary: (item: TestItem) => (
-        <span data-testid="secondary-line">{item.status}</span>
-      ),
+      renderSecondary: (item: TestItem) => <span data-testid="secondary-line">{item.status}</span>,
       placeholder: 'Search...',
     });
 
