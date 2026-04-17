@@ -6,6 +6,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { ApiClientError } from '../../lib/apiClient.js';
+import type React from 'react';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
@@ -67,6 +68,21 @@ jest.unstable_mockModule('../../lib/householdItemDepsApi.js', () => ({
   createHouseholdItemDep: mockCreateHouseholdItemDep,
   deleteHouseholdItemDep: mockDeleteHouseholdItemDep,
   fetchHouseholdItemDeps: jest.fn(),
+}));
+
+// ── LocaleContext mock — AreaBreadcrumb renders Tooltip which calls useLocale() ──
+// Added for Issue #1239: MilestoneDetailPage now renders AreaBreadcrumb on linked WI rows.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en',
+    resolvedLocale: 'en',
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  LocaleProvider: ({ children }: { children: any }) => children,
 }));
 
 // ── Formatters mock ───────────────────────────────────────────────────────────
@@ -644,6 +660,129 @@ describe('MilestoneDetailPage', () => {
       // Status badge should show "completed" — multiple elements may match /completed/i
       // (status badge + completedAt label), so use getAllByText and assert at least one exists
       expect(screen.getAllByText(/completed/i).length).toBeGreaterThan(0);
+    });
+  });
+
+  // ─── Issue #1239 — AreaBreadcrumb on linked work item rows ──────────────────
+
+  describe('area breadcrumb on linked work item rows (Issue #1239)', () => {
+    beforeEach(() => {
+      makeDefaultListResponses();
+    });
+
+    it('shows area breadcrumb for linked WI with ancestors', async () => {
+      const wiWithArea: WorkItemSummary = {
+        ...sampleWorkItemSummary,
+        area: {
+          id: 'area-3',
+          name: 'Living Room',
+          color: null,
+          ancestors: [{ id: 'area-1', name: 'Ground Floor', color: null }],
+        },
+      };
+      mockGetMilestone.mockResolvedValueOnce({
+        ...sampleMilestoneDetail,
+        workItems: [wiWithArea],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Pour Foundation')).toBeInTheDocument();
+      });
+
+      // AreaBreadcrumb compact variant renders ancestors joined with ›; Tooltip duplicates text
+      expect(screen.getAllByText('Ground Floor › Living Room').length).toBeGreaterThan(0);
+    });
+
+    it('shows "No area" muted text for linked WI with null area', async () => {
+      const wiNoArea: WorkItemSummary = {
+        ...sampleWorkItemSummary,
+        area: null,
+      };
+      mockGetMilestone.mockResolvedValueOnce({
+        ...sampleMilestoneDetail,
+        workItems: [wiNoArea],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Pour Foundation')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('No area')).toBeInTheDocument();
+    });
+
+    it('shows area breadcrumb in item search dropdown when work item has ancestors', async () => {
+      const user = userEvent.setup();
+      mockGetMilestone.mockResolvedValueOnce(emptyMilestoneDetail);
+      // Return a work item with area in the list
+      mockListWorkItems.mockResolvedValue({
+        items: [
+          {
+            ...sampleWorkItemSummary,
+            id: 'wi-search-area',
+            title: 'Roofing',
+            area: {
+              id: 'area-roof',
+              name: 'Roof',
+              color: null,
+              ancestors: [{ id: 'area-ext', name: 'Exterior', color: null }],
+            },
+          },
+        ],
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('item-search-input')).toBeInTheDocument();
+      });
+
+      // Type into the inline search to open dropdown
+      const searchInput = screen.getByTestId('item-search-input');
+      await user.type(searchInput, 'Roof');
+
+      // Dropdown should show the item with its breadcrumb
+      await waitFor(() => {
+        expect(screen.getByText('Roofing')).toBeInTheDocument();
+      });
+
+      // Tooltip duplicates the text node; use getAllByText
+      expect(screen.getAllByText('Exterior › Roof').length).toBeGreaterThan(0);
+    });
+
+    it('shows "No area" in item search dropdown for work item with null area', async () => {
+      const user = userEvent.setup();
+      mockGetMilestone.mockResolvedValueOnce(emptyMilestoneDetail);
+      mockListWorkItems.mockResolvedValue({
+        items: [
+          {
+            ...sampleWorkItemSummary,
+            id: 'wi-search-no-area',
+            title: 'Plumbing',
+            area: null,
+          },
+        ],
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('item-search-input')).toBeInTheDocument();
+      });
+
+      const searchInput = screen.getByTestId('item-search-input');
+      await user.type(searchInput, 'Plumb');
+
+      await waitFor(() => {
+        expect(screen.getByText('Plumbing')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('No area')).toBeInTheDocument();
     });
   });
 });

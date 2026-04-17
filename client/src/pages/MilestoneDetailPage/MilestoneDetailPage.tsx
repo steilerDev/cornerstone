@@ -22,6 +22,7 @@ import { listHouseholdItems } from '../../lib/householdItemsApi.js';
 import { createHouseholdItemDep, deleteHouseholdItemDep } from '../../lib/householdItemDepsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import styles from './MilestoneDetailPage.module.css';
 
 export function MilestoneDetailPage() {
@@ -602,9 +603,12 @@ export function MilestoneDetailPage() {
                       <span className={styles.itemTypeBadge}>
                         {t('milestones.detail.workItem')}
                       </span>
-                      <Link to={`/project/work-items/${item.id}`} className={styles.workItemLink}>
-                        {item.title}
-                      </Link>
+                      <div className={styles.workItemTitleCell}>
+                        <Link to={`/project/work-items/${item.id}`} className={styles.workItemLink}>
+                          {item.title}
+                        </Link>
+                        <AreaBreadcrumb area={item.area ?? null} variant="compact" />
+                      </div>
                       <button
                         type="button"
                         className={styles.unlinkButton}
@@ -676,7 +680,10 @@ export function MilestoneDetailPage() {
                           <span className={styles.itemTypeBadge}>
                             {t('milestones.detail.workItem')}
                           </span>
-                          <span>{item.title}</span>
+                          <div className={styles.workItemTitleCell}>
+                            <span>{item.title}</span>
+                            <AreaBreadcrumb area={item.area ?? null} variant="compact" />
+                          </div>
                         </button>
                       ))}
                     {/* Filter and show matching household items */}

@@ -967,6 +967,11 @@ export function GanttChart({
           plannedDurationDays: tooltipItem.durationDays,
           actualDurationDays,
           assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
+          areaName: tooltipItem.area
+            ? [...tooltipItem.area.ancestors.map((a) => a.name), tooltipItem.area.name].join(
+                ' \u203a ',
+              )
+            : null,
           dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
           workItemId: itemId,
         });
@@ -1485,6 +1490,11 @@ export function GanttChart({
                         plannedDurationDays: tooltipItem.durationDays,
                         actualDurationDays,
                         assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
+                        areaName: tooltipItem.area
+                          ? [...tooltipItem.area.ancestors.map((a) => a.name), tooltipItem.area.name].join(
+                              ' \u203a ',
+                            )
+                          : null,
                         dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
                         workItemId: item.id,
                       });
@@ -1536,6 +1546,11 @@ export function GanttChart({
                         plannedDurationDays: tooltipItem.durationDays,
                         actualDurationDays,
                         assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
+                        areaName: tooltipItem.area
+                          ? [...tooltipItem.area.ancestors.map((a) => a.name), tooltipItem.area.name].join(
+                              ' \u203a ',
+                            )
+                          : null,
                         dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
                         workItemId: item.id,
                       });
