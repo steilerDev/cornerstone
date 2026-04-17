@@ -547,7 +547,14 @@ describe('BudgetOverviewPage', () => {
       const overviewWithAreas: BudgetOverview = {
         ...richOverview,
         areaSummaries: [
-          { areaId: 'area-1', name: 'Kitchen', parentId: null, planned: 50000, actual: 40000, variance: 10000 },
+          {
+            areaId: 'area-1',
+            name: 'Kitchen',
+            parentId: null,
+            planned: 50000,
+            actual: 40000,
+            variance: 10000,
+          },
         ],
       };
       mockFetchBudgetOverview.mockResolvedValueOnce(overviewWithAreas);

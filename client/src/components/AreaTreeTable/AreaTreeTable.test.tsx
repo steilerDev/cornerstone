@@ -15,7 +15,9 @@ import { AreaTreeTable } from './AreaTreeTable.js';
 /** Pass-through formatter — makes values easy to assert in tests. */
 const fmt = (v: number) => v.toString();
 
-function makeArea(overrides: Partial<AreaBudgetSummary> & { areaId: string; name: string }): AreaBudgetSummary {
+function makeArea(
+  overrides: Partial<AreaBudgetSummary> & { areaId: string; name: string },
+): AreaBudgetSummary {
   return {
     parentId: null,
     planned: 10000,
@@ -25,10 +27,36 @@ function makeArea(overrides: Partial<AreaBudgetSummary> & { areaId: string; name
   };
 }
 
-const ROOT_A = makeArea({ areaId: 'a', name: 'Root A', planned: 10000, actual: 8000, variance: 2000 });
-const ROOT_B = makeArea({ areaId: 'b', name: 'Root B', planned: 5000, actual: 6000, variance: -1000 });
-const CHILD_A1 = makeArea({ areaId: 'a1', name: 'Child A1', parentId: 'a', planned: 3000, actual: 2500, variance: 500 });
-const GRANDCHILD_A1a = makeArea({ areaId: 'a1a', name: 'Grandchild A1a', parentId: 'a1', planned: 1000, actual: 900, variance: 100 });
+const ROOT_A = makeArea({
+  areaId: 'a',
+  name: 'Root A',
+  planned: 10000,
+  actual: 8000,
+  variance: 2000,
+});
+const ROOT_B = makeArea({
+  areaId: 'b',
+  name: 'Root B',
+  planned: 5000,
+  actual: 6000,
+  variance: -1000,
+});
+const CHILD_A1 = makeArea({
+  areaId: 'a1',
+  name: 'Child A1',
+  parentId: 'a',
+  planned: 3000,
+  actual: 2500,
+  variance: 500,
+});
+const GRANDCHILD_A1a = makeArea({
+  areaId: 'a1a',
+  name: 'Grandchild A1a',
+  parentId: 'a1',
+  planned: 1000,
+  actual: 900,
+  variance: 100,
+});
 
 // ─── 1. Empty state ─────────────────────────────────────────────────────────
 
@@ -37,9 +65,7 @@ describe('AreaTreeTable — empty state', () => {
     render(<AreaTreeTable areas={[]} unassigned={null} formatCurrency={fmt} />);
 
     // The component renders EmptyState which shows the emptyMessage text
-    expect(
-      screen.getByText(/no areas have been set up yet/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/no areas have been set up yet/i)).toBeInTheDocument();
   });
 
   it('does not render a table when areas=[] and unassigned=null', () => {
@@ -99,9 +125,7 @@ describe('AreaTreeTable — flat list', () => {
   it('root rows have aria-level="1"', () => {
     render(<AreaTreeTable areas={[ROOT_A, ROOT_B]} unassigned={null} formatCurrency={fmt} />);
 
-    const rows = screen.getAllByRole('row').filter(
-      (r) => r.getAttribute('aria-level') === '1',
-    );
+    const rows = screen.getAllByRole('row').filter((r) => r.getAttribute('aria-level') === '1');
     // 2 root rows + header row (no aria-level) = header row doesn't match
     expect(rows.length).toBeGreaterThanOrEqual(2);
   });
@@ -118,17 +142,13 @@ describe('AreaTreeTable — flat list', () => {
 
 describe('AreaTreeTable — expand/collapse toggle', () => {
   it('child is hidden before expand', () => {
-    render(
-      <AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />,
-    );
+    render(<AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />);
 
     expect(screen.queryByText('Child A1')).not.toBeInTheDocument();
   });
 
   it('clicking expand reveals the child row', () => {
-    render(
-      <AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />,
-    );
+    render(<AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />);
 
     const expandBtn = screen.getByRole('button', { name: /expand root a/i });
     fireEvent.click(expandBtn);
@@ -137,9 +157,7 @@ describe('AreaTreeTable — expand/collapse toggle', () => {
   });
 
   it('clicking collapse hides the child row', () => {
-    render(
-      <AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />,
-    );
+    render(<AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />);
 
     const expandBtn = screen.getByRole('button', { name: /expand root a/i });
     fireEvent.click(expandBtn);
@@ -152,18 +170,14 @@ describe('AreaTreeTable — expand/collapse toggle', () => {
   });
 
   it('expand button has aria-expanded="false" before expanding', () => {
-    render(
-      <AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />,
-    );
+    render(<AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />);
 
     const btn = screen.getByRole('button', { name: /expand root a/i });
     expect(btn).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('expand button has aria-expanded="true" after expanding', () => {
-    render(
-      <AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />,
-    );
+    render(<AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />);
 
     const btn = screen.getByRole('button', { name: /expand root a/i });
     fireEvent.click(btn);
@@ -175,9 +189,7 @@ describe('AreaTreeTable — expand/collapse toggle', () => {
   });
 
   it('expand button has aria-controls pointing to the children container', () => {
-    render(
-      <AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />,
-    );
+    render(<AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />);
 
     const btn = screen.getByRole('button', { name: /expand root a/i });
     expect(btn).toHaveAttribute('aria-controls', 'area-children-a');
@@ -245,9 +257,7 @@ describe('AreaTreeTable — nested tree', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /expand root a/i }));
 
-    const rows = screen.getAllByRole('row').filter(
-      (r) => r.getAttribute('aria-level') === '2',
-    );
+    const rows = screen.getAllByRole('row').filter((r) => r.getAttribute('aria-level') === '2');
     expect(rows.length).toBeGreaterThanOrEqual(1);
   });
 });
@@ -334,9 +344,7 @@ describe('AreaTreeTable — Expand All button absent when not needed', () => {
   });
 
   it('no Expand all button for a single non-leaf (exactly 1 non-leaf node)', () => {
-    render(
-      <AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />,
-    );
+    render(<AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />);
 
     // ROOT_A has one child → 1 non-leaf → showExpandAll requires > 1, so no button
     expect(screen.queryByRole('button', { name: /expand all/i })).not.toBeInTheDocument();
@@ -438,43 +446,33 @@ describe('AreaTreeTable — variance color classes', () => {
 
 describe('AreaTreeTable — ARIA attributes', () => {
   it('root rows have aria-level="1"', () => {
-    render(
-      <AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />,
-    );
+    render(<AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />);
 
-    const rootRow = screen.getAllByRole('row').find(
-      (r) => r.getAttribute('aria-level') === '1' && r.textContent?.includes('Root A'),
-    );
+    const rootRow = screen
+      .getAllByRole('row')
+      .find((r) => r.getAttribute('aria-level') === '1' && r.textContent?.includes('Root A'));
     expect(rootRow).toBeTruthy();
     expect(rootRow).toHaveAttribute('aria-level', '1');
   });
 
   it('child rows have aria-level="2" after expanding', () => {
-    render(
-      <AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />,
-    );
+    render(<AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />);
 
     fireEvent.click(screen.getByRole('button', { name: /expand root a/i }));
 
-    const childRow = screen.getAllByRole('row').find(
-      (r) => r.getAttribute('aria-level') === '2',
-    );
+    const childRow = screen.getAllByRole('row').find((r) => r.getAttribute('aria-level') === '2');
     expect(childRow).toBeTruthy();
   });
 
   it('expand button has aria-expanded="false" initially', () => {
-    render(
-      <AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />,
-    );
+    render(<AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />);
 
     const btn = screen.getByRole('button', { name: /expand root a/i });
     expect(btn).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('expand button has aria-controls="area-children-{id}"', () => {
-    render(
-      <AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />,
-    );
+    render(<AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />);
 
     const btn = screen.getByRole('button', { name: /expand root a/i });
     expect(btn).toHaveAttribute('aria-controls', 'area-children-a');
@@ -491,17 +489,13 @@ describe('AreaTreeTable — ARIA attributes', () => {
 
 describe('AreaTreeTable — screen reader live region', () => {
   it('role="status" element is present in the DOM', () => {
-    render(
-      <AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />,
-    );
+    render(<AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />);
 
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 
   it('live region shows expanded announcement after clicking expand', () => {
-    render(
-      <AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />,
-    );
+    render(<AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />);
 
     const statusEl = screen.getByRole('status');
     fireEvent.click(screen.getByRole('button', { name: /expand root a/i }));
@@ -511,9 +505,7 @@ describe('AreaTreeTable — screen reader live region', () => {
   });
 
   it('live region shows collapsed announcement after clicking collapse', () => {
-    render(
-      <AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />,
-    );
+    render(<AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />);
 
     const statusEl = screen.getByRole('status');
     // Expand first
@@ -529,17 +521,13 @@ describe('AreaTreeTable — screen reader live region', () => {
 
 describe('AreaTreeTable — leaf node placeholder', () => {
   it('leaf rows render the expandBtnPlaceholder span, not an expand button', () => {
-    render(
-      <AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />,
-    );
+    render(<AreaTreeTable areas={[ROOT_A, CHILD_A1]} unassigned={null} formatCurrency={fmt} />);
 
     // Expand so CHILD_A1 is visible (it's a leaf)
     fireEvent.click(screen.getByRole('button', { name: /expand root a/i }));
 
     // CHILD_A1 is a leaf: its row should NOT have an expand button
-    const childRow = screen.getAllByRole('row').find(
-      (r) => r.textContent?.includes('Child A1'),
-    );
+    const childRow = screen.getAllByRole('row').find((r) => r.textContent?.includes('Child A1'));
     expect(childRow).toBeTruthy();
     // No button inside the child row
     const btnsInChild = childRow!.querySelectorAll('button');

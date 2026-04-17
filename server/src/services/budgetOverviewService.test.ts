@@ -316,7 +316,6 @@ describe('getBudgetOverview', () => {
       expect(result.subsidySummary.totalReductions).toBe(0);
       expect(result.subsidySummary.activeSubsidyCount).toBe(0);
     });
-
   });
 
   // ─── Available funds from budget sources ──────────────────────────────────

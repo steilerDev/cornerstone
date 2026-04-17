@@ -1,11 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type {
-  BudgetOverview,
-  BudgetBreakdown,
-  BudgetSource,
-} from '@cornerstone/shared';
+import type { BudgetOverview, BudgetBreakdown, BudgetSource } from '@cornerstone/shared';
 import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -141,7 +137,6 @@ function SegmentTooltipContent({ segment, availableFunds, formatCurrency }: Segm
     </div>
   );
 }
-
 
 // ---- Main component ----
 
@@ -611,7 +606,6 @@ export function BudgetOverviewPage() {
             formatCurrency={formatCurrency}
           />
         </div>
-
       </section>
 
       {/* Area Tree Table */}

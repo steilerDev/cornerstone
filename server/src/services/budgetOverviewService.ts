@@ -2,11 +2,7 @@ import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
-import type {
-  BudgetOverview,
-  AreaBudgetSummary,
-  OversubscribedSubsidy,
-} from '@cornerstone/shared';
+import type { BudgetOverview, AreaBudgetSummary, OversubscribedSubsidy } from '@cornerstone/shared';
 import { computeSubsidyEffects, applySubsidyCaps } from './shared/subsidyCalculationEngine.js';
 import { getDescendantIds } from './areaService.js';
 import type {

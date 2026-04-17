@@ -156,7 +156,13 @@ function AreaRow({
   collapseLabel,
 }: AreaRowProps) {
   return (
-    <tr role="row" className={rowClassName} aria-level={depth + 1} aria-setsize={siblings} aria-posinset={index + 1}>
+    <tr
+      role="row"
+      className={rowClassName}
+      aria-level={depth + 1}
+      aria-setsize={siblings}
+      aria-posinset={index + 1}
+    >
       <td role="gridcell" className={styles.colName}>
         <div className={styles.nameContent}>
           <span
@@ -445,9 +451,7 @@ export function AreaTreeTable({ areas, unassigned, formatCurrency }: AreaTreeTab
       {/* Table */}
       <div className={styles.tableWrapper}>
         <table className={styles.table} role="treegrid">
-          <caption className={styles.srOnly}>
-            {t('overview.areaBreakdown.tableCaption')}
-          </caption>
+          <caption className={styles.srOnly}>{t('overview.areaBreakdown.tableCaption')}</caption>
           <thead>
             <tr>
               <th scope="col" className={styles.colName} role="columnheader">
@@ -466,11 +470,18 @@ export function AreaTreeTable({ areas, unassigned, formatCurrency }: AreaTreeTab
           </thead>
           <tbody>
             {/* Render all visible area rows */}
-            {renderVisibleRows(roots, expandedIds, toggle, handleKeyDown, formatCurrency, buttonRefs.current, rowClassMap, t).map(
-              (row, idx) => (
-                <Fragment key={idx}>{row}</Fragment>
-              ),
-            )}
+            {renderVisibleRows(
+              roots,
+              expandedIds,
+              toggle,
+              handleKeyDown,
+              formatCurrency,
+              buttonRefs.current,
+              rowClassMap,
+              t,
+            ).map((row, idx) => (
+              <Fragment key={idx}>{row}</Fragment>
+            ))}
 
             {/* Unassigned row */}
             {unassigned && (
@@ -483,7 +494,11 @@ export function AreaTreeTable({ areas, unassigned, formatCurrency }: AreaTreeTab
               >
                 <td role="gridcell" className={styles.colName}>
                   <div className={styles.nameContent}>
-                    <span className={styles.indent} style={{ width: 'calc(var(--spacing-6) * 0)' }} aria-hidden="true" />
+                    <span
+                      className={styles.indent}
+                      style={{ width: 'calc(var(--spacing-6) * 0)' }}
+                      aria-hidden="true"
+                    />
                     <span className={styles.expandBtnPlaceholder} aria-hidden="true" />
                     <span className={styles.unassignedName}>
                       {t('overview.areaBreakdown.unassignedBucket')}

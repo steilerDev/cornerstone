@@ -81,11 +81,46 @@ function populatedOverviewResponse() {
     remainingVsMinPlannedWithPayback: 50000,
     remainingVsMaxPlannedWithPayback: 25000,
     areaSummaries: [
-      { areaId: 'area-001', name: 'Rohbau',     parentId: null,       planned: 120000, actual: 95000,  variance: 25000 },
-      { areaId: 'area-002', name: 'Keller',      parentId: 'area-001', planned: 40000,  actual: 38000,  variance: 2000  },
-      { areaId: 'area-003', name: 'Erdgeschoss', parentId: 'area-001', planned: 80000,  actual: 57000,  variance: 23000 },
-      { areaId: 'area-004', name: 'Innenausbau', parentId: null,       planned: 80000,  actual: 82000,  variance: -2000 },
-      { areaId: 'area-005', name: 'Dachgeschoss', parentId: 'area-004', planned: 50000, actual: 52000, variance: -2000 },
+      {
+        areaId: 'area-001',
+        name: 'Rohbau',
+        parentId: null,
+        planned: 120000,
+        actual: 95000,
+        variance: 25000,
+      },
+      {
+        areaId: 'area-002',
+        name: 'Keller',
+        parentId: 'area-001',
+        planned: 40000,
+        actual: 38000,
+        variance: 2000,
+      },
+      {
+        areaId: 'area-003',
+        name: 'Erdgeschoss',
+        parentId: 'area-001',
+        planned: 80000,
+        actual: 57000,
+        variance: 23000,
+      },
+      {
+        areaId: 'area-004',
+        name: 'Innenausbau',
+        parentId: null,
+        planned: 80000,
+        actual: 82000,
+        variance: -2000,
+      },
+      {
+        areaId: 'area-005',
+        name: 'Dachgeschoss',
+        parentId: 'area-004',
+        planned: 50000,
+        actual: 52000,
+        variance: -2000,
+      },
     ],
     unassignedSummary: null,
     subsidySummary: {
@@ -235,7 +270,6 @@ test.describe('Hero card', { tag: '@responsive' }, () => {
       await page.unroute(`${API.budgetOverview}`);
     }
   });
-
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -551,7 +585,9 @@ test.describe('Area Breakdown tree', { tag: '@responsive' }, () => {
 
       if (treegridVisible) {
         // If the treegrid renders even for empty data, an EmptyState must be visible inside it
-        await expect(page.locator('[role="treegrid"]').locator('div[class*="emptyState"]')).toBeVisible();
+        await expect(
+          page.locator('[role="treegrid"]').locator('div[class*="emptyState"]'),
+        ).toBeVisible();
       } else {
         // Treegrid absent — that is acceptable empty-tree behavior
         expect(treegridVisible).toBe(false);
