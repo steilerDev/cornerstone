@@ -237,9 +237,9 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
 
     // Then: The Budget sub-nav shows "Auftragnehmer" (German for Vendors/Contractors)
     // Visual cleanup #1185: the h2 "Vendors" section heading was removed from VendorsPage.
-    // The sub-nav listitem is the reliable indicator that the page is in German and loaded.
+    // The sub-nav link is the reliable indicator that the page is in German and loaded.
     const subNav = page.getByRole('navigation', { name: 'Budget section navigation' });
-    await expect(subNav.getByRole('listitem').filter({ hasText: 'Auftragnehmer' })).toBeVisible();
+    await expect(subNav.getByRole('link', { name: 'Auftragnehmer' })).toBeVisible();
   });
 
   test('German text renders on work items page', async ({ page }) => {

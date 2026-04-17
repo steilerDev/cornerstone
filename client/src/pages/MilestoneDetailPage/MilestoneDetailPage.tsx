@@ -805,7 +805,7 @@ export function MilestoneDetailPage() {
         </div>
       ) : (
         // Edit mode
-        <form onSubmit={handleSave} className={styles.editCard}>
+        <form onSubmit={handleSave} className={styles.editCard} noValidate>
           <h2 className={styles.editTitle}>{t('milestones.detail.form.title')}</h2>
 
           <div className={styles.formGroup}>

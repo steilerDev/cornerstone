@@ -147,7 +147,7 @@ EOF
 
 ### 3. CI Gate
 
-After creating/pushing the promotion PR, **wait 5 seconds** for GitHub to compute merge status, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if the result is `MERGEABLE`.** If `CONFLICTING`, rebase onto `main`, force-push, and re-check. If `UNKNOWN`, wait a few more seconds and retry. Once mergeability is confirmed, use the **CI Gate Polling** pattern from `CLAUDE.md` (main variant — wait for `Quality Gates` + `E2E Gates` + `CLA`).
+After creating/pushing the promotion PR, **wait 5 seconds** for GitHub to compute merge status, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if the result is `MERGEABLE`.** If `CONFLICTING`, rebase onto `main`, force-push, and re-check. If `UNKNOWN`, wait a few more seconds and retry. Once mergeability is confirmed, use the **CI Gate Polling** pattern from `CLAUDE.md` (main variant — wait for `Quality Gates` + `E2E Gates`).
 
 If any gate fails, investigate and resolve before proceeding.
 
@@ -224,7 +224,7 @@ After all fix groups are merged to `beta`:
 
 #### 4g. CI Gate
 
-After creating/pushing the new promotion PR, **wait 5 seconds** for GitHub to compute merge status, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if the result is `MERGEABLE`.** If `CONFLICTING`, rebase onto `main`, force-push, and re-check. If `UNKNOWN`, wait a few more seconds and retry. Once mergeability is confirmed, use the **CI Gate Polling** pattern from `CLAUDE.md` (main variant — wait for `Quality Gates` + `E2E Gates` + `CLA`).
+After creating/pushing the new promotion PR, **wait 5 seconds** for GitHub to compute merge status, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if the result is `MERGEABLE`.** If `CONFLICTING`, rebase onto `main`, force-push, and re-check. If `UNKNOWN`, wait a few more seconds and retry. Once mergeability is confirmed, use the **CI Gate Polling** pattern from `CLAUDE.md` (main variant — wait for `Quality Gates` + `E2E Gates`).
 
 If any gate fails, investigate and resolve before proceeding.
 

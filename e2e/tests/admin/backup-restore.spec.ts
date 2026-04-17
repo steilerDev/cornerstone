@@ -59,12 +59,9 @@ test.describe('Backups page — admin access', () => {
     await page.goto('/settings/profile');
 
     // Then: The "Backups" tab is visible in the sub-nav.
-    // NavLink renders with role="listitem" (explicitly set in SettingsSubNav.tsx),
-    // overriding the default link role. getByRole('link') won't match.
-    // Use getByText scoped to the settings navigation landmark instead.
     const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
     await expect(subNav).toBeVisible();
-    await expect(subNav.getByText('Backups', { exact: true })).toBeVisible();
+    await expect(subNav.getByRole('link', { name: 'Backups' })).toBeVisible();
   });
 });
 

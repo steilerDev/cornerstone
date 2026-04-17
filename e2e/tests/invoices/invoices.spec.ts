@@ -163,12 +163,15 @@ test.describe('Invoices list page load (Scenario 1)', { tag: '@responsive' }, ()
     const invoicesPage = new InvoicesPage(page);
     await invoicesPage.goto();
 
-    // SubNav renders the Budget section tabs
-    await expect(page.getByRole('link', { name: 'Overview' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Invoices' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Vendors' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Sources' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Subsidies' })).toBeVisible();
+    // SubNav renders the Budget section tabs. Scope to the Budget <nav> landmark
+    // so labels like "Overview" don't collide with the project-logo link's
+    // aria-label ("Go to project overview").
+    const subNav = page.getByRole('navigation', { name: 'Budget section navigation' });
+    await expect(subNav.getByRole('link', { name: 'Overview' })).toBeVisible();
+    await expect(subNav.getByRole('link', { name: 'Invoices' })).toBeVisible();
+    await expect(subNav.getByRole('link', { name: 'Vendors' })).toBeVisible();
+    await expect(subNav.getByRole('link', { name: 'Sources' })).toBeVisible();
+    await expect(subNav.getByRole('link', { name: 'Subsidies' })).toBeVisible();
   });
 });
 
@@ -196,10 +199,12 @@ test.describe('Create invoice (Scenarios 2 & 3)', { tag: '@responsive' }, () => 
       await invoicesPage.openCreateModal();
       await expect(invoicesPage.createModal).toBeVisible();
 
-      // Fill required fields
+      // Fill required fields. Default status on the form is 'quotation'; the test
+      // asserts the pending summary count so we must explicitly set pending here.
       await invoicesPage.createVendorSelect.selectOption({ label: vendorName });
       await invoicesPage.createAmountInput.fill('1500.00');
       await invoicesPage.createDateInput.fill('2026-01-15');
+      await invoicesPage.createStatusSelect.selectOption('pending');
 
       // Register response listener BEFORE submit
       const responsePromise = page.waitForResponse(
@@ -215,9 +220,15 @@ test.describe('Create invoice (Scenarios 2 & 3)', { tag: '@responsive' }, () => 
       // Wait for list to reload and show data
       await invoicesPage.waitForLoaded();
 
-      // Verify summary cards update (pending count increased since new invoice is pending by default)
-      const pendingCount = await invoicesPage.getSummaryCount('pending');
-      expect(pendingCount).toBeGreaterThanOrEqual(1);
+      // Verify summary cards update (pending count increased since new invoice is pending by default).
+      // Summary and list share one API response but the list render can show stale rows during
+      // the re-fetch; poll the count so the retry covers the brief interleaving window.
+      await expect
+        .poll(() => invoicesPage.getSummaryCount('pending'), {
+          message: 'pending summary count did not update after invoice creation',
+          timeout: 10_000,
+        })
+        .toBeGreaterThanOrEqual(1);
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }
@@ -394,9 +405,11 @@ test.describe('Invoice row click navigation (Scenario 7)', { tag: '@responsive' 
       await invoicesPage.goto();
       await invoicesPage.waitForLoaded();
 
-      // Click the invoice number link — works on both desktop table and mobile cards
+      // Click the invoice number link — on both desktop table and mobile cards.
+      // DataTable renders both the table AND the mobile cards simultaneously and uses
+      // CSS media queries to toggle visibility, so we must pick the visible one.
       const invoiceLink = page
-        .locator('[class*="invoiceLink"]', {
+        .locator('[class*="invoiceLink"]:visible', {
           hasText: `${testPrefix}-ROW-001`,
         })
         .first();

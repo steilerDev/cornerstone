@@ -108,8 +108,9 @@ describe('MilestoneCreatePage', () => {
     it('renders the back link to milestones list', () => {
       renderPage();
 
-      // Link back to milestones list
-      const backLink = screen.getByRole('link', { name: /back|milestones/i });
+      // The header back link ("← Milestones") is the anchor with a "←" prefix;
+      // narrower regex avoids matching the SubNav Milestones tab or Cancel link.
+      const backLink = screen.getByRole('link', { name: /←\s*milestones/i });
       expect(backLink).toBeInTheDocument();
     });
 

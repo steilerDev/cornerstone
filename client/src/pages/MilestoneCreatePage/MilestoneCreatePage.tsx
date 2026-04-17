@@ -79,7 +79,7 @@ export function MilestoneCreatePage() {
       </div>
       <SubNav tabs={PROJECT_TABS} ariaLabel="Project section navigation" />
 
-      <form onSubmit={handleSubmit} className={styles.formCard}>
+      <form onSubmit={handleSubmit} className={styles.formCard} noValidate>
         <h2 className={styles.formTitle}>{t('milestones.create.title')}</h2>
 
         {error && (

@@ -1112,7 +1112,7 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
     // Visual cleanup #1185: the h2 "Vendors" section heading was removed.
     // Verify correct sub-page loaded via the BudgetSubNav "Vendors" tab being visible.
     const subNav = page.getByRole('navigation', { name: 'Budget section navigation' });
-    await expect(subNav.getByRole('listitem').filter({ hasText: 'Vendors' })).toBeVisible();
+    await expect(subNav.getByRole('link', { name: 'Vendors' })).toBeVisible();
   });
 });
 

@@ -223,7 +223,8 @@ describe('MilestoneDetailPage', () => {
       });
 
       expect(screen.getByText(/not found/i)).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /back|milestones/i })).toBeInTheDocument();
+      // Not-found state renders without SubNav; only the "Back to Milestones" link is present.
+      expect(screen.getByRole('link', { name: /back to milestones/i })).toBeInTheDocument();
     });
 
     it('shows not found state when API returns 404', async () => {

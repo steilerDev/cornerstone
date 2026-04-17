@@ -100,7 +100,7 @@ If there are refinement items to address:
    ```
    gh pr create --base beta --title "chore: address refinement items for epic #<epic-number>" --body "..."
    ```
-8. **Wait 5 seconds** after creating the PR, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if the result is `MERGEABLE`.** If `CONFLICTING`, rebase onto `beta`, force-push, and re-check. If `UNKNOWN`, wait a few more seconds and retry. Once mergeability is confirmed, wait for CI using the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant — wait for `Quality Gates` + `CLA`)
+8. **Wait 5 seconds** after creating the PR, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if the result is `MERGEABLE`.** If `CONFLICTING`, rebase onto `beta`, force-push, and re-check. If `UNKNOWN`, wait a few more seconds and retry. Once mergeability is confirmed, wait for CI using the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant — wait for `Quality Gates`)
 9. Squash merge: `gh pr merge --squash <pr-url>`
 
 If no refinement items exist, skip to step 5.

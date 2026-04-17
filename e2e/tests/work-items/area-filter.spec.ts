@@ -92,11 +92,9 @@ test.describe(
           expect(titles).not.toContain(wiOtherName);
         }).toPass({ timeout: 30_000 });
 
-        // Area filter button is visible on tablet and desktop (CSS-hidden on mobile < 768px)
-        const viewport = page.viewportSize();
-        if (viewport && viewport.width >= 768) {
-          await expect(listPage.areaFilter).toBeVisible();
-        }
+        // The URL-based filter works regardless of column visibility; the Area column
+        // is hidden by default (defaultVisible: false) so we do not assert the in-header
+        // filter button is rendered here.
       } finally {
         for (const id of workItemIds) {
           await deleteWorkItemViaApi(page, id);
