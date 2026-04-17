@@ -170,7 +170,9 @@
         "quote": "Angebot",
         "invoice": "Rechnung"
       },
-      "invoiceLinked": "Verrechnet"
+      "invoiceLinked": "Verrechnet",
+      "categoryVendorSeparator": " · ",
+      "noCategory": "Keine Kategorie"
     }
   },
   "vendors": {
