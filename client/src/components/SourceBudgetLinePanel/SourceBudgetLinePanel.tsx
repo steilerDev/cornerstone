@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   BudgetSourceBudgetLinesResponse,
@@ -222,6 +223,7 @@ export function SourceBudgetLinePanel({
   const renderSection = (
     lines: BudgetSourceBudgetLine[],
     titleKey: 'workItemSection' | 'householdItemSection',
+    parentType: 'work-item' | 'household-item',
   ) => {
     if (lines.length === 0) return null;
 
@@ -298,7 +300,12 @@ export function SourceBudgetLinePanel({
 
               {areaGroup.parentGroups.map((parentGroup) => (
                 <div key={parentGroup.parentId}>
-                  <p className={styles.parentItemHeader}>{parentGroup.parentName}</p>
+                  <Link
+                    to={`/project/${parentType === 'work-item' ? 'work-items' : 'household-items'}/${parentGroup.parentId}`}
+                    className={styles.parentItemHeader}
+                  >
+                    {parentGroup.parentName}
+                  </Link>
 
                   <ul
                     role="list"
@@ -420,8 +427,8 @@ export function SourceBudgetLinePanel({
       aria-label={t('sources.lines.panelAriaLabel', { name: sourceName })}
       className={styles.linesPanel}
     >
-      {renderSection(workItemLines, 'workItemSection')}
-      {renderSection(householdItemLines, 'householdItemSection')}
+      {renderSection(workItemLines, 'workItemSection', 'work-item')}
+      {renderSection(householdItemLines, 'householdItemSection', 'household-item')}
       {isSelectable && selectedLineIds.size > 0 && (
         <div className={styles.actionBar}>
           <span className={styles.actionBarCount} role="status" aria-atomic="true">

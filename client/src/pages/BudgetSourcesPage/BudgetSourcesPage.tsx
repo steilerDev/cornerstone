@@ -894,12 +894,13 @@ export function BudgetSourcesPage() {
           <div className={styles.sourcesList}>
             {sources.map((source) => (
               <div key={source.id} className={styles.sourceRow}>
-                {editingSource?.id === source.id ? (
-                  <form
-                    onSubmit={handleUpdateSource}
-                    className={styles.editForm}
-                    aria-label={`Edit ${source.name}`}
-                  >
+                <div className={styles.sourceRowHeader}>
+                  {editingSource?.id === source.id ? (
+                    <form
+                      onSubmit={handleUpdateSource}
+                      className={styles.editForm}
+                      aria-label={`Edit ${source.name}`}
+                    >
                     {updateError && (
                       <div className={styles.errorBanner} role="alert">
                         {updateError}
@@ -1141,20 +1142,6 @@ export function BudgetSourcesPage() {
                       )}
                     </div>
 
-                    {expandedSources.has(source.id) && (
-                      <SourceBudgetLinePanel
-                        sourceId={source.id}
-                        sourceName={source.name}
-                        data={linesCache.get(source.id) ?? null}
-                        isLoading={linesLoading.has(source.id)}
-                        error={linesError.get(source.id) ?? null}
-                        onRetry={() => handleRetryLines(source.id)}
-                        selectedLineIds={sourceSelections.get(source.id)}
-                        onSelectionChange={(newSet) => handleSelectionChange(source.id, newSet)}
-                        onMoveLines={() => handleOpenMoveModal(source.id)}
-                      />
-                    )}
-
                     <div className={styles.sourceActions}>
                       <button
                         type="button"
@@ -1178,6 +1165,20 @@ export function BudgetSourcesPage() {
                       )}
                     </div>
                   </>
+                )}
+                </div>
+                {editingSource?.id !== source.id && expandedSources.has(source.id) && (
+                  <SourceBudgetLinePanel
+                    sourceId={source.id}
+                    sourceName={source.name}
+                    data={linesCache.get(source.id) ?? null}
+                    isLoading={linesLoading.has(source.id)}
+                    error={linesError.get(source.id) ?? null}
+                    onRetry={() => handleRetryLines(source.id)}
+                    selectedLineIds={sourceSelections.get(source.id)}
+                    onSelectionChange={(newSet) => handleSelectionChange(source.id, newSet)}
+                    onMoveLines={() => handleOpenMoveModal(source.id)}
+                  />
                 )}
               </div>
             ))}
