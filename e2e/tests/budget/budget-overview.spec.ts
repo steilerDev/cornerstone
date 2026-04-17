@@ -85,6 +85,7 @@ function populatedOverviewResponse() {
       { areaId: 'area-002', name: 'Keller',      parentId: 'area-001', planned: 40000,  actual: 38000,  variance: 2000  },
       { areaId: 'area-003', name: 'Erdgeschoss', parentId: 'area-001', planned: 80000,  actual: 57000,  variance: 23000 },
       { areaId: 'area-004', name: 'Innenausbau', parentId: null,       planned: 80000,  actual: 82000,  variance: -2000 },
+      { areaId: 'area-005', name: 'Dachgeschoss', parentId: 'area-004', planned: 50000, actual: 52000, variance: -2000 },
     ],
     unassignedSummary: null,
     subsidySummary: {
@@ -451,12 +452,13 @@ test.describe('Area Breakdown tree', { tag: '@responsive' }, () => {
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
 
-      // Expand All → all 4 rows visible
+      // Expand All → all rows visible (both root parents and their children)
       await overviewPage.expandAllButton.click();
       await expect(overviewPage.areaRow('Rohbau')).toBeVisible();
       await expect(overviewPage.areaRow('Keller')).toBeVisible();
       await expect(overviewPage.areaRow('Erdgeschoss')).toBeVisible();
       await expect(overviewPage.areaRow('Innenausbau')).toBeVisible();
+      await expect(overviewPage.areaRow('Dachgeschoss')).toBeVisible();
 
       // Collapse All → only root rows visible
       await overviewPage.collapseAllButton.click();
@@ -464,6 +466,7 @@ test.describe('Area Breakdown tree', { tag: '@responsive' }, () => {
       await expect(overviewPage.areaRow('Innenausbau')).toBeVisible();
       await expect(overviewPage.areaRow('Keller')).not.toBeVisible();
       await expect(overviewPage.areaRow('Erdgeschoss')).not.toBeVisible();
+      await expect(overviewPage.areaRow('Dachgeschoss')).not.toBeVisible();
     } finally {
       await teardown();
     }
