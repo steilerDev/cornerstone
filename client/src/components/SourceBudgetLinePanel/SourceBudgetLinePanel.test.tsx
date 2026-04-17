@@ -35,18 +35,11 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
   };
 });
 
-// ─── Mock: react-i18next ───────────────────────────────────────────────────────
-
-jest.unstable_mockModule('react-i18next', async () => {
-  const actual = await jest.requireActual<typeof import('react-i18next')>(
-    'react-i18next',
-  );
-  return {
-    ...actual,
-    // useTranslation is already provided by the actual module
-    // which reads from the i18next instance initialized in setupTests.ts
-  };
-});
+// react-i18next is not mocked — the real module is used against the
+// i18next instance initialized by setupTests.ts. Mocking via
+// jest.unstable_mockModule + jest.requireActual creates a separate module
+// reference that does not share the initialized instance, so keys come
+// back unresolved.
 
 // ─── Shared helpers ─────────────────────────────────────────────────────────────
 

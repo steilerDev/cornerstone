@@ -175,7 +175,7 @@ export class BudgetSourcesPage {
    */
   async waitForSourcesLoaded(): Promise<void> {
     await Promise.race([
-      this.sourcesList.locator('[class*="sourceRow"]').first().waitFor({ state: 'visible' }),
+      this.sourcesList.locator('[class*="sourceRow_"]').first().waitFor({ state: 'visible' }),
       this.emptyState.waitFor({ state: 'visible' }),
     ]);
   }
@@ -184,7 +184,7 @@ export class BudgetSourcesPage {
    * Get all source row locators from the sources list.
    */
   async getSourceRows(): Promise<Locator[]> {
-    return await this.page.locator('[class*="sourceRow"]').all();
+    return await this.page.locator('[class*="sourceRow_"]').all();
   }
 
   /**
@@ -208,7 +208,7 @@ export class BudgetSourcesPage {
    */
   async getSourceRow(name: string): Promise<Locator | null> {
     try {
-      await this.page.locator('[class*="sourceRow"]').first().waitFor({ state: 'visible' });
+      await this.page.locator('[class*="sourceRow_"]').first().waitFor({ state: 'visible' });
     } catch {
       return null;
     }
@@ -329,7 +329,7 @@ export class BudgetSourcesPage {
    * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
   getSourceRowByName(name: string): import('@playwright/test').Locator {
-    return this.page.locator('[class*="sourceRow"]').filter({ hasText: name });
+    return this.page.locator('[class*="sourceRow_"]').filter({ hasText: name });
   }
 
   /**
