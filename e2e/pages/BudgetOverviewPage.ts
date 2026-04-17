@@ -88,11 +88,12 @@ export class BudgetOverviewPage {
   }
 
   /**
-   * Return the expand button for the given area name.
-   * Expand buttons have an aria-label matching "expand <name>" (case-insensitive).
+   * Return the expand/collapse toggle button for the given area name.
+   * The aria-label alternates between "Expand <name>" and "Collapse <name>" as the
+   * row is toggled, so the regex matches both states.
    */
-  areaExpandButton(name: string): Locator {
-    return this.page.getByRole('button', { name: new RegExp(`expand ${name}`, 'i') });
+  areaToggleButton(name: string): Locator {
+    return this.page.getByRole('button', { name: new RegExp(`(?:expand|collapse) ${name}`, 'i') });
   }
 
   async goto(): Promise<void> {

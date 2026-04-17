@@ -411,7 +411,7 @@ test.describe('Area Breakdown tree', { tag: '@responsive' }, () => {
       await overviewPage.waitForLoaded();
 
       // Click the expand button for Rohbau
-      await overviewPage.areaExpandButton('Rohbau').click();
+      await overviewPage.areaToggleButton('Rohbau').click();
 
       // Children should now be visible
       await expect(overviewPage.areaRow('Keller')).toBeVisible();
@@ -430,10 +430,10 @@ test.describe('Area Breakdown tree', { tag: '@responsive' }, () => {
       await overviewPage.waitForLoaded();
 
       // Expand then collapse
-      await overviewPage.areaExpandButton('Rohbau').click();
+      await overviewPage.areaToggleButton('Rohbau').click();
       await expect(overviewPage.areaRow('Keller')).toBeVisible();
 
-      await overviewPage.areaExpandButton('Rohbau').click();
+      await overviewPage.areaToggleButton('Rohbau').click();
 
       // Children should be hidden again
       await expect(overviewPage.areaRow('Keller')).not.toBeVisible();
