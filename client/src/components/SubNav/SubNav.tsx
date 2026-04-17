@@ -25,7 +25,7 @@ export interface SubNavProps {
 export function SubNav({ tabs, ariaLabel }: SubNavProps) {
   return (
     <nav className={styles.subNav} aria-label={ariaLabel}>
-      <div className={styles.tabList} role="list">
+      <div className={styles.tabList}>
         {tabs
           .filter((tab) => tab.visible !== false)
           .map((tab) => (
@@ -43,7 +43,6 @@ function TabLink({ tab }: { tab: SubNavTab }) {
       to={tab.to}
       end
       className={({ isActive }) => `${styles.tab} ${isActive ? styles.tabActive : ''}`}
-      role="listitem"
       {...(tab.testId ? { 'data-testid': tab.testId } : {})}
     >
       {t(tab.labelKey)}
