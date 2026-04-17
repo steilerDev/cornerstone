@@ -205,44 +205,40 @@ test.describe('Compact breadcrumb tooltip on focus (Scenario 3)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 4: List page — null area shows "No area"
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe(
-  'List page — null area shows "No area" (Scenario 4)',
-  { tag: '@responsive' },
-  () => {
-    test('Household item with no area assigned shows "No area" text in list row', async ({
-      page,
-      testPrefix,
-    }) => {
-      const listPage = new HouseholdItemsPage(page);
-      let itemId: string | null = null;
-      const itemName = `${testPrefix} No Area HI List`;
+test.describe('List page — null area shows "No area" (Scenario 4)', { tag: '@responsive' }, () => {
+  test('Household item with no area assigned shows "No area" text in list row', async ({
+    page,
+    testPrefix,
+  }) => {
+    const listPage = new HouseholdItemsPage(page);
+    let itemId: string | null = null;
+    const itemName = `${testPrefix} No Area HI List`;
 
-      try {
-        // Create household item with no areaId
-        itemId = await createHouseholdItemViaApi(page, { name: itemName });
+    try {
+      // Create household item with no areaId
+      itemId = await createHouseholdItemViaApi(page, { name: itemName });
 
-        await listPage.search(itemName);
+      await listPage.search(itemName);
 
-        // Null area renders <span class*="muted">No area</span> inside the name column's titleCell
-        // Works in both table rows and mobile cards
-        const viewport = page.viewportSize();
-        const tableVisible = viewport ? viewport.width >= 768 : true;
+      // Null area renders <span class*="muted">No area</span> inside the name column's titleCell
+      // Works in both table rows and mobile cards
+      const viewport = page.viewportSize();
+      const tableVisible = viewport ? viewport.width >= 768 : true;
 
-        if (tableVisible) {
-          const row = listPage.tableBody.locator('tr').filter({ hasText: itemName });
-          await expect(row.getByText('No area', { exact: true })).toBeVisible();
-        } else {
-          const card = listPage.cardsContainer
-            .locator('[class*="card"]')
-            .filter({ hasText: itemName });
-          await expect(card.getByText('No area', { exact: true })).toBeVisible();
-        }
-      } finally {
-        if (itemId) await deleteHouseholdItemViaApi(page, itemId);
+      if (tableVisible) {
+        const row = listPage.tableBody.locator('tr').filter({ hasText: itemName });
+        await expect(row.getByText('No area', { exact: true })).toBeVisible();
+      } else {
+        const card = listPage.cardsContainer
+          .locator('[class*="card"]')
+          .filter({ hasText: itemName });
+        await expect(card.getByText('No area', { exact: true })).toBeVisible();
       }
-    });
-  },
-);
+    } finally {
+      if (itemId) await deleteHouseholdItemViaApi(page, itemId);
+    }
+  });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 5: Detail page — null area shows "No area"
@@ -329,7 +325,10 @@ test.describe('HouseholdItemPicker — renderSecondary breadcrumb in search drop
       await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
       // Open the "Add Budget Line" modal
-      const addBudgetLineButton = page.getByRole('button', { name: '+ Add Budget Line', exact: true });
+      const addBudgetLineButton = page.getByRole('button', {
+        name: '+ Add Budget Line',
+        exact: true,
+      });
       await addBudgetLineButton.waitFor({ state: 'visible' });
       await addBudgetLineButton.click();
 

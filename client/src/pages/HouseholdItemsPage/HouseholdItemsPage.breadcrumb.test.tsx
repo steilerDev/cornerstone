@@ -263,9 +263,7 @@ describe('HouseholdItemsPage — AreaBreadcrumb in name column (Story #1240)', (
 
       // At least one tooltip should contain the full path
       const fullPath = 'Upper Floor \u203a Study';
-      const matchingTooltip = Array.from(tooltips).find(
-        (el) => el.textContent === fullPath,
-      );
+      const matchingTooltip = Array.from(tooltips).find((el) => el.textContent === fullPath);
       expect(matchingTooltip).toBeDefined();
     });
 
