@@ -104,3 +104,22 @@ export interface BudgetSourceBudgetLinesResponse {
   workItemLines: BudgetSourceBudgetLine[];
   householdItemLines: BudgetSourceBudgetLine[];
 }
+
+/**
+ * Request body for PATCH /api/budget-sources/:sourceId/budget-lines/move
+ * Specifies which budget lines to move from the current source to a target source.
+ */
+export interface MoveBudgetLinesRequest {
+  workItemBudgetIds: string[];
+  householdItemBudgetIds: string[];
+  targetSourceId: string;
+}
+
+/**
+ * Response for PATCH /api/budget-sources/:sourceId/budget-lines/move
+ * Indicates how many budget lines were successfully moved.
+ */
+export interface MoveBudgetLinesResponse {
+  movedWorkItemLines: number;
+  movedHouseholdItemLines: number;
+}

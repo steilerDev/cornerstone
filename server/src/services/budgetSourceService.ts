@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, asc, sql } from 'drizzle-orm';
+import { eq, asc, sql, inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import {
@@ -26,6 +26,8 @@ import type {
   UserSummary,
   BudgetLineInvoiceLink,
   ConfidenceLevel,
+  MoveBudgetLinesRequest,
+  MoveBudgetLinesResponse,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import {
@@ -40,6 +42,9 @@ import {
   ValidationError,
   BudgetSourceInUseError,
   DiscretionarySourceError,
+  SameSourceError,
+  EmptySelectionError,
+  StaleOwnershipError,
 } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -535,12 +540,7 @@ export function deleteBudgetSource(db: DbType, id: string): void {
 function getWorkItemLineInvoiceData(
   db: DbType,
   lineId: string,
-): {
-  actualCost: number;
-  actualCostPaid: number;
-  invoiceCount: number;
-  hasClaimedInvoice: boolean;
-} {
+): { actualCost: number; actualCostPaid: number; invoiceCount: number; hasClaimedInvoice: boolean } {
   const result = db.get<{
     actualCost: number;
     actualCostPaid: number;
@@ -573,12 +573,7 @@ function getWorkItemLineInvoiceData(
 function getHouseholdItemLineInvoiceData(
   db: DbType,
   lineId: string,
-): {
-  actualCost: number;
-  actualCostPaid: number;
-  invoiceCount: number;
-  hasClaimedInvoice: boolean;
-} {
+): { actualCost: number; actualCostPaid: number; invoiceCount: number; hasClaimedInvoice: boolean } {
   const result = db.get<{
     actualCost: number;
     actualCostPaid: number;
@@ -607,7 +602,10 @@ function getHouseholdItemLineInvoiceData(
  * Get the first linked invoice for a budget line (or null if none).
  * Used for work item budget lines.
  */
-function getWorkItemLineInvoiceLink(db: DbType, lineId: string): BudgetLineInvoiceLink | null {
+function getWorkItemLineInvoiceLink(
+  db: DbType,
+  lineId: string,
+): BudgetLineInvoiceLink | null {
   const row = db.get<{
     ibl_id: string;
     invoice_id: string;
@@ -638,7 +636,10 @@ function getWorkItemLineInvoiceLink(db: DbType, lineId: string): BudgetLineInvoi
  * Get the first linked invoice for a budget line (or null if none).
  * Used for household item budget lines.
  */
-function getHouseholdItemLineInvoiceLink(db: DbType, lineId: string): BudgetLineInvoiceLink | null {
+function getHouseholdItemLineInvoiceLink(
+  db: DbType,
+  lineId: string,
+): BudgetLineInvoiceLink | null {
   const row = db.get<{
     ibl_id: string;
     invoice_id: string;
@@ -669,15 +670,11 @@ function getHouseholdItemLineInvoiceLink(db: DbType, lineId: string): BudgetLine
  * Build a BudgetSourceBudgetLine from a work item budget row.
  * Resolves related entities (work item, area, category, source, vendor, user) and invoice data.
  */
-function buildWorkItemBudgetLine(
-  db: DbType,
-  line: typeof workItemBudgets.$inferSelect,
-): BudgetSourceBudgetLine {
+function buildWorkItemBudgetLine(db: DbType, line: typeof workItemBudgets.$inferSelect): BudgetSourceBudgetLine {
   const workItem = db.select().from(workItems).where(eq(workItems.id, line.workItemId)).get();
-  const area =
-    workItem && workItem.areaId
-      ? db.select().from(areas).where(eq(areas.id, workItem.areaId)).get()
-      : null;
+  const area = workItem && workItem.areaId
+    ? db.select().from(areas).where(eq(areas.id, workItem.areaId)).get()
+    : null;
   const category = line.budgetCategoryId
     ? db.select().from(budgetCategories).where(eq(budgetCategories.id, line.budgetCategoryId)).get()
     : null;
@@ -725,19 +722,11 @@ function buildWorkItemBudgetLine(
  * Build a BudgetSourceBudgetLine from a household item budget row.
  * Resolves related entities (household item, area, category, source, vendor, user) and invoice data.
  */
-function buildHouseholdItemBudgetLine(
-  db: DbType,
-  line: typeof householdItemBudgets.$inferSelect,
-): BudgetSourceBudgetLine {
-  const householdItem = db
-    .select()
-    .from(householdItems)
-    .where(eq(householdItems.id, line.householdItemId))
-    .get();
-  const area =
-    householdItem && householdItem.areaId
-      ? db.select().from(areas).where(eq(areas.id, householdItem.areaId)).get()
-      : null;
+function buildHouseholdItemBudgetLine(db: DbType, line: typeof householdItemBudgets.$inferSelect): BudgetSourceBudgetLine {
+  const householdItem = db.select().from(householdItems).where(eq(householdItems.id, line.householdItemId)).get();
+  const area = householdItem && householdItem.areaId
+    ? db.select().from(areas).where(eq(areas.id, householdItem.areaId)).get()
+    : null;
   const category = line.budgetCategoryId
     ? db.select().from(budgetCategories).where(eq(budgetCategories.id, line.budgetCategoryId)).get()
     : null;
@@ -785,7 +774,10 @@ function buildHouseholdItemBudgetLine(
  * Comparator for sorting budget source budget lines.
  * Sort by: area name (nulls last) → parent item name → createdAt (all ascending).
  */
-function compareBudgetSourceLines(a: BudgetSourceBudgetLine, b: BudgetSourceBudgetLine): number {
+function compareBudgetSourceLines(
+  a: BudgetSourceBudgetLine,
+  b: BudgetSourceBudgetLine,
+): number {
   // Area name: nulls last
   if (a.area === null && b.area !== null) return 1;
   if (a.area !== null && b.area === null) return -1;
@@ -840,5 +832,103 @@ export function getBudgetSourceBudgetLines(
   return {
     workItemLines,
     householdItemLines,
+  };
+}
+
+/**
+ * Move budget lines from one budget source to another.
+ * Atomically validates and transfers ownership of specified work item and household item budget lines.
+ * @throws NotFoundError if source or target does not exist
+ * @throws SameSourceError if targetSourceId === sourceId
+ * @throws EmptySelectionError if both arrays are empty
+ * @throws StaleOwnershipError if any ID is missing or belongs to a different source
+ */
+export function moveBudgetSourceBudgetLines(
+  db: DbType,
+  sourceId: string,
+  data: MoveBudgetLinesRequest,
+): MoveBudgetLinesResponse {
+  // 1. sourceId exists
+  const source = db.select().from(budgetSources).where(eq(budgetSources.id, sourceId)).get();
+  if (!source) {
+    throw new NotFoundError('Budget source not found');
+  }
+
+  const { targetSourceId, workItemBudgetIds, householdItemBudgetIds } = data;
+
+  // 2. Not same source (checked before target existence — AC is explicit about this order)
+  if (targetSourceId === sourceId) {
+    throw new SameSourceError();
+  }
+
+  // 3. targetSourceId exists
+  const target = db.select().from(budgetSources).where(eq(budgetSources.id, targetSourceId)).get();
+  if (!target) {
+    throw new NotFoundError('Budget source not found');
+  }
+
+  // 4. Non-empty selection
+  if (workItemBudgetIds.length === 0 && householdItemBudgetIds.length === 0) {
+    throw new EmptySelectionError();
+  }
+
+  // 5+6. Atomic validation + update (wrapped in transaction)
+  db.transaction((tx) => {
+    const now = new Date().toISOString();
+
+    // Validate work item budget IDs if provided
+    if (workItemBudgetIds.length > 0) {
+      const foundWib = tx
+        .select({ id: workItemBudgets.id, budgetSourceId: workItemBudgets.budgetSourceId })
+        .from(workItemBudgets)
+        .where(inArray(workItemBudgets.id, workItemBudgetIds))
+        .all();
+
+      // Check all IDs were found and belong to source
+      if (foundWib.length !== workItemBudgetIds.length) {
+        throw new StaleOwnershipError();
+      }
+      for (const row of foundWib) {
+        if (row.budgetSourceId !== sourceId) {
+          throw new StaleOwnershipError();
+        }
+      }
+
+      // Update work item budget lines
+      tx.update(workItemBudgets)
+        .set({ budgetSourceId: targetSourceId, updatedAt: now })
+        .where(inArray(workItemBudgets.id, workItemBudgetIds))
+        .run();
+    }
+
+    // Validate household item budget IDs if provided
+    if (householdItemBudgetIds.length > 0) {
+      const foundHib = tx
+        .select({ id: householdItemBudgets.id, budgetSourceId: householdItemBudgets.budgetSourceId })
+        .from(householdItemBudgets)
+        .where(inArray(householdItemBudgets.id, householdItemBudgetIds))
+        .all();
+
+      // Check all IDs were found and belong to source
+      if (foundHib.length !== householdItemBudgetIds.length) {
+        throw new StaleOwnershipError();
+      }
+      for (const row of foundHib) {
+        if (row.budgetSourceId !== sourceId) {
+          throw new StaleOwnershipError();
+        }
+      }
+
+      // Update household item budget lines
+      tx.update(householdItemBudgets)
+        .set({ budgetSourceId: targetSourceId, updatedAt: now })
+        .where(inArray(householdItemBudgets.id, householdItemBudgetIds))
+        .run();
+    }
+  });
+
+  return {
+    movedWorkItemLines: workItemBudgetIds.length,
+    movedHouseholdItemLines: householdItemBudgetIds.length,
   };
 }
