@@ -409,16 +409,20 @@ describe('App', () => {
     expect(tab).toBeInTheDocument();
   });
 
-  it('navigates to Schedule page when /schedule/gantt path is accessed', async () => {
-    window.history.pushState({}, 'Schedule', '/schedule/gantt');
-    render(<App />);
+  it(
+    'navigates to Schedule page when /schedule/gantt path is accessed',
+    async () => {
+      window.history.pushState({}, 'Schedule', '/schedule/gantt');
+      render(<App />);
 
-    // Wait for lazy-loaded TimelinePage component to resolve.
-    // Use an extended timeout because TimelinePage has more static imports
-    // (useMilestones, MilestonePanel) which makes the lazy load slower in CI.
-    const heading = await screen.findByRole('heading', { name: /schedule/i }, { timeout: 5000 });
-    expect(heading).toBeInTheDocument();
-  });
+      // Wait for lazy-loaded TimelinePage component to resolve.
+      // Use an extended timeout because TimelinePage has more static imports
+      // (useMilestones, MilestonePanel) which makes the lazy load slower in CI.
+      const heading = await screen.findByRole('heading', { name: /schedule/i }, { timeout: 10000 });
+      expect(heading).toBeInTheDocument();
+    },
+    15000,
+  );
 
   it('navigates to Household Items page when /project/household-items path is accessed', async () => {
     window.history.pushState({}, 'Household Items', '/project/household-items');

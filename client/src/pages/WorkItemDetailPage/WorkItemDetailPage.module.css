@@ -164,6 +164,10 @@
   gap: 0.5rem;
 }
 
+.titleBreadcrumb {
+  margin-top: var(--spacing-2);
+}
+
 .titleInput {
   font-size: 2rem;
   font-weight: 700;
