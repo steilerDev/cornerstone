@@ -42,6 +42,22 @@
       "vsMaxPlannedWithPayback": "Verbleibend vs. Max. Geplant (inkl. Rückzahlung)"
     },
     "ofAvailableFunds": "der verfügbaren Mittel",
+    "areaBreakdown": {
+      "title": "Bereichsaufschlüsselung",
+      "colName": "Bereich",
+      "colPlanned": "Geplant",
+      "colActual": "Tatsächlich",
+      "colVariance": "Abweichung",
+      "expandArea": "{{name}} ausklappen",
+      "collapseArea": "{{name}} einklappen",
+      "expandAll": "Alle ausklappen",
+      "collapseAll": "Alle einklappen",
+      "unassignedBucket": "Nicht zugewiesen",
+      "emptyMessage": "Es wurden noch keine Bereiche eingerichtet. Weisen Sie Arbeitspaketen Bereiche zu, um die Ausgaben nach Standort zu sehen.",
+      "expanded": "{{name}} ausgeklappt",
+      "collapsed": "{{name}} eingeklappt",
+      "tableCaption": "Bereichsbudget-Aufschlüsselung mit ausklappbarem Baum"
+    },
     "costBreakdown": {
       "loading": "Kostenaufschlüsselung wird geladen…",
       "title": "Kostenaufschlüsselung",
