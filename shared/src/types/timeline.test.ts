@@ -145,7 +145,12 @@ describe('TimelineWorkItem interface', () => {
   });
 
   it('area color can be null', () => {
-    const area: AreaSummary = { id: 'area-no-color', name: 'Uncolored Area', color: null, ancestors: [] };
+    const area: AreaSummary = {
+      id: 'area-no-color',
+      name: 'Uncolored Area',
+      color: null,
+      ancestors: [],
+    };
     const item: TimelineWorkItem = {
       id: 'wi-006',
       title: 'Area No Color',

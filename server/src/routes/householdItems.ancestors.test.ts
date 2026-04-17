@@ -182,9 +182,7 @@ describe('Household Item Routes — area ancestors', () => {
         pagination: unknown;
       };
 
-      const matchingItem = body.items.find(
-        (hi) => hi.id === created.id,
-      );
+      const matchingItem = body.items.find((hi) => hi.id === created.id);
       expect(matchingItem).toBeDefined();
 
       expect(matchingItem!.area).not.toBeNull();

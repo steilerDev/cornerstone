@@ -14,10 +14,7 @@ import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
-import type {
-  BudgetSourceBudgetLinesResponse,
-  ApiErrorResponse,
-} from '@cornerstone/shared';
+import type { BudgetSourceBudgetLinesResponse, ApiErrorResponse } from '@cornerstone/shared';
 import {
   budgetSources,
   workItems,
@@ -100,7 +97,16 @@ describe('GET /api/budget-sources/:sourceId/budget-lines', () => {
     const now = ts();
     app.db
       .insert(areas)
-      .values({ id, name, parentId: null, color: '#ff0000', description: null, sortOrder: 0, createdAt: now, updatedAt: now })
+      .values({
+        id,
+        name,
+        parentId: null,
+        color: '#ff0000',
+        description: null,
+        sortOrder: 0,
+        createdAt: now,
+        updatedAt: now,
+      })
       .run();
     return id;
   }
@@ -117,12 +123,23 @@ describe('GET /api/budget-sources/:sourceId/budget-lines', () => {
     const now = ts();
     app.db
       .insert(workItems)
-      .values({ id, title, status: 'not_started', areaId: areaId ?? null, createdAt: now, updatedAt: now })
+      .values({
+        id,
+        title,
+        status: 'not_started',
+        areaId: areaId ?? null,
+        createdAt: now,
+        updatedAt: now,
+      })
       .run();
     return id;
   }
 
-  function createWorkItemBudgetLine(wiId: string, sourceId: string | null, plannedAmount = 1000): string {
+  function createWorkItemBudgetLine(
+    wiId: string,
+    sourceId: string | null,
+    plannedAmount = 1000,
+  ): string {
     const id = uid('wib');
     const now = ts();
     app.db
@@ -160,7 +177,11 @@ describe('GET /api/budget-sources/:sourceId/budget-lines', () => {
     return id;
   }
 
-  function createHouseholdItemBudgetLine(hiId: string, sourceId: string | null, plannedAmount = 1000): string {
+  function createHouseholdItemBudgetLine(
+    hiId: string,
+    sourceId: string | null,
+    plannedAmount = 1000,
+  ): string {
     const id = uid('hib');
     const now = ts();
     app.db
@@ -178,7 +199,11 @@ describe('GET /api/budget-sources/:sourceId/budget-lines', () => {
     return id;
   }
 
-  function createInvoice(vendorId: string, status: 'pending' | 'paid' | 'claimed' | 'quotation', amount = 500): string {
+  function createInvoice(
+    vendorId: string,
+    status: 'pending' | 'paid' | 'claimed' | 'quotation',
+    amount = 500,
+  ): string {
     const id = uid('inv');
     const now = ts();
     app.db
@@ -188,7 +213,11 @@ describe('GET /api/budget-sources/:sourceId/budget-lines', () => {
     return id;
   }
 
-  function linkInvoiceToWorkItemBudget(invoiceId: string, wibId: string, itemizedAmount: number): void {
+  function linkInvoiceToWorkItemBudget(
+    invoiceId: string,
+    wibId: string,
+    itemizedAmount: number,
+  ): void {
     const now = ts();
     app.db
       .insert(invoiceBudgetLines)
@@ -204,7 +233,11 @@ describe('GET /api/budget-sources/:sourceId/budget-lines', () => {
       .run();
   }
 
-  function linkInvoiceToHouseholdItemBudget(invoiceId: string, hibId: string, itemizedAmount: number): void {
+  function linkInvoiceToHouseholdItemBudget(
+    invoiceId: string,
+    hibId: string,
+    itemizedAmount: number,
+  ): void {
     const now = ts();
     app.db
       .insert(invoiceBudgetLines)
@@ -374,7 +407,12 @@ describe('GET /api/budget-sources/:sourceId/budget-lines', () => {
 
   // 8. Member user can access
   it('member user can access the budget-lines endpoint', async () => {
-    const { cookie } = await createUserWithSession('member@test.com', 'Member', 'password', 'member');
+    const { cookie } = await createUserWithSession(
+      'member@test.com',
+      'Member',
+      'password',
+      'member',
+    );
     const sourceId = createTestSource();
 
     const response = await app.inject({

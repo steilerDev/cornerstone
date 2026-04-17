@@ -20,11 +20,7 @@ import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import * as schema from '../db/schema.js';
 import type { FastifyInstance } from 'fastify';
-import type {
-  WorkItemDetail,
-  WorkItemListResponse,
-  AreaSummary,
-} from '@cornerstone/shared';
+import type { WorkItemDetail, WorkItemListResponse, AreaSummary } from '@cornerstone/shared';
 
 describe('Work Item Routes — area ancestors', () => {
   let app: FastifyInstance;
@@ -103,11 +99,7 @@ describe('Work Item Routes — area ancestors', () => {
   /**
    * Helper: Create a work item via the API and return its id.
    */
-  async function createWorkItem(
-    cookie: string,
-    title: string,
-    areaId?: string,
-  ): Promise<string> {
+  async function createWorkItem(cookie: string, title: string, areaId?: string): Promise<string> {
     const payload: Record<string, unknown> = { title };
     if (areaId !== undefined) {
       payload.areaId = areaId;
@@ -129,11 +121,7 @@ describe('Work Item Routes — area ancestors', () => {
 
   describe('GET /api/work-items/:id', () => {
     it('AC1 — 3-level chain: returns area with 2-ancestor chain root-first', async () => {
-      const { cookie } = await createUserWithSession(
-        'user@example.com',
-        'User',
-        'password',
-      );
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
 
       // House → Basement → Bathroom (3 levels)
       const houseId = insertTestArea('House');
@@ -162,11 +150,7 @@ describe('Work Item Routes — area ancestors', () => {
     });
 
     it('AC2 — work item without areaId returns area === null', async () => {
-      const { cookie } = await createUserWithSession(
-        'user@example.com',
-        'User',
-        'password',
-      );
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
 
       const workItemId = await createWorkItem(cookie, 'No area work item');
 
@@ -182,11 +166,7 @@ describe('Work Item Routes — area ancestors', () => {
     });
 
     it('AC4 — orphaned parent: area returned with empty ancestors array', async () => {
-      const { cookie } = await createUserWithSession(
-        'user@example.com',
-        'User',
-        'password',
-      );
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
 
       // Insert area_A with a parentId pointing to a non-existent area.
       // Must disable FK checks to insert directly. Use try/finally to ensure
@@ -236,11 +216,7 @@ describe('Work Item Routes — area ancestors', () => {
 
   describe('GET /api/work-items', () => {
     it('AC1 — list endpoint: 3-level chain returns correct ancestors on matching item', async () => {
-      const { cookie } = await createUserWithSession(
-        'user@example.com',
-        'User',
-        'password',
-      );
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
 
       const houseId = insertTestArea('House');
       const basementId = insertTestArea('Basement', { parentId: houseId });
@@ -269,11 +245,7 @@ describe('Work Item Routes — area ancestors', () => {
     });
 
     it('all 5 work items across a 2-level hierarchy have correct ancestors populated', async () => {
-      const { cookie } = await createUserWithSession(
-        'user@example.com',
-        'User',
-        'password',
-      );
+      const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
 
       // Create 5 different areas across a hierarchy
       const root1 = insertTestArea('Root A');

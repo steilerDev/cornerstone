@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, sql, and, or, desc, asc, inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
+import type { areas } from '../db/schema.js';
 import {
   workItems,
   users,
@@ -10,7 +11,6 @@ import {
   householdItemDeps,
   workItemBudgets,
   vendors,
-  areas,
   trades,
 } from '../db/schema.js';
 import { listWorkItemBudgets } from './workItemBudgetService.js';
@@ -123,7 +123,15 @@ function getAreaWithAncestors(
   const entry = areaMap.get(areaId);
   if (!entry) return null;
   const ancestors = resolveAreaAncestors(areaId, areaMap);
-  return toAreaSummary({ id: entry.id, name: entry.name, color: entry.color, parentId: entry.parentId } as typeof areas.$inferSelect, ancestors);
+  return toAreaSummary(
+    {
+      id: entry.id,
+      name: entry.name,
+      color: entry.color,
+      parentId: entry.parentId,
+    } as typeof areas.$inferSelect,
+    ancestors,
+  );
 }
 
 /**

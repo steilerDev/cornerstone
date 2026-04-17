@@ -3,7 +3,12 @@ import { eq, asc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { areas, workItems, householdItems } from '../db/schema.js';
-import type { CreateAreaRequest, UpdateAreaRequest, AreaResponse, AreaAncestor } from '@cornerstone/shared';
+import type {
+  CreateAreaRequest,
+  UpdateAreaRequest,
+  AreaResponse,
+  AreaAncestor,
+} from '@cornerstone/shared';
 import {
   NotFoundError,
   ValidationError,

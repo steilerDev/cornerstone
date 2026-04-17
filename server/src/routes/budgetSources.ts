@@ -194,7 +194,10 @@ export default async function budgetSourceRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      const result = budgetSourceService.getBudgetSourceBudgetLines(fastify.db, request.params.sourceId);
+      const result = budgetSourceService.getBudgetSourceBudgetLines(
+        fastify.db,
+        request.params.sourceId,
+      );
       return reply.status(200).send(result);
     },
   );
