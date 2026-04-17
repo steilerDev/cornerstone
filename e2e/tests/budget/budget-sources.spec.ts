@@ -101,7 +101,7 @@ test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
     await expect(subNav).toBeVisible();
 
     // "Sources" tab is active
-    const sourcesTab = subNav.getByRole('listitem').filter({ hasText: 'Sources' });
+    const sourcesTab = subNav.getByRole('link', { name: 'Sources' });
     await expect(sourcesTab).toBeVisible();
   });
 

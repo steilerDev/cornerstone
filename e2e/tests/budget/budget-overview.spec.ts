@@ -129,9 +129,7 @@ test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
     // And: All four budget tabs are present (Categories moved to Manage page)
     const expectedTabs = ['Overview', 'Vendors', 'Sources', 'Subsidies'];
     for (const tab of expectedTabs) {
-      await expect(
-        overviewPage.subNav.getByRole('listitem').filter({ hasText: tab }),
-      ).toBeVisible();
+      await expect(overviewPage.subNav.getByRole('link', { name: tab })).toBeVisible();
     }
   });
 

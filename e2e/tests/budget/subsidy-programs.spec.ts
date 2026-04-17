@@ -103,7 +103,7 @@ test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
     await expect(subNav).toBeVisible();
 
     // "Subsidies" tab present
-    await expect(subNav.getByRole('listitem').filter({ hasText: 'Subsidies' })).toBeVisible();
+    await expect(subNav.getByRole('link', { name: 'Subsidies' })).toBeVisible();
   });
 
   test('Page URL is /budget/subsidies', async ({ page }) => {
