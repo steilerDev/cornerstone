@@ -110,7 +110,6 @@ describe('BudgetOverviewPage', () => {
     remainingVsActualClaimed: 0,
     remainingVsMinPlannedWithPayback: 0,
     remainingVsMaxPlannedWithPayback: 0,
-    categorySummaries: [],
     areaSummaries: [],
     unassignedSummary: null,
     subsidySummary: {
@@ -140,32 +139,6 @@ describe('BudgetOverviewPage', () => {
     remainingVsActualClaimed: 140000,
     remainingVsMinPlannedWithPayback: 80000,
     remainingVsMaxPlannedWithPayback: 20000,
-    categorySummaries: [
-      {
-        categoryId: 'cat-1',
-        categoryName: 'Materials',
-        categoryColor: '#FF5733',
-        categoryTranslationKey: null,
-        minPlanned: 64000,
-        maxPlanned: 96000,
-        actualCost: 70000,
-        actualCostPaid: 65000,
-        actualCostClaimed: 40000,
-        budgetLineCount: 5,
-      },
-      {
-        categoryId: 'cat-2',
-        categoryName: 'Labor',
-        categoryColor: null,
-        categoryTranslationKey: null,
-        minPlanned: 56000,
-        maxPlanned: 84000,
-        actualCost: 50000,
-        actualCostPaid: 35000,
-        actualCostClaimed: 20000,
-        budgetLineCount: 3,
-      },
-    ],
     areaSummaries: [],
     unassignedSummary: null,
     subsidySummary: {
@@ -567,184 +540,55 @@ describe('BudgetOverviewPage', () => {
     });
   });
 
-  // ─── Category filter ──────────────────────────────────────────────────────────
+  // ─── AreaTreeTable integration ──────────────────────────────────────────────
 
-  describe('category filter', () => {
-    it('renders category filter button when categories exist', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /categories:/i })).toBeInTheDocument();
-      });
-    });
-
-    it('does not render category filter when no categories exist', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.queryByRole('button', { name: /categories:/i })).not.toBeInTheDocument();
-      });
-    });
-
-    it('shows "All categories" label when all categories are selected initially', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /all categories/i })).toBeInTheDocument();
-      });
-    });
-
-    it('opens dropdown on button click showing all categories', async () => {
-      const user = userEvent.setup();
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /all categories/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /all categories/i }));
-
-      // Dropdown should show category names
-      expect(screen.getByText('Materials')).toBeInTheDocument();
-      expect(screen.getByText('Labor')).toBeInTheDocument();
-    });
-
-    it('shows "Select All" and "Clear All" buttons in dropdown', async () => {
-      const user = userEvent.setup();
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /all categories/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /all categories/i }));
-
-      expect(screen.getByRole('button', { name: 'Select All' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Clear All' })).toBeInTheDocument();
-    });
-
-    it('deselecting a category updates the filter label', async () => {
-      const user = userEvent.setup();
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /all categories/i })).toBeInTheDocument();
-      });
-
-      // Open dropdown
-      await user.click(screen.getByRole('button', { name: /all categories/i }));
-
-      // Deselect "Materials" checkbox
-      const materialsCheckbox = screen.getByRole('checkbox', { name: 'Materials' });
-      await user.click(materialsCheckbox);
-
-      // Label should now show "Labor" (only 1 selected — <= 2 shows names)
-      expect(screen.getByRole('button', { name: /categories: labor/i })).toBeInTheDocument();
-    });
-
-    it('"Clear All" button deselects all categories', async () => {
-      const user = userEvent.setup();
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /all categories/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /all categories/i }));
-      await user.click(screen.getByRole('button', { name: 'Clear All' }));
-
-      // All categories cleared
-      expect(screen.getByRole('button', { name: /no categories/i })).toBeInTheDocument();
-    });
-
-    it('"Select All" button re-selects all categories after clearing', async () => {
-      const user = userEvent.setup();
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /all categories/i })).toBeInTheDocument();
-      });
-
-      // Open and clear all
-      await user.click(screen.getByRole('button', { name: /all categories/i }));
-      await user.click(screen.getByRole('button', { name: 'Clear All' }));
-
-      // Reopen dropdown (it's still open) and click Select All
-      await user.click(screen.getByRole('button', { name: 'Select All' }));
-
-      expect(screen.getByRole('button', { name: /all categories/i })).toBeInTheDocument();
-    });
-
-    it('selecting a subset of 3+ categories shows count label', async () => {
-      const user = userEvent.setup();
-      // Use an overview with 4 categories to trigger the count label
-      const fourCatOverview: BudgetOverview = {
+  describe('AreaTreeTable integration', () => {
+    it('renders AreaTreeTable section when areaSummaries has entries', async () => {
+      const overviewWithAreas: BudgetOverview = {
         ...richOverview,
-        categorySummaries: [
-          ...richOverview.categorySummaries,
-          {
-            categoryId: 'cat-3',
-            categoryName: 'Permits',
-            categoryColor: null,
-            categoryTranslationKey: null,
-            minPlanned: 0,
-            maxPlanned: 0,
-            actualCost: 0,
-            actualCostPaid: 0,
-            actualCostClaimed: 0,
-            budgetLineCount: 0,
-          },
-          {
-            categoryId: 'cat-4',
-            categoryName: 'Design',
-            categoryColor: null,
-            categoryTranslationKey: null,
-            minPlanned: 0,
-            maxPlanned: 0,
-            actualCost: 0,
-            actualCostPaid: 0,
-            actualCostClaimed: 0,
-            budgetLineCount: 0,
-          },
+        areaSummaries: [
+          { areaId: 'area-1', name: 'Kitchen', parentId: null, planned: 50000, actual: 40000, variance: 10000 },
         ],
       };
-      mockFetchBudgetOverview.mockResolvedValueOnce(fourCatOverview);
+      mockFetchBudgetOverview.mockResolvedValueOnce(overviewWithAreas);
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /all categories/i })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /area breakdown/i })).toBeInTheDocument();
       });
 
-      // Open dropdown and deselect one category
-      await user.click(screen.getByRole('button', { name: /all categories/i }));
-      await user.click(screen.getByRole('checkbox', { name: 'Permits' }));
-
-      // 3 of 4 selected — shows "3 of 4 categories"
-      expect(screen.getByRole('button', { name: /3 of 4 categories/i })).toBeInTheDocument();
+      expect(screen.getByText('Kitchen')).toBeInTheDocument();
     });
 
-    it('closes dropdown on Escape key', async () => {
-      const user = userEvent.setup();
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+    it('renders unassigned row when unassignedSummary is non-null', async () => {
+      const overviewWithUnassigned: BudgetOverview = {
+        ...richOverview,
+        areaSummaries: [],
+        unassignedSummary: { planned: 8000, actual: 7000, variance: 1000 },
+      };
+      mockFetchBudgetOverview.mockResolvedValueOnce(overviewWithUnassigned);
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /all categories/i })).toBeInTheDocument();
+        expect(screen.getByText('Unassigned')).toBeInTheDocument();
+      });
+    });
+
+    it('does not crash when areaSummaries=[] and unassignedSummary=null', async () => {
+      const emptyAreasOverview: BudgetOverview = {
+        ...richOverview,
+        areaSummaries: [],
+        unassignedSummary: null,
+      };
+      mockFetchBudgetOverview.mockResolvedValueOnce(emptyAreasOverview);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /all categories/i }));
-      expect(screen.getByRole('listbox')).toBeInTheDocument();
-
-      await user.keyboard('{Escape}');
-      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      // Page renders without error — heading is present
+      expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
     });
   });
 
@@ -836,187 +680,7 @@ describe('BudgetOverviewPage', () => {
     });
   });
 
-  // ─── Category filter updates metrics ────────────────────────────────────────
-
-  describe('category filter effects on metrics', () => {
-    it('clearing all categories shows €0 in projected range', async () => {
-      const user = userEvent.setup();
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /all categories/i })).toBeInTheDocument();
-      });
-
-      // Open filter and clear all
-      await user.click(screen.getByRole('button', { name: /all categories/i }));
-      await user.click(screen.getByRole('button', { name: 'Clear All' }));
-
-      // With 0 categories selected, filtered totals are all 0
-      // minPlanned=0, maxPlanned=0 → displayed as €0.00 (both sides of range)
-      await waitFor(() => {
-        const zeroElements = screen.getAllByText(/0\.00/);
-        expect(zeroElements.length).toBeGreaterThan(0);
-      });
-    });
-
-    it('all categories selected uses global totals (not per-category sum)', async () => {
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-      renderPage();
-
-      // richOverview: minPlanned=120000 → €120K
-      await waitFor(() => {
-        expect(screen.getByText(/120K/)).toBeInTheDocument();
-      });
-    });
-  });
-
-  // ─── Category filter scope: Budget Health vs Cost Breakdown ─────────────────
-
-  describe('category filter scope', () => {
-    /**
-     * Breakdown fixture matching richOverview's two categories (Materials / Labor).
-     * Both are included so the CostBreakdownTable renders an "Expand" button for each.
-     */
-    const breakdownWithTwoCategories = {
-      workItems: {
-        categories: [
-          {
-            categoryId: 'cat-1',
-            categoryName: 'Materials',
-            categoryColor: '#FF5733',
-            categoryTranslationKey: null,
-            projectedMin: 72000,
-            projectedMax: 88000,
-            actualCost: 70000,
-            subsidyPayback: 0,
-            rawProjectedMin: 72000,
-            rawProjectedMax: 88000,
-            minSubsidyPayback: 0,
-            items: [],
-          },
-          {
-            categoryId: 'cat-2',
-            categoryName: 'Labor',
-            categoryColor: null,
-            categoryTranslationKey: null,
-            projectedMin: 68000,
-            projectedMax: 72000,
-            actualCost: 50000,
-            subsidyPayback: 0,
-            rawProjectedMin: 68000,
-            rawProjectedMax: 72000,
-            minSubsidyPayback: 0,
-            items: [],
-          },
-        ],
-        totals: {
-          projectedMin: 140000,
-          projectedMax: 160000,
-          actualCost: 120000,
-          subsidyPayback: 0,
-          rawProjectedMin: 140000,
-          rawProjectedMax: 160000,
-          minSubsidyPayback: 0,
-        },
-      },
-      householdItems: {
-        categories: [],
-        totals: {
-          projectedMin: 0,
-          projectedMax: 0,
-          actualCost: 0,
-          subsidyPayback: 0,
-          rawProjectedMin: 0,
-          rawProjectedMax: 0,
-          minSubsidyPayback: 0,
-        },
-      },
-      subsidyAdjustments: [],
-    };
-
-    it('selecting only one category updates Budget Health projected range but not Cost Breakdown', async () => {
-      const user = userEvent.setup();
-
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-      mockFetchBudgetBreakdown.mockResolvedValueOnce(breakdownWithTwoCategories);
-      renderPage();
-
-      // Wait for the page and the breakdown to finish loading
-      await waitFor(() => {
-        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
-        // The WI section expand button signals that the CostBreakdownTable rendered
-        expect(
-          screen.getByRole('button', { name: /expand work item budget categories/i }),
-        ).toBeInTheDocument();
-      });
-
-      // Expand the WI section so category rows become visible
-      await user.click(screen.getByRole('button', { name: /expand work item budget categories/i }));
-
-      // Both category expand buttons must be present before filtering
-      expect(screen.getByRole('button', { name: /expand materials/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /expand labor/i })).toBeInTheDocument();
-
-      // Budget Health shows full planned range: €120K–€180K
-      expect(screen.getByText(/€120K/)).toBeInTheDocument();
-      expect(screen.getByText(/€180K/)).toBeInTheDocument();
-
-      // Open the category filter and deselect "Labor" — leaving only "Materials" selected
-      await user.click(screen.getByRole('button', { name: /all categories/i }));
-      await user.click(screen.getByRole('checkbox', { name: 'Labor' }));
-
-      // Budget Health planned range should now show only Materials totals:
-      // minPlanned=64000 → €64K, maxPlanned=96000 → €96K
-      await waitFor(() => {
-        expect(screen.getByText(/€64K/)).toBeInTheDocument();
-        expect(screen.getByText(/€96K/)).toBeInTheDocument();
-      });
-
-      // Cost Breakdown must still show BOTH category rows regardless of the filter.
-      // The page always passes emptyCategories (size=0) to CostBreakdownTable,
-      // which treats size===0 as "show all" — so neither category is hidden.
-      expect(screen.getByRole('button', { name: /expand materials/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /expand labor/i })).toBeInTheDocument();
-    });
-
-    it('clearing all categories shows €0 projected range in Budget Health but Cost Breakdown keeps all categories', async () => {
-      const user = userEvent.setup();
-
-      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
-      mockFetchBudgetBreakdown.mockResolvedValueOnce(breakdownWithTwoCategories);
-      renderPage();
-
-      // Wait for the breakdown to render (WI section expand button is present)
-      await waitFor(() => {
-        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
-        expect(
-          screen.getByRole('button', { name: /expand work item budget categories/i }),
-        ).toBeInTheDocument();
-      });
-
-      // Expand the WI section to reveal individual category rows
-      await user.click(screen.getByRole('button', { name: /expand work item budget categories/i }));
-      expect(screen.getByRole('button', { name: /expand materials/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /expand labor/i })).toBeInTheDocument();
-
-      // Open filter and clear all categories
-      await user.click(screen.getByRole('button', { name: /all categories/i }));
-      await user.click(screen.getByRole('button', { name: 'Clear All' }));
-
-      // Budget Health: all filtered totals become 0 (no category selected),
-      // projected range collapses — at least one €0.00 value appears
-      await waitFor(() => {
-        const zeroEls = screen.getAllByText(/0\.00/);
-        expect(zeroEls.length).toBeGreaterThan(0);
-      });
-
-      // Cost Breakdown: both category expand buttons still present (unaffected by filter).
-      // The page passes emptyCategories (size=0) → CostBreakdownTable shows everything.
-      expect(screen.getByRole('button', { name: /expand materials/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /expand labor/i })).toBeInTheDocument();
-    });
-  });
+  // Category filter and category filter scope tests removed in #1243 — categorySummaries dropped
 
   // ─── Currency formatting ────────────────────────────────────────────────────
 

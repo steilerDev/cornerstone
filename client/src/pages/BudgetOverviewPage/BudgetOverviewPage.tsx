@@ -4,19 +4,18 @@ import { useTranslation } from 'react-i18next';
 import type {
   BudgetOverview,
   BudgetBreakdown,
-  CategoryBudgetSummary,
   BudgetSource,
 } from '@cornerstone/shared';
 import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
-import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
 import { Tooltip } from '../../components/Tooltip/Tooltip.js';
+import { AreaTreeTable } from '../../components/AreaTreeTable/index.js';
 import { CostBreakdownTable } from '../../components/CostBreakdownTable/CostBreakdownTable.js';
 import styles from './BudgetOverviewPage.module.css';
 
@@ -28,9 +27,6 @@ const BUDGET_TABS: SubNavTab[] = [
   { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
 ];
 
-/** Stable empty set passed to CostBreakdownTable so it always shows all categories. */
-const emptyCategories = new Set<string | null>();
-
 // ---- Helpers ----
 
 // formatShort is defined inside the component to access formatCurrency from useFormatters()
@@ -38,140 +34,6 @@ const emptyCategories = new Set<string | null>();
 function formatPct(value: number, total: number): string {
   if (total <= 0) return '0.0%';
   return `${((value / total) * 100).toFixed(1)}%`;
-}
-
-// ---- Category Filter Dropdown ----
-
-interface CategoryFilterProps {
-  categories: CategoryBudgetSummary[];
-  selectedIds: Set<string | null>;
-  onChange: (ids: Set<string | null>) => void;
-}
-
-function CategoryFilter({ categories, selectedIds, onChange }: CategoryFilterProps) {
-  const { t: tBudget } = useTranslation('budget');
-  const { t: tSettings } = useTranslation('settings');
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const allSelected = selectedIds.size === categories.length;
-
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
-
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false);
-    }
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [open]);
-
-  function toggleCategory(id: string | null) {
-    const next = new Set(selectedIds);
-    if (next.has(id)) {
-      next.delete(id);
-    } else {
-      next.add(id);
-    }
-    onChange(next);
-  }
-
-  function selectAll() {
-    onChange(new Set(categories.map((c) => c.categoryId)));
-  }
-
-  function clearAll() {
-    onChange(new Set());
-  }
-
-  // Button label
-  let label: string;
-  if (allSelected) {
-    label = tBudget('overview.allCategories');
-  } else if (selectedIds.size === 0) {
-    label = tBudget('overview.noCategories');
-  } else if (selectedIds.size <= 2) {
-    label = categories
-      .filter((c) => selectedIds.has(c.categoryId))
-      .map((c) => getCategoryDisplayName(tSettings, c.categoryName, c.categoryTranslationKey))
-      .join(', ');
-  } else {
-    label = `${selectedIds.size} of ${categories.length} categories`;
-  }
-
-  return (
-    <div className={styles.categoryFilter} ref={containerRef}>
-      <button
-        type="button"
-        className={styles.categoryFilterButton}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span>
-          {tBudget('overview.categories')}: {label}
-        </span>
-        <span className={styles.categoryFilterChevron} aria-hidden="true">
-          {open ? '▲' : '▼'}
-        </span>
-      </button>
-
-      {open && (
-        <div className={styles.categoryDropdown} role="listbox" aria-multiselectable="true">
-          {/* Select All / Clear All */}
-          <div className={styles.categoryDropdownActions}>
-            <button type="button" className={styles.dropdownAction} onClick={selectAll}>
-              {tBudget('overview.selectAll')}
-            </button>
-            <button type="button" className={styles.dropdownAction} onClick={clearAll}>
-              {tBudget('overview.clearAll')}
-            </button>
-          </div>
-
-          <div className={styles.categoryDropdownDivider} />
-
-          {categories.map((cat) => {
-            const checked = selectedIds.has(cat.categoryId);
-            const id = `cat-filter-${cat.categoryId ?? '__uncategorized__'}`;
-            return (
-              <label key={cat.categoryId ?? '__uncategorized__'} className={styles.categoryOption}>
-                <input
-                  id={id}
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => toggleCategory(cat.categoryId)}
-                  className={styles.categoryOptionCheckbox}
-                />
-                {cat.categoryColor ? (
-                  <span
-                    className={styles.categoryDot}
-                    style={{ backgroundColor: cat.categoryColor }}
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <span className={styles.categoryDot} aria-hidden="true" />
-                )}
-                <span className={styles.categoryOptionName}>
-                  {getCategoryDisplayName(tSettings, cat.categoryName, cat.categoryTranslationKey)}
-                </span>
-              </label>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ---- Remaining Detail Panel ----
@@ -280,40 +142,6 @@ function SegmentTooltipContent({ segment, availableFunds, formatCurrency }: Segm
   );
 }
 
-// ---- Computed filtered totals ----
-
-interface FilteredTotals {
-  actualCostClaimed: number;
-  actualCostPaid: number;
-  actualCost: number;
-  minPlanned: number;
-  maxPlanned: number;
-}
-
-function computeFilteredTotals(
-  overview: BudgetOverview,
-  selectedIds: Set<string | null>,
-): FilteredTotals {
-  // If all selected — use the global totals (avoids floating point from summing categories)
-  if (selectedIds.size === overview.categorySummaries.length) {
-    return {
-      actualCostClaimed: overview.actualCostClaimed,
-      actualCostPaid: overview.actualCostPaid,
-      actualCost: overview.actualCost,
-      minPlanned: overview.minPlanned,
-      maxPlanned: overview.maxPlanned,
-    };
-  }
-
-  const selected = overview.categorySummaries.filter((c) => selectedIds.has(c.categoryId));
-  return {
-    actualCostClaimed: selected.reduce((s, c) => s + c.actualCostClaimed, 0),
-    actualCostPaid: selected.reduce((s, c) => s + c.actualCostPaid, 0),
-    actualCost: selected.reduce((s, c) => s + c.actualCost, 0),
-    minPlanned: selected.reduce((s, c) => s + c.minPlanned, 0),
-    maxPlanned: selected.reduce((s, c) => s + c.maxPlanned, 0),
-  };
-}
 
 // ---- Main component ----
 
@@ -346,9 +174,6 @@ export function BudgetOverviewPage() {
 
   // Budget sources state
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
-
-  // Category filter state — set once overview loads
-  const [selectedCategories, setSelectedCategories] = useState<Set<string | null>>(new Set());
 
   // Hovered bar segment (desktop tooltip)
   const [hoveredSegment, setHoveredSegment] = useState<BudgetBarSegment | null>(null);
@@ -396,8 +221,6 @@ export function BudgetOverviewPage() {
     try {
       const data = await fetchBudgetOverview();
       setOverview(data);
-      // Initialise filter — all selected
-      setSelectedCategories(new Set(data.categorySummaries.map((c) => c.categoryId)));
 
       // Fetch breakdown data (non-critical, so silent failure)
       setIsBreakdownLoading(true);
@@ -522,11 +345,18 @@ export function BudgetOverviewPage() {
   const hasData =
     overview.minPlanned > 0 ||
     overview.actualCost > 0 ||
-    overview.categorySummaries.length > 0 ||
+    overview.areaSummaries.length > 0 ||
+    overview.unassignedSummary !== null ||
     overview.sourceCount > 0;
 
-  // Compute filtered totals based on selected categories
-  const filtered = computeFilteredTotals(overview, selectedCategories);
+  // Use direct totals from overview (no filtering)
+  const filtered = {
+    actualCostClaimed: overview.actualCostClaimed,
+    actualCostPaid: overview.actualCostPaid,
+    actualCost: overview.actualCost,
+    minPlanned: overview.minPlanned,
+    maxPlanned: overview.maxPlanned,
+  };
 
   // Segment values
   const claimedVal = filtered.actualCostClaimed;
@@ -782,17 +612,14 @@ export function BudgetOverviewPage() {
           />
         </div>
 
-        {/* Category filter */}
-        {overview.categorySummaries.length > 0 && (
-          <div className={styles.categoryFilterRow}>
-            <CategoryFilter
-              categories={overview.categorySummaries}
-              selectedIds={selectedCategories}
-              onChange={setSelectedCategories}
-            />
-          </div>
-        )}
       </section>
+
+      {/* Area Tree Table */}
+      <AreaTreeTable
+        areas={overview.areaSummaries}
+        unassigned={overview.unassignedSummary}
+        formatCurrency={formatCurrency}
+      />
 
       {/* Cost Breakdown Table */}
       {overview &&
@@ -808,7 +635,7 @@ export function BudgetOverviewPage() {
           <CostBreakdownTable
             breakdown={breakdown}
             overview={overview}
-            selectedCategories={emptyCategories}
+            selectedCategories={new Set<string | null>()}
             budgetSources={budgetSources}
           />
         ) : null)}

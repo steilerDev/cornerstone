@@ -317,23 +317,6 @@ describe('getBudgetOverview', () => {
       expect(result.subsidySummary.activeSubsidyCount).toBe(0);
     });
 
-    it('returns 7 category summaries (seeded defaults after migration 0028) with all-zero values', () => {
-      const result = getBudgetOverview(db);
-
-      // After migration 0028 on a fresh DB (no budget lines):
-      // Original 10 (0003) + 1 bc-household-items (0016) + 1 bc-waste (0028)
-      // - 5 deleted by 0028 (bc-equipment, bc-landscaping, bc-utilities, bc-insurance, bc-contingency)
-      // = 7 categories: bc-materials, bc-labor, bc-permits, bc-design, bc-other, bc-household-items, bc-waste
-      expect(result.categorySummaries).toHaveLength(7);
-
-      for (const cat of result.categorySummaries) {
-        expect(cat.minPlanned).toBe(0);
-        expect(cat.maxPlanned).toBe(0);
-        expect(cat.actualCost).toBe(0);
-        expect(cat.actualCostPaid).toBe(0);
-        expect(cat.budgetLineCount).toBe(0);
-      }
-    });
   });
 
   // ─── Available funds from budget sources ──────────────────────────────────
@@ -530,139 +513,7 @@ describe('getBudgetOverview', () => {
     });
   });
 
-  // ─── Category summaries ───────────────────────────────────────────────────
-
-  describe('category summaries', () => {
-    it('includes all seeded categories even with no assigned budget lines', () => {
-      const result = getBudgetOverview(db);
-
-      const seededNames = ['Materials', 'Labor', 'Permits', 'Design', 'Waste', 'Other'];
-      const resultNames = result.categorySummaries.map((c) => c.categoryName);
-      for (const name of seededNames) {
-        expect(resultNames).toContain(name);
-      }
-    });
-
-    it('includes custom category with no budget lines, showing zeroes', () => {
-      const catId = insertBudgetCategory('Custom Test Category');
-
-      const result = getBudgetOverview(db);
-      const cat = result.categorySummaries.find((c) => c.categoryId === catId);
-
-      expect(cat).toBeDefined();
-      expect(cat!.minPlanned).toBe(0);
-      expect(cat!.maxPlanned).toBe(0);
-      expect(cat!.actualCost).toBe(0);
-      expect(cat!.actualCostPaid).toBe(0);
-      expect(cat!.budgetLineCount).toBe(0);
-    });
-
-    it('aggregates minPlanned/maxPlanned per category with confidence margins', () => {
-      const catId = insertBudgetCategory('Cat Margin Test');
-      // own_estimate (±20%): min=8000, max=12000; no invoices → projected = planned
-      insertWorkItem({ plannedAmount: 10000, confidence: 'own_estimate', budgetCategoryId: catId });
-      // quote (±5%): min=4750, max=5250; no invoices → projected = planned
-      insertWorkItem({ plannedAmount: 5000, confidence: 'quote', budgetCategoryId: catId });
-
-      const result = getBudgetOverview(db);
-      const cat = result.categorySummaries.find((c) => c.categoryId === catId);
-
-      expect(cat).toBeDefined();
-      expect(cat!.minPlanned).toBeCloseTo(12750, 5); // 8000 + 4750
-      expect(cat!.maxPlanned).toBeCloseTo(17250, 5); // 12000 + 5250
-      expect(cat!.budgetLineCount).toBe(2);
-    });
-
-    it('aggregates actualCost and actualCostPaid per category from invoices', () => {
-      const catId = insertBudgetCategory('Cat Invoice Test');
-      insertWorkItem({
-        plannedAmount: 10000,
-        budgetCategoryId: catId,
-        actualCost: 8000,
-        actualCostPending: 1500,
-      });
-
-      const result = getBudgetOverview(db);
-      const cat = result.categorySummaries.find((c) => c.categoryId === catId);
-
-      expect(cat!.actualCost).toBe(9500); // 8000 paid + 1500 pending
-      expect(cat!.actualCostPaid).toBe(8000); // only paid
-    });
-
-    it('counts budget lines per category correctly', () => {
-      const catId = insertBudgetCategory('Count Test Cat');
-      insertWorkItem({ plannedAmount: 1000, budgetCategoryId: catId });
-      insertWorkItem({ plannedAmount: 2000, budgetCategoryId: catId });
-      insertWorkItem({ plannedAmount: 3000, budgetCategoryId: catId });
-
-      const result = getBudgetOverview(db);
-      const cat = result.categorySummaries.find((c) => c.categoryId === catId);
-
-      expect(cat!.budgetLineCount).toBe(3);
-    });
-
-    it('budget lines without a category do not appear in any category summary', () => {
-      const catId = insertBudgetCategory('Exclusive Cat');
-      insertWorkItem({ plannedAmount: 5000, budgetCategoryId: catId });
-      insertWorkItem({ plannedAmount: 9999 }); // no category
-
-      const result = getBudgetOverview(db);
-      const cat = result.categorySummaries.find((c) => c.categoryId === catId);
-
-      // Only the first line's contribution should appear
-      expect(cat!.minPlanned).toBeCloseTo(4000, 5); // own_estimate: 5000 * 0.8
-      expect(cat!.budgetLineCount).toBe(1);
-    });
-
-    it('includes categoryColor in summary', () => {
-      const catId = insertBudgetCategory('Colored Cat', '#FF5733');
-
-      const result = getBudgetOverview(db);
-      const cat = result.categorySummaries.find((c) => c.categoryId === catId);
-
-      expect(cat!.categoryColor).toBe('#FF5733');
-    });
-
-    it('returns null categoryColor when category has no color', () => {
-      const catId = insertBudgetCategory('No Color Cat', null);
-
-      const result = getBudgetOverview(db);
-      const cat = result.categorySummaries.find((c) => c.categoryId === catId);
-
-      expect(cat!.categoryColor).toBeNull();
-    });
-
-    it('keeps categories from different budget lines independent', () => {
-      const catA = insertBudgetCategory('Cat Alpha');
-      const catB = insertBudgetCategory('Cat Beta');
-      // invoice confidence (±0%): line has invoice → all values = actualCost
-      insertWorkItem({
-        plannedAmount: 1000,
-        confidence: 'invoice',
-        budgetCategoryId: catA,
-        actualCost: 800,
-      });
-      insertWorkItem({
-        plannedAmount: 2000,
-        confidence: 'invoice',
-        budgetCategoryId: catB,
-        actualCost: 2500,
-      });
-
-      const result = getBudgetOverview(db);
-      const a = result.categorySummaries.find((c) => c.categoryId === catA);
-      const b = result.categorySummaries.find((c) => c.categoryId === catB);
-
-      // catA line has invoice (800) → min/max planned overridden by actualCost
-      expect(a!.minPlanned).toBe(800);
-      expect(a!.maxPlanned).toBe(800);
-      expect(a!.actualCost).toBe(800);
-      // catB line has invoice (2500) → min/max planned overridden by actualCost
-      expect(b!.minPlanned).toBe(2500);
-      expect(b!.maxPlanned).toBe(2500);
-      expect(b!.actualCost).toBe(2500);
-    });
-  });
+  // categorySummaries describe removed — field dropped in story #1243
 
   // ─── Subsidy summary ──────────────────────────────────────────────────────
 
@@ -958,28 +809,7 @@ describe('getBudgetOverview', () => {
       expect(result.subsidySummary.totalReductions).toBeCloseTo(1000, 5);
     });
 
-    it('applies category-matched reductions in per-category summaries', () => {
-      const catId = insertBudgetCategory('Cat Reduction In Summary');
-      const { workItemId } = insertWorkItem({
-        plannedAmount: 10000,
-        confidence: 'invoice',
-        budgetCategoryId: catId,
-      });
-      const progId = insertSubsidyProgram({
-        reductionType: 'percentage',
-        reductionValue: 20,
-        applicationStatus: 'approved',
-        categoryIds: [catId],
-      });
-      linkWorkItemSubsidy(workItemId, progId);
-
-      const result = getBudgetOverview(db);
-      const cat = result.categorySummaries.find((c) => c.categoryId === catId);
-
-      // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 10000
-      expect(cat!.minPlanned).toBeCloseTo(10000, 5);
-      expect(cat!.maxPlanned).toBeCloseTo(10000, 5);
-    });
+    // 'applies category-matched reductions in per-category summaries' test removed — categorySummaries dropped in #1243
 
     it('sums reductions from multiple work item-subsidy category matches', () => {
       const catA = insertBudgetCategory('Cat Reduce A');
@@ -1137,21 +967,7 @@ describe('getBudgetOverview', () => {
       expect(result.subsidySummary.totalReductions).toBeCloseTo(4500, 5);
       expect(result.subsidySummary.activeSubsidyCount).toBe(1);
 
-      // Category A: wi1 (has invoice 45000 → min/max=45000) + wi3 (no invoice → 19000/21000)
-      const a = result.categorySummaries.find((c) => c.categoryId === catA);
-      expect(a!.minPlanned).toBeCloseTo(64000, 5); // 45000 + 19000
-      expect(a!.maxPlanned).toBeCloseTo(66000, 5); // 45000 + 21000
-      expect(a!.actualCost).toBe(45000);
-      expect(a!.actualCostPaid).toBe(45000);
-      expect(a!.budgetLineCount).toBe(2);
-
-      // Category B: wi2 (has invoice 32000 pending → min/max=32000)
-      const b = result.categorySummaries.find((c) => c.categoryId === catB);
-      expect(b!.minPlanned).toBeCloseTo(32000, 5); // overridden by actualCost
-      expect(b!.maxPlanned).toBeCloseTo(32000, 5); // overridden by actualCost
-      expect(b!.actualCost).toBe(32000);
-      expect(b!.actualCostPaid).toBe(0);
-      expect(b!.budgetLineCount).toBe(1);
+      // Per-category assertions removed — categorySummaries dropped in story #1243
     });
   });
 
@@ -1297,79 +1113,7 @@ describe('getBudgetOverview', () => {
       expect(result.actualCostClaimed).toBe(0);
     });
 
-    it('aggregates per-category actualCostClaimed correctly', () => {
-      const catId = insertBudgetCategory('Cat Claimed Test');
-      const { budgetLineId: bl1 } = insertWorkItem({
-        plannedAmount: 10000,
-        budgetCategoryId: catId,
-      });
-      const { budgetLineId: bl2 } = insertWorkItem({
-        plannedAmount: 8000,
-        budgetCategoryId: catId,
-      });
-      insertClaimedInvoice(bl1!, 4000);
-      insertClaimedInvoice(bl2!, 2000);
-
-      const result = getBudgetOverview(db);
-      const cat = result.categorySummaries.find((c) => c.categoryId === catId);
-
-      expect(cat).toBeDefined();
-      expect(cat!.actualCostClaimed).toBe(6000); // 4000 + 2000
-    });
-
-    it('per-category actualCostClaimed is zero for categories with only paid invoices', () => {
-      const catId = insertBudgetCategory('Cat Paid Only');
-      insertWorkItem({ plannedAmount: 10000, budgetCategoryId: catId, actualCost: 5000 }); // paid
-
-      const result = getBudgetOverview(db);
-      const cat = result.categorySummaries.find((c) => c.categoryId === catId);
-
-      expect(cat).toBeDefined();
-      expect(cat!.actualCostClaimed).toBe(0);
-    });
-
-    it('per-category claimed sums are independent across different categories', () => {
-      const catA = insertBudgetCategory('Cat Claimed A');
-      const catB = insertBudgetCategory('Cat Claimed B');
-
-      const { budgetLineId: blA } = insertWorkItem({
-        plannedAmount: 10000,
-        budgetCategoryId: catA,
-      });
-      const { budgetLineId: blB } = insertWorkItem({ plannedAmount: 8000, budgetCategoryId: catB });
-      insertClaimedInvoice(blA!, 3500);
-      insertClaimedInvoice(blB!, 1800);
-
-      const result = getBudgetOverview(db);
-      const a = result.categorySummaries.find((c) => c.categoryId === catA);
-      const b = result.categorySummaries.find((c) => c.categoryId === catB);
-
-      expect(a!.actualCostClaimed).toBe(3500);
-      expect(b!.actualCostClaimed).toBe(1800);
-      // Global total
-      expect(result.actualCostClaimed).toBe(5300);
-    });
-
-    it('mixed paid and claimed invoices in same category sum correctly', () => {
-      const catId = insertBudgetCategory('Cat Mixed Invoice Types');
-      insertWorkItem({
-        plannedAmount: 10000,
-        budgetCategoryId: catId,
-        actualCost: 5000, // paid
-      });
-      const { budgetLineId: bl2 } = insertWorkItem({
-        plannedAmount: 8000,
-        budgetCategoryId: catId,
-      });
-      insertClaimedInvoice(bl2!, 3000); // claimed
-
-      const result = getBudgetOverview(db);
-      const cat = result.categorySummaries.find((c) => c.categoryId === catId);
-
-      expect(cat!.actualCost).toBe(8000); // 5000 paid + 3000 claimed
-      expect(cat!.actualCostPaid).toBe(8000); // both paid and claimed count as paid
-      expect(cat!.actualCostClaimed).toBe(3000); // only claimed
-    });
+    // Per-category actualCostClaimed tests removed — categorySummaries dropped in story #1243
   });
 
   // ─── Subsidy payback aggregation (#346) ────────────────────────────────────

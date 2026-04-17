@@ -1,5 +1,5 @@
 /**
- * E2E tests for the Budget Overview page (Story #148 + feat/budget-hero-bar)
+ * E2E tests for the Budget Overview page (Story #148 + feat/budget-hero-bar + feat/1243)
  *
  * UAT Scenarios covered:
  * - Page loads with the correct h1 "Budget" heading
@@ -7,10 +7,18 @@
  * - Empty state shown when no budget data exists
  * - Budget overview hero card visible when data is present
  * - Budget bar (stacked chart) is visible
- * - Category filter button is accessible
  * - Error state with Retry button when API returns 500
  * - Responsive layout: no horizontal scroll
  * - Dark mode rendering
+ * - Area Breakdown tree: root areas visible on load
+ * - Area Breakdown tree: expand root reveals children
+ * - Area Breakdown tree: collapse root hides children
+ * - Area Breakdown tree: Expand All / Collapse All controls
+ * - Area Breakdown tree: negative variance row visible and formatted
+ * - Area Breakdown tree: Unassigned row appears when unassignedSummary present
+ * - Area Breakdown tree: Unassigned row absent when unassignedSummary is null
+ * - Area Breakdown tree: empty tree state (no treegrid or EmptyState visible)
+ * - Area Breakdown tree: visible in dark mode
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -40,7 +48,10 @@ function emptyOverviewResponse() {
     remainingVsProjectedMin: 0,
     remainingVsProjectedMax: 0,
     remainingVsActualClaimed: 0,
-    categorySummaries: [],
+    remainingVsMinPlannedWithPayback: 0,
+    remainingVsMaxPlannedWithPayback: 0,
+    areaSummaries: [],
+    unassignedSummary: null,
     subsidySummary: {
       totalReductions: 0,
       activeSubsidyCount: 0,
@@ -48,7 +59,7 @@ function emptyOverviewResponse() {
   };
 }
 
-/** BudgetOverview response with data populated across all hero card metrics and two category rows. */
+/** BudgetOverview response with data populated across all hero card metrics and an area tree. */
 function populatedOverviewResponse() {
   return {
     availableFunds: 300000,
@@ -67,34 +78,16 @@ function populatedOverviewResponse() {
     remainingVsProjectedMin: 40000,
     remainingVsProjectedMax: 30000,
     remainingVsActualClaimed: 220000,
-    categorySummaries: [
-      {
-        categoryId: 'cat-001',
-        categoryName: 'Materials',
-        categoryColor: '#3b82f6',
-        minPlanned: 120000,
-        maxPlanned: 132000,
-        actualCost: 95000,
-        actualCostPaid: 80000,
-        projectedMin: 125000,
-        projectedMax: 130000,
-        actualCostClaimed: 50000,
-        budgetLineCount: 4,
-      },
-      {
-        categoryId: 'cat-002',
-        categoryName: 'Labor',
-        categoryColor: '#10b981',
-        minPlanned: 130000,
-        maxPlanned: 143000,
-        actualCost: 90000,
-        actualCostPaid: 70000,
-        projectedMin: 135000,
-        projectedMax: 140000,
-        actualCostClaimed: 30000,
-        budgetLineCount: 3,
-      },
+    remainingVsMinPlannedWithPayback: 50000,
+    remainingVsMaxPlannedWithPayback: 25000,
+    areaSummaries: [
+      { areaId: 'area-001', name: 'Rohbau',     parentId: null,       planned: 120000, actual: 95000,  variance: 25000 },
+      { areaId: 'area-002', name: 'Keller',      parentId: 'area-001', planned: 40000,  actual: 38000,  variance: 2000  },
+      { areaId: 'area-003', name: 'Erdgeschoss', parentId: 'area-001', planned: 80000,  actual: 57000,  variance: 23000 },
+      { areaId: 'area-004', name: 'Innenausbau', parentId: null,       planned: 80000,  actual: 82000,  variance: -2000 },
+      { areaId: 'area-005', name: 'Dachgeschoss', parentId: 'area-004', planned: 50000, actual: 52000, variance: -2000 },
     ],
+    unassignedSummary: null,
     subsidySummary: {
       totalReductions: 12500,
       activeSubsidyCount: 2,
@@ -243,31 +236,6 @@ test.describe('Hero card', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Category filter button is visible', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-
-    await page.route(`${API.budgetOverview}`, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ overview: populatedOverviewResponse() }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      // Then: The category filter dropdown button is visible
-      await expect(overviewPage.categoryFilterButton).toBeVisible({ timeout: 8000 });
-    } finally {
-      await page.unroute(`${API.budgetOverview}`);
-    }
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -388,6 +356,232 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
       await expect(overviewPage.heroCard).toBeVisible({ timeout: 8000 });
     } finally {
       await page.unroute(`${API.budgetOverview}`);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Area Breakdown tree
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Area Breakdown tree', { tag: '@responsive' }, () => {
+  /**
+   * Helper: mount a route returning the given overview payload.
+   * Returns a teardown function that must be called in a finally block.
+   */
+  async function mountRoute(page: Parameters<typeof test>[1]['page'], body: object) {
+    await page.route(`${API.budgetOverview}`, async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ overview: body }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+    return () => page.unroute(`${API.budgetOverview}`);
+  }
+
+  test('Root areas are visible on load, children are not', async ({ page }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountRoute(page, populatedOverviewResponse());
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      // Root rows should be visible immediately
+      await expect(overviewPage.areaRow('Rohbau')).toBeVisible();
+      await expect(overviewPage.areaRow('Innenausbau')).toBeVisible();
+
+      // Child rows should not be visible (collapsed by default)
+      await expect(overviewPage.areaRow('Keller')).not.toBeVisible();
+      await expect(overviewPage.areaRow('Erdgeschoss')).not.toBeVisible();
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Expanding a root area reveals its children', async ({ page }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountRoute(page, populatedOverviewResponse());
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      // Click the expand button for Rohbau
+      await overviewPage.areaToggleButton('Rohbau').click();
+
+      // Children should now be visible
+      await expect(overviewPage.areaRow('Keller')).toBeVisible();
+      await expect(overviewPage.areaRow('Erdgeschoss')).toBeVisible();
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Collapsing a root area hides its children', async ({ page }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountRoute(page, populatedOverviewResponse());
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      // Expand then collapse
+      await overviewPage.areaToggleButton('Rohbau').click();
+      await expect(overviewPage.areaRow('Keller')).toBeVisible();
+
+      await overviewPage.areaToggleButton('Rohbau').click();
+
+      // Children should be hidden again
+      await expect(overviewPage.areaRow('Keller')).not.toBeVisible();
+      await expect(overviewPage.areaRow('Erdgeschoss')).not.toBeVisible();
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Expand All shows all rows; Collapse All shows only root rows', async ({ page }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountRoute(page, populatedOverviewResponse());
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      // Expand All → all rows visible (both root parents and their children)
+      await overviewPage.expandAllButton.click();
+      await expect(overviewPage.areaRow('Rohbau')).toBeVisible();
+      await expect(overviewPage.areaRow('Keller')).toBeVisible();
+      await expect(overviewPage.areaRow('Erdgeschoss')).toBeVisible();
+      await expect(overviewPage.areaRow('Innenausbau')).toBeVisible();
+      await expect(overviewPage.areaRow('Dachgeschoss')).toBeVisible();
+
+      // Collapse All → only root rows visible
+      await overviewPage.collapseAllButton.click();
+      await expect(overviewPage.areaRow('Rohbau')).toBeVisible();
+      await expect(overviewPage.areaRow('Innenausbau')).toBeVisible();
+      await expect(overviewPage.areaRow('Keller')).not.toBeVisible();
+      await expect(overviewPage.areaRow('Erdgeschoss')).not.toBeVisible();
+      await expect(overviewPage.areaRow('Dachgeschoss')).not.toBeVisible();
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Row with negative variance is visible and contains the formatted value', async ({
+    page,
+  }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountRoute(page, populatedOverviewResponse());
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      // Innenausbau has variance -2000 — the row must be visible
+      const innenausbauRow = overviewPage.areaRow('Innenausbau');
+      await expect(innenausbauRow).toBeVisible();
+
+      // The formatted negative amount must appear somewhere in the row
+      const rowText = await innenausbauRow.textContent();
+      // Negative variance appears as a negative-formatted number (e.g. "-2,000", "-€2,000", etc.)
+      expect(rowText).toMatch(/-[\d,./€\s]*2[,.]?000/);
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Unassigned row appears at the bottom when unassignedSummary is present', async ({
+    page,
+  }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+
+    const responseWithUnassigned = {
+      ...populatedOverviewResponse(),
+      unassignedSummary: { planned: 5000, actual: 4800, variance: 200 },
+    };
+
+    const teardown = await mountRoute(page, responseWithUnassigned);
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      // The Unassigned row should be visible
+      await expect(overviewPage.areaRow('Unassigned')).toBeVisible();
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Unassigned row is absent when unassignedSummary is null', async ({ page }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    // populatedOverviewResponse() has unassignedSummary: null
+    const teardown = await mountRoute(page, populatedOverviewResponse());
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      // No Unassigned row should appear
+      await expect(overviewPage.areaRow('Unassigned')).not.toBeVisible();
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Empty tree state: treegrid not rendered or EmptyState visible inside tree card', async ({
+    page,
+  }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    // emptyOverviewResponse() has areaSummaries: [] and unassignedSummary: null
+    const teardown = await mountRoute(page, emptyOverviewResponse());
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      // Either the treegrid is absent from the DOM / not visible, OR an EmptyState is rendered
+      const treegrid = page.locator('[role="treegrid"]');
+      const treegridVisible = await treegrid.isVisible().catch(() => false);
+
+      if (treegridVisible) {
+        // If the treegrid renders even for empty data, an EmptyState must be visible inside it
+        await expect(page.locator('[role="treegrid"]').locator('div[class*="emptyState"]')).toBeVisible();
+      } else {
+        // Treegrid absent — that is acceptable empty-tree behavior
+        expect(treegridVisible).toBe(false);
+      }
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Area Breakdown tree is visible in dark mode', { tag: '@responsive' }, async ({ page }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+
+    await page.addInitScript(() => {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    });
+
+    const teardown = await mountRoute(page, populatedOverviewResponse());
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      // Tree card must be visible in dark mode
+      await expect(overviewPage.areaTreeCard).toBeVisible();
+
+      // Root area rows must be visible
+      await expect(overviewPage.areaRow('Rohbau')).toBeVisible();
+      await expect(overviewPage.areaRow('Innenausbau')).toBeVisible();
+    } finally {
+      await teardown();
     }
   });
 });
