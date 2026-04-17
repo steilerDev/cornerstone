@@ -65,6 +65,21 @@ Fixed terminology inconsistencies from EPIC-17 i18n rollout:
 
 - "Budgetzeile" is a non-glossary term that had slipped into `de/workItems.json` (modals + inlineErrors). Corrected to "Budgetposition(en)". Always scan for "Budgetzeile" when touching workItems or budget namespaces.
 
-## Pluralization Note for "Budgetpositionen"
+## Pluralization Note for "Budgetpositionen" / "Position"
 
-The German plural "Budgetpositionen" is used even when the count is 1 in aria-label contexts (e.g. `"{{count}} Budgetpositionen"`). If the frontend ever uses i18next pluralization keys (`_one`/`_other`), add both forms. For now the English source also uses a single key without suffix, so German matches.
+- When the English source uses `_one`/`_other` keys, German uses "Position" (singular) / "Positionen" (plural).
+- Example: `areaLineCount_one` = "{{count}} Position", `areaLineCount_other` = "{{count}} Positionen" (Issue #1247).
+- "Budgetposition(en)" is the glossary term for the entity "Budget Line". The word "Position" alone (without "Budget-" prefix) is acceptable as a short count label in compact UI contexts.
+
+## Confidence Level Labels (budget lines) — Issue #1247
+
+- `own_estimate` → "Eigene Schätzung"
+- `professional_estimate` → "Fachschätzung"
+- `quote` → "Angebot" (glossary: Quotation = Angebot)
+- `invoice` → "Rechnung" (glossary: Invoice = Rechnung)
+
+## "Invoiced" Badge vs "Claimed" Invoice Status — Issue #1247
+
+- `invoiceLinked` = "Verrechnet" — badge shown on a budget line that has a linked invoice (i.e. the cost has been invoiced/billed)
+- `invoiceStatusLabels.claimed` = "Eingereicht" — invoice payment status (submitted for reimbursement)
+- These are distinct concepts; do not conflate them.
