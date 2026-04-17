@@ -241,7 +241,7 @@ export class MilestoneDetailPage {
    */
   linkedWorkItemRow(title: string): Locator {
     return this.page
-      .locator('[class*="linkedWorkItem"]')
+      .locator('li[class*="linkedWorkItem"]')
       .filter({ hasText: title });
   }
 
