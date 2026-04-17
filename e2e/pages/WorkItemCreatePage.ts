@@ -74,6 +74,7 @@ export class WorkItemCreatePage {
   readonly areaPickerInput: Locator;
   readonly areaBreadcrumbPreview: Locator;
   // Clear button rendered by SearchPicker when an area is selected (aria-label="Clear selection")
+  // Scoped to the area form group to avoid colliding with WorkItemPicker clear buttons.
   readonly areaClearButton: Locator;
 
   // Form actions
@@ -109,7 +110,12 @@ export class WorkItemCreatePage {
     this.areaBreadcrumbPreview = page.getByRole('navigation', { name: /area path/i });
     // Clear button rendered by SearchPicker when an area is selected
     // (aria-label comes from common.json aria.clearSelection = "Clear selection")
-    this.areaClearButton = page.getByRole('button', { name: 'Clear selection', exact: true });
+    // Scoped to the area form group (label[for="area"]) to avoid matching WorkItemPicker
+    // "Clear selection" buttons rendered by DependencySentenceBuilder's slot pickers.
+    this.areaClearButton = page
+      .locator('div')
+      .filter({ has: page.locator('label[for="area"]') })
+      .getByRole('button', { name: 'Clear selection', exact: true });
 
     // Form actions
     this.submitButton = page.getByRole('button', { name: /Create Work Item|Creating\.\.\./i });
