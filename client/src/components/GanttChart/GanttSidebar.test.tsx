@@ -582,3 +582,104 @@ describe('GanttSidebar — household item rows', () => {
     expect(label).toHaveAttribute('title', 'Very Long Household Item Name That Might Overflow');
   });
 });
+
+// ── Issue #1239 — Area breadcrumb on work item sidebar rows ───────────────────
+
+describe('GanttSidebar — area breadcrumb on work item rows (Issue #1239)', () => {
+  it('renders full area path when work item has area with ancestors', () => {
+    const item = makeItem({
+      id: 'wi-area',
+      title: 'Electrical Work',
+      area: {
+        id: 'area-3',
+        name: 'Living Room',
+        color: null,
+        ancestors: [
+          { id: 'area-1', name: 'Ground Floor', color: null },
+          { id: 'area-2', name: 'West Wing', color: null },
+        ],
+      },
+    });
+    render(<GanttSidebar items={[item]} />);
+
+    // AreaBreadcrumb compact renders full path with › separators; Tooltip creates two elements
+    // with the same text (visible span + hidden tooltip span), so use getAllByText.
+    expect(screen.getAllByText('Ground Floor › West Wing › Living Room').length).toBeGreaterThan(0);
+  });
+
+  it('renders area name alone when work item has root-level area (no ancestors)', () => {
+    const item = makeItem({
+      id: 'wi-root-area',
+      title: 'Plumbing',
+      area: {
+        id: 'area-kitchen',
+        name: 'Kitchen',
+        color: null,
+        ancestors: [],
+      },
+    });
+    render(<GanttSidebar items={[item]} />);
+
+    // getAllByText to handle Tooltip double-rendering
+    expect(screen.getAllByText('Kitchen').length).toBeGreaterThan(0);
+  });
+
+  it('renders "No area" muted text when work item has null area', () => {
+    const item = makeItem({ id: 'wi-no-area', title: 'Foundation', area: null });
+    render(<GanttSidebar items={[item]} />);
+
+    expect(screen.getByText('No area')).toBeInTheDocument();
+  });
+
+  it('milestone rows do not render area breadcrumb (no area on milestone)', () => {
+    const item = makeItem({ id: 'wi-1', area: null });
+    const unifiedRows: UnifiedRow[] = [
+      { kind: 'workItem', item },
+      {
+        kind: 'milestone',
+        milestone: {
+          id: 99,
+          title: 'Foundation Complete',
+          targetDate: '2024-07-31',
+          isCompleted: false,
+          completedAt: null,
+          color: null,
+          workItemIds: [],
+          projectedDate: null,
+          isCritical: false,
+        },
+      },
+    ];
+    render(<GanttSidebar items={[]} unifiedRows={unifiedRows} />);
+
+    // The milestone row should not contain any breadcrumb or area text
+    const milestoneRow = screen.getByTestId('gantt-sidebar-milestone-99');
+    expect(milestoneRow.querySelector('nav')).not.toBeInTheDocument();
+  });
+
+  it('unifiedRows work item with area shows breadcrumb', () => {
+    const item = makeItem({
+      id: 'wi-unified',
+      title: 'Roofing',
+      area: {
+        id: 'area-roof',
+        name: 'Roof',
+        color: null,
+        ancestors: [{ id: 'area-ext', name: 'Exterior', color: null }],
+      },
+    });
+    const unifiedRows: UnifiedRow[] = [{ kind: 'workItem', item }];
+    render(<GanttSidebar items={[]} unifiedRows={unifiedRows} />);
+
+    // Tooltip creates duplicate text nodes (visible span + tooltip span)
+    expect(screen.getAllByText('Exterior › Roof').length).toBeGreaterThan(0);
+  });
+
+  it('unifiedRows work item with null area shows "No area"', () => {
+    const item = makeItem({ id: 'wi-no-area-unified', area: null });
+    const unifiedRows: UnifiedRow[] = [{ kind: 'workItem', item }];
+    render(<GanttSidebar items={[]} unifiedRows={unifiedRows} />);
+
+    expect(screen.getByText('No area')).toBeInTheDocument();
+  });
+});

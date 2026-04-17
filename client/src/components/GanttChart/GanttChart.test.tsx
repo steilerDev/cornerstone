@@ -913,3 +913,110 @@ describe('GanttChartSkeleton', () => {
     expect(skeleton).toHaveAttribute('aria-busy', 'true');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Issue #1239 — areaName in tooltip data
+// ---------------------------------------------------------------------------
+
+describe('GanttChart — areaName in work item tooltip data (Issue #1239)', () => {
+  /**
+   * The tooltip is shown after TOOLTIP_SHOW_DELAY (120ms). We use fake timers
+   * so we don't have to wait real time, and act() wraps the timer advance so
+   * React flushes the resulting state update.
+   */
+  it('tooltip displays full area path when work item has ancestors', async () => {
+    const { act } = await import('react');
+    const data = makeTimeline({
+      workItems: [
+        {
+          id: 'wi-area',
+          title: 'Electrical Work',
+          status: 'in_progress',
+          startDate: '2024-07-01',
+          endDate: '2024-07-31',
+          durationDays: 30,
+          actualStartDate: null,
+          actualEndDate: null,
+          startAfter: null,
+          startBefore: null,
+          assignedUser: null,
+          assignedVendor: null,
+          area: {
+            id: 'area-3',
+            name: 'Living Room',
+            color: null,
+            ancestors: [
+              { id: 'area-1', name: 'Ground Floor', color: null },
+              { id: 'area-2', name: 'West Wing', color: null },
+            ],
+          },
+        },
+      ],
+      dependencies: [],
+    });
+
+    jest.useFakeTimers();
+    try {
+      renderGanttChart({ data });
+
+      const bar = screen.getByTestId('gantt-bar-wi-area');
+      fireEvent.mouseEnter(bar, { clientX: 300, clientY: 100 });
+
+      // Advance past TOOLTIP_SHOW_DELAY (120ms)
+      await act(async () => {
+        jest.advanceTimersByTime(200);
+      });
+
+      // The tooltip should be visible with the full path
+      const tooltip = screen.queryByTestId('gantt-tooltip');
+      expect(tooltip).toBeInTheDocument();
+      expect(tooltip).toHaveTextContent('Ground Floor › West Wing › Living Room');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('tooltip does not display area row when work item area is null', async () => {
+    const { act } = await import('react');
+    const data = makeTimeline({
+      workItems: [
+        {
+          id: 'wi-no-area',
+          title: 'Foundation Work',
+          status: 'in_progress',
+          startDate: '2024-07-01',
+          endDate: '2024-07-31',
+          durationDays: 30,
+          actualStartDate: null,
+          actualEndDate: null,
+          startAfter: null,
+          startBefore: null,
+          assignedUser: null,
+          assignedVendor: null,
+          area: null,
+        },
+      ],
+      dependencies: [],
+    });
+
+    jest.useFakeTimers();
+    try {
+      renderGanttChart({ data });
+
+      const bar = screen.getByTestId('gantt-bar-wi-no-area');
+      fireEvent.mouseEnter(bar, { clientX: 300, clientY: 100 });
+
+      await act(async () => {
+        jest.advanceTimersByTime(200);
+      });
+
+      // Tooltip visible but no area label row
+      const tooltip = screen.queryByTestId('gantt-tooltip');
+      expect(tooltip).toBeInTheDocument();
+      // The tooltip should NOT contain any area label
+      expect(tooltip?.textContent).not.toMatch(/Area/i);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});

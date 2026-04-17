@@ -6,6 +6,7 @@ import type {
   TimelineMilestone,
   TimelineHouseholdItem,
 } from '@cornerstone/shared';
+import { AreaBreadcrumb } from '../AreaBreadcrumb/index.js';
 import { ROW_HEIGHT, HEADER_HEIGHT } from './ganttUtils.js';
 import styles from './GanttSidebar.module.css';
 
@@ -184,12 +185,15 @@ export const GanttSidebar = function GanttSidebar({
                     data-testid={`gantt-sidebar-row-${item.id}`}
                     data-gantt-sidebar-row={idx}
                   >
-                    <span
-                      className={`${styles.sidebarRowLabel} ${hasNoDates ? styles.sidebarRowLabelMuted : ''}`}
-                      title={item.title}
-                    >
-                      {item.title}
-                    </span>
+                    <div className={styles.sidebarRowContent}>
+                      <span
+                        className={`${styles.sidebarRowLabel} ${hasNoDates ? styles.sidebarRowLabelMuted : ''}`}
+                        title={item.title}
+                      >
+                        {item.title}
+                      </span>
+                      <AreaBreadcrumb area={item.area ?? null} variant="compact" />
+                    </div>
                   </div>
                 );
               } else if (row.kind === 'milestone') {
@@ -275,12 +279,15 @@ export const GanttSidebar = function GanttSidebar({
                   data-testid={`gantt-sidebar-row-${item.id}`}
                   data-gantt-sidebar-row={idx}
                 >
-                  <span
-                    className={`${styles.sidebarRowLabel} ${hasNoDates ? styles.sidebarRowLabelMuted : ''}`}
-                    title={item.title}
-                  >
-                    {item.title}
-                  </span>
+                  <div className={styles.sidebarRowContent}>
+                    <span
+                      className={`${styles.sidebarRowLabel} ${hasNoDates ? styles.sidebarRowLabelMuted : ''}`}
+                      title={item.title}
+                    >
+                      {item.title}
+                    </span>
+                    <AreaBreadcrumb area={item.area ?? null} variant="compact" />
+                  </div>
                 </div>
               );
             })}

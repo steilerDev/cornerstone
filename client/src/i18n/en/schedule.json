@@ -75,6 +75,7 @@
         "startLabel": "Start",
         "endLabel": "End",
         "ownerLabel": "Owner",
+        "areaLabel": "Area",
         "dependencies": "Dependencies",
         "more": "more"
       },

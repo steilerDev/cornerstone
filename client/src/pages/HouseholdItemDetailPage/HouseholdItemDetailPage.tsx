@@ -65,6 +65,7 @@ import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudge
 import { BudgetSection } from '../../components/budget/BudgetSection.js';
 import { InvoiceLinkModal } from '../../components/budget/InvoiceLinkModal.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
+import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import styles from './HouseholdItemDetailPage.module.css';
 
 const HI_STATUS_VARIANTS = {
@@ -1242,7 +1243,10 @@ export function HouseholdItemDetailPage() {
                       <span className={styles.itemTypeBadge}>
                         {t('detail.dependencies.workItem')}
                       </span>
-                      <span>{wi.title}</span>
+                      <div className={styles.workItemTitleCell}>
+                        <span>{wi.title}</span>
+                        <AreaBreadcrumb area={wi.area ?? null} variant="compact" />
+                      </div>
                     </button>
                   ))}
                 {/* Milestones that match */}

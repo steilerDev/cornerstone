@@ -233,6 +233,19 @@ export class MilestoneDetailPage {
   }
 
   /**
+   * Return the list item element for a linked work item by its title.
+   *
+   * The linked work items list renders <li class*="linkedWorkItem"> elements.
+   * Each item contains: itemTypeBadge, workItemTitleCell (link + AreaBreadcrumb compact), unlinkButton.
+   * This locator scopes assertions to a specific WI row in the linked items list.
+   */
+  linkedWorkItemRow(title: string): Locator {
+    return this.page
+      .locator('li[class*="linkedWorkItem"]')
+      .filter({ hasText: title });
+  }
+
+  /**
    * Get the error banner text, or null if not visible.
    * Uses a short probe timeout.
    */

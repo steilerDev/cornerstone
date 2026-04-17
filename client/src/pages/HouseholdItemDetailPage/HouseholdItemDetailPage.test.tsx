@@ -1730,4 +1730,97 @@ describe('HouseholdItemDetailPage', () => {
       expect(screen.queryByRole('heading', { name: 'Delivery Window' })).not.toBeInTheDocument();
     });
   });
+
+  // ─── Issue #1239 — AreaBreadcrumb in inline dep search dropdown ──────────────
+
+  describe('area breadcrumb in dep search dropdown (Issue #1239)', () => {
+    it('shows area breadcrumb path in dep search dropdown when work item has ancestors', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockListWorkItems.mockResolvedValue({
+        items: [
+          {
+            id: 'wi-with-area',
+            title: 'Electrical Rough-In',
+            status: 'not_started' as const,
+            startDate: null,
+            endDate: null,
+            durationDays: null,
+            actualStartDate: null,
+            actualEndDate: null,
+            assignedUser: null,
+            assignedVendor: null,
+            area: {
+              id: 'area-3',
+              name: 'Bathroom',
+              color: null,
+              ancestors: [{ id: 'area-1', name: 'Upper Floor', color: null }],
+            },
+            budgetLineCount: 0,
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          },
+        ],
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      // Type into the dep search input to open the dropdown
+      const depInput = screen.getByTestId('dep-search-input');
+      await user.type(depInput, 'Elec');
+
+      await waitFor(() => {
+        expect(screen.getByText('Electrical Rough-In')).toBeInTheDocument();
+      });
+
+      // AreaBreadcrumb compact renders full path; Tooltip duplicates text nodes
+      expect(screen.getAllByText('Upper Floor › Bathroom').length).toBeGreaterThan(0);
+    });
+
+    it('shows "No area" in dep search dropdown when work item has null area', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockListWorkItems.mockResolvedValue({
+        items: [
+          {
+            id: 'wi-no-area-dep',
+            title: 'Foundation Excavation',
+            status: 'not_started' as const,
+            startDate: null,
+            endDate: null,
+            durationDays: null,
+            actualStartDate: null,
+            actualEndDate: null,
+            assignedUser: null,
+            assignedVendor: null,
+            area: null,
+            budgetLineCount: 0,
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          },
+        ],
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      const depInput = screen.getByTestId('dep-search-input');
+      await user.type(depInput, 'Found');
+
+      await waitFor(() => {
+        expect(screen.getByText('Foundation Excavation')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('No area')).toBeInTheDocument();
+    });
+  });
 });

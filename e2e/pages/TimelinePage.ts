@@ -144,6 +144,28 @@ export class TimelinePage {
     this.calendarGridArea = page.locator('[class*="gridArea"]');
   }
 
+  // ── Sidebar row helpers ────────────────────────────────────────────────────
+
+  /**
+   * Return the sidebar row element for a specific work item by its ID.
+   *
+   * Sidebar rows for work items use data-testid="gantt-sidebar-row-{id}".
+   * Used for assertions on title and breadcrumb content within the row.
+   */
+  ganttSidebarRow(workItemId: string): Locator {
+    return this.page.getByTestId(`gantt-sidebar-row-${workItemId}`);
+  }
+
+  /**
+   * Return the SVG bar group element for a specific work item by its ID.
+   *
+   * Gantt bars use data-testid="gantt-bar-{id}" on the SVG <g> element.
+   * Used for hover assertions (tooltip) on the chart canvas.
+   */
+  ganttBar(workItemId: string): Locator {
+    return this.page.getByTestId(`gantt-bar-${workItemId}`);
+  }
+
   // ── Navigation ─────────────────────────────────────────────────────────────
 
   /** Navigate to the Schedule page and wait for the heading. */

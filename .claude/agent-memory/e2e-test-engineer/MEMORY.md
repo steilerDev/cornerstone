@@ -3,6 +3,19 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`
 
+## Embeds/Pickers Breadcrumb E2E (Story #1239, 2026-04-16)
+
+- Gantt bar: `data-testid="gantt-bar-{id}"` on the SVG `<g>` element — use `page.getByTestId()` for hover
+- Gantt sidebar WI row: `data-testid="gantt-sidebar-row-{id}"` — `ganttSidebarRow(id)` helper added to TimelinePage POM
+- TimelinePage POM: `ganttBar(id)` helper added for bar hover tests
+- Milestone detail linked WI row: `[class*="linkedWorkItem"].filter({hasText:title})` — `linkedWorkItemRow(title)` helper added to MilestoneDetailPage POM
+- Link WI to milestone via API: `POST /api/milestones/:id/work-items` with `{ workItemId }`
+- GanttChart tooltip areaName: plain text string (not AreaBreadcrumb), joined with ` › ` — check `tooltip.textContent()` for area names
+- **Missing translation key**: `gantt.tooltip.workItem.areaLabel` is used in GanttTooltip.tsx but absent from `schedule.json` — i18next renders the key as fallback label text. Not a test issue; label text may show key string. Assert on the value (area path), not the label.
+- WorkItemPicker search results: `[role="option"]` buttons inside `getByRole('listbox')` — compact breadcrumb in `[class*="compact"]` inside option
+- Gantt sidebar + bar hover Gantt tests: skip on viewportWidth < 1200 (Gantt collapses on tablet/mobile)
+- WI create date pattern for Gantt visibility: `startDate=first of current month`, `endDate=last of 2 months ahead`
+
 ## AreaBreadcrumb E2E Selectors (Story #1238, 2026-04-16)
 
 - compact variant: `[tabIndex="0"][class*="compact"]` — spans in list rows/cards
