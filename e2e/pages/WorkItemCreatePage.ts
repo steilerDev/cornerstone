@@ -110,11 +110,11 @@ export class WorkItemCreatePage {
     this.areaBreadcrumbPreview = page.getByRole('navigation', { name: /area path/i });
     // Clear button rendered by SearchPicker when an area is selected
     // (aria-label comes from common.json aria.clearSelection = "Clear selection")
-    // Scoped to the area form group (label[for="area"]) to avoid matching WorkItemPicker
-    // "Clear selection" buttons rendered by DependencySentenceBuilder's slot pickers.
+    // Scoped to the area form group via CSS :has() with child combinator (>) so that only
+    // the direct-parent <div> of <label for="area"> matches — avoids strict-mode violations
+    // caused by .filter({ has: locator }) matching every ancestor <div> of the label.
     this.areaClearButton = page
-      .locator('div')
-      .filter({ has: page.locator('label[for="area"]') })
+      .locator('div:has(> label[for="area"])')
       .getByRole('button', { name: 'Clear selection', exact: true });
 
     // Form actions

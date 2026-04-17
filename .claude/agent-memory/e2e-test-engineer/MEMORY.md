@@ -10,6 +10,10 @@
 - null area (both variants): `getByText('No area', { exact: true })` — span with class*="muted"
 - Tooltip uses CSS opacity (0→1), so `toBeVisible()` works after `focus()` on the compact span
 - AreaPicker input: `getByPlaceholder('Select an area')` (i18n key common.aria.selectArea)
+- **CRITICAL**: `areaPickerInput` (placeholder locator) is ABSENT from DOM once an area is selected.
+  SearchPicker replaces the `<input>` with a `selectedDisplay` chip + clear button. Never click/fill
+  the input locator after selection. Use `getByRole('button', { name: 'Clear selection', exact: true })`
+  to clear — this is `t('aria.clearSelection')` = "Clear selection". POM: `clearAreaPicker()` helper.
 - Listbox option: `getByRole('option', { name: /areaName/ })` inside `getByRole('listbox')`
 - "No area" special option in AreaPicker: `getByRole('option', { name: 'No area', exact: true })`
 - `createAreaViaApi` and `deleteAreaViaApi` already exist in `e2e/fixtures/apiHelpers.ts`
