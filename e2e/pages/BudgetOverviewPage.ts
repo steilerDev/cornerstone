@@ -11,7 +11,7 @@
  *   - A key metrics row: Available Funds, Projected Cost Range, Remaining
  *   - A BudgetBar stacked bar chart (role="img")
  *   - A footer showing subsidies and sources info
- *   - A category filter dropdown button
+ * - Area Breakdown tree (role="treegrid") with expand/collapse controls
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -40,7 +40,11 @@ export class BudgetOverviewPage {
   // Budget overview hero card
   readonly heroCard: Locator;
   readonly budgetBar: Locator;
-  readonly categoryFilterButton: Locator;
+
+  // Area Breakdown tree
+  readonly areaTreeCard: Locator;
+  readonly expandAllButton: Locator;
+  readonly collapseAllButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -68,8 +72,27 @@ export class BudgetOverviewPage {
     // Budget bar: BudgetBar stacked bar chart with role="img"
     this.budgetBar = page.getByRole('img').filter({ has: page.locator('[class*="bar"]') });
 
-    // Category filter dropdown button
-    this.categoryFilterButton = page.getByRole('button', { name: /categories/i });
+    // Area Breakdown tree: the treegrid element's immediate ancestor card container
+    this.areaTreeCard = page.locator('[role="treegrid"]').locator('xpath=ancestor::*[1]');
+
+    // Expand All / Collapse All buttons within the area breakdown section
+    this.expandAllButton = page.getByRole('button', { name: /expand all/i });
+    this.collapseAllButton = page.getByRole('button', { name: /collapse all/i });
+  }
+
+  /**
+   * Return the treegrid row that contains the given area name text.
+   */
+  areaRow(name: string): Locator {
+    return this.page.getByRole('row').filter({ hasText: name });
+  }
+
+  /**
+   * Return the expand button for the given area name.
+   * Expand buttons have an aria-label matching "expand <name>" (case-insensitive).
+   */
+  areaExpandButton(name: string): Locator {
+    return this.page.getByRole('button', { name: new RegExp(`expand ${name}`, 'i') });
   }
 
   async goto(): Promise<void> {
