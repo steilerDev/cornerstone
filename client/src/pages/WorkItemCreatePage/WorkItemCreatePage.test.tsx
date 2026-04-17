@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type { UserResponse } from '@cornerstone/shared';
@@ -10,6 +10,7 @@ import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as DependenciesApiTypes from '../../lib/dependenciesApi.js';
 import type * as WorkItemCreatePageTypes from './WorkItemCreatePage.js';
+import type { UseAreasResult } from '../../hooks/useAreas.js';
 
 const mockCreateWorkItem = jest.fn<typeof WorkItemsApiTypes.createWorkItem>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
@@ -38,15 +39,19 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 }));
 
 // WorkItemCreatePage uses useAreas hook to populate AreaPicker
-const mockUseAreas = jest.fn(() => ({
-  areas: [],
-  isLoading: false,
-  error: null,
-  refetch: jest.fn(),
-  createArea: jest.fn(),
-  updateArea: jest.fn(),
-  deleteArea: jest.fn(),
-}));
+function makeAreasHookResult(overrides: Partial<UseAreasResult> = {}): UseAreasResult {
+  return {
+    areas: [],
+    isLoading: false,
+    error: null,
+    refetch: jest.fn(),
+    createArea: jest.fn<UseAreasResult['createArea']>(),
+    updateArea: jest.fn<UseAreasResult['updateArea']>(),
+    deleteArea: jest.fn<UseAreasResult['deleteArea']>(),
+    ...overrides,
+  };
+}
+const mockUseAreas = jest.fn<() => UseAreasResult>(() => makeAreasHookResult());
 jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
   useAreas: mockUseAreas,
 }));
@@ -127,15 +132,7 @@ describe('WorkItemCreatePage', () => {
     capturedAreaPickerOnChange = null;
     // Reset useAreas to default empty state to avoid test pollution from
     // tests that set mockReturnValue with custom areas.
-    mockUseAreas.mockReturnValue({
-      areas: [],
-      isLoading: false,
-      error: null,
-      refetch: jest.fn(),
-      createArea: jest.fn(),
-      updateArea: jest.fn(),
-      deleteArea: jest.fn(),
-    });
+    mockUseAreas.mockReturnValue(makeAreasHookResult());
 
     if (!WorkItemCreatePageModule) {
       WorkItemCreatePageModule = await import('./WorkItemCreatePage.js');
@@ -529,26 +526,22 @@ describe('WorkItemCreatePage', () => {
   describe('area breadcrumb preview', () => {
     it('does not show a breadcrumb nav before any area is selected', async () => {
       // No area selected by default; areaId state is ''
-      mockUseAreas.mockReturnValue({
-        areas: [
-          {
-            id: 'a1',
-            name: 'Kitchen',
-            parentId: null,
-            color: null,
-            description: null,
-            sortOrder: 0,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z',
-          },
-        ],
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-        createArea: jest.fn(),
-        updateArea: jest.fn(),
-        deleteArea: jest.fn(),
-      });
+      mockUseAreas.mockReturnValue(
+        makeAreasHookResult({
+          areas: [
+            {
+              id: 'a1',
+              name: 'Kitchen',
+              parentId: null,
+              color: null,
+              description: null,
+              sortOrder: 0,
+              createdAt: '2024-01-01T00:00:00Z',
+              updatedAt: '2024-01-01T00:00:00Z',
+            },
+          ],
+        }),
+      );
       mockListWorkItems.mockResolvedValue({
         items: [],
         pagination: { page: 1, pageSize: 15, totalItems: 0, totalPages: 0 },
@@ -575,15 +568,7 @@ describe('WorkItemCreatePage', () => {
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       };
-      mockUseAreas.mockReturnValue({
-        areas: [kitchenArea],
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-        createArea: jest.fn(),
-        updateArea: jest.fn(),
-        deleteArea: jest.fn(),
-      });
+      mockUseAreas.mockReturnValue(makeAreasHookResult({ areas: [kitchenArea] }));
 
       renderPage();
 
@@ -600,7 +585,8 @@ describe('WorkItemCreatePage', () => {
         expect(screen.getByRole('navigation', { name: /area path/i })).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Kitchen')).toBeInTheDocument();
+      const breadcrumbNav = screen.getByRole('navigation', { name: /area path/i });
+      expect(within(breadcrumbNav).getByText('Kitchen')).toBeInTheDocument();
     });
 
     it('shows ancestor chain when selected area has a parent', async () => {
@@ -624,15 +610,7 @@ describe('WorkItemCreatePage', () => {
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       };
-      mockUseAreas.mockReturnValue({
-        areas: [groundFloor, kitchen],
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-        createArea: jest.fn(),
-        updateArea: jest.fn(),
-        deleteArea: jest.fn(),
-      });
+      mockUseAreas.mockReturnValue(makeAreasHookResult({ areas: [groundFloor, kitchen] }));
 
       renderPage();
 
@@ -647,9 +625,10 @@ describe('WorkItemCreatePage', () => {
         expect(screen.getByRole('navigation', { name: /area path/i })).toBeInTheDocument();
       });
 
-      // Both ancestor and area name should be visible
-      expect(screen.getByText('Ground Floor')).toBeInTheDocument();
-      expect(screen.getByText('Kitchen')).toBeInTheDocument();
+      // Both ancestor and area name should be visible in the breadcrumb nav
+      const breadcrumbNav = screen.getByRole('navigation', { name: /area path/i });
+      expect(within(breadcrumbNav).getByText('Ground Floor')).toBeInTheDocument();
+      expect(within(breadcrumbNav).getByText('Kitchen')).toBeInTheDocument();
     });
 
     it('hides breadcrumb preview after area is cleared', async () => {
@@ -663,15 +642,7 @@ describe('WorkItemCreatePage', () => {
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       };
-      mockUseAreas.mockReturnValue({
-        areas: [kitchenArea],
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-        createArea: jest.fn(),
-        updateArea: jest.fn(),
-        deleteArea: jest.fn(),
-      });
+      mockUseAreas.mockReturnValue(makeAreasHookResult({ areas: [kitchenArea] }));
 
       renderPage();
 
@@ -732,15 +703,9 @@ describe('WorkItemCreatePage', () => {
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-01T00:00:00Z',
       };
-      mockUseAreas.mockReturnValue({
-        areas: [c, b, a], // deliberately shuffled to confirm walk-up logic
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-        createArea: jest.fn(),
-        updateArea: jest.fn(),
-        deleteArea: jest.fn(),
-      });
+      mockUseAreas.mockReturnValue(
+        makeAreasHookResult({ areas: [c, b, a] }), // deliberately shuffled to confirm walk-up logic
+      );
 
       renderPage();
 
@@ -766,26 +731,22 @@ describe('WorkItemCreatePage', () => {
     });
 
     it('renders "No area" fallback for an unknown areaId (buildAreaSummary returns null)', async () => {
-      mockUseAreas.mockReturnValue({
-        areas: [
-          {
-            id: 'a1',
-            name: 'Known Area',
-            parentId: null,
-            color: null,
-            description: null,
-            sortOrder: 0,
-            createdAt: '2024-01-01T00:00:00Z',
-            updatedAt: '2024-01-01T00:00:00Z',
-          },
-        ],
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-        createArea: jest.fn(),
-        updateArea: jest.fn(),
-        deleteArea: jest.fn(),
-      });
+      mockUseAreas.mockReturnValue(
+        makeAreasHookResult({
+          areas: [
+            {
+              id: 'a1',
+              name: 'Known Area',
+              parentId: null,
+              color: null,
+              description: null,
+              sortOrder: 0,
+              createdAt: '2024-01-01T00:00:00Z',
+              updatedAt: '2024-01-01T00:00:00Z',
+            },
+          ],
+        }),
+      );
 
       renderPage();
 
