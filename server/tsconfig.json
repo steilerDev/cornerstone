@@ -4,7 +4,8 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "module": "ESNext",
-    "moduleResolution": "bundler"
+    "moduleResolution": "bundler",
+    "types": ["node", "better-sqlite3"]
   },
   "include": ["src/**/*.ts"],
   "references": [{ "path": "../shared" }]
