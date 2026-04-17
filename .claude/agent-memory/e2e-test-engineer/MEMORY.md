@@ -1,7 +1,7 @@
 # E2E Test Engineer — Agent Memory (Index)
 
 > Detailed notes live in topic files. This index links to them.
-> See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`
+> See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`
 
 ## Invoices + Manage Settings E2E (2026-03-26) — Fixed 2026-03-26
 

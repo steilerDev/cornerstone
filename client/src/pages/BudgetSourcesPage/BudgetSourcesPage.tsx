@@ -535,6 +535,12 @@ export function BudgetSourcesPage() {
       const newExpanded = new Set(expandedSources);
       newExpanded.add(sourceId);
       setExpandedSources(newExpanded);
+
+      // Initialize selection set if not already present
+      setSourceSelections((prev) => {
+        if (prev.has(sourceId)) return prev;
+        return new Map(prev).set(sourceId, new Set<string>());
+      });
     }
   };
 

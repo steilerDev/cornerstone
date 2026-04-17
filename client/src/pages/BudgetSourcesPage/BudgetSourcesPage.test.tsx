@@ -29,6 +29,7 @@ jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
   updateBudgetSource: mockUpdateBudgetSource,
   deleteBudgetSource: mockDeleteBudgetSource,
   fetchBudgetLinesForSource: mockFetchBudgetLinesForSource,
+  moveBudgetLinesBetweenSources: jest.fn(),
 }));
 
 // ─── Mock: formatters — provides useFormatters() hook ────────────────────────

@@ -3,6 +3,10 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## de/budget.json Smart-Quote Bug (2026-04-16)
+
+`client/src/i18n/de/budget.json` had a JSON syntax error at line 211: `confirmDisabledHint` used „Ich verstehe" with a German open-quote (U+201E) but an ASCII close-quote (U+0022) which terminated the JSON string early. Fix: replace ASCII `"` with `\u201c` (U+201C German close-quote). **Symptom**: ALL Jest test suites fail to run with `SyntaxError: Expected double-quoted property name in JSON at position 9524`. i18next loads all locale JSON files, including de/budget.json, even in tests that don't use German translations.
+
 ## ESM Module Spy Anti-Pattern (2026-04-16)
 
 **Critical**: `jest.spyOn(module, 'functionName')` ALWAYS THROWS on ESM static imports with error `TypeError: Cannot assign to read only property 'functionName' of object '[object Module]'`. This causes the **entire test suite to fail to run**, not just that test. ESM exports are read-only live bindings — you cannot reassign them. The fix: remove the spy entirely. If an efficiency check (`loadAreaMap called once`) was the purpose, verify correctness via observable behavior instead. Affected file: `server/src/routes/workItems.ancestors.test.ts` (fixed 2026-04-16). If spying on ESM is required, use `jest.unstable_mockModule()` at the top level before imports.
