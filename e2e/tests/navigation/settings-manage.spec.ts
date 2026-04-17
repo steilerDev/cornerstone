@@ -104,10 +104,11 @@ test.describe('Settings/Manage page — smoke test', { tag: '@responsive' }, () 
   }) => {
     await page.goto(MANAGE_ROUTE);
 
-    // SubNav for Settings section — scope to the Settings nav landmark
+    // SubNav for Settings section — scope to the Settings nav landmark; use
+    // exact matching so "Manage" does not collide with "User Management".
     const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
-    await expect(subNav.getByRole('link', { name: 'Profile' })).toBeVisible();
-    await expect(subNav.getByRole('link', { name: 'Manage' })).toBeVisible();
+    await expect(subNav.getByRole('link', { name: 'Profile', exact: true })).toBeVisible();
+    await expect(subNav.getByRole('link', { name: 'Manage', exact: true })).toBeVisible();
   });
 });
 
