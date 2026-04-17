@@ -330,7 +330,7 @@ export function AreaTreeTable({ areas, unassigned, formatCurrency }: AreaTreeTab
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLButtonElement>, nodeId: string) => {
       const allButtons = Array.from(buttonRefs.current.entries())
-        .filter(([, btn]) => btn && btn.offsetParent !== null) // visible
+        .filter(([, btn]) => btn !== null)
         .map(([id]) => id);
 
       if (allButtons.length === 0) return;
