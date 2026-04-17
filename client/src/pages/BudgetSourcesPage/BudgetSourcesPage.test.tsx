@@ -7,7 +7,11 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import type { BudgetSource, BudgetSourceListResponse } from '@cornerstone/shared';
+import type {
+  BudgetSource,
+  BudgetSourceListResponse,
+  BudgetSourceBudgetLinesResponse,
+} from '@cornerstone/shared';
 
 // Mock the API module BEFORE importing the component
 const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
@@ -15,6 +19,8 @@ const mockFetchBudgetSource = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSo
 const mockCreateBudgetSource = jest.fn<typeof BudgetSourcesApiTypes.createBudgetSource>();
 const mockUpdateBudgetSource = jest.fn<typeof BudgetSourcesApiTypes.updateBudgetSource>();
 const mockDeleteBudgetSource = jest.fn<typeof BudgetSourcesApiTypes.deleteBudgetSource>();
+const mockFetchBudgetLinesForSource =
+  jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetLinesForSource>();
 
 jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
   fetchBudgetSources: mockFetchBudgetSources,
@@ -22,6 +28,7 @@ jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
   createBudgetSource: mockCreateBudgetSource,
   updateBudgetSource: mockUpdateBudgetSource,
   deleteBudgetSource: mockDeleteBudgetSource,
+  fetchBudgetLinesForSource: mockFetchBudgetLinesForSource,
 }));
 
 // ─── Mock: formatters — provides useFormatters() hook ────────────────────────
@@ -155,6 +162,7 @@ describe('BudgetSourcesPage', () => {
     mockCreateBudgetSource.mockReset();
     mockUpdateBudgetSource.mockReset();
     mockDeleteBudgetSource.mockReset();
+    mockFetchBudgetLinesForSource.mockReset();
   });
 
   function renderPage() {
@@ -1814,6 +1822,134 @@ describe('BudgetSourcesPage', () => {
       await waitFor(() => {
         expect(screen.getByText('30-year fixed')).toBeInTheDocument();
       });
+    });
+  });
+
+  // ─── Expand/collapse + cache behaviour (scenario 19) ────────────────────────
+
+  describe('budget lines expand/collapse with cache', () => {
+    const emptyLinesResponse: BudgetSourceBudgetLinesResponse = {
+      workItemLines: [],
+      householdItemLines: [],
+    };
+
+    it('clicking "Show lines" expands the panel and calls fetchBudgetLinesForSource once', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+      mockFetchBudgetLinesForSource.mockResolvedValueOnce(emptyLinesResponse);
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      // Find expand toggle by aria-label
+      const expandButton = screen.getByRole('button', {
+        name: /expand budget lines for home loan/i,
+      });
+      await user.click(expandButton);
+
+      await waitFor(() => {
+        expect(mockFetchBudgetLinesForSource).toHaveBeenCalledTimes(1);
+        expect(mockFetchBudgetLinesForSource).toHaveBeenCalledWith('src-1');
+      });
+
+      // Panel is now visible (the region with id source-lines-src-1 is present)
+      await waitFor(() => {
+        expect(document.getElementById('source-lines-src-1')).toBeInTheDocument();
+      });
+    });
+
+    it('collapse then re-expand does NOT call fetchBudgetLinesForSource a second time', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+      mockFetchBudgetLinesForSource.mockResolvedValueOnce(emptyLinesResponse);
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      // First expand
+      const expandButton = screen.getByRole('button', {
+        name: /expand budget lines for home loan/i,
+      });
+      await user.click(expandButton);
+
+      // Wait for fetch to complete and panel to appear
+      await waitFor(() => {
+        expect(mockFetchBudgetLinesForSource).toHaveBeenCalledTimes(1);
+      });
+
+      await waitFor(() => {
+        expect(document.getElementById('source-lines-src-1')).toBeInTheDocument();
+      });
+
+      // Collapse: button label switches to "collapse"
+      const collapseButton = screen.getByRole('button', {
+        name: /collapse budget lines for home loan/i,
+      });
+      await user.click(collapseButton);
+
+      // Panel should no longer be in DOM
+      await waitFor(() => {
+        expect(document.getElementById('source-lines-src-1')).not.toBeInTheDocument();
+      });
+
+      // Re-expand using the "Show lines" toggle again
+      const reExpandButton = screen.getByRole('button', {
+        name: /expand budget lines for home loan/i,
+      });
+      await user.click(reExpandButton);
+
+      // Panel is visible again
+      await waitFor(() => {
+        expect(document.getElementById('source-lines-src-1')).toBeInTheDocument();
+      });
+
+      // fetchBudgetLinesForSource must still have been called only once (cache hit)
+      expect(mockFetchBudgetLinesForSource).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows "Show lines" toggle button for each source in the list', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sampleSource1, sampleSource2],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /expand budget lines for home loan/i }),
+        ).toBeInTheDocument();
+        expect(
+          screen.getByRole('button', { name: /expand budget lines for savings account/i }),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('toggle button is disabled while another source is being edited', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sampleSource1, sampleSource2],
+      });
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit home loan/i })).toBeInTheDocument();
+      });
+
+      // Start editing Home Loan
+      await user.click(screen.getByRole('button', { name: /edit home loan/i }));
+
+      // The toggle for Savings Account should be disabled while editing
+      const savingsToggle = screen.getByRole('button', {
+        name: /expand budget lines for savings account/i,
+      });
+      expect(savingsToggle).toBeDisabled();
     });
   });
 });
