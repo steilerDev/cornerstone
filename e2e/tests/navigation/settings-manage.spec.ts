@@ -104,9 +104,10 @@ test.describe('Settings/Manage page — smoke test', { tag: '@responsive' }, () 
   }) => {
     await page.goto(MANAGE_ROUTE);
 
-    // SubNav for Settings section
-    await expect(page.getByRole('link', { name: 'Profile' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Manage' })).toBeVisible();
+    // SubNav for Settings section — scope to the Settings nav landmark
+    const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
+    await expect(subNav.getByRole('link', { name: 'Profile' })).toBeVisible();
+    await expect(subNav.getByRole('link', { name: 'Manage' })).toBeVisible();
   });
 });
 
