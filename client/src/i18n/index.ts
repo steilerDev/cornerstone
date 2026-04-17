@@ -13,6 +13,7 @@ import enSchedule from './en/schedule.json';
 import enDiary from './en/diary.json';
 import enDocuments from './en/documents.json';
 import enSettings from './en/settings.json';
+import enAreas from './en/areas.json';
 
 import deCommon from './de/common.json';
 import deErrors from './de/errors.json';
@@ -25,6 +26,7 @@ import deSchedule from './de/schedule.json';
 import deDiary from './de/diary.json';
 import deDocuments from './de/documents.json';
 import deSettings from './de/settings.json';
+import deAreas from './de/areas.json';
 
 const resources = {
   en: {
@@ -39,6 +41,7 @@ const resources = {
     diary: enDiary,
     documents: enDocuments,
     settings: enSettings,
+    areas: enAreas,
   },
   de: {
     common: deCommon,
@@ -52,6 +55,7 @@ const resources = {
     diary: deDiary,
     documents: deDocuments,
     settings: deSettings,
+    areas: deAreas,
   },
 };
 
@@ -91,6 +95,7 @@ void i18n.use(initReactI18next).init({
     'diary',
     'documents',
     'settings',
+    'areas',
   ],
   interpolation: {
     escapeValue: false,

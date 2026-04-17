@@ -10,7 +10,7 @@
 
 - Formal register: use "Sie" form in German
 - Translation files: `client/src/i18n/{locale}/{namespace}.json`
-- Namespaces: auth, budget, common, dashboard, diary, documents, errors, householdItems, schedule, settings, workItems
+- Namespaces: areas, auth, budget, common, dashboard, diary, documents, errors, householdItems, schedule, settings, workItems
 - Preserve `{{variable}}` interpolation placeholders exactly
 - Preserve `_one` / `_other` pluralization suffixes
 
@@ -43,6 +43,7 @@ Action labels in German follow the pattern: `{Noun} {Verb}` with capitalised fir
 - `de/common.json` was missing `subnav.settings.backups` — added 2026-03-22 (Issue #1146)
 - `de/settings.json` was missing `backups` section entirely — added 2026-03-22 (Issue #1146)
 - `de/errors.json` had four backup/restore keys with empty placeholder values (left by frontend-developer) — filled in 2026-03-22 (Issue #1146)
+- `de/areas.json` created 2026-04-16 (Story #1237): `noArea` → "Kein Bereich", `pathLabel` → "Bereichspfad"
 - Always check key parity when picking up a new translator spec
 
 ## Backup/Restore Terminology (2026-03-22)
