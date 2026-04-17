@@ -545,7 +545,7 @@ test.describe('Unassigned area grouping', { tag: '@responsive' }, () => {
 
       // "Unassigned" area group header must be visible
       // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
-      await expect(panel.getByText('Unassigned')).toBeVisible();
+      await expect(panel.getByText('Unassigned', { exact: true })).toBeVisible();
 
       // The parent item name and line description must be visible
       await expect(panel.getByText('General Work', { exact: true })).toBeVisible();

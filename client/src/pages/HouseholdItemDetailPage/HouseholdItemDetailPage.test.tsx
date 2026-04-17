@@ -1820,7 +1820,10 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByText('Foundation Excavation')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('No area')).toBeInTheDocument();
+      // The page header also renders "No area" via AreaBreadcrumb (item.area is null),
+      // so scope the assertion to the dropdown button containing the work item title.
+      const wiDropdownButton = screen.getByRole('button', { name: /Foundation Excavation/ });
+      expect(within(wiDropdownButton).getByText('No area')).toBeInTheDocument();
     });
   });
 });
