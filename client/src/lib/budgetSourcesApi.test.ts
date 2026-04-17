@@ -5,11 +5,13 @@ import {
   createBudgetSource,
   updateBudgetSource,
   deleteBudgetSource,
+  fetchBudgetLinesForSource,
 } from './budgetSourcesApi.js';
 import type {
   BudgetSource,
   BudgetSourceListResponse,
   BudgetSourceResponse,
+  BudgetSourceBudgetLinesResponse,
 } from '@cornerstone/shared';
 
 describe('budgetSourcesApi', () => {
@@ -500,6 +502,111 @@ describe('budgetSourcesApi', () => {
       } as Response);
 
       await expect(deleteBudgetSource('src-1')).rejects.toThrow();
+    });
+  });
+
+  // ─── fetchBudgetLinesForSource ─────────────────────────────────────────────
+
+  describe('fetchBudgetLinesForSource', () => {
+    const mockLinesResponse: BudgetSourceBudgetLinesResponse = {
+      workItemLines: [],
+      householdItemLines: [],
+    };
+
+    it('calls GET /budget-sources/:sourceId/budget-lines with correct sourceId', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockLinesResponse,
+      } as Response);
+
+      await fetchBudgetLinesForSource('src-1');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/budget-sources/src-1/budget-lines',
+        expect.any(Object),
+      );
+    });
+
+    it('returns the response object from the API call', async () => {
+      const filledResponse: BudgetSourceBudgetLinesResponse = {
+        workItemLines: [
+          {
+            id: 'line-1',
+            parentId: 'p-1',
+            parentName: 'Kitchen Renovation',
+            area: null,
+            description: 'Floor tiles',
+            plannedAmount: 1500,
+            confidence: 'own_estimate',
+            confidenceMargin: 0.2,
+            budgetCategory: null,
+            budgetSource: null,
+            vendor: null,
+            actualCost: 0,
+            actualCostPaid: 0,
+            invoiceCount: 0,
+            invoiceLink: null,
+            quantity: null,
+            unit: null,
+            unitPrice: null,
+            includesVat: null,
+            createdBy: null,
+            hasClaimedInvoice: false,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+        householdItemLines: [],
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => filledResponse,
+      } as Response);
+
+      const result = await fetchBudgetLinesForSource('src-1');
+
+      expect(result).toEqual(filledResponse);
+      expect(result.workItemLines).toHaveLength(1);
+      expect(result.workItemLines[0].id).toBe('line-1');
+    });
+
+    it('uses the provided sourceId in the URL path', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockLinesResponse,
+      } as Response);
+
+      await fetchBudgetLinesForSource('custom-source-id-999');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/budget-sources/custom-source-id-999/budget-lines',
+        expect.any(Object),
+      );
+    });
+
+    it('throws ApiClientError when server returns 404', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({
+          error: { code: 'NOT_FOUND', message: 'Budget source not found' },
+        }),
+      } as Response);
+
+      await expect(fetchBudgetLinesForSource('nonexistent')).rejects.toThrow();
+    });
+
+    it('throws ApiClientError when server returns 401', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({
+          error: { code: 'UNAUTHORIZED', message: 'Unauthorized' },
+        }),
+      } as Response);
+
+      await expect(fetchBudgetLinesForSource('src-1')).rejects.toThrow();
     });
   });
 });

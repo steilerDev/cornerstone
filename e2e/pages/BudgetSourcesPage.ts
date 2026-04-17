@@ -354,4 +354,45 @@ export class BudgetSourcesPage {
   getAmountLabelsInRow(sourceName: string): import('@playwright/test').Locator {
     return this.getSourceRowByName(sourceName).locator('[class*="barLegendLabel"]');
   }
+
+  // ─── Budget Lines Expansion helpers (Story #1247) ────────────────────────────
+
+  /**
+   * Get the expand/collapse toggle button for the named source row.
+   * The button has aria-label "Expand budget lines for <name>" or
+   * "Collapse budget lines for <name>".
+   */
+  getExpandToggle(sourceName: string): import('@playwright/test').Locator {
+    return this.getSourceRowByName(sourceName).getByRole('button', {
+      name: new RegExp(`(Expand|Collapse) budget lines for ${sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i'),
+    });
+  }
+
+  /**
+   * Get the lines panel region for a specific source by its ID.
+   * The panel renders as: <div id="source-lines-{sourceId}" role="region">
+   */
+  getLinesPanelById(sourceId: string): import('@playwright/test').Locator {
+    return this.page.locator(`[id="source-lines-${sourceId}"]`);
+  }
+
+  /**
+   * Click the expand toggle for the named source and wait for the panel to appear.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+   */
+  async expandSourceLines(sourceName: string): Promise<void> {
+    const toggle = this.getExpandToggle(sourceName);
+    await toggle.waitFor({ state: 'visible' });
+    await toggle.click();
+  }
+
+  /**
+   * Click the collapse toggle for the named source and wait for the panel to be hidden.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+   */
+  async collapseSourceLines(sourceName: string): Promise<void> {
+    const toggle = this.getExpandToggle(sourceName);
+    await toggle.waitFor({ state: 'visible' });
+    await toggle.click();
+  }
 }

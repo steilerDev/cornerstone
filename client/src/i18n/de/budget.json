@@ -163,6 +163,32 @@
       "ofTotal": "der Summe",
       "remaining": "Verbleibend",
       "overflow": "Überlauf"
+    },
+    "lines": {
+      "expand": "Positionen einblenden",
+      "collapse": "Positionen ausblenden",
+      "loadingLabel": "Budgetpositionen werden geladen…",
+      "empty": "Keine Budgetpositionen zugeordnet",
+      "emptyDescription": "Budgetpositionen aus Arbeitspaketen und Haushaltsartikeln erscheinen hier, wenn sie dieser Quelle zugeordnet sind.",
+      "workItemSection": "Arbeitspaket-Positionen",
+      "householdItemSection": "Haushaltsartikel-Positionen",
+      "unassignedArea": "Nicht zugeordnet",
+      "fetchError": "Budgetpositionen konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "areaLineCount_one": "{{count}} Position",
+      "areaLineCount_other": "{{count}} Positionen",
+      "expandAriaLabel": "Budgetpositionen für {{name}} einblenden",
+      "collapseAriaLabel": "Budgetpositionen für {{name}} ausblenden",
+      "panelAriaLabel": "Budgetpositionen für {{name}}",
+      "confidence": {
+        "own_estimate": "Eigene Schätzung",
+        "professional_estimate": "Fachschätzung",
+        "quote": "Angebot",
+        "invoice": "Rechnung"
+      },
+      "invoiceLinked": "Verrechnet",
+      "categoryVendorSeparator": " · ",
+      "noCategory": "Keine Kategorie"
     }
   },
   "vendors": {

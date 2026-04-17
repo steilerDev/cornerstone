@@ -163,6 +163,31 @@
       "ofTotal": "of total",
       "remaining": "Remaining",
       "overflow": "Overflow"
+    },
+    "lines": {
+      "expand": "Show lines",
+      "collapse": "Hide lines",
+      "loadingLabel": "Loading budget lines…",
+      "empty": "No budget lines assigned",
+      "emptyDescription": "Budget lines from work items and household items appear here when assigned to this source.",
+      "workItemSection": "Work Item Lines",
+      "householdItemSection": "Household Item Lines",
+      "unassignedArea": "Unassigned",
+      "fetchError": "Could not load budget lines.",
+      "retry": "Retry",
+      "areaLineCount_one": "{{count}} line",
+      "areaLineCount_other": "{{count}} lines",
+      "expandAriaLabel": "Expand budget lines for {{name}}",
+      "collapseAriaLabel": "Collapse budget lines for {{name}}",
+      "panelAriaLabel": "Budget lines for {{name}}",
+      "categoryVendorSeparator": " · ",
+      "confidence": {
+        "own_estimate": "Own estimate",
+        "professional_estimate": "Pro estimate",
+        "quote": "Quote",
+        "invoice": "Invoice"
+      },
+      "invoiceLinked": "Invoiced"
     }
   },
   "vendors": {
