@@ -16,6 +16,7 @@ import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesA
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './HouseholdItemsPage.module.css';
 
@@ -220,9 +221,12 @@ export function HouseholdItemsPage() {
         sortKey: 'name',
         defaultVisible: true,
         render: (item) => (
-          <Link to={`/project/household-items/${item.id}`} className={styles.itemLink}>
-            {item.name}
-          </Link>
+          <div className={styles.titleCell}>
+            <Link to={`/project/household-items/${item.id}`} className={styles.itemLink}>
+              {item.name}
+            </Link>
+            <AreaBreadcrumb area={item.area ?? null} variant="compact" />
+          </div>
         ),
       },
       {

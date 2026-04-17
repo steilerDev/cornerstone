@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { HouseholdItemSummary, HouseholdItemStatus } from '@cornerstone/shared';
 import { listHouseholdItems } from '../../lib/householdItemsApi.js';
 import { SearchPicker } from '../SearchPicker/index.js';
+import { AreaBreadcrumb } from '../AreaBreadcrumb/index.js';
 
 /** Maps household item status values to their CSS custom property for the left-border color. */
 const STATUS_BORDER_COLORS: Record<HouseholdItemStatus, string> = {
@@ -62,6 +63,7 @@ export function HouseholdItemPicker({
         return response.items.filter((item) => !ids.includes(item.id));
       }}
       renderItem={(item) => ({ id: item.id, label: item.name })}
+      renderSecondary={(item) => <AreaBreadcrumb area={item.area ?? null} variant="compact" />}
       getStatusBorderColor={(item) => STATUS_BORDER_COLORS[item.status]}
       showItemsOnFocus={showItemsOnFocus}
       initialTitle={initialTitle}
