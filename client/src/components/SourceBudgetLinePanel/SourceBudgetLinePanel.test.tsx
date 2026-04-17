@@ -546,4 +546,44 @@ describe('SourceBudgetLinePanel', () => {
       expect(screen.getByText('2 lines')).toBeInTheDocument();
     });
   });
+
+  // ─── Category and vendor display ──────────────────────────
+
+  describe('category and vendor display', () => {
+    it('renders secondary text with both category and vendor when both present', () => {
+      const line = makeLine({
+        budgetCategory: {
+          id: 'cat-1',
+          name: 'Flooring',
+          description: null,
+          color: null,
+          translationKey: null,
+          sortOrder: 0,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+        vendor: {
+          id: 'vend-1',
+          name: 'Smith Construction',
+          trade: null,
+        },
+      });
+      renderPanel({ data: makeResponse([line], []) });
+
+      expect(screen.getByText('Flooring · Smith Construction')).toBeInTheDocument();
+    });
+
+    it('does NOT render secondary line when both category and vendor are null', () => {
+      const line = makeLine({
+        budgetCategory: null,
+        vendor: null,
+      });
+      renderPanel({ data: makeResponse([line], []) });
+
+      // The line description should be present, but no secondary text
+      expect(screen.getByText('Floor tiles')).toBeInTheDocument();
+      // Verify the separator is not in the document
+      expect(screen.queryByText(/·/)).not.toBeInTheDocument();
+    });
+  });
 });
