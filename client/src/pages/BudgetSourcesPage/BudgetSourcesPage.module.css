@@ -425,18 +425,20 @@
   gap: var(--spacing-2);
   padding: var(--spacing-2) var(--spacing-3);
   background-color: transparent;
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  color: var(--color-text-primary);
+  color: var(--color-text-muted);
   cursor: pointer;
-  transition: background-color var(--transition-normal), border-color var(--transition-normal);
+  transition: background-color var(--transition-normal), border-color var(--transition-normal), color var(--transition-normal);
   min-height: 44px;
 }
 
 .expandToggle:hover:not(:disabled) {
-  background-color: var(--color-bg-tertiary);
+  background-color: var(--color-bg-secondary);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
 }
 
 .expandToggle:focus-visible {
@@ -450,19 +452,20 @@
 }
 
 .expandToggleActive {
-  background-color: var(--color-primary);
-  color: white;
+  background-color: var(--color-primary-bg);
+  color: var(--color-primary-badge-text);
   border-color: var(--color-primary);
 }
 
 .expandToggleActive:hover {
-  background-color: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
+  background-color: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary-badge-text);
 }
 
 .chevronIcon {
-  width: 16px;
-  height: 16px;
+  width: var(--spacing-3);
+  height: var(--spacing-3);
   transition: transform var(--transition-normal);
   flex-shrink: 0;
 }

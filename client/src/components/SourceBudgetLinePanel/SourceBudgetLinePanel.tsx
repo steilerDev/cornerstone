@@ -192,30 +192,42 @@ export function SourceBudgetLinePanel({
                 <p className={styles.parentItemHeader}>{parentGroup.parentName}</p>
 
                 <ul role="list" className={styles.lineList}>
-                  {parentGroup.lines.map((line) => (
-                    <li key={line.id} role="listitem" className={styles.lineRow}>
-                      <span className={styles.lineDescription}>
-                        {line.description ?? '—'}
-                      </span>
+                  {parentGroup.lines.map((line) => {
+                    const categoryName = line.budgetCategory?.name ?? null;
+                    const vendorName = line.vendor?.name ?? null;
+                    const showSubtext = categoryName || vendorName;
 
-                      <div className={styles.lineBadges}>
-                        <Badge
-                          variants={confidenceVariants}
-                          value={line.confidence as ConfidenceLevel}
-                        />
-                        {line.invoiceLink !== null && (
-                          <Badge
-                            variants={invoiceVariants}
-                            value="linked"
-                          />
+                    return (
+                      <li key={line.id} role="listitem" className={styles.lineRow}>
+                        <span className={styles.lineDescription}>
+                          {line.description ?? '—'}
+                        </span>
+
+                        {showSubtext && (
+                          <span className={styles.lineSubtext}>
+                            {categoryName && vendorName ? `${categoryName} · ${vendorName}` : (categoryName || vendorName)}
+                          </span>
                         )}
-                      </div>
 
-                      <span className={styles.linePlannedAmount}>
-                        {formatCurrency(line.plannedAmount)}
-                      </span>
-                    </li>
-                  ))}
+                        <div className={styles.lineBadges}>
+                          <Badge
+                            variants={confidenceVariants}
+                            value={line.confidence}
+                          />
+                          {line.invoiceLink !== null && (
+                            <Badge
+                              variants={invoiceVariants}
+                              value="linked"
+                            />
+                          )}
+                        </div>
+
+                        <span className={styles.linePlannedAmount}>
+                          {formatCurrency(line.plannedAmount)}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}

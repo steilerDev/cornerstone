@@ -164,6 +164,7 @@
       "expandAriaLabel": "Expand budget lines for {{name}}",
       "collapseAriaLabel": "Collapse budget lines for {{name}}",
       "panelAriaLabel": "Budget lines for {{name}}",
+      "categoryVendorSeparator": " · ",
       "confidence": {
         "own_estimate": "Own estimate",
         "professional_estimate": "Pro estimate",
