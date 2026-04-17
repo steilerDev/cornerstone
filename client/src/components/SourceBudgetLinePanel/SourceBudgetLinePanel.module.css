@@ -251,7 +251,8 @@
   background-color: var(--color-bg-primary);
   border-top: 1px solid var(--color-border);
   padding: var(--spacing-4);
-  margin: var(--spacing-4) calc(-1 * var(--spacing-4)) calc(-1 * var(--spacing-4)) calc(-1 * var(--spacing-4));
+  margin: var(--spacing-4) calc(-1 * var(--spacing-4)) calc(-1 * var(--spacing-4))
+    calc(-1 * var(--spacing-4));
   display: flex;
   align-items: center;
   justify-content: space-between;

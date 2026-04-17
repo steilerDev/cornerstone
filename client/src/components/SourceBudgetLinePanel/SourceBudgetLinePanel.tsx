@@ -170,8 +170,8 @@ export function SourceBudgetLinePanel({
     const states = new Map<string, { allSelected: boolean; someSelected: boolean }>();
 
     for (const areaGroup of allGroups) {
-      const groupLineIds = areaGroup.parentGroups.flatMap(pg => pg.lines.map(l => l.id));
-      const selectedInGroup = groupLineIds.filter(id => selectedLineIds!.has(id));
+      const groupLineIds = areaGroup.parentGroups.flatMap((pg) => pg.lines.map((l) => l.id));
+      const selectedInGroup = groupLineIds.filter((id) => selectedLineIds!.has(id));
       const allSelected = selectedInGroup.length === groupLineIds.length && groupLineIds.length > 0;
       const someSelected = selectedInGroup.length > 0;
 
@@ -183,34 +183,40 @@ export function SourceBudgetLinePanel({
   }, [workItemLines, householdItemLines, selectedLineIds, isSelectable]);
 
   // Handle area group checkbox change
-  const handleAreaGroupCheckboxChange = useCallback((areaGroup: AreaGroup, checked: boolean) => {
-    if (!isSelectable || !onSelectionChange) return;
+  const handleAreaGroupCheckboxChange = useCallback(
+    (areaGroup: AreaGroup, checked: boolean) => {
+      if (!isSelectable || !onSelectionChange) return;
 
-    const groupLineIds = areaGroup.parentGroups.flatMap(pg => pg.lines.map(l => l.id));
-    const newSelection = new Set(selectedLineIds);
+      const groupLineIds = areaGroup.parentGroups.flatMap((pg) => pg.lines.map((l) => l.id));
+      const newSelection = new Set(selectedLineIds);
 
-    if (checked) {
-      groupLineIds.forEach(id => newSelection.add(id));
-    } else {
-      groupLineIds.forEach(id => newSelection.delete(id));
-    }
+      if (checked) {
+        groupLineIds.forEach((id) => newSelection.add(id));
+      } else {
+        groupLineIds.forEach((id) => newSelection.delete(id));
+      }
 
-    onSelectionChange(newSelection);
-  }, [isSelectable, selectedLineIds, onSelectionChange]);
+      onSelectionChange(newSelection);
+    },
+    [isSelectable, selectedLineIds, onSelectionChange],
+  );
 
   // Handle individual line checkbox change
-  const handleLineCheckboxChange = useCallback((lineId: string, checked: boolean) => {
-    if (!isSelectable || !onSelectionChange) return;
+  const handleLineCheckboxChange = useCallback(
+    (lineId: string, checked: boolean) => {
+      if (!isSelectable || !onSelectionChange) return;
 
-    const newSelection = new Set(selectedLineIds);
-    if (checked) {
-      newSelection.add(lineId);
-    } else {
-      newSelection.delete(lineId);
-    }
+      const newSelection = new Set(selectedLineIds);
+      if (checked) {
+        newSelection.add(lineId);
+      } else {
+        newSelection.delete(lineId);
+      }
 
-    onSelectionChange(newSelection);
-  }, [isSelectable, selectedLineIds, onSelectionChange]);
+      onSelectionChange(newSelection);
+    },
+    [isSelectable, selectedLineIds, onSelectionChange],
+  );
 
   // Render a section (work items or household items)
   const renderSection = (
@@ -238,7 +244,9 @@ export function SourceBudgetLinePanel({
                     checked={selectionState.allSelected}
                     indeterminate={!selectionState.allSelected && selectionState.someSelected}
                     onChange={(checked) => handleAreaGroupCheckboxChange(areaGroup, checked)}
-                    label={t('sources.budgetLines.move.selectGroupLabel', { name: areaGroup.areaName || t('sources.lines.unassignedArea') })}
+                    label={t('sources.budgetLines.move.selectGroupLabel', {
+                      name: areaGroup.areaName || t('sources.lines.unassignedArea'),
+                    })}
                     className={styles.areaGroupCheckbox}
                   />
                 )}
@@ -292,7 +300,10 @@ export function SourceBudgetLinePanel({
                 <div key={parentGroup.parentId}>
                   <p className={styles.parentItemHeader}>{parentGroup.parentName}</p>
 
-                  <ul role="list" className={isSelectable ? styles.lineListSelectable : styles.lineList}>
+                  <ul
+                    role="list"
+                    className={isSelectable ? styles.lineListSelectable : styles.lineList}
+                  >
                     {parentGroup.lines.map((line) => {
                       const categoryName = line.budgetCategory?.name ?? null;
                       const vendorName = line.vendor?.name ?? null;
@@ -311,30 +322,26 @@ export function SourceBudgetLinePanel({
                               className={styles.checkbox}
                               checked={isSelected}
                               onChange={(e) => handleLineCheckboxChange(line.id, e.target.checked)}
-                              aria-label={t('sources.budgetLines.move.checkboxLabel', { description: line.description ?? '—' })}
+                              aria-label={t('sources.budgetLines.move.checkboxLabel', {
+                                description: line.description ?? '—',
+                              })}
                             />
                           )}
 
-                          <span className={styles.lineDescription}>
-                            {line.description ?? '—'}
-                          </span>
+                          <span className={styles.lineDescription}>{line.description ?? '—'}</span>
 
                           {showSubtext && (
                             <span className={styles.lineSubtext}>
-                              {categoryName && vendorName ? `${categoryName} · ${vendorName}` : (categoryName || vendorName)}
+                              {categoryName && vendorName
+                                ? `${categoryName} · ${vendorName}`
+                                : categoryName || vendorName}
                             </span>
                           )}
 
                           <div className={styles.lineBadges}>
-                            <Badge
-                              variants={confidenceVariants}
-                              value={line.confidence}
-                            />
+                            <Badge variants={confidenceVariants} value={line.confidence} />
                             {line.invoiceLink !== null && (
-                              <Badge
-                                variants={invoiceVariants}
-                                value="linked"
-                              />
+                              <Badge variants={invoiceVariants} value="linked" />
                             )}
                           </div>
 

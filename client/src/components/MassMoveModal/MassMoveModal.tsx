@@ -38,13 +38,16 @@ export function MassMoveModal({
 
   const canConfirm = targetSourceId !== '' && (claimedCount === 0 || understood) && !isSubmitting;
 
-  const handleSearchSources = useCallback(async (query: string): Promise<BudgetSource[]> => {
-    const response = await fetchBudgetSources();
-    const allSources = response.budgetSources.filter(s => s.id !== sourceId);
-    if (!query) return allSources;
-    const lowerQuery = query.toLowerCase();
-    return allSources.filter(s => s.name.toLowerCase().includes(lowerQuery));
-  }, [sourceId]);
+  const handleSearchSources = useCallback(
+    async (query: string): Promise<BudgetSource[]> => {
+      const response = await fetchBudgetSources();
+      const allSources = response.budgetSources.filter((s) => s.id !== sourceId);
+      if (!query) return allSources;
+      const lowerQuery = query.toLowerCase();
+      return allSources.filter((s) => s.name.toLowerCase().includes(lowerQuery));
+    },
+    [sourceId],
+  );
 
   const handleConfirm = useCallback(async () => {
     if (!canConfirm) return;
@@ -83,12 +86,9 @@ export function MassMoveModal({
     t,
   ]);
 
-  const handleSelectTarget = useCallback(
-    (item: { id: string; label: string }) => {
-      setTargetSourceName(item.label);
-    },
-    [],
-  );
+  const handleSelectTarget = useCallback((item: { id: string; label: string }) => {
+    setTargetSourceName(item.label);
+  }, []);
 
   const footerContent = (
     <div className={styles.footerActions}>
@@ -151,7 +151,7 @@ export function MassMoveModal({
             excludeIds={[sourceId]}
             placeholder={t('sources.budgetLines.move.pickerPlaceholder')}
             searchFn={handleSearchSources}
-            renderItem={source => ({
+            renderItem={(source) => ({
               id: source.id,
               label: source.name,
             })}
@@ -186,7 +186,7 @@ export function MassMoveModal({
                   type="checkbox"
                   className={styles.understoodCheckbox}
                   checked={understood}
-                  onChange={e => setUnderstood(e.target.checked)}
+                  onChange={(e) => setUnderstood(e.target.checked)}
                   disabled={isSubmitting}
                 />
                 <span className={styles.understoodLabel}>

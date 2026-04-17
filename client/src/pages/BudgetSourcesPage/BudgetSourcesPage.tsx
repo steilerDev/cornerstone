@@ -583,8 +583,12 @@ export function BudgetSourcesPage() {
     setMoveModalSourceId(sourceId);
   }, []);
 
-  const activeMoveSource = moveModalSourceId ? sources.find((s) => s.id === moveModalSourceId) : null;
-  const activeMoveSelection = moveModalSourceId ? (sourceSelections.get(moveModalSourceId) ?? new Set<string>()) : new Set<string>();
+  const activeMoveSource = moveModalSourceId
+    ? sources.find((s) => s.id === moveModalSourceId)
+    : null;
+  const activeMoveSelection = moveModalSourceId
+    ? (sourceSelections.get(moveModalSourceId) ?? new Set<string>())
+    : new Set<string>();
   const activeLinesData = moveModalSourceId ? (linesCache.get(moveModalSourceId) ?? null) : null;
 
   const { workItemBudgetIds, householdItemBudgetIds, claimedCount } = useMemo(() => {
@@ -612,37 +616,46 @@ export function BudgetSourcesPage() {
     return { workItemBudgetIds: wiIds, householdItemBudgetIds: hiIds, claimedCount: claimed };
   }, [activeLinesData, activeMoveSelection]);
 
-  const handleMoveSuccess = useCallback((movedCount: number, targetName: string) => {
-    const srcId = moveModalSourceId;
-    setMoveModalSourceId(null);
-    setSourceSelections((prev) => {
-      const next = new Map(prev);
-      next.delete(srcId!);
-      return next;
-    });
-    showToast('success', t('sources.budgetLines.move.successToast', { count: movedCount, targetName }));
-    // Invalidate lines cache so re-expand re-fetches
-    setLinesCache((prev) => {
-      const next = new Map(prev);
-      next.delete(srcId!);
-      return next;
-    });
-    void loadSources();
-  }, [moveModalSourceId, showToast, t]);
-
-  // Clear selection when source is collapsed
-  const handleToggleLinesWithClearing = useCallback((sourceId: string) => {
-    const isCurrentlyExpanded = expandedSources.has(sourceId);
-    if (isCurrentlyExpanded) {
-      // Clear selection when collapsing
+  const handleMoveSuccess = useCallback(
+    (movedCount: number, targetName: string) => {
+      const srcId = moveModalSourceId;
+      setMoveModalSourceId(null);
       setSourceSelections((prev) => {
         const next = new Map(prev);
-        next.delete(sourceId);
+        next.delete(srcId!);
         return next;
       });
-    }
-    void handleToggleLines(sourceId);
-  }, [expandedSources, handleToggleLines]);
+      showToast(
+        'success',
+        t('sources.budgetLines.move.successToast', { count: movedCount, targetName }),
+      );
+      // Invalidate lines cache so re-expand re-fetches
+      setLinesCache((prev) => {
+        const next = new Map(prev);
+        next.delete(srcId!);
+        return next;
+      });
+      void loadSources();
+    },
+    [moveModalSourceId, showToast, t],
+  );
+
+  // Clear selection when source is collapsed
+  const handleToggleLinesWithClearing = useCallback(
+    (sourceId: string) => {
+      const isCurrentlyExpanded = expandedSources.has(sourceId);
+      if (isCurrentlyExpanded) {
+        // Clear selection when collapsing
+        setSourceSelections((prev) => {
+          const next = new Map(prev);
+          next.delete(sourceId);
+          return next;
+        });
+      }
+      void handleToggleLines(sourceId);
+    },
+    [expandedSources, handleToggleLines],
+  );
 
   if (isLoading) {
     return (

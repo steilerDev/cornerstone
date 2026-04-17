@@ -22,38 +22,20 @@ describe('TriStateCheckbox', () => {
 
   describe('rendering', () => {
     it('renders a checkbox input', () => {
-      render(
-        <TriStateCheckbox
-          checked={false}
-          indeterminate={false}
-          onChange={jest.fn()}
-        />,
-      );
+      render(<TriStateCheckbox checked={false} indeterminate={false} onChange={jest.fn()} />);
 
       expect(screen.getByRole('checkbox')).toBeInTheDocument();
     });
 
     it('renders checked=true when checked prop is true', () => {
-      render(
-        <TriStateCheckbox
-          checked={true}
-          indeterminate={false}
-          onChange={jest.fn()}
-        />,
-      );
+      render(<TriStateCheckbox checked={true} indeterminate={false} onChange={jest.fn()} />);
 
       const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
       expect(checkbox.checked).toBe(true);
     });
 
     it('renders checked=false when checked prop is false', () => {
-      render(
-        <TriStateCheckbox
-          checked={false}
-          indeterminate={false}
-          onChange={jest.fn()}
-        />,
-      );
+      render(<TriStateCheckbox checked={false} indeterminate={false} onChange={jest.fn()} />);
 
       const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
       expect(checkbox.checked).toBe(false);
@@ -74,16 +56,14 @@ describe('TriStateCheckbox', () => {
 
     it('does not render visible label text when label prop is omitted', () => {
       const { container } = render(
-        <TriStateCheckbox
-          checked={false}
-          indeterminate={false}
-          onChange={jest.fn()}
-        />,
+        <TriStateCheckbox checked={false} indeterminate={false} onChange={jest.fn()} />,
       );
 
       // No span with text content
       const spans = container.querySelectorAll('span');
-      const textSpans = Array.from(spans).filter(s => s.textContent && s.textContent.trim().length > 0);
+      const textSpans = Array.from(spans).filter(
+        (s) => s.textContent && s.textContent.trim().length > 0,
+      );
       expect(textSpans).toHaveLength(0);
     });
 
@@ -131,13 +111,7 @@ describe('TriStateCheckbox', () => {
     });
 
     it('renders as enabled when disabled is not provided', () => {
-      render(
-        <TriStateCheckbox
-          checked={false}
-          indeterminate={false}
-          onChange={jest.fn()}
-        />,
-      );
+      render(<TriStateCheckbox checked={false} indeterminate={false} onChange={jest.fn()} />);
 
       const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
       expect(checkbox.disabled).toBe(false);
@@ -148,26 +122,14 @@ describe('TriStateCheckbox', () => {
 
   describe('indeterminate property via ref', () => {
     it('sets indeterminate=true on the DOM input when indeterminate prop is true', () => {
-      render(
-        <TriStateCheckbox
-          checked={false}
-          indeterminate={true}
-          onChange={jest.fn()}
-        />,
-      );
+      render(<TriStateCheckbox checked={false} indeterminate={true} onChange={jest.fn()} />);
 
       const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
       expect(checkbox.indeterminate).toBe(true);
     });
 
     it('sets indeterminate=false on the DOM input when indeterminate prop is false', () => {
-      render(
-        <TriStateCheckbox
-          checked={false}
-          indeterminate={false}
-          onChange={jest.fn()}
-        />,
-      );
+      render(<TriStateCheckbox checked={false} indeterminate={false} onChange={jest.fn()} />);
 
       const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
       expect(checkbox.indeterminate).toBe(false);
@@ -175,24 +137,14 @@ describe('TriStateCheckbox', () => {
 
     it('clears indeterminate when prop changes from true to false', () => {
       const { rerender } = render(
-        <TriStateCheckbox
-          checked={false}
-          indeterminate={true}
-          onChange={jest.fn()}
-        />,
+        <TriStateCheckbox checked={false} indeterminate={true} onChange={jest.fn()} />,
       );
 
       const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
       expect(checkbox.indeterminate).toBe(true);
 
       act(() => {
-        rerender(
-          <TriStateCheckbox
-            checked={false}
-            indeterminate={false}
-            onChange={jest.fn()}
-          />,
-        );
+        rerender(<TriStateCheckbox checked={false} indeterminate={false} onChange={jest.fn()} />);
       });
 
       expect(checkbox.indeterminate).toBe(false);
@@ -200,24 +152,14 @@ describe('TriStateCheckbox', () => {
 
     it('sets indeterminate when prop changes from false to true', () => {
       const { rerender } = render(
-        <TriStateCheckbox
-          checked={false}
-          indeterminate={false}
-          onChange={jest.fn()}
-        />,
+        <TriStateCheckbox checked={false} indeterminate={false} onChange={jest.fn()} />,
       );
 
       const checkbox = screen.getByRole('checkbox') as HTMLInputElement;
       expect(checkbox.indeterminate).toBe(false);
 
       act(() => {
-        rerender(
-          <TriStateCheckbox
-            checked={false}
-            indeterminate={true}
-            onChange={jest.fn()}
-          />,
-        );
+        rerender(<TriStateCheckbox checked={false} indeterminate={true} onChange={jest.fn()} />);
       });
 
       expect(checkbox.indeterminate).toBe(true);
@@ -229,13 +171,7 @@ describe('TriStateCheckbox', () => {
   describe('onChange callback', () => {
     it('calls onChange(true) when clicked from unchecked state', () => {
       const onChange = jest.fn<(checked: boolean) => void>();
-      render(
-        <TriStateCheckbox
-          checked={false}
-          indeterminate={false}
-          onChange={onChange}
-        />,
-      );
+      render(<TriStateCheckbox checked={false} indeterminate={false} onChange={onChange} />);
 
       fireEvent.click(screen.getByRole('checkbox'));
 
@@ -245,13 +181,7 @@ describe('TriStateCheckbox', () => {
 
     it('calls onChange(false) when clicked from checked state', () => {
       const onChange = jest.fn<(checked: boolean) => void>();
-      render(
-        <TriStateCheckbox
-          checked={true}
-          indeterminate={false}
-          onChange={onChange}
-        />,
-      );
+      render(<TriStateCheckbox checked={true} indeterminate={false} onChange={onChange} />);
 
       fireEvent.click(screen.getByRole('checkbox'));
 
@@ -261,13 +191,7 @@ describe('TriStateCheckbox', () => {
 
     it('calls onChange(true) when clicked from indeterminate state (browser treats as unchecked)', () => {
       const onChange = jest.fn<(checked: boolean) => void>();
-      render(
-        <TriStateCheckbox
-          checked={false}
-          indeterminate={true}
-          onChange={onChange}
-        />,
-      );
+      render(<TriStateCheckbox checked={false} indeterminate={true} onChange={onChange} />);
 
       fireEvent.click(screen.getByRole('checkbox'));
 

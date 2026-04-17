@@ -520,7 +520,7 @@ describe('budgetSourcesApi', () => {
         targetSourceId: 'src-target',
       };
 
-      await import('./budgetSourcesApi.js').then(m =>
+      await import('./budgetSourcesApi.js').then((m) =>
         m.moveBudgetLinesBetweenSources('src-1', data),
       );
 

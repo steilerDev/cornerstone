@@ -100,7 +100,8 @@ describe('SourceBudgetLinePanel', () => {
   beforeEach(async () => {
     if (!SourceBudgetLinePanel) {
       const module = await import('./SourceBudgetLinePanel.js');
-      SourceBudgetLinePanel = module.SourceBudgetLinePanel as React.ComponentType<SourceBudgetLinePanelProps>;
+      SourceBudgetLinePanel =
+        module.SourceBudgetLinePanel as React.ComponentType<SourceBudgetLinePanelProps>;
     }
   });
 
@@ -642,8 +643,18 @@ describe('SourceBudgetLinePanel', () => {
 
     it('shows "3 lines selected" when three lines are selected', () => {
       const line1 = makeLine({ id: 'l1', parentId: 'p1', parentName: 'Kitchen' });
-      const line2 = makeLine({ id: 'l2', parentId: 'p1', parentName: 'Kitchen', createdAt: '2026-01-02T00:00:00.000Z' });
-      const line3 = makeLine({ id: 'l3', parentId: 'p1', parentName: 'Kitchen', createdAt: '2026-01-03T00:00:00.000Z' });
+      const line2 = makeLine({
+        id: 'l2',
+        parentId: 'p1',
+        parentName: 'Kitchen',
+        createdAt: '2026-01-02T00:00:00.000Z',
+      });
+      const line3 = makeLine({
+        id: 'l3',
+        parentId: 'p1',
+        parentName: 'Kitchen',
+        createdAt: '2026-01-03T00:00:00.000Z',
+      });
       renderPanel({
         data: makeResponse([line1, line2, line3], []),
         selectedLineIds: new Set<string>(['l1', 'l2', 'l3']),
@@ -700,8 +711,19 @@ describe('SourceBudgetLinePanel', () => {
 
   describe('area group checkbox', () => {
     it('clicking all-unchecked area group checkbox adds all area line ids to selection', () => {
-      const line1 = makeLine({ id: 'l1', parentId: 'p1', parentName: 'Kitchen', area: makeArea({ id: 'a1', name: 'Main' }) });
-      const line2 = makeLine({ id: 'l2', parentId: 'p1', parentName: 'Kitchen', area: makeArea({ id: 'a1', name: 'Main' }), createdAt: '2026-01-02T00:00:00.000Z' });
+      const line1 = makeLine({
+        id: 'l1',
+        parentId: 'p1',
+        parentName: 'Kitchen',
+        area: makeArea({ id: 'a1', name: 'Main' }),
+      });
+      const line2 = makeLine({
+        id: 'l2',
+        parentId: 'p1',
+        parentName: 'Kitchen',
+        area: makeArea({ id: 'a1', name: 'Main' }),
+        createdAt: '2026-01-02T00:00:00.000Z',
+      });
       const onSelectionChange = jest.fn<(s: Set<string>) => void>();
       renderPanel({
         data: makeResponse([line1, line2], []),
@@ -721,8 +743,19 @@ describe('SourceBudgetLinePanel', () => {
     });
 
     it('clicking all-checked area group checkbox removes all area line ids from selection', () => {
-      const line1 = makeLine({ id: 'l1', parentId: 'p1', parentName: 'Kitchen', area: makeArea({ id: 'a1', name: 'Main' }) });
-      const line2 = makeLine({ id: 'l2', parentId: 'p1', parentName: 'Kitchen', area: makeArea({ id: 'a1', name: 'Main' }), createdAt: '2026-01-02T00:00:00.000Z' });
+      const line1 = makeLine({
+        id: 'l1',
+        parentId: 'p1',
+        parentName: 'Kitchen',
+        area: makeArea({ id: 'a1', name: 'Main' }),
+      });
+      const line2 = makeLine({
+        id: 'l2',
+        parentId: 'p1',
+        parentName: 'Kitchen',
+        area: makeArea({ id: 'a1', name: 'Main' }),
+        createdAt: '2026-01-02T00:00:00.000Z',
+      });
       const onSelectionChange = jest.fn<(s: Set<string>) => void>();
       renderPanel({
         data: makeResponse([line1, line2], []),
@@ -741,8 +774,19 @@ describe('SourceBudgetLinePanel', () => {
     });
 
     it('area group checkbox has indeterminate=true when only some lines are selected', () => {
-      const line1 = makeLine({ id: 'l1', parentId: 'p1', parentName: 'Kitchen', area: makeArea({ id: 'a1', name: 'Main' }) });
-      const line2 = makeLine({ id: 'l2', parentId: 'p1', parentName: 'Kitchen', area: makeArea({ id: 'a1', name: 'Main' }), createdAt: '2026-01-02T00:00:00.000Z' });
+      const line1 = makeLine({
+        id: 'l1',
+        parentId: 'p1',
+        parentName: 'Kitchen',
+        area: makeArea({ id: 'a1', name: 'Main' }),
+      });
+      const line2 = makeLine({
+        id: 'l2',
+        parentId: 'p1',
+        parentName: 'Kitchen',
+        area: makeArea({ id: 'a1', name: 'Main' }),
+        createdAt: '2026-01-02T00:00:00.000Z',
+      });
       renderPanel({
         data: makeResponse([line1, line2], []),
         selectedLineIds: new Set<string>(['l1']),
@@ -750,7 +794,9 @@ describe('SourceBudgetLinePanel', () => {
         onMoveLines: jest.fn(),
       });
 
-      const areaCheckbox = screen.getByRole('checkbox', { name: /Select all in Main/i }) as HTMLInputElement;
+      const areaCheckbox = screen.getByRole('checkbox', {
+        name: /Select all in Main/i,
+      }) as HTMLInputElement;
       expect(areaCheckbox.indeterminate).toBe(true);
     });
   });

@@ -36,7 +36,7 @@ export function TriStateCheckbox({
         type="checkbox"
         className={styles.checkbox}
         checked={checked}
-        onChange={e => onChange(e.target.checked)}
+        onChange={(e) => onChange(e.target.checked)}
         disabled={disabled}
         aria-label={label}
       />
