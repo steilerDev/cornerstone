@@ -9,16 +9,32 @@ import {
   invoiceBudgetLines,
   invoices,
   users,
+  workItems,
+  householdItems,
+  areas,
+  budgetCategories,
+  vendors,
 } from '../db/schema.js';
 import type {
   BudgetSource,
   BudgetSourceType,
   BudgetSourceStatus,
+  BudgetSourceBudgetLine,
+  BudgetSourceBudgetLinesResponse,
   CreateBudgetSourceRequest,
   UpdateBudgetSourceRequest,
   UserSummary,
+  BudgetLineInvoiceLink,
+  ConfidenceLevel,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
+import {
+  toAreaSummary,
+  toBudgetCategory,
+  toBudgetSourceSummary,
+  toVendorSummary,
+  toUserSummary,
+} from './shared/converters.js';
 import {
   NotFoundError,
   ValidationError,
@@ -30,18 +46,6 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 const VALID_SOURCE_TYPES: BudgetSourceType[] = ['bank_loan', 'credit_line', 'savings', 'other'];
 const VALID_STATUSES: BudgetSourceStatus[] = ['active', 'exhausted', 'closed'];
-
-/**
- * Convert database user row to UserSummary shape.
- */
-function toUserSummary(user: typeof users.$inferSelect | null | undefined): UserSummary | null {
-  if (!user) return null;
-  return {
-    id: user.id,
-    displayName: user.displayName,
-    email: user.email,
-  };
-}
 
 /**
  * Convert database budget source row to BudgetSource API shape.
@@ -521,4 +525,307 @@ export function deleteBudgetSource(db: DbType, id: string): void {
 
   // Delete source
   db.delete(budgetSources).where(eq(budgetSources.id, id)).run();
+}
+
+/**
+ * Get invoice aggregates for a work item budget line.
+ * Returns actualCost (sum of all itemized amounts), actualCostPaid (sum of paid/claimed amounts),
+ * and invoiceCount (number of linked invoices).
+ */
+function getWorkItemLineInvoiceData(
+  db: DbType,
+  lineId: string,
+): { actualCost: number; actualCostPaid: number; invoiceCount: number; hasClaimedInvoice: boolean } {
+  const result = db.get<{
+    actualCost: number;
+    actualCostPaid: number;
+    invoiceCount: number;
+    hasClaimedInvoice: number;
+  }>(
+    sql`SELECT
+      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost,
+      COALESCE(SUM(CASE WHEN i.status IN ('paid', 'claimed') THEN ibl.itemized_amount ELSE 0 END), 0) AS actualCostPaid,
+      COUNT(*) AS invoiceCount,
+      CASE WHEN COUNT(CASE WHEN i.status = 'claimed' THEN 1 END) > 0 THEN 1 ELSE 0 END AS hasClaimedInvoice
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    WHERE ibl.work_item_budget_id = ${lineId}`,
+  );
+
+  return {
+    actualCost: result?.actualCost ?? 0,
+    actualCostPaid: result?.actualCostPaid ?? 0,
+    invoiceCount: result?.invoiceCount ?? 0,
+    hasClaimedInvoice: (result?.hasClaimedInvoice ?? 0) === 1,
+  };
+}
+
+/**
+ * Get invoice aggregates for a household item budget line.
+ * Returns actualCost (sum of all itemized amounts), actualCostPaid (sum of paid/claimed amounts),
+ * and invoiceCount (number of linked invoices).
+ */
+function getHouseholdItemLineInvoiceData(
+  db: DbType,
+  lineId: string,
+): { actualCost: number; actualCostPaid: number; invoiceCount: number; hasClaimedInvoice: boolean } {
+  const result = db.get<{
+    actualCost: number;
+    actualCostPaid: number;
+    invoiceCount: number;
+    hasClaimedInvoice: number;
+  }>(
+    sql`SELECT
+      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost,
+      COALESCE(SUM(CASE WHEN i.status IN ('paid', 'claimed') THEN ibl.itemized_amount ELSE 0 END), 0) AS actualCostPaid,
+      COUNT(*) AS invoiceCount,
+      CASE WHEN COUNT(CASE WHEN i.status = 'claimed' THEN 1 END) > 0 THEN 1 ELSE 0 END AS hasClaimedInvoice
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    WHERE ibl.household_item_budget_id = ${lineId}`,
+  );
+
+  return {
+    actualCost: result?.actualCost ?? 0,
+    actualCostPaid: result?.actualCostPaid ?? 0,
+    invoiceCount: result?.invoiceCount ?? 0,
+    hasClaimedInvoice: (result?.hasClaimedInvoice ?? 0) === 1,
+  };
+}
+
+/**
+ * Get the first linked invoice for a budget line (or null if none).
+ * Used for work item budget lines.
+ */
+function getWorkItemLineInvoiceLink(
+  db: DbType,
+  lineId: string,
+): BudgetLineInvoiceLink | null {
+  const row = db.get<{
+    ibl_id: string;
+    invoice_id: string;
+    invoice_number: string | null;
+    date: string;
+    status: string;
+    itemized_amount: number;
+  }>(
+    sql`SELECT ibl.id AS ibl_id, i.id AS invoice_id, i.invoice_number, i.date, i.status, ibl.itemized_amount
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    WHERE ibl.work_item_budget_id = ${lineId}
+    LIMIT 1`,
+  );
+
+  if (!row) return null;
+  return {
+    invoiceBudgetLineId: row.ibl_id,
+    invoiceId: row.invoice_id,
+    invoiceNumber: row.invoice_number,
+    invoiceDate: row.date,
+    invoiceStatus: row.status,
+    itemizedAmount: row.itemized_amount,
+  };
+}
+
+/**
+ * Get the first linked invoice for a budget line (or null if none).
+ * Used for household item budget lines.
+ */
+function getHouseholdItemLineInvoiceLink(
+  db: DbType,
+  lineId: string,
+): BudgetLineInvoiceLink | null {
+  const row = db.get<{
+    ibl_id: string;
+    invoice_id: string;
+    invoice_number: string | null;
+    date: string;
+    status: string;
+    itemized_amount: number;
+  }>(
+    sql`SELECT ibl.id AS ibl_id, i.id AS invoice_id, i.invoice_number, i.date, i.status, ibl.itemized_amount
+    FROM invoice_budget_lines ibl
+    INNER JOIN invoices i ON i.id = ibl.invoice_id
+    WHERE ibl.household_item_budget_id = ${lineId}
+    LIMIT 1`,
+  );
+
+  if (!row) return null;
+  return {
+    invoiceBudgetLineId: row.ibl_id,
+    invoiceId: row.invoice_id,
+    invoiceNumber: row.invoice_number,
+    invoiceDate: row.date,
+    invoiceStatus: row.status,
+    itemizedAmount: row.itemized_amount,
+  };
+}
+
+/**
+ * Build a BudgetSourceBudgetLine from a work item budget row.
+ * Resolves related entities (work item, area, category, source, vendor, user) and invoice data.
+ */
+function buildWorkItemBudgetLine(db: DbType, line: typeof workItemBudgets.$inferSelect): BudgetSourceBudgetLine {
+  const workItem = db.select().from(workItems).where(eq(workItems.id, line.workItemId)).get();
+  const area = workItem && workItem.areaId
+    ? db.select().from(areas).where(eq(areas.id, workItem.areaId)).get()
+    : null;
+  const category = line.budgetCategoryId
+    ? db.select().from(budgetCategories).where(eq(budgetCategories.id, line.budgetCategoryId)).get()
+    : null;
+  const source = line.budgetSourceId
+    ? db.select().from(budgetSources).where(eq(budgetSources.id, line.budgetSourceId)).get()
+    : null;
+  const vendor = line.vendorId
+    ? db.select().from(vendors).where(eq(vendors.id, line.vendorId)).get()
+    : null;
+  const createdByUser = line.createdBy
+    ? db.select().from(users).where(eq(users.id, line.createdBy)).get()
+    : null;
+
+  const invoiceData = getWorkItemLineInvoiceData(db, line.id);
+  const invoiceLink = getWorkItemLineInvoiceLink(db, line.id);
+
+  return {
+    id: line.id,
+    description: line.description,
+    plannedAmount: line.plannedAmount,
+    confidence: line.confidence as ConfidenceLevel,
+    confidenceMargin: CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ?? 0,
+    budgetCategory: toBudgetCategory(category),
+    budgetSource: toBudgetSourceSummary(source),
+    vendor: toVendorSummary(vendor),
+    actualCost: invoiceData.actualCost,
+    actualCostPaid: invoiceData.actualCostPaid,
+    invoiceCount: invoiceData.invoiceCount,
+    invoiceLink,
+    quantity: line.quantity ?? null,
+    unit: line.unit ?? null,
+    unitPrice: line.unitPrice ?? null,
+    includesVat: line.includesVat ?? null,
+    createdBy: toUserSummary(createdByUser),
+    createdAt: line.createdAt,
+    updatedAt: line.updatedAt,
+    parentId: line.workItemId,
+    parentName: workItem?.title ?? '(Unknown Work Item)',
+    area: toAreaSummary(area),
+    hasClaimedInvoice: invoiceData.hasClaimedInvoice,
+  };
+}
+
+/**
+ * Build a BudgetSourceBudgetLine from a household item budget row.
+ * Resolves related entities (household item, area, category, source, vendor, user) and invoice data.
+ */
+function buildHouseholdItemBudgetLine(db: DbType, line: typeof householdItemBudgets.$inferSelect): BudgetSourceBudgetLine {
+  const householdItem = db.select().from(householdItems).where(eq(householdItems.id, line.householdItemId)).get();
+  const area = householdItem && householdItem.areaId
+    ? db.select().from(areas).where(eq(areas.id, householdItem.areaId)).get()
+    : null;
+  const category = line.budgetCategoryId
+    ? db.select().from(budgetCategories).where(eq(budgetCategories.id, line.budgetCategoryId)).get()
+    : null;
+  const source = line.budgetSourceId
+    ? db.select().from(budgetSources).where(eq(budgetSources.id, line.budgetSourceId)).get()
+    : null;
+  const vendor = line.vendorId
+    ? db.select().from(vendors).where(eq(vendors.id, line.vendorId)).get()
+    : null;
+  const createdByUser = line.createdBy
+    ? db.select().from(users).where(eq(users.id, line.createdBy)).get()
+    : null;
+
+  const invoiceData = getHouseholdItemLineInvoiceData(db, line.id);
+  const invoiceLink = getHouseholdItemLineInvoiceLink(db, line.id);
+
+  return {
+    id: line.id,
+    description: line.description,
+    plannedAmount: line.plannedAmount,
+    confidence: line.confidence as ConfidenceLevel,
+    confidenceMargin: CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ?? 0,
+    budgetCategory: toBudgetCategory(category),
+    budgetSource: toBudgetSourceSummary(source),
+    vendor: toVendorSummary(vendor),
+    actualCost: invoiceData.actualCost,
+    actualCostPaid: invoiceData.actualCostPaid,
+    invoiceCount: invoiceData.invoiceCount,
+    invoiceLink,
+    quantity: line.quantity ?? null,
+    unit: line.unit ?? null,
+    unitPrice: line.unitPrice ?? null,
+    includesVat: line.includesVat ?? null,
+    createdBy: toUserSummary(createdByUser),
+    createdAt: line.createdAt,
+    updatedAt: line.updatedAt,
+    parentId: line.householdItemId,
+    parentName: householdItem?.name ?? '(Unknown Household Item)',
+    area: toAreaSummary(area),
+    hasClaimedInvoice: invoiceData.hasClaimedInvoice,
+  };
+}
+
+/**
+ * Comparator for sorting budget source budget lines.
+ * Sort by: area name (nulls last) → parent item name → createdAt (all ascending).
+ */
+function compareBudgetSourceLines(
+  a: BudgetSourceBudgetLine,
+  b: BudgetSourceBudgetLine,
+): number {
+  // Area name: nulls last
+  if (a.area === null && b.area !== null) return 1;
+  if (a.area !== null && b.area === null) return -1;
+  if (a.area !== null && b.area !== null) {
+    const areaCompare = a.area.name.localeCompare(b.area.name);
+    if (areaCompare !== 0) return areaCompare;
+  }
+
+  // Parent name
+  const parentCompare = a.parentName.localeCompare(b.parentName);
+  if (parentCompare !== 0) return parentCompare;
+
+  // CreatedAt
+  return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+}
+
+/**
+ * Get all budget lines for a budget source, grouped by parent entity type.
+ * Returns work item budget lines and household item budget lines, sorted by area name, parent name, and createdAt.
+ * @throws NotFoundError if budget source does not exist
+ */
+export function getBudgetSourceBudgetLines(
+  db: DbType,
+  sourceId: string,
+): BudgetSourceBudgetLinesResponse {
+  // Verify budget source exists
+  const source = db.select().from(budgetSources).where(eq(budgetSources.id, sourceId)).get();
+  if (!source) {
+    throw new NotFoundError('Budget source not found');
+  }
+
+  // Fetch work item budget lines
+  const wibRows = db
+    .select()
+    .from(workItemBudgets)
+    .where(eq(workItemBudgets.budgetSourceId, sourceId))
+    .all();
+  const workItemLines = wibRows
+    .map((line) => buildWorkItemBudgetLine(db, line))
+    .sort(compareBudgetSourceLines);
+
+  // Fetch household item budget lines
+  const hibRows = db
+    .select()
+    .from(householdItemBudgets)
+    .where(eq(householdItemBudgets.budgetSourceId, sourceId))
+    .all();
+  const householdItemLines = hibRows
+    .map((line) => buildHouseholdItemBudgetLine(db, line))
+    .sort(compareBudgetSourceLines);
+
+  return {
+    workItemLines,
+    householdItemLines,
+  };
 }

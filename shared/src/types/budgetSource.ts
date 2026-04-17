@@ -5,6 +5,8 @@
  */
 
 import type { UserSummary } from './workItem.js';
+import type { BaseBudgetLine } from './budget.js';
+import type { AreaSummary } from './area.js';
 
 /**
  * The type/category of a financing source.
@@ -81,4 +83,24 @@ export interface BudgetSourceListResponse {
  */
 export interface BudgetSourceResponse {
   budgetSource: BudgetSource;
+}
+
+/**
+ * A budget line with parent context, used in budget source detail responses.
+ * Extends BaseBudgetLine with parent entity identification and area information.
+ */
+export interface BudgetSourceBudgetLine extends BaseBudgetLine {
+  parentId: string;
+  parentName: string;
+  area: AreaSummary | null;
+  hasClaimedInvoice: boolean;
+}
+
+/**
+ * Response for GET /api/budget-sources/:sourceId/budget-lines
+ * Groups budget lines by their parent entity type (work item vs household item).
+ */
+export interface BudgetSourceBudgetLinesResponse {
+  workItemLines: BudgetSourceBudgetLine[];
+  householdItemLines: BudgetSourceBudgetLine[];
 }

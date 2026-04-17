@@ -153,6 +153,8 @@ export type {
   UpdateBudgetSourceRequest,
   BudgetSourceListResponse,
   BudgetSourceResponse,
+  BudgetSourceBudgetLine,
+  BudgetSourceBudgetLinesResponse,
 } from './types/budgetSource.js';
 
 // Shared Budget Base Types
