@@ -154,7 +154,9 @@ test.describe('Expand shows budget lines panel', { tag: ['@smoke', '@responsive'
         await expect(panel).toBeVisible();
 
         // "Work Item Lines" section header must be visible
-        await expect(panel.getByRole('heading', { level: 4, name: 'Work Item Lines' })).toBeVisible();
+        await expect(
+          panel.getByRole('heading', { level: 4, name: 'Work Item Lines' }),
+        ).toBeVisible();
 
         // "Household Item Lines" section must NOT be visible (no household lines in mock)
         await expect(
@@ -344,143 +346,151 @@ test.describe('Fetch error shows error banner with Retry', { tag: '@responsive' 
 // ─────────────────────────────────────────────────────────────────────────────
 // Regression — Edit still works while expand toggle is disabled during edit
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Edit regression — expand toggle disabled during edit', { tag: '@responsive' }, () => {
-  test('expand toggle is disabled while another source is being edited', async ({
-    page,
-    testPrefix,
-  }) => {
-    const sourcesPage = new BudgetSourcesPage(page);
-    const sourceName = `${testPrefix} Edit Regression Source`;
-    let sourceId: string | null = null;
-
-    try {
-      sourceId = await createSourceViaApi(page, { name: sourceName, totalAmount: 10000 });
-
-      await sourcesPage.goto();
-      await sourcesPage.waitForSourcesLoaded();
-
-      // Open edit form for the source
-      await sourcesPage.startEdit(sourceName);
-
-      // While edit form is open, the expand toggle must be disabled
-      // (aria-disabled or disabled attr — the button has disabled={!!editingSource})
-      const toggle = sourcesPage.getExpandToggle(sourceName);
-      // The toggle is inside the display portion; when editing, the sourceRow
-      // renders the edit form, hiding the display row. The toggle belongs to the
-      // display part, so it will not be visible.
-      // Confirm: toggle is not visible (display row is replaced by edit form).
-      await expect(toggle).not.toBeVisible();
-
-      // Cancel edit — display row returns
-      await sourcesPage.cancelEdit(sourceName);
-
-      // Toggle is now visible again
-      await expect(toggle).toBeVisible();
-    } finally {
-      if (sourceId) await deleteSourceViaApi(page, sourceId);
-    }
-  });
-
-  test('editing a source succeeds after expanding its lines', async ({ page, testPrefix }) => {
-    const sourcesPage = new BudgetSourcesPage(page);
-    const sourceName = `${testPrefix} Expand Then Edit Source`;
-    const updatedName = `${testPrefix} Expand Then Edit Updated`;
-    let sourceId: string | null = null;
-
-    try {
-      sourceId = await createSourceViaApi(page, { name: sourceName, totalAmount: 25000 });
-
-      // Mock lines response for the expand step
-      await page.route(budgetLinesUrl(sourceId), async (route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ workItemLines: [], householdItemLines: [] }),
-        });
-      });
-
-      await sourcesPage.goto();
-      await sourcesPage.waitForSourcesLoaded();
-
-      // Expand lines first
-      const linesResponsePromise = page.waitForResponse(budgetLinesUrl(sourceId));
-      await sourcesPage.expandSourceLines(sourceName);
-      await linesResponsePromise;
-
-      // Now open edit form — expand toggle hides, edit form renders
-      await sourcesPage.startEdit(sourceName);
-
-      // Change name
-      const editForm = sourcesPage.getEditForm(sourceName);
-      const nameInput = editForm.locator(`#edit-name-${sourceId}`);
-      await nameInput.fill(updatedName);
-
-      // Register response listener BEFORE clicking save
-      const saveResponse = page.waitForResponse(
-        (resp) => resp.url().includes('/api/budget-sources') && resp.status() === 200,
-      );
-      await sourcesPage.saveEdit(sourceName);
-      await saveResponse;
-
-      // Updated name must appear in the list
-      const names = await sourcesPage.getSourceNames();
-      expect(names).toContain(updatedName);
-      expect(names).not.toContain(sourceName);
-    } finally {
-      if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
-      if (sourceId) await deleteSourceViaApi(page, sourceId);
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mobile layout smoke
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Mobile layout — panel visible with no horizontal scroll', { tag: ['@smoke', '@responsive'] }, () => {
-  test(
-    'expanded lines panel is visible with no horizontal scroll on current viewport',
-    { tag: '@smoke' },
-    async ({ page, testPrefix }) => {
+test.describe(
+  'Edit regression — expand toggle disabled during edit',
+  { tag: '@responsive' },
+  () => {
+    test('expand toggle is disabled while another source is being edited', async ({
+      page,
+      testPrefix,
+    }) => {
       const sourcesPage = new BudgetSourcesPage(page);
-      const sourceName = `${testPrefix} Mobile Lines Source`;
+      const sourceName = `${testPrefix} Edit Regression Source`;
       let sourceId: string | null = null;
 
       try {
-        sourceId = await createSourceViaApi(page, { name: sourceName, totalAmount: 40000 });
+        sourceId = await createSourceViaApi(page, { name: sourceName, totalAmount: 10000 });
 
-        const linesResponse = mockLinesWithWorkItems(sourceId);
+        await sourcesPage.goto();
+        await sourcesPage.waitForSourcesLoaded();
 
+        // Open edit form for the source
+        await sourcesPage.startEdit(sourceName);
+
+        // While edit form is open, the expand toggle must be disabled
+        // (aria-disabled or disabled attr — the button has disabled={!!editingSource})
+        const toggle = sourcesPage.getExpandToggle(sourceName);
+        // The toggle is inside the display portion; when editing, the sourceRow
+        // renders the edit form, hiding the display row. The toggle belongs to the
+        // display part, so it will not be visible.
+        // Confirm: toggle is not visible (display row is replaced by edit form).
+        await expect(toggle).not.toBeVisible();
+
+        // Cancel edit — display row returns
+        await sourcesPage.cancelEdit(sourceName);
+
+        // Toggle is now visible again
+        await expect(toggle).toBeVisible();
+      } finally {
+        if (sourceId) await deleteSourceViaApi(page, sourceId);
+      }
+    });
+
+    test('editing a source succeeds after expanding its lines', async ({ page, testPrefix }) => {
+      const sourcesPage = new BudgetSourcesPage(page);
+      const sourceName = `${testPrefix} Expand Then Edit Source`;
+      const updatedName = `${testPrefix} Expand Then Edit Updated`;
+      let sourceId: string | null = null;
+
+      try {
+        sourceId = await createSourceViaApi(page, { name: sourceName, totalAmount: 25000 });
+
+        // Mock lines response for the expand step
         await page.route(budgetLinesUrl(sourceId), async (route) => {
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify(linesResponse),
+            body: JSON.stringify({ workItemLines: [], householdItemLines: [] }),
           });
         });
 
         await sourcesPage.goto();
         await sourcesPage.waitForSourcesLoaded();
 
-        // Expand the source
+        // Expand lines first
         const linesResponsePromise = page.waitForResponse(budgetLinesUrl(sourceId));
         await sourcesPage.expandSourceLines(sourceName);
         await linesResponsePromise;
 
-        const panel = sourcesPage.getLinesPanelById(sourceId);
-        await expect(panel).toBeVisible();
+        // Now open edit form — expand toggle hides, edit form renders
+        await sourcesPage.startEdit(sourceName);
 
-        // No horizontal scroll after expansion
-        const hasHorizontalScroll = await page.evaluate(() => {
-          return document.documentElement.scrollWidth > window.innerWidth;
-        });
-        expect(hasHorizontalScroll).toBe(false);
+        // Change name
+        const editForm = sourcesPage.getEditForm(sourceName);
+        const nameInput = editForm.locator(`#edit-name-${sourceId}`);
+        await nameInput.fill(updatedName);
+
+        // Register response listener BEFORE clicking save
+        const saveResponse = page.waitForResponse(
+          (resp) => resp.url().includes('/api/budget-sources') && resp.status() === 200,
+        );
+        await sourcesPage.saveEdit(sourceName);
+        await saveResponse;
+
+        // Updated name must appear in the list
+        const names = await sourcesPage.getSourceNames();
+        expect(names).toContain(updatedName);
+        expect(names).not.toContain(sourceName);
       } finally {
         if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
         if (sourceId) await deleteSourceViaApi(page, sourceId);
       }
-    },
-  );
-});
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mobile layout smoke
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe(
+  'Mobile layout — panel visible with no horizontal scroll',
+  { tag: ['@smoke', '@responsive'] },
+  () => {
+    test(
+      'expanded lines panel is visible with no horizontal scroll on current viewport',
+      { tag: '@smoke' },
+      async ({ page, testPrefix }) => {
+        const sourcesPage = new BudgetSourcesPage(page);
+        const sourceName = `${testPrefix} Mobile Lines Source`;
+        let sourceId: string | null = null;
+
+        try {
+          sourceId = await createSourceViaApi(page, { name: sourceName, totalAmount: 40000 });
+
+          const linesResponse = mockLinesWithWorkItems(sourceId);
+
+          await page.route(budgetLinesUrl(sourceId), async (route) => {
+            await route.fulfill({
+              status: 200,
+              contentType: 'application/json',
+              body: JSON.stringify(linesResponse),
+            });
+          });
+
+          await sourcesPage.goto();
+          await sourcesPage.waitForSourcesLoaded();
+
+          // Expand the source
+          const linesResponsePromise = page.waitForResponse(budgetLinesUrl(sourceId));
+          await sourcesPage.expandSourceLines(sourceName);
+          await linesResponsePromise;
+
+          const panel = sourcesPage.getLinesPanelById(sourceId);
+          await expect(panel).toBeVisible();
+
+          // No horizontal scroll after expansion
+          const hasHorizontalScroll = await page.evaluate(() => {
+            return document.documentElement.scrollWidth > window.innerWidth;
+          });
+          expect(hasHorizontalScroll).toBe(false);
+        } finally {
+          if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
+          if (sourceId) await deleteSourceViaApi(page, sourceId);
+        }
+      },
+    );
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Unassigned area grouping

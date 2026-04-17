@@ -274,7 +274,9 @@ export function BudgetSourcesPage() {
 
   // Budget lines expansion state
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
-  const [linesCache, setLinesCache] = useState<Map<string, BudgetSourceBudgetLinesResponse>>(new Map());
+  const [linesCache, setLinesCache] = useState<Map<string, BudgetSourceBudgetLinesResponse>>(
+    new Map(),
+  );
   const [linesLoading, setLinesLoading] = useState<Set<string>>(new Set());
   const [linesError, setLinesError] = useState<Map<string, string>>(new Map());
 
@@ -1011,7 +1013,12 @@ export function BudgetSourcesPage() {
                             fill="currentColor"
                             aria-hidden="true"
                           >
-                            <path d="M6 5l4 4-4 4" stroke="currentColor" strokeWidth="2" fill="none" />
+                            <path
+                              d="M6 5l4 4-4 4"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              fill="none"
+                            />
                           </svg>
                           <span>
                             {expandedSources.has(source.id)

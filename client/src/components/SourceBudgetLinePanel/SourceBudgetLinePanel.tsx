@@ -151,7 +151,10 @@ export function SourceBudgetLinePanel({
   const isEmpty = workItemLines.length === 0 && householdItemLines.length === 0;
 
   // Render a section (work items or household items)
-  const renderSection = (lines: BudgetSourceBudgetLine[], titleKey: 'workItemSection' | 'householdItemSection') => {
+  const renderSection = (
+    lines: BudgetSourceBudgetLine[],
+    titleKey: 'workItemSection' | 'householdItemSection',
+  ) => {
     if (lines.length === 0) return null;
 
     const groupedByArea = groupLines(lines);
@@ -178,9 +181,7 @@ export function SourceBudgetLinePanel({
                 />
               )}
               <span className={styles.areaName}>
-                {areaGroup.areaId === null
-                  ? t('sources.lines.unassignedArea')
-                  : areaGroup.areaName}
+                {areaGroup.areaId === null ? t('sources.lines.unassignedArea') : areaGroup.areaName}
               </span>
               <span className={styles.areaLineCount}>
                 {t('sources.lines.areaLineCount', { count: areaGroup.totalLines })}
@@ -199,26 +200,20 @@ export function SourceBudgetLinePanel({
 
                     return (
                       <li key={line.id} role="listitem" className={styles.lineRow}>
-                        <span className={styles.lineDescription}>
-                          {line.description ?? '—'}
-                        </span>
+                        <span className={styles.lineDescription}>{line.description ?? '—'}</span>
 
                         {showSubtext && (
                           <span className={styles.lineSubtext}>
-                            {categoryName && vendorName ? `${categoryName} · ${vendorName}` : (categoryName || vendorName)}
+                            {categoryName && vendorName
+                              ? `${categoryName} · ${vendorName}`
+                              : categoryName || vendorName}
                           </span>
                         )}
 
                         <div className={styles.lineBadges}>
-                          <Badge
-                            variants={confidenceVariants}
-                            value={line.confidence}
-                          />
+                          <Badge variants={confidenceVariants} value={line.confidence} />
                           {line.invoiceLink !== null && (
-                            <Badge
-                              variants={invoiceVariants}
-                              value="linked"
-                            />
+                            <Badge variants={invoiceVariants} value="linked" />
                           )}
                         </div>
 
@@ -240,7 +235,12 @@ export function SourceBudgetLinePanel({
   // Render states
   if (isLoading) {
     return (
-      <div id={`source-lines-${sourceId}`} role="region" aria-label={t('sources.lines.loadingLabel')} className={styles.linesPanel}>
+      <div
+        id={`source-lines-${sourceId}`}
+        role="region"
+        aria-label={t('sources.lines.loadingLabel')}
+        className={styles.linesPanel}
+      >
         <Skeleton
           lines={6}
           widths={['70%', '45%', '90%', '70%', '90%', '70%']}
@@ -252,14 +252,15 @@ export function SourceBudgetLinePanel({
 
   if (error) {
     return (
-      <div id={`source-lines-${sourceId}`} role="region" aria-label={t('sources.lines.panelAriaLabel', { name: sourceName })} className={styles.linesPanel}>
+      <div
+        id={`source-lines-${sourceId}`}
+        role="region"
+        aria-label={t('sources.lines.panelAriaLabel', { name: sourceName })}
+        className={styles.linesPanel}
+      >
         <div className={styles.errorBanner} role="alert">
           <p>{error}</p>
-          <button
-            type="button"
-            className={styles.retryButton}
-            onClick={onRetry}
-          >
+          <button type="button" className={styles.retryButton} onClick={onRetry}>
             {t('sources.lines.retry')}
           </button>
         </div>
@@ -269,7 +270,12 @@ export function SourceBudgetLinePanel({
 
   if (isEmpty) {
     return (
-      <div id={`source-lines-${sourceId}`} role="region" aria-label={t('sources.lines.panelAriaLabel', { name: sourceName })} className={styles.linesPanel}>
+      <div
+        id={`source-lines-${sourceId}`}
+        role="region"
+        aria-label={t('sources.lines.panelAriaLabel', { name: sourceName })}
+        className={styles.linesPanel}
+      >
         <EmptyState
           message={t('sources.lines.empty')}
           description={t('sources.lines.emptyDescription')}
@@ -279,7 +285,12 @@ export function SourceBudgetLinePanel({
   }
 
   return (
-    <div id={`source-lines-${sourceId}`} role="region" aria-label={t('sources.lines.panelAriaLabel', { name: sourceName })} className={styles.linesPanel}>
+    <div
+      id={`source-lines-${sourceId}`}
+      role="region"
+      aria-label={t('sources.lines.panelAriaLabel', { name: sourceName })}
+      className={styles.linesPanel}
+    >
       {renderSection(workItemLines, 'workItemSection')}
       {renderSection(householdItemLines, 'householdItemSection')}
     </div>

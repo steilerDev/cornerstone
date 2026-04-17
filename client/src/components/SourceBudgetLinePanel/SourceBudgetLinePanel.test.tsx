@@ -4,10 +4,7 @@
 import type React from 'react';
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
-import type {
-  BudgetSourceBudgetLine,
-  BudgetSourceBudgetLinesResponse,
-} from '@cornerstone/shared';
+import type { BudgetSourceBudgetLine, BudgetSourceBudgetLinesResponse } from '@cornerstone/shared';
 
 // ─── Mock: formatters ──────────────────────────────────────────────────────────
 
@@ -102,9 +99,7 @@ describe('SourceBudgetLinePanel', () => {
     }
   });
 
-  function renderPanel(
-    props: Partial<React.ComponentProps<typeof SourceBudgetLinePanel>> = {},
-  ) {
+  function renderPanel(props: Partial<React.ComponentProps<typeof SourceBudgetLinePanel>> = {}) {
     const defaultProps = {
       sourceId: 'src-1',
       sourceName: 'Home Loan',

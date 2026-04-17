@@ -364,7 +364,10 @@ export class BudgetSourcesPage {
    */
   getExpandToggle(sourceName: string): import('@playwright/test').Locator {
     return this.getSourceRowByName(sourceName).getByRole('button', {
-      name: new RegExp(`(Expand|Collapse) budget lines for ${sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i'),
+      name: new RegExp(
+        `(Expand|Collapse) budget lines for ${sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+        'i',
+      ),
     });
   }
 
