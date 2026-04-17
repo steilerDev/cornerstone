@@ -72,7 +72,7 @@ jest.unstable_mockModule('../../lib/householdItemDepsApi.js', () => ({
 
 // ── LocaleContext mock — AreaBreadcrumb renders Tooltip which calls useLocale() ──
 // Added for Issue #1239: MilestoneDetailPage now renders AreaBreadcrumb on linked WI rows.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
   useLocale: jest.fn(() => ({
     locale: 'en',

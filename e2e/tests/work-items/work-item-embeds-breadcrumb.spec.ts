@@ -248,7 +248,9 @@ test.describe('Gantt sidebar — WI row compact breadcrumb (Scenario 4)', () => 
       childAreaId = await createAreaViaApi(page, { name: childName, parentId: rootAreaId });
 
       const today = new Date();
-      const startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+      const startDate = new Date(today.getFullYear(), today.getMonth(), 1)
+        .toISOString()
+        .slice(0, 10);
       const endDate = new Date(today.getFullYear(), today.getMonth() + 2, 0)
         .toISOString()
         .slice(0, 10);
@@ -310,7 +312,9 @@ test.describe('Gantt bar hover — tooltip shows full area path (Scenario 5)', (
       childAreaId = await createAreaViaApi(page, { name: childName, parentId: rootAreaId });
 
       const today = new Date();
-      const startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+      const startDate = new Date(today.getFullYear(), today.getMonth(), 1)
+        .toISOString()
+        .slice(0, 10);
       const endDate = new Date(today.getFullYear(), today.getMonth() + 2, 0)
         .toISOString()
         .slice(0, 10);
@@ -369,7 +373,9 @@ test.describe('Gantt sidebar — null area shows "No area" (Scenario 6)', () => 
 
     try {
       const today = new Date();
-      const startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+      const startDate = new Date(today.getFullYear(), today.getMonth(), 1)
+        .toISOString()
+        .slice(0, 10);
       const endDate = new Date(today.getFullYear(), today.getMonth() + 2, 0)
         .toISOString()
         .slice(0, 10);

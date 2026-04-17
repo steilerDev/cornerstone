@@ -10,7 +10,7 @@
 - TimelinePage POM: `ganttBar(id)` helper added for bar hover tests
 - Milestone detail linked WI row: `[class*="linkedWorkItem"].filter({hasText:title})` — `linkedWorkItemRow(title)` helper added to MilestoneDetailPage POM
 - Link WI to milestone via API: `POST /api/milestones/:id/work-items` with `{ workItemId }`
-- GanttChart tooltip areaName: plain text string (not AreaBreadcrumb), joined with ` › ` — check `tooltip.textContent()` for area names
+- GanttChart tooltip areaName: plain text string (not AreaBreadcrumb), joined with `›` — check `tooltip.textContent()` for area names
 - **Missing translation key**: `gantt.tooltip.workItem.areaLabel` is used in GanttTooltip.tsx but absent from `schedule.json` — i18next renders the key as fallback label text. Not a test issue; label text may show key string. Assert on the value (area path), not the label.
 - WorkItemPicker search results: `[role="option"]` buttons inside `getByRole('listbox')` — compact breadcrumb in `[class*="compact"]` inside option
 - Gantt sidebar + bar hover Gantt tests: skip on viewportWidth < 1200 (Gantt collapses on tablet/mobile)

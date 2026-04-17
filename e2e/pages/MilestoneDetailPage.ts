@@ -240,9 +240,7 @@ export class MilestoneDetailPage {
    * This locator scopes assertions to a specific WI row in the linked items list.
    */
   linkedWorkItemRow(title: string): Locator {
-    return this.page
-      .locator('li[class*="linkedWorkItem"]')
-      .filter({ hasText: title });
+    return this.page.locator('li[class*="linkedWorkItem"]').filter({ hasText: title });
   }
 
   /**

@@ -1491,9 +1491,10 @@ export function GanttChart({
                         actualDurationDays,
                         assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
                         areaName: tooltipItem.area
-                          ? [...tooltipItem.area.ancestors.map((a) => a.name), tooltipItem.area.name].join(
-                              ' \u203a ',
-                            )
+                          ? [
+                              ...tooltipItem.area.ancestors.map((a) => a.name),
+                              tooltipItem.area.name,
+                            ].join(' \u203a ')
                           : null,
                         dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
                         workItemId: item.id,
@@ -1547,9 +1548,10 @@ export function GanttChart({
                         actualDurationDays,
                         assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
                         areaName: tooltipItem.area
-                          ? [...tooltipItem.area.ancestors.map((a) => a.name), tooltipItem.area.name].join(
-                              ' \u203a ',
-                            )
+                          ? [
+                              ...tooltipItem.area.ancestors.map((a) => a.name),
+                              tooltipItem.area.name,
+                            ].join(' \u203a ')
                           : null,
                         dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
                         workItemId: item.id,

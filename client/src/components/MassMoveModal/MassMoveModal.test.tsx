@@ -11,17 +11,16 @@ import type { MassMoveModalProps } from './MassMoveModal.js';
 // ─── Module-scope mock functions ─────────────────────────────────────────────
 
 const mockFetchBudgetSources = jest.fn<() => Promise<BudgetSourceListResponse>>();
-const mockMoveBudgetLinesBetweenSources =
-  jest.fn<
-    (
-      sourceId: string,
-      data: {
-        workItemBudgetIds: string[];
-        householdItemBudgetIds: string[];
-        targetSourceId: string;
-      },
-    ) => Promise<{ movedWorkItemLines: number; movedHouseholdItemLines: number }>
-  >();
+const mockMoveBudgetLinesBetweenSources = jest.fn<
+  (
+    sourceId: string,
+    data: {
+      workItemBudgetIds: string[];
+      householdItemBudgetIds: string[];
+      targetSourceId: string;
+    },
+  ) => Promise<{ movedWorkItemLines: number; movedHouseholdItemLines: number }>
+>();
 
 // Captured SearchPicker callbacks for test-triggered selection
 let capturedSearchPickerOnChange: ((id: string) => void) | null = null;
