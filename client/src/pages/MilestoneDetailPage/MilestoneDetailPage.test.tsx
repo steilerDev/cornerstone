@@ -223,7 +223,8 @@ describe('MilestoneDetailPage', () => {
       });
 
       expect(screen.getByText(/not found/i)).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /back|milestones/i })).toBeInTheDocument();
+      // Narrow regex to distinguish from the SubNav Milestones tab link.
+      expect(screen.getByRole('link', { name: /←\s*milestones/i })).toBeInTheDocument();
     });
 
     it('shows not found state when API returns 404', async () => {
