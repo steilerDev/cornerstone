@@ -84,3 +84,15 @@ Fixed terminology inconsistencies from EPIC-17 i18n rollout:
 - `invoiceLinked` = "Verrechnet" — badge shown on a budget line that has a linked invoice (i.e. the cost has been invoiced/billed)
 - `invoiceStatusLabels.claimed` = "Eingereicht" — invoice payment status (submitted for reimbursement)
 - These are distinct concepts; do not conflate them.
+
+## Mass-Move Dialog Patterns — Issue #1248
+
+- `sources.budgetLines.move.*` added 2026-04-16 — mass-move dialog for budget lines
+- "Destination source" / "Target source" → "Zielquelle" (compound: "Ziel" + short form "Quelle" of glossary "Budgetquelle")
+- "Move lines" (button label) → "Positionen verschieben" — verb follows noun in imperative button labels of this type
+- "claimed invoice" in warning context → "eingereichte Rechnung" (consistent with `invoiceStatusLabels.claimed` = "Eingereicht")
+- Soft-warning copy pattern: state the non-effect first ("hat keinen Einfluss auf…"), then the advisory action ("Bitte prüfen Sie … mit Ihrem Steuerberater")
+- Checkbox confirmation label pattern: "Ich verstehe, dass hierdurch … neu zugeordnet werden" — use "hierdurch" for concise causal phrasing
+- "I understand" checkbox quoted reference → use German quotation marks „Ich verstehe" (not "Ich verstehe")
+- `confirmDisabledHint` quotes the checkbox label using „…" German quotation style within the sentence
+- `successToast_one` uses "wurde … verschoben" (sg); `successToast_other` uses "wurden … verschoben" (pl) — standard German passive past

@@ -189,6 +189,31 @@
       "invoiceLinked": "Verrechnet",
       "categoryVendorSeparator": " · ",
       "noCategory": "Keine Kategorie"
+    },
+    "budgetLines": {
+      "move": {
+        "checkboxLabel": "{{description}} auswählen",
+        "selectGroupLabel": "Alle in {{name}} auswählen",
+        "selectedCount_one": "{{count}} Position ausgewählt",
+        "selectedCount_other": "{{count}} Positionen ausgewählt",
+        "openModalButton": "In andere Quelle verschieben…",
+        "modalTitle": "Positionen in andere Quelle verschieben",
+        "movingCount_one": "{{count}} Position von {{sourceName}} wird verschoben",
+        "movingCount_other": "{{count}} Positionen von {{sourceName}} werden verschoben",
+        "targetLabel": "Zielquelle",
+        "pickerPlaceholder": "Quellen suchen…",
+        "pickerEmpty": "Keine weiteren Quellen gefunden",
+        "claimedWarningHeading_one": "{{count}} Position hat eine eingereichte Rechnung",
+        "claimedWarningHeading_other": "{{count}} Positionen haben eine eingereichte Rechnung",
+        "claimedWarningBody": "Die Neuzuordnung dieser Positionen hat keinen Einfluss auf den Rechnungsantrag. Bitte prüfen Sie die Auswirkungen mit Ihrem Steuerberater, bevor Sie fortfahren.",
+        "understoodLabel": "Ich verstehe, dass hierdurch Positionen mit einer eingereichten Rechnung neu zugeordnet werden",
+        "confirmButton": "Positionen verschieben",
+        "confirmDisabledHint": "Aktivieren Sie das Kontrollkästchen \u201eIch verstehe\u201c, um die Bestätigung zu ermöglichen",
+        "confirmDisabledNoTarget": "Wählen Sie eine Zielquelle aus, um die Bestätigung zu ermöglichen",
+        "successToast_one": "{{count}} Position wurde nach {{targetName}} verschoben",
+        "successToast_other": "{{count}} Positionen wurden nach {{targetName}} verschoben",
+        "genericError": "Positionen konnten nicht verschoben werden. Bitte versuchen Sie es erneut."
+      }
     }
   },
   "vendors": {

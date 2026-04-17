@@ -82,25 +82,30 @@ function makeResponse(
 
 // ─── Component import (after mocks) ─────────────────────────────────────────────
 
+interface SourceBudgetLinePanelProps {
+  sourceId: string;
+  sourceName: string;
+  data: BudgetSourceBudgetLinesResponse | null;
+  isLoading: boolean;
+  error: string | null;
+  onRetry: () => void;
+  selectedLineIds?: Set<string>;
+  onSelectionChange?: (newSet: Set<string>) => void;
+  onMoveLines?: () => void;
+}
+
 describe('SourceBudgetLinePanel', () => {
-  let SourceBudgetLinePanel: React.ComponentType<{
-    sourceId: string;
-    sourceName: string;
-    data: BudgetSourceBudgetLinesResponse | null;
-    isLoading: boolean;
-    error: string | null;
-    onRetry: () => void;
-  }>;
+  let SourceBudgetLinePanel: React.ComponentType<SourceBudgetLinePanelProps>;
 
   beforeEach(async () => {
     if (!SourceBudgetLinePanel) {
       const module = await import('./SourceBudgetLinePanel.js');
-      SourceBudgetLinePanel = module.SourceBudgetLinePanel;
+      SourceBudgetLinePanel = module.SourceBudgetLinePanel as React.ComponentType<SourceBudgetLinePanelProps>;
     }
   });
 
-  function renderPanel(props: Partial<React.ComponentProps<typeof SourceBudgetLinePanel>> = {}) {
-    const defaultProps = {
+  function renderPanel(props: Partial<SourceBudgetLinePanelProps> = {}) {
+    const defaultProps: SourceBudgetLinePanelProps = {
       sourceId: 'src-1',
       sourceName: 'Home Loan',
       data: null,
@@ -579,6 +584,194 @@ describe('SourceBudgetLinePanel', () => {
       expect(screen.getByText('Floor tiles')).toBeInTheDocument();
       // Verify the separator is not in the document
       expect(screen.queryByText(/·/)).not.toBeInTheDocument();
+    });
+  });
+
+  // ─── Selection mode: backwards compat (scenario 17) ──────────────────────────
+
+  describe('non-selectable mode (selectedLineIds undefined)', () => {
+    it('renders no checkboxes when selectedLineIds is not provided', () => {
+      const line = makeLine({ id: 'l1', parentId: 'p1', parentName: 'Kitchen' });
+      renderPanel({ data: makeResponse([line], []) });
+
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
+
+    it('renders no action bar when selectedLineIds is not provided', () => {
+      const line = makeLine({ id: 'l1', parentId: 'p1', parentName: 'Kitchen' });
+      renderPanel({ data: makeResponse([line], []) });
+
+      expect(screen.queryByText(/line selected/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Move to another source/i)).not.toBeInTheDocument();
+    });
+  });
+
+  // ─── Selection mode: empty set (scenario 18) ─────────────────────────────────
+
+  describe('selection mode with empty set', () => {
+    it('renders checkboxes but no action bar when selectedLineIds is empty Set', () => {
+      const line = makeLine({ id: 'l1', parentId: 'p1', parentName: 'Kitchen' });
+      renderPanel({
+        data: makeResponse([line], []),
+        selectedLineIds: new Set<string>(),
+        onSelectionChange: jest.fn(),
+        onMoveLines: jest.fn(),
+      });
+
+      // Checkboxes are rendered (per-line + area group)
+      expect(screen.getAllByRole('checkbox').length).toBeGreaterThan(0);
+      // But action bar count is not shown
+      expect(screen.queryByText(/line selected/i)).not.toBeInTheDocument();
+    });
+  });
+
+  // ─── Selection mode: action bar count (scenario 19) ──────────────────────────
+
+  describe('selection mode action bar count', () => {
+    it('shows "1 line selected" when one line is selected', () => {
+      const line = makeLine({ id: 'l1', parentId: 'p1', parentName: 'Kitchen' });
+      renderPanel({
+        data: makeResponse([line], []),
+        selectedLineIds: new Set<string>(['l1']),
+        onSelectionChange: jest.fn(),
+        onMoveLines: jest.fn(),
+      });
+
+      expect(screen.getByText('1 line selected')).toBeInTheDocument();
+    });
+
+    it('shows "3 lines selected" when three lines are selected', () => {
+      const line1 = makeLine({ id: 'l1', parentId: 'p1', parentName: 'Kitchen' });
+      const line2 = makeLine({ id: 'l2', parentId: 'p1', parentName: 'Kitchen', createdAt: '2026-01-02T00:00:00.000Z' });
+      const line3 = makeLine({ id: 'l3', parentId: 'p1', parentName: 'Kitchen', createdAt: '2026-01-03T00:00:00.000Z' });
+      renderPanel({
+        data: makeResponse([line1, line2, line3], []),
+        selectedLineIds: new Set<string>(['l1', 'l2', 'l3']),
+        onSelectionChange: jest.fn(),
+        onMoveLines: jest.fn(),
+      });
+
+      expect(screen.getByText('3 lines selected')).toBeInTheDocument();
+    });
+  });
+
+  // ─── Selection mode: individual line checkbox (scenario 20) ──────────────────
+
+  describe('individual line checkbox interactions', () => {
+    it('checking a line calls onSelectionChange with Set including that line id', () => {
+      const line = makeLine({ id: 'line-abc', parentId: 'p1', parentName: 'Kitchen' });
+      const onSelectionChange = jest.fn<(s: Set<string>) => void>();
+      renderPanel({
+        data: makeResponse([line], []),
+        selectedLineIds: new Set<string>(),
+        onSelectionChange,
+        onMoveLines: jest.fn(),
+      });
+
+      // Find the per-line checkbox (aria-label contains the description)
+      const checkbox = screen.getByRole('checkbox', { name: /Select Floor tiles/i });
+      fireEvent.click(checkbox);
+
+      expect(onSelectionChange).toHaveBeenCalledTimes(1);
+      const newSet = onSelectionChange.mock.calls[0]![0];
+      expect(newSet.has('line-abc')).toBe(true);
+    });
+
+    it('unchecking a line calls onSelectionChange with id removed from Set', () => {
+      const line = makeLine({ id: 'line-abc', parentId: 'p1', parentName: 'Kitchen' });
+      const onSelectionChange = jest.fn<(s: Set<string>) => void>();
+      renderPanel({
+        data: makeResponse([line], []),
+        selectedLineIds: new Set<string>(['line-abc']),
+        onSelectionChange,
+        onMoveLines: jest.fn(),
+      });
+
+      const checkbox = screen.getByRole('checkbox', { name: /Select Floor tiles/i });
+      fireEvent.click(checkbox);
+
+      expect(onSelectionChange).toHaveBeenCalledTimes(1);
+      const newSet = onSelectionChange.mock.calls[0]![0];
+      expect(newSet.has('line-abc')).toBe(false);
+    });
+  });
+
+  // ─── Selection mode: area group checkbox (scenario 21) ───────────────────────
+
+  describe('area group checkbox', () => {
+    it('clicking all-unchecked area group checkbox adds all area line ids to selection', () => {
+      const line1 = makeLine({ id: 'l1', parentId: 'p1', parentName: 'Kitchen', area: makeArea({ id: 'a1', name: 'Main' }) });
+      const line2 = makeLine({ id: 'l2', parentId: 'p1', parentName: 'Kitchen', area: makeArea({ id: 'a1', name: 'Main' }), createdAt: '2026-01-02T00:00:00.000Z' });
+      const onSelectionChange = jest.fn<(s: Set<string>) => void>();
+      renderPanel({
+        data: makeResponse([line1, line2], []),
+        selectedLineIds: new Set<string>(),
+        onSelectionChange,
+        onMoveLines: jest.fn(),
+      });
+
+      // Area group checkbox has aria-label containing the area name
+      const areaCheckbox = screen.getByRole('checkbox', { name: /Select all in Main/i });
+      fireEvent.click(areaCheckbox);
+
+      expect(onSelectionChange).toHaveBeenCalledTimes(1);
+      const newSet = onSelectionChange.mock.calls[0]![0];
+      expect(newSet.has('l1')).toBe(true);
+      expect(newSet.has('l2')).toBe(true);
+    });
+
+    it('clicking all-checked area group checkbox removes all area line ids from selection', () => {
+      const line1 = makeLine({ id: 'l1', parentId: 'p1', parentName: 'Kitchen', area: makeArea({ id: 'a1', name: 'Main' }) });
+      const line2 = makeLine({ id: 'l2', parentId: 'p1', parentName: 'Kitchen', area: makeArea({ id: 'a1', name: 'Main' }), createdAt: '2026-01-02T00:00:00.000Z' });
+      const onSelectionChange = jest.fn<(s: Set<string>) => void>();
+      renderPanel({
+        data: makeResponse([line1, line2], []),
+        selectedLineIds: new Set<string>(['l1', 'l2']),
+        onSelectionChange,
+        onMoveLines: jest.fn(),
+      });
+
+      const areaCheckbox = screen.getByRole('checkbox', { name: /Select all in Main/i });
+      fireEvent.click(areaCheckbox);
+
+      expect(onSelectionChange).toHaveBeenCalledTimes(1);
+      const newSet = onSelectionChange.mock.calls[0]![0];
+      expect(newSet.has('l1')).toBe(false);
+      expect(newSet.has('l2')).toBe(false);
+    });
+
+    it('area group checkbox has indeterminate=true when only some lines are selected', () => {
+      const line1 = makeLine({ id: 'l1', parentId: 'p1', parentName: 'Kitchen', area: makeArea({ id: 'a1', name: 'Main' }) });
+      const line2 = makeLine({ id: 'l2', parentId: 'p1', parentName: 'Kitchen', area: makeArea({ id: 'a1', name: 'Main' }), createdAt: '2026-01-02T00:00:00.000Z' });
+      renderPanel({
+        data: makeResponse([line1, line2], []),
+        selectedLineIds: new Set<string>(['l1']),
+        onSelectionChange: jest.fn(),
+        onMoveLines: jest.fn(),
+      });
+
+      const areaCheckbox = screen.getByRole('checkbox', { name: /Select all in Main/i }) as HTMLInputElement;
+      expect(areaCheckbox.indeterminate).toBe(true);
+    });
+  });
+
+  // ─── Selection mode: move button (scenario 22) ───────────────────────────────
+
+  describe('action bar "Move to another source…" button', () => {
+    it('clicking "Move to another source…" calls onMoveLines', () => {
+      const line = makeLine({ id: 'l1', parentId: 'p1', parentName: 'Kitchen' });
+      const onMoveLines = jest.fn();
+      renderPanel({
+        data: makeResponse([line], []),
+        selectedLineIds: new Set<string>(['l1']),
+        onSelectionChange: jest.fn(),
+        onMoveLines,
+      });
+
+      const moveButton = screen.getByRole('button', { name: /Move to another source/i });
+      fireEvent.click(moveButton);
+
+      expect(onMoveLines).toHaveBeenCalledTimes(1);
     });
   });
 });

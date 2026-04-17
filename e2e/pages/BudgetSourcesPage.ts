@@ -398,4 +398,152 @@ export class BudgetSourcesPage {
     await toggle.waitFor({ state: 'visible' });
     await toggle.click();
   }
+
+  // ─── Multi-select + Mass-Move helpers (Story #1248) ──────────────────────────
+
+  /**
+   * Get the per-line checkbox inside a lines panel for the given source.
+   * The checkbox has aria-label "Select {description}".
+   *
+   * @param sourceId    The numeric source ID used to scope to the correct panel.
+   * @param lineDescription  The line's description text (used in the aria-label).
+   */
+  getLineCheckbox(sourceId: string, lineDescription: string): import('@playwright/test').Locator {
+    return this.getLinesPanelById(sourceId).getByRole('checkbox', {
+      name: `Select ${lineDescription}`,
+    });
+  }
+
+  /**
+   * Get the area group tri-state checkbox inside a lines panel.
+   * The checkbox has aria-label "Select all in {areaName}".
+   *
+   * @param sourceId  The numeric source ID used to scope to the correct panel.
+   * @param areaName  The area name displayed in the group header (or the i18n "Unassigned" label).
+   */
+  getAreaGroupCheckbox(sourceId: string, areaName: string): import('@playwright/test').Locator {
+    return this.getLinesPanelById(sourceId).getByRole('checkbox', {
+      name: `Select all in ${areaName}`,
+    });
+  }
+
+  /**
+   * Get the sticky floating action bar inside the lines panel.
+   * The bar renders inside the panel when ≥1 line is selected.
+   * It contains the "N lines selected" count and the "Move to another source…" button.
+   *
+   * The selector excludes `.actionBarCount` and `.actionBarButton` children which also
+   * contain "actionBar" in their CSS module class names, avoiding a strict-mode violation.
+   */
+  getActionBar(sourceId: string): import('@playwright/test').Locator {
+    return this.getLinesPanelById(sourceId).locator(
+      '[class*="actionBar"]:not([class*="actionBarCount"]):not([class*="actionBarButton"])',
+    );
+  }
+
+  /**
+   * Get the "Move to another source…" button inside the action bar.
+   */
+  getMoveButton(sourceId: string): import('@playwright/test').Locator {
+    return this.getActionBar(sourceId).getByRole('button', {
+      name: 'Move to another source\u2026',
+    });
+  }
+
+  // ─── Move modal locators ──────────────────────────────────────────────────────
+
+  /**
+   * The mass-move modal dialog. Title: "Move lines to another source".
+   * Uses Modal component which sets role="dialog" + aria-labelledby on the h2 title.
+   */
+  get moveModal(): import('@playwright/test').Locator {
+    return this.page.getByRole('dialog', { name: 'Move lines to another source' });
+  }
+
+  /**
+   * The SearchPicker input inside the move modal.
+   * The input has id="target-source".
+   */
+  get moveModalSearchInput(): import('@playwright/test').Locator {
+    return this.moveModal.locator('#target-source');
+  }
+
+  /**
+   * The "Move lines" confirm button inside the move modal footer.
+   */
+  get moveModalConfirmButton(): import('@playwright/test').Locator {
+    return this.moveModal.getByRole('button', { name: /Move lines|Loading/i });
+  }
+
+  /**
+   * The Cancel button inside the move modal footer.
+   */
+  get moveModalCancelButton(): import('@playwright/test').Locator {
+    return this.moveModal.getByRole('button', { name: 'Cancel', exact: true });
+  }
+
+  /**
+   * The claimed invoice warning block inside the move modal.
+   * Renders as role="alert" only when claimedCount > 0.
+   */
+  get moveModalWarningBlock(): import('@playwright/test').Locator {
+    return this.moveModal.locator('[role="alert"]');
+  }
+
+  /**
+   * The "I understand" checkbox inside the claimed warning block.
+   */
+  get moveModalUnderstoodCheckbox(): import('@playwright/test').Locator {
+    return this.moveModal.getByRole('checkbox', {
+      name: 'I understand this will reassign lines with a claimed invoice',
+    });
+  }
+
+  /**
+   * The FormError banner inside the move modal (shown on API error).
+   * FormError renders a div with the CSS module class "banner" and role="alert".
+   * Differentiated from the claimed-invoice warning block via the CSS class name.
+   */
+  get moveModalFormError(): import('@playwright/test').Locator {
+    // FormError uses its own CSS module: styles.banner → [class*="banner"]
+    // The warning block uses MassMoveModal's styles.warningBlock → [class*="warningBlock"]
+    // These are distinct CSS module classes so the selector is unambiguous.
+    return this.moveModal.locator('[class*="banner"]');
+  }
+
+  // ─── Move modal actions ───────────────────────────────────────────────────────
+
+  /**
+   * Click the "Move to another source…" button to open the mass-move modal.
+   * Waits for the modal to be visible.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+   */
+  async openMoveModal(sourceId: string): Promise<void> {
+    await this.getMoveButton(sourceId).click();
+    await this.moveModal.waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Type into the SearchPicker inside the move modal and click the result
+   * that matches `targetName`.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+   */
+  async selectMoveTarget(targetName: string): Promise<void> {
+    // Focus the search input to trigger initial results load (showItemsOnFocus=true).
+    const input = this.moveModalSearchInput;
+    await input.waitFor({ state: 'visible' });
+    await input.click();
+    // Type enough of the name to filter results.
+    await input.fill(targetName);
+    // Wait for the dropdown option to appear and click it.
+    await this.moveModal.getByRole('option', { name: targetName }).click();
+  }
+
+  /**
+   * Click the "Move lines" confirm button.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+   */
+  async confirmMove(): Promise<void> {
+    await this.moveModalConfirmButton.click();
+  }
 }

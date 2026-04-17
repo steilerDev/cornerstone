@@ -164,7 +164,7 @@ test.describe('Expand shows budget lines panel', { tag: ['@smoke', '@responsive'
         ).not.toBeVisible();
 
         // Area name "Kitchen" must be visible
-        await expect(panel.getByText('Kitchen')).toBeVisible();
+        await expect(panel.getByText('Kitchen', { exact: true })).toBeVisible();
 
         // Parent item "Flooring" must be visible
         await expect(panel.getByText('Flooring')).toBeVisible();

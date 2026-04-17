@@ -61,6 +61,11 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+.areaGroupCheckbox {
+  flex-shrink: 0;
+  min-height: 2.75rem;
+}
+
 .areaColorDot {
   display: inline-block;
   width: var(--spacing-3);
@@ -96,6 +101,12 @@
   padding: 0;
 }
 
+.lineListSelectable {
+  list-style: none;
+  margin: 0 0 var(--spacing-2) 0;
+  padding: 0;
+}
+
 .lineRow {
   display: grid;
   grid-template-columns: 1fr auto auto;
@@ -109,6 +120,28 @@
 
 .lineRow:last-child {
   border-bottom: none;
+}
+
+.lineRowSelected {
+  background-color: var(--color-primary-bg);
+  padding: var(--spacing-2);
+  border-radius: var(--radius-md);
+  margin: var(--spacing-1) 0;
+}
+
+.checkbox {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+  flex-shrink: 0;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  margin-right: var(--spacing-2);
+}
+
+.checkbox:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
 }
 
 .lineDescription {
@@ -211,8 +244,91 @@
   cursor: not-allowed;
 }
 
+/* Action bar for selection */
+.actionBar {
+  position: sticky;
+  bottom: 0;
+  background-color: var(--color-bg-primary);
+  border-top: 1px solid var(--color-border);
+  padding: var(--spacing-4);
+  margin: var(--spacing-4) calc(-1 * var(--spacing-4)) calc(-1 * var(--spacing-4)) calc(-1 * var(--spacing-4));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  animation: slideUp var(--transition-normal);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .actionBar {
+    animation: none;
+  }
+  .retryButton,
+  .actionBarButton {
+    transition: none;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.actionBar[data-theme='dark'] {
+  box-shadow: var(--shadow-md);
+}
+
+.actionBarCount {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  flex-shrink: 0;
+}
+
+.actionBarButton {
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  border: none;
+  padding: var(--spacing-2) var(--spacing-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color var(--transition-normal);
+  flex-shrink: 0;
+  min-height: 2.5rem;
+}
+
+.actionBarButton:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.actionBarButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.actionBarButton:active {
+  background-color: var(--color-primary-active);
+}
+
 /* Mobile responsive */
 @media (max-width: 767px) {
+  .checkbox {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .areaGroupCheckbox {
+    min-height: 2.75rem;
+  }
+
   .lineRow {
     grid-template-columns: 1fr auto;
     grid-template-rows: auto auto auto;
@@ -236,5 +352,15 @@
   .linePlannedAmount {
     grid-column: 2;
     grid-row: 1;
+  }
+
+  .actionBar {
+    flex-direction: column;
+    gap: var(--spacing-2);
+  }
+
+  .actionBarButton {
+    width: 100%;
+    min-height: 2.75rem;
   }
 }

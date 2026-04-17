@@ -5,6 +5,7 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import type React from 'react';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type {
@@ -29,6 +30,14 @@ jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
   updateBudgetSource: mockUpdateBudgetSource,
   deleteBudgetSource: mockDeleteBudgetSource,
   fetchBudgetLinesForSource: mockFetchBudgetLinesForSource,
+  moveBudgetLinesBetweenSources: jest.fn(),
+}));
+
+// ─── Mock: ToastContext — provides useToast() hook without a real ToastProvider ───
+
+jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
+  useToast: () => ({ toasts: [], showToast: jest.fn(), dismissToast: jest.fn() }),
+  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 // ─── Mock: formatters — provides useFormatters() hook ────────────────────────

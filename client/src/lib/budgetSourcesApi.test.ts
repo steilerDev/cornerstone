@@ -505,6 +505,131 @@ describe('budgetSourcesApi', () => {
     });
   });
 
+  // ─── moveBudgetLinesBetweenSources ────────────────────────────────────────
+
+  describe('moveBudgetLinesBetweenSources', () => {
+    it('sends PATCH to /api/budget-sources/:sourceId/budget-lines/move with correct body', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ movedWorkItemLines: 2, movedHouseholdItemLines: 1 }),
+      } as Response);
+
+      const data = {
+        workItemBudgetIds: ['wib-1', 'wib-2'],
+        householdItemBudgetIds: ['hib-1'],
+        targetSourceId: 'src-target',
+      };
+
+      await import('./budgetSourcesApi.js').then(m =>
+        m.moveBudgetLinesBetweenSources('src-1', data),
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/budget-sources/src-1/budget-lines/move',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify(data),
+        }),
+      );
+    });
+
+    it('returns MoveBudgetLinesResponse with correct counts', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ movedWorkItemLines: 3, movedHouseholdItemLines: 0 }),
+      } as Response);
+
+      const { moveBudgetLinesBetweenSources } = await import('./budgetSourcesApi.js');
+      const result = await moveBudgetLinesBetweenSources('src-1', {
+        workItemBudgetIds: ['wib-1', 'wib-2', 'wib-3'],
+        householdItemBudgetIds: [],
+        targetSourceId: 'src-2',
+      });
+
+      expect(result.movedWorkItemLines).toBe(3);
+      expect(result.movedHouseholdItemLines).toBe(0);
+    });
+
+    it('uses the sourceId in the URL path', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ movedWorkItemLines: 1, movedHouseholdItemLines: 0 }),
+      } as Response);
+
+      const { moveBudgetLinesBetweenSources } = await import('./budgetSourcesApi.js');
+      await moveBudgetLinesBetweenSources('my-source-xyz', {
+        workItemBudgetIds: ['wib-1'],
+        householdItemBudgetIds: [],
+        targetSourceId: 'src-target',
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/budget-sources/my-source-xyz/budget-lines/move',
+        expect.any(Object),
+      );
+    });
+
+    it('throws ApiClientError on 400 SAME_SOURCE', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          error: { code: 'SAME_SOURCE', message: 'Source and target must be different' },
+        }),
+      } as Response);
+
+      const { moveBudgetLinesBetweenSources } = await import('./budgetSourcesApi.js');
+      await expect(
+        moveBudgetLinesBetweenSources('src-1', {
+          workItemBudgetIds: ['wib-1'],
+          householdItemBudgetIds: [],
+          targetSourceId: 'src-1',
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('throws ApiClientError on 409 STALE_OWNERSHIP', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: async () => ({
+          error: {
+            code: 'STALE_OWNERSHIP',
+            message: 'One or more budget lines no longer belong to this source',
+          },
+        }),
+      } as Response);
+
+      const { moveBudgetLinesBetweenSources } = await import('./budgetSourcesApi.js');
+      await expect(
+        moveBudgetLinesBetweenSources('src-1', {
+          workItemBudgetIds: ['wib-1'],
+          householdItemBudgetIds: [],
+          targetSourceId: 'src-2',
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('throws ApiClientError on 404 NOT_FOUND', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({
+          error: { code: 'NOT_FOUND', message: 'Budget source not found' },
+        }),
+      } as Response);
+
+      const { moveBudgetLinesBetweenSources } = await import('./budgetSourcesApi.js');
+      await expect(
+        moveBudgetLinesBetweenSources('nonexistent', {
+          workItemBudgetIds: [],
+          householdItemBudgetIds: [],
+          targetSourceId: 'src-2',
+        }),
+      ).rejects.toThrow();
+    });
+  });
+
   // ─── fetchBudgetLinesForSource ─────────────────────────────────────────────
 
   describe('fetchBudgetLinesForSource', () => {

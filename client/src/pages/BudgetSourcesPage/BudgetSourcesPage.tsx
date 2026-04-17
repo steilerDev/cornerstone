@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   BudgetSource,
@@ -16,11 +16,13 @@ import {
 } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { useToast } from '../../components/Toast/ToastContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
 import { SourceBudgetLinePanel } from '../../components/SourceBudgetLinePanel/SourceBudgetLinePanel.js';
+import { MassMoveModal } from '../../components/MassMoveModal/MassMoveModal.js';
 import styles from './BudgetSourcesPage.module.css';
 
 const BUDGET_TABS: SubNavTab[] = [
@@ -245,6 +247,7 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
 export function BudgetSourcesPage() {
   const { t } = useTranslation('budget');
   const { formatCurrency, formatPercent } = useFormatters();
+  const { showToast } = useToast();
   const [sources, setSources] = useState<BudgetSource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -279,6 +282,10 @@ export function BudgetSourcesPage() {
   );
   const [linesLoading, setLinesLoading] = useState<Set<string>>(new Set());
   const [linesError, setLinesError] = useState<Map<string, string>>(new Map());
+
+  // Selection state for mass-move
+  const [sourceSelections, setSourceSelections] = useState<Map<string, Set<string>>>(new Map());
+  const [moveModalSourceId, setMoveModalSourceId] = useState<string | null>(null);
 
   // Translation-dependent label maps
   const SOURCE_TYPE_LABELS: Record<BudgetSourceType, string> = {
@@ -528,6 +535,12 @@ export function BudgetSourcesPage() {
       const newExpanded = new Set(expandedSources);
       newExpanded.add(sourceId);
       setExpandedSources(newExpanded);
+
+      // Initialize selection set if not already present
+      setSourceSelections((prev) => {
+        if (prev.has(sourceId)) return prev;
+        return new Map(prev).set(sourceId, new Set<string>());
+      });
     }
   };
 
@@ -556,6 +569,80 @@ export function BudgetSourcesPage() {
       });
     }
   };
+
+  const handleSelectionChange = useCallback((sourceId: string, newSet: Set<string>) => {
+    setSourceSelections((prev) => {
+      const next = new Map(prev);
+      if (newSet.size === 0) next.delete(sourceId);
+      else next.set(sourceId, newSet);
+      return next;
+    });
+  }, []);
+
+  const handleOpenMoveModal = useCallback((sourceId: string) => {
+    setMoveModalSourceId(sourceId);
+  }, []);
+
+  const activeMoveSource = moveModalSourceId ? sources.find((s) => s.id === moveModalSourceId) : null;
+  const activeMoveSelection = moveModalSourceId ? (sourceSelections.get(moveModalSourceId) ?? new Set<string>()) : new Set<string>();
+  const activeLinesData = moveModalSourceId ? (linesCache.get(moveModalSourceId) ?? null) : null;
+
+  const { workItemBudgetIds, householdItemBudgetIds, claimedCount } = useMemo(() => {
+    if (!activeLinesData || activeMoveSelection.size === 0) {
+      return { workItemBudgetIds: [], householdItemBudgetIds: [], claimedCount: 0 };
+    }
+    const wiIds: string[] = [];
+    const hiIds: string[] = [];
+    let claimed = 0;
+
+    for (const line of activeLinesData.workItemLines) {
+      if (activeMoveSelection.has(line.id)) {
+        wiIds.push(line.id);
+        if (line.hasClaimedInvoice) claimed++;
+      }
+    }
+
+    for (const line of activeLinesData.householdItemLines) {
+      if (activeMoveSelection.has(line.id)) {
+        hiIds.push(line.id);
+        if (line.hasClaimedInvoice) claimed++;
+      }
+    }
+
+    return { workItemBudgetIds: wiIds, householdItemBudgetIds: hiIds, claimedCount: claimed };
+  }, [activeLinesData, activeMoveSelection]);
+
+  const handleMoveSuccess = useCallback((movedCount: number, targetName: string) => {
+    const srcId = moveModalSourceId;
+    setMoveModalSourceId(null);
+    setSourceSelections((prev) => {
+      const next = new Map(prev);
+      next.delete(srcId!);
+      return next;
+    });
+    showToast('success', t('sources.budgetLines.move.successToast', { count: movedCount, targetName }));
+    // Invalidate lines cache so re-expand re-fetches
+    setLinesCache((prev) => {
+      const next = new Map(prev);
+      next.delete(srcId!);
+      return next;
+    });
+    void loadSources();
+  }, [moveModalSourceId, showToast, t]);
+
+  // Clear selection when source is collapsed
+  const handleToggleLinesWithClearing = useCallback((sourceId: string) => {
+    const isCurrentlyExpanded = expandedSources.has(sourceId);
+    if (isCurrentlyExpanded) {
+      // Clear selection when collapsing
+      setSourceSelections((prev) => {
+        const next = new Map(prev);
+        next.delete(sourceId);
+        return next;
+      });
+    }
+    void handleToggleLines(sourceId);
+  }, [expandedSources, handleToggleLines]);
 
   if (isLoading) {
     return (
@@ -997,7 +1084,7 @@ export function BudgetSourcesPage() {
                         <button
                           type="button"
                           className={`${styles.expandToggle} ${expandedSources.has(source.id) ? styles.expandToggleActive : ''}`}
-                          onClick={() => handleToggleLines(source.id)}
+                          onClick={() => handleToggleLinesWithClearing(source.id)}
                           disabled={!!editingSource}
                           aria-expanded={expandedSources.has(source.id)}
                           aria-controls={`source-lines-${source.id}`}
@@ -1049,6 +1136,9 @@ export function BudgetSourcesPage() {
                         isLoading={linesLoading.has(source.id)}
                         error={linesError.get(source.id) ?? null}
                         onRetry={() => handleRetryLines(source.id)}
+                        selectedLineIds={sourceSelections.get(source.id)}
+                        onSelectionChange={(newSet) => handleSelectionChange(source.id, newSet)}
+                        onMoveLines={() => handleOpenMoveModal(source.id)}
                       />
                     )}
 
@@ -1131,6 +1221,20 @@ export function BudgetSourcesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Mass-move modal */}
+      {moveModalSourceId && activeMoveSource && (
+        <MassMoveModal
+          sourceId={moveModalSourceId}
+          sourceName={activeMoveSource.name}
+          selectedLineIds={activeMoveSelection}
+          claimedCount={claimedCount}
+          workItemBudgetIds={workItemBudgetIds}
+          householdItemBudgetIds={householdItemBudgetIds}
+          onClose={() => setMoveModalSourceId(null)}
+          onSuccess={handleMoveSuccess}
+        />
       )}
     </PageLayout>
   );
