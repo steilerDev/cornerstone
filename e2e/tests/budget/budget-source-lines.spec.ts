@@ -538,8 +538,8 @@ test.describe('Unassigned area grouping', { tag: '@responsive' }, () => {
       await expect(panel.getByText('Unassigned')).toBeVisible();
 
       // The parent item name and line description must be visible
-      await expect(panel.getByText('General Work')).toBeVisible();
-      await expect(panel.getByText('General work item line')).toBeVisible();
+      await expect(panel.getByText('General Work', { exact: true })).toBeVisible();
+      await expect(panel.getByText('General work item line', { exact: true })).toBeVisible();
     } finally {
       if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
       if (sourceId) await deleteSourceViaApi(page, sourceId);
