@@ -156,6 +156,8 @@ export type {
   BudgetSourceResponse,
   BudgetSourceBudgetLine,
   BudgetSourceBudgetLinesResponse,
+  MoveBudgetLinesRequest,
+  MoveBudgetLinesResponse,
 } from './types/budgetSource.js';
 
 // Shared Budget Base Types

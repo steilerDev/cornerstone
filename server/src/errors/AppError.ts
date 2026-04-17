@@ -248,3 +248,26 @@ export class BackupFailedError extends AppError {
     this.name = 'BackupFailedError';
   }
 }
+
+export class SameSourceError extends AppError {
+  constructor(message = 'Source and target budget source must be different') {
+    super('SAME_SOURCE', 400, message);
+    this.name = 'SameSourceError';
+  }
+}
+
+export class EmptySelectionError extends AppError {
+  constructor(message = 'At least one budget line ID must be provided') {
+    super('EMPTY_SELECTION', 400, message);
+    this.name = 'EmptySelectionError';
+  }
+}
+
+export class StaleOwnershipError extends AppError {
+  constructor(
+    message = 'One or more budget line IDs do not exist or do not belong to the specified source',
+  ) {
+    super('STALE_OWNERSHIP', 409, message);
+    this.name = 'StaleOwnershipError';
+  }
+}
