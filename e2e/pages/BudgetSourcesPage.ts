@@ -431,9 +431,14 @@ export class BudgetSourcesPage {
    * Get the sticky floating action bar inside the lines panel.
    * The bar renders inside the panel when ≥1 line is selected.
    * It contains the "N lines selected" count and the "Move to another source…" button.
+   *
+   * The selector excludes `.actionBarCount` and `.actionBarButton` children which also
+   * contain "actionBar" in their CSS module class names, avoiding a strict-mode violation.
    */
   getActionBar(sourceId: string): import('@playwright/test').Locator {
-    return this.getLinesPanelById(sourceId).locator('[class*="actionBar"]');
+    return this.getLinesPanelById(sourceId).locator(
+      '[class*="actionBar"]:not([class*="actionBarCount"]):not([class*="actionBarButton"])',
+    );
   }
 
   /**
