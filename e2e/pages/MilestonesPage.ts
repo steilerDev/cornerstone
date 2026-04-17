@@ -148,12 +148,15 @@ export class MilestonesPage {
       return titles;
     }
 
-    // Mobile fallback: DataTableCard renders cards with first column as header
-    const cards = await this.cardsContainer.locator('[class*="card"]').all();
+    // Mobile fallback: DataTableCard renders cards with first column as header.
+    // `.cardsContainer` holds direct `.card` children; use `[class^="card_"]` so the
+    // CSS-module-hashed `card_abc123` class is matched without greedy sub-string
+    // matches picking up `cardHeader_/cardRow_/cardValue_` etc.
+    const cards = await this.cardsContainer.locator('[class^="card_"]').all();
     const titles: string[] = [];
     for (const card of cards) {
-      // First cell content in card is the Title column
-      const titleEl = card.locator('[class*="cardCell"]').first();
+      // First cardValue in the card is the Title column value
+      const titleEl = card.locator('[class*="cardValue"]').first();
       const text = await titleEl.textContent();
       if (text) titles.push(text.trim());
     }

@@ -215,9 +215,15 @@ test.describe('Create invoice (Scenarios 2 & 3)', { tag: '@responsive' }, () => 
       // Wait for list to reload and show data
       await invoicesPage.waitForLoaded();
 
-      // Verify summary cards update (pending count increased since new invoice is pending by default)
-      const pendingCount = await invoicesPage.getSummaryCount('pending');
-      expect(pendingCount).toBeGreaterThanOrEqual(1);
+      // Verify summary cards update (pending count increased since new invoice is pending by default).
+      // Summary and list share one API response but the list render can show stale rows during
+      // the re-fetch; poll the count so the retry covers the brief interleaving window.
+      await expect
+        .poll(() => invoicesPage.getSummaryCount('pending'), {
+          message: 'pending summary count did not update after invoice creation',
+          timeout: 10_000,
+        })
+        .toBeGreaterThanOrEqual(1);
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }
@@ -394,9 +400,11 @@ test.describe('Invoice row click navigation (Scenario 7)', { tag: '@responsive' 
       await invoicesPage.goto();
       await invoicesPage.waitForLoaded();
 
-      // Click the invoice number link — works on both desktop table and mobile cards
+      // Click the invoice number link — on both desktop table and mobile cards.
+      // DataTable renders both the table AND the mobile cards simultaneously and uses
+      // CSS media queries to toggle visibility, so we must pick the visible one.
       const invoiceLink = page
-        .locator('[class*="invoiceLink"]', {
+        .locator('[class*="invoiceLink"]:visible', {
           hasText: `${testPrefix}-ROW-001`,
         })
         .first();
