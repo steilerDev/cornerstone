@@ -14,7 +14,7 @@
  * API mocking strategy:
  * - Real sources created via API for stable IDs.
  * - GET /api/budget-sources/:id/budget-lines is mocked per test to control line content.
- * - PATCH move endpoint mocked only for scenario 6 (409 error); real for scenario 4.
+ * - PATCH move endpoint mocked for scenario 4 (200 success) and scenario 6 (409 error).
  * - All routes are unregistered in finally blocks.
  */
 
@@ -426,6 +426,23 @@ test.describe('Happy path — move lines with no claimed invoices', { tag: ['@sm
           });
         });
 
+        // Mock the PATCH move endpoint — line IDs are fake (not in DB), so let the real
+        // server be bypassed to avoid a 409 STALE_OWNERSHIP response.
+        await page.route(
+          (url) => url.pathname === `/api/budget-sources/${sourceAId}/budget-lines/move`,
+          async (route) => {
+            if (route.request().method() !== 'PATCH') {
+              await route.continue();
+              return;
+            }
+            await route.fulfill({
+              status: 200,
+              contentType: 'application/json',
+              body: JSON.stringify({ movedWorkItemLines: 1, movedHouseholdItemLines: 0 }),
+            });
+          },
+        );
+
         await sourcesPage.goto();
         await sourcesPage.waitForSourcesLoaded();
 
@@ -451,7 +468,7 @@ test.describe('Happy path — move lines with no claimed invoices', { tag: ['@sm
         // The confirm button must now be enabled (no claimed lines, target selected)
         await expect(sourcesPage.moveModalConfirmButton).toBeEnabled();
 
-        // Confirm — let the real PATCH go through
+        // Confirm — PATCH is mocked to return 200 (line IDs are synthetic, not in the DB)
         const moveResponse = page.waitForResponse(
           (resp) =>
             resp.url().includes(`/budget-sources/${sourceAId}/budget-lines/move`) &&
@@ -469,6 +486,7 @@ test.describe('Happy path — move lines with no claimed invoices', { tag: ['@sm
         await expect(toast).toContainText(sourceBName);
       } finally {
         if (sourceAId) await page.unroute(budgetLinesUrl(sourceAId));
+        if (sourceAId) await page.unroute(budgetLinesMoveUrl(sourceAId));
         if (sourceAId) await deleteSourceViaApi(page, sourceAId);
         if (sourceBId) await deleteSourceViaApi(page, sourceBId);
       }
