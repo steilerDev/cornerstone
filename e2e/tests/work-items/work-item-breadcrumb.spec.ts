@@ -358,14 +358,10 @@ test.describe('Create page — area breadcrumb preview (Scenario 6)', { tag: '@r
       // Preview should be visible
       await expect(createPage.areaBreadcrumbPreview).toBeVisible();
 
-      // Now clear the selection by selecting the "No area" special option
-      // The AreaPicker has nullable=true which adds a "No area" special option
-      await createPage.areaPickerInput.click();
-      await createPage.areaPickerInput.fill('');
-      // The listbox shows "No area" special option at the top
-      const noAreaOption = page.getByRole('option', { name: 'No area', exact: true });
-      await expect(noAreaOption).toBeVisible();
-      await noAreaOption.click();
+      // Clear the selection using the SearchPicker's clear button.
+      // After an area is selected, SearchPicker replaces the <input> with a selectedDisplay
+      // chip + "Clear selection" button — areaPickerInput is absent from the DOM at this point.
+      await createPage.clearAreaPicker();
 
       // After clearing — preview nav should NOT be present
       await expect(createPage.areaBreadcrumbPreview).not.toBeVisible();

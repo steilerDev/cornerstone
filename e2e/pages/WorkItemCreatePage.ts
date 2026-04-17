@@ -68,8 +68,13 @@ export class WorkItemCreatePage {
   // AreaPicker renders a SearchPicker input with placeholder "Select an area"
   // When an area is selected, the .areaPreview div shows AreaBreadcrumb (default variant):
   //   <nav aria-label="Area path"><ol>...</ol></nav>
+  // NOTE: areaPickerInput only exists in the DOM when NO area is selected.
+  // Once an area is selected, SearchPicker replaces the <input> with a selectedDisplay
+  // chip + clear button. Use clearAreaPicker() to clear a selected area.
   readonly areaPickerInput: Locator;
   readonly areaBreadcrumbPreview: Locator;
+  // Clear button rendered by SearchPicker when an area is selected (aria-label="Clear selection")
+  readonly areaClearButton: Locator;
 
   // Form actions
   readonly submitButton: Locator;
@@ -102,6 +107,9 @@ export class WorkItemCreatePage {
     this.areaPickerInput = page.getByPlaceholder('Select an area');
     // Area breadcrumb preview (nav with aria-label "Area path") — only present when areaId truthy
     this.areaBreadcrumbPreview = page.getByRole('navigation', { name: /area path/i });
+    // Clear button rendered by SearchPicker when an area is selected
+    // (aria-label comes from common.json aria.clearSelection = "Clear selection")
+    this.areaClearButton = page.getByRole('button', { name: 'Clear selection', exact: true });
 
     // Form actions
     this.submitButton = page.getByRole('button', { name: /Create Work Item|Creating\.\.\./i });
@@ -200,5 +208,20 @@ export class WorkItemCreatePage {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Clear the current area selection in the AreaPicker.
+   *
+   * When an area is selected, SearchPicker replaces the <input> with a selectedDisplay
+   * chip and a clear button (aria-label="Clear selection"). This method clicks that
+   * button, which triggers onChange('') and removes the breadcrumb preview.
+   *
+   * Do NOT use areaPickerInput.click() + fill('') to clear — areaPickerInput is absent
+   * from the DOM once an area is selected.
+   */
+  async clearAreaPicker(): Promise<void> {
+    await this.areaClearButton.waitFor({ state: 'visible' });
+    await this.areaClearButton.click();
   }
 }
