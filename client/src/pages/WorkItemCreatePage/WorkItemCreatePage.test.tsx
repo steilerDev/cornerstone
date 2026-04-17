@@ -51,6 +51,44 @@ jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
   useAreas: mockUseAreas,
 }));
 
+// AreaPicker is mocked so tests can programmatically trigger onChange without
+// requiring SearchPicker interaction (which involves complex async dropdown logic).
+// The mock renders a <select> that calls onChange on change.
+let capturedAreaPickerOnChange: ((id: string) => void) | null = null;
+jest.unstable_mockModule('../../components/AreaPicker/AreaPicker.js', () => ({
+  AreaPicker: ({
+    areas,
+    value,
+    onChange,
+    disabled,
+    nullable,
+  }: {
+    areas: Array<{ id: string; name: string }>;
+    value: string;
+    onChange: (id: string) => void;
+    disabled?: boolean;
+    nullable?: boolean;
+  }) => {
+    capturedAreaPickerOnChange = onChange;
+    return (
+      <select
+        data-testid="area-picker-mock"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label="Area picker"
+      >
+        {nullable && <option value="">— None —</option>}
+        {areas.map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.name}
+          </option>
+        ))}
+      </select>
+    );
+  },
+}));
+
 // Helper to capture current location
 function LocationDisplay() {
   const location = useLocation();
@@ -86,6 +124,18 @@ describe('WorkItemCreatePage', () => {
     mockCreateDependency.mockReset();
     mockListUsers.mockReset();
     mockFetchVendors.mockReset();
+    capturedAreaPickerOnChange = null;
+    // Reset useAreas to default empty state to avoid test pollution from
+    // tests that set mockReturnValue with custom areas.
+    mockUseAreas.mockReturnValue({
+      areas: [],
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+      createArea: jest.fn(),
+      updateArea: jest.fn(),
+      deleteArea: jest.fn(),
+    });
 
     if (!WorkItemCreatePageModule) {
       WorkItemCreatePageModule = await import('./WorkItemCreatePage.js');
@@ -470,6 +520,291 @@ describe('WorkItemCreatePage', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('location')).toHaveTextContent('/project/work-items');
+      });
+    });
+  });
+
+  // ── Area breadcrumb preview (Story #1238) ─────────────────────────────────
+
+  describe('area breadcrumb preview', () => {
+    it('does not show a breadcrumb nav before any area is selected', async () => {
+      // No area selected by default; areaId state is ''
+      mockUseAreas.mockReturnValue({
+        areas: [
+          {
+            id: 'a1',
+            name: 'Kitchen',
+            parentId: null,
+            color: null,
+            description: null,
+            sortOrder: 0,
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          },
+        ],
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        createArea: jest.fn(),
+        updateArea: jest.fn(),
+        deleteArea: jest.fn(),
+      });
+      mockListWorkItems.mockResolvedValue({
+        items: [],
+        pagination: { page: 1, pageSize: 15, totalItems: 0, totalPages: 0 },
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
+      });
+
+      // No area selected → breadcrumb nav should not be present
+      expect(screen.queryByRole('navigation', { name: /area path/i })).not.toBeInTheDocument();
+    });
+
+    it('shows area name in breadcrumb after an area is selected', async () => {
+      const kitchenArea = {
+        id: 'a1',
+        name: 'Kitchen',
+        parentId: null,
+        color: null,
+        description: null,
+        sortOrder: 0,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      };
+      mockUseAreas.mockReturnValue({
+        areas: [kitchenArea],
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        createArea: jest.fn(),
+        updateArea: jest.fn(),
+        deleteArea: jest.fn(),
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
+      });
+
+      // Trigger area selection via the mocked AreaPicker's onChange
+      expect(capturedAreaPickerOnChange).not.toBeNull();
+      capturedAreaPickerOnChange!('a1');
+
+      await waitFor(() => {
+        // AreaBreadcrumb in default variant renders a nav with aria-label "Area path"
+        expect(screen.getByRole('navigation', { name: /area path/i })).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Kitchen')).toBeInTheDocument();
+    });
+
+    it('shows ancestor chain when selected area has a parent', async () => {
+      const groundFloor = {
+        id: 'a0',
+        name: 'Ground Floor',
+        parentId: null,
+        color: null,
+        description: null,
+        sortOrder: 0,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      };
+      const kitchen = {
+        id: 'a1',
+        name: 'Kitchen',
+        parentId: 'a0',
+        color: null,
+        description: null,
+        sortOrder: 1,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      };
+      mockUseAreas.mockReturnValue({
+        areas: [groundFloor, kitchen],
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        createArea: jest.fn(),
+        updateArea: jest.fn(),
+        deleteArea: jest.fn(),
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
+      });
+
+      // Select the child area
+      capturedAreaPickerOnChange!('a1');
+
+      await waitFor(() => {
+        expect(screen.getByRole('navigation', { name: /area path/i })).toBeInTheDocument();
+      });
+
+      // Both ancestor and area name should be visible
+      expect(screen.getByText('Ground Floor')).toBeInTheDocument();
+      expect(screen.getByText('Kitchen')).toBeInTheDocument();
+    });
+
+    it('hides breadcrumb preview after area is cleared', async () => {
+      const kitchenArea = {
+        id: 'a1',
+        name: 'Kitchen',
+        parentId: null,
+        color: null,
+        description: null,
+        sortOrder: 0,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      };
+      mockUseAreas.mockReturnValue({
+        areas: [kitchenArea],
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        createArea: jest.fn(),
+        updateArea: jest.fn(),
+        deleteArea: jest.fn(),
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
+      });
+
+      // Select an area first
+      capturedAreaPickerOnChange!('a1');
+
+      await waitFor(() => {
+        expect(screen.getByRole('navigation', { name: /area path/i })).toBeInTheDocument();
+      });
+
+      // Now clear the selection (AreaPicker nullable → '' means no area)
+      capturedAreaPickerOnChange!('');
+
+      await waitFor(() => {
+        expect(
+          screen.queryByRole('navigation', { name: /area path/i }),
+        ).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  // ── buildAreaSummary helper (tested via rendered output) ──────────────────
+
+  describe('buildAreaSummary — tested via rendered breadcrumb', () => {
+    it('builds correct ancestor chain for a 3-level hierarchy (root-first order)', async () => {
+      // areas: a (root) → b (child of a) → c (child of b)
+      const a = {
+        id: 'a',
+        name: 'House',
+        parentId: null,
+        color: null,
+        description: null,
+        sortOrder: 0,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      };
+      const b = {
+        id: 'b',
+        name: 'Ground Floor',
+        parentId: 'a',
+        color: null,
+        description: null,
+        sortOrder: 0,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      };
+      const c = {
+        id: 'c',
+        name: 'Kitchen',
+        parentId: 'b',
+        color: null,
+        description: null,
+        sortOrder: 0,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      };
+      mockUseAreas.mockReturnValue({
+        areas: [c, b, a], // deliberately shuffled to confirm walk-up logic
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        createArea: jest.fn(),
+        updateArea: jest.fn(),
+        deleteArea: jest.fn(),
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
+      });
+
+      // Select deepest area c
+      capturedAreaPickerOnChange!('c');
+
+      await waitFor(() => {
+        expect(screen.getByRole('navigation', { name: /area path/i })).toBeInTheDocument();
+      });
+
+      // Root-first order: House › Ground Floor › Kitchen
+      const nav = screen.getByRole('navigation', { name: /area path/i });
+      const listItems = nav.querySelectorAll('li');
+      const segmentTexts = Array.from(listItems)
+        .filter((li) => !li.getAttribute('aria-hidden'))
+        .map((li) => li.textContent);
+
+      expect(segmentTexts).toEqual(['House', 'Ground Floor', 'Kitchen']);
+    });
+
+    it('renders "No area" fallback for an unknown areaId (buildAreaSummary returns null)', async () => {
+      mockUseAreas.mockReturnValue({
+        areas: [
+          {
+            id: 'a1',
+            name: 'Known Area',
+            parentId: null,
+            color: null,
+            description: null,
+            sortOrder: 0,
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          },
+        ],
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        createArea: jest.fn(),
+        updateArea: jest.fn(),
+        deleteArea: jest.fn(),
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/title/i)).toBeInTheDocument();
+      });
+
+      // Select an ID that does not exist in the areas list
+      capturedAreaPickerOnChange!('does-not-exist');
+
+      // buildAreaSummary returns null for unknown IDs.
+      // WorkItemCreatePage renders <AreaBreadcrumb area={null} variant="default" /> in that case,
+      // which shows "No area" (muted span) and no nav element.
+      await waitFor(() => {
+        // No nav breadcrumb — AreaBreadcrumb renders a plain span for null area
+        expect(
+          screen.queryByRole('navigation', { name: /area path/i }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByText('No area')).toBeInTheDocument();
       });
     });
   });

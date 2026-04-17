@@ -8,6 +8,7 @@ import { Modal } from '../../components/Modal/Modal.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
+import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { listWorkItems, deleteWorkItem } from '../../lib/workItemsApi.js';
@@ -221,9 +222,12 @@ export function WorkItemsPage() {
         sortKey: 'title',
         defaultVisible: true,
         render: (item) => (
-          <Link to={`/project/work-items/${item.id}`} className={styles.itemLink}>
-            {item.title}
-          </Link>
+          <div className={styles.titleCell}>
+            <Link to={`/project/work-items/${item.id}`} className={styles.itemLink}>
+              {item.title}
+            </Link>
+            <AreaBreadcrumb area={item.area ?? null} variant="compact" />
+          </div>
         ),
       },
       {

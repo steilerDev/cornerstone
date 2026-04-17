@@ -64,6 +64,13 @@ export class WorkItemCreatePage {
   readonly startAfterInput: Locator;
   readonly startBeforeInput: Locator;
 
+  // Area picker and breadcrumb preview
+  // AreaPicker renders a SearchPicker input with placeholder "Select an area"
+  // When an area is selected, the .areaPreview div shows AreaBreadcrumb (default variant):
+  //   <nav aria-label="Area path"><ol>...</ol></nav>
+  readonly areaPickerInput: Locator;
+  readonly areaBreadcrumbPreview: Locator;
+
   // Form actions
   readonly submitButton: Locator;
   readonly cancelButton: Locator;
@@ -90,6 +97,11 @@ export class WorkItemCreatePage {
     this.durationInput = page.locator('#durationDays');
     this.startAfterInput = page.locator('#startAfter');
     this.startBeforeInput = page.locator('#startBefore');
+
+    // Area picker input (placeholder from common.json aria.selectArea = "Select an area")
+    this.areaPickerInput = page.getByPlaceholder('Select an area');
+    // Area breadcrumb preview (nav with aria-label "Area path") — only present when areaId truthy
+    this.areaBreadcrumbPreview = page.getByRole('navigation', { name: /area path/i });
 
     // Form actions
     this.submitButton = page.getByRole('button', { name: /Create Work Item|Creating\.\.\./i });

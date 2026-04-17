@@ -3,6 +3,21 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`
 
+## AreaBreadcrumb E2E Selectors (Story #1238, 2026-04-16)
+
+- compact variant: `[tabIndex="0"][class*="compact"]` — spans in list rows/cards
+- default variant: `getByRole('navigation', { name: /area path/i })` — in detail header & create preview
+- null area (both variants): `getByText('No area', { exact: true })` — span with class*="muted"
+- Tooltip uses CSS opacity (0→1), so `toBeVisible()` works after `focus()` on the compact span
+- AreaPicker input: `getByPlaceholder('Select an area')` (i18n key common.aria.selectArea)
+- Listbox option: `getByRole('option', { name: /areaName/ })` inside `getByRole('listbox')`
+- "No area" special option in AreaPicker: `getByRole('option', { name: 'No area', exact: true })`
+- `createAreaViaApi` and `deleteAreaViaApi` already exist in `e2e/fixtures/apiHelpers.ts`
+- `areas` POST response shape: `{ area: { id: string } }` (confirmed from existing helper)
+- Milestones validation CI failure (2026-04-16): `milestones.spec.ts` scenarios 6+7 fail on beta/main
+  promotion run — `getErrorBannerText()` returns null. Pre-existing on Dependabot bump commits.
+  Not from feature work. Triage: pre-existing flaky/broken test on beta.
+
 ## Invoices + Manage Settings E2E (2026-03-26) — Fixed 2026-03-26
 
 POMs: `InvoicesPage.ts`, `InvoiceDetailPage.ts`, `HouseholdItemEditPage.ts`.
