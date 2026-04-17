@@ -188,6 +188,31 @@
         "invoice": "Invoice"
       },
       "invoiceLinked": "Invoiced"
+    },
+    "budgetLines": {
+      "move": {
+        "checkboxLabel": "Select {{description}}",
+        "selectGroupLabel": "Select all in {{name}}",
+        "selectedCount_one": "{{count}} line selected",
+        "selectedCount_other": "{{count}} lines selected",
+        "openModalButton": "Move to another source…",
+        "modalTitle": "Move lines to another source",
+        "movingCount_one": "Moving {{count}} line from {{sourceName}}",
+        "movingCount_other": "Moving {{count}} lines from {{sourceName}}",
+        "targetLabel": "Destination source",
+        "pickerPlaceholder": "Search sources…",
+        "pickerEmpty": "No other sources found",
+        "claimedWarningHeading_one": "{{count}} line has a claimed invoice",
+        "claimedWarningHeading_other": "{{count}} lines have a claimed invoice",
+        "claimedWarningBody": "Reassigning these lines will not affect the invoice claim. Verify with your accountant before proceeding.",
+        "understoodLabel": "I understand this will reassign lines with a claimed invoice",
+        "confirmButton": "Move lines",
+        "confirmDisabledHint": "Check the \"I understand\" checkbox to enable confirmation",
+        "confirmDisabledNoTarget": "Select a destination source to enable confirmation",
+        "successToast_one": "Moved {{count}} line to {{targetName}}",
+        "successToast_other": "Moved {{count}} lines to {{targetName}}",
+        "genericError": "Failed to move lines. Please try again."
+      }
     }
   },
   "vendors": {

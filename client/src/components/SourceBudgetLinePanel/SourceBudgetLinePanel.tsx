@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   BudgetSourceBudgetLinesResponse,
@@ -9,6 +10,7 @@ import { Badge } from '../Badge/Badge.js';
 import type { BadgeVariantMap } from '../Badge/Badge.js';
 import { Skeleton } from '../Skeleton/Skeleton.js';
 import { EmptyState } from '../EmptyState/EmptyState.js';
+import { TriStateCheckbox } from '../TriStateCheckbox/TriStateCheckbox.js';
 import styles from './SourceBudgetLinePanel.module.css';
 
 interface SourceBudgetLinePanelProps {
@@ -18,6 +20,9 @@ interface SourceBudgetLinePanelProps {
   isLoading: boolean;
   error: string | null;
   onRetry: () => void;
+  selectedLineIds?: Set<string>;
+  onSelectionChange?: (newSet: Set<string>) => void;
+  onMoveLines?: () => void;
 }
 
 interface ParentGroup {
@@ -113,9 +118,13 @@ export function SourceBudgetLinePanel({
   isLoading,
   error,
   onRetry,
+  selectedLineIds,
+  onSelectionChange,
+  onMoveLines,
 }: SourceBudgetLinePanelProps) {
   const { t } = useTranslation('budget');
   const { formatCurrency } = useFormatters();
+  const isSelectable = selectedLineIds !== undefined && onSelectionChange !== undefined;
 
   // Build confidence and invoice badge variants
   const confidenceVariants: BadgeVariantMap = {
@@ -150,6 +159,59 @@ export function SourceBudgetLinePanel({
 
   const isEmpty = workItemLines.length === 0 && householdItemLines.length === 0;
 
+  // Compute area group selection states
+  const areaGroupSelectionStates = useMemo(() => {
+    if (!isSelectable) return new Map<string, { allSelected: boolean; someSelected: boolean }>();
+
+    const workItemGroups = groupLines(workItemLines);
+    const householdItemGroups = groupLines(householdItemLines);
+    const allGroups = [...workItemGroups, ...householdItemGroups];
+
+    const states = new Map<string, { allSelected: boolean; someSelected: boolean }>();
+
+    for (const areaGroup of allGroups) {
+      const groupLineIds = areaGroup.parentGroups.flatMap(pg => pg.lines.map(l => l.id));
+      const selectedInGroup = groupLineIds.filter(id => selectedLineIds!.has(id));
+      const allSelected = selectedInGroup.length === groupLineIds.length && groupLineIds.length > 0;
+      const someSelected = selectedInGroup.length > 0;
+
+      const key = areaGroup.areaId ?? 'unassigned';
+      states.set(key, { allSelected, someSelected });
+    }
+
+    return states;
+  }, [workItemLines, householdItemLines, selectedLineIds, isSelectable]);
+
+  // Handle area group checkbox change
+  const handleAreaGroupCheckboxChange = useCallback((areaGroup: AreaGroup, checked: boolean) => {
+    if (!isSelectable || !onSelectionChange) return;
+
+    const groupLineIds = areaGroup.parentGroups.flatMap(pg => pg.lines.map(l => l.id));
+    const newSelection = new Set(selectedLineIds);
+
+    if (checked) {
+      groupLineIds.forEach(id => newSelection.add(id));
+    } else {
+      groupLineIds.forEach(id => newSelection.delete(id));
+    }
+
+    onSelectionChange(newSelection);
+  }, [isSelectable, selectedLineIds, onSelectionChange]);
+
+  // Handle individual line checkbox change
+  const handleLineCheckboxChange = useCallback((lineId: string, checked: boolean) => {
+    if (!isSelectable || !onSelectionChange) return;
+
+    const newSelection = new Set(selectedLineIds);
+    if (checked) {
+      newSelection.add(lineId);
+    } else {
+      newSelection.delete(lineId);
+    }
+
+    onSelectionChange(newSelection);
+  }, [isSelectable, selectedLineIds, onSelectionChange]);
+
   // Render a section (work items or household items)
   const renderSection = (
     lines: BudgetSourceBudgetLine[],
@@ -163,71 +225,131 @@ export function SourceBudgetLinePanel({
       <div key={titleKey} className={styles.section}>
         <h4 className={styles.sectionHeader}>{t(`sources.lines.${titleKey}`)}</h4>
 
-        {groupedByArea.map((areaGroup) => (
-          <div key={areaGroup.areaId ?? 'unassigned'} className={styles.areaGroup}>
-            <div className={styles.areaGroupHeader}>
-              {areaGroup.areaColor && (
-                <span
-                  className={styles.areaColorDot}
-                  style={{ backgroundColor: areaGroup.areaColor }}
-                  aria-hidden="true"
-                />
-              )}
-              {!areaGroup.areaColor && areaGroup.areaId === null && (
-                <span
-                  className={styles.areaColorDot}
-                  style={{ backgroundColor: 'var(--color-text-disabled)' }}
-                  aria-hidden="true"
-                />
-              )}
-              <span className={styles.areaName}>
-                {areaGroup.areaId === null ? t('sources.lines.unassignedArea') : areaGroup.areaName}
-              </span>
-              <span className={styles.areaLineCount}>
-                {t('sources.lines.areaLineCount', { count: areaGroup.totalLines })}
-              </span>
-            </div>
+        {groupedByArea.map((areaGroup) => {
+          const groupKey = areaGroup.areaId ?? 'unassigned';
+          const selectionState = areaGroupSelectionStates.get(groupKey);
 
-            {areaGroup.parentGroups.map((parentGroup) => (
-              <div key={parentGroup.parentId}>
-                <p className={styles.parentItemHeader}>{parentGroup.parentName}</p>
-
-                <ul role="list" className={styles.lineList}>
-                  {parentGroup.lines.map((line) => {
-                    const categoryName = line.budgetCategory?.name ?? null;
-                    const vendorName = line.vendor?.name ?? null;
-                    const showSubtext = categoryName || vendorName;
-
-                    return (
-                      <li key={line.id} role="listitem" className={styles.lineRow}>
-                        <span className={styles.lineDescription}>{line.description ?? '—'}</span>
-
-                        {showSubtext && (
-                          <span className={styles.lineSubtext}>
-                            {categoryName && vendorName
-                              ? `${categoryName} · ${vendorName}`
-                              : categoryName || vendorName}
-                          </span>
-                        )}
-
-                        <div className={styles.lineBadges}>
-                          <Badge variants={confidenceVariants} value={line.confidence} />
-                          {line.invoiceLink !== null && (
-                            <Badge variants={invoiceVariants} value="linked" />
-                          )}
-                        </div>
-
-                        <span className={styles.linePlannedAmount}>
-                          {formatCurrency(line.plannedAmount)}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
+          return (
+            <div key={groupKey} className={styles.areaGroup}>
+              <div className={styles.areaGroupHeader}>
+                {isSelectable && selectionState && (
+                  <TriStateCheckbox
+                    id={`area-${groupKey}-checkbox`}
+                    checked={selectionState.allSelected}
+                    indeterminate={!selectionState.allSelected && selectionState.someSelected}
+                    onChange={(checked) => handleAreaGroupCheckboxChange(areaGroup, checked)}
+                    label={t('sources.budgetLines.move.selectGroupLabel', { name: areaGroup.areaName || t('sources.lines.unassignedArea') })}
+                    className={styles.areaGroupCheckbox}
+                  />
+                )}
+                {!isSelectable && (
+                  <>
+                    {areaGroup.areaColor && (
+                      <span
+                        className={styles.areaColorDot}
+                        style={{ backgroundColor: areaGroup.areaColor }}
+                        aria-hidden="true"
+                      />
+                    )}
+                    {!areaGroup.areaColor && areaGroup.areaId === null && (
+                      <span
+                        className={styles.areaColorDot}
+                        style={{ backgroundColor: 'var(--color-text-disabled)' }}
+                        aria-hidden="true"
+                      />
+                    )}
+                  </>
+                )}
+                {isSelectable && !selectionState && (
+                  <>
+                    {areaGroup.areaColor && (
+                      <span
+                        className={styles.areaColorDot}
+                        style={{ backgroundColor: areaGroup.areaColor }}
+                        aria-hidden="true"
+                      />
+                    )}
+                    {!areaGroup.areaColor && areaGroup.areaId === null && (
+                      <span
+                        className={styles.areaColorDot}
+                        style={{ backgroundColor: 'var(--color-text-disabled)' }}
+                        aria-hidden="true"
+                      />
+                    )}
+                  </>
+                )}
+                <span className={styles.areaName}>
+                  {areaGroup.areaId === null
+                    ? t('sources.lines.unassignedArea')
+                    : areaGroup.areaName}
+                </span>
+                <span className={styles.areaLineCount}>
+                  {t('sources.lines.areaLineCount', { count: areaGroup.totalLines })}
+                </span>
               </div>
-            ))}
-          </div>
-        ))}
+
+              {areaGroup.parentGroups.map((parentGroup) => (
+                <div key={parentGroup.parentId}>
+                  <p className={styles.parentItemHeader}>{parentGroup.parentName}</p>
+
+                  <ul role="list" className={isSelectable ? styles.lineListSelectable : styles.lineList}>
+                    {parentGroup.lines.map((line) => {
+                      const categoryName = line.budgetCategory?.name ?? null;
+                      const vendorName = line.vendor?.name ?? null;
+                      const showSubtext = categoryName || vendorName;
+                      const isSelected = selectedLineIds?.has(line.id) ?? false;
+
+                      return (
+                        <li
+                          key={line.id}
+                          role="listitem"
+                          className={`${styles.lineRow} ${isSelectable && isSelected ? styles.lineRowSelected : ''}`}
+                        >
+                          {isSelectable && (
+                            <input
+                              type="checkbox"
+                              className={styles.checkbox}
+                              checked={isSelected}
+                              onChange={(e) => handleLineCheckboxChange(line.id, e.target.checked)}
+                              aria-label={t('sources.budgetLines.move.checkboxLabel', { description: line.description ?? '—' })}
+                            />
+                          )}
+
+                          <span className={styles.lineDescription}>
+                            {line.description ?? '—'}
+                          </span>
+
+                          {showSubtext && (
+                            <span className={styles.lineSubtext}>
+                              {categoryName && vendorName ? `${categoryName} · ${vendorName}` : (categoryName || vendorName)}
+                            </span>
+                          )}
+
+                          <div className={styles.lineBadges}>
+                            <Badge
+                              variants={confidenceVariants}
+                              value={line.confidence}
+                            />
+                            {line.invoiceLink !== null && (
+                              <Badge
+                                variants={invoiceVariants}
+                                value="linked"
+                              />
+                            )}
+                          </div>
+
+                          <span className={styles.linePlannedAmount}>
+                            {formatCurrency(line.plannedAmount)}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -293,6 +415,16 @@ export function SourceBudgetLinePanel({
     >
       {renderSection(workItemLines, 'workItemSection')}
       {renderSection(householdItemLines, 'householdItemSection')}
+      {isSelectable && selectedLineIds.size > 0 && (
+        <div className={styles.actionBar}>
+          <span className={styles.actionBarCount} role="status" aria-atomic="true">
+            {t('sources.budgetLines.move.selectedCount', { count: selectedLineIds.size })}
+          </span>
+          <button type="button" className={styles.actionBarButton} onClick={onMoveLines}>
+            {t('sources.budgetLines.move.openModalButton')}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
