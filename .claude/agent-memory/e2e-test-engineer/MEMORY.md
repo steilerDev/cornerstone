@@ -7,7 +7,7 @@
 
 - compact variant: `[tabIndex="0"][class*="compact"]` — spans in list rows/cards
 - default variant: `getByRole('navigation', { name: /area path/i })` — in detail header & create preview
-- null area (both variants): `getByText('No area', { exact: true })` — span with class*="muted"
+- null area (both variants): `getByText('No area', { exact: true })` — span with class\*="muted"
 - Tooltip uses CSS opacity (0→1), so `toBeVisible()` works after `focus()` on the compact span
 - AreaPicker input: `getByPlaceholder('Select an area')` (i18n key common.aria.selectArea)
 - **CRITICAL**: `areaPickerInput` (placeholder locator) is ABSENT from DOM once an area is selected.

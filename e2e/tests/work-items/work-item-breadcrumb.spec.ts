@@ -29,57 +29,63 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1: List page — breadcrumb with ancestors
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('List page — breadcrumb with area ancestors (Scenario 1)', { tag: '@responsive' }, () => {
-  test('Work item row shows compact breadcrumb with ancestor and area name', async ({
-    page,
-    testPrefix,
-  }) => {
-    const workItemsPage = new WorkItemsPage(page);
-    let rootAreaId: string | null = null;
-    let childAreaId: string | null = null;
-    let workItemId: string | null = null;
-    const rootName = `${testPrefix} Ground Floor`;
-    const childName = `${testPrefix} Kitchen`;
-    const itemTitle = `${testPrefix} Breadcrumb List Test`;
+test.describe(
+  'List page — breadcrumb with area ancestors (Scenario 1)',
+  { tag: '@responsive' },
+  () => {
+    test('Work item row shows compact breadcrumb with ancestor and area name', async ({
+      page,
+      testPrefix,
+    }) => {
+      const workItemsPage = new WorkItemsPage(page);
+      let rootAreaId: string | null = null;
+      let childAreaId: string | null = null;
+      let workItemId: string | null = null;
+      const rootName = `${testPrefix} Ground Floor`;
+      const childName = `${testPrefix} Kitchen`;
+      const itemTitle = `${testPrefix} Breadcrumb List Test`;
 
-    try {
-      // Create parent → child area chain
-      rootAreaId = await createAreaViaApi(page, { name: rootName });
-      childAreaId = await createAreaViaApi(page, { name: childName, parentId: rootAreaId });
-      workItemId = await createWorkItemViaApi(page, { title: itemTitle, areaId: childAreaId });
+      try {
+        // Create parent → child area chain
+        rootAreaId = await createAreaViaApi(page, { name: rootName });
+        childAreaId = await createAreaViaApi(page, { name: childName, parentId: rootAreaId });
+        workItemId = await createWorkItemViaApi(page, { title: itemTitle, areaId: childAreaId });
 
-      await workItemsPage.goto();
-      await workItemsPage.waitForLoaded();
-      await workItemsPage.search(itemTitle);
+        await workItemsPage.goto();
+        await workItemsPage.waitForLoaded();
+        await workItemsPage.search(itemTitle);
 
-      // The API response is used server-side to populate area.ancestors;
-      // verify both ancestor and area name appear in the row's breadcrumb text.
-      // On desktop/tablet the table row is visible; on mobile the card is used.
-      const viewport = page.viewportSize();
-      const tableVisible = viewport ? viewport.width >= 768 : true;
+        // The API response is used server-side to populate area.ancestors;
+        // verify both ancestor and area name appear in the row's breadcrumb text.
+        // On desktop/tablet the table row is visible; on mobile the card is used.
+        const viewport = page.viewportSize();
+        const tableVisible = viewport ? viewport.width >= 768 : true;
 
-      if (tableVisible) {
-        const row = workItemsPage.tableBody.locator('tr').filter({ hasText: itemTitle });
-        const breadcrumbSpan = row.locator('[class*="compact"]');
-        await expect(breadcrumbSpan).toBeVisible();
-        const breadcrumbText = await breadcrumbSpan.textContent();
-        expect(breadcrumbText).toContain(rootName);
-        expect(breadcrumbText).toContain(childName);
-      } else {
-        const card = workItemsPage.cardsContainer.locator('[class*="card"]').filter({ hasText: itemTitle });
-        const breadcrumbSpan = card.locator('[class*="compact"]');
-        await expect(breadcrumbSpan).toBeVisible();
-        const breadcrumbText = await breadcrumbSpan.textContent();
-        expect(breadcrumbText).toContain(rootName);
-        expect(breadcrumbText).toContain(childName);
+        if (tableVisible) {
+          const row = workItemsPage.tableBody.locator('tr').filter({ hasText: itemTitle });
+          const breadcrumbSpan = row.locator('[class*="compact"]');
+          await expect(breadcrumbSpan).toBeVisible();
+          const breadcrumbText = await breadcrumbSpan.textContent();
+          expect(breadcrumbText).toContain(rootName);
+          expect(breadcrumbText).toContain(childName);
+        } else {
+          const card = workItemsPage.cardsContainer
+            .locator('[class*="card"]')
+            .filter({ hasText: itemTitle });
+          const breadcrumbSpan = card.locator('[class*="compact"]');
+          await expect(breadcrumbSpan).toBeVisible();
+          const breadcrumbText = await breadcrumbSpan.textContent();
+          expect(breadcrumbText).toContain(rootName);
+          expect(breadcrumbText).toContain(childName);
+        }
+      } finally {
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+        if (childAreaId) await deleteAreaViaApi(page, childAreaId);
+        if (rootAreaId) await deleteAreaViaApi(page, rootAreaId);
       }
-    } finally {
-      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
-      if (childAreaId) await deleteAreaViaApi(page, childAreaId);
-      if (rootAreaId) await deleteAreaViaApi(page, rootAreaId);
-    }
-  });
-});
+    });
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 2: Detail page — breadcrumb nav with ancestors
@@ -172,7 +178,9 @@ test.describe('Mobile list — compact breadcrumb tooltip on focus (Scenario 3)'
         const row = workItemsPage.tableBody.locator('tr').filter({ hasText: itemTitle });
         breadcrumbSpan = row.locator('[tabIndex="0"][class*="compact"]');
       } else {
-        const card = workItemsPage.cardsContainer.locator('[class*="card"]').filter({ hasText: itemTitle });
+        const card = workItemsPage.cardsContainer
+          .locator('[class*="card"]')
+          .filter({ hasText: itemTitle });
         breadcrumbSpan = card.locator('[tabIndex="0"][class*="compact"]');
       }
 
@@ -230,7 +238,9 @@ test.describe('List page — null area shows "No area" (Scenario 4)', { tag: '@r
         // The "No area" span sits in the title cell
         await expect(row.getByText('No area', { exact: true })).toBeVisible();
       } else {
-        const card = workItemsPage.cardsContainer.locator('[class*="card"]').filter({ hasText: itemTitle });
+        const card = workItemsPage.cardsContainer
+          .locator('[class*="card"]')
+          .filter({ hasText: itemTitle });
         await expect(card.getByText('No area', { exact: true })).toBeVisible();
       }
     } finally {
@@ -242,30 +252,34 @@ test.describe('List page — null area shows "No area" (Scenario 4)', { tag: '@r
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 5: Detail page — null area shows "No area"
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Detail page — null area shows "No area" (Scenario 5)', { tag: '@responsive' }, () => {
-  test('Work item with no area assigned shows "No area" text in detail header', async ({
-    page,
-    testPrefix,
-  }) => {
-    const detailPage = new WorkItemDetailPage(page);
-    let workItemId: string | null = null;
-    const itemTitle = `${testPrefix} No Area Detail Test`;
+test.describe(
+  'Detail page — null area shows "No area" (Scenario 5)',
+  { tag: '@responsive' },
+  () => {
+    test('Work item with no area assigned shows "No area" text in detail header', async ({
+      page,
+      testPrefix,
+    }) => {
+      const detailPage = new WorkItemDetailPage(page);
+      let workItemId: string | null = null;
+      const itemTitle = `${testPrefix} No Area Detail Test`;
 
-    try {
-      workItemId = await createWorkItemViaApi(page, { title: itemTitle });
+      try {
+        workItemId = await createWorkItemViaApi(page, { title: itemTitle });
 
-      await detailPage.goto(workItemId);
+        await detailPage.goto(workItemId);
 
-      // Null area renders <span class*="muted">No area</span> (no nav)
-      await expect(page.getByText('No area', { exact: true }).first()).toBeVisible();
+        // Null area renders <span class*="muted">No area</span> (no nav)
+        await expect(page.getByText('No area', { exact: true }).first()).toBeVisible();
 
-      // The nav element should NOT be present (area is null → no nav rendered)
-      await expect(detailPage.areaBreadcrumbNav).not.toBeVisible();
-    } finally {
-      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
-    }
-  });
-});
+        // The nav element should NOT be present (area is null → no nav rendered)
+        await expect(detailPage.areaBreadcrumbNav).not.toBeVisible();
+      } finally {
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      }
+    });
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 6: Create page — breadcrumb preview after area selection

@@ -661,9 +661,7 @@ describe('WorkItemCreatePage', () => {
       capturedAreaPickerOnChange!('');
 
       await waitFor(() => {
-        expect(
-          screen.queryByRole('navigation', { name: /area path/i }),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('navigation', { name: /area path/i })).not.toBeInTheDocument();
       });
     });
   });
@@ -762,9 +760,7 @@ describe('WorkItemCreatePage', () => {
       // which shows "No area" (muted span) and no nav element.
       await waitFor(() => {
         // No nav breadcrumb — AreaBreadcrumb renders a plain span for null area
-        expect(
-          screen.queryByRole('navigation', { name: /area path/i }),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('navigation', { name: /area path/i })).not.toBeInTheDocument();
         expect(screen.getByText('No area')).toBeInTheDocument();
       });
     });
