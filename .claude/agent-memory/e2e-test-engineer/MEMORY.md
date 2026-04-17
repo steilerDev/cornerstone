@@ -3,6 +3,18 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`
 
+## HI Breadcrumb E2E (Story #1240, 2026-04-17)
+
+- HouseholdItemDetailPage POM: `areaBreadcrumbNav` + `areaBreadcrumb` added (same pattern as WorkItemDetailPage)
+- HouseholdItemsPage list: name column renders `<div class*="titleCell">` → compact AreaBreadcrumb inside — `[class*="compact"]` selector
+- HouseholdItemDetailPage: default breadcrumb in `<div class*="titleBreadcrumb">` below h1 — `getByRole('navigation', { name: /area path/i })`
+- HouseholdItemPicker: `renderSecondary` renders compact breadcrumb in dropdown options — test via InvoiceDetailPage "Add Budget Line" modal
+- InvoiceDetailPage budget line modal: `getByRole('dialog', { name: 'Add Budget Line' })` → HI picker input `getByPlaceholder('Search household items...')`
+- Invoice route is `/budget/invoices/:id` (NOT `/project/budget/invoices/:id`)
+- Invoice API: `POST /api/vendors/:vendorId/invoices` (requires vendor first) → `{ invoice: { id } }`
+- `budget-source-lines.spec.ts` failures on feat/1239 branch: pre-existing, caused by `fix/source-lines-layout-links` feature not yet merged, not a breadcrumb regression
+- CI Shard 5 failure on beta release run (2026-04-16): from concurrent release workflow, not from feature work
+
 ## Embeds/Pickers Breadcrumb E2E (Story #1239, 2026-04-16)
 
 - Gantt bar: `data-testid="gantt-bar-{id}"` on the SVG `<g>` element — use `page.getByTestId()` for hover
