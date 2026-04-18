@@ -634,18 +634,18 @@ export function listWorkItems(
   }
 
   if (query.areaId) {
-    const { areaIds, includeNull } = resolveAreaFilter(db, query.areaId);
+    const { areaIds, includeNull, hasInput } = resolveAreaFilter(db, query.areaId);
     if (includeNull && areaIds.length > 0) {
       baseConditions.push(or(isNull(workItems.areaId), inArray(workItems.areaId, areaIds))!);
     } else if (includeNull) {
       baseConditions.push(isNull(workItems.areaId));
     } else if (areaIds.length > 0) {
       baseConditions.push(inArray(workItems.areaId, areaIds));
-    } else {
-      // Filter param was provided but contained only unknown IDs (no sentinel).
-      // Preserve the contract: return empty result rather than silently dropping the filter.
+    } else if (hasInput) {
+      // User supplied ID(s) but all were unknown — yield empty result
       baseConditions.push(sql`1 = 0`);
     }
+    // else: no meaningful input (empty/whitespace-only CSV) — skip filter
   }
 
   if (query.assignedVendorId) {

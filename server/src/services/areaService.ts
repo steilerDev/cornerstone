@@ -170,6 +170,8 @@ export interface AreaFilterResult {
   areaIds: string[];
   /** When true, caller must also include items with area_id IS NULL. */
   includeNull: boolean;
+  /** true when the raw input had at least one non-empty segment (after trim). */
+  hasInput: boolean;
 }
 
 /**
@@ -178,15 +180,18 @@ export interface AreaFilterResult {
  *
  * Supports the `__none__` sentinel: when present in the CSV, sets includeNull=true.
  * Empty segments and unknown IDs are silently ignored.
+ * Returns hasInput=true only when the raw input had at least one non-empty segment.
  */
 export function resolveAreaFilter(db: DbType, areaId: string | string[]): AreaFilterResult {
   const NONE_SENTINEL = '__none__';
   const raw = Array.isArray(areaId)
-    ? areaId
+    ? areaId.filter((s) => s.trim().length > 0).map((s) => s.trim())
     : areaId
         .split(',')
         .map((s) => s.trim())
         .filter((s) => s.length > 0);
+
+  const hasInput = raw.length > 0;
 
   let includeNull = false;
   const expanded = new Set<string>();
@@ -203,7 +208,7 @@ export function resolveAreaFilter(db: DbType, areaId: string | string[]): AreaFi
       // unknown IDs are silently dropped
     }
   }
-  return { areaIds: [...expanded], includeNull };
+  return { areaIds: [...expanded], includeNull, hasInput };
 }
 
 /**
