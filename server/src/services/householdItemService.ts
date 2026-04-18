@@ -543,6 +543,10 @@ export function listHouseholdItems(
       baseConditions.push(isNull(householdItems.areaId));
     } else if (areaIds.length > 0) {
       baseConditions.push(inArray(householdItems.areaId, areaIds));
+    } else {
+      // Filter param was provided but contained only unknown IDs (no sentinel).
+      // Preserve the contract: return empty result rather than silently dropping the filter.
+      baseConditions.push(sql`1 = 0`);
     }
   }
 

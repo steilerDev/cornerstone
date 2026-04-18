@@ -641,6 +641,10 @@ export function listWorkItems(
       baseConditions.push(isNull(workItems.areaId));
     } else if (areaIds.length > 0) {
       baseConditions.push(inArray(workItems.areaId, areaIds));
+    } else {
+      // Filter param was provided but contained only unknown IDs (no sentinel).
+      // Preserve the contract: return empty result rather than silently dropping the filter.
+      baseConditions.push(sql`1 = 0`);
     }
   }
 
