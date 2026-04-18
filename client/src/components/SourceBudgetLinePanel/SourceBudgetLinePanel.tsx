@@ -95,7 +95,7 @@ function buildAreaTree(lines: BudgetSourceBudgetLine[]): AreaNode[] {
   for (const line of lines) {
     if (line.area?.id) {
       allAreaIds.add(line.area.id);
-      for (const ancestor of line.area.ancestors) {
+      for (const ancestor of (line.area.ancestors ?? [])) {
         allAreaIds.add(ancestor.id);
       }
     }
@@ -118,7 +118,7 @@ function buildAreaTree(lines: BudgetSourceBudgetLine[]): AreaNode[] {
         areaMap.set(areaKey, {
           name: line.area!.name,
           color: line.area!.color,
-          ancestors: line.area!.ancestors,
+          ancestors: (line.area!.ancestors ?? []),
           lines: [],
         });
       }
@@ -130,8 +130,8 @@ function buildAreaTree(lines: BudgetSourceBudgetLine[]): AreaNode[] {
     if (!areaMap.has(areaId)) {
       // Find any line that has this area as an ancestor
       for (const line of lines) {
-        if (line.area?.ancestors.some((a) => a.id === areaId)) {
-          const ancestor = line.area!.ancestors.find((a) => a.id === areaId)!;
+        if ((line.area?.ancestors ?? []).some((a) => a.id === areaId)) {
+          const ancestor = (line.area!.ancestors ?? []).find((a) => a.id === areaId)!;
           areaMap.set(areaId, {
             name: ancestor.name,
             color: ancestor.color,

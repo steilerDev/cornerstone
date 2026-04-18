@@ -93,7 +93,7 @@ function mockLinesWithWorkItems(sourceId: string) {
         updatedAt: '2026-01-01T10:00:00.000Z',
         parentId: `wi-parent-${sourceId}`,
         parentName: 'Flooring',
-        area: { id: `area-k-${sourceId}`, name: 'Kitchen', color: '#4CAF50' },
+        area: { id: `area-k-${sourceId}`, name: 'Kitchen', color: '#4CAF50', ancestors: [] },
         hasClaimedInvoice: false,
       },
       {
@@ -107,7 +107,7 @@ function mockLinesWithWorkItems(sourceId: string) {
         updatedAt: '2026-01-02T10:00:00.000Z',
         parentId: `wi-parent-${sourceId}`,
         parentName: 'Flooring',
-        area: { id: `area-k-${sourceId}`, name: 'Kitchen', color: '#4CAF50' },
+        area: { id: `area-k-${sourceId}`, name: 'Kitchen', color: '#4CAF50', ancestors: [] },
         hasClaimedInvoice: false,
       },
     ],
