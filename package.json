@@ -65,6 +65,8 @@
     "typescript-eslint": "8.58.1"
   },
   "overrides": {
-    "minimatch@>=10.0.0 <10.2.3": "10.2.4"
+    "minimatch@>=10.0.0 <10.2.3": "10.2.4",
+    "react": "19.2.5",
+    "react-dom": "19.2.5"
   }
 }

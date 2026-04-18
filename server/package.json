@@ -16,19 +16,19 @@
     "@fastify/compress": "8.3.1",
     "@fastify/cookie": "11.0.2",
     "@fastify/helmet": "13.0.2",
-    "@fastify/multipart": "9.4.0",
+    "@fastify/multipart": "10.0.0",
     "@fastify/rate-limit": "10.3.0",
     "@fastify/static": "9.1.1",
-    "better-sqlite3": "12.8.0",
+    "better-sqlite3": "12.9.0",
     "drizzle-orm": "0.45.2",
     "fastify": "5.8.5",
     "fastify-plugin": "5.1.0",
     "ical-generator": "10.1.0",
     "node-cron": "4.2.1",
-    "openid-client": "6.8.2",
+    "openid-client": "6.8.3",
     "sharp": "0.34.5",
     "tar": "^7.5.13",
-    "vcard-creator": "0.7.2"
+    "vcard-creator": "1.0.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "7.6.13"
