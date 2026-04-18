@@ -546,6 +546,12 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     item.rawProjectedMax += row.plannedAmount * (1 + (CONFIDENCE_MARGINS[row.confidence as keyof typeof CONFIDENCE_MARGINS] ?? CONFIDENCE_MARGINS.own_estimate));
   }
 
+  // Build budget category map for work items
+  const wiBudgetLineCategoryMap = new Map<string, string | null>();
+  for (const row of workItemLineRows) {
+    wiBudgetLineCategoryMap.set(row.budgetLineId, row.budgetCategoryId);
+  }
+
   // Apply subsidy payback and cost display
   for (const item of wiEntityData.values()) {
     const subsidyPayback = computeEntitySubsidyPayback(
@@ -554,7 +560,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
         id: bl.id,
         plannedAmount: bl.plannedAmount,
         confidence: bl.confidence,
-        budgetCategoryId: null,
+        budgetCategoryId: wiBudgetLineCategoryMap.get(bl.id) ?? null,
       })),
       wiLineInvoiceMap,
       false,
@@ -565,7 +571,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
         id: bl.id,
         plannedAmount: bl.plannedAmount,
         confidence: bl.confidence,
-        budgetCategoryId: null,
+        budgetCategoryId: wiBudgetLineCategoryMap.get(bl.id) ?? null,
       })),
       wiLineInvoiceMap,
       true,
@@ -578,15 +584,20 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     item.costDisplay = computeCostDisplay(item.budgetLines);
   }
 
-  // Group items by area
+  // Group work items into their assigned area buckets.
+  // Dedup by areaId+workItemId so multiple budget-line rows for the same
+  // item don't push it multiple times, while still allowing multiple distinct
+  // items into the same area.
+  const wiAddedToArea = new Set<string>();
   for (const row of workItemLineRows) {
     const item = wiEntityData.get(row.workItemId);
-    if (item && !wiByArea.has(row.areaId)) {
-      if (!wiByArea.has(row.areaId)) {
-        wiByArea.set(row.areaId, []);
-      }
-      wiByArea.get(row.areaId)!.push(item);
-    }
+    if (!item) continue;
+    const dedupeKey = `${row.areaId ?? 'null'}:${row.workItemId}`;
+    if (wiAddedToArea.has(dedupeKey)) continue;
+    wiAddedToArea.add(dedupeKey);
+    const list = wiByArea.get(row.areaId) ?? [];
+    if (!wiByArea.has(row.areaId)) wiByArea.set(row.areaId, list);
+    list.push(item);
   }
 
   // Get all areas
@@ -677,6 +688,12 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     item.rawProjectedMax += row.plannedAmount * (1 + (CONFIDENCE_MARGINS[row.confidence as keyof typeof CONFIDENCE_MARGINS] ?? CONFIDENCE_MARGINS.own_estimate));
   }
 
+  // Build budget category map for household items
+  const hiBudgetLineCategoryMap = new Map<string, string | null>();
+  for (const row of hiLineRows) {
+    hiBudgetLineCategoryMap.set(row.budgetLineId, row.budgetCategoryId);
+  }
+
   // Apply subsidy payback and cost display
   for (const item of hiEntityData.values()) {
     const subsidyPayback = computeEntitySubsidyPayback(
@@ -685,7 +702,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
         id: bl.id,
         plannedAmount: bl.plannedAmount,
         confidence: bl.confidence,
-        budgetCategoryId: null,
+        budgetCategoryId: hiBudgetLineCategoryMap.get(bl.id) ?? null,
       })),
       hiLineInvoiceMap,
       false,
@@ -696,7 +713,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
         id: bl.id,
         plannedAmount: bl.plannedAmount,
         confidence: bl.confidence,
-        budgetCategoryId: null,
+        budgetCategoryId: hiBudgetLineCategoryMap.get(bl.id) ?? null,
       })),
       hiLineInvoiceMap,
       true,
@@ -709,15 +726,20 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     item.costDisplay = computeCostDisplay(item.budgetLines);
   }
 
-  // Group items by area
+  // Group household items into their assigned area buckets.
+  // Dedup by areaId+householdItemId so multiple budget-line rows for the same
+  // item don't push it multiple times, while still allowing multiple distinct
+  // items into the same area.
+  const hiAddedToArea = new Set<string>();
   for (const row of hiLineRows) {
     const item = hiEntityData.get(row.householdItemId);
-    if (item && !hiByArea.has(row.areaId)) {
-      if (!hiByArea.has(row.areaId)) {
-        hiByArea.set(row.areaId, []);
-      }
-      hiByArea.get(row.areaId)!.push(item);
-    }
+    if (!item) continue;
+    const dedupeKey = `${row.areaId ?? 'null'}:${row.householdItemId}`;
+    if (hiAddedToArea.has(dedupeKey)) continue;
+    hiAddedToArea.add(dedupeKey);
+    const list = hiByArea.get(row.areaId) ?? [];
+    if (!hiByArea.has(row.areaId)) hiByArea.set(row.areaId, list);
+    list.push(item);
   }
 
   const { areas: hiAreas, totals: hiTotals } = buildAreaBreakdown(
