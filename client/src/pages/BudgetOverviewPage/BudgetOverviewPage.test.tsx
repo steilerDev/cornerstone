@@ -797,12 +797,12 @@ describe('BudgetOverviewPage', () => {
       // Provide a non-empty breakdown so the CostBreakdownTable renders
       mockFetchBudgetBreakdown.mockResolvedValueOnce({
         workItems: {
-          categories: [
+          areas: [
             {
-              categoryId: 'cat-1',
-              categoryName: 'Materials',
-              categoryColor: null,
-              categoryTranslationKey: null,
+              areaId: null,
+              name: 'Unassigned',
+              parentId: null,
+              color: null,
               projectedMin: 5000,
               projectedMax: 8000,
               actualCost: 0,
@@ -811,6 +811,7 @@ describe('BudgetOverviewPage', () => {
               rawProjectedMax: 8000,
               minSubsidyPayback: 0,
               items: [],
+              children: [],
             },
           ],
           totals: {
@@ -824,7 +825,7 @@ describe('BudgetOverviewPage', () => {
           },
         },
         householdItems: {
-          categories: [],
+          areas: [],
           totals: {
             projectedMin: 0,
             projectedMax: 0,

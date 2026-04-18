@@ -286,7 +286,7 @@ describe('GET /api/budget/breakdown', () => {
     expect(response.statusCode).toBe(200);
     const { breakdown } = response.json<BudgetBreakdownResponse>();
 
-    expect(Array.isArray(breakdown.workItems.categories)).toBe(true);
+    expect(Array.isArray(breakdown.workItems.areas)).toBe(true);
     expect(typeof breakdown.workItems.totals).toBe('object');
     expect(typeof breakdown.workItems.totals.projectedMin).toBe('number');
     expect(typeof breakdown.workItems.totals.projectedMax).toBe('number');
@@ -306,7 +306,7 @@ describe('GET /api/budget/breakdown', () => {
     expect(response.statusCode).toBe(200);
     const { breakdown } = response.json<BudgetBreakdownResponse>();
 
-    expect(Array.isArray(breakdown.householdItems.categories)).toBe(true);
+    expect(Array.isArray(breakdown.householdItems.areas)).toBe(true);
     expect(typeof breakdown.householdItems.totals).toBe('object');
     expect(typeof breakdown.householdItems.totals.projectedMin).toBe('number');
     expect(typeof breakdown.householdItems.totals.projectedMax).toBe('number');
@@ -326,10 +326,10 @@ describe('GET /api/budget/breakdown', () => {
     expect(response.statusCode).toBe(200);
     const { breakdown } = response.json<BudgetBreakdownResponse>();
 
-    expect(breakdown.workItems.categories).toHaveLength(0);
+    expect(breakdown.workItems.areas).toHaveLength(0);
     expect(breakdown.workItems.totals.projectedMin).toBe(0);
     expect(breakdown.workItems.totals.projectedMax).toBe(0);
-    expect(breakdown.householdItems.categories).toHaveLength(0);
+    expect(breakdown.householdItems.areas).toHaveLength(0);
     expect(breakdown.householdItems.totals.projectedMax).toBe(0);
   });
 
@@ -349,11 +349,11 @@ describe('GET /api/budget/breakdown', () => {
     expect(response.statusCode).toBe(200);
     const { breakdown } = response.json<BudgetBreakdownResponse>();
 
-    expect(breakdown.workItems.categories).toHaveLength(1);
-    const cat = breakdown.workItems.categories[0];
+    expect(breakdown.workItems.areas).toHaveLength(1);
+    const cat = breakdown.workItems.areas[0];
 
-    expect(cat).toHaveProperty('categoryId');
-    expect(cat).toHaveProperty('categoryName');
+    expect(cat).toHaveProperty('areaId');
+    expect(cat).toHaveProperty('name');
     expect(typeof cat.projectedMin).toBe('number');
     expect(typeof cat.projectedMax).toBe('number');
     expect(typeof cat.actualCost).toBe('number');
@@ -379,7 +379,7 @@ describe('GET /api/budget/breakdown', () => {
     expect(response.statusCode).toBe(200);
     const { breakdown } = response.json<BudgetBreakdownResponse>();
 
-    const item = breakdown.workItems.categories[0].items[0];
+    const item = breakdown.workItems.areas[0].items[0];
     expect(typeof item.workItemId).toBe('string');
     expect(typeof item.title).toBe('string');
     expect(typeof item.projectedMin).toBe('number');
@@ -408,7 +408,7 @@ describe('GET /api/budget/breakdown', () => {
     expect(response.statusCode).toBe(200);
     const { breakdown } = response.json<BudgetBreakdownResponse>();
 
-    const line = breakdown.workItems.categories[0].items[0].budgetLines[0];
+    const line = breakdown.workItems.areas[0].items[0].budgetLines[0];
     expect(typeof line.id).toBe('string');
     expect(typeof line.plannedAmount).toBe('number');
     expect(typeof line.actualCost).toBe('number');
@@ -436,7 +436,7 @@ describe('GET /api/budget/breakdown', () => {
     expect(response.statusCode).toBe(200);
     const { breakdown } = response.json<BudgetBreakdownResponse>();
 
-    const item = breakdown.workItems.categories[0].items[0];
+    const item = breakdown.workItems.areas[0].items[0];
     expect(item.projectedMax).toBeCloseTo(1200, 5);
     expect(item.costDisplay).toBe('projected');
   });
@@ -455,15 +455,13 @@ describe('GET /api/budget/breakdown', () => {
     expect(response.statusCode).toBe(200);
     const { breakdown } = response.json<BudgetBreakdownResponse>();
 
-    expect(breakdown.householdItems.categories).toHaveLength(1);
-    const hiCat = breakdown.householdItems.categories[0];
-    expect(hiCat.hiCategory).toBe('hic-appliances');
-    expect(typeof hiCat.categoryName).toBe('string');
-    expect(hiCat.categoryName.length).toBeGreaterThan(0);
-    // categoryTranslationKey is either a string or null
-    expect(
-      hiCat.categoryTranslationKey === null || typeof hiCat.categoryTranslationKey === 'string',
-    ).toBe(true);
+    expect(breakdown.householdItems.areas).toHaveLength(1);
+    const hiCat = breakdown.householdItems.areas[0];
+    expect(typeof hiCat.areaId === 'string' || hiCat.areaId === null).toBe(true);
+    expect(typeof hiCat.name).toBe('string');
+    expect(hiCat.name.length).toBeGreaterThan(0);
+    // color is either a string or null
+    expect(hiCat.color === null || typeof hiCat.color === 'string').toBe(true);
     expect(hiCat.items[0].costDisplay).toBe('projected');
   });
 });

@@ -2432,8 +2432,8 @@ describe('Bug #585 — no "Total {category}" sum row after expand', () => {
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-permits-585-items'));
 
-    // The category header row still shows the category name
-    expect(screen.getByText('Permits')).toBeInTheDocument();
+    // The item row is rendered (area-based UI — category name param is ignored, area is always Unassigned)
+    expect(screen.getByText('City Permit')).toBeInTheDocument();
 
     // After the bug fix, no "Total Permits" sum row should appear
     expect(screen.queryByText(/^Total /)).not.toBeInTheDocument();
