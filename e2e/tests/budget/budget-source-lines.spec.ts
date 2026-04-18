@@ -543,9 +543,15 @@ test.describe('Unassigned area grouping', { tag: '@responsive' }, () => {
       const panel = sourcesPage.getLinesPanelById(sourceId);
       await expect(panel).toBeVisible();
 
-      // "Unassigned" area group header must be visible
-      // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
-      await expect(panel.getByText('Unassigned', { exact: true })).toBeVisible();
+      // "Unassigned" area group header must be visible.
+      // Scope to the areaName span specifically — after PR #1265 introduced
+      // isSelectable=true for all panels, the TriStateCheckbox label text
+      // "Select all in Unassigned" also contains "Unassigned", causing
+      // getByText (strict mode) to resolve to multiple elements.
+      // [class*="areaName"] is the CSS-module span rendered by SourceBudgetLinePanel
+      // for the area group header label — it is stable and unique per group.
+      // No explicit timeout — uses project-level expect.timeout.
+      await expect(panel.locator('[class*="areaName"]', { hasText: 'Unassigned' })).toBeVisible();
 
       // The parent item name and line description must be visible
       await expect(panel.getByText('General Work', { exact: true })).toBeVisible();
