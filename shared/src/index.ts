@@ -186,7 +186,6 @@ export type {
 
 // Budget Overview
 export type {
-  AreaBudgetSummary,
   BudgetOverview,
   BudgetOverviewResponse,
   OversubscribedSubsidy,
@@ -197,9 +196,8 @@ export type {
   CostDisplay,
   BreakdownBudgetLine,
   BreakdownWorkItem,
-  BreakdownWorkItemCategory,
+  BreakdownArea,
   BreakdownHouseholdItem,
-  BreakdownHouseholdItemCategory,
   BreakdownTotals,
   BudgetBreakdown,
   BudgetBreakdownResponse,

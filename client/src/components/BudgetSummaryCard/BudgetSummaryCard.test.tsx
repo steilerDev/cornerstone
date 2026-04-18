@@ -88,8 +88,6 @@ const baseOverview: BudgetOverview = {
   remainingVsActualClaimed: 90000,
   remainingVsMinPlannedWithPayback: 20000,
   remainingVsMaxPlannedWithPayback: 10000,
-  areaSummaries: [],
-  unassignedSummary: null,
   subsidySummary: {
     totalReductions: 0,
     activeSubsidyCount: 0,

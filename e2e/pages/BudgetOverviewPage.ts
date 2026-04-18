@@ -11,7 +11,7 @@
  *   - A key metrics row: Available Funds, Projected Cost Range, Remaining
  *   - A BudgetBar stacked bar chart (role="img")
  *   - A footer showing subsidies and sources info
- * - Area Breakdown tree (role="treegrid") with expand/collapse controls
+ * - Cost Breakdown table (CostBreakdownTable) with area hierarchy expand/collapse
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -41,10 +41,8 @@ export class BudgetOverviewPage {
   readonly heroCard: Locator;
   readonly budgetBar: Locator;
 
-  // Area Breakdown tree
-  readonly areaTreeCard: Locator;
-  readonly expandAllButton: Locator;
-  readonly collapseAllButton: Locator;
+  // Cost Breakdown table (CostBreakdownTable, area hierarchy)
+  readonly costBreakdownCard: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -72,28 +70,26 @@ export class BudgetOverviewPage {
     // Budget bar: BudgetBar stacked bar chart with role="img"
     this.budgetBar = page.getByRole('img').filter({ has: page.locator('[class*="bar"]') });
 
-    // Area Breakdown tree: the treegrid element's immediate ancestor card container
-    this.areaTreeCard = page.locator('[role="treegrid"]').locator('xpath=ancestor::*[1]');
-
-    // Expand All / Collapse All buttons within the area breakdown section
-    this.expandAllButton = page.getByRole('button', { name: /expand all/i });
-    this.collapseAllButton = page.getByRole('button', { name: /collapse all/i });
+    // Cost Breakdown table: <section aria-labelledby="breakdown-heading">
+    this.costBreakdownCard = page.locator('section[aria-labelledby="breakdown-heading"]');
   }
 
   /**
-   * Return the treegrid row that contains the given area name text.
+   * Return the row inside the Cost Breakdown table that contains the given area name text.
    */
-  areaRow(name: string): Locator {
-    return this.page.getByRole('row').filter({ hasText: name });
+  breakdownAreaRow(name: string): Locator {
+    return this.costBreakdownCard.getByRole('row').filter({ hasText: name });
   }
 
   /**
-   * Return the expand/collapse toggle button for the given area name.
-   * The aria-label alternates between "Expand <name>" and "Collapse <name>" as the
-   * row is toggled, so the regex matches both states.
+   * Return the expand/collapse toggle button for the given area name inside the Cost Breakdown table.
+   * The aria-label is either "Expand <name>" or "Collapse <name>" depending on state,
+   * so the regex matches both.
    */
-  areaToggleButton(name: string): Locator {
-    return this.page.getByRole('button', { name: new RegExp(`(?:expand|collapse) ${name}`, 'i') });
+  breakdownAreaToggle(name: string): Locator {
+    return this.costBreakdownCard.getByRole('button', {
+      name: new RegExp(`(?:expand|collapse) ${name}`, 'i'),
+    });
   }
 
   async goto(): Promise<void> {

@@ -86,7 +86,6 @@ beforeAll(async () => {
 function renderWithRouter(
   breakdown: BudgetBreakdown,
   overview: BudgetOverview,
-  selectedCategories = new Set<string | null>(),
   budgetSources: BudgetSource[] = [],
 ) {
   return render(
@@ -94,7 +93,6 @@ function renderWithRouter(
       <CostBreakdownTable
         breakdown={breakdown}
         overview={overview}
-        selectedCategories={selectedCategories}
         budgetSources={budgetSources}
       />
     </MemoryRouter>,
@@ -104,125 +102,80 @@ function renderWithRouter(
 // ── Selector Helpers ──────────────────────────────────────────────────────
 
 /**
- * Find an expand button by matching the text of its sibling span element.
- * This replaced aria-controls-based selection after aria-controls was removed from expand buttons.
- * Maps old controlsId patterns to the expected sibling text:
- *   - "wi-section-categories" → "Work Items"
- *   - "hi-section-categories" → "Household Items"
- *   - "avail-funds" → "Available funds"
- *   - "wi-cat-*-items" → category name (e.g., "Materials", "Labor")
- *   - "hi-cat-*-items" → HI category label (e.g., "Furniture", "Appliances")
- *   - "wi-item-*-budget-lines" → work item title
- *   - "hi-item-*-budget-lines" → household item name
+ * Find an expand button (collapsed initial state) by aria-label in the rendered output.
+ * Maps logical keys to the aria-labels used by the new area-hierarchy CostBreakdownTable.
+ * Both WI and HI area rows render with aria-label="Expand {name}" when collapsed (the
+ * initial state), and aria-label="Collapse {name}" when expanded.
+ *
+ * This helper always resolves to the COLLAPSED-state label ("Expand {name}").
+ * If you need to find a button that is already expanded (e.g. to collapse it again),
+ * use getButtonByLabel('Collapse {name}') directly.
+ *
+ *   'wi-section'           → "Expand work item budget by area"
+ *   'hi-section'           → "Expand household item budget by area"
+ *   'area:{name}'          → "Expand {name}"  (WI area in collapsed state)
+ *   'hi-area:{name}'       → "Expand {name}"  (HI area in collapsed state — same pattern as WI)
+ *   'wi-item:{title}'      → "Expand {title}" (WI item row)
+ *   'hi-item:{name}'       → "Expand {name}"  (HI item row)
  */
-function getButtonByControls(container: HTMLElement, controlsId: string): HTMLElement {
-  let expectedText: string | null = null;
+function getButtonByControls(_container: HTMLElement, controlsId: string): HTMLElement {
+  let ariaLabel: string | null = null;
 
-  if (controlsId === 'wi-section-categories') {
-    expectedText = 'Work Items';
-  } else if (controlsId === 'hi-section-categories') {
-    expectedText = 'Household Items';
+  if (controlsId === 'wi-section-categories' || controlsId === 'wi-section') {
+    ariaLabel = 'Expand work item budget by area';
+  } else if (controlsId === 'hi-section-categories' || controlsId === 'hi-section') {
+    ariaLabel = 'Expand household item budget by area';
   } else if (controlsId === 'avail-funds') {
-    expectedText = 'Available funds';
+    ariaLabel = 'Expand available funds sources';
+  } else if (controlsId.startsWith('area:')) {
+    // area:{areaName} — WI area in collapsed state (aria-label = "Expand {name}")
+    ariaLabel = `Expand ${controlsId.slice('area:'.length)}`;
+  } else if (controlsId.startsWith('hi-area:')) {
+    // hi-area:{areaName} — HI area in collapsed state (aria-label = "Expand {name}")
+    // Both WorkItemAreaSection and HouseholdItemAreaSection now use the same toggle pattern:
+    // collapsed → "Expand {name}", expanded → "Collapse {name}". Initial state is collapsed.
+    ariaLabel = `Expand ${controlsId.slice('hi-area:'.length)}`;
+  } else if (controlsId.startsWith('wi-item:')) {
+    // wi-item:{title} — work item row expand button
+    ariaLabel = `Expand ${controlsId.slice('wi-item:'.length)}`;
+  } else if (controlsId.startsWith('hi-item:')) {
+    // hi-item:{name} — household item row expand button
+    ariaLabel = `Expand ${controlsId.slice('hi-item:'.length)}`;
   } else if (controlsId.startsWith('wi-cat-') && controlsId.endsWith('-items')) {
-    // Extract category name: "wi-cat-{categoryId}-items"
-    // Since we don't have direct access to categoryId→name mapping, find by partial match
-    // and context. Look through all buttons and find one that looks like a category row.
-    const buttons = Array.from(container.querySelectorAll<HTMLElement>('button.expandBtn'));
-    for (const btn of buttons) {
-      const row = btn.closest('tr');
-      if (!row) continue;
-      // Check if this row has a category name (no € in name cell, has € in budget cells)
-      const cells = row.querySelectorAll('td');
-      if (cells.length >= 2) {
-        // Categories have currency formatted values; we'll look for a button where the name looks like a category
-        // If this button's sibling text matches or is close to controlsId context, return it
-        const span = btn.nextElementSibling;
-        if (span?.textContent) {
-          const categoryNames = [
-            'Uncategorized',
-            'Materials',
-            'Labor',
-            'Permits',
-            'Design',
-            'Equipment',
-            'Landscaping',
-            'Utilities',
-            'Insurance',
-            'Contingency',
-            'Other',
-            'CategoryA',
-            'CategoryB',
-            'CategoryX',
-          ];
-          if (categoryNames.some((cat) => span.textContent?.includes(cat))) {
-            return btn;
-          }
-        }
-      }
-    }
-    throw new Error(`Category button for controlsId="${controlsId}" not found`);
+    // Legacy format: the area name is the areaName passed to the test, which for null-area items
+    // is 'Unassigned'. Map "wi-cat-*-items" → "Expand Unassigned" (single area in most tests).
+    ariaLabel = 'Expand Unassigned';
   } else if (controlsId.startsWith('hi-cat-') && controlsId.endsWith('-items')) {
-    // For household item category expansion
-    // Extract category name from controlsId: "hi-cat-{hiCategory}-items"
-    // The category name is used directly (user-defined string, not a legacy enum key)
+    // Legacy HI category format: extract name from "hi-cat-{name}-items".
+    // HI area sections now use the same pattern as WI: initial collapsed state = "Expand {name}".
     const inner = controlsId.slice('hi-cat-'.length, -'-items'.length);
-    expectedText = inner || null;
+    ariaLabel = `Expand ${inner}`;
   } else if (controlsId.startsWith('wi-item-') && controlsId.endsWith('-budget-lines')) {
-    // For work item expansion, find in the correct section
-    // Look for buttons in rows that are nested under a WI category
-    const buttons = Array.from(container.querySelectorAll<HTMLElement>('button.expandBtn'));
-    // Items appear after category buttons; return the next one that isn't a section/category button
-    let foundSection = false;
-    for (const btn of buttons) {
-      const span = btn.nextElementSibling;
-      const text = span?.textContent?.trim() || '';
-      if (text === 'Work Items') {
-        foundSection = true;
-      } else if (
-        foundSection &&
-        text &&
-        !text.match(
-          /^(Uncategorized|Materials|Labor|Permits|Design|Equipment|Landscaping|Utilities|Insurance|Contingency|Other|CategoryA|CategoryB|CategoryX)$/,
-        )
-      ) {
-        return btn;
-      }
-    }
+    // Legacy WI item format: "wi-item-{workItemId}-budget-lines" — not directly mappable to title.
+    // Fall through to throw below.
   } else if (controlsId.startsWith('hi-item-') && controlsId.endsWith('-budget-lines')) {
-    // For household item expansion
-    const buttons = Array.from(container.querySelectorAll<HTMLElement>('button.expandBtn'));
-    let foundHISection = false;
-    for (const btn of buttons) {
-      const span = btn.nextElementSibling;
-      const text = span?.textContent?.trim() || '';
-      if (text === 'Household Items') {
-        foundHISection = true;
-      } else if (
-        foundHISection &&
-        text &&
-        text !== 'Household Items' &&
-        !text.startsWith('Total ')
-      ) {
-        return btn;
-      }
-    }
+    // Legacy HI item format: similar issue.
+    // Fall through to throw below.
   }
 
-  // If expectedText was set, find button with matching sibling text
-  if (expectedText) {
-    const buttons = Array.from(container.querySelectorAll<HTMLElement>('button.expandBtn'));
-    const btn = buttons.find((b) => {
-      const span = b.nextElementSibling;
-      return span?.textContent?.trim() === expectedText;
-    });
-    if (btn) return btn;
+  if (ariaLabel) {
+    const btn = screen.queryByRole('button', { name: ariaLabel });
+    if (btn) return btn as HTMLElement;
   }
 
   throw new Error(
-    `Button for controlsId="${controlsId}" not found. aria-controls has been removed from expand buttons. ` +
-      `Check that sibling span text matches expected value.`,
+    `Button for controlsId="${controlsId}" not found (aria-label="${ariaLabel ?? 'unknown'}"). ` +
+      `Use getButtonByLabel() for item-level expand buttons by work item title or HI name.`,
   );
+}
+
+/**
+ * Find an expand button by its exact aria-label text.
+ * Used for item-level expand buttons whose aria-label is "Expand {title}".
+ */
+function getButtonByLabel(ariaLabel: string): HTMLElement {
+  const btn = screen.getByRole('button', { name: ariaLabel });
+  return btn as HTMLElement;
 }
 
 // ── Test Data Helpers ──────────────────────────────────────────────────────
@@ -252,8 +205,6 @@ function buildOverview(
     remainingVsActualClaimed: 0,
     remainingVsMinPlannedWithPayback: 0,
     remainingVsMaxPlannedWithPayback: 0,
-    areaSummaries: [],
-    unassignedSummary: null,
     subsidySummary: {
       totalReductions: 0,
       activeSubsidyCount: 0,
@@ -270,7 +221,7 @@ function buildOverview(
 function buildEmptyBreakdown(): BudgetBreakdown {
   return {
     workItems: {
-      categories: [],
+      areas: [],
       totals: {
         projectedMin: 0,
         projectedMax: 0,
@@ -282,7 +233,7 @@ function buildEmptyBreakdown(): BudgetBreakdown {
       },
     },
     householdItems: {
-      categories: [],
+      areas: [],
       totals: {
         projectedMin: 0,
         projectedMax: 0,
@@ -298,12 +249,11 @@ function buildEmptyBreakdown(): BudgetBreakdown {
 }
 
 /**
- * Build a breakdown with one WI category containing one item.
+ * Build a breakdown with one WI area (Unassigned) containing one item.
+ * All items have null areaId so they land in the synthetic Unassigned bucket.
  */
 function buildBreakdownWithWI(
   opts: {
-    categoryId?: string | null;
-    categoryName?: string;
     costDisplay?: 'actual' | 'projected' | 'mixed';
     projectedMin?: number;
     projectedMax?: number;
@@ -316,10 +266,11 @@ function buildBreakdownWithWI(
     workItemId?: string;
     description?: string | null;
     hasInvoice?: boolean;
+    // Legacy params — kept for backward compat but ignored (area is always Unassigned)
+    categoryId?: string | null;
+    categoryName?: string;
   } = {},
 ): BudgetBreakdown {
-  const categoryId = opts.categoryId !== undefined ? opts.categoryId : 'cat-1';
-  const categoryName = opts.categoryName ?? 'Materials';
   const costDisplay = opts.costDisplay ?? 'projected';
   const projectedMin = opts.projectedMin ?? 800;
   const projectedMax = opts.projectedMax ?? 1200;
@@ -334,12 +285,12 @@ function buildBreakdownWithWI(
 
   return {
     workItems: {
-      categories: [
+      areas: [
         {
-          categoryId,
-          categoryName,
-          categoryColor: null,
-          categoryTranslationKey: null,
+          areaId: null,
+          name: 'Unassigned',
+          parentId: null,
+          color: null,
           projectedMin,
           projectedMax,
           actualCost,
@@ -372,6 +323,7 @@ function buildBreakdownWithWI(
               ],
             },
           ],
+          children: [],
         },
       ],
       totals: {
@@ -385,7 +337,7 @@ function buildBreakdownWithWI(
       },
     },
     householdItems: {
-      categories: [],
+      areas: [],
       totals: {
         projectedMin: 0,
         projectedMax: 0,
@@ -401,10 +353,13 @@ function buildBreakdownWithWI(
 }
 
 /**
- * Build a breakdown with one HI category containing one item.
+ * Build a breakdown with one HI area containing one item.
+ * When hiCategory is provided, an area node with that name is created (non-null areaId).
+ * When hiCategory is omitted, items land in the Unassigned bucket (null areaId).
  */
 function buildBreakdownWithHI(
   opts: {
+    /** When provided, creates a named area node with this name (areaId='area-hi-1'). */
     hiCategory?: string;
     projectedMin?: number;
     projectedMax?: number;
@@ -418,7 +373,8 @@ function buildBreakdownWithHI(
     householdItemId?: string;
   } = {},
 ): BudgetBreakdown {
-  const hiCategory = opts.hiCategory ?? 'Living Room';
+  const areaName = opts.hiCategory ?? 'Unassigned';
+  const areaId = opts.hiCategory ? 'area-hi-1' : null;
   const projectedMin = opts.projectedMin ?? 400;
   const projectedMax = opts.projectedMax ?? 600;
   const actualCost = opts.actualCost ?? 0;
@@ -431,7 +387,7 @@ function buildBreakdownWithHI(
 
   return {
     workItems: {
-      categories: [],
+      areas: [],
       totals: {
         projectedMin: 0,
         projectedMax: 0,
@@ -443,11 +399,12 @@ function buildBreakdownWithHI(
       },
     },
     householdItems: {
-      categories: [
+      areas: [
         {
-          hiCategory,
-          categoryName: hiCategory,
-          categoryTranslationKey: null,
+          areaId,
+          name: areaName,
+          parentId: null,
+          color: null,
           projectedMin,
           projectedMax,
           actualCost,
@@ -480,6 +437,7 @@ function buildBreakdownWithHI(
               ],
             },
           ],
+          children: [],
         },
       ],
       totals: {
@@ -535,7 +493,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -550,7 +508,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 })}
         overview={buildOverview(50000)}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -564,7 +522,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 })}
         overview={buildOverview(100000)}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -579,7 +537,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -592,7 +550,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithHI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -605,32 +563,33 @@ describe('CostBreakdownTable', () => {
   it('does not show WI category rows when section is collapsed (default)', () => {
     render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({ categoryName: 'Materials' })}
+        breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
 
-    // Category name 'Materials' should not be visible yet (inside collapsed section)
-    expect(screen.queryByText('Materials')).not.toBeInTheDocument();
+    // Area name 'Unassigned' should not be visible yet (inside collapsed section)
+    expect(screen.queryByText('Unassigned')).not.toBeInTheDocument();
   });
 
-  // ── 18. Click WI section toggle — categories appear ──────────────────────
+  // ── 18. Click WI section toggle — area rows appear ───────────────────────
 
-  it('shows WI category rows after clicking the WI section toggle', () => {
+  it('shows WI area rows after clicking the WI section toggle', () => {
     const { container } = render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({ categoryName: 'Labor', categoryId: 'cat-labor' })}
+        breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
 
-    expect(screen.getByText('Labor')).toBeInTheDocument();
+    // buildBreakdownWithWI places items in the Unassigned area node
+    expect(screen.getByText('Unassigned')).toBeInTheDocument();
   });
 
   it('sets aria-expanded=true on WI toggle button after clicking', () => {
@@ -638,7 +597,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -651,24 +610,19 @@ describe('CostBreakdownTable', () => {
     expect(wiToggle).toHaveAttribute('aria-expanded', 'true');
   });
 
-  // ── 19. Category row expand — item rows appear ───────────────────────────
+  // ── 19. Area row expand — item rows appear ───────────────────────────────
 
-  it('shows item rows after expanding the WI section then a category', () => {
+  it('shows item rows after expanding the WI section then an area', () => {
     const { container } = renderWithRouter(
-      buildBreakdownWithWI({
-        categoryName: 'Permits',
-        categoryId: 'cat-permits',
-        itemTitle: 'City Permit',
-        workItemId: 'wi-permit',
-      }),
+      buildBreakdownWithWI({ itemTitle: 'City Permit', workItemId: 'wi-permit' }),
       buildOverview(),
     );
 
     // Expand WI section
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
 
-    // Expand category: aria-controls="wi-cat-cat-permits-items"
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-permits-items'));
+    // Expand Unassigned area: aria-label="Expand Unassigned"
+    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
 
     expect(screen.getByText('City Permit')).toBeInTheDocument();
   });
@@ -678,8 +632,6 @@ describe('CostBreakdownTable', () => {
   it('shows budget line rows after expanding to item level', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
-        categoryName: 'Equipment',
-        categoryId: 'cat-equip',
         itemTitle: 'Crane Rental',
         workItemId: 'wi-crane',
         description: 'Tower crane for 3 weeks',
@@ -687,10 +639,10 @@ describe('CostBreakdownTable', () => {
       buildOverview(),
     );
 
-    // Expand WI section → category → item
+    // Expand WI section → area → item
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-equip-items'));
-    fireEvent.click(getButtonByControls(container, 'wi-item-wi-crane-budget-lines'));
+    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByLabel('Expand Crane Rental'));
 
     expect(screen.getByText('Tower crane for 3 weeks')).toBeInTheDocument();
   });
@@ -698,8 +650,6 @@ describe('CostBreakdownTable', () => {
   it('shows "Untitled" for budget lines without a description', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithWI({
-        categoryName: 'Design',
-        categoryId: 'cat-design',
         itemTitle: 'Architect Fee',
         workItemId: 'wi-arch',
         description: null,
@@ -708,8 +658,8 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-design-items'));
-    fireEvent.click(getButtonByControls(container, 'wi-item-wi-arch-budget-lines'));
+    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByLabel('Expand Architect Fee'));
 
     expect(screen.getByText('Untitled')).toBeInTheDocument();
   });
@@ -723,14 +673,12 @@ describe('CostBreakdownTable', () => {
         actualCost: 950,
         projectedMin: 950,
         projectedMax: 950,
-        categoryName: 'Materials',
-        categoryId: 'cat-mat',
       }),
       buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-mat-items'));
+    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
 
     // The item row Cost column shows "-€950.00" (formatCost) without "Actual:" label
     expect(screen.getAllByText('-€950.00').length).toBeGreaterThanOrEqual(1);
@@ -834,18 +782,17 @@ describe('CostBreakdownTable', () => {
     expect(currencyElements.length).toBeGreaterThanOrEqual(1);
   });
 
-  // ── 26. selectedCategories filter — only matching WI category renders ──────
+  // ── 26. Multiple WI areas render after expanding WI section ──────────────
 
-  it('renders only the matching WI category when selectedCategories is set', () => {
-    const catId = 'cat-materials';
+  it('renders both area nodes after expanding WI section', () => {
     const breakdown: BudgetBreakdown = {
       workItems: {
-        categories: [
+        areas: [
           {
-            categoryId: catId,
-            categoryName: 'Materials',
-            categoryColor: null,
-            categoryTranslationKey: null,
+            areaId: 'area-kitchen',
+            name: 'Kitchen',
+            parentId: null,
+            color: null,
             projectedMin: 800,
             projectedMax: 1200,
             actualCost: 0,
@@ -854,34 +801,36 @@ describe('CostBreakdownTable', () => {
             rawProjectedMax: 1200,
             minSubsidyPayback: 0,
             items: [],
+            children: [],
           },
           {
-            categoryId: 'cat-labor',
-            categoryName: 'Labor',
-            categoryColor: null,
-            categoryTranslationKey: null,
-            projectedMin: 1000,
-            projectedMax: 1500,
+            areaId: 'area-bathroom',
+            name: 'Bathroom',
+            parentId: null,
+            color: null,
+            projectedMin: 500,
+            projectedMax: 700,
             actualCost: 0,
             subsidyPayback: 0,
-            rawProjectedMin: 1000,
-            rawProjectedMax: 1500,
+            rawProjectedMin: 500,
+            rawProjectedMax: 700,
             minSubsidyPayback: 0,
             items: [],
+            children: [],
           },
         ],
         totals: {
-          projectedMin: 1800,
-          projectedMax: 2700,
+          projectedMin: 1300,
+          projectedMax: 1900,
           actualCost: 0,
           subsidyPayback: 0,
-          rawProjectedMin: 1800,
-          rawProjectedMax: 2700,
+          rawProjectedMin: 1300,
+          rawProjectedMax: 1900,
           minSubsidyPayback: 0,
         },
       },
       householdItems: {
-        categories: [],
+        areas: [],
         totals: {
           projectedMin: 0,
           projectedMax: 0,
@@ -899,7 +848,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={breakdown}
         overview={buildOverview()}
-        selectedCategories={new Set([catId])}
         budgetSources={[]}
       />,
     );
@@ -907,41 +855,28 @@ describe('CostBreakdownTable', () => {
     // Expand WI section
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
 
-    expect(screen.getByText('Materials')).toBeInTheDocument();
-    expect(screen.queryByText('Labor')).not.toBeInTheDocument();
+    expect(screen.getByText('Kitchen')).toBeInTheDocument();
+    expect(screen.getByText('Bathroom')).toBeInTheDocument();
   });
 
-  it('shows all WI categories when selectedCategories is empty', () => {
+  it('renders Unassigned area node when items have no area', () => {
     const breakdown: BudgetBreakdown = {
       workItems: {
-        categories: [
+        areas: [
           {
-            categoryId: 'cat-a',
-            categoryName: 'CategoryA',
-            categoryColor: null,
-            categoryTranslationKey: null,
-            projectedMin: 100,
-            projectedMax: 200,
+            areaId: null,
+            name: 'Unassigned',
+            parentId: null,
+            color: null,
+            projectedMin: 400,
+            projectedMax: 600,
             actualCost: 0,
             subsidyPayback: 0,
-            rawProjectedMin: 100,
-            rawProjectedMax: 200,
+            rawProjectedMin: 400,
+            rawProjectedMax: 600,
             minSubsidyPayback: 0,
             items: [],
-          },
-          {
-            categoryId: 'cat-b',
-            categoryName: 'CategoryB',
-            categoryColor: null,
-            categoryTranslationKey: null,
-            projectedMin: 300,
-            projectedMax: 400,
-            actualCost: 0,
-            subsidyPayback: 0,
-            rawProjectedMin: 300,
-            rawProjectedMax: 400,
-            minSubsidyPayback: 0,
-            items: [],
+            children: [],
           },
         ],
         totals: {
@@ -955,7 +890,7 @@ describe('CostBreakdownTable', () => {
         },
       },
       householdItems: {
-        categories: [],
+        areas: [],
         totals: {
           projectedMin: 0,
           projectedMax: 0,
@@ -973,54 +908,38 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={breakdown}
         overview={buildOverview()}
-        selectedCategories={new Set()}
         budgetSources={[]}
       />,
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
 
-    expect(screen.getByText('CategoryA')).toBeInTheDocument();
-    expect(screen.getByText('CategoryB')).toBeInTheDocument();
+    expect(screen.getByText('Unassigned')).toBeInTheDocument();
   });
 
-  // ── 27. HI section always shows regardless of WI filter ──────────────────
+  // ── 27. HI section shows alongside WI section ──────────────────────────────
 
-  it('shows HI section even when selectedCategories filters all WI categories', () => {
+  it('shows HI section even when WI section has no areas', () => {
     const breakdown: BudgetBreakdown = {
       workItems: {
-        categories: [
-          {
-            categoryId: 'cat-x',
-            categoryName: 'CategoryX',
-            categoryColor: null,
-            categoryTranslationKey: null,
-            projectedMin: 100,
-            projectedMax: 200,
-            actualCost: 0,
-            subsidyPayback: 0,
-            rawProjectedMin: 100,
-            rawProjectedMax: 200,
-            minSubsidyPayback: 0,
-            items: [],
-          },
-        ],
+        areas: [],
         totals: {
-          projectedMin: 100,
-          projectedMax: 200,
+          projectedMin: 0,
+          projectedMax: 0,
           actualCost: 0,
           subsidyPayback: 0,
-          rawProjectedMin: 100,
-          rawProjectedMax: 200,
+          rawProjectedMin: 0,
+          rawProjectedMax: 0,
           minSubsidyPayback: 0,
         },
       },
       householdItems: {
-        categories: [
+        areas: [
           {
-            hiCategory: 'Living Room',
-            categoryName: 'Living Room',
-            categoryTranslationKey: null,
+            areaId: 'area-hi-lr',
+            name: 'Living Room',
+            parentId: null,
+            color: null,
             projectedMin: 300,
             projectedMax: 500,
             actualCost: 0,
@@ -1029,6 +948,7 @@ describe('CostBreakdownTable', () => {
             rawProjectedMax: 500,
             minSubsidyPayback: 0,
             items: [],
+            children: [],
           },
         ],
         totals: {
@@ -1048,8 +968,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={breakdown}
         overview={buildOverview()}
-        // Filter to a category that doesn't exist — hides WI section but not HI
-        selectedCategories={new Set(['cat-nonexistent'])}
         budgetSources={[]}
       />,
     );
@@ -1066,7 +984,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMax: 1200 })}
         overview={buildOverview(100000)}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1083,7 +1001,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMax: 50000 })}
         overview={buildOverview(100)}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1099,7 +1017,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildEmptyBreakdown()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1112,7 +1030,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildEmptyBreakdown()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1125,7 +1043,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildEmptyBreakdown()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1140,7 +1058,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1154,7 +1072,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithHI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1168,7 +1086,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1177,20 +1095,20 @@ describe('CostBreakdownTable', () => {
     expect(wiToggle).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('category toggle button has aria-expanded after WI section expanded', () => {
+  it('area toggle button has aria-expanded after WI section expanded', () => {
     const { container } = render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({ categoryName: 'Permits', categoryId: 'cat-perm' })}
+        breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
 
-    const catToggle = getButtonByControls(container, 'wi-cat-cat-perm-items');
-    expect(catToggle).toHaveAttribute('aria-expanded');
+    const areaToggle = getButtonByControls(container, 'area:Unassigned');
+    expect(areaToggle).toHaveAttribute('aria-expanded');
   });
 
   it('item toggle button has aria-expanded after expanding category', () => {
@@ -1205,9 +1123,9 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-ins-items'));
+    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
 
-    const itemToggle = getButtonByControls(container, 'wi-item-wi-ins-budget-lines');
+    const itemToggle = getButtonByLabel('Expand Home Insurance');
     expect(itemToggle).toHaveAttribute('aria-expanded');
   });
 
@@ -1218,7 +1136,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithHI({ hiCategory: 'Home Office' })}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1229,7 +1147,7 @@ describe('CostBreakdownTable', () => {
     expect(screen.getByText('Home Office')).toBeInTheDocument();
   });
 
-  it('shows HI item name after expanding HI category', () => {
+  it('shows HI item name after expanding HI section and HI area', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithHI({
         hiCategory: 'Kitchen',
@@ -1240,19 +1158,20 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'hi-cat-Kitchen-items'));
+    // HI area expand button is initially collapsed → aria-label="Expand {name}"
+    fireEvent.click(getButtonByControls(container, 'hi-area:Kitchen'));
 
     expect(screen.getByText('Dishwasher')).toBeInTheDocument();
   });
 
   // ── Toggle collapse ────────────────────────────────────────────────────────
 
-  it('collapses WI category rows when toggle is clicked a second time', () => {
+  it('collapses WI area rows when toggle is clicked a second time', () => {
     const { container } = render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({ categoryName: 'Contingency', categoryId: 'cat-cont' })}
+        breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1261,11 +1180,11 @@ describe('CostBreakdownTable', () => {
 
     // Expand
     fireEvent.click(wiToggle);
-    expect(screen.getByText('Contingency')).toBeInTheDocument();
+    expect(screen.getByText('Unassigned')).toBeInTheDocument();
 
     // Collapse
     fireEvent.click(wiToggle);
-    expect(screen.queryByText('Contingency')).not.toBeInTheDocument();
+    expect(screen.queryByText('Unassigned')).not.toBeInTheDocument();
   });
 
   // ── Table structure — Column Headers ──────────────────────────────────────
@@ -1276,7 +1195,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1291,7 +1210,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1304,7 +1223,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1320,12 +1239,12 @@ describe('CostBreakdownTable', () => {
   it('level-0 rows are labeled "Work Items", "Household Items", "Sum", "Available funds", "Remaining Budget"', () => {
     const breakdown: BudgetBreakdown = {
       workItems: {
-        categories: [
+        areas: [
           {
-            categoryId: 'cat-1',
-            categoryName: 'Materials',
-            categoryColor: null,
-            categoryTranslationKey: null,
+            areaId: 'area-1',
+            name: 'Kitchen',
+            parentId: null,
+            color: null,
             projectedMin: 500,
             projectedMax: 700,
             actualCost: 0,
@@ -1334,6 +1253,7 @@ describe('CostBreakdownTable', () => {
             rawProjectedMax: 700,
             minSubsidyPayback: 0,
             items: [],
+            children: [],
           },
         ],
         totals: {
@@ -1347,11 +1267,12 @@ describe('CostBreakdownTable', () => {
         },
       },
       householdItems: {
-        categories: [
+        areas: [
           {
-            hiCategory: 'Living Room',
-            categoryName: 'Living Room',
-            categoryTranslationKey: null,
+            areaId: 'area-hi-1',
+            name: 'Living Room',
+            parentId: null,
+            color: null,
             projectedMin: 200,
             projectedMax: 300,
             actualCost: 0,
@@ -1360,6 +1281,7 @@ describe('CostBreakdownTable', () => {
             rawProjectedMax: 300,
             minSubsidyPayback: 0,
             items: [],
+            children: [],
           },
         ],
         totals: {
@@ -1379,7 +1301,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={breakdown}
         overview={buildOverview(100000)}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1395,51 +1317,51 @@ describe('CostBreakdownTable', () => {
   // After Bug #585 was fixed, the "Total {category}" sum row no longer renders.
   // The category header row still shows the category name with cost values.
 
-  it('does not show a sum row ("Total Contingency") after expanding a WI category (Bug #585)', () => {
+  it('does not show a "Total {area}" sum row after expanding a WI area (Bug #585)', () => {
     const { container } = renderWithRouter(
-      buildBreakdownWithWI({ categoryName: 'Contingency', categoryId: 'cat-cont2' }),
+      buildBreakdownWithWI(),
       buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-cont2-items'));
+    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
 
-    // Category header row still shows the category name
-    expect(screen.getByText('Contingency')).toBeInTheDocument();
-    // But no "Total Contingency" sum row should appear after the fix
-    expect(screen.queryByText('Total Contingency')).not.toBeInTheDocument();
+    // Area header row still shows the area name
+    expect(screen.getByText('Unassigned')).toBeInTheDocument();
+    // But no "Total Unassigned" sum row should appear
+    expect(screen.queryByText('Total Unassigned')).not.toBeInTheDocument();
   });
 
-  it('does not show a sum row ("Total Garage") after expanding an HI category (Bug #585)', () => {
+  it('does not show a "Total {area}" sum row after expanding an HI area (Bug #585)', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithHI({ hiCategory: 'Garage', householdItemId: 'hi-stor' }),
       buildOverview(),
     );
 
     fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'hi-cat-Garage-items'));
+    fireEvent.click(getButtonByControls(container, 'hi-area:Garage'));
 
-    // Category header row still shows the category name
+    // Area header row still shows the area name
     expect(screen.getByText('Garage')).toBeInTheDocument();
-    // But no "Total Garage" sum row should appear after the fix
+    // But no "Total Garage" sum row should appear
     expect(screen.queryByText('Total Garage')).not.toBeInTheDocument();
   });
 
-  // ── Null category WI item ─────────────────────────────────────────────────
+  // ── Unassigned area node for null-area WI items ───────────────────────────
 
-  it('renders WI item with null categoryId under Uncategorized label', () => {
+  it('renders WI item with null areaId under Unassigned area label', () => {
     const { container } = render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({ categoryId: null, categoryName: 'Uncategorized' })}
+        breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
 
-    expect(screen.getByText('Uncategorized')).toBeInTheDocument();
+    expect(screen.getByText('Unassigned')).toBeInTheDocument();
   });
 
   // ── Perspective Toggle (Scenarios 1–6) ────────────────────────────────────
@@ -1450,7 +1372,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1527,7 +1449,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1550,7 +1472,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1693,8 +1615,8 @@ describe('CostBreakdownTable', () => {
 
     // Expand to budget line level
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-lab-inv-items'));
-    fireEvent.click(getButtonByControls(container, 'wi-item-wi-inv-budget-lines'));
+    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByLabel('Expand Foundation Work'));
 
     // Budget line row (level 3) with hasInvoice shows "invoiced" badge (not rowActual class)
     const invoicedBadges = container.querySelectorAll('.invoicedBadge');
@@ -1716,7 +1638,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview(100000)}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1733,7 +1655,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview(100000)}
-        selectedCategories={new Set()}
+
         budgetSources={[buildBudgetSource({ id: 'src-1', name: 'Bank Loan', totalAmount: 80000 })]}
       />,
     );
@@ -1749,7 +1671,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview(130000)}
-        selectedCategories={new Set()}
+
         budgetSources={[
           buildBudgetSource({ id: 'src-1', name: 'Savings Account', totalAmount: 50000 }),
           buildBudgetSource({ id: 'src-2', name: 'Bank Loan', totalAmount: 80000 }),
@@ -1775,7 +1697,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview(100000)}
-        selectedCategories={new Set()}
+
         budgetSources={[
           buildBudgetSource({ id: 'src-1', name: 'Credit Line', totalAmount: 60000 }),
         ]}
@@ -1816,7 +1738,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 800,
         })}
         overview={buildOverview(10000)}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1841,7 +1763,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 1000,
         })}
         overview={buildOverview(20000)}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1869,7 +1791,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 1000,
         })}
         overview={buildOverview(20000)}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1897,7 +1819,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 1000,
         })}
         overview={buildOverview(20000)}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1915,7 +1837,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -1933,7 +1855,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -2101,7 +2023,7 @@ describe('CostBreakdownTable', () => {
         <CostBreakdownTable
           breakdown={buildBreakdownWithHI({ hiCategory: 'Master Bedroom' })}
           overview={buildOverview()}
-          selectedCategories={new Set<string | null>()}
+
           budgetSources={[]}
         />
       </MemoryRouter>,
@@ -2149,7 +2071,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -2173,7 +2095,7 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 5000,
         })}
         overview={buildOverview(10000)}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -2202,7 +2124,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 100,
         })}
         overview={buildOverview(10000)}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -2227,7 +2149,7 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 5000,
         })}
         overview={buildOverview(10000)}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -2251,7 +2173,7 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 5000,
         })}
         overview={buildOverview(100)}
-        selectedCategories={new Set()}
+
         budgetSources={[]}
       />,
     );
@@ -2281,8 +2203,8 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-inv-badge-items'));
-    fireEvent.click(getButtonByControls(container, 'wi-item-wi-inv-badge-budget-lines'));
+    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByLabel('Expand Foundation Work'));
 
     // Both the work item row (costDisplay=actual) and the budget line row (hasInvoice=true)
     // show "invoiced" badges — verify at least one is present.
@@ -2316,8 +2238,8 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-no-conf-items'));
-    fireEvent.click(getButtonByControls(container, 'wi-item-wi-no-conf-budget-lines'));
+    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByLabel('Expand Foundation Work'));
 
     // Confidence badge text "own estimate" must NOT appear when hasInvoice=true
     expect(screen.queryByText('own estimate')).not.toBeInTheDocument();
@@ -2340,8 +2262,8 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-conf-pill-items'));
-    fireEvent.click(getButtonByControls(container, 'wi-item-wi-conf-pill-budget-lines'));
+    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByLabel('Expand Foundation Work'));
 
     // Confidence level "own_estimate" renders as "own estimate" in ConfidenceBadge
     expect(screen.getByText('own estimate')).toBeInTheDocument();
@@ -2481,8 +2403,8 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-no-actual-cls-items'));
-    fireEvent.click(getButtonByControls(container, 'wi-item-wi-no-actual-cls-budget-lines'));
+    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByLabel('Expand Foundation Work'));
 
     const level3Rows = container.querySelectorAll('.rowLevel3');
     expect(level3Rows.length).toBeGreaterThan(0);
@@ -2510,8 +2432,8 @@ describe('Bug #585 — no "Total {category}" sum row after expand', () => {
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-permits-585-items'));
 
-    // The category header row still shows the category name
-    expect(screen.getByText('Permits')).toBeInTheDocument();
+    // The item row is rendered (area-based UI — category name param is ignored, area is always Unassigned)
+    expect(screen.getByText('City Permit')).toBeInTheDocument();
 
     // After the bug fix, no "Total Permits" sum row should appear
     expect(screen.queryByText(/^Total /)).not.toBeInTheDocument();
@@ -2571,7 +2493,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
       ],
     };
 
-    const categoryBase = {
+    const areaBase = {
       projectedMin: 500,
       projectedMax: 700,
       actualCost: 0,
@@ -2579,23 +2501,24 @@ describe('Bug #586 — item expand state is independent per category', () => {
       rawProjectedMin: 500,
       rawProjectedMax: 700,
       minSubsidyPayback: 0,
-      categoryColor: null as null,
-      categoryTranslationKey: null as null,
+      parentId: null,
+      color: null,
+      children: [] as [],
     };
 
     return {
       workItems: {
-        categories: [
+        areas: [
           {
-            ...categoryBase,
-            categoryId: 'cat-alpha',
-            categoryName: 'Alpha',
+            ...areaBase,
+            areaId: 'area-alpha',
+            name: 'Alpha',
             items: [{ ...sharedItem }],
           },
           {
-            ...categoryBase,
-            categoryId: 'cat-beta',
-            categoryName: 'Beta',
+            ...areaBase,
+            areaId: 'area-beta',
+            name: 'Beta',
             items: [{ ...sharedItem }],
           },
         ],
@@ -2610,7 +2533,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
         },
       },
       householdItems: {
-        categories: [],
+        areas: [],
         totals: {
           projectedMin: 0,
           projectedMax: 0,
@@ -2653,7 +2576,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
       ],
     };
 
-    const hiCategoryBase = {
+    const hiAreaBase = {
       projectedMin: 300,
       projectedMax: 500,
       actualCost: 0,
@@ -2661,12 +2584,14 @@ describe('Bug #586 — item expand state is independent per category', () => {
       rawProjectedMin: 300,
       rawProjectedMax: 500,
       minSubsidyPayback: 0,
-      categoryTranslationKey: null as null,
+      parentId: null,
+      color: null,
+      children: [] as [],
     };
 
     return {
       workItems: {
-        categories: [],
+        areas: [],
         totals: {
           projectedMin: 0,
           projectedMax: 0,
@@ -2678,17 +2603,17 @@ describe('Bug #586 — item expand state is independent per category', () => {
         },
       },
       householdItems: {
-        categories: [
+        areas: [
           {
-            ...hiCategoryBase,
-            hiCategory: 'Furniture',
-            categoryName: 'Furniture',
+            ...hiAreaBase,
+            areaId: 'area-furniture',
+            name: 'Furniture',
             items: [{ ...sharedHIItem }],
           },
           {
-            ...hiCategoryBase,
-            hiCategory: 'Appliances',
-            categoryName: 'Appliances',
+            ...hiAreaBase,
+            areaId: 'area-appliances',
+            name: 'Appliances',
             items: [{ ...sharedHIItem }],
           },
         ],

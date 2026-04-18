@@ -42,23 +42,8 @@
       "vsMaxPlannedWithPayback": "Verbleibend vs. Max. Geplant (inkl. Rückzahlung)"
     },
     "ofAvailableFunds": "der verfügbaren Mittel",
-    "areaBreakdown": {
-      "title": "Bereichsaufschlüsselung",
-      "colName": "Bereich",
-      "colPlanned": "Geplant",
-      "colActual": "Tatsächlich",
-      "colVariance": "Abweichung",
-      "expandArea": "{{name}} ausklappen",
-      "collapseArea": "{{name}} einklappen",
-      "expandAll": "Alle ausklappen",
-      "collapseAll": "Alle einklappen",
-      "unassignedBucket": "Nicht zugewiesen",
-      "emptyMessage": "Es wurden noch keine Bereiche eingerichtet. Weisen Sie Arbeitspaketen Bereiche zu, um die Ausgaben nach Standort zu sehen.",
-      "expanded": "{{name}} ausgeklappt",
-      "collapsed": "{{name}} eingeklappt",
-      "tableCaption": "Bereichsbudget-Aufschlüsselung mit ausklappbarem Baum"
-    },
     "costBreakdown": {
+      "tableCaption": "Kostenaufschlüsselung nach Bereich und Element",
       "loading": "Kostenaufschlüsselung wird geladen…",
       "title": "Kostenaufschlüsselung",
       "emptyState": "Keine Budgetdaten zum Anzeigen",
@@ -75,7 +60,14 @@
         "net": "Netto"
       },
       "subsidyAdjustments": "Förderprogramme",
-      "oversubscribed": "Dieses Förderprogramm ist überzeichnet, der Maximalbetrag beträgt {{amount}}"
+      "oversubscribed": "Dieses Förderprogramm ist überzeichnet, der Maximalbetrag beträgt {{amount}}",
+      "area": {
+        "expandArea": "{{name}} ausklappen",
+        "collapseArea": "{{name}} einklappen",
+        "unassigned": "Nicht zugewiesen",
+        "expandWorkItemsLabel": "Arbeitspakete nach Bereich aufklappen",
+        "expandHouseholdItemsLabel": "Haushaltsartikel nach Bereich aufklappen"
+      }
     }
   },
   "sources": {
@@ -681,6 +673,9 @@
       "deleteTitle": "Rechnung Löschen",
       "deleteConfirm": "Sind Sie sicher, dass Sie die Rechnung {{number}} für {{amount}} löschen möchten?",
       "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden."
+    },
+    "actions": {
+      "menuAriaLabel": "Aktionen für Rechnung {{number}}"
     },
     "messages": {
       "createError": "Rechnung konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",

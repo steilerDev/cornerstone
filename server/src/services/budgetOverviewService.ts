@@ -2,9 +2,8 @@ import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
-import type { BudgetOverview, AreaBudgetSummary, OversubscribedSubsidy } from '@cornerstone/shared';
+import type { BudgetOverview, OversubscribedSubsidy } from '@cornerstone/shared';
 import { computeSubsidyEffects, applySubsidyCaps } from './shared/subsidyCalculationEngine.js';
-import { getDescendantIds } from './areaService.js';
 import type {
   LinkedSubsidy,
   SubsidyCapMeta,
@@ -300,96 +299,14 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   const actualCostPaid = invoiceTotalsRow?.actualCostPaid ?? 0;
   const actualCostClaimed = invoiceTotalsRow?.actualCostClaimed ?? 0;
 
-  // ── 9. Area-grouped budget aggregation ────────────────────────────────────
-  const areaRows = db.all<{
-    id: string;
-    name: string;
-    parentId: string | null;
-    sortOrder: number;
-  }>(
-    sql`SELECT id, name, parent_id AS parentId, sort_order AS sortOrder
-    FROM areas
-    ORDER BY sort_order ASC, name ASC`,
-  );
-
-  const workItemAreaRows = db.all<{
-    workItemId: string;
-    areaId: string | null;
-    totalPlanned: number;
-    totalActual: number;
-  }>(
-    sql`SELECT
-      wi.id AS workItemId,
-      wi.area_id AS areaId,
-      COALESCE(SUM(wib.planned_amount), 0) AS totalPlanned,
-      COALESCE(SUM(
-        CASE WHEN i.status != 'quotation' THEN ibl.itemized_amount ELSE 0 END
-      ), 0) AS totalActual
-    FROM work_items wi
-    LEFT JOIN work_item_budgets wib ON wib.work_item_id = wi.id
-    LEFT JOIN invoice_budget_lines ibl ON ibl.work_item_budget_id = wib.id
-    LEFT JOIN invoices i ON i.id = ibl.invoice_id
-    GROUP BY wi.id, wi.area_id`,
-  );
-
-  const unassignedRows = workItemAreaRows.filter((r) => r.areaId === null);
-  const assignedRows = workItemAreaRows.filter((r) => r.areaId !== null);
-
-  const directAreaTotals = new Map<string, { totalPlanned: number; totalActual: number }>();
-  for (const row of assignedRows) {
-    const areaId = row.areaId!;
-    const existing = directAreaTotals.get(areaId);
-    if (existing) {
-      existing.totalPlanned += row.totalPlanned;
-      existing.totalActual += row.totalActual;
-    } else {
-      directAreaTotals.set(areaId, {
-        totalPlanned: row.totalPlanned,
-        totalActual: row.totalActual,
-      });
-    }
-  }
-
-  const areaSummaries: AreaBudgetSummary[] = areaRows.map((area) => {
-    const descendantIds = getDescendantIds(db, area.id);
-    let rolledPlanned = 0;
-    let rolledActual = 0;
-    for (const descId of descendantIds) {
-      const totals = directAreaTotals.get(descId);
-      if (totals) {
-        rolledPlanned += totals.totalPlanned;
-        rolledActual += totals.totalActual;
-      }
-    }
-    return {
-      areaId: area.id,
-      name: area.name,
-      parentId: area.parentId,
-      planned: rolledPlanned,
-      actual: rolledActual,
-      variance: rolledPlanned - rolledActual,
-    };
-  });
-
-  let unassignedSummary: { planned: number; actual: number; variance: number } | null = null;
-  if (unassignedRows.length > 0) {
-    let uPlanned = 0;
-    let uActual = 0;
-    for (const row of unassignedRows) {
-      uPlanned += row.totalPlanned;
-      uActual += row.totalActual;
-    }
-    unassignedSummary = { planned: uPlanned, actual: uActual, variance: uPlanned - uActual };
-  }
-
-  // ── 10. Subsidy summary ───────────────────────────────────────────────────
+  // ── 9. Subsidy summary ───────────────────────────────────────────────────
   const subsidyCountRow = db.get<{ activeSubsidyCount: number }>(
     sql`SELECT COUNT(*) AS activeSubsidyCount
     FROM subsidy_programs
     WHERE application_status != 'rejected'`,
   );
 
-  // ── 10b. Aggregate subsidy payback across all work items ─────────────────
+  // ── 9a. Aggregate subsidy payback across all work items ─────────────────
   //
   // Replicates subsidyPaybackService logic globally across all budget lines.
   // For percentage subsidies: iterate over matching budget lines per work item.
@@ -511,7 +428,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     oversubscribedSubsidies,
   };
 
-  // ── 11. Remaining-funds perspectives ───────────────────────────────────────
+  // ── 10. Remaining-funds perspectives ───────────────────────────────────────
   const remainingVsMinPlanned = availableFunds - totalMinPlanned;
   const remainingVsMaxPlanned = availableFunds - totalMaxPlanned;
   const remainingVsActualCost = availableFunds - actualCost;
@@ -539,8 +456,6 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     remainingVsActualClaimed,
     remainingVsMinPlannedWithPayback,
     remainingVsMaxPlannedWithPayback,
-    areaSummaries,
-    unassignedSummary,
     subsidySummary,
   };
 }

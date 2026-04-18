@@ -166,6 +166,12 @@
   border-left: 3px solid var(--color-border-strong);
 }
 
+/* Area name cell with depth-based indent driven by inline --area-depth custom property */
+.cellAreaName {
+  padding-left: calc(var(--spacing-8) + (var(--spacing-6) * var(--area-depth, 0)));
+  border-left: 3px solid var(--color-border-strong);
+}
+
 /* ---- Level 2: Item rows ---- */
 
 .rowLevel2 td {
