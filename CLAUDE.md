@@ -247,8 +247,8 @@ Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Qualit
 | Bundler (client)           | Webpack                 | 5.x     | ADR-004 |
 | Styling                    | CSS Modules             | --      | ADR-006 |
 | Testing (unit/integration) | Jest (ts-jest)          | 30.x    | ADR-005 |
-| Testing (E2E)              | Playwright              | 1.58.x  | ADR-005 |
-| Language                   | TypeScript              | ~5.9    | --      |
+| Testing (E2E)              | Playwright              | 1.59.x  | ADR-005 |
+| Language                   | TypeScript              | ~6.0    | --      |
 | Runtime                    | Node.js                 | 24 LTS  | --      |
 | Container                  | Docker (DHI Alpine)     | --      | --      |
 | Monorepo                   | npm workspaces          | --      | ADR-007 |
@@ -309,6 +309,7 @@ The `docs` workspace is NOT part of the application build (`npm run build`). Bui
 - **Pin dependency versions to a specific release** — use exact versions rather than caret ranges (`^`) to prevent unexpected upgrades
 - **Avoid native binary dependencies for frontend tooling.** Tools like esbuild, SWC, Lightning CSS, and Tailwind CSS v4 (oxide engine) ship platform-specific native binaries that crash on ARM64 emulation environments. Prefer pure JavaScript alternatives (Webpack, Babel, PostCSS, CSS Modules). Native addons for the server (e.g., better-sqlite3) are acceptable since the Docker builder can install build tools. esbuild has been fully eliminated from the dependency tree.
 - **Zero known fixable vulnerabilities.** Run `npm audit` before committing dependency changes. All fixable vulnerabilities must be resolved.
+- **Always regenerate the lockfile with `npm install`, not `npm install --package-lock-only`** — `--package-lock-only` can silently nest a dependency under a workspace directory instead of hoisting it to the root `node_modules/`, breaking TypeScript type resolution for other workspace consumers. After any `package.json` edit, run a full `npm install` to produce a correct lockfile.
 
 ## Coding Standards
 
