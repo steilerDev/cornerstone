@@ -343,20 +343,20 @@ describe('getBudgetBreakdown', () => {
   // ── 1. Empty database ──────────────────────────────────────────────────────
 
   describe('empty database', () => {
-    it('returns workItems with empty categories and zero totals', () => {
+    it('returns workItems with empty areas and zero totals', () => {
       const result = getBudgetBreakdown(db);
 
-      expect(result.workItems.categories).toHaveLength(0);
+      expect(result.workItems.areas).toHaveLength(0);
       expect(result.workItems.totals.projectedMin).toBe(0);
       expect(result.workItems.totals.projectedMax).toBe(0);
       expect(result.workItems.totals.actualCost).toBe(0);
       expect(result.workItems.totals.subsidyPayback).toBe(0);
     });
 
-    it('returns householdItems with empty categories and zero totals', () => {
+    it('returns householdItems with empty areas and zero totals', () => {
       const result = getBudgetBreakdown(db);
 
-      expect(result.householdItems.categories).toHaveLength(0);
+      expect(result.householdItems.areas).toHaveLength(0);
       expect(result.householdItems.totals.projectedMin).toBe(0);
       expect(result.householdItems.totals.projectedMax).toBe(0);
       expect(result.householdItems.totals.actualCost).toBe(0);
@@ -367,12 +367,13 @@ describe('getBudgetBreakdown', () => {
   // ── 2. WI with no budget lines ─────────────────────────────────────────────
 
   describe('work item with no budget lines', () => {
-    it('is not included in breakdown categories', () => {
+    it('is not included in breakdown areas', () => {
       insertWorkItem({ noBudgetLine: true });
 
       const result = getBudgetBreakdown(db);
 
-      expect(result.workItems.categories).toHaveLength(0);
+      // No budget lines → not in breakdown (Unassigned node only appears if items have budget lines)
+      expect(result.workItems.areas).toHaveLength(0);
     });
   });
 
@@ -384,10 +385,11 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      expect(result.workItems.categories).toHaveLength(1);
-      const category = result.workItems.categories[0];
-      expect(category.items).toHaveLength(1);
-      expect(category.items[0].costDisplay).toBe('projected');
+      // No area → Unassigned bucket at areas[0]
+      expect(result.workItems.areas).toHaveLength(1);
+      const area = result.workItems.areas[0];
+      expect(area.items).toHaveLength(1);
+      expect(area.items[0].costDisplay).toBe('projected');
     });
 
     it('computes projectedMin and projectedMax using own_estimate margin (20%)', () => {
@@ -396,7 +398,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.projectedMin).toBeCloseTo(800, 5);
       expect(item.projectedMax).toBeCloseTo(1200, 5);
     });
@@ -407,7 +409,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.projectedMin).toBeCloseTo(1900, 5);
       expect(item.projectedMax).toBeCloseTo(2100, 5);
     });
@@ -417,7 +419,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.subsidyPayback).toBe(0);
     });
 
@@ -426,7 +428,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.actualCost).toBe(0);
     });
 
@@ -435,7 +437,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.budgetLines).toHaveLength(1);
       expect(item.budgetLines[0].hasInvoice).toBe(false);
       expect(item.budgetLines[0].actualCost).toBe(0);
@@ -450,7 +452,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.costDisplay).toBe('actual');
     });
 
@@ -459,7 +461,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.actualCost).toBe(950);
       // invoice confidence with actualCost: projected = actualCost
       expect(item.projectedMin).toBeCloseTo(950, 5);
@@ -471,7 +473,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.budgetLines[0].hasInvoice).toBe(true);
       expect(item.budgetLines[0].actualCost).toBe(750);
     });
@@ -495,8 +497,9 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      expect(result.workItems.categories).toHaveLength(1);
-      const item = result.workItems.categories[0].items[0];
+      // No area → single Unassigned bucket
+      expect(result.workItems.areas).toHaveLength(1);
+      const item = result.workItems.areas[0].items[0];
       expect(item.costDisplay).toBe('mixed');
     });
 
@@ -517,7 +520,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.actualCost).toBe(900); // only invoiced line
       expect(item.projectedMin).toBeCloseTo(900 + 500 * (1 - CONFIDENCE_MARGINS.own_estimate), 5);
       expect(item.projectedMax).toBeCloseTo(900 + 500 * (1 + CONFIDENCE_MARGINS.own_estimate), 5);
@@ -537,7 +540,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.budgetLines).toHaveLength(2);
       const invoicedLines = item.budgetLines.filter((l) => l.hasInvoice);
       const projectedLines = item.budgetLines.filter((l) => !l.hasInvoice);
@@ -546,48 +549,53 @@ describe('getBudgetBreakdown', () => {
     });
   });
 
-  // ── 6. Two WI items in the same budget category ───────────────────────────
+  // ── 6. Two WI items in the same area ─────────────────────────────────────
 
-  describe('two WI items in the same budget category', () => {
-    it('both appear under the same category entry', () => {
-      const catId = insertBudgetCategory('SameCat');
-      insertWorkItem({ title: 'Item A', plannedAmount: 1000, budgetCategoryId: catId });
-      insertWorkItem({ title: 'Item B', plannedAmount: 2000, budgetCategoryId: catId });
+  describe('two WI items in the same area', () => {
+    it('both appear under the same area node', () => {
+      const ts = new Date().toISOString();
+      const areaId = `area-test-six-${idCounter++}`;
+      db.insert(schema.areas)
+        .values({ id: areaId, name: 'SameArea', parentId: null, color: null, sortOrder: 100, createdAt: ts, updatedAt: ts })
+        .run();
+      insertWorkItem({ title: 'Item A', plannedAmount: 1000 });
+      insertWorkItem({ title: 'Item B', plannedAmount: 2000 });
 
+      // Both items have no areaId → both appear in Unassigned bucket
       const result = getBudgetBreakdown(db);
 
-      const cat = result.workItems.categories.find((c) => c.categoryId === catId);
-      expect(cat).toBeDefined();
-      expect(cat!.items).toHaveLength(2);
+      const unassigned = result.workItems.areas.find((a) => a.areaId === null);
+      expect(unassigned).toBeDefined();
+      expect(unassigned!.items).toHaveLength(2);
     });
 
-    it('category totals sum correctly across both items', () => {
-      const catId = insertBudgetCategory('SumCat');
+    it('area totals sum correctly across both items', () => {
       // Item A: own_estimate, planned=1000 → max=1200
       // Item B: quote, planned=2000 → max=2100
-      insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate', budgetCategoryId: catId });
-      insertWorkItem({ plannedAmount: 2000, confidence: 'quote', budgetCategoryId: catId });
+      insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
+      insertWorkItem({ plannedAmount: 2000, confidence: 'quote' });
 
       const result = getBudgetBreakdown(db);
 
-      const cat = result.workItems.categories.find((c) => c.categoryId === catId)!;
-      expect(cat.projectedMax).toBeCloseTo(1200 + 2100, 5);
-      expect(cat.projectedMin).toBeCloseTo(800 + 1900, 5);
+      // Both items have null area → Unassigned bucket
+      const unassigned = result.workItems.areas.find((a) => a.areaId === null)!;
+      expect(unassigned.projectedMax).toBeCloseTo(1200 + 2100, 5);
+      expect(unassigned.projectedMin).toBeCloseTo(800 + 1900, 5);
     });
   });
 
-  // ── 7. WI item with null budget category ──────────────────────────────────
+  // ── 7. WI item with no area (null areaId) ────────────────────────────────
 
-  describe('WI item with null budget category', () => {
-    it('appears under categoryId=null with categoryName=Uncategorized', () => {
-      insertWorkItem({ plannedAmount: 500, budgetCategoryId: null });
+  describe('WI item with null areaId', () => {
+    it('appears under synthetic Unassigned node (areaId=null, name=Unassigned)', () => {
+      insertWorkItem({ plannedAmount: 500 });
 
       const result = getBudgetBreakdown(db);
 
-      const uncategorized = result.workItems.categories.find((c) => c.categoryId === null);
-      expect(uncategorized).toBeDefined();
-      expect(uncategorized!.categoryName).toBe('Uncategorized');
-      expect(uncategorized!.items).toHaveLength(1);
+      const unassigned = result.workItems.areas.find((a) => a.areaId === null);
+      expect(unassigned).toBeDefined();
+      expect(unassigned!.name).toBe('Unassigned');
+      expect(unassigned!.items).toHaveLength(1);
     });
   });
 
@@ -609,7 +617,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.subsidyPayback).toBeCloseTo(120, 5);
     });
 
@@ -629,7 +637,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.projectedMin).toBeCloseTo(680, 5);
       expect(item.projectedMax).toBeCloseTo(1080, 5);
     });
@@ -645,21 +653,19 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.subsidyPayback).toBe(0);
     });
 
-    it('computes category-level subsidyPayback as sum of item paybacks', () => {
-      const catId = insertBudgetCategory('SubsidyCat');
+    it('computes area-level subsidyPayback as sum of item paybacks', () => {
+      // Both WI have null area → both go to Unassigned bucket
       const { workItemId: idA } = insertWorkItem({
         plannedAmount: 1000,
         confidence: 'own_estimate',
-        budgetCategoryId: catId,
       });
       const { workItemId: idB } = insertWorkItem({
         plannedAmount: 2000,
         confidence: 'own_estimate',
-        budgetCategoryId: catId,
       });
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkWorkItemSubsidy(idA, subsidyId);
@@ -667,31 +673,27 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const cat = result.workItems.categories.find((c) => c.categoryId === catId)!;
+      const unassigned = result.workItems.areas.find((a) => a.areaId === null)!;
       // Item A: payback = 1000*1.2*0.1 = 120; Item B: payback = 2000*1.2*0.1 = 240
-      expect(cat.subsidyPayback).toBeCloseTo(360, 5);
+      expect(unassigned.subsidyPayback).toBeCloseTo(360, 5);
     });
   });
 
   // ── 9. Household item with budget line ────────────────────────────────────
 
   describe('household item with budget line', () => {
-    it('appears under the correct hiCategory', () => {
+    it('appears in the Unassigned area node (null areaId) when no area assigned', () => {
       insertHouseholdItem({ name: 'Sofa', category: 'hic-furniture', plannedAmount: 800 });
 
       const result = getBudgetBreakdown(db);
 
-      expect(result.householdItems.categories).toHaveLength(1);
-      const cat = result.householdItems.categories[0];
-      expect(cat.hiCategory).toBe('hic-furniture');
-      expect(typeof cat.categoryName).toBe('string');
-      expect(cat.categoryName.length).toBeGreaterThan(0);
-      // categoryTranslationKey is either a string or null
-      expect(
-        cat.categoryTranslationKey === null || typeof cat.categoryTranslationKey === 'string',
-      ).toBe(true);
-      expect(cat.items).toHaveLength(1);
-      expect(cat.items[0].name).toBe('Sofa');
+      // HI has no area → Unassigned bucket
+      expect(result.householdItems.areas).toHaveLength(1);
+      const area = result.householdItems.areas[0];
+      expect(area.areaId).toBeNull();
+      expect(area.name).toBe('Unassigned');
+      expect(area.items).toHaveLength(1);
+      expect((area.items[0] as { name: string }).name).toBe('Sofa');
     });
 
     it('sets costDisplay to projected when no invoices', () => {
@@ -699,7 +701,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.householdItems.categories[0].items[0];
+      const item = result.householdItems.areas[0].items[0];
       expect(item.costDisplay).toBe('projected');
     });
 
@@ -709,7 +711,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.householdItems.categories[0].items[0];
+      const item = result.householdItems.areas[0].items[0];
       expect(item.projectedMin).toBeCloseTo(1200 * 0.95, 5);
       expect(item.projectedMax).toBeCloseTo(1200 * 1.05, 5);
     });
@@ -724,63 +726,78 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.householdItems.categories[0].items[0];
+      const item = result.householdItems.areas[0].items[0];
       expect(item.costDisplay).toBe('actual');
       expect(item.actualCost).toBe(480);
     });
   });
 
-  // ── 10. HI items from multiple categories ─────────────────────────────────
+  // ── 10. HI items — area grouping ──────────────────────────────────────────
 
-  describe('HI items from multiple categories', () => {
-    it('only present categories appear in the result', () => {
+  describe('HI items — multiple HI items go to Unassigned when no area', () => {
+    it('multiple null-area HI items share the same Unassigned bucket', () => {
       insertHouseholdItem({ category: 'hic-furniture', plannedAmount: 500 });
       insertHouseholdItem({ category: 'hic-electronics', plannedAmount: 300 });
 
       const result = getBudgetBreakdown(db);
 
-      const categories = result.householdItems.categories.map((c) => c.hiCategory);
-      expect(categories).toContain('hic-furniture');
-      expect(categories).toContain('hic-electronics');
-      // Other categories not present (no items)
-      expect(categories).not.toContain('hic-appliances');
-      expect(categories).not.toContain('hic-fixtures');
+      // Both items have null area → single Unassigned bucket with 2 items
+      expect(result.householdItems.areas).toHaveLength(1);
+      expect(result.householdItems.areas[0].areaId).toBeNull();
+      expect(result.householdItems.areas[0].items).toHaveLength(2);
     });
 
-    it('categories are in the canonical HI_CATEGORY_ORDER', () => {
-      // Insert in reverse order to test sorting
-      insertHouseholdItem({ category: 'hic-other', plannedAmount: 100 });
-      insertHouseholdItem({ category: 'hic-furniture', plannedAmount: 200 });
-      insertHouseholdItem({ category: 'hic-appliances', plannedAmount: 300 });
+    it('HI items in different named areas appear in separate area nodes', () => {
+      const ts = new Date().toISOString();
+      const areaIdA = `area-hi-a-${idCounter++}`;
+      const areaIdB = `area-hi-b-${idCounter++}`;
+      db.insert(schema.areas)
+        .values({ id: areaIdA, name: 'Living Room', parentId: null, color: null, sortOrder: 10, createdAt: ts, updatedAt: ts })
+        .run();
+      db.insert(schema.areas)
+        .values({ id: areaIdB, name: 'Bedroom', parentId: null, color: null, sortOrder: 20, createdAt: ts, updatedAt: ts })
+        .run();
+      // Insert HI with areaId via direct DB insert (helper doesn't expose areaId)
+      const hiIdA = `hi-direct-a-${idCounter++}`;
+      const hiIdB = `hi-direct-b-${idCounter++}`;
+      const hibIdA = `hibud-direct-a-${idCounter++}`;
+      const hibIdB = `hibud-direct-b-${idCounter++}`;
+      db.insert(schema.householdItems)
+        .values({ id: hiIdA, name: 'Sofa', categoryId: 'hic-furniture', status: 'planned', quantity: 1, isLate: false, areaId: areaIdA, createdAt: ts, updatedAt: ts })
+        .run();
+      db.insert(schema.householdItemBudgets)
+        .values({ id: hibIdA, householdItemId: hiIdA, plannedAmount: 500, confidence: 'own_estimate', budgetCategoryId: null, budgetSourceId: null, createdAt: ts, updatedAt: ts })
+        .run();
+      db.insert(schema.householdItems)
+        .values({ id: hiIdB, name: 'TV', categoryId: 'hic-electronics', status: 'planned', quantity: 1, isLate: false, areaId: areaIdB, createdAt: ts, updatedAt: ts })
+        .run();
+      db.insert(schema.householdItemBudgets)
+        .values({ id: hibIdB, householdItemId: hiIdB, plannedAmount: 300, confidence: 'own_estimate', budgetCategoryId: null, budgetSourceId: null, createdAt: ts, updatedAt: ts })
+        .run();
 
       const result = getBudgetBreakdown(db);
 
-      const categories = result.householdItems.categories.map((c) => c.hiCategory);
-      // Furniture (sort_order=0) comes before Appliances (sort_order=1) comes before Other (sort_order=7)
-      const idxFurniture = categories.indexOf('hic-furniture');
-      const idxAppliances = categories.indexOf('hic-appliances');
-      const idxOther = categories.indexOf('hic-other');
-      expect(idxFurniture).toBeLessThan(idxAppliances);
-      expect(idxAppliances).toBeLessThan(idxOther);
+      const areaIds = result.householdItems.areas.map((a) => a.areaId);
+      expect(areaIds).toContain(areaIdA);
+      expect(areaIds).toContain(areaIdB);
     });
   });
 
   // ── 11. Section totals validation ────────────────────────────────────────
 
   describe('section totals', () => {
-    it('wiTotals.projectedMax equals sum of all category projectedMax values', () => {
-      const catA = insertBudgetCategory('CatA');
-      const catB = insertBudgetCategory('CatB');
-      insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate', budgetCategoryId: catA });
-      insertWorkItem({ plannedAmount: 2000, confidence: 'quote', budgetCategoryId: catB });
+    it('wiTotals.projectedMax equals sum of all area projectedMax values', () => {
+      // Both items have null areaId → land in the single Unassigned area node
+      insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
+      insertWorkItem({ plannedAmount: 2000, confidence: 'quote' });
 
       const result = getBudgetBreakdown(db);
 
-      const sumMax = result.workItems.categories.reduce((acc, c) => acc + c.projectedMax, 0);
+      const sumMax = result.workItems.areas.reduce((acc, a) => acc + a.projectedMax, 0);
       expect(result.workItems.totals.projectedMax).toBeCloseTo(sumMax, 5);
     });
 
-    it('hiTotals.projectedMax equals sum of all HI category projectedMax values', () => {
+    it('hiTotals.projectedMax equals sum of all HI area projectedMax values', () => {
       insertHouseholdItem({ category: 'hic-furniture', plannedAmount: 800, confidence: 'quote' });
       insertHouseholdItem({
         category: 'hic-electronics',
@@ -790,24 +807,13 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const sumMax = result.householdItems.categories.reduce((acc, c) => acc + c.projectedMax, 0);
+      const sumMax = result.householdItems.areas.reduce((acc, a) => acc + a.projectedMax, 0);
       expect(result.householdItems.totals.projectedMax).toBeCloseTo(sumMax, 5);
     });
 
-    it('wiTotals.actualCost equals sum of all category actualCost values', () => {
-      const catA = insertBudgetCategory('ActualCatA');
-      insertWorkItem({
-        plannedAmount: 1000,
-        confidence: 'invoice',
-        actualCost: 950,
-        budgetCategoryId: catA,
-      });
-      insertWorkItem({
-        plannedAmount: 2000,
-        confidence: 'invoice',
-        actualCost: 1800,
-        budgetCategoryId: catA,
-      });
+    it('wiTotals.actualCost equals sum of all actual costs', () => {
+      insertWorkItem({ plannedAmount: 1000, confidence: 'invoice', actualCost: 950 });
+      insertWorkItem({ plannedAmount: 2000, confidence: 'invoice', actualCost: 1800 });
 
       const result = getBudgetBreakdown(db);
 
@@ -833,7 +839,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.householdItems.categories[0].items[0];
+      const item = result.householdItems.areas[0].items[0];
       expect(item.subsidyPayback).toBeCloseTo(240, 5);
     });
   });
@@ -851,8 +857,9 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      expect(result.workItems.categories).toHaveLength(1);
-      expect(result.householdItems.categories).toHaveLength(1);
+      // Both items have null areaId → one Unassigned area node each
+      expect(result.workItems.areas).toHaveLength(1);
+      expect(result.householdItems.areas).toHaveLength(1);
     });
   });
 
@@ -875,7 +882,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       // projectedMin is subsidy-adjusted (680), rawProjectedMin is gross (800)
       expect(item.rawProjectedMin).toBeCloseTo(800, 5);
       expect(item.rawProjectedMax).toBeCloseTo(1200, 5);
@@ -888,7 +895,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       // No subsidy → raw and adjusted values are identical
       expect(item.rawProjectedMin).toBeCloseTo(item.projectedMin, 5);
       expect(item.rawProjectedMax).toBeCloseTo(item.projectedMax, 5);
@@ -900,25 +907,20 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.rawProjectedMin).toBeCloseTo(950, 5);
       expect(item.rawProjectedMax).toBeCloseTo(950, 5);
     });
 
-    it('category rawProjectedMin/Max aggregates correctly across items', () => {
-      const catId = insertBudgetCategory('RawCat');
+    it('area rawProjectedMin/Max aggregates correctly across items', () => {
       // Item A: own_estimate, planned=1000 → raw min=800, raw max=1200
       // Item B: quote, planned=2000 → raw min=1900, raw max=2100
+      // Both land in the Unassigned area node (null areaId)
       const { workItemId: idA } = insertWorkItem({
         plannedAmount: 1000,
         confidence: 'own_estimate',
-        budgetCategoryId: catId,
       });
-      insertWorkItem({
-        plannedAmount: 2000,
-        confidence: 'quote',
-        budgetCategoryId: catId,
-      });
+      insertWorkItem({ plannedAmount: 2000, confidence: 'quote' });
       // Link subsidy to A to separate raw vs adjusted
       const subsidyId = insertSubsidyProgram({
         reductionType: 'percentage',
@@ -928,22 +930,21 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const cat = result.workItems.categories.find((c) => c.categoryId === catId)!;
-      // Item A raw min=800, Item B raw min=1900 → category raw min=2700
-      expect(cat.rawProjectedMin).toBeCloseTo(800 + 1900, 5);
-      expect(cat.rawProjectedMax).toBeCloseTo(1200 + 2100, 5);
+      const unassigned = result.workItems.areas[0]!;
+      // Item A raw min=800, Item B raw min=1900 → area raw min=2700
+      expect(unassigned.rawProjectedMin).toBeCloseTo(800 + 1900, 5);
+      expect(unassigned.rawProjectedMax).toBeCloseTo(1200 + 2100, 5);
     });
 
-    it('wiTotals.rawProjectedMin/Max equals sum of category raw fields', () => {
-      const catA = insertBudgetCategory('RawTotA');
-      const catB = insertBudgetCategory('RawTotB');
-      insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate', budgetCategoryId: catA });
-      insertWorkItem({ plannedAmount: 2000, confidence: 'quote', budgetCategoryId: catB });
+    it('wiTotals.rawProjectedMin/Max equals sum of area raw fields', () => {
+      // Items land in Unassigned bucket; check totals aggregate the single area node
+      insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
+      insertWorkItem({ plannedAmount: 2000, confidence: 'quote' });
 
       const result = getBudgetBreakdown(db);
 
-      const sumRawMin = result.workItems.categories.reduce((acc, c) => acc + c.rawProjectedMin, 0);
-      const sumRawMax = result.workItems.categories.reduce((acc, c) => acc + c.rawProjectedMax, 0);
+      const sumRawMin = result.workItems.areas.reduce((acc, a) => acc + a.rawProjectedMin, 0);
+      const sumRawMax = result.workItems.areas.reduce((acc, a) => acc + a.rawProjectedMax, 0);
       expect(result.workItems.totals.rawProjectedMin).toBeCloseTo(sumRawMin, 5);
       expect(result.workItems.totals.rawProjectedMax).toBeCloseTo(sumRawMax, 5);
     });
@@ -963,7 +964,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.householdItems.categories[0].items[0];
+      const item = result.householdItems.areas[0].items[0];
       expect(item.rawProjectedMin).toBeCloseTo(1200 * 0.95, 5);
       expect(item.rawProjectedMax).toBeCloseTo(1200 * 1.05, 5);
       // adjusted values are reduced by subsidy payback
@@ -988,7 +989,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.minSubsidyPayback).toBeCloseTo(80, 5);
       expect(item.subsidyPayback).toBeCloseTo(120, 5);
     });
@@ -1008,7 +1009,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       // Both use actualCost=900 → payback = 900 * 0.15 = 135
       expect(item.minSubsidyPayback).toBeCloseTo(135, 5);
       expect(item.subsidyPayback).toBeCloseTo(135, 5);
@@ -1020,7 +1021,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.minSubsidyPayback).toBe(0);
     });
 
@@ -1040,73 +1041,43 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.householdItems.categories[0].items[0];
+      const item = result.householdItems.areas[0].items[0];
       expect(item.minSubsidyPayback).toBeCloseTo(80, 5);
     });
 
-    it('category minSubsidyPayback aggregates item minSubsidyPaybacks', () => {
-      const catId = insertBudgetCategory('MinPaybackCat');
+    it('area minSubsidyPayback aggregates item minSubsidyPaybacks', () => {
       // Item A: own_estimate 1000, 10% subsidy → min payback = 800*0.1 = 80
       // Item B: own_estimate 2000, 10% subsidy → min payback = 1600*0.1 = 160
-      const { workItemId: idA } = insertWorkItem({
-        plannedAmount: 1000,
-        confidence: 'own_estimate',
-        budgetCategoryId: catId,
-      });
-      const { workItemId: idB } = insertWorkItem({
-        plannedAmount: 2000,
-        confidence: 'own_estimate',
-        budgetCategoryId: catId,
-      });
+      // Both land in the Unassigned area node (null areaId)
+      const { workItemId: idA } = insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
+      const { workItemId: idB } = insertWorkItem({ plannedAmount: 2000, confidence: 'own_estimate' });
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkWorkItemSubsidy(idA, subsidyId);
       linkWorkItemSubsidy(idB, subsidyId);
 
       const result = getBudgetBreakdown(db);
 
-      const cat = result.workItems.categories.find((c) => c.categoryId === catId)!;
-      expect(cat.minSubsidyPayback).toBeCloseTo(80 + 160, 5);
+      const unassigned = result.workItems.areas[0]!;
+      expect(unassigned.minSubsidyPayback).toBeCloseTo(80 + 160, 5);
     });
 
-    it('wiTotals.minSubsidyPayback equals sum of category minSubsidyPayback values', () => {
-      const catA = insertBudgetCategory('MinTotA');
-      const catB = insertBudgetCategory('MinTotB');
-      const { workItemId: idA } = insertWorkItem({
-        plannedAmount: 1000,
-        confidence: 'own_estimate',
-        budgetCategoryId: catA,
-      });
-      const { workItemId: idB } = insertWorkItem({
-        plannedAmount: 2000,
-        confidence: 'own_estimate',
-        budgetCategoryId: catB,
-      });
+    it('wiTotals.minSubsidyPayback equals sum of area minSubsidyPayback values', () => {
+      // Both items go to Unassigned; totals.minSubsidyPayback should equal the single area node's value
+      const { workItemId: idA } = insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
+      const { workItemId: idB } = insertWorkItem({ plannedAmount: 2000, confidence: 'own_estimate' });
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkWorkItemSubsidy(idA, subsidyId);
       linkWorkItemSubsidy(idB, subsidyId);
 
       const result = getBudgetBreakdown(db);
 
-      const sumMinPayback = result.workItems.categories.reduce(
-        (acc, c) => acc + c.minSubsidyPayback,
-        0,
-      );
+      const sumMinPayback = result.workItems.areas.reduce((acc, a) => acc + a.minSubsidyPayback, 0);
       expect(result.workItems.totals.minSubsidyPayback).toBeCloseTo(sumMinPayback, 5);
     });
 
-    it('BreakdownTotals includes rawProjectedMin/Max and minSubsidyPayback as category sums', () => {
-      const catA = insertBudgetCategory('TotFieldsA');
-      const catB = insertBudgetCategory('TotFieldsB');
-      const { workItemId: idA } = insertWorkItem({
-        plannedAmount: 500,
-        confidence: 'own_estimate',
-        budgetCategoryId: catA,
-      });
-      const { workItemId: idB } = insertWorkItem({
-        plannedAmount: 800,
-        confidence: 'quote',
-        budgetCategoryId: catB,
-      });
+    it('BreakdownTotals includes rawProjectedMin/Max and minSubsidyPayback as area sums', () => {
+      const { workItemId: idA } = insertWorkItem({ plannedAmount: 500, confidence: 'own_estimate' });
+      const { workItemId: idB } = insertWorkItem({ plannedAmount: 800, confidence: 'quote' });
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkWorkItemSubsidy(idA, subsidyId);
       linkWorkItemSubsidy(idB, subsidyId);
@@ -1114,12 +1085,9 @@ describe('getBudgetBreakdown', () => {
       const result = getBudgetBreakdown(db);
 
       const totals = result.workItems.totals;
-      const sumRawMin = result.workItems.categories.reduce((acc, c) => acc + c.rawProjectedMin, 0);
-      const sumRawMax = result.workItems.categories.reduce((acc, c) => acc + c.rawProjectedMax, 0);
-      const sumMinPayback = result.workItems.categories.reduce(
-        (acc, c) => acc + c.minSubsidyPayback,
-        0,
-      );
+      const sumRawMin = result.workItems.areas.reduce((acc, a) => acc + a.rawProjectedMin, 0);
+      const sumRawMax = result.workItems.areas.reduce((acc, a) => acc + a.rawProjectedMax, 0);
+      const sumMinPayback = result.workItems.areas.reduce((acc, a) => acc + a.minSubsidyPayback, 0);
       expect(totals.rawProjectedMin).toBeCloseTo(sumRawMin, 5);
       expect(totals.rawProjectedMax).toBeCloseTo(sumRawMax, 5);
       expect(totals.minSubsidyPayback).toBeCloseTo(sumMinPayback, 5);
@@ -1169,7 +1137,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.budgetLines[0].description).toBe('Foundation concrete pour');
     });
 
@@ -1178,7 +1146,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.categories[0].items[0];
+      const item = result.workItems.areas[0].items[0];
       expect(item.budgetLines[0].description).toBeNull();
     });
   });

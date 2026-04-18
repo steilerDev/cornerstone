@@ -246,9 +246,6 @@ describe('Budget Overview Routes', () => {
       expect(typeof overview.remainingVsActualCost).toBe('number');
       expect(typeof overview.remainingVsActualPaid).toBe('number');
 
-      // areaSummaries array (categorySummaries removed in #1243)
-      expect(Array.isArray(overview.areaSummaries)).toBe(true);
-
       // subsidySummary object
       expect(typeof overview.subsidySummary.totalReductions).toBe('number');
       expect(typeof overview.subsidySummary.activeSubsidyCount).toBe('number');
@@ -276,8 +273,6 @@ describe('Budget Overview Routes', () => {
       expect(overview.remainingVsMaxPlanned).toBe(0);
       expect(overview.remainingVsActualCost).toBe(0);
       expect(overview.remainingVsActualPaid).toBe(0);
-      // categorySummaries removed in #1243
-      expect(Array.isArray(overview.areaSummaries)).toBe(true);
       expect(overview.sourceCount).toBe(1); // seeded discretionary source
       expect(overview.subsidySummary.activeSubsidyCount).toBe(0);
     });

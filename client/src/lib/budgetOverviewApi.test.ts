@@ -20,8 +20,6 @@ describe('budgetOverviewApi', () => {
     remainingVsActualClaimed: 150000,
     remainingVsMinPlannedWithPayback: 110000,
     remainingVsMaxPlannedWithPayback: 90000,
-    areaSummaries: [],
-    unassignedSummary: null,
     subsidySummary: {
       totalReductions: 10000,
       activeSubsidyCount: 2,
@@ -103,19 +101,6 @@ describe('budgetOverviewApi', () => {
       expect(result.remainingVsActualPaid).toBe(125000);
     });
 
-    it('returns overview with areaSummaries array', async () => {
-      const mockResponse: BudgetOverviewResponse = { overview: sampleOverview };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      } as Response);
-
-      const result = await fetchBudgetOverview();
-
-      expect(Array.isArray(result.areaSummaries)).toBe(true);
-    });
-
     it('returns overview with subsidySummary fields', async () => {
       const mockResponse: BudgetOverviewResponse = { overview: sampleOverview };
 
@@ -128,22 +113,6 @@ describe('budgetOverviewApi', () => {
 
       expect(result.subsidySummary.totalReductions).toBe(10000);
       expect(result.subsidySummary.activeSubsidyCount).toBe(2);
-    });
-
-    it('handles an overview with empty areaSummaries array', async () => {
-      const emptyOverview: BudgetOverview = {
-        ...sampleOverview,
-        areaSummaries: [],
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ overview: emptyOverview }),
-      } as Response);
-
-      const result = await fetchBudgetOverview();
-
-      expect(result.areaSummaries).toEqual([]);
     });
 
     it('handles an all-zero overview (empty project)', async () => {
@@ -162,8 +131,6 @@ describe('budgetOverviewApi', () => {
         remainingVsActualClaimed: 0,
         remainingVsMinPlannedWithPayback: 0,
         remainingVsMaxPlannedWithPayback: 0,
-        areaSummaries: [],
-        unassignedSummary: null,
         subsidySummary: {
           totalReductions: 0,
           activeSubsidyCount: 0,

@@ -518,17 +518,10 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
 
       const overview = budgetOverviewService.getBudgetOverview(db);
 
-      // Verify top-level structure
-      expect(overview).toHaveProperty('availableFunds');
-      expect(overview).toHaveProperty('areaSummaries');
-
       // Verify top-level fields
       expect(overview).toHaveProperty('availableFunds');
       expect(overview).toHaveProperty('sourceCount');
       expect(overview).toHaveProperty('actualCost');
-
-      // Verify areaSummaries structure (categorySummaries removed in #1243)
-      expect(Array.isArray(overview.areaSummaries)).toBe(true);
     });
   });
 });

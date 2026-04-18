@@ -110,8 +110,6 @@ describe('BudgetOverviewPage', () => {
     remainingVsActualClaimed: 0,
     remainingVsMinPlannedWithPayback: 0,
     remainingVsMaxPlannedWithPayback: 0,
-    areaSummaries: [],
-    unassignedSummary: null,
     subsidySummary: {
       totalReductions: 0,
       activeSubsidyCount: 0,
@@ -139,8 +137,6 @@ describe('BudgetOverviewPage', () => {
     remainingVsActualClaimed: 140000,
     remainingVsMinPlannedWithPayback: 80000,
     remainingVsMaxPlannedWithPayback: 20000,
-    areaSummaries: [],
-    unassignedSummary: null,
     subsidySummary: {
       totalReductions: 15000,
       activeSubsidyCount: 3,
@@ -186,7 +182,7 @@ describe('BudgetOverviewPage', () => {
   /** Empty breakdown returned by default in all tests */
   const emptyBreakdown = {
     workItems: {
-      categories: [],
+      areas: [],
       totals: {
         projectedMin: 0,
         projectedMax: 0,
@@ -198,7 +194,7 @@ describe('BudgetOverviewPage', () => {
       },
     },
     householdItems: {
-      categories: [],
+      areas: [],
       totals: {
         projectedMin: 0,
         projectedMax: 0,
@@ -537,65 +533,6 @@ describe('BudgetOverviewPage', () => {
       });
 
       expect(screen.queryByText(/expected payback/i)).not.toBeInTheDocument();
-    });
-  });
-
-  // ─── AreaTreeTable integration ──────────────────────────────────────────────
-
-  describe('AreaTreeTable integration', () => {
-    it('renders AreaTreeTable section when areaSummaries has entries', async () => {
-      const overviewWithAreas: BudgetOverview = {
-        ...richOverview,
-        areaSummaries: [
-          {
-            areaId: 'area-1',
-            name: 'Kitchen',
-            parentId: null,
-            planned: 50000,
-            actual: 40000,
-            variance: 10000,
-          },
-        ],
-      };
-      mockFetchBudgetOverview.mockResolvedValueOnce(overviewWithAreas);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /area breakdown/i })).toBeInTheDocument();
-      });
-
-      expect(screen.getByText('Kitchen')).toBeInTheDocument();
-    });
-
-    it('renders unassigned row when unassignedSummary is non-null', async () => {
-      const overviewWithUnassigned: BudgetOverview = {
-        ...richOverview,
-        areaSummaries: [],
-        unassignedSummary: { planned: 8000, actual: 7000, variance: 1000 },
-      };
-      mockFetchBudgetOverview.mockResolvedValueOnce(overviewWithUnassigned);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Unassigned')).toBeInTheDocument();
-      });
-    });
-
-    it('does not crash when areaSummaries=[] and unassignedSummary=null', async () => {
-      const emptyAreasOverview: BudgetOverview = {
-        ...richOverview,
-        areaSummaries: [],
-        unassignedSummary: null,
-      };
-      mockFetchBudgetOverview.mockResolvedValueOnce(emptyAreasOverview);
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
-      });
-
-      // Page renders without error — heading is present
-      expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
     });
   });
 
