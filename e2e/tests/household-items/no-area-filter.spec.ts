@@ -146,9 +146,13 @@ test.describe(
         const areaBetaId = await createAreaViaApi(page, { name: areaBetaName });
         areaIds.push(areaBetaId);
 
-        itemIds.push(await createHouseholdItemViaApi(page, { name: itemAlphaName, areaId: areaAlphaId }));
+        itemIds.push(
+          await createHouseholdItemViaApi(page, { name: itemAlphaName, areaId: areaAlphaId }),
+        );
         itemIds.push(await createHouseholdItemViaApi(page, { name: itemUnassignedName }));
-        itemIds.push(await createHouseholdItemViaApi(page, { name: itemBetaName, areaId: areaBetaId }));
+        itemIds.push(
+          await createHouseholdItemViaApi(page, { name: itemBetaName, areaId: areaBetaId }),
+        );
 
         const csvFilter = `__none__,${areaAlphaId}`;
         await page.goto(`${HOUSEHOLD_ITEMS_ROUTE}?areaId=${encodeURIComponent(csvFilter)}`);

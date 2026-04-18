@@ -16,7 +16,12 @@ import {
 import { listWorkItemBudgets } from './workItemBudgetService.js';
 import { autoReschedule } from './schedulingEngine.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
-import { getDescendantIds, loadAreaMap, resolveAreaAncestors, resolveAreaFilter } from './areaService.js';
+import {
+  getDescendantIds,
+  loadAreaMap,
+  resolveAreaAncestors,
+  resolveAreaFilter,
+} from './areaService.js';
 import type { AreaMapEntry } from './areaService.js';
 import {
   onWorkItemStatusChanged,

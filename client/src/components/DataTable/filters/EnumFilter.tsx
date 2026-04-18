@@ -162,10 +162,7 @@ export function EnumFilter({
       </div>
       {enumIncludeNone && enumNoneLabel && (
         <div className={styles.filterCheckboxSentinel}>
-          <label
-            className={styles.filterCheckboxItem}
-            htmlFor={`enum-${ENUM_NONE_SENTINEL}`}
-          >
+          <label className={styles.filterCheckboxItem} htmlFor={`enum-${ENUM_NONE_SENTINEL}`}>
             <input
               type="checkbox"
               checked={selected.has(ENUM_NONE_SENTINEL)}

@@ -421,7 +421,10 @@ export class WorkItemsPage {
    * Opens the column settings popover, checks the "Area" checkbox, and closes the popover.
    */
   async enableAreaColumn(): Promise<void> {
-    const columnSettingsBtn = this.page.getByRole('button', { name: 'Column settings', exact: true });
+    const columnSettingsBtn = this.page.getByRole('button', {
+      name: 'Column settings',
+      exact: true,
+    });
     await columnSettingsBtn.waitFor({ state: 'visible' });
     await columnSettingsBtn.click();
     // The column settings popover renders a checkbox for each column by label

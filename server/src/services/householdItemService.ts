@@ -28,7 +28,12 @@ import {
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { listDeps } from './householdItemDepService.js';
 import { autoReschedule } from './schedulingEngine.js';
-import { getDescendantIds, loadAreaMap, resolveAreaAncestors, resolveAreaFilter } from './areaService.js';
+import {
+  getDescendantIds,
+  loadAreaMap,
+  resolveAreaAncestors,
+  resolveAreaFilter,
+} from './areaService.js';
 import type { AreaMapEntry } from './areaService.js';
 import { toUserSummary, toAreaSummary, toVendorSummaryWithTrade } from './shared/converters.js';
 import { validateVendorId, validateAreaId } from './shared/validators.js';
@@ -538,7 +543,9 @@ export function listHouseholdItems(
   if (query.areaId) {
     const { areaIds, includeNull, hasInput } = resolveAreaFilter(db, query.areaId);
     if (includeNull && areaIds.length > 0) {
-      baseConditions.push(or(isNull(householdItems.areaId), inArray(householdItems.areaId, areaIds))!);
+      baseConditions.push(
+        or(isNull(householdItems.areaId), inArray(householdItems.areaId, areaIds))!,
+      );
     } else if (includeNull) {
       baseConditions.push(isNull(householdItems.areaId));
     } else if (areaIds.length > 0) {
