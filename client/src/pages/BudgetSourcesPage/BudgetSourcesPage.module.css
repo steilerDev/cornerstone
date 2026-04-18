@@ -375,8 +375,7 @@
 
 .sourceRow {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  flex-direction: column;
   padding: var(--spacing-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -386,6 +385,13 @@
 
 .sourceRow:hover {
   background-color: var(--color-bg-secondary);
+}
+
+.sourceRowHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--spacing-4);
 }
 
 /* ---- Source info (left side) ---- */
@@ -849,8 +855,8 @@
     text-align: center;
   }
 
-  /* Source row becomes a column on mobile */
-  .sourceRow {
+  /* Source row is already a column; sourceRowHeader adapts on mobile */
+  .sourceRowHeader {
     flex-direction: column;
     align-items: stretch;
     gap: var(--spacing-3);

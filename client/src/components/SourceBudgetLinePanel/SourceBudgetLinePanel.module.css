@@ -93,6 +93,21 @@
   color: var(--color-text-secondary);
   margin: var(--spacing-2) 0 var(--spacing-1) 0;
   padding: 0 0 var(--spacing-1) 0;
+  text-decoration: none;
+  transition: color var(--transition-normal);
+  display: inline-block;
+  border-radius: var(--radius-sm);
+}
+
+.parentItemHeader:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.parentItemHeader:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
 }
 
 .lineList {

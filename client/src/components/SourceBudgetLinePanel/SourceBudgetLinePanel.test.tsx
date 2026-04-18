@@ -4,6 +4,8 @@
 import type React from 'react';
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { LocaleProvider } from '../../contexts/LocaleContext.js';
 import type { BudgetSourceBudgetLine, BudgetSourceBudgetLinesResponse } from '@cornerstone/shared';
 
 // ─── Mock: formatters ──────────────────────────────────────────────────────────
@@ -32,6 +34,12 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
     }),
   };
 });
+
+// react-i18next is not mocked — the real module is used against the
+// i18next instance initialized by setupTests.ts. Mocking via
+// jest.unstable_mockModule + jest.requireActual creates a separate module
+// reference that does not share the initialized instance, so keys come
+// back unresolved.
 
 // ─── Shared helpers ─────────────────────────────────────────────────────────────
 
@@ -114,7 +122,13 @@ describe('SourceBudgetLinePanel', () => {
       error: null,
       onRetry: jest.fn(),
     };
-    return render(<SourceBudgetLinePanel {...defaultProps} {...props} />);
+    return render(
+      <MemoryRouter>
+        <LocaleProvider>
+          <SourceBudgetLinePanel {...defaultProps} {...props} />
+        </LocaleProvider>
+      </MemoryRouter>,
+    );
   }
 
   // ─── Loading state (scenario 1) ─────────────────────────────────────────────
@@ -818,6 +832,36 @@ describe('SourceBudgetLinePanel', () => {
       fireEvent.click(moveButton);
 
       expect(onMoveLines).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ─── Parent item links (scenario 23) ───────────────────────────────────────────
+
+  describe('parent item header links', () => {
+    it('renders parent item name as link with href to work item detail for work item lines', () => {
+      const line = makeLine({
+        id: 'l1',
+        parentId: 'work-item-42',
+        parentName: 'Kitchen Renovation',
+      });
+      renderPanel({ data: makeResponse([line], []) });
+
+      const link = screen.getByRole('link', { name: /Kitchen Renovation/i }) as HTMLAnchorElement;
+      expect(link).toBeInTheDocument();
+      expect(link.getAttribute('href')).toBe('/project/work-items/work-item-42');
+    });
+
+    it('renders parent item name as link with href to household item detail for household item lines', () => {
+      const line = makeLine({
+        id: 'l1',
+        parentId: 'household-item-99',
+        parentName: 'Sofa Purchase',
+      });
+      renderPanel({ data: makeResponse([], [line]) });
+
+      const link = screen.getByRole('link', { name: /Sofa Purchase/i }) as HTMLAnchorElement;
+      expect(link).toBeInTheDocument();
+      expect(link.getAttribute('href')).toBe('/project/household-items/household-item-99');
     });
   });
 });
