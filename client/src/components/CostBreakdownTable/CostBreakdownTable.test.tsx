@@ -90,11 +90,7 @@ function renderWithRouter(
 ) {
   return render(
     <MemoryRouter>
-      <CostBreakdownTable
-        breakdown={breakdown}
-        overview={overview}
-        budgetSources={budgetSources}
-      />
+      <CostBreakdownTable breakdown={breakdown} overview={overview} budgetSources={budgetSources} />
     </MemoryRouter>,
   );
 }
@@ -493,7 +489,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -508,7 +503,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 })}
         overview={buildOverview(50000)}
-
         budgetSources={[]}
       />,
     );
@@ -522,7 +516,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 })}
         overview={buildOverview(100000)}
-
         budgetSources={[]}
       />,
     );
@@ -537,7 +530,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -550,7 +542,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithHI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -565,7 +556,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -581,7 +571,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -597,7 +586,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -845,11 +833,7 @@ describe('CostBreakdownTable', () => {
     };
 
     const { container } = render(
-      <CostBreakdownTable
-        breakdown={breakdown}
-        overview={buildOverview()}
-        budgetSources={[]}
-      />,
+      <CostBreakdownTable breakdown={breakdown} overview={buildOverview()} budgetSources={[]} />,
     );
 
     // Expand WI section
@@ -905,11 +889,7 @@ describe('CostBreakdownTable', () => {
     };
 
     const { container } = render(
-      <CostBreakdownTable
-        breakdown={breakdown}
-        overview={buildOverview()}
-        budgetSources={[]}
-      />,
+      <CostBreakdownTable breakdown={breakdown} overview={buildOverview()} budgetSources={[]} />,
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
@@ -965,11 +945,7 @@ describe('CostBreakdownTable', () => {
     };
 
     render(
-      <CostBreakdownTable
-        breakdown={breakdown}
-        overview={buildOverview()}
-        budgetSources={[]}
-      />,
+      <CostBreakdownTable breakdown={breakdown} overview={buildOverview()} budgetSources={[]} />,
     );
 
     // HI section should still be visible
@@ -984,7 +960,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMax: 1200 })}
         overview={buildOverview(100000)}
-
         budgetSources={[]}
       />,
     );
@@ -1001,7 +976,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMax: 50000 })}
         overview={buildOverview(100)}
-
         budgetSources={[]}
       />,
     );
@@ -1017,7 +991,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildEmptyBreakdown()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -1030,7 +1003,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildEmptyBreakdown()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -1043,7 +1015,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildEmptyBreakdown()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -1058,7 +1029,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -1072,7 +1042,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithHI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -1086,7 +1055,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -1100,7 +1068,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -1136,7 +1103,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithHI({ hiCategory: 'Home Office' })}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -1171,7 +1137,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -1195,7 +1160,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -1210,7 +1174,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -1223,7 +1186,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -1301,7 +1263,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={breakdown}
         overview={buildOverview(100000)}
-
         budgetSources={[]}
       />,
     );
@@ -1318,10 +1279,7 @@ describe('CostBreakdownTable', () => {
   // The category header row still shows the category name with cost values.
 
   it('does not show a "Total {area}" sum row after expanding a WI area (Bug #585)', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithWI(),
-      buildOverview(),
-    );
+    const { container } = renderWithRouter(buildBreakdownWithWI(), buildOverview());
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
@@ -1354,7 +1312,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -1372,7 +1329,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -1449,7 +1405,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -1472,7 +1427,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -1638,7 +1592,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview(100000)}
-
         budgetSources={[]}
       />,
     );
@@ -1655,7 +1608,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview(100000)}
-
         budgetSources={[buildBudgetSource({ id: 'src-1', name: 'Bank Loan', totalAmount: 80000 })]}
       />,
     );
@@ -1671,7 +1623,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview(130000)}
-
         budgetSources={[
           buildBudgetSource({ id: 'src-1', name: 'Savings Account', totalAmount: 50000 }),
           buildBudgetSource({ id: 'src-2', name: 'Bank Loan', totalAmount: 80000 }),
@@ -1697,7 +1648,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview(100000)}
-
         budgetSources={[
           buildBudgetSource({ id: 'src-1', name: 'Credit Line', totalAmount: 60000 }),
         ]}
@@ -1738,7 +1688,6 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 800,
         })}
         overview={buildOverview(10000)}
-
         budgetSources={[]}
       />,
     );
@@ -1763,7 +1712,6 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 1000,
         })}
         overview={buildOverview(20000)}
-
         budgetSources={[]}
       />,
     );
@@ -1791,7 +1739,6 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 1000,
         })}
         overview={buildOverview(20000)}
-
         budgetSources={[]}
       />,
     );
@@ -1819,7 +1766,6 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 1000,
         })}
         overview={buildOverview(20000)}
-
         budgetSources={[]}
       />,
     );
@@ -1837,7 +1783,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -1855,7 +1800,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -2023,7 +1967,6 @@ describe('CostBreakdownTable', () => {
         <CostBreakdownTable
           breakdown={buildBreakdownWithHI({ hiCategory: 'Master Bedroom' })}
           overview={buildOverview()}
-
           budgetSources={[]}
         />
       </MemoryRouter>,
@@ -2071,7 +2014,6 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-
         budgetSources={[]}
       />,
     );
@@ -2095,7 +2037,6 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 5000,
         })}
         overview={buildOverview(10000)}
-
         budgetSources={[]}
       />,
     );
@@ -2124,7 +2065,6 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 100,
         })}
         overview={buildOverview(10000)}
-
         budgetSources={[]}
       />,
     );
@@ -2149,7 +2089,6 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 5000,
         })}
         overview={buildOverview(10000)}
-
         budgetSources={[]}
       />,
     );
@@ -2173,7 +2112,6 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 5000,
         })}
         overview={buildOverview(100)}
-
         budgetSources={[]}
       />,
     );

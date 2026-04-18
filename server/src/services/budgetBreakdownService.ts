@@ -335,7 +335,13 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
 
   function buildAreaBreakdown<TItem>(
     entityItems: Map<string | null, TItem[]>,
-    allAreaRows: Array<{ id: string; name: string; parentId: string | null; color: string | null; sortOrder: number }>,
+    allAreaRows: Array<{
+      id: string;
+      name: string;
+      parentId: string | null;
+      color: string | null;
+      sortOrder: number;
+    }>,
     sumItemTotals: (items: TItem[]) => {
       projectedMin: number;
       projectedMax: number;
@@ -347,7 +353,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     },
   ): { areas: BreakdownArea<TItem>[]; totals: BreakdownTotals } {
     // Build a map of areaId -> area metadata for quick lookup
-    const areaMap = new Map<string, typeof allAreaRows[0]>();
+    const areaMap = new Map<string, (typeof allAreaRows)[0]>();
     for (const area of allAreaRows) {
       areaMap.set(area.id, area);
     }
@@ -608,7 +614,13 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
   }
 
   // Get all areas
-  const allAreas = db.all<{ id: string; name: string; parentId: string | null; color: string | null; sortOrder: number }>(
+  const allAreas = db.all<{
+    id: string;
+    name: string;
+    parentId: string | null;
+    color: string | null;
+    sortOrder: number;
+  }>(
     sql`SELECT id, name, parent_id AS parentId, color, sort_order AS sortOrder
     FROM areas
     ORDER BY sort_order ASC, name ASC`,
@@ -618,7 +630,13 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     wiByArea,
     allAreas,
     (items: BreakdownWorkItem[]) => {
-      let min = 0, max = 0, actual = 0, payback = 0, rawMin = 0, rawMax = 0, minPayback = 0;
+      let min = 0,
+        max = 0,
+        actual = 0,
+        payback = 0,
+        rawMin = 0,
+        rawMax = 0,
+        minPayback = 0;
       for (const item of items) {
         min += item.projectedMin;
         max += item.projectedMax;
@@ -760,7 +778,13 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     hiByArea,
     allAreas,
     (items: BreakdownHouseholdItem[]) => {
-      let min = 0, max = 0, actual = 0, payback = 0, rawMin = 0, rawMax = 0, minPayback = 0;
+      let min = 0,
+        max = 0,
+        actual = 0,
+        payback = 0,
+        rawMin = 0,
+        rawMax = 0,
+        minPayback = 0;
       for (const item of items) {
         min += item.projectedMin;
         max += item.projectedMax;

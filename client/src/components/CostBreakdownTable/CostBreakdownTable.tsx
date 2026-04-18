@@ -318,18 +318,13 @@ function WorkItemAreaSection({
   const { t } = useTranslation('budget');
   const areaKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}`;
   const isExpanded = expandedKeys.has(areaKey);
-  const resolvedRawCost = resolveProjected(
-    area.rawProjectedMin,
-    area.rawProjectedMax,
-    perspective,
-  );
+  const resolvedRawCost = resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
   const resolvedPayback = resolveProjected(
     area.minSubsidyPayback,
     area.subsidyPayback,
     perspective,
   );
-  const areaName =
-    area.areaId === null ? t('overview.costBreakdown.area.unassigned') : area.name;
+  const areaName = area.areaId === null ? t('overview.costBreakdown.area.unassigned') : area.name;
 
   return (
     <>
@@ -507,18 +502,13 @@ function HouseholdItemAreaSection({
   const { t } = useTranslation('budget');
   const areaKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}`;
   const isExpanded = expandedKeys.has(areaKey);
-  const resolvedRawCost = resolveProjected(
-    area.rawProjectedMin,
-    area.rawProjectedMax,
-    perspective,
-  );
+  const resolvedRawCost = resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
   const resolvedPayback = resolveProjected(
     area.minSubsidyPayback,
     area.subsidyPayback,
     perspective,
   );
-  const areaName =
-    area.areaId === null ? t('overview.costBreakdown.area.unassigned') : area.name;
+  const areaName = area.areaId === null ? t('overview.costBreakdown.area.unassigned') : area.name;
 
   return (
     <>

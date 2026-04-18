@@ -556,7 +556,15 @@ describe('getBudgetBreakdown', () => {
       const ts = new Date().toISOString();
       const areaId = `area-test-six-${idCounter++}`;
       db.insert(schema.areas)
-        .values({ id: areaId, name: 'SameArea', parentId: null, color: null, sortOrder: 100, createdAt: ts, updatedAt: ts })
+        .values({
+          id: areaId,
+          name: 'SameArea',
+          parentId: null,
+          color: null,
+          sortOrder: 100,
+          createdAt: ts,
+          updatedAt: ts,
+        })
         .run();
       insertWorkItem({ title: 'Item A', plannedAmount: 1000 });
       insertWorkItem({ title: 'Item B', plannedAmount: 2000 });
@@ -752,10 +760,26 @@ describe('getBudgetBreakdown', () => {
       const areaIdA = `area-hi-a-${idCounter++}`;
       const areaIdB = `area-hi-b-${idCounter++}`;
       db.insert(schema.areas)
-        .values({ id: areaIdA, name: 'Living Room', parentId: null, color: null, sortOrder: 10, createdAt: ts, updatedAt: ts })
+        .values({
+          id: areaIdA,
+          name: 'Living Room',
+          parentId: null,
+          color: null,
+          sortOrder: 10,
+          createdAt: ts,
+          updatedAt: ts,
+        })
         .run();
       db.insert(schema.areas)
-        .values({ id: areaIdB, name: 'Bedroom', parentId: null, color: null, sortOrder: 20, createdAt: ts, updatedAt: ts })
+        .values({
+          id: areaIdB,
+          name: 'Bedroom',
+          parentId: null,
+          color: null,
+          sortOrder: 20,
+          createdAt: ts,
+          updatedAt: ts,
+        })
         .run();
       // Insert HI with areaId via direct DB insert (helper doesn't expose areaId)
       const hiIdA = `hi-direct-a-${idCounter++}`;
@@ -763,16 +787,54 @@ describe('getBudgetBreakdown', () => {
       const hibIdA = `hibud-direct-a-${idCounter++}`;
       const hibIdB = `hibud-direct-b-${idCounter++}`;
       db.insert(schema.householdItems)
-        .values({ id: hiIdA, name: 'Sofa', categoryId: 'hic-furniture', status: 'planned', quantity: 1, isLate: false, areaId: areaIdA, createdAt: ts, updatedAt: ts })
+        .values({
+          id: hiIdA,
+          name: 'Sofa',
+          categoryId: 'hic-furniture',
+          status: 'planned',
+          quantity: 1,
+          isLate: false,
+          areaId: areaIdA,
+          createdAt: ts,
+          updatedAt: ts,
+        })
         .run();
       db.insert(schema.householdItemBudgets)
-        .values({ id: hibIdA, householdItemId: hiIdA, plannedAmount: 500, confidence: 'own_estimate', budgetCategoryId: null, budgetSourceId: null, createdAt: ts, updatedAt: ts })
+        .values({
+          id: hibIdA,
+          householdItemId: hiIdA,
+          plannedAmount: 500,
+          confidence: 'own_estimate',
+          budgetCategoryId: null,
+          budgetSourceId: null,
+          createdAt: ts,
+          updatedAt: ts,
+        })
         .run();
       db.insert(schema.householdItems)
-        .values({ id: hiIdB, name: 'TV', categoryId: 'hic-electronics', status: 'planned', quantity: 1, isLate: false, areaId: areaIdB, createdAt: ts, updatedAt: ts })
+        .values({
+          id: hiIdB,
+          name: 'TV',
+          categoryId: 'hic-electronics',
+          status: 'planned',
+          quantity: 1,
+          isLate: false,
+          areaId: areaIdB,
+          createdAt: ts,
+          updatedAt: ts,
+        })
         .run();
       db.insert(schema.householdItemBudgets)
-        .values({ id: hibIdB, householdItemId: hiIdB, plannedAmount: 300, confidence: 'own_estimate', budgetCategoryId: null, budgetSourceId: null, createdAt: ts, updatedAt: ts })
+        .values({
+          id: hibIdB,
+          householdItemId: hiIdB,
+          plannedAmount: 300,
+          confidence: 'own_estimate',
+          budgetCategoryId: null,
+          budgetSourceId: null,
+          createdAt: ts,
+          updatedAt: ts,
+        })
         .run();
 
       const result = getBudgetBreakdown(db);
@@ -1049,8 +1111,14 @@ describe('getBudgetBreakdown', () => {
       // Item A: own_estimate 1000, 10% subsidy → min payback = 800*0.1 = 80
       // Item B: own_estimate 2000, 10% subsidy → min payback = 1600*0.1 = 160
       // Both land in the Unassigned area node (null areaId)
-      const { workItemId: idA } = insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
-      const { workItemId: idB } = insertWorkItem({ plannedAmount: 2000, confidence: 'own_estimate' });
+      const { workItemId: idA } = insertWorkItem({
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+      });
+      const { workItemId: idB } = insertWorkItem({
+        plannedAmount: 2000,
+        confidence: 'own_estimate',
+      });
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkWorkItemSubsidy(idA, subsidyId);
       linkWorkItemSubsidy(idB, subsidyId);
@@ -1063,8 +1131,14 @@ describe('getBudgetBreakdown', () => {
 
     it('wiTotals.minSubsidyPayback equals sum of area minSubsidyPayback values', () => {
       // Both items go to Unassigned; totals.minSubsidyPayback should equal the single area node's value
-      const { workItemId: idA } = insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
-      const { workItemId: idB } = insertWorkItem({ plannedAmount: 2000, confidence: 'own_estimate' });
+      const { workItemId: idA } = insertWorkItem({
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+      });
+      const { workItemId: idB } = insertWorkItem({
+        plannedAmount: 2000,
+        confidence: 'own_estimate',
+      });
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkWorkItemSubsidy(idA, subsidyId);
       linkWorkItemSubsidy(idB, subsidyId);
@@ -1076,7 +1150,10 @@ describe('getBudgetBreakdown', () => {
     });
 
     it('BreakdownTotals includes rawProjectedMin/Max and minSubsidyPayback as area sums', () => {
-      const { workItemId: idA } = insertWorkItem({ plannedAmount: 500, confidence: 'own_estimate' });
+      const { workItemId: idA } = insertWorkItem({
+        plannedAmount: 500,
+        confidence: 'own_estimate',
+      });
       const { workItemId: idB } = insertWorkItem({ plannedAmount: 800, confidence: 'quote' });
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkWorkItemSubsidy(idA, subsidyId);

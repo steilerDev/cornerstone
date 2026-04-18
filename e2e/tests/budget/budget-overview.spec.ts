@@ -515,7 +515,11 @@ test.describe('Cost Breakdown area grouping', { tag: '@responsive' }, () => {
 
   test('Breakdown area rows visible after expanding Work Items section', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(page, populatedOverviewResponse(), populatedBreakdownResponse());
+    const teardown = await mountRoutes(
+      page,
+      populatedOverviewResponse(),
+      populatedBreakdownResponse(),
+    );
 
     try {
       await overviewPage.goto();
@@ -536,7 +540,11 @@ test.describe('Cost Breakdown area grouping', { tag: '@responsive' }, () => {
 
   test('Expanding a root area reveals child areas', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(page, populatedOverviewResponse(), populatedBreakdownResponse());
+    const teardown = await mountRoutes(
+      page,
+      populatedOverviewResponse(),
+      populatedBreakdownResponse(),
+    );
 
     try {
       await overviewPage.goto();
@@ -561,7 +569,11 @@ test.describe('Cost Breakdown area grouping', { tag: '@responsive' }, () => {
 
   test('Expanding a child area reveals items', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(page, populatedOverviewResponse(), populatedBreakdownResponse());
+    const teardown = await mountRoutes(
+      page,
+      populatedOverviewResponse(),
+      populatedBreakdownResponse(),
+    );
 
     try {
       await overviewPage.goto();
@@ -584,7 +596,11 @@ test.describe('Cost Breakdown area grouping', { tag: '@responsive' }, () => {
 
   test('Collapsing a root area hides children', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(page, populatedOverviewResponse(), populatedBreakdownResponse());
+    const teardown = await mountRoutes(
+      page,
+      populatedOverviewResponse(),
+      populatedBreakdownResponse(),
+    );
 
     try {
       await overviewPage.goto();
@@ -607,7 +623,11 @@ test.describe('Cost Breakdown area grouping', { tag: '@responsive' }, () => {
 
   test('Unassigned row appears when breakdown has null-area items', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(page, populatedOverviewResponse(), populatedBreakdownResponse());
+    const teardown = await mountRoutes(
+      page,
+      populatedOverviewResponse(),
+      populatedBreakdownResponse(),
+    );
 
     try {
       await overviewPage.goto();
@@ -655,21 +675,17 @@ test.describe('Cost Breakdown area grouping', { tag: '@responsive' }, () => {
     }
   });
 
-  test(
-    'No standalone Area Breakdown section renders',
-    { tag: '@smoke' },
-    async ({ page }) => {
-      // Navigate without mocks — verifies the removed AreaTreeTable section is gone
-      await page.goto('/budget/overview');
-      await page.getByRole('heading', { level: 1, name: 'Budget', exact: true }).waitFor({
-        state: 'visible',
-      });
+  test('No standalone Area Breakdown section renders', { tag: '@smoke' }, async ({ page }) => {
+    // Navigate without mocks — verifies the removed AreaTreeTable section is gone
+    await page.goto('/budget/overview');
+    await page.getByRole('heading', { level: 1, name: 'Budget', exact: true }).waitFor({
+      state: 'visible',
+    });
 
-      // No treegrid (AreaTreeTable used role="treegrid") should be visible anywhere on the page
-      await expect(page.locator('[role="treegrid"]')).not.toBeVisible();
+    // No treegrid (AreaTreeTable used role="treegrid") should be visible anywhere on the page
+    await expect(page.locator('[role="treegrid"]')).not.toBeVisible();
 
-      // No heading matching "Area Breakdown" should exist on the page
-      await expect(page.getByRole('heading', { name: /area breakdown/i })).not.toBeVisible();
-    },
-  );
+    // No heading matching "Area Breakdown" should exist on the page
+    await expect(page.getByRole('heading', { name: /area breakdown/i })).not.toBeVisible();
+  });
 });

@@ -336,10 +336,7 @@ export function BudgetOverviewPage() {
     return null;
   }
 
-  const hasData =
-    overview.minPlanned > 0 ||
-    overview.actualCost > 0 ||
-    overview.sourceCount > 0;
+  const hasData = overview.minPlanned > 0 || overview.actualCost > 0 || overview.sourceCount > 0;
 
   // Use direct totals from overview (no filtering)
   const filtered = {

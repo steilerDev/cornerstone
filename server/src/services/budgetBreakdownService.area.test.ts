@@ -549,9 +549,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const areaIds = result.workItems.areas
-        .filter((a) => a.areaId !== null)
-        .map((a) => a.areaId);
+      const areaIds = result.workItems.areas.filter((a) => a.areaId !== null).map((a) => a.areaId);
       expect(areaIds.indexOf(area1)).toBeLessThan(areaIds.indexOf(area2));
       expect(areaIds.indexOf(area2)).toBeLessThan(areaIds.indexOf(area3));
     });
@@ -566,9 +564,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const names = result.workItems.areas
-        .filter((a) => a.areaId !== null)
-        .map((a) => a.name);
+      const names = result.workItems.areas.filter((a) => a.areaId !== null).map((a) => a.name);
       expect(names.indexOf('Alpha')).toBeLessThan(names.indexOf('Middle'));
       expect(names.indexOf('Middle')).toBeLessThan(names.indexOf('Zebra'));
     });
@@ -629,8 +625,18 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const parentId = insertArea({ name: 'Ground Floor', parentId: grandparentId });
       const childA = insertArea({ name: 'Kitchen', parentId });
       const childB = insertArea({ name: 'Living Room', parentId });
-      insertWorkItem({ areaId: childA, plannedAmount: 2000, confidence: 'invoice', actualCost: 1800 });
-      insertWorkItem({ areaId: childB, plannedAmount: 1500, confidence: 'invoice', actualCost: 1400 });
+      insertWorkItem({
+        areaId: childA,
+        plannedAmount: 2000,
+        confidence: 'invoice',
+        actualCost: 1800,
+      });
+      insertWorkItem({
+        areaId: childB,
+        plannedAmount: 1500,
+        confidence: 'invoice',
+        actualCost: 1400,
+      });
 
       const result = getBudgetBreakdown(db);
 
@@ -645,7 +651,11 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
     it('area node subsidyPayback equals item subsidyPayback for single-item area', () => {
       // own_estimate 1000 → max = 1200; 10% subsidy → payback = 120
       const areaId = insertArea({ name: 'Zone A' });
-      const { workItemId } = insertWorkItem({ areaId, plannedAmount: 1000, confidence: 'own_estimate' });
+      const { workItemId } = insertWorkItem({
+        areaId,
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+      });
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
@@ -658,7 +668,11 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
     it('area node minSubsidyPayback equals item minSubsidyPayback', () => {
       // own_estimate 1000 → min = 800; 10% subsidy → minPayback = 80
       const areaId = insertArea({ name: 'Zone B' });
-      const { workItemId } = insertWorkItem({ areaId, plannedAmount: 1000, confidence: 'own_estimate' });
+      const { workItemId } = insertWorkItem({
+        areaId,
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+      });
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
@@ -672,7 +686,11 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       // parent → child with WI: own_estimate 1000, 10% subsidy → payback=120
       const parentId = insertArea({ name: 'Floor' });
       const childId = insertArea({ name: 'Room', parentId });
-      const { workItemId } = insertWorkItem({ areaId: childId, plannedAmount: 1000, confidence: 'own_estimate' });
+      const { workItemId } = insertWorkItem({
+        areaId: childId,
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+      });
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
@@ -686,7 +704,11 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
     it('rawProjectedMin/Max are gross (pre-subsidy) values at area level', () => {
       // own_estimate 1000 → rawMin = 800, rawMax = 1200; subsidy reduces projectedMin/Max only
       const areaId = insertArea({ name: 'Zone C' });
-      const { workItemId } = insertWorkItem({ areaId, plannedAmount: 1000, confidence: 'own_estimate' });
+      const { workItemId } = insertWorkItem({
+        areaId,
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+      });
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
