@@ -5,11 +5,11 @@
  */
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { mkdtempSync, rmSync, writeFileSync, chmodSync, existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync, chmodSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { disposableTempDir, disposableDb } from '../test-helpers/disposables.js';
+import type { DisposableTempDir } from '../test-helpers/disposables.js';
 
 // ─── Import service functions ───────────────────────────────────────────────
 
@@ -199,37 +199,33 @@ describe('backupService', () => {
   // ─── listBackups ──────────────────────────────────────────────────────────
 
   describe('listBackups()', () => {
-    let tempDir: string;
+    let tempDir: DisposableTempDir;
 
     beforeEach(() => {
-      tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-backup-list-test-'));
+      tempDir = disposableTempDir('cornerstone-backup-list-test-');
     });
 
     afterEach(() => {
-      try {
-        rmSync(tempDir, { recursive: true, force: true });
-      } catch {
-        // ignore cleanup errors
-      }
+      tempDir[Symbol.dispose]();
     });
 
     it('returns empty array for an empty directory', async () => {
-      const result = await listBackups(tempDir);
+      const result = await listBackups(tempDir.path);
       expect(result).toEqual([]);
     });
 
     it('returns empty array when the directory does not exist (ENOENT)', async () => {
-      const result = await listBackups(join(tempDir, 'nonexistent-dir'));
+      const result = await listBackups(join(tempDir.path, 'nonexistent-dir'));
       expect(result).toEqual([]);
     });
 
     it('returns backup files sorted newest-first by timestamp', async () => {
       const olderFilename = 'cornerstone-backup-2026-01-01T000000Z.tar.gz';
       const newerFilename = 'cornerstone-backup-2026-06-15T120000Z.tar.gz';
-      writeFileSync(join(tempDir, olderFilename), 'older content');
-      writeFileSync(join(tempDir, newerFilename), 'newer content');
+      writeFileSync(join(tempDir.path, olderFilename), 'older content');
+      writeFileSync(join(tempDir.path, newerFilename), 'newer content');
 
-      const result = await listBackups(tempDir);
+      const result = await listBackups(tempDir.path);
 
       expect(result).toHaveLength(2);
       expect(result[0].filename).toBe(newerFilename);
@@ -238,9 +234,9 @@ describe('backupService', () => {
 
     it('returns correct BackupMeta shape for a backup file', async () => {
       const filename = 'cornerstone-backup-2026-03-22T020000Z.tar.gz';
-      writeFileSync(join(tempDir, filename), 'test content');
+      writeFileSync(join(tempDir.path, filename), 'test content');
 
-      const result = await listBackups(tempDir);
+      const result = await listBackups(tempDir.path);
 
       expect(result).toHaveLength(1);
       expect(result[0].filename).toBe(filename);
@@ -250,11 +246,11 @@ describe('backupService', () => {
     });
 
     it('ignores non-backup files in the directory', async () => {
-      writeFileSync(join(tempDir, 'README.txt'), 'readme');
-      writeFileSync(join(tempDir, 'some-other-archive.tar.gz'), 'other');
-      writeFileSync(join(tempDir, 'cornerstone-backup-2026-03-22T020000Z.tar.gz'), 'backup');
+      writeFileSync(join(tempDir.path, 'README.txt'), 'readme');
+      writeFileSync(join(tempDir.path, 'some-other-archive.tar.gz'), 'other');
+      writeFileSync(join(tempDir.path, 'cornerstone-backup-2026-03-22T020000Z.tar.gz'), 'backup');
 
-      const result = await listBackups(tempDir);
+      const result = await listBackups(tempDir.path);
 
       expect(result).toHaveLength(1);
       expect(result[0].filename).toBe('cornerstone-backup-2026-03-22T020000Z.tar.gz');
@@ -267,10 +263,10 @@ describe('backupService', () => {
         'cornerstone-backup-2026-02-10T150000Z.tar.gz',
       ];
       for (const f of files) {
-        writeFileSync(join(tempDir, f), 'content');
+        writeFileSync(join(tempDir.path, f), 'content');
       }
 
-      const result = await listBackups(tempDir);
+      const result = await listBackups(tempDir.path);
 
       expect(result).toHaveLength(3);
       // Sorted newest-first
@@ -283,56 +279,52 @@ describe('backupService', () => {
   // ─── deleteBackup ─────────────────────────────────────────────────────────
 
   describe('deleteBackup()', () => {
-    let tempDir: string;
+    let tempDir: DisposableTempDir;
 
     beforeEach(() => {
-      tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-backup-delete-test-'));
+      tempDir = disposableTempDir('cornerstone-backup-delete-test-');
     });
 
     afterEach(() => {
-      try {
-        rmSync(tempDir, { recursive: true, force: true });
-      } catch {
-        // ignore cleanup errors
-      }
+      tempDir[Symbol.dispose]();
     });
 
     it('deletes an existing backup file successfully', async () => {
       const filename = 'cornerstone-backup-2026-03-22T020000Z.tar.gz';
-      writeFileSync(join(tempDir, filename), 'backup content');
+      writeFileSync(join(tempDir.path, filename), 'backup content');
 
-      await expect(deleteBackup(tempDir, filename)).resolves.toBeUndefined();
+      await expect(deleteBackup(tempDir.path, filename)).resolves.toBeUndefined();
 
       // Verify the file was actually removed
-      const remaining = await listBackups(tempDir);
+      const remaining = await listBackups(tempDir.path);
       expect(remaining).toHaveLength(0);
     });
 
     it('throws BackupNotFoundError (code BACKUP_NOT_FOUND) when file does not exist', async () => {
       await expect(
-        deleteBackup(tempDir, 'cornerstone-backup-2099-01-01T000000Z.tar.gz'),
+        deleteBackup(tempDir.path, 'cornerstone-backup-2099-01-01T000000Z.tar.gz'),
       ).rejects.toMatchObject({
         code: 'BACKUP_NOT_FOUND',
       });
     });
 
     it('throws BackupNotFoundError for path traversal filename (../../etc/passwd)', async () => {
-      await expect(deleteBackup(tempDir, '../../etc/passwd')).rejects.toMatchObject({
+      await expect(deleteBackup(tempDir.path, '../../etc/passwd')).rejects.toMatchObject({
         code: 'BACKUP_NOT_FOUND',
       });
     });
 
     it('throws BackupNotFoundError for filename with backslash', async () => {
       await expect(
-        deleteBackup(tempDir, 'cornerstone-backup-2026\\T000000Z.tar.gz'),
+        deleteBackup(tempDir.path, 'cornerstone-backup-2026\\T000000Z.tar.gz'),
       ).rejects.toMatchObject({
         code: 'BACKUP_NOT_FOUND',
       });
     });
 
     it('throws BackupNotFoundError for a random non-backup filename', async () => {
-      writeFileSync(join(tempDir, 'random-file.txt'), 'content');
-      await expect(deleteBackup(tempDir, 'random-file.txt')).rejects.toMatchObject({
+      writeFileSync(join(tempDir.path, 'random-file.txt'), 'content');
+      await expect(deleteBackup(tempDir.path, 'random-file.txt')).rejects.toMatchObject({
         code: 'BACKUP_NOT_FOUND',
       });
     });
@@ -340,12 +332,12 @@ describe('backupService', () => {
     it('only deletes the targeted file, leaving others intact', async () => {
       const file1 = 'cornerstone-backup-2026-01-01T000000Z.tar.gz';
       const file2 = 'cornerstone-backup-2026-06-01T000000Z.tar.gz';
-      writeFileSync(join(tempDir, file1), 'content1');
-      writeFileSync(join(tempDir, file2), 'content2');
+      writeFileSync(join(tempDir.path, file1), 'content1');
+      writeFileSync(join(tempDir.path, file2), 'content2');
 
-      await deleteBackup(tempDir, file1);
+      await deleteBackup(tempDir.path, file1);
 
-      const remaining = await listBackups(tempDir);
+      const remaining = await listBackups(tempDir.path);
       expect(remaining).toHaveLength(1);
       expect(remaining[0].filename).toBe(file2);
     });
@@ -367,51 +359,34 @@ describe('backupService', () => {
   // ─── createBackup — execution path ───────────────────────────────────────
 
   describe('createBackup() — execution path', () => {
-    let tempDir: string;
-    let backupTempDir: string;
-    let rawDb: Database.Database;
+    let tempDir: DisposableTempDir;
+    let backupTempDir: DisposableTempDir;
 
     beforeEach(() => {
       // App data directory (DB lives here) — separate from backup directory
-      tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-backup-exec-appdata-'));
+      tempDir = disposableTempDir('cornerstone-backup-exec-appdata-');
       // Backup directory MUST be outside the app data directory (config validation)
-      backupTempDir = mkdtempSync(join(tmpdir(), 'cornerstone-backup-exec-backups-'));
+      backupTempDir = disposableTempDir('cornerstone-backup-exec-backups-');
     });
 
     afterEach(() => {
-      // Close DB connection if open
-      try {
-        if (rawDb && rawDb.open) {
-          rawDb.close();
-        }
-      } catch {
-        // ignore
-      }
       // Restore writable permissions before cleanup (in case a test made the dir read-only)
       try {
-        chmodSync(backupTempDir, 0o755);
+        chmodSync(backupTempDir.path, 0o755);
       } catch {
         // ignore
       }
-      try {
-        rmSync(tempDir, { recursive: true, force: true });
-      } catch {
-        // ignore cleanup errors
-      }
-      try {
-        rmSync(backupTempDir, { recursive: true, force: true });
-      } catch {
-        // ignore cleanup errors
-      }
+      tempDir[Symbol.dispose]();
+      backupTempDir[Symbol.dispose]();
     });
 
     it('createBackup succeeds with a real DB and real tar: returns valid BackupMeta and writes the .tar.gz file', async () => {
-      rawDb = new Database(join(tempDir, 'test.db'));
+      using rawDb = disposableDb(join(tempDir.path, 'test.db'));
       const db = drizzle(rawDb);
 
       const config = makeConfig({
-        databaseUrl: join(tempDir, 'test.db'),
-        backupDir: backupTempDir,
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: backupTempDir.path,
         backupEnabled: true,
         backupRetention: undefined,
       });
@@ -425,7 +400,7 @@ describe('backupService', () => {
       expect(result.sizeBytes).toBeGreaterThan(0);
 
       // The archive file must exist on disk
-      const archivePath = join(backupTempDir, result.filename);
+      const archivePath = join(backupTempDir.path, result.filename);
       expect(existsSync(archivePath)).toBe(true);
     });
 
@@ -435,15 +410,15 @@ describe('backupService', () => {
         return;
       }
 
-      rawDb = new Database(join(tempDir, 'test.db'));
+      using rawDb = disposableDb(join(tempDir.path, 'test.db'));
       const db = drizzle(rawDb);
 
       // Make the backup directory read-only
-      chmodSync(backupTempDir, 0o444);
+      chmodSync(backupTempDir.path, 0o444);
 
       const config = makeConfig({
-        databaseUrl: join(tempDir, 'test.db'),
-        backupDir: backupTempDir,
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: backupTempDir.path,
         backupEnabled: true,
       });
 
@@ -464,8 +439,8 @@ describe('backupService', () => {
       } as any;
 
       const config = makeConfig({
-        databaseUrl: join(tempDir, 'test.db'),
-        backupDir: backupTempDir,
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: backupTempDir.path,
         backupEnabled: true,
       });
 
@@ -475,12 +450,12 @@ describe('backupService', () => {
     });
 
     it('createBackup enforces retention policy and deletes oldest backups when limit is exceeded', async () => {
-      rawDb = new Database(join(tempDir, 'test.db'));
+      using rawDb = disposableDb(join(tempDir.path, 'test.db'));
       const db = drizzle(rawDb);
 
       const config = makeConfig({
-        databaseUrl: join(tempDir, 'test.db'),
-        backupDir: backupTempDir,
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: backupTempDir.path,
         backupEnabled: true,
         backupRetention: 2,
       });
@@ -488,14 +463,14 @@ describe('backupService', () => {
       // Pre-seed two older backup stubs with valid filenames
       const stub1 = 'cornerstone-backup-2026-01-01T000000Z.tar.gz';
       const stub2 = 'cornerstone-backup-2026-01-02T000000Z.tar.gz';
-      writeFileSync(join(backupTempDir, stub1), 'stub content 1');
-      writeFileSync(join(backupTempDir, stub2), 'stub content 2');
+      writeFileSync(join(backupTempDir.path, stub1), 'stub content 1');
+      writeFileSync(join(backupTempDir.path, stub2), 'stub content 2');
 
       // Third backup created for real — this should push total to 3, triggering retention
       await createBackup(db, config);
 
       // After retention enforcement, only 2 files should remain
-      const remaining = await listBackups(backupTempDir);
+      const remaining = await listBackups(backupTempDir.path);
       expect(remaining).toHaveLength(2);
 
       // The two oldest stubs should have been deleted; only the 2 newest remain

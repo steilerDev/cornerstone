@@ -11,34 +11,33 @@
  */
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { mkdtempSync, rmSync, writeFileSync, chmodSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
+import { disposableTempDir } from '../test-helpers/disposables.js';
 import type { FastifyInstance } from 'fastify';
 import type { ApiErrorResponse, BackupListResponse, BackupResponse } from '@cornerstone/shared';
+import type { DisposableTempDir } from '../test-helpers/disposables.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 describe('Backup Routes', () => {
   let app: FastifyInstance;
-  let tempDir: string;
-  let backupTempDir: string;
-  let backupDir: string;
+  let tempDir: DisposableTempDir;
+  let backupTempDir: DisposableTempDir;
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
     originalEnv = { ...process.env };
 
     // App data directory (DB lives here)
-    tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-backup-routes-test-'));
+    tempDir = disposableTempDir('cornerstone-backup-routes-test-');
     // Backup directory MUST be outside the app data directory (config validation)
-    backupTempDir = mkdtempSync(join(tmpdir(), 'cornerstone-backup-backups-test-'));
-    backupDir = backupTempDir;
+    backupTempDir = disposableTempDir('cornerstone-backup-backups-test-');
 
-    process.env.DATABASE_URL = join(tempDir, 'test.db');
+    process.env.DATABASE_URL = join(tempDir.path, 'test.db');
     process.env.SECURE_COOKIES = 'false';
 
     app = await buildApp();
@@ -51,16 +50,8 @@ describe('Backup Routes', () => {
 
     process.env = originalEnv;
 
-    try {
-      rmSync(tempDir, { recursive: true, force: true });
-    } catch {
-      // Ignore cleanup errors
-    }
-    try {
-      rmSync(backupTempDir, { recursive: true, force: true });
-    } catch {
-      // Ignore cleanup errors
-    }
+    tempDir[Symbol.dispose]();
+    backupTempDir[Symbol.dispose]();
   });
 
   /**
@@ -223,7 +214,7 @@ describe('Backup Routes', () => {
 
     beforeEach(async () => {
       // Set BACKUP_DIR before building the app
-      process.env.BACKUP_DIR = backupDir;
+      process.env.BACKUP_DIR = backupTempDir.path;
       appWithBackup = await buildApp();
     });
 
@@ -264,13 +255,13 @@ describe('Backup Routes', () => {
 
       // Create backup dir and write fake backup files
       const { mkdirSync } = await import('node:fs');
-      mkdirSync(backupDir, { recursive: true });
+      mkdirSync(backupTempDir.path, { recursive: true });
       writeFileSync(
-        join(backupDir, 'cornerstone-backup-2026-03-22T020000Z.tar.gz'),
+        join(backupTempDir.path, 'cornerstone-backup-2026-03-22T020000Z.tar.gz'),
         'backup content',
       );
       writeFileSync(
-        join(backupDir, 'cornerstone-backup-2026-01-01T000000Z.tar.gz'),
+        join(backupTempDir.path, 'cornerstone-backup-2026-01-01T000000Z.tar.gz'),
         'older backup',
       );
 
@@ -321,9 +312,9 @@ describe('Backup Routes', () => {
     it('DELETE /api/backups/:filename returns 204 for an existing backup', async () => {
       const cookie = await createAdminWithSession();
       const { mkdirSync } = await import('node:fs');
-      mkdirSync(backupDir, { recursive: true });
+      mkdirSync(backupTempDir.path, { recursive: true });
       const filename = 'cornerstone-backup-2026-03-22T020000Z.tar.gz';
-      writeFileSync(join(backupDir, filename), 'backup content');
+      writeFileSync(join(backupTempDir.path, filename), 'backup content');
 
       const response = await appWithBackup.inject({
         method: 'DELETE',
@@ -337,9 +328,9 @@ describe('Backup Routes', () => {
     it('POST /api/backups/:filename/restore returns 202 Accepted when file exists (async response)', async () => {
       const cookie = await createAdminWithSession();
       const { mkdirSync } = await import('node:fs');
-      mkdirSync(backupDir, { recursive: true });
+      mkdirSync(backupTempDir.path, { recursive: true });
       const filename = 'cornerstone-backup-2026-03-22T020000Z.tar.gz';
-      writeFileSync(join(backupDir, filename), 'backup content');
+      writeFileSync(join(backupTempDir.path, filename), 'backup content');
 
       const response = await appWithBackup.inject({
         method: 'POST',
@@ -362,7 +353,7 @@ describe('Backup Routes', () => {
       const cookie = await createAdminWithSession();
 
       // Make the backup directory read-only so the writability probe fails
-      chmodSync(backupDir, 0o444);
+      chmodSync(backupTempDir.path, 0o444);
 
       try {
         const response = await appWithBackup.inject({
@@ -376,7 +367,7 @@ describe('Backup Routes', () => {
         expect(body.error.code).toBe('BACKUP_FAILED');
       } finally {
         // Restore permissions so afterEach cleanup can delete the directory
-        chmodSync(backupDir, 0o755);
+        chmodSync(backupTempDir.path, 0o755);
       }
     });
   });
