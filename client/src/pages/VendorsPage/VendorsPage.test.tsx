@@ -11,10 +11,18 @@ import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as UseTradesTypes from '../../hooks/useTrades.js';
+import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type { Vendor } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 
 // ─── Mock modules BEFORE importing component ────────────────────────────────
+
+// Mock AuthContext — VendorsPage uses useAuth() to compute isAdmin for Settings SubNav visibility
+const mockUseAuth = jest.fn<typeof AuthContextTypes.useAuth>();
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: mockUseAuth,
+  AuthProvider: ({ children }: { children: ReactNode }) => children,
+}));
 
 // Mock preferencesApi — DataTable calls useColumnPreferences -> usePreferences -> listPreferences
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -161,10 +169,30 @@ describe('VendorsPage', () => {
     }
     // Reset mocks to clear call history AND queued Once implementations from prior tests.
     // mockClear only clears call history; mockReset also drains the Once queue.
+    mockUseAuth.mockReset();
     mockFetchVendors.mockReset();
     mockCreateVendor.mockReset();
     mockDeleteVendor.mockReset();
     mockListPreferencesVendors.mockReset();
+
+    // Default: admin user so all Settings SubNav tabs are visible
+    mockUseAuth.mockReturnValue({
+      user: {
+        id: 'user-admin',
+        email: 'admin@example.com',
+        displayName: 'Admin',
+        role: 'admin' as const,
+        authProvider: 'local' as const,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+        deactivatedAt: null,
+      },
+      oidcEnabled: false,
+      isLoading: false,
+      error: null,
+      refreshAuth: jest.fn(async () => Promise.resolve()),
+      logout: jest.fn(async () => Promise.resolve()),
+    });
     mockListPreferencesVendors.mockResolvedValue([]);
     mockUseTrades.mockReturnValue({
       trades: [],
