@@ -7,7 +7,7 @@
  * succeeds so that test setup failures surface with a clear message rather
  * than a cryptic null-reference error later in the test.
  *
- * Pattern mirrors the inline helpers in e2e/tests/budget/vendors.spec.ts but
+ * Pattern mirrors the inline helpers in e2e/tests/vendors/vendors.spec.ts but
  * lives here so multiple spec files can share them without duplication.
  */
 

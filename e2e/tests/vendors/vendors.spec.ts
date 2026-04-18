@@ -1,5 +1,10 @@
 /**
- * E2E tests for Vendor/Contractor Management (Story #143)
+ * E2E tests for Vendor/Contractor Management (Story #143, migrated Story #1283)
+ *
+ * Story #1283: Vendors moved from Budget section to Settings section.
+ * - New canonical URL: /settings/vendors (and /settings/vendors/:id)
+ * - Legacy redirects: /budget/vendors → /settings/vendors
+ *                     /budget/vendors/:id → /settings/vendors/:id
  *
  * UAT Scenarios covered:
  * - Scenario 1:  Empty state when no vendors exist
@@ -17,11 +22,13 @@
  * - Scenario 17: Responsive layout on mobile/tablet/desktop (no horizontal scroll)
  * - Navigation:  Vendors → Detail → Back to Vendors
  * - Dark mode:   Page renders without layout breakage in dark mode
+ * - Redirect:    Legacy /budget/vendors → /settings/vendors (Story #1283)
+ * - SubNav:      Settings section navigation shows Vendors tab active (Story #1283)
  */
 
 import { test, expect } from '../../fixtures/auth.js';
 import type { Page } from '@playwright/test';
-import { VendorsPage } from '../../pages/VendorsPage.js';
+import { VendorsPage, VENDORS_ROUTE } from '../../pages/VendorsPage.js';
 import { VendorDetailPage } from '../../pages/VendorDetailPage.js';
 import { API } from '../../fixtures/testData.js';
 
@@ -147,7 +154,7 @@ test.describe('Create vendor — full details (Scenario 2)', { tag: '@responsive
     const vendorName = `${testPrefix} Apex Construction LLC`;
 
     try {
-      // Given: I am on the Budget > Vendors page
+      // Given: I am on the Settings > Vendors page
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
 
@@ -370,11 +377,7 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
       await vendorsPage.clickView(vendorName);
 
       // Then: I am on the vendor detail page (wait for URL, not h1 which matches list page too)
-      await page.waitForURL(`**/budget/vendors/${createdId}`, { timeout: 15000 });
-
-      // Wait for the loading state to clear — CI runners can be slow and the
-      // fetch + render may take longer than the default 7s timeout
-      await expect(page.getByText('Loading vendor...')).not.toBeVisible({ timeout: 15000 });
+      await page.waitForURL(`**/settings/vendors/${createdId}`, { timeout: 15000 });
 
       // Wait for the loading state to clear — CI runners can be slow and the
       // fetch + render may take longer than the default 7s timeout
@@ -442,7 +445,7 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
   test('Navigating to unknown vendor ID shows error state', async ({ page }) => {
     const detailPage = new VendorDetailPage(page);
 
-    await page.goto('/budget/vendors/nonexistent-vendor-id-12345');
+    await page.goto('/settings/vendors/nonexistent-vendor-id-12345');
 
     // Then: An error card is shown
     await expect(detailPage.errorCard).toBeVisible({ timeout: 8000 });
@@ -566,7 +569,7 @@ test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsiv
     // Given: A vendor exists with no invoices
     const createdId = await createVendorViaApi(page, { name: vendorName });
 
-    // When: I navigate to Budget > Vendors and search for this vendor
+    // When: I navigate to Settings > Vendors and search for this vendor
     await vendorsPage.goto();
     await vendorsPage.waitForVendorsLoaded();
     await vendorsPage.search(vendorName);
@@ -643,9 +646,9 @@ test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsiv
     // And: I confirm
     await detailPage.confirmDelete();
 
-    // Then: I am redirected to the vendors list
-    await page.waitForURL('/budget/vendors', { timeout: 15000 });
-    expect(page.url()).toContain('/budget/vendors');
+    // Then: I am redirected to the vendors list (new canonical URL)
+    await page.waitForURL('**/settings/vendors', { timeout: 15000 });
+    expect(page.url()).toContain('/settings/vendors');
 
     // Note: vendor was deleted via UI — no API cleanup needed
     void createdId;
@@ -752,8 +755,8 @@ test.describe('Delete blocked by 409 (Scenario 9)', { tag: '@responsive' }, () =
       expect(errorText).toBeTruthy();
       expect(errorText?.toLowerCase()).toMatch(/cannot be deleted|invoices/);
 
-      // Still on detail page
-      expect(page.url()).toContain(`/budget/vendors/${createdId}`);
+      // Still on detail page (new canonical URL)
+      expect(page.url()).toContain(`/settings/vendors/${createdId}`);
 
       // Confirm button hidden
       await expect(detailPage.deleteConfirmButton).not.toBeVisible({ timeout: 3000 });
@@ -1021,10 +1024,7 @@ test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () =>
     }
   });
 
-  test('Table has correct column headers: Name, Phone, Email, Actions', async ({
-    page,
-    testPrefix,
-  }) => {
+  test('Table has correct column headers: Name, Trade, Contact', async ({ page, testPrefix }) => {
     // Table is hidden on mobile (< 768px) — cards are shown instead
     const viewport = page.viewportSize();
     if (viewport && viewport.width < 768) {
@@ -1080,26 +1080,26 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
 
       // Navigate to detail (wait for URL change, not h1 which matches list page too)
       await vendorsPage.clickView(vendorName);
-      await page.waitForURL('**/budget/vendors/*', { timeout: 15000 });
+      await page.waitForURL('**/settings/vendors/*', { timeout: 15000 });
 
       // Wait for detail page to fully render before interacting with back button
       await expect(detailPage.infoCard).toBeVisible({ timeout: 15000 });
 
       // Navigate back via back button
       await detailPage.goBackToVendors();
-      expect(page.url()).toContain('/budget/vendors');
+      expect(page.url()).toContain('/settings/vendors');
       await vendorsPage.heading.waitFor({ state: 'visible', timeout: 15000 });
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
   });
 
-  test('Page URL is /budget/vendors', async ({ page }) => {
+  test('Page URL is /settings/vendors', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
 
     await vendorsPage.goto();
-    await page.waitForURL('/budget/vendors', { timeout: 15000 });
-    expect(page.url()).toContain('/budget/vendors');
+    await page.waitForURL(VENDORS_ROUTE, { timeout: 15000 });
+    expect(page.url()).toContain('/settings/vendors');
   });
 
   test('Page heading is "Budget" (h1)', { tag: '@smoke' }, async ({ page }) => {
@@ -1109,10 +1109,81 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
     await expect(vendorsPage.heading).toBeVisible();
     await expect(vendorsPage.heading).toHaveText('Budget');
 
-    // Visual cleanup #1185: the h2 "Vendors" section heading was removed.
-    // Verify correct sub-page loaded via the BudgetSubNav "Vendors" tab being visible.
-    const subNav = page.getByRole('navigation', { name: 'Budget section navigation' });
+    // Verify correct sub-page loaded via the SettingsSubNav "Vendors" tab being visible and active.
+    const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
     await expect(subNav.getByRole('link', { name: 'Vendors' })).toBeVisible();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Story #1283: Legacy redirect tests
+// /budget/vendors → /settings/vendors
+// /budget/vendors/:id → /settings/vendors/:id
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Legacy redirect: /budget/vendors → /settings/vendors (Story #1283)', () => {
+  test('Navigating to /budget/vendors redirects to /settings/vendors', async ({ page }) => {
+    const vendorsPage = new VendorsPage(page);
+
+    // When: the user navigates to the old Budget > Vendors URL
+    await page.goto('/budget/vendors');
+
+    // Then: they are redirected to the new canonical Settings > Vendors URL
+    await page.waitForURL('**/settings/vendors', { timeout: 15000 });
+    expect(page.url()).toContain('/settings/vendors');
+    expect(page.url()).not.toContain('/budget/vendors');
+
+    // And: The vendors page heading is visible (page loaded correctly)
+    await expect(vendorsPage.heading).toBeVisible({ timeout: 8000 });
+  });
+
+  test('Navigating to /budget/vendors/:id redirects to /settings/vendors/:id', async ({
+    page,
+    testPrefix,
+  }) => {
+    const detailPage = new VendorDetailPage(page);
+    let createdId: string | null = null;
+
+    try {
+      // Given: A vendor exists (real ID needed for the redirect to resolve correctly)
+      createdId = await createVendorViaApi(page, {
+        name: `${testPrefix} Redirect Detail Vendor`,
+      });
+
+      // When: the user navigates to the old /budget/vendors/:id URL
+      await page.goto(`/budget/vendors/${createdId}`);
+
+      // Then: they are redirected to the new canonical /settings/vendors/:id URL
+      await page.waitForURL(`**/settings/vendors/${createdId}`, { timeout: 15000 });
+      expect(page.url()).toContain(`/settings/vendors/${createdId}`);
+      expect(page.url()).not.toContain('/budget/vendors');
+
+      // And: The vendor detail page loads correctly
+      await expect(detailPage.pageTitle).toBeVisible({ timeout: 8000 });
+      await expect(detailPage.pageTitle).toHaveText(`${testPrefix} Redirect Detail Vendor`);
+    } finally {
+      if (createdId) await deleteVendorViaApi(page, createdId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Story #1283: Settings SubNav presence
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Settings SubNav shows Vendors tab active (Story #1283)', () => {
+  test('Settings section navigation is visible with Vendors tab marked active', async ({
+    page,
+  }) => {
+    // When: the user is on the Settings > Vendors page
+    await page.goto(VENDORS_ROUTE);
+
+    // Then: The Settings SubNav is present
+    const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
+    await expect(subNav).toBeVisible({ timeout: 8000 });
+
+    // And: The "Vendors" tab within it has aria-current="page" (active state)
+    const vendorsTab = subNav.getByRole('link', { name: 'Vendors' });
+    await expect(vendorsTab).toBeVisible();
+    await expect(vendorsTab).toHaveAttribute('aria-current', 'page');
   });
 });
 
@@ -1243,7 +1314,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
   test('Vendors list page renders correctly in dark mode', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
 
-    await page.goto('/budget/vendors');
+    await page.goto(VENDORS_ROUTE);
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
@@ -1263,7 +1334,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
   test('Add Vendor modal is usable in dark mode', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
 
-    await page.goto('/budget/vendors');
+    await page.goto(VENDORS_ROUTE);
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
@@ -1288,7 +1359,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
         name: `${testPrefix} Dark Mode Detail Vendor`,
       });
 
-      await page.goto(`/budget/vendors/${createdId}`);
+      await page.goto(`/settings/vendors/${createdId}`);
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });
@@ -1316,7 +1387,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
     try {
       createdId = await createVendorViaApi(page, { name: vendorName });
 
-      await page.goto('/budget/vendors');
+      await page.goto(VENDORS_ROUTE);
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });
