@@ -47,6 +47,11 @@ export interface ColumnDef<T> {
   filterParamKey?: string;
   enumOptions?: EnumOption[];
   enumHierarchy?: EnumHierarchyItem[];
+  enumIncludeNone?: boolean;
+  /** Already-translated label shown in the "none" sentinel row */
+  enumNoneLabel?: string;
+  /** Used as aria-label on the sentinel checkbox (already translated) */
+  enumNoneDescription?: string;
   entitySearchFn?: SearchPickerProps<unknown>['searchFn'];
   entityRenderItem?: SearchPickerProps<unknown>['renderItem'];
   entityPlaceholder?: string;
