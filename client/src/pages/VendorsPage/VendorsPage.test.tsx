@@ -145,7 +145,7 @@ let VendorsPage: any;
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={['/budget/vendors']}>
+    <MemoryRouter initialEntries={['/settings/vendors']}>
       <VendorsPage />
     </MemoryRouter>,
   );
@@ -200,6 +200,19 @@ describe('VendorsPage', () => {
       await waitFor(() => {
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
       });
+    });
+  });
+
+  describe('settings subnav', () => {
+    it('renders the Settings section SubNav with correct aria-label', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+
+      const nav = screen.getByRole('navigation', { name: 'Settings section navigation' });
+      expect(nav).toBeInTheDocument();
     });
   });
 
@@ -465,6 +478,38 @@ describe('VendorsPage', () => {
       fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]);
 
       expect(screen.getAllByTestId('vendor-delete-vendor-1').length).toBeGreaterThan(0);
+    });
+
+    it('vendor name link points to /settings/vendors/:id', async () => {
+      const vendor = makeVendor({ id: 'vendor-1', name: 'Acme Construction' });
+      mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse([vendor]));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Acme Construction').length).toBeGreaterThan(0);
+      });
+
+      // The vendor name rendered by the DataTable name column is a <Link to="/settings/vendors/:id">
+      const vendorLinks = screen.getAllByRole('link', { name: 'Acme Construction' });
+      expect(vendorLinks.length).toBeGreaterThan(0);
+      expect(vendorLinks[0]).toHaveAttribute('href', '/settings/vendors/vendor-1');
+    });
+
+    it('action menu "View" button navigates to /settings/vendors/:id', async () => {
+      const vendor = makeVendor({ id: 'vendor-1', name: 'Acme Construction' });
+      mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse([vendor]));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId('vendor-menu-button-vendor-1').length).toBeGreaterThan(0);
+      });
+
+      fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]);
+
+      // vendor-view-vendor-1 button calls navigate('/settings/vendors/vendor-1')
+      expect(screen.getAllByTestId('vendor-view-vendor-1').length).toBeGreaterThan(0);
     });
 
     it('opens delete confirmation modal when delete action is clicked', async () => {

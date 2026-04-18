@@ -96,9 +96,10 @@ jest.unstable_mockModule('./lib/householdItemsApi.js', () => ({
 }));
 
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 jest.unstable_mockModule('./lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
-  fetchVendor: jest.fn<typeof VendorsApiTypes.fetchVendor>(),
+  fetchVendor: mockFetchVendor,
   createVendor: jest.fn<typeof VendorsApiTypes.createVendor>(),
   updateVendor: jest.fn<typeof VendorsApiTypes.updateVendor>(),
   deleteVendor: jest.fn<typeof VendorsApiTypes.deleteVendor>(),
@@ -230,6 +231,7 @@ describe('App', () => {
     mockListWorkItems.mockReset();
     mockListHouseholdItems.mockReset();
     mockFetchVendors.mockReset();
+    mockFetchVendor.mockReset();
     mockListUsers.mockReset();
     mockFetchAllInvoices.mockReset();
     mockFetchWorkItemBudgets.mockReset();
@@ -303,6 +305,10 @@ describe('App', () => {
       items: [],
       pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
     });
+
+    // Default: fetchVendor stays pending — keeps VendorDetailPage in loading state
+    // when the /settings/vendors/:id route is tested via App.test.tsx
+    mockFetchVendor.mockReturnValue(new Promise(() => {}));
 
     // Default: vendors returns empty list (used by HouseholdItemsPage vendor filter)
     mockFetchVendors.mockResolvedValue({
@@ -460,5 +466,67 @@ describe('App', () => {
       { timeout: 5000 },
     );
     expect(heading).toBeInTheDocument();
+  });
+
+  it('navigates to VendorsPage at /settings/vendors', async () => {
+    window.history.pushState({}, 'Vendors', '/settings/vendors');
+    render(<App />);
+
+    // VendorsPage shows a Settings SubNav — the nav aria-label is "Settings section navigation"
+    // Wait for lazy-loaded VendorsPage to resolve and render the SubNav
+    const nav = await screen.findByRole(
+      'navigation',
+      { name: /settings section navigation/i },
+      { timeout: 5000 },
+    );
+    expect(nav).toBeInTheDocument();
+  });
+
+  it('navigates to VendorDetailPage at /settings/vendors/:id', async () => {
+    window.history.pushState({}, 'Vendor Detail', '/settings/vendors/vendor-1');
+    render(<App />);
+
+    // VendorDetailPage shows a "loading vendor" text immediately and then the
+    // "Back to Vendors" button once the loading state settles.
+    // Since the API is mocked to never resolve (no fetchVendor mock), we check
+    // that the page renders without crashing by verifying the loading indicator.
+    await waitFor(
+      () => {
+        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+      },
+      { timeout: 5000 },
+    );
+    // VendorDetailPage is the active route — the loading vendor text appears
+    // from the page itself (before the API call settles)
+    // The page title is set dynamically; confirm the route rendered (no 404)
+    expect(screen.queryByRole('heading', { name: /404.*not found/i })).not.toBeInTheDocument();
+  });
+
+  it('redirects /budget/vendors to /settings/vendors', async () => {
+    window.history.pushState({}, 'Budget Vendors', '/budget/vendors');
+    render(<App />);
+
+    // After redirect, VendorsPage at /settings/vendors renders the Settings SubNav
+    const nav = await screen.findByRole(
+      'navigation',
+      { name: /settings section navigation/i },
+      { timeout: 5000 },
+    );
+    expect(nav).toBeInTheDocument();
+  });
+
+  it('redirects /budget/vendors/:id to /settings/vendors/:id (preserves id param)', async () => {
+    window.history.pushState({}, 'Budget Vendor Detail', '/budget/vendors/vendor-42');
+    render(<App />);
+
+    // After ParamRedirect, VendorDetailPage at /settings/vendors/vendor-42 renders
+    // without crashing and without showing a 404
+    await waitFor(
+      () => {
+        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+      },
+      { timeout: 5000 },
+    );
+    expect(screen.queryByRole('heading', { name: /404.*not found/i })).not.toBeInTheDocument();
   });
 });

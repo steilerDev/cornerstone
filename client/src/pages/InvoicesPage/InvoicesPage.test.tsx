@@ -211,7 +211,7 @@ describe('InvoicesPage', () => {
         <Routes>
           <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
           <Route path="/budget/invoices/:id" element={<div>Invoice Detail</div>} />
-          <Route path="/budget/vendors/:id" element={<div>Vendor Detail</div>} />
+          <Route path="/settings/vendors/:id" element={<div>Vendor Detail</div>} />
         </Routes>
         <LocationDisplay />
       </MemoryRouter>,
