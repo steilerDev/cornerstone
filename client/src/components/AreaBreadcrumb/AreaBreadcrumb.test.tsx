@@ -157,21 +157,22 @@ describe('AreaBreadcrumb', () => {
     });
   });
 
-  // ── 7. Compact variant — tooltip wraps full path ────────────────────────────
+  // ── 7. Compact variant — plain span with full path ──────────────────────────
 
-  describe('compact variant — tooltip wraps full path', () => {
-    it('renders a tabindex="0" element with full path as textContent', () => {
-      const { container } = render(<AreaBreadcrumb area={areaCompactMulti} variant="compact" />);
-      const focusable = container.querySelector('[tabindex="0"]');
-      expect(focusable).toBeInTheDocument();
-      expect((focusable as HTMLElement).textContent).toBe('Property \u203a House \u203a Pantry');
+  describe('compact variant — plain span with full path', () => {
+    it('renders full path text in a span', () => {
+      render(<AreaBreadcrumb area={areaCompactMulti} variant="compact" />);
+      expect(screen.getByText('Property \u203a House \u203a Pantry')).toBeInTheDocument();
     });
 
-    it('renders a role="tooltip" element containing the full path', () => {
+    it('does not render a role="tooltip" element', () => {
       const { container } = render(<AreaBreadcrumb area={areaCompactMulti} variant="compact" />);
-      const tooltip = container.querySelector('[role="tooltip"]');
-      expect(tooltip).toBeInTheDocument();
-      expect((tooltip as HTMLElement).textContent).toBe('Property \u203a House \u203a Pantry');
+      expect(container.querySelector('[role="tooltip"]')).not.toBeInTheDocument();
+    });
+
+    it('does not render a focusable tabindex="0" element', () => {
+      const { container } = render(<AreaBreadcrumb area={areaCompactMulti} variant="compact" />);
+      expect(container.querySelector('[tabindex="0"]')).not.toBeInTheDocument();
     });
 
     it('does not render a nav element', () => {
@@ -180,21 +181,22 @@ describe('AreaBreadcrumb', () => {
     });
   });
 
-  // ── 8. Compact variant — single segment tooltip ─────────────────────────────
+  // ── 8. Compact variant — single segment plain span ───────────────────────────
 
-  describe('compact variant — single segment tooltip', () => {
-    it('tooltip textContent equals the single area name', () => {
-      const { container } = render(<AreaBreadcrumb area={areaNoAncestors} variant="compact" />);
-      const tooltip = container.querySelector('[role="tooltip"]');
-      expect(tooltip).toBeInTheDocument();
-      expect((tooltip as HTMLElement).textContent).toBe('Garage');
+  describe('compact variant — single segment plain span', () => {
+    it('renders the single area name as text', () => {
+      render(<AreaBreadcrumb area={areaNoAncestors} variant="compact" />);
+      expect(screen.getByText('Garage')).toBeInTheDocument();
     });
 
-    it('tabindex="0" element textContent equals the single area name', () => {
+    it('does not render a role="tooltip" element for a single-segment area', () => {
       const { container } = render(<AreaBreadcrumb area={areaNoAncestors} variant="compact" />);
-      const focusable = container.querySelector('[tabindex="0"]');
-      expect(focusable).toBeInTheDocument();
-      expect((focusable as HTMLElement).textContent).toBe('Garage');
+      expect(container.querySelector('[role="tooltip"]')).not.toBeInTheDocument();
+    });
+
+    it('does not render a focusable tabindex="0" element for a single-segment area', () => {
+      const { container } = render(<AreaBreadcrumb area={areaNoAncestors} variant="compact" />);
+      expect(container.querySelector('[tabindex="0"]')).not.toBeInTheDocument();
     });
   });
 });

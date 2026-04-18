@@ -47,10 +47,4 @@
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
-  cursor: default;
-}
-
-.compact:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
 }

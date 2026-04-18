@@ -763,9 +763,6 @@ export function HouseholdItemDetailPage() {
         <div className={styles.headerRow}>
           <div className={styles.pageHeading}>
             <h1 className={styles.pageTitle}>{item.name}</h1>
-            <div className={styles.titleBreadcrumb}>
-              <AreaBreadcrumb area={item.area ?? null} variant="default" />
-            </div>
             <div className={styles.headerBadges}>
               <span className={styles.categoryBadge}>
                 {(() => {

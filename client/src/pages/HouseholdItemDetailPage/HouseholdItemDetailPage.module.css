@@ -178,10 +178,6 @@
   word-break: break-word;
 }
 
-.titleBreadcrumb {
-  margin-top: var(--spacing-2);
-}
-
 .headerBadges {
   display: flex;
   gap: var(--spacing-2);

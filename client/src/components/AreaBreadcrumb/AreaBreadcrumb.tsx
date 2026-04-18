@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AreaSummary } from '@cornerstone/shared';
-import { Tooltip } from '../Tooltip/Tooltip.js';
 import styles from './AreaBreadcrumb.module.css';
 
 export interface AreaBreadcrumbProps {
@@ -23,11 +22,9 @@ export function AreaBreadcrumb({ area, variant = 'default' }: AreaBreadcrumbProp
 
   if (variant === 'compact') {
     return (
-      <Tooltip content={fullPath}>
-        <span className={styles.compact} tabIndex={0}>
-          {fullPath}
-        </span>
-      </Tooltip>
+      <span className={styles.compact}>
+        {fullPath}
+      </span>
     );
   }
 

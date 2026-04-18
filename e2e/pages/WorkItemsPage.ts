@@ -57,10 +57,9 @@ export class WorkItemsPage {
   readonly emptyState: Locator;
 
   // Area breadcrumb — compact variant (list rows)
-  // The compact AreaBreadcrumb renders a <span tabIndex={0}> with the full path text
-  // wrapped in a <Tooltip>. The row that contains the breadcrumb is identified by
-  // scoping to a table row or card that also contains the work item title link.
-  // For assertions we look up breadcrumb spans within a given row by text content.
+  // fix/1278: The compact AreaBreadcrumb no longer has tabIndex=0 or a Tooltip.
+  // The span carries only class*="compact" with the full path text as plain content.
+  // For per-item assertions, callers scope to a specific row/card — this is the first match.
   readonly areaBreadcrumb: Locator;
 
   // Error banner
@@ -119,12 +118,11 @@ export class WorkItemsPage {
     this.emptyState = page.locator('[class^="emptyState_"], [class*=" emptyState_"]').first();
 
     // Area breadcrumb — compact variant spans inside table rows / mobile cards.
-    // The AreaBreadcrumb compact variant renders a tabIndex=0 span containing the
-    // full path text (e.g. "Ground Floor › Kitchen"). The "No area" fallback renders
-    // a plain <span> with class "muted" — no tabIndex. We select any tabIndex=0
-    // span that sits inside the title cell. Callers scope to a specific row/card when
-    // they need per-item assertions — this is the first match as a default.
-    this.areaBreadcrumb = page.locator('[tabIndex="0"][class*="compact"]').first();
+    // fix/1278: compact variant no longer has tabIndex=0 or a Tooltip — plain span only.
+    // The "No area" fallback renders a plain <span> with class "muted" — no tabIndex.
+    // Callers scope to a specific row/card when they need per-item assertions — this
+    // is the first match as a default.
+    this.areaBreadcrumb = page.locator('[class*="compact"]').first();
 
     // Error banner (outside modal)
     this.errorBanner = page.locator('[role="alert"][class*="errorBanner"]');
@@ -376,14 +374,12 @@ export class WorkItemsPage {
    * Mobile: scoped to the card container element containing that title.
    *
    * Returns a Locator that may point to:
-   *  - A <span tabIndex=0 class*="compact"> when an area is assigned (compact breadcrumb)
+   *  - A <span class*="compact"> when an area is assigned (compact breadcrumb, no tabIndex)
    *  - A <span class*="muted"> with text "No area" when no area is assigned
+   *
+   * fix/1278: compact variant no longer has tabIndex=0 — selector updated accordingly.
    */
   getAreaBreadcrumbForItem(title: string): Locator {
-    // Try desktop table first (always scoped so mobile callers get the card version
-    // when they call this method — but mobile tests typically use cardsContainer).
-    // Return a filter-scoped locator; the caller awaits on it for cross-viewport safety.
-    const tableVisible = this.tableContainer;
     // We use filter({ hasText }) on the row, then look for either the compact span
     // or the muted "No area" span inside the title cell.
     const row = this.tableBody.locator('tr').filter({ hasText: title });
@@ -391,11 +387,10 @@ export class WorkItemsPage {
 
     // Return a locator that covers both: the actual element is whichever is in the
     // visible container. Callers must await .textContent() or use expect().
-    // We return the row locator here; tests use `tableVisible` to branch if needed.
     // The locator resolves to the compact span or the "No area" muted span.
     return row
-      .locator('[tabIndex="0"][class*="compact"], [class*="muted"]')
-      .or(card.locator('[tabIndex="0"][class*="compact"], [class*="muted"]'))
+      .locator('[class*="compact"], [class*="muted"]')
+      .or(card.locator('[class*="compact"], [class*="muted"]'))
       .first();
   }
 

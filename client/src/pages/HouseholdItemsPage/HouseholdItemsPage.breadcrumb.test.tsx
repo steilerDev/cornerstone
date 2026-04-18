@@ -238,7 +238,7 @@ describe('HouseholdItemsPage — AreaBreadcrumb in name column (Story #1240)', (
       expect(breadcrumbEls.length).toBeGreaterThan(0);
     });
 
-    it('renders a tooltip element containing the full area path when area has ancestors', async () => {
+    it('renders a compact span with full area path and no tooltip when area has ancestors', async () => {
       const item = makeHouseholdItem({
         id: 'hi-1',
         name: 'Bookshelf',
@@ -257,14 +257,16 @@ describe('HouseholdItemsPage — AreaBreadcrumb in name column (Story #1240)', (
         expect(screen.getAllByText('Bookshelf').length).toBeGreaterThan(0);
       });
 
-      // Compact variant wraps text in a Tooltip that renders role="tooltip"
+      // Compact variant renders a plain <span> — no Tooltip, no role="tooltip"
       const tooltips = container.querySelectorAll('[role="tooltip"]');
-      expect(tooltips.length).toBeGreaterThan(0);
+      expect(tooltips.length).toBe(0);
 
-      // At least one tooltip should contain the full path
+      // A <span> with class containing "compact" must carry the full path text
       const fullPath = 'Upper Floor \u203a Study';
-      const matchingTooltip = Array.from(tooltips).find((el) => el.textContent === fullPath);
-      expect(matchingTooltip).toBeDefined();
+      const compactSpans = container.querySelectorAll('span[class*="compact"]');
+      expect(compactSpans.length).toBeGreaterThan(0);
+      const matchingSpan = Array.from(compactSpans).find((el) => el.textContent === fullPath);
+      expect(matchingSpan).toBeDefined();
     });
 
     it('renders both the item link and the breadcrumb within the name column', async () => {

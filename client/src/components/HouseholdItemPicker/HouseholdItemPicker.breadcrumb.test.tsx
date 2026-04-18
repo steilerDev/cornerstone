@@ -124,11 +124,9 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
         expect(screen.getByText('Sofa')).toBeInTheDocument();
       });
 
-      // Compact breadcrumb: "Ground Floor › Kitchen"
-      // Tooltip renders the text in both the visible span and in role="tooltip",
-      // so getAllByText is used to avoid "Found multiple elements" errors.
+      // Compact breadcrumb: "Ground Floor › Kitchen" — plain span, text appears once.
       const fullPath = 'Ground Floor \u203a Kitchen';
-      expect(screen.getAllByText(fullPath).length).toBeGreaterThan(0);
+      expect(screen.getByText(fullPath)).toBeInTheDocument();
     });
 
     it('renders compact breadcrumb text for a root-level area (no ancestors)', async () => {
@@ -147,12 +145,11 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
         expect(screen.getByText('Toolbox')).toBeInTheDocument();
       });
 
-      // Root-level area: breadcrumb text is just "Garage"
-      // Tooltip renders the text twice (visible span + role="tooltip").
-      expect(screen.getAllByText('Garage').length).toBeGreaterThan(0);
+      // Root-level area: breadcrumb text is just "Garage" — plain span, appears once.
+      expect(screen.getByText('Garage')).toBeInTheDocument();
     });
 
-    it('renders tooltip element containing the full area path', async () => {
+    it('does not render a role="tooltip" element for compact breadcrumb (plain span only)', async () => {
       const user = userEvent.setup();
       mockListHouseholdItems.mockResolvedValue({
         items: [makeItem({ id: 'hi-1', name: 'Chair', area: areaWithAncestors })],
@@ -168,13 +165,12 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
         expect(screen.getByText('Chair')).toBeInTheDocument();
       });
 
-      // Compact variant wraps text in a Tooltip that renders role="tooltip"
-      const tooltips = container.querySelectorAll('[role="tooltip"]');
-      expect(tooltips.length).toBeGreaterThan(0);
+      // Compact variant is now a plain span — no Tooltip, no role="tooltip"
+      expect(container.querySelector('[role="tooltip"]')).not.toBeInTheDocument();
 
+      // The full path text is present exactly once (no hidden duplicate in a tooltip span)
       const fullPath = 'Ground Floor \u203a Kitchen';
-      const matchingTooltip = Array.from(tooltips).find((el) => el.textContent === fullPath);
-      expect(matchingTooltip).toBeDefined();
+      expect(screen.getByText(fullPath)).toBeInTheDocument();
     });
 
     it('renders secondary breadcrumbs for multiple results with different areas', async () => {
@@ -197,10 +193,10 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
         expect(screen.getByText('Toolbox')).toBeInTheDocument();
       });
 
-      // Sofa's area breadcrumb — Tooltip duplicates text into role="tooltip".
-      expect(screen.getAllByText('Ground Floor \u203a Kitchen').length).toBeGreaterThan(0);
-      // Toolbox's area breadcrumb (root-level, no ancestors) — same Tooltip duplication.
-      expect(screen.getAllByText('Garage').length).toBeGreaterThan(0);
+      // Sofa's compact breadcrumb — plain span, exactly one occurrence.
+      expect(screen.getByText('Ground Floor \u203a Kitchen')).toBeInTheDocument();
+      // Toolbox's compact breadcrumb (root-level, no ancestors) — plain span, exactly one.
+      expect(screen.getByText('Garage')).toBeInTheDocument();
     });
   });
 
@@ -296,8 +292,8 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
         expect(screen.getByText('Chair')).toBeInTheDocument();
       });
 
-      // Sofa shows the compact path — Tooltip renders text twice (span + role="tooltip").
-      expect(screen.getAllByText('Ground Floor \u203a Kitchen').length).toBeGreaterThan(0);
+      // Sofa shows the compact path — plain span, exactly one occurrence.
+      expect(screen.getByText('Ground Floor \u203a Kitchen')).toBeInTheDocument();
       // Chair shows "No area"
       expect(screen.getByText('No area')).toBeInTheDocument();
     });
@@ -322,8 +318,8 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
         expect(screen.getByText('Sofa')).toBeInTheDocument();
       });
 
-      // Tooltip renders text twice (visible span + role="tooltip").
-      expect(screen.getAllByText('Ground Floor \u203a Kitchen').length).toBeGreaterThan(0);
+      // Plain span — text appears exactly once.
+      expect(screen.getByText('Ground Floor \u203a Kitchen')).toBeInTheDocument();
     });
 
     it('renders "No area" secondary line after typing when item has null area', async () => {

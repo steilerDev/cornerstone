@@ -67,7 +67,6 @@ import {
 import { fetchLinkedHouseholdItems } from '../../lib/householdItemWorkItemsApi.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
-import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import {
   AssignmentPicker,
   decodeAssignment,
@@ -1234,9 +1233,6 @@ export default function WorkItemDetailPage() {
                 {workItem.title}
               </h1>
             )}
-            <div className={styles.titleBreadcrumb}>
-              <AreaBreadcrumb area={workItem.area ?? null} variant="default" />
-            </div>
           </div>
 
           <div className={styles.statusSection}>
