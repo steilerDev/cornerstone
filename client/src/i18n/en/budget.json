@@ -187,7 +187,17 @@
         "quote": "Quote",
         "invoice": "Invoice"
       },
-      "invoiceLinked": "Invoiced"
+      "invoiceLinked": "Invoiced",
+      "invoiceStatus": {
+        "none": "Not invoiced",
+        "pending": "Pending",
+        "paid": "Paid",
+        "claimed": "Claimed",
+        "quotation": "Quotation"
+      },
+      "underArea": "under {{breadcrumb}}",
+      "typeColumnHeader": "Type",
+      "statusColumnHeader": "Status"
     },
     "budgetLines": {
       "move": {
