@@ -542,8 +542,15 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     item.projectedMin += min;
     item.projectedMax += max;
     item.actualCost += actualCost;
-    item.rawProjectedMin += row.plannedAmount * (1 - (CONFIDENCE_MARGINS[row.confidence as keyof typeof CONFIDENCE_MARGINS] ?? CONFIDENCE_MARGINS.own_estimate));
-    item.rawProjectedMax += row.plannedAmount * (1 + (CONFIDENCE_MARGINS[row.confidence as keyof typeof CONFIDENCE_MARGINS] ?? CONFIDENCE_MARGINS.own_estimate));
+    const { min: rawMin, max: rawMax } = computeLineProjected(
+      row.plannedAmount,
+      row.confidence,
+      actualCost,
+      wiLineInvoiceMap.has(row.budgetLineId),
+      isQuotation,
+    );
+    item.rawProjectedMin += rawMin;
+    item.rawProjectedMax += rawMax;
   }
 
   // Build budget category map for work items
@@ -684,8 +691,15 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     item.projectedMin += min;
     item.projectedMax += max;
     item.actualCost += actualCost;
-    item.rawProjectedMin += row.plannedAmount * (1 - (CONFIDENCE_MARGINS[row.confidence as keyof typeof CONFIDENCE_MARGINS] ?? CONFIDENCE_MARGINS.own_estimate));
-    item.rawProjectedMax += row.plannedAmount * (1 + (CONFIDENCE_MARGINS[row.confidence as keyof typeof CONFIDENCE_MARGINS] ?? CONFIDENCE_MARGINS.own_estimate));
+    const { min: rawMin, max: rawMax } = computeLineProjected(
+      row.plannedAmount,
+      row.confidence,
+      actualCost,
+      hiLineInvoiceMap.has(row.budgetLineId),
+      isQuotation,
+    );
+    item.rawProjectedMin += rawMin;
+    item.rawProjectedMax += rawMax;
   }
 
   // Build budget category map for household items
