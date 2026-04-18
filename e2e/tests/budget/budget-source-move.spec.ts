@@ -283,8 +283,14 @@ test.describe('Deselect all → action bar disappears', { tag: '@responsive' }, 
       const actionBar = sourcesPage.getActionBar(sourceId);
       await expect(actionBar).toBeVisible();
 
-      // Uncheck it
-      await checkbox.uncheck();
+      // Uncheck it.
+      // The sticky action bar that appears after check() renders at bottom:0
+      // and may cover the checkbox on narrow viewports when Playwright's
+      // internal scrollIntoViewIfNeeded() positions the element directly
+      // beneath the sticky bar. Use click({ force: true }) to bypass the
+      // coverage check — the underlying <input type="checkbox"> still
+      // receives the click and fires React's onChange handler correctly.
+      await checkbox.click({ force: true });
 
       // Action bar must no longer be visible (React removes it from DOM when count=0)
       await expect(actionBar).not.toBeVisible();

@@ -97,10 +97,16 @@ test.describe('Create with title only — happy path (Scenario 3)', { tag: '@res
         const body = (await response.json()) as { workItem?: { id: string }; id?: string };
         createdId = body.workItem?.id ?? body.id ?? null;
 
-        // Should redirect to /project/work-items/:id
-        // Use project-level navigationTimeout (15s for WebKit) — do not hardcode
-        // a timeout that is too short for mobile/tablet WebKit.
-        await page.waitForURL('**/project/work-items/**');
+        // Should redirect to /project/work-items/:id (UUID form).
+        // Use a UUID-specific regex to avoid the race where
+        // waitForURL('**/project/work-items/**') resolves immediately because
+        // the current URL /project/work-items/new already matches the glob
+        // (the '**' suffix matches 'new'). The UUID pattern explicitly excludes
+        // the /new path and only resolves once the redirect completes.
+        // No explicit timeout — uses project-level navigationTimeout (10s).
+        await page.waitForURL(
+          /\/project\/work-items\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+        );
         expect(page.url()).toMatch(/\/project\/work-items\/[a-z0-9-]+$/);
         expect(page.url()).not.toContain('/project/work-items/new');
 

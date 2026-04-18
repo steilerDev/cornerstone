@@ -3,6 +3,12 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`
 
+## Budget Source Lines/Move + Work Item Create Regressions (fix/1279, 2026-04-18)
+
+- `getByText('Unassigned', { exact: true })` strict-mode violation: after PR #1265 made `isSelectable=true`, TriStateCheckbox renders `<span>Select all in Unassigned</span>` in the area group header. Playwright's `getByText` resolves to 2 elements (both the `<span>` AND the `areaName` span). Fix: use `panel.locator('[class*="areaName"]', { hasText: 'Unassigned' })`.
+- `checkbox.uncheck()` timeout: sticky `actionBar` (position:sticky; bottom:0) covers the checkbox on narrow viewports after Playwright's internal `scrollIntoViewIfNeeded()` positions the element under the bar. Fix: use `checkbox.click({ force: true })` to bypass coverage check.
+- `waitForURL('**/project/work-items/**')` resolves immediately on `/new` — glob `**` matches `new`. Fix: use UUID regex `waitForURL(/\/project\/work-items\/[0-9a-f]{8}-...-[0-9a-f]{12}$/)`.
+
 ## HI Breadcrumb E2E (Story #1240, 2026-04-17)
 
 - HouseholdItemDetailPage POM: `areaBreadcrumbNav` + `areaBreadcrumb` added (same pattern as WorkItemDetailPage)
