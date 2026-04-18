@@ -942,5 +942,4 @@ describe('WorkItemDetailPage', () => {
       expect(screen.getByText('1')).toBeInTheDocument();
     });
   });
-
 });

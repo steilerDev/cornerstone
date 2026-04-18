@@ -21,11 +21,7 @@ export function AreaBreadcrumb({ area, variant = 'default' }: AreaBreadcrumbProp
   const fullPath = segments.join(SEPARATOR);
 
   if (variant === 'compact') {
-    return (
-      <span className={styles.compact}>
-        {fullPath}
-      </span>
-    );
+    return <span className={styles.compact}>{fullPath}</span>;
   }
 
   const listItems: ReactNode[] = [];
