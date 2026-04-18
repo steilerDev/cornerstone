@@ -22,9 +22,8 @@
  * - Budget section h2: "Budget" (rendered conditionally based on budget lines)
  * - Documents section uses LinkedDocumentsSection (same as work items, invoices)
  *
- * Story #1240 additions:
- * - areaBreadcrumbNav: <nav aria-label="Area path"> rendered in .titleBreadcrumb div when area is set
- * - areaBreadcrumb: covers both nav (area set) and muted "No area" span (area null)
+ * fix/1278: areaBreadcrumb and its Tooltip/tabIndex have been removed from the detail header.
+ * areaBreadcrumbNav is retained in the POM for negative assertions only (must NOT be visible).
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -37,12 +36,10 @@ export class HouseholdItemDetailPage {
   readonly backLink: Locator;
   readonly editButton: Locator;
 
-  // Area breadcrumb — default variant (i18n key areas.pathLabel = "Area path")
-  // When area is set: renders <nav aria-label="Area path"> inside .titleBreadcrumb div
-  // When area is null: renders <span class*="muted">No area</span>
+  // Area breadcrumb nav locator (kept for negative assertions after fix/1278)
+  // fix/1278: the breadcrumb has been REMOVED from the HouseholdItemDetailPage header.
+  // areaBreadcrumbNav is retained so Scenario 2 and 5 tests can assert not.toBeVisible().
   readonly areaBreadcrumbNav: Locator;
-  // Covers both cases (nav or muted span)
-  readonly areaBreadcrumb: Locator;
 
   // Content sections
   readonly budgetSection: Locator;
@@ -70,15 +67,9 @@ export class HouseholdItemDetailPage {
     // Multiple "Edit" buttons may exist (budget line edit). Use first() to get the page-level one.
     this.editButton = page.locator('[class*="editButton"]').first();
 
-    // Area breadcrumb — default variant rendered inside .titleBreadcrumb div below h1
-    // When area is set: <nav aria-label="Area path"> (i18n key areas.pathLabel)
-    // When area is null: <span class*="muted">No area</span>
+    // fix/1278: breadcrumb removed from HouseholdItemDetailPage header.
+    // areaBreadcrumbNav retained for negative assertions (must NOT be visible).
     this.areaBreadcrumbNav = page.getByRole('navigation', { name: /area path/i });
-    // Covers both cases (nav or muted span)
-    this.areaBreadcrumb = page
-      .getByRole('navigation', { name: /area path/i })
-      .or(page.locator('[class*="muted"]').first())
-      .first();
 
     // Budget section
     this.budgetSection = page.locator('[class*="budgetSection"], [class*="budget"]').first();

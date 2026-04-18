@@ -53,10 +53,9 @@ export class WorkItemDetailPage {
   readonly heading: Locator; // h1 (work item title)
   readonly statusSelect: Locator;
 
-  // Area breadcrumb — default variant below h1 in .titleBreadcrumb div
-  // AreaBreadcrumb variant="default" renders <nav aria-label="Area path"><ol>...</ol></nav>
-  // Null area renders <span class*="muted">No area</span> (no nav).
-  readonly areaBreadcrumb: Locator;
+  // Area breadcrumb nav locator (kept for negative assertions after fix/1278)
+  // fix/1278: the breadcrumb has been REMOVED from the WorkItemDetailPage header entirely.
+  // areaBreadcrumbNav is retained so Scenario 2 and 5 tests can assert not.toBeVisible().
   readonly areaBreadcrumbNav: Locator;
 
   // Sections (left column)
@@ -110,15 +109,9 @@ export class WorkItemDetailPage {
     this.heading = page.getByRole('heading', { level: 1 });
     this.statusSelect = page.locator('[class*="statusSelect"]');
 
-    // Area breadcrumb — default variant (i18n key areas.pathLabel = "Area path")
-    // When area is set: renders <nav aria-label="Area path">
-    // When area is null: renders <span class*="muted">No area</span>
+    // fix/1278: breadcrumb removed from WorkItemDetailPage header.
+    // areaBreadcrumbNav retained for negative assertions (must NOT be visible).
     this.areaBreadcrumbNav = page.getByRole('navigation', { name: /area path/i });
-    // Covers both cases (nav or muted span)
-    this.areaBreadcrumb = page
-      .getByRole('navigation', { name: /area path/i })
-      .or(page.locator('[class*="muted"]').first())
-      .first();
 
     // Left column sections — scoped by h2 heading text
     this.descriptionSection = page

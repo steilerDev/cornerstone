@@ -2,16 +2,19 @@
  * E2E tests for AreaBreadcrumb on household-item pages (Story #1240)
  *
  * Validates that the AreaBreadcrumb component renders correctly on:
- *  - Household Items list page  (compact variant — tooltip span with full path)
- *  - Household Item detail page (default variant — <nav aria-label="Area path">)
+ *  - Household Items list page  (compact variant — plain span with full path, no tooltip)
  *  - HouseholdItemPicker dropdown (renderSecondary compact breadcrumb in search results)
+ *
+ * NOTE (fix/1278): The AreaBreadcrumb compact variant no longer has a Tooltip or tabIndex=0.
+ * The breadcrumb has been REMOVED from the HouseholdItemDetailPage header entirely — neither
+ * the default nav variant nor the "No area" muted span appears in the detail header.
  *
  * Scenarios covered:
  * 1. List page — breadcrumb with ancestors shows ancestor + area name (desktop, tablet, mobile)
- * 2. Detail page — breadcrumb nav shows ancestor + area name segments
- * 3. Mobile list — tooltip becomes visible on focus (any viewport — scoped to compact span)
+ * 2. Detail page — area breadcrumb nav is NOT visible in the detail header (removed)
+ * 3. Compact breadcrumb — no tabIndex=0 on the span; no tooltip on focus
  * 4. List page — null area shows "No area" text in row
- * 5. Detail page — null area shows "No area" text; nav NOT visible
+ * 5. Detail page — no area breadcrumb (nav or "No area" text) in detail header
  * 6. HouseholdItemPicker — renderSecondary breadcrumb visible in search dropdown (smoke)
  */
 
@@ -85,61 +88,57 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Detail page — breadcrumb nav with ancestors
+// Scenario 2: Detail page — area breadcrumb nav REMOVED (fix/1278)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Detail page — area path breadcrumb nav (Scenario 2)', { tag: '@responsive' }, () => {
-  test('Detail header shows nav "Area path" with ancestor and area name segments', async ({
+test.describe(
+  'Detail page — area breadcrumb nav not present in header (Scenario 2)',
+  { tag: '@responsive' },
+  () => {
+    test('Detail header does NOT show area breadcrumb nav even when area is set', async ({
+      page,
+      testPrefix,
+    }) => {
+      // fix/1278: breadcrumb removed from HouseholdItemDetailPage header.
+      // The default <nav aria-label="Area path"> must NOT appear, even for items with an area.
+      const detailPage = new HouseholdItemDetailPage(page);
+      let rootAreaId: string | null = null;
+      let childAreaId: string | null = null;
+      let itemId: string | null = null;
+      const rootName = `${testPrefix} GF HI Detail`;
+      const childName = `${testPrefix} Bathroom HI Detail`;
+      const itemName = `${testPrefix} Breadcrumb Detail HI`;
+
+      try {
+        rootAreaId = await createAreaViaApi(page, { name: rootName });
+        childAreaId = await createAreaViaApi(page, { name: childName, parentId: rootAreaId });
+        itemId = await createHouseholdItemViaApi(page, { name: itemName, areaId: childAreaId });
+
+        await detailPage.goto(itemId);
+
+        // Breadcrumb nav must NOT be present in the detail header (removed in fix/1278)
+        await expect(detailPage.areaBreadcrumbNav).not.toBeVisible();
+      } finally {
+        if (itemId) await deleteHouseholdItemViaApi(page, itemId);
+        if (childAreaId) await deleteAreaViaApi(page, childAreaId);
+        if (rootAreaId) await deleteAreaViaApi(page, rootAreaId);
+      }
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 3: Compact breadcrumb — no tabIndex=0, no tooltip on focus (fix/1278)
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Compact breadcrumb — no tabIndex and no tooltip (Scenario 3)', () => {
+  test('Compact breadcrumb span has no tabIndex=0 and produces no tooltip on focus', async ({
     page,
     testPrefix,
   }) => {
-    const detailPage = new HouseholdItemDetailPage(page);
-    let rootAreaId: string | null = null;
-    let childAreaId: string | null = null;
-    let itemId: string | null = null;
-    const rootName = `${testPrefix} GF HI Detail`;
-    const childName = `${testPrefix} Bathroom HI Detail`;
-    const itemName = `${testPrefix} Breadcrumb Detail HI`;
-
-    try {
-      rootAreaId = await createAreaViaApi(page, { name: rootName });
-      childAreaId = await createAreaViaApi(page, { name: childName, parentId: rootAreaId });
-      itemId = await createHouseholdItemViaApi(page, { name: itemName, areaId: childAreaId });
-
-      await detailPage.goto(itemId);
-
-      // Default variant renders <nav aria-label="Area path"> inside .titleBreadcrumb div
-      await expect(detailPage.areaBreadcrumbNav).toBeVisible();
-
-      // Verify both ancestor and area name appear inside the nav
-      const navText = await detailPage.areaBreadcrumbNav.textContent();
-      expect(navText).toContain(rootName);
-      expect(navText).toContain(childName);
-
-      // Verify individual segments via list items (li[class*="segment"])
-      const segments = detailPage.areaBreadcrumbNav.locator('[class*="segment"]');
-      const segmentTexts = await segments.allTextContents();
-      expect(segmentTexts).toContain(rootName);
-      expect(segmentTexts).toContain(childName);
-    } finally {
-      if (itemId) await deleteHouseholdItemViaApi(page, itemId);
-      if (childAreaId) await deleteAreaViaApi(page, childAreaId);
-      if (rootAreaId) await deleteAreaViaApi(page, rootAreaId);
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: Compact breadcrumb tooltip on focus
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Compact breadcrumb tooltip on focus (Scenario 3)', () => {
-  test('Focusing the compact breadcrumb span reveals the tooltip with full path', async ({
-    page,
-    testPrefix,
-  }) => {
-    // This test validates the tooltip focus interaction.
-    // The Tooltip component shows on onFocus (and onMouseEnter).
-    // Tooltip content = the full path string (e.g. "Root › Child › Grandchild").
-    // Tooltip uses CSS opacity: 0 → 1 (not display:none), so toBeVisible() works.
+    // fix/1278: The AreaBreadcrumb compact variant no longer has a Tooltip or tabIndex=0.
+    // Verify:
+    //   a) The compact span is present and shows the area path text (breadcrumb still renders)
+    //   b) The span does NOT have tabIndex=0 (not keyboard-focusable via tabIndex)
+    //   c) Attempting programmatic focus does NOT produce a role="tooltip" element
     const listPage = new HouseholdItemsPage(page);
     let rootAreaId: string | null = null;
     let child1Id: string | null = null;
@@ -151,7 +150,7 @@ test.describe('Compact breadcrumb tooltip on focus (Scenario 3)', () => {
     const houseName = `${testPrefix} HI House`;
     const floorName = `${testPrefix} HI Floor`;
     const kitchenName = `${testPrefix} HI Kitchen`;
-    const itemName = `${testPrefix} Tooltip HI Test`;
+    const itemName = `${testPrefix} No Tooltip HI Test`;
 
     try {
       rootAreaId = await createAreaViaApi(page, { name: rootName });
@@ -162,7 +161,7 @@ test.describe('Compact breadcrumb tooltip on focus (Scenario 3)', () => {
 
       await listPage.search(itemName);
 
-      // Find the compact breadcrumb span (tabIndex=0) for this item.
+      // Find the compact breadcrumb span for this item (no tabIndex=0 selector now).
       // Works in both table rows (desktop/tablet) and cards (mobile).
       const viewport = page.viewportSize();
       const tableVisible = viewport ? viewport.width >= 768 : true;
@@ -170,28 +169,30 @@ test.describe('Compact breadcrumb tooltip on focus (Scenario 3)', () => {
       let breadcrumbSpan;
       if (tableVisible) {
         const row = listPage.tableBody.locator('tr').filter({ hasText: itemName });
-        breadcrumbSpan = row.locator('[tabIndex="0"][class*="compact"]');
+        breadcrumbSpan = row.locator('[class*="compact"]');
       } else {
         const card = listPage.cardsContainer
           .locator('[class*="card"]')
           .filter({ hasText: itemName });
-        breadcrumbSpan = card.locator('[tabIndex="0"][class*="compact"]');
+        breadcrumbSpan = card.locator('[class*="compact"]');
       }
 
+      // (a) Compact span is visible and contains area path text
       await expect(breadcrumbSpan).toBeVisible();
+      const spanText = await breadcrumbSpan.textContent();
+      expect(spanText).toContain(rootName);
+      expect(spanText).toContain(kitchenName);
 
-      // Scroll into view and focus — this triggers the Tooltip onFocus handler
+      // (b) The span does NOT have tabIndex=0 (tooltip/keyboard-focus removed)
+      const tabIndexValue = await breadcrumbSpan.getAttribute('tabindex');
+      expect(tabIndexValue).not.toBe('0');
+
+      // (c) Programmatic focus does NOT produce a tooltip element
       await breadcrumbSpan.scrollIntoViewIfNeeded();
       await breadcrumbSpan.focus();
 
-      // The tooltip element (role="tooltip") should become visible (opacity: 1)
-      // The tooltip content is the full path: "HI Property › HI House › HI Floor › HI Kitchen"
-      const tooltip = page.getByRole('tooltip');
-      await expect(tooltip).toBeVisible();
-
-      const tooltipText = await tooltip.textContent();
-      expect(tooltipText).toContain(rootName);
-      expect(tooltipText).toContain(kitchenName);
+      // Tooltip must NOT appear — the Tooltip wrapper is gone
+      await expect(page.getByRole('tooltip')).not.toBeVisible();
     } finally {
       if (itemId) await deleteHouseholdItemViaApi(page, itemId);
       if (child3Id) await deleteAreaViaApi(page, child3Id);
@@ -241,16 +242,18 @@ test.describe('List page — null area shows "No area" (Scenario 4)', { tag: '@r
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5: Detail page — null area shows "No area"
+// Scenario 5: Detail page — no breadcrumb in header regardless of area (fix/1278)
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe(
-  'Detail page — null area shows "No area" (Scenario 5)',
+  'Detail page — no breadcrumb in header for null area (Scenario 5)',
   { tag: '@responsive' },
   () => {
-    test('Household item with no area assigned shows "No area" text in detail header', async ({
+    test('Household item with no area assigned shows no breadcrumb nav or "No area" text in detail header', async ({
       page,
       testPrefix,
     }) => {
+      // fix/1278: breadcrumb removed from HouseholdItemDetailPage header entirely.
+      // Neither the <nav aria-label="Area path"> nor the muted "No area" span appears.
       const detailPage = new HouseholdItemDetailPage(page);
       let itemId: string | null = null;
       const itemName = `${testPrefix} No Area HI Detail`;
@@ -260,11 +263,7 @@ test.describe(
 
         await detailPage.goto(itemId);
 
-        // Null area renders <span class*="muted">No area</span> (no nav)
-        // Use .first() to pick the first occurrence in case multiple muted spans exist
-        await expect(page.getByText('No area', { exact: true }).first()).toBeVisible();
-
-        // The nav element should NOT be present (area is null → no nav rendered)
+        // The nav element must NOT be present (breadcrumb removed in fix/1278)
         await expect(detailPage.areaBreadcrumbNav).not.toBeVisible();
       } finally {
         if (itemId) await deleteHouseholdItemViaApi(page, itemId);

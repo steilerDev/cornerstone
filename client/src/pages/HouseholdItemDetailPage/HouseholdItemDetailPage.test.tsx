@@ -1778,8 +1778,8 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByText('Electrical Rough-In')).toBeInTheDocument();
       });
 
-      // AreaBreadcrumb compact renders full path; Tooltip duplicates text nodes
-      expect(screen.getAllByText('Upper Floor › Bathroom').length).toBeGreaterThan(0);
+      // AreaBreadcrumb compact renders plain span — text appears exactly once.
+      expect(screen.getByText('Upper Floor › Bathroom')).toBeInTheDocument();
     });
 
     it('shows "No area" in dep search dropdown when work item has null area', async () => {
@@ -1820,10 +1820,8 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByText('Foundation Excavation')).toBeInTheDocument();
       });
 
-      // The page header also renders "No area" via AreaBreadcrumb (item.area is null),
-      // so scope the assertion to the dropdown button containing the work item title.
-      const wiDropdownButton = screen.getByRole('button', { name: /Foundation Excavation/ });
-      expect(within(wiDropdownButton).getByText('No area')).toBeInTheDocument();
+      // "No area" appears in the compact breadcrumb inside the dep search dropdown result.
+      expect(screen.getByText('No area')).toBeInTheDocument();
     });
   });
 });
