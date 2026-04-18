@@ -266,6 +266,26 @@ export class HouseholdItemsPage {
   }
 
   /**
+   * The "No Area" sentinel checkbox in the area filter popover.
+   * Only visible after the area filter popover is opened.
+   * The Area column has defaultVisible: true on Household Items, so the filter button
+   * is always visible in the table header (on tablet/desktop).
+   */
+  get noneAreaSentinelCheckbox(): Locator {
+    return this.page.locator('#enum-__none__');
+  }
+
+  /**
+   * Open the area filter popover by clicking the "Filter by Area" column header button.
+   * The Area column has defaultVisible: true on Household Items — the button is always
+   * present in the table header on desktop/tablet (CSS-hidden on mobile < 768px).
+   */
+  async openAreaFilter(): Promise<void> {
+    await this.areaFilterContainer.waitFor({ state: 'visible' });
+    await this.areaFilterContainer.click();
+  }
+
+  /**
    * Get pagination info text (e.g. "Showing 1 to 25 of 30 items"), or null if not visible.
    */
   async getPaginationInfoText(): Promise<string | null> {

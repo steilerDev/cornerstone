@@ -7,6 +7,8 @@
     "settings": "Einstellungen"
   },
   "name": "Name",
+  "noArea": "Kein Bereich",
+  "noAreaDescription": "Kein Bereich — Elemente ohne Bereichszuweisung anzeigen",
   "button": {
     "logout": "Abmelden",
     "close": "Schließen",

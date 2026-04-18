@@ -395,6 +395,49 @@ export class WorkItemsPage {
   }
 
   /**
+   * The "No Area" sentinel checkbox in the area filter popover.
+   * Only visible after the area filter popover is opened AND the Area column is visible
+   * (Area column has defaultVisible: false on Work Items — enable it via column settings first).
+   */
+  get noneAreaSentinelCheckbox(): Locator {
+    return this.page.locator('#enum-__none__');
+  }
+
+  /**
+   * Open the area filter popover by clicking the "Filter by Area" column header button.
+   *
+   * IMPORTANT: The Area column has defaultVisible: false on Work Items. The filter button
+   * only renders for visible columns, so this method requires the Area column to be enabled
+   * via the column settings gear icon before calling. If the column is not visible, this
+   * method will time out waiting for the button.
+   */
+  async openAreaFilter(): Promise<void> {
+    await this.areaFilter.waitFor({ state: 'visible' });
+    await this.areaFilter.click();
+  }
+
+  /**
+   * Enable the Area column via the column settings gear icon so the filter button appears.
+   * Opens the column settings popover, checks the "Area" checkbox, and closes the popover.
+   */
+  async enableAreaColumn(): Promise<void> {
+    const columnSettingsBtn = this.page.getByRole('button', { name: 'Column settings', exact: true });
+    await columnSettingsBtn.waitFor({ state: 'visible' });
+    await columnSettingsBtn.click();
+    // The column settings popover renders a checkbox for each column by label
+    const areaCheckbox = this.page.getByRole('checkbox', { name: /^Area$/i });
+    await areaCheckbox.waitFor({ state: 'visible' });
+    const checked = await areaCheckbox.isChecked();
+    if (!checked) {
+      await areaCheckbox.click();
+    }
+    // Close popover by pressing Escape
+    await this.page.keyboard.press('Escape');
+    // Wait for Area filter button to appear in the header
+    await this.areaFilter.waitFor({ state: 'visible' });
+  }
+
+  /**
    * Get pagination info text (e.g. "Showing 1 to 25 of 30 items"), or null if not visible.
    */
   async getPaginationInfoText(): Promise<string | null> {

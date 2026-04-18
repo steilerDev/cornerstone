@@ -3,11 +3,18 @@ import { useTranslation } from 'react-i18next';
 import type { EnumOption, EnumHierarchyItem } from '../DataTable.js';
 import styles from './Filter.module.css';
 
+export const ENUM_NONE_SENTINEL = '__none__';
+
 export interface EnumFilterProps {
   value: string;
   onChange: (value: string) => void;
   options: EnumOption[];
   hierarchy?: EnumHierarchyItem[];
+  enumIncludeNone?: boolean;
+  /** Already-translated label shown in the "none" sentinel row */
+  enumNoneLabel?: string;
+  /** Used as aria-label on the sentinel checkbox (already translated) */
+  enumNoneDescription?: string;
 }
 
 /**
@@ -15,8 +22,17 @@ export interface EnumFilterProps {
  * Stores as comma-separated values
  * Auto-applies on checkbox change
  * Supports hierarchical options (parent-child relationships)
+ * Optionally includes a "none" sentinel option for filtering items with null values
  */
-export function EnumFilter({ value, onChange, options, hierarchy }: EnumFilterProps) {
+export function EnumFilter({
+  value,
+  onChange,
+  options,
+  hierarchy,
+  enumIncludeNone,
+  enumNoneLabel,
+  enumNoneDescription,
+}: EnumFilterProps) {
   const { t } = useTranslation('common');
 
   const parseValue = (v: string) => new Set(v ? v.split(',') : []);
@@ -78,6 +94,7 @@ export function EnumFilter({ value, onChange, options, hierarchy }: EnumFilterPr
   );
 
   const handleSelectAll = useCallback(() => {
+    // Note: sentinel is excluded from "select all" — it has no hierarchy and is semantically distinct
     const allValues = options.map((opt) => opt.value);
     setSelected(new Set(allValues));
     onChange(allValues.join(','));
@@ -143,6 +160,26 @@ export function EnumFilter({ value, onChange, options, hierarchy }: EnumFilterPr
           {t('dataTable.filter.selectNone')}
         </button>
       </div>
+      {enumIncludeNone && enumNoneLabel && (
+        <div className={styles.filterCheckboxSentinel}>
+          <label
+            className={styles.filterCheckboxItem}
+            htmlFor={`enum-${ENUM_NONE_SENTINEL}`}
+          >
+            <input
+              type="checkbox"
+              checked={selected.has(ENUM_NONE_SENTINEL)}
+              onChange={() => handleToggle(ENUM_NONE_SENTINEL)}
+              className={styles.filterCheckbox}
+              id={`enum-${ENUM_NONE_SENTINEL}`}
+              aria-label={enumNoneDescription ?? enumNoneLabel}
+            />
+            <span className={`${styles.filterCheckboxLabel} ${styles.filterCheckboxLabelNone}`}>
+              {enumNoneLabel}
+            </span>
+          </label>
+        </div>
+      )}
       <div className={styles.filterCheckboxGroup}>
         {sortedOptions.map(({ option, isChild }) => {
           const isParent = allParents.has(option.value);

@@ -277,6 +277,17 @@
   box-shadow: var(--shadow-focus);
 }
 
+.filterCheckboxSentinel {
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--spacing-2);
+  margin-bottom: var(--spacing-1);
+}
+
+.filterCheckboxLabelNone {
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .filterInput,
   .filterDateInput,

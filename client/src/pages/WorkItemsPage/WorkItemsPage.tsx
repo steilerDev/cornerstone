@@ -30,6 +30,7 @@ const PROJECT_TABS: SubNavTab[] = [
 
 export function WorkItemsPage() {
   const { t } = useTranslation('workItems');
+  const { t: tCommon } = useTranslation('common');
   const navigate = useNavigate();
   const { formatDate } = useFormatters();
   const { areas } = useAreas();
@@ -278,6 +279,9 @@ export function WorkItemsPage() {
         filterParamKey: 'areaId',
         enumOptions: areas.map((a) => ({ value: a.id, label: a.name })),
         enumHierarchy: areas.map((a) => ({ id: a.id, parentId: a.parentId ?? null })),
+        enumIncludeNone: true,
+        enumNoneLabel: tCommon('noArea'),
+        enumNoneDescription: tCommon('noAreaDescription'),
         render: (item) => item.area?.name || '—',
       },
       {
@@ -315,7 +319,7 @@ export function WorkItemsPage() {
         render: (item) => item.budgetLineCount,
       },
     ],
-    [t, formatDate, wiStatusVariants, users, vendors, areas],
+    [t, tCommon, formatDate, wiStatusVariants, users, vendors, areas],
   );
 
   // Close action menu on outside click and Escape key

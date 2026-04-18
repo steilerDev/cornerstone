@@ -9,7 +9,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { eq, sql, and, or, desc, asc, inArray } from 'drizzle-orm';
+import { eq, sql, and, or, desc, asc, inArray, isNull } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import type { areas } from '../db/schema.js';
@@ -28,7 +28,7 @@ import {
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { listDeps } from './householdItemDepService.js';
 import { autoReschedule } from './schedulingEngine.js';
-import { getDescendantIds, loadAreaMap, resolveAreaAncestors } from './areaService.js';
+import { getDescendantIds, loadAreaMap, resolveAreaAncestors, resolveAreaFilter } from './areaService.js';
 import type { AreaMapEntry } from './areaService.js';
 import { toUserSummary, toAreaSummary, toVendorSummaryWithTrade } from './shared/converters.js';
 import { validateVendorId, validateAreaId } from './shared/validators.js';
@@ -536,8 +536,18 @@ export function listHouseholdItems(
   }
 
   if (query.areaId) {
-    const areaIds = getDescendantIds(db, query.areaId);
-    baseConditions.push(inArray(householdItems.areaId, areaIds));
+    const { areaIds, includeNull, hasInput } = resolveAreaFilter(db, query.areaId);
+    if (includeNull && areaIds.length > 0) {
+      baseConditions.push(or(isNull(householdItems.areaId), inArray(householdItems.areaId, areaIds))!);
+    } else if (includeNull) {
+      baseConditions.push(isNull(householdItems.areaId));
+    } else if (areaIds.length > 0) {
+      baseConditions.push(inArray(householdItems.areaId, areaIds));
+    } else if (hasInput) {
+      // User supplied ID(s) but all were unknown — yield empty result
+      baseConditions.push(sql`1 = 0`);
+    }
+    // else: no meaningful input (empty/whitespace-only CSV) — skip filter
   }
 
   if (query.q) {

@@ -30,6 +30,7 @@ const PROJECT_TABS: SubNavTab[] = [
 export function HouseholdItemsPage() {
   const { t } = useTranslation('householdItems');
   const { t: tSettings } = useTranslation('settings');
+  const { t: tCommon } = useTranslation('common');
   const navigate = useNavigate();
   const { formatCurrency, formatDate } = useFormatters();
   const { areas } = useAreas();
@@ -276,6 +277,9 @@ export function HouseholdItemsPage() {
         filterParamKey: 'areaId',
         enumOptions: areas.map((a) => ({ value: a.id, label: a.name })),
         enumHierarchy: areas.map((a) => ({ id: a.id, parentId: a.parentId ?? null })),
+        enumIncludeNone: true,
+        enumNoneLabel: tCommon('noArea'),
+        enumNoneDescription: tCommon('noAreaDescription'),
         render: (item) => item.area?.name || '—',
       },
       {
@@ -380,7 +384,7 @@ export function HouseholdItemsPage() {
         render: (item) => item.budgetLineCount,
       },
     ],
-    [t, categories, formatCurrency, formatDate, hiStatusVariants, vendors, areas],
+    [t, tCommon, categories, formatCurrency, formatDate, hiStatusVariants, vendors, areas],
   );
 
   // Close action menu on outside click and Escape key
