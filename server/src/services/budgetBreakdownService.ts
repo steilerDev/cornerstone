@@ -4,8 +4,7 @@ import type * as schemaTypes from '../db/schema.js';
 import { CONFIDENCE_MARGINS, type ConfidenceLevel } from '@cornerstone/shared';
 import type {
   BudgetBreakdown,
-  BreakdownWorkItemCategory,
-  BreakdownHouseholdItemCategory,
+  BreakdownArea,
   BreakdownWorkItem,
   BreakdownHouseholdItem,
   BreakdownTotals,
@@ -13,6 +12,7 @@ import type {
   SubsidyAdjustment,
 } from '@cornerstone/shared';
 import { computeSubsidyEffects, applySubsidyCaps } from './shared/subsidyCalculationEngine.js';
+import { getDescendantIds } from './areaService.js';
 import type {
   LinkedSubsidy,
   SubsidyCapMeta,
@@ -25,8 +25,8 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
  * Get detailed budget breakdown by item and budget line.
  * Expands both work items and household items into per-line details.
  *
- * Groups work items by budget category (with 'Uncategorized' for null category).
- * Groups household items by household item category (with flexible, user-defined categories).
+ * Groups work items by area hierarchy (with synthetic 'Unassigned' for null area).
+ * Groups household items by area hierarchy.
  *
  * For each item:
  * - If all budget lines are invoiced: costDisplay='actual', show actualCost only
@@ -36,36 +36,29 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
  * Applies subsidy payback per entity using the same logic as budgetOverviewService.
  */
 export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
-  // ── 1. Query A: Work item budget lines with category metadata ──────────────
+  // ── 1. Query A: Work item budget lines with area assignment ──────────────
   const workItemLineRows = db.all<{
     workItemId: string;
     workItemTitle: string;
+    areaId: string | null;
     budgetLineId: string;
     description: string | null;
     plannedAmount: number;
     confidence: string;
     budgetCategoryId: string | null;
-    categoryName: string | null;
-    categoryColor: string | null;
-    categorySortOrder: number | null;
-    categoryTranslationKey: string | null;
   }>(
     sql`SELECT
       wi.id                  AS workItemId,
       wi.title               AS workItemTitle,
+      wi.area_id             AS areaId,
       wib.id                 AS budgetLineId,
       wib.description        AS description,
       wib.planned_amount     AS plannedAmount,
       wib.confidence         AS confidence,
-      wib.budget_category_id AS budgetCategoryId,
-      bc.name                AS categoryName,
-      bc.color               AS categoryColor,
-      bc.sort_order          AS categorySortOrder,
-      bc.translation_key     AS categoryTranslationKey
+      wib.budget_category_id AS budgetCategoryId
     FROM work_items wi
     INNER JOIN work_item_budgets wib ON wib.work_item_id = wi.id
-    LEFT JOIN budget_categories bc ON bc.id = wib.budget_category_id
-    ORDER BY bc.sort_order ASC, bc.name ASC, wi.title ASC`,
+    ORDER BY wi.area_id ASC, wi.title ASC`,
   );
 
   // ── 2. Query B: Invoice aggregates per WI budget line ─────────────────────
@@ -93,15 +86,11 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     });
   }
 
-  // ── 3. Query C: Household item budget lines with HI category ──────────────
+  // ── 3. Query C: Household item budget lines with area assignment ──────────────
   const hiLineRows = db.all<{
     householdItemId: string;
     itemName: string;
-    hiCategoryId: string;
-    hiCategoryName: string;
-    hiCategoryColor: string | null;
-    hiCategorySortOrder: number;
-    hiCategoryTranslationKey: string | null;
+    areaId: string | null;
     budgetLineId: string;
     description: string | null;
     plannedAmount: number;
@@ -111,11 +100,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     sql`SELECT
       hi.id                     AS householdItemId,
       hi.name                   AS itemName,
-      hi.category_id            AS hiCategoryId,
-      hic.name                  AS hiCategoryName,
-      hic.color                 AS hiCategoryColor,
-      hic.sort_order            AS hiCategorySortOrder,
-      hic.translation_key       AS hiCategoryTranslationKey,
+      hi.area_id                AS areaId,
       hib.id                    AS budgetLineId,
       hib.description           AS description,
       hib.planned_amount        AS plannedAmount,
@@ -123,8 +108,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       hib.budget_category_id    AS budgetCategoryId
     FROM household_items hi
     INNER JOIN household_item_budgets hib ON hib.household_item_id = hi.id
-    INNER JOIN household_item_categories hic ON hi.category_id = hic.id
-    ORDER BY hic.sort_order ASC, hic.name ASC, hi.name ASC`,
+    ORDER BY hi.area_id ASC, hi.name ASC`,
   );
 
   // ── 4. Query D: Invoice aggregates per HI budget line ────────────────────
@@ -232,7 +216,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       confidence: string;
       budgetCategoryId: string | null;
     }>,
-    invoiceMap: Map<string, number | { actualCost: number; isQuotation: boolean }>,
+    invoiceMap: Map<string, { actualCost: number; isQuotation: boolean }>,
     useMinMargin: boolean = false,
   ): number {
     const linkedSubsidyIds = entitySubsidyMap.get(entityId);
@@ -337,348 +321,432 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     };
   }
 
-  // ── Generic entity breakdown builder ──────────────────────────────────────────
-  interface EntityRow {
-    budgetLineId: string;
-    description: string | null;
-    plannedAmount: number;
-    confidence: string;
-    budgetCategoryId: string | null;
+  // ── Build hierarchical area breakdown ──────────────────────────────────────
+  interface EntityData<TItem> {
+    items: TItem[];
+    projectedMin: number;
+    projectedMax: number;
+    actualCost: number;
+    subsidyPayback: number;
+    rawProjectedMin: number;
+    rawProjectedMax: number;
+    minSubsidyPayback: number;
   }
 
-  interface EntityBreakdownConfig<TRow extends EntityRow, TItem, TCategory> {
-    rows: TRow[];
-    invoiceMap: Map<string, { actualCost: number; isQuotation: boolean }>;
-    getCategoryKey: (row: TRow) => string;
-    getCategoryMeta: (row: TRow) => {
-      categoryId: string | null;
-      categoryName: string;
-      categoryColor: string | null;
-      categorySortOrder: number | null;
-      categoryTranslationKey?: string | null;
-    };
-    getEntityKey: (row: TRow) => string;
-    getEntityMeta: (row: TRow) => { entityId: string; entityLabel: string };
-    buildItem: (
-      entityMeta: { entityId: string; entityLabel: string },
-      computed: {
-        projectedMin: number;
-        projectedMax: number;
-        actualCost: number;
-        subsidyPayback: number;
-        rawProjectedMin: number;
-        rawProjectedMax: number;
-        minSubsidyPayback: number;
-        costDisplay: CostDisplay;
-        budgetLines: Array<{
-          id: string;
-          description: string | null;
-          plannedAmount: number;
-          confidence: ConfidenceLevel;
-          actualCost: number;
-          hasInvoice: boolean;
-          isQuotation: boolean;
-        }>;
-      },
-    ) => TItem;
-    buildCategory: (
-      categoryMeta: {
-        categoryId: string | null;
-        categoryName: string;
-        categoryColor: string | null;
-        categorySortOrder: number | null;
-        categoryTranslationKey?: string | null;
-      },
-      totals: {
-        projectedMin: number;
-        projectedMax: number;
-        actualCost: number;
-        subsidyPayback: number;
-        rawProjectedMin: number;
-        rawProjectedMax: number;
-        minSubsidyPayback: number;
-      },
-      items: TItem[],
-    ) => TCategory;
-  }
+  function buildAreaBreakdown<TItem>(
+    entityItems: Map<string | null, TItem[]>,
+    allAreaRows: Array<{ id: string; name: string; parentId: string | null; color: string | null; sortOrder: number }>,
+    sumItemTotals: (items: TItem[]) => {
+      projectedMin: number;
+      projectedMax: number;
+      actualCost: number;
+      subsidyPayback: number;
+      rawProjectedMin: number;
+      rawProjectedMax: number;
+      minSubsidyPayback: number;
+    },
+  ): { areas: BreakdownArea<TItem>[]; totals: BreakdownTotals } {
+    // Build a map of areaId -> area metadata for quick lookup
+    const areaMap = new Map<string, typeof allAreaRows[0]>();
+    for (const area of allAreaRows) {
+      areaMap.set(area.id, area);
+    }
 
-  function buildEntityBreakdown<TRow extends EntityRow, TItem, TCategory>(
-    config: EntityBreakdownConfig<TRow, TItem, TCategory>,
-  ): { categories: TCategory[]; totals: BreakdownTotals } {
-    // Group rows by category key
-    interface Group {
-      categoryMeta: {
-        categoryId: string | null;
-        categoryName: string;
-        categoryColor: string | null;
-        categorySortOrder: number | null;
+    // Helper: recursively build an area node and its children
+    function buildAreaNode(areaId: string): BreakdownArea<TItem> | null {
+      const areaMeta = areaMap.get(areaId);
+      if (!areaMeta) return null;
+
+      // Get items directly assigned to this area
+      const directItems = entityItems.get(areaId) ?? [];
+
+      // Find and build all child areas
+      const childAreas: BreakdownArea<TItem>[] = [];
+      for (const childId of allAreaRows
+        .filter((a) => a.parentId === areaId)
+        .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+        .map((a) => a.id)) {
+        const childNode = buildAreaNode(childId);
+        if (childNode !== null) {
+          childAreas.push(childNode);
+        }
+      }
+
+      // Get all descendant IDs for rolled-up totals
+      const descendantIds = getDescendantIds(db, areaId);
+
+      // Compute rolled-up totals across all items in the subtree
+      let rolledMin = 0;
+      let rolledMax = 0;
+      let rolledActual = 0;
+      let rolledPayback = 0;
+      let rolledRawMin = 0;
+      let rolledRawMax = 0;
+      let rolledMinPayback = 0;
+
+      for (const descId of descendantIds) {
+        const itemsForDescendant = entityItems.get(descId) ?? [];
+        const totals = sumItemTotals(itemsForDescendant);
+        rolledMin += totals.projectedMin;
+        rolledMax += totals.projectedMax;
+        rolledActual += totals.actualCost;
+        rolledPayback += totals.subsidyPayback;
+        rolledRawMin += totals.rawProjectedMin;
+        rolledRawMax += totals.rawProjectedMax;
+        rolledMinPayback += totals.minSubsidyPayback;
+      }
+
+      // Prune: if subtree has zero items, return null
+      if (
+        directItems.length === 0 &&
+        childAreas.length === 0 &&
+        rolledMin === 0 &&
+        rolledMax === 0 &&
+        rolledActual === 0
+      ) {
+        return null;
+      }
+
+      return {
+        areaId,
+        name: areaMeta.name,
+        parentId: areaMeta.parentId,
+        color: areaMeta.color,
+        projectedMin: rolledMin,
+        projectedMax: rolledMax,
+        actualCost: rolledActual,
+        subsidyPayback: rolledPayback,
+        rawProjectedMin: rolledRawMin,
+        rawProjectedMax: rolledRawMax,
+        minSubsidyPayback: rolledMinPayback,
+        items: directItems,
+        children: childAreas,
       };
-      lines: TRow[];
     }
 
-    const groups = new Map<string, Group>();
-    for (const line of config.rows) {
-      const categoryKey = config.getCategoryKey(line);
-      if (!groups.has(categoryKey)) {
-        groups.set(categoryKey, {
-          categoryMeta: config.getCategoryMeta(line),
-          lines: [],
-        });
+    // Build root nodes and collect them
+    const areas: BreakdownArea<TItem>[] = [];
+    const rootAreas = allAreaRows
+      .filter((a) => a.parentId === null)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+
+    for (const rootArea of rootAreas) {
+      const node = buildAreaNode(rootArea.id);
+      if (node !== null) {
+        areas.push(node);
       }
-      groups.get(categoryKey)!.lines.push(line);
     }
 
-    // Build per-entity data within each category
-    interface ItemData {
-      entityId: string;
-      entityLabel: string;
-      lines: TRow[];
+    // Create synthetic "Unassigned" node if there are items with null areaId
+    const unassignedItems = entityItems.get(null) ?? [];
+    if (unassignedItems.length > 0) {
+      const unassignedTotals = sumItemTotals(unassignedItems);
+      areas.unshift({
+        areaId: null,
+        name: 'Unassigned',
+        parentId: null,
+        color: null,
+        projectedMin: unassignedTotals.projectedMin,
+        projectedMax: unassignedTotals.projectedMax,
+        actualCost: unassignedTotals.actualCost,
+        subsidyPayback: unassignedTotals.subsidyPayback,
+        rawProjectedMin: unassignedTotals.rawProjectedMin,
+        rawProjectedMax: unassignedTotals.rawProjectedMax,
+        minSubsidyPayback: unassignedTotals.minSubsidyPayback,
+        items: unassignedItems,
+        children: [],
+      });
     }
 
-    const itemsByCategory = new Map<string, ItemData[]>();
-    for (const [categoryKey, group] of groups) {
-      const itemsInCategory = new Map<string, ItemData>();
-      for (const line of group.lines) {
-        const itemKey = config.getEntityKey(line);
-        if (!itemsInCategory.has(itemKey)) {
-          const entityMeta = config.getEntityMeta(line);
-          itemsInCategory.set(itemKey, {
-            entityId: entityMeta.entityId,
-            entityLabel: entityMeta.entityLabel,
-            lines: [],
-          });
-        }
-        itemsInCategory.get(itemKey)!.lines.push(line);
-      }
-      itemsByCategory.set(categoryKey, Array.from(itemsInCategory.values()));
+    // Global totals = sum across ALL items in entityItems
+    let totalMin = 0;
+    let totalMax = 0;
+    let totalActual = 0;
+    let totalPayback = 0;
+    let totalRawMin = 0;
+    let totalRawMax = 0;
+    let totalMinPayback = 0;
+
+    for (const items of entityItems.values()) {
+      const totals = sumItemTotals(items);
+      totalMin += totals.projectedMin;
+      totalMax += totals.projectedMax;
+      totalActual += totals.actualCost;
+      totalPayback += totals.subsidyPayback;
+      totalRawMin += totals.rawProjectedMin;
+      totalRawMax += totals.rawProjectedMax;
+      totalMinPayback += totals.minSubsidyPayback;
     }
 
-    // Build categories with items
-    const categories: TCategory[] = [];
     const totals: BreakdownTotals = {
-      projectedMin: 0,
-      projectedMax: 0,
-      actualCost: 0,
-      subsidyPayback: 0,
-      rawProjectedMin: 0,
-      rawProjectedMax: 0,
-      minSubsidyPayback: 0,
+      projectedMin: totalMin,
+      projectedMax: totalMax,
+      actualCost: totalActual,
+      subsidyPayback: totalPayback,
+      rawProjectedMin: totalRawMin,
+      rawProjectedMax: totalRawMax,
+      minSubsidyPayback: totalMinPayback,
     };
 
-    const categoryArray = Array.from(groups.values()).sort((a, b) => {
-      // Sort by sort_order first, then by name
-      if (a.categoryMeta.categorySortOrder !== b.categoryMeta.categorySortOrder) {
-        return (
-          (a.categoryMeta.categorySortOrder ?? Infinity) -
-          (b.categoryMeta.categorySortOrder ?? Infinity)
-        );
-      }
-      return a.categoryMeta.categoryName.localeCompare(b.categoryMeta.categoryName);
-    });
-
-    for (const group of categoryArray) {
-      const categoryKey = config.getCategoryKey(group.lines[0]);
-      const itemsInCategory = itemsByCategory.get(categoryKey) || [];
-
-      const categoryItems: TItem[] = [];
-      let categoryMin = 0;
-      let categoryMax = 0;
-      let categoryActual = 0;
-      let categoryPayback = 0;
-      let categoryRawMin = 0;
-      let categoryRawMax = 0;
-      let categoryMinPayback = 0;
-
-      for (const itemData of itemsInCategory) {
-        // Build budget lines for this entity
-        const itemBudgetLines = itemData.lines.map((line) => {
-          const invoiceData = config.invoiceMap.get(line.budgetLineId);
-          const actualCost = invoiceData?.actualCost ?? 0;
-          const isQuotation = invoiceData?.isQuotation ?? false;
-          return {
-            id: line.budgetLineId,
-            description: line.description,
-            plannedAmount: line.plannedAmount,
-            confidence: line.confidence as ConfidenceLevel,
-            actualCost,
-            hasInvoice: config.invoiceMap.has(line.budgetLineId),
-            isQuotation,
-          };
-        });
-
-        // Compute projected min/max for this entity
-        let itemMin = 0;
-        let itemMax = 0;
-        let itemActual = 0;
-
-        for (const budgetLine of itemBudgetLines) {
-          const { min, max } = computeLineProjected(
-            budgetLine.plannedAmount,
-            budgetLine.confidence,
-            budgetLine.actualCost,
-            budgetLine.hasInvoice,
-            budgetLine.isQuotation,
-          );
-          itemMin += min;
-          itemMax += max;
-          itemActual += budgetLine.actualCost;
-        }
-
-        // Store raw (pre-subsidy) projected costs
-        const itemRawMin = itemMin;
-        const itemRawMax = itemMax;
-
-        // Apply subsidy reduction to this entity
-        const itemSubsidyPayback = computeEntitySubsidyPayback(
-          itemData.entityId,
-          itemData.lines.map((line) => ({
-            id: line.budgetLineId,
-            plannedAmount: line.plannedAmount,
-            confidence: line.confidence,
-            budgetCategoryId: line.budgetCategoryId,
-          })),
-          config.invoiceMap,
-          false, // Use max margin (existing behavior)
-        );
-
-        const itemMinSubsidyPayback = computeEntitySubsidyPayback(
-          itemData.entityId,
-          itemData.lines.map((line) => ({
-            id: line.budgetLineId,
-            plannedAmount: line.plannedAmount,
-            confidence: line.confidence,
-            budgetCategoryId: line.budgetCategoryId,
-          })),
-          config.invoiceMap,
-          true, // Use min margin
-        );
-
-        // Apply subsidy reduction to entity totals
-        const subsidyReduction = itemSubsidyPayback;
-        const adjustedMin = Math.max(0, itemMin - subsidyReduction);
-        const adjustedMax = Math.max(0, itemMax - subsidyReduction);
-
-        const costDisplay = computeCostDisplay(itemBudgetLines);
-
-        const item = config.buildItem(
-          { entityId: itemData.entityId, entityLabel: itemData.entityLabel },
-          {
-            projectedMin: adjustedMin,
-            projectedMax: adjustedMax,
-            actualCost: itemActual,
-            subsidyPayback: itemSubsidyPayback,
-            rawProjectedMin: itemRawMin,
-            rawProjectedMax: itemRawMax,
-            minSubsidyPayback: itemMinSubsidyPayback,
-            costDisplay,
-            budgetLines: itemBudgetLines,
-          },
-        );
-
-        categoryItems.push(item);
-        categoryMin += adjustedMin;
-        categoryMax += adjustedMax;
-        categoryActual += itemActual;
-        categoryPayback += itemSubsidyPayback;
-        categoryRawMin += itemRawMin;
-        categoryRawMax += itemRawMax;
-        categoryMinPayback += itemMinSubsidyPayback;
-      }
-
-      const category = config.buildCategory(
-        group.categoryMeta,
-        {
-          projectedMin: categoryMin,
-          projectedMax: categoryMax,
-          actualCost: categoryActual,
-          subsidyPayback: categoryPayback,
-          rawProjectedMin: categoryRawMin,
-          rawProjectedMax: categoryRawMax,
-          minSubsidyPayback: categoryMinPayback,
-        },
-        categoryItems,
-      );
-
-      categories.push(category);
-      totals.projectedMin += categoryMin;
-      totals.projectedMax += categoryMax;
-      totals.actualCost += categoryActual;
-      totals.subsidyPayback += categoryPayback;
-      totals.rawProjectedMin += categoryRawMin;
-      totals.rawProjectedMax += categoryRawMax;
-      totals.minSubsidyPayback += categoryMinPayback;
-    }
-
-    return { categories, totals };
+    return { areas, totals };
   }
 
   // ── Build Work Items Breakdown ─────────────────────────────────────────────
-  const { categories: wiCategories, totals: wiTotals } = buildEntityBreakdown<
-    (typeof workItemLineRows)[number],
-    BreakdownWorkItem,
-    BreakdownWorkItemCategory
-  >({
-    rows: workItemLineRows,
-    invoiceMap: wiLineInvoiceMap,
-    getCategoryKey: (row) => `${row.budgetCategoryId}`,
-    getCategoryMeta: (row) => ({
-      categoryId: row.budgetCategoryId,
-      categoryName: row.budgetCategoryId === null ? 'Uncategorized' : row.categoryName!,
-      categoryColor: row.categoryColor,
-      categorySortOrder: row.categorySortOrder,
-      categoryTranslationKey: row.categoryTranslationKey,
-    }),
-    getEntityKey: (row) => row.workItemId,
-    getEntityMeta: (row) => ({ entityId: row.workItemId, entityLabel: row.workItemTitle }),
-    buildItem: (meta, computed) => ({
-      workItemId: meta.entityId,
-      title: meta.entityLabel,
-      ...computed,
-    }),
-    buildCategory: (catMeta, totals, items) => ({
-      categoryId: catMeta.categoryId,
-      categoryName: catMeta.categoryName,
-      categoryColor: catMeta.categoryColor,
-      categoryTranslationKey: catMeta.categoryTranslationKey ?? null,
-      ...totals,
-      items,
-    }),
-  });
+
+  // Group work items by areaId
+  const wiByArea = new Map<string | null, BreakdownWorkItem[]>();
+  const wiEntityData = new Map<string, BreakdownWorkItem>();
+
+  for (const row of workItemLineRows) {
+    // Get or create entity entry
+    let item = wiEntityData.get(row.workItemId);
+    if (!item) {
+      item = {
+        workItemId: row.workItemId,
+        title: row.workItemTitle,
+        projectedMin: 0,
+        projectedMax: 0,
+        actualCost: 0,
+        subsidyPayback: 0,
+        rawProjectedMin: 0,
+        rawProjectedMax: 0,
+        minSubsidyPayback: 0,
+        costDisplay: 'projected',
+        budgetLines: [],
+      };
+      wiEntityData.set(row.workItemId, item);
+    }
+
+    // Build budget line
+    const invoiceData = wiLineInvoiceMap.get(row.budgetLineId);
+    const actualCost = invoiceData?.actualCost ?? 0;
+    const isQuotation = invoiceData?.isQuotation ?? false;
+    const { min, max } = computeLineProjected(
+      row.plannedAmount,
+      row.confidence,
+      actualCost,
+      wiLineInvoiceMap.has(row.budgetLineId),
+      isQuotation,
+    );
+
+    item.budgetLines.push({
+      id: row.budgetLineId,
+      description: row.description,
+      plannedAmount: row.plannedAmount,
+      confidence: row.confidence as ConfidenceLevel,
+      actualCost,
+      hasInvoice: wiLineInvoiceMap.has(row.budgetLineId),
+      isQuotation,
+    });
+
+    item.projectedMin += min;
+    item.projectedMax += max;
+    item.actualCost += actualCost;
+    item.rawProjectedMin += row.plannedAmount * (1 - (CONFIDENCE_MARGINS[row.confidence as keyof typeof CONFIDENCE_MARGINS] ?? CONFIDENCE_MARGINS.own_estimate));
+    item.rawProjectedMax += row.plannedAmount * (1 + (CONFIDENCE_MARGINS[row.confidence as keyof typeof CONFIDENCE_MARGINS] ?? CONFIDENCE_MARGINS.own_estimate));
+  }
+
+  // Apply subsidy payback and cost display
+  for (const item of wiEntityData.values()) {
+    const subsidyPayback = computeEntitySubsidyPayback(
+      item.workItemId,
+      item.budgetLines.map((bl) => ({
+        id: bl.id,
+        plannedAmount: bl.plannedAmount,
+        confidence: bl.confidence,
+        budgetCategoryId: null,
+      })),
+      wiLineInvoiceMap,
+      false,
+    );
+    const minSubsidyPayback = computeEntitySubsidyPayback(
+      item.workItemId,
+      item.budgetLines.map((bl) => ({
+        id: bl.id,
+        plannedAmount: bl.plannedAmount,
+        confidence: bl.confidence,
+        budgetCategoryId: null,
+      })),
+      wiLineInvoiceMap,
+      true,
+    );
+
+    item.subsidyPayback = subsidyPayback;
+    item.minSubsidyPayback = minSubsidyPayback;
+    item.projectedMin = Math.max(0, item.projectedMin - subsidyPayback);
+    item.projectedMax = Math.max(0, item.projectedMax - subsidyPayback);
+    item.costDisplay = computeCostDisplay(item.budgetLines);
+  }
+
+  // Group items by area
+  for (const row of workItemLineRows) {
+    const item = wiEntityData.get(row.workItemId);
+    if (item && !wiByArea.has(row.areaId)) {
+      if (!wiByArea.has(row.areaId)) {
+        wiByArea.set(row.areaId, []);
+      }
+      wiByArea.get(row.areaId)!.push(item);
+    }
+  }
+
+  // Get all areas
+  const allAreas = db.all<{ id: string; name: string; parentId: string | null; color: string | null; sortOrder: number }>(
+    sql`SELECT id, name, parent_id AS parentId, color, sort_order AS sortOrder
+    FROM areas
+    ORDER BY sort_order ASC, name ASC`,
+  );
+
+  const { areas: wiAreas, totals: wiTotals } = buildAreaBreakdown(
+    wiByArea,
+    allAreas,
+    (items: BreakdownWorkItem[]) => {
+      let min = 0, max = 0, actual = 0, payback = 0, rawMin = 0, rawMax = 0, minPayback = 0;
+      for (const item of items) {
+        min += item.projectedMin;
+        max += item.projectedMax;
+        actual += item.actualCost;
+        payback += item.subsidyPayback;
+        rawMin += item.rawProjectedMin;
+        rawMax += item.rawProjectedMax;
+        minPayback += item.minSubsidyPayback;
+      }
+      return {
+        projectedMin: min,
+        projectedMax: max,
+        actualCost: actual,
+        subsidyPayback: payback,
+        rawProjectedMin: rawMin,
+        rawProjectedMax: rawMax,
+        minSubsidyPayback: minPayback,
+      };
+    },
+  );
 
   // ── Build Household Items Breakdown ────────────────────────────────────────
-  const { categories: hiCategories, totals: hiTotals } = buildEntityBreakdown<
-    (typeof hiLineRows)[number],
-    BreakdownHouseholdItem,
-    BreakdownHouseholdItemCategory
-  >({
-    rows: hiLineRows,
-    invoiceMap: hiLineInvoiceMap,
-    getCategoryKey: (row) => row.hiCategoryId,
-    getCategoryMeta: (row) => ({
-      categoryId: row.hiCategoryId,
-      categoryName: row.hiCategoryName,
-      categoryColor: row.hiCategoryColor ?? null,
-      categorySortOrder: row.hiCategorySortOrder,
-      categoryTranslationKey: row.hiCategoryTranslationKey,
-    }),
-    getEntityKey: (row) => row.householdItemId,
-    getEntityMeta: (row) => ({ entityId: row.householdItemId, entityLabel: row.itemName }),
-    buildItem: (meta, computed) => ({
-      householdItemId: meta.entityId,
-      name: meta.entityLabel,
-      ...computed,
-    }),
-    buildCategory: (catMeta, totals, items) => ({
-      hiCategory: catMeta.categoryId ?? '',
-      categoryName: catMeta.categoryName,
-      categoryTranslationKey: catMeta.categoryTranslationKey ?? null,
-      ...totals,
-      items,
-    }),
-  });
+
+  // Group household items by areaId
+  const hiByArea = new Map<string | null, BreakdownHouseholdItem[]>();
+  const hiEntityData = new Map<string, BreakdownHouseholdItem>();
+
+  for (const row of hiLineRows) {
+    // Get or create entity entry
+    let item = hiEntityData.get(row.householdItemId);
+    if (!item) {
+      item = {
+        householdItemId: row.householdItemId,
+        name: row.itemName,
+        projectedMin: 0,
+        projectedMax: 0,
+        actualCost: 0,
+        subsidyPayback: 0,
+        rawProjectedMin: 0,
+        rawProjectedMax: 0,
+        minSubsidyPayback: 0,
+        costDisplay: 'projected',
+        budgetLines: [],
+      };
+      hiEntityData.set(row.householdItemId, item);
+    }
+
+    // Build budget line
+    const invoiceData = hiLineInvoiceMap.get(row.budgetLineId);
+    const actualCost = invoiceData?.actualCost ?? 0;
+    const isQuotation = invoiceData?.isQuotation ?? false;
+    const { min, max } = computeLineProjected(
+      row.plannedAmount,
+      row.confidence,
+      actualCost,
+      hiLineInvoiceMap.has(row.budgetLineId),
+      isQuotation,
+    );
+
+    item.budgetLines.push({
+      id: row.budgetLineId,
+      description: row.description,
+      plannedAmount: row.plannedAmount,
+      confidence: row.confidence as ConfidenceLevel,
+      actualCost,
+      hasInvoice: hiLineInvoiceMap.has(row.budgetLineId),
+      isQuotation,
+    });
+
+    item.projectedMin += min;
+    item.projectedMax += max;
+    item.actualCost += actualCost;
+    item.rawProjectedMin += row.plannedAmount * (1 - (CONFIDENCE_MARGINS[row.confidence as keyof typeof CONFIDENCE_MARGINS] ?? CONFIDENCE_MARGINS.own_estimate));
+    item.rawProjectedMax += row.plannedAmount * (1 + (CONFIDENCE_MARGINS[row.confidence as keyof typeof CONFIDENCE_MARGINS] ?? CONFIDENCE_MARGINS.own_estimate));
+  }
+
+  // Apply subsidy payback and cost display
+  for (const item of hiEntityData.values()) {
+    const subsidyPayback = computeEntitySubsidyPayback(
+      item.householdItemId,
+      item.budgetLines.map((bl) => ({
+        id: bl.id,
+        plannedAmount: bl.plannedAmount,
+        confidence: bl.confidence,
+        budgetCategoryId: null,
+      })),
+      hiLineInvoiceMap,
+      false,
+    );
+    const minSubsidyPayback = computeEntitySubsidyPayback(
+      item.householdItemId,
+      item.budgetLines.map((bl) => ({
+        id: bl.id,
+        plannedAmount: bl.plannedAmount,
+        confidence: bl.confidence,
+        budgetCategoryId: null,
+      })),
+      hiLineInvoiceMap,
+      true,
+    );
+
+    item.subsidyPayback = subsidyPayback;
+    item.minSubsidyPayback = minSubsidyPayback;
+    item.projectedMin = Math.max(0, item.projectedMin - subsidyPayback);
+    item.projectedMax = Math.max(0, item.projectedMax - subsidyPayback);
+    item.costDisplay = computeCostDisplay(item.budgetLines);
+  }
+
+  // Group items by area
+  for (const row of hiLineRows) {
+    const item = hiEntityData.get(row.householdItemId);
+    if (item && !hiByArea.has(row.areaId)) {
+      if (!hiByArea.has(row.areaId)) {
+        hiByArea.set(row.areaId, []);
+      }
+      hiByArea.get(row.areaId)!.push(item);
+    }
+  }
+
+  const { areas: hiAreas, totals: hiTotals } = buildAreaBreakdown(
+    hiByArea,
+    allAreas,
+    (items: BreakdownHouseholdItem[]) => {
+      let min = 0, max = 0, actual = 0, payback = 0, rawMin = 0, rawMax = 0, minPayback = 0;
+      for (const item of items) {
+        min += item.projectedMin;
+        max += item.projectedMax;
+        actual += item.actualCost;
+        payback += item.subsidyPayback;
+        rawMin += item.rawProjectedMin;
+        rawMax += item.rawProjectedMax;
+        minPayback += item.minSubsidyPayback;
+      }
+      return {
+        projectedMin: min,
+        projectedMax: max,
+        actualCost: actual,
+        subsidyPayback: payback,
+        rawProjectedMin: rawMin,
+        rawProjectedMax: rawMax,
+        minSubsidyPayback: minPayback,
+      };
+    },
+  );
 
   // ── Aggregate per-subsidy payback totals for cap enforcement ─────────────────
-  // Track per-subsidy totals across all entities (both WI and HI)
   const perSubsidyPayback = new Map<string, { min: number; max: number }>();
 
   // Re-iterate all entities to collect per-subsidy payback
@@ -800,11 +868,11 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
 
   return {
     workItems: {
-      categories: wiCategories,
+      areas: wiAreas,
       totals: wiTotals,
     },
     householdItems: {
-      categories: hiCategories,
+      areas: hiAreas,
       totals: hiTotals,
     },
     subsidyAdjustments,

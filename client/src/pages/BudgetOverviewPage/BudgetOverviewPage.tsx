@@ -11,7 +11,6 @@ import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
 import { Tooltip } from '../../components/Tooltip/Tooltip.js';
-import { AreaTreeTable } from '../../components/AreaTreeTable/index.js';
 import { CostBreakdownTable } from '../../components/CostBreakdownTable/CostBreakdownTable.js';
 import styles from './BudgetOverviewPage.module.css';
 
@@ -340,8 +339,6 @@ export function BudgetOverviewPage() {
   const hasData =
     overview.minPlanned > 0 ||
     overview.actualCost > 0 ||
-    overview.areaSummaries.length > 0 ||
-    overview.unassignedSummary !== null ||
     overview.sourceCount > 0;
 
   // Use direct totals from overview (no filtering)
@@ -608,13 +605,6 @@ export function BudgetOverviewPage() {
         </div>
       </section>
 
-      {/* Area Tree Table */}
-      <AreaTreeTable
-        areas={overview.areaSummaries}
-        unassigned={overview.unassignedSummary}
-        formatCurrency={formatCurrency}
-      />
-
       {/* Cost Breakdown Table */}
       {overview &&
         (isBreakdownLoading ? (
@@ -629,7 +619,6 @@ export function BudgetOverviewPage() {
           <CostBreakdownTable
             breakdown={breakdown}
             overview={overview}
-            selectedCategories={new Set<string | null>()}
             budgetSources={budgetSources}
           />
         ) : null)}

@@ -42,23 +42,8 @@
       "vsMaxPlannedWithPayback": "Remaining vs Max Planned (incl. payback)"
     },
     "ofAvailableFunds": "of available funds",
-    "areaBreakdown": {
-      "title": "Area Breakdown",
-      "colName": "Area",
-      "colPlanned": "Planned",
-      "colActual": "Actual",
-      "colVariance": "Variance",
-      "expandArea": "Expand {{name}}",
-      "collapseArea": "Collapse {{name}}",
-      "expandAll": "Expand all",
-      "collapseAll": "Collapse all",
-      "unassignedBucket": "Unassigned",
-      "emptyMessage": "No areas have been set up yet. Assign areas to work items to see spending by location.",
-      "expanded": "{{name}} expanded",
-      "collapsed": "{{name}} collapsed",
-      "tableCaption": "Area budget breakdown with expandable tree"
-    },
     "costBreakdown": {
+      "tableCaption": "Budget cost breakdown by area and item",
       "loading": "Loading cost breakdown…",
       "title": "Cost Breakdown",
       "emptyState": "No budget data to display",
@@ -75,7 +60,14 @@
         "net": "Net"
       },
       "subsidyAdjustments": "Subsidies",
-      "oversubscribed": "This subsidy is oversubscribed, maximum amount is {{amount}}"
+      "oversubscribed": "This subsidy is oversubscribed, maximum amount is {{amount}}",
+      "area": {
+        "expandArea": "Expand {{name}}",
+        "collapseArea": "Collapse {{name}}",
+        "unassigned": "Unassigned",
+        "expandWorkItemsLabel": "Expand work item budget by area",
+        "expandHouseholdItemsLabel": "Expand household item budget by area"
+      }
     }
   },
   "sources": {
