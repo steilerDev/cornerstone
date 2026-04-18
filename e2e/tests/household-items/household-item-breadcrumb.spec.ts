@@ -312,8 +312,10 @@ test.describe('HouseholdItemPicker — renderSecondary breadcrumb in search drop
       const vendorBody = (await vendorResp.json()) as { vendor: { id: string } };
       vendorId = vendorBody.vendor.id;
 
+      // Invoice status must be one of the valid API enum values: 'pending', 'paid', 'claimed', 'quotation'.
+      // 'draft' was used here incorrectly and caused a 400 validation error from Fastify.
       const invoiceResp = await page.request.post(`${API.vendors}/${vendorId}/invoices`, {
-        data: { amount: 100, date: '2026-01-15', status: 'draft' },
+        data: { amount: 100, date: '2026-01-15', status: 'pending' },
       });
       expect(invoiceResp.ok()).toBeTruthy();
       const invoiceBody = (await invoiceResp.json()) as { invoice: { id: string } };

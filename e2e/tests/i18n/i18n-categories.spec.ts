@@ -113,8 +113,12 @@ test.describe('i18n: Predefined category name translations', () => {
     await setLanguage(page, 'de');
 
     // When: User navigates to the Manage page trades tab.
-    // Use networkidle to ensure i18next has fully loaded the German bundle before asserting.
+    // goto() + reload() pattern: setLanguage() writes localStorage on '/' but the
+    // subsequent goto() to a different route may not trigger a full re-render of i18next.
+    // A reload() forces the SPA to re-read localStorage on the target route, ensuring
+    // the German bundle is initialized before asserting translated text.
     await page.goto(MANAGE_TRADES_URL, { waitUntil: 'networkidle' });
+    await page.reload({ waitUntil: 'networkidle' });
     // Wait for the trades panel to render with German content — use "Sanitär" as the
     // locale-readiness indicator instead of a generic item row (which could appear with
     // English text before i18next finishes loading the German bundle).
@@ -160,8 +164,9 @@ test.describe('i18n: Predefined category name translations', () => {
     await setLanguage(page, 'de');
 
     // When: User navigates to the Manage page budget categories tab.
-    // Use networkidle to ensure i18next has fully loaded the German bundle.
+    // goto() + reload() pattern: see trades test for explanation.
     await page.goto(MANAGE_BUDGET_CATEGORIES_URL, { waitUntil: 'networkidle' });
+    await page.reload({ waitUntil: 'networkidle' });
     // Wait for the budget categories panel to render with German content.
     const budgetPanel = page.locator('#budget-categories-panel');
     await expect(budgetPanel.getByText('Materialien', { exact: true }).first()).toBeVisible({
@@ -205,8 +210,9 @@ test.describe('i18n: Predefined category name translations', () => {
     await setLanguage(page, 'de');
 
     // When: User navigates to the Manage page household item categories tab.
-    // Use networkidle to ensure i18next has fully loaded the German bundle.
+    // goto() + reload() pattern: see trades test for explanation.
     await page.goto(MANAGE_HI_CATEGORIES_URL, { waitUntil: 'networkidle' });
+    await page.reload({ waitUntil: 'networkidle' });
     // Wait for the household item categories panel to render with German content.
     const hiPanel = page.locator('#hi-categories-panel');
     await expect(hiPanel.getByText('Möbel', { exact: true }).first()).toBeVisible({

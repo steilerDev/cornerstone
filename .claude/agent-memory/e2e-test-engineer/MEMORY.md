@@ -18,6 +18,7 @@
 - InvoiceDetailPage budget line modal: `getByRole('dialog', { name: 'Add Budget Line' })` → HI picker input `getByPlaceholder('Search household items...')`
 - Invoice route is `/budget/invoices/:id` (NOT `/project/budget/invoices/:id`)
 - Invoice API: `POST /api/vendors/:vendorId/invoices` (requires vendor first) → `{ invoice: { id } }`
+- **Invoice status enum**: valid values are `'pending'`, `'paid'`, `'claimed'`, `'quotation'` — NOT `'draft'`. Using `'draft'` causes 400 validation error.
 - `budget-source-lines.spec.ts` failures on feat/1239 branch: pre-existing, caused by `fix/source-lines-layout-links` feature not yet merged, not a breadcrumb regression
 - CI Shard 5 failure on beta release run (2026-04-16): from concurrent release workflow, not from feature work
 
