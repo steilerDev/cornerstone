@@ -43,6 +43,7 @@ export function UserManagementPage() {
   const settingsTabs: SubNavTab[] = [
     { labelKey: 'subnav.settings.profile', to: '/settings/profile', ns: 'common' },
     { labelKey: 'subnav.settings.manage', to: '/settings/manage', ns: 'common' },
+    { labelKey: 'subnav.settings.vendors', to: '/settings/vendors', ns: 'common' },
     {
       labelKey: 'subnav.settings.userManagement',
       to: '/settings/users',

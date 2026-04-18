@@ -802,7 +802,7 @@ export function HouseholdItemDetailPage() {
               <dt className={styles.infoLabel}>{t('detail.details.vendor')}</dt>
               <dd className={styles.infoValue}>
                 {item.vendor ? (
-                  <Link to={`/budget/vendors/${item.vendor.id}`} className={styles.infoLink}>
+                  <Link to={`/settings/vendors/${item.vendor.id}`} className={styles.infoLink}>
                     {item.vendor.name}
                   </Link>
                 ) : (

@@ -18,7 +18,6 @@ import styles from './BudgetOverviewPage.module.css';
 const BUDGET_TABS: SubNavTab[] = [
   { labelKey: 'subnav.budget.overview', to: '/budget/overview' },
   { labelKey: 'subnav.budget.invoices', to: '/budget/invoices' },
-  { labelKey: 'subnav.budget.vendors', to: '/budget/vendors' },
   { labelKey: 'subnav.budget.sources', to: '/budget/sources' },
   { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
 ];
@@ -288,7 +287,7 @@ export function BudgetOverviewPage() {
             role="menuitem"
             onClick={() => {
               setAddOpen(false);
-              void navigate('/budget/vendors');
+              void navigate('/settings/vendors');
             }}
             data-testid="budget-overview-add-vendor"
           >

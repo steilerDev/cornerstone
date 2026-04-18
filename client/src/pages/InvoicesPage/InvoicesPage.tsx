@@ -19,7 +19,6 @@ import styles from './InvoicesPage.module.css';
 const BUDGET_TABS: SubNavTab[] = [
   { labelKey: 'subnav.budget.overview', to: '/budget/overview' },
   { labelKey: 'subnav.budget.invoices', to: '/budget/invoices' },
-  { labelKey: 'subnav.budget.vendors', to: '/budget/vendors' },
   { labelKey: 'subnav.budget.sources', to: '/budget/sources' },
   { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
 ];
@@ -297,7 +296,7 @@ export function InvoicesPage() {
         filterParamKey: 'vendorId',
         enumOptions: vendors.map((v) => ({ value: v.id, label: v.name })),
         render: (inv) => (
-          <Link to={`/budget/vendors/${inv.vendorId}`} className={styles.vendorLink}>
+          <Link to={`/settings/vendors/${inv.vendorId}`} className={styles.vendorLink}>
             {inv.vendorName}
           </Link>
         ),
