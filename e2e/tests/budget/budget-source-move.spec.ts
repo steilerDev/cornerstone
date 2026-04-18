@@ -410,7 +410,12 @@ test.describe(
                     updatedAt: '2026-01-01T10:00:00.000Z',
                     parentId: `wi-windows-${sourceAId}`,
                     parentName: 'Windows',
-                    area: { id: `area-lr-${sourceAId}`, name: 'Living Room', color: '#FF9800', ancestors: [] },
+                    area: {
+                      id: `area-lr-${sourceAId}`,
+                      name: 'Living Room',
+                      color: '#FF9800',
+                      ancestors: [],
+                    },
                     hasClaimedInvoice: false,
                   },
                 ],

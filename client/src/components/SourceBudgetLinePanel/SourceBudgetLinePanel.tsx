@@ -83,19 +83,22 @@ function buildParentGroups(lines: BudgetSourceBudgetLine[]): ParentGroup[] {
 
 // Build a hierarchical area tree from lines
 function buildAreaTree(lines: BudgetSourceBudgetLine[]): AreaNode[] {
-  const areaMap = new Map<string | null, {
-    name: string;
-    color: string | null;
-    ancestors: AreaAncestor[];
-    lines: BudgetSourceBudgetLine[];
-  }>();
+  const areaMap = new Map<
+    string | null,
+    {
+      name: string;
+      color: string | null;
+      ancestors: AreaAncestor[];
+      lines: BudgetSourceBudgetLine[];
+    }
+  >();
 
   // Collect all unique areas (including ancestors)
   const allAreaIds = new Set<string>();
   for (const line of lines) {
     if (line.area?.id) {
       allAreaIds.add(line.area.id);
-      for (const ancestor of (line.area.ancestors ?? [])) {
+      for (const ancestor of line.area.ancestors ?? []) {
         allAreaIds.add(ancestor.id);
       }
     }
@@ -118,7 +121,7 @@ function buildAreaTree(lines: BudgetSourceBudgetLine[]): AreaNode[] {
         areaMap.set(areaKey, {
           name: line.area!.name,
           color: line.area!.color,
-          ancestors: (line.area!.ancestors ?? []),
+          ancestors: line.area!.ancestors ?? [],
           lines: [],
         });
       }
@@ -156,7 +159,8 @@ function buildAreaTree(lines: BudgetSourceBudgetLine[]): AreaNode[] {
   const parentMap = new Map<string | null, string[]>();
   for (const [areaId, data] of areaMap.entries()) {
     if (areaId === null) continue;
-    const parentId = data.ancestors.length > 0 ? data.ancestors[data.ancestors.length - 1].id : null;
+    const parentId =
+      data.ancestors.length > 0 ? data.ancestors[data.ancestors.length - 1].id : null;
     if (!parentMap.has(parentId)) {
       parentMap.set(parentId, []);
     }
@@ -259,10 +263,7 @@ function getConfidenceLabel(line: BudgetSourceBudgetLine, t: (key: string) => st
 }
 
 // Helper to collect all descendant line IDs from an area and its children (recursive)
-function getAreaSubtreeLineIds(
-  areaTree: AreaNode[],
-  targetAreaId: string | null,
-): Set<string> {
+function getAreaSubtreeLineIds(areaTree: AreaNode[], targetAreaId: string | null): Set<string> {
   const lineIds = new Set<string>();
 
   const traverse = (node: AreaNode) => {
@@ -317,7 +318,10 @@ export function SourceBudgetLinePanel({
 
   // Build area trees for both work item and household item lines
   const workItemAreaTree = useMemo(() => buildAreaTree(workItemLines), [workItemLines]);
-  const householdItemAreaTree = useMemo(() => buildAreaTree(householdItemLines), [householdItemLines]);
+  const householdItemAreaTree = useMemo(
+    () => buildAreaTree(householdItemLines),
+    [householdItemLines],
+  );
 
   // Compute area group selection states (including cascading for descendants)
   const areaGroupSelectionStates = useMemo(() => {
@@ -329,7 +333,9 @@ export function SourceBudgetLinePanel({
       const traverse = (node: AreaNode) => {
         // For this area, collect all lines in its subtree (including children)
         const subtreeLineIds = getAreaSubtreeLineIds(tree, node.areaId);
-        const selectedInSubtree = Array.from(subtreeLineIds).filter((id) => selectedLineIds!.has(id));
+        const selectedInSubtree = Array.from(subtreeLineIds).filter((id) =>
+          selectedLineIds!.has(id),
+        );
         const allSelected =
           selectedInSubtree.length === subtreeLineIds.size && subtreeLineIds.size > 0;
         const someSelected = selectedInSubtree.length > 0;
@@ -395,10 +401,7 @@ export function SourceBudgetLinePanel({
   );
 
   // Render an area hierarchy recursively
-  const renderAreaNode = (
-    node: AreaNode,
-    parentType: 'work-item' | 'household-item',
-  ) => {
+  const renderAreaNode = (node: AreaNode, parentType: 'work-item' | 'household-item') => {
     const groupKey = node.areaId ?? 'unassigned';
     const selectionState = areaGroupSelectionStates.get(groupKey);
     const areaName = node.areaId === null ? t('sources.lines.unassignedArea') : node.areaName;
@@ -406,14 +409,32 @@ export function SourceBudgetLinePanel({
       node.ancestors.length > 0 ? node.ancestors.map((a) => a.name).join(' › ') : null;
 
     return (
-      <div key={groupKey} className={styles.areaGroup} style={{ paddingLeft: `calc(${node.depth} * var(--spacing-4))` }}>
+      <div
+        key={groupKey}
+        className={styles.areaGroup}
+        style={{ paddingLeft: `calc(${node.depth} * var(--spacing-4))` }}
+      >
         <div className={styles.areaGroupHeader}>
           {isSelectable && selectionState && (
             <TriStateCheckbox
               id={`area-${groupKey}-checkbox`}
               checked={selectionState.allSelected}
               indeterminate={!selectionState.allSelected && selectionState.someSelected}
-              onChange={(checked) => handleAreaGroupCheckboxChange({ areaId: node.areaId, areaName: node.areaName, areaColor: node.areaColor, depth: node.depth, ancestors: node.ancestors, parentGroups: node.parentGroups, totalLines: node.totalLines }, checked, parentType)}
+              onChange={(checked) =>
+                handleAreaGroupCheckboxChange(
+                  {
+                    areaId: node.areaId,
+                    areaName: node.areaName,
+                    areaColor: node.areaColor,
+                    depth: node.depth,
+                    ancestors: node.ancestors,
+                    parentGroups: node.parentGroups,
+                    totalLines: node.totalLines,
+                  },
+                  checked,
+                  parentType,
+                )
+              }
               label={t('sources.budgetLines.move.selectGroupLabel', {
                 name: areaName,
               })}
@@ -458,9 +479,11 @@ export function SourceBudgetLinePanel({
           )}
           <div className={styles.areaNameContainer}>
             <span className={styles.areaName}>{areaName}</span>
-            {breadcrumb && <span className={styles.areaAncestorHint}>
-              {t('sources.lines.underArea', { breadcrumb })}
-            </span>}
+            {breadcrumb && (
+              <span className={styles.areaAncestorHint}>
+                {t('sources.lines.underArea', { breadcrumb })}
+              </span>
+            )}
           </div>
           <span className={styles.areaLineCount}>
             {t('sources.lines.areaLineCount', { count: node.totalLines })}
