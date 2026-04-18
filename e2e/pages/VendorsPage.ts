@@ -83,7 +83,7 @@ export class VendorsPage {
     this.page = page;
 
     // Page header
-    this.heading = page.getByRole('heading', { level: 1, name: 'Budget', exact: true });
+    this.heading = page.getByRole('heading', { level: 1, name: 'Vendors', exact: true });
     this.addVendorButton = page.getByRole('button', { name: 'Add Vendor', exact: true });
 
     // Search / sort

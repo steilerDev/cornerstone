@@ -232,8 +232,10 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
 
     // When: User navigates to vendors (moved to Settings in Story #1283)
     await page.goto(ROUTES.settingsVendors);
-    // German: "Budget" heading stays "Budget" in German (same word)
-    await page.getByRole('heading', { level: 1, name: 'Budget' }).waitFor({ state: 'visible' });
+    // German heading is "Auftragnehmer" (plural form of Vendor)
+    await page
+      .getByRole('heading', { level: 1, name: 'Auftragnehmer' })
+      .waitFor({ state: 'visible' });
 
     // Then: The Settings sub-nav shows "Auftragnehmer" (German for Vendors/Contractors)
     // Vendors moved from Budget section to Settings section (Story #1283).
