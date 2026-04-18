@@ -6,6 +6,7 @@ import type {
   BudgetSourceBudgetLine,
   ConfidenceLevel,
 } from '@cornerstone/shared';
+import type { AreaAncestor } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
 import { Badge } from '../Badge/Badge.js';
 import type { BadgeVariantMap } from '../Badge/Badge.js';
@@ -32,10 +33,23 @@ interface ParentGroup {
   lines: BudgetSourceBudgetLine[];
 }
 
+interface AreaNode {
+  areaId: string | null;
+  areaName: string;
+  areaColor: string | null;
+  depth: number;
+  ancestors: AreaAncestor[];
+  parentGroups: ParentGroup[];
+  totalLines: number;
+  children: AreaNode[];
+}
+
 interface AreaGroup {
   areaId: string | null;
   areaName: string;
   areaColor: string | null;
+  depth: number;
+  ancestors: AreaAncestor[];
   parentGroups: ParentGroup[];
   totalLines: number;
 }
@@ -67,49 +81,217 @@ function buildParentGroups(lines: BudgetSourceBudgetLine[]): ParentGroup[] {
     .sort((a, b) => a.parentName.localeCompare(b.parentName));
 }
 
-// Group lines by area, then parent
-function groupLines(lines: BudgetSourceBudgetLine[]): AreaGroup[] {
-  const areaMap = new Map<
-    string | null,
-    { name: string; color: string | null; lines: BudgetSourceBudgetLine[] }
-  >();
+// Build a hierarchical area tree from lines
+function buildAreaTree(lines: BudgetSourceBudgetLine[]): AreaNode[] {
+  const areaMap = new Map<string | null, {
+    name: string;
+    color: string | null;
+    ancestors: AreaAncestor[];
+    lines: BudgetSourceBudgetLine[];
+  }>();
 
+  // Collect all unique areas (including ancestors)
+  const allAreaIds = new Set<string>();
+  for (const line of lines) {
+    if (line.area?.id) {
+      allAreaIds.add(line.area.id);
+      for (const ancestor of line.area.ancestors) {
+        allAreaIds.add(ancestor.id);
+      }
+    }
+  }
+
+  // Initialize area map with all areas
   for (const line of lines) {
     const areaKey = line.area?.id ?? null;
     if (!areaMap.has(areaKey)) {
-      areaMap.set(areaKey, {
-        name: line.area?.name ?? '',
-        color: line.area?.color ?? null,
-        lines: [],
-      });
+      if (areaKey === null) {
+        // Unassigned bucket
+        areaMap.set(null, {
+          name: '',
+          color: null,
+          ancestors: [],
+          lines: [],
+        });
+      } else {
+        // Named area
+        areaMap.set(areaKey, {
+          name: line.area!.name,
+          color: line.area!.color,
+          ancestors: line.area!.ancestors,
+          lines: [],
+        });
+      }
     }
-    areaMap.get(areaKey)!.lines.push(line);
   }
 
-  // Build area groups: named areas sorted alphabetically, unassigned last
-  const namedAreas = Array.from(areaMap.entries())
-    .filter(([id]) => id !== null)
-    .map(([id, data]) => ({
-      areaId: id,
+  // Add ancestor-only areas (areas without lines but that are parents of areas with lines)
+  for (const areaId of allAreaIds) {
+    if (!areaMap.has(areaId)) {
+      // Find any line that has this area as an ancestor
+      for (const line of lines) {
+        if (line.area?.ancestors.some((a) => a.id === areaId)) {
+          const ancestor = line.area!.ancestors.find((a) => a.id === areaId)!;
+          areaMap.set(areaId, {
+            name: ancestor.name,
+            color: ancestor.color,
+            ancestors: [], // We'd need to traverse further; for now, assume these are implicit parents
+            lines: [],
+          });
+          break;
+        }
+      }
+    }
+  }
+
+  // Assign lines to their areas
+  for (const line of lines) {
+    const areaKey = line.area?.id ?? null;
+    if (areaMap.has(areaKey)) {
+      areaMap.get(areaKey)!.lines.push(line);
+    }
+  }
+
+  // Build parent→children map
+  const parentMap = new Map<string | null, string[]>();
+  for (const [areaId, data] of areaMap.entries()) {
+    if (areaId === null) continue;
+    const parentId = data.ancestors.length > 0 ? data.ancestors[data.ancestors.length - 1].id : null;
+    if (!parentMap.has(parentId)) {
+      parentMap.set(parentId, []);
+    }
+    parentMap.get(parentId)!.push(areaId);
+  }
+
+  // Build tree recursively
+  const buildNode = (areaId: string | null, depth: number): AreaNode => {
+    const data = areaMap.get(areaId);
+    if (!data) {
+      return {
+        areaId,
+        areaName: '',
+        areaColor: null,
+        depth,
+        ancestors: [],
+        parentGroups: [],
+        totalLines: 0,
+        children: [],
+      };
+    }
+
+    const childAreaIds = parentMap.get(areaId) ?? [];
+    const children = childAreaIds
+      .sort((a, b) => areaMap.get(a)!.name.localeCompare(areaMap.get(b)!.name))
+      .map((childId) => buildNode(childId, depth + 1));
+
+    return {
+      areaId,
       areaName: data.name,
       areaColor: data.color,
+      depth,
+      ancestors: data.ancestors,
       parentGroups: buildParentGroups(data.lines),
       totalLines: data.lines.length,
-    }))
-    .sort((a, b) => a.areaName.localeCompare(b.areaName));
+      children,
+    };
+  };
 
-  const unassignedData = areaMap.get(null);
-  if (unassignedData && unassignedData.lines.length > 0) {
-    namedAreas.push({
-      areaId: null,
-      areaName: '',
-      areaColor: null,
-      parentGroups: buildParentGroups(unassignedData.lines),
-      totalLines: unassignedData.lines.length,
+  // Get root areas (those with no parent) — exclude unassigned for now
+  const namedRootAreaIds = Array.from(areaMap.entries())
+    .filter(([areaId]) => areaId !== null && areaMap.get(areaId)!.ancestors.length === 0)
+    .map(([areaId]) => areaId)
+    .sort((a, b) => areaMap.get(a)!.name.localeCompare(areaMap.get(b)!.name));
+
+  // Build tree for named areas
+  const namedTree = namedRootAreaIds.map((areaId) => buildNode(areaId, 0));
+
+  // Add unassigned bucket last
+  const tree: AreaNode[] = [
+    ...namedTree,
+    ...(areaMap.get(null) && areaMap.get(null)!.lines.length > 0 ? [buildNode(null, 0)] : []),
+  ];
+
+  return tree;
+}
+
+// Flatten area tree to AreaGroup[] for rendering
+function flattenAreaTree(nodes: AreaNode[]): AreaGroup[] {
+  const result: AreaGroup[] = [];
+
+  const traverse = (node: AreaNode) => {
+    result.push({
+      areaId: node.areaId,
+      areaName: node.areaName,
+      areaColor: node.areaColor,
+      depth: node.depth,
+      ancestors: node.ancestors,
+      parentGroups: node.parentGroups,
+      totalLines: node.totalLines,
     });
+    for (const child of node.children) {
+      traverse(child);
+    }
+  };
+
+  for (const node of nodes) {
+    traverse(node);
   }
 
-  return namedAreas;
+  return result;
+}
+
+// Helper to get the localized invoice status label
+function getInvoiceStatusLabel(line: BudgetSourceBudgetLine, t: (key: string) => string): string {
+  if (line.invoiceLink === null) {
+    return t('sources.lines.invoiceStatus.none');
+  }
+  const status = line.invoiceLink.invoiceStatus;
+  const statusKey = `sources.lines.invoiceStatus.${status}`;
+  const translated = t(statusKey);
+  // If translation key not found, t() returns the key itself; fallback to the status
+  return translated.startsWith('sources.lines.invoiceStatus') ? status : translated;
+}
+
+// Helper to get the confidence label
+function getConfidenceLabel(line: BudgetSourceBudgetLine, t: (key: string) => string): string {
+  const confidenceKey = `sources.lines.confidence.${line.confidence}`;
+  return t(confidenceKey);
+}
+
+// Helper to collect all descendant line IDs from an area and its children (recursive)
+function getAreaSubtreeLineIds(
+  areaTree: AreaNode[],
+  targetAreaId: string | null,
+): Set<string> {
+  const lineIds = new Set<string>();
+
+  const traverse = (node: AreaNode) => {
+    if (node.areaId === targetAreaId) {
+      // Found the target; collect all lines in this subtree
+      const collect = (n: AreaNode) => {
+        for (const pg of n.parentGroups) {
+          for (const line of pg.lines) {
+            lineIds.add(line.id);
+          }
+        }
+        for (const child of n.children) {
+          collect(child);
+        }
+      };
+      collect(node);
+    } else {
+      // Keep traversing
+      for (const child of node.children) {
+        traverse(child);
+      }
+    }
+  };
+
+  for (const node of areaTree) {
+    traverse(node);
+  }
+
+  return lineIds;
 }
 
 export function SourceBudgetLinePanel({
@@ -127,79 +309,72 @@ export function SourceBudgetLinePanel({
   const { formatCurrency } = useFormatters();
   const isSelectable = selectedLineIds !== undefined && onSelectionChange !== undefined;
 
-  // Build confidence and invoice badge variants
-  const confidenceVariants: BadgeVariantMap = {
-    own_estimate: {
-      label: t('sources.lines.confidence.own_estimate'),
-      className: styles.confidenceOwnEstimate,
-    },
-    professional_estimate: {
-      label: t('sources.lines.confidence.professional_estimate'),
-      className: styles.confidenceProEstimate,
-    },
-    quote: {
-      label: t('sources.lines.confidence.quote'),
-      className: styles.confidenceQuote,
-    },
-    invoice: {
-      label: t('sources.lines.confidence.invoice'),
-      className: styles.confidenceInvoice,
-    },
-  };
-
-  const invoiceVariants: BadgeVariantMap = {
-    linked: {
-      label: t('sources.lines.invoiceLinked'),
-      className: styles.invoiceLinked,
-    },
-  };
-
   const workItemLines = data?.workItemLines ?? [];
 
   const householdItemLines = data?.householdItemLines ?? [];
 
   const isEmpty = workItemLines.length === 0 && householdItemLines.length === 0;
 
-  // Compute area group selection states
+  // Build area trees for both work item and household item lines
+  const workItemAreaTree = useMemo(() => buildAreaTree(workItemLines), [workItemLines]);
+  const householdItemAreaTree = useMemo(() => buildAreaTree(householdItemLines), [householdItemLines]);
+
+  // Compute area group selection states (including cascading for descendants)
   const areaGroupSelectionStates = useMemo(() => {
     if (!isSelectable) return new Map<string, { allSelected: boolean; someSelected: boolean }>();
 
-    const workItemGroups = groupLines(workItemLines);
-    const householdItemGroups = groupLines(householdItemLines);
-    const allGroups = [...workItemGroups, ...householdItemGroups];
-
     const states = new Map<string, { allSelected: boolean; someSelected: boolean }>();
 
-    for (const areaGroup of allGroups) {
-      const groupLineIds = areaGroup.parentGroups.flatMap((pg) => pg.lines.map((l) => l.id));
-      const selectedInGroup = groupLineIds.filter((id) => selectedLineIds!.has(id));
-      const allSelected = selectedInGroup.length === groupLineIds.length && groupLineIds.length > 0;
-      const someSelected = selectedInGroup.length > 0;
+    const computeForTree = (tree: AreaNode[]) => {
+      const traverse = (node: AreaNode) => {
+        // For this area, collect all lines in its subtree (including children)
+        const subtreeLineIds = getAreaSubtreeLineIds(tree, node.areaId);
+        const selectedInSubtree = Array.from(subtreeLineIds).filter((id) => selectedLineIds!.has(id));
+        const allSelected =
+          selectedInSubtree.length === subtreeLineIds.size && subtreeLineIds.size > 0;
+        const someSelected = selectedInSubtree.length > 0;
 
-      const key = areaGroup.areaId ?? 'unassigned';
-      states.set(key, { allSelected, someSelected });
-    }
+        const key = node.areaId ?? 'unassigned';
+        states.set(key, { allSelected, someSelected });
+
+        for (const child of node.children) {
+          traverse(child);
+        }
+      };
+
+      for (const node of tree) {
+        traverse(node);
+      }
+    };
+
+    computeForTree(workItemAreaTree);
+    computeForTree(householdItemAreaTree);
 
     return states;
-  }, [workItemLines, householdItemLines, selectedLineIds, isSelectable]);
+  }, [workItemAreaTree, householdItemAreaTree, selectedLineIds, isSelectable]);
 
-  // Handle area group checkbox change
+  // Handle area group checkbox change (with cascading to descendants)
   const handleAreaGroupCheckboxChange = useCallback(
-    (areaGroup: AreaGroup, checked: boolean) => {
+    (areaGroup: AreaGroup, checked: boolean, sectionType: 'work-item' | 'household-item') => {
       if (!isSelectable || !onSelectionChange) return;
 
-      const groupLineIds = areaGroup.parentGroups.flatMap((pg) => pg.lines.map((l) => l.id));
+      // Get the appropriate tree for this section
+      const tree = sectionType === 'work-item' ? workItemAreaTree : householdItemAreaTree;
+
+      // Collect all line IDs in the area subtree
+      const subtreeLineIds = getAreaSubtreeLineIds(tree, areaGroup.areaId);
+
       const newSelection = new Set(selectedLineIds);
 
       if (checked) {
-        groupLineIds.forEach((id) => newSelection.add(id));
+        subtreeLineIds.forEach((id) => newSelection.add(id));
       } else {
-        groupLineIds.forEach((id) => newSelection.delete(id));
+        subtreeLineIds.forEach((id) => newSelection.delete(id));
       }
 
       onSelectionChange(newSelection);
     },
-    [isSelectable, selectedLineIds, onSelectionChange],
+    [isSelectable, selectedLineIds, onSelectionChange, workItemAreaTree, householdItemAreaTree],
   );
 
   // Handle individual line checkbox change
@@ -219,6 +394,139 @@ export function SourceBudgetLinePanel({
     [isSelectable, selectedLineIds, onSelectionChange],
   );
 
+  // Render an area hierarchy recursively
+  const renderAreaNode = (
+    node: AreaNode,
+    parentType: 'work-item' | 'household-item',
+  ) => {
+    const groupKey = node.areaId ?? 'unassigned';
+    const selectionState = areaGroupSelectionStates.get(groupKey);
+    const areaName = node.areaId === null ? t('sources.lines.unassignedArea') : node.areaName;
+    const breadcrumb =
+      node.ancestors.length > 0 ? node.ancestors.map((a) => a.name).join(' › ') : null;
+
+    return (
+      <div key={groupKey} className={styles.areaGroup} style={{ paddingLeft: `calc(${node.depth} * var(--spacing-4))` }}>
+        <div className={styles.areaGroupHeader}>
+          {isSelectable && selectionState && (
+            <TriStateCheckbox
+              id={`area-${groupKey}-checkbox`}
+              checked={selectionState.allSelected}
+              indeterminate={!selectionState.allSelected && selectionState.someSelected}
+              onChange={(checked) => handleAreaGroupCheckboxChange({ areaId: node.areaId, areaName: node.areaName, areaColor: node.areaColor, depth: node.depth, ancestors: node.ancestors, parentGroups: node.parentGroups, totalLines: node.totalLines }, checked, parentType)}
+              label={t('sources.budgetLines.move.selectGroupLabel', {
+                name: areaName,
+              })}
+              className={styles.areaGroupCheckbox}
+            />
+          )}
+          {!isSelectable && (
+            <>
+              {node.areaColor && (
+                <span
+                  className={styles.areaColorDot}
+                  style={{ backgroundColor: node.areaColor }}
+                  aria-hidden="true"
+                />
+              )}
+              {!node.areaColor && node.areaId === null && (
+                <span
+                  className={styles.areaColorDot}
+                  style={{ backgroundColor: 'var(--color-text-disabled)' }}
+                  aria-hidden="true"
+                />
+              )}
+            </>
+          )}
+          {isSelectable && !selectionState && (
+            <>
+              {node.areaColor && (
+                <span
+                  className={styles.areaColorDot}
+                  style={{ backgroundColor: node.areaColor }}
+                  aria-hidden="true"
+                />
+              )}
+              {!node.areaColor && node.areaId === null && (
+                <span
+                  className={styles.areaColorDot}
+                  style={{ backgroundColor: 'var(--color-text-disabled)' }}
+                  aria-hidden="true"
+                />
+              )}
+            </>
+          )}
+          <div className={styles.areaNameContainer}>
+            <span className={styles.areaName}>{areaName}</span>
+            {breadcrumb && <span className={styles.areaAncestorHint}>
+              {t('sources.lines.underArea', { breadcrumb })}
+            </span>}
+          </div>
+          <span className={styles.areaLineCount}>
+            {t('sources.lines.areaLineCount', { count: node.totalLines })}
+          </span>
+        </div>
+
+        {node.parentGroups.map((parentGroup) => (
+          <div key={parentGroup.parentId} className={styles.parentItemBlock}>
+            <Link
+              to={`/project/${parentType === 'work-item' ? 'work-items' : 'household-items'}/${parentGroup.parentId}`}
+              className={styles.parentItemHeader}
+              style={{ paddingLeft: `var(--spacing-4)` }}
+            >
+              {parentGroup.parentName}
+            </Link>
+
+            <ul
+              role="list"
+              className={isSelectable ? styles.lineListSelectable : styles.lineList}
+              style={{ paddingLeft: `var(--spacing-4)` }}
+            >
+              {parentGroup.lines.map((line) => {
+                const isSelected = selectedLineIds?.has(line.id) ?? false;
+                const confidenceLabel = getConfidenceLabel(line, t);
+                const invoiceStatusLabel = getInvoiceStatusLabel(line, t);
+
+                return (
+                  <li
+                    key={line.id}
+                    role="listitem"
+                    className={`${styles.lineRow} ${isSelectable && isSelected ? styles.lineRowSelected : ''}`}
+                  >
+                    {isSelectable && (
+                      <input
+                        type="checkbox"
+                        className={styles.checkbox}
+                        checked={isSelected}
+                        onChange={(e) => handleLineCheckboxChange(line.id, e.target.checked)}
+                        aria-label={t('sources.budgetLines.move.checkboxLabel', {
+                          description: line.description ?? '—',
+                        })}
+                      />
+                    )}
+
+                    <span className={styles.lineDescription}>{line.description ?? '—'}</span>
+
+                    <span className={styles.lineType}>{confidenceLabel}</span>
+
+                    <span className={styles.lineStatus}>{invoiceStatusLabel}</span>
+
+                    <span className={styles.linePlannedAmount}>
+                      {formatCurrency(line.plannedAmount)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+
+        {/* Render child areas */}
+        {node.children.map((childNode) => renderAreaNode(childNode, parentType))}
+      </div>
+    );
+  };
+
   // Render a section (work items or household items)
   const renderSection = (
     lines: BudgetSourceBudgetLine[],
@@ -227,143 +535,13 @@ export function SourceBudgetLinePanel({
   ) => {
     if (lines.length === 0) return null;
 
-    const groupedByArea = groupLines(lines);
+    const tree = parentType === 'work-item' ? workItemAreaTree : householdItemAreaTree;
 
     return (
       <div key={titleKey} className={styles.section}>
         <h4 className={styles.sectionHeader}>{t(`sources.lines.${titleKey}`)}</h4>
 
-        {groupedByArea.map((areaGroup) => {
-          const groupKey = areaGroup.areaId ?? 'unassigned';
-          const selectionState = areaGroupSelectionStates.get(groupKey);
-
-          return (
-            <div key={groupKey} className={styles.areaGroup}>
-              <div className={styles.areaGroupHeader}>
-                {isSelectable && selectionState && (
-                  <TriStateCheckbox
-                    id={`area-${groupKey}-checkbox`}
-                    checked={selectionState.allSelected}
-                    indeterminate={!selectionState.allSelected && selectionState.someSelected}
-                    onChange={(checked) => handleAreaGroupCheckboxChange(areaGroup, checked)}
-                    label={t('sources.budgetLines.move.selectGroupLabel', {
-                      name: areaGroup.areaName || t('sources.lines.unassignedArea'),
-                    })}
-                    className={styles.areaGroupCheckbox}
-                  />
-                )}
-                {!isSelectable && (
-                  <>
-                    {areaGroup.areaColor && (
-                      <span
-                        className={styles.areaColorDot}
-                        style={{ backgroundColor: areaGroup.areaColor }}
-                        aria-hidden="true"
-                      />
-                    )}
-                    {!areaGroup.areaColor && areaGroup.areaId === null && (
-                      <span
-                        className={styles.areaColorDot}
-                        style={{ backgroundColor: 'var(--color-text-disabled)' }}
-                        aria-hidden="true"
-                      />
-                    )}
-                  </>
-                )}
-                {isSelectable && !selectionState && (
-                  <>
-                    {areaGroup.areaColor && (
-                      <span
-                        className={styles.areaColorDot}
-                        style={{ backgroundColor: areaGroup.areaColor }}
-                        aria-hidden="true"
-                      />
-                    )}
-                    {!areaGroup.areaColor && areaGroup.areaId === null && (
-                      <span
-                        className={styles.areaColorDot}
-                        style={{ backgroundColor: 'var(--color-text-disabled)' }}
-                        aria-hidden="true"
-                      />
-                    )}
-                  </>
-                )}
-                <span className={styles.areaName}>
-                  {areaGroup.areaId === null
-                    ? t('sources.lines.unassignedArea')
-                    : areaGroup.areaName}
-                </span>
-                <span className={styles.areaLineCount}>
-                  {t('sources.lines.areaLineCount', { count: areaGroup.totalLines })}
-                </span>
-              </div>
-
-              {areaGroup.parentGroups.map((parentGroup) => (
-                <div key={parentGroup.parentId}>
-                  <Link
-                    to={`/project/${parentType === 'work-item' ? 'work-items' : 'household-items'}/${parentGroup.parentId}`}
-                    className={styles.parentItemHeader}
-                  >
-                    {parentGroup.parentName}
-                  </Link>
-
-                  <ul
-                    role="list"
-                    className={isSelectable ? styles.lineListSelectable : styles.lineList}
-                  >
-                    {parentGroup.lines.map((line) => {
-                      const categoryName = line.budgetCategory?.name ?? null;
-                      const vendorName = line.vendor?.name ?? null;
-                      const showSubtext = categoryName || vendorName;
-                      const isSelected = selectedLineIds?.has(line.id) ?? false;
-
-                      return (
-                        <li
-                          key={line.id}
-                          role="listitem"
-                          className={`${styles.lineRow} ${isSelectable && isSelected ? styles.lineRowSelected : ''}`}
-                        >
-                          {isSelectable && (
-                            <input
-                              type="checkbox"
-                              className={styles.checkbox}
-                              checked={isSelected}
-                              onChange={(e) => handleLineCheckboxChange(line.id, e.target.checked)}
-                              aria-label={t('sources.budgetLines.move.checkboxLabel', {
-                                description: line.description ?? '—',
-                              })}
-                            />
-                          )}
-
-                          <span className={styles.lineDescription}>{line.description ?? '—'}</span>
-
-                          {showSubtext && (
-                            <span className={styles.lineSubtext}>
-                              {categoryName && vendorName
-                                ? `${categoryName} · ${vendorName}`
-                                : categoryName || vendorName}
-                            </span>
-                          )}
-
-                          <div className={styles.lineBadges}>
-                            <Badge variants={confidenceVariants} value={line.confidence} />
-                            {line.invoiceLink !== null && (
-                              <Badge variants={invoiceVariants} value="linked" />
-                            )}
-                          </div>
-
-                          <span className={styles.linePlannedAmount}>
-                            {formatCurrency(line.plannedAmount)}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          );
-        })}
+        {tree.map((node) => renderAreaNode(node, parentType))}
       </div>
     );
   };

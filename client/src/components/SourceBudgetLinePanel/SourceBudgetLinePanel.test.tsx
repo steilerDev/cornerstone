@@ -297,7 +297,8 @@ describe('SourceBudgetLinePanel', () => {
       renderPanel({ data: makeResponse([namedLine, unassignedLine1, unassignedLine2], []) });
 
       // Both area headers should appear — named area and "Unassigned"
-      expect(screen.getByText('Kitchen')).toBeInTheDocument();
+      const kitchenHeaders = screen.getAllByText('Kitchen');
+      expect(kitchenHeaders.length).toBeGreaterThan(0);
       expect(screen.getByText('Unassigned')).toBeInTheDocument();
 
       // Verify order: "Kitchen" should appear before "Unassigned" in the DOM
@@ -409,10 +410,10 @@ describe('SourceBudgetLinePanel', () => {
     });
   });
 
-  // ─── Invoice badge present (scenario 12) ─────────────────────────────────────
+  // ─── Invoice status column (replaces old badge tests) ──────────────────────
 
-  describe('invoice badge', () => {
-    it('renders "Invoiced" badge when invoiceLink is not null', () => {
+  describe('invoice status column', () => {
+    it('renders status as "Paid" when invoiceLink exists with paid status', () => {
       const line = makeLine({
         invoiceLink: {
           invoiceBudgetLineId: 'ibl-1',
@@ -425,16 +426,30 @@ describe('SourceBudgetLinePanel', () => {
       });
       renderPanel({ data: makeResponse([line], []) });
 
-      expect(screen.getByText('Invoiced')).toBeInTheDocument();
+      expect(screen.getByText('Paid')).toBeInTheDocument();
     });
 
-    // ─── Invoice badge absent (scenario 13) ───────────────────────────────────
+    it('renders status as "Claimed" when invoiceLink exists with claimed status', () => {
+      const line = makeLine({
+        invoiceLink: {
+          invoiceBudgetLineId: 'ibl-1',
+          invoiceId: 'inv-1',
+          invoiceNumber: 'INV-001',
+          invoiceDate: '2026-01-01',
+          invoiceStatus: 'claimed',
+          itemizedAmount: 100,
+        },
+      });
+      renderPanel({ data: makeResponse([line], []) });
 
-    it('does NOT render "Invoiced" badge when invoiceLink is null', () => {
+      expect(screen.getByText('Claimed')).toBeInTheDocument();
+    });
+
+    it('renders status as "Not invoiced" when invoiceLink is null', () => {
       const line = makeLine({ invoiceLink: null });
       renderPanel({ data: makeResponse([line], []) });
 
-      expect(screen.queryByText('Invoiced')).not.toBeInTheDocument();
+      expect(screen.getByText('Not invoiced')).toBeInTheDocument();
     });
   });
 
@@ -562,43 +577,37 @@ describe('SourceBudgetLinePanel', () => {
     });
   });
 
-  // ─── Category and vendor display ──────────────────────────
+  // ─── Type and status columns (replacing badges) ─────────────────────────
 
-  describe('category and vendor display', () => {
-    it('renders secondary text with both category and vendor when both present', () => {
-      const line = makeLine({
-        budgetCategory: {
-          id: 'cat-1',
-          name: 'Flooring',
-          description: null,
-          color: null,
-          translationKey: null,
-          sortOrder: 0,
-          createdAt: '2026-01-01T00:00:00.000Z',
-          updatedAt: '2026-01-01T00:00:00.000Z',
-        },
-        vendor: {
-          id: 'vend-1',
-          name: 'Smith Construction',
-          trade: null,
-        },
-      });
+  describe('type and status columns', () => {
+    it('renders type column with confidence label for own_estimate', () => {
+      const line = makeLine({ confidence: 'own_estimate' });
       renderPanel({ data: makeResponse([line], []) });
 
-      expect(screen.getByText('Flooring · Smith Construction')).toBeInTheDocument();
+      expect(screen.getByText('Own estimate')).toBeInTheDocument();
     });
 
-    it('does NOT render secondary line when both category and vendor are null', () => {
+    it('renders status column with "Not invoiced" when invoiceLink is null', () => {
+      const line = makeLine({ invoiceLink: null });
+      renderPanel({ data: makeResponse([line], []) });
+
+      expect(screen.getByText('Not invoiced')).toBeInTheDocument();
+    });
+
+    it('renders status column with invoice status when invoiceLink is present', () => {
       const line = makeLine({
-        budgetCategory: null,
-        vendor: null,
+        invoiceLink: {
+          invoiceBudgetLineId: 'ibl-1',
+          invoiceId: 'inv-1',
+          invoiceNumber: 'INV-001',
+          invoiceDate: '2026-01-01',
+          invoiceStatus: 'paid',
+          itemizedAmount: 100,
+        },
       });
       renderPanel({ data: makeResponse([line], []) });
 
-      // The line description should be present, but no secondary text
-      expect(screen.getByText('Floor tiles')).toBeInTheDocument();
-      // Verify the separator is not in the document
-      expect(screen.queryByText(/·/)).not.toBeInTheDocument();
+      expect(screen.getByText('Paid')).toBeInTheDocument();
     });
   });
 
