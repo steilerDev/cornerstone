@@ -153,8 +153,6 @@ export function App() {
                         path="categories"
                         element={<Navigate to="/settings/manage?tab=budget-categories" replace />}
                       />
-                      <Route path="vendors" element={<VendorsPage />} />
-                      <Route path="vendors/:id" element={<VendorDetailPage />} />
                       <Route path="sources" element={<BudgetSourcesPage />} />
                       <Route path="subsidies" element={<SubsidyProgramsPage />} />
                       <Route path="invoices" element={<InvoicesPage />} />
@@ -209,6 +207,8 @@ export function App() {
                       <Route index element={<Navigate to="profile" replace />} />
                       <Route path="profile" element={<ProfilePage />} />
                       <Route path="manage" element={<ManagePage />} />
+                      <Route path="vendors" element={<VendorsPage />} />
+                      <Route path="vendors/:id" element={<VendorDetailPage />} />
                       <Route path="users" element={<UserManagementPage />} />
                       <Route path="backups" element={<BackupsPage />} />
                     </Route>
@@ -252,6 +252,14 @@ export function App() {
                     <Route path="tags" element={<Navigate to="/settings/manage" replace />} />
                     <Route path="profile" element={<Navigate to="/settings/profile" replace />} />
                     <Route path="admin/users" element={<Navigate to="/settings/users" replace />} />
+                    <Route
+                      path="budget/vendors"
+                      element={<Navigate to="/settings/vendors" replace />}
+                    />
+                    <Route
+                      path="budget/vendors/:id"
+                      element={<ParamRedirect to="/settings/vendors/:id" />}
+                    />
 
                     <Route path="*" element={<NotFoundPage />} />
                   </Route>

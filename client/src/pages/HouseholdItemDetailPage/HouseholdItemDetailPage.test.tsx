@@ -535,7 +535,7 @@ describe('HouseholdItemDetailPage', () => {
       await waitFor(() => {
         const vendorLink = screen.getByRole('link', { name: 'IKEA' });
         expect(vendorLink).toBeInTheDocument();
-        expect(vendorLink).toHaveAttribute('href', '/budget/vendors/vendor-1');
+        expect(vendorLink).toHaveAttribute('href', '/settings/vendors/vendor-1');
       });
     });
 

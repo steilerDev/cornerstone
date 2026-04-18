@@ -25,7 +25,6 @@ import styles from './SubsidyProgramsPage.module.css';
 const BUDGET_TABS: SubNavTab[] = [
   { labelKey: 'subnav.budget.overview', to: '/budget/overview', ns: 'common' },
   { labelKey: 'subnav.budget.invoices', to: '/budget/invoices', ns: 'common' },
-  { labelKey: 'subnav.budget.vendors', to: '/budget/vendors', ns: 'common' },
   { labelKey: 'subnav.budget.sources', to: '/budget/sources', ns: 'common' },
   { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies', ns: 'common' },
 ];

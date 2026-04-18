@@ -22,7 +22,7 @@ export const ROUTES = {
   workItemsNew: '/project/work-items/new',
   budget: '/budget/overview',
   budgetCategories: '/settings/manage?tab=budget-categories',
-  budgetVendors: '/budget/vendors',
+  settingsVendors: '/settings/vendors',
   budgetSources: '/budget/sources',
   budgetSubsidies: '/budget/subsidies',
   manage: '/settings/manage',

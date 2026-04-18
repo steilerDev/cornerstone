@@ -28,7 +28,6 @@ import styles from './BudgetSourcesPage.module.css';
 const BUDGET_TABS: SubNavTab[] = [
   { labelKey: 'subnav.budget.overview', to: '/budget/overview' },
   { labelKey: 'subnav.budget.invoices', to: '/budget/invoices' },
-  { labelKey: 'subnav.budget.vendors', to: '/budget/vendors' },
   { labelKey: 'subnav.budget.sources', to: '/budget/sources' },
   { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
 ];

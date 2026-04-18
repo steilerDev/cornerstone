@@ -101,13 +101,13 @@
     "budget": {
       "overview": "Overview",
       "invoices": "Invoices",
-      "vendors": "Vendors",
       "sources": "Sources",
       "subsidies": "Subsidies"
     },
     "settings": {
       "profile": "Profile",
       "manage": "Manage",
+      "vendors": "Vendors",
       "userManagement": "User Management",
       "backups": "Backups"
     }

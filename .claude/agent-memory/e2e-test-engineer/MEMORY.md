@@ -9,6 +9,16 @@
 - `checkbox.uncheck()` timeout: sticky `actionBar` (position:sticky; bottom:0) covers the checkbox on narrow viewports after Playwright's internal `scrollIntoViewIfNeeded()` positions the element under the bar. Fix: use `checkbox.click({ force: true })` to bypass coverage check.
 - `waitForURL('**/project/work-items/**')` resolves immediately on `/new` — glob `**` matches `new`. Fix: use UUID regex `waitForURL(/\/project\/work-items\/[0-9a-f]{8}-...-[0-9a-f]{12}$/)`.
 
+## Vendors to Settings Migration E2E (Story #1283, 2026-04-18)
+
+- Vendors moved from `/budget/vendors` to `/settings/vendors`; legacy redirects via React Router `<Navigate replace>`
+- `VENDORS_ROUTE` in VendorsPage POM = `/settings/vendors`; `ROUTES.budgetVendors` renamed to `ROUTES.settingsVendors` in testData.ts
+- `vendors.title` i18n key still = "Budget" — h1 heading on VendorsPage remains "Budget" (not "Vendors")
+- VendorsPage SubNav: `ariaLabel="Settings section navigation"` (was "Budget section navigation")
+- i18n.spec.ts German vendors test: updated SubNav aria-label + route constant
+- `e2e/tests/budget/vendors.spec.ts` deleted; moved to `e2e/tests/vendors/vendors.spec.ts`
+- Pre-existing CI failure on shard 5 (run 24531406436): milestones `getErrorBannerText()` returning null — not vendors-related
+
 ## HI Breadcrumb E2E (Story #1240, 2026-04-17)
 
 - HouseholdItemDetailPage POM: `areaBreadcrumbNav` + `areaBreadcrumb` added (same pattern as WorkItemDetailPage)

@@ -11,10 +11,18 @@ import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as UseTradesTypes from '../../hooks/useTrades.js';
+import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type { Vendor } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 
 // ─── Mock modules BEFORE importing component ────────────────────────────────
+
+// Mock AuthContext — VendorsPage uses useAuth() to compute isAdmin for Settings SubNav visibility
+const mockUseAuth = jest.fn<typeof AuthContextTypes.useAuth>();
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: mockUseAuth,
+  AuthProvider: ({ children }: { children: ReactNode }) => children,
+}));
 
 // Mock preferencesApi — DataTable calls useColumnPreferences -> usePreferences -> listPreferences
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -145,7 +153,7 @@ let VendorsPage: any;
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={['/budget/vendors']}>
+    <MemoryRouter initialEntries={['/settings/vendors']}>
       <VendorsPage />
     </MemoryRouter>,
   );
@@ -161,10 +169,30 @@ describe('VendorsPage', () => {
     }
     // Reset mocks to clear call history AND queued Once implementations from prior tests.
     // mockClear only clears call history; mockReset also drains the Once queue.
+    mockUseAuth.mockReset();
     mockFetchVendors.mockReset();
     mockCreateVendor.mockReset();
     mockDeleteVendor.mockReset();
     mockListPreferencesVendors.mockReset();
+
+    // Default: admin user so all Settings SubNav tabs are visible
+    mockUseAuth.mockReturnValue({
+      user: {
+        id: 'user-admin',
+        email: 'admin@example.com',
+        displayName: 'Admin',
+        role: 'admin' as const,
+        authProvider: 'local' as const,
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+        deactivatedAt: null,
+      },
+      oidcEnabled: false,
+      isLoading: false,
+      error: null,
+      refreshAuth: jest.fn(async () => Promise.resolve()),
+      logout: jest.fn(async () => Promise.resolve()),
+    });
     mockListPreferencesVendors.mockResolvedValue([]);
     mockUseTrades.mockReturnValue({
       trades: [],
@@ -200,6 +228,19 @@ describe('VendorsPage', () => {
       await waitFor(() => {
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
       });
+    });
+  });
+
+  describe('settings subnav', () => {
+    it('renders the Settings section SubNav with correct aria-label', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+
+      const nav = screen.getByRole('navigation', { name: 'Settings section navigation' });
+      expect(nav).toBeInTheDocument();
     });
   });
 
@@ -465,6 +506,38 @@ describe('VendorsPage', () => {
       fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]);
 
       expect(screen.getAllByTestId('vendor-delete-vendor-1').length).toBeGreaterThan(0);
+    });
+
+    it('vendor name link points to /settings/vendors/:id', async () => {
+      const vendor = makeVendor({ id: 'vendor-1', name: 'Acme Construction' });
+      mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse([vendor]));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Acme Construction').length).toBeGreaterThan(0);
+      });
+
+      // The vendor name rendered by the DataTable name column is a <Link to="/settings/vendors/:id">
+      const vendorLinks = screen.getAllByRole('link', { name: 'Acme Construction' });
+      expect(vendorLinks.length).toBeGreaterThan(0);
+      expect(vendorLinks[0]).toHaveAttribute('href', '/settings/vendors/vendor-1');
+    });
+
+    it('action menu "View" button navigates to /settings/vendors/:id', async () => {
+      const vendor = makeVendor({ id: 'vendor-1', name: 'Acme Construction' });
+      mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse([vendor]));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId('vendor-menu-button-vendor-1').length).toBeGreaterThan(0);
+      });
+
+      fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]);
+
+      // vendor-view-vendor-1 button calls navigate('/settings/vendors/vendor-1')
+      expect(screen.getAllByTestId('vendor-view-vendor-1').length).toBeGreaterThan(0);
     });
 
     it('opens delete confirmation modal when delete action is clicked', async () => {

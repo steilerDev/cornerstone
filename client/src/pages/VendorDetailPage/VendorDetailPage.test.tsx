@@ -196,10 +196,10 @@ describe('VendorDetailPage', () => {
    */
   function renderPage(vendorId: string = 'vendor-1') {
     return render(
-      <MemoryRouter initialEntries={[`/budget/vendors/${vendorId}`]}>
+      <MemoryRouter initialEntries={[`/settings/vendors/${vendorId}`]}>
         <Routes>
-          <Route path="/budget/vendors/:id" element={<VendorDetailPage />} />
-          <Route path="/budget/vendors" element={<div>Vendors List Page</div>} />
+          <Route path="/settings/vendors/:id" element={<VendorDetailPage />} />
+          <Route path="/settings/vendors" element={<div>Vendors List Page</div>} />
           <Route
             path="/budget/invoices/:id"
             element={<div data-testid="invoice-detail-page">Invoice Detail</div>}

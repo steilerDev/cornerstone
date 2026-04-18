@@ -1,7 +1,11 @@
 /**
- * Page Object Model for the Vendors list page (/budget/vendors)
+ * Page Object Model for the Vendors list page (/settings/vendors)
+ *
+ * Vendors moved from Budget section to Settings section in Story #1283.
+ * Legacy route /budget/vendors redirects to /settings/vendors via React Router.
  *
  * The page renders:
+ * - A Settings SubNav (ariaLabel="Settings section navigation") with Vendors tab active
  * - A page header with an "Add Vendor" button
  * - A search input and sort controls
  * - A data table (desktop) / card list (mobile) of vendors
@@ -13,7 +17,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 
-export const VENDORS_ROUTE = '/budget/vendors';
+export const VENDORS_ROUTE = '/settings/vendors';
 
 export interface CreateVendorData {
   name: string;
@@ -79,7 +83,7 @@ export class VendorsPage {
     this.page = page;
 
     // Page header
-    this.heading = page.getByRole('heading', { level: 1, name: 'Budget', exact: true });
+    this.heading = page.getByRole('heading', { level: 1, name: 'Vendors', exact: true });
     this.addVendorButton = page.getByRole('button', { name: 'Add Vendor', exact: true });
 
     // Search / sort

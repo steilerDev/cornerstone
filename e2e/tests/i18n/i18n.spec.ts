@@ -226,19 +226,21 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
     await expect(sidebar.getByText('Einstellungen')).toBeVisible();
   });
 
-  test('German text renders on budget vendors page without breaking layout', async ({ page }) => {
+  test('German text renders on vendors page without breaking layout', async ({ page }) => {
     // Given: Language is set to German
     await setLanguage(page, 'de');
 
-    // When: User navigates to budget vendors
-    await page.goto(ROUTES.budgetVendors);
-    // German: "Budget" heading stays "Budget" in German (same word)
-    await page.getByRole('heading', { level: 1, name: 'Budget' }).waitFor({ state: 'visible' });
+    // When: User navigates to vendors (moved to Settings in Story #1283)
+    await page.goto(ROUTES.settingsVendors);
+    // German heading is "Auftragnehmer" (plural form of Vendor)
+    await page
+      .getByRole('heading', { level: 1, name: 'Auftragnehmer' })
+      .waitFor({ state: 'visible' });
 
-    // Then: The Budget sub-nav shows "Auftragnehmer" (German for Vendors/Contractors)
-    // Visual cleanup #1185: the h2 "Vendors" section heading was removed from VendorsPage.
-    // The sub-nav link is the reliable indicator that the page is in German and loaded.
-    const subNav = page.getByRole('navigation', { name: 'Budget section navigation' });
+    // Then: The Settings sub-nav shows "Auftragnehmer" (German for Vendors/Contractors)
+    // Vendors moved from Budget section to Settings section (Story #1283).
+    // The Settings sub-nav link is the reliable indicator that the page is in German and loaded.
+    const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
     await expect(subNav.getByRole('link', { name: 'Auftragnehmer' })).toBeVisible();
   });
 
