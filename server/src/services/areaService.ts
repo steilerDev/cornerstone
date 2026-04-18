@@ -163,6 +163,50 @@ export function resolveAreaAncestors(
 }
 
 /**
+ * Result of parsing an areaId filter query parameter.
+ */
+export interface AreaFilterResult {
+  /** Expanded, deduplicated area IDs (includes descendants of each supplied ID). */
+  areaIds: string[];
+  /** When true, caller must also include items with area_id IS NULL. */
+  includeNull: boolean;
+}
+
+/**
+ * Parse the areaId filter (single ID, CSV string, or array) into an expanded,
+ * deduplicated array of area IDs and a flag for null inclusion.
+ *
+ * Supports the `__none__` sentinel: when present in the CSV, sets includeNull=true.
+ * Empty segments and unknown IDs are silently ignored.
+ */
+export function resolveAreaFilter(db: DbType, areaId: string | string[]): AreaFilterResult {
+  const NONE_SENTINEL = '__none__';
+  const raw = Array.isArray(areaId)
+    ? areaId
+    : areaId
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+  let includeNull = false;
+  const expanded = new Set<string>();
+  for (const id of raw) {
+    if (id === NONE_SENTINEL) {
+      includeNull = true;
+    } else {
+      const exists = db.select({ id: areas.id }).from(areas).where(eq(areas.id, id)).get();
+      if (exists) {
+        for (const descendant of getDescendantIds(db, id)) {
+          expanded.add(descendant);
+        }
+      }
+      // unknown IDs are silently dropped
+    }
+  }
+  return { areaIds: [...expanded], includeNull };
+}
+
+/**
  * List all areas, sorted by sort_order ascending, then name ascending.
  * Optionally filter by name search (case-insensitive).
  */
