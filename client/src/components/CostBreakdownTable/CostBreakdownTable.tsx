@@ -343,7 +343,11 @@ function WorkItemAreaSection({
               type="button"
               className={styles.expandBtn}
               aria-expanded={isExpanded}
-              aria-label={t('overview.costBreakdown.area.expandArea', { name: areaName })}
+              aria-label={
+                isExpanded
+                  ? t('overview.costBreakdown.area.collapseArea', { name: areaName })
+                  : t('overview.costBreakdown.area.expandArea', { name: areaName })
+              }
               onClick={() => onToggle(areaKey)}
             >
               <ChevronSvg className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ''}`} />
@@ -528,7 +532,11 @@ function HouseholdItemAreaSection({
               type="button"
               className={styles.expandBtn}
               aria-expanded={isExpanded}
-              aria-label={t('overview.costBreakdown.area.collapseArea', { name: areaName })}
+              aria-label={
+                isExpanded
+                  ? t('overview.costBreakdown.area.collapseArea', { name: areaName })
+                  : t('overview.costBreakdown.area.expandArea', { name: areaName })
+              }
               onClick={() => onToggle(areaKey)}
             >
               <ChevronSvg className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ''}`} />
