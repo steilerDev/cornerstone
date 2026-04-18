@@ -901,271 +901,271 @@ export function BudgetSourcesPage() {
                       className={styles.editForm}
                       aria-label={`Edit ${source.name}`}
                     >
-                    {updateError && (
-                      <div className={styles.errorBanner} role="alert">
-                        {updateError}
-                      </div>
-                    )}
+                      {updateError && (
+                        <div className={styles.errorBanner} role="alert">
+                          {updateError}
+                        </div>
+                      )}
 
-                    <div className={styles.editFormRow}>
-                      <div className={styles.fieldGrow}>
-                        <label htmlFor={`edit-name-${source.id}`} className={styles.label}>
-                          {t('sources.form.name')}{' '}
-                          <span className={styles.required}>{t('sources.form.required')}</span>
+                      <div className={styles.editFormRow}>
+                        <div className={styles.fieldGrow}>
+                          <label htmlFor={`edit-name-${source.id}`} className={styles.label}>
+                            {t('sources.form.name')}{' '}
+                            <span className={styles.required}>{t('sources.form.required')}</span>
+                          </label>
+                          <input
+                            type="text"
+                            id={`edit-name-${source.id}`}
+                            value={editingSource.name}
+                            onChange={(e) =>
+                              setEditingSource({ ...editingSource, name: e.target.value })
+                            }
+                            className={styles.input}
+                            maxLength={200}
+                            disabled={isUpdating}
+                            autoFocus
+                          />
+                        </div>
+
+                        <div className={styles.fieldSelect}>
+                          <label htmlFor={`edit-type-${source.id}`} className={styles.label}>
+                            {t('sources.form.type')}
+                          </label>
+                          <select
+                            id={`edit-type-${source.id}`}
+                            value={editingSource.sourceType}
+                            onChange={(e) =>
+                              setEditingSource({
+                                ...editingSource,
+                                sourceType: e.target.value as BudgetSourceType,
+                              })
+                            }
+                            className={styles.select}
+                            disabled={isUpdating || source.isDiscretionary}
+                          >
+                            {Object.entries(SOURCE_TYPE_LABELS).map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className={styles.fieldSelect}>
+                          <label htmlFor={`edit-status-${source.id}`} className={styles.label}>
+                            {t('sources.form.status')}
+                          </label>
+                          <select
+                            id={`edit-status-${source.id}`}
+                            value={editingSource.status}
+                            onChange={(e) =>
+                              setEditingSource({
+                                ...editingSource,
+                                status: e.target.value as BudgetSourceStatus,
+                              })
+                            }
+                            className={styles.select}
+                            disabled={isUpdating}
+                          >
+                            {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className={styles.editFormRow}>
+                        <div className={styles.fieldGrow}>
+                          <label htmlFor={`edit-amount-${source.id}`} className={styles.label}>
+                            {t('sources.form.totalAmount')}{' '}
+                            <span className={styles.required}>{t('sources.form.required')}</span>
+                          </label>
+                          <input
+                            type="number"
+                            id={`edit-amount-${source.id}`}
+                            value={editingSource.totalAmount}
+                            onChange={(e) =>
+                              setEditingSource({ ...editingSource, totalAmount: e.target.value })
+                            }
+                            className={styles.input}
+                            min={0}
+                            step="0.01"
+                            disabled={isUpdating}
+                          />
+                        </div>
+
+                        <div className={styles.fieldNarrow}>
+                          <label htmlFor={`edit-rate-${source.id}`} className={styles.label}>
+                            {t('sources.form.interestRate')}
+                          </label>
+                          <input
+                            type="number"
+                            id={`edit-rate-${source.id}`}
+                            value={editingSource.interestRate}
+                            onChange={(e) =>
+                              setEditingSource({ ...editingSource, interestRate: e.target.value })
+                            }
+                            className={styles.input}
+                            min={0}
+                            step="0.01"
+                            disabled={isUpdating}
+                          />
+                        </div>
+                      </div>
+
+                      <div className={styles.field}>
+                        <label htmlFor={`edit-terms-${source.id}`} className={styles.label}>
+                          {t('sources.form.terms')}
                         </label>
                         <input
                           type="text"
-                          id={`edit-name-${source.id}`}
-                          value={editingSource.name}
+                          id={`edit-terms-${source.id}`}
+                          value={editingSource.terms}
                           onChange={(e) =>
-                            setEditingSource({ ...editingSource, name: e.target.value })
+                            setEditingSource({ ...editingSource, terms: e.target.value })
                           }
                           className={styles.input}
-                          maxLength={200}
+                          placeholder="e.g., 30-year fixed, monthly payments"
+                          maxLength={500}
                           disabled={isUpdating}
-                          autoFocus
                         />
                       </div>
 
-                      <div className={styles.fieldSelect}>
-                        <label htmlFor={`edit-type-${source.id}`} className={styles.label}>
-                          {t('sources.form.type')}
+                      <div className={styles.field}>
+                        <label htmlFor={`edit-notes-${source.id}`} className={styles.label}>
+                          {t('sources.form.notes')}
                         </label>
-                        <select
-                          id={`edit-type-${source.id}`}
-                          value={editingSource.sourceType}
+                        <textarea
+                          id={`edit-notes-${source.id}`}
+                          value={editingSource.notes}
                           onChange={(e) =>
-                            setEditingSource({
-                              ...editingSource,
-                              sourceType: e.target.value as BudgetSourceType,
-                            })
+                            setEditingSource({ ...editingSource, notes: e.target.value })
                           }
-                          className={styles.select}
-                          disabled={isUpdating || source.isDiscretionary}
-                        >
-                          {Object.entries(SOURCE_TYPE_LABELS).map(([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
+                          className={styles.textarea}
+                          placeholder="Optional notes"
+                          maxLength={2000}
+                          disabled={isUpdating}
+                          rows={3}
+                        />
                       </div>
 
-                      <div className={styles.fieldSelect}>
-                        <label htmlFor={`edit-status-${source.id}`} className={styles.label}>
-                          {t('sources.form.status')}
-                        </label>
-                        <select
-                          id={`edit-status-${source.id}`}
-                          value={editingSource.status}
-                          onChange={(e) =>
-                            setEditingSource({
-                              ...editingSource,
-                              status: e.target.value as BudgetSourceStatus,
-                            })
+                      <div className={styles.editActions}>
+                        <button
+                          type="submit"
+                          className={styles.saveButton}
+                          disabled={
+                            isUpdating ||
+                            !editingSource.name.trim() ||
+                            !editingSource.totalAmount.trim()
                           }
-                          className={styles.select}
+                        >
+                          {isUpdating ? t('sources.buttons.saving') : t('sources.buttons.save')}
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.cancelButton}
+                          onClick={cancelEdit}
                           disabled={isUpdating}
                         >
-                          {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
+                          {t('sources.buttons.cancel')}
+                        </button>
                       </div>
-                    </div>
-
-                    <div className={styles.editFormRow}>
-                      <div className={styles.fieldGrow}>
-                        <label htmlFor={`edit-amount-${source.id}`} className={styles.label}>
-                          {t('sources.form.totalAmount')}{' '}
-                          <span className={styles.required}>{t('sources.form.required')}</span>
-                        </label>
-                        <input
-                          type="number"
-                          id={`edit-amount-${source.id}`}
-                          value={editingSource.totalAmount}
-                          onChange={(e) =>
-                            setEditingSource({ ...editingSource, totalAmount: e.target.value })
-                          }
-                          className={styles.input}
-                          min={0}
-                          step="0.01"
-                          disabled={isUpdating}
-                        />
-                      </div>
-
-                      <div className={styles.fieldNarrow}>
-                        <label htmlFor={`edit-rate-${source.id}`} className={styles.label}>
-                          {t('sources.form.interestRate')}
-                        </label>
-                        <input
-                          type="number"
-                          id={`edit-rate-${source.id}`}
-                          value={editingSource.interestRate}
-                          onChange={(e) =>
-                            setEditingSource({ ...editingSource, interestRate: e.target.value })
-                          }
-                          className={styles.input}
-                          min={0}
-                          step="0.01"
-                          disabled={isUpdating}
-                        />
-                      </div>
-                    </div>
-
-                    <div className={styles.field}>
-                      <label htmlFor={`edit-terms-${source.id}`} className={styles.label}>
-                        {t('sources.form.terms')}
-                      </label>
-                      <input
-                        type="text"
-                        id={`edit-terms-${source.id}`}
-                        value={editingSource.terms}
-                        onChange={(e) =>
-                          setEditingSource({ ...editingSource, terms: e.target.value })
-                        }
-                        className={styles.input}
-                        placeholder="e.g., 30-year fixed, monthly payments"
-                        maxLength={500}
-                        disabled={isUpdating}
-                      />
-                    </div>
-
-                    <div className={styles.field}>
-                      <label htmlFor={`edit-notes-${source.id}`} className={styles.label}>
-                        {t('sources.form.notes')}
-                      </label>
-                      <textarea
-                        id={`edit-notes-${source.id}`}
-                        value={editingSource.notes}
-                        onChange={(e) =>
-                          setEditingSource({ ...editingSource, notes: e.target.value })
-                        }
-                        className={styles.textarea}
-                        placeholder="Optional notes"
-                        maxLength={2000}
-                        disabled={isUpdating}
-                        rows={3}
-                      />
-                    </div>
-
-                    <div className={styles.editActions}>
-                      <button
-                        type="submit"
-                        className={styles.saveButton}
-                        disabled={
-                          isUpdating ||
-                          !editingSource.name.trim() ||
-                          !editingSource.totalAmount.trim()
-                        }
-                      >
-                        {isUpdating ? t('sources.buttons.saving') : t('sources.buttons.save')}
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.cancelButton}
-                        onClick={cancelEdit}
-                        disabled={isUpdating}
-                      >
-                        {t('sources.buttons.cancel')}
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <>
-                    <div className={styles.sourceInfo}>
-                      <div className={styles.sourceMain}>
-                        <span className={styles.sourceName}>{source.name}</span>
-                        <div className={styles.sourceBadges}>
-                          <span
-                            className={`${styles.typeBadge} ${getSourceTypeClass(styles, source.sourceType)}`}
-                          >
-                            {SOURCE_TYPE_LABELS[source.sourceType]}
-                          </span>
-                          <span
-                            className={`${styles.statusBadge} ${getStatusClass(styles, source.status)}`}
-                          >
-                            {STATUS_LABELS[source.status]}
-                          </span>
-                          {source.isDiscretionary && (
-                            <span className={styles.systemBadge}>
-                              {t('sources.sourcesList.system')}
+                    </form>
+                  ) : (
+                    <>
+                      <div className={styles.sourceInfo}>
+                        <div className={styles.sourceMain}>
+                          <span className={styles.sourceName}>{source.name}</span>
+                          <div className={styles.sourceBadges}>
+                            <span
+                              className={`${styles.typeBadge} ${getSourceTypeClass(styles, source.sourceType)}`}
+                            >
+                              {SOURCE_TYPE_LABELS[source.sourceType]}
                             </span>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          className={`${styles.expandToggle} ${expandedSources.has(source.id) ? styles.expandToggleActive : ''}`}
-                          onClick={() => handleToggleLinesWithClearing(source.id)}
-                          disabled={!!editingSource}
-                          aria-expanded={expandedSources.has(source.id)}
-                          aria-controls={`source-lines-${source.id}`}
-                          aria-label={
-                            expandedSources.has(source.id)
-                              ? t('sources.lines.collapseAriaLabel', { name: source.name })
-                              : t('sources.lines.expandAriaLabel', { name: source.name })
-                          }
-                        >
-                          <svg
-                            className={`${styles.chevronIcon} ${expandedSources.has(source.id) ? styles.chevronExpanded : ''}`}
-                            viewBox="0 0 16 16"
-                            fill="currentColor"
-                            aria-hidden="true"
+                            <span
+                              className={`${styles.statusBadge} ${getStatusClass(styles, source.status)}`}
+                            >
+                              {STATUS_LABELS[source.status]}
+                            </span>
+                            {source.isDiscretionary && (
+                              <span className={styles.systemBadge}>
+                                {t('sources.sourcesList.system')}
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            className={`${styles.expandToggle} ${expandedSources.has(source.id) ? styles.expandToggleActive : ''}`}
+                            onClick={() => handleToggleLinesWithClearing(source.id)}
+                            disabled={!!editingSource}
+                            aria-expanded={expandedSources.has(source.id)}
+                            aria-controls={`source-lines-${source.id}`}
+                            aria-label={
+                              expandedSources.has(source.id)
+                                ? t('sources.lines.collapseAriaLabel', { name: source.name })
+                                : t('sources.lines.expandAriaLabel', { name: source.name })
+                            }
                           >
-                            <path
-                              d="M6 5l4 4-4 4"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              fill="none"
-                            />
-                          </svg>
-                          <span>
-                            {expandedSources.has(source.id)
-                              ? t('sources.lines.collapse')
-                              : t('sources.lines.expand')}
-                          </span>
-                        </button>
+                            <svg
+                              className={`${styles.chevronIcon} ${expandedSources.has(source.id) ? styles.chevronExpanded : ''}`}
+                              viewBox="0 0 16 16"
+                              fill="currentColor"
+                              aria-hidden="true"
+                            >
+                              <path
+                                d="M6 5l4 4-4 4"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                fill="none"
+                              />
+                            </svg>
+                            <span>
+                              {expandedSources.has(source.id)
+                                ? t('sources.lines.collapse')
+                                : t('sources.lines.expand')}
+                            </span>
+                          </button>
+                        </div>
+
+                        <SourceBarChart
+                          source={source}
+                          formatCurrency={formatCurrency}
+                          formatPercent={formatPercent}
+                        />
+
+                        {source.terms && (
+                          <p className={styles.sourceTerms} title="Terms">
+                            {source.terms}
+                          </p>
+                        )}
                       </div>
 
-                      <SourceBarChart
-                        source={source}
-                        formatCurrency={formatCurrency}
-                        formatPercent={formatPercent}
-                      />
-
-                      {source.terms && (
-                        <p className={styles.sourceTerms} title="Terms">
-                          {source.terms}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className={styles.sourceActions}>
-                      <button
-                        type="button"
-                        className={styles.editButton}
-                        onClick={() => startEdit(source)}
-                        disabled={!!editingSource}
-                        aria-label={`${t('sources.buttons.edit')} ${source.name}`}
-                      >
-                        {t('sources.buttons.edit')}
-                      </button>
-                      {!source.isDiscretionary && (
+                      <div className={styles.sourceActions}>
                         <button
                           type="button"
-                          className={styles.deleteButton}
-                          onClick={() => openDeleteConfirm(source.id)}
+                          className={styles.editButton}
+                          onClick={() => startEdit(source)}
                           disabled={!!editingSource}
-                          aria-label={`${t('sources.buttons.delete')} ${source.name}`}
+                          aria-label={`${t('sources.buttons.edit')} ${source.name}`}
                         >
-                          {t('sources.buttons.delete')}
+                          {t('sources.buttons.edit')}
                         </button>
-                      )}
-                    </div>
-                  </>
-                )}
+                        {!source.isDiscretionary && (
+                          <button
+                            type="button"
+                            className={styles.deleteButton}
+                            onClick={() => openDeleteConfirm(source.id)}
+                            disabled={!!editingSource}
+                            aria-label={`${t('sources.buttons.delete')} ${source.name}`}
+                          >
+                            {t('sources.buttons.delete')}
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
                 {editingSource?.id !== source.id && expandedSources.has(source.id) && (
                   <SourceBudgetLinePanel
