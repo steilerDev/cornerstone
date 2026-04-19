@@ -37,6 +37,7 @@ import {
   toVendorSummary,
   toUserSummary,
 } from './shared/converters.js';
+import { loadAreaMap, resolveAreaAncestors, type AreaMapEntry } from './areaService.js';
 import {
   NotFoundError,
   ValidationError,
@@ -677,6 +678,7 @@ function getHouseholdItemLineInvoiceLink(db: DbType, lineId: string): BudgetLine
 function buildWorkItemBudgetLine(
   db: DbType,
   line: typeof workItemBudgets.$inferSelect,
+  areaMap: Map<string, AreaMapEntry>,
 ): BudgetSourceBudgetLine {
   const workItem = db.select().from(workItems).where(eq(workItems.id, line.workItemId)).get();
   const area =
@@ -721,7 +723,7 @@ function buildWorkItemBudgetLine(
     updatedAt: line.updatedAt,
     parentId: line.workItemId,
     parentName: workItem?.title ?? '(Unknown Work Item)',
-    area: toAreaSummary(area),
+    area: toAreaSummary(area, area ? resolveAreaAncestors(area.id, areaMap) : []),
     hasClaimedInvoice: invoiceData.hasClaimedInvoice,
   };
 }
@@ -733,6 +735,7 @@ function buildWorkItemBudgetLine(
 function buildHouseholdItemBudgetLine(
   db: DbType,
   line: typeof householdItemBudgets.$inferSelect,
+  areaMap: Map<string, AreaMapEntry>,
 ): BudgetSourceBudgetLine {
   const householdItem = db
     .select()
@@ -781,7 +784,7 @@ function buildHouseholdItemBudgetLine(
     updatedAt: line.updatedAt,
     parentId: line.householdItemId,
     parentName: householdItem?.name ?? '(Unknown Household Item)',
-    area: toAreaSummary(area),
+    area: toAreaSummary(area, area ? resolveAreaAncestors(area.id, areaMap) : []),
     hasClaimedInvoice: invoiceData.hasClaimedInvoice,
   };
 }
@@ -822,6 +825,9 @@ export function getBudgetSourceBudgetLines(
     throw new NotFoundError('Budget source not found');
   }
 
+  // Load area map once for efficient ancestor resolution
+  const areaMap = loadAreaMap(db);
+
   // Fetch work item budget lines
   const wibRows = db
     .select()
@@ -829,7 +835,7 @@ export function getBudgetSourceBudgetLines(
     .where(eq(workItemBudgets.budgetSourceId, sourceId))
     .all();
   const workItemLines = wibRows
-    .map((line) => buildWorkItemBudgetLine(db, line))
+    .map((line) => buildWorkItemBudgetLine(db, line, areaMap))
     .sort(compareBudgetSourceLines);
 
   // Fetch household item budget lines
@@ -839,7 +845,7 @@ export function getBudgetSourceBudgetLines(
     .where(eq(householdItemBudgets.budgetSourceId, sourceId))
     .all();
   const householdItemLines = hibRows
-    .map((line) => buildHouseholdItemBudgetLine(db, line))
+    .map((line) => buildHouseholdItemBudgetLine(db, line, areaMap))
     .sort(compareBudgetSourceLines);
 
   return {

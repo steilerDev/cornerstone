@@ -84,7 +84,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     return id;
   }
 
-  function createArea(name: string, color = '#ff0000'): string {
+  function createArea(name: string, color = '#ff0000', parentId: string | null = null): string {
     const id = uid('area');
     const ts = nowTs();
     app.db
@@ -93,7 +93,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
         id,
         name,
         color,
-        parentId: null,
+        parentId,
         description: null,
         sortOrder: 0,
         createdAt: ts,
@@ -669,5 +669,93 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
     expect(result.householdItemLines[0].parentId).toBe(hiId);
+  });
+
+  // Area ancestors: root-level area has empty ancestor chain
+  it('area ancestors: root-level area has empty ancestor chain', () => {
+    const sourceId = createSource();
+    const rootArea = createArea('Kitchen', '#aabbcc');
+    const wiId = createWorkItem(rootArea);
+    createWorkItemBudgetLine(wiId, sourceId);
+
+    const result = getBudgetSourceBudgetLines(app.db, sourceId);
+    const line = result.workItemLines[0];
+
+    expect(line.area).not.toBeNull();
+    expect(line.area?.id).toBe(rootArea);
+    expect(line.area?.ancestors).toEqual([]);
+  });
+
+  // Area ancestors: 2-level hierarchy (Parent -> Child)
+  it('area ancestors: 2-level hierarchy resolves parent as ancestor', () => {
+    const sourceId = createSource();
+    const parentArea = createArea('House', '#111111');
+    const childArea = createArea('Kitchen', '#222222', parentArea);
+    const wiId = createWorkItem(childArea);
+    createWorkItemBudgetLine(wiId, sourceId);
+
+    const result = getBudgetSourceBudgetLines(app.db, sourceId);
+    const line = result.workItemLines[0];
+
+    expect(line.area).not.toBeNull();
+    expect(line.area?.id).toBe(childArea);
+    expect(line.area?.ancestors).toHaveLength(1);
+    expect(line.area?.ancestors[0].id).toBe(parentArea);
+    expect(line.area?.ancestors[0].name).toBe('House');
+  });
+
+  // Area ancestors: 3-level hierarchy (Grandparent -> Parent -> Child)
+  it('area ancestors: 3-level hierarchy resolves all ancestors in root-first order', () => {
+    const sourceId = createSource();
+    const grandparent = createArea('House', '#111111');
+    const parent = createArea('First Floor', '#222222', grandparent);
+    const child = createArea('Kitchen', '#333333', parent);
+    const wiId = createWorkItem(child);
+    createWorkItemBudgetLine(wiId, sourceId);
+
+    const result = getBudgetSourceBudgetLines(app.db, sourceId);
+    const line = result.workItemLines[0];
+
+    expect(line.area).not.toBeNull();
+    expect(line.area?.id).toBe(child);
+    expect(line.area?.ancestors).toHaveLength(2);
+    // Root-first order: House, then First Floor
+    expect(line.area?.ancestors[0].id).toBe(grandparent);
+    expect(line.area?.ancestors[0].name).toBe('House');
+    expect(line.area?.ancestors[1].id).toBe(parent);
+    expect(line.area?.ancestors[1].name).toBe('First Floor');
+  });
+
+  // Area ancestors: household item with 2-level hierarchy
+  it('area ancestors: household item with 2-level hierarchy resolves ancestors', () => {
+    const sourceId = createSource();
+    const parentArea = createArea('House', '#444444');
+    const childArea = createArea('Living Room', '#555555', parentArea);
+    const hiId = createHouseholdItem(childArea, 'Sofa');
+    createHouseholdItemBudgetLine(hiId, sourceId);
+
+    const result = getBudgetSourceBudgetLines(app.db, sourceId);
+    const line = result.householdItemLines[0];
+
+    expect(line.area).not.toBeNull();
+    expect(line.area?.id).toBe(childArea);
+    expect(line.area?.ancestors).toHaveLength(1);
+    expect(line.area?.ancestors[0].id).toBe(parentArea);
+    expect(line.area?.ancestors[0].name).toBe('House');
+  });
+
+  // Area ancestors: area color is preserved in ancestors
+  it('area ancestors: ancestor color is preserved in ancestor objects', () => {
+    const sourceId = createSource();
+    const parentArea = createArea('House', '#ff0000');
+    const childArea = createArea('Kitchen', '#00ff00', parentArea);
+    const wiId = createWorkItem(childArea);
+    createWorkItemBudgetLine(wiId, sourceId);
+
+    const result = getBudgetSourceBudgetLines(app.db, sourceId);
+    const line = result.workItemLines[0];
+
+    expect(line.area?.ancestors).toHaveLength(1);
+    expect(line.area?.ancestors[0].color).toBe('#ff0000');
   });
 });
