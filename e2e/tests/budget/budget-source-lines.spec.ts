@@ -197,13 +197,14 @@ test.describe('Expand shows budget lines panel', { tag: ['@smoke', '@responsive'
         await expect(panel).toBeVisible();
 
         // "Work Item Lines" section header must be visible
+        // (section header is a <p> element, not a heading — use text-based assertion)
         await expect(
-          panel.getByRole('heading', { level: 4, name: 'Work Item Lines' }),
+          panel.getByText('Work Item Lines', { exact: true }),
         ).toBeVisible();
 
         // "Household Item Lines" section must NOT be visible (no household lines in mock)
         await expect(
-          panel.getByRole('heading', { level: 4, name: 'Household Item Lines' }),
+          panel.getByText('Household Item Lines', { exact: true }),
         ).not.toBeVisible();
 
         // Area name "Kitchen" must be visible
@@ -599,6 +600,129 @@ test.describe('"No Area" grouping', { tag: '@responsive' }, () => {
       // The parent item name and line description must be visible
       await expect(panel.getByText('General Work', { exact: true })).toBeVisible();
       await expect(panel.getByText('General work item line', { exact: true })).toBeVisible();
+    } finally {
+      if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
+      if (sourceId) await deleteSourceViaApi(page, sourceId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// No ancestor breadcrumb hint for nested areas
+// Validates that the "under <ancestor>" hint (i18n key sources.lines.underArea)
+// was removed from the SourceBudgetLinePanel — it must not appear anywhere.
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('no ancestor breadcrumb hint for nested areas', { tag: '@responsive' }, () => {
+  test('area name is visible but no "under" breadcrumb hint appears for nested areas', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Nested Area No Hint Source`;
+    let sourceId: string | null = null;
+
+    try {
+      sourceId = await createSourceViaApi(page, { name: sourceName, totalAmount: 15000 });
+
+      // Mock a work-item line with a nested area (ancestors present)
+      const linesResponse = {
+        workItemLines: [
+          {
+            id: `wil-nested-${sourceId}`,
+            description: 'Bathroom tile installation',
+            plannedAmount: 4500,
+            confidence: 'quote',
+            confidenceMargin: 1.0,
+            invoiceLink: null,
+            createdAt: '2026-01-01T10:00:00.000Z',
+            updatedAt: '2026-01-01T10:00:00.000Z',
+            parentId: `wi-nested-parent-${sourceId}`,
+            parentName: 'Tiling',
+            area: {
+              id: `area-bathroom-${sourceId}`,
+              name: 'Bathroom',
+              color: null,
+              ancestors: [{ id: `area-gf-${sourceId}`, name: 'Ground Floor', color: null }],
+            },
+            hasClaimedInvoice: false,
+          },
+        ],
+        householdItemLines: [],
+      };
+
+      await page.route(budgetLinesUrl(sourceId), async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(linesResponse),
+        });
+      });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      const linesResponsePromise = page.waitForResponse(budgetLinesUrl(sourceId));
+      await sourcesPage.expandSourceLines(sourceName);
+      await linesResponsePromise;
+
+      const panel = sourcesPage.getLinesPanelById(sourceId);
+      await expect(panel).toBeVisible();
+
+      // Area name "Bathroom" must be visible in the area group header
+      await expect(panel.locator('[class*="areaName"]', { hasText: 'Bathroom' })).toBeVisible();
+
+      // The "under <ancestor>" breadcrumb hint must NOT appear anywhere in the panel
+      await expect(panel.getByText(/under/i)).not.toBeVisible();
+    } finally {
+      if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
+      if (sourceId) await deleteSourceViaApi(page, sourceId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Visual grouping — nested card structure
+// Validates that .areaGroup and .parentItemBlock CSS-module classes are rendered
+// for the nested card visual grouping introduced in the SourceBudgetLinePanel
+// refactor (Story #1315).
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('visual grouping — nested card structure', { tag: '@responsive' }, () => {
+  test('areaGroup and parentItemBlock elements are rendered for work item lines', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Nested Card Structure Source`;
+    let sourceId: string | null = null;
+
+    try {
+      sourceId = await createSourceViaApi(page, { name: sourceName, totalAmount: 50000 });
+
+      const linesResponse = mockLinesWithWorkItems(sourceId);
+
+      await page.route(budgetLinesUrl(sourceId), async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(linesResponse),
+        });
+      });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      const linesResponsePromise = page.waitForResponse(budgetLinesUrl(sourceId));
+      await sourcesPage.expandSourceLines(sourceName);
+      await linesResponsePromise;
+
+      const panel = sourcesPage.getLinesPanelById(sourceId);
+      await expect(panel).toBeVisible();
+
+      // At least one .areaGroup element must be rendered
+      await expect(panel.locator('[class*="areaGroup"]').first()).toBeVisible();
+
+      // At least one .parentItemBlock element must be rendered
+      await expect(panel.locator('[class*="parentItemBlock"]').first()).toBeVisible();
     } finally {
       if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
       if (sourceId) await deleteSourceViaApi(page, sourceId);
