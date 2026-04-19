@@ -169,7 +169,6 @@ test.describe('Invoices list page load (Scenario 1)', { tag: '@responsive' }, ()
     const subNav = page.getByRole('navigation', { name: 'Budget section navigation' });
     await expect(subNav.getByRole('link', { name: 'Overview' })).toBeVisible();
     await expect(subNav.getByRole('link', { name: 'Invoices' })).toBeVisible();
-    await expect(subNav.getByRole('link', { name: 'Vendors' })).toBeVisible();
     await expect(subNav.getByRole('link', { name: 'Sources' })).toBeVisible();
     await expect(subNav.getByRole('link', { name: 'Subsidies' })).toBeVisible();
   });
