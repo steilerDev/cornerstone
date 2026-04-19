@@ -64,7 +64,7 @@
       "area": {
         "expandArea": "Expand {{name}}",
         "collapseArea": "Collapse {{name}}",
-        "unassigned": "No Area",
+        "unassigned": "Unassigned",
         "expandWorkItemsLabel": "Expand work item budget by area",
         "expandHouseholdItemsLabel": "Expand household item budget by area"
       }
@@ -475,7 +475,8 @@
       "placeholders": {
         "vendor": "Select a vendor...",
         "invoiceNumber": "e.g., INV-001",
-        "amount": "0.00"
+        "amount": "0.00",
+        "notes": "Optional notes about this invoice"
       }
     },
     "validation": {
@@ -489,8 +490,7 @@
       "save": "Save Changes",
       "saving": "Saving...",
       "cancel": "Cancel",
-      "view": "View",
-      "delete": "Delete"
+      "view": "View"
     },
     "actions": {
       "menuAriaLabel": "Actions for invoice {{number}}"
@@ -503,6 +503,7 @@
     },
     "modal": {
       "title": "Add Invoice",
+      "description": "Fill in the details below to add a new invoice.",
       "deleteTitle": "Delete Invoice",
       "deleteConfirm": "Are you sure you want to delete invoice {{number}} for {{amount}}?",
       "deleteWarning": "This action cannot be undone."

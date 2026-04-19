@@ -152,6 +152,9 @@
         "label": "URL",
         "placeholder": "https://example.com"
       },
+      "area": {
+        "label": "Area"
+      },
       "room": {
         "label": "Room",
         "placeholder": "e.g., Kitchen, Bedroom"
@@ -219,6 +222,9 @@
         "label": "URL",
         "placeholder": "https://example.com"
       },
+      "area": {
+        "label": "Area"
+      },
       "room": {
         "label": "Room",
         "placeholder": "e.g., Kitchen, Bedroom"
@@ -261,6 +267,12 @@
       "quantity": "Quantity",
       "tags": "Tags",
       "noTags": "No tags"
+    },
+    "area": {
+      "title": "Area",
+      "label": "Area",
+      "updated": "Area updated successfully",
+      "updateFailed": "Failed to update area. Please try again."
     },
     "datesDelivery": {
       "title": "Dates & Delivery",

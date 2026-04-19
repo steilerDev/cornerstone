@@ -54,6 +54,7 @@
     "body": "Entry Text",
     "bodyRequired": "Entry text is required",
     "bodyDescription": "Add any other relevant information",
+    "inspectionOutcomeRequired": "Inspection outcome is required",
     "submitButton": "Create Entry",
     "submittingButton": "Creating...",
     "cancelButton": "Cancel",
@@ -88,6 +89,7 @@
     "body": "Entry Text",
     "bodyRequired": "Entry text is required",
     "bodyDescription": "Add any other relevant information",
+    "inspectionOutcomeRequired": "Inspection outcome is required",
     "submitButton": "Save Changes",
     "submittingButton": "Saving...",
     "cancelButton": "Cancel",
@@ -115,6 +117,7 @@
     "temperaturePlaceholder": "Enter temperature",
     "workers": "Number of Workers",
     "workersPlaceholder": "Enter number of workers",
+    "bodyDescription": "Add any other relevant information",
     "weatherOptions": {
       "sunny": "Sunny",
       "cloudy": "Cloudy",
