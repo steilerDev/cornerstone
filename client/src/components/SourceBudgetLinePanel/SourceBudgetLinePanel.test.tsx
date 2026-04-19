@@ -844,6 +844,103 @@ describe('SourceBudgetLinePanel', () => {
     });
   });
 
+  // ─── Inter-group divider structure (scenario 24) ────────────────────────────
+  //
+  // Jest + JSDOM does not parse *.module.css, so getComputedStyle cannot verify
+  // the border-top value added by the adjacent-sibling CSS selector.  These
+  // tests assert the DOM contract that the CSS selector depends on instead.
+  // Visual verification belongs to the E2E spec (e2e-test-engineer).
+
+  describe('inter-group divider structure', () => {
+    it('multiple parent groups produce multiple .parentItemBlock siblings', () => {
+      const line1 = makeLine({
+        id: 'l1',
+        parentId: 'parent-1',
+        parentName: 'Kitchen Renovation',
+      });
+      const line2 = makeLine({
+        id: 'l2',
+        parentId: 'parent-2',
+        parentName: 'Bathroom Renovation',
+        createdAt: '2026-01-02T00:00:00.000Z',
+      });
+
+      renderPanel({ data: makeResponse([line1, line2], []) });
+
+      // identity-obj-proxy returns the key name as the class value, so
+      // styles.parentItemBlock resolves to the literal string "parentItemBlock".
+      expect(document.querySelectorAll('[class*="parentItemBlock"]').length).toBe(2);
+    });
+
+    it('single parent group produces exactly one .parentItemBlock', () => {
+      const line1 = makeLine({
+        id: 'l1',
+        parentId: 'parent-shared',
+        parentName: 'Kitchen Renovation',
+      });
+      const line2 = makeLine({
+        id: 'l2',
+        parentId: 'parent-shared',
+        parentName: 'Kitchen Renovation',
+        createdAt: '2026-01-02T00:00:00.000Z',
+      });
+
+      renderPanel({ data: makeResponse([line1, line2], []) });
+
+      expect(document.querySelectorAll('[class*="parentItemBlock"]').length).toBe(1);
+    });
+
+    it('.parentItemBlock elements are siblings inside the same parent container', () => {
+      const line1 = makeLine({
+        id: 'l1',
+        parentId: 'parent-1',
+        parentName: 'Kitchen Renovation',
+      });
+      const line2 = makeLine({
+        id: 'l2',
+        parentId: 'parent-2',
+        parentName: 'Bathroom Renovation',
+        createdAt: '2026-01-02T00:00:00.000Z',
+      });
+
+      renderPanel({ data: makeResponse([line1, line2], []) });
+
+      const blocks = document.querySelectorAll('[class*="parentItemBlock"]');
+      expect(blocks.length).toBe(2);
+      // Both blocks must share the same parent — required for the CSS
+      // adjacent-sibling combinator (.parentItemBlock + .parentItemBlock) to
+      // apply the divider border-top.
+      expect(blocks[0]!.parentElement).toBe(blocks[1]!.parentElement);
+    });
+
+    it('intra-group lineRow elements are unaffected when multiple groups exist', () => {
+      const line1 = makeLine({
+        id: 'l1',
+        parentId: 'parent-1',
+        parentName: 'Kitchen Renovation',
+      });
+      const line2 = makeLine({
+        id: 'l2',
+        parentId: 'parent-2',
+        parentName: 'Bathroom Renovation',
+        createdAt: '2026-01-02T00:00:00.000Z',
+      });
+
+      renderPanel({ data: makeResponse([line1, line2], []) });
+
+      const blocks = document.querySelectorAll('[class*="parentItemBlock"]');
+      expect(blocks.length).toBe(2);
+
+      // Each group must still contain at least one lineRow descendant — this is
+      // a regression guard confirming the divider change did not affect the
+      // intra-group row structure.
+      blocks.forEach((block) => {
+        const lineRows = block.querySelectorAll('[class*="lineRow"]');
+        expect(lineRows.length).toBeGreaterThanOrEqual(1);
+      });
+    });
+  });
+
   // ─── Parent item links (scenario 23) ───────────────────────────────────────────
 
   describe('parent item header links', () => {
