@@ -17,6 +17,8 @@ import type * as InvoiceBudgetLinesSectionTypes from './InvoiceBudgetLinesSectio
 import type {
   InvoiceBudgetLineDetailResponse,
   InvoiceBudgetLineListDetailResponse,
+  WorkItemBudgetLine,
+  HouseholdItemBudgetLine,
 } from '@cornerstone/shared';
 
 // ── Mock functions ─────────────────────────────────────────────────────────────
@@ -34,14 +36,16 @@ jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
 }));
 
 jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
-  fetchWorkItemBudgets: jest.fn().mockResolvedValue([]),
+  fetchWorkItemBudgets: jest.fn<() => Promise<WorkItemBudgetLine[]>>().mockResolvedValue([]),
   createWorkItemBudget: jest.fn(),
   updateWorkItemBudget: jest.fn(),
   deleteWorkItemBudget: jest.fn(),
 }));
 
 jest.unstable_mockModule('../../lib/householdItemBudgetsApi.js', () => ({
-  fetchHouseholdItemBudgets: jest.fn().mockResolvedValue([]),
+  fetchHouseholdItemBudgets: jest
+    .fn<() => Promise<HouseholdItemBudgetLine[]>>()
+    .mockResolvedValue([]),
   createHouseholdItemBudget: jest.fn(),
   updateHouseholdItemBudget: jest.fn(),
   deleteHouseholdItemBudget: jest.fn(),
