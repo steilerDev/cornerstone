@@ -572,8 +572,7 @@ export function BudgetSourcesPage() {
   const handleSelectionChange = useCallback((sourceId: string, newSet: Set<string>) => {
     setSourceSelections((prev) => {
       const next = new Map(prev);
-      if (newSet.size === 0) next.delete(sourceId);
-      else next.set(sourceId, newSet);
+      next.set(sourceId, newSet);
       return next;
     });
   }, []);

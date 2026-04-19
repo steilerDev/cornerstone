@@ -133,12 +133,13 @@ function buildAreaTree(lines: BudgetSourceBudgetLine[]): AreaNode[] {
     if (!areaMap.has(areaId)) {
       // Find any line that has this area as an ancestor
       for (const line of lines) {
-        if ((line.area?.ancestors ?? []).some((a) => a.id === areaId)) {
-          const ancestor = (line.area!.ancestors ?? []).find((a) => a.id === areaId)!;
+        const chain = line.area?.ancestors ?? [];
+        const idx = chain.findIndex((a) => a.id === areaId);
+        if (idx >= 0) {
           areaMap.set(areaId, {
-            name: ancestor.name,
-            color: ancestor.color,
-            ancestors: [], // We'd need to traverse further; for now, assume these are implicit parents
+            name: chain[idx].name,
+            color: chain[idx].color,
+            ancestors: chain.slice(0, idx),
             lines: [],
           });
           break;
@@ -414,81 +415,68 @@ export function SourceBudgetLinePanel({
         className={styles.areaGroup}
         style={{ paddingLeft: `calc(${node.depth} * var(--spacing-4))` }}
       >
-        <div className={styles.areaGroupHeader}>
-          {isSelectable && selectionState && (
-            <TriStateCheckbox
-              id={`area-${groupKey}-checkbox`}
-              checked={selectionState.allSelected}
-              indeterminate={!selectionState.allSelected && selectionState.someSelected}
-              onChange={(checked) =>
-                handleAreaGroupCheckboxChange(
-                  {
-                    areaId: node.areaId,
-                    areaName: node.areaName,
-                    areaColor: node.areaColor,
-                    depth: node.depth,
-                    ancestors: node.ancestors,
-                    parentGroups: node.parentGroups,
-                    totalLines: node.totalLines,
-                  },
-                  checked,
-                  parentType,
-                )
-              }
-              label={t('sources.budgetLines.move.selectGroupLabel', {
-                name: areaName,
-              })}
-              className={styles.areaGroupCheckbox}
-            />
-          )}
-          {!isSelectable && (
-            <>
-              {node.areaColor && (
-                <span
-                  className={styles.areaColorDot}
-                  style={{ backgroundColor: node.areaColor }}
-                  aria-hidden="true"
-                />
-              )}
-              {!node.areaColor && node.areaId === null && (
-                <span
-                  className={styles.areaColorDot}
-                  style={{ backgroundColor: 'var(--color-text-disabled)' }}
-                  aria-hidden="true"
-                />
-              )}
-            </>
-          )}
-          {isSelectable && !selectionState && (
-            <>
-              {node.areaColor && (
-                <span
-                  className={styles.areaColorDot}
-                  style={{ backgroundColor: node.areaColor }}
-                  aria-hidden="true"
-                />
-              )}
-              {!node.areaColor && node.areaId === null && (
-                <span
-                  className={styles.areaColorDot}
-                  style={{ backgroundColor: 'var(--color-text-disabled)' }}
-                  aria-hidden="true"
-                />
-              )}
-            </>
-          )}
-          <div className={styles.areaNameContainer}>
+        <header className={styles.areaGroupHeader}>
+          <div className={styles.areaTitleRow}>
+            {node.areaColor && (
+              <span
+                className={styles.areaColorDot}
+                style={{ backgroundColor: node.areaColor }}
+                aria-hidden="true"
+              />
+            )}
+            {!node.areaColor && node.areaId === null && (
+              <span
+                className={styles.areaColorDot}
+                style={{ backgroundColor: 'var(--color-text-disabled)' }}
+                aria-hidden="true"
+              />
+            )}
             <span className={styles.areaName}>{areaName}</span>
             {breadcrumb && (
               <span className={styles.areaAncestorHint}>
                 {t('sources.lines.underArea', { breadcrumb })}
               </span>
             )}
+            {!isSelectable && (
+              <span className={styles.areaLineCount}>
+                {t('sources.lines.areaLineCount', { count: node.totalLines })}
+              </span>
+            )}
           </div>
-          <span className={styles.areaLineCount}>
-            {t('sources.lines.areaLineCount', { count: node.totalLines })}
-          </span>
-        </div>
+          {isSelectable && selectionState && (
+            <label className={styles.areaSelectAllRow}>
+              <TriStateCheckbox
+                id={`area-${groupKey}-checkbox`}
+                checked={selectionState.allSelected}
+                indeterminate={!selectionState.allSelected && selectionState.someSelected}
+                onChange={(checked) =>
+                  handleAreaGroupCheckboxChange(
+                    {
+                      areaId: node.areaId,
+                      areaName: node.areaName,
+                      areaColor: node.areaColor,
+                      depth: node.depth,
+                      ancestors: node.ancestors,
+                      parentGroups: node.parentGroups,
+                      totalLines: node.totalLines,
+                    },
+                    checked,
+                    parentType,
+                  )
+                }
+                className={styles.areaGroupCheckbox}
+              />
+              <span className={styles.areaSelectAllLabel}>
+                {t('sources.budgetLines.move.selectGroupLabel', {
+                  name: areaName,
+                })}
+              </span>
+              <span className={styles.areaLineCount}>
+                {t('sources.lines.areaLineCount', { count: node.totalLines })}
+              </span>
+            </label>
+          )}
+        </header>
 
         {node.parentGroups.map((parentGroup) => (
           <div key={parentGroup.parentId} className={styles.parentItemBlock}>

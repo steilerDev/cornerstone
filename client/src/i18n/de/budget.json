@@ -164,7 +164,7 @@
       "emptyDescription": "Budgetpositionen aus Arbeitspaketen und Haushaltsartikeln erscheinen hier, wenn sie dieser Quelle zugeordnet sind.",
       "workItemSection": "Arbeitspaket-Positionen",
       "householdItemSection": "Haushaltsartikel-Positionen",
-      "unassignedArea": "Nicht zugeordnet",
+      "unassignedArea": "Kein Bereich",
       "fetchError": "Budgetpositionen konnten nicht geladen werden.",
       "retry": "Erneut versuchen",
       "areaLineCount_one": "{{count}} Position",
