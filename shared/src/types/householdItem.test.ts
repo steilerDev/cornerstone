@@ -366,6 +366,7 @@ describe('HouseholdItemDetail interface', () => {
             title: 'Mount TV',
             status: 'not_started',
             endDate: '2026-05-05',
+            area: null,
           },
         },
       ],

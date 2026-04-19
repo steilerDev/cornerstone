@@ -1168,6 +1168,7 @@ describe('HouseholdItemDetailPage', () => {
           title: 'Install desk',
           status: 'in_progress',
           endDate: '2026-04-15',
+          area: null,
         },
       };
       mockGetHouseholdItem.mockResolvedValue(makeItem());
@@ -1188,7 +1189,7 @@ describe('HouseholdItemDetailPage', () => {
           householdItemId: 'item-1',
           predecessorType: 'work_item',
           predecessorId: 'wi-1',
-          predecessor: { id: 'wi-1', title: 'Setup cables', status: 'not_started', endDate: null },
+          predecessor: { id: 'wi-1', title: 'Setup cables', status: 'not_started', endDate: null, area: null },
         },
         {
           householdItemId: 'item-1',
@@ -1199,6 +1200,7 @@ describe('HouseholdItemDetailPage', () => {
             title: 'Test connection',
             status: 'completed',
             endDate: '2026-03-05',
+            area: null,
           },
         },
       ];
