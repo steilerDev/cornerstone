@@ -733,19 +733,23 @@ test.describe('Cost Breakdown area grouping', { tag: '@responsive' }, () => {
       await overviewPage.breakdownAreaToggle('Keller').click();
       await expect(overviewPage.breakdownAreaRow('Kellerbau')).toBeVisible();
 
-      // Measure left edge of the name cell (first td) for both rows
+      // Measure computed paddingLeft of the name cell (first td) for both rows.
+      // boundingBox().x is identical for both cells because <td> starts at the same
+      // left edge regardless of its padding — only the computed style reflects indent depth.
       const kellerRow = overviewPage.breakdownAreaRow('Keller');
       const kellerbauRow = page.getByRole('row').filter({ hasText: 'Kellerbau' });
       const kellerCell = kellerRow.locator('td').first();
       const kellerbauCell = kellerbauRow.locator('td').first();
 
-      const kellerBox = await kellerCell.boundingBox();
-      const kellerbauBox = await kellerbauCell.boundingBox();
+      const kellerPaddingLeft = await kellerCell.evaluate((el) =>
+        parseFloat(getComputedStyle(el as HTMLElement).paddingLeft),
+      );
+      const kellerbauPaddingLeft = await kellerbauCell.evaluate((el) =>
+        parseFloat(getComputedStyle(el as HTMLElement).paddingLeft),
+      );
 
       // Kellerbau (depth-1 item inside a depth-1 area) must be indented further than Keller (depth-1 area)
-      expect(kellerbauBox).not.toBeNull();
-      expect(kellerBox).not.toBeNull();
-      expect(kellerbauBox!.x).toBeGreaterThan(kellerBox!.x);
+      expect(kellerbauPaddingLeft).toBeGreaterThan(kellerPaddingLeft);
     } finally {
       await teardown();
     }
