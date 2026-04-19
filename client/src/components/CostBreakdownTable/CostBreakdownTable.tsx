@@ -156,9 +156,11 @@ function ConfidenceBadge({ confidence }: { confidence: ConfidenceLevel }) {
 function BudgetLineRow({
   line,
   perspective,
+  depth,
 }: {
   line: BreakdownBudgetLine;
   perspective: CostPerspective;
+  depth: number;
 }) {
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
@@ -182,7 +184,10 @@ function BudgetLineRow({
 
   return (
     <tr className={rowClassName} key={key}>
-      <td className={styles.colName}>
+      <td
+        className={`${styles.colName} ${styles.cellLevel3Name}`}
+        style={{ '--item-depth': depth } as React.CSSProperties}
+      >
         <div className={styles.nameContent}>
           <span>{line.description || 'Untitled'}</span>
           {line.isQuotation ? (
@@ -220,12 +225,14 @@ function WorkItemRow({
   expanded: itemExpanded,
   onToggle,
   perspective,
+  depth,
 }: {
   item: BreakdownWorkItem;
   expandKey: string;
   expanded: boolean;
   onToggle: (key: string) => void;
   perspective: CostPerspective;
+  depth: number;
 }) {
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
@@ -245,7 +252,10 @@ function WorkItemRow({
   return (
     <>
       <tr className={rowClassName} key={key}>
-        <td className={styles.colName}>
+        <td
+          className={`${styles.colName} ${styles.cellLevel2Name}`}
+          style={{ '--item-depth': depth } as React.CSSProperties}
+        >
           <div className={styles.nameContent}>
             <button
               type="button"
@@ -287,7 +297,7 @@ function WorkItemRow({
       {itemExpanded && (
         <>
           {item.budgetLines.map((line: BreakdownBudgetLine) => (
-            <BudgetLineRow key={line.id} line={line} perspective={perspective} />
+            <BudgetLineRow key={line.id} line={line} perspective={perspective} depth={depth} />
           ))}
         </>
       )}
@@ -371,6 +381,7 @@ function WorkItemAreaSection({
                 expanded={expandedKeys.has(itemKey)}
                 onToggle={onToggle}
                 perspective={perspective}
+                depth={depth}
               />
             );
           })}
@@ -401,12 +412,14 @@ function HouseholdItemRow({
   expanded: itemExpanded,
   onToggle,
   perspective,
+  depth,
 }: {
   item: BreakdownHouseholdItem;
   expandKey: string;
   expanded: boolean;
   onToggle: (key: string) => void;
   perspective: CostPerspective;
+  depth: number;
 }) {
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
@@ -426,7 +439,10 @@ function HouseholdItemRow({
   return (
     <>
       <tr className={rowClassName} key={key}>
-        <td className={styles.colName}>
+        <td
+          className={`${styles.colName} ${styles.cellLevel2Name}`}
+          style={{ '--item-depth': depth } as React.CSSProperties}
+        >
           <div className={styles.nameContent}>
             <button
               type="button"
@@ -471,7 +487,7 @@ function HouseholdItemRow({
       {itemExpanded && (
         <>
           {item.budgetLines.map((line: BreakdownBudgetLine) => (
-            <BudgetLineRow key={line.id} line={line} perspective={perspective} />
+            <BudgetLineRow key={line.id} line={line} perspective={perspective} depth={depth} />
           ))}
         </>
       )}
@@ -555,6 +571,7 @@ function HouseholdItemAreaSection({
                 expanded={expandedKeys.has(itemKey)}
                 onToggle={onToggle}
                 perspective={perspective}
+                depth={depth}
               />
             );
           })}
