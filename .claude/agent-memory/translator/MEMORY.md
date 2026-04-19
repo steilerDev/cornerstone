@@ -45,6 +45,7 @@ Action labels in German follow the pattern: `{Noun} {Verb}` with capitalised fir
 - `de/errors.json` had four backup/restore keys with empty placeholder values (left by frontend-developer) — filled in 2026-03-22 (Issue #1146)
 - `de/areas.json` created 2026-04-16 (Story #1237): `noArea` → "Kein Bereich", `pathLabel` → "Bereichspfad"
 - `de/budget.json` — `overview.costBreakdown.area.unassigned` and `sources.lines.unassignedArea` both updated to "Kein Bereich" 2026-04-19 (Issue #1295), aligned with `de/areas.json` and the `noCategory` → "Keine Kategorie" parallel pattern
+- `de/budget.json` — `sources.lines.noCategory` orphan deleted 2026-04-19 (Issue #1313); `sources.lines.invoiceStatus.*`, `sources.lines.underArea`, `sources.lines.typeColumnHeader`, `sources.lines.statusColumnHeader` added 2026-04-19 (Issue #1313)
 - Always check key parity when picking up a new translator spec
 
 ## Backup/Restore Terminology (2026-03-22)
@@ -85,6 +86,18 @@ Fixed terminology inconsistencies from EPIC-17 i18n rollout:
 - `invoiceLinked` = "Verrechnet" — badge shown on a budget line that has a linked invoice (i.e. the cost has been invoiced/billed)
 - `invoiceStatusLabels.claimed` = "Eingereicht" — invoice payment status (submitted for reimbursement)
 - These are distinct concepts; do not conflate them.
+
+## Budget-Line invoiceStatus Labels — Issue #1313
+
+The `sources.lines.invoiceStatus.*` keys are budget-line-level status labels (different context from vendor invoice status labels):
+
+- `none` → "Nicht abgerechnet" (no invoice attached)
+- `pending` → "Ausstehend" (invoice submitted, not yet paid)
+- `paid` → "Bezahlt" (invoice fully paid)
+- `claimed` → "Beantragt" (subsidy claim submitted — distinct from `invoiceStatusLabels.claimed` = "Eingereicht" which is the vendor invoice status)
+- `quotation` → "Angebot" (glossary: Quotation = Angebot)
+
+Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather than "Eingereicht" (filed/submitted) to distinguish the budget-line view (subsidy claim sense) from the vendor invoice status. Both are defensible; "Beantragt" better conveys the subsidy-application meaning.
 
 ## i18n Coverage Fixes — Issue #1306 (2026-04-19)
 

@@ -179,8 +179,15 @@
         "invoice": "Rechnung"
       },
       "invoiceLinked": "Verrechnet",
-      "categoryVendorSeparator": " · ",
-      "noCategory": "Keine Kategorie"
+      "invoiceStatus": {
+        "none": "Nicht abgerechnet",
+        "pending": "Ausstehend",
+        "paid": "Bezahlt",
+        "claimed": "Beantragt",
+        "quotation": "Angebot"
+      },
+      "underArea": "unter {{breadcrumb}}",
+      "categoryVendorSeparator": " · "
     },
     "budgetLines": {
       "move": {

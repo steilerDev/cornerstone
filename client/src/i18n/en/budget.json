@@ -187,9 +187,7 @@
         "claimed": "Claimed",
         "quotation": "Quotation"
       },
-      "underArea": "under {{breadcrumb}}",
-      "typeColumnHeader": "Type",
-      "statusColumnHeader": "Status"
+      "underArea": "under {{breadcrumb}}"
     },
     "budgetLines": {
       "move": {
