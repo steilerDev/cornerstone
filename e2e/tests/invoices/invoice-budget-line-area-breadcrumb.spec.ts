@@ -73,10 +73,25 @@ async function deleteInvoiceViaApi(page: Page, vendorId: string, invoiceId: stri
   await page.request.delete(`${API.vendors}/${vendorId}/invoices/${invoiceId}`);
 }
 
+async function createBudgetSourceViaApi(
+  page: Page,
+  name: string,
+  totalAmount = 100000,
+): Promise<string> {
+  const response = await page.request.post(API.budgetSources, { data: { name, totalAmount } });
+  expect(response.ok(), `POST budget source "${name}"`).toBeTruthy();
+  const body = (await response.json()) as { budgetSource: { id: string } };
+  return body.budgetSource.id;
+}
+
+async function deleteBudgetSourceViaApi(page: Page, id: string): Promise<void> {
+  await page.request.delete(`${API.budgetSources}/${id}`);
+}
+
 async function createWorkItemBudgetViaApi(
   page: Page,
   workItemId: string,
-  data: { plannedAmount: number; description?: string },
+  data: { plannedAmount: number; budgetSourceId: string; description?: string },
 ): Promise<string> {
   const response = await page.request.post(`${API.workItems}/${workItemId}/budgets`, {
     data: { confidence: 'own_estimate', ...data },
@@ -89,7 +104,7 @@ async function createWorkItemBudgetViaApi(
 async function createHouseholdItemBudgetViaApi(
   page: Page,
   householdItemId: string,
-  data: { plannedAmount: number; description?: string },
+  data: { plannedAmount: number; budgetSourceId: string; description?: string },
 ): Promise<string> {
   const response = await page.request.post(`/api/household-items/${householdItemId}/budgets`, {
     data: { confidence: 'own_estimate', ...data },
@@ -128,6 +143,7 @@ test.describe('Invoice budget line — work_item with area shows breadcrumb (Sce
     let workItemId: string | null = null;
     let rootAreaId: string | null = null;
     let childAreaId: string | null = null;
+    let budgetSourceId: string | null = null;
 
     const rootName = `${testPrefix} Structure`;
     const childName = `${testPrefix} Foundation`;
@@ -143,10 +159,14 @@ test.describe('Invoice budget line — work_item with area shows breadcrumb (Sce
         date: '2026-06-01',
         invoiceNumber: `${testPrefix.substring(0, 8)}-INV`,
       });
+      // budgetSourceId is required on POST /api/work-items/:id/budgets as of the
+      // budget-sources feature rollout. Create a dedicated source per test.
+      budgetSourceId = await createBudgetSourceViaApi(page, `${testPrefix} Source BL`);
 
       // Create a work item budget line first (unlinked)
       const workItemBudgetId = await createWorkItemBudgetViaApi(page, workItemId, {
         plannedAmount: 5000,
+        budgetSourceId,
         description: `${testPrefix} Budget`,
       });
 
@@ -180,6 +200,7 @@ test.describe('Invoice budget line — work_item with area shows breadcrumb (Sce
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
       if (childAreaId) await deleteAreaViaApi(page, childAreaId);
       if (rootAreaId) await deleteAreaViaApi(page, rootAreaId);
     }
@@ -200,6 +221,7 @@ test.describe('Invoice budget line — work_item without area shows "No area" (S
     let vendorId: string | null = null;
     let invoiceId: string | null = null;
     let workItemId: string | null = null;
+    let budgetSourceId: string | null = null;
 
     const wiTitle = `${testPrefix} Budget Line WI No Area`;
 
@@ -212,9 +234,11 @@ test.describe('Invoice budget line — work_item without area shows "No area" (S
         date: '2026-06-02',
         invoiceNumber: `${testPrefix.substring(0, 8)}-N`,
       });
+      budgetSourceId = await createBudgetSourceViaApi(page, `${testPrefix} Source BL2`);
 
       const workItemBudgetId = await createWorkItemBudgetViaApi(page, workItemId, {
         plannedAmount: 2000,
+        budgetSourceId,
         description: `${testPrefix} Budget No Area`,
       });
 
@@ -237,6 +261,7 @@ test.describe('Invoice budget line — work_item without area shows "No area" (S
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
     }
   });
 });
@@ -255,6 +280,7 @@ test.describe('Invoice budget line — household_item row has no breadcrumb (Sce
     let vendorId: string | null = null;
     let invoiceId: string | null = null;
     let householdItemId: string | null = null;
+    let budgetSourceId: string | null = null;
 
     const hiName = `${testPrefix} HI For Budget Line`;
 
@@ -266,9 +292,11 @@ test.describe('Invoice budget line — household_item row has no breadcrumb (Sce
         date: '2026-06-03',
         invoiceNumber: `${testPrefix.substring(0, 8)}-H`,
       });
+      budgetSourceId = await createBudgetSourceViaApi(page, `${testPrefix} Source BL3`);
 
       const hiBudgetId = await createHouseholdItemBudgetViaApi(page, householdItemId, {
         plannedAmount: 1500,
+        budgetSourceId,
         description: `${testPrefix} HI Budget`,
       });
 
@@ -300,6 +328,7 @@ test.describe('Invoice budget line — household_item row has no breadcrumb (Sce
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
       if (householdItemId) await deleteHouseholdItemViaApi(page, householdItemId);
+      if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
     }
   });
 });
