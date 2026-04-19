@@ -11,6 +11,7 @@ Six test files created for issues #1271 (diary), #1272 (invoice budget lines), #
 **Server tests**: Use in-memory SQLite (`Database(':memory:')`) except `diaryService.area.test.ts` which uses file-based DB (matches the reference `diaryService.test.ts` pattern with `mkdtempSync`).
 
 **Key API signatures** (verified against source):
+
 - `getDiaryEntry(db, id)` — no userId param
 - `listDiaryEntries(db, query)` — returns `{ items, pagination }` (NOT `{ entries }`)
 - `updateDiaryEntry(db, id, data)` — no userId param, synchronous
@@ -24,6 +25,7 @@ Six test files created for issues #1271 (diary), #1272 (invoice budget lines), #
 **Frontend tests**: All 3 use `jest.unstable_mockModule` pattern (ESM). AreaBreadcrumb uses `useTranslation('areas')` — renders "No area" for null area, area name for non-null. i18n is globally initialized in test setup so no per-test mock needed.
 
 **Test file paths**:
+
 - `server/src/services/diaryService.area.test.ts`
 - `server/src/services/invoiceBudgetLineService.area.test.ts`
 - `server/src/services/householdItemDepService.area.test.ts`

@@ -12,7 +12,8 @@ import { eq, desc, and, or, gte, lte, inArray, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { diaryEntries, photos, users, workItems, invoices, milestones, areas } from '../db/schema.js';
+import type { areas } from '../db/schema.js';
+import { diaryEntries, photos, users, workItems, invoices, milestones } from '../db/schema.js';
 import {
   NotFoundError,
   ValidationError,
@@ -566,7 +567,13 @@ export function getDiaryEntry(db: DbType, id: string): DiaryEntryDetail {
     areaMap,
   );
 
-  return toDiarySummary(row.entry, row.user, photoCount?.count ?? 0, sourceEntityTitle, sourceEntityArea);
+  return toDiarySummary(
+    row.entry,
+    row.user,
+    photoCount?.count ?? 0,
+    sourceEntityTitle,
+    sourceEntityArea,
+  );
 }
 
 /**
@@ -749,7 +756,13 @@ export function updateDiaryEntry(
     areaMap,
   );
 
-  return toDiarySummary(row!.entry, row!.user, photoCount?.count ?? 0, sourceEntityTitle, sourceEntityArea);
+  return toDiarySummary(
+    row!.entry,
+    row!.user,
+    photoCount?.count ?? 0,
+    sourceEntityTitle,
+    sourceEntityArea,
+  );
 }
 
 /**

@@ -281,7 +281,9 @@ describe('HouseholdItemDetailPage — dependency area breadcrumb', () => {
     };
   }
 
-  function makeWorkItemDep(area: HouseholdItemDepDetail['predecessor']['area']): HouseholdItemDepDetail {
+  function makeWorkItemDep(
+    area: HouseholdItemDepDetail['predecessor']['area'],
+  ): HouseholdItemDepDetail {
     return {
       householdItemId: 'item-1',
       predecessorType: 'work_item',

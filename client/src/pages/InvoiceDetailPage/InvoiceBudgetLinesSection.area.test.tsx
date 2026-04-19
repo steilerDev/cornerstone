@@ -84,7 +84,7 @@ jest.unstable_mockModule('../../lib/apiClient.js', () => ({
   put: jest.fn(),
   setBaseUrl: jest.fn(),
   getBaseUrl: jest.fn().mockReturnValue('/api'),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   ApiClientError: class MockApiClientError extends Error {
     constructor(
       readonly statusCode: number,

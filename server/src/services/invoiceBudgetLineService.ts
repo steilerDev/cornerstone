@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
+import type { areas } from '../db/schema.js';
 import {
   invoiceBudgetLines,
   invoices,
@@ -10,7 +11,6 @@ import {
   workItems,
   householdItems,
   budgetCategories,
-  areas,
 } from '../db/schema.js';
 import type {
   InvoiceBudgetLineDetailResponse,

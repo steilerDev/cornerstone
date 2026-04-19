@@ -1189,7 +1189,13 @@ describe('HouseholdItemDetailPage', () => {
           householdItemId: 'item-1',
           predecessorType: 'work_item',
           predecessorId: 'wi-1',
-          predecessor: { id: 'wi-1', title: 'Setup cables', status: 'not_started', endDate: null, area: null },
+          predecessor: {
+            id: 'wi-1',
+            title: 'Setup cables',
+            status: 'not_started',
+            endDate: null,
+            area: null,
+          },
         },
         {
           householdItemId: 'item-1',

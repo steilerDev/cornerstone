@@ -64,7 +64,10 @@ async function createHouseholdItemDepViaApi(
   const response = await page.request.post(`/api/household-items/${householdItemId}/dependencies`, {
     data,
   });
-  expect(response.ok(), `POST HI dep ${householdItemId} → ${data.predecessorType}:${data.predecessorId}`).toBeTruthy();
+  expect(
+    response.ok(),
+    `POST HI dep ${householdItemId} → ${data.predecessorType}:${data.predecessorId}`,
+  ).toBeTruthy();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -177,10 +180,7 @@ test.describe('HI dependency — work_item predecessor without area (Scenario 2)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('HI dependency — milestone predecessor has no breadcrumb (Scenario 3)', () => {
-  test('Milestone dep row does not contain a compact breadcrumb', async ({
-    page,
-    testPrefix,
-  }) => {
+  test('Milestone dep row does not contain a compact breadcrumb', async ({ page, testPrefix }) => {
     const detailPage = new HouseholdItemDetailPage(page);
 
     let milestoneId: number | null = null;

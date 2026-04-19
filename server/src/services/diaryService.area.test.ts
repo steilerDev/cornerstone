@@ -15,11 +15,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
-import {
-  getDiaryEntry,
-  listDiaryEntries,
-  updateDiaryEntry,
-} from './diaryService.js';
+import { getDiaryEntry, listDiaryEntries, updateDiaryEntry } from './diaryService.js';
 
 // ─── DB setup ─────────────────────────────────────────────────────────────────
 
@@ -92,10 +88,12 @@ describe('diaryService — sourceEntityArea enrichment', () => {
     return id;
   }
 
-  function insertWorkItem(opts: {
-    title?: string;
-    areaId?: string | null;
-  } = {}): string {
+  function insertWorkItem(
+    opts: {
+      title?: string;
+      areaId?: string | null;
+    } = {},
+  ): string {
     const id = makeId('wi');
     const now = new Date().toISOString();
     db.insert(schema.workItems)
@@ -162,11 +160,13 @@ describe('diaryService — sourceEntityArea enrichment', () => {
 
   let entryOffset = 0;
 
-  function insertDiaryEntry(opts: {
-    sourceEntityType?: string | null;
-    sourceEntityId?: string | null;
-    entryDate?: string;
-  } = {}): string {
+  function insertDiaryEntry(
+    opts: {
+      sourceEntityType?: string | null;
+      sourceEntityId?: string | null;
+      entryDate?: string;
+    } = {},
+  ): string {
     entryOffset++;
     const id = `diary-area-${Date.now()}-${entryOffset}`;
     const now = new Date(Date.now() + entryOffset).toISOString();
@@ -278,17 +278,13 @@ describe('diaryService — sourceEntityArea enrichment', () => {
       expect(result.items).toHaveLength(3);
 
       // The entry with area
-      const entryWithArea = result.items.find(
-        (e) => e.sourceEntityArea !== null,
-      );
+      const entryWithArea = result.items.find((e) => e.sourceEntityArea !== null);
       expect(entryWithArea).toBeDefined();
       expect(entryWithArea!.sourceEntityArea!.id).toBe(areaId);
       expect(entryWithArea!.sourceEntityArea!.name).toBe('Bathroom');
 
       // The remaining two entries should have null sourceEntityArea
-      const entriesWithoutArea = result.items.filter(
-        (e) => e.sourceEntityArea === null,
-      );
+      const entriesWithoutArea = result.items.filter((e) => e.sourceEntityArea === null);
       expect(entriesWithoutArea).toHaveLength(2);
     });
   });

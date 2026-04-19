@@ -105,13 +105,25 @@ describe('householdItemDepsApi', () => {
           householdItemId: 'hi-123',
           predecessorType: 'work_item',
           predecessorId: 'wi-1',
-          predecessor: { id: 'wi-1', title: 'Work A', status: 'not_started', endDate: null, area: null },
+          predecessor: {
+            id: 'wi-1',
+            title: 'Work A',
+            status: 'not_started',
+            endDate: null,
+            area: null,
+          },
         },
         {
           householdItemId: 'hi-123',
           predecessorType: 'milestone',
           predecessorId: '10',
-          predecessor: { id: '10', title: 'Phase 1 Done', status: null, endDate: '2026-03-31', area: null },
+          predecessor: {
+            id: '10',
+            title: 'Phase 1 Done',
+            status: null,
+            endDate: '2026-03-31',
+            area: null,
+          },
         },
       ];
 
@@ -156,7 +168,13 @@ describe('householdItemDepsApi', () => {
         householdItemId: 'hi-123',
         predecessorType: 'work_item',
         predecessorId: 'wi-456',
-        predecessor: { id: 'wi-456', title: 'Foundation', status: 'not_started', endDate: null, area: null },
+        predecessor: {
+          id: 'wi-456',
+          title: 'Foundation',
+          status: 'not_started',
+          endDate: null,
+          area: null,
+        },
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -183,7 +201,13 @@ describe('householdItemDepsApi', () => {
         householdItemId: 'hi-123',
         predecessorType: 'work_item',
         predecessorId: 'wi-456',
-        predecessor: { id: 'wi-456', title: 'Foundation', status: 'not_started', endDate: null, area: null },
+        predecessor: {
+          id: 'wi-456',
+          title: 'Foundation',
+          status: 'not_started',
+          endDate: null,
+          area: null,
+        },
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -212,7 +236,13 @@ describe('householdItemDepsApi', () => {
         householdItemId: 'hi-456',
         predecessorType: 'milestone',
         predecessorId: '42',
-        predecessor: { id: '42', title: 'Frame Done', status: null, endDate: '2026-04-15', area: null },
+        predecessor: {
+          id: '42',
+          title: 'Frame Done',
+          status: null,
+          endDate: '2026-04-15',
+          area: null,
+        },
       };
 
       mockFetch.mockResolvedValueOnce({

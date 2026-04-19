@@ -50,9 +50,7 @@ async function findAutoDiaryEntryId(
   workItemId: string,
 ): Promise<string> {
   // GET /api/diary-entries uses "type" query param (not "entryType") for filtering
-  const response = await page.request.get(
-    `${API.diaryEntries}?type=work_item_status&pageSize=50`,
-  );
+  const response = await page.request.get(`${API.diaryEntries}?type=work_item_status&pageSize=50`);
   expect(response.ok(), 'GET diary entries for work_item_status').toBeTruthy();
   const body = (await response.json()) as {
     items: Array<{ id: string; sourceEntityId: string | null }>;

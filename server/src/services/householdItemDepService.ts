@@ -10,7 +10,8 @@
 import { eq, and } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { householdItemDeps, householdItems, workItems, milestones, areas } from '../db/schema.js';
+import type { areas } from '../db/schema.js';
+import { householdItemDeps, householdItems, workItems, milestones } from '../db/schema.js';
 import type {
   HouseholdItemDepDetail,
   HouseholdItemDepPredecessorSummary,
