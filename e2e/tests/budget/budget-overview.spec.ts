@@ -14,8 +14,10 @@
  * - Cost Breakdown area grouping: expanding a root area reveals child areas
  * - Cost Breakdown area grouping: expanding a child area reveals items
  * - Cost Breakdown area grouping: collapsing a root hides children
- * - Cost Breakdown area grouping: Unassigned row appears when breakdown has null-area items
- * - Cost Breakdown area grouping: no Unassigned row when breakdown has none
+ * - Cost Breakdown area grouping: No Area row appears when breakdown has null-area items
+ * - Cost Breakdown area grouping: "No Area" label visible, "Unassigned" label absent
+ * - Cost Breakdown area grouping: no No Area row when breakdown has none
+ * - Cost Breakdown area grouping: nested-area indent increases with depth (bounding box)
  * - Cost Breakdown area grouping: no standalone Area Breakdown section renders (smoke)
  */
 
@@ -369,14 +371,14 @@ function emptyBreakdownResponse() {
   };
 }
 
-/** BudgetBreakdown response with a nested area hierarchy and an Unassigned entry. */
+/** BudgetBreakdown response with a nested area hierarchy and a No Area entry. */
 function populatedBreakdownResponse() {
   return {
     workItems: {
       areas: [
         {
           areaId: null,
-          name: 'Unassigned',
+          name: 'No Area',
           parentId: null,
           color: null,
           projectedMin: 5000,
@@ -389,7 +391,7 @@ function populatedBreakdownResponse() {
           items: [
             {
               workItemId: 'wi-unassigned-1',
-              title: 'Unassigned Work Item',
+              title: 'No Area Work Item',
               projectedMin: 5000,
               projectedMax: 6000,
               actualCost: 0,
@@ -531,7 +533,7 @@ test.describe('Cost Breakdown area grouping', { tag: '@responsive' }, () => {
         .click();
 
       // Both root-level areas should now be visible
-      await expect(overviewPage.breakdownAreaRow('Unassigned')).toBeVisible();
+      await expect(overviewPage.breakdownAreaRow('No Area')).toBeVisible();
       await expect(overviewPage.breakdownAreaRow('Rohbau')).toBeVisible();
     } finally {
       await teardown();
@@ -621,7 +623,7 @@ test.describe('Cost Breakdown area grouping', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Unassigned row appears when breakdown has null-area items', async ({ page }) => {
+  test('"No Area" row appears when breakdown has null-area items', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountRoutes(
       page,
@@ -638,14 +640,47 @@ test.describe('Cost Breakdown area grouping', { tag: '@responsive' }, () => {
         .getByRole('button', { name: /expand work item budget by area/i })
         .click();
 
-      // Unassigned row should be visible (populated response includes a null-area entry)
-      await expect(overviewPage.breakdownAreaRow('Unassigned')).toBeVisible();
+      // "No Area" row should be visible (populated response includes a null-area entry)
+      await expect(overviewPage.breakdownAreaRow('No Area')).toBeVisible();
     } finally {
       await teardown();
     }
   });
 
-  test('No Unassigned row when breakdown has no null-area items', async ({ page }) => {
+  test('"No Area" label visible and "Unassigned" label absent after expanding Work Items', async ({
+    page,
+  }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountRoutes(
+      page,
+      populatedOverviewResponse(),
+      populatedBreakdownResponse(),
+    );
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      // Expand the Work Items section to reveal area rows
+      await overviewPage.costBreakdownCard
+        .getByRole('button', { name: /expand work item budget by area/i })
+        .click();
+
+      // "No Area" text should be visible in the cost breakdown card
+      await expect(
+        overviewPage.costBreakdownCard.getByText('No Area', { exact: true }),
+      ).toBeVisible();
+
+      // "Unassigned" text must NOT appear anywhere in the cost breakdown card
+      await expect(
+        overviewPage.costBreakdownCard.getByText('Unassigned', { exact: true }),
+      ).not.toBeVisible();
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('No "No Area" row when breakdown has no null-area items', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
 
     // Custom breakdown with only named areas — no null-areaId entry
@@ -668,8 +703,49 @@ test.describe('Cost Breakdown area grouping', { tag: '@responsive' }, () => {
         .getByRole('button', { name: /expand work item budget by area/i })
         .click();
 
-      // Unassigned row should not be present
-      await expect(overviewPage.breakdownAreaRow('Unassigned')).not.toBeVisible();
+      // "No Area" row should not be present
+      await expect(overviewPage.breakdownAreaRow('No Area')).not.toBeVisible();
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Nested area indent increases with depth (Keller item indented more than Keller area)', async ({
+    page,
+  }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountRoutes(
+      page,
+      populatedOverviewResponse(),
+      populatedBreakdownResponse(),
+    );
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      // Expand Work Items → Rohbau → Keller to reveal the Kellerbau item row
+      await overviewPage.costBreakdownCard
+        .getByRole('button', { name: /expand work item budget by area/i })
+        .click();
+      await overviewPage.breakdownAreaToggle('Rohbau').click();
+      await expect(overviewPage.breakdownAreaRow('Keller')).toBeVisible();
+      await overviewPage.breakdownAreaToggle('Keller').click();
+      await expect(overviewPage.breakdownAreaRow('Kellerbau')).toBeVisible();
+
+      // Measure left edge of the name cell (first td) for both rows
+      const kellerRow = overviewPage.breakdownAreaRow('Keller');
+      const kellerbauRow = page.getByRole('row').filter({ hasText: 'Kellerbau' });
+      const kellerCell = kellerRow.locator('td').first();
+      const kellerbauCell = kellerbauRow.locator('td').first();
+
+      const kellerBox = await kellerCell.boundingBox();
+      const kellerbauBox = await kellerbauCell.boundingBox();
+
+      // Kellerbau (depth-1 item inside a depth-1 area) must be indented further than Keller (depth-1 area)
+      expect(kellerbauBox).not.toBeNull();
+      expect(kellerBox).not.toBeNull();
+      expect(kellerbauBox!.x).toBeGreaterThan(kellerBox!.x);
     } finally {
       await teardown();
     }
