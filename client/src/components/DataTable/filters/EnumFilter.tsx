@@ -38,59 +38,52 @@ export function EnumFilter({
   const parseValue = (v: string) => new Set(v ? v.split(',') : []);
   const [selected, setSelected] = useState(parseValue(value));
 
-  // Build parent -> children map from hierarchy
-  const { parentToChildren, allParents } = (() => {
-    if (!hierarchy) return { parentToChildren: new Map(), allParents: new Set<string>() };
-
-    const map = new Map<string, string[]>();
-    const parents = new Set<string>();
-
+  // Build childrenOf map from hierarchy for arbitrary depth support
+  const childrenOf = new Map<string | null, string[]>();
+  if (hierarchy) {
     for (const item of hierarchy) {
-      if (item.parentId) {
-        if (!map.has(item.parentId)) {
-          map.set(item.parentId, []);
-        }
-        map.get(item.parentId)!.push(item.id);
-      } else {
-        parents.add(item.id);
+      const key = item.parentId ?? null;
+      if (!childrenOf.has(key)) {
+        childrenOf.set(key, []);
       }
+      childrenOf.get(key)!.push(item.id);
     }
+  }
 
-    return { parentToChildren: map, allParents: parents };
-  })();
+  // Recursively get all descendants of an ID (arbitrary depth)
+  const allDescendantsOf = useCallback(
+    (id: string): string[] => {
+      const result: string[] = [];
+      const stack = [id];
+      while (stack.length > 0) {
+        const current = stack.pop()!;
+        const children = childrenOf.get(current) ?? [];
+        for (const child of children) {
+          result.push(child);
+          stack.push(child);
+        }
+      }
+      return result;
+    },
+    [childrenOf],
+  );
 
   const handleToggle = useCallback(
     (optionValue: string) => {
       setSelected((prev) => {
         const updated = new Set(prev);
-
         if (updated.has(optionValue)) {
           updated.delete(optionValue);
-          // If this is a parent, remove all children
-          const children = parentToChildren.get(optionValue);
-          if (children) {
-            for (const child of children) {
-              updated.delete(child);
-            }
-          }
+          for (const desc of allDescendantsOf(optionValue)) updated.delete(desc);
         } else {
           updated.add(optionValue);
-          // If this is a parent, add all children
-          const children = parentToChildren.get(optionValue);
-          if (children) {
-            for (const child of children) {
-              updated.add(child);
-            }
-          }
+          for (const desc of allDescendantsOf(optionValue)) updated.add(desc);
         }
-
-        // Auto-apply by calling onChange immediately
-        const joined = Array.from(updated).join(',');
-        onChange(joined);
+        onChange(Array.from(updated).join(','));
         return updated;
       });
     },
-    [parentToChildren, onChange],
+    [allDescendantsOf, onChange],
   );
 
   const handleSelectAll = useCallback(() => {
@@ -105,46 +98,45 @@ export function EnumFilter({
     onChange('');
   }, [onChange]);
 
-  // Sort options: parents first (in order), then their children indented
-  const sortedOptions: Array<{ option: EnumOption; isChild: boolean }> = (() => {
-    if (!hierarchy) return options.map((o) => ({ option: o, isChild: false }));
-
-    const result: Array<{ option: EnumOption; isChild: boolean }> = [];
-    const optionMap = new Map(options.map((o) => [o.value, o]));
-
-    // First, add all parents in original order
-    for (const option of options) {
-      if (allParents.has(option.value)) {
-        result.push({ option, isChild: false });
-
-        // Then add their children
-        const children = parentToChildren.get(option.value) || [];
-        for (const childId of children) {
-          const childOption = optionMap.get(childId);
-          if (childOption) {
-            result.push({ option: childOption, isChild: true });
-          }
-        }
-      }
+  // Depth-first walk of hierarchy to build visible rows with depth tracking
+  const visibleRows: Array<{ option: EnumOption; depth: number; isParent: boolean }> = (() => {
+    if (!hierarchy) {
+      return options.map((o) => ({ option: o, depth: 0, isParent: false }));
     }
 
-    // Finally, add any options with no parent or child relationship
+    const optionMap = new Map(options.map((o) => [o.value, o]));
+    const result: Array<{ option: EnumOption; depth: number; isParent: boolean }> = [];
+
+    function walk(id: string, depth: number): void {
+      const option = optionMap.get(id);
+      if (!option) return;
+      const children = childrenOf.get(id) ?? [];
+      const isParent = children.length > 0;
+      result.push({ option, depth, isParent });
+      for (const childId of children) walk(childId, depth + 1);
+    }
+
+    // Walk from all root nodes (parentId = null)
+    const roots = childrenOf.get(null) ?? [];
+    for (const rootId of roots) walk(rootId, 0);
+
+    // Add any options that appear in the flat options list but aren't in the hierarchy
+    const inHierarchy = new Set(hierarchy.map((h) => h.id));
     for (const option of options) {
-      if (!allParents.has(option.value) && !hierarchy.some((h) => h.id === option.value)) {
-        result.push({ option, isChild: false });
+      if (!inHierarchy.has(option.value)) {
+        result.push({ option, depth: 0, isParent: false });
       }
     }
 
     return result;
   })();
 
-  // Check if a parent has indeterminate state (some but not all children selected)
+  // Check if a parent has indeterminate state (some but not all descendants selected)
   const isIndeterminate = (parentId: string): boolean => {
-    const children = parentToChildren.get(parentId);
-    if (!children || children.length === 0) return false;
-
-    const selectedChildren = children.filter((c: string) => selected.has(c));
-    return selectedChildren.length > 0 && selectedChildren.length < children.length;
+    const descendants = allDescendantsOf(parentId);
+    if (descendants.length === 0) return false;
+    const selectedCount = descendants.filter((d) => selected.has(d)).length;
+    return selectedCount > 0 && selectedCount < descendants.length;
   };
 
   // Set indeterminate state on parent checkboxes
@@ -178,14 +170,13 @@ export function EnumFilter({
         </div>
       )}
       <div className={styles.filterCheckboxGroup}>
-        {sortedOptions.map(({ option, isChild }) => {
-          const isParent = allParents.has(option.value);
-
+        {visibleRows.map(({ option, depth, isParent }) => {
           return (
             <label
               key={option.value}
-              className={`${styles.filterCheckboxItem} ${isChild ? styles.filterCheckboxIndented : ''}`}
+              className={styles.filterCheckboxItem}
               htmlFor={`enum-${option.value}`}
+              style={{ '--enum-depth': depth } as React.CSSProperties}
             >
               <input
                 ref={(el) => {
