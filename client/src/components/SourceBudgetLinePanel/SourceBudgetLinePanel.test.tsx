@@ -941,6 +941,105 @@ describe('SourceBudgetLinePanel', () => {
     });
   });
 
+  // ─── Nested card structure (Issue #1315) ────────────────────────────────────────
+
+  describe('nested card structure — areaAncestorHint removed', () => {
+    it('Test A — "under …" text is never rendered, even when areas have ancestors', () => {
+      const area = {
+        id: 'area-kitchen',
+        name: 'Kitchen',
+        color: '#ff0000',
+        ancestors: [{ id: 'area-ground', name: 'Ground Floor', color: '#cccccc' }],
+      };
+      const line = makeLine({ id: 'l1', parentId: 'p1', parentName: 'Flooring', area });
+      renderPanel({ data: makeResponse([line], []) });
+
+      // The "under <ancestor>" hint was removed in the nested card refactor
+      expect(screen.queryByText(/under/i)).toBeNull();
+      // But the area name itself must still be visible
+      expect(screen.getByText('Kitchen')).toBeInTheDocument();
+    });
+  });
+
+  describe('nested card structure — areaGroup CSS class', () => {
+    it('Test B — area group wrapper carries the areaGroup CSS class', () => {
+      const line = makeLine({
+        id: 'l1',
+        parentId: 'p1',
+        parentName: 'Kitchen Renovation',
+        area: makeArea({ id: 'area-1', name: 'Kitchen' }),
+      });
+      renderPanel({ data: makeResponse([line], []) });
+
+      // identity-obj-proxy resolves CSS module keys to their literal key names,
+      // so styles.areaGroup renders as the class string "areaGroup"
+      expect(document.querySelector('[class*="areaGroup"]')).not.toBeNull();
+    });
+  });
+
+  describe('nested card structure — parentItemBlock CSS class', () => {
+    it('Test C — parent item block carries the parentItemBlock CSS class', () => {
+      const line = makeLine({
+        id: 'l1',
+        parentId: 'p1',
+        parentName: 'Kitchen Renovation',
+      });
+      renderPanel({ data: makeResponse([line], []) });
+
+      expect(document.querySelector('[class*="parentItemBlock"]')).not.toBeNull();
+    });
+  });
+
+  describe('nested card structure — depth offset uses marginLeft not paddingLeft', () => {
+    it('Test D — depth offset is applied as marginLeft (not paddingLeft) on the nested area group', () => {
+      // Root area with no ancestors (depth=0)
+      const rootArea = {
+        id: 'area-root',
+        name: 'Ground Floor',
+        color: '#cccccc',
+        ancestors: [],
+      };
+      // Child area with one ancestor (depth=1)
+      const childArea = {
+        id: 'area-kitchen',
+        name: 'Kitchen',
+        color: '#ff0000',
+        ancestors: [{ id: 'area-root', name: 'Ground Floor', color: '#cccccc' }],
+      };
+      const rootLine = makeLine({
+        id: 'l1',
+        parentId: 'p1',
+        parentName: 'Ground Work',
+        area: rootArea,
+      });
+      const childLine = makeLine({
+        id: 'l2',
+        parentId: 'p2',
+        parentName: 'Kitchen Renovation',
+        area: childArea,
+        createdAt: '2026-01-02T00:00:00.000Z',
+      });
+      renderPanel({ data: makeResponse([rootLine, childLine], []) });
+
+      // Find all areaGroup elements
+      const areaGroups = Array.from(
+        document.querySelectorAll<HTMLElement>('[class*="areaGroup"]'),
+      );
+      expect(areaGroups.length).toBeGreaterThan(0);
+
+      // Find the one with a non-zero marginLeft (the depth=1 child)
+      const nestedGroup = areaGroups.find((el) => {
+        const ml = el.style.marginLeft;
+        return ml && ml !== '' && ml !== '0px' && ml !== 'calc(0 * var(--spacing-4))';
+      });
+
+      expect(nestedGroup).toBeDefined();
+      expect(nestedGroup!.style.marginLeft).toBeTruthy();
+      // paddingLeft must NOT be used for depth offset
+      expect(nestedGroup!.style.paddingLeft).toBeFalsy();
+    });
+  });
+
   // ─── Parent item links (scenario 23) ───────────────────────────────────────────
 
   describe('parent item header links', () => {
