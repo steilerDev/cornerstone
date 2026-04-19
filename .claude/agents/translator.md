@@ -72,16 +72,16 @@ When asked to "audit translations", "check translation coverage", "check for mis
 
 **Step 2: Code → dictionary (usage-site coverage)**
 
-This is where the bugs hide. Every `t()` / `<Trans>` / `i18nKey=` call must resolve to an existing dictionary entry in *both* locales.
+This is where the bugs hide. Every `t()` / `<Trans>` / `i18nKey=` call must resolve to an existing dictionary entry in _both_ locales.
 
 - Walk `client/src/**/*.{ts,tsx}`, skipping `.test.*`, `.d.ts`, `node_modules`, and the `i18n/` directory
 - For each file, determine candidate namespaces:
   - Find all `useTranslation('ns')`, `useTranslation(['a','b',…])`, and bare `useTranslation()` calls
   - Bare `useTranslation()` → default ns is `common` (from `client/src/i18n/index.ts`)
-  - **Handle conditional namespace expressions** — `useTranslation(cond ? 'a' : 'b')` — by checking both branches. A simple regex `useTranslation\s*\(\s*(['"\`])([^'"\`]+)\1` MISSES these; use a broader pattern that extracts all quoted strings inside the `useTranslation(...)` parens.
+  - **Handle conditional namespace expressions** — `useTranslation(cond ? 'a' : 'b')` — by checking both branches. A simple regex `useTranslation\s*\(\s*(['"\`])([^'"\`]+)\1`MISSES these; use a broader pattern that extracts all quoted strings inside the`useTranslation(...)` parens.
   - If no `useTranslation` found, default to `common`
 - Extract every static translation key usage:
-  - `t('key')`, `t("key")`, `t(\`key\`)` — must NOT contain `${` (that's dynamic, handle separately)
+  - `t('key')`, `t("key")`, `t(\`key\`)`— must NOT contain`${` (that's dynamic, handle separately)
   - `<Trans i18nKey="key">` / `i18nKey={'key'}`
   - Use a regex with a negative lookbehind `(?<![\w$])` before `t(` to avoid matching `obj.t(` or similar
 - For each extracted key, resolve namespace:
@@ -90,11 +90,11 @@ This is where the bugs hide. Every `t()` / `<Trans>` / `i18nKey=` call must reso
 - For each `(ns, key)`:
   - If not in `en/<ns>.json` → **MISSING_IN_EN** bug (English users see raw key)
   - If not in `de/<ns>.json` → **MISSING_IN_DE** bug (German users see raw key)
-  - If not in *either* namespace, search *all* other namespaces before flagging — the file's `useTranslation` may use a pattern your regex missed (conditional, variable, etc.). If found elsewhere, mark as "namespace resolution ambiguous" (not a bug). If not found anywhere → **MISSING_EVERYWHERE** (worst-case bug, raw key in every locale).
+  - If not in _either_ namespace, search _all_ other namespaces before flagging — the file's `useTranslation` may use a pattern your regex missed (conditional, variable, etc.). If found elsewhere, mark as "namespace resolution ambiguous" (not a bug). If not found anywhere → **MISSING_EVERYWHERE** (worst-case bug, raw key in every locale).
 
 **Step 3: Dynamic key patterns (informational)**
 
-- Keys like `` t(`status.${value}`) `` cannot be statically checked. Extract the prefix (`status.`) and note it alongside the file. Do NOT flag sibling keys as missing or orphaned — they may all be valid.
+- Keys like ``t(`status.${value}`)`` cannot be statically checked. Extract the prefix (`status.`) and note it alongside the file. Do NOT flag sibling keys as missing or orphaned — they may all be valid.
 - Common dynamic patterns in this codebase: `` `status.${status}` ``, `` `statusLabels.${invoice.status}` ``, `` `oidcErrors.${errorCode}` ``. Treat any `<prefix>.<var>` pattern as a "potentially dynamically used" group.
 
 **Step 4: Orphan candidates (informational, high false-positive rate)**
@@ -109,7 +109,7 @@ This is where the bugs hide. Every `t()` / `<Trans>` / `i18nKey=` call must reso
 #### What NOT to do — common pitfalls
 
 - **Do not grep for loose substrings like `'success'` or `'q'`** — these match `showToast('success', ...)`, URL query params (`searchParams.get('q')`), and other non-translation strings. A prior audit flagged 52 false positives this way.
-- **Do not trust a "clean" result without running step 2.** A parity check alone (step 1) cannot catch keys missing from *both* locales.
+- **Do not trust a "clean" result without running step 2.** A parity check alone (step 1) cannot catch keys missing from _both_ locales.
 - **Do not infer usage** — every claim must have a concrete `file:line` reference. If you can't produce one, don't make the claim.
 - **Do not weaken the protocol to save time.** The prior audit that skipped step 2 missed a user-visible bug on the Area UI (raw keys shown in English locale).
 
