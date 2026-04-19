@@ -10,6 +10,7 @@ import {
   workItems,
   householdItems,
   budgetCategories,
+  areas,
 } from '../db/schema.js';
 import type {
   InvoiceBudgetLineDetailResponse,
@@ -17,6 +18,7 @@ import type {
   InvoiceBudgetLineListDetailResponse,
   InvoiceBudgetLineSummary,
   ConfidenceLevel,
+  AreaSummary,
 } from '@cornerstone/shared';
 import {
   NotFoundError,
@@ -24,6 +26,8 @@ import {
   BudgetLineAlreadyLinkedError,
   ItemizedSumExceedsInvoiceError,
 } from '../errors/AppError.js';
+import { loadAreaMap, resolveAreaAncestors, type AreaMapEntry } from './areaService.js';
+import { toAreaSummary } from './shared/converters.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -40,12 +44,35 @@ interface UpdateInvoiceBudgetLineData {
 }
 
 /**
+ * Helper to resolve area summary with ancestors from area map.
+ */
+function getAreaWithAncestors(
+  areaId: string | null,
+  areaMap: Map<string, AreaMapEntry>,
+): AreaSummary | null {
+  if (!areaId) return null;
+  const entry = areaMap.get(areaId);
+  if (!entry) return null;
+  const ancestors = resolveAreaAncestors(areaId, areaMap);
+  return toAreaSummary(
+    {
+      id: entry.id,
+      name: entry.name,
+      color: entry.color,
+      parentId: entry.parentId,
+    } as typeof areas.$inferSelect,
+    ancestors,
+  );
+}
+
+/**
  * Resolve the full detail for a single invoice budget line row.
  * Queries the budget line table, category, and parent item.
  */
 function resolveDetail(
   db: DbType,
   row: typeof invoiceBudgetLines.$inferSelect,
+  areaMap: Map<string, AreaMapEntry>,
 ): InvoiceBudgetLineDetailResponse {
   const budgetLineId = row.workItemBudgetId || row.householdItemBudgetId;
   const budgetLineType = row.workItemBudgetId ? 'work_item' : 'household_item';
@@ -56,6 +83,7 @@ function resolveDetail(
   let categoryId: string | null = null;
   let parentItemId = '';
   let parentItemTitle = '';
+  let parentItemArea: AreaSummary | null = null;
 
   if (row.workItemBudgetId) {
     const wib = db
@@ -77,6 +105,7 @@ function resolveDetail(
     }
     parentItemId = wi.id;
     parentItemTitle = wi.title;
+    parentItemArea = getAreaWithAncestors(wi.areaId, areaMap);
   } else if (row.householdItemBudgetId) {
     const hib = db
       .select()
@@ -101,6 +130,7 @@ function resolveDetail(
     }
     parentItemId = hi.id;
     parentItemTitle = hi.name;
+    parentItemArea = null; // Household items always have null area
   }
 
   let categoryName: string | null = null;
@@ -131,6 +161,7 @@ function resolveDetail(
     parentItemId,
     parentItemTitle,
     parentItemType: budgetLineType,
+    parentItemArea,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -170,8 +201,11 @@ export function listInvoiceBudgetLines(
     .orderBy(invoiceBudgetLines.createdAt)
     .all();
 
+  // Load area map once
+  const areaMap = loadAreaMap(db);
+
   // Resolve details for each line
-  const budgetLines = rows.map((row) => resolveDetail(db, row));
+  const budgetLines = rows.map((row) => resolveDetail(db, row, areaMap));
 
   // Calculate remaining amount
   const itemizedTotal = rows.reduce((sum, row) => sum + row.itemizedAmount, 0);
@@ -296,7 +330,8 @@ export function createInvoiceBudgetLine(
     .run();
 
   const row = db.select().from(invoiceBudgetLines).where(eq(invoiceBudgetLines.id, id)).get()!;
-  const budgetLine = resolveDetail(db, row);
+  const areaMap = loadAreaMap(db);
+  const budgetLine = resolveDetail(db, row, areaMap);
 
   // Calculate remaining amount
   const newRemainingAmount = invoice.amount - newTotal;
@@ -381,7 +416,8 @@ export function updateInvoiceBudgetLine(
     .from(invoiceBudgetLines)
     .where(eq(invoiceBudgetLines.id, lineId))
     .get()!;
-  const budgetLine = resolveDetail(db, updated);
+  const areaMap = loadAreaMap(db);
+  const budgetLine = resolveDetail(db, updated, areaMap);
 
   // Calculate remaining amount
   const allRows = db

@@ -1161,12 +1161,15 @@ export function HouseholdItemDetailPage() {
                         : t('detail.dependencies.milestone')}
                     </span>
                     {dep.predecessorType === 'work_item' ? (
-                      <Link
-                        to={`/project/work-items/${dep.predecessorId}`}
-                        className={styles.depPredLink}
-                      >
-                        {dep.predecessor.title}
-                      </Link>
+                      <>
+                        <Link
+                          to={`/project/work-items/${dep.predecessorId}`}
+                          className={styles.depPredLink}
+                        >
+                          {dep.predecessor.title}
+                        </Link>
+                        <AreaBreadcrumb area={dep.predecessor.area ?? null} variant="compact" />
+                      </>
                     ) : (
                       <span className={styles.depPredLabel}>{dep.predecessor.title}</span>
                     )}

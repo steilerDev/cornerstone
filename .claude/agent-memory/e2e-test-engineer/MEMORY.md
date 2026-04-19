@@ -3,6 +3,17 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`
 
+## Stories #1271/#1272/#1273 E2E (2026-04-19)
+
+- Diary source entity breadcrumb: `PATCH /api/work-items/:id { status }` triggers auto diary entry. Find it via `GET /api/diary-entries?type=work_item_status&pageSize=50`, then filter by `sourceEntityId === workItemId`.
+- `AreaBreadcrumb` null area: renders `<span class*="muted">No area</span>` — NOT inside `[class*="compact"]`. Use `getByText('No area', { exact: true })` + `locator('[class*="compact"]').not.toBeVisible()`.
+- `InvoiceDetailPage` POM `budgetLinesSection` locator was wrong (`[class*="budgetLinesSection"]` doesn't exist). Fixed to `[aria-labelledby="budget-lines-title"]` (InvoiceBudgetLinesSection renders `<section aria-labelledby="budget-lines-title">`).
+- Invoice budget line creation: `POST /api/invoices/:invoiceId/budget-lines` (NOT `/api/vendors/:vendorId/invoices/:invoiceId/budget-lines`).
+- WI budget POST response: `{ budget: { id } }`. HI budget POST response: `{ budget: { id } }`. Invoice budget line POST: `{ budgetLine: { id } }`.
+- HI dependency creation: `POST /api/household-items/:id/dependencies { predecessorType, predecessorId }`.
+- HI dep list locator: `page.getByRole('list').filter({ has: page.locator('[class*="depRow"]') })` — only one list on the page.
+- Diary auto events enabled by default (`DIARY_AUTO_EVENTS=true`). No need to configure E2E container.
+
 ## Budget Source Lines/Move + Work Item Create Regressions (fix/1279, 2026-04-18)
 
 - `getByText('Unassigned', { exact: true })` strict-mode violation: after PR #1265 made `isSelectable=true`, TriStateCheckbox renders `<span>Select all in Unassigned</span>` in the area group header. Playwright's `getByText` resolves to 2 elements (both the `<span>` AND the `areaName` span). Fix: use `panel.locator('[class*="areaName"]', { hasText: 'Unassigned' })`.

@@ -10,7 +10,7 @@
 import { eq, and } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { householdItemDeps, householdItems, workItems, milestones } from '../db/schema.js';
+import { householdItemDeps, householdItems, workItems, milestones, areas } from '../db/schema.js';
 import type {
   HouseholdItemDepDetail,
   HouseholdItemDepPredecessorSummary,
@@ -18,11 +18,36 @@ import type {
   WorkItemLinkedHouseholdItemSummary,
   HouseholdItemCategory,
   HouseholdItemStatus,
+  AreaSummary,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError, ConflictError } from '../errors/AppError.js';
 import { autoReschedule } from './schedulingEngine.js';
+import { loadAreaMap, resolveAreaAncestors, type AreaMapEntry } from './areaService.js';
+import { toAreaSummary } from './shared/converters.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
+
+/**
+ * Helper to resolve area summary with ancestors from area map.
+ */
+function getAreaWithAncestors(
+  areaId: string | null,
+  areaMap: Map<string, AreaMapEntry>,
+): AreaSummary | null {
+  if (!areaId) return null;
+  const entry = areaMap.get(areaId);
+  if (!entry) return null;
+  const ancestors = resolveAreaAncestors(areaId, areaMap);
+  return toAreaSummary(
+    {
+      id: entry.id,
+      name: entry.name,
+      color: entry.color,
+      parentId: entry.parentId,
+    } as typeof areas.$inferSelect,
+    ancestors,
+  );
+}
 
 /**
  * Verify a household item exists.
@@ -67,6 +92,7 @@ function ensureMilestoneExists(db: DbType, milestoneId: string): void {
 function getWorkItemPredecessor(
   db: DbType,
   workItemId: string,
+  areaMap: Map<string, AreaMapEntry>,
 ): HouseholdItemDepPredecessorSummary {
   const item = db.select().from(workItems).where(eq(workItems.id, workItemId)).get();
   if (!item) {
@@ -77,6 +103,7 @@ function getWorkItemPredecessor(
     title: item.title,
     status: item.status,
     endDate: item.endDate,
+    area: getAreaWithAncestors(item.areaId, areaMap),
   };
 }
 
@@ -100,6 +127,7 @@ function getMilestonePredecessor(
     title: milestone.title,
     status: null, // Milestones don't have a status field
     endDate: milestone.targetDate,
+    area: null, // Milestones don't have an area
   };
 }
 
@@ -136,10 +164,12 @@ export function listDeps(db: DbType, householdItemId: string): HouseholdItemDepD
     .where(eq(householdItemDeps.householdItemId, householdItemId))
     .all();
 
+  const areaMap = loadAreaMap(db);
+
   return rows.map((row) => {
     const predecessor =
       row.predecessorType === 'work_item'
-        ? getWorkItemPredecessor(db, row.predecessorId)
+        ? getWorkItemPredecessor(db, row.predecessorId, areaMap)
         : getMilestonePredecessor(db, row.predecessorId);
 
     return {
@@ -210,9 +240,10 @@ export function createDep(
   autoReschedule(db);
 
   // Fetch and return the created dependency with predecessor details
+  const areaMap = loadAreaMap(db);
   const predecessor =
     predecessorType === 'work_item'
-      ? getWorkItemPredecessor(db, predecessorId)
+      ? getWorkItemPredecessor(db, predecessorId, areaMap)
       : getMilestonePredecessor(db, predecessorId);
 
   return {

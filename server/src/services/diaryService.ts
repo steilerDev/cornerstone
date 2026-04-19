@@ -12,7 +12,7 @@ import { eq, desc, and, or, gte, lte, inArray, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { diaryEntries, photos, users, workItems, invoices, milestones } from '../db/schema.js';
+import { diaryEntries, photos, users, workItems, invoices, milestones, areas } from '../db/schema.js';
 import {
   NotFoundError,
   ValidationError,
@@ -37,8 +37,11 @@ import type {
   IssueMetadata,
   DiaryEntryType,
   DiarySourceEntityType,
+  AreaSummary,
 } from '@cornerstone/shared';
 import type { PaginationMeta } from '@cornerstone/shared';
+import { loadAreaMap, resolveAreaAncestors, type AreaMapEntry } from './areaService.js';
+import { toAreaSummary } from './shared/converters.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -128,6 +131,48 @@ function resolveSourceEntityTitle(
 }
 
 /**
+ * Helper to resolve area summary with ancestors from area map.
+ */
+function getAreaWithAncestors(
+  areaId: string | null,
+  areaMap: Map<string, AreaMapEntry>,
+): AreaSummary | null {
+  if (!areaId) return null;
+  const entry = areaMap.get(areaId);
+  if (!entry) return null;
+  const ancestors = resolveAreaAncestors(areaId, areaMap);
+  return toAreaSummary(
+    {
+      id: entry.id,
+      name: entry.name,
+      color: entry.color,
+      parentId: entry.parentId,
+    } as typeof areas.$inferSelect,
+    ancestors,
+  );
+}
+
+/**
+ * Resolve the area of a source entity based on its type and ID.
+ * Returns null if source entity is not a work_item or entity is not found.
+ */
+function resolveSourceEntityArea(
+  db: DbType,
+  sourceEntityType: string | null,
+  sourceEntityId: string | null,
+  areaMap: Map<string, AreaMapEntry>,
+): AreaSummary | null {
+  if (sourceEntityType !== 'work_item' || !sourceEntityId) return null;
+  const result = db
+    .select({ areaId: workItems.areaId })
+    .from(workItems)
+    .where(eq(workItems.id, sourceEntityId))
+    .get();
+  if (!result) return null;
+  return getAreaWithAncestors(result.areaId, areaMap);
+}
+
+/**
  * Convert database diary entry row to DiaryEntrySummary shape.
  * Includes photo count aggregated from photos table.
  */
@@ -136,6 +181,7 @@ function toDiarySummary(
   user: typeof users.$inferSelect | null,
   photoCount: number,
   sourceEntityTitle: string | null = null,
+  sourceEntityArea: AreaSummary | null = null,
 ): DiaryEntrySummary {
   const metadata = parseMetadata(entry.metadata);
   const isSigned = Boolean(
@@ -156,6 +202,7 @@ function toDiarySummary(
     isSigned,
     sourceEntityType: entry.sourceEntityType as DiarySourceEntityType | null,
     sourceEntityId: entry.sourceEntityId,
+    sourceEntityArea,
     sourceEntityTitle,
     photoCount,
     createdBy: toDiaryUserSummary(user),
@@ -444,18 +491,28 @@ export function listDiaryEntries(
     photoCountMap = new Map(photoCounts.map((r) => [r.entityId, r.count]));
   }
 
-  // Resolve source entity titles for all entries
+  // Load area map once
+  const areaMap = loadAreaMap(db);
+
+  // Resolve source entity titles and areas for all entries
   const items = entryRows.map((row) => {
     const sourceEntityTitle = resolveSourceEntityTitle(
       db,
       row.entry.sourceEntityType,
       row.entry.sourceEntityId,
     );
+    const sourceEntityArea = resolveSourceEntityArea(
+      db,
+      row.entry.sourceEntityType,
+      row.entry.sourceEntityId,
+      areaMap,
+    );
     return toDiarySummary(
       row.entry,
       row.user,
       photoCountMap.get(row.entry.id) ?? 0,
       sourceEntityTitle,
+      sourceEntityArea,
     );
   });
 
@@ -501,7 +558,15 @@ export function getDiaryEntry(db: DbType, id: string): DiaryEntryDetail {
     row.entry.sourceEntityId,
   );
 
-  return toDiarySummary(row.entry, row.user, photoCount?.count ?? 0, sourceEntityTitle);
+  const areaMap = loadAreaMap(db);
+  const sourceEntityArea = resolveSourceEntityArea(
+    db,
+    row.entry.sourceEntityType,
+    row.entry.sourceEntityId,
+    areaMap,
+  );
+
+  return toDiarySummary(row.entry, row.user, photoCount?.count ?? 0, sourceEntityTitle, sourceEntityArea);
 }
 
 /**
@@ -579,6 +644,7 @@ export function createDiaryEntry(
     },
     user,
     0,
+    null,
     null,
   );
 }
@@ -675,7 +741,15 @@ export function updateDiaryEntry(
     row!.entry.sourceEntityId,
   );
 
-  return toDiarySummary(row!.entry, row!.user, photoCount?.count ?? 0, sourceEntityTitle);
+  const areaMap = loadAreaMap(db);
+  const sourceEntityArea = resolveSourceEntityArea(
+    db,
+    row!.entry.sourceEntityType,
+    row!.entry.sourceEntityId,
+    areaMap,
+  );
+
+  return toDiarySummary(row!.entry, row!.user, photoCount?.count ?? 0, sourceEntityTitle, sourceEntityArea);
 }
 
 /**

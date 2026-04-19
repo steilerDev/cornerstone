@@ -20,6 +20,7 @@ import { DiaryMetadataSummary } from '../../components/diary/DiaryMetadataSummar
 import { SignatureDisplay } from '../../components/diary/SignatureDisplay/SignatureDisplay.js';
 import { PhotoGrid } from '../../components/photos/PhotoGrid.js';
 import { PhotoViewer } from '../../components/photos/PhotoViewer.js';
+import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import shared from '../../styles/shared.module.css';
 import styles from './DiaryEntryDetailPage.module.css';
 
@@ -297,6 +298,9 @@ export default function DiaryEntryDetailPage() {
               sourceId={entry.sourceEntityId}
               sourceTitle={entry.sourceEntityTitle}
             />
+            {entry.sourceEntityType === 'work_item' && (
+              <AreaBreadcrumb area={entry.sourceEntityArea ?? null} variant="compact" />
+            )}
           </div>
         )}
 
