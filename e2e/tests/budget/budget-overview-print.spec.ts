@@ -254,28 +254,37 @@ test.describe('Budget Overview — print behaviour', () => {
 
       // Initially all rows are collapsed — Work Items section and its areas are not visible
       await expect(overviewPage.breakdownAreaRow('Rohbau')).not.toBeVisible();
-      await expect(overviewPage.breakdownAreaRow('Keller')).not.toBeVisible();
+      // "Kellerbau" is unique and doesn't clash with any other name
       await expect(overviewPage.breakdownAreaRow('Kellerbau')).not.toBeVisible();
 
       // Dispatch beforeprint to trigger usePrintExpansion + switch to print media
       await overviewPage.startPrint();
 
-      // Allow React to re-render after the setState inside usePrintExpansion
-      // The hook's setState is asynchronous — wait for the DOM to reflect expansion
+      // Allow React to re-render after the setState inside usePrintExpansion.
+      // The hook's setState is asynchronous — wait for the DOM to reflect expansion.
       await page.waitForFunction(() => {
-        // Look for at least one expanded row (aria-expanded="true") in the breakdown table
         const section = document.querySelector('section[aria-labelledby="breakdown-heading"]');
         return (
-          section !== null &&
-          section.querySelector('[aria-expanded="true"]') !== null
+          section !== null && section.querySelector('[aria-expanded="true"]') !== null
         );
       });
 
-      // All areas including nested ones should now be in the DOM and visible in print mode
+      // Root areas visible after forced expansion
       await expect(overviewPage.breakdownAreaRow('Rohbau')).toBeVisible();
-      await expect(overviewPage.breakdownAreaRow('Keller')).toBeVisible();
-      await expect(overviewPage.breakdownAreaRow('Kellerbau')).toBeVisible();
       await expect(overviewPage.breakdownAreaRow('No Area')).toBeVisible();
+
+      // Deeply nested rows visible — Kellerbau is a work item inside Keller inside Rohbau.
+      // Use exact span text matching to avoid strict-mode conflicts with "Keller" vs "Kellerbau".
+      const kellerbauRow = overviewPage.costBreakdownCard
+        .getByRole('row')
+        .filter({ has: page.locator('span', { hasText: /^Kellerbau$/ }) });
+      await expect(kellerbauRow).toBeVisible();
+
+      // Keller area row: scope to span with exact text "Keller" to avoid matching "Kellerbau"
+      const kellerAreaRow = overviewPage.costBreakdownCard
+        .getByRole('row')
+        .filter({ has: page.locator('span', { hasText: /^Keller$/ }) });
+      await expect(kellerAreaRow).toBeVisible();
     } finally {
       await overviewPage.endPrint();
       await teardown();
@@ -306,8 +315,8 @@ test.describe('Budget Overview — print behaviour', () => {
       // Switch to print
       await overviewPage.startPrint();
 
-      // All expand/collapse buttons inside the breakdown table must be hidden via CSS
-      // The .expandBtn class has display: none !important in @media print
+      // All expand/collapse buttons inside the breakdown table must be hidden via CSS.
+      // The .expandBtn class has display: none !important in @media print.
       const expandButtons = overviewPage.costBreakdownCard.locator('[class*="expandBtn"]');
       const count = await expandButtons.count();
       expect(count).toBeGreaterThan(0); // Sanity: there should be expand buttons in the DOM
@@ -369,19 +378,25 @@ test.describe('Budget Overview — print behaviour', () => {
           .trim(),
       );
       // In dark mode the primary background is a dark color, not white
-      expect(darkBgVar).not.toBe('#ffffff');
+      expect(darkBgVar.toLowerCase()).not.toBe('#ffffff');
 
       // Switch to print
       await overviewPage.startPrint();
 
       // The :global(@media print) rule in BudgetOverviewPage.module.css resets
-      // --color-bg-primary to #ffffff regardless of data-theme
+      // --color-bg-primary to #ffffff regardless of data-theme.
+      // getPropertyValue returns the value with optional surrounding whitespace — trim it.
       const printBgVar = await page.evaluate(() =>
         getComputedStyle(document.documentElement)
           .getPropertyValue('--color-bg-primary')
           .trim(),
       );
-      expect(printBgVar).toBe('#ffffff');
+      // Accept both '#ffffff' and 'rgb(255, 255, 255)' — browser may normalise hex to rgb
+      const isWhite =
+        printBgVar.toLowerCase() === '#ffffff' ||
+        printBgVar === 'rgb(255, 255, 255)' ||
+        printBgVar === 'rgba(255, 255, 255, 1)';
+      expect(isWhite).toBe(true);
     } finally {
       await overviewPage.endPrint();
       await teardown();
@@ -401,13 +416,18 @@ test.describe('Budget Overview — print behaviour', () => {
       await overviewPage.waitForLoaded();
 
       // Establish a known pre-print state:
-      // Expand Work Items section and Rohbau — Keller becomes visible
-      // Leave Keller collapsed — Kellerbau should NOT be visible
+      // Expand Work Items section and Rohbau — Keller area becomes visible.
+      // Leave Keller collapsed — Kellerbau work item should NOT be visible.
       await overviewPage.costBreakdownCard
         .getByRole('button', { name: /expand work item budget by area/i })
         .click();
       await overviewPage.breakdownAreaToggle('Rohbau').click();
-      await expect(overviewPage.breakdownAreaRow('Keller')).toBeVisible();
+
+      // Keller area row: scope to span with exact text "Keller" to avoid matching "Kellerbau"
+      const kellerAreaRow = overviewPage.costBreakdownCard
+        .getByRole('row')
+        .filter({ has: page.locator('span', { hasText: /^Keller$/ }) });
+      await expect(kellerAreaRow).toBeVisible();
       await expect(overviewPage.breakdownAreaRow('Kellerbau')).not.toBeVisible();
 
       // Simulate print cycle
@@ -417,18 +437,17 @@ test.describe('Budget Overview — print behaviour', () => {
       await page.waitForFunction(() => {
         const section = document.querySelector('section[aria-labelledby="breakdown-heading"]');
         return (
-          section !== null &&
-          section.querySelector('[aria-expanded="true"]') !== null
+          section !== null && section.querySelector('[aria-expanded="true"]') !== null
         );
       });
 
-      // Restore screen
+      // Restore screen — dispatches afterprint and sets media back to screen
       await overviewPage.endPrint();
 
-      // After afterprint: pre-print state should be restored
-      // Rohbau is still expanded (Keller visible)
-      await expect(overviewPage.breakdownAreaRow('Keller')).toBeVisible();
-      // Keller was collapsed — Kellerbau should be hidden again
+      // After afterprint: pre-print state must be restored.
+      // Rohbau was expanded — Keller area is still visible
+      await expect(kellerAreaRow).toBeVisible();
+      // Keller was collapsed before print — Kellerbau should be hidden again
       await expect(overviewPage.breakdownAreaRow('Kellerbau')).not.toBeVisible();
     } finally {
       await teardown();
@@ -438,8 +457,8 @@ test.describe('Budget Overview — print behaviour', () => {
   test('Other pages are unaffected by Budget Overview print styles (regression AC10)', async ({
     page,
   }) => {
-    // Navigate to the Diary page — not a budget page, no print-specific budget styling
-    // Mock the diary API to avoid needing a live backend
+    // Navigate to the Diary page — not a budget page, no print-specific budget styling.
+    // Mock the diary API to return an empty list so the page renders without backend.
     await page.route(`${API.diaryEntries}**`, async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
@@ -454,14 +473,23 @@ test.describe('Budget Overview — print behaviour', () => {
 
     try {
       await page.goto(ROUTES.diary);
-      await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
+
+      // Use expect().toBeVisible() which uses the project's expect.timeout (7000ms for desktop)
+      // rather than waitFor() which uses actionTimeout (5000ms).
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+      // The diary heading text should be "Construction Diary"
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Construction Diary');
 
       // Switch to print media to simulate print on a non-budget page
       await page.emulateMedia({ media: 'print' });
 
       // The diary page h1 heading should still be visible — Budget Overview print
-      // styles should not have hidden it
+      // styles should not have hidden it.
+      // Note: the global print.css hides [role=navigation] and aside,
+      // but the diary h1 is in a <header> element, not a nav or aside.
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Construction Diary');
     } finally {
       await page.emulateMedia({ media: 'screen' });
       await page.unroute(`${API.diaryEntries}**`);
