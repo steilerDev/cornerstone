@@ -166,8 +166,9 @@
   border-left: 3px solid var(--color-border-strong);
 }
 
-/* Area name cell with depth-based indent driven by inline --area-depth custom property */
-.cellAreaName {
+/* Area name cell with depth-based indent driven by inline --area-depth custom property.
+ * Scoped to .rowLevel1 to beat the .rowLevel1 td padding shorthand specificity. */
+.rowLevel1 .cellAreaName {
   padding-left: calc(var(--spacing-8) + (var(--spacing-6) * var(--area-depth, 0)));
   border-left: 3px solid var(--color-border-strong);
 }
@@ -187,8 +188,9 @@
   background: var(--color-bg-hover);
 }
 
-.cellLevel2Name {
-  padding-left: var(--spacing-14);
+/* Level-2 item name cell — depth inherits from the parent area via --item-depth. */
+.rowLevel2 .cellLevel2Name {
+  padding-left: calc(var(--spacing-12) + (var(--spacing-6) * var(--item-depth, 0)));
 }
 
 /* ---- Level 3: Budget line rows ---- */
@@ -206,8 +208,9 @@
   background: var(--color-bg-hover);
 }
 
-.cellLevel3Name {
-  padding-left: var(--spacing-20);
+/* Level-3 budget line name cell — depth inherits from the parent item via --item-depth. */
+.rowLevel3 .cellLevel3Name {
+  padding-left: calc(var(--spacing-16) + (var(--spacing-6) * var(--item-depth, 0)));
 }
 
 /* ---- Sum rows ---- */

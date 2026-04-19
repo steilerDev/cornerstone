@@ -170,6 +170,18 @@ The sandbox environment is resource-constrained. When running tests locally:
 - **Always use a single worker** — pass `--maxWorkers=1` to Jest for any local test execution
 - Rely on CI for full suite validation
 
+### GitHub Rate-Limit Retry Policy
+
+When `gh` or `git push` commands fail with a GitHub rate-limit error (primary API limit, secondary abuse limit, or `HTTP 403`/`HTTP 429` with a rate-limit message), retry with **exponential backoff** instead of aborting:
+
+- Detect: stderr contains `rate limit`, `secondary rate limit`, `abuse detection`, `was blocked`, `HTTP 403`, or `HTTP 429`
+- Backoff schedule: 30s → 60s → 120s → 240s → 480s (cap 480s, max 6 attempts)
+- Honor `Retry-After` / `X-RateLimit-Reset` headers when present (use the larger of the header value and the current backoff step)
+- Only retry transient rate-limit failures. Permission errors, merge conflicts, and other non-transient failures must not be retried
+- Log each retry attempt with its wait duration so the user can see progress
+
+Apply the same policy when polling CI gates — if `gh pr checks` fails with a rate-limit error, the polling loop's normal sleep already absorbs short-lived throttling; for persistent rate-limit errors, extend the sleep per the backoff schedule above.
+
 ### Agent Attribution
 
 All agents must clearly identify themselves:

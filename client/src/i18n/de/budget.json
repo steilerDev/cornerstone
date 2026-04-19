@@ -64,7 +64,7 @@
       "area": {
         "expandArea": "{{name}} ausklappen",
         "collapseArea": "{{name}} einklappen",
-        "unassigned": "Nicht zugewiesen",
+        "unassigned": "Kein Bereich",
         "expandWorkItemsLabel": "Arbeitspakete nach Bereich aufklappen",
         "expandHouseholdItemsLabel": "Haushaltsartikel nach Bereich aufklappen"
       }

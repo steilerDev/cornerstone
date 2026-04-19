@@ -271,10 +271,10 @@ describe('SourceBudgetLinePanel', () => {
     });
   });
 
-  // ─── Grouping — Unassigned last (scenario 7) ─────────────────────────────────
+  // ─── Grouping — No Area last (scenario 7) ────────────────────────────────────
 
-  describe('grouping — Unassigned appears after named areas', () => {
-    it('Unassigned group appears after named area groups', () => {
+  describe('grouping — "No Area" appears after named areas', () => {
+    it('"No Area" group appears after named area groups', () => {
       const namedLine = makeLine({
         id: 'l1',
         parentId: 'p1',
@@ -296,12 +296,12 @@ describe('SourceBudgetLinePanel', () => {
 
       renderPanel({ data: makeResponse([namedLine, unassignedLine1, unassignedLine2], []) });
 
-      // Both area headers should appear — named area and "Unassigned"
+      // Both area headers should appear — named area and "No Area"
       const kitchenHeaders = screen.getAllByText('Kitchen');
       expect(kitchenHeaders.length).toBeGreaterThan(0);
       expect(screen.getByText('No Area')).toBeInTheDocument();
 
-      // Verify order: "Kitchen" should appear before "Unassigned" in the DOM
+      // Verify order: "Kitchen" should appear before "No Area" in the DOM
       const allText = document.body.textContent ?? '';
       const kitchenPos = allText.indexOf('Kitchen');
       const unassignedPos = allText.indexOf('No Area');

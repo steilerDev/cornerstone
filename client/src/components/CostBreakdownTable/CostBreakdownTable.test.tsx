@@ -139,8 +139,8 @@ function getButtonByControls(_container: HTMLElement, controlsId: string): HTMLE
     ariaLabel = `Expand ${controlsId.slice('hi-item:'.length)}`;
   } else if (controlsId.startsWith('wi-cat-') && controlsId.endsWith('-items')) {
     // Legacy format: the area name is the areaName passed to the test, which for null-area items
-    // is 'Unassigned'. Map "wi-cat-*-items" → "Expand Unassigned" (single area in most tests).
-    ariaLabel = 'Expand Unassigned';
+    // is 'No Area'. Map "wi-cat-*-items" → "Expand No Area" (single area in most tests).
+    ariaLabel = 'Expand No Area';
   } else if (controlsId.startsWith('hi-cat-') && controlsId.endsWith('-items')) {
     // Legacy HI category format: extract name from "hi-cat-{name}-items".
     // HI area sections now use the same pattern as WI: initial collapsed state = "Expand {name}".
@@ -245,8 +245,8 @@ function buildEmptyBreakdown(): BudgetBreakdown {
 }
 
 /**
- * Build a breakdown with one WI area (Unassigned) containing one item.
- * All items have null areaId so they land in the synthetic Unassigned bucket.
+ * Build a breakdown with one WI area (No Area) containing one item.
+ * All items have null areaId so they land in the synthetic "No Area" bucket.
  */
 function buildBreakdownWithWI(
   opts: {
@@ -262,7 +262,7 @@ function buildBreakdownWithWI(
     workItemId?: string;
     description?: string | null;
     hasInvoice?: boolean;
-    // Legacy params — kept for backward compat but ignored (area is always Unassigned)
+    // Legacy params — kept for backward compat but ignored (area is always No Area)
     categoryId?: string | null;
     categoryName?: string;
   } = {},
@@ -351,7 +351,7 @@ function buildBreakdownWithWI(
 /**
  * Build a breakdown with one HI area containing one item.
  * When hiCategory is provided, an area node with that name is created (non-null areaId).
- * When hiCategory is omitted, items land in the Unassigned bucket (null areaId).
+ * When hiCategory is omitted, items land in the "No Area" bucket (null areaId).
  */
 function buildBreakdownWithHI(
   opts: {
@@ -560,8 +560,8 @@ describe('CostBreakdownTable', () => {
       />,
     );
 
-    // Area name 'Unassigned' should not be visible yet (inside collapsed section)
-    expect(screen.queryByText('Unassigned')).not.toBeInTheDocument();
+    // Area name 'No Area' should not be visible yet (inside collapsed section)
+    expect(screen.queryByText('No Area')).not.toBeInTheDocument();
   });
 
   // ── 18. Click WI section toggle — area rows appear ───────────────────────
@@ -577,8 +577,8 @@ describe('CostBreakdownTable', () => {
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
 
-    // buildBreakdownWithWI places items in the Unassigned area node
-    expect(screen.getByText('Unassigned')).toBeInTheDocument();
+    // buildBreakdownWithWI places items in the "No Area" node
+    expect(screen.getByText('No Area')).toBeInTheDocument();
   });
 
   it('sets aria-expanded=true on WI toggle button after clicking', () => {
@@ -609,8 +609,8 @@ describe('CostBreakdownTable', () => {
     // Expand WI section
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
 
-    // Expand Unassigned area: aria-label="Expand Unassigned"
-    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    // Expand No Area: aria-label="Expand No Area"
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
 
     expect(screen.getByText('City Permit')).toBeInTheDocument();
   });
@@ -629,7 +629,7 @@ describe('CostBreakdownTable', () => {
 
     // Expand WI section → area → item
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
     fireEvent.click(getButtonByLabel('Expand Crane Rental'));
 
     expect(screen.getByText('Tower crane for 3 weeks')).toBeInTheDocument();
@@ -646,7 +646,7 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
     fireEvent.click(getButtonByLabel('Expand Architect Fee'));
 
     expect(screen.getByText('Untitled')).toBeInTheDocument();
@@ -666,7 +666,7 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
 
     // The item row Cost column shows "-€950.00" (formatCost) without "Actual:" label
     expect(screen.getAllByText('-€950.00').length).toBeGreaterThanOrEqual(1);
@@ -843,7 +843,7 @@ describe('CostBreakdownTable', () => {
     expect(screen.getByText('Bathroom')).toBeInTheDocument();
   });
 
-  it('renders Unassigned area node when items have no area', () => {
+  it('renders "No Area" area node when items have no area', () => {
     const breakdown: BudgetBreakdown = {
       workItems: {
         areas: [
@@ -894,7 +894,7 @@ describe('CostBreakdownTable', () => {
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
 
-    expect(screen.getByText('Unassigned')).toBeInTheDocument();
+    expect(screen.getByText('No Area')).toBeInTheDocument();
   });
 
   // ── 27. HI section shows alongside WI section ──────────────────────────────
@@ -1074,7 +1074,7 @@ describe('CostBreakdownTable', () => {
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
 
-    const areaToggle = getButtonByControls(container, 'area:Unassigned');
+    const areaToggle = getButtonByControls(container, 'area:No Area');
     expect(areaToggle).toHaveAttribute('aria-expanded');
   });
 
@@ -1090,7 +1090,7 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
 
     const itemToggle = getButtonByLabel('Expand Home Insurance');
     expect(itemToggle).toHaveAttribute('aria-expanded');
@@ -1145,11 +1145,11 @@ describe('CostBreakdownTable', () => {
 
     // Expand
     fireEvent.click(wiToggle);
-    expect(screen.getByText('Unassigned')).toBeInTheDocument();
+    expect(screen.getByText('No Area')).toBeInTheDocument();
 
     // Collapse
     fireEvent.click(wiToggle);
-    expect(screen.queryByText('Unassigned')).not.toBeInTheDocument();
+    expect(screen.queryByText('No Area')).not.toBeInTheDocument();
   });
 
   // ── Table structure — Column Headers ──────────────────────────────────────
@@ -1282,12 +1282,12 @@ describe('CostBreakdownTable', () => {
     const { container } = renderWithRouter(buildBreakdownWithWI(), buildOverview());
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
 
     // Area header row still shows the area name
-    expect(screen.getByText('Unassigned')).toBeInTheDocument();
-    // But no "Total Unassigned" sum row should appear
-    expect(screen.queryByText('Total Unassigned')).not.toBeInTheDocument();
+    expect(screen.getByText('No Area')).toBeInTheDocument();
+    // But no "Total No Area" sum row should appear
+    expect(screen.queryByText('Total No Area')).not.toBeInTheDocument();
   });
 
   it('does not show a "Total {area}" sum row after expanding an HI area (Bug #585)', () => {
@@ -1305,9 +1305,9 @@ describe('CostBreakdownTable', () => {
     expect(screen.queryByText('Total Garage')).not.toBeInTheDocument();
   });
 
-  // ── Unassigned area node for null-area WI items ───────────────────────────
+  // ── "No Area" node for null-area WI items ────────────────────────────────
 
-  it('renders WI item with null areaId under Unassigned area label', () => {
+  it('renders WI item with null areaId under "No Area" label', () => {
     const { container } = render(
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
@@ -1318,7 +1318,7 @@ describe('CostBreakdownTable', () => {
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
 
-    expect(screen.getByText('Unassigned')).toBeInTheDocument();
+    expect(screen.getByText('No Area')).toBeInTheDocument();
   });
 
   // ── Perspective Toggle (Scenarios 1–6) ────────────────────────────────────
@@ -1569,7 +1569,7 @@ describe('CostBreakdownTable', () => {
 
     // Expand to budget line level
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
     fireEvent.click(getButtonByLabel('Expand Foundation Work'));
 
     // Budget line row (level 3) with hasInvoice shows "invoiced" badge (not rowActual class)
@@ -2141,7 +2141,7 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
     fireEvent.click(getButtonByLabel('Expand Foundation Work'));
 
     // Both the work item row (costDisplay=actual) and the budget line row (hasInvoice=true)
@@ -2176,7 +2176,7 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
     fireEvent.click(getButtonByLabel('Expand Foundation Work'));
 
     // Confidence badge text "own estimate" must NOT appear when hasInvoice=true
@@ -2200,7 +2200,7 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
     fireEvent.click(getButtonByLabel('Expand Foundation Work'));
 
     // Confidence level "own_estimate" renders as "own estimate" in ConfidenceBadge
@@ -2341,7 +2341,7 @@ describe('CostBreakdownTable', () => {
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
     fireEvent.click(getButtonByLabel('Expand Foundation Work'));
 
     const level3Rows = container.querySelectorAll('.rowLevel3');
@@ -2349,6 +2349,267 @@ describe('CostBreakdownTable', () => {
     level3Rows.forEach((row) => {
       expect(row.getAttribute('class') ?? '').not.toContain('rowActual');
     });
+  });
+
+  // ── Depth-driven indent (Issue #1295) ─────────────────────────────────────
+
+  /**
+   * Build a breakdown where the work item lives under a child area at depth 1.
+   * Root area (depth 0, no items) → Child area (depth 1, one WI, optionally with budget lines).
+   */
+  function buildNestedBreakdownWithWI(opts: { budgetLines?: boolean } = {}): BudgetBreakdown {
+    const budgetLines = opts.budgetLines ?? false;
+    return {
+      workItems: {
+        areas: [
+          {
+            areaId: 'area-root',
+            name: 'Root Area',
+            parentId: null,
+            color: null,
+            projectedMin: 800,
+            projectedMax: 1200,
+            actualCost: 0,
+            subsidyPayback: 0,
+            rawProjectedMin: 800,
+            rawProjectedMax: 1200,
+            minSubsidyPayback: 0,
+            items: [],
+            children: [
+              {
+                areaId: 'area-child',
+                name: 'Child Area',
+                parentId: 'area-root',
+                color: null,
+                projectedMin: 800,
+                projectedMax: 1200,
+                actualCost: 0,
+                subsidyPayback: 0,
+                rawProjectedMin: 800,
+                rawProjectedMax: 1200,
+                minSubsidyPayback: 0,
+                items: [
+                  {
+                    workItemId: 'wi-nested',
+                    title: 'Nested Work Item',
+                    projectedMin: 800,
+                    projectedMax: 1200,
+                    actualCost: 0,
+                    subsidyPayback: 0,
+                    rawProjectedMin: 800,
+                    rawProjectedMax: 1200,
+                    minSubsidyPayback: 0,
+                    costDisplay: 'projected',
+                    budgetLines: budgetLines
+                      ? [
+                          {
+                            id: 'line-nested-1',
+                            description: 'Nested budget line',
+                            plannedAmount: 1000,
+                            confidence: 'own_estimate',
+                            actualCost: 0,
+                            hasInvoice: false,
+                            isQuotation: false,
+                          },
+                        ]
+                      : [],
+                  },
+                ],
+                children: [],
+              },
+            ],
+          },
+        ],
+        totals: {
+          projectedMin: 800,
+          projectedMax: 1200,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 800,
+          rawProjectedMax: 1200,
+          minSubsidyPayback: 0,
+        },
+      },
+      householdItems: {
+        areas: [],
+        totals: {
+          projectedMin: 0,
+          projectedMax: 0,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 0,
+          rawProjectedMax: 0,
+          minSubsidyPayback: 0,
+        },
+      },
+      subsidyAdjustments: [],
+    };
+  }
+
+  /**
+   * Build a breakdown where the household item lives under a child HI area at depth 1.
+   */
+  function buildNestedBreakdownWithHI(): BudgetBreakdown {
+    return {
+      workItems: {
+        areas: [],
+        totals: {
+          projectedMin: 0,
+          projectedMax: 0,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 0,
+          rawProjectedMax: 0,
+          minSubsidyPayback: 0,
+        },
+      },
+      householdItems: {
+        areas: [
+          {
+            areaId: 'area-hi-root',
+            name: 'HI Root Area',
+            parentId: null,
+            color: null,
+            projectedMin: 400,
+            projectedMax: 600,
+            actualCost: 0,
+            subsidyPayback: 0,
+            rawProjectedMin: 400,
+            rawProjectedMax: 600,
+            minSubsidyPayback: 0,
+            items: [],
+            children: [
+              {
+                areaId: 'area-hi-child',
+                name: 'HI Child Area',
+                parentId: 'area-hi-root',
+                color: null,
+                projectedMin: 400,
+                projectedMax: 600,
+                actualCost: 0,
+                subsidyPayback: 0,
+                rawProjectedMin: 400,
+                rawProjectedMax: 600,
+                minSubsidyPayback: 0,
+                items: [
+                  {
+                    householdItemId: 'hi-nested',
+                    name: 'Nested HI Item',
+                    projectedMin: 400,
+                    projectedMax: 600,
+                    actualCost: 0,
+                    subsidyPayback: 0,
+                    rawProjectedMin: 400,
+                    rawProjectedMax: 600,
+                    minSubsidyPayback: 0,
+                    costDisplay: 'projected',
+                    budgetLines: [],
+                  },
+                ],
+                children: [],
+              },
+            ],
+          },
+        ],
+        totals: {
+          projectedMin: 400,
+          projectedMax: 600,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 400,
+          rawProjectedMax: 600,
+          minSubsidyPayback: 0,
+        },
+      },
+      subsidyAdjustments: [],
+    };
+  }
+
+  // Scenario A — Work item at depth 0 has `--item-depth: 0`
+  it('Scenario A: work item at depth 0 renders name cell with --item-depth: 0', () => {
+    const { container } = renderWithRouter(buildBreakdownWithWI(), buildOverview());
+
+    // Expand WI section then the No Area node
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
+
+    // The work item row name cell (cellLevel2Name) should have --item-depth: 0
+    const nameCell = container.querySelector('td.cellLevel2Name');
+    expect(nameCell).not.toBeNull();
+    expect(nameCell).toHaveStyle({ '--item-depth': '0' });
+  });
+
+  // Scenario B — Work item in a depth-1 (nested) area has `--item-depth: 1`
+  it('Scenario B: work item in a depth-1 child area renders name cell with --item-depth: 1', () => {
+    const { container } = renderWithRouter(buildNestedBreakdownWithWI(), buildOverview());
+
+    // Expand WI section → Root Area → Child Area
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByLabel('Expand Root Area'));
+    fireEvent.click(getButtonByLabel('Expand Child Area'));
+
+    // The work item row name cell should have --item-depth: 1 (child area depth)
+    const nameCell = container.querySelector('td.cellLevel2Name');
+    expect(nameCell).not.toBeNull();
+    expect(nameCell).toHaveStyle({ '--item-depth': '1' });
+  });
+
+  // Scenario C — Budget line inherits parent work item's depth
+  it('Scenario C: budget line in a depth-1 area renders name cell with --item-depth: 1', () => {
+    const { container } = renderWithRouter(
+      buildNestedBreakdownWithWI({ budgetLines: true }),
+      buildOverview(),
+    );
+
+    // Expand WI section → Root Area → Child Area → work item
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByLabel('Expand Root Area'));
+    fireEvent.click(getButtonByLabel('Expand Child Area'));
+    fireEvent.click(getButtonByLabel('Expand Nested Work Item'));
+
+    // The budget line row name cell (cellLevel3Name) should have --item-depth: 1
+    const budgetLineNameCell = container.querySelector('td.cellLevel3Name');
+    expect(budgetLineNameCell).not.toBeNull();
+    expect(budgetLineNameCell).toHaveStyle({ '--item-depth': '1' });
+  });
+
+  // Scenario D — Household item at depth 1 has `--item-depth: 1`
+  it('Scenario D: household item in a depth-1 child area renders name cell with --item-depth: 1', () => {
+    const { container } = renderWithRouter(buildNestedBreakdownWithHI(), buildOverview());
+
+    // Expand HI section → HI Root Area → HI Child Area
+    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
+    fireEvent.click(getButtonByLabel('Expand HI Root Area'));
+    fireEvent.click(getButtonByLabel('Expand HI Child Area'));
+
+    // The household item row name cell should have --item-depth: 1
+    const nameCell = container.querySelector('td.cellLevel2Name');
+    expect(nameCell).not.toBeNull();
+    expect(nameCell).toHaveStyle({ '--item-depth': '1' });
+  });
+
+  // Scenario E — "No Area" label renders in WI section after expansion (AC2 regression)
+  it('Scenario E: "No Area" label renders in WI section after expansion and "Unassigned" is absent', () => {
+    renderWithRouter(buildBreakdownWithWI(), buildOverview());
+
+    // Expand WI section
+    fireEvent.click(screen.getByRole('button', { name: 'Expand work item budget by area' }));
+
+    // "No Area" should appear
+    expect(screen.getByText('No Area')).toBeInTheDocument();
+    // "Unassigned" must NOT appear anywhere in the rendered output
+    expect(screen.queryByText('Unassigned')).not.toBeInTheDocument();
+  });
+
+  // Scenario F — "No Area" label renders in HI section after expansion (AC2 regression)
+  it('Scenario F: "No Area" label renders in HI section after expansion', () => {
+    renderWithRouter(buildBreakdownWithHI(), buildOverview());
+
+    // Expand HI section
+    fireEvent.click(screen.getByRole('button', { name: 'Expand household item budget by area' }));
+
+    // "No Area" should appear
+    expect(screen.getByText('No Area')).toBeInTheDocument();
   });
 });
 
@@ -2370,7 +2631,7 @@ describe('Bug #585 — no "Total {category}" sum row after expand', () => {
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     fireEvent.click(getButtonByControls(container, 'wi-cat-cat-permits-585-items'));
 
-    // The item row is rendered (area-based UI — category name param is ignored, area is always Unassigned)
+    // The item row is rendered (area-based UI — category name param is ignored, area is always No Area)
     expect(screen.getByText('City Permit')).toBeInTheDocument();
 
     // After the bug fix, no "Total Permits" sum row should appear

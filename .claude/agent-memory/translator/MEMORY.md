@@ -44,6 +44,7 @@ Action labels in German follow the pattern: `{Noun} {Verb}` with capitalised fir
 - `de/settings.json` was missing `backups` section entirely — added 2026-03-22 (Issue #1146)
 - `de/errors.json` had four backup/restore keys with empty placeholder values (left by frontend-developer) — filled in 2026-03-22 (Issue #1146)
 - `de/areas.json` created 2026-04-16 (Story #1237): `noArea` → "Kein Bereich", `pathLabel` → "Bereichspfad"
+- `de/budget.json` — `overview.costBreakdown.area.unassigned` and `sources.lines.unassignedArea` both updated to "Kein Bereich" 2026-04-19 (Issue #1295), aligned with `de/areas.json` and the `noCategory` → "Keine Kategorie" parallel pattern
 - Always check key parity when picking up a new translator spec
 
 ## Backup/Restore Terminology (2026-03-22)
