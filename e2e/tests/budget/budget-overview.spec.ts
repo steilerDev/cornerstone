@@ -107,8 +107,8 @@ test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
     // Then: The sub-navigation is visible
     await expect(overviewPage.subNav).toBeVisible();
 
-    // And: All four budget tabs are present (Categories moved to Manage page)
-    const expectedTabs = ['Overview', 'Vendors', 'Sources', 'Subsidies'];
+    // And: All four budget tabs are present (Vendors moved to Settings in #1286, Categories to Manage page)
+    const expectedTabs = ['Overview', 'Invoices', 'Sources', 'Subsidies'];
     for (const tab of expectedTabs) {
       await expect(overviewPage.subNav.getByRole('link', { name: tab })).toBeVisible();
     }
