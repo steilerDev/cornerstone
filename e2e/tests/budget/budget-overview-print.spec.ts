@@ -269,9 +269,14 @@ test.describe('Budget Overview — print behaviour', () => {
         );
       });
 
-      // Root areas visible after forced expansion
+      // Root areas visible after forced expansion.
+      // "No Area" is also a substring of the work item "No Area Work Item" so use exact span
+      // matching (same pattern as Keller/Kellerbau fix) to avoid strict-mode violations.
       await expect(overviewPage.breakdownAreaRow('Rohbau')).toBeVisible();
-      await expect(overviewPage.breakdownAreaRow('No Area')).toBeVisible();
+      const noAreaRow = overviewPage.costBreakdownCard
+        .getByRole('row')
+        .filter({ has: page.locator('span', { hasText: /^No Area$/ }) });
+      await expect(noAreaRow).toBeVisible();
 
       // Deeply nested rows visible — Kellerbau is a work item inside Keller inside Rohbau.
       // Use exact span text matching to avoid strict-mode conflicts with "Keller" vs "Kellerbau".
@@ -385,17 +390,24 @@ test.describe('Budget Overview — print behaviour', () => {
 
       // The :global(@media print) rule in BudgetOverviewPage.module.css resets
       // --color-bg-primary to #ffffff regardless of data-theme.
-      // getPropertyValue returns the value with optional surrounding whitespace — trim it.
-      const printBgVar = await page.evaluate(() =>
-        getComputedStyle(document.documentElement)
-          .getPropertyValue('--color-bg-primary')
-          .trim(),
-      );
-      // Accept both '#ffffff' and 'rgb(255, 255, 255)' — browser may normalise hex to rgb
+      // To avoid brittle string comparisons (some browsers return '#ffffff', others
+      // 'rgb(255, 255, 255)', etc.) we create a throwaway element, apply the CSS
+      // variable as its background-color, and read the computed rgb() value which
+      // browsers always normalise to 'rgb(R, G, B)' format.
+      const printBgNormalised = await page.evaluate(() => {
+        const el = document.createElement('div');
+        el.style.backgroundColor = 'var(--color-bg-primary)';
+        document.body.appendChild(el);
+        const computed = getComputedStyle(el).backgroundColor;
+        document.body.removeChild(el);
+        return computed;
+      });
+      // White in all normalised forms: 'rgb(255, 255, 255)' (with or without spaces)
       const isWhite =
-        printBgVar.toLowerCase() === '#ffffff' ||
-        printBgVar === 'rgb(255, 255, 255)' ||
-        printBgVar === 'rgba(255, 255, 255, 1)';
+        printBgNormalised === 'rgb(255, 255, 255)' ||
+        printBgNormalised === 'rgb(255,255,255)' ||
+        printBgNormalised === 'rgba(255, 255, 255, 1)' ||
+        printBgNormalised === 'rgba(255,255,255,1)';
       expect(isWhite).toBe(true);
     } finally {
       await overviewPage.endPrint();
@@ -433,23 +445,30 @@ test.describe('Budget Overview — print behaviour', () => {
       // Simulate print cycle
       await overviewPage.startPrint();
 
-      // During print: Kellerbau should now be visible (forced expansion)
-      await page.waitForFunction(() => {
-        const section = document.querySelector('section[aria-labelledby="breakdown-heading"]');
-        return (
-          section !== null && section.querySelector('[aria-expanded="true"]') !== null
-        );
-      });
+      // During print: wait for Kellerbau to become VISIBLE — this confirms that the
+      // usePrintExpansion hook has fully applied the forced-expansion state from beforeprint.
+      // We must wait for Kellerbau specifically (not just any aria-expanded="true", which
+      // already existed before print from the Rohbau expansion) to ensure the hook's setState
+      // has been fully processed before calling endPrint().
+      await overviewPage.breakdownAreaRow('Kellerbau').waitFor({ state: 'visible' });
 
-      // Restore screen — dispatches afterprint and sets media back to screen
+      // Restore screen — dispatches afterprint and sets media back to screen.
+      // The usePrintExpansion hook restores state asynchronously (React setState),
+      // so we need to wait for the DOM to converge after calling endPrint().
       await overviewPage.endPrint();
 
       // After afterprint: pre-print state must be restored.
-      // Rohbau was expanded — Keller area is still visible
-      await expect(kellerAreaRow).toBeVisible();
-      // Keller was collapsed before print — Kellerbau should be hidden again
-      await expect(overviewPage.breakdownAreaRow('Kellerbau')).not.toBeVisible();
+      // Rohbau was expanded — Keller area is still visible.
+      await kellerAreaRow.waitFor({ state: 'visible' });
+
+      // Keller was collapsed before print — Kellerbau should be hidden again.
+      // The hook restores state via React setState which is async.
+      // waitFor({ state: 'hidden' }) polls until the row is no longer visible.
+      await overviewPage.breakdownAreaRow('Kellerbau').waitFor({ state: 'hidden' });
     } finally {
+      // Ensure print media is always restored even if the test throws early —
+      // otherwise print mode leaks to subsequent tests in the same worker.
+      await overviewPage.endPrint().catch(() => {});
       await teardown();
     }
   });
@@ -458,8 +477,10 @@ test.describe('Budget Overview — print behaviour', () => {
     page,
   }) => {
     // Navigate to the Diary page — not a budget page, no print-specific budget styling.
-    // Mock the diary API to return an empty list so the page renders without backend.
-    await page.route(`${API.diaryEntries}**`, async (route) => {
+    // Mock the diary API to return an empty list so the page renders without real diary data.
+    // Use the '**/api/diary-entries*' pattern (leading **) to match the full URL including
+    // the http://localhost:PORT prefix that Playwright sees when doing the glob match.
+    await page.route('**/api/diary-entries*', async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
@@ -492,7 +513,7 @@ test.describe('Budget Overview — print behaviour', () => {
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('Construction Diary');
     } finally {
       await page.emulateMedia({ media: 'screen' });
-      await page.unroute(`${API.diaryEntries}**`);
+      await page.unroute('**/api/diary-entries*').catch(() => {});
     }
   });
 });
