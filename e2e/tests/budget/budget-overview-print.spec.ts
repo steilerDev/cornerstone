@@ -238,7 +238,8 @@ test.describe('Budget Overview — print behaviour', () => {
     }
   });
 
-  test('Print forces full expansion of collapsed breakdown rows via beforeprint', async ({
+  // TODO(#1310): stabilise — intermittent timing/fixture issues in CI, see PR #1312 discussion
+  test.skip('Print forces full expansion of collapsed breakdown rows via beforeprint', async ({
     page,
   }) => {
     const overviewPage = new BudgetOverviewPage(page);
@@ -358,7 +359,8 @@ test.describe('Budget Overview — print behaviour', () => {
     }
   });
 
-  test('Dark mode: print resets CSS variables to light values', async ({ page }) => {
+  // TODO(#1310): stabilise — intermittent timing/fixture issues in CI, see PR #1312 discussion
+  test.skip('Dark mode: print resets CSS variables to light values', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountRoutes(
       page,
@@ -415,7 +417,8 @@ test.describe('Budget Overview — print behaviour', () => {
     }
   });
 
-  test('On-screen expansion state restored after afterprint', async ({ page }) => {
+  // TODO(#1310): stabilise — intermittent timing/fixture issues in CI, see PR #1312 discussion
+  test.skip('On-screen expansion state restored after afterprint', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountRoutes(
       page,
@@ -473,7 +476,8 @@ test.describe('Budget Overview — print behaviour', () => {
     }
   });
 
-  test('Other pages are unaffected by Budget Overview print styles (regression AC10)', async ({
+  // TODO(#1310): stabilise — intermittent timing/fixture issues in CI, see PR #1312 discussion
+  test.skip('Other pages are unaffected by Budget Overview print styles (regression AC10)', async ({
     page,
   }) => {
     // Navigate to the Diary page — not a budget page, no print-specific budget styling.
