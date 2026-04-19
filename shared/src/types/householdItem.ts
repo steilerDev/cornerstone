@@ -99,6 +99,7 @@ export interface HouseholdItemDepPredecessorSummary {
   title: string; // work item title or milestone title
   status: string | null; // work item status (null for milestones)
   endDate: string | null; // work item endDate or milestone targetDate
+  area: AreaSummary | null; // non-null only when predecessorType === 'work_item'; null for milestones
 }
 
 /**

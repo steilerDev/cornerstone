@@ -176,6 +176,7 @@ const makeDetailLine = (
   parentItemId: 'wi-001',
   parentItemTitle: 'Foundation',
   parentItemType: 'work_item',
+  parentItemArea: null,
   createdAt: '2026-01-15T10:00:00Z',
   updatedAt: '2026-01-15T10:00:00Z',
   ...overrides,

@@ -102,7 +102,9 @@ export class InvoiceDetailPage {
     this.infoList = page.locator('[class*="infoList"]');
 
     // Budget lines section (InvoiceBudgetLinesSection)
-    this.budgetLinesSection = page.locator('[class*="budgetLinesSection"]');
+    // The component renders <section aria-labelledby="budget-lines-title"> with CSS module class
+    // "section" (not "budgetLinesSection"), so we locate it via the landmark aria attribute.
+    this.budgetLinesSection = page.locator('[aria-labelledby="budget-lines-title"]');
 
     // Documents section (LinkedDocumentsSection)
     this.documentsSection = page.getByRole('region', { name: 'Documents' });

@@ -25,6 +25,7 @@ import { useFormatters } from '../../lib/formatters.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
 import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
+import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import styles from './InvoiceBudgetLinesSection.module.css';
 
 interface InvoiceBudgetLinesSectionProps {
@@ -587,6 +588,9 @@ export function InvoiceBudgetLinesSection({
                     >
                       {line.parentItemTitle}
                     </Link>
+                    {line.parentItemType === 'work_item' && (
+                      <AreaBreadcrumb area={line.parentItemArea ?? null} variant="compact" />
+                    )}
                   </td>
                   <td className={styles.tdActions}>
                     {editingLineId !== line.id && (
