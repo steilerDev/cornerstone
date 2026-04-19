@@ -184,6 +184,20 @@ jobs:
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
+      - name: Docker Scout compare to latest
+        if: matrix.platform == 'linux/amd64' && github.actor == 'steilerdev'
+        uses: docker/scout-action@bacf462e8d090c09660de30a6ccc718035f961e3 # v1.20.4
+        with:
+          command: compare,recommendations
+          image: registry://steilerdev/cornerstone@${{ steps.build.outputs.digest }}
+          to: registry://steilerdev/cornerstone:latest
+          organization: steilerdev
+          only-severities: critical,high
+          dockerhub-user: ${{ vars.DOCKERHUB_USERNAME }}
+          dockerhub-password: ${{ secrets.DOCKERHUB_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          summary: true
+
       - name: Upload digest
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
