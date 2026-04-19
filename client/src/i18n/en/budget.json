@@ -164,7 +164,7 @@
       "emptyDescription": "Budget lines from work items and household items appear here when assigned to this source.",
       "workItemSection": "Work Item Lines",
       "householdItemSection": "Household Item Lines",
-      "unassignedArea": "Unassigned",
+      "unassignedArea": "No Area",
       "fetchError": "Could not load budget lines.",
       "retry": "Retry",
       "areaLineCount_one": "{{count}} line",

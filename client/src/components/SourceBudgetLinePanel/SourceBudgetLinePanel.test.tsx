@@ -299,12 +299,12 @@ describe('SourceBudgetLinePanel', () => {
       // Both area headers should appear — named area and "Unassigned"
       const kitchenHeaders = screen.getAllByText('Kitchen');
       expect(kitchenHeaders.length).toBeGreaterThan(0);
-      expect(screen.getByText('Unassigned')).toBeInTheDocument();
+      expect(screen.getByText('No Area')).toBeInTheDocument();
 
       // Verify order: "Kitchen" should appear before "Unassigned" in the DOM
       const allText = document.body.textContent ?? '';
       const kitchenPos = allText.indexOf('Kitchen');
-      const unassignedPos = allText.indexOf('Unassigned');
+      const unassignedPos = allText.indexOf('No Area');
       expect(kitchenPos).toBeLessThan(unassignedPos);
     });
   });
