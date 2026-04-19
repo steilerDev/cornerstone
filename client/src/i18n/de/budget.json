@@ -186,7 +186,6 @@
         "claimed": "Beantragt",
         "quotation": "Angebot"
       },
-      "underArea": "unter {{breadcrumb}}",
       "categoryVendorSeparator": " · "
     },
     "budgetLines": {
