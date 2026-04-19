@@ -417,11 +417,11 @@ describe('CalendarView', () => {
       expect(heading.textContent).toMatch(/^[A-Z][a-z]+ \d{4}$/);
     });
 
-    it('shows week range in week mode when both days in same month', () => {
+    it('shows week range in week mode', () => {
       renderCalendar({ initialSearchParams: 'calendarMode=week' });
       const heading = screen.getByRole('heading', { level: 2 });
-      // Format: "March 10–16, 2024" or similar — contains "–" range separator
-      expect(heading.textContent).toMatch(/\d+[–-]\d+/);
+      // Same month: "March 10–16, 2024" | Cross month: "March 29 – April 4, 2026"
+      expect(heading.textContent).toMatch(/[A-Z][a-z]+ \d+\s*[–-]\s*([A-Z][a-z]+ )?\d+, \d{4}/);
     });
 
     it('updates period label after month navigation', () => {
