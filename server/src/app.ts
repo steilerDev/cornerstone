@@ -65,7 +65,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     logger: {
       level: process.env.LOG_LEVEL || 'info',
     },
-    trustProxy: process.env.TRUST_PROXY === 'true',
+    trustProxy: process.env.TRUST_PROXY === 'true' ? 1 : false,
   });
 
   // Add custom HTTP methods for WebDAV (CalDAV/CardDAV)
