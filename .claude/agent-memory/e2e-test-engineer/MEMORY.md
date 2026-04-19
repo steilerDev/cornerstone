@@ -14,7 +14,7 @@
 - Desktop playwright project: `actionTimeout: 5000`, `expect.timeout: 7000`, `timeout: 15000`.
 - **afterprint state restore race**: if pre-print state already has some rows expanded, `waitForFunction('[aria-expanded="true"]')` resolves IMMEDIATELY (the element already exists), so `endPrint()` fires before full print expansion completes. Wait for a SPECIFIC element that was hidden before print to become visible (e.g., Kellerbau) before calling `endPrint()`. After `endPrint()`, use `waitFor({ state: 'hidden' })` for async restore.
 - **endPrint() must be in finally**: if test throws before `endPrint()`, print media leaks. Add `await endPrint().catch(() => {})` to `finally` block. `emulateMedia` is per-page so new pages get screen by default, but same-page tests in same worker can see leaked state.
-- **Playwright route glob `**/api/foo*` vs `/api/foo**`**: prefer `**/api/foo*` (leading `**`) to match full URLs including `http://localhost:PORT/` prefix. The path-only form `/api/foo**` relies on baseURL prepending which can be unreliable. See diary-list.spec.ts pattern.
+- **Playwright route glob `**/api/foo*`vs`/api/foo**`**: prefer `\*\*/api/foo*`(leading`**`) to match full URLs including `http://localhost:PORT/`prefix. The path-only form`/api/foo**` relies on baseURL prepending which can be unreliable. See diary-list.spec.ts pattern.
 
 ## Stories #1271/#1272/#1273 E2E (2026-04-19)
 

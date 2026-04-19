@@ -74,9 +74,7 @@ describe('usePrintExpansion', () => {
     const expandedKeys = new Set(['a']);
     const allKeys = new Set(['a', 'b', 'c']);
 
-    const { unmount } = renderHook(() =>
-      usePrintExpansion(expandedKeys, setExpandedKeys, allKeys),
-    );
+    const { unmount } = renderHook(() => usePrintExpansion(expandedKeys, setExpandedKeys, allKeys));
 
     unmount();
 
@@ -91,9 +89,7 @@ describe('usePrintExpansion', () => {
     const expandedKeys = new Set(['a']);
     const allKeys = new Set(['a', 'b', 'c']);
 
-    const { unmount } = renderHook(() =>
-      usePrintExpansion(expandedKeys, setExpandedKeys, allKeys),
-    );
+    const { unmount } = renderHook(() => usePrintExpansion(expandedKeys, setExpandedKeys, allKeys));
 
     // Fire beforeprint before unmount to set a snapshot
     act(() => {

@@ -265,9 +265,7 @@ test.describe('Budget Overview — print behaviour', () => {
       // The hook's setState is asynchronous — wait for the DOM to reflect expansion.
       await page.waitForFunction(() => {
         const section = document.querySelector('section[aria-labelledby="breakdown-heading"]');
-        return (
-          section !== null && section.querySelector('[aria-expanded="true"]') !== null
-        );
+        return section !== null && section.querySelector('[aria-expanded="true"]') !== null;
       });
 
       // Root areas visible after forced expansion.
@@ -380,9 +378,7 @@ test.describe('Budget Overview — print behaviour', () => {
 
       // Confirm dark theme is active on-screen: --color-bg-primary should NOT be #ffffff
       const darkBgVar = await page.evaluate(() =>
-        getComputedStyle(document.documentElement)
-          .getPropertyValue('--color-bg-primary')
-          .trim(),
+        getComputedStyle(document.documentElement).getPropertyValue('--color-bg-primary').trim(),
       );
       // In dark mode the primary background is a dark color, not white
       expect(darkBgVar.toLowerCase()).not.toBe('#ffffff');
