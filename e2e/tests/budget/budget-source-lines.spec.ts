@@ -493,12 +493,12 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Unassigned area grouping
+// "No Area" grouping
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Unassigned area grouping', { tag: '@responsive' }, () => {
-  test('lines with no area appear under "Unassigned" group', async ({ page, testPrefix }) => {
+test.describe('"No Area" grouping', { tag: '@responsive' }, () => {
+  test('lines with no area appear under "No Area" group', async ({ page, testPrefix }) => {
     const sourcesPage = new BudgetSourcesPage(page);
-    const sourceName = `${testPrefix} Unassigned Area Source`;
+    const sourceName = `${testPrefix} No Area Source`;
     let sourceId: string | null = null;
 
     try {
@@ -543,15 +543,15 @@ test.describe('Unassigned area grouping', { tag: '@responsive' }, () => {
       const panel = sourcesPage.getLinesPanelById(sourceId);
       await expect(panel).toBeVisible();
 
-      // "Unassigned" area group header must be visible.
+      // "No Area" group header must be visible.
       // Scope to the areaName span specifically — after PR #1265 introduced
       // isSelectable=true for all panels, the TriStateCheckbox label text
-      // "Select all in Unassigned" also contains "Unassigned", causing
+      // "Select all in No Area" also contains "No Area", causing
       // getByText (strict mode) to resolve to multiple elements.
       // [class*="areaName"] is the CSS-module span rendered by SourceBudgetLinePanel
       // for the area group header label — it is stable and unique per group.
       // No explicit timeout — uses project-level expect.timeout.
-      await expect(panel.locator('[class*="areaName"]', { hasText: 'Unassigned' })).toBeVisible();
+      await expect(panel.locator('[class*="areaName"]', { hasText: 'No Area' })).toBeVisible();
 
       // The parent item name and line description must be visible
       await expect(panel.getByText('General Work', { exact: true })).toBeVisible();

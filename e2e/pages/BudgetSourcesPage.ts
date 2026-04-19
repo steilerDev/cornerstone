@@ -419,7 +419,7 @@ export class BudgetSourcesPage {
    * The checkbox has aria-label "Select all in {areaName}".
    *
    * @param sourceId  The numeric source ID used to scope to the correct panel.
-   * @param areaName  The area name displayed in the group header (or the i18n "Unassigned" label).
+   * @param areaName  The area name displayed in the group header (or the i18n "No Area" label).
    */
   getAreaGroupCheckbox(sourceId: string, areaName: string): import('@playwright/test').Locator {
     return this.getLinesPanelById(sourceId).getByRole('checkbox', {
