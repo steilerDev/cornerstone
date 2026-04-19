@@ -188,7 +188,7 @@ jobs:
         if: matrix.platform == 'linux/amd64' && github.actor == 'steilerdev'
         uses: docker/scout-action@bacf462e8d090c09660de30a6ccc718035f961e3 # v1.20.4
         with:
-          command: compare,recommendations
+          command: compare
           image: registry://steilerdev/cornerstone@${{ steps.build.outputs.digest }}
           to: registry://steilerdev/cornerstone:latest
           organization: steilerdev
