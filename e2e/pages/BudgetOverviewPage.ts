@@ -122,4 +122,38 @@ export class BudgetOverviewPage {
   async isSubNavVisible(): Promise<boolean> {
     return await this.subNav.isVisible();
   }
+
+  // ── Print helpers ─────────────────────────────────────────────────────────
+
+  /**
+   * Dispatch the `beforeprint` window event and switch Playwright media to 'print'.
+   * Use this to simulate the browser print dialog opening.
+   */
+  async startPrint(): Promise<void> {
+    await this.page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
+    await this.page.emulateMedia({ media: 'print' });
+  }
+
+  /**
+   * Dispatch the `afterprint` window event and restore Playwright media to 'screen'.
+   * Use this to simulate the browser print dialog closing.
+   */
+  async endPrint(): Promise<void> {
+    await this.page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+    await this.page.emulateMedia({ media: 'screen' });
+  }
+
+  /**
+   * The sidebar `<aside>` element.
+   */
+  get sidebar(): Locator {
+    return this.page.locator('aside');
+  }
+
+  /**
+   * The Add dropdown button (budget-overview-add-button).
+   */
+  get addButton(): Locator {
+    return this.page.getByTestId('budget-overview-add-button');
+  }
 }

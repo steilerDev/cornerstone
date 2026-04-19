@@ -524,3 +524,70 @@
     align-items: center;
   }
 }
+
+/* ============================================================
+ * PRINT STYLES — Forces full expansion and hides chrome
+ * ============================================================ */
+
+@media print {
+  .perspectiveToggle {
+    display: none !important;
+  }
+
+  .tableWrapper {
+    overflow: visible;
+    overflow-x: visible;
+    -webkit-overflow-scrolling: auto;
+  }
+
+  .table {
+    width: 100%;
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .colName {
+    min-width: 0;
+    position: static;
+  }
+
+  .colBudget,
+  .colPayback,
+  .colRemaining {
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .breakdownCard {
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+  }
+
+  .expandBtn {
+    display: none !important;
+  }
+
+  .costSection td.colBudget,
+  .costSection td.colPayback {
+    box-shadow: none !important;
+  }
+
+  .rowLevel0,
+  .rowLevel1,
+  .rowLevel2,
+  .rowLevel3 {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .nameLink {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .nameLink::after {
+    content: none !important;
+  }
+}

@@ -1,4 +1,4 @@
-import { useState, useRef, createContext, useContext } from 'react';
+import { useState, useRef, createContext, useContext, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -14,6 +14,7 @@ import type {
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
+import { usePrintExpansion } from '../../hooks/usePrintExpansion.js';
 import styles from './CostBreakdownTable.module.css';
 
 // Context to pass formatCurrency down to sub-components that aren't React components (can't use hooks)
@@ -638,6 +639,51 @@ export function CostBreakdownTable({
     }
     setExpandedKeys(next);
   };
+
+  const allExpandableKeys = useMemo<Set<string>>(() => {
+    const keys = new Set<string>();
+
+    function collectWiArea(areas: BreakdownArea<BreakdownWorkItem>[]) {
+      for (const area of areas) {
+        const aKey = `wi-area-${area.areaId ?? 'unassigned'}`;
+        keys.add(aKey);
+        for (const item of area.items) {
+          keys.add(`wi-area-${area.areaId ?? 'unassigned'}-item-${item.workItemId}`);
+        }
+        collectWiArea(area.children);
+      }
+    }
+
+    function collectHiArea(areas: BreakdownArea<BreakdownHouseholdItem>[]) {
+      for (const area of areas) {
+        const aKey = `hi-area-${area.areaId ?? 'unassigned'}`;
+        keys.add(aKey);
+        for (const item of area.items) {
+          keys.add(`hi-area-${area.areaId ?? 'unassigned'}-item-${item.householdItemId}`);
+        }
+        collectHiArea(area.children);
+      }
+    }
+
+    if (breakdown.workItems.areas.length > 0) {
+      keys.add('wi-section');
+      collectWiArea(breakdown.workItems.areas);
+    }
+    if (breakdown.householdItems.areas.length > 0) {
+      keys.add('hi-section');
+      collectHiArea(breakdown.householdItems.areas);
+    }
+    if ((breakdown.subsidyAdjustments ?? []).length > 0) {
+      keys.add('adj-section');
+    }
+    if (breakdown.workItems.areas.length > 0 || breakdown.householdItems.areas.length > 0) {
+      keys.add('avail-funds');
+    }
+
+    return keys;
+  }, [breakdown]);
+
+  usePrintExpansion(expandedKeys, setExpandedKeys, allExpandableKeys);
 
   const wiAreas = breakdown.workItems.areas;
   const hiAreas = breakdown.householdItems.areas;

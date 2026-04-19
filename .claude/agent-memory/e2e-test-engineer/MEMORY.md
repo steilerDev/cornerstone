@@ -3,6 +3,19 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`
 
+## Print E2E Patterns (Issue #1310, 2026-04-19)
+
+- `page.emulateMedia({ media: 'print' })` makes CSS `@media print` rules apply without dispatching window events.
+- `usePrintExpansion` hook listens to `beforeprint`/`afterprint` — dispatch via `page.evaluate(() => window.dispatchEvent(new Event('beforeprint')))` BEFORE calling `emulateMedia`.
+- After dispatching `beforeprint`, React re-renders asynchronously. Use `page.waitForFunction(() => section.querySelector('[aria-expanded="true"]') !== null)` to wait for DOM update before asserting.
+- `breakdownAreaRow('Keller')` strict mode violation when Kellerbau is also in DOM: "Keller" is substring of "Kellerbau". Fix: `getByRole('row').filter({ has: page.locator('span', { hasText: /^Keller$/ }) })` for exact span match.
+- `getPropertyValue('--color-bg-primary').trim()` may return `'#ffffff'` OR `'rgb(255, 255, 255)'` depending on browser. Robust approach: create throwaway element, set `background-color: var(--my-var)`, read `getComputedStyle(el).backgroundColor` — always returns normalized `rgb()`.
+- `waitFor()` uses `actionTimeout` (5000ms for desktop). `expect().toBeVisible()` uses `expect.timeout` (7000ms for desktop). Use the latter for heading checks that may race with SPA init.
+- Desktop playwright project: `actionTimeout: 5000`, `expect.timeout: 7000`, `timeout: 15000`.
+- **afterprint state restore race**: if pre-print state already has some rows expanded, `waitForFunction('[aria-expanded="true"]')` resolves IMMEDIATELY (the element already exists), so `endPrint()` fires before full print expansion completes. Wait for a SPECIFIC element that was hidden before print to become visible (e.g., Kellerbau) before calling `endPrint()`. After `endPrint()`, use `waitFor({ state: 'hidden' })` for async restore.
+- **endPrint() must be in finally**: if test throws before `endPrint()`, print media leaks. Add `await endPrint().catch(() => {})` to `finally` block. `emulateMedia` is per-page so new pages get screen by default, but same-page tests in same worker can see leaked state.
+- **Playwright route glob `**/api/foo*` vs `/api/foo**`**: prefer `**/api/foo*` (leading `**`) to match full URLs including `http://localhost:PORT/` prefix. The path-only form `/api/foo**` relies on baseURL prepending which can be unreliable. See diary-list.spec.ts pattern.
+
 ## Stories #1271/#1272/#1273 E2E (2026-04-19)
 
 - Diary source entity breadcrumb: `PATCH /api/work-items/:id { status }` triggers auto diary entry. Find it via `GET /api/diary-entries?type=work_item_status&pageSize=50`, then filter by `sourceEntityId === workItemId`.
