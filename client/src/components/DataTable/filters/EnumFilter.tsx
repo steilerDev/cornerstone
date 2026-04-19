@@ -131,12 +131,23 @@ export function EnumFilter({
     return result;
   })();
 
-  // Check if a parent has indeterminate state (some but not all descendants selected)
+  // A parent checkbox is indeterminate when the group is in a mixed state:
+  // neither "fully selected" (self + all descendants) nor "fully unselected"
+  // (self + no descendants). Any other combination shows the indeterminate mark.
   const isIndeterminate = (parentId: string): boolean => {
     const descendants = allDescendantsOf(parentId);
     if (descendants.length === 0) return false;
+    const selfSelected = selected.has(parentId);
     const selectedCount = descendants.filter((d) => selected.has(d)).length;
-    return selectedCount > 0 && selectedCount < descendants.length;
+    const allDescSelected = selectedCount === descendants.length;
+    const noneDescSelected = selectedCount === 0;
+
+    // Fully checked
+    if (selfSelected && allDescSelected) return false;
+    // Fully unchecked
+    if (!selfSelected && noneDescSelected) return false;
+    // Any mix
+    return true;
   };
 
   // Set indeterminate state on parent checkboxes
