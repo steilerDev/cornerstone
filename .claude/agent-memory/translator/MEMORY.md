@@ -86,6 +86,16 @@ Fixed terminology inconsistencies from EPIC-17 i18n rollout:
 - `invoiceStatusLabels.claimed` = "Eingereicht" — invoice payment status (submitted for reimbursement)
 - These are distinct concepts; do not conflate them.
 
+## i18n Coverage Fixes — Issue #1306 (2026-04-19)
+
+- Live-region contact toast pattern: "Kontakt {{name}} hinzugefügt/aktualisiert/gelöscht"
+- `milestones.detail.error` (singular) → "Fehler beim Laden des Meilensteins. Bitte versuchen Sie es erneut." (cf. plural `milestones.error` = "…Meilensteine…")
+- `invoices.modal.description` → full sentence with "Füllen Sie … aus, um … hinzuzufügen." (Sie form, imperative)
+- `invoices.form.placeholders.notes` → "Optionale Notizen zu dieser Rechnung" (matches other placeholder style in budget)
+- `dashboard:cards.budgetSummary.subsidiesOversubscribed` → "Einige Förderprogramme sind überzeichnet" (glossary: Subsidy = Förderprogramm)
+- Tier-3 audit tip: `budget:invoices.actions.menuAriaLabel` was already present in de/budget.json — always verify before adding
+- Orphan deletion: `de/householdItems.json` table.headers.room removed; `de/budget.json` vendors.tableHeaders.actions removed
+
 ## Mass-Move Dialog Patterns — Issue #1248
 
 - `sources.budgetLines.move.*` added 2026-04-16 — mass-move dialog for budget lines

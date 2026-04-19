@@ -54,6 +54,7 @@
     "body": "Eintrag Text",
     "bodyRequired": "Eintragstext ist erforderlich",
     "bodyDescription": "Fügen Sie weitere relevante Informationen hinzu",
+    "inspectionOutcomeRequired": "Inspektionsergebnis ist erforderlich",
     "submitButton": "Eintrag erstellen",
     "submittingButton": "Wird erstellt...",
     "cancelButton": "Abbrechen",
@@ -88,6 +89,7 @@
     "body": "Eintrag Text",
     "bodyRequired": "Eintragstext ist erforderlich",
     "bodyDescription": "Fügen Sie weitere relevante Informationen hinzu",
+    "inspectionOutcomeRequired": "Inspektionsergebnis ist erforderlich",
     "submitButton": "Änderungen speichern",
     "submittingButton": "Wird gespeichert...",
     "cancelButton": "Abbrechen",
@@ -127,6 +129,7 @@
     "inspectorPlaceholder": "Namen des Inspektors eingeben",
     "inspectionOutcome": "Inspektionsergebnis",
     "inspectionOutcomeRequired": "Inspektionsergebnis ist erforderlich",
+    "bodyDescription": "Fügen Sie weitere relevante Informationen hinzu",
     "outcomeOptions": {
       "pass": "Bestanden",
       "fail": "Fehlgeschlagen",

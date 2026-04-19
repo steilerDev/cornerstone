@@ -56,6 +56,78 @@ When new domain terms appear:
 - Ensure every key in `en/*.json` has a corresponding key in every target locale
 - Flag missing keys and add translations for them
 
+### 5. Full Coverage Audit (when requested)
+
+When asked to "audit translations", "check translation coverage", "check for missing translations", or similar, do NOT rely on shallow grep-based scans — those miss real bugs. Run the full protocol below.
+
+**A prior naive audit missed 13 keys referenced in code but present in neither locale. Never skip step 3.**
+
+#### Audit Protocol — run all four steps, in order
+
+**Step 1: Parity check (dictionary ↔ dictionary)**
+
+- Flatten each `en/<ns>.json` and `de/<ns>.json` (and any other locale) to dotted key paths (e.g., `cards.budgetSummary.subsidiesOversubscribed`)
+- For each namespace, compute: keys in `en` but not `de`, and keys in `de` but not `en`
+- This is fast and reliable — no code involvement
+
+**Step 2: Code → dictionary (usage-site coverage)**
+
+This is where the bugs hide. Every `t()` / `<Trans>` / `i18nKey=` call must resolve to an existing dictionary entry in *both* locales.
+
+- Walk `client/src/**/*.{ts,tsx}`, skipping `.test.*`, `.d.ts`, `node_modules`, and the `i18n/` directory
+- For each file, determine candidate namespaces:
+  - Find all `useTranslation('ns')`, `useTranslation(['a','b',…])`, and bare `useTranslation()` calls
+  - Bare `useTranslation()` → default ns is `common` (from `client/src/i18n/index.ts`)
+  - **Handle conditional namespace expressions** — `useTranslation(cond ? 'a' : 'b')` — by checking both branches. A simple regex `useTranslation\s*\(\s*(['"\`])([^'"\`]+)\1` MISSES these; use a broader pattern that extracts all quoted strings inside the `useTranslation(...)` parens.
+  - If no `useTranslation` found, default to `common`
+- Extract every static translation key usage:
+  - `t('key')`, `t("key")`, `t(\`key\`)` — must NOT contain `${` (that's dynamic, handle separately)
+  - `<Trans i18nKey="key">` / `i18nKey={'key'}`
+  - Use a regex with a negative lookbehind `(?<![\w$])` before `t(` to avoid matching `obj.t(` or similar
+- For each extracted key, resolve namespace:
+  - `ns:key.path` → namespace is `ns`
+  - Plain `key.path` → use file's candidate namespaces
+- For each `(ns, key)`:
+  - If not in `en/<ns>.json` → **MISSING_IN_EN** bug (English users see raw key)
+  - If not in `de/<ns>.json` → **MISSING_IN_DE** bug (German users see raw key)
+  - If not in *either* namespace, search *all* other namespaces before flagging — the file's `useTranslation` may use a pattern your regex missed (conditional, variable, etc.). If found elsewhere, mark as "namespace resolution ambiguous" (not a bug). If not found anywhere → **MISSING_EVERYWHERE** (worst-case bug, raw key in every locale).
+
+**Step 3: Dynamic key patterns (informational)**
+
+- Keys like `` t(`status.${value}`) `` cannot be statically checked. Extract the prefix (`status.`) and note it alongside the file. Do NOT flag sibling keys as missing or orphaned — they may all be valid.
+- Common dynamic patterns in this codebase: `` `status.${status}` ``, `` `statusLabels.${invoice.status}` ``, `` `oidcErrors.${errorCode}` ``. Treat any `<prefix>.<var>` pattern as a "potentially dynamically used" group.
+
+**Step 4: Orphan candidates (informational, high false-positive rate)**
+
+- For each key in `en/<ns>.json` or `de/<ns>.json`, check if it's referenced by any static usage site OR matches any dynamic prefix
+- **IMPORTANT:** this step produces many false positives because this codebase uses **indirect key patterns**:
+  - React components take a `labelKey`, `messageKey`, or `i18nKey` prop and call `t(props.labelKey)` — the literal key is at the caller, not the `t()` site. Examples: `SubNav` (`tab.labelKey`), `Modal` footers, form error components.
+  - Keys assigned to variables: `const keys = { save: 'button.save' }; t(keys.save)`
+  - Conditional keys: `t(isActive ? 'active' : 'inactive')`
+- Because of this, **never delete a key solely because step 4 says it's an orphan**. Present orphan candidates as a list for the user to review, and spot-check the top candidates with a manual grep before recommending deletion.
+
+#### What NOT to do — common pitfalls
+
+- **Do not grep for loose substrings like `'success'` or `'q'`** — these match `showToast('success', ...)`, URL query params (`searchParams.get('q')`), and other non-translation strings. A prior audit flagged 52 false positives this way.
+- **Do not trust a "clean" result without running step 2.** A parity check alone (step 1) cannot catch keys missing from *both* locales.
+- **Do not infer usage** — every claim must have a concrete `file:line` reference. If you can't produce one, don't make the claim.
+- **Do not weaken the protocol to save time.** The prior audit that skipped step 2 missed a user-visible bug on the Area UI (raw keys shown in English locale).
+
+#### Reporting format
+
+Produce a structured report with these sections:
+
+1. **Missing everywhere** (worst — fix first): `<ns>:<key>` at `<file>:<line>`, with suggested similar existing keys (stem-match on the last segment)
+2. **Missing in en**: `<ns>:<key>` at `<file>:<line>`, with the de value
+3. **Missing in de**: `<ns>:<key>` at `<file>:<line>`, with the en value
+4. **Parity asymmetries not covered by code scan** (usually orphans — informational)
+5. **Dynamic key patterns** (informational)
+6. **Orphan candidates** (caveat: many false positives, requires spot-check)
+
+Always include a summary table at the top with counts per section.
+
+A reference script that implements this protocol correctly can be written in ~200 lines of Node.js (see repo history for `/tmp/i18n-audit/audit.mjs` as a template when such an audit is requested).
+
 ## Translation Quality Rules
 
 - **Natural fluent target language** — translations must read like native text, not literal word-for-word translations

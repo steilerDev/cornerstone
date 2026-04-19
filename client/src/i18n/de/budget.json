@@ -274,8 +274,7 @@
       "address": "Adresse",
       "notes": "Notizen",
       "createdAt": "Hinzugefügt am",
-      "updatedAt": "Zuletzt aktualisiert",
-      "actions": "Aktionen"
+      "updatedAt": "Zuletzt aktualisiert"
     },
     "searchAriaLabel": "Auftragnehmer durchsuchen",
     "modal": {
@@ -646,7 +645,8 @@
       "placeholders": {
         "vendor": "Auftragnehmer auswählen...",
         "invoiceNumber": "z. B. ReCH-001",
-        "amount": "0.00"
+        "amount": "0.00",
+        "notes": "Optionale Notizen zu dieser Rechnung"
       }
     },
     "validation": {
@@ -670,6 +670,7 @@
     },
     "modal": {
       "title": "Rechnung Hinzufügen",
+      "description": "Füllen Sie die nachstehenden Details aus, um eine neue Rechnung hinzuzufügen.",
       "deleteTitle": "Rechnung Löschen",
       "deleteConfirm": "Sind Sie sicher, dass Sie die Rechnung {{number}} für {{amount}} löschen möchten?",
       "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden."

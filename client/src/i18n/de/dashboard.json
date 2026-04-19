@@ -35,6 +35,7 @@
       "plannedCostRange": "Geplante Kostenspanne",
       "actualSpend": "Tatsächliche Ausgaben",
       "subsidySavings": "Förderersparnisse",
+      "subsidiesOversubscribed": "Einige Förderprogramme sind überzeichnet",
       "viewBudgetOverview": "Budgetübersicht anzeigen →"
     },
     "sourceUtilization": {

@@ -115,6 +115,7 @@
       },
       "assignedTo": "Assigned To",
       "unassigned": "Unassigned",
+      "area": "Area",
       "durationDays": "Duration (days)",
       "durationError": "Duration must be a positive number",
       "startAfter": "Start After",
@@ -178,6 +179,7 @@
       "schedule": "Schedule",
       "scheduleDescription": "Start and end dates are computed by the scheduling engine based on constraints and dependencies.",
       "assignment": "Assignment",
+      "area": "Area",
       "tags": "Tags",
       "notes": "Notes",
       "subtasks": "Subtasks",
@@ -201,6 +203,9 @@
     "assignment": {
       "assignedTo": "Assigned To",
       "unassigned": "Unassigned"
+    },
+    "area": {
+      "label": "Area"
     },
     "notes": {
       "placeholder": "Add a note...",
