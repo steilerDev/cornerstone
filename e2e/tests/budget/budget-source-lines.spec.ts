@@ -115,6 +115,49 @@ function mockLinesWithWorkItems(sourceId: string) {
   };
 }
 
+/**
+ * A BudgetSourceBudgetLinesResponse with 2 work item lines belonging to TWO
+ * different parent work items (different parentId values) but sharing the same
+ * area "Kitchen".  Used to verify that the adjacent-sibling divider CSS rule
+ * (.parentItemBlock + .parentItemBlock) produces a visible border-top on the
+ * second block.
+ */
+function mockLinesWithMultipleWorkItems(sourceId: string) {
+  return {
+    workItemLines: [
+      {
+        id: `wil-a1-${sourceId}`,
+        description: 'Hardwood floor installation',
+        plannedAmount: 8000,
+        confidence: 'quote',
+        confidenceMargin: 1.0,
+        invoiceLink: null,
+        createdAt: '2026-01-01T10:00:00.000Z',
+        updatedAt: '2026-01-01T10:00:00.000Z',
+        parentId: `wi-a-${sourceId}`,
+        parentName: 'Flooring',
+        area: { id: `area-k-${sourceId}`, name: 'Kitchen', color: '#4CAF50', ancestors: [] },
+        hasClaimedInvoice: false,
+      },
+      {
+        id: `wil-b1-${sourceId}`,
+        description: 'Kitchen cabinetry',
+        plannedAmount: 12000,
+        confidence: 'own_estimate',
+        confidenceMargin: 1.2,
+        invoiceLink: null,
+        createdAt: '2026-01-02T10:00:00.000Z',
+        updatedAt: '2026-01-02T10:00:00.000Z',
+        parentId: `wi-b-${sourceId}`,
+        parentName: 'Cabinetry',
+        area: { id: `area-k-${sourceId}`, name: 'Kitchen', color: '#4CAF50', ancestors: [] },
+        hasClaimedInvoice: false,
+      },
+    ],
+    householdItemLines: [],
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Expand shows panel — @smoke
 // ─────────────────────────────────────────────────────────────────────────────
@@ -612,6 +655,109 @@ test.describe('Lines cache — second expand does not refetch', { tag: '@respons
 
       // Panel is visible again
       await expect(sourcesPage.getLinesPanelById(sourceId)).toBeVisible();
+    } finally {
+      if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
+      if (sourceId) await deleteSourceViaApi(page, sourceId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Inter-work-item divider (Story #1309)
+// Validates that .parentItemBlock + .parentItemBlock { border-top: 1px solid }
+// is applied by the browser when two distinct parent groups render side-by-side.
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('inter-work-item divider', { tag: '@responsive' }, () => {
+  test('divider is visible between two work item groups', async ({ page, testPrefix }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Divider Multi Source`;
+    let sourceId: string | null = null;
+
+    try {
+      sourceId = await createSourceViaApi(page, { name: sourceName, totalAmount: 20000 });
+
+      const linesResponse = mockLinesWithMultipleWorkItems(sourceId);
+
+      await page.route(budgetLinesUrl(sourceId), async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(linesResponse),
+        });
+      });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      const linesResponsePromise = page.waitForResponse(budgetLinesUrl(sourceId));
+      await sourcesPage.expandSourceLines(sourceName);
+      await linesResponsePromise;
+
+      const panel = sourcesPage.getLinesPanelById(sourceId);
+      await expect(panel).toBeVisible();
+
+      // Two distinct parent groups must be rendered.
+      const blocks = panel.locator('[class*="parentItemBlock"]');
+      await expect(blocks).toHaveCount(2);
+
+      // Second block must have a solid border-top (the CSS adjacent-sibling divider).
+      const secondBlockBorderStyle = await blocks.nth(1).evaluate((el) => {
+        return getComputedStyle(el).borderTopStyle;
+      });
+      const secondBlockBorderWidth = await blocks.nth(1).evaluate((el) => {
+        return getComputedStyle(el).borderTopWidth;
+      });
+      expect(secondBlockBorderStyle).toBe('solid');
+      expect(secondBlockBorderWidth).not.toBe('0px');
+
+      // First block must NOT have a border-top (no preceding sibling).
+      const firstBlockBorderStyle = await blocks.nth(0).evaluate((el) => {
+        return getComputedStyle(el).borderTopStyle;
+      });
+      expect(['none', '']).toContain(firstBlockBorderStyle);
+    } finally {
+      if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
+      if (sourceId) await deleteSourceViaApi(page, sourceId);
+    }
+  });
+
+  test('no divider when only one work item group is present', async ({ page, testPrefix }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Divider Single Source`;
+    let sourceId: string | null = null;
+
+    try {
+      sourceId = await createSourceViaApi(page, { name: sourceName, totalAmount: 10000 });
+
+      const linesResponse = mockLinesWithWorkItems(sourceId);
+
+      await page.route(budgetLinesUrl(sourceId), async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(linesResponse),
+        });
+      });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      const linesResponsePromise = page.waitForResponse(budgetLinesUrl(sourceId));
+      await sourcesPage.expandSourceLines(sourceName);
+      await linesResponsePromise;
+
+      const panel = sourcesPage.getLinesPanelById(sourceId);
+      await expect(panel).toBeVisible();
+
+      // Only one parent group must be rendered.
+      const blocks = panel.locator('[class*="parentItemBlock"]');
+      await expect(blocks).toHaveCount(1);
+
+      // The single block must NOT have a border-top.
+      const borderStyle = await blocks.nth(0).evaluate((el) => {
+        return getComputedStyle(el).borderTopStyle;
+      });
+      expect(['none', '']).toContain(borderStyle);
     } finally {
       if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
       if (sourceId) await deleteSourceViaApi(page, sourceId);

@@ -129,6 +129,12 @@
   padding-left: var(--spacing-3);
 }
 
+.parentItemBlock + .parentItemBlock {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--spacing-2);
+  margin-top: var(--spacing-2);
+}
+
 .parentItemHeader {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
