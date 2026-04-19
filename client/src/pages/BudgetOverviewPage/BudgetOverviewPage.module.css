@@ -534,3 +534,46 @@
     display: none;
   }
 }
+
+/* ============================================================
+ * PRINT STYLES — Hide chrome and reset dark mode
+ * ============================================================ */
+
+@media print {
+  .heroCard {
+    display: none !important;
+  }
+
+  .addContainer {
+    display: none !important;
+  }
+
+  .emptyState {
+    display: none !important;
+  }
+
+  .breakdownLoading {
+    display: none !important;
+  }
+}
+
+/* stylelint-disable color-no-hex -- Print reset must anchor to Layer 1 palette constants */
+:global(@media print) {
+  :root,
+  :root[data-theme='dark'] {
+    --color-bg-primary: #ffffff;
+    --color-bg-secondary: #f9fafb;
+    --color-bg-tertiary: #f3f4f6;
+    --color-bg-hover: #f9fafb;
+    --color-text-primary: #111827;
+    --color-text-secondary: #374151;
+    --color-text-body: #374151;
+    --color-text-muted: #6b7280;
+    --color-border: #e5e7eb;
+    --color-border-strong: #d1d5db;
+    --color-success-text-on-light: #166534;
+    --color-danger-text-on-light: #991b1b;
+    --color-warning-text-on-light: #c2410c;
+  }
+}
+/* stylelint-enable color-no-hex */
