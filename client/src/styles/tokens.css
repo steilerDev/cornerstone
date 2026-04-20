@@ -340,6 +340,16 @@
   --color-budget-overflow: var(--color-danger-bg-strong);
 
   /* ============================================================
+   * LAYER 2 — SOURCE BUDGET LINE PANEL SURFACE TOKENS
+   * ============================================================ */
+
+  /* Area group container tint */
+  --color-surface-area-tint: var(--color-gray-50);
+
+  /* Parent item card tint */
+  --color-surface-item-tint: var(--color-white);
+
+  /* ============================================================
    * LAYER 2 — GANTT CHART TOKENS
    * ============================================================ */
 
@@ -538,6 +548,10 @@
   --color-bg-tertiary: var(--color-slate-600);
   --color-bg-inverse: var(--color-gray-100);
   --color-bg-hover: var(--color-slate-600);
+
+  /* --- Source Budget Line Panel surface tints (dark mode) --- */
+  --color-surface-area-tint: var(--color-slate-700);
+  --color-surface-item-tint: var(--color-slate-800);
 
   /* --- Text --- */
   --color-text-primary: var(--color-slate-50);

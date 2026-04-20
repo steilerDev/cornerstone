@@ -197,13 +197,14 @@ test.describe('Expand shows budget lines panel', { tag: ['@smoke', '@responsive'
         await expect(panel).toBeVisible();
 
         // "Work Item Lines" section header must be visible
+        // (section header is a <p> element, not a heading — use text-based assertion)
         await expect(
-          panel.getByRole('heading', { level: 4, name: 'Work Item Lines' }),
+          panel.getByText('Work Item Lines', { exact: true }),
         ).toBeVisible();
 
         // "Household Item Lines" section must NOT be visible (no household lines in mock)
         await expect(
-          panel.getByRole('heading', { level: 4, name: 'Household Item Lines' }),
+          panel.getByText('Household Item Lines', { exact: true }),
         ).not.toBeVisible();
 
         // Area name "Kitchen" must be visible
@@ -607,6 +608,129 @@ test.describe('"No Area" grouping', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// No ancestor breadcrumb hint for nested areas
+// Validates that the "under <ancestor>" hint (i18n key sources.lines.underArea)
+// was removed from the SourceBudgetLinePanel — it must not appear anywhere.
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('no ancestor breadcrumb hint for nested areas', { tag: '@responsive' }, () => {
+  test('area name is visible but no "under" breadcrumb hint appears for nested areas', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Nested Area No Hint Source`;
+    let sourceId: string | null = null;
+
+    try {
+      sourceId = await createSourceViaApi(page, { name: sourceName, totalAmount: 15000 });
+
+      // Mock a work-item line with a nested area (ancestors present)
+      const linesResponse = {
+        workItemLines: [
+          {
+            id: `wil-nested-${sourceId}`,
+            description: 'Bathroom tile installation',
+            plannedAmount: 4500,
+            confidence: 'quote',
+            confidenceMargin: 1.0,
+            invoiceLink: null,
+            createdAt: '2026-01-01T10:00:00.000Z',
+            updatedAt: '2026-01-01T10:00:00.000Z',
+            parentId: `wi-nested-parent-${sourceId}`,
+            parentName: 'Tiling',
+            area: {
+              id: `area-bathroom-${sourceId}`,
+              name: 'Bathroom',
+              color: null,
+              ancestors: [{ id: `area-gf-${sourceId}`, name: 'Ground Floor', color: null }],
+            },
+            hasClaimedInvoice: false,
+          },
+        ],
+        householdItemLines: [],
+      };
+
+      await page.route(budgetLinesUrl(sourceId), async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(linesResponse),
+        });
+      });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      const linesResponsePromise = page.waitForResponse(budgetLinesUrl(sourceId));
+      await sourcesPage.expandSourceLines(sourceName);
+      await linesResponsePromise;
+
+      const panel = sourcesPage.getLinesPanelById(sourceId);
+      await expect(panel).toBeVisible();
+
+      // Area name "Bathroom" must be visible in the area group header
+      await expect(panel.locator('[class*="areaName"]', { hasText: 'Bathroom' })).toBeVisible();
+
+      // The "under <ancestor>" breadcrumb hint must NOT appear anywhere in the panel
+      await expect(panel.getByText(/under/i)).not.toBeVisible();
+    } finally {
+      if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
+      if (sourceId) await deleteSourceViaApi(page, sourceId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Visual grouping — nested card structure
+// Validates that .areaGroup and .parentItemBlock CSS-module classes are rendered
+// for the nested card visual grouping introduced in the SourceBudgetLinePanel
+// refactor (Story #1315).
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('visual grouping — nested card structure', { tag: '@responsive' }, () => {
+  test('areaGroup and parentItemBlock elements are rendered for work item lines', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Nested Card Structure Source`;
+    let sourceId: string | null = null;
+
+    try {
+      sourceId = await createSourceViaApi(page, { name: sourceName, totalAmount: 50000 });
+
+      const linesResponse = mockLinesWithWorkItems(sourceId);
+
+      await page.route(budgetLinesUrl(sourceId), async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(linesResponse),
+        });
+      });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      const linesResponsePromise = page.waitForResponse(budgetLinesUrl(sourceId));
+      await sourcesPage.expandSourceLines(sourceName);
+      await linesResponsePromise;
+
+      const panel = sourcesPage.getLinesPanelById(sourceId);
+      await expect(panel).toBeVisible();
+
+      // At least one .areaGroup element must be rendered
+      await expect(panel.locator('[class*="areaGroup"]').first()).toBeVisible();
+
+      // At least one .parentItemBlock element must be rendered
+      await expect(panel.locator('[class*="parentItemBlock"]').first()).toBeVisible();
+    } finally {
+      if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
+      if (sourceId) await deleteSourceViaApi(page, sourceId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Second expand uses cache — no additional network request
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Lines cache — second expand does not refetch', { tag: '@responsive' }, () => {
@@ -662,13 +786,15 @@ test.describe('Lines cache — second expand does not refetch', { tag: '@respons
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Inter-work-item divider (Story #1309)
-// Validates that .parentItemBlock + .parentItemBlock { border-top: 1px solid }
-// is applied by the browser when two distinct parent groups render side-by-side.
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('inter-work-item divider', { tag: '@responsive' }, () => {
-  test('divider is visible between two work item groups', async ({ page, testPrefix }) => {
+/**
+ * Parent item card border tests
+ *
+ * Validates that each .parentItemBlock is rendered as a full card with a
+ * solid border on all sides, regardless of sibling position. Replaces the
+ * previous adjacent-sibling divider pattern.
+ */
+test.describe('parent item card borders', { tag: '@responsive' }, () => {
+  test('each parent item card has a full border', async ({ page, testPrefix }) => {
     const sourcesPage = new BudgetSourcesPage(page);
     const sourceName = `${testPrefix} Divider Multi Source`;
     let sourceId: string | null = null;
@@ -700,28 +826,27 @@ test.describe('inter-work-item divider', { tag: '@responsive' }, () => {
       const blocks = panel.locator('[class*="parentItemBlock"]');
       await expect(blocks).toHaveCount(2);
 
-      // Second block must have a solid border-top (the CSS adjacent-sibling divider).
-      const secondBlockBorderStyle = await blocks.nth(1).evaluate((el) => {
-        return getComputedStyle(el).borderTopStyle;
-      });
-      const secondBlockBorderWidth = await blocks.nth(1).evaluate((el) => {
-        return getComputedStyle(el).borderTopWidth;
-      });
-      expect(secondBlockBorderStyle).toBe('solid');
-      expect(secondBlockBorderWidth).not.toBe('0px');
+      // Each parent item card must have a solid full border (the card pattern).
+      for (let i = 0; i < 2; i++) {
+        const block = blocks.nth(i);
+        const borderStyle = await block.evaluate((el) => getComputedStyle(el).borderTopStyle);
+        const borderWidth = await block.evaluate((el) => getComputedStyle(el).borderTopWidth);
+        expect(borderStyle).toBe('solid');
+        expect(borderWidth).not.toBe('0px');
+      }
 
-      // First block must NOT have a border-top (no preceding sibling).
-      const firstBlockBorderStyle = await blocks.nth(0).evaluate((el) => {
-        return getComputedStyle(el).borderTopStyle;
-      });
-      expect(['none', '']).toContain(firstBlockBorderStyle);
+      // Cards must have margin-bottom for visual spacing between them (all but the last).
+      const firstBlockMarginBottom = await blocks
+        .nth(0)
+        .evaluate((el) => getComputedStyle(el).marginBottom);
+      expect(firstBlockMarginBottom).not.toBe('0px');
     } finally {
       if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
       if (sourceId) await deleteSourceViaApi(page, sourceId);
     }
   });
 
-  test('no divider when only one work item group is present', async ({ page, testPrefix }) => {
+  test('a sole parent item card still has a full border', async ({ page, testPrefix }) => {
     const sourcesPage = new BudgetSourcesPage(page);
     const sourceName = `${testPrefix} Divider Single Source`;
     let sourceId: string | null = null;
@@ -753,11 +878,11 @@ test.describe('inter-work-item divider', { tag: '@responsive' }, () => {
       const blocks = panel.locator('[class*="parentItemBlock"]');
       await expect(blocks).toHaveCount(1);
 
-      // The single block must NOT have a border-top.
-      const borderStyle = await blocks.nth(0).evaluate((el) => {
-        return getComputedStyle(el).borderTopStyle;
-      });
-      expect(['none', '']).toContain(borderStyle);
+      // The single card still has a solid full border (cards are not conditional).
+      const borderStyle = await blocks.nth(0).evaluate((el) => getComputedStyle(el).borderTopStyle);
+      const borderWidth = await blocks.nth(0).evaluate((el) => getComputedStyle(el).borderTopWidth);
+      expect(borderStyle).toBe('solid');
+      expect(borderWidth).not.toBe('0px');
     } finally {
       if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
       if (sourceId) await deleteSourceViaApi(page, sourceId);

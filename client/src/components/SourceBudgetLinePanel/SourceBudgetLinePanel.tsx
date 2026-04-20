@@ -406,14 +406,12 @@ export function SourceBudgetLinePanel({
     const groupKey = node.areaId ?? 'unassigned';
     const selectionState = areaGroupSelectionStates.get(groupKey);
     const areaName = node.areaId === null ? t('sources.lines.unassignedArea') : node.areaName;
-    const breadcrumb =
-      node.ancestors.length > 0 ? node.ancestors.map((a) => a.name).join(' › ') : null;
 
     return (
       <div
         key={groupKey}
         className={styles.areaGroup}
-        style={{ paddingLeft: `calc(${node.depth} * var(--spacing-4))` }}
+        style={{ '--area-depth': node.depth } as React.CSSProperties}
       >
         <header className={styles.areaGroupHeader}>
           <div className={styles.areaTitleRow}>
@@ -432,11 +430,6 @@ export function SourceBudgetLinePanel({
               />
             )}
             <span className={styles.areaName}>{areaName}</span>
-            {breadcrumb && (
-              <span className={styles.areaAncestorHint}>
-                {t('sources.lines.underArea', { breadcrumb })}
-              </span>
-            )}
             {!isSelectable && (
               <span className={styles.areaLineCount}>
                 {t('sources.lines.areaLineCount', { count: node.totalLines })}
@@ -483,7 +476,6 @@ export function SourceBudgetLinePanel({
             <Link
               to={`/project/${parentType === 'work-item' ? 'work-items' : 'household-items'}/${parentGroup.parentId}`}
               className={styles.parentItemHeader}
-              style={{ paddingLeft: `var(--spacing-4)` }}
             >
               {parentGroup.parentName}
             </Link>
@@ -491,7 +483,6 @@ export function SourceBudgetLinePanel({
             <ul
               role="list"
               className={isSelectable ? styles.lineListSelectable : styles.lineList}
-              style={{ paddingLeft: `var(--spacing-4)` }}
             >
               {parentGroup.lines.map((line) => {
                 const isSelected = selectedLineIds?.has(line.id) ?? false;

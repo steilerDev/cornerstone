@@ -907,9 +907,9 @@ describe('SourceBudgetLinePanel', () => {
 
       const blocks = document.querySelectorAll('[class*="parentItemBlock"]');
       expect(blocks.length).toBe(2);
-      // Both blocks must share the same parent — required for the CSS
-      // adjacent-sibling combinator (.parentItemBlock + .parentItemBlock) to
-      // apply the divider border-top.
+      // Both cards must share the same .areaGroup parent — confirms the
+      // nested card structure places consecutive work-item cards inside a
+      // single area container.
       expect(blocks[0]!.parentElement).toBe(blocks[1]!.parentElement);
     });
 
@@ -938,6 +938,112 @@ describe('SourceBudgetLinePanel', () => {
         const lineRows = block.querySelectorAll('[class*="lineRow"]');
         expect(lineRows.length).toBeGreaterThanOrEqual(1);
       });
+    });
+  });
+
+  // ─── Nested card structure (Issue #1315) ────────────────────────────────────────
+
+  describe('nested card structure — areaAncestorHint removed', () => {
+    it('Test A — "under …" text is never rendered, even when areas have ancestors', () => {
+      const area = {
+        id: 'area-kitchen',
+        name: 'Kitchen',
+        color: '#ff0000',
+        ancestors: [{ id: 'area-ground', name: 'Ground Floor', color: '#cccccc' }],
+      };
+      const line = makeLine({ id: 'l1', parentId: 'p1', parentName: 'Flooring', area });
+      renderPanel({ data: makeResponse([line], []) });
+
+      // The "under <ancestor>" hint was removed in the nested card refactor
+      expect(screen.queryByText(/under/i)).toBeNull();
+      // But the area name itself must still be visible
+      expect(screen.getByText('Kitchen')).toBeInTheDocument();
+    });
+  });
+
+  describe('nested card structure — areaGroup CSS class', () => {
+    it('Test B — area group wrapper carries the areaGroup CSS class', () => {
+      const line = makeLine({
+        id: 'l1',
+        parentId: 'p1',
+        parentName: 'Kitchen Renovation',
+        area: makeArea({ id: 'area-1', name: 'Kitchen' }),
+      });
+      renderPanel({ data: makeResponse([line], []) });
+
+      // identity-obj-proxy resolves CSS module keys to their literal key names,
+      // so styles.areaGroup renders as the class string "areaGroup"
+      expect(document.querySelector('[class*="areaGroup"]')).not.toBeNull();
+    });
+  });
+
+  describe('nested card structure — parentItemBlock CSS class', () => {
+    it('Test C — parent item block carries the parentItemBlock CSS class', () => {
+      const line = makeLine({
+        id: 'l1',
+        parentId: 'p1',
+        parentName: 'Kitchen Renovation',
+      });
+      renderPanel({ data: makeResponse([line], []) });
+
+      expect(document.querySelector('[class*="parentItemBlock"]')).not.toBeNull();
+    });
+  });
+
+  describe('nested card structure — depth offset uses --area-depth custom property', () => {
+    it('Test D — depth offset is applied via --area-depth custom property (not paddingLeft or marginLeft) on the nested area group', () => {
+      // Root area with no ancestors (depth=0)
+      const rootArea = {
+        id: 'area-root',
+        name: 'Ground Floor',
+        color: '#cccccc',
+        ancestors: [],
+      };
+      // Child area with one ancestor (depth=1)
+      const childArea = {
+        id: 'area-kitchen',
+        name: 'Kitchen',
+        color: '#ff0000',
+        ancestors: [{ id: 'area-root', name: 'Ground Floor', color: '#cccccc' }],
+      };
+      const rootLine = makeLine({
+        id: 'l1',
+        parentId: 'p1',
+        parentName: 'Ground Work',
+        area: rootArea,
+      });
+      const childLine = makeLine({
+        id: 'l2',
+        parentId: 'p2',
+        parentName: 'Kitchen Renovation',
+        area: childArea,
+        createdAt: '2026-01-02T00:00:00.000Z',
+      });
+      renderPanel({ data: makeResponse([rootLine, childLine], []) });
+
+      // Find all areaGroup elements
+      const areaGroups = Array.from(
+        document.querySelectorAll<HTMLElement>('[class*="areaGroup"]'),
+      );
+      expect(areaGroups.length).toBeGreaterThan(0);
+
+      // Find the one with a non-zero --area-depth custom property (the depth=1 child).
+      // After the responsive depth cap fix, indentation is set via a CSS custom property
+      // on the inline style, not via an inline marginLeft value.
+      const nestedGroup = areaGroups.find((el) => {
+        const depth = el.style.getPropertyValue('--area-depth');
+        return depth && depth !== '0';
+      });
+
+      expect(nestedGroup).toBeDefined();
+      // Confirm the depth value is serialized on the inline style (React converts
+      // numeric custom property values to strings, so depth=1 → "1")
+      expect((nestedGroup as HTMLElement).style.getPropertyValue('--area-depth')).toBe('1');
+      // paddingLeft must NOT be used for depth offset
+      expect((nestedGroup as HTMLElement).style.paddingLeft).toBeFalsy();
+      // marginLeft inline must NOT be used either (indentation is now applied via
+      // the CSS module using calc(var(--area-depth, 0) * var(--spacing-4)))
+      expect((nestedGroup as HTMLElement).style.marginLeft).toBeFalsy();
     });
   });
 
