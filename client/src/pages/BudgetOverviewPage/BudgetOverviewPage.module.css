@@ -575,5 +575,24 @@
     --color-danger-text-on-light: #991b1b;
     --color-warning-text-on-light: #c2410c;
   }
+
+  /* Suppress browser-generated header/footer by zeroing @page margin */
+  @page {
+    margin: 0;
+  }
+
+  /* Restore readable padding after zeroing @page margin */
+  body {
+    padding: 1cm;
+  }
+
+  /* No scrollable ancestor should reserve scrollbar gutter */
+  html,
+  body,
+  main,
+  #root,
+  #root > * {
+    overflow: visible !important;
+  }
 }
 /* stylelint-enable color-no-hex */
