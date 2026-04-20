@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { TableState, TableApiParams, FilterType } from '../components/DataTable/DataTable.js';
 
 export interface UseTableStateOptions {
   columns?: Array<{ filterParamKey?: string; filterType?: FilterType }>;
   defaultPageSize?: number;
-  searchDebounceMs?: number;
 }
 
 export interface UseTableStateResult {
@@ -24,7 +23,7 @@ export interface UseTableStateResult {
  * Hook managing DataTable state with URL synchronization
  *
  * Provides:
- * - Search with 300ms debounce
+ * - Immediate search updates with URL sync
  * - Per-column filtering
  * - Sortable columns with 3-state cycling (none → asc → desc → none)
  * - Pagination
@@ -35,7 +34,7 @@ export interface UseTableStateResult {
  * @returns Table state and control functions
  */
 export function useTableState(options: UseTableStateOptions = {}): UseTableStateResult {
-  const { defaultPageSize = 25, searchDebounceMs = 300 } = options;
+  const { defaultPageSize = 25 } = options;
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -59,34 +58,8 @@ export function useTableState(options: UseTableStateOptions = {}): UseTableState
     };
   });
 
-  // Separate state for search input to enable debouncing
-  const [searchInput, setSearchInput] = useState(tableState.search);
-  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Debounced search update
-  useEffect(() => {
-    if (searchDebounceRef.current) {
-      clearTimeout(searchDebounceRef.current);
-    }
-
-    searchDebounceRef.current = setTimeout(() => {
-      const newParams = new URLSearchParams(searchParams);
-      if (searchInput) {
-        newParams.set('q', searchInput);
-      } else {
-        newParams.delete('q');
-      }
-      newParams.set('page', '1');
-      setSearchParams(newParams);
-      setTableState((prev) => ({ ...prev, search: searchInput, page: 1 }));
-    }, searchDebounceMs);
-
-    return () => {
-      if (searchDebounceRef.current) {
-        clearTimeout(searchDebounceRef.current);
-      }
-    };
-  }, [searchInput, searchParams, setSearchParams, searchDebounceMs]);
+  // searchInput is now a computed value derived from tableState
+  const searchInput = tableState.search;
 
   // Sync URL changes to table state
   useEffect(() => {
@@ -107,15 +80,18 @@ export function useTableState(options: UseTableStateOptions = {}): UseTableState
     }
 
     setTableState(newState);
-    // Update search input to match URL (in case it changed externally)
-    if (newState.search !== searchInput) {
-      setSearchInput(newState.search);
-    }
-  }, [searchParams, defaultPageSize, searchInput]);
+  }, [searchParams, defaultPageSize]);
 
   const setSearch = useCallback((q: string) => {
-    setSearchInput(q);
-  }, []);
+    const newParams = new URLSearchParams(searchParams);
+    if (q) {
+      newParams.set('q', q);
+    } else {
+      newParams.delete('q');
+    }
+    newParams.set('page', '1');
+    setSearchParams(newParams);
+  }, [searchParams, setSearchParams]);
 
   const setFilter = useCallback(
     (paramKey: string, value: string | null) => {
