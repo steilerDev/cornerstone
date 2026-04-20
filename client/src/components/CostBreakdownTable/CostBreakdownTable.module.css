@@ -596,9 +596,10 @@
 
   /* Level 1 (area rows): strong top border + tinted background */
   .rowLevel1 td {
-    border-top: 2pt solid var(--color-border-strong);
+    border-top: 3pt solid var(--color-border-strong);
     border-bottom: none;
-    background-color: var(--color-bg-tertiary) !important;
+    background-color: var(--color-border) !important;
+    font-weight: 600;
   }
 
   /* Level 2 (item rows): medium bottom border separating items */
