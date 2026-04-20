@@ -538,6 +538,7 @@
     overflow: visible;
     overflow-x: visible;
     -webkit-overflow-scrolling: auto;
+    scrollbar-width: none;
   }
 
   .table {
@@ -589,5 +590,29 @@
 
   .nameLink::after {
     content: none !important;
+  }
+
+  /* --- Three-level visual hierarchy for print --- */
+
+  /* Level 1 (area rows): strong top border + tinted background */
+  .rowLevel1 td {
+    border-top: 2pt solid var(--color-border-strong);
+    border-bottom: none;
+    background-color: var(--color-bg-tertiary) !important;
+  }
+
+  /* Level 2 (item rows): medium bottom border separating items */
+  .rowLevel2 td {
+    border-bottom: 1.5pt solid var(--color-border-strong);
+  }
+
+  /* Level 2 before budget lines: suppress bottom border so item + lines attach visually */
+  .rowLevel2:has(+ .rowLevel3) td {
+    border-bottom: none;
+  }
+
+  /* Level 3 (budget line rows): light dotted border — grouped under parent */
+  .rowLevel3 td {
+    border-bottom: 1pt dotted var(--color-border);
   }
 }
