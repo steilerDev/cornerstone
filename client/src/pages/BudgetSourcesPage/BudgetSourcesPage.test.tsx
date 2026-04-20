@@ -356,8 +356,8 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        // €200,000.00 formatted — appears for both Total and Available
-        expect(screen.getAllByText('€200,000.00').length).toBeGreaterThanOrEqual(1);
+        // €200,000.00 formatted — appears for both Total and Remaining (prefix labels embed the amount)
+        expect(screen.getAllByText(/€200,000\.00/).length).toBeGreaterThanOrEqual(1);
       });
     });
 
