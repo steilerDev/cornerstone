@@ -598,16 +598,51 @@
   .rowLevel1 td {
     border-top: 3pt solid var(--color-border-strong);
     border-bottom: none;
-    background-color: var(--color-border) !important;
+    background-color: var(--color-bg-secondary) !important;
     font-weight: 600;
   }
 
-  /* Level 2 (item rows): medium bottom border separating items */
-  .rowLevel2 td {
+  /* ========= OUTER (area) BOX — medium gray ========= */
+
+  /* Left edge of outer box — every row in cost section gets left border */
+  .costSection .rowLevel1 td:first-child,
+  .costSection .rowLevel2 td:first-child,
+  .costSection .rowLevel3 td:first-child {
+    border-left: 1.5pt solid var(--color-border-strong);
+  }
+
+  /* Right edge of outer box — every row in cost section gets right border */
+  .costSection .rowLevel1 td:last-child,
+  .costSection .rowLevel2 td:last-child,
+  .costSection .rowLevel3 td:last-child {
+    border-right: 1.5pt solid var(--color-border-strong);
+  }
+
+  /* Bottom edge of outer box — rows before next area or sum get bottom border */
+  .costSection .rowLevel2:has(+ .rowLevel1) td,
+  .costSection .rowLevel3:has(+ .rowLevel1) td,
+  .costSection .rowLevel2:has(+ .rowSum) td,
+  .costSection .rowLevel3:has(+ .rowSum) td,
+  .costSection .rowLevel2:last-child td,
+  .costSection .rowLevel3:last-child td {
     border-bottom: 1.5pt solid var(--color-border-strong);
   }
 
-  /* Level 2 before budget lines: suppress bottom border so item + lines attach visually */
+  /* ========= INNER (item) BOX — lighter gray ========= */
+
+  /* Inner left edge — inset shadow on item and budget-line rows */
+  .costSection .rowLevel2 td:first-child,
+  .costSection .rowLevel3 td:first-child {
+    box-shadow: inset 8pt 0 0 -6pt var(--color-border);
+  }
+
+  /* Inner right edge — inset shadow on item and budget-line rows */
+  .costSection .rowLevel2 td:last-child,
+  .costSection .rowLevel3 td:last-child {
+    box-shadow: inset -8pt 0 0 -6pt var(--color-border);
+  }
+
+  /* Level 2 (item rows): suppress bottom border when followed by budget lines */
   .rowLevel2:has(+ .rowLevel3) td {
     border-bottom: none;
   }

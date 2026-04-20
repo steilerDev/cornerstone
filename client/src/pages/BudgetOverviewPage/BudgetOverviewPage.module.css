@@ -576,14 +576,9 @@
     --color-warning-text-on-light: #c2410c;
   }
 
-  /* Suppress browser-generated header/footer by zeroing @page margin */
+  /* Apply proper margins to all pages */
   @page {
-    margin: 0;
-  }
-
-  /* Restore readable padding after zeroing @page margin */
-  body {
-    padding: 1cm;
+    margin: 1.5cm 1cm;
   }
 
   /* No scrollable ancestor should reserve scrollbar gutter */
