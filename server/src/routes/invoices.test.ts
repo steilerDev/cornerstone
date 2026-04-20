@@ -178,7 +178,7 @@ describe('Invoice Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<{ invoices: Invoice[] }>();
-      const invoice = body.invoices[0];
+      const invoice = body.invoices[0]!;
       expect(invoice.id).toBeDefined();
       expect(invoice.vendorId).toBe(vendorId);
       expect(invoice.invoiceNumber).toBe('INV-123');
@@ -210,9 +210,9 @@ describe('Invoice Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<{ invoices: Invoice[] }>();
-      expect(body.invoices[0].date).toBe('2026-03-01');
-      expect(body.invoices[1].date).toBe('2026-02-01');
-      expect(body.invoices[2].date).toBe('2026-01-01');
+      expect(body.invoices[0]!.date).toBe('2026-03-01');
+      expect(body.invoices[1]!.date).toBe('2026-02-01');
+      expect(body.invoices[2]!.date).toBe('2026-01-01');
     });
 
     it('only returns invoices for the specified vendor', async () => {
@@ -231,7 +231,7 @@ describe('Invoice Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ invoices: Invoice[] }>();
       expect(body.invoices).toHaveLength(1);
-      expect(body.invoices[0].amount).toBe(100);
+      expect(body.invoices[0]!.amount).toBe(100);
     });
 
     it('returns 404 NOT_FOUND when vendor does not exist', async () => {

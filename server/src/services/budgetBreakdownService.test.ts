@@ -387,9 +387,9 @@ describe('getBudgetBreakdown', () => {
 
       // No area → Unassigned bucket at areas[0]
       expect(result.workItems.areas).toHaveLength(1);
-      const area = result.workItems.areas[0];
+      const area = result.workItems.areas[0]!;
       expect(area.items).toHaveLength(1);
-      expect(area.items[0].costDisplay).toBe('projected');
+      expect(area.items[0]!.costDisplay).toBe('projected');
     });
 
     it('computes projectedMin and projectedMax using own_estimate margin (20%)', () => {
@@ -398,7 +398,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       expect(item.projectedMin).toBeCloseTo(800, 5);
       expect(item.projectedMax).toBeCloseTo(1200, 5);
     });
@@ -409,7 +409,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       expect(item.projectedMin).toBeCloseTo(1900, 5);
       expect(item.projectedMax).toBeCloseTo(2100, 5);
     });
@@ -419,7 +419,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       expect(item.subsidyPayback).toBe(0);
     });
 
@@ -428,7 +428,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       expect(item.actualCost).toBe(0);
     });
 
@@ -437,10 +437,10 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       expect(item.budgetLines).toHaveLength(1);
-      expect(item.budgetLines[0].hasInvoice).toBe(false);
-      expect(item.budgetLines[0].actualCost).toBe(0);
+      expect(item.budgetLines[0]!.hasInvoice).toBe(false);
+      expect(item.budgetLines[0]!.actualCost).toBe(0);
     });
   });
 
@@ -452,7 +452,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       expect(item.costDisplay).toBe('actual');
     });
 
@@ -461,7 +461,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       expect(item.actualCost).toBe(950);
       // invoice confidence with actualCost: projected = actualCost
       expect(item.projectedMin).toBeCloseTo(950, 5);
@@ -473,9 +473,9 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
-      expect(item.budgetLines[0].hasInvoice).toBe(true);
-      expect(item.budgetLines[0].actualCost).toBe(750);
+      const item = result.workItems.areas[0]!.items[0]!;
+      expect(item.budgetLines[0]!.hasInvoice).toBe(true);
+      expect(item.budgetLines[0]!.actualCost).toBe(750);
     });
   });
 
@@ -499,7 +499,7 @@ describe('getBudgetBreakdown', () => {
 
       // No area → single Unassigned bucket
       expect(result.workItems.areas).toHaveLength(1);
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       expect(item.costDisplay).toBe('mixed');
     });
 
@@ -520,7 +520,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       expect(item.actualCost).toBe(900); // only invoiced line
       expect(item.projectedMin).toBeCloseTo(900 + 500 * (1 - CONFIDENCE_MARGINS.own_estimate), 5);
       expect(item.projectedMax).toBeCloseTo(900 + 500 * (1 + CONFIDENCE_MARGINS.own_estimate), 5);
@@ -540,7 +540,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       expect(item.budgetLines).toHaveLength(2);
       const invoicedLines = item.budgetLines.filter((l) => l.hasInvoice);
       const projectedLines = item.budgetLines.filter((l) => !l.hasInvoice);
@@ -625,7 +625,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       expect(item.subsidyPayback).toBeCloseTo(120, 5);
     });
 
@@ -645,7 +645,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       expect(item.projectedMin).toBeCloseTo(680, 5);
       expect(item.projectedMax).toBeCloseTo(1080, 5);
     });
@@ -661,7 +661,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       expect(item.subsidyPayback).toBe(0);
     });
 
@@ -697,7 +697,7 @@ describe('getBudgetBreakdown', () => {
 
       // HI has no area → Unassigned bucket
       expect(result.householdItems.areas).toHaveLength(1);
-      const area = result.householdItems.areas[0];
+      const area = result.householdItems.areas[0]!;
       expect(area.areaId).toBeNull();
       expect(area.name).toBe('Unassigned');
       expect(area.items).toHaveLength(1);
@@ -709,7 +709,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.householdItems.areas[0].items[0];
+      const item = result.householdItems.areas[0]!.items[0]!;
       expect(item.costDisplay).toBe('projected');
     });
 
@@ -719,7 +719,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.householdItems.areas[0].items[0];
+      const item = result.householdItems.areas[0]!.items[0]!;
       expect(item.projectedMin).toBeCloseTo(1200 * 0.95, 5);
       expect(item.projectedMax).toBeCloseTo(1200 * 1.05, 5);
     });
@@ -734,7 +734,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.householdItems.areas[0].items[0];
+      const item = result.householdItems.areas[0]!.items[0]!;
       expect(item.costDisplay).toBe('actual');
       expect(item.actualCost).toBe(480);
     });
@@ -751,8 +751,8 @@ describe('getBudgetBreakdown', () => {
 
       // Both items have null area → single Unassigned bucket with 2 items
       expect(result.householdItems.areas).toHaveLength(1);
-      expect(result.householdItems.areas[0].areaId).toBeNull();
-      expect(result.householdItems.areas[0].items).toHaveLength(2);
+      expect(result.householdItems.areas[0]!.areaId).toBeNull();
+      expect(result.householdItems.areas[0]!.items).toHaveLength(2);
     });
 
     it('HI items in different named areas appear in separate area nodes', () => {
@@ -901,7 +901,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.householdItems.areas[0].items[0];
+      const item = result.householdItems.areas[0]!.items[0]!;
       expect(item.subsidyPayback).toBeCloseTo(240, 5);
     });
   });
@@ -944,7 +944,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       // projectedMin is subsidy-adjusted (680), rawProjectedMin is gross (800)
       expect(item.rawProjectedMin).toBeCloseTo(800, 5);
       expect(item.rawProjectedMax).toBeCloseTo(1200, 5);
@@ -957,7 +957,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       // No subsidy → raw and adjusted values are identical
       expect(item.rawProjectedMin).toBeCloseTo(item.projectedMin, 5);
       expect(item.rawProjectedMax).toBeCloseTo(item.projectedMax, 5);
@@ -969,7 +969,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       expect(item.rawProjectedMin).toBeCloseTo(950, 5);
       expect(item.rawProjectedMax).toBeCloseTo(950, 5);
     });
@@ -1026,7 +1026,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.householdItems.areas[0].items[0];
+      const item = result.householdItems.areas[0]!.items[0]!;
       expect(item.rawProjectedMin).toBeCloseTo(1200 * 0.95, 5);
       expect(item.rawProjectedMax).toBeCloseTo(1200 * 1.05, 5);
       // adjusted values are reduced by subsidy payback
@@ -1051,7 +1051,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       expect(item.minSubsidyPayback).toBeCloseTo(80, 5);
       expect(item.subsidyPayback).toBeCloseTo(120, 5);
     });
@@ -1071,7 +1071,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       // Both use actualCost=900 → payback = 900 * 0.15 = 135
       expect(item.minSubsidyPayback).toBeCloseTo(135, 5);
       expect(item.subsidyPayback).toBeCloseTo(135, 5);
@@ -1083,7 +1083,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
+      const item = result.workItems.areas[0]!.items[0]!;
       expect(item.minSubsidyPayback).toBe(0);
     });
 
@@ -1103,7 +1103,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.householdItems.areas[0].items[0];
+      const item = result.householdItems.areas[0]!.items[0]!;
       expect(item.minSubsidyPayback).toBeCloseTo(80, 5);
     });
 
@@ -1214,8 +1214,8 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
-      expect(item.budgetLines[0].description).toBe('Foundation concrete pour');
+      const item = result.workItems.areas[0]!.items[0]!;
+      expect(item.budgetLines[0]!.description).toBe('Foundation concrete pour');
     });
 
     it('has null description when none is set', () => {
@@ -1223,8 +1223,8 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const item = result.workItems.areas[0].items[0];
-      expect(item.budgetLines[0].description).toBeNull();
+      const item = result.workItems.areas[0]!.items[0]!;
+      expect(item.budgetLines[0]!.description).toBeNull();
     });
   });
 });

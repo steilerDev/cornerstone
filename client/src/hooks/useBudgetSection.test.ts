@@ -566,9 +566,9 @@ describe('handleSaveBudgetLine', () => {
 
     // Verify the mock was called (args checked via mockToPayload result)
     expect(mockUpdateBudget).toHaveBeenCalledTimes(1);
-    const call = mockUpdateBudget.mock.calls[0] as unknown as [string, string, unknown];
-    expect(call[0]).toBe('entity-1');
-    expect(call[1]).toBe('bl-existing');
+    const call = mockUpdateBudget.mock.calls[0]! as unknown as [string, string, unknown];
+    expect(call[0]!).toBe('entity-1');
+    expect(call[1]!).toBe('bl-existing');
   });
 
   it('closes form after successful update', async () => {
@@ -800,9 +800,9 @@ describe('confirmDeleteBudgetLine', () => {
     });
 
     expect(mockDeleteBudget).toHaveBeenCalledTimes(1);
-    const call = mockDeleteBudget.mock.calls[0] as unknown as [string, string];
-    expect(call[0]).toBe('entity-1');
-    expect(call[1]).toBe('bl-to-delete');
+    const call = mockDeleteBudget.mock.calls[0]! as unknown as [string, string];
+    expect(call[0]!).toBe('entity-1');
+    expect(call[1]!).toBe('bl-to-delete');
   });
 
   it('resets deletingBudgetId to null on success', async () => {

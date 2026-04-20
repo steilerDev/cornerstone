@@ -321,10 +321,10 @@ describe('documentLinkService', () => {
 
       const all = db.select().from(schema.documentLinks).all();
       expect(all).toHaveLength(1);
-      expect(all[0].id).toBe(result.id);
-      expect(all[0].entityType).toBe('work_item');
-      expect(all[0].entityId).toBe(workItemId);
-      expect(all[0].paperlessDocumentId).toBe(42);
+      expect(all[0]!.id).toBe(result.id);
+      expect(all[0]!.entityType).toBe('work_item');
+      expect(all[0]!.entityId).toBe(workItemId);
+      expect(all[0]!.paperlessDocumentId).toBe(42);
     });
   });
 
@@ -357,10 +357,10 @@ describe('documentLinkService', () => {
       );
 
       expect(result).toHaveLength(2);
-      expect(result[0].entityType).toBe('work_item');
-      expect(result[0].entityId).toBe(workItemId);
-      expect(result[0].document).toBeNull();
-      expect(result[1].document).toBeNull();
+      expect(result[0]!.entityType).toBe('work_item');
+      expect(result[0]!.entityId).toBe(workItemId);
+      expect(result[0]!.document).toBeNull();
+      expect(result[1]!.document).toBeNull();
     });
 
     it('returns links enriched with document metadata when Paperless is configured', async () => {
@@ -380,16 +380,16 @@ describe('documentLinkService', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].entityType).toBe('work_item');
-      expect(result[0].paperlessDocumentId).toBe(42);
-      expect(result[0].document).not.toBeNull();
-      expect(result[0].document?.id).toBe(42);
-      expect(result[0].document?.title).toBe('Invoice from Builder Co');
+      expect(result[0]!.entityType).toBe('work_item');
+      expect(result[0]!.paperlessDocumentId).toBe(42);
+      expect(result[0]!.document).not.toBeNull();
+      expect(result[0]!.document?.id).toBe(42);
+      expect(result[0]!.document?.title).toBe('Invoice from Builder Co');
       // content must be null in list response
-      expect(result[0].document?.content).toBeNull();
+      expect(result[0]!.document?.content).toBeNull();
       // Tags should be resolved
-      expect(result[0].document?.tags).toHaveLength(1);
-      expect(result[0].document?.tags[0].name).toBe('invoice');
+      expect(result[0]!.document?.tags).toHaveLength(1);
+      expect(result[0]!.document?.tags[0]!.name).toBe('invoice');
     });
 
     it('sets content to null even when Paperless returns content', async () => {
@@ -407,7 +407,7 @@ describe('documentLinkService', () => {
         PAPERLESS_CONFIG_ENABLED,
       );
 
-      expect(result[0].document?.content).toBeNull();
+      expect(result[0]!.document?.content).toBeNull();
     });
 
     it('returns document: null for a specific link when document not found in Paperless', async () => {
@@ -460,7 +460,7 @@ describe('documentLinkService', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].document).toBeNull();
+      expect(result[0]!.document).toBeNull();
     });
 
     it('only returns links for the specified entity, not others', async () => {
@@ -477,8 +477,8 @@ describe('documentLinkService', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].entityId).toBe(workItem1);
-      expect(result[0].paperlessDocumentId).toBe(42);
+      expect(result[0]!.entityId).toBe(workItem1);
+      expect(result[0]!.paperlessDocumentId).toBe(42);
     });
 
     it('resolves createdBy user information', async () => {
@@ -493,7 +493,7 @@ describe('documentLinkService', () => {
         PAPERLESS_CONFIG_DISABLED,
       );
 
-      expect(result[0].createdBy).toEqual({ id: 'user-002', displayName: 'Other User' });
+      expect(result[0]!.createdBy).toEqual({ id: 'user-002', displayName: 'Other User' });
     });
 
     it('returns createdBy: null when user has been deleted', async () => {
@@ -520,7 +520,7 @@ describe('documentLinkService', () => {
         PAPERLESS_CONFIG_DISABLED,
       );
 
-      expect(result[0].createdBy).toBeNull();
+      expect(result[0]!.createdBy).toBeNull();
     });
 
     it('returns links for invoice entity type', async () => {
@@ -536,9 +536,9 @@ describe('documentLinkService', () => {
       );
 
       expect(result).toHaveLength(1);
-      expect(result[0].entityType).toBe('invoice');
-      expect(result[0].entityId).toBe(invoiceId);
-      expect(result[0].paperlessDocumentId).toBe(55);
+      expect(result[0]!.entityType).toBe('invoice');
+      expect(result[0]!.entityId).toBe(invoiceId);
+      expect(result[0]!.paperlessDocumentId).toBe(55);
     });
   });
 
@@ -571,7 +571,7 @@ describe('documentLinkService', () => {
 
       const remaining = db.select().from(schema.documentLinks).all();
       expect(remaining).toHaveLength(1);
-      expect(remaining[0].paperlessDocumentId).toBe(99);
+      expect(remaining[0]!.paperlessDocumentId).toBe(99);
     });
   });
 
@@ -599,7 +599,7 @@ describe('documentLinkService', () => {
 
       const remaining = db.select().from(schema.documentLinks).all();
       expect(remaining).toHaveLength(1);
-      expect(remaining[0].entityId).toBe(workItem2);
+      expect(remaining[0]!.entityId).toBe(workItem2);
     });
 
     it('does not delete links for different entity types with same ID', () => {
@@ -634,7 +634,7 @@ describe('documentLinkService', () => {
 
       const remaining = db.select().from(schema.documentLinks).all();
       expect(remaining).toHaveLength(1);
-      expect(remaining[0].entityType).toBe('invoice');
+      expect(remaining[0]!.entityType).toBe('invoice');
     });
 
     it('is a no-op when no links exist for the entity', () => {

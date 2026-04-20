@@ -417,7 +417,7 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage');
 
       const editButtons = screen.getAllByRole('button', { name: 'Edit' });
-      await user.click(editButtons[0]);
+      await user.click(editButtons[0]!);
 
       expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
@@ -428,7 +428,7 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage');
 
       const editButtons = screen.getAllByRole('button', { name: 'Edit' });
-      await user.click(editButtons[0]);
+      await user.click(editButtons[0]!);
 
       await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
@@ -487,13 +487,13 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage');
 
       const editButtons = screen.getAllByRole('button', { name: 'Edit' });
-      await user.click(editButtons[0]);
+      await user.click(editButtons[0]!);
 
       // Clear the name input and type a new name
       // The edit name input is labelled "Area Name"
       const nameInput = screen.getAllByRole('textbox', { name: 'Area Name' });
       // There's both the create and edit form; the edit form input comes last (only visible one in edit mode)
-      const editNameInput = nameInput[nameInput.length - 1];
+      const editNameInput = nameInput[nameInput.length - 1]!;
       await user.clear(editNameInput);
       await user.type(editNameInput, 'Kitchen Updated');
 
@@ -516,7 +516,7 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage');
 
       const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
-      await user.click(deleteButtons[0]);
+      await user.click(deleteButtons[0]!);
 
       await waitFor(() => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -534,7 +534,7 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage');
 
       const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
-      await user.click(deleteButtons[0]);
+      await user.click(deleteButtons[0]!);
 
       await waitFor(() => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -609,7 +609,7 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage?tab=trades');
 
       const editButtons = screen.getAllByRole('button', { name: 'Edit' });
-      await user.click(editButtons[0]);
+      await user.click(editButtons[0]!);
 
       expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
@@ -620,7 +620,7 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage?tab=trades');
 
       const editButtons = screen.getAllByRole('button', { name: 'Edit' });
-      await user.click(editButtons[0]);
+      await user.click(editButtons[0]!);
 
       await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
@@ -678,10 +678,10 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage?tab=trades');
 
       const editButtons = screen.getAllByRole('button', { name: 'Edit' });
-      await user.click(editButtons[0]);
+      await user.click(editButtons[0]!);
 
       const nameInputs = screen.getAllByRole('textbox', { name: 'Trade Name' });
-      const editNameInput = nameInputs[nameInputs.length - 1];
+      const editNameInput = nameInputs[nameInputs.length - 1]!;
       await user.clear(editNameInput);
       await user.type(editNameInput, 'Plumbing Updated');
 
@@ -706,7 +706,7 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage?tab=trades');
 
       const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
-      await user.click(deleteButtons[0]);
+      await user.click(deleteButtons[0]!);
 
       await waitFor(() => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -724,7 +724,7 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage?tab=trades');
 
       const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
-      await user.click(deleteButtons[0]);
+      await user.click(deleteButtons[0]!);
 
       await waitFor(() => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -914,7 +914,7 @@ describe('ManagePage', () => {
 
       // Both the always-visible create form and the edit form have a "Name" input
       const nameInputs = screen.getAllByRole('textbox', { name: /Name/i });
-      const editNameInput = nameInputs[nameInputs.length - 1];
+      const editNameInput = nameInputs[nameInputs.length - 1]!;
       await user.clear(editNameInput);
       await user.type(editNameInput, 'Materials Updated');
 
@@ -1124,7 +1124,7 @@ describe('ManagePage', () => {
 
       // Both the always-visible create form and the edit form have a "Name" input
       const nameInputs = screen.getAllByRole('textbox', { name: /Name/i });
-      const editNameInput = nameInputs[nameInputs.length - 1];
+      const editNameInput = nameInputs[nameInputs.length - 1]!;
       await user.clear(editNameInput);
       await user.type(editNameInput, 'Furniture Updated');
 

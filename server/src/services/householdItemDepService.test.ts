@@ -192,7 +192,7 @@ describe('householdItemDepService', () => {
       const result = householdItemDepService.listDeps(db, hiId);
 
       expect(result).toHaveLength(1);
-      const dep = result[0];
+      const dep = result[0]!;
       expect(dep.householdItemId).toBe(hiId);
       expect(dep.predecessorType).toBe('work_item');
       expect(dep.predecessorId).toBe(wiId);
@@ -221,7 +221,7 @@ describe('householdItemDepService', () => {
       const result = householdItemDepService.listDeps(db, hiId);
 
       expect(result).toHaveLength(1);
-      const dep = result[0];
+      const dep = result[0]!;
       expect(dep.predecessorType).toBe('milestone');
       expect(dep.predecessor.id).toBe(milestoneId.toString());
       expect(dep.predecessor.title).toBe('Foundation Complete');
@@ -421,7 +421,7 @@ describe('householdItemDepService', () => {
       expect(allDeps).toHaveLength(1); // dep was created and persisted
       // The side-effect of autoReschedule is that delivery dates are written;
       // verify the dep is present in the DB (sufficient to confirm autoReschedule ran)
-      expect(allDeps[0].predecessorId).toBe(wiId);
+      expect(allDeps[0]!.predecessorId).toBe(wiId);
     });
   });
 
@@ -492,7 +492,7 @@ describe('householdItemDepService', () => {
 
       const remaining = householdItemDepService.listDeps(db, hiId);
       expect(remaining).toHaveLength(1);
-      expect(remaining[0].predecessorId).toBe(wiId2);
+      expect(remaining[0]!.predecessorId).toBe(wiId2);
     });
 
     it('calls autoReschedule after deleting dep', () => {
@@ -548,7 +548,7 @@ describe('householdItemDepService', () => {
       const result = householdItemDepService.listDependentHouseholdItemsForWorkItem(db, wiId);
 
       expect(result).toHaveLength(1);
-      const hi = result[0];
+      const hi = result[0]!;
       expect(hi.id).toBe(hiId);
       expect(hi.name).toBe('Custom Sofa');
       expect(hi.category).toBe('hic-furniture');
@@ -583,7 +583,7 @@ describe('householdItemDepService', () => {
       const result = householdItemDepService.listDependentHouseholdItemsForWorkItem(db, wiId1);
 
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe(hi1);
+      expect(result[0]!.id).toBe(hi1);
     });
 
     it('does not include HIs that depend on the work item via milestone (only direct deps)', () => {

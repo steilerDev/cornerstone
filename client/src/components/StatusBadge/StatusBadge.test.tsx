@@ -8,9 +8,9 @@ import badgeStyles from '../Badge/Badge.module.css';
 
 // Variant map mirroring the production definition in WorkItemsPage.tsx
 const WORK_ITEM_STATUS_VARIANTS = {
-  not_started: { label: 'Not Started', className: badgeStyles.not_started },
-  in_progress: { label: 'In Progress', className: badgeStyles.in_progress },
-  completed: { label: 'Completed', className: badgeStyles.completed },
+  not_started: { label: 'Not Started', className: badgeStyles.not_started! },
+  in_progress: { label: 'In Progress', className: badgeStyles.in_progress! },
+  completed: { label: 'Completed', className: badgeStyles.completed! },
 };
 
 describe('Badge — work item status variants', () => {

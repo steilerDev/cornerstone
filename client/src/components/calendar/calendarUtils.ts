@@ -40,7 +40,10 @@ export interface CalendarDay {
  * Avoids local timezone shifts that would occur with `new Date(str)`.
  */
 export function parseIsoDate(dateStr: string): Date {
-  const [year, month, day] = dateStr.split('-').map(Number);
+  const parts = dateStr.split('-').map(Number);
+  const year = parts[0]!; // split ensures at least 1 part or throws
+  const month = parts[1]!; // must be YYYY-MM-DD format
+  const day = parts[2]!; // must be YYYY-MM-DD format
   return new Date(Date.UTC(year, month - 1, day));
 }
 
@@ -490,7 +493,10 @@ export const DAY_NAMES_NARROW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
  * Example: "2026-02-24" → "Tuesday, February 24, 2026"
  */
 export function formatDateForAria(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number);
+  const parts = dateStr.split('-').map(Number);
+  const year = parts[0]!; // split ensures at least 1 part or throws
+  const month = parts[1]!; // must be YYYY-MM-DD format
+  const day = parts[2]!; // must be YYYY-MM-DD format
   const date = new Date(Date.UTC(year, month - 1, day));
   const weekday = date.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
   const monthName = date.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });

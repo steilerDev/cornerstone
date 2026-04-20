@@ -81,9 +81,9 @@ export function ThemeToggle() {
   const { t } = useTranslation('common');
 
   const themeLabels: Record<ThemePreference, string> = {
-    light: t('theme.light'),
-    dark: t('theme.dark'),
-    system: t('theme.system'),
+    light: t('theme.light')!,
+    dark: t('theme.dark')!,
+    system: t('theme.system')!,
   };
 
   const handleClick = () => {

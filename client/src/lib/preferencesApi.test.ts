@@ -71,7 +71,7 @@ describe('preferencesApi', () => {
       const result = await preferencesApi.listPreferences();
 
       expect(result).toHaveLength(1);
-      expect(result[0]).toEqual(pref);
+      expect(result[0]!).toEqual(pref);
     });
 
     it('propagates errors thrown by the API client', async () => {

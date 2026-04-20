@@ -65,8 +65,8 @@ describe('householdItemSubsidiesApi', () => {
 
       expect(result).toEqual([mockSubsidy]);
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('subsidy-1');
-      expect(result[0].name).toBe('Solar Rebate');
+      expect(result[0]!.id).toBe('subsidy-1');
+      expect(result[0]!.name).toBe('Solar Rebate');
     });
 
     it('returns empty array when no subsidies are linked', async () => {
@@ -377,8 +377,8 @@ describe('householdItemSubsidiesApi', () => {
       const result = await fetchHouseholdItemSubsidyPayback('hi-123');
 
       expect(result.subsidies).toHaveLength(2);
-      expect(result.subsidies[0].name).toBe('Solar Rebate');
-      expect(result.subsidies[1].name).toBe('Energy Grant');
+      expect(result.subsidies[0]!.name).toBe('Solar Rebate');
+      expect(result.subsidies[1]!.name).toBe('Energy Grant');
       expect(result.minTotalPayback).toBe(4000);
       expect(result.maxTotalPayback).toBe(6000);
     });

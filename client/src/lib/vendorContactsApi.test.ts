@@ -62,8 +62,8 @@ describe('vendorContactsApi', () => {
       const result = await listVendorContacts('vendor-1');
 
       expect(result.contacts).toHaveLength(1);
-      expect(result.contacts[0].id).toBe('contact-1');
-      expect(result.contacts[0].name).toBe('John Smith');
+      expect(result.contacts[0]!.id).toBe('contact-1');
+      expect(result.contacts[0]!.name).toBe('John Smith');
     });
 
     it('returns empty contacts array when vendor has no contacts', async () => {

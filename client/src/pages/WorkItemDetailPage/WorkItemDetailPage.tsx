@@ -109,24 +109,24 @@ export default function WorkItemDetailPage() {
   // Household item labels (moved from module level to use i18n)
   const HOUSEHOLD_ITEM_CATEGORY_LABELS: Record<HouseholdItemCategory, string> = useMemo(
     () => ({
-      furniture: t('detail.householdItems.categories.furniture'),
-      appliances: t('detail.householdItems.categories.appliances'),
-      fixtures: t('detail.householdItems.categories.fixtures'),
-      decor: t('detail.householdItems.categories.decor'),
-      electronics: t('detail.householdItems.categories.electronics'),
-      outdoor: t('detail.householdItems.categories.outdoor'),
-      storage: t('detail.householdItems.categories.storage'),
-      other: t('detail.householdItems.categories.other'),
+      furniture: t('detail.householdItems.categories.furniture')!,
+      appliances: t('detail.householdItems.categories.appliances')!,
+      fixtures: t('detail.householdItems.categories.fixtures')!,
+      decor: t('detail.householdItems.categories.decor')!,
+      electronics: t('detail.householdItems.categories.electronics')!,
+      outdoor: t('detail.householdItems.categories.outdoor')!,
+      storage: t('detail.householdItems.categories.storage')!,
+      other: t('detail.householdItems.categories.other')!,
     }),
     [t],
   );
 
   const HOUSEHOLD_ITEM_STATUS_LABELS: Record<HouseholdItemStatus, string> = useMemo(
     () => ({
-      planned: t('detail.householdItems.statuses.planned'),
-      purchased: t('detail.householdItems.statuses.purchased'),
-      scheduled: t('detail.householdItems.statuses.scheduled'),
-      arrived: t('detail.householdItems.statuses.arrived'),
+      planned: t('detail.householdItems.statuses.planned')!,
+      purchased: t('detail.householdItems.statuses.purchased')!,
+      scheduled: t('detail.householdItems.statuses.scheduled')!,
+      arrived: t('detail.householdItems.statuses.arrived')!,
     }),
     [t],
   );
@@ -914,7 +914,8 @@ export default function WorkItemDetailPage() {
 
     const reordered = [...subtasks];
     const [moved] = reordered.splice(index, 1);
-    reordered.splice(newIndex, 0, moved);
+    // moved is guaranteed to exist because index is valid (guarded by bounds check above)
+    reordered.splice(newIndex, 0, moved!);
 
     setInlineError(null);
     try {
@@ -1327,7 +1328,7 @@ export default function WorkItemDetailPage() {
                   <span aria-hidden="true">⚠</span>
                   {t('detail.schedule.delayed', {
                     count: delayDays,
-                    unit: delayDays === 1 ? t('detail.schedule.day') : t('detail.schedule.days'),
+                    unit: delayDays === 1 ? t('detail.schedule.day') : t('detail.schedule.days')!,
                   })}
                 </div>
               );

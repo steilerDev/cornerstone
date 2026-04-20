@@ -148,9 +148,9 @@ describe('Household Item Category Routes', () => {
       const body = response.json<HICListResponse>();
       const customCats = body.categories.filter((c) => c.name.startsWith('Custom HIC'));
       expect(customCats).toHaveLength(3);
-      expect(customCats[0].name).toBe('Custom HIC Alpha');
-      expect(customCats[1].name).toBe('Custom HIC Beta');
-      expect(customCats[2].name).toBe('Custom HIC Zeta');
+      expect(customCats[0]!.name).toBe('Custom HIC Alpha');
+      expect(customCats[1]!.name).toBe('Custom HIC Beta');
+      expect(customCats[2]!.name).toBe('Custom HIC Zeta');
     });
 
     it('returns all category fields including color and sortOrder', async () => {

@@ -486,7 +486,7 @@ describe('Photo Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body) as { photos: Photo[] };
       expect(body.photos).toHaveLength(2);
-      expect(body.photos[0].id).toBe('p1');
+      expect(body.photos[0]!.id).toBe('p1');
     });
 
     it('passes entityType and entityId to service', async () => {

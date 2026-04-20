@@ -157,8 +157,8 @@ export function CalendarItem({
         : styles.notStarted;
 
   const shapeClass = [
-    isStart ? styles.startRounded : styles.noStartRound,
-    isEnd ? styles.endRounded : styles.noEndRound,
+    isStart ? styles.startRounded : styles.noStartRound!,
+    isEnd ? styles.endRounded : styles.noEndRound!,
   ].join(' ');
 
   // Absolute positioning based on lane index

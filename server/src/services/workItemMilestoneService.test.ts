@@ -137,9 +137,9 @@ describe('Work Item Milestone Service', () => {
 
       // Then: Required array has the milestone; linked is empty
       expect(result.required).toHaveLength(1);
-      expect(result.required[0].id).toBe(milestoneId);
-      expect(result.required[0].name).toBe('Foundation Approval');
-      expect(result.required[0].targetDate).toBe('2026-06-01');
+      expect(result.required[0]!.id).toBe(milestoneId);
+      expect(result.required[0]!.name).toBe('Foundation Approval');
+      expect(result.required[0]!.targetDate).toBe('2026-06-01');
       expect(result.linked).toEqual([]);
     });
 
@@ -156,8 +156,8 @@ describe('Work Item Milestone Service', () => {
 
       // Then: Linked array has the milestone; required is empty
       expect(result.linked).toHaveLength(1);
-      expect(result.linked[0].id).toBe(milestoneId);
-      expect(result.linked[0].name).toBe('Rough-In Complete');
+      expect(result.linked[0]!.id).toBe(milestoneId);
+      expect(result.linked[0]!.name).toBe('Rough-In Complete');
       expect(result.required).toEqual([]);
     });
 
@@ -180,12 +180,12 @@ describe('Work Item Milestone Service', () => {
 
       // Then: Both arrays are populated with correct milestones
       expect(result.required).toHaveLength(1);
-      expect(result.required[0].id).toBe(reqMilestoneId);
-      expect(result.required[0].name).toBe('Framing Inspection');
+      expect(result.required[0]!.id).toBe(reqMilestoneId);
+      expect(result.required[0]!.name).toBe('Framing Inspection');
 
       expect(result.linked).toHaveLength(1);
-      expect(result.linked[0].id).toBe(linkedMilestoneId);
-      expect(result.linked[0].name).toBe('Drywall Complete');
+      expect(result.linked[0]!.id).toBe(linkedMilestoneId);
+      expect(result.linked[0]!.name).toBe('Drywall Complete');
     });
 
     it('returns multiple required milestones when multiple exist', () => {
@@ -239,8 +239,8 @@ describe('Work Item Milestone Service', () => {
 
       // Then: Returns updated milestones with the new required entry
       expect(result.required).toHaveLength(1);
-      expect(result.required[0].id).toBe(milestoneId);
-      expect(result.required[0].name).toBe('Waterproofing Approved');
+      expect(result.required[0]!.id).toBe(milestoneId);
+      expect(result.required[0]!.name).toBe('Waterproofing Approved');
       expect(result.linked).toEqual([]);
     });
 
@@ -379,7 +379,7 @@ describe('Work Item Milestone Service', () => {
       // Then: Only the second milestone remains
       const result = workItemMilestoneService.getWorkItemMilestones(db, workItemId);
       expect(result.required).toHaveLength(1);
-      expect(result.required[0].id).toBe(milestone2Id);
+      expect(result.required[0]!.id).toBe(milestone2Id);
     });
   });
 
@@ -397,8 +397,8 @@ describe('Work Item Milestone Service', () => {
 
       // Then: Returns updated milestones with the new linked entry
       expect(result.linked).toHaveLength(1);
-      expect(result.linked[0].id).toBe(milestoneId);
-      expect(result.linked[0].name).toBe('Foundation Phase Complete');
+      expect(result.linked[0]!.id).toBe(milestoneId);
+      expect(result.linked[0]!.name).toBe('Foundation Phase Complete');
       expect(result.required).toEqual([]);
     });
 
@@ -537,7 +537,7 @@ describe('Work Item Milestone Service', () => {
       // Then: Only the second link remains
       const result = workItemMilestoneService.getWorkItemMilestones(db, workItemId);
       expect(result.linked).toHaveLength(1);
-      expect(result.linked[0].id).toBe(milestone2Id);
+      expect(result.linked[0]!.id).toBe(milestone2Id);
     });
   });
 
@@ -556,7 +556,7 @@ describe('Work Item Milestone Service', () => {
       const result = workItemMilestoneService.getWorkItemMilestones(db, workItemId);
 
       // Then: The title is exposed as `name` in the summary shape
-      expect(result.required[0].name).toBe('My Milestone Title');
+      expect(result.required[0]!.name).toBe('My Milestone Title');
     });
 
     it('exposes targetDate correctly in the summary shape', () => {
@@ -571,7 +571,7 @@ describe('Work Item Milestone Service', () => {
       const result = workItemMilestoneService.getWorkItemMilestones(db, workItemId);
 
       // Then: The targetDate matches what was stored
-      expect(result.required[0].targetDate).toBe('2026-09-15');
+      expect(result.required[0]!.targetDate).toBe('2026-09-15');
     });
   });
 });

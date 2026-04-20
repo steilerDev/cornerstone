@@ -56,7 +56,7 @@ describe('photoApi', () => {
 
       await getPhotosForEntity('diary_entry', 'entry-123');
 
-      const callUrl = mockFetch.mock.calls[0][0] as string;
+      const callUrl = mockFetch.mock.calls[0]![0] as string;
       expect(callUrl).toContain('/api/photos');
       expect(callUrl).toContain('entityType=diary_entry');
       expect(callUrl).toContain('entityId=entry-123');
@@ -74,8 +74,8 @@ describe('photoApi', () => {
       const result = await getPhotosForEntity('diary_entry', 'entry-123');
 
       expect(result).toHaveLength(2);
-      expect(result[0].id).toBe('photo-1');
-      expect(result[1].id).toBe('photo-2');
+      expect(result[0]!.id).toBe('photo-1');
+      expect(result[1]!.id).toBe('photo-2');
     });
 
     it('returns empty array when no photos exist for the entity', async () => {
@@ -97,7 +97,7 @@ describe('photoApi', () => {
 
       await getPhotosForEntity('diary_entry', 'entry with spaces');
 
-      const callUrl = mockFetch.mock.calls[0][0] as string;
+      const callUrl = mockFetch.mock.calls[0]![0] as string;
       expect(callUrl).toContain('entityId=entry+with+spaces');
     });
 
@@ -255,7 +255,7 @@ describe('photoApi', () => {
 
       await deletePhoto('photo-abc-xyz');
 
-      const callUrl = mockFetch.mock.calls[0][0] as string;
+      const callUrl = mockFetch.mock.calls[0]![0] as string;
       expect(callUrl).toBe('/api/photos/photo-abc-xyz');
     });
 
@@ -386,7 +386,7 @@ describe('photoApi', () => {
       void uploadPhoto('diary_entry', 'entry-1', file);
 
       expect(mockXhr.send).toHaveBeenCalledWith(expect.any(FormData));
-      const formData = mockXhr.send.mock.calls[0][0] as FormData;
+      const formData = mockXhr.send.mock.calls[0]![0] as FormData;
       expect(formData.get('file')).toBe(file);
       expect(formData.get('entityType')).toBe('diary_entry');
       expect(formData.get('entityId')).toBe('entry-1');
@@ -396,7 +396,7 @@ describe('photoApi', () => {
       const file = makeFile();
       void uploadPhoto('diary_entry', 'entry-1', file, 'My caption');
 
-      const formData = mockXhr.send.mock.calls[0][0] as FormData;
+      const formData = mockXhr.send.mock.calls[0]![0] as FormData;
       expect(formData.get('caption')).toBe('My caption');
     });
 
@@ -404,7 +404,7 @@ describe('photoApi', () => {
       const file = makeFile();
       void uploadPhoto('diary_entry', 'entry-1', file);
 
-      const formData = mockXhr.send.mock.calls[0][0] as FormData;
+      const formData = mockXhr.send.mock.calls[0]![0] as FormData;
       expect(formData.get('caption')).toBeNull();
     });
 
@@ -416,7 +416,7 @@ describe('photoApi', () => {
       const promise = uploadPhoto('diary_entry', 'entry-1', makeFile());
 
       // Trigger the load event
-      xhrEventHandlers['load']();
+      xhrEventHandlers['load']!();
 
       const result = await promise;
       expect(result).toEqual(photo);
@@ -429,7 +429,7 @@ describe('photoApi', () => {
       });
 
       const promise = uploadPhoto('diary_entry', 'entry-1', makeFile());
-      xhrEventHandlers['load']();
+      xhrEventHandlers['load']!();
 
       await expect(promise).rejects.toThrow('File type not supported');
     });
@@ -439,7 +439,7 @@ describe('photoApi', () => {
       mockXhr.responseText = JSON.stringify({ error: {} });
 
       const promise = uploadPhoto('diary_entry', 'entry-1', makeFile());
-      xhrEventHandlers['load']();
+      xhrEventHandlers['load']!();
 
       await expect(promise).rejects.toThrow('Upload failed (500)');
     });
@@ -449,7 +449,7 @@ describe('photoApi', () => {
       mockXhr.responseText = 'Bad Gateway';
 
       const promise = uploadPhoto('diary_entry', 'entry-1', makeFile());
-      xhrEventHandlers['load']();
+      xhrEventHandlers['load']!();
 
       await expect(promise).rejects.toThrow('Upload failed (502)');
     });
@@ -459,21 +459,21 @@ describe('photoApi', () => {
       mockXhr.responseText = 'not-json';
 
       const promise = uploadPhoto('diary_entry', 'entry-1', makeFile());
-      xhrEventHandlers['load']();
+      xhrEventHandlers['load']!();
 
       await expect(promise).rejects.toThrow('Failed to parse upload response');
     });
 
     it('rejects with NetworkError on XHR error event', async () => {
       const promise = uploadPhoto('diary_entry', 'entry-1', makeFile());
-      xhrEventHandlers['error']();
+      xhrEventHandlers['error']!();
 
       await expect(promise).rejects.toThrow('Network error during upload');
     });
 
     it('rejects with abort error on XHR abort event', async () => {
       const promise = uploadPhoto('diary_entry', 'entry-1', makeFile());
-      xhrEventHandlers['abort']();
+      xhrEventHandlers['abort']!();
 
       await expect(promise).rejects.toThrow('Upload aborted');
     });
@@ -488,19 +488,19 @@ describe('photoApi', () => {
       const promise = uploadPhoto('diary_entry', 'entry-1', makeFile(), undefined, onProgress);
 
       // Simulate progress events
-      xhrUploadEventHandlers['progress']({
+      xhrUploadEventHandlers['progress']!({
         lengthComputable: true,
         loaded: 50,
         total: 100,
       } as ProgressEvent);
 
-      xhrUploadEventHandlers['progress']({
+      xhrUploadEventHandlers['progress']!({
         lengthComputable: true,
         loaded: 100,
         total: 100,
       } as ProgressEvent);
 
-      xhrEventHandlers['load']();
+      xhrEventHandlers['load']!();
       await promise;
 
       expect(onProgress).toHaveBeenCalledTimes(2);
@@ -517,13 +517,13 @@ describe('photoApi', () => {
 
       const promise = uploadPhoto('diary_entry', 'entry-1', makeFile(), undefined, onProgress);
 
-      xhrUploadEventHandlers['progress']({
+      xhrUploadEventHandlers['progress']!({
         lengthComputable: false,
         loaded: 50,
         total: 0,
       } as ProgressEvent);
 
-      xhrEventHandlers['load']();
+      xhrEventHandlers['load']!();
       await promise;
 
       expect(onProgress).not.toHaveBeenCalled();
@@ -546,13 +546,13 @@ describe('photoApi', () => {
       const promise = uploadPhoto('diary_entry', 'entry-1', makeFile(), undefined, onProgress);
 
       // 1/3 = 33.333...
-      xhrUploadEventHandlers['progress']({
+      xhrUploadEventHandlers['progress']!({
         lengthComputable: true,
         loaded: 1,
         total: 3,
       } as ProgressEvent);
 
-      xhrEventHandlers['load']();
+      xhrEventHandlers['load']!();
       await promise;
 
       expect(onProgress).toHaveBeenCalledWith(33);

@@ -100,8 +100,8 @@ export default function DiaryEntryDetailPage() {
         );
         const focusableArray = Array.from(focusable);
         if (focusableArray.length === 0) return;
-        const firstEl = focusableArray[0];
-        const lastEl = focusableArray[focusableArray.length - 1];
+        const firstEl = focusableArray[0]!; // guarded by length check at line 102
+        const lastEl = focusableArray[focusableArray.length - 1]!; // guarded by length check at line 102
         if (e.shiftKey) {
           if (document.activeElement === firstEl) {
             e.preventDefault();

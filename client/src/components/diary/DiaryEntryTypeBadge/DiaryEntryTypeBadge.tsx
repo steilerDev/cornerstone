@@ -37,18 +37,18 @@ const EMOJI_MAP: Record<DiaryEntryType, string> = {
 };
 
 const BADGE_CLASS_MAP: Record<DiaryEntryType, string> = {
-  daily_log: styles.dailyLog,
-  site_visit: styles.siteVisit,
-  delivery: styles.delivery,
-  issue: styles.issue,
-  general_note: styles.generalNote,
-  work_item_status: styles.automatic,
-  invoice_status: styles.automatic,
-  invoice_created: styles.automatic,
-  milestone_delay: styles.automatic,
-  budget_breach: styles.automatic,
-  auto_reschedule: styles.automatic,
-  subsidy_status: styles.automatic,
+  daily_log: styles.dailyLog!,
+  site_visit: styles.siteVisit!,
+  delivery: styles.delivery!,
+  issue: styles.issue!,
+  general_note: styles.generalNote!,
+  work_item_status: styles.automatic!,
+  invoice_status: styles.automatic!,
+  invoice_created: styles.automatic!,
+  milestone_delay: styles.automatic!,
+  budget_breach: styles.automatic!,
+  auto_reschedule: styles.automatic!,
+  subsidy_status: styles.automatic!,
 };
 
 export function DiaryEntryTypeBadge({ entryType, size = 'sm' }: DiaryEntryTypeBadgeProps) {

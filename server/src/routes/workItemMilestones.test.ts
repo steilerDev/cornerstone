@@ -153,9 +153,9 @@ describe('Work Item Milestone Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<WorkItemMilestones>();
       expect(body.required).toHaveLength(1);
-      expect(body.required[0].id).toBe(milestoneId);
-      expect(body.required[0].name).toBe('Permits Approved');
-      expect(body.required[0].targetDate).toBe('2026-06-01');
+      expect(body.required[0]!.id).toBe(milestoneId);
+      expect(body.required[0]!.name).toBe('Permits Approved');
+      expect(body.required[0]!.targetDate).toBe('2026-06-01');
       expect(body.linked).toEqual([]);
     });
 
@@ -183,8 +183,8 @@ describe('Work Item Milestone Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<WorkItemMilestones>();
       expect(body.linked).toHaveLength(1);
-      expect(body.linked[0].id).toBe(milestoneId);
-      expect(body.linked[0].name).toBe('Framing Phase Complete');
+      expect(body.linked[0]!.id).toBe(milestoneId);
+      expect(body.linked[0]!.name).toBe('Framing Phase Complete');
       expect(body.required).toEqual([]);
     });
 
@@ -240,8 +240,8 @@ describe('Work Item Milestone Routes', () => {
       expect(response.statusCode).toBe(201);
       const body = response.json<WorkItemMilestones>();
       expect(body.required).toHaveLength(1);
-      expect(body.required[0].id).toBe(milestoneId);
-      expect(body.required[0].name).toBe('Subfloor Approved');
+      expect(body.required[0]!.id).toBe(milestoneId);
+      expect(body.required[0]!.name).toBe('Subfloor Approved');
       expect(body.linked).toEqual([]);
     });
 
@@ -536,8 +536,8 @@ describe('Work Item Milestone Routes', () => {
       expect(response.statusCode).toBe(201);
       const body = response.json<WorkItemMilestones>();
       expect(body.linked).toHaveLength(1);
-      expect(body.linked[0].id).toBe(milestoneId);
-      expect(body.linked[0].name).toBe('Renewable Energy Phase');
+      expect(body.linked[0]!.id).toBe(milestoneId);
+      expect(body.linked[0]!.name).toBe('Renewable Energy Phase');
       expect(body.required).toEqual([]);
     });
 

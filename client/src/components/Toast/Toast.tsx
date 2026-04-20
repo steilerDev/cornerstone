@@ -84,9 +84,9 @@ const TOAST_ICONS: Record<ToastVariant, React.ComponentType> = {
 };
 
 const TOAST_VARIANT_CLASS: Record<ToastVariant, string> = {
-  success: styles.toastSuccess,
-  info: styles.toastInfo,
-  error: styles.toastError,
+  success: styles.toastSuccess!,
+  info: styles.toastInfo!,
+  error: styles.toastError!,
 };
 
 // ---------------------------------------------------------------------------

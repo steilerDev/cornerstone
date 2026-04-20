@@ -150,7 +150,7 @@ describe('DependencySentenceBuilder', () => {
 
       // Focus the slot 1 input to open dropdown
       const inputs = screen.getAllByPlaceholderText('Search work items...');
-      const slot1Input = inputs[0];
+      const slot1Input = inputs[0]!;
       await user.click(slot1Input);
 
       // Wait for dropdown options to appear
@@ -185,7 +185,7 @@ describe('DependencySentenceBuilder', () => {
 
       // Select work item in slot 1
       const inputs = screen.getAllByPlaceholderText('Search work items...');
-      await user.click(inputs[0]);
+      await user.click(inputs[0]!);
       await waitFor(() => expect(screen.getByText('Foundation')).toBeInTheDocument());
       await user.click(screen.getByText('Foundation'));
 
@@ -219,7 +219,7 @@ describe('DependencySentenceBuilder', () => {
 
       // Select work item in slot 1
       const inputs = screen.getAllByPlaceholderText('Search work items...');
-      await user.click(inputs[0]);
+      await user.click(inputs[0]!);
       await waitFor(() => expect(screen.getByText('Foundation')).toBeInTheDocument());
       await user.click(screen.getByText('Foundation'));
 
@@ -255,7 +255,7 @@ describe('DependencySentenceBuilder', () => {
 
       // Select "Foundation" in slot 1 (predecessor)
       const inputs = screen.getAllByPlaceholderText('Search work items...');
-      await user.click(inputs[0]);
+      await user.click(inputs[0]!);
       await waitFor(() => expect(screen.getByText('Foundation')).toBeInTheDocument());
       await user.click(screen.getByText('Foundation'));
 
@@ -280,7 +280,7 @@ describe('DependencySentenceBuilder', () => {
 
       // Select work item in slot 1
       const inputs = screen.getAllByPlaceholderText('Search work items...');
-      await user.click(inputs[0]);
+      await user.click(inputs[0]!);
       await waitFor(() => expect(screen.getByText('Foundation')).toBeInTheDocument());
       await user.click(screen.getByText('Foundation'));
 
@@ -323,7 +323,7 @@ describe('DependencySentenceBuilder', () => {
 
       // Open slot 1 dropdown
       const inputs = screen.getAllByPlaceholderText('Search work items...');
-      await user.click(inputs[0]);
+      await user.click(inputs[0]!);
 
       // Wait for dropdown to open
       await waitFor(() => {
@@ -346,7 +346,7 @@ describe('DependencySentenceBuilder', () => {
 
       // Now slot 2 is empty — slot 1 should show "This item" as a special option
       const inputs = screen.getAllByPlaceholderText('Search work items...');
-      await user.click(inputs[0]);
+      await user.click(inputs[0]!);
 
       await waitFor(() => {
         expect(screen.getByRole('option', { name: 'This item' })).toBeInTheDocument();
@@ -376,7 +376,7 @@ describe('DependencySentenceBuilder', () => {
 
       // Now open slot 1 and select "This item"
       const inputs = screen.getAllByPlaceholderText('Search work items...');
-      await user.click(inputs[0]);
+      await user.click(inputs[0]!);
 
       await waitFor(() => {
         expect(screen.getByRole('option', { name: 'This item' })).toBeInTheDocument();
@@ -440,10 +440,10 @@ describe('DependencySentenceBuilder', () => {
       renderBuilder();
 
       const inputs = screen.getAllByPlaceholderText('Search work items...');
-      await user.click(inputs[0]);
+      await user.click(inputs[0]!);
 
       // Type to trigger a search with results
-      await user.type(inputs[0], 'xyz');
+      await user.type(inputs[0]!, 'xyz');
 
       await waitFor(() => {
         expect(screen.getByText('No matching work items found')).toBeInTheDocument();

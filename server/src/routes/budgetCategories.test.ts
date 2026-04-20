@@ -171,9 +171,9 @@ describe('Budget Category Routes', () => {
       // Our custom categories should be at the end in sort order
       const customCats = body.categories.filter((c) => c.name.startsWith('Custom '));
       expect(customCats).toHaveLength(3);
-      expect(customCats[0].name).toBe('Custom Alpha');
-      expect(customCats[1].name).toBe('Custom Beta');
-      expect(customCats[2].name).toBe('Custom Zeta');
+      expect(customCats[0]!.name).toBe('Custom Alpha');
+      expect(customCats[1]!.name).toBe('Custom Beta');
+      expect(customCats[2]!.name).toBe('Custom Zeta');
     });
 
     it('returns all category fields including description, color, and sortOrder', async () => {

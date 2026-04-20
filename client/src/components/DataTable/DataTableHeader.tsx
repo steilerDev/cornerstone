@@ -133,7 +133,8 @@ export function DataTableHeader<T>({
                   onApply={(value) => {
                     onFilter(col.filterParamKey || col.key, value || null);
                   }}
-                  triggerRect={filterTriggerRefs.current[col.key].getBoundingClientRect()}
+                  // filterTriggerRefs.current[col.key] is guarded by the && condition above
+                  triggerRect={filterTriggerRefs.current[col.key]!.getBoundingClientRect()}
                 />
               )}
           </th>

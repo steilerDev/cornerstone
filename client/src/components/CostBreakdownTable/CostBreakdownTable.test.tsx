@@ -2850,7 +2850,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
     const expandItemBtns = screen.getAllByRole('button', { name: /Expand Shared Work Item/ });
     // Only one item row visible (Alpha is open, Beta is closed)
     expect(expandItemBtns.length).toBeGreaterThanOrEqual(1);
-    fireEvent.click(expandItemBtns[0]);
+    fireEvent.click(expandItemBtns[0]!);
 
     // Budget line should be visible (item in alpha is expanded)
     expect(screen.getByText('Shared budget line')).toBeInTheDocument();
@@ -2888,7 +2888,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
     // Expand the item in Furniture
     const itemBtnsAfterFurniture = screen.getAllByRole('button', { name: /Expand Shared HI Item/ });
     expect(itemBtnsAfterFurniture.length).toBeGreaterThanOrEqual(1);
-    fireEvent.click(itemBtnsAfterFurniture[0]);
+    fireEvent.click(itemBtnsAfterFurniture[0]!);
 
     // Budget line under Furniture's item is now visible
     expect(screen.getByText('Shared HI budget line')).toBeInTheDocument();
@@ -2927,8 +2927,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
     // Both item rows are now visible; expand both
     const allItemBtns = screen.getAllByRole('button', { name: /Expand Shared Work Item/ });
     expect(allItemBtns.length).toBe(2);
-    fireEvent.click(allItemBtns[0]);
-    fireEvent.click(allItemBtns[1]);
+    fireEvent.click(allItemBtns[0]!);
+    fireEvent.click(allItemBtns[1]!);
 
     // Both items should now be expanded; budget lines appear twice (once per category)
     const budgetLineCells = screen.getAllByText('Shared budget line');

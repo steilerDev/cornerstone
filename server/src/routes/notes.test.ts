@@ -252,9 +252,9 @@ describe('Note Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ notes: NoteResponse[] }>();
       expect(body.notes).toHaveLength(3);
-      expect(body.notes[0].id).toBe(note3Id); // Most recent
-      expect(body.notes[1].id).toBe(note2Id);
-      expect(body.notes[2].id).toBe(note1Id); // Oldest
+      expect(body.notes[0]!.id).toBe(note3Id); // Most recent
+      expect(body.notes[1]!.id).toBe(note2Id);
+      expect(body.notes[2]!.id).toBe(note1Id); // Oldest
     });
 
     it('returns empty array when no notes exist (UAT-3.4-08)', async () => {

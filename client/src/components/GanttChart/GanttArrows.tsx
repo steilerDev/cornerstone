@@ -359,8 +359,8 @@ export const GanttArrows = memo(function GanttArrows({
     }> = [];
 
     for (let i = 0; i < criticalPathOrder.length - 1; i++) {
-      const fromId = criticalPathOrder[i];
-      const toId = criticalPathOrder[i + 1];
+      const fromId = criticalPathOrder[i]!; // loop bounds ensure index exists
+      const toId = criticalPathOrder[i + 1]!; // loop bounds ensure index exists
 
       // Skip if there's already an explicit dependency between them
       if (depPairs.has(`${fromId}:${toId}`)) continue;
@@ -526,7 +526,7 @@ export const GanttArrows = memo(function GanttArrows({
       if (highlightedArrowKeys!.has(key)) return `${styles.arrowGroup} ${styles.arrowGroupHovered}`;
       return `${styles.arrowGroup} ${styles.arrowGroupDimmed}`;
     }
-    return styles.arrowGroup;
+    return styles.arrowGroup ?? '';
   }
 
   /**

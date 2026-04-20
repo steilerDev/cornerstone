@@ -186,7 +186,7 @@ describe('getMonthGrid', () => {
     ]) {
       const grid = getMonthGrid(year as number, month as number);
       for (const week of grid) {
-        expect(week[0].date.getUTCDay()).toBe(0); // Sunday
+        expect(week[0]!.date.getUTCDay()).toBe(0); // Sunday
       }
     }
   });
@@ -194,7 +194,7 @@ describe('getMonthGrid', () => {
   it('last column is always Saturday (UTC day 6)', () => {
     const grid = getMonthGrid(2024, 3);
     for (const week of grid) {
-      expect(week[6].date.getUTCDay()).toBe(6); // Saturday
+      expect(week[6]!.date.getUTCDay()).toBe(6); // Saturday
     }
   });
 
@@ -227,7 +227,8 @@ describe('getMonthGrid', () => {
     const grid = getMonthGrid(2024, 3); // March = 31 days
     const allDays = grid.flat();
     const inMonthDays = allDays.filter((d) => d.isCurrentMonth);
-    const lastInMonth = inMonthDays[inMonthDays.length - 1];
+    // inMonthDays is filtered from March, guaranteed to have at least 28 days
+    const lastInMonth = inMonthDays[inMonthDays.length - 1]!;
     expect(lastInMonth.dayOfMonth).toBe(31);
     expect(lastInMonth.dateStr).toBe('2024-03-31');
   });
@@ -268,8 +269,8 @@ describe('getMonthGrid', () => {
     const grid = getMonthGrid(2024, 9);
     const allDays = grid.flat();
     // September 1 should be in the first cell of the first row
-    expect(allDays[0].dateStr).toBe('2024-09-01');
-    expect(allDays[0].isCurrentMonth).toBe(true);
+    expect(allDays[0]!.dateStr).toBe('2024-09-01');
+    expect(allDays[0]!.isCurrentMonth).toBe(true);
   });
 
   it('handles month starting on Saturday (most leading padding days)', () => {
@@ -278,10 +279,10 @@ describe('getMonthGrid', () => {
     const allDays = grid.flat();
     // First 6 cells belong to previous month (May 2024)
     for (let i = 0; i < 6; i++) {
-      expect(allDays[i].isCurrentMonth).toBe(false);
+      expect(allDays[i]!.isCurrentMonth).toBe(false);
     }
-    expect(allDays[6].dateStr).toBe('2024-06-01');
-    expect(allDays[6].isCurrentMonth).toBe(true);
+    expect(allDays[6]!.dateStr).toBe('2024-06-01');
+    expect(allDays[6]!.isCurrentMonth).toBe(true);
   });
 
   it('marks today with isToday=true', () => {
@@ -299,7 +300,7 @@ describe('getMonthGrid', () => {
     const allDays = grid.flat();
     const todayCells = allDays.filter((d) => d.isToday);
     expect(todayCells).toHaveLength(1);
-    expect(todayCells[0].dayOfMonth).toBe(now.getDate());
+    expect(todayCells[0]!.dayOfMonth).toBe(now.getDate());
   });
 
   it('no cells have isToday=true when today is not in the displayed month', () => {
@@ -314,7 +315,7 @@ describe('getMonthGrid', () => {
     const grid = getMonthGrid(2024, 5);
     const allDays = grid.flat();
     for (let i = 1; i < allDays.length; i++) {
-      expect(allDays[i].date.getTime()).toBeGreaterThan(allDays[i - 1].date.getTime());
+      expect(allDays[i]!.date.getTime()).toBeGreaterThan(allDays[i - 1]!.date.getTime());
     }
   });
 
@@ -323,8 +324,8 @@ describe('getMonthGrid', () => {
     const allDays = grid.flat();
     const decDays = allDays.filter((d) => d.isCurrentMonth);
     expect(decDays).toHaveLength(31);
-    expect(decDays[0].dateStr).toBe('2023-12-01');
-    expect(decDays[decDays.length - 1].dateStr).toBe('2023-12-31');
+    expect(decDays[0]!.dateStr).toBe('2023-12-01');
+    expect(decDays[decDays.length - 1]!.dateStr).toBe('2023-12-31');
   });
 
   it('trailing days after the month belong to the next month', () => {
@@ -353,13 +354,13 @@ describe('getWeekDates', () => {
   it('first day of the week is Sunday', () => {
     const date = new Date(Date.UTC(2024, 2, 15)); // Friday
     const days = getWeekDates(date);
-    expect(days[0].date.getUTCDay()).toBe(0); // Sunday
+    expect(days[0]!.date.getUTCDay()).toBe(0); // Sunday
   });
 
   it('last day of the week is Saturday', () => {
     const date = new Date(Date.UTC(2024, 2, 15)); // Friday
     const days = getWeekDates(date);
-    expect(days[6].date.getUTCDay()).toBe(6); // Saturday
+    expect(days[6]!.date.getUTCDay()).toBe(6); // Saturday
   });
 
   it('the input date falls within the returned week', () => {
@@ -372,20 +373,20 @@ describe('getWeekDates', () => {
   it('for a Sunday input, Sunday is the first day', () => {
     const sunday = new Date(Date.UTC(2024, 2, 10)); // Sunday March 10
     const days = getWeekDates(sunday);
-    expect(days[0].dateStr).toBe('2024-03-10');
+    expect(days[0]!.dateStr).toBe('2024-03-10');
   });
 
   it('for a Saturday input, Saturday is the last day', () => {
     const saturday = new Date(Date.UTC(2024, 2, 16)); // Saturday March 16
     const days = getWeekDates(saturday);
-    expect(days[6].dateStr).toBe('2024-03-16');
+    expect(days[6]!.dateStr).toBe('2024-03-16');
   });
 
   it('consecutive days are 24 hours apart', () => {
     const date = new Date(Date.UTC(2024, 2, 15));
     const days = getWeekDates(date);
     for (let i = 1; i < 7; i++) {
-      const diff = days[i].date.getTime() - days[i - 1].date.getTime();
+      const diff = days[i]!.date.getTime() - days[i - 1]!.date.getTime();
       expect(diff).toBe(24 * 60 * 60 * 1000);
     }
   });
@@ -395,15 +396,15 @@ describe('getWeekDates', () => {
     const monday = new Date(Date.UTC(2024, 2, 4)); // Monday March 4 (week starts Feb 25)
     const days = getWeekDates(monday);
     // Sunday should be March 3
-    expect(days[0].dateStr).toBe('2024-03-03');
+    expect(days[0]!.dateStr).toBe('2024-03-03');
   });
 
   it('handles week spanning year boundary (Dec → Jan)', () => {
     // Jan 1, 2024 is a Monday. The week starting Sun Dec 31, 2023 → Sat Jan 6, 2024
     const jan1 = new Date(Date.UTC(2024, 0, 1)); // Monday Jan 1, 2024
     const days = getWeekDates(jan1);
-    expect(days[0].dateStr).toBe('2023-12-31'); // Sunday Dec 31
-    expect(days[6].dateStr).toBe('2024-01-06'); // Saturday Jan 6
+    expect(days[0]!.dateStr).toBe('2023-12-31'); // Sunday Dec 31
+    expect(days[6]!.dateStr).toBe('2024-01-06'); // Saturday Jan 6
   });
 
   it('all days have isCurrentMonth=true (not relevant in week view)', () => {
@@ -430,7 +431,7 @@ describe('getWeekDates', () => {
     const days = getWeekDates(todayUtc);
     const todayCells = days.filter((d) => d.isToday);
     expect(todayCells).toHaveLength(1);
-    expect(todayCells[0].dayOfMonth).toBe(today.getDate());
+    expect(todayCells[0]!.dayOfMonth).toBe(today.getDate());
   });
 });
 
@@ -914,16 +915,16 @@ describe('formatDateForAria', () => {
 describe('DAY_NAMES', () => {
   it('has 7 entries starting with Sunday', () => {
     expect(DAY_NAMES).toHaveLength(7);
-    expect(DAY_NAMES[0]).toBe('Sun');
-    expect(DAY_NAMES[6]).toBe('Sat');
+    expect(DAY_NAMES[0]!).toBe('Sun');
+    expect(DAY_NAMES[6]!).toBe('Sat');
   });
 });
 
 describe('DAY_NAMES_NARROW', () => {
   it('has 7 entries starting with S (Sunday) and ending with S (Saturday)', () => {
     expect(DAY_NAMES_NARROW).toHaveLength(7);
-    expect(DAY_NAMES_NARROW[0]).toBe('S');
-    expect(DAY_NAMES_NARROW[6]).toBe('S');
+    expect(DAY_NAMES_NARROW[0]!).toBe('S');
+    expect(DAY_NAMES_NARROW[6]!).toBe('S');
   });
 });
 

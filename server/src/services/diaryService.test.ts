@@ -128,9 +128,9 @@ describe('diaryService', () => {
 
       const result = listDiaryEntries(db, {});
       expect(result.items).toHaveLength(3);
-      expect(result.items[0].id).toBe(id2); // 2026-03-15 first
-      expect(result.items[1].id).toBe(id3); // 2026-02-10 second
-      expect(result.items[2].id).toBe(id1); // 2026-01-01 last
+      expect(result.items[0]!.id).toBe(id2); // 2026-03-15 first
+      expect(result.items[1]!.id).toBe(id3); // 2026-02-10 second
+      expect(result.items[2]!.id).toBe(id1); // 2026-01-01 last
     });
 
     it('filters by type when type is provided', () => {
@@ -140,8 +140,8 @@ describe('diaryService', () => {
 
       const result = listDiaryEntries(db, { type: 'site_visit' });
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].id).toBe(visitId);
-      expect(result.items[0].entryType).toBe('site_visit');
+      expect(result.items[0]!.id).toBe(visitId);
+      expect(result.items[0]!.entryType).toBe('site_visit');
     });
 
     it('filters by dateFrom and dateTo range', () => {
@@ -151,7 +151,7 @@ describe('diaryService', () => {
 
       const result = listDiaryEntries(db, { dateFrom: '2026-01-01', dateTo: '2026-01-31' });
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].id).toBe(inRangeId);
+      expect(result.items[0]!.id).toBe(inRangeId);
     });
 
     it('returns only automatic entries when automatic=true', () => {
@@ -164,8 +164,8 @@ describe('diaryService', () => {
 
       const result = listDiaryEntries(db, { automatic: true });
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].id).toBe(autoId);
-      expect(result.items[0].isAutomatic).toBe(true);
+      expect(result.items[0]!.id).toBe(autoId);
+      expect(result.items[0]!.isAutomatic).toBe(true);
     });
 
     it('returns only manual entries when automatic=false', () => {
@@ -174,8 +174,8 @@ describe('diaryService', () => {
 
       const result = listDiaryEntries(db, { automatic: false });
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].id).toBe(manualId);
-      expect(result.items[0].isAutomatic).toBe(false);
+      expect(result.items[0]!.id).toBe(manualId);
+      expect(result.items[0]!.isAutomatic).toBe(false);
     });
 
     it('searches title and body case-insensitively using q filter', () => {
@@ -185,7 +185,7 @@ describe('diaryService', () => {
 
       const result = listDiaryEntries(db, { q: 'concrete' });
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].id).toBe(matchId);
+      expect(result.items[0]!.id).toBe(matchId);
     });
 
     it('escapes SQL LIKE wildcards in q filter', () => {
@@ -195,7 +195,7 @@ describe('diaryService', () => {
 
       const result = listDiaryEntries(db, { q: '50%' });
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].id).toBe(matchId);
+      expect(result.items[0]!.id).toBe(matchId);
     });
 
     it('returns photoCount=1 for an entry with one photo after batch query refactor', () => {
@@ -223,8 +223,8 @@ describe('diaryService', () => {
 
       const result = listDiaryEntries(db, {});
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].id).toBe(id);
-      expect(result.items[0].photoCount).toBe(1);
+      expect(result.items[0]!.id).toBe(id);
+      expect(result.items[0]!.photoCount).toBe(1);
     });
 
     it('returns correct offset for page 2', () => {
@@ -236,7 +236,7 @@ describe('diaryService', () => {
       // DESC order: 03, 02, 01 → page 1 has 03+02, page 2 has 01
       const result = listDiaryEntries(db, { page: 2, pageSize: 2 });
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].id).toBe(oldestId); // Oldest entry on page 2
+      expect(result.items[0]!.id).toBe(oldestId); // Oldest entry on page 2
       expect(result.pagination.page).toBe(2);
       expect(result.pagination.pageSize).toBe(2);
       expect(result.pagination.totalItems).toBe(3);
@@ -597,7 +597,7 @@ describe('diaryService', () => {
 
       const result = listDiaryEntries(db, {});
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].sourceEntityTitle).toBe('Roofing Work');
+      expect(result.items[0]!.sourceEntityTitle).toBe('Roofing Work');
     });
 
     it('listDiaryEntries returns sourceEntityTitle=null for manual entries without source', () => {
@@ -608,7 +608,7 @@ describe('diaryService', () => {
 
       const result = listDiaryEntries(db, {});
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].sourceEntityTitle).toBeNull();
+      expect(result.items[0]!.sourceEntityTitle).toBeNull();
     });
   });
 
@@ -628,11 +628,11 @@ describe('diaryService', () => {
 
       const result = listDiaryEntries(db, { automatic: true });
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].isAutomatic).toBe(true);
-      expect(result.items[0].entryType).toBe('work_item_status');
-      expect(result.items[0].sourceEntityType).toBe('work_item');
-      expect(result.items[0].sourceEntityId).toBe('wi-123');
-      expect(result.items[0].createdBy).toBeNull();
+      expect(result.items[0]!.isAutomatic).toBe(true);
+      expect(result.items[0]!.entryType).toBe('work_item_status');
+      expect(result.items[0]!.sourceEntityType).toBe('work_item');
+      expect(result.items[0]!.sourceEntityId).toBe('wi-123');
+      expect(result.items[0]!.createdBy).toBeNull();
     });
 
     it('creates entry with null source for system-wide events', () => {
@@ -648,8 +648,8 @@ describe('diaryService', () => {
 
       const result = listDiaryEntries(db, { automatic: true });
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].sourceEntityType).toBeNull();
-      expect(result.items[0].sourceEntityId).toBeNull();
+      expect(result.items[0]!.sourceEntityType).toBeNull();
+      expect(result.items[0]!.sourceEntityId).toBeNull();
     });
   });
 

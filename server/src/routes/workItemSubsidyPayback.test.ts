@@ -290,8 +290,8 @@ describe('Work Item Subsidy Payback Routes', () => {
       expect(body.minTotalPayback).toBeCloseTo(100);
       expect(body.maxTotalPayback).toBeCloseTo(100);
       expect(body.subsidies).toHaveLength(1);
-      expect(body.subsidies[0].minPayback).toBeCloseTo(100);
-      expect(body.subsidies[0].maxPayback).toBeCloseTo(100);
+      expect(body.subsidies[0]!.minPayback).toBeCloseTo(100);
+      expect(body.subsidies[0]!.maxPayback).toBeCloseTo(100);
     });
 
     it('returns min < max range for own_estimate confidence percentage subsidy', async () => {
@@ -344,8 +344,8 @@ describe('Work Item Subsidy Payback Routes', () => {
       const body = response.json<WorkItemSubsidyPaybackResponse>();
       expect(body.minTotalPayback).toBe(3000);
       expect(body.maxTotalPayback).toBe(3000);
-      expect(body.subsidies[0].minPayback).toBe(3000);
-      expect(body.subsidies[0].maxPayback).toBe(3000);
+      expect(body.subsidies[0]!.minPayback).toBe(3000);
+      expect(body.subsidies[0]!.maxPayback).toBe(3000);
     });
 
     it('excludes rejected subsidies from the result', async () => {
@@ -462,7 +462,7 @@ describe('Work Item Subsidy Payback Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<WorkItemSubsidyPaybackResponse>();
-      const entry = body.subsidies[0];
+      const entry = body.subsidies[0]!;
       expect(entry.subsidyProgramId).toBe(subsidyId);
       expect(entry.name).toBe('Solar Panel Rebate');
       expect(entry.reductionType).toBe('percentage');

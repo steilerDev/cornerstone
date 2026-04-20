@@ -315,7 +315,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     const result: BudgetSourceBudgetLinesResponse = getBudgetSourceBudgetLines(app.db, sourceId);
 
     expect(result.workItemLines).toHaveLength(1);
-    const line = result.workItemLines[0];
+    const line = result.workItemLines[0]!;
     expect(line.hasClaimedInvoice).toBe(false);
     expect(line.actualCost).toBe(0);
     expect(line.actualCostPaid).toBe(0);
@@ -336,7 +336,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
 
     expect(result.workItemLines).toHaveLength(1);
-    const line = result.workItemLines[0];
+    const line = result.workItemLines[0]!;
     expect(line.hasClaimedInvoice).toBe(true);
     expect(line.actualCost).toBe(1500);
     expect(line.actualCostPaid).toBe(1500); // claimed counts as paid
@@ -357,7 +357,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     linkInvoiceToWorkItemBudget(invoiceId, lineId, 800);
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    const line = result.workItemLines[0];
+    const line = result.workItemLines[0]!;
 
     expect(line.hasClaimedInvoice).toBe(false);
     expect(line.actualCostPaid).toBe(800);
@@ -375,7 +375,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     linkInvoiceToWorkItemBudget(invoiceId, lineId, 600);
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    const line = result.workItemLines[0];
+    const line = result.workItemLines[0]!;
 
     // pending does not count as paid
     expect(line.hasClaimedInvoice).toBe(false);
@@ -394,7 +394,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     linkInvoiceToWorkItemBudget(invoiceId, lineId, 900);
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    const line = result.workItemLines[0];
+    const line = result.workItemLines[0]!;
 
     expect(line.hasClaimedInvoice).toBe(false);
     expect(line.actualCostPaid).toBe(0);
@@ -408,7 +408,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     createWorkItemBudgetLine(wiId, sourceId);
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    const line = result.workItemLines[0];
+    const line = result.workItemLines[0]!;
 
     expect(line.area).not.toBeNull();
     expect(line.area?.id).toBe(areaId);
@@ -423,7 +423,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     createWorkItemBudgetLine(wiId, sourceId);
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    const line = result.workItemLines[0];
+    const line = result.workItemLines[0]!;
 
     expect(line.area).toBeNull();
   });
@@ -438,7 +438,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
 
     expect(result.workItemLines).toHaveLength(0);
     expect(result.householdItemLines).toHaveLength(1);
-    const line = result.householdItemLines[0];
+    const line = result.householdItemLines[0]!;
     expect(line.parentId).toBe(hiId);
     expect(line.parentName).toBe('My Couch');
     expect(line.plannedAmount).toBe(1200);
@@ -452,7 +452,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     createHouseholdItemBudgetLine(hiId, sourceId);
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    const line = result.householdItemLines[0];
+    const line = result.householdItemLines[0]!;
 
     expect(line.area).not.toBeNull();
     expect(line.area?.id).toBe(areaId);
@@ -494,9 +494,9 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     const lines = result.workItemLines;
 
     expect(lines).toHaveLength(3);
-    expect(lines[0].area?.name).toBe('Alpha');
-    expect(lines[1].area?.name).toBe('Zebra');
-    expect(lines[2].area).toBeNull(); // null last
+    expect(lines[0]!.area?.name).toBe('Alpha');
+    expect(lines[1]!.area?.name).toBe('Zebra');
+    expect(lines[2]!.area).toBeNull(); // null last
   });
 
   // 14. Sorting: two lines in same area → sorted by parentName
@@ -513,8 +513,8 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
     const lines = result.workItemLines;
 
-    expect(lines[0].parentName).toBe('Attic insulation');
-    expect(lines[1].parentName).toBe('Bathroom fixtures');
+    expect(lines[0]!.parentName).toBe('Attic insulation');
+    expect(lines[1]!.parentName).toBe('Bathroom fixtures');
   });
 
   // 15. Sorting: two lines on same work item (same parentName) → earlier createdAt first
@@ -533,8 +533,8 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     const lines = result.workItemLines;
 
     expect(lines).toHaveLength(2);
-    expect(lines[0].createdAt).toBe(olderTs);
-    expect(lines[1].createdAt).toBe(newerTs);
+    expect(lines[0]!.createdAt).toBe(olderTs);
+    expect(lines[1]!.createdAt).toBe(newerTs);
   });
 
   // 16. Lines from a different source are excluded
@@ -550,11 +550,11 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
 
     const resultA = getBudgetSourceBudgetLines(app.db, sourceA);
     expect(resultA.workItemLines).toHaveLength(1);
-    expect(resultA.workItemLines[0].parentName).toBe('WI for Source A');
+    expect(resultA.workItemLines[0]!.parentName).toBe('WI for Source A');
 
     const resultB = getBudgetSourceBudgetLines(app.db, sourceB);
     expect(resultB.workItemLines).toHaveLength(1);
-    expect(resultB.workItemLines[0].parentName).toBe('WI for Source B');
+    expect(resultB.workItemLines[0]!.parentName).toBe('WI for Source B');
   });
 
   // 17. parentName matches work item title
@@ -564,7 +564,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     createWorkItemBudgetLine(wiId, sourceId);
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    expect(result.workItemLines[0].parentName).toBe('Flooring Installation');
+    expect(result.workItemLines[0]!.parentName).toBe('Flooring Installation');
   });
 
   // 18. parentName matches household item name
@@ -574,7 +574,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     createHouseholdItemBudgetLine(hiId, sourceId);
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    expect(result.householdItemLines[0].parentName).toBe('Dining Table');
+    expect(result.householdItemLines[0]!.parentName).toBe('Dining Table');
   });
 
   // 19. budgetCategory and vendor populated when IDs set
@@ -589,7 +589,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     });
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    const line = result.workItemLines[0];
+    const line = result.workItemLines[0]!;
 
     expect(line.vendor).not.toBeNull();
     expect(line.vendor?.name).toBe('Acme Corp');
@@ -611,7 +611,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     createWorkItemBudgetLine(wiId, sourceId, { createdBy: user.id });
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    const line = result.workItemLines[0];
+    const line = result.workItemLines[0]!;
 
     expect(line.createdBy).not.toBeNull();
     expect(line.createdBy?.id).toBe(user.id);
@@ -625,7 +625,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     createWorkItemBudgetLine(wiId, sourceId);
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    const line = result.workItemLines[0];
+    const line = result.workItemLines[0]!;
 
     expect(line.budgetSource).not.toBeNull();
     expect(line.budgetSource?.id).toBe(sourceId);
@@ -642,7 +642,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     linkInvoiceToHouseholdItemBudget(invoiceId, lineId, 350);
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    const line = result.householdItemLines[0];
+    const line = result.householdItemLines[0]!;
 
     expect(line.hasClaimedInvoice).toBe(true);
     expect(line.actualCost).toBe(350);
@@ -658,7 +658,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     createWorkItemBudgetLine(wiId, sourceId);
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    expect(result.workItemLines[0].parentId).toBe(wiId);
+    expect(result.workItemLines[0]!.parentId).toBe(wiId);
   });
 
   // Extra: parentId on household item line matches household item id
@@ -668,7 +668,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     createHouseholdItemBudgetLine(hiId, sourceId);
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    expect(result.householdItemLines[0].parentId).toBe(hiId);
+    expect(result.householdItemLines[0]!.parentId).toBe(hiId);
   });
 
   // Area ancestors: root-level area has empty ancestor chain
@@ -679,7 +679,7 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     createWorkItemBudgetLine(wiId, sourceId);
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    const line = result.workItemLines[0];
+    const line = result.workItemLines[0]!;
 
     expect(line.area).not.toBeNull();
     expect(line.area?.id).toBe(rootArea);
@@ -695,13 +695,13 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     createWorkItemBudgetLine(wiId, sourceId);
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    const line = result.workItemLines[0];
+    const line = result.workItemLines[0]!;
 
     expect(line.area).not.toBeNull();
     expect(line.area?.id).toBe(childArea);
     expect(line.area?.ancestors).toHaveLength(1);
-    expect(line.area?.ancestors[0].id).toBe(parentArea);
-    expect(line.area?.ancestors[0].name).toBe('House');
+    expect(line.area?.ancestors[0]!.id).toBe(parentArea);
+    expect(line.area?.ancestors[0]!.name).toBe('House');
   });
 
   // Area ancestors: 3-level hierarchy (Grandparent -> Parent -> Child)
@@ -714,16 +714,16 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     createWorkItemBudgetLine(wiId, sourceId);
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    const line = result.workItemLines[0];
+    const line = result.workItemLines[0]!;
 
     expect(line.area).not.toBeNull();
     expect(line.area?.id).toBe(child);
     expect(line.area?.ancestors).toHaveLength(2);
     // Root-first order: House, then First Floor
-    expect(line.area?.ancestors[0].id).toBe(grandparent);
-    expect(line.area?.ancestors[0].name).toBe('House');
-    expect(line.area?.ancestors[1].id).toBe(parent);
-    expect(line.area?.ancestors[1].name).toBe('First Floor');
+    expect(line.area?.ancestors[0]!.id).toBe(grandparent);
+    expect(line.area?.ancestors[0]!.name).toBe('House');
+    expect(line.area?.ancestors[1]!.id).toBe(parent);
+    expect(line.area?.ancestors[1]!.name).toBe('First Floor');
   });
 
   // Area ancestors: household item with 2-level hierarchy
@@ -735,13 +735,13 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     createHouseholdItemBudgetLine(hiId, sourceId);
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    const line = result.householdItemLines[0];
+    const line = result.householdItemLines[0]!;
 
     expect(line.area).not.toBeNull();
     expect(line.area?.id).toBe(childArea);
     expect(line.area?.ancestors).toHaveLength(1);
-    expect(line.area?.ancestors[0].id).toBe(parentArea);
-    expect(line.area?.ancestors[0].name).toBe('House');
+    expect(line.area?.ancestors[0]!.id).toBe(parentArea);
+    expect(line.area?.ancestors[0]!.name).toBe('House');
   });
 
   // Area ancestors: area color is preserved in ancestors
@@ -753,9 +753,9 @@ describe('budgetSourceService.getBudgetSourceBudgetLines()', () => {
     createWorkItemBudgetLine(wiId, sourceId);
 
     const result = getBudgetSourceBudgetLines(app.db, sourceId);
-    const line = result.workItemLines[0];
+    const line = result.workItemLines[0]!;
 
     expect(line.area?.ancestors).toHaveLength(1);
-    expect(line.area?.ancestors[0].color).toBe('#ff0000');
+    expect(line.area?.ancestors[0]!.color).toBe('#ff0000');
   });
 });

@@ -105,13 +105,15 @@ function PerspectiveToggle({
     const idx = options.findIndex((o) => o.value === current);
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
       e.preventDefault();
-      const next = options[(idx + 1) % options.length];
+      // (idx + 1) % options.length is guaranteed to be in bounds
+      const next = options[(idx + 1) % options.length]!;
       onChange(next.value);
       const buttons = groupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
       buttons?.[(idx + 1) % options.length]?.focus();
     } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
       e.preventDefault();
-      const prev = options[(idx - 1 + options.length) % options.length];
+      // (idx - 1 + options.length) % options.length is guaranteed to be in bounds
+      const prev = options[(idx - 1 + options.length) % options.length]!;
       onChange(prev.value);
       const buttons = groupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
       buttons?.[(idx - 1 + options.length) % options.length]?.focus();

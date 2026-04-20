@@ -25,7 +25,7 @@ async function davAuth(request: any): Promise<void> {
     throw new UnauthorizedError('Invalid Authorization header format');
   }
 
-  const encoded = match[1];
+  const encoded = match[1]!;
   let decoded: string;
   try {
     decoded = Buffer.from(encoded, 'base64').toString('utf-8');
@@ -441,11 +441,12 @@ export default async function davRoutes(fastify: FastifyInstance) {
           const match = href.match(/\/calendars\/default\/([^/]+)\.ics$/);
           if (!match) continue;
 
-          const uid = match[1];
+          const uid = match[1]!;
           const typeMatch = uid.match(/^(wi|milestone|hi)-(.+)$/);
           if (!typeMatch) continue;
 
           const [, type, id] = typeMatch;
+          // type is defined: typeMatch has 3 capture groups and matched the pattern
           let event: any = null;
 
           if (type === 'wi') {
@@ -462,7 +463,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
             continue;
           }
 
-          responses.push(buildCalendarEventResponse(href, type, event, etag, descMap));
+          responses.push(buildCalendarEventResponse(href, type!, event, etag, descMap));
         }
       }
 
@@ -592,10 +593,11 @@ export default async function davRoutes(fastify: FastifyInstance) {
       }
 
       const [, type, id] = match;
+      // type and id are defined: match has 3 capture groups and matched the pattern
       const etag = vendorVcard.computeAddressBookETag(fastify.db);
 
       if (type === 'vendor') {
-        const vendor = fastify.db.select().from(vendors).where(eq(vendors.id, id)).get();
+        const vendor = fastify.db.select().from(vendors).where(eq(vendors.id, id!)).get();
 
         if (!vendor) {
           throw new NotFoundError('Vendor not found');
@@ -607,7 +609,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
         const contact = fastify.db
           .select()
           .from(vendorContacts)
-          .where(eq(vendorContacts.id, id))
+          .where(eq(vendorContacts.id, id!))
           .get();
 
         if (!contact) {
@@ -699,16 +701,17 @@ export default async function davRoutes(fastify: FastifyInstance) {
           const match = href.match(/\/addressbooks\/default\/([^/]+)\.vcf$/);
           if (!match) continue;
 
-          const uid = match[1];
+          const uid = match[1]!;
           const typeMatch = uid.match(/^(vendor|contact)-(.+)$/);
           if (!typeMatch) continue;
 
           const [, type, id] = typeMatch;
+          // type and id are defined: typeMatch has 3 capture groups and matched the pattern
           let vcf: string | null = null;
           let displayName: string | null = null;
 
           if (type === 'vendor') {
-            const vendor = fastify.db.select().from(vendors).where(eq(vendors.id, id)).get();
+            const vendor = fastify.db.select().from(vendors).where(eq(vendors.id, id!)).get();
 
             if (vendor) {
               vcf = vendorVcard.buildVendorVcard(vendor, baseUrl);
@@ -718,7 +721,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
             const contact = fastify.db
               .select()
               .from(vendorContacts)
-              .where(eq(vendorContacts.id, id))
+              .where(eq(vendorContacts.id, id!))
               .get();
 
             if (contact) {
@@ -741,7 +744,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
             continue;
           }
 
-          responses.push(buildVcardResponse(href, type, vcf, displayName || '', etag));
+          responses.push(buildVcardResponse(href, type!, vcf, displayName || '', etag));
         }
       }
 
@@ -769,11 +772,12 @@ export default async function davRoutes(fastify: FastifyInstance) {
         const innerMatch = section.match(/<(?:[a-z]+:)?prop[^>]*>([\s\S]*?)<\/(?:[a-z]+:)?prop>/i);
         if (innerMatch) {
           // Extract all top-level element names from the prop section
-          const tagMatches = innerMatch[1].matchAll(
+          const tagMatches = innerMatch[1]!.matchAll(
             /<([a-z]+:)?([a-z][-a-z]*)[^>]*(?:\/>|>[\s\S]*?<\/\1?\2>)/gi,
           );
           for (const m of tagMatches) {
-            props.push(`<${m[1] || 'D:'}${m[2]}/>`);
+            props.push(`<${m[1] ?? 'D:'}${m[2]!}/>`);
+            // m[1] is optional (namespace prefix), m[2] is required (capture group ([a-z][-a-z]*))
           }
         }
       }

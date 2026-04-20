@@ -94,9 +94,9 @@ describe('Vendor Contact Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ contacts: VendorContact[] }>();
       expect(body.contacts).toHaveLength(1);
-      expect(body.contacts[0].firstName).toBe('Alice');
-      expect(body.contacts[0].lastName).toBe('Smith');
-      expect(body.contacts[0].name).toBe('Alice Smith');
+      expect(body.contacts[0]!.firstName).toBe('Alice');
+      expect(body.contacts[0]!.lastName).toBe('Smith');
+      expect(body.contacts[0]!.name).toBe('Alice Smith');
     });
 
     it('returns 404 for unknown vendorId', async () => {

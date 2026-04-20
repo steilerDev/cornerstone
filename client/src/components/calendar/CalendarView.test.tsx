@@ -101,7 +101,7 @@ function parseCellAriaLabel(label: string): Date {
   // Now: "March 10, 2024"
   const match = withoutWeekday.match(/^([A-Za-z]+) (\d+), (\d+)$/);
   if (!match) throw new Error(`Cannot parse aria-label: "${label}"`);
-  const [, monthName, dayStr, yearStr] = match;
+  const [, monthName, dayStr, yearStr] = match as [string, string, string, string];
   const month = MONTH_NAME_TO_NUMBER[monthName];
   if (!month) throw new Error(`Unknown month name: "${monthName}"`);
   return new Date(Date.UTC(Number(yearStr), month - 1, Number(dayStr)));
@@ -351,12 +351,12 @@ describe('CalendarView', () => {
 
     it('navigates to previous week when Previous button is clicked', () => {
       const cells = screen.getAllByRole('gridcell');
-      const firstDayLabel = cells[0].getAttribute('aria-label')!;
+      const firstDayLabel = cells[0]!.getAttribute('aria-label')!;
 
       fireEvent.click(screen.getByRole('button', { name: /previous week/i }));
 
       const newCells = screen.getAllByRole('gridcell');
-      const newFirstDayLabel = newCells[0].getAttribute('aria-label')!;
+      const newFirstDayLabel = newCells[0]!.getAttribute('aria-label')!;
       expect(newFirstDayLabel).not.toBe(firstDayLabel);
       // The previous Sunday should be 7 days earlier
       const original = parseCellAriaLabel(firstDayLabel);
@@ -366,12 +366,12 @@ describe('CalendarView', () => {
 
     it('navigates to next week when Next button is clicked', () => {
       const cells = screen.getAllByRole('gridcell');
-      const firstDayLabel = cells[0].getAttribute('aria-label')!;
+      const firstDayLabel = cells[0]!.getAttribute('aria-label')!;
 
       fireEvent.click(screen.getByRole('button', { name: /next week/i }));
 
       const newCells = screen.getAllByRole('gridcell');
-      const newFirstDayLabel = newCells[0].getAttribute('aria-label')!;
+      const newFirstDayLabel = newCells[0]!.getAttribute('aria-label')!;
       const original = parseCellAriaLabel(firstDayLabel);
       const expected = parseCellAriaLabel(newFirstDayLabel);
       expect(expected.getTime() - original.getTime()).toBe(7 * 24 * 60 * 60 * 1000);

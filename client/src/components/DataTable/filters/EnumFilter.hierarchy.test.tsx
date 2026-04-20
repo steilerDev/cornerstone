@@ -115,10 +115,10 @@ describe('EnumFilter — arbitrary-depth hierarchy', () => {
     );
     const checkboxes = screen.getAllByRole('checkbox');
     // DFS order: root (group), child-a (group), grandchild-aa (leaf), child-b (leaf)
-    expect(checkboxes[0]).toHaveAttribute('aria-label', 'Root (group)');
-    expect(checkboxes[1]).toHaveAttribute('aria-label', 'Child A (group)');
-    expect(checkboxes[2]).toHaveAttribute('aria-label', 'Grandchild AA');
-    expect(checkboxes[3]).toHaveAttribute('aria-label', 'Child B');
+    expect(checkboxes[0]!).toHaveAttribute('aria-label', 'Root (group)');
+    expect(checkboxes[1]!).toHaveAttribute('aria-label', 'Child A (group)');
+    expect(checkboxes[2]!).toHaveAttribute('aria-label', 'Grandchild AA');
+    expect(checkboxes[3]!).toHaveAttribute('aria-label', 'Child B');
   });
 
   // ── Scenario 3: 3-level — inline --enum-depth CSS variable ───────────────

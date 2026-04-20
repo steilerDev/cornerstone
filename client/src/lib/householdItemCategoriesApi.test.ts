@@ -78,8 +78,8 @@ describe('householdItemCategoriesApi', () => {
       const result = await fetchHouseholdItemCategories();
 
       expect(result.categories).toHaveLength(2);
-      expect(result.categories[0].name).toBe('Furniture');
-      expect(result.categories[1].name).toBe('Appliances');
+      expect(result.categories[0]!.name).toBe('Furniture');
+      expect(result.categories[1]!.name).toBe('Appliances');
     });
 
     it('throws ApiClientError when server returns error', async () => {

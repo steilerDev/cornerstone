@@ -316,8 +316,8 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
         .all();
 
       expect(categories.length).toBeGreaterThan(0);
-      const categoryId = categories[0].id;
-      const _categoryName = categories[0].name;
+      const categoryId = categories[0]!.id;
+      const _categoryName = categories[0]!.name;
 
       const budgetId = createTestHouseholdItemBudget(householdItemId, 5000, categoryId);
       const vendorId = createTestVendor('Appliance Vendor');
@@ -357,7 +357,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
         .from(schema.budgetCategories)
         .all();
 
-      const categoryId = categories[0].id;
+      const categoryId = categories[0]!.id;
 
       // Household item with category
       const householdItemId = createTestHouseholdItem('Kitchen Appliance', userId);

@@ -715,8 +715,8 @@ describe('Work Item Routes', () => {
       expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.body) as WorkItemListResponse;
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].title).toBe('Item in Kitchen');
-      expect(result.items[0].area?.id).toBe(areaId);
+      expect(result.items[0]!.title).toBe('Item in Kitchen');
+      expect(result.items[0]!.area?.id).toBe(areaId);
     });
 
     it('searches title and description (UAT-3.2-19)', async () => {
@@ -746,7 +746,7 @@ describe('Work Item Routes', () => {
       expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.body) as WorkItemListResponse;
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].title).toBe('Install plumbing');
+      expect(result.items[0]!.title).toBe('Install plumbing');
     });
 
     it('supports custom sorting (UAT-3.2-20)', async () => {
@@ -772,9 +772,9 @@ describe('Work Item Routes', () => {
       // Then: Items sorted by date
       expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.body) as WorkItemListResponse;
-      expect(result.items[0].startDate).toBe('2027-01-01');
-      expect(result.items[1].startDate).toBe('2027-01-10');
-      expect(result.items[2].startDate).toBe('2027-01-15');
+      expect(result.items[0]!.startDate).toBe('2027-01-01');
+      expect(result.items[1]!.startDate).toBe('2027-01-10');
+      expect(result.items[2]!.startDate).toBe('2027-01-15');
     });
 
     it('combines multiple filters (UAT-3.2-21)', async () => {
@@ -808,7 +808,7 @@ describe('Work Item Routes', () => {
       expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.body) as WorkItemListResponse;
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].title).toBe('Electrical wiring in progress');
+      expect(result.items[0]!.title).toBe('Electrical wiring in progress');
     });
 
     it('returns empty array when no matches (UAT-3.2-22)', async () => {
@@ -893,7 +893,7 @@ describe('Work Item Routes', () => {
       expect(response.statusCode).toBe(200);
       const result = JSON.parse(response.body) as WorkItemListResponse;
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].title).toBe('Install Plumbing');
+      expect(result.items[0]!.title).toBe('Install Plumbing');
     });
   });
 
@@ -1474,8 +1474,8 @@ describe('Work Item Routes', () => {
       // Then: Actual dates appear in summaries
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body) as WorkItemListResponse;
-      expect(body.items[0].actualStartDate).toBe('2026-03-05');
-      expect(body.items[0].actualEndDate).toBe('2026-03-15');
+      expect(body.items[0]!.actualStartDate).toBe('2026-03-05');
+      expect(body.items[0]!.actualEndDate).toBe('2026-03-15');
     });
 
     it('GET filter by status=blocked returns 400 validation error', async () => {

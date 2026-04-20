@@ -62,7 +62,7 @@ export function InvoiceLinkModal({
         setInvoices(response.invoices);
         setFilteredInvoices(response.invoices);
         if (response.invoices.length > 0) {
-          const firstInvoice = response.invoices[0];
+          const firstInvoice = response.invoices[0]!; // guarded by length check
           setSelectedInvoiceId(firstInvoice.id);
           setSelectedInvoice(firstInvoice);
           await loadRemainingAmount(firstInvoice.id);

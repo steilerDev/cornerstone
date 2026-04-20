@@ -155,9 +155,9 @@ describe('Invoice Service', () => {
 
       const result = invoiceService.listInvoices(db, vendorId);
 
-      expect(result[0].date).toBe('2026-03-01');
-      expect(result[1].date).toBe('2026-02-01');
-      expect(result[2].date).toBe('2026-01-01');
+      expect(result[0]!.date).toBe('2026-03-01');
+      expect(result[1]!.date).toBe('2026-02-01');
+      expect(result[2]!.date).toBe('2026-01-01');
     });
 
     it('only returns invoices belonging to the specified vendor', () => {
@@ -169,7 +169,7 @@ describe('Invoice Service', () => {
       const result = invoiceService.listInvoices(db, vendor1Id);
 
       expect(result).toHaveLength(1);
-      expect(result[0].amount).toBe(500);
+      expect(result[0]!.amount).toBe(500);
     });
 
     it('returns all invoice fields correctly', () => {
@@ -188,7 +188,7 @@ describe('Invoice Service', () => {
       const result = invoiceService.listInvoices(db, vendorId);
 
       expect(result).toHaveLength(1);
-      const invoice = result[0];
+      const invoice = result[0]!;
       expect(invoice.id).toBeDefined();
       expect(invoice.vendorId).toBe(vendorId);
       expect(invoice.invoiceNumber).toBe('INV-001');
@@ -208,10 +208,10 @@ describe('Invoice Service', () => {
 
       const result = invoiceService.listInvoices(db, vendorId);
 
-      expect(result[0].createdBy).not.toBeNull();
-      expect(result[0].createdBy?.id).toBe(userId);
-      expect(result[0].createdBy?.displayName).toBe('Owner User');
-      expect(result[0].createdBy?.email).toBe('owner@test.com');
+      expect(result[0]!.createdBy).not.toBeNull();
+      expect(result[0]!.createdBy?.id).toBe(userId);
+      expect(result[0]!.createdBy?.displayName).toBe('Owner User');
+      expect(result[0]!.createdBy?.email).toBe('owner@test.com');
     });
 
     it('returns createdBy as null when no user is set', () => {
@@ -220,7 +220,7 @@ describe('Invoice Service', () => {
 
       const result = invoiceService.listInvoices(db, vendorId);
 
-      expect(result[0].createdBy).toBeNull();
+      expect(result[0]!.createdBy).toBeNull();
     });
 
     it('returns null for optional fields (invoiceNumber, dueDate, notes) when not set', () => {
@@ -233,9 +233,9 @@ describe('Invoice Service', () => {
 
       const result = invoiceService.listInvoices(db, vendorId);
 
-      expect(result[0].invoiceNumber).toBeNull();
-      expect(result[0].dueDate).toBeNull();
-      expect(result[0].notes).toBeNull();
+      expect(result[0]!.invoiceNumber).toBeNull();
+      expect(result[0]!.dueDate).toBeNull();
+      expect(result[0]!.notes).toBeNull();
     });
   });
 
@@ -745,7 +745,7 @@ describe('Invoice Service', () => {
       const vendorId = createTestVendor('Timestamp Update Vendor');
       const invoiceId = insertRawInvoice(vendorId, { amount: 500 });
 
-      const before = invoiceService.listInvoices(db, vendorId)[0].updatedAt;
+      const before = invoiceService.listInvoices(db, vendorId)[0]!.updatedAt;
 
       await new Promise((resolve) => setTimeout(resolve, 2));
 
@@ -850,7 +850,7 @@ describe('Invoice Service', () => {
       const result = invoiceService.listAllInvoices(db, { status: 'paid' });
 
       expect(result.invoices).toHaveLength(1);
-      expect(result.invoices[0].status).toBe('paid');
+      expect(result.invoices[0]!.status).toBe('paid');
     });
 
     it('filters by vendorId — returns only that vendor invoices', () => {
@@ -862,7 +862,7 @@ describe('Invoice Service', () => {
       const result = invoiceService.listAllInvoices(db, { vendorId: vendor1Id });
 
       expect(result.invoices).toHaveLength(1);
-      expect(result.invoices[0].id).toBe(inv1Id);
+      expect(result.invoices[0]!.id).toBe(inv1Id);
     });
 
     it('filters by q — matches partial invoice number case-insensitively', () => {
@@ -884,7 +884,7 @@ describe('Invoice Service', () => {
       const result = invoiceService.listAllInvoices(db, { q: 'INV-LOWER' });
 
       expect(result.invoices).toHaveLength(1);
-      expect(result.invoices[0].invoiceNumber).toBe('inv-lower-001');
+      expect(result.invoices[0]!.invoiceNumber).toBe('inv-lower-001');
     });
 
     it('sorts by amount descending', () => {
@@ -895,9 +895,9 @@ describe('Invoice Service', () => {
 
       const result = invoiceService.listAllInvoices(db, { sortBy: 'amount', sortOrder: 'desc' });
 
-      expect(result.invoices[0].amount).toBe(500);
-      expect(result.invoices[1].amount).toBe(250);
-      expect(result.invoices[2].amount).toBe(100);
+      expect(result.invoices[0]!.amount).toBe(500);
+      expect(result.invoices[1]!.amount).toBe(250);
+      expect(result.invoices[2]!.amount).toBe(100);
     });
 
     it('sorts by amount ascending', () => {
@@ -908,9 +908,9 @@ describe('Invoice Service', () => {
 
       const result = invoiceService.listAllInvoices(db, { sortBy: 'amount', sortOrder: 'asc' });
 
-      expect(result.invoices[0].amount).toBe(100);
-      expect(result.invoices[1].amount).toBe(250);
-      expect(result.invoices[2].amount).toBe(500);
+      expect(result.invoices[0]!.amount).toBe(100);
+      expect(result.invoices[1]!.amount).toBe(250);
+      expect(result.invoices[2]!.amount).toBe(500);
     });
 
     it('sorts by vendor_name', () => {
@@ -926,9 +926,9 @@ describe('Invoice Service', () => {
         sortOrder: 'asc',
       });
 
-      expect(result.invoices[0].vendorName).toBe('Acme Corp');
-      expect(result.invoices[1].vendorName).toBe('Midlands Builder');
-      expect(result.invoices[2].vendorName).toBe('Zeta Construction');
+      expect(result.invoices[0]!.vendorName).toBe('Acme Corp');
+      expect(result.invoices[1]!.vendorName).toBe('Midlands Builder');
+      expect(result.invoices[2]!.vendorName).toBe('Zeta Construction');
     });
 
     it('summary reflects global invoice counts and totals across ALL invoices (ignores page filter)', () => {
@@ -976,7 +976,7 @@ describe('Invoice Service', () => {
       const result = invoiceService.listAllInvoices(db, { status: 'paid', vendorId: vendor1Id });
 
       expect(result.invoices).toHaveLength(1);
-      expect(result.invoices[0].amount).toBe(100);
+      expect(result.invoices[0]!.amount).toBe(100);
     });
   });
 

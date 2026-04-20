@@ -278,7 +278,7 @@ describe('Timeline Routes', () => {
       const body = response.json<TimelineResponse>();
       expect(body.workItems).toHaveLength(1);
 
-      const wi = body.workItems[0];
+      const wi = body.workItems[0]!;
       expect(wi).toHaveProperty('id');
       expect(wi).toHaveProperty('title');
       expect(wi).toHaveProperty('status');
@@ -323,7 +323,7 @@ describe('Timeline Routes', () => {
       const body = response.json<TimelineResponse>();
       expect(body.dependencies).toHaveLength(1);
 
-      const dep = body.dependencies[0];
+      const dep = body.dependencies[0]!;
       expect(dep).toHaveProperty('predecessorId');
       expect(dep).toHaveProperty('successorId');
       expect(dep).toHaveProperty('dependencyType');
@@ -355,7 +355,7 @@ describe('Timeline Routes', () => {
       const body = response.json<TimelineResponse>();
       expect(body.milestones).toHaveLength(1);
 
-      const ms = body.milestones[0];
+      const ms = body.milestones[0]!;
       expect(ms).toHaveProperty('id');
       expect(ms).toHaveProperty('title');
       expect(ms).toHaveProperty('targetDate');
@@ -514,7 +514,7 @@ describe('Timeline Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<TimelineResponse>();
       expect(body.workItems).toHaveLength(1);
-      expect(body.workItems[0].id).toBe(wiId);
+      expect(body.workItems[0]!.id).toBe(wiId);
     });
 
     it('includes work items with only endDate set', async () => {
@@ -534,7 +534,7 @@ describe('Timeline Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<TimelineResponse>();
       expect(body.workItems).toHaveLength(1);
-      expect(body.workItems[0].id).toBe(wiId);
+      expect(body.workItems[0]!.id).toBe(wiId);
     });
 
     it('returns only dated items when mixing dated and undated work items', async () => {
@@ -588,8 +588,8 @@ describe('Timeline Routes', () => {
       expect(body.workItems).toHaveLength(0);
       // But the dependency is still included
       expect(body.dependencies).toHaveLength(1);
-      expect(body.dependencies[0].predecessorId).toBe(wiA);
-      expect(body.dependencies[0].successorId).toBe(wiB);
+      expect(body.dependencies[0]!.predecessorId).toBe(wiA);
+      expect(body.dependencies[0]!.successorId).toBe(wiB);
     });
 
     it('returns multiple dependencies with correct shapes', async () => {
@@ -649,10 +649,10 @@ describe('Timeline Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<TimelineResponse>();
       expect(body.milestones).toHaveLength(1);
-      expect(body.milestones[0].id).toBe(msId);
-      expect(body.milestones[0].workItemIds).toHaveLength(2);
-      expect(body.milestones[0].workItemIds).toContain(wiA);
-      expect(body.milestones[0].workItemIds).toContain(wiB);
+      expect(body.milestones[0]!.id).toBe(msId);
+      expect(body.milestones[0]!.workItemIds).toHaveLength(2);
+      expect(body.milestones[0]!.workItemIds).toContain(wiA);
+      expect(body.milestones[0]!.workItemIds).toContain(wiB);
     });
 
     it('returns completedAt and isCompleted on completed milestones', async () => {
@@ -675,8 +675,8 @@ describe('Timeline Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<TimelineResponse>();
-      expect(body.milestones[0].isCompleted).toBe(true);
-      expect(body.milestones[0].completedAt).toBe(completedAt);
+      expect(body.milestones[0]!.isCompleted).toBe(true);
+      expect(body.milestones[0]!.completedAt).toBe(completedAt);
     });
 
     it('returns empty workItemIds when milestone has no linked work items', async () => {
@@ -695,7 +695,7 @@ describe('Timeline Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<TimelineResponse>();
-      expect(body.milestones[0].workItemIds).toEqual([]);
+      expect(body.milestones[0]!.workItemIds).toEqual([]);
     });
 
     it('includes milestones linked to undated work items (link persists even if WI excluded from workItems)', async () => {
@@ -717,7 +717,7 @@ describe('Timeline Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<TimelineResponse>();
       expect(body.workItems).toHaveLength(0); // undated WI excluded
-      expect(body.milestones[0].workItemIds).toContain(wiUndated); // link still present
+      expect(body.milestones[0]!.workItemIds).toContain(wiUndated); // link still present
     });
   });
 
@@ -909,7 +909,7 @@ describe('Timeline Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<TimelineResponse>();
-      const wi = body.workItems[0];
+      const wi = body.workItems[0]!;
       expect(wi.assignedUser).not.toBeNull();
       expect(wi.assignedUser!.id).toBe(userId);
       expect(wi.assignedUser!.displayName).toBe('Jane Doe');
@@ -935,7 +935,7 @@ describe('Timeline Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<TimelineResponse>();
-      expect(body.workItems[0].assignedUser).toBeNull();
+      expect(body.workItems[0]!.assignedUser).toBeNull();
     });
   });
 
@@ -961,7 +961,7 @@ describe('Timeline Routes', () => {
       });
 
       // Fetch the work item from DB directly to verify no mutation occurred
-      const dbItem = app.db.select().from(workItems).all()[0];
+      const dbItem = app.db.select().from(workItems).all()[0]!;
       expect(dbItem.startDate).toBe('2026-03-01');
       expect(dbItem.endDate).toBe('2026-04-15');
     });

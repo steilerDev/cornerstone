@@ -189,9 +189,9 @@ describe('Subsidy Program Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<SubsidyProgramListResponse>();
-      expect(body.subsidyPrograms[0].name).toBe('Alpha Subsidy');
-      expect(body.subsidyPrograms[1].name).toBe('Mid Program');
-      expect(body.subsidyPrograms[2].name).toBe('Zeta Grant');
+      expect(body.subsidyPrograms[0]!.name).toBe('Alpha Subsidy');
+      expect(body.subsidyPrograms[1]!.name).toBe('Mid Program');
+      expect(body.subsidyPrograms[2]!.name).toBe('Zeta Grant');
     });
 
     it('returns all program fields including applicableCategories', async () => {
@@ -216,7 +216,7 @@ describe('Subsidy Program Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<SubsidyProgramListResponse>();
-      const prog = body.subsidyPrograms[0];
+      const prog = body.subsidyPrograms[0]!;
       expect(prog.name).toBe('Full Program');
       expect(prog.reductionType).toBe('fixed');
       expect(prog.reductionValue).toBe(5000);
@@ -240,7 +240,7 @@ describe('Subsidy Program Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<SubsidyProgramListResponse>();
-      expect(body.subsidyPrograms[0].maximumAmount).toBe(10000);
+      expect(body.subsidyPrograms[0]!.maximumAmount).toBe(10000);
     });
 
     it('returns maximumAmount as null in list response when not set', async () => {
@@ -255,7 +255,7 @@ describe('Subsidy Program Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<SubsidyProgramListResponse>();
-      expect(body.subsidyPrograms[0].maximumAmount).toBeNull();
+      expect(body.subsidyPrograms[0]!.maximumAmount).toBeNull();
     });
 
     it('returns applicable categories for programs', async () => {
@@ -276,8 +276,8 @@ describe('Subsidy Program Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<SubsidyProgramListResponse>();
-      expect(body.subsidyPrograms[0].applicableCategories).toHaveLength(1);
-      expect(body.subsidyPrograms[0].applicableCategories[0].name).toBe('TestMatCat');
+      expect(body.subsidyPrograms[0]!.applicableCategories).toHaveLength(1);
+      expect(body.subsidyPrograms[0]!.applicableCategories[0]!.name).toBe('TestMatCat');
     });
 
     it('returns 401 without authentication', async () => {
@@ -792,7 +792,7 @@ describe('Subsidy Program Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<SubsidyProgramResponse>();
       expect(body.subsidyProgram.applicableCategories).toHaveLength(1);
-      expect(body.subsidyProgram.applicableCategories[0].name).toBe('TestDesign');
+      expect(body.subsidyProgram.applicableCategories[0]!.name).toBe('TestDesign');
     });
 
     it('returns 404 NOT_FOUND for non-existent program', async () => {
@@ -936,7 +936,7 @@ describe('Subsidy Program Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<SubsidyProgramResponse>();
       expect(body.subsidyProgram.applicableCategories).toHaveLength(1);
-      expect(body.subsidyProgram.applicableCategories[0].id).toBe(catB);
+      expect(body.subsidyProgram.applicableCategories[0]!.id).toBe(catB);
     });
 
     it('clears all category links when categoryIds is empty array', async () => {

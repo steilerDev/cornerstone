@@ -289,8 +289,8 @@ describe('usePhotos', () => {
       });
 
       expect(result.current.photos).toHaveLength(2);
-      expect(result.current.photos[0].id).toBe('photo-new');
-      expect(result.current.photos[1].id).toBe('photo-old');
+      expect(result.current.photos[0]!.id).toBe('photo-new');
+      expect(result.current.photos[1]!.id).toBe('photo-old');
     });
 
     it('returns the uploaded photo', async () => {
@@ -504,7 +504,7 @@ describe('usePhotos', () => {
       });
 
       expect(result.current.photos).toHaveLength(1);
-      expect(result.current.photos[0].id).toBe('photo-2');
+      expect(result.current.photos[0]!.id).toBe('photo-2');
     });
 
     it('only removes the targeted photo when multiple photos exist', async () => {
@@ -579,7 +579,7 @@ describe('usePhotos', () => {
         await result.current.updatePhoto('photo-1', { caption: 'New caption' });
       });
 
-      expect(result.current.photos[0].caption).toBe('New caption');
+      expect(result.current.photos[0]!.caption).toBe('New caption');
     });
 
     it('only replaces the targeted photo when multiple photos exist', async () => {
@@ -596,8 +596,8 @@ describe('usePhotos', () => {
         await result.current.updatePhoto('photo-2', { caption: 'Updated second' });
       });
 
-      expect(result.current.photos[0].caption).toBe('First');
-      expect(result.current.photos[1].caption).toBe('Updated second');
+      expect(result.current.photos[0]!.caption).toBe('First');
+      expect(result.current.photos[1]!.caption).toBe('Updated second');
     });
 
     it('can update sortOrder', async () => {
@@ -613,7 +613,7 @@ describe('usePhotos', () => {
         await result.current.updatePhoto('photo-1', { sortOrder: 3 });
       });
 
-      expect(result.current.photos[0].sortOrder).toBe(3);
+      expect(result.current.photos[0]!.sortOrder).toBe(3);
     });
 
     it('re-throws when updatePhotoApi rejects', async () => {

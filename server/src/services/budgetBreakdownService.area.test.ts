@@ -297,7 +297,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const result = getBudgetBreakdown(db);
 
       expect(result.workItems.areas).toHaveLength(1);
-      const root = result.workItems.areas[0];
+      const root = result.workItems.areas[0]!;
       expect(root.areaId).toBe(areaId);
       expect(root.name).toBe('Kitchen');
     });
@@ -308,7 +308,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const root = result.workItems.areas[0];
+      const root = result.workItems.areas[0]!;
       expect(root.items).toHaveLength(1);
       expect(root.children).toHaveLength(0);
     });
@@ -320,7 +320,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const margin = CONFIDENCE_MARGINS.own_estimate; // 0.2
       const result = getBudgetBreakdown(db);
 
-      const root = result.workItems.areas[0];
+      const root = result.workItems.areas[0]!;
       // After subsidy payback (none here), projectedMin = 1000*(1-0.2) = 800
       expect(root.projectedMin).toBeCloseTo(1000 * (1 - margin), 5);
       expect(root.projectedMax).toBeCloseTo(1000 * (1 + margin), 5);
@@ -334,7 +334,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
 
       const result = getBudgetBreakdown(db);
 
-      expect(result.workItems.areas[0].parentId).toBeNull();
+      expect(result.workItems.areas[0]!.parentId).toBeNull();
     });
   });
 
@@ -349,7 +349,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const result = getBudgetBreakdown(db);
 
       expect(result.workItems.areas).toHaveLength(1);
-      const area = result.workItems.areas[0];
+      const area = result.workItems.areas[0]!;
       expect(area.items).toHaveLength(2);
       const itemIds = area.items.map((i) => (i as { workItemId: string }).workItemId);
       expect(itemIds).toContain(wi1);
@@ -364,7 +364,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const margin = CONFIDENCE_MARGINS.own_estimate;
       const result = getBudgetBreakdown(db);
 
-      const area = result.workItems.areas[0];
+      const area = result.workItems.areas[0]!;
       expect(area.projectedMin).toBeCloseTo(4000 * (1 - margin), 5);
       expect(area.projectedMax).toBeCloseTo(4000 * (1 + margin), 5);
     });
@@ -380,11 +380,11 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const parent = result.workItems.areas[0];
+      const parent = result.workItems.areas[0]!;
       expect(parent.areaId).toBe(parentId);
       expect(parent.items).toHaveLength(0);
       expect(parent.children).toHaveLength(1);
-      expect(parent.children[0].areaId).toBe(childId);
+      expect(parent.children[0]!.areaId).toBe(childId);
     });
 
     it('parent rolled-up totals equal sum of child items', () => {
@@ -395,8 +395,8 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const margin = CONFIDENCE_MARGINS.own_estimate;
       const result = getBudgetBreakdown(db);
 
-      const parent = result.workItems.areas[0];
-      const child = parent.children[0];
+      const parent = result.workItems.areas[0]!;
+      const child = parent.children[0]!;
 
       // Child totals
       expect(child.projectedMin).toBeCloseTo(2000 * (1 - margin), 5);
@@ -426,7 +426,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const child = result.workItems.areas[0].children[0];
+      const child = result.workItems.areas[0]!.children[0]!;
       expect(child.parentId).toBe(parentId);
     });
   });
@@ -440,7 +440,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const result = getBudgetBreakdown(db);
 
       expect(result.workItems.areas).toHaveLength(1);
-      const unassigned = result.workItems.areas[0];
+      const unassigned = result.workItems.areas[0]!;
       expect(unassigned.areaId).toBeNull();
       expect(unassigned.name).toBe('Unassigned');
     });
@@ -453,7 +453,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const result = getBudgetBreakdown(db);
 
       expect(result.workItems.areas.length).toBeGreaterThanOrEqual(2);
-      expect(result.workItems.areas[0].areaId).toBeNull(); // Unassigned is first
+      expect(result.workItems.areas[0]!.areaId).toBeNull(); // Unassigned is first
     });
 
     it('Unassigned node has items[] containing the null-area work item', () => {
@@ -461,7 +461,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const unassigned = result.workItems.areas[0];
+      const unassigned = result.workItems.areas[0]!;
       expect(unassigned.items).toHaveLength(1);
       expect(unassigned.children).toHaveLength(0);
     });
@@ -472,7 +472,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const unassigned = result.workItems.areas[0];
+      const unassigned = result.workItems.areas[0]!;
       expect(unassigned.projectedMin).toBeCloseTo(1000 * (1 - margin), 5);
       expect(unassigned.projectedMax).toBeCloseTo(1000 * (1 + margin), 5);
     });
@@ -482,7 +482,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
 
       const result = getBudgetBreakdown(db);
 
-      expect(result.workItems.areas[0].parentId).toBeNull();
+      expect(result.workItems.areas[0]!.parentId).toBeNull();
     });
   });
 
@@ -617,7 +617,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
 
       const grandparent = result.workItems.areas.find((a) => a.areaId === grandparentId);
       expect(grandparent!.children).toHaveLength(1);
-      expect(grandparent!.children[0].areaId).toBe(parentId);
+      expect(grandparent!.children[0]!.areaId).toBe(parentId);
     });
 
     it('multi-area multi-item tree: grandparent actualCost equals sum of all descendant actualCosts', () => {
@@ -733,7 +733,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const result = getBudgetBreakdown(db);
 
       expect(result.householdItems.areas).toHaveLength(1);
-      const area = result.householdItems.areas[0];
+      const area = result.householdItems.areas[0]!;
       expect(area.areaId).toBe(areaId);
       expect(area.name).toBe('Living Room');
       expect(area.items).toHaveLength(1);
@@ -747,7 +747,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const margin = CONFIDENCE_MARGINS.own_estimate;
       const result = getBudgetBreakdown(db);
 
-      const area = result.householdItems.areas[0];
+      const area = result.householdItems.areas[0]!;
       expect(area.projectedMin).toBeCloseTo(800 * (1 - margin), 5);
       expect(area.projectedMax).toBeCloseTo(800 * (1 + margin), 5);
     });
@@ -760,7 +760,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const result = getBudgetBreakdown(db);
 
       expect(result.householdItems.areas).toHaveLength(1);
-      const area = result.householdItems.areas[0];
+      const area = result.householdItems.areas[0]!;
       expect(area.items).toHaveLength(2);
       const itemIds = area.items.map((i) => (i as { householdItemId: string }).householdItemId);
       expect(itemIds).toContain(hi1);
@@ -775,7 +775,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const margin = CONFIDENCE_MARGINS.own_estimate;
       const result = getBudgetBreakdown(db);
 
-      const area = result.householdItems.areas[0];
+      const area = result.householdItems.areas[0]!;
       expect(area.projectedMin).toBeCloseTo(2000 * (1 - margin), 5);
       expect(area.projectedMax).toBeCloseTo(2000 * (1 + margin), 5);
     });
@@ -826,7 +826,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const result = getBudgetBreakdown(db);
 
       expect(result.householdItems.areas).toHaveLength(1);
-      const unassigned = result.householdItems.areas[0];
+      const unassigned = result.householdItems.areas[0]!;
       expect(unassigned.areaId).toBeNull();
       expect(unassigned.name).toBe('Unassigned');
     });
@@ -838,7 +838,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
 
       const result = getBudgetBreakdown(db);
 
-      expect(result.householdItems.areas[0].areaId).toBeNull();
+      expect(result.householdItems.areas[0]!.areaId).toBeNull();
     });
 
     it('HI Unassigned node rolled-up totals match unassigned items', () => {
@@ -847,7 +847,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const unassigned = result.householdItems.areas[0];
+      const unassigned = result.householdItems.areas[0]!;
       expect(unassigned.projectedMin).toBeCloseTo(400 * (1 - margin), 5);
       expect(unassigned.projectedMax).toBeCloseTo(400 * (1 + margin), 5);
     });

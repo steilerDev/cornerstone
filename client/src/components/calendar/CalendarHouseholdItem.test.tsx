@@ -314,7 +314,7 @@ describe('CalendarHouseholdItem', () => {
 
       expect(onMouseEnter).toHaveBeenCalledTimes(1);
       const args = onMouseEnter.mock.calls[0] as unknown[];
-      expect(args[0]).toBe('hi-hover'); // itemId
+      expect(args[0]!).toBe('hi-hover'); // itemId
       // Note: jsdom fireEvent doesn't propagate clientX/Y to synthetic events perfectly,
       // but we can verify the callback was called with the correct first argument.
     });

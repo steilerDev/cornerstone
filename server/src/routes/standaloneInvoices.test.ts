@@ -263,7 +263,7 @@ describe('Standalone Invoice Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ invoices: Invoice[] }>();
       expect(body.invoices).toHaveLength(1);
-      expect(body.invoices[0].amount).toBe(500);
+      expect(body.invoices[0]!.amount).toBe(500);
     });
 
     it('filters by dateFrom and dateTo', async () => {
@@ -282,7 +282,7 @@ describe('Standalone Invoice Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ invoices: Invoice[] }>();
       expect(body.invoices).toHaveLength(1);
-      expect(body.invoices[0].amount).toBe(200);
+      expect(body.invoices[0]!.amount).toBe(200);
     });
 
     it('filters by dueDateFrom and dueDateTo', async () => {
@@ -301,7 +301,7 @@ describe('Standalone Invoice Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ invoices: Invoice[] }>();
       expect(body.invoices).toHaveLength(1);
-      expect(body.invoices[0].amount).toBe(200);
+      expect(body.invoices[0]!.amount).toBe(200);
     });
 
     it('filters by invoice number search (q parameter)', async () => {
@@ -337,9 +337,9 @@ describe('Standalone Invoice Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<{ invoices: Invoice[] }>();
-      expect(body.invoices[0].amount).toBe(100);
-      expect(body.invoices[1].amount).toBe(200);
-      expect(body.invoices[2].amount).toBe(300);
+      expect(body.invoices[0]!.amount).toBe(100);
+      expect(body.invoices[1]!.amount).toBe(200);
+      expect(body.invoices[2]!.amount).toBe(300);
     });
 
     it('sorts by status', async () => {
@@ -376,8 +376,8 @@ describe('Standalone Invoice Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<{ invoices: Invoice[] }>();
-      expect(body.invoices[0].vendorName).toBe('Alpha Vendor');
-      expect(body.invoices[1].vendorName).toBe('Zeta Vendor');
+      expect(body.invoices[0]!.vendorName).toBe('Alpha Vendor');
+      expect(body.invoices[1]!.vendorName).toBe('Zeta Vendor');
     });
 
     it('sorts by due_date', async () => {
@@ -394,7 +394,7 @@ describe('Standalone Invoice Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<{ invoices: Invoice[] }>();
-      expect(body.invoices[0].amount).toBe(200); // earlier due date first
+      expect(body.invoices[0]!.amount).toBe(200); // earlier due date first
     });
 
     it('returns 400 for invalid sortBy value', async () => {
@@ -532,7 +532,7 @@ describe('Standalone Invoice Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ invoices: Invoice[] }>();
       expect(body.invoices).toHaveLength(1);
-      const inv = body.invoices[0];
+      const inv = body.invoices[0]!;
       expect(inv.id).toBeDefined();
       expect(inv.vendorId).toBe(vendorId);
       expect(inv.vendorName).toBe('Full Fields Vendor SA');
@@ -564,9 +564,9 @@ describe('Standalone Invoice Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<{ invoices: Invoice[] }>();
-      expect(body.invoices[0].date).toBe('2026-03-01');
-      expect(body.invoices[1].date).toBe('2026-02-01');
-      expect(body.invoices[2].date).toBe('2026-01-01');
+      expect(body.invoices[0]!.date).toBe('2026-03-01');
+      expect(body.invoices[1]!.date).toBe('2026-02-01');
+      expect(body.invoices[2]!.date).toBe('2026-01-01');
     });
 
     it('allows member user to list all invoices', async () => {

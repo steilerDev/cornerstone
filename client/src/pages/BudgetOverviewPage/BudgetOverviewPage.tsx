@@ -364,28 +364,28 @@ export function BudgetOverviewPage() {
       key: 'claimed',
       value: claimedVal,
       color: 'var(--color-budget-claimed)',
-      label: t('overview.bars.claimedInvoices'),
+      label: t('overview.bars.claimedInvoices')!,
       totalValue: filtered.actualCostClaimed,
     },
     {
       key: 'paid',
       value: paidVal,
       color: 'var(--color-budget-paid)',
-      label: t('overview.bars.paidInvoices'),
+      label: t('overview.bars.paidInvoices')!,
       totalValue: filtered.actualCostPaid,
     },
     {
       key: 'pending',
       value: pendingVal,
       color: 'var(--color-budget-pending)',
-      label: t('overview.bars.pendingInvoices'),
+      label: t('overview.bars.pendingInvoices')!,
       totalValue: filtered.actualCost,
     },
     {
       key: 'proj-min',
       value: projMinVal,
       color: 'var(--color-budget-projected)',
-      label: t('overview.bars.projectedOptimistic'),
+      label: t('overview.bars.projectedOptimistic')!,
       totalValue: filtered.minPlanned,
     },
     {
@@ -393,7 +393,7 @@ export function BudgetOverviewPage() {
       value: projMaxVal,
       // Projected max layer is fainter — achieved via inline opacity on color
       color: 'var(--color-budget-projected)',
-      label: t('overview.bars.projectedPessimistic'),
+      label: t('overview.bars.projectedPessimistic')!,
       totalValue: filtered.maxPlanned,
     },
   ];
@@ -412,37 +412,37 @@ export function BudgetOverviewPage() {
   // Remaining perspectives detail items (uses filtered where sensible)
   const remainingDetailItems: RemainingDetail[] = [
     {
-      label: t('overview.remainingPerspectives.vsMinPlanned'),
+      label: t('overview.remainingPerspectives.vsMinPlanned')!,
       value: overview.remainingVsMinPlanned,
     },
     {
-      label: t('overview.remainingPerspectives.vsMaxPlanned'),
+      label: t('overview.remainingPerspectives.vsMaxPlanned')!,
       value: overview.remainingVsMaxPlanned,
     },
     {
-      label: t('overview.remainingPerspectives.vsProjectedMin'),
+      label: t('overview.remainingPerspectives.vsProjectedMin')!,
       value: filteredRemainingVsProjectedMin,
     },
     {
-      label: t('overview.remainingPerspectives.vsProjectedMax'),
+      label: t('overview.remainingPerspectives.vsProjectedMax')!,
       value: filteredRemainingVsProjectedMax,
     },
     {
-      label: t('overview.remainingPerspectives.vsActualCost'),
+      label: t('overview.remainingPerspectives.vsActualCost')!,
       value: overview.remainingVsActualCost,
     },
     {
-      label: t('overview.remainingPerspectives.vsActualPaid'),
+      label: t('overview.remainingPerspectives.vsActualPaid')!,
       value: overview.remainingVsActualPaid,
     },
     ...(hasPayback
       ? [
           {
-            label: t('overview.remainingPerspectives.vsMinPlannedWithPayback'),
+            label: t('overview.remainingPerspectives.vsMinPlannedWithPayback')!,
             value: overview.remainingVsMinPlannedWithPayback,
           },
           {
-            label: t('overview.remainingPerspectives.vsMaxPlannedWithPayback'),
+            label: t('overview.remainingPerspectives.vsMaxPlannedWithPayback')!,
             value: overview.remainingVsMaxPlannedWithPayback,
           },
         ]

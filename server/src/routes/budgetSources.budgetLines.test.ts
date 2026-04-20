@@ -319,7 +319,7 @@ describe('GET /api/budget-sources/:sourceId/budget-lines', () => {
     expect(body.workItemLines).toHaveLength(1);
     expect(body.householdItemLines).toHaveLength(0);
 
-    const line = body.workItemLines[0];
+    const line = body.workItemLines[0]!;
     expect(line.parentName).toBe('Plumbing');
     expect(line.plannedAmount).toBe(5000);
     expect(line.hasClaimedInvoice).toBe(false);
@@ -347,7 +347,7 @@ describe('GET /api/budget-sources/:sourceId/budget-lines', () => {
     expect(body.workItemLines).toHaveLength(0);
     expect(body.householdItemLines).toHaveLength(1);
 
-    const line = body.householdItemLines[0];
+    const line = body.householdItemLines[0]!;
     expect(line.parentName).toBe('Bookshelf');
     expect(line.plannedAmount).toBe(800);
     expect(line.hasClaimedInvoice).toBe(false);
@@ -372,7 +372,7 @@ describe('GET /api/budget-sources/:sourceId/budget-lines', () => {
 
     expect(response.statusCode).toBe(200);
     const body = response.json<BudgetSourceBudgetLinesResponse>();
-    const line = body.workItemLines[0];
+    const line = body.workItemLines[0]!;
     expect(line.hasClaimedInvoice).toBe(true);
     expect(line.actualCost).toBe(1800);
     expect(line.actualCostPaid).toBe(1800);
@@ -399,7 +399,7 @@ describe('GET /api/budget-sources/:sourceId/budget-lines', () => {
 
     expect(response.statusCode).toBe(200);
     const body = response.json<BudgetSourceBudgetLinesResponse>();
-    const line = body.workItemLines[0];
+    const line = body.workItemLines[0]!;
     expect(line.hasClaimedInvoice).toBe(false);
     expect(line.actualCostPaid).toBe(700);
     expect(line.invoiceLink?.invoiceStatus).toBe('paid');
@@ -454,7 +454,7 @@ describe('GET /api/budget-sources/:sourceId/budget-lines', () => {
 
     expect(response.statusCode).toBe(200);
     const body = response.json<BudgetSourceBudgetLinesResponse>();
-    const line = body.workItemLines[0];
+    const line = body.workItemLines[0]!;
 
     // BaseBudgetLine required fields
     expect(line).toHaveProperty('id');
@@ -515,7 +515,7 @@ describe('GET /api/budget-sources/:sourceId/budget-lines', () => {
 
     expect(response.statusCode).toBe(200);
     const body = response.json<BudgetSourceBudgetLinesResponse>();
-    const line = body.householdItemLines[0];
+    const line = body.householdItemLines[0]!;
     expect(line.hasClaimedInvoice).toBe(true);
     expect(line.actualCost).toBe(1100);
   });
@@ -539,7 +539,7 @@ describe('GET /api/budget-sources/:sourceId/budget-lines', () => {
     const body = response.json<BudgetSourceBudgetLinesResponse>();
     expect(body.workItemLines).toHaveLength(1);
     expect(body.householdItemLines).toHaveLength(1);
-    expect(body.workItemLines[0].parentName).toBe('Work Task');
-    expect(body.householdItemLines[0].parentName).toBe('Chair');
+    expect(body.workItemLines[0]!.parentName).toBe('Work Task');
+    expect(body.householdItemLines[0]!.parentName).toBe('Chair');
   });
 });

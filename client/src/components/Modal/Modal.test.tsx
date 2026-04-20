@@ -60,7 +60,7 @@ describe('Modal', () => {
     // Only the close button should be present — no footer action buttons
     const buttons = screen.getAllByRole('button');
     expect(buttons).toHaveLength(1);
-    expect(buttons[0]).toHaveAttribute('aria-label', 'Close dialog');
+    expect(buttons[0]!).toHaveAttribute('aria-label', 'Close dialog');
   });
 
   // ── Close interactions ────────────────────────────────────────────────────

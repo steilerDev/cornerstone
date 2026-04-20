@@ -173,7 +173,7 @@ describe('householdItemDepService — predecessor area enrichment', () => {
       const result = householdItemDepService.listDeps(db, hiId);
 
       expect(result).toHaveLength(1);
-      const dep = result[0];
+      const dep = result[0]!;
       expect(dep.predecessorType).toBe('work_item');
       expect(dep.predecessor.area).not.toBeNull();
       expect(dep.predecessor.area!.id).toBe(areaId);
@@ -198,7 +198,7 @@ describe('householdItemDepService — predecessor area enrichment', () => {
       const result = householdItemDepService.listDeps(db, hiId);
 
       expect(result).toHaveLength(1);
-      expect(result[0].predecessor.area).toBeNull();
+      expect(result[0]!.predecessor.area).toBeNull();
     });
 
     it('milestone predecessor → predecessor.area is null', () => {
@@ -217,8 +217,8 @@ describe('householdItemDepService — predecessor area enrichment', () => {
       const result = householdItemDepService.listDeps(db, hiId);
 
       expect(result).toHaveLength(1);
-      expect(result[0].predecessorType).toBe('milestone');
-      expect(result[0].predecessor.area).toBeNull();
+      expect(result[0]!.predecessorType).toBe('milestone');
+      expect(result[0]!.predecessor.area).toBeNull();
     });
   });
 
@@ -290,13 +290,13 @@ describe('householdItemDepService — predecessor area enrichment', () => {
       const result = householdItemDepService.listDeps(db, hiId);
 
       expect(result).toHaveLength(1);
-      const area = result[0].predecessor.area;
+      const area = result[0]!.predecessor.area;
       expect(area).not.toBeNull();
       expect(area!.id).toBe(childAreaId);
       expect(area!.name).toBe('Living Room');
       expect(area!.ancestors).toHaveLength(1);
-      expect(area!.ancestors[0].id).toBe(rootAreaId);
-      expect(area!.ancestors[0].name).toBe('House');
+      expect(area!.ancestors[0]!.id).toBe(rootAreaId);
+      expect(area!.ancestors[0]!.name).toBe('House');
     });
   });
 });

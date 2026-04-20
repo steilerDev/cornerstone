@@ -87,8 +87,8 @@ describe('budgetCategoriesApi', () => {
       const result = await fetchBudgetCategories();
 
       expect(result.categories).toHaveLength(2);
-      expect(result.categories[0].name).toBe('Materials');
-      expect(result.categories[1].name).toBe('Labor');
+      expect(result.categories[0]!.name).toBe('Materials');
+      expect(result.categories[1]!.name).toBe('Labor');
     });
 
     it('throws ApiClientError when server returns error', async () => {

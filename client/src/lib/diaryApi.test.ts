@@ -157,7 +157,7 @@ describe('diaryApi', () => {
 
       await listDiaryEntries({ page: 2, type: 'daily_log,issue', q: 'concrete' });
 
-      const callUrl = mockFetch.mock.calls[0][0] as string;
+      const callUrl = mockFetch.mock.calls[0]![0] as string;
       expect(callUrl).toContain('page=2');
       expect(callUrl).toContain('type=');
       expect(callUrl).toContain('q=concrete');
@@ -178,7 +178,7 @@ describe('diaryApi', () => {
 
       expect(result).toEqual(mockListResponse);
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].id).toBe('de-1');
+      expect(result.items[0]!.id).toBe('de-1');
     });
 
     it('throws when response is not OK', async () => {

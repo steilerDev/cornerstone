@@ -262,7 +262,7 @@ describe('Migration 0015: Household Item Delivery Date Redesign', () => {
         .all() as Array<{ name: string; seqno: number }>;
 
       expect(indexInfo).toHaveLength(1);
-      expect(indexInfo[0].name).toBe('target_delivery_date');
+      expect(indexInfo[0]!.name).toBe('target_delivery_date');
     });
   });
 

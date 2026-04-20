@@ -450,7 +450,7 @@ export function InvoiceDetailPage() {
               {t('invoiceDetail.modal.deleteConfirm', {
                 number: invoice.invoiceNumber
                   ? `#${invoice.invoiceNumber}`
-                  : t('invoiceDetail.invoiceDetails'),
+                  : t('invoiceDetail.invoiceDetails')!,
                 amount: formatCurrency(invoice.amount),
               })}
             </p>

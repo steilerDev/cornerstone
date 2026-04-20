@@ -512,8 +512,8 @@ describe('Arrow hover and item hover do not conflict', () => {
 
     const arrowGroups = getArrowGroups();
     if (arrowGroups.length > 0) {
-      fireEvent.mouseEnter(arrowGroups[0], { clientX: 350, clientY: 120 });
-      fireEvent.mouseLeave(bar1);
+      fireEvent.mouseEnter(arrowGroups[0]!, { clientX: 350, clientY: 120 });
+      fireEvent.mouseLeave(bar1!);
     }
 
     expect(screen.getByTestId('gantt-chart')).toBeInTheDocument();
@@ -532,7 +532,7 @@ describe('Arrow hover and item hover do not conflict', () => {
     // Now hover an arrow — this should clear item hover and set arrow hover
     const arrowGroups = getArrowGroups();
     if (arrowGroups.length > 0) {
-      const firstArrow = arrowGroups[0];
+      const firstArrow = arrowGroups[0]!;
       Object.defineProperty(firstArrow, 'getBoundingClientRect', {
         value: () => ({ left: 300, top: 100, width: 100, height: 10 }),
         configurable: true,
@@ -746,7 +746,7 @@ describe('GanttChart — onHouseholdItemClick integration', () => {
 
     const hiCircles = screen.getAllByTestId('gantt-hi-circle');
     expect(hiCircles.length).toBeGreaterThan(0);
-    fireEvent.click(hiCircles[0]);
+    fireEvent.click(hiCircles[0]!);
 
     expect(onHouseholdItemClick).toHaveBeenCalledWith('hi-1');
   });
@@ -785,7 +785,7 @@ describe('GanttChart — onHouseholdItemClick integration', () => {
 
     const hiCircles = screen.getAllByTestId('gantt-hi-circle');
     expect(hiCircles.length).toBeGreaterThanOrEqual(2);
-    fireEvent.click(hiCircles[1]);
+    fireEvent.click(hiCircles[1]!);
 
     expect(onHouseholdItemClick).toHaveBeenCalledWith('hi-flooring');
   });
@@ -812,7 +812,7 @@ describe('GanttChart — onHouseholdItemClick integration', () => {
     expect(() => {
       const hiCircles = screen.getAllByTestId('gantt-hi-circle');
       if (hiCircles.length > 0) {
-        fireEvent.click(hiCircles[0]);
+        fireEvent.click(hiCircles[0]!);
       }
     }).not.toThrow();
   });

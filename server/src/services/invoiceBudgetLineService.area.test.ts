@@ -245,7 +245,7 @@ describe('invoiceBudgetLineService — parentItemArea enrichment', () => {
       const result = listInvoiceBudgetLines(db, invoiceId);
 
       expect(result.budgetLines).toHaveLength(1);
-      const line = result.budgetLines[0];
+      const line = result.budgetLines[0]!;
       expect(line.parentItemType).toBe('work_item');
       expect(line.parentItemArea).not.toBeNull();
       expect(line.parentItemArea!.id).toBe(areaId);
@@ -264,7 +264,7 @@ describe('invoiceBudgetLineService — parentItemArea enrichment', () => {
       const result = listInvoiceBudgetLines(db, invoiceId);
 
       expect(result.budgetLines).toHaveLength(1);
-      expect(result.budgetLines[0].parentItemArea).toBeNull();
+      expect(result.budgetLines[0]!.parentItemArea).toBeNull();
     });
 
     it('household_item budget line → parentItemArea is always null', () => {
@@ -277,8 +277,8 @@ describe('invoiceBudgetLineService — parentItemArea enrichment', () => {
       const result = listInvoiceBudgetLines(db, invoiceId);
 
       expect(result.budgetLines).toHaveLength(1);
-      expect(result.budgetLines[0].parentItemType).toBe('household_item');
-      expect(result.budgetLines[0].parentItemArea).toBeNull();
+      expect(result.budgetLines[0]!.parentItemType).toBe('household_item');
+      expect(result.budgetLines[0]!.parentItemArea).toBeNull();
     });
   });
 
@@ -354,12 +354,12 @@ describe('invoiceBudgetLineService — parentItemArea enrichment', () => {
       const result = listInvoiceBudgetLines(db, invoiceId);
 
       expect(result.budgetLines).toHaveLength(1);
-      const area = result.budgetLines[0].parentItemArea;
+      const area = result.budgetLines[0]!.parentItemArea;
       expect(area).not.toBeNull();
       expect(area!.id).toBe(childAreaId);
       expect(area!.ancestors).toHaveLength(1);
-      expect(area!.ancestors[0].id).toBe(rootAreaId);
-      expect(area!.ancestors[0].name).toBe('Ground Floor');
+      expect(area!.ancestors[0]!.id).toBe(rootAreaId);
+      expect(area!.ancestors[0]!.name).toBe('Ground Floor');
     });
   });
 });

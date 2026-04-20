@@ -68,8 +68,8 @@ describe('workItemBudgetsApi', () => {
       const result = await fetchWorkItemBudgets('work-item-1');
 
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('budget-1');
-      expect(result[0].plannedAmount).toBe(5000);
+      expect(result[0]!.id).toBe('budget-1');
+      expect(result[0]!.plannedAmount).toBe(5000);
     });
 
     it('returns empty array when no budgets exist for work item', async () => {
@@ -99,8 +99,8 @@ describe('workItemBudgetsApi', () => {
       const result = await fetchWorkItemBudgets('work-item-1');
 
       expect(result).toHaveLength(2);
-      expect(result[0].id).toBe('budget-1');
-      expect(result[1].id).toBe('budget-2');
+      expect(result[0]!.id).toBe('budget-1');
+      expect(result[1]!.id).toBe('budget-2');
     });
 
     it('throws error when work item not found (404)', async () => {

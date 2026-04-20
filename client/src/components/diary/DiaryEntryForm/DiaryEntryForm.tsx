@@ -84,7 +84,7 @@ function useOutcomeOptions() {
       { value: 'fail' as DiaryInspectionOutcome, label: t('form.outcomeOptions.fail') },
       {
         value: 'conditional' as DiaryInspectionOutcome,
-        label: t('form.outcomeOptions.conditional'),
+        label: t('form.outcomeOptions.conditional')!,
       },
     ],
     [t],
@@ -111,7 +111,7 @@ function useResolutionStatusOptions() {
       { value: 'open' as DiaryIssueResolution, label: t('form.resolutionOptions.open') },
       {
         value: 'in_progress' as DiaryIssueResolution,
-        label: t('form.resolutionOptions.in_progress'),
+        label: t('form.resolutionOptions.in_progress')!,
       },
       { value: 'resolved' as DiaryIssueResolution, label: t('form.resolutionOptions.resolved') },
     ],

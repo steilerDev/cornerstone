@@ -329,13 +329,13 @@ describe('HouseholdItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('hi-menu-button-hi-1')[0]).toBeInTheDocument();
+        expect(screen.getAllByTestId('hi-menu-button-hi-1')[0]!).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('hi-menu-button-hi-1')[0]);
+      fireEvent.click(screen.getAllByTestId('hi-menu-button-hi-1')[0]!);
 
-      expect(screen.getAllByTestId('hi-view-hi-1')[0]).toBeInTheDocument();
-      expect(screen.getAllByTestId('hi-delete-hi-1')[0]).toBeInTheDocument();
+      expect(screen.getAllByTestId('hi-view-hi-1')[0]!).toBeInTheDocument();
+      expect(screen.getAllByTestId('hi-delete-hi-1')[0]!).toBeInTheDocument();
     });
 
     it('opens delete confirmation modal when delete is clicked from menu', async () => {
@@ -345,11 +345,11 @@ describe('HouseholdItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('hi-menu-button-hi-1')[0]).toBeInTheDocument();
+        expect(screen.getAllByTestId('hi-menu-button-hi-1')[0]!).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('hi-menu-button-hi-1')[0]);
-      fireEvent.click(screen.getAllByTestId('hi-delete-hi-1')[0]);
+      fireEvent.click(screen.getAllByTestId('hi-menu-button-hi-1')[0]!);
+      fireEvent.click(screen.getAllByTestId('hi-delete-hi-1')[0]!);
 
       await waitFor(() => {
         // The delete modal renders the item name in bold
@@ -368,11 +368,11 @@ describe('HouseholdItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('hi-menu-button-hi-1')[0]).toBeInTheDocument();
+        expect(screen.getAllByTestId('hi-menu-button-hi-1')[0]!).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('hi-menu-button-hi-1')[0]);
-      fireEvent.click(screen.getAllByTestId('hi-delete-hi-1')[0]);
+      fireEvent.click(screen.getAllByTestId('hi-menu-button-hi-1')[0]!);
+      fireEvent.click(screen.getAllByTestId('hi-delete-hi-1')[0]!);
 
       await waitFor(() => {
         const boldItems = screen.getAllByText('Living Room Sofa');
@@ -408,11 +408,11 @@ describe('HouseholdItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('hi-menu-button-hi-1')[0]).toBeInTheDocument();
+        expect(screen.getAllByTestId('hi-menu-button-hi-1')[0]!).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('hi-menu-button-hi-1')[0]);
-      fireEvent.click(screen.getAllByTestId('hi-delete-hi-1')[0]);
+      fireEvent.click(screen.getAllByTestId('hi-menu-button-hi-1')[0]!);
+      fireEvent.click(screen.getAllByTestId('hi-delete-hi-1')[0]!);
 
       await waitFor(() => {
         const boldItems = screen.getAllByText('Living Room Sofa');
@@ -442,11 +442,11 @@ describe('HouseholdItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('hi-menu-button-hi-1')[0]).toBeInTheDocument();
+        expect(screen.getAllByTestId('hi-menu-button-hi-1')[0]!).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('hi-menu-button-hi-1')[0]);
-      fireEvent.click(screen.getAllByTestId('hi-delete-hi-1')[0]);
+      fireEvent.click(screen.getAllByTestId('hi-menu-button-hi-1')[0]!);
+      fireEvent.click(screen.getAllByTestId('hi-delete-hi-1')[0]!);
 
       await waitFor(() => {
         // Modal is open

@@ -143,10 +143,10 @@ describe('Work Item Routes — area ancestors', () => {
       const area = workItem.area as AreaSummary;
       expect(area.id).toBe(bathroomId);
       expect(area.ancestors).toHaveLength(2);
-      expect(area.ancestors[0].name).toBe('House');
-      expect(area.ancestors[0].id).toBe(houseId);
-      expect(area.ancestors[1].name).toBe('Basement');
-      expect(area.ancestors[1].id).toBe(basementId);
+      expect(area.ancestors[0]!.name).toBe('House');
+      expect(area.ancestors[0]!.id).toBe(houseId);
+      expect(area.ancestors[1]!.name).toBe('Basement');
+      expect(area.ancestors[1]!.id).toBe(basementId);
     });
 
     it('AC2 — work item without areaId returns area === null', async () => {
@@ -240,8 +240,8 @@ describe('Work Item Routes — area ancestors', () => {
       const area = matchingItem!.area as AreaSummary;
       expect(area.id).toBe(bathroomId);
       expect(area.ancestors).toHaveLength(2);
-      expect(area.ancestors[0].name).toBe('House');
-      expect(area.ancestors[1].name).toBe('Basement');
+      expect(area.ancestors[0]!.name).toBe('House');
+      expect(area.ancestors[1]!.name).toBe('Basement');
     });
 
     it('all 5 work items across a 2-level hierarchy have correct ancestors populated', async () => {
@@ -280,14 +280,14 @@ describe('Work Item Routes — area ancestors', () => {
       );
       expect(child1Item).toBeDefined();
       expect((child1Item!.area as AreaSummary).ancestors).toHaveLength(1);
-      expect((child1Item!.area as AreaSummary).ancestors[0].id).toBe(root1);
+      expect((child1Item!.area as AreaSummary).ancestors[0]!.id).toBe(root1);
 
       const child2Item = body.items.find(
         (wi) => wi.area !== null && (wi.area as AreaSummary).id === child2,
       );
       expect(child2Item).toBeDefined();
       expect((child2Item!.area as AreaSummary).ancestors).toHaveLength(1);
-      expect((child2Item!.area as AreaSummary).ancestors[0].id).toBe(root2);
+      expect((child2Item!.area as AreaSummary).ancestors[0]!.id).toBe(root2);
     });
   });
 });

@@ -135,14 +135,14 @@ describe('Household Item Routes — area ancestors', () => {
       expect(area.ancestors).toHaveLength(4);
 
       // Root-first order
-      expect(area.ancestors[0].name).toBe('Property');
-      expect(area.ancestors[0].id).toBe(propertyId);
-      expect(area.ancestors[1].name).toBe('House');
-      expect(area.ancestors[1].id).toBe(houseId);
-      expect(area.ancestors[2].name).toBe('Floor 1');
-      expect(area.ancestors[2].id).toBe(floor1Id);
-      expect(area.ancestors[3].name).toBe('Kitchen Area');
-      expect(area.ancestors[3].id).toBe(kitchenId);
+      expect(area.ancestors[0]!.name).toBe('Property');
+      expect(area.ancestors[0]!.id).toBe(propertyId);
+      expect(area.ancestors[1]!.name).toBe('House');
+      expect(area.ancestors[1]!.id).toBe(houseId);
+      expect(area.ancestors[2]!.name).toBe('Floor 1');
+      expect(area.ancestors[2]!.id).toBe(floor1Id);
+      expect(area.ancestors[3]!.name).toBe('Kitchen Area');
+      expect(area.ancestors[3]!.id).toBe(kitchenId);
 
       // Pantry itself must NOT appear in the ancestors array
       const pantryInAncestors = area.ancestors.some((a) => a.id === pantryId);
@@ -189,8 +189,8 @@ describe('Household Item Routes — area ancestors', () => {
       const area = matchingItem!.area as AreaSummary;
       expect(area.id).toBe(childId);
       expect(area.ancestors).toHaveLength(1);
-      expect(area.ancestors[0].id).toBe(rootId);
-      expect(area.ancestors[0].name).toBe('House');
+      expect(area.ancestors[0]!.id).toBe(rootId);
+      expect(area.ancestors[0]!.name).toBe('House');
     });
 
     it('household item without area returns area === null in list', async () => {

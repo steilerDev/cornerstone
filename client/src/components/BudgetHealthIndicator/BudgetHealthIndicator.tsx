@@ -19,7 +19,7 @@ function resolveHealth(remainingVsProjectedMax: number, availableFunds: number):
     return {
       status: 'over-budget',
       label: 'health.overBudget',
-      cssClass: styles.overBudget,
+      cssClass: styles.overBudget!,
     };
   }
 
@@ -28,7 +28,7 @@ function resolveHealth(remainingVsProjectedMax: number, availableFunds: number):
     return {
       status: 'at-risk',
       label: 'health.atRisk',
-      cssClass: styles.atRisk,
+      cssClass: styles.atRisk!,
     };
   }
 
@@ -38,14 +38,14 @@ function resolveHealth(remainingVsProjectedMax: number, availableFunds: number):
     return {
       status: 'on-budget',
       label: 'health.onBudget',
-      cssClass: styles.onBudget,
+      cssClass: styles.onBudget!,
     };
   }
 
   return {
     status: 'at-risk',
     label: 'health.atRisk',
-    cssClass: styles.atRisk,
+    cssClass: styles.atRisk!,
   };
 }
 

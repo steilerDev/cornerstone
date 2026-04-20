@@ -135,9 +135,9 @@ describe('Budget Category Service', () => {
       // Find our test categories in the sorted list
       const testCats = result.filter((c) => c.name.startsWith('Test Cat'));
       expect(testCats).toHaveLength(3);
-      expect(testCats[0].name).toBe('Test Cat Alpha');
-      expect(testCats[1].name).toBe('Test Cat Beta');
-      expect(testCats[2].name).toBe('Test Cat Gamma');
+      expect(testCats[0]!.name).toBe('Test Cat Alpha');
+      expect(testCats[1]!.name).toBe('Test Cat Beta');
+      expect(testCats[2]!.name).toBe('Test Cat Gamma');
     });
 
     it('includes newly created categories in the result', () => {

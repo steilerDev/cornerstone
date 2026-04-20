@@ -55,9 +55,9 @@ describe('householdItemWorkItemsApi', () => {
 
       expect(result).toEqual([mockItem]);
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('hi-1');
-      expect(result[0].name).toBe('HVAC System');
-      expect(result[0].category).toBe('appliances');
+      expect(result[0]!.id).toBe('hi-1');
+      expect(result[0]!.name).toBe('HVAC System');
+      expect(result[0]!.category).toBe('appliances');
     });
 
     it('returns empty array when no household items are linked', async () => {
@@ -101,8 +101,8 @@ describe('householdItemWorkItemsApi', () => {
       const result = await fetchLinkedHouseholdItems('wi-123');
 
       expect(result).toHaveLength(2);
-      expect(result[0].name).toBe('Item 1');
-      expect(result[1].name).toBe('Item 2');
+      expect(result[0]!.name).toBe('Item 1');
+      expect(result[1]!.name).toBe('Item 2');
     });
 
     it('throws error when response is not OK', async () => {

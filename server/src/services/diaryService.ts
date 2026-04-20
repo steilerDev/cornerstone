@@ -418,7 +418,8 @@ export function listDiaryEntries(
       .map((t) => t.trim())
       .filter(Boolean) as EntryTypeValue[];
     if (types.length === 1) {
-      conditions.push(eq(diaryEntries.entryType, types[0]));
+      // types[0] is defined: length check ensures the array has one element
+      conditions.push(eq(diaryEntries.entryType, types[0]!));
     } else if (types.length > 1) {
       conditions.push(inArray(diaryEntries.entryType, types));
     }

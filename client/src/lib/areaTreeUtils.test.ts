@@ -28,8 +28,8 @@ describe('buildTree', () => {
     const result = buildTree(areas);
 
     expect(result).toHaveLength(1);
-    expect(result[0].depth).toBe(0);
-    expect(result[0].area.name).toBe('Kitchen');
+    expect(result[0]!.depth).toBe(0);
+    expect(result[0]!.area.name).toBe('Kitchen');
   });
 
   it('assigns depth 0 to top-level areas (parentId is null)', () => {
@@ -74,7 +74,7 @@ describe('buildTree', () => {
     const area = makeArea({ id: 'a1', name: 'Kitchen', color: '#ff0000' });
     const result = buildTree([area]);
 
-    expect(result[0].area).toEqual(area);
+    expect(result[0]!.area).toEqual(area);
   });
 
   it('places children directly after their parent in depth-first order', () => {
@@ -205,8 +205,8 @@ describe('buildTree', () => {
     const result = buildTree(areas);
 
     expect(result).toHaveLength(3);
-    expect(result[0].depth).toBe(0);
-    expect(result[1].depth).toBe(1);
-    expect(result[2].depth).toBe(2);
+    expect(result[0]!.depth).toBe(0);
+    expect(result[1]!.depth).toBe(1);
+    expect(result[2]!.depth).toBe(2);
   });
 });

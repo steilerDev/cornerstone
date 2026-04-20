@@ -73,7 +73,7 @@ export default function DiaryEntryCreatePage() {
   const [selectedType, setSelectedType] = useState<ManualDiaryEntryType | null>(null);
 
   // Form step
-  const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]!);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});

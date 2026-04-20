@@ -18,7 +18,7 @@ export function parseDepth(
   const depth = headers.depth;
   if (!depth) return 0;
   const depthStr = Array.isArray(depth) ? depth[0] : depth;
-  if (depthStr === 'infinity') return 'infinity';
+  if (!depthStr || depthStr === 'infinity') return depthStr === 'infinity' ? 'infinity' : 0;
   const parsed = parseInt(depthStr, 10);
   return Number.isNaN(parsed) ? 0 : parsed;
 }
@@ -36,13 +36,14 @@ export function parsePropfindProps(body: string): string[] {
   const match = body.match(/<(?:[a-z]+:)?prop>([\s\S]*?)<\/(?:[a-z]+:)?prop>/);
   if (!match) return ['allprop'];
 
-  const propSection = match[1];
+  const propSection = match[1]!;
   const props: string[] = [];
 
   // Extract tag names from prop section
   const tagMatches = propSection.matchAll(/<(?:[a-z]+:)?([a-z][-a-z]*)[^>]*>/gi);
   for (const m of tagMatches) {
-    props.push(m[1].toLowerCase());
+    props.push(m[1]!.toLowerCase());
+    // m[1] is defined: capture group ([a-z][-a-z]*) is required in the pattern
   }
 
   return props.length > 0 ? props : ['allprop'];
@@ -56,7 +57,8 @@ export function parseReportHrefs(body: string): string[] {
   const hrefs: string[] = [];
   const hrefMatches = body.matchAll(/<(?:[a-z]+:)?href[^>]*>([\s\S]*?)<\/(?:[a-z]+:)?href>/gi);
   for (const match of hrefMatches) {
-    hrefs.push(match[1].trim());
+    hrefs.push(match[1]!.trim());
+    // match[1] is defined: capture group ([\s\S]*?) is required in the pattern
   }
   return hrefs;
 }

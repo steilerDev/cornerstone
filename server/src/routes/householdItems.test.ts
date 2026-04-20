@@ -552,7 +552,7 @@ describe('Household Item Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body) as { items: Array<{ name: string }> };
       expect(body.items).toHaveLength(1);
-      expect(body.items[0].name).toBe('Dishwasher');
+      expect(body.items[0]!.name).toBe('Dishwasher');
     });
 
     it('filters by status query param', async () => {
@@ -582,7 +582,7 @@ describe('Household Item Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body) as { items: Array<{ name: string }> };
       expect(body.items).toHaveLength(1);
-      expect(body.items[0].name).toBe('Item B');
+      expect(body.items[0]!.name).toBe('Item B');
     });
 
     it('supports full-text search via q query param', async () => {
@@ -606,7 +606,7 @@ describe('Household Item Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body) as { items: Array<{ name: string }> };
       expect(body.items).toHaveLength(1);
-      expect(body.items[0].name).toBe('Coffee Table');
+      expect(body.items[0]!.name).toBe('Coffee Table');
     });
 
     it('returns 200 with empty list when category query param is unknown (no enum validation)', async () => {
@@ -678,8 +678,8 @@ describe('Household Item Routes', () => {
       // Then: Items are sorted
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body) as { items: Array<{ name: string }> };
-      expect(body.items[0].name).toBe('Apple Lamp');
-      expect(body.items[1].name).toBe('Zebra Chair');
+      expect(body.items[0]!.name).toBe('Apple Lamp');
+      expect(body.items[1]!.name).toBe('Zebra Chair');
     });
   });
 
@@ -1287,7 +1287,7 @@ describe('Household Item Routes', () => {
         pagination: { totalItems: number };
       };
       expect(body.pagination.totalItems).toBe(1);
-      expect(body.items[0].id).toBe(item1.id);
+      expect(body.items[0]!.id).toBe(item1.id);
     });
   });
 
@@ -1378,9 +1378,9 @@ describe('Household Item Routes', () => {
         }>;
       };
       expect(body.dependencies).toHaveLength(1);
-      expect(body.dependencies[0].predecessorType).toBe('work_item');
-      expect(body.dependencies[0].predecessorId).toBe(workItem.id);
-      expect(body.dependencies[0].predecessor.title).toBe('Foundation Work');
+      expect(body.dependencies[0]!.predecessorType).toBe('work_item');
+      expect(body.dependencies[0]!.predecessorId).toBe(workItem.id);
+      expect(body.dependencies[0]!.predecessor.title).toBe('Foundation Work');
     });
 
     it('returns 401 when not authenticated', async () => {

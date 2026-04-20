@@ -391,13 +391,13 @@ export function TimelinePage() {
                 aria-label={
                   showArrows
                     ? t('timeline.toolbar.hideDependencyArrows')
-                    : t('timeline.toolbar.showDependencyArrows')
+                    : t('timeline.toolbar.showDependencyArrows')!
                 }
                 onClick={() => setShowArrows((v) => !v)}
                 title={
                   showArrows
                     ? t('timeline.toolbar.hideDependencyArrows')
-                    : t('timeline.toolbar.showDependencyArrows')
+                    : t('timeline.toolbar.showDependencyArrows')!
                 }
               >
                 <ArrowsIcon active={showArrows} />
@@ -411,13 +411,13 @@ export function TimelinePage() {
                 aria-label={
                   highlightCriticalPath
                     ? t('timeline.toolbar.hideCriticalPath')
-                    : t('timeline.toolbar.showCriticalPath')
+                    : t('timeline.toolbar.showCriticalPath')!
                 }
                 onClick={() => setHighlightCriticalPath((v) => !v)}
                 title={
                   highlightCriticalPath
                     ? t('timeline.toolbar.hideCriticalPath')
-                    : t('timeline.toolbar.showCriticalPath')
+                    : t('timeline.toolbar.showCriticalPath')!
                 }
                 data-testid="critical-path-toggle"
               >

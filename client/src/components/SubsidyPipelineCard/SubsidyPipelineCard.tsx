@@ -25,7 +25,8 @@ export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProp
   const isUpcomingDeadline = (deadline: string | null): boolean => {
     if (!deadline) return false;
     const [year, month, day] = deadline.split('-').map(Number);
-    const deadlineDate = new Date(year, month - 1, day);
+    // year, month, day are parsed from deadline string (guaranteed to be valid numeric parts)
+    const deadlineDate = new Date(year!, month! - 1, day!);
     const today = new Date();
     const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const daysUntilDeadline = Math.ceil(
@@ -48,26 +49,26 @@ export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProp
       const hasUpcomingDeadline = programs.some((p) => isUpcomingDeadline(p.applicationDeadline));
 
       const badgeClassMap: Record<string, string> = {
-        eligible: styles.badgeGray,
-        applied: styles.badgeBlue,
-        approved: styles.badgeGreen,
-        received: styles.badgeGreen,
+        eligible: styles.badgeGray!,
+        applied: styles.badgeBlue!,
+        approved: styles.badgeGreen!,
+        received: styles.badgeGreen!,
       };
 
       const labelMap: Record<string, string> = {
-        eligible: t('cards.subsidyPipeline.statuses.eligible'),
-        applied: t('cards.subsidyPipeline.statuses.applied'),
-        approved: t('cards.subsidyPipeline.statuses.approved'),
-        received: t('cards.subsidyPipeline.statuses.received'),
+        eligible: t('cards.subsidyPipeline.statuses.eligible')!,
+        applied: t('cards.subsidyPipeline.statuses.applied')!,
+        approved: t('cards.subsidyPipeline.statuses.approved')!,
+        received: t('cards.subsidyPipeline.statuses.received')!,
       };
 
       statusGroups.push({
         status,
-        label: labelMap[status],
+        label: labelMap[status]!,
         count: programs.length,
         totalFixedReduction,
         hasUpcomingDeadline,
-        badgeClass: badgeClassMap[status],
+        badgeClass: badgeClassMap[status]!,
       });
     }
   }
@@ -77,11 +78,11 @@ export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProp
   if (rejectedPrograms.length > 0) {
     statusGroups.push({
       status: 'rejected',
-      label: t('cards.subsidyPipeline.statuses.rejected'),
+      label: t('cards.subsidyPipeline.statuses.rejected')!,
       count: rejectedPrograms.length,
       totalFixedReduction: 0,
       hasUpcomingDeadline: false,
-      badgeClass: styles.badgeRed,
+      badgeClass: styles.badgeRed!,
     });
   }
 

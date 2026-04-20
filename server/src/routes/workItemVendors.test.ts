@@ -172,8 +172,8 @@ describe('Work Item Vendor Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ vendors: Array<{ id: string; name: string }> }>();
       expect(body.vendors).toHaveLength(1);
-      expect(body.vendors[0].id).toBe(vendor.id);
-      expect(body.vendors[0].name).toBe('Reliable Contractor');
+      expect(body.vendors[0]!.id).toBe(vendor.id);
+      expect(body.vendors[0]!.name).toBe('Reliable Contractor');
     });
 
     it('returns 404 when work item does not exist', async () => {

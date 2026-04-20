@@ -87,8 +87,8 @@ describe('timelineApi', () => {
       const result = await getTimeline();
 
       expect(result.workItems).toHaveLength(1);
-      expect(result.workItems[0].id).toBe('wi-1');
-      expect(result.workItems[0].title).toBe('Install plumbing');
+      expect(result.workItems[0]!.id).toBe('wi-1');
+      expect(result.workItems[0]!.title).toBe('Install plumbing');
       expect(result.dateRange).not.toBeNull();
       expect(result.dateRange?.earliest).toBe('2026-01-01');
       expect(result.criticalPath).toContain('wi-1');
@@ -118,8 +118,8 @@ describe('timelineApi', () => {
       const result = await getTimeline();
 
       expect(result.milestones).toHaveLength(1);
-      expect(result.milestones[0].title).toBe('Foundation complete');
-      expect(result.milestones[0].isCritical).toBe(true);
+      expect(result.milestones[0]!.title).toBe('Foundation complete');
+      expect(result.milestones[0]!.isCritical).toBe(true);
     });
 
     it('returns timeline with dependencies', async () => {
@@ -141,9 +141,9 @@ describe('timelineApi', () => {
       const result = await getTimeline();
 
       expect(result.dependencies).toHaveLength(1);
-      expect(result.dependencies[0].predecessorId).toBe('wi-1');
-      expect(result.dependencies[0].successorId).toBe('wi-2');
-      expect(result.dependencies[0].dependencyType).toBe('finish_to_start');
+      expect(result.dependencies[0]!.predecessorId).toBe('wi-1');
+      expect(result.dependencies[0]!.successorId).toBe('wi-2');
+      expect(result.dependencies[0]!.dependencyType).toBe('finish_to_start');
     });
 
     it('throws error when response is not OK (500)', async () => {

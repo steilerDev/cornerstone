@@ -972,7 +972,7 @@ export function InvoiceBudgetLinesSection({
 
                           // Create links for all lines with amounts entered
                           for (const line of pickerState.budgetLines) {
-                            const amount = pickerState.itemizedAmounts[line.id];
+                            const amount = pickerState.itemizedAmounts[line.id] ?? 0;
                             if (amount > 0) {
                               try {
                                 const createData = {

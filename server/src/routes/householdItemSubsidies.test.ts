@@ -175,9 +175,9 @@ describe('Household Item Subsidy Routes', () => {
         subsidies: Array<{ id: string; name: string; reductionValue: number }>;
       }>();
       expect(body.subsidies).toHaveLength(1);
-      expect(body.subsidies[0].id).toBe(subsidy.id);
-      expect(body.subsidies[0].name).toBe('Green Energy Rebate');
-      expect(body.subsidies[0].reductionValue).toBe(15);
+      expect(body.subsidies[0]!.id).toBe(subsidy.id);
+      expect(body.subsidies[0]!.name).toBe('Green Energy Rebate');
+      expect(body.subsidies[0]!.reductionValue).toBe(15);
     });
 
     it('returns 404 when household item does not exist', async () => {

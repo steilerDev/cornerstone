@@ -272,8 +272,8 @@ describe('DataTable', () => {
       fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'hello' } });
       expect(mockOnStateChange).toHaveBeenCalled();
       const calls = mockOnStateChange.mock.calls as [TableState][];
-      const lastCall = calls[calls.length - 1];
-      expect(lastCall[0].search).toBe('hello');
+      const lastCall = calls[calls.length - 1]!;
+      expect(lastCall[0]!.search).toBe('hello');
     });
 
     it('shows Clear Filters button when search is active', () => {
@@ -295,9 +295,9 @@ describe('DataTable', () => {
       });
       await user.click(screen.getByRole('button', { name: /clear filters/i }));
       const calls = mockOnStateChange.mock.calls as [TableState][];
-      const lastCall = calls[calls.length - 1];
-      expect(lastCall[0].search).toBe('');
-      expect(lastCall[0].filters.size).toBe(0);
+      const lastCall = calls[calls.length - 1]!;
+      expect(lastCall[0]!.search).toBe('');
+      expect(lastCall[0]!.filters.size).toBe(0);
     });
   });
 

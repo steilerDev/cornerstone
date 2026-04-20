@@ -111,9 +111,9 @@ describe('Trade Service', () => {
       createTestTrade('Beta Trade', { sortOrder: 5 });
 
       const result = tradeService.listTrades(db);
-      expect(result[0].name).toBe('Alpha Trade');
-      expect(result[1].name).toBe('Beta Trade');
-      expect(result[2].name).toBe('Zeta Trade');
+      expect(result[0]!.name).toBe('Alpha Trade');
+      expect(result[1]!.name).toBe('Beta Trade');
+      expect(result[2]!.name).toBe('Zeta Trade');
     });
 
     it('returns all trade fields', () => {

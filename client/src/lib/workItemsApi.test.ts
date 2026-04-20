@@ -195,7 +195,7 @@ describe('workItemsApi', () => {
         sortOrder: 'desc',
       });
 
-      const callUrl = mockFetch.mock.calls[0][0] as string;
+      const callUrl = mockFetch.mock.calls[0]![0] as string;
       expect(callUrl).toContain('page=2');
       expect(callUrl).toContain('pageSize=50');
       expect(callUrl).toContain('status=completed');
@@ -236,7 +236,7 @@ describe('workItemsApi', () => {
 
       expect(result).toEqual(mockResponse);
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].title).toBe('Install electrical');
+      expect(result.items[0]!.title).toBe('Install electrical');
     });
 
     it('throws error when response is not OK', async () => {
@@ -606,8 +606,8 @@ describe('workItemsApi', () => {
       const result = await fetchWorkItemSubsidies('work-123');
 
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('subsidy-1');
-      expect(result[0].name).toBe('Green Energy Rebate');
+      expect(result[0]!.id).toBe('subsidy-1');
+      expect(result[0]!.name).toBe('Green Energy Rebate');
     });
 
     it('returns empty array when no subsidies linked', async () => {

@@ -458,9 +458,9 @@ describe('Work Item Service', () => {
       // Then: All relationships are loaded
       expect(detail.id).toBe(workItem.id);
       expect(detail.subtasks).toHaveLength(1);
-      expect(detail.subtasks[0].title).toBe('Subtask 1');
+      expect(detail.subtasks[0]!.title).toBe('Subtask 1');
       expect(detail.dependencies.predecessors).toHaveLength(1);
-      expect(detail.dependencies.predecessors[0].workItem.title).toBe('Predecessor');
+      expect(detail.dependencies.predecessors[0]!.workItem.title).toBe('Predecessor');
       expect(detail.dependencies.successors).toHaveLength(0);
     });
 
@@ -992,8 +992,8 @@ describe('Work Item Service', () => {
 
       // Then: Only work items in that area are returned
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].title).toBe('In Living Room');
-      expect(result.items[0].area!.id).toBe(areaId);
+      expect(result.items[0]!.title).toBe('In Living Room');
+      expect(result.items[0]!.area!.id).toBe(areaId);
     });
 
     it('areaId filter on a leaf area (no descendants) returns only exact-match items', () => {
@@ -1009,8 +1009,8 @@ describe('Work Item Service', () => {
 
       // Then: Only the item in the leaf area is returned
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].title).toBe('Garage Door');
-      expect(result.items[0].area!.id).toBe(leafAreaId);
+      expect(result.items[0]!.title).toBe('Garage Door');
+      expect(result.items[0]!.area!.id).toBe(leafAreaId);
     });
 
     it('areaId filter on a parent area includes items from direct child areas', () => {
@@ -1068,7 +1068,7 @@ describe('Work Item Service', () => {
       // When: Filtering by child — should return 1 (leaf)
       const childResult = workItemService.listWorkItems(db, { areaId: childId });
       expect(childResult.items).toHaveLength(1);
-      expect(childResult.items[0].title).toBe('Bedroom Wardrobe');
+      expect(childResult.items[0]!.title).toBe('Bedroom Wardrobe');
     });
 
     it('areaId filter on a parent area excludes items from unrelated areas', () => {
@@ -1119,8 +1119,8 @@ describe('Work Item Service', () => {
 
       // Then: Only items assigned to vendor1 are returned
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].title).toBe('Fix pipes');
-      expect(result.items[0].assignedVendor!.id).toBe(vendor1);
+      expect(result.items[0]!.title).toBe('Fix pipes');
+      expect(result.items[0]!.assignedVendor!.id).toBe(vendor1);
     });
 
     it('searches title and description (case-insensitive)', () => {
@@ -1142,7 +1142,7 @@ describe('Work Item Service', () => {
       // When: Searching for "plumb"
       const result1 = workItemService.listWorkItems(db, { q: 'plumb' });
       expect(result1.items).toHaveLength(1);
-      expect(result1.items[0].title).toBe('Install plumbing');
+      expect(result1.items[0]!.title).toBe('Install plumbing');
 
       // And: Searching for "INSTALL" (case-insensitive)
       const result2 = workItemService.listWorkItems(db, { q: 'INSTALL' });
@@ -1151,7 +1151,7 @@ describe('Work Item Service', () => {
       // And: Searching for "foundation" (matches description)
       const result3 = workItemService.listWorkItems(db, { q: 'foundation' });
       expect(result3.items).toHaveLength(1);
-      expect(result3.items[0].title).toBe('Foundation work');
+      expect(result3.items[0]!.title).toBe('Foundation work');
     });
 
     it('supports custom sorting by title ascending', () => {
@@ -1165,9 +1165,9 @@ describe('Work Item Service', () => {
       const result = workItemService.listWorkItems(db, { sortBy: 'title', sortOrder: 'asc' });
 
       // Then: Items are sorted alphabetically
-      expect(result.items[0].title).toBe('Alpha');
-      expect(result.items[1].title).toBe('Beta');
-      expect(result.items[2].title).toBe('Zebra');
+      expect(result.items[0]!.title).toBe('Alpha');
+      expect(result.items[1]!.title).toBe('Beta');
+      expect(result.items[2]!.title).toBe('Zebra');
     });
 
     it('supports sorting by start_date descending', () => {
@@ -1185,10 +1185,10 @@ describe('Work Item Service', () => {
       });
 
       // Then: Items sorted by date (null last)
-      expect(result.items[0].startDate).toBe('2026-03-15');
-      expect(result.items[1].startDate).toBe('2026-03-10');
-      expect(result.items[2].startDate).toBe('2026-03-01');
-      expect(result.items[3].startDate).toBeNull();
+      expect(result.items[0]!.startDate).toBe('2026-03-15');
+      expect(result.items[1]!.startDate).toBe('2026-03-10');
+      expect(result.items[2]!.startDate).toBe('2026-03-01');
+      expect(result.items[3]!.startDate).toBeNull();
     });
 
     it('defaults to created_at descending', () => {
@@ -1202,9 +1202,9 @@ describe('Work Item Service', () => {
       const result = workItemService.listWorkItems(db, {});
 
       // Then: Most recent first
-      expect(result.items[0].title).toBe('Third');
-      expect(result.items[1].title).toBe('Second');
-      expect(result.items[2].title).toBe('First');
+      expect(result.items[0]!.title).toBe('Third');
+      expect(result.items[1]!.title).toBe('Second');
+      expect(result.items[2]!.title).toBe('First');
     });
 
     it('combines multiple filters with AND logic', () => {
@@ -1237,7 +1237,7 @@ describe('Work Item Service', () => {
 
       // Then: Only items matching ALL criteria
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].title).toBe('Electrical wiring in progress');
+      expect(result.items[0]!.title).toBe('Electrical wiring in progress');
     });
 
     it('includes area in list response', () => {
@@ -1249,7 +1249,7 @@ describe('Work Item Service', () => {
       const result = workItemService.listWorkItems(db, {});
 
       // Then: Area is null when unset
-      expect(result.items[0].area).toBeNull();
+      expect(result.items[0]!.area).toBeNull();
     });
 
     it('includes assignedUser summary in list response', () => {
@@ -1262,8 +1262,8 @@ describe('Work Item Service', () => {
       const result = workItemService.listWorkItems(db, {});
 
       // Then: Assigned user summary is included
-      expect(result.items[0].assignedUser).toBeDefined();
-      expect(result.items[0].assignedUser?.displayName).toBe('Assignee User');
+      expect(result.items[0]!.assignedUser).toBeDefined();
+      expect(result.items[0]!.assignedUser?.displayName).toBe('Assignee User');
     });
   });
 
@@ -1308,7 +1308,7 @@ describe('Work Item Service', () => {
 
       // Then: Only the grandchild item is returned
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].title).toBe('Grandchild A1 Item');
+      expect(result.items[0]!.title).toBe('Grandchild A1 Item');
     });
 
     it('case 2: single parent ID expands to include direct child items', () => {
@@ -1405,7 +1405,7 @@ describe('Work Item Service', () => {
 
       // Then: Only child-b item is returned; whitespace segments dropped
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].title).toBe('Child B Item');
+      expect(result.items[0]!.title).toBe('Child B Item');
     });
 
     it('CSV with all empty/whitespace segments resolves to zero IDs — filter skipped, returns all', () => {
@@ -1469,8 +1469,8 @@ describe('Work Item Service', () => {
       const result = workItemService.listWorkItems(db, {});
 
       // Then: Actual dates are included in list summary
-      expect(result.items[0].actualStartDate).toBe('2026-03-01');
-      expect(result.items[0].actualEndDate).toBe('2026-03-10');
+      expect(result.items[0]!.actualStartDate).toBe('2026-03-01');
+      expect(result.items[0]!.actualEndDate).toBe('2026-03-10');
     });
 
     it('actual dates appear in WorkItemDetail response', () => {

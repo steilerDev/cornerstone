@@ -607,8 +607,8 @@ describe('WorkItemMilestones interface', () => {
     };
 
     expect(milestones.required).toHaveLength(1);
-    expect(milestones.required[0].id).toBe(1);
-    expect(milestones.required[0].name).toBe('Foundation Complete');
+    expect(milestones.required[0]!.id).toBe(1);
+    expect(milestones.required[0]!.name).toBe('Foundation Complete');
     expect(milestones.linked).toHaveLength(0);
   });
 
@@ -657,10 +657,10 @@ describe('WorkItemListResponse type', () => {
     };
 
     expect(response.items).toHaveLength(1);
-    expect(response.items[0].title).toBe('Pave Driveway');
+    expect(response.items[0]!.title).toBe('Pave Driveway');
     expect(response.pagination.totalItems).toBe(1);
     // Confirm no tags on list items
-    expect((response.items[0] as any).tags).toBeUndefined();
+    expect((response.items[0]! as any).tags).toBeUndefined();
   });
 });
 
