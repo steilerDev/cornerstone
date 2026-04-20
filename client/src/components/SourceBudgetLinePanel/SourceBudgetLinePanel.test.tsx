@@ -731,6 +731,10 @@ describe('SourceBudgetLinePanel', () => {
   });
 
   // ─── Selection mode: area group checkbox (scenario 21) ───────────────────────
+  //
+  // After the tile-click refactor, the area name itself carries role="checkbox"
+  // (as a <div>) instead of the old TriStateCheckbox <input> inside
+  // .areaSelectAllRow. Assertions target aria-checked instead of .indeterminate.
 
   describe('area group checkbox', () => {
     it('clicking all-unchecked area group checkbox adds all area line ids to selection', () => {
@@ -755,9 +759,10 @@ describe('SourceBudgetLinePanel', () => {
         onMoveLines: jest.fn(),
       });
 
-      // Area group checkbox has aria-label containing the area name
-      const areaCheckbox = screen.getByRole('checkbox', { name: /Select all in Main/i });
-      fireEvent.click(areaCheckbox);
+      // Area name <div role="checkbox"> carries the area-group selection state
+      const areaName = screen.getByRole('checkbox', { name: /Select all in Main/i });
+      expect(areaName.getAttribute('aria-checked')).toBe('false');
+      fireEvent.click(areaName);
 
       expect(onSelectionChange).toHaveBeenCalledTimes(1);
       const newSet = onSelectionChange.mock.calls[0]![0];
@@ -787,8 +792,9 @@ describe('SourceBudgetLinePanel', () => {
         onMoveLines: jest.fn(),
       });
 
-      const areaCheckbox = screen.getByRole('checkbox', { name: /Select all in Main/i });
-      fireEvent.click(areaCheckbox);
+      const areaName = screen.getByRole('checkbox', { name: /Select all in Main/i });
+      expect(areaName.getAttribute('aria-checked')).toBe('true');
+      fireEvent.click(areaName);
 
       expect(onSelectionChange).toHaveBeenCalledTimes(1);
       const newSet = onSelectionChange.mock.calls[0]![0];
@@ -796,7 +802,7 @@ describe('SourceBudgetLinePanel', () => {
       expect(newSet.has('l2')).toBe(false);
     });
 
-    it('area group checkbox has indeterminate=true when only some lines are selected', () => {
+    it('area group checkbox has aria-checked="mixed" when only some lines are selected', () => {
       const line1 = makeLine({
         id: 'l1',
         parentId: 'p1',
@@ -817,10 +823,408 @@ describe('SourceBudgetLinePanel', () => {
         onMoveLines: jest.fn(),
       });
 
-      const areaCheckbox = screen.getByRole('checkbox', {
-        name: /Select all in Main/i,
-      }) as HTMLInputElement;
-      expect(areaCheckbox.indeterminate).toBe(true);
+      const areaName = screen.getByRole('checkbox', { name: /Select all in Main/i });
+      // The area name div uses aria-checked="mixed" for the indeterminate state
+      expect(areaName.getAttribute('aria-checked')).toBe('mixed');
+    });
+  });
+
+  // ─── Area name ARIA tri-state (scenario B) ───────────────────────────────────
+
+  describe('area name ARIA tri-state', () => {
+    function makeMainAreaLines() {
+      return [
+        makeLine({
+          id: 'l1',
+          parentId: 'p1',
+          parentName: 'Kitchen',
+          area: makeArea({ id: 'a1', name: 'Main' }),
+        }),
+        makeLine({
+          id: 'l2',
+          parentId: 'p1',
+          parentName: 'Kitchen',
+          area: makeArea({ id: 'a1', name: 'Main' }),
+          createdAt: '2026-01-02T00:00:00.000Z',
+        }),
+      ];
+    }
+
+    it('has aria-checked="false" when no lines selected', () => {
+      renderPanel({
+        data: makeResponse(makeMainAreaLines(), []),
+        selectedLineIds: new Set<string>(),
+        onSelectionChange: jest.fn(),
+        onMoveLines: jest.fn(),
+      });
+
+      const areaName = screen.getByRole('checkbox', { name: /Select all in Main/i });
+      expect(areaName.getAttribute('aria-checked')).toBe('false');
+    });
+
+    it('has aria-checked="true" when all area lines selected', () => {
+      renderPanel({
+        data: makeResponse(makeMainAreaLines(), []),
+        selectedLineIds: new Set<string>(['l1', 'l2']),
+        onSelectionChange: jest.fn(),
+        onMoveLines: jest.fn(),
+      });
+
+      const areaName = screen.getByRole('checkbox', { name: /Select all in Main/i });
+      expect(areaName.getAttribute('aria-checked')).toBe('true');
+    });
+
+    it('has aria-checked="mixed" when only some lines selected', () => {
+      renderPanel({
+        data: makeResponse(makeMainAreaLines(), []),
+        selectedLineIds: new Set<string>(['l1']),
+        onSelectionChange: jest.fn(),
+        onMoveLines: jest.fn(),
+      });
+
+      const areaName = screen.getByRole('checkbox', { name: /Select all in Main/i });
+      expect(areaName.getAttribute('aria-checked')).toBe('mixed');
+    });
+  });
+
+  // ─── Area name keyboard toggle (scenario C) ──────────────────────────────────
+
+  describe('area name keyboard interaction', () => {
+    function renderAreaWithTwoLines() {
+      const onSelectionChange = jest.fn<(s: Set<string>) => void>();
+      renderPanel({
+        data: makeResponse(
+          [
+            makeLine({
+              id: 'l1',
+              parentId: 'p1',
+              parentName: 'Kitchen',
+              area: makeArea({ id: 'a1', name: 'Main' }),
+            }),
+            makeLine({
+              id: 'l2',
+              parentId: 'p1',
+              parentName: 'Kitchen',
+              area: makeArea({ id: 'a1', name: 'Main' }),
+              createdAt: '2026-01-02T00:00:00.000Z',
+            }),
+          ],
+          [],
+        ),
+        selectedLineIds: new Set<string>(),
+        onSelectionChange,
+        onMoveLines: jest.fn(),
+      });
+      return onSelectionChange;
+    }
+
+    it('pressing Enter on area name selects all descendant lines', () => {
+      const onSelectionChange = renderAreaWithTwoLines();
+
+      const areaName = screen.getByRole('checkbox', { name: /Select all in Main/i });
+      fireEvent.keyDown(areaName, { key: 'Enter' });
+
+      expect(onSelectionChange).toHaveBeenCalledTimes(1);
+      const newSet = onSelectionChange.mock.calls[0]![0];
+      expect(newSet.has('l1')).toBe(true);
+      expect(newSet.has('l2')).toBe(true);
+    });
+
+    it('pressing Space on area name selects all descendant lines', () => {
+      const onSelectionChange = renderAreaWithTwoLines();
+
+      const areaName = screen.getByRole('checkbox', { name: /Select all in Main/i });
+      fireEvent.keyDown(areaName, { key: ' ' });
+
+      expect(onSelectionChange).toHaveBeenCalledTimes(1);
+      const newSet = onSelectionChange.mock.calls[0]![0];
+      expect(newSet.has('l1')).toBe(true);
+      expect(newSet.has('l2')).toBe(true);
+    });
+  });
+
+  // ─── Non-selectable mode: area name is plain span (scenario D) ───────────────
+
+  describe('non-selectable mode: area name rendering', () => {
+    it('renders area name as <span> (not checkbox div) when not in selectable mode', () => {
+      const line = makeLine({
+        id: 'l1',
+        parentId: 'p1',
+        parentName: 'Kitchen',
+        area: makeArea({ id: 'a1', name: 'Main' }),
+      });
+      // Render without selectedLineIds / onSelectionChange
+      renderPanel({ data: makeResponse([line], []) });
+
+      const areaCheckbox = screen.queryByRole('checkbox', { name: /Select all in/i });
+      expect(areaCheckbox).not.toBeInTheDocument();
+    });
+  });
+
+  // ─── Parent card tri-state behavior (scenario E) ─────────────────────────────
+
+  describe('parent item card tri-state', () => {
+    function makeKitchenLines() {
+      return [
+        makeLine({ id: 'line-1', parentId: 'parent-kitchen', parentName: 'Kitchen Renovation' }),
+        makeLine({
+          id: 'line-2',
+          parentId: 'parent-kitchen',
+          parentName: 'Kitchen Renovation',
+          createdAt: '2026-01-02T00:00:00.000Z',
+        }),
+      ];
+    }
+
+    it('renders with role="checkbox" in selectable mode', () => {
+      renderPanel({
+        data: makeResponse(makeKitchenLines(), []),
+        selectedLineIds: new Set<string>(),
+        onSelectionChange: jest.fn(),
+        onMoveLines: jest.fn(),
+      });
+
+      const parentCard = screen.getByRole('checkbox', {
+        name: /Select all under Kitchen Renovation/i,
+      });
+      expect(parentCard).toBeInTheDocument();
+    });
+
+    it('aria-checked is "false" when no lines selected', () => {
+      renderPanel({
+        data: makeResponse(makeKitchenLines(), []),
+        selectedLineIds: new Set<string>(),
+        onSelectionChange: jest.fn(),
+        onMoveLines: jest.fn(),
+      });
+
+      const parentCard = screen.getByRole('checkbox', {
+        name: /Select all under Kitchen Renovation/i,
+      });
+      expect(parentCard.getAttribute('aria-checked')).toBe('false');
+    });
+
+    it('aria-checked is "true" when all card lines selected', () => {
+      renderPanel({
+        data: makeResponse(makeKitchenLines(), []),
+        selectedLineIds: new Set<string>(['line-1', 'line-2']),
+        onSelectionChange: jest.fn(),
+        onMoveLines: jest.fn(),
+      });
+
+      const parentCard = screen.getByRole('checkbox', {
+        name: /Select all under Kitchen Renovation/i,
+      });
+      expect(parentCard.getAttribute('aria-checked')).toBe('true');
+    });
+
+    it('aria-checked is "mixed" when some card lines selected', () => {
+      renderPanel({
+        data: makeResponse(makeKitchenLines(), []),
+        selectedLineIds: new Set<string>(['line-1']),
+        onSelectionChange: jest.fn(),
+        onMoveLines: jest.fn(),
+      });
+
+      const parentCard = screen.getByRole('checkbox', {
+        name: /Select all under Kitchen Renovation/i,
+      });
+      expect(parentCard.getAttribute('aria-checked')).toBe('mixed');
+    });
+
+    it('clicking parent card selects all its lines when none selected', () => {
+      const onSelectionChange = jest.fn<(s: Set<string>) => void>();
+      renderPanel({
+        data: makeResponse(makeKitchenLines(), []),
+        selectedLineIds: new Set<string>(),
+        onSelectionChange,
+        onMoveLines: jest.fn(),
+      });
+
+      const parentCard = screen.getByRole('checkbox', {
+        name: /Select all under Kitchen Renovation/i,
+      });
+      fireEvent.click(parentCard);
+
+      expect(onSelectionChange).toHaveBeenCalledTimes(1);
+      const newSet = onSelectionChange.mock.calls[0]![0];
+      expect(newSet.size).toBe(2);
+      expect(newSet.has('line-1')).toBe(true);
+      expect(newSet.has('line-2')).toBe(true);
+    });
+
+    it('clicking parent card deselects all when all selected', () => {
+      const onSelectionChange = jest.fn<(s: Set<string>) => void>();
+      renderPanel({
+        data: makeResponse(makeKitchenLines(), []),
+        selectedLineIds: new Set<string>(['line-1', 'line-2']),
+        onSelectionChange,
+        onMoveLines: jest.fn(),
+      });
+
+      const parentCard = screen.getByRole('checkbox', {
+        name: /Select all under Kitchen Renovation/i,
+      });
+      fireEvent.click(parentCard);
+
+      expect(onSelectionChange).toHaveBeenCalledTimes(1);
+      const newSet = onSelectionChange.mock.calls[0]![0];
+      expect(newSet.size).toBe(0);
+    });
+
+    it('clicking parent card in mixed state selects remaining lines', () => {
+      const onSelectionChange = jest.fn<(s: Set<string>) => void>();
+      renderPanel({
+        data: makeResponse(makeKitchenLines(), []),
+        selectedLineIds: new Set<string>(['line-1']),
+        onSelectionChange,
+        onMoveLines: jest.fn(),
+      });
+
+      const parentCard = screen.getByRole('checkbox', {
+        name: /Select all under Kitchen Renovation/i,
+      });
+      fireEvent.click(parentCard);
+
+      expect(onSelectionChange).toHaveBeenCalledTimes(1);
+      const newSet = onSelectionChange.mock.calls[0]![0];
+      expect(newSet.has('line-1')).toBe(true);
+      expect(newSet.has('line-2')).toBe(true);
+    });
+  });
+
+  // ─── Parent card keyboard toggle (scenario F) ────────────────────────────────
+
+  describe('parent item card keyboard toggle', () => {
+    function renderKitchenCard() {
+      const onSelectionChange = jest.fn<(s: Set<string>) => void>();
+      renderPanel({
+        data: makeResponse(
+          [
+            makeLine({ id: 'line-1', parentId: 'parent-kitchen', parentName: 'Kitchen Renovation' }),
+            makeLine({
+              id: 'line-2',
+              parentId: 'parent-kitchen',
+              parentName: 'Kitchen Renovation',
+              createdAt: '2026-01-02T00:00:00.000Z',
+            }),
+          ],
+          [],
+        ),
+        selectedLineIds: new Set<string>(),
+        onSelectionChange,
+        onMoveLines: jest.fn(),
+      });
+      return onSelectionChange;
+    }
+
+    it('pressing Enter on parent card toggles selection', () => {
+      const onSelectionChange = renderKitchenCard();
+
+      const parentCard = screen.getByRole('checkbox', {
+        name: /Select all under Kitchen Renovation/i,
+      });
+      fireEvent.keyDown(parentCard, { key: 'Enter' });
+
+      expect(onSelectionChange).toHaveBeenCalled();
+    });
+
+    it('pressing Space on parent card toggles selection', () => {
+      const onSelectionChange = renderKitchenCard();
+
+      const parentCard = screen.getByRole('checkbox', {
+        name: /Select all under Kitchen Renovation/i,
+      });
+      fireEvent.keyDown(parentCard, { key: ' ' });
+
+      expect(onSelectionChange).toHaveBeenCalled();
+    });
+  });
+
+  // ─── Nav icon link (scenario G) ──────────────────────────────────────────────
+
+  describe('nav icon link', () => {
+    it('has aria-label="Open {parentName}" pointing to work item detail', () => {
+      const line = makeLine({
+        id: 'l1',
+        parentId: 'work-item-42',
+        parentName: 'Kitchen Renovation',
+      });
+      renderPanel({
+        data: makeResponse([line], []),
+        selectedLineIds: new Set<string>(),
+        onSelectionChange: jest.fn(),
+        onMoveLines: jest.fn(),
+      });
+
+      const navLink = screen.getByRole('link', {
+        name: /Open Kitchen Renovation/i,
+      }) as HTMLAnchorElement;
+      expect(navLink).toBeInTheDocument();
+      expect(navLink.getAttribute('href')).toBe('/project/work-items/work-item-42');
+    });
+
+    it('clicking nav icon does NOT trigger card selection', () => {
+      const line = makeLine({
+        id: 'l1',
+        parentId: 'work-item-42',
+        parentName: 'Kitchen Renovation',
+      });
+      const onSelectionChange = jest.fn<(s: Set<string>) => void>();
+      renderPanel({
+        data: makeResponse([line], []),
+        selectedLineIds: new Set<string>(),
+        onSelectionChange,
+        onMoveLines: jest.fn(),
+      });
+
+      const navLink = screen.getByRole('link', { name: /Open Kitchen Renovation/i });
+      fireEvent.click(navLink);
+
+      expect(onSelectionChange).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── Individual line checkbox does not bubble (scenario H) ───────────────────
+
+  describe('individual line checkbox stopPropagation', () => {
+    it('clicking individual line checkbox does not trigger parent card select-all', () => {
+      const onSelectionChange = jest.fn<(s: Set<string>) => void>();
+      // Two lines under the same parent — if propagation occurred, clicking one
+      // would trigger the parent's handleParentGroupToggle and add both.
+      renderPanel({
+        data: makeResponse(
+          [
+            makeLine({
+              id: 'line-floor',
+              parentId: 'p1',
+              parentName: 'Kitchen Renovation',
+              description: 'Floor tiles',
+            }),
+            makeLine({
+              id: 'line-wall',
+              parentId: 'p1',
+              parentName: 'Kitchen Renovation',
+              description: 'Wall tiles',
+              createdAt: '2026-01-02T00:00:00.000Z',
+            }),
+          ],
+          [],
+        ),
+        selectedLineIds: new Set<string>(),
+        onSelectionChange,
+        onMoveLines: jest.fn(),
+      });
+
+      const lineCheckbox = screen.getByRole('checkbox', { name: /Select Floor tiles/i });
+      fireEvent.click(lineCheckbox);
+
+      expect(onSelectionChange).toHaveBeenCalledTimes(1);
+      const newSet = onSelectionChange.mock.calls[0]![0];
+      // Only the clicked line should be in the set — not both lines
+      expect(newSet.size).toBe(1);
+      expect(newSet.has('line-floor')).toBe(true);
+      expect(newSet.has('line-wall')).toBe(false);
     });
   });
 
@@ -1046,32 +1450,104 @@ describe('SourceBudgetLinePanel', () => {
   });
 
   // ─── Parent item links (scenario 23) ───────────────────────────────────────────
+  //
+  // In selectable mode the parent name is no longer a <Link> — the whole card
+  // is a <div role="checkbox"> and navigation is provided by a separate nav icon
+  // <Link aria-label="Open {name}">.  In non-selectable mode the original Link
+  // wrapping the parent name is still rendered.
 
   describe('parent item header links', () => {
-    it('renders parent item name as link with href to work item detail for work item lines', () => {
-      const line = makeLine({
-        id: 'l1',
-        parentId: 'work-item-42',
-        parentName: 'Kitchen Renovation',
-      });
-      renderPanel({ data: makeResponse([line], []) });
+    describe('non-selectable mode', () => {
+      it('renders parent item name as link with href to work item detail for work item lines', () => {
+        const line = makeLine({
+          id: 'l1',
+          parentId: 'work-item-42',
+          parentName: 'Kitchen Renovation',
+        });
+        renderPanel({ data: makeResponse([line], []) });
 
-      const link = screen.getByRole('link', { name: /Kitchen Renovation/i }) as HTMLAnchorElement;
-      expect(link).toBeInTheDocument();
-      expect(link.getAttribute('href')).toBe('/project/work-items/work-item-42');
+        const link = screen.getByRole('link', { name: /Kitchen Renovation/i }) as HTMLAnchorElement;
+        expect(link).toBeInTheDocument();
+        expect(link.getAttribute('href')).toBe('/project/work-items/work-item-42');
+      });
+
+      it('renders parent item name as link with href to household item detail for household item lines', () => {
+        const line = makeLine({
+          id: 'l1',
+          parentId: 'household-item-99',
+          parentName: 'Sofa Purchase',
+        });
+        renderPanel({ data: makeResponse([], [line]) });
+
+        const link = screen.getByRole('link', { name: /Sofa Purchase/i }) as HTMLAnchorElement;
+        expect(link).toBeInTheDocument();
+        expect(link.getAttribute('href')).toBe('/project/household-items/household-item-99');
+      });
     });
 
-    it('renders parent item name as link with href to household item detail for household item lines', () => {
-      const line = makeLine({
-        id: 'l1',
-        parentId: 'household-item-99',
-        parentName: 'Sofa Purchase',
-      });
-      renderPanel({ data: makeResponse([], [line]) });
+    describe('selectable mode', () => {
+      it('renders nav icon link with aria-label "Open {name}" in selectable mode', () => {
+        const line = makeLine({
+          id: 'l1',
+          parentId: 'work-item-42',
+          parentName: 'Kitchen Renovation',
+        });
+        renderPanel({
+          data: makeResponse([line], []),
+          selectedLineIds: new Set<string>(),
+          onSelectionChange: jest.fn(),
+          onMoveLines: jest.fn(),
+        });
 
-      const link = screen.getByRole('link', { name: /Sofa Purchase/i }) as HTMLAnchorElement;
-      expect(link).toBeInTheDocument();
-      expect(link.getAttribute('href')).toBe('/project/household-items/household-item-99');
+        const navLink = screen.getByRole('link', {
+          name: /Open Kitchen Renovation/i,
+        }) as HTMLAnchorElement;
+        expect(navLink).toBeInTheDocument();
+        expect(navLink.getAttribute('href')).toBe('/project/work-items/work-item-42');
+      });
+
+      it('renders parent card with role="checkbox" and aria-label "Select all under {name}"', () => {
+        const line = makeLine({
+          id: 'l1',
+          parentId: 'work-item-42',
+          parentName: 'Kitchen Renovation',
+        });
+        renderPanel({
+          data: makeResponse([line], []),
+          selectedLineIds: new Set<string>(),
+          onSelectionChange: jest.fn(),
+          onMoveLines: jest.fn(),
+        });
+
+        const parentCard = screen.getByRole('checkbox', {
+          name: /Select all under Kitchen Renovation/i,
+        });
+        expect(parentCard).toBeInTheDocument();
+      });
+
+      it('does NOT render a plain text link with the parent name in selectable mode', () => {
+        const line = makeLine({
+          id: 'l1',
+          parentId: 'work-item-42',
+          parentName: 'Kitchen Renovation',
+        });
+        renderPanel({
+          data: makeResponse([line], []),
+          selectedLineIds: new Set<string>(),
+          onSelectionChange: jest.fn(),
+          onMoveLines: jest.fn(),
+        });
+
+        // The old link wrapping the parent name text should not be present in selectable mode
+        // (only the nav icon link with "Open Kitchen Renovation" label exists)
+        const links = screen.getAllByRole('link');
+        const plainNameLink = links.find(
+          (l) =>
+            l.textContent?.trim() === 'Kitchen Renovation' &&
+            l.getAttribute('aria-label') === null,
+        );
+        expect(plainNameLink).toBeUndefined();
+      });
     });
   });
 });

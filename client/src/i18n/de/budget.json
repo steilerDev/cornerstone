@@ -192,6 +192,8 @@
       "move": {
         "checkboxLabel": "{{description}} auswählen",
         "selectGroupLabel": "Alle in {{name}} auswählen",
+        "selectItemLabel": "Alle unter {{name}} auswählen",
+        "navigateToItem": "{{name}} öffnen",
         "selectedCount_one": "{{count}} Position ausgewählt",
         "selectedCount_other": "{{count}} Positionen ausgewählt",
         "openModalButton": "In andere Quelle verschieben…",

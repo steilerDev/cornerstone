@@ -415,15 +415,53 @@ export class BudgetSourcesPage {
   }
 
   /**
-   * Get the area group tri-state checkbox inside a lines panel.
-   * The checkbox has aria-label "Select all in {areaName}".
+   * Get the area name element that acts as a tri-state select-all toggle.
+   * The element has role="checkbox" and aria-label "Select all in {areaName}".
+   *
+   * After Issue #1323 the dedicated .areaSelectAllRow checkbox row was removed;
+   * the area name itself is now the clickable tri-state toggle.
    *
    * @param sourceId  The numeric source ID used to scope to the correct panel.
-   * @param areaName  The area name displayed in the group header (or the i18n "No Area" label).
+   * @param areaName  The area name displayed in the group header.
    */
-  getAreaGroupCheckbox(sourceId: string, areaName: string): import('@playwright/test').Locator {
+  getAreaNameSelector(sourceId: string, areaName: string): import('@playwright/test').Locator {
     return this.getLinesPanelById(sourceId).getByRole('checkbox', {
       name: `Select all in ${areaName}`,
+    });
+  }
+
+  /**
+   * @deprecated Use getAreaNameSelector instead.
+   * Kept as an alias so existing callers continue to compile during the transition.
+   */
+  getAreaGroupCheckbox(sourceId: string, areaName: string): import('@playwright/test').Locator {
+    return this.getAreaNameSelector(sourceId, areaName);
+  }
+
+  /**
+   * Get the parent item card that acts as a tri-state select-all toggle.
+   * The card has role="checkbox" and aria-label "Select all under {parentName}".
+   *
+   * @param sourceId    The numeric source ID used to scope to the correct panel.
+   * @param parentName  The parent work/household item name.
+   */
+  getParentItemCard(sourceId: string, parentName: string): import('@playwright/test').Locator {
+    return this.getLinesPanelById(sourceId).getByRole('checkbox', {
+      name: `Select all under ${parentName}`,
+    });
+  }
+
+  /**
+   * Get the nav icon link inside the parent item card header.
+   * The link has aria-label "Open {parentName}" and navigates to the parent item detail page.
+   * Its click handler calls stopPropagation so the card selection is not triggered.
+   *
+   * @param sourceId    The numeric source ID used to scope to the correct panel.
+   * @param parentName  The parent work/household item name.
+   */
+  getParentItemNavIcon(sourceId: string, parentName: string): import('@playwright/test').Locator {
+    return this.getLinesPanelById(sourceId).getByRole('link', {
+      name: `Open ${parentName}`,
     });
   }
 

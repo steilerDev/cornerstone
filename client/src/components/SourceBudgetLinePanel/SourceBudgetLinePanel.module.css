@@ -77,24 +77,6 @@
   margin-left: auto;
 }
 
-.areaSelectAllRow {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  padding-left: var(--spacing-3);
-  cursor: pointer;
-}
-
-.areaGroupCheckbox {
-  flex-shrink: 0;
-  min-height: 2.75rem;
-}
-
-.areaSelectAllLabel {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-  font-weight: var(--font-weight-normal);
-}
 
 .areaColorDot {
   display: inline-block;
@@ -136,24 +118,100 @@
 }
 
 .parentItemHeader {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-secondary);
-  text-decoration: none;
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
   margin-bottom: var(--spacing-2);
   padding-bottom: var(--spacing-2);
   border-bottom: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
+}
+
+.parentItemHeaderLink {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  flex: 1;
   transition: color var(--transition-normal);
 }
 
-.parentItemHeader:hover {
+.parentItemHeaderLink:hover {
   color: var(--color-primary);
   text-decoration: underline;
 }
 
-.parentItemHeader:focus-visible {
+.parentItemHeaderLink:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.parentItemName {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parentItemNavLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-normal);
+}
+
+.parentItemNavLink:hover {
+  color: var(--color-primary);
+}
+
+.parentItemNavLink:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.parentItemBlockMixed {
+  background-color: var(--color-primary-bg);
+  border-color: var(--color-border-strong);
+}
+
+.parentItemBlockChecked {
+  background-color: var(--color-primary-bg);
+  border-color: var(--color-primary);
+}
+
+.parentItemBlock[role="checkbox"] {
+  cursor: pointer;
+}
+
+.parentItemBlock[role="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.areaNameClickable {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: color var(--transition-normal);
+}
+
+.areaNameClickable:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.areaNameClickable:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
   border-radius: var(--radius-sm);
@@ -299,7 +357,10 @@
   }
   .retryButton,
   .actionBarButton,
-  .lineRow {
+  .lineRow,
+  .areaNameClickable,
+  .parentItemNavLink,
+  .parentItemHeaderLink {
     transition: none;
   }
 }
@@ -357,10 +418,6 @@
 @media (max-width: 767px) {
   .checkbox {
     min-width: 2.75rem;
-    min-height: 2.75rem;
-  }
-
-  .areaGroupCheckbox {
     min-height: 2.75rem;
   }
 
