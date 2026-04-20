@@ -111,6 +111,9 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
     source.totalAmount - source.projectedMinAmount < 0 ||
     source.totalAmount - source.projectedMaxAmount < 0;
 
+  const paidSecondaryNegative = source.totalAmount - source.paidAmount < 0;
+  const claimedSecondaryNegative = source.totalAmount - source.claimedAmount < 0;
+
   const segments: BudgetBarSegment[] = [
     {
       key: 'claimed',
@@ -226,7 +229,11 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
           </span>
           <div className={styles.summaryValues}>
             <span className={styles.summaryPrimary}>{formatCurrency(source.paidAmount)}</span>
-            <span className={styles.summarySecondary}>
+            <span
+              className={`${styles.summarySecondary}${
+                paidSecondaryNegative ? ` ${styles.summarySecondaryNegative}` : ''
+              }`}
+            >
               {formatCurrency(source.totalAmount - source.paidAmount)}
             </span>
           </div>
@@ -244,7 +251,11 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
           </span>
           <div className={styles.summaryValues}>
             <span className={styles.summaryPrimary}>{formatCurrency(source.claimedAmount)}</span>
-            <span className={styles.summarySecondary}>
+            <span
+              className={`${styles.summarySecondary}${
+                claimedSecondaryNegative ? ` ${styles.summarySecondaryNegative}` : ''
+              }`}
+            >
               {formatCurrency(source.totalAmount - source.claimedAmount)}
             </span>
           </div>
