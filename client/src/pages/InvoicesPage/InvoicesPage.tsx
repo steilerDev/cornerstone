@@ -324,7 +324,7 @@ export function InvoicesPage() {
         numberMin: 0,
         numberStep: 0.01,
         render: (inv) => formatCurrency(inv.amount),
-        className: styles.amountCell!!,
+        className: styles.amountCell!,
       },
       {
         key: 'allocated',

@@ -117,7 +117,7 @@ describe('DateRangePicker', () => {
         <DateRangePicker startDate="2026-03-15" endDate="" onChange={jest.fn()} />,
       );
       const dayBtn = findDayButton(container, 15);
-      expect(dayBtn).toHaveClass(styles.daySelected!!);
+      expect(dayBtn).toHaveClass(styles.daySelected!);
     });
 
     it('applies selected styling to both start and end date buttons when both are set', () => {
@@ -126,8 +126,8 @@ describe('DateRangePicker', () => {
       );
       const dayBtn15 = findDayButton(container, 15);
       const dayBtn25 = findDayButton(container, 25);
-      expect(dayBtn15).toHaveClass(styles.daySelected!!);
-      expect(dayBtn25).toHaveClass(styles.daySelected!!);
+      expect(dayBtn15).toHaveClass(styles.daySelected!);
+      expect(dayBtn25).toHaveClass(styles.daySelected!);
     });
 
     it('applies in-range styling to days strictly between start and end dates', () => {
@@ -136,7 +136,7 @@ describe('DateRangePicker', () => {
       );
       const dayBtn20 = findDayButton(container, 20);
       const dayCellContainer = dayBtn20?.closest(`.${styles.dayCell}`);
-      expect(dayCellContainer).toHaveClass(styles.dayInRange!!);
+      expect(dayCellContainer).toHaveClass(styles.dayInRange!);
     });
 
     it('applies other-month styling to days outside current month', () => {
@@ -160,7 +160,7 @@ describe('DateRangePicker', () => {
         <DateRangePicker startDate="" endDate="" onChange={jest.fn()} />,
       );
       const todayBtn = findDayButton(container, today.getDate());
-      expect(todayBtn).toHaveClass(styles.dayToday!!);
+      expect(todayBtn).toHaveClass(styles.dayToday!);
     });
   });
 
@@ -219,7 +219,7 @@ describe('DateRangePicker', () => {
       // When hovering 2026-03-20 with start=2026-03-15, day 18 is between them
       const dayBtn18 = findDayButton(container, 18);
       const dayCellContainer = dayBtn18?.closest(`.${styles.dayCell}`);
-      expect(dayCellContainer).toHaveClass(styles.dayInRange!!);
+      expect(dayCellContainer).toHaveClass(styles.dayInRange!);
     });
 
     it('clicking a day after start calls onChange with start and clicked day', () => {
@@ -240,7 +240,7 @@ describe('DateRangePicker', () => {
       const dayBtn10 = findDayButton(container, 10);
       expect(dayBtn10).toBeTruthy();
       expect(dayBtn10).not.toBeDisabled();
-      expect(dayBtn10).toHaveClass(styles.dayDisabled!!);
+      expect(dayBtn10).toHaveClass(styles.dayDisabled!);
     });
 
     it('clicking the startDate day again calls onChange with empty start and end (clear both)', () => {
@@ -262,12 +262,12 @@ describe('DateRangePicker', () => {
       // Day 18 is between 15 and 20, should have in-range class during hover
       const dayBtn18 = findDayButton(container, 18);
       let dayCellContainer = dayBtn18?.closest(`.${styles.dayCell}`);
-      expect(dayCellContainer).toHaveClass(styles.dayInRange!!);
+      expect(dayCellContainer).toHaveClass(styles.dayInRange!);
 
       // After mouse leave, should not have in-range
       fireEvent.mouseLeave(dayBtn20!);
       dayCellContainer = dayBtn18?.closest(`.${styles.dayCell}`);
-      expect(dayCellContainer).not.toHaveClass(styles.dayInRange!!);
+      expect(dayCellContainer).not.toHaveClass(styles.dayInRange!);
     });
 
     it('days before start date have dayDisabled CSS class (visually styled, not disabled)', () => {
@@ -275,7 +275,7 @@ describe('DateRangePicker', () => {
         <DateRangePicker startDate="2026-03-15" endDate="" onChange={jest.fn()} />,
       );
       const dayBtn10 = findDayButton(container, 10);
-      expect(dayBtn10).toHaveClass(styles.dayDisabled!!);
+      expect(dayBtn10).toHaveClass(styles.dayDisabled!);
       expect(dayBtn10).not.toBeDisabled();
     });
   });
@@ -642,7 +642,7 @@ describe('DateRangePicker', () => {
       );
       const dayBtn15 = findDayButton(container, 15);
       const dayCellContainer = dayBtn15?.closest(`.${styles.dayCell}`);
-      expect(dayCellContainer).toHaveClass(styles.dayRangeStart!!);
+      expect(dayCellContainer).toHaveClass(styles.dayRangeStart!);
     });
 
     it('applies dayRangeEnd styling to the end date with proper background gradient', () => {
@@ -651,7 +651,7 @@ describe('DateRangePicker', () => {
       );
       const dayBtn25 = findDayButton(container, 25);
       const dayCellContainer = dayBtn25?.closest(`.${styles.dayCell}`);
-      expect(dayCellContainer).toHaveClass(styles.dayRangeEnd!!);
+      expect(dayCellContainer).toHaveClass(styles.dayRangeEnd!);
     });
 
     it('does not apply range styling when only start date is selected', () => {
@@ -660,7 +660,7 @@ describe('DateRangePicker', () => {
       );
       const dayBtn20 = findDayButton(container, 20);
       const dayCellContainer = dayBtn20?.closest(`.${styles.dayCell}`);
-      expect(dayCellContainer).not.toHaveClass(styles.dayInRange!!);
+      expect(dayCellContainer).not.toHaveClass(styles.dayInRange!);
     });
 
     it('shows hover preview when hovering over day after start date during selecting-end phase', () => {
@@ -672,7 +672,7 @@ describe('DateRangePicker', () => {
       // Day 20 is between 15 (start) and 25 (hover), should show in-range
       const dayBtn20 = findDayButton(container, 20);
       const dayCellContainer = dayBtn20?.closest(`.${styles.dayCell}`);
-      expect(dayCellContainer).toHaveClass(styles.dayInRange!!);
+      expect(dayCellContainer).toHaveClass(styles.dayInRange!);
     });
   });
 
@@ -713,7 +713,7 @@ describe('DateRangePicker', () => {
       // Day 15 is strictly between 10 and 20, so it must show dayInRange
       const dayBtn15 = findDayButton(container, 15);
       const dayCellContainer = dayBtn15?.closest(`.${styles.dayCell}`);
-      expect(dayCellContainer).toHaveClass(styles.dayInRange!!);
+      expect(dayCellContainer).toHaveClass(styles.dayInRange!);
     });
 
     it('dayDisabled uses pendingStartDate (not prop) after clicking start date', () => {
@@ -730,7 +730,7 @@ describe('DateRangePicker', () => {
 
       // Day 10 is before pendingStartDate ('2026-03-20'), so it must be visually disabled
       const dayBtn10 = findDayButton(container, 10);
-      expect(dayBtn10).toHaveClass(styles.dayDisabled!!);
+      expect(dayBtn10).toHaveClass(styles.dayDisabled!);
       expect(dayBtn10).not.toBeDisabled(); // Visually styled, not functionally disabled
     });
 

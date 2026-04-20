@@ -126,11 +126,11 @@ export function MilestonesPage() {
     (): BadgeVariantMap => ({
       completed: {
         label: t('milestones.status.completed')!,
-        className: badgeStyles.milestoneCompleted!!,
+        className: badgeStyles.milestoneCompleted!,
       },
       pending: {
         label: t('milestones.status.pending')!,
-        className: badgeStyles.milestonePending!!,
+        className: badgeStyles.milestonePending!,
       },
     }),
     [t],
