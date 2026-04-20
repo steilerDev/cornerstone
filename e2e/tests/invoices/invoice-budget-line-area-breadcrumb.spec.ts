@@ -78,7 +78,9 @@ async function createBudgetSourceViaApi(
   name: string,
   totalAmount = 100000,
 ): Promise<string> {
-  const response = await page.request.post(API.budgetSources, { data: { name, sourceType: 'savings', totalAmount } });
+  const response = await page.request.post(API.budgetSources, {
+    data: { name, sourceType: 'savings', totalAmount },
+  });
   expect(response.ok(), `POST budget source "${name}"`).toBeTruthy();
   const body = (await response.json()) as { budgetSource: { id: string } };
   return body.budgetSource.id;

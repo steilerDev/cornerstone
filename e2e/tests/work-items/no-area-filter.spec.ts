@@ -220,9 +220,7 @@ test.describe(
         // unassigned items created by other parallel workers do not appear in the result set.
         // This worker's only item (wiAssignedName) has an areaId, so the intersection must
         // always be empty regardless of how many other workers are running concurrently.
-        await page.goto(
-          `${WORK_ITEMS_ROUTE}?areaId=__none__&q=${encodeURIComponent(testPrefix)}`,
-        );
+        await page.goto(`${WORK_ITEMS_ROUTE}?areaId=__none__&q=${encodeURIComponent(testPrefix)}`);
         await listPage.heading.waitFor({ state: 'visible' });
 
         // Wait for the filter empty state

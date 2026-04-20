@@ -178,12 +178,7 @@ export default async function userRoutes(fastify: FastifyInstance) {
       // Check if email is already in use
       const existingUser = userService.findByEmail(fastify.db, email);
       if (existingUser) {
-        throw new AppError(
-          'CONFLICT',
-          409,
-          'Email already in use',
-          { email },
-        );
+        throw new AppError('CONFLICT', 409, 'Email already in use', { email });
       }
 
       // Create the new local user

@@ -82,16 +82,19 @@ export function useTableState(options: UseTableStateOptions = {}): UseTableState
     setTableState(newState);
   }, [searchParams, defaultPageSize]);
 
-  const setSearch = useCallback((q: string) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (q) {
-      newParams.set('q', q);
-    } else {
-      newParams.delete('q');
-    }
-    newParams.set('page', '1');
-    setSearchParams(newParams);
-  }, [searchParams, setSearchParams]);
+  const setSearch = useCallback(
+    (q: string) => {
+      const newParams = new URLSearchParams(searchParams);
+      if (q) {
+        newParams.set('q', q);
+      } else {
+        newParams.delete('q');
+      }
+      newParams.set('page', '1');
+      setSearchParams(newParams);
+    },
+    [searchParams, setSearchParams],
+  );
 
   const setFilter = useCallback(
     (paramKey: string, value: string | null) => {
