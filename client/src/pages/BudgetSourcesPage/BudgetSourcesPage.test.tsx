@@ -2119,7 +2119,10 @@ describe('BudgetSourcesPage', () => {
       const buttons = Array.from(actionsDiv!.querySelectorAll('button'));
       expect(buttons.length).toBe(3);
       // Order: Show lines → Edit → Delete
-      expect(buttons[0]).toHaveAttribute('aria-label', expect.stringMatching(/expand budget lines for home loan/i));
+      expect(buttons[0]).toHaveAttribute(
+        'aria-label',
+        expect.stringMatching(/expand budget lines for home loan/i),
+      );
       expect(buttons[1]).toHaveAccessibleName(/edit home loan/i);
       expect(buttons[2]).toHaveAccessibleName(/delete home loan/i);
     });
@@ -2140,9 +2143,14 @@ describe('BudgetSourcesPage', () => {
       expect(actionsDiv).not.toBeNull();
       const buttons = Array.from(actionsDiv!.querySelectorAll('button'));
       expect(buttons.length).toBe(2);
-      expect(buttons[0]).toHaveAttribute('aria-label', expect.stringMatching(/expand budget lines for contingency reserve/i));
+      expect(buttons[0]).toHaveAttribute(
+        'aria-label',
+        expect.stringMatching(/expand budget lines for contingency reserve/i),
+      );
       expect(buttons[1]).toHaveAccessibleName(/edit contingency reserve/i);
-      expect(screen.queryByRole('button', { name: /delete contingency reserve/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /delete contingency reserve/i }),
+      ).not.toBeInTheDocument();
     });
 
     it('expandToggle button is NOT inside sourceMain', async () => {
