@@ -480,10 +480,7 @@ export function SourceBudgetLinePanel({
               {parentGroup.parentName}
             </Link>
 
-            <ul
-              role="list"
-              className={isSelectable ? styles.lineListSelectable : styles.lineList}
-            >
+            <ul role="list" className={isSelectable ? styles.lineListSelectable : styles.lineList}>
               {parentGroup.lines.map((line) => {
                 const isSelected = selectedLineIds?.has(line.id) ?? false;
                 const confidenceLabel = getConfidenceLabel(line, t);

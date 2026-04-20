@@ -1022,9 +1022,7 @@ describe('SourceBudgetLinePanel', () => {
       renderPanel({ data: makeResponse([rootLine, childLine], []) });
 
       // Find all areaGroup elements
-      const areaGroups = Array.from(
-        document.querySelectorAll<HTMLElement>('[class*="areaGroup"]'),
-      );
+      const areaGroups = Array.from(document.querySelectorAll<HTMLElement>('[class*="areaGroup"]'));
       expect(areaGroups.length).toBeGreaterThan(0);
 
       // Find the one with a non-zero --area-depth custom property (the depth=1 child).

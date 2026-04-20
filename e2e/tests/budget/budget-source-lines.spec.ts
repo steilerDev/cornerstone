@@ -198,14 +198,10 @@ test.describe('Expand shows budget lines panel', { tag: ['@smoke', '@responsive'
 
         // "Work Item Lines" section header must be visible
         // (section header is a <p> element, not a heading — use text-based assertion)
-        await expect(
-          panel.getByText('Work Item Lines', { exact: true }),
-        ).toBeVisible();
+        await expect(panel.getByText('Work Item Lines', { exact: true })).toBeVisible();
 
         // "Household Item Lines" section must NOT be visible (no household lines in mock)
-        await expect(
-          panel.getByText('Household Item Lines', { exact: true }),
-        ).not.toBeVisible();
+        await expect(panel.getByText('Household Item Lines', { exact: true })).not.toBeVisible();
 
         // Area name "Kitchen" must be visible
         await expect(panel.getByText('Kitchen', { exact: true })).toBeVisible();
