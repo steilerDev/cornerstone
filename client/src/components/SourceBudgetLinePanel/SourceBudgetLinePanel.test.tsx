@@ -990,8 +990,8 @@ describe('SourceBudgetLinePanel', () => {
     });
   });
 
-  describe('nested card structure — depth offset uses marginLeft not paddingLeft', () => {
-    it('Test D — depth offset is applied as marginLeft (not paddingLeft) on the nested area group', () => {
+  describe('nested card structure — depth offset uses --area-depth custom property', () => {
+    it('Test D — depth offset is applied via --area-depth custom property (not paddingLeft or marginLeft) on the nested area group', () => {
       // Root area with no ancestors (depth=0)
       const rootArea = {
         id: 'area-root',
@@ -1027,16 +1027,23 @@ describe('SourceBudgetLinePanel', () => {
       );
       expect(areaGroups.length).toBeGreaterThan(0);
 
-      // Find the one with a non-zero marginLeft (the depth=1 child)
+      // Find the one with a non-zero --area-depth custom property (the depth=1 child).
+      // After the responsive depth cap fix, indentation is set via a CSS custom property
+      // on the inline style, not via an inline marginLeft value.
       const nestedGroup = areaGroups.find((el) => {
-        const ml = el.style.marginLeft;
-        return ml && ml !== '' && ml !== '0px' && ml !== 'calc(0 * var(--spacing-4))';
+        const depth = el.style.getPropertyValue('--area-depth');
+        return depth && depth !== '0';
       });
 
       expect(nestedGroup).toBeDefined();
-      expect(nestedGroup!.style.marginLeft).toBeTruthy();
+      // Confirm the depth value is serialized on the inline style (React converts
+      // numeric custom property values to strings, so depth=1 → "1")
+      expect((nestedGroup as HTMLElement).style.getPropertyValue('--area-depth')).toBe('1');
       // paddingLeft must NOT be used for depth offset
-      expect(nestedGroup!.style.paddingLeft).toBeFalsy();
+      expect((nestedGroup as HTMLElement).style.paddingLeft).toBeFalsy();
+      // marginLeft inline must NOT be used either (indentation is now applied via
+      // the CSS module using calc(var(--area-depth, 0) * var(--spacing-4)))
+      expect((nestedGroup as HTMLElement).style.marginLeft).toBeFalsy();
     });
   });
 
