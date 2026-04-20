@@ -411,7 +411,7 @@ export function SourceBudgetLinePanel({
       <div
         key={groupKey}
         className={styles.areaGroup}
-        style={{ marginLeft: `calc(${node.depth} * var(--spacing-4))` }}
+        style={{ '--area-depth': node.depth } as React.CSSProperties}
       >
         <header className={styles.areaGroupHeader}>
           <div className={styles.areaTitleRow}>
@@ -541,7 +541,7 @@ export function SourceBudgetLinePanel({
 
     return (
       <div key={titleKey} className={styles.section}>
-        <p className={styles.sectionHeader}>{t(`sources.lines.${titleKey}`)}</p>
+        <h4 className={styles.sectionHeader}>{t(`sources.lines.${titleKey}`)}</h4>
 
         {tree.map((node) => renderAreaNode(node, parentType))}
       </div>
