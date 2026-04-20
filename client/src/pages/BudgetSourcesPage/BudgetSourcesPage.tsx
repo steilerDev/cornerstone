@@ -157,11 +157,7 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
           onSegmentClick={handleSegmentClick}
           formatValue={formatCurrency}
         />
-        <span
-          className={styles.srOnly}
-          role="status"
-          aria-atomic="true"
-        >
+        <span className={styles.srOnly} role="status" aria-atomic="true">
           {t('sources.barChart.srOnly', {
             claimed: formatCurrency(source.claimedAmount),
             paid: formatCurrency(source.paidAmount),
@@ -206,7 +202,8 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
           </span>
           <div className={styles.summaryValues}>
             <span className={styles.summaryPrimary}>
-              {formatCurrency(source.projectedMinAmount)} \u2013 {formatCurrency(source.projectedMaxAmount)}
+              {formatCurrency(source.projectedMinAmount)} \u2013{' '}
+              {formatCurrency(source.projectedMaxAmount)}
             </span>
             <span
               className={`${styles.summarySecondary} ${projectedSecondaryNegative ? styles.summarySecondaryNegative : ''}`}
@@ -1118,9 +1115,13 @@ export function BudgetSourcesPage() {
                             )}
                             <span
                               className={styles.totalBadge}
-                              aria-label={t('sources.barChart.totalBadgeAriaLabel', { amount: formatCurrency(source.totalAmount) })}
+                              aria-label={t('sources.barChart.totalBadgeAriaLabel', {
+                                amount: formatCurrency(source.totalAmount),
+                              })}
                             >
-                              {t('sources.barChart.totalBadge', { amount: formatCurrency(source.totalAmount) })}
+                              {t('sources.barChart.totalBadge', {
+                                amount: formatCurrency(source.totalAmount),
+                              })}
                             </span>
                           </div>
                           <button

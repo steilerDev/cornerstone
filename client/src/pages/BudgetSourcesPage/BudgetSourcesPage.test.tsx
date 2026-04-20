@@ -189,7 +189,6 @@ describe('BudgetSourcesPage', () => {
     mockUpdateBudgetSource.mockReset();
     mockDeleteBudgetSource.mockReset();
     mockFetchBudgetLinesForSource.mockReset();
-
   });
 
   function renderPage() {

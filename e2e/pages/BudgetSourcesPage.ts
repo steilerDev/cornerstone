@@ -373,7 +373,9 @@ export class BudgetSourcesPage {
    * Each label is a <span class="summaryLabel"> inside the summary table.
    */
   getSummaryLabels(sourceName: string): import('@playwright/test').Locator {
-    return this.getSourceRowByName(sourceName).locator('[class*="summaryLabel"]:not([class*="summaryLabelDot"])');
+    return this.getSourceRowByName(sourceName).locator(
+      '[class*="summaryLabel"]:not([class*="summaryLabelDot"])',
+    );
   }
 
   /**

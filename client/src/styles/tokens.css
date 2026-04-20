@@ -336,7 +336,11 @@
   --color-budget-pending: var(--color-primary-bg);
   --color-budget-projected: var(--color-primary-bg-hover);
   --color-budget-allocated: rgba(59, 130, 246, 0.15);
-  --color-budget-projected-uncertainty: color-mix(in srgb, var(--color-budget-projected) 50%, transparent);
+  --color-budget-projected-uncertainty: color-mix(
+    in srgb,
+    var(--color-budget-projected) 50%,
+    transparent
+  );
   --color-budget-track: var(--color-bg-tertiary);
   --color-budget-overflow: var(--color-danger-bg-strong);
 
@@ -678,7 +682,11 @@
   --color-budget-pending: rgba(59, 130, 246, 0.15);
   --color-budget-projected: rgba(59, 130, 246, 0.25);
   --color-budget-allocated: rgba(96, 165, 250, 0.35);
-  --color-budget-projected-uncertainty: color-mix(in srgb, var(--color-budget-projected) 55%, transparent);
+  --color-budget-projected-uncertainty: color-mix(
+    in srgb,
+    var(--color-budget-projected) 55%,
+    transparent
+  );
   --color-budget-track: var(--color-slate-600);
   --color-budget-overflow: rgba(239, 68, 68, 0.2);
 
