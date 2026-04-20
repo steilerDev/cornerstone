@@ -57,9 +57,14 @@ export async function verifyPassword(hash: string, password: string): Promise<bo
   const parts = hash.split('$'); // ['', 'scrypt', 'n=...,r=...,p=...', '<salt>', '<hash>']
   if (parts.length !== 5 || parts[1] !== 'scrypt') return false;
 
-  const params = Object.fromEntries(parts[2].split(',').map((p) => p.split('=')));
-  const salt = Buffer.from(parts[3], 'base64');
-  const expected = Buffer.from(parts[4], 'base64');
+  const params = Object.fromEntries(
+    parts[2]!.split(',').map((p) => {
+      const [key = '', value = ''] = p.split('=');
+      return [key, value] as [string, string];
+    }),
+  );
+  const salt = Buffer.from(parts[3]!, 'base64');
+  const expected = Buffer.from(parts[4]!, 'base64');
   const n = Number(params.n);
   const r = Number(params.r);
   const p = Number(params.p);

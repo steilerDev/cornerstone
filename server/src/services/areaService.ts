@@ -3,7 +3,12 @@ import { eq, asc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { areas, workItems, householdItems } from '../db/schema.js';
-import type { CreateAreaRequest, UpdateAreaRequest, AreaResponse } from '@cornerstone/shared';
+import type {
+  CreateAreaRequest,
+  UpdateAreaRequest,
+  AreaResponse,
+  AreaAncestor,
+} from '@cornerstone/shared';
 import {
   NotFoundError,
   ValidationError,
@@ -94,6 +99,116 @@ function hasCircularReference(
   }
 
   return false;
+}
+
+/**
+ * Representation of an area used internally for ancestor chain resolution.
+ */
+export interface AreaMapEntry {
+  id: string;
+  name: string;
+  color: string | null;
+  parentId: string | null;
+}
+
+/**
+ * Load all areas into an in-memory map for efficient ancestor chain resolution.
+ * Returns a map of area ID -> AreaMapEntry.
+ */
+export function loadAreaMap(db: DbType): Map<string, AreaMapEntry> {
+  const rows = db
+    .select({
+      id: areas.id,
+      name: areas.name,
+      color: areas.color,
+      parentId: areas.parentId,
+    })
+    .from(areas)
+    .all();
+
+  const map = new Map<string, AreaMapEntry>();
+  for (const row of rows) {
+    map.set(row.id, row);
+  }
+  return map;
+}
+
+/**
+ * Resolve the ancestor chain for an area using a pre-built area map.
+ * Returns ancestors in root-first order (does NOT include the leaf area itself).
+ * Uses cycle detection to prevent infinite loops (max depth of 20).
+ * Returns a partial chain if an ancestor is not found in the map.
+ */
+export function resolveAreaAncestors(
+  areaId: string,
+  areaMap: Map<string, AreaMapEntry>,
+): AreaAncestor[] {
+  const ancestors: AreaAncestor[] = [];
+  const visited = new Set<string>();
+  const MAX_DEPTH = 20;
+
+  let currentId: string | null = areaMap.get(areaId)?.parentId ?? null;
+
+  while (currentId !== null && ancestors.length < MAX_DEPTH) {
+    if (visited.has(currentId)) break;
+    visited.add(currentId);
+    const entry = areaMap.get(currentId);
+    if (!entry) break;
+    ancestors.push({ id: entry.id, name: entry.name, color: entry.color });
+    currentId = entry.parentId;
+  }
+
+  ancestors.reverse();
+  return ancestors;
+}
+
+/**
+ * Result of parsing an areaId filter query parameter.
+ */
+export interface AreaFilterResult {
+  /** Expanded, deduplicated area IDs (includes descendants of each supplied ID). */
+  areaIds: string[];
+  /** When true, caller must also include items with area_id IS NULL. */
+  includeNull: boolean;
+  /** true when the raw input had at least one non-empty segment (after trim). */
+  hasInput: boolean;
+}
+
+/**
+ * Parse the areaId filter (single ID, CSV string, or array) into an expanded,
+ * deduplicated array of area IDs and a flag for null inclusion.
+ *
+ * Supports the `__none__` sentinel: when present in the CSV, sets includeNull=true.
+ * Empty segments and unknown IDs are silently ignored.
+ * Returns hasInput=true only when the raw input had at least one non-empty segment.
+ */
+export function resolveAreaFilter(db: DbType, areaId: string | string[]): AreaFilterResult {
+  const NONE_SENTINEL = '__none__';
+  const raw = Array.isArray(areaId)
+    ? areaId.filter((s) => s.trim().length > 0).map((s) => s.trim())
+    : areaId
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+  const hasInput = raw.length > 0;
+
+  let includeNull = false;
+  const expanded = new Set<string>();
+  for (const id of raw) {
+    if (id === NONE_SENTINEL) {
+      includeNull = true;
+    } else {
+      const exists = db.select({ id: areas.id }).from(areas).where(eq(areas.id, id)).get();
+      if (exists) {
+        for (const descendant of getDescendantIds(db, id)) {
+          expanded.add(descendant);
+        }
+      }
+      // unknown IDs are silently dropped
+    }
+  }
+  return { areaIds: [...expanded], includeNull, hasInput };
 }
 
 /**

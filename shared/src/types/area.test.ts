@@ -27,11 +27,13 @@ describe('AreaSummary interface', () => {
       id: 'area-kitchen',
       name: 'Kitchen',
       color: '#FF5733',
+      ancestors: [],
     };
 
     expect(area.id).toBe('area-kitchen');
     expect(area.name).toBe('Kitchen');
     expect(area.color).toBe('#FF5733');
+    expect(area.ancestors).toEqual([]);
   });
 
   it('allows color to be null', () => {
@@ -39,6 +41,7 @@ describe('AreaSummary interface', () => {
       id: 'area-storage',
       name: 'Storage',
       color: null,
+      ancestors: [],
     };
 
     expect(area.id).toBe('area-storage');
@@ -141,8 +144,8 @@ describe('AreaListResponse interface', () => {
     };
 
     expect(response.areas).toHaveLength(2);
-    expect(response.areas[0].name).toBe('Ground Floor');
-    expect(response.areas[1].name).toBe('First Floor');
+    expect(response.areas[0]!.name).toBe('Ground Floor');
+    expect(response.areas[1]!.name).toBe('First Floor');
   });
 
   it('handles empty area list', () => {

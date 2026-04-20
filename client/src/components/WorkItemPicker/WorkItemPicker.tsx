@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { WorkItemSummary, WorkItemStatus } from '@cornerstone/shared';
 import { listWorkItems } from '../../lib/workItemsApi.js';
 import { SearchPicker } from '../SearchPicker/index.js';
+import { AreaBreadcrumb } from '../AreaBreadcrumb/index.js';
 
 /** Maps work item status values to their CSS custom property for the left-border color. */
 const STATUS_BORDER_COLORS: Record<WorkItemStatus, string> = {
@@ -66,6 +67,7 @@ export function WorkItemPicker({
         return response.items.filter((item) => !ids.includes(item.id));
       }}
       renderItem={(item) => ({ id: item.id, label: item.title })}
+      renderSecondary={(item) => <AreaBreadcrumb area={item.area ?? null} variant="compact" />}
       getStatusBorderColor={(item) => STATUS_BORDER_COLORS[item.status]}
       specialOptions={specialOptions}
       showItemsOnFocus={showItemsOnFocus}

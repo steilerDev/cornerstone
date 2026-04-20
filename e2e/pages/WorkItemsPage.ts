@@ -37,6 +37,7 @@ export class WorkItemsPage {
   readonly statusFilter: Locator;
   readonly userFilter: Locator;
   readonly tagFilter: Locator;
+  readonly areaFilter: Locator;
   readonly sortFilter: Locator;
   readonly sortOrderButton: Locator;
 
@@ -54,6 +55,12 @@ export class WorkItemsPage {
 
   // Empty state
   readonly emptyState: Locator;
+
+  // Area breadcrumb — compact variant (list rows)
+  // fix/1278: The compact AreaBreadcrumb no longer has tabIndex=0 or a Tooltip.
+  // The span carries only class*="compact" with the full path text as plain content.
+  // For per-item assertions, callers scope to a specific row/card — this is the first match.
+  readonly areaBreadcrumb: Locator;
 
   // Error banner
   readonly errorBanner: Locator;
@@ -76,11 +83,16 @@ export class WorkItemsPage {
     this.searchInput = page.getByLabel('Search items');
     // DataTable filters are column-header filter buttons, not standalone <select> elements.
     // Each filterable column header renders a button with aria-label="Filter by {column label}".
-    // Column labels come from workItems i18n: Status, Assigned To, Vendor.
+    // Column labels come from workItems i18n: Status, Assigned To, Vendor, Area.
     this.statusFilter = page.getByRole('button', { name: 'Filter by Status' });
     this.userFilter = page.getByRole('button', { name: 'Filter by Assigned To' });
     // Tags column was removed — tagFilter kept for API compatibility, points to userFilter.
     this.tagFilter = page.getByRole('button', { name: 'Filter by Assigned To' });
+    // Area column filter button — the Area column is filterable via DataTable enum filter.
+    // The Area column label comes from workItems i18n: list.table.area = "Area".
+    // aria-label rendered as "Filter by Area" (dataTable.filter.filterByColumn interpolation).
+    // The table header (and this button) is CSS-hidden on mobile (< 768px).
+    this.areaFilter = page.getByRole('button', { name: /Filter by Area/i });
     // sortFilter and sortOrderButton do not exist in DataTable — no standalone sort controls.
     // Sorting is triggered by clicking sortable column headers.
     this.sortFilter = page.locator('[aria-label="Column settings"]');
@@ -100,9 +112,17 @@ export class WorkItemsPage {
     this.prevPageButton = page.getByLabel('Previous');
     this.nextPageButton = page.getByLabel('Next');
 
-    // Empty state — use .first() to avoid strict mode: child elements such as
-    // emptyStateTitle/emptyStateDescription also contain "emptyState" in their class names.
-    this.emptyState = page.locator('[class*="emptyState"]').first();
+    // Empty state — EmptyState component's outer wrapper uses the CSS-module-hashed
+    // `emptyState_abc123` class. Scope by prefix so sub-element classes like
+    // `emptyStateTitle_/emptyStateDescription_` don't get picked up first.
+    this.emptyState = page.locator('[class^="emptyState_"], [class*=" emptyState_"]').first();
+
+    // Area breadcrumb — compact variant spans inside table rows / mobile cards.
+    // fix/1278: compact variant no longer has tabIndex=0 or a Tooltip — plain span only.
+    // The "No area" fallback renders a plain <span> with class "muted" — no tabIndex.
+    // Callers scope to a specific row/card when they need per-item assertions — this
+    // is the first match as a default.
+    this.areaBreadcrumb = page.locator('[class*="compact"]').first();
 
     // Error banner (outside modal)
     this.errorBanner = page.locator('[role="alert"][class*="errorBanner"]');
@@ -344,6 +364,80 @@ export class WorkItemsPage {
       }
     }
     throw new Error(`Work item with title "${title}" not found in table`);
+  }
+
+  /**
+   * Find the table row (desktop) or card (mobile) whose title matches the given text,
+   * then return a Locator for the area breadcrumb inside that row/card.
+   *
+   * Desktop: scoped to the <tr> containing a link with the given title.
+   * Mobile: scoped to the card container element containing that title.
+   *
+   * Returns a Locator that may point to:
+   *  - A <span class*="compact"> when an area is assigned (compact breadcrumb, no tabIndex)
+   *  - A <span class*="muted"> with text "No area" when no area is assigned
+   *
+   * fix/1278: compact variant no longer has tabIndex=0 — selector updated accordingly.
+   */
+  getAreaBreadcrumbForItem(title: string): Locator {
+    // We use filter({ hasText }) on the row, then look for either the compact span
+    // or the muted "No area" span inside the title cell.
+    const row = this.tableBody.locator('tr').filter({ hasText: title });
+    const card = this.cardsContainer.locator('[class*="card"]').filter({ hasText: title });
+
+    // Return a locator that covers both: the actual element is whichever is in the
+    // visible container. Callers must await .textContent() or use expect().
+    // The locator resolves to the compact span or the "No area" muted span.
+    return row
+      .locator('[class*="compact"], [class*="muted"]')
+      .or(card.locator('[class*="compact"], [class*="muted"]'))
+      .first();
+  }
+
+  /**
+   * The "No Area" sentinel checkbox in the area filter popover.
+   * Only visible after the area filter popover is opened AND the Area column is visible
+   * (Area column has defaultVisible: false on Work Items — enable it via column settings first).
+   */
+  get noneAreaSentinelCheckbox(): Locator {
+    return this.page.locator('#enum-__none__');
+  }
+
+  /**
+   * Open the area filter popover by clicking the "Filter by Area" column header button.
+   *
+   * IMPORTANT: The Area column has defaultVisible: false on Work Items. The filter button
+   * only renders for visible columns, so this method requires the Area column to be enabled
+   * via the column settings gear icon before calling. If the column is not visible, this
+   * method will time out waiting for the button.
+   */
+  async openAreaFilter(): Promise<void> {
+    await this.areaFilter.waitFor({ state: 'visible' });
+    await this.areaFilter.click();
+  }
+
+  /**
+   * Enable the Area column via the column settings gear icon so the filter button appears.
+   * Opens the column settings popover, checks the "Area" checkbox, and closes the popover.
+   */
+  async enableAreaColumn(): Promise<void> {
+    const columnSettingsBtn = this.page.getByRole('button', {
+      name: 'Column settings',
+      exact: true,
+    });
+    await columnSettingsBtn.waitFor({ state: 'visible' });
+    await columnSettingsBtn.click();
+    // The column settings popover renders a checkbox for each column by label
+    const areaCheckbox = this.page.getByRole('checkbox', { name: /^Area$/i });
+    await areaCheckbox.waitFor({ state: 'visible' });
+    const checked = await areaCheckbox.isChecked();
+    if (!checked) {
+      await areaCheckbox.click();
+    }
+    // Close popover by pressing Escape
+    await this.page.keyboard.press('Escape');
+    // Wait for Area filter button to appear in the header
+    await this.areaFilter.waitFor({ state: 'visible' });
   }
 
   /**

@@ -246,9 +246,6 @@ describe('Budget Overview Routes', () => {
       expect(typeof overview.remainingVsActualCost).toBe('number');
       expect(typeof overview.remainingVsActualPaid).toBe('number');
 
-      // categorySummaries array
-      expect(Array.isArray(overview.categorySummaries)).toBe(true);
-
       // subsidySummary object
       expect(typeof overview.subsidySummary.totalReductions).toBe('number');
       expect(typeof overview.subsidySummary.activeSubsidyCount).toBe('number');
@@ -276,8 +273,6 @@ describe('Budget Overview Routes', () => {
       expect(overview.remainingVsMaxPlanned).toBe(0);
       expect(overview.remainingVsActualCost).toBe(0);
       expect(overview.remainingVsActualPaid).toBe(0);
-      // 7 seeded categories after migration 0028 removes 5 unused defaults on fresh DB
-      expect(overview.categorySummaries).toHaveLength(7);
       expect(overview.sourceCount).toBe(1); // seeded discretionary source
       expect(overview.subsidySummary.activeSubsidyCount).toBe(0);
     });
@@ -342,28 +337,6 @@ describe('Budget Overview Routes', () => {
       expect(overview.actualCostPaid).toBe(60000); // both are paid
     });
 
-    it('returns each category summary with required fields', async () => {
-      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/api/budget/overview',
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(200);
-      const { overview } = response.json<BudgetOverviewResponse>();
-
-      // Each category summary has required fields
-      for (const cat of overview.categorySummaries) {
-        expect(typeof cat.categoryId).toBe('string');
-        expect(typeof cat.categoryName).toBe('string');
-        expect(typeof cat.minPlanned).toBe('number');
-        expect(typeof cat.maxPlanned).toBe('number');
-        expect(typeof cat.actualCost).toBe('number');
-        expect(typeof cat.actualCostPaid).toBe('number');
-        expect(typeof cat.budgetLineCount).toBe('number');
-      }
-    });
+    // 'returns each category summary with required fields' test removed — categorySummaries dropped in #1243
   });
 });

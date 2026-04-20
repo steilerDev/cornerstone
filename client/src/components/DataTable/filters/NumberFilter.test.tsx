@@ -24,20 +24,20 @@ describe('NumberFilter', () => {
     it('parses existing min value from "min:100,max:500" format', () => {
       render(<NumberFilter value="min:100,max:500" onChange={jest.fn()} />);
       const inputs = screen.getAllByRole('spinbutton');
-      expect(inputs[0]).toHaveValue(100);
+      expect(inputs[0]!).toHaveValue(100);
     });
 
     it('parses existing max value from "min:100,max:500" format', () => {
       render(<NumberFilter value="min:100,max:500" onChange={jest.fn()} />);
       const inputs = screen.getAllByRole('spinbutton');
-      expect(inputs[1]).toHaveValue(500);
+      expect(inputs[1]!).toHaveValue(500);
     });
 
     it('initializes with empty inputs when value is empty string', () => {
       render(<NumberFilter value="" onChange={jest.fn()} />);
       const inputs = screen.getAllByRole('spinbutton');
-      expect(inputs[0]).toHaveValue(null);
-      expect(inputs[1]).toHaveValue(null);
+      expect(inputs[0]!).toHaveValue(null);
+      expect(inputs[1]!).toHaveValue(null);
     });
 
     it('does not render an Apply button', () => {
@@ -55,7 +55,7 @@ describe('NumberFilter', () => {
     it('calls onChange immediately when min input changes', () => {
       const mockOnChange = jest.fn();
       render(<NumberFilter value="" onChange={mockOnChange} />);
-      const [minInput] = screen.getAllByRole('spinbutton');
+      const [minInput] = screen.getAllByRole('spinbutton') as [HTMLElement];
       fireEvent.change(minInput, { target: { value: '100' } });
       expect(mockOnChange).toHaveBeenCalledWith('min:100');
     });
@@ -63,7 +63,8 @@ describe('NumberFilter', () => {
     it('calls onChange immediately when max input changes', () => {
       const mockOnChange = jest.fn();
       render(<NumberFilter value="" onChange={mockOnChange} />);
-      const [, maxInput] = screen.getAllByRole('spinbutton');
+      const inputs = screen.getAllByRole('spinbutton');
+      const maxInput = inputs[1]!;
       fireEvent.change(maxInput, { target: { value: '500' } });
       expect(mockOnChange).toHaveBeenCalledWith('max:500');
     });
@@ -71,7 +72,9 @@ describe('NumberFilter', () => {
     it('calls onChange with "min:X,max:Y" when both values are set', () => {
       const mockOnChange = jest.fn();
       render(<NumberFilter value="" onChange={mockOnChange} />);
-      const [minInput, maxInput] = screen.getAllByRole('spinbutton');
+      const inputs = screen.getAllByRole('spinbutton');
+      const minInput = inputs[0]!;
+      const maxInput = inputs[1]!;
       fireEvent.change(minInput, { target: { value: '100' } });
       mockOnChange.mockClear();
       fireEvent.change(maxInput, { target: { value: '500' } });
@@ -81,7 +84,7 @@ describe('NumberFilter', () => {
     it('calls onChange with empty string when min input is cleared', () => {
       const mockOnChange = jest.fn();
       render(<NumberFilter value="min:100" onChange={mockOnChange} />);
-      const [minInput] = screen.getAllByRole('spinbutton');
+      const [minInput] = screen.getAllByRole('spinbutton') as [HTMLElement];
       fireEvent.change(minInput, { target: { value: '' } });
       expect(mockOnChange).toHaveBeenCalledWith('');
     });
@@ -89,7 +92,7 @@ describe('NumberFilter', () => {
     it('calls onChange without requiring a button click', () => {
       const mockOnChange = jest.fn();
       render(<NumberFilter value="" onChange={mockOnChange} />);
-      const [minInput] = screen.getAllByRole('spinbutton');
+      const [minInput] = screen.getAllByRole('spinbutton') as [HTMLElement];
       fireEvent.change(minInput, { target: { value: '42' } });
       expect(mockOnChange).toHaveBeenCalledTimes(1);
       expect(mockOnChange).toHaveBeenCalledWith('min:42');
@@ -100,7 +103,7 @@ describe('NumberFilter', () => {
     it('updates min input as user types', async () => {
       const user = userEvent.setup();
       render(<NumberFilter value="" onChange={jest.fn()} />);
-      const [minInput] = screen.getAllByRole('spinbutton');
+      const [minInput] = screen.getAllByRole('spinbutton') as [HTMLElement];
       await user.clear(minInput);
       await user.type(minInput, '50');
       expect(minInput).toHaveValue(50);
@@ -109,7 +112,8 @@ describe('NumberFilter', () => {
     it('updates max input as user types', async () => {
       const user = userEvent.setup();
       render(<NumberFilter value="" onChange={jest.fn()} />);
-      const [, maxInput] = screen.getAllByRole('spinbutton');
+      const inputs = screen.getAllByRole('spinbutton');
+      const maxInput = inputs[1]!;
       await user.clear(maxInput);
       await user.type(maxInput, '999');
       expect(maxInput).toHaveValue(999);
@@ -124,10 +128,10 @@ describe('NumberFilter', () => {
       const sliders = container.querySelectorAll('input[type="range"]');
       const spinbuttons = screen.getAllByRole('spinbutton');
 
-      expect(sliders[0]).toHaveAttribute('min', '100');
-      expect(sliders[1]).toHaveAttribute('min', '100');
-      expect(spinbuttons[0]).toHaveAttribute('min', '100');
-      expect(spinbuttons[1]).toHaveAttribute('min', '100');
+      expect(sliders[0]!).toHaveAttribute('min', '100');
+      expect(sliders[1]!).toHaveAttribute('min', '100');
+      expect(spinbuttons[0]!).toHaveAttribute('min', '100');
+      expect(spinbuttons[1]!).toHaveAttribute('min', '100');
     });
 
     it('applies custom max to both number inputs and range sliders', () => {
@@ -137,10 +141,10 @@ describe('NumberFilter', () => {
       const sliders = container.querySelectorAll('input[type="range"]');
       const spinbuttons = screen.getAllByRole('spinbutton');
 
-      expect(sliders[0]).toHaveAttribute('max', '10000');
-      expect(sliders[1]).toHaveAttribute('max', '10000');
-      expect(spinbuttons[0]).toHaveAttribute('max', '10000');
-      expect(spinbuttons[1]).toHaveAttribute('max', '10000');
+      expect(sliders[0]!).toHaveAttribute('max', '10000');
+      expect(sliders[1]!).toHaveAttribute('max', '10000');
+      expect(spinbuttons[0]!).toHaveAttribute('max', '10000');
+      expect(spinbuttons[1]!).toHaveAttribute('max', '10000');
     });
 
     it('uses custom min as placeholder for the min number input', () => {
@@ -160,7 +164,7 @@ describe('NumberFilter', () => {
       const sliders = container.querySelectorAll('input[type="range"]');
       const [minInput] = screen.getAllByRole('spinbutton');
 
-      expect(sliders[0]).toHaveAttribute('min', '0');
+      expect(sliders[0]!).toHaveAttribute('min', '0');
       expect(minInput).toHaveAttribute('min', '0');
       expect(minInput).toHaveAttribute('placeholder', '0');
     });
@@ -170,7 +174,7 @@ describe('NumberFilter', () => {
       const sliders = container.querySelectorAll('input[type="range"]');
       const [, maxInput] = screen.getAllByRole('spinbutton');
 
-      expect(sliders[1]).toHaveAttribute('max', '999999');
+      expect(sliders[1]!).toHaveAttribute('max', '999999');
       expect(maxInput).toHaveAttribute('max', '999999');
       expect(maxInput).toHaveAttribute('placeholder', '999999');
     });
@@ -180,10 +184,10 @@ describe('NumberFilter', () => {
       const sliders = container.querySelectorAll('input[type="range"]');
       const spinbuttons = screen.getAllByRole('spinbutton');
 
-      expect(sliders[0]).toHaveAttribute('step', '0.01');
-      expect(sliders[1]).toHaveAttribute('step', '0.01');
-      expect(spinbuttons[0]).toHaveAttribute('step', '0.01');
-      expect(spinbuttons[1]).toHaveAttribute('step', '0.01');
+      expect(sliders[0]!).toHaveAttribute('step', '0.01');
+      expect(sliders[1]!).toHaveAttribute('step', '0.01');
+      expect(spinbuttons[0]!).toHaveAttribute('step', '0.01');
+      expect(spinbuttons[1]!).toHaveAttribute('step', '0.01');
     });
 
     it('defaults step to 1 when no step prop is provided', () => {
@@ -191,7 +195,7 @@ describe('NumberFilter', () => {
       const sliders = container.querySelectorAll('input[type="range"]');
       const [minInput] = screen.getAllByRole('spinbutton');
 
-      expect(sliders[0]).toHaveAttribute('step', '1');
+      expect(sliders[0]!).toHaveAttribute('step', '1');
       expect(minInput).toHaveAttribute('step', '1');
     });
   });

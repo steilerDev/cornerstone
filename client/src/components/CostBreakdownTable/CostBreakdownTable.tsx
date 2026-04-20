@@ -1,13 +1,12 @@
-import { useState, useMemo, useRef, createContext, useContext } from 'react';
+import { useState, useRef, createContext, useContext, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   BudgetBreakdown,
   BudgetOverview,
-  BreakdownWorkItemCategory,
+  BreakdownArea,
   BreakdownWorkItem,
   BreakdownBudgetLine,
-  BreakdownHouseholdItemCategory,
   BreakdownHouseholdItem,
   ConfidenceLevel,
   BudgetSource,
@@ -15,7 +14,7 @@ import type {
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
-import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
+import { usePrintExpansion } from '../../hooks/usePrintExpansion.js';
 import styles from './CostBreakdownTable.module.css';
 
 // Context to pass formatCurrency down to sub-components that aren't React components (can't use hooks)
@@ -34,7 +33,6 @@ type CostPerspective = 'min' | 'max' | 'avg';
 interface CostBreakdownTableProps {
   breakdown: BudgetBreakdown;
   overview: BudgetOverview;
-  selectedCategories: Set<string | null>;
   budgetSources: BudgetSource[];
 }
 
@@ -107,13 +105,15 @@ function PerspectiveToggle({
     const idx = options.findIndex((o) => o.value === current);
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
       e.preventDefault();
-      const next = options[(idx + 1) % options.length];
+      // (idx + 1) % options.length is guaranteed to be in bounds
+      const next = options[(idx + 1) % options.length]!;
       onChange(next.value);
       const buttons = groupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
       buttons?.[(idx + 1) % options.length]?.focus();
     } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
       e.preventDefault();
-      const prev = options[(idx - 1 + options.length) % options.length];
+      // (idx - 1 + options.length) % options.length is guaranteed to be in bounds
+      const prev = options[(idx - 1 + options.length) % options.length]!;
       onChange(prev.value);
       const buttons = groupRef.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
       buttons?.[(idx - 1 + options.length) % options.length]?.focus();
@@ -159,9 +159,11 @@ function ConfidenceBadge({ confidence }: { confidence: ConfidenceLevel }) {
 function BudgetLineRow({
   line,
   perspective,
+  depth,
 }: {
   line: BreakdownBudgetLine;
   perspective: CostPerspective;
+  depth: number;
 }) {
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
@@ -185,7 +187,10 @@ function BudgetLineRow({
 
   return (
     <tr className={rowClassName} key={key}>
-      <td className={styles.colName}>
+      <td
+        className={`${styles.colName} ${styles.cellLevel3Name}`}
+        style={{ '--item-depth': depth } as React.CSSProperties}
+      >
         <div className={styles.nameContent}>
           <span>{line.description || 'Untitled'}</span>
           {line.isQuotation ? (
@@ -223,12 +228,14 @@ function WorkItemRow({
   expanded: itemExpanded,
   onToggle,
   perspective,
+  depth,
 }: {
   item: BreakdownWorkItem;
   expandKey: string;
   expanded: boolean;
   onToggle: (key: string) => void;
   perspective: CostPerspective;
+  depth: number;
 }) {
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
@@ -248,7 +255,10 @@ function WorkItemRow({
   return (
     <>
       <tr className={rowClassName} key={key}>
-        <td className={styles.colName}>
+        <td
+          className={`${styles.colName} ${styles.cellLevel2Name}`}
+          style={{ '--item-depth': depth } as React.CSSProperties}
+        >
           <div className={styles.nameContent}>
             <button
               type="button"
@@ -290,7 +300,7 @@ function WorkItemRow({
       {itemExpanded && (
         <>
           {item.budgetLines.map((line: BreakdownBudgetLine) => (
-            <BudgetLineRow key={line.id} line={line} perspective={perspective} />
+            <BudgetLineRow key={line.id} line={line} perspective={perspective} depth={depth} />
           ))}
         </>
       )}
@@ -299,59 +309,63 @@ function WorkItemRow({
 }
 
 /**
- * Renders a work item category (Level 1) with optional expansion for items.
+ * Renders a work item area (hierarchical) with optional expansion for items and child areas.
  */
-function WorkItemCategorySection({
-  category,
+function WorkItemAreaSection({
+  area,
+  depth,
+  sectionKey,
   expandedKeys,
   onToggle,
   perspective,
+  formatCurrencyFn,
 }: {
-  category: BreakdownWorkItemCategory;
+  area: BreakdownArea<BreakdownWorkItem>;
+  depth: number;
+  sectionKey: 'wi' | 'hi';
   expandedKeys: Set<string>;
   onToggle: (key: string) => void;
   perspective: CostPerspective;
+  formatCurrencyFn: (value: number) => string;
 }) {
-  const { t: tSettings } = useTranslation('settings');
-  const formatCurrencyFn = useFormatterContext();
-  const key = `wi-cat-${category.categoryId ?? 'null'}`;
-  const isExpanded = expandedKeys.has(key);
-  const resolvedRawCost = resolveProjected(
-    category.rawProjectedMin,
-    category.rawProjectedMax,
-    perspective,
-  );
+  const { t } = useTranslation('budget');
+  const areaKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}`;
+  const isExpanded = expandedKeys.has(areaKey);
+  const resolvedRawCost = resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
   const resolvedPayback = resolveProjected(
-    category.minSubsidyPayback,
-    category.subsidyPayback,
+    area.minSubsidyPayback,
+    area.subsidyPayback,
     perspective,
   );
-  const displayName = getCategoryDisplayName(
-    tSettings,
-    category.categoryName,
-    category.categoryTranslationKey,
-  );
+  const areaName = area.areaId === null ? t('overview.costBreakdown.area.unassigned') : area.name;
 
   return (
     <>
-      <tr className={styles.rowLevel1} key={key}>
-        <td className={`${styles.colName} ${styles.cellLevel1Name}`}>
+      <tr className={styles.rowLevel1} key={areaKey}>
+        <td
+          className={`${styles.colName} ${styles.cellAreaName}`}
+          style={{ '--area-depth': depth } as React.CSSProperties}
+        >
           <div className={styles.nameContent}>
             <button
               type="button"
               className={styles.expandBtn}
               aria-expanded={isExpanded}
-              aria-label={`Expand ${displayName}`}
-              onClick={() => onToggle(key)}
+              aria-label={
+                isExpanded
+                  ? t('overview.costBreakdown.area.collapseArea', { name: areaName })
+                  : t('overview.costBreakdown.area.expandArea', { name: areaName })
+              }
+              onClick={() => onToggle(areaKey)}
             >
               <ChevronSvg className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ''}`} />
             </button>
-            <span>{displayName}</span>
+            <span>{areaName}</span>
           </div>
         </td>
         <td className={styles.colBudget}>-{formatCurrencyFn(resolvedRawCost)}</td>
         <td className={styles.colPayback}>
-          {category.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
+          {area.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
           {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
@@ -360,8 +374,8 @@ function WorkItemCategorySection({
 
       {isExpanded && (
         <>
-          {category.items.map((item: BreakdownWorkItem) => {
-            const itemKey = `wi-cat-${category.categoryId ?? 'null'}-item-${item.workItemId}`;
+          {area.items.map((item: BreakdownWorkItem) => {
+            const itemKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}-item-${item.workItemId}`;
             return (
               <WorkItemRow
                 key={item.workItemId}
@@ -370,9 +384,22 @@ function WorkItemCategorySection({
                 expanded={expandedKeys.has(itemKey)}
                 onToggle={onToggle}
                 perspective={perspective}
+                depth={depth}
               />
             );
           })}
+          {area.children.map((childArea) => (
+            <WorkItemAreaSection
+              key={`${sectionKey}-area-${childArea.areaId ?? 'unassigned'}`}
+              area={childArea}
+              depth={depth + 1}
+              sectionKey={sectionKey}
+              expandedKeys={expandedKeys}
+              onToggle={onToggle}
+              perspective={perspective}
+              formatCurrencyFn={formatCurrencyFn}
+            />
+          ))}
         </>
       )}
     </>
@@ -388,12 +415,14 @@ function HouseholdItemRow({
   expanded: itemExpanded,
   onToggle,
   perspective,
+  depth,
 }: {
   item: BreakdownHouseholdItem;
   expandKey: string;
   expanded: boolean;
   onToggle: (key: string) => void;
   perspective: CostPerspective;
+  depth: number;
 }) {
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
@@ -413,7 +442,10 @@ function HouseholdItemRow({
   return (
     <>
       <tr className={rowClassName} key={key}>
-        <td className={styles.colName}>
+        <td
+          className={`${styles.colName} ${styles.cellLevel2Name}`}
+          style={{ '--item-depth': depth } as React.CSSProperties}
+        >
           <div className={styles.nameContent}>
             <button
               type="button"
@@ -458,7 +490,7 @@ function HouseholdItemRow({
       {itemExpanded && (
         <>
           {item.budgetLines.map((line: BreakdownBudgetLine) => (
-            <BudgetLineRow key={line.id} line={line} perspective={perspective} />
+            <BudgetLineRow key={line.id} line={line} perspective={perspective} depth={depth} />
           ))}
         </>
       )}
@@ -467,59 +499,63 @@ function HouseholdItemRow({
 }
 
 /**
- * Renders a household item category (Level 1) with optional expansion for items.
+ * Renders a household item area (hierarchical) with optional expansion for items and child areas.
  */
-function HouseholdItemCategorySection({
-  category,
+function HouseholdItemAreaSection({
+  area,
+  depth,
+  sectionKey,
   expandedKeys,
   onToggle,
   perspective,
+  formatCurrencyFn,
 }: {
-  category: BreakdownHouseholdItemCategory;
+  area: BreakdownArea<BreakdownHouseholdItem>;
+  depth: number;
+  sectionKey: 'wi' | 'hi';
   expandedKeys: Set<string>;
   onToggle: (key: string) => void;
   perspective: CostPerspective;
+  formatCurrencyFn: (value: number) => string;
 }) {
-  const { t: tSettings } = useTranslation('settings');
-  const formatCurrencyFn = useFormatterContext();
-  const key = `hi-cat-${category.hiCategory}`;
-  const isExpanded = expandedKeys.has(key);
-  const resolvedRawCost = resolveProjected(
-    category.rawProjectedMin,
-    category.rawProjectedMax,
-    perspective,
-  );
+  const { t } = useTranslation('budget');
+  const areaKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}`;
+  const isExpanded = expandedKeys.has(areaKey);
+  const resolvedRawCost = resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
   const resolvedPayback = resolveProjected(
-    category.minSubsidyPayback,
-    category.subsidyPayback,
+    area.minSubsidyPayback,
+    area.subsidyPayback,
     perspective,
   );
-  const displayName = getCategoryDisplayName(
-    tSettings,
-    category.categoryName,
-    category.categoryTranslationKey,
-  );
+  const areaName = area.areaId === null ? t('overview.costBreakdown.area.unassigned') : area.name;
 
   return (
     <>
-      <tr className={styles.rowLevel1} key={key}>
-        <td className={`${styles.colName} ${styles.cellLevel1Name}`}>
+      <tr className={styles.rowLevel1} key={areaKey}>
+        <td
+          className={`${styles.colName} ${styles.cellAreaName}`}
+          style={{ '--area-depth': depth } as React.CSSProperties}
+        >
           <div className={styles.nameContent}>
             <button
               type="button"
               className={styles.expandBtn}
               aria-expanded={isExpanded}
-              aria-label={`Expand ${displayName}`}
-              onClick={() => onToggle(key)}
+              aria-label={
+                isExpanded
+                  ? t('overview.costBreakdown.area.collapseArea', { name: areaName })
+                  : t('overview.costBreakdown.area.expandArea', { name: areaName })
+              }
+              onClick={() => onToggle(areaKey)}
             >
               <ChevronSvg className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ''}`} />
             </button>
-            <span>{displayName}</span>
+            <span>{areaName}</span>
           </div>
         </td>
         <td className={styles.colBudget}>-{formatCurrencyFn(resolvedRawCost)}</td>
         <td className={styles.colPayback}>
-          {category.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
+          {area.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
           {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
@@ -528,8 +564,8 @@ function HouseholdItemCategorySection({
 
       {isExpanded && (
         <>
-          {category.items.map((item: BreakdownHouseholdItem) => {
-            const itemKey = `hi-cat-${category.hiCategory}-item-${item.householdItemId}`;
+          {area.items.map((item: BreakdownHouseholdItem) => {
+            const itemKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}-item-${item.householdItemId}`;
             return (
               <HouseholdItemRow
                 key={item.householdItemId}
@@ -538,9 +574,22 @@ function HouseholdItemCategorySection({
                 expanded={expandedKeys.has(itemKey)}
                 onToggle={onToggle}
                 perspective={perspective}
+                depth={depth}
               />
             );
           })}
+          {area.children.map((childArea) => (
+            <HouseholdItemAreaSection
+              key={`${sectionKey}-area-${childArea.areaId ?? 'unassigned'}`}
+              area={childArea}
+              depth={depth + 1}
+              sectionKey={sectionKey}
+              expandedKeys={expandedKeys}
+              onToggle={onToggle}
+              perspective={perspective}
+              formatCurrencyFn={formatCurrencyFn}
+            />
+          ))}
         </>
       )}
     </>
@@ -576,7 +625,6 @@ function ChevronSvg({ className }: { className: string }) {
 export function CostBreakdownTable({
   breakdown,
   overview,
-  selectedCategories,
   budgetSources,
 }: CostBreakdownTableProps) {
   const { t } = useTranslation('budget');
@@ -594,50 +642,54 @@ export function CostBreakdownTable({
     setExpandedKeys(next);
   };
 
-  /**
-   * Filter work item categories based on selectedCategories filter.
-   * HI categories are NOT filtered.
-   */
-  const visibleWICategories = useMemo(() => {
-    if (selectedCategories.size === 0) {
-      return breakdown.workItems.categories;
+  const allExpandableKeys = useMemo<Set<string>>(() => {
+    const keys = new Set<string>();
+
+    function collectWiArea(areas: BreakdownArea<BreakdownWorkItem>[]) {
+      for (const area of areas) {
+        const aKey = `wi-area-${area.areaId ?? 'unassigned'}`;
+        keys.add(aKey);
+        for (const item of area.items) {
+          keys.add(`wi-area-${area.areaId ?? 'unassigned'}-item-${item.workItemId}`);
+        }
+        collectWiArea(area.children);
+      }
     }
-    return breakdown.workItems.categories.filter((cat) => selectedCategories.has(cat.categoryId));
-  }, [breakdown.workItems.categories, selectedCategories]);
 
-  /**
-   * Recalculate WI totals from visible categories only.
-   */
-  const wiTotals = useMemo(() => {
-    let projectedMin = 0;
-    let projectedMax = 0;
-    let rawProjectedMin = 0;
-    let rawProjectedMax = 0;
-    let actualCost = 0;
-    let subsidyPayback = 0;
-    let minSubsidyPayback = 0;
+    function collectHiArea(areas: BreakdownArea<BreakdownHouseholdItem>[]) {
+      for (const area of areas) {
+        const aKey = `hi-area-${area.areaId ?? 'unassigned'}`;
+        keys.add(aKey);
+        for (const item of area.items) {
+          keys.add(`hi-area-${area.areaId ?? 'unassigned'}-item-${item.householdItemId}`);
+        }
+        collectHiArea(area.children);
+      }
+    }
 
-    visibleWICategories.forEach((cat: BreakdownWorkItemCategory) => {
-      projectedMin += cat.projectedMin;
-      projectedMax += cat.projectedMax;
-      rawProjectedMin += cat.rawProjectedMin;
-      rawProjectedMax += cat.rawProjectedMax;
-      actualCost += cat.actualCost;
-      subsidyPayback += cat.subsidyPayback;
-      minSubsidyPayback += cat.minSubsidyPayback;
-    });
+    if (breakdown.workItems.areas.length > 0) {
+      keys.add('wi-section');
+      collectWiArea(breakdown.workItems.areas);
+    }
+    if (breakdown.householdItems.areas.length > 0) {
+      keys.add('hi-section');
+      collectHiArea(breakdown.householdItems.areas);
+    }
+    if ((breakdown.subsidyAdjustments ?? []).length > 0) {
+      keys.add('adj-section');
+    }
+    if (breakdown.workItems.areas.length > 0 || breakdown.householdItems.areas.length > 0) {
+      keys.add('avail-funds');
+    }
 
-    return {
-      projectedMin,
-      projectedMax,
-      rawProjectedMin,
-      rawProjectedMax,
-      actualCost,
-      subsidyPayback,
-      minSubsidyPayback,
-    };
-  }, [visibleWICategories]);
+    return keys;
+  }, [breakdown]);
 
+  usePrintExpansion(expandedKeys, setExpandedKeys, allExpandableKeys);
+
+  const wiAreas = breakdown.workItems.areas;
+  const hiAreas = breakdown.householdItems.areas;
+  const wiTotals = breakdown.workItems.totals;
   const hiTotals = breakdown.householdItems.totals;
 
   /**
@@ -677,7 +729,7 @@ export function CostBreakdownTable({
   const sum = overview.availableFunds - totalRawProjected + adjustedTotalPayback;
 
   // Empty state
-  const hasData = visibleWICategories.length > 0 || breakdown.householdItems.categories.length > 0;
+  const hasData = wiAreas.length > 0 || hiAreas.length > 0;
 
   if (!hasData) {
     return (
@@ -708,7 +760,7 @@ export function CostBreakdownTable({
 
         <div className={styles.tableWrapper}>
           <table className={styles.table}>
-            <caption className={styles.srOnly}>Budget cost breakdown by category and item</caption>
+            <caption className={styles.srOnly}>{t('overview.costBreakdown.tableCaption')}</caption>
             <thead>
               <tr>
                 <th scope="col" className={styles.colName}>
@@ -729,7 +781,7 @@ export function CostBreakdownTable({
             {/* ===== COST SECTION (with column tints) ===== */}
             <tbody className={styles.costSection}>
               {/* Work Item Budget row (expandable) */}
-              {visibleWICategories.length > 0 && (
+              {wiAreas.length > 0 && (
                 <>
                   <tr className={styles.rowLevel0} key={wiSectionKey}>
                     <td className={styles.colName}>
@@ -738,7 +790,7 @@ export function CostBreakdownTable({
                           type="button"
                           className={styles.expandBtn}
                           aria-expanded={wiSectionExpanded}
-                          aria-label="Expand work item budget categories"
+                          aria-label={t('overview.costBreakdown.area.expandWorkItemsLabel')}
                           onClick={() => toggle(wiSectionKey)}
                         >
                           <ChevronSvg
@@ -789,13 +841,16 @@ export function CostBreakdownTable({
 
                   {wiSectionExpanded && (
                     <>
-                      {visibleWICategories.map((category: BreakdownWorkItemCategory) => (
-                        <WorkItemCategorySection
-                          key={category.categoryId ?? '__uncategorized__'}
-                          category={category}
+                      {wiAreas.map((area) => (
+                        <WorkItemAreaSection
+                          key={`wi-area-${area.areaId ?? 'unassigned'}`}
+                          area={area}
+                          depth={0}
+                          sectionKey="wi"
                           expandedKeys={expandedKeys}
                           onToggle={toggle}
                           perspective={perspective}
+                          formatCurrencyFn={formatCurrency}
                         />
                       ))}
                     </>
@@ -804,7 +859,7 @@ export function CostBreakdownTable({
               )}
 
               {/* Household Item Budget row (expandable) */}
-              {breakdown.householdItems.categories.length > 0 && (
+              {hiAreas.length > 0 && (
                 <>
                   <tr className={styles.rowLevel0} key={hiSectionKey}>
                     <td className={styles.colName}>
@@ -813,7 +868,7 @@ export function CostBreakdownTable({
                           type="button"
                           className={styles.expandBtn}
                           aria-expanded={hiSectionExpanded}
-                          aria-label="Expand household item budget categories"
+                          aria-label={t('overview.costBreakdown.area.expandHouseholdItemsLabel')}
                           onClick={() => toggle(hiSectionKey)}
                         >
                           <ChevronSvg
@@ -864,17 +919,18 @@ export function CostBreakdownTable({
 
                   {hiSectionExpanded && (
                     <>
-                      {breakdown.householdItems.categories.map(
-                        (category: BreakdownHouseholdItemCategory) => (
-                          <HouseholdItemCategorySection
-                            key={category.hiCategory}
-                            category={category}
-                            expandedKeys={expandedKeys}
-                            onToggle={toggle}
-                            perspective={perspective}
-                          />
-                        ),
-                      )}
+                      {hiAreas.map((area) => (
+                        <HouseholdItemAreaSection
+                          key={`hi-area-${area.areaId ?? 'unassigned'}`}
+                          area={area}
+                          depth={0}
+                          sectionKey="hi"
+                          expandedKeys={expandedKeys}
+                          onToggle={toggle}
+                          perspective={perspective}
+                          formatCurrencyFn={formatCurrency}
+                        />
+                      ))}
                     </>
                   )}
                 </>

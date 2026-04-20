@@ -368,7 +368,7 @@ describe('Budget Source Service', () => {
       // Migration 0021 seeds the "Discretionary Funding" system row, so the list is never empty.
       const result = budgetSourceService.listBudgetSources(db);
       expect(result).toHaveLength(1);
-      expect(result[0].isDiscretionary).toBe(true);
+      expect(result[0]!.isDiscretionary).toBe(true);
     });
 
     it('returns a single source after insertion (plus seeded discretionary source)', () => {
@@ -388,11 +388,11 @@ describe('Budget Source Service', () => {
 
       const result = budgetSourceService.listBudgetSources(db);
       const nonDisc = result.filter((s) => !s.isDiscretionary);
-      expect(nonDisc[0].name).toBe('Alpha Bank Loan');
-      expect(nonDisc[1].name).toBe('Mid Credit Line');
-      expect(nonDisc[2].name).toBe('Zebra Fund');
+      expect(nonDisc[0]!.name).toBe('Alpha Bank Loan');
+      expect(nonDisc[1]!.name).toBe('Mid Credit Line');
+      expect(nonDisc[2]!.name).toBe('Zebra Fund');
       // Discretionary is always last
-      expect(result[result.length - 1].isDiscretionary).toBe(true);
+      expect(result[result.length - 1]!.isDiscretionary).toBe(true);
     });
 
     it('returns all expected fields for a source', () => {
@@ -440,28 +440,28 @@ describe('Budget Source Service', () => {
       });
 
       const result = budgetSourceService.listBudgetSources(db);
-      expect(result[0].createdBy).not.toBeNull();
-      expect(result[0].createdBy?.id).toBe(TEST_USER_ID);
-      expect(result[0].createdBy?.email).toBe(`${TEST_USER_ID}@example.com`);
+      expect(result[0]!.createdBy).not.toBeNull();
+      expect(result[0]!.createdBy?.id).toBe(TEST_USER_ID);
+      expect(result[0]!.createdBy?.email).toBe(`${TEST_USER_ID}@example.com`);
     });
 
     it('returns createdBy as null when createdBy is null', () => {
       insertRawSource({ name: 'No Creator', sourceType: 'savings', totalAmount: 10000 });
 
       const result = budgetSourceService.listBudgetSources(db);
-      expect(result[0].createdBy).toBeNull();
+      expect(result[0]!.createdBy).toBeNull();
     });
 
     it('computes usedAmount as 0 when no work items reference the source', () => {
       insertRawSource({ name: 'Computing Loan', sourceType: 'bank_loan', totalAmount: 50000 });
 
       const result = budgetSourceService.listBudgetSources(db);
-      expect(result[0].usedAmount).toBe(0);
-      expect(result[0].availableAmount).toBe(50000);
+      expect(result[0]!.usedAmount).toBe(0);
+      expect(result[0]!.availableAmount).toBe(50000);
       // No claimed or paid invoices → both amounts are 0
-      expect(result[0].claimedAmount).toBe(0);
-      expect(result[0].unclaimedAmount).toBe(0);
-      expect(result[0].actualAvailableAmount).toBe(50000);
+      expect(result[0]!.claimedAmount).toBe(0);
+      expect(result[0]!.unclaimedAmount).toBe(0);
+      expect(result[0]!.actualAvailableAmount).toBe(50000);
     });
 
     it('computes usedAmount as sum of work item actualCost values', () => {
@@ -535,7 +535,7 @@ describe('Budget Source Service', () => {
       insertRawSource({ name: 'No Rate Loan', sourceType: 'savings', totalAmount: 5000 });
 
       const result = budgetSourceService.listBudgetSources(db);
-      expect(result[0].interestRate).toBeNull();
+      expect(result[0]!.interestRate).toBeNull();
     });
   });
 
@@ -1849,7 +1849,7 @@ describe('Budget Source Service', () => {
 
       // At least 3 sources: Aardvark Fund, Zebra Loan, discretionary-system
       expect(results.length).toBeGreaterThanOrEqual(3);
-      const last = results[results.length - 1];
+      const last = results[results.length - 1]!;
       expect(last.isDiscretionary).toBe(true);
       expect(last.id).toBe('discretionary-system');
     });
@@ -1861,8 +1861,8 @@ describe('Budget Source Service', () => {
       const results = budgetSourceService.listBudgetSources(db);
       const regularSources = results.filter((s) => !s.isDiscretionary);
 
-      expect(regularSources[0].name).toBe('Alpha Loan');
-      expect(regularSources[1].name).toBe('Mango Credit');
+      expect(regularSources[0]!.name).toBe('Alpha Loan');
+      expect(regularSources[1]!.name).toBe('Mango Credit');
     });
   });
 
@@ -2173,6 +2173,251 @@ describe('Budget Source Service', () => {
       expect(() => {
         budgetSourceService.deleteBudgetSource(db, raw.id);
       }).toThrow(BudgetSourceInUseError);
+    });
+  });
+
+  // ─── computeProjectedRange / projectedMinAmount / projectedMaxAmount ─────────
+
+  describe('computeProjectedRange / projectedMinAmount / projectedMaxAmount (Issue #1319)', () => {
+    /**
+     * Insert a work item budget line with a specific confidence level.
+     * Used to test projected range logic with different margins.
+     */
+    function insertWorkItemWithConfidence(
+      sourceId: string,
+      plannedAmount: number,
+      confidence: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice',
+    ): { wiId: string; budgetId: string } {
+      const wiId = `wi-range-test-${++workItemCounter}`;
+      const budgetId = `bud-range-test-${workItemCounter}`;
+      const ts = new Date(Date.now() + workItemCounter).toISOString();
+      db.insert(schema.workItems)
+        .values({
+          id: wiId,
+          title: `Range Test WI ${workItemCounter}`,
+          status: 'not_started',
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: budgetId,
+          workItemId: wiId,
+          budgetSourceId: sourceId,
+          plannedAmount,
+          confidence,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return { wiId, budgetId };
+    }
+
+    /**
+     * Insert a household item budget line with a specific confidence level.
+     */
+    function insertHouseholdItemWithConfidence(
+      sourceId: string,
+      plannedAmount: number,
+      confidence: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice',
+    ): { hiId: string; budgetId: string } {
+      const hiId = `hi-range-test-${++householdItemCounter}`;
+      const budgetId = `hi-bud-range-test-${householdItemCounter}`;
+      const ts = new Date(Date.now() + householdItemCounter).toISOString();
+      db.insert(schema.householdItems)
+        .values({
+          id: hiId,
+          name: `Range Test HI ${householdItemCounter}`,
+          categoryId: 'hic-furniture',
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      db.insert(schema.householdItemBudgets)
+        .values({
+          id: budgetId,
+          householdItemId: hiId,
+          budgetSourceId: sourceId,
+          plannedAmount,
+          confidence,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return { hiId, budgetId };
+    }
+
+    it('returns projectedMinAmount === 0 and projectedMaxAmount === 0 when source has no budget lines', () => {
+      const raw = insertRawSource({
+        name: 'Empty Range Source',
+        sourceType: 'savings',
+        totalAmount: 50000,
+      });
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      expect(result.projectedMinAmount).toBe(0);
+      expect(result.projectedMaxAmount).toBe(0);
+    });
+
+    it('both projectedMinAmount and projectedMaxAmount equal actual invoice amount for a fully invoiced line', () => {
+      const raw = insertRawSource({
+        name: 'Single Invoiced Line Source',
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+      });
+      const { budgetId } = insertWorkItemWithConfidence(raw.id, 1200, 'own_estimate');
+      insertClaimedInvoice(budgetId, 1000);
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      expect(result.projectedMinAmount).toBe(1000);
+      expect(result.projectedMaxAmount).toBe(1000);
+    });
+
+    it('single non-invoiced own_estimate line: min = planned * (1 - margin), max = planned * (1 + margin)', () => {
+      const raw = insertRawSource({
+        name: 'Own Estimate Range Source',
+        sourceType: 'savings',
+        totalAmount: 50000,
+      });
+      insertWorkItemWithConfidence(raw.id, 1000, 'own_estimate');
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      const margin = CONFIDENCE_MARGINS.own_estimate;
+      expect(result.projectedMinAmount).toBeCloseTo(1000 * (1 - margin));
+      expect(result.projectedMaxAmount).toBeCloseTo(1000 * (1 + margin));
+    });
+
+    it('single non-invoiced quote line: min/max use CONFIDENCE_MARGINS.quote', () => {
+      const raw = insertRawSource({
+        name: 'Quote Range Source',
+        sourceType: 'credit_line',
+        totalAmount: 80000,
+      });
+      insertWorkItemWithConfidence(raw.id, 2000, 'quote');
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      const margin = CONFIDENCE_MARGINS.quote;
+      expect(result.projectedMinAmount).toBeCloseTo(2000 * (1 - margin));
+      expect(result.projectedMaxAmount).toBeCloseTo(2000 * (1 + margin));
+    });
+
+    it('single non-invoiced professional_estimate line: min/max use CONFIDENCE_MARGINS.professional_estimate', () => {
+      const raw = insertRawSource({
+        name: 'Professional Estimate Range Source',
+        sourceType: 'other',
+        totalAmount: 60000,
+      });
+      insertWorkItemWithConfidence(raw.id, 5000, 'professional_estimate');
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      const margin = CONFIDENCE_MARGINS.professional_estimate;
+      expect(result.projectedMinAmount).toBeCloseTo(5000 * (1 - margin));
+      expect(result.projectedMaxAmount).toBeCloseTo(5000 * (1 + margin));
+    });
+
+    it('mixed invoiced + non-invoiced: sums actual costs with own_estimate range', () => {
+      // WI1 invoiced €500 + WI2 non-invoiced planned €1000 own_estimate (margin 0.2)
+      // min = 500 + 1000 * (1 - 0.2) = 500 + 800 = 1300
+      // max = 500 + 1000 * (1 + 0.2) = 500 + 1200 = 1700
+      const raw = insertRawSource({
+        name: 'Mixed Invoiced Range Source',
+        sourceType: 'bank_loan',
+        totalAmount: 200000,
+      });
+      const { budgetId: b1 } = insertWorkItemWithConfidence(raw.id, 600, 'own_estimate');
+      insertClaimedInvoice(b1, 500); // invoiced: actual cost 500
+      insertWorkItemWithConfidence(raw.id, 1000, 'own_estimate'); // non-invoiced
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      const margin = CONFIDENCE_MARGINS.own_estimate;
+      expect(result.projectedMinAmount).toBeCloseTo(500 + 1000 * (1 - margin));
+      expect(result.projectedMaxAmount).toBeCloseTo(500 + 1000 * (1 + margin));
+    });
+
+    it('household item non-invoiced professional_estimate line: min/max use CONFIDENCE_MARGINS.professional_estimate', () => {
+      const raw = insertRawSource({
+        name: 'HI Professional Estimate Range Source',
+        sourceType: 'savings',
+        totalAmount: 150000,
+      });
+      insertHouseholdItemWithConfidence(raw.id, 2000, 'professional_estimate');
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      const margin = CONFIDENCE_MARGINS.professional_estimate;
+      expect(result.projectedMinAmount).toBeCloseTo(2000 * (1 - margin));
+      expect(result.projectedMaxAmount).toBeCloseTo(2000 * (1 + margin));
+    });
+
+    it('all lines fully invoiced: projectedMinAmount === projectedMaxAmount === sum of actual costs', () => {
+      const raw = insertRawSource({
+        name: 'All Invoiced Range Source',
+        sourceType: 'credit_line',
+        totalAmount: 300000,
+      });
+      const { budgetId: b1 } = insertWorkItemWithConfidence(raw.id, 3000, 'own_estimate');
+      const { budgetId: b2 } = insertWorkItemWithConfidence(raw.id, 5000, 'quote');
+      const { budgetId: b3 } = insertWorkItemWithConfidence(raw.id, 8000, 'professional_estimate');
+      insertClaimedInvoice(b1, 2800);
+      insertClaimedInvoice(b2, 4900);
+      insertPaidInvoice(b3, 7500);
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      expect(result.projectedMinAmount).toBeCloseTo(2800 + 4900 + 7500);
+      expect(result.projectedMaxAmount).toBeCloseTo(2800 + 4900 + 7500);
+    });
+
+    it('listBudgetSources returns projectedMinAmount and projectedMaxAmount as numbers', () => {
+      const raw = insertRawSource({
+        name: 'List Range Fields Source',
+        sourceType: 'savings',
+        totalAmount: 40000,
+      });
+      insertWorkItemWithConfidence(raw.id, 10000, 'own_estimate');
+
+      const results = budgetSourceService.listBudgetSources(db);
+      const source = results.find((s) => s.id === raw.id)!;
+
+      expect(typeof source.projectedMinAmount).toBe('number');
+      expect(typeof source.projectedMaxAmount).toBe('number');
+    });
+
+    it('getBudgetSourceById returns projectedMinAmount and projectedMaxAmount', () => {
+      const raw = insertRawSource({
+        name: 'GetById Range Fields Source',
+        sourceType: 'other',
+        totalAmount: 25000,
+      });
+      insertWorkItemWithConfidence(raw.id, 5000, 'professional_estimate');
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      expect(typeof result.projectedMinAmount).toBe('number');
+      expect(typeof result.projectedMaxAmount).toBe('number');
+      expect(result.projectedMinAmount).toBeGreaterThanOrEqual(0);
+      expect(result.projectedMaxAmount).toBeGreaterThanOrEqual(result.projectedMinAmount);
+    });
+
+    it('projectedAmount equals projectedMaxAmount for a non-invoiced source', () => {
+      // Back-compat: projectedAmount uses (1 + margin) just like projectedMaxAmount
+      const raw = insertRawSource({
+        name: 'Back-Compat Projected Source',
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+      });
+      insertWorkItemWithConfidence(raw.id, 8000, 'own_estimate');
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      expect(result.projectedAmount).toBeCloseTo(result.projectedMaxAmount);
     });
   });
 });

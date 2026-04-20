@@ -1715,3 +1715,9 @@
   flex-shrink: 0;
   white-space: nowrap;
 }
+
+.workItemTitleCell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}

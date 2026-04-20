@@ -31,7 +31,7 @@ export interface BreakdownBudgetLine {
 }
 
 /**
- * A single work item within a category breakdown.
+ * A single work item within an area breakdown.
  */
 export interface BreakdownWorkItem {
   workItemId: string;
@@ -48,26 +48,26 @@ export interface BreakdownWorkItem {
 }
 
 /**
- * A work item category group within the breakdown.
- * Includes metadata about the budget category and aggregated totals.
+ * A hierarchical area node within the breakdown, containing work items and child areas.
  */
-export interface BreakdownWorkItemCategory {
-  categoryId: string | null;
-  categoryName: string;
-  categoryColor: string | null;
-  categoryTranslationKey: string | null;
-  projectedMin: number;
+export interface BreakdownArea<TItem> {
+  areaId: string | null; // null = synthetic "Unassigned" bucket
+  name: string;
+  parentId: string | null; // null = root node
+  color: string | null;
+  projectedMin: number; // rolled-up across subtree
   projectedMax: number;
   actualCost: number;
   subsidyPayback: number;
   rawProjectedMin: number;
   rawProjectedMax: number;
   minSubsidyPayback: number;
-  items: BreakdownWorkItem[];
+  items: TItem[]; // items directly assigned to this area
+  children: BreakdownArea<TItem>[]; // pre-pruned child nodes
 }
 
 /**
- * A single household item within a category breakdown.
+ * A single household item within an area breakdown.
  */
 export interface BreakdownHouseholdItem {
   householdItemId: string;
@@ -81,24 +81,6 @@ export interface BreakdownHouseholdItem {
   minSubsidyPayback: number;
   costDisplay: CostDisplay;
   budgetLines: BreakdownBudgetLine[];
-}
-
-/**
- * A household item category group within the breakdown.
- * Uses the HouseholdItemCategory enum and includes aggregated totals.
- */
-export interface BreakdownHouseholdItemCategory {
-  hiCategory: HouseholdItemCategory;
-  categoryName: string;
-  categoryTranslationKey: string | null;
-  projectedMin: number;
-  projectedMax: number;
-  actualCost: number;
-  subsidyPayback: number;
-  rawProjectedMin: number;
-  rawProjectedMax: number;
-  minSubsidyPayback: number;
-  items: BreakdownHouseholdItem[];
 }
 
 /**
@@ -132,11 +114,11 @@ export interface SubsidyAdjustment {
  */
 export interface BudgetBreakdown {
   workItems: {
-    categories: BreakdownWorkItemCategory[];
+    areas: BreakdownArea<BreakdownWorkItem>[];
     totals: BreakdownTotals;
   };
   householdItems: {
-    categories: BreakdownHouseholdItemCategory[];
+    areas: BreakdownArea<BreakdownHouseholdItem>[];
     totals: BreakdownTotals;
   };
   subsidyAdjustments: SubsidyAdjustment[];

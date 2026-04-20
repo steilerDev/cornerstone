@@ -48,7 +48,7 @@ export function QuickActionsCard() {
           {t('cards.quickActions.invoices')}
         </Link>
         <Link
-          to="/budget/vendors"
+          to="/settings/vendors"
           className={styles.quickLink}
           aria-label={t('cards.quickActions.vendors')}
         >

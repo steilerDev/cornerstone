@@ -20,32 +20,6 @@ describe('budgetOverviewApi', () => {
     remainingVsActualClaimed: 150000,
     remainingVsMinPlannedWithPayback: 110000,
     remainingVsMaxPlannedWithPayback: 90000,
-    categorySummaries: [
-      {
-        categoryId: 'cat-1',
-        categoryName: 'Materials',
-        categoryColor: '#FF5733',
-        categoryTranslationKey: null,
-        minPlanned: 45000,
-        maxPlanned: 55000,
-        actualCost: 45000,
-        actualCostPaid: 45000,
-        actualCostClaimed: 45000,
-        budgetLineCount: 3,
-      },
-      {
-        categoryId: 'cat-2',
-        categoryName: 'Labor',
-        categoryColor: null,
-        categoryTranslationKey: null,
-        minPlanned: 45000,
-        maxPlanned: 55000,
-        actualCost: 35000,
-        actualCostPaid: 30000,
-        actualCostClaimed: 20000,
-        budgetLineCount: 2,
-      },
-    ],
     subsidySummary: {
       totalReductions: 10000,
       activeSubsidyCount: 2,
@@ -127,21 +101,6 @@ describe('budgetOverviewApi', () => {
       expect(result.remainingVsActualPaid).toBe(125000);
     });
 
-    it('returns overview with categorySummaries array', async () => {
-      const mockResponse: BudgetOverviewResponse = { overview: sampleOverview };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      } as Response);
-
-      const result = await fetchBudgetOverview();
-
-      expect(result.categorySummaries).toHaveLength(2);
-      expect(result.categorySummaries[0].categoryName).toBe('Materials');
-      expect(result.categorySummaries[1].categoryName).toBe('Labor');
-    });
-
     it('returns overview with subsidySummary fields', async () => {
       const mockResponse: BudgetOverviewResponse = { overview: sampleOverview };
 
@@ -154,22 +113,6 @@ describe('budgetOverviewApi', () => {
 
       expect(result.subsidySummary.totalReductions).toBe(10000);
       expect(result.subsidySummary.activeSubsidyCount).toBe(2);
-    });
-
-    it('handles an overview with empty categorySummaries array', async () => {
-      const emptyOverview: BudgetOverview = {
-        ...sampleOverview,
-        categorySummaries: [],
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ overview: emptyOverview }),
-      } as Response);
-
-      const result = await fetchBudgetOverview();
-
-      expect(result.categorySummaries).toEqual([]);
     });
 
     it('handles an all-zero overview (empty project)', async () => {
@@ -188,7 +131,6 @@ describe('budgetOverviewApi', () => {
         remainingVsActualClaimed: 0,
         remainingVsMinPlannedWithPayback: 0,
         remainingVsMaxPlannedWithPayback: 0,
-        categorySummaries: [],
         subsidySummary: {
           totalReductions: 0,
           activeSubsidyCount: 0,

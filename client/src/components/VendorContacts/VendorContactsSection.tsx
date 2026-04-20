@@ -234,7 +234,7 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
       {contacts.length === 0 ? (
         <EmptyState
           message={t('vendors.contacts.empty')}
-          action={{ label: t('vendors.contacts.emptyAction'), onClick: handleOpenCreateModal }}
+          action={{ label: t('vendors.contacts.emptyAction')!, onClick: handleOpenCreateModal }}
         />
       ) : (
         <div className={styles.contactsList}>

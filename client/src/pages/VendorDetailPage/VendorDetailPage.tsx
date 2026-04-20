@@ -184,7 +184,7 @@ export function VendorDetailPage() {
 
     try {
       await deleteVendor(id);
-      navigate('/budget/vendors');
+      navigate('/settings/vendors');
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
@@ -338,7 +338,7 @@ export function VendorDetailPage() {
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={() => navigate('/budget/vendors')}
+              onClick={() => navigate('/settings/vendors')}
             >
               {t('vendorDetail.backToVendors')}
             </button>
@@ -359,7 +359,7 @@ export function VendorDetailPage() {
           <button
             type="button"
             className={styles.backButton}
-            onClick={() => navigate('/budget/vendors')}
+            onClick={() => navigate('/settings/vendors')}
           >
             ← {t('vendorDetail.backToVendors')}
           </button>

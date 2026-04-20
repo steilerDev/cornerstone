@@ -9,6 +9,7 @@
  */
 
 import type { PaginatedResponse } from './pagination.js';
+import type { AreaSummary } from './area.js';
 
 // ─── Entry Types ──────────────────────────────────────────────────────────────
 
@@ -145,6 +146,7 @@ export interface DiaryEntrySummary {
   isSigned: boolean;
   sourceEntityType: DiarySourceEntityType | null;
   sourceEntityId: string | null;
+  sourceEntityArea: AreaSummary | null;
   sourceEntityTitle: string | null;
   photoCount: number;
   createdBy: DiaryUserSummary | null;

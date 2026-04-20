@@ -402,7 +402,10 @@
       "createContactSubmit": "Create Contact",
       "saving": "Saving...",
       "saveChanges": "Save Changes",
-      "loading": "Loading contacts..."
+      "loading": "Loading contacts...",
+      "contactAdded": "Contact {{name}} added",
+      "contactUpdated": "Contact {{name}} updated",
+      "contactDeleted": "Contact {{name}} deleted"
     }
   }
 }

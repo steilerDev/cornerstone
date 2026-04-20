@@ -106,7 +106,7 @@ export function useColumnPreferences<T>(
       setColumnOrder((prev) => {
         const updated = [...prev];
         const [item] = updated.splice(from, 1);
-        updated.splice(to, 0, item);
+        updated.splice(to, 0, item!); // from is always a valid index from drag-drop
         savePreferences(visibleColumns, updated);
         return updated;
       });

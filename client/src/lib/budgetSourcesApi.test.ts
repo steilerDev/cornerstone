@@ -5,11 +5,13 @@ import {
   createBudgetSource,
   updateBudgetSource,
   deleteBudgetSource,
+  fetchBudgetLinesForSource,
 } from './budgetSourcesApi.js';
 import type {
   BudgetSource,
   BudgetSourceListResponse,
   BudgetSourceResponse,
+  BudgetSourceBudgetLinesResponse,
 } from '@cornerstone/shared';
 
 describe('budgetSourcesApi', () => {
@@ -27,6 +29,8 @@ describe('budgetSourcesApi', () => {
     actualAvailableAmount: 200000,
     paidAmount: 0,
     projectedAmount: 0,
+    projectedMinAmount: 0,
+    projectedMaxAmount: 0,
     isDiscretionary: false,
     interestRate: 3.5,
     terms: '30-year fixed',
@@ -92,6 +96,8 @@ describe('budgetSourcesApi', () => {
             actualAvailableAmount: 50000,
             paidAmount: 0,
             projectedAmount: 0,
+            projectedMinAmount: 0,
+            projectedMaxAmount: 0,
             isDiscretionary: false,
             interestRate: null,
             terms: null,
@@ -112,8 +118,8 @@ describe('budgetSourcesApi', () => {
       const result = await fetchBudgetSources();
 
       expect(result.budgetSources).toHaveLength(2);
-      expect(result.budgetSources[0].name).toBe('Home Loan');
-      expect(result.budgetSources[1].name).toBe('Savings');
+      expect(result.budgetSources[0]!.name).toBe('Home Loan');
+      expect(result.budgetSources[1]!.name).toBe('Savings');
     });
 
     it('throws ApiClientError when server returns error', async () => {
@@ -500,6 +506,236 @@ describe('budgetSourcesApi', () => {
       } as Response);
 
       await expect(deleteBudgetSource('src-1')).rejects.toThrow();
+    });
+  });
+
+  // ─── moveBudgetLinesBetweenSources ────────────────────────────────────────
+
+  describe('moveBudgetLinesBetweenSources', () => {
+    it('sends PATCH to /api/budget-sources/:sourceId/budget-lines/move with correct body', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ movedWorkItemLines: 2, movedHouseholdItemLines: 1 }),
+      } as Response);
+
+      const data = {
+        workItemBudgetIds: ['wib-1', 'wib-2'],
+        householdItemBudgetIds: ['hib-1'],
+        targetSourceId: 'src-target',
+      };
+
+      await import('./budgetSourcesApi.js').then((m) =>
+        m.moveBudgetLinesBetweenSources('src-1', data),
+      );
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/budget-sources/src-1/budget-lines/move',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify(data),
+        }),
+      );
+    });
+
+    it('returns MoveBudgetLinesResponse with correct counts', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ movedWorkItemLines: 3, movedHouseholdItemLines: 0 }),
+      } as Response);
+
+      const { moveBudgetLinesBetweenSources } = await import('./budgetSourcesApi.js');
+      const result = await moveBudgetLinesBetweenSources('src-1', {
+        workItemBudgetIds: ['wib-1', 'wib-2', 'wib-3'],
+        householdItemBudgetIds: [],
+        targetSourceId: 'src-2',
+      });
+
+      expect(result.movedWorkItemLines).toBe(3);
+      expect(result.movedHouseholdItemLines).toBe(0);
+    });
+
+    it('uses the sourceId in the URL path', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ movedWorkItemLines: 1, movedHouseholdItemLines: 0 }),
+      } as Response);
+
+      const { moveBudgetLinesBetweenSources } = await import('./budgetSourcesApi.js');
+      await moveBudgetLinesBetweenSources('my-source-xyz', {
+        workItemBudgetIds: ['wib-1'],
+        householdItemBudgetIds: [],
+        targetSourceId: 'src-target',
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/budget-sources/my-source-xyz/budget-lines/move',
+        expect.any(Object),
+      );
+    });
+
+    it('throws ApiClientError on 400 SAME_SOURCE', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          error: { code: 'SAME_SOURCE', message: 'Source and target must be different' },
+        }),
+      } as Response);
+
+      const { moveBudgetLinesBetweenSources } = await import('./budgetSourcesApi.js');
+      await expect(
+        moveBudgetLinesBetweenSources('src-1', {
+          workItemBudgetIds: ['wib-1'],
+          householdItemBudgetIds: [],
+          targetSourceId: 'src-1',
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('throws ApiClientError on 409 STALE_OWNERSHIP', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: async () => ({
+          error: {
+            code: 'STALE_OWNERSHIP',
+            message: 'One or more budget lines no longer belong to this source',
+          },
+        }),
+      } as Response);
+
+      const { moveBudgetLinesBetweenSources } = await import('./budgetSourcesApi.js');
+      await expect(
+        moveBudgetLinesBetweenSources('src-1', {
+          workItemBudgetIds: ['wib-1'],
+          householdItemBudgetIds: [],
+          targetSourceId: 'src-2',
+        }),
+      ).rejects.toThrow();
+    });
+
+    it('throws ApiClientError on 404 NOT_FOUND', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({
+          error: { code: 'NOT_FOUND', message: 'Budget source not found' },
+        }),
+      } as Response);
+
+      const { moveBudgetLinesBetweenSources } = await import('./budgetSourcesApi.js');
+      await expect(
+        moveBudgetLinesBetweenSources('nonexistent', {
+          workItemBudgetIds: [],
+          householdItemBudgetIds: [],
+          targetSourceId: 'src-2',
+        }),
+      ).rejects.toThrow();
+    });
+  });
+
+  // ─── fetchBudgetLinesForSource ─────────────────────────────────────────────
+
+  describe('fetchBudgetLinesForSource', () => {
+    const mockLinesResponse: BudgetSourceBudgetLinesResponse = {
+      workItemLines: [],
+      householdItemLines: [],
+    };
+
+    it('calls GET /budget-sources/:sourceId/budget-lines with correct sourceId', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockLinesResponse,
+      } as Response);
+
+      await fetchBudgetLinesForSource('src-1');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/budget-sources/src-1/budget-lines',
+        expect.any(Object),
+      );
+    });
+
+    it('returns the response object from the API call', async () => {
+      const filledResponse: BudgetSourceBudgetLinesResponse = {
+        workItemLines: [
+          {
+            id: 'line-1',
+            parentId: 'p-1',
+            parentName: 'Kitchen Renovation',
+            area: null,
+            description: 'Floor tiles',
+            plannedAmount: 1500,
+            confidence: 'own_estimate',
+            confidenceMargin: 0.2,
+            budgetCategory: null,
+            budgetSource: null,
+            vendor: null,
+            actualCost: 0,
+            actualCostPaid: 0,
+            invoiceCount: 0,
+            invoiceLink: null,
+            quantity: null,
+            unit: null,
+            unitPrice: null,
+            includesVat: null,
+            createdBy: null,
+            hasClaimedInvoice: false,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+        householdItemLines: [],
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => filledResponse,
+      } as Response);
+
+      const result = await fetchBudgetLinesForSource('src-1');
+
+      expect(result).toEqual(filledResponse);
+      expect(result.workItemLines).toHaveLength(1);
+      expect(result.workItemLines[0]!.id).toBe('line-1');
+    });
+
+    it('uses the provided sourceId in the URL path', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockLinesResponse,
+      } as Response);
+
+      await fetchBudgetLinesForSource('custom-source-id-999');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/budget-sources/custom-source-id-999/budget-lines',
+        expect.any(Object),
+      );
+    });
+
+    it('throws ApiClientError when server returns 404', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({
+          error: { code: 'NOT_FOUND', message: 'Budget source not found' },
+        }),
+      } as Response);
+
+      await expect(fetchBudgetLinesForSource('nonexistent')).rejects.toThrow();
+    });
+
+    it('throws ApiClientError when server returns 401', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({
+          error: { code: 'UNAUTHORIZED', message: 'Unauthorized' },
+        }),
+      } as Response);
+
+      await expect(fetchBudgetLinesForSource('src-1')).rejects.toThrow();
     });
   });
 });

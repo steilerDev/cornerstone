@@ -242,7 +242,7 @@ describe('ToastList', () => {
       const dismissButtons = screen.getAllByRole('button', { name: /dismiss notification/i });
       // Click the first dismiss button (success toast)
       act(() => {
-        fireEvent.click(dismissButtons[0]);
+        fireEvent.click(dismissButtons[0]!);
       });
 
       expect(screen.queryByTestId('toast-success')).not.toBeInTheDocument();

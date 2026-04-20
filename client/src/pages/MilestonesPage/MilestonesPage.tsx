@@ -125,12 +125,12 @@ export function MilestonesPage() {
   const milestoneStatusVariants = useMemo(
     (): BadgeVariantMap => ({
       completed: {
-        label: t('milestones.status.completed'),
-        className: badgeStyles.milestoneCompleted,
+        label: t('milestones.status.completed')!,
+        className: badgeStyles.milestoneCompleted!,
       },
       pending: {
-        label: t('milestones.status.pending'),
-        className: badgeStyles.milestonePending,
+        label: t('milestones.status.pending')!,
+        className: badgeStyles.milestonePending!,
       },
     }),
     [t],
@@ -214,7 +214,7 @@ export function MilestonesPage() {
     (): ColumnDef<MilestoneSummary>[] => [
       {
         key: 'title',
-        label: t('milestones.table.headers.title'),
+        label: t('milestones.table.headers.title')!,
         sortable: true,
         filterable: true,
         filterType: 'string',
@@ -223,7 +223,7 @@ export function MilestonesPage() {
       },
       {
         key: 'targetDate',
-        label: t('milestones.table.headers.targetDate'),
+        label: t('milestones.table.headers.targetDate')!,
         sortable: true,
         filterable: true,
         filterType: 'date',
@@ -232,7 +232,7 @@ export function MilestonesPage() {
       },
       {
         key: 'status',
-        label: t('milestones.table.headers.status'),
+        label: t('milestones.table.headers.status')!,
         sortable: true,
         sortKey: 'isCompleted',
         filterable: true,
@@ -252,7 +252,7 @@ export function MilestonesPage() {
       },
       {
         key: 'workItemCount',
-        label: t('milestones.table.headers.linkedItems'),
+        label: t('milestones.table.headers.linkedItems')!,
         sortable: true,
         defaultVisible: true,
         filterable: true,
@@ -264,7 +264,7 @@ export function MilestonesPage() {
       },
       {
         key: 'description',
-        label: t('milestones.table.headers.description'),
+        label: t('milestones.table.headers.description')!,
         sortable: false,
         defaultVisible: true,
         render: (m) => {
@@ -274,7 +274,7 @@ export function MilestonesPage() {
       },
       {
         key: 'completedAt',
-        label: t('milestones.table.headers.completedAt'),
+        label: t('milestones.table.headers.completedAt')!,
         sortable: false,
         defaultVisible: false,
         render: (m) => (m.completedAt ? formatDate(m.completedAt) : '—'),
@@ -344,12 +344,12 @@ export function MilestonesPage() {
       {
         key: 'n',
         handler: () => navigate('/project/milestones/new'),
-        description: t('milestones.keyboard.newMilestone'),
+        description: t('milestones.keyboard.newMilestone')!,
       },
       {
         key: '?',
         handler: () => setShowShortcutsHelp(true),
-        description: t('milestones.keyboard.showShortcuts'),
+        description: t('milestones.keyboard.showShortcuts')!,
       },
       {
         key: 'Escape',
@@ -362,7 +362,7 @@ export function MilestonesPage() {
             setActiveMenuId(null);
           }
         },
-        description: t('milestones.keyboard.closeDialog'),
+        description: t('milestones.keyboard.closeDialog')!,
       },
     ],
     [navigate, showShortcutsHelp, deletingMilestone, activeMenuId, t],
@@ -400,10 +400,10 @@ export function MilestonesPage() {
         tableState={tableState}
         onStateChange={setTableState}
         emptyState={{
-          message: t('milestones.empty.noItems'),
-          description: t('milestones.empty.noItemsMessage'),
+          message: t('milestones.empty.noItems')!,
+          description: t('milestones.empty.noItemsMessage')!,
           action: {
-            label: t('milestones.empty.createFirst'),
+            label: t('milestones.empty.createFirst')!,
             onClick: () => navigate('/project/milestones/new'),
           },
         }}

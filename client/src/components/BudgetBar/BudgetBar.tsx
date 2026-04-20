@@ -20,9 +20,9 @@ interface BudgetBarProps {
 }
 
 const HEIGHT_CLASS: Record<'sm' | 'md' | 'lg', string> = {
-  sm: styles.barSm,
-  md: styles.barMd,
-  lg: styles.barLg,
+  sm: styles.barSm!,
+  md: styles.barMd!,
+  lg: styles.barLg!,
 };
 
 export function BudgetBar({
@@ -102,7 +102,7 @@ export function BudgetBar({
               key: '__overflow__',
               value: overflow,
               color: 'var(--color-budget-overflow)',
-              label: t('bar.overflowLabel'),
+              label: t('bar.overflowLabel')!,
             })
           }
           onMouseLeave={() => onSegmentHover?.(null)}
@@ -111,7 +111,7 @@ export function BudgetBar({
               key: '__overflow__',
               value: overflow,
               color: 'var(--color-budget-overflow)',
-              label: t('bar.overflowLabel'),
+              label: t('bar.overflowLabel')!,
             })
           }
           aria-hidden="true"

@@ -512,8 +512,8 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
 
       expect(result.minTotalPayback).toBe(5000);
       expect(result.maxTotalPayback).toBe(5000);
-      expect(result.subsidies[0].minPayback).toBe(5000);
-      expect(result.subsidies[0].maxPayback).toBe(5000);
+      expect(result.subsidies[0]!.minPayback).toBe(5000);
+      expect(result.subsidies[0]!.maxPayback).toBe(5000);
     });
 
     it('returns reductionValue as min === max for fixed subsidy on household item', () => {
@@ -532,8 +532,8 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
 
       expect(result.minTotalPayback).toBe(2500);
       expect(result.maxTotalPayback).toBe(2500);
-      expect(result.subsidies[0].minPayback).toBe(2500);
-      expect(result.subsidies[0].maxPayback).toBe(2500);
+      expect(result.subsidies[0]!.minPayback).toBe(2500);
+      expect(result.subsidies[0]!.maxPayback).toBe(2500);
     });
 
     it('returns fixed amount even with no budget lines', () => {

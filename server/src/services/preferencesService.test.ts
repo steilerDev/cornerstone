@@ -81,8 +81,8 @@ describe('preferencesService', () => {
       const result = preferencesService.listPreferences(db, 'user-001');
 
       expect(result).toHaveLength(1);
-      expect(result[0].key).toBe('theme');
-      expect(result[0].value).toBe('dark');
+      expect(result[0]!.key).toBe('theme');
+      expect(result[0]!.value).toBe('dark');
     });
 
     it('returns all preferences for a user with multiple keys', () => {
@@ -107,10 +107,10 @@ describe('preferencesService', () => {
       const result = preferencesService.listPreferences(db, 'user-001');
 
       expect(result).toHaveLength(1);
-      expect(result[0].key).toBe('theme');
-      expect(result[0].value).toBe('system');
-      expect(typeof result[0].updatedAt).toBe('string');
-      expect(result[0].updatedAt).toBeTruthy();
+      expect(result[0]!.key).toBe('theme');
+      expect(result[0]!.value).toBe('system');
+      expect(typeof result[0]!.updatedAt).toBe('string');
+      expect(result[0]!.updatedAt).toBeTruthy();
     });
 
     it('returns empty array for a user ID that does not exist', () => {
@@ -137,9 +137,9 @@ describe('preferencesService', () => {
 
       const all = db.select().from(schema.userPreferences).all();
       expect(all).toHaveLength(1);
-      expect(all[0].key).toBe('theme');
-      expect(all[0].value).toBe('light');
-      expect(all[0].userId).toBe('user-001');
+      expect(all[0]!.key).toBe('theme');
+      expect(all[0]!.value).toBe('light');
+      expect(all[0]!.userId).toBe('user-001');
     });
 
     it('updates value of an existing key without creating a duplicate', () => {
@@ -149,7 +149,7 @@ describe('preferencesService', () => {
       // Should not have a duplicate row
       const all = db.select().from(schema.userPreferences).all();
       expect(all).toHaveLength(1);
-      expect(all[0].value).toBe('light');
+      expect(all[0]!.value).toBe('light');
     });
 
     it('returns the updated value after upsert on existing key', () => {
@@ -214,7 +214,7 @@ describe('preferencesService', () => {
 
       const all = db.select().from(schema.userPreferences).all();
       expect(all).toHaveLength(1);
-      expect(all[0].key).toBe('dashboard.hiddenCards');
+      expect(all[0]!.key).toBe('dashboard.hiddenCards');
     });
 
     it('does not delete the same key for a different user', () => {
@@ -226,7 +226,7 @@ describe('preferencesService', () => {
 
       const all = db.select().from(schema.userPreferences).all();
       expect(all).toHaveLength(1);
-      expect(all[0].userId).toBe('user-002');
+      expect(all[0]!.userId).toBe('user-002');
     });
   });
 });

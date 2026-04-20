@@ -1,7 +1,13 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { UserResponse, WorkItemStatus, DependencyType } from '@cornerstone/shared';
+import type {
+  UserResponse,
+  WorkItemStatus,
+  DependencyType,
+  AreaSummary,
+  AreaAncestor,
+} from '@cornerstone/shared';
 import { createWorkItem } from '../../lib/workItemsApi.js';
 import { createDependency } from '../../lib/dependenciesApi.js';
 import { listUsers } from '../../lib/usersApi.js';
@@ -13,6 +19,7 @@ import {
   dependencyTypeToVerbs,
 } from '../../components/DependencySentenceBuilder/index.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
+import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import {
   AssignmentPicker,
   decodeAssignment,
@@ -25,6 +32,23 @@ interface PendingDependency {
   otherItemId: string; // The non-"this" item's real ID
   otherItemTitle: string;
   dependencyType: DependencyType;
+}
+
+function buildAreaSummary(
+  areaId: string,
+  areas: Array<{ id: string; name: string; parentId: string | null; color: string | null }>,
+): AreaSummary | null {
+  const area = areas.find((a) => a.id === areaId);
+  if (!area) return null;
+
+  const ancestors: AreaAncestor[] = [];
+  let current = areas.find((a) => a.id === area.parentId);
+  while (current) {
+    ancestors.unshift({ id: current.id, name: current.name, color: current.color });
+    current = areas.find((a) => a.id === current!.parentId);
+  }
+
+  return { id: area.id, name: area.name, color: area.color, ancestors };
 }
 
 export default function WorkItemCreatePage() {
@@ -279,6 +303,11 @@ export default function WorkItemCreatePage() {
                 disabled={isSubmitting}
                 nullable
               />
+            )}
+            {areaId && (
+              <div className={styles.areaPreview}>
+                <AreaBreadcrumb area={buildAreaSummary(areaId, areas)} variant="default" />
+              </div>
             )}
           </div>
 

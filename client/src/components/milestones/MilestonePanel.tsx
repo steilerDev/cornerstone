@@ -58,11 +58,11 @@ interface MilestonePanelProps {
 function SmallDiamond({ completed, late }: { completed: boolean; late?: boolean }) {
   let className: string;
   if (completed) {
-    className = styles.diamondComplete;
+    className = styles.diamondComplete!; // CSS module class always exists
   } else if (late) {
-    className = styles.diamondLate;
+    className = styles.diamondLate!; // CSS module class always exists
   } else {
-    className = styles.diamondIncomplete;
+    className = styles.diamondIncomplete!; // CSS module class always exists
   }
   return (
     <svg

@@ -183,7 +183,7 @@ describe('MilestoneWorkItemLinker', () => {
 
     it('renders search input', () => {
       renderLinker();
-      expect(screen.getAllByLabelText(/search work items to add/i)[0]).toBeInTheDocument();
+      expect(screen.getAllByLabelText(/search work items to add/i)[0]!).toBeInTheDocument();
     });
 
     it('renders "No work items selected" placeholder when no items linked', () => {
@@ -218,7 +218,7 @@ describe('MilestoneWorkItemLinker', () => {
       // but the dependent section (with no items) will still show it.
       const selectors = screen.getAllByTestId('work-item-selector');
       // First selector is contributing — should NOT contain the placeholder
-      expect(selectors[0]).not.toHaveTextContent('No work items selected');
+      expect(selectors[0]!).not.toHaveTextContent('No work items selected');
     });
 
     it('shows linked item count in the label', () => {
@@ -259,7 +259,7 @@ describe('MilestoneWorkItemLinker', () => {
       const onUnlink = jest.fn();
       renderLinker({ linkedWorkItems: [WI_1, WI_2], onUnlink });
 
-      const input = screen.getAllByLabelText(/search work items to add/i)[0];
+      const input = screen.getAllByLabelText(/search work items to add/i)[0]!;
       fireEvent.keyDown(input, { key: 'Backspace' });
 
       expect(onUnlink).toHaveBeenCalledWith('wi-2');
@@ -269,7 +269,7 @@ describe('MilestoneWorkItemLinker', () => {
       const onUnlink = jest.fn();
       renderLinker({ linkedWorkItems: [WI_1], onUnlink });
 
-      const input = screen.getAllByLabelText(/search work items to add/i)[0];
+      const input = screen.getAllByLabelText(/search work items to add/i)[0]!;
       fireEvent.change(input, { target: { value: 'pour' } });
       fireEvent.keyDown(input, { key: 'Backspace' });
 
@@ -280,7 +280,7 @@ describe('MilestoneWorkItemLinker', () => {
       const onUnlink = jest.fn();
       renderLinker({ linkedWorkItems: [], onUnlink });
 
-      const input = screen.getAllByLabelText(/search work items to add/i)[0];
+      const input = screen.getAllByLabelText(/search work items to add/i)[0]!;
       fireEvent.keyDown(input, { key: 'Backspace' });
 
       expect(onUnlink).not.toHaveBeenCalled();
@@ -308,7 +308,7 @@ describe('MilestoneWorkItemLinker', () => {
 
       renderLinker();
 
-      const input = screen.getAllByLabelText(/search work items to add/i)[0];
+      const input = screen.getAllByLabelText(/search work items to add/i)[0]!;
       fireEvent.focus(input);
 
       // Advance fake timers to trigger debounce
@@ -326,7 +326,7 @@ describe('MilestoneWorkItemLinker', () => {
 
       renderLinker();
 
-      const input = screen.getAllByLabelText(/search work items to add/i)[0];
+      const input = screen.getAllByLabelText(/search work items to add/i)[0]!;
       fireEvent.change(input, { target: { value: 'foundation' } });
 
       // Before debounce completes, fetch should not have been called with q param
@@ -355,7 +355,7 @@ describe('MilestoneWorkItemLinker', () => {
 
       renderLinker();
 
-      const input = screen.getAllByLabelText(/search work items to add/i)[0];
+      const input = screen.getAllByLabelText(/search work items to add/i)[0]!;
       fireEvent.change(input, { target: { value: 'framing' } });
 
       await act(async () => {
@@ -374,7 +374,7 @@ describe('MilestoneWorkItemLinker', () => {
 
       renderLinker({ linkedWorkItems: [WI_1] });
 
-      const input = screen.getAllByLabelText(/search work items to add/i)[0];
+      const input = screen.getAllByLabelText(/search work items to add/i)[0]!;
       fireEvent.change(input, { target: { value: '' } });
       fireEvent.focus(input);
 
@@ -398,7 +398,7 @@ describe('MilestoneWorkItemLinker', () => {
 
       renderLinker();
 
-      const input = screen.getAllByLabelText(/search work items to add/i)[0];
+      const input = screen.getAllByLabelText(/search work items to add/i)[0]!;
       fireEvent.change(input, { target: { value: 'nonexistent' } });
 
       await act(async () => {
@@ -415,7 +415,7 @@ describe('MilestoneWorkItemLinker', () => {
 
       renderLinker();
 
-      const input = screen.getAllByLabelText(/search work items to add/i)[0];
+      const input = screen.getAllByLabelText(/search work items to add/i)[0]!;
       fireEvent.focus(input);
 
       await act(async () => {
@@ -432,7 +432,7 @@ describe('MilestoneWorkItemLinker', () => {
 
       renderLinker();
 
-      const input = screen.getAllByLabelText(/search work items to add/i)[0];
+      const input = screen.getAllByLabelText(/search work items to add/i)[0]!;
       fireEvent.change(input, { target: { value: 'test' } });
 
       await act(async () => {
@@ -449,7 +449,7 @@ describe('MilestoneWorkItemLinker', () => {
 
       renderLinker();
 
-      const input = screen.getAllByLabelText(/search work items to add/i)[0];
+      const input = screen.getAllByLabelText(/search work items to add/i)[0]!;
       fireEvent.focus(input);
 
       await act(async () => {
@@ -477,7 +477,7 @@ describe('MilestoneWorkItemLinker', () => {
 
       renderLinker({ onLink });
 
-      const input = screen.getAllByLabelText(/search work items to add/i)[0];
+      const input = screen.getAllByLabelText(/search work items to add/i)[0]!;
       fireEvent.focus(input);
 
       await act(async () => {
@@ -498,7 +498,7 @@ describe('MilestoneWorkItemLinker', () => {
 
       renderLinker();
 
-      const input = screen.getAllByLabelText(/search work items to add/i)[0] as HTMLInputElement;
+      const input = screen.getAllByLabelText(/search work items to add/i)[0]! as HTMLInputElement;
       fireEvent.change(input, { target: { value: 'framing' } });
 
       await act(async () => {
@@ -516,20 +516,20 @@ describe('MilestoneWorkItemLinker', () => {
 
     it('disables search input when isLinking=true', () => {
       renderLinker({ isLinking: true });
-      const input = screen.getAllByLabelText(/search work items to add/i)[0];
+      const input = screen.getAllByLabelText(/search work items to add/i)[0]!;
       expect(input).toBeDisabled();
     });
 
     it('uses appropriate placeholder when no items linked', () => {
       renderLinker({ linkedWorkItems: [] });
       const inputs = screen.getAllByLabelText(/search work items to add/i);
-      expect(inputs[0].getAttribute('placeholder')).toBe('Search work items…');
+      expect(inputs[0]!.getAttribute('placeholder')).toBe('Search work items…');
     });
 
     it('uses "Add more…" placeholder when items are already linked', () => {
       renderLinker({ linkedWorkItems: [WI_1] });
       const inputs = screen.getAllByLabelText(/search work items to add/i);
-      expect(inputs[0].getAttribute('placeholder')).toBe('Add more…');
+      expect(inputs[0]!.getAttribute('placeholder')).toBe('Add more…');
     });
   });
 });

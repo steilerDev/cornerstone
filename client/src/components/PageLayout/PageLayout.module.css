@@ -76,3 +76,21 @@
     margin-bottom: var(--spacing-4);
   }
 }
+
+@media print {
+  .container {
+    padding-top: 0;
+    margin-top: 0;
+  }
+
+  .header {
+    padding-top: 0;
+    margin-top: 0;
+    margin-bottom: var(--spacing-3);
+  }
+
+  .title {
+    padding-top: 0;
+    margin-top: 0;
+  }
+}

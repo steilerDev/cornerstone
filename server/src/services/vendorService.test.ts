@@ -217,7 +217,7 @@ describe('Vendor Service', () => {
       const result = vendorService.listVendors(db, {});
 
       expect(result.vendors).toHaveLength(1);
-      const vendor = result.vendors[0];
+      const vendor = result.vendors[0]!;
       expect(vendor.name).toBe('Smith Plumbing');
       expect(vendor.trade).not.toBeNull();
       expect(vendor.trade!.id).toBe(trade.id);
@@ -237,7 +237,7 @@ describe('Vendor Service', () => {
 
       const result = vendorService.listVendors(db, {});
 
-      expect(result.vendors[0].createdBy).toBeNull();
+      expect(result.vendors[0]!.createdBy).toBeNull();
     });
 
     it('sorts by name ascending by default', () => {
@@ -247,9 +247,9 @@ describe('Vendor Service', () => {
 
       const result = vendorService.listVendors(db, {});
 
-      expect(result.vendors[0].name).toBe('Acme Plumbing');
-      expect(result.vendors[1].name).toBe('Marble Works');
-      expect(result.vendors[2].name).toBe('Zephyr Windows');
+      expect(result.vendors[0]!.name).toBe('Acme Plumbing');
+      expect(result.vendors[1]!.name).toBe('Marble Works');
+      expect(result.vendors[2]!.name).toBe('Zephyr Windows');
     });
 
     it('sorts by name descending when sortOrder is desc', () => {
@@ -258,8 +258,8 @@ describe('Vendor Service', () => {
 
       const result = vendorService.listVendors(db, { sortBy: 'name', sortOrder: 'desc' });
 
-      expect(result.vendors[0].name).toBe('Zephyr Windows');
-      expect(result.vendors[1].name).toBe('Acme Plumbing');
+      expect(result.vendors[0]!.name).toBe('Zephyr Windows');
+      expect(result.vendors[1]!.name).toBe('Acme Plumbing');
     });
 
     it('sorts by trade name ascending', () => {
@@ -275,9 +275,9 @@ describe('Vendor Service', () => {
       const result = vendorService.listVendors(db, { sortBy: 'trade', sortOrder: 'asc' });
 
       // Sort by trade name: Electrical < Plumbing < Roofing
-      expect(result.vendors[0].name).toBe('Vendor B'); // Electrical
-      expect(result.vendors[1].name).toBe('Vendor C'); // Plumbing
-      expect(result.vendors[2].name).toBe('Vendor A'); // Roofing
+      expect(result.vendors[0]!.name).toBe('Vendor B'); // Electrical
+      expect(result.vendors[1]!.name).toBe('Vendor C'); // Plumbing
+      expect(result.vendors[2]!.name).toBe('Vendor A'); // Roofing
       // All vendors have their trade objects resolved
       result.vendors.forEach((v) => expect(v.trade).not.toBeNull());
     });
@@ -289,8 +289,8 @@ describe('Vendor Service', () => {
 
       const result = vendorService.listVendors(db, { sortBy: 'created_at', sortOrder: 'asc' });
 
-      expect(result.vendors[0].name).toBe('First Vendor');
-      expect(result.vendors[2].name).toBe('Third Vendor');
+      expect(result.vendors[0]!.name).toBe('First Vendor');
+      expect(result.vendors[2]!.name).toBe('Third Vendor');
     });
 
     it('sorts by updated_at', () => {
@@ -300,7 +300,7 @@ describe('Vendor Service', () => {
       const result = vendorService.listVendors(db, { sortBy: 'updated_at', sortOrder: 'desc' });
 
       // Beta was inserted later, so updated_at is later
-      expect(result.vendors[0].name).toBe('Beta Vendor');
+      expect(result.vendors[0]!.name).toBe('Beta Vendor');
     });
 
     it('searches by name (case-insensitive)', () => {
@@ -347,7 +347,7 @@ describe('Vendor Service', () => {
       const result = vendorService.listVendors(db, { q: '%' });
 
       expect(result.vendors).toHaveLength(1);
-      expect(result.vendors[0].name).toBe('Acme % Plumbing');
+      expect(result.vendors[0]!.name).toBe('Acme % Plumbing');
     });
 
     it('escapes SQL LIKE underscore wildcards in search query', () => {
@@ -358,7 +358,7 @@ describe('Vendor Service', () => {
 
       // Should match only the literal underscore, not "AcmeBPlumbing"
       expect(result.vendors).toHaveLength(1);
-      expect(result.vendors[0].name).toBe('Acme_Plumbing');
+      expect(result.vendors[0]!.name).toBe('Acme_Plumbing');
     });
 
     it('paginates results correctly — page 1', () => {
@@ -384,7 +384,7 @@ describe('Vendor Service', () => {
 
       expect(result.vendors).toHaveLength(3);
       expect(result.pagination.page).toBe(2);
-      expect(result.vendors[0].name).toBe('Vendor 04');
+      expect(result.vendors[0]!.name).toBe('Vendor 04');
     });
 
     it('returns last page with fewer items when total is not divisible by pageSize', () => {

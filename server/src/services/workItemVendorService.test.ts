@@ -131,9 +131,9 @@ describe('workItemVendorService', () => {
       const result = workItemVendorService.listWorkItemVendors(db, workItemId);
 
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe(vendorId);
-      expect(result[0].name).toBe('Smith Concrete');
-      expect(result[0].createdBy?.id).toBe('user-001');
+      expect(result[0]!.id).toBe(vendorId);
+      expect(result[0]!.name).toBe('Smith Concrete');
+      expect(result[0]!.createdBy?.id).toBe('user-001');
     });
 
     it('returns multiple linked vendors', () => {
@@ -173,7 +173,7 @@ describe('workItemVendorService', () => {
       const result = workItemVendorService.listWorkItemVendors(db, workItemId);
 
       expect(result).toHaveLength(1);
-      expect(result[0].createdBy).toBeNull();
+      expect(result[0]!.createdBy).toBeNull();
     });
 
     it('throws NotFoundError when work item does not exist', () => {
@@ -208,7 +208,7 @@ describe('workItemVendorService', () => {
 
       const listed = workItemVendorService.listWorkItemVendors(db, workItemId);
       expect(listed).toHaveLength(1);
-      expect(listed[0].id).toBe(vendorId);
+      expect(listed[0]!.id).toBe(vendorId);
     });
 
     it('allows linking the same vendor to multiple work items', () => {
@@ -315,7 +315,7 @@ describe('workItemVendorService', () => {
 
       const result = workItemVendorService.listWorkItemVendors(db, workItemId);
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe(vendorId2);
+      expect(result[0]!.id).toBe(vendorId2);
     });
 
     it('throws NotFoundError when work item does not exist', () => {

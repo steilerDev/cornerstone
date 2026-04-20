@@ -43,6 +43,7 @@
     },
     "ofAvailableFunds": "der verfügbaren Mittel",
     "costBreakdown": {
+      "tableCaption": "Kostenaufschlüsselung nach Bereich und Element",
       "loading": "Kostenaufschlüsselung wird geladen…",
       "title": "Kostenaufschlüsselung",
       "emptyState": "Keine Budgetdaten zum Anzeigen",
@@ -59,7 +60,14 @@
         "net": "Netto"
       },
       "subsidyAdjustments": "Förderprogramme",
-      "oversubscribed": "Dieses Förderprogramm ist überzeichnet, der Maximalbetrag beträgt {{amount}}"
+      "oversubscribed": "Dieses Förderprogramm ist überzeichnet, der Maximalbetrag beträgt {{amount}}",
+      "area": {
+        "expandArea": "{{name}} ausklappen",
+        "collapseArea": "{{name}} einklappen",
+        "unassigned": "Kein Bereich",
+        "expandWorkItemsLabel": "Arbeitspakete nach Bereich aufklappen",
+        "expandHouseholdItemsLabel": "Haushaltsartikel nach Bereich aufklappen"
+      }
     }
   },
   "sources": {
@@ -139,18 +147,85 @@
       "claimed": "Eingereicht",
       "paidUnclaimed": "Bezahlt (nicht eingereicht)",
       "projected": "Projiziert",
-      "allocated": "Zugeordnet (geplant)",
-      "total": "Gesamt",
-      "available": "Verfügbar",
-      "planned": "Geplant",
-      "rate": "Rate",
+      "projectedRange": "Projiziert",
+      "projectedUncertainty": "Prognoseunsicherheit",
+      "overflow": "Überlauf",
       "ofTotal": "der Summe",
       "remaining": "Verbleibend",
-      "overflow": "Überlauf"
+      "rate": "Rate",
+      "headroom": "Spielraum",
+      "totalBadge": "Gesamt: {{amount}}",
+      "totalBadgeAriaLabel": "Gesamtbetrag: {{amount}}",
+      "summaryProjectedLabel": "Projiziert",
+      "summaryPaidLabel": "Bezahlt",
+      "summaryClaimedLabel": "Eingereicht",
+      "srOnly": "Eingereicht {{claimed}}, Bezahlt {{paid}}, Projiziert {{projectedMin}} bis {{projectedMax}}, von Gesamt {{total}}"
+    },
+    "lines": {
+      "expand": "Positionen einblenden",
+      "collapse": "Positionen ausblenden",
+      "loadingLabel": "Budgetpositionen werden geladen…",
+      "empty": "Keine Budgetpositionen zugeordnet",
+      "emptyDescription": "Budgetpositionen aus Arbeitspaketen und Haushaltsartikeln erscheinen hier, wenn sie dieser Quelle zugeordnet sind.",
+      "workItemSection": "Arbeitspaket-Positionen",
+      "householdItemSection": "Haushaltsartikel-Positionen",
+      "unassignedArea": "Kein Bereich",
+      "fetchError": "Budgetpositionen konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "areaLineCount_one": "{{count}} Position",
+      "areaLineCount_other": "{{count}} Positionen",
+      "expandAriaLabel": "Budgetpositionen für {{name}} einblenden",
+      "collapseAriaLabel": "Budgetpositionen für {{name}} ausblenden",
+      "panelAriaLabel": "Budgetpositionen für {{name}}",
+      "confidence": {
+        "own_estimate": "Eigene Schätzung",
+        "professional_estimate": "Fachschätzung",
+        "quote": "Angebot",
+        "invoice": "Rechnung"
+      },
+      "invoiceLinked": "Verrechnet",
+      "invoiceStatus": {
+        "none": "Nicht abgerechnet",
+        "pending": "Ausstehend",
+        "paid": "Bezahlt",
+        "claimed": "Beantragt",
+        "quotation": "Angebot"
+      },
+      "categoryVendorSeparator": " · "
+    },
+    "budgetLines": {
+      "move": {
+        "checkboxLabel": "{{description}} auswählen",
+        "selectGroupLabel": "Alle in {{name}} auswählen",
+        "selectItemLabel": "Alle unter {{name}} auswählen",
+        "navigateToItem": "{{name}} öffnen",
+        "selectedCount_one": "{{count}} Position ausgewählt",
+        "selectedCount_other": "{{count}} Positionen ausgewählt",
+        "openModalButton": "In andere Quelle verschieben…",
+        "modalTitle": "Positionen in andere Quelle verschieben",
+        "movingCount_one": "{{count}} Position von {{sourceName}} wird verschoben",
+        "movingCount_other": "{{count}} Positionen von {{sourceName}} werden verschoben",
+        "targetLabel": "Zielquelle",
+        "pickerPlaceholder": "Quellen suchen…",
+        "pickerEmpty": "Keine weiteren Quellen gefunden",
+        "claimedWarningHeading_one": "{{count}} Position hat eine eingereichte Rechnung",
+        "claimedWarningHeading_other": "{{count}} Positionen haben eine eingereichte Rechnung",
+        "claimedWarningBody": "Die Neuzuordnung dieser Positionen hat keinen Einfluss auf den Rechnungsantrag. Bitte prüfen Sie die Auswirkungen mit Ihrem Steuerberater, bevor Sie fortfahren.",
+        "understoodLabel": "Ich verstehe, dass hierdurch Positionen mit einer eingereichten Rechnung neu zugeordnet werden",
+        "confirmButton": "Positionen verschieben",
+        "confirmDisabledHint": "Aktivieren Sie das Kontrollkästchen \u201eIch verstehe\u201c, um die Bestätigung zu ermöglichen",
+        "confirmDisabledNoTarget": "Wählen Sie eine Zielquelle aus, um die Bestätigung zu ermöglichen",
+        "successToast_one": "{{count}} Position wurde nach {{targetName}} verschoben",
+        "successToast_other": "{{count}} Positionen wurden nach {{targetName}} verschoben",
+        "genericError": "Positionen konnten nicht verschoben werden. Bitte versuchen Sie es erneut."
+      }
+    },
+    "summary": {
+      "remainingLabel": "Verbleibend"
     }
   },
   "vendors": {
-    "title": "Budget",
+    "title": "Auftragnehmer",
     "sectionTitle": "Auftragnehmer",
     "addVendor": "Auftragnehmer Hinzufügen",
     "addFirstVendor": "Ersten Auftragnehmer Hinzufügen",
@@ -215,8 +290,7 @@
       "address": "Adresse",
       "notes": "Notizen",
       "createdAt": "Hinzugefügt am",
-      "updatedAt": "Zuletzt aktualisiert",
-      "actions": "Aktionen"
+      "updatedAt": "Zuletzt aktualisiert"
     },
     "searchAriaLabel": "Auftragnehmer durchsuchen",
     "modal": {
@@ -587,7 +661,8 @@
       "placeholders": {
         "vendor": "Auftragnehmer auswählen...",
         "invoiceNumber": "z. B. ReCH-001",
-        "amount": "0.00"
+        "amount": "0.00",
+        "notes": "Optionale Notizen zu dieser Rechnung"
       }
     },
     "validation": {
@@ -611,9 +686,13 @@
     },
     "modal": {
       "title": "Rechnung Hinzufügen",
+      "description": "Füllen Sie die nachstehenden Details aus, um eine neue Rechnung hinzuzufügen.",
       "deleteTitle": "Rechnung Löschen",
       "deleteConfirm": "Sind Sie sicher, dass Sie die Rechnung {{number}} für {{amount}} löschen möchten?",
       "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden."
+    },
+    "actions": {
+      "menuAriaLabel": "Aktionen für Rechnung {{number}}"
     },
     "messages": {
       "createError": "Rechnung konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",

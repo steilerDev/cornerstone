@@ -9,9 +9,10 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { eq, sql, and, or, desc, asc, inArray } from 'drizzle-orm';
+import { eq, sql, and, or, desc, asc, inArray, isNull } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
+import type { areas } from '../db/schema.js';
 import {
   householdItems,
   householdItemCategories,
@@ -22,13 +23,18 @@ import {
   subsidyPrograms,
   invoices,
   invoiceBudgetLines,
-  areas,
   trades,
 } from '../db/schema.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { listDeps } from './householdItemDepService.js';
 import { autoReschedule } from './schedulingEngine.js';
-import { getDescendantIds } from './areaService.js';
+import {
+  getDescendantIds,
+  loadAreaMap,
+  resolveAreaAncestors,
+  resolveAreaFilter,
+} from './areaService.js';
+import type { AreaMapEntry } from './areaService.js';
 import { toUserSummary, toAreaSummary, toVendorSummaryWithTrade } from './shared/converters.js';
 import { validateVendorId, validateAreaId } from './shared/validators.js';
 import type {
@@ -175,11 +181,35 @@ function getBudgetSummary(db: DbType, householdItemId: string): HouseholdItemBud
 }
 
 /**
+ * Get area with ancestors resolved from the area map.
+ * Returns null if areaId is null or area is not found in the map.
+ */
+function getAreaWithAncestors(
+  areaId: string | null,
+  areaMap: Map<string, AreaMapEntry>,
+): ReturnType<typeof toAreaSummary> {
+  if (!areaId) return null;
+  const entry = areaMap.get(areaId);
+  if (!entry) return null;
+  const ancestors = resolveAreaAncestors(areaId, areaMap);
+  return toAreaSummary(
+    {
+      id: entry.id,
+      name: entry.name,
+      color: entry.color,
+      parentId: entry.parentId,
+    } as typeof areas.$inferSelect,
+    ancestors,
+  );
+}
+
+/**
  * Convert database household item row to HouseholdItemSummary shape.
  */
 export function toHouseholdItemSummary(
   db: DbType,
   item: typeof householdItems.$inferSelect,
+  areaMap: Map<string, AreaMapEntry>,
 ): HouseholdItemSummary {
   const vendor = item.vendorId
     ? (db.select().from(vendors).where(eq(vendors.id, item.vendorId)).get() ?? null)
@@ -189,9 +219,7 @@ export function toHouseholdItemSummary(
     ? (db.select().from(users).where(eq(users.id, item.createdBy)).get() ?? null)
     : null;
 
-  const area = item.areaId
-    ? (db.select().from(areas).where(eq(areas.id, item.areaId)).get() ?? null)
-    : null;
+  const area = getAreaWithAncestors(item.areaId, areaMap);
 
   return {
     id: item.id,
@@ -200,7 +228,7 @@ export function toHouseholdItemSummary(
     category: item.categoryId as HouseholdItemCategory,
     status: item.status as HouseholdItemStatus,
     vendor: toVendorSummaryWithTrade(db, vendor),
-    area: toAreaSummary(area),
+    area,
     quantity: item.quantity,
     orderDate: item.orderDate,
     actualDeliveryDate: item.actualDeliveryDate,
@@ -224,8 +252,9 @@ export function toHouseholdItemSummary(
 export function toHouseholdItemDetail(
   db: DbType,
   item: typeof householdItems.$inferSelect,
+  areaMap: Map<string, AreaMapEntry>,
 ): HouseholdItemDetail {
-  const summary = toHouseholdItemSummary(db, item);
+  const summary = toHouseholdItemSummary(db, item, areaMap);
   const dependencies = listDeps(db, item.id);
   const subsidies = getHouseholdItemSubsidies(db, item.id);
 
@@ -323,7 +352,8 @@ export function createHouseholdItem(
 
   // Fetch and return the created item
   const createdItem = findHouseholdItemById(db, id)!;
-  return toHouseholdItemDetail(db, createdItem);
+  const areaMap = loadAreaMap(db);
+  return toHouseholdItemDetail(db, createdItem, areaMap);
 }
 
 /**
@@ -335,7 +365,8 @@ export function getHouseholdItemById(db: DbType, id: string): HouseholdItemDetai
   if (!item) {
     throw new NotFoundError('Household item not found');
   }
-  return toHouseholdItemDetail(db, item);
+  const areaMap = loadAreaMap(db);
+  return toHouseholdItemDetail(db, item, areaMap);
 }
 
 /**
@@ -462,7 +493,8 @@ export function updateHouseholdItem(
 
   // Fetch and return the updated item
   const updatedItem = findHouseholdItemById(db, id)!;
-  return toHouseholdItemDetail(db, updatedItem);
+  const areaMap = loadAreaMap(db);
+  return toHouseholdItemDetail(db, updatedItem, areaMap);
 }
 
 /**
@@ -509,8 +541,20 @@ export function listHouseholdItems(
   }
 
   if (query.areaId) {
-    const areaIds = getDescendantIds(db, query.areaId);
-    baseConditions.push(inArray(householdItems.areaId, areaIds));
+    const { areaIds, includeNull, hasInput } = resolveAreaFilter(db, query.areaId);
+    if (includeNull && areaIds.length > 0) {
+      baseConditions.push(
+        or(isNull(householdItems.areaId), inArray(householdItems.areaId, areaIds))!,
+      );
+    } else if (includeNull) {
+      baseConditions.push(isNull(householdItems.areaId));
+    } else if (areaIds.length > 0) {
+      baseConditions.push(inArray(householdItems.areaId, areaIds));
+    } else if (hasInput) {
+      // User supplied ID(s) but all were unknown — yield empty result
+      baseConditions.push(sql`1 = 0`);
+    }
+    // else: no meaningful input (empty/whitespace-only CSV) — skip filter
   }
 
   if (query.q) {
@@ -609,6 +653,9 @@ export function listHouseholdItems(
 
   const orderBy = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
 
+  // Load area map once for all items
+  const areaMap = loadAreaMap(db);
+
   // Fetch paginated items
   const offset = (page - 1) * pageSize;
   const itemRows = db
@@ -620,7 +667,7 @@ export function listHouseholdItems(
     .offset(offset)
     .all();
 
-  const items = itemRows.map((item) => toHouseholdItemSummary(db, item));
+  const items = itemRows.map((item) => toHouseholdItemSummary(db, item, areaMap));
 
   const filterMeta: FilterMeta = {
     plannedCost: { min: metaRow?.plannedCostMin ?? 0, max: metaRow?.plannedCostMax ?? 0 },

@@ -8,9 +8,9 @@ import badgeStyles from '../../Badge/Badge.module.css';
 
 // Variant map mirroring the production definition in DiaryMetadataSummary.tsx
 const DIARY_OUTCOME_VARIANTS = {
-  pass: { label: 'Pass', className: badgeStyles.pass },
-  fail: { label: 'Fail', className: badgeStyles.fail },
-  conditional: { label: 'Conditional', className: badgeStyles.conditional },
+  pass: { label: 'Pass', className: badgeStyles.pass! },
+  fail: { label: 'Fail', className: badgeStyles.fail! },
+  conditional: { label: 'Conditional', className: badgeStyles.conditional! },
 };
 
 describe('Badge — diary outcome variants', () => {

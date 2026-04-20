@@ -202,7 +202,7 @@ describe('getTimeline service', () => {
       const result = getTimeline(db);
 
       expect(result.workItems).toHaveLength(1);
-      expect(result.workItems[0].id).toBe(wiId);
+      expect(result.workItems[0]!.id).toBe(wiId);
     });
 
     it('includes work items that have endDate set', () => {
@@ -212,7 +212,7 @@ describe('getTimeline service', () => {
       const result = getTimeline(db);
 
       expect(result.workItems).toHaveLength(1);
-      expect(result.workItems[0].id).toBe(wiId);
+      expect(result.workItems[0]!.id).toBe(wiId);
     });
 
     it('includes work items that have both startDate and endDate set', () => {
@@ -226,7 +226,7 @@ describe('getTimeline service', () => {
       const result = getTimeline(db);
 
       expect(result.workItems).toHaveLength(1);
-      expect(result.workItems[0].id).toBe(wiId);
+      expect(result.workItems[0]!.id).toBe(wiId);
     });
 
     it('excludes work items with neither startDate nor endDate', () => {
@@ -246,7 +246,7 @@ describe('getTimeline service', () => {
       const result = getTimeline(db);
 
       expect(result.workItems).toHaveLength(1);
-      expect(result.workItems[0].id).toBe(dated);
+      expect(result.workItems[0]!.id).toBe(dated);
     });
   });
 
@@ -285,7 +285,7 @@ describe('getTimeline service', () => {
       });
 
       const result = getTimeline(db);
-      expect(result.workItems[0].startAfter).toBe('2026-03-01');
+      expect(result.workItems[0]!.startAfter).toBe('2026-03-01');
     });
 
     it('includes startBefore constraint on timeline work item', () => {
@@ -296,7 +296,7 @@ describe('getTimeline service', () => {
       });
 
       const result = getTimeline(db);
-      expect(result.workItems[0].startBefore).toBe('2026-05-01');
+      expect(result.workItems[0]!.startBefore).toBe('2026-05-01');
     });
 
     it('returns null for startAfter and startBefore when not set', () => {
@@ -304,8 +304,8 @@ describe('getTimeline service', () => {
       insertWorkItem(db, userId, { startDate: '2026-03-01' });
 
       const result = getTimeline(db);
-      expect(result.workItems[0].startAfter).toBeNull();
-      expect(result.workItems[0].startBefore).toBeNull();
+      expect(result.workItems[0]!.startAfter).toBeNull();
+      expect(result.workItems[0]!.startBefore).toBeNull();
     });
 
     it('includes assignedUser (UserSummary) when user is assigned', () => {
@@ -319,7 +319,7 @@ describe('getTimeline service', () => {
       });
 
       const result = getTimeline(db);
-      const wi = result.workItems[0];
+      const wi = result.workItems[0]!;
 
       expect(wi.assignedUser).not.toBeNull();
       expect(wi.assignedUser!.id).toBe(userId);
@@ -332,7 +332,7 @@ describe('getTimeline service', () => {
       insertWorkItem(db, userId, { startDate: '2026-03-01', assignedUserId: null });
 
       const result = getTimeline(db);
-      expect(result.workItems[0].assignedUser).toBeNull();
+      expect(result.workItems[0]!.assignedUser).toBeNull();
     });
 
     it('returns null area when work item has no area assigned', () => {
@@ -340,7 +340,7 @@ describe('getTimeline service', () => {
       insertWorkItem(db, userId, { startDate: '2026-03-01' });
 
       const result = getTimeline(db);
-      expect(result.workItems[0].area).toBeNull();
+      expect(result.workItems[0]!.area).toBeNull();
     });
 
     it('returns null assignedVendor when work item has no vendor assigned', () => {
@@ -348,7 +348,7 @@ describe('getTimeline service', () => {
       insertWorkItem(db, userId, { startDate: '2026-03-01' });
 
       const result = getTimeline(db);
-      expect(result.workItems[0].assignedVendor).toBeNull();
+      expect(result.workItems[0]!.assignedVendor).toBeNull();
     });
 
     it('includes area summary when work item has areaId set', () => {
@@ -374,7 +374,7 @@ describe('getTimeline service', () => {
       const result = getTimeline(db);
 
       // Then: area summary is populated
-      const wi = result.workItems[0];
+      const wi = result.workItems[0]!;
       expect(wi.area).not.toBeNull();
       expect(wi.area!.id).toBe(areaId);
       expect(wi.area!.name).toBe('Basement');
@@ -418,7 +418,7 @@ describe('getTimeline service', () => {
       const result = getTimeline(db);
 
       // Then: assignedVendor is populated with trade info
-      const wi = result.workItems[0];
+      const wi = result.workItems[0]!;
       expect(wi.assignedVendor).not.toBeNull();
       expect(wi.assignedVendor!.id).toBe(vendorId);
       expect(wi.assignedVendor!.name).toBe('Pipe Masters');
@@ -453,7 +453,7 @@ describe('getTimeline service', () => {
       const result = getTimeline(db);
 
       // Then: assignedVendor populated, trade is null
-      const wi = result.workItems[0];
+      const wi = result.workItems[0]!;
       expect(wi.assignedVendor).not.toBeNull();
       expect(wi.assignedVendor!.name).toBe('No Trade Vendor');
       expect(wi.assignedVendor!.trade).toBeNull();
@@ -472,7 +472,7 @@ describe('getTimeline service', () => {
       const result = getTimeline(db);
 
       expect(result.dependencies).toHaveLength(1);
-      const dep = result.dependencies[0];
+      const dep = result.dependencies[0]!;
       expect(dep.predecessorId).toBe(wiA);
       expect(dep.successorId).toBe(wiB);
       expect(dep.dependencyType).toBe('finish_to_start');
@@ -535,7 +535,7 @@ describe('getTimeline service', () => {
       const result = getTimeline(db);
 
       expect(result.milestones).toHaveLength(1);
-      const ms = result.milestones[0];
+      const ms = result.milestones[0]!;
       expect(ms.id).toBe(msId);
       expect(ms.title).toBe('Foundation Complete');
       expect(ms.targetDate).toBe('2026-04-15');
@@ -573,8 +573,8 @@ describe('getTimeline service', () => {
 
       const result = getTimeline(db);
 
-      expect(result.milestones[0].isCompleted).toBe(true);
-      expect(result.milestones[0].completedAt).toBe(completedAt);
+      expect(result.milestones[0]!.isCompleted).toBe(true);
+      expect(result.milestones[0]!.completedAt).toBe(completedAt);
     });
 
     it('returns milestones even when no work items have dates (empty project scenario)', () => {
@@ -691,7 +691,7 @@ describe('getTimeline service', () => {
       const result = getTimeline(db);
 
       expect(result.workItems).toHaveLength(0);
-      expect(result.milestones[0].workItemIds).toContain(wiUndated);
+      expect(result.milestones[0]!.workItemIds).toContain(wiUndated);
     });
   });
 
@@ -803,7 +803,7 @@ describe('getTimeline service', () => {
       getTimeline(db);
 
       expect(mockSchedule).toHaveBeenCalledTimes(1);
-      const callArg = mockSchedule.mock.calls[0][0];
+      const callArg = mockSchedule.mock.calls[0]![0]!;
       expect(callArg.mode).toBe('full');
       const scheduledIds = callArg.workItems.map((w) => w.id);
       // Both dated and undated work items are passed to the engine
@@ -819,15 +819,15 @@ describe('getTimeline service', () => {
 
       getTimeline(db);
 
-      const callArg = mockSchedule.mock.calls[0][0];
+      const callArg = mockSchedule.mock.calls[0]![0]!;
       expect(callArg.dependencies).toHaveLength(1);
-      expect(callArg.dependencies[0].predecessorId).toBe(wiA);
-      expect(callArg.dependencies[0].successorId).toBe(wiB);
+      expect(callArg.dependencies[0]!.predecessorId).toBe(wiA);
+      expect(callArg.dependencies[0]!.successorId).toBe(wiB);
     });
 
     it('calls schedule() with a today string in YYYY-MM-DD format', () => {
       getTimeline(db);
-      const callArg = mockSchedule.mock.calls[0][0];
+      const callArg = mockSchedule.mock.calls[0]![0]!;
       expect(callArg.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
 
@@ -1076,8 +1076,8 @@ describe('getTimeline service', () => {
 
       getTimeline(db);
 
-      const callArg = mockSchedule.mock.calls[0][0];
-      const engineWi = callArg.workItems[0];
+      const callArg = mockSchedule.mock.calls[0]![0]!;
+      const engineWi = callArg.workItems[0]!;
 
       expect(engineWi).toHaveProperty('id');
       expect(engineWi.startDate).toBe('2026-03-01');
@@ -1150,7 +1150,7 @@ describe('getTimeline service', () => {
       const result = getTimeline(db);
 
       expect(result.householdItems).toHaveLength(1);
-      expect(result.householdItems[0].id).toBe(hiId);
+      expect(result.householdItems[0]!.id).toBe(hiId);
     });
 
     it('includes HIs that have latestDeliveryDate set (but no earliest)', () => {
@@ -1163,7 +1163,7 @@ describe('getTimeline service', () => {
       const result = getTimeline(db);
 
       expect(result.householdItems).toHaveLength(1);
-      expect(result.householdItems[0].id).toBe(hiId);
+      expect(result.householdItems[0]!.id).toBe(hiId);
     });
 
     it('returns correct TimelineHouseholdItem field shape', () => {
@@ -1185,7 +1185,7 @@ describe('getTimeline service', () => {
       const result = getTimeline(db);
 
       expect(result.householdItems).toHaveLength(1);
-      const hi = result.householdItems[0];
+      const hi = result.householdItems[0]!;
 
       expect(hi.id).toBe(hiId);
       expect(hi.name).toBe('Dining Table');
@@ -1267,7 +1267,7 @@ describe('getTimeline service', () => {
       const result = getTimeline(db);
 
       expect(result.householdItems).toHaveLength(1);
-      expect(result.householdItems[0].id).toBe(hiWithDates);
+      expect(result.householdItems[0]!.id).toBe(hiWithDates);
     });
 
     // ── isLate flag in timeline ──────────────────────────────────────────────

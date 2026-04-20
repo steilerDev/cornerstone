@@ -111,9 +111,9 @@ describe('Preferences Routes', () => {
         preferences: Array<{ key: string; value: string; updatedAt: string }>;
       }>();
       expect(body.preferences).toHaveLength(1);
-      expect(body.preferences[0].key).toBe('theme');
-      expect(body.preferences[0].value).toBe('dark');
-      expect(typeof body.preferences[0].updatedAt).toBe('string');
+      expect(body.preferences[0]!.key).toBe('theme');
+      expect(body.preferences[0]!.value).toBe('dark');
+      expect(typeof body.preferences[0]!.updatedAt).toBe('string');
     });
 
     it("returns only the authenticated user's preferences", async () => {

@@ -65,13 +65,14 @@ import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudge
 import { BudgetSection } from '../../components/budget/BudgetSection.js';
 import { InvoiceLinkModal } from '../../components/budget/InvoiceLinkModal.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
+import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import styles from './HouseholdItemDetailPage.module.css';
 
 const HI_STATUS_VARIANTS = {
-  planned: { label: 'Planned', className: badgeStyles.planned },
-  purchased: { label: 'Purchased', className: badgeStyles.purchased },
-  scheduled: { label: 'Scheduled', className: badgeStyles.scheduled },
-  arrived: { label: 'Arrived', className: badgeStyles.arrived },
+  planned: { label: 'Planned', className: badgeStyles.planned! },
+  purchased: { label: 'Purchased', className: badgeStyles.purchased! },
+  scheduled: { label: 'Scheduled', className: badgeStyles.scheduled! },
+  arrived: { label: 'Arrived', className: badgeStyles.arrived! },
 };
 
 export function HouseholdItemDetailPage() {
@@ -256,8 +257,8 @@ export function HouseholdItemDetailPage() {
         );
         const focusableArray = Array.from(focusable);
         if (focusableArray.length === 0) return;
-        const firstEl = focusableArray[0];
-        const lastEl = focusableArray[focusableArray.length - 1];
+        const firstEl = focusableArray[0]!; // guarded by length check at line 259
+        const lastEl = focusableArray[focusableArray.length - 1]!; // guarded by length check at line 259
         if (e.shiftKey) {
           if (document.activeElement === firstEl) {
             e.preventDefault();
@@ -801,7 +802,7 @@ export function HouseholdItemDetailPage() {
               <dt className={styles.infoLabel}>{t('detail.details.vendor')}</dt>
               <dd className={styles.infoValue}>
                 {item.vendor ? (
-                  <Link to={`/budget/vendors/${item.vendor.id}`} className={styles.infoLink}>
+                  <Link to={`/settings/vendors/${item.vendor.id}`} className={styles.infoLink}>
                     {item.vendor.name}
                   </Link>
                 ) : (
@@ -1160,12 +1161,15 @@ export function HouseholdItemDetailPage() {
                         : t('detail.dependencies.milestone')}
                     </span>
                     {dep.predecessorType === 'work_item' ? (
-                      <Link
-                        to={`/project/work-items/${dep.predecessorId}`}
-                        className={styles.depPredLink}
-                      >
-                        {dep.predecessor.title}
-                      </Link>
+                      <>
+                        <Link
+                          to={`/project/work-items/${dep.predecessorId}`}
+                          className={styles.depPredLink}
+                        >
+                          {dep.predecessor.title}
+                        </Link>
+                        <AreaBreadcrumb area={dep.predecessor.area ?? null} variant="compact" />
+                      </>
                     ) : (
                       <span className={styles.depPredLabel}>{dep.predecessor.title}</span>
                     )}
@@ -1242,7 +1246,10 @@ export function HouseholdItemDetailPage() {
                       <span className={styles.itemTypeBadge}>
                         {t('detail.dependencies.workItem')}
                       </span>
-                      <span>{wi.title}</span>
+                      <div className={styles.workItemTitleCell}>
+                        <span>{wi.title}</span>
+                        <AreaBreadcrumb area={wi.area ?? null} variant="compact" />
+                      </div>
                     </button>
                   ))}
                 {/* Milestones that match */}

@@ -28,7 +28,10 @@ export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardPr
   // Helper to check if invoice is overdue
   const isOverdue = (invoice: Invoice): boolean => {
     if (!invoice.dueDate) return false;
-    const [year, month, day] = invoice.dueDate.split('-').map(Number);
+    const parts = invoice.dueDate.split('-').map(Number);
+    const year = parts[0]!; // split ensures at least 1 part or throws
+    const month = parts[1]!; // must be YYYY-MM-DD format
+    const day = parts[2]!; // must be YYYY-MM-DD format
     const dueDate = new Date(year, month - 1, day);
     const today = new Date();
     const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());

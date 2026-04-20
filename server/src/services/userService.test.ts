@@ -1165,7 +1165,7 @@ describe('User Service', () => {
 
       // Then: Returns matching user
       expect(users).toHaveLength(1);
-      expect(users[0].email).toBe('alice@example.com');
+      expect(users[0]!.email).toBe('alice@example.com');
     });
 
     it('filters by displayName (case-insensitive)', async () => {
@@ -1193,7 +1193,7 @@ describe('User Service', () => {
 
       // Then: Finds user
       expect(users).toHaveLength(1);
-      expect(users[0].email).toBe('lowercase@example.com');
+      expect(users[0]!.email).toBe('lowercase@example.com');
     });
 
     it('search is case-insensitive (mixed case query)', async () => {
@@ -1205,7 +1205,7 @@ describe('User Service', () => {
 
       // Then: Finds user
       expect(users).toHaveLength(1);
-      expect(users[0].displayName).toBe('CamelCase');
+      expect(users[0]!.displayName).toBe('CamelCase');
     });
 
     it('returns empty array when no matches found', async () => {
@@ -1256,8 +1256,8 @@ describe('User Service', () => {
 
       // Then: Returns complete rows with sensitive fields
       expect(users).toHaveLength(1);
-      expect(users[0].passwordHash).toBeDefined();
-      expect(users[0].passwordHash).toBe(user.passwordHash);
+      expect(users[0]!.passwordHash).toBeDefined();
+      expect(users[0]!.passwordHash).toBe(user.passwordHash);
     });
   });
 

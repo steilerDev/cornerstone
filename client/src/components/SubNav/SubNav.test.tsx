@@ -39,8 +39,8 @@ describe('SubNav', () => {
   it('renders all tabs when all are visible', () => {
     renderSubNav(BASIC_TABS);
 
-    // 4 tabs → 4 NavLink elements with role="listitem"
-    expect(screen.getAllByRole('listitem')).toHaveLength(4);
+    // 4 tabs → 4 NavLink elements rendered as <a role="link">
+    expect(screen.getAllByRole('link')).toHaveLength(4);
   });
 
   it('filters out tabs with visible set to false', () => {
@@ -52,7 +52,7 @@ describe('SubNav', () => {
     renderSubNav(tabs);
 
     // Only 2 tabs should be in the DOM
-    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.getAllByRole('link')).toHaveLength(2);
   });
 
   it('renders tabs with visible set to true', () => {
@@ -62,7 +62,7 @@ describe('SubNav', () => {
     ];
     renderSubNav(tabs);
 
-    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(screen.getAllByRole('link')).toHaveLength(1);
   });
 
   it('does not render the hidden tab label', () => {
@@ -78,21 +78,14 @@ describe('SubNav', () => {
 
   // ── role attributes ───────────────────────────────────────────────────────
 
-  it('renders each tab with role="listitem"', () => {
+  it('renders each tab as a link (default <a> role)', () => {
     renderSubNav(BASIC_TABS);
 
-    const listItems = screen.getAllByRole('listitem');
-    expect(listItems).toHaveLength(4);
-    listItems.forEach((item) => {
-      expect(item).toHaveAttribute('role', 'listitem');
+    const links = screen.getAllByRole('link');
+    expect(links).toHaveLength(4);
+    links.forEach((link) => {
+      expect(link.tagName).toBe('A');
     });
-  });
-
-  it('renders the tab container with role="list"', () => {
-    const { container } = renderSubNav(BASIC_TABS);
-
-    const tabList = container.querySelector('[role="list"]');
-    expect(tabList).not.toBeNull();
   });
 
   // ── testId prop ───────────────────────────────────────────────────────────
@@ -108,8 +101,8 @@ describe('SubNav', () => {
     const tabs: SubNavTab[] = [{ labelKey: 'button.save', to: '/a' }];
     renderSubNav(tabs);
 
-    const listItem = screen.getByRole('listitem');
-    expect(listItem).not.toHaveAttribute('data-testid');
+    const link = screen.getByRole('link');
+    expect(link).not.toHaveAttribute('data-testid');
   });
 
   // ── href / routing ────────────────────────────────────────────────────────

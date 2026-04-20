@@ -163,7 +163,7 @@ describe('Sidebar', () => {
       .getAllByRole('link')
       .filter((link) => link.classList.contains('active'));
     expect(activeLinks).toHaveLength(1);
-    expect(activeLinks[0]).toHaveTextContent(/^budget$/i);
+    expect(activeLinks[0]!).toHaveTextContent(/^budget$/i);
   });
 
   it('sidebar has .open class when isOpen is true', () => {
@@ -297,8 +297,8 @@ describe('Sidebar', () => {
     expect(links).toHaveLength(6);
     // 3 buttons: theme toggle + settings button + logout button
     expect(buttons).toHaveLength(3);
-    expect(buttons[0]).toHaveAttribute('aria-label', expect.stringMatching(/switch to .+ mode/i));
-    expect(buttons[2]).toHaveTextContent(/logout/i);
+    expect(buttons[0]!).toHaveAttribute('aria-label', expect.stringMatching(/switch to .+ mode/i));
+    expect(buttons[2]!).toHaveTextContent(/logout/i);
   });
 
   it('Settings button appears immediately before the Logout button in the footer', () => {

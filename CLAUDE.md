@@ -170,6 +170,18 @@ The sandbox environment is resource-constrained. When running tests locally:
 - **Always use a single worker** — pass `--maxWorkers=1` to Jest for any local test execution
 - Rely on CI for full suite validation
 
+### GitHub Rate-Limit Retry Policy
+
+When `gh` or `git push` commands fail with a GitHub rate-limit error (primary API limit, secondary abuse limit, or `HTTP 403`/`HTTP 429` with a rate-limit message), retry with **exponential backoff** instead of aborting:
+
+- Detect: stderr contains `rate limit`, `secondary rate limit`, `abuse detection`, `was blocked`, `HTTP 403`, or `HTTP 429`
+- Backoff schedule: 30s → 60s → 120s → 240s → 480s (cap 480s, max 6 attempts)
+- Honor `Retry-After` / `X-RateLimit-Reset` headers when present (use the larger of the header value and the current backoff step)
+- Only retry transient rate-limit failures. Permission errors, merge conflicts, and other non-transient failures must not be retried
+- Log each retry attempt with its wait duration so the user can see progress
+
+Apply the same policy when polling CI gates — if `gh pr checks` fails with a rate-limit error, the polling loop's normal sleep already absorbs short-lived throttling; for persistent rate-limit errors, extend the sleep per the backoff schedule above.
+
 ### Agent Attribution
 
 All agents must clearly identify themselves:
@@ -247,8 +259,8 @@ Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Qualit
 | Bundler (client)           | Webpack                 | 5.x     | ADR-004 |
 | Styling                    | CSS Modules             | --      | ADR-006 |
 | Testing (unit/integration) | Jest (ts-jest)          | 30.x    | ADR-005 |
-| Testing (E2E)              | Playwright              | 1.58.x  | ADR-005 |
-| Language                   | TypeScript              | ~5.9    | --      |
+| Testing (E2E)              | Playwright              | 1.59.x  | ADR-005 |
+| Language                   | TypeScript              | ~6.0    | --      |
 | Runtime                    | Node.js                 | 24 LTS  | --      |
 | Container                  | Docker (DHI Alpine)     | --      | --      |
 | Monorepo                   | npm workspaces          | --      | ADR-007 |
@@ -309,6 +321,7 @@ The `docs` workspace is NOT part of the application build (`npm run build`). Bui
 - **Pin dependency versions to a specific release** — use exact versions rather than caret ranges (`^`) to prevent unexpected upgrades
 - **Avoid native binary dependencies for frontend tooling.** Tools like esbuild, SWC, Lightning CSS, and Tailwind CSS v4 (oxide engine) ship platform-specific native binaries that crash on ARM64 emulation environments. Prefer pure JavaScript alternatives (Webpack, Babel, PostCSS, CSS Modules). Native addons for the server (e.g., better-sqlite3) are acceptable since the Docker builder can install build tools. esbuild has been fully eliminated from the dependency tree.
 - **Zero known fixable vulnerabilities.** Run `npm audit` before committing dependency changes. All fixable vulnerabilities must be resolved.
+- **Always regenerate the lockfile with `npm install`, not `npm install --package-lock-only`** — `--package-lock-only` can silently nest a dependency under a workspace directory instead of hoisting it to the root `node_modules/`, breaking TypeScript type resolution for other workspace consumers. After any `package.json` edit, run a full `npm install` to produce a correct lockfile.
 
 ## Coding Standards
 
@@ -385,6 +398,32 @@ Before creating a new UI component, check if an existing shared component can be
 - No separate `__tests__/` directories -- tests live next to the code they test
 - **E2E page coverage requirement**: Every page/route in the application must have E2E test coverage. Fully implemented pages need comprehensive tests (CRUD flows, validation, responsive layout, dark mode). Stub/placeholder pages need at minimum a smoke test verifying the page loads and renders its heading.
 
+### Coverage Enforcement
+
+Coverage is tracked and enforced through three complementary mechanisms:
+
+**1. CI Coverage Reports (automated)**
+
+Every PR triggers coverage collection across 6 Jest shards. The `Coverage Report` CI job merges shard results and uploads a `coverage-report` artifact containing `coverage-summary.json` (per-file and total percentages) and `coverage-final.json` (raw Istanbul data). Coverage reports are retained for 30 days.
+
+- Test shards run with `--coverage --coverageReporters=json`
+- The merge script (`scripts/merge-coverage.mjs`) combines shard data and prints a text summary in CI logs
+- To inspect coverage for a PR: download the `coverage-report` artifact from the CI run
+
+**2. Test File Parity (enforced by dev-team-lead)**
+
+During `[MODE: review]`, the dev-team-lead verifies that **every new or modified production file has a corresponding test file**. Production files added without test files result in `VERDICT: CHANGES_REQUIRED` with a fix spec routed to `qa-integration-tester`. This prevents untested code from entering the codebase.
+
+**3. Local Coverage Verification (enforced by qa-integration-tester)**
+
+The QA agent runs coverage on each new test file before committing:
+
+```bash
+npx jest path/to/file.test.ts --coverage --coverageReporters=text --maxWorkers=1
+```
+
+This verifies 95%+ coverage on the corresponding source file before the code leaves the agent.
+
 ## Development Workflow
 
 ### Prerequisites
@@ -442,7 +481,7 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 | `PAPERLESS_API_TOKEN`    | (none)                     | Paperless-ngx API authentication token                                                |
 | `PAPERLESS_EXTERNAL_URL` | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset)   |
 | `PAPERLESS_FILTER_TAG`   | (none)                     | Tag name for automatic document pre-filtering                                         |
-| `BACKUP_DIR`             | (none)                     | Backup destination directory (must be outside app data directory)                     |
+| `BACKUP_DIR`             | `/backups`                 | Backup destination directory (must be outside app data directory)                     |
 | `BACKUP_CADENCE`         | (none)                     | Cron expression for automatic backups (e.g., `0 2 * * *` for daily at 2 AM)           |
 | `BACKUP_RETENTION`       | (none)                     | Maximum number of backup archives to retain (oldest deleted when exceeded)            |
 
@@ -488,23 +527,3 @@ The application supports multiple locales (English and German) via `i18next` and
 - **Glossary scope**: Domain-specific terms only (Work Item, Invoice, etc.), not common UI words
 - **Glossary updates**: Translator proposes additions for new domain terms; product-owner approves terminology
 - **Adding a locale**: Add locale code to `glossary.json` `_meta.locales`, add translations for all terms, create `client/src/i18n/{locale}/` directory with namespace files, register in `client/src/i18n/index.ts`
-
-### Review Metrics
-
-All reviewing agents (product-architect, security-engineer, product-owner, ux-designer) must append a structured metrics block as an HTML comment at the end of every PR review body. This is invisible to GitHub readers but parsed by the orchestrator for performance tracking.
-
-**Format** — append to the `--body` argument of `gh pr review`:
-
-```
-<!-- REVIEW_METRICS
-{
-  "agent": "<agent-name>",
-  "verdict": "<approve|request-changes|comment>",
-  "findings": { "critical": 0, "high": 0, "medium": 0, "low": 0, "informational": 0 }
-}
--->
-```
-
-- `verdict` must match the `gh pr review` action (`--approve` → `"approve"`, `--request-changes` → `"request-changes"`, `--comment` → `"comment"`)
-- Count each distinct issue raised, classified by severity
-- If no issues found, all counts are 0

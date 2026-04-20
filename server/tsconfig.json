@@ -4,7 +4,9 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "module": "ESNext",
-    "moduleResolution": "bundler"
+    "moduleResolution": "bundler",
+    "lib": ["ES2024", "DOM", "DOM.Iterable", "esnext.disposable"],
+    "types": ["node", "better-sqlite3"]
   },
   "include": ["src/**/*.ts"],
   "references": [{ "path": "../shared" }]

@@ -261,7 +261,7 @@ describe('usePaperless', () => {
       const lastCallArgs = mockListPaperlessDocuments.mock.calls[
         mockListPaperlessDocuments.mock.calls.length - 1
       ] as unknown as [{ tags?: string }];
-      expect(lastCallArgs[0].tags).toBe('1,3');
+      expect(lastCallArgs[0]!.tags).toBe('1,3');
     });
   });
 

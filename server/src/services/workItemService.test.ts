@@ -458,9 +458,9 @@ describe('Work Item Service', () => {
       // Then: All relationships are loaded
       expect(detail.id).toBe(workItem.id);
       expect(detail.subtasks).toHaveLength(1);
-      expect(detail.subtasks[0].title).toBe('Subtask 1');
+      expect(detail.subtasks[0]!.title).toBe('Subtask 1');
       expect(detail.dependencies.predecessors).toHaveLength(1);
-      expect(detail.dependencies.predecessors[0].workItem.title).toBe('Predecessor');
+      expect(detail.dependencies.predecessors[0]!.workItem.title).toBe('Predecessor');
       expect(detail.dependencies.successors).toHaveLength(0);
     });
 
@@ -594,15 +594,16 @@ describe('Work Item Service', () => {
         endDate: '2026-03-05',
       });
 
-      // When: Updating both dates
+      // When: Updating both dates (use far-future dates so the scheduler's "today floor"
+      // for not_started items never clamps them to the current date)
       const updated = workItemService.updateWorkItem(db, workItem.id, {
-        startDate: '2026-04-01',
-        endDate: '2026-04-10',
+        startDate: '2099-04-01',
+        endDate: '2099-04-10',
       });
 
       // Then: Both updated successfully
-      expect(updated.startDate).toBe('2026-04-01');
-      expect(updated.endDate).toBe('2026-04-10');
+      expect(updated.startDate).toBe('2099-04-01');
+      expect(updated.endDate).toBe('2099-04-10');
     });
 
     it('allows setting description to null', () => {
@@ -991,8 +992,8 @@ describe('Work Item Service', () => {
 
       // Then: Only work items in that area are returned
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].title).toBe('In Living Room');
-      expect(result.items[0].area!.id).toBe(areaId);
+      expect(result.items[0]!.title).toBe('In Living Room');
+      expect(result.items[0]!.area!.id).toBe(areaId);
     });
 
     it('areaId filter on a leaf area (no descendants) returns only exact-match items', () => {
@@ -1008,8 +1009,8 @@ describe('Work Item Service', () => {
 
       // Then: Only the item in the leaf area is returned
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].title).toBe('Garage Door');
-      expect(result.items[0].area!.id).toBe(leafAreaId);
+      expect(result.items[0]!.title).toBe('Garage Door');
+      expect(result.items[0]!.area!.id).toBe(leafAreaId);
     });
 
     it('areaId filter on a parent area includes items from direct child areas', () => {
@@ -1067,7 +1068,7 @@ describe('Work Item Service', () => {
       // When: Filtering by child — should return 1 (leaf)
       const childResult = workItemService.listWorkItems(db, { areaId: childId });
       expect(childResult.items).toHaveLength(1);
-      expect(childResult.items[0].title).toBe('Bedroom Wardrobe');
+      expect(childResult.items[0]!.title).toBe('Bedroom Wardrobe');
     });
 
     it('areaId filter on a parent area excludes items from unrelated areas', () => {
@@ -1118,8 +1119,8 @@ describe('Work Item Service', () => {
 
       // Then: Only items assigned to vendor1 are returned
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].title).toBe('Fix pipes');
-      expect(result.items[0].assignedVendor!.id).toBe(vendor1);
+      expect(result.items[0]!.title).toBe('Fix pipes');
+      expect(result.items[0]!.assignedVendor!.id).toBe(vendor1);
     });
 
     it('searches title and description (case-insensitive)', () => {
@@ -1141,7 +1142,7 @@ describe('Work Item Service', () => {
       // When: Searching for "plumb"
       const result1 = workItemService.listWorkItems(db, { q: 'plumb' });
       expect(result1.items).toHaveLength(1);
-      expect(result1.items[0].title).toBe('Install plumbing');
+      expect(result1.items[0]!.title).toBe('Install plumbing');
 
       // And: Searching for "INSTALL" (case-insensitive)
       const result2 = workItemService.listWorkItems(db, { q: 'INSTALL' });
@@ -1150,7 +1151,7 @@ describe('Work Item Service', () => {
       // And: Searching for "foundation" (matches description)
       const result3 = workItemService.listWorkItems(db, { q: 'foundation' });
       expect(result3.items).toHaveLength(1);
-      expect(result3.items[0].title).toBe('Foundation work');
+      expect(result3.items[0]!.title).toBe('Foundation work');
     });
 
     it('supports custom sorting by title ascending', () => {
@@ -1164,9 +1165,9 @@ describe('Work Item Service', () => {
       const result = workItemService.listWorkItems(db, { sortBy: 'title', sortOrder: 'asc' });
 
       // Then: Items are sorted alphabetically
-      expect(result.items[0].title).toBe('Alpha');
-      expect(result.items[1].title).toBe('Beta');
-      expect(result.items[2].title).toBe('Zebra');
+      expect(result.items[0]!.title).toBe('Alpha');
+      expect(result.items[1]!.title).toBe('Beta');
+      expect(result.items[2]!.title).toBe('Zebra');
     });
 
     it('supports sorting by start_date descending', () => {
@@ -1184,10 +1185,10 @@ describe('Work Item Service', () => {
       });
 
       // Then: Items sorted by date (null last)
-      expect(result.items[0].startDate).toBe('2026-03-15');
-      expect(result.items[1].startDate).toBe('2026-03-10');
-      expect(result.items[2].startDate).toBe('2026-03-01');
-      expect(result.items[3].startDate).toBeNull();
+      expect(result.items[0]!.startDate).toBe('2026-03-15');
+      expect(result.items[1]!.startDate).toBe('2026-03-10');
+      expect(result.items[2]!.startDate).toBe('2026-03-01');
+      expect(result.items[3]!.startDate).toBeNull();
     });
 
     it('defaults to created_at descending', () => {
@@ -1201,9 +1202,9 @@ describe('Work Item Service', () => {
       const result = workItemService.listWorkItems(db, {});
 
       // Then: Most recent first
-      expect(result.items[0].title).toBe('Third');
-      expect(result.items[1].title).toBe('Second');
-      expect(result.items[2].title).toBe('First');
+      expect(result.items[0]!.title).toBe('Third');
+      expect(result.items[1]!.title).toBe('Second');
+      expect(result.items[2]!.title).toBe('First');
     });
 
     it('combines multiple filters with AND logic', () => {
@@ -1236,7 +1237,7 @@ describe('Work Item Service', () => {
 
       // Then: Only items matching ALL criteria
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].title).toBe('Electrical wiring in progress');
+      expect(result.items[0]!.title).toBe('Electrical wiring in progress');
     });
 
     it('includes area in list response', () => {
@@ -1248,7 +1249,7 @@ describe('Work Item Service', () => {
       const result = workItemService.listWorkItems(db, {});
 
       // Then: Area is null when unset
-      expect(result.items[0].area).toBeNull();
+      expect(result.items[0]!.area).toBeNull();
     });
 
     it('includes assignedUser summary in list response', () => {
@@ -1261,8 +1262,159 @@ describe('Work Item Service', () => {
       const result = workItemService.listWorkItems(db, {});
 
       // Then: Assigned user summary is included
-      expect(result.items[0].assignedUser).toBeDefined();
-      expect(result.items[0].assignedUser?.displayName).toBe('Assignee User');
+      expect(result.items[0]!.assignedUser).toBeDefined();
+      expect(result.items[0]!.assignedUser?.displayName).toBe('Assignee User');
+    });
+  });
+
+  // ─── areaId CSV and multi-area filter (Issue #1241) ──────────────────────
+
+  describe('listWorkItems() — areaId CSV and multi-area filter', () => {
+    /**
+     * Fixture tree shared across all cases in this block:
+     *
+     *   root  (parentId: null)
+     *     ├─ child-a  (parentId: root)
+     *     │    └─ grandchild-a1  (parentId: child-a)
+     *     └─ child-b  (parentId: root)
+     *
+     * Work items: one per area + one with no area = 5 items total.
+     */
+    let userId: string;
+    let rootId: string;
+    let childAId: string;
+    let grandchildA1Id: string;
+    let childBId: string;
+
+    beforeEach(() => {
+      userId = createTestUser('csvfilter@example.com', 'CSV Filter User');
+      rootId = insertTestArea('Root');
+      childAId = insertTestArea('Child A', null, rootId);
+      grandchildA1Id = insertTestArea('Grandchild A1', null, childAId);
+      childBId = insertTestArea('Child B', null, rootId);
+      workItemService.createWorkItem(db, userId, { title: 'Root Item', areaId: rootId });
+      workItemService.createWorkItem(db, userId, { title: 'Child A Item', areaId: childAId });
+      workItemService.createWorkItem(db, userId, {
+        title: 'Grandchild A1 Item',
+        areaId: grandchildA1Id,
+      });
+      workItemService.createWorkItem(db, userId, { title: 'Child B Item', areaId: childBId });
+      workItemService.createWorkItem(db, userId, { title: 'No Area Item' });
+    });
+
+    it('case 1: single leaf ID returns only that leaf item', () => {
+      // When: Filtering by the grandchild (leaf) area
+      const result = workItemService.listWorkItems(db, { areaId: grandchildA1Id });
+
+      // Then: Only the grandchild item is returned
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]!.title).toBe('Grandchild A1 Item');
+    });
+
+    it('case 2: single parent ID expands to include direct child items', () => {
+      // When: Filtering by child-a (has one child: grandchild-a1)
+      const result = workItemService.listWorkItems(db, { areaId: childAId });
+
+      // Then: child-a item + grandchild-a1 item are returned
+      expect(result.items).toHaveLength(2);
+      const titles = result.items.map((i) => i.title).sort();
+      expect(titles).toEqual(['Child A Item', 'Grandchild A1 Item']);
+    });
+
+    it('case 3: root ID returns full subtree (all 4 area items, excludes no-area item)', () => {
+      // When: Filtering by root
+      const result = workItemService.listWorkItems(db, { areaId: rootId });
+
+      // Then: All 4 items with an area are returned; no-area item excluded
+      expect(result.items).toHaveLength(4);
+      const titles = result.items.map((i) => i.title).sort();
+      expect(titles).toEqual(['Child A Item', 'Child B Item', 'Grandchild A1 Item', 'Root Item']);
+    });
+
+    it('case 4: CSV of two non-adjacent IDs returns exactly those subtrees', () => {
+      // When: Filtering by CSV of grandchild-a1 + child-b (neither is ancestor of the other)
+      const result = workItemService.listWorkItems(db, {
+        areaId: `${grandchildA1Id},${childBId}`,
+      });
+
+      // Then: Exactly the grandchild-a1 item and the child-b item are returned
+      expect(result.items).toHaveLength(2);
+      const titles = result.items.map((i) => i.title).sort();
+      expect(titles).toEqual(['Child B Item', 'Grandchild A1 Item']);
+    });
+
+    it('case 5: CSV of parent + its descendant deduplicates and returns same items as parent alone', () => {
+      // When: client sends both child-a and grandchild-a1 (redundant, but valid)
+      const result = workItemService.listWorkItems(db, {
+        areaId: `${childAId},${grandchildA1Id}`,
+      });
+
+      // Then: 2 items — child-a + grandchild-a1 (no duplication in results)
+      expect(result.items).toHaveLength(2);
+      const titles = result.items.map((i) => i.title).sort();
+      expect(titles).toEqual(['Child A Item', 'Grandchild A1 Item']);
+    });
+
+    it('case 6: array input returns union of subtrees', () => {
+      // When: Passing an array (internal API usage pattern)
+      // WorkItemListQuery.areaId is typed `string` on the wire, but resolveAreaIds
+      // accepts `string | string[]` — cast to satisfy TS.
+      const result = workItemService.listWorkItems(db, {
+        areaId: [childAId, childBId],
+      } as unknown as WorkItemListQuery);
+
+      // Then: 3 items — child-a, grandchild-a1 (descendant of child-a), child-b
+      expect(result.items).toHaveLength(3);
+      const titles = result.items.map((i) => i.title).sort();
+      expect(titles).toEqual(['Child A Item', 'Child B Item', 'Grandchild A1 Item']);
+    });
+
+    it('case 7: empty string skips filter and returns all items', () => {
+      // When: areaId is an empty string (falsy guard skips the filter)
+      const result = workItemService.listWorkItems(db, { areaId: '' });
+
+      // Then: All 5 items are returned (filter not applied)
+      expect(result.items).toHaveLength(5);
+    });
+
+    it('case 8: unknown ID returns empty result set', () => {
+      // When: Filtering by a non-existent area ID
+      const result = workItemService.listWorkItems(db, { areaId: 'non-existent-area-uuid' });
+
+      // Then: No items match (unknown IDs are silently ignored; inArray returns no rows)
+      expect(result.items).toHaveLength(0);
+    });
+
+    it('case 9: CSV with empty segments filters them out without error', () => {
+      // When: CSV string has leading/trailing/double commas
+      const result = workItemService.listWorkItems(db, {
+        areaId: `,${childAId},`,
+      });
+
+      // Then: 2 items (child-a + grandchild-a1); empty segments silently dropped
+      expect(result.items).toHaveLength(2);
+      const titles = result.items.map((i) => i.title).sort();
+      expect(titles).toEqual(['Child A Item', 'Grandchild A1 Item']);
+    });
+
+    it('whitespace-only segments in CSV are trimmed and filtered out', () => {
+      // When: CSV contains a whitespace-only segment between commas
+      const result = workItemService.listWorkItems(db, {
+        areaId: `  ,${childBId},  `,
+      });
+
+      // Then: Only child-b item is returned; whitespace segments dropped
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]!.title).toBe('Child B Item');
+    });
+
+    it('CSV with all empty/whitespace segments resolves to zero IDs — filter skipped, returns all', () => {
+      // When: areaId resolves to empty after trimming all segments
+      // resolveAreaIds returns [] — the guard skips inArray, so all items returned
+      const result = workItemService.listWorkItems(db, { areaId: ' , , ' });
+
+      // Then: filter is skipped entirely, all 5 items returned
+      expect(result.items).toHaveLength(5);
     });
   });
 
@@ -1317,8 +1469,8 @@ describe('Work Item Service', () => {
       const result = workItemService.listWorkItems(db, {});
 
       // Then: Actual dates are included in list summary
-      expect(result.items[0].actualStartDate).toBe('2026-03-01');
-      expect(result.items[0].actualEndDate).toBe('2026-03-10');
+      expect(result.items[0]!.actualStartDate).toBe('2026-03-01');
+      expect(result.items[0]!.actualEndDate).toBe('2026-03-10');
     });
 
     it('actual dates appear in WorkItemDetail response', () => {

@@ -83,3 +83,10 @@
     transition: none;
   }
 }
+
+@media print {
+  .mainContent {
+    overflow: visible !important;
+    overflow-y: visible !important;
+  }
+}

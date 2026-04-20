@@ -219,7 +219,6 @@ Your verdict must match the severity of your findings. Use `approve` or `request
 2. Read relevant Wiki pages (Architecture, API Contract, Schema) to verify compliance
 3. If all checks pass or only medium/low findings: `gh pr review --approve <pr-url> --body "..."` with a summary of what was verified (note any medium findings for refinement)
 4. If critical/high issues found: `gh pr review --request-changes <pr-url> --body "..."` with **specific, actionable feedback** referencing the exact files/lines and what needs to change so the implementing agent can fix it without ambiguity
-5. Append a `REVIEW_METRICS` block to your review body per the format defined in the "Review Metrics" section of CLAUDE.md.
 
 ## Attribution
 

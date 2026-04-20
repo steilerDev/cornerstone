@@ -207,7 +207,7 @@ describe('useColumnPreferences', () => {
       });
 
       expect(mockUpsert).toHaveBeenCalledWith('table.test-page.columns', expect.any(String));
-      const savedValue = JSON.parse((mockUpsert.mock.calls[0] as [string, string])[1]) as {
+      const savedValue = JSON.parse((mockUpsert.mock.calls[0]! as [string, string])[1]) as {
         visible: string[];
         order: string[];
       };
@@ -253,7 +253,7 @@ describe('useColumnPreferences', () => {
       });
 
       expect(mockUpsert).toHaveBeenCalledWith('table.test-page.columns', expect.any(String));
-      const savedValue = JSON.parse((mockUpsert.mock.calls[0] as [string, string])[1]) as {
+      const savedValue = JSON.parse((mockUpsert.mock.calls[0]! as [string, string])[1]) as {
         visible: string[];
         order: string[];
       };

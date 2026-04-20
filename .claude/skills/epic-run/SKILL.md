@@ -60,7 +60,7 @@ Use tasks to track progress across the entire epic lifecycle. Tasks survive cont
 
 - **Pre-check** — Handle failed stories (if any)
 - **Verify all stories merged** — Confirm all sub-issues closed
-- **Epic metrics + lint check** — Generate metrics report and lint health check
+- **Lint check** — Lint health check
 - **Refinement PR** — Address refinement items (skip if none)
 - **E2E validation** — Confirm E2E coverage and pass rate
 - **UAT validation** — Product-owner UAT scenarios
@@ -168,7 +168,7 @@ Execute `/develop` steps 2 through 11 for the current story, using **single-item
 - **Step 7** (Verify PR) — verify or create PR targeting `beta`
 - **Step 8** (Review) — launch 4 reviewer agents in parallel
 - **Step 9** (Fix Loop) — fix loop if reviewers flag blocking issues
-- **Step 10** (Merge) — wait for CI, persist metrics, present summary, squash merge
+- **Step 10** (Merge) — wait for CI, present summary, squash merge
 - **Step 11** (Close Issues & Clean Up) — close issue, move to Done on board. **Skip the branch cleanup and `/exit`** — the session continues with the next story.
 
 After step 11 completes, add the story to `completedStories`.
@@ -198,8 +198,7 @@ If `failedStories` is non-empty, ask the user: proceed with completed stories on
 Execute `/epic-close` steps 2 through 7 in order. Step 1 (Rebase) is skipped — the worktree is already on the latest beta from the story loop.
 
 - **Step 2** (Verify All Stories Merged)
-- **Step 2a** (Generate Epic Metrics Report)
-- **Step 2b** (Lint Health Check)
+- **Step 2a** (Lint Health Check)
 - **Step 3** (Collect Refinement Items)
 - **Step 4** (Refinement PR)
 - **Step 5** (E2E Validation)

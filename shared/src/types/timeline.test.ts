@@ -48,7 +48,7 @@ describe('TimelineWorkItem interface', () => {
           translationKey: 'trades.tiling',
         },
       },
-      area: { id: 'area-kitchen', name: 'Kitchen', color: '#FF5733' },
+      area: { id: 'area-kitchen', name: 'Kitchen', color: '#FF5733', ancestors: [] },
     };
 
     expect(item.id).toBe('wi-001');
@@ -145,7 +145,12 @@ describe('TimelineWorkItem interface', () => {
   });
 
   it('area color can be null', () => {
-    const area: AreaSummary = { id: 'area-no-color', name: 'Uncolored Area', color: null };
+    const area: AreaSummary = {
+      id: 'area-no-color',
+      name: 'Uncolored Area',
+      color: null,
+      ancestors: [],
+    };
     const item: TimelineWorkItem = {
       id: 'wi-006',
       title: 'Area No Color',
@@ -279,8 +284,8 @@ describe('TimelineHouseholdItem interface', () => {
     expect(hi.name).toBe('Kitchen Island');
     expect(hi.category).toBe('hic-furniture');
     expect(hi.dependencyIds).toHaveLength(2);
-    expect(hi.dependencyIds[0].predecessorType).toBe('work_item');
-    expect(hi.dependencyIds[1].predecessorType).toBe('milestone');
+    expect(hi.dependencyIds[0]!.predecessorType).toBe('work_item');
+    expect(hi.dependencyIds[1]!.predecessorType).toBe('milestone');
   });
 
   it('allows delivery dates to be null and dependencyIds to be empty', () => {
@@ -348,7 +353,7 @@ describe('TimelineResponse interface', () => {
               translationKey: 'trades.tiling',
             },
           },
-          area: { id: 'area-bathroom', name: 'Bathroom', color: '#3B82F6' },
+          area: { id: 'area-bathroom', name: 'Bathroom', color: '#3B82F6', ancestors: [] },
         },
       ],
       dependencies: [
@@ -394,8 +399,8 @@ describe('TimelineResponse interface', () => {
     };
 
     expect(response.workItems).toHaveLength(1);
-    expect(response.workItems[0].assignedVendor?.trade?.name).toBe('Tiling');
-    expect(response.workItems[0].area?.name).toBe('Bathroom');
+    expect(response.workItems[0]!.assignedVendor?.trade?.name).toBe('Tiling');
+    expect(response.workItems[0]!.area?.name).toBe('Bathroom');
     expect(response.dependencies).toHaveLength(1);
     expect(response.milestones).toHaveLength(1);
     expect(response.householdItems).toHaveLength(1);

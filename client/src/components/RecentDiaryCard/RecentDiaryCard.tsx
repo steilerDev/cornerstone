@@ -30,7 +30,7 @@ export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardPr
       <EmptyState
         message={t('cards.recentDiary.emptyMessage')}
         action={{
-          label: t('cards.recentDiary.emptyAction'),
+          label: t('cards.recentDiary.emptyAction')!,
           href: '/diary/new',
         }}
         className={styles.emptyState}

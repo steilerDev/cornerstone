@@ -63,24 +63,16 @@ function mockBudgetOverview() {
     remainingVsProjectedMin: 40000,
     remainingVsProjectedMax: 30000,
     remainingVsActualClaimed: 220000,
-    categorySummaries: [
-      {
-        categoryId: 'cat-001',
-        categoryName: 'Materials',
-        categoryColor: '#3b82f6',
-        minPlanned: 120000,
-        maxPlanned: 132000,
-        actualCost: 95000,
-        actualCostPaid: 80000,
-        projectedMin: 125000,
-        projectedMax: 130000,
-        actualCostClaimed: 50000,
-        budgetLineCount: 4,
-      },
-    ],
+    remainingVsMinPlannedWithPayback: 0,
+    remainingVsMaxPlannedWithPayback: 0,
+    areaSummaries: [],
+    unassignedSummary: null,
     subsidySummary: {
       totalReductions: 12500,
       activeSubsidyCount: 1,
+      minTotalPayback: 0,
+      maxTotalPayback: 0,
+      oversubscribedSubsidies: [],
     },
   };
 }

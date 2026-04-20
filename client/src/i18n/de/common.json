@@ -7,6 +7,8 @@
     "settings": "Einstellungen"
   },
   "name": "Name",
+  "noArea": "Kein Bereich",
+  "noAreaDescription": "Kein Bereich — Elemente ohne Bereichszuweisung anzeigen",
   "button": {
     "logout": "Abmelden",
     "close": "Schließen",
@@ -101,13 +103,13 @@
     "budget": {
       "overview": "Übersicht",
       "invoices": "Rechnungen",
-      "vendors": "Auftragnehmer",
       "sources": "Geldquellen",
       "subsidies": "Zuschüsse"
     },
     "settings": {
       "profile": "Profil",
       "manage": "Verwalten",
+      "vendors": "Auftragnehmer",
       "userManagement": "Benutzerverwaltung",
       "backups": "Sicherungen"
     }

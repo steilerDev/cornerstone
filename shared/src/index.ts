@@ -18,6 +18,7 @@ export type { FilterColumnMeta, FilterMeta } from './types/filterMeta.js';
 
 // Areas
 export type {
+  AreaAncestor,
   AreaSummary,
   AreaResponse,
   AreaListResponse,
@@ -153,6 +154,10 @@ export type {
   UpdateBudgetSourceRequest,
   BudgetSourceListResponse,
   BudgetSourceResponse,
+  BudgetSourceBudgetLine,
+  BudgetSourceBudgetLinesResponse,
+  MoveBudgetLinesRequest,
+  MoveBudgetLinesResponse,
 } from './types/budgetSource.js';
 
 // Shared Budget Base Types
@@ -181,7 +186,6 @@ export type {
 
 // Budget Overview
 export type {
-  CategoryBudgetSummary,
   BudgetOverview,
   BudgetOverviewResponse,
   OversubscribedSubsidy,
@@ -192,9 +196,8 @@ export type {
   CostDisplay,
   BreakdownBudgetLine,
   BreakdownWorkItem,
-  BreakdownWorkItemCategory,
+  BreakdownArea,
   BreakdownHouseholdItem,
-  BreakdownHouseholdItemCategory,
   BreakdownTotals,
   BudgetBreakdown,
   BudgetBreakdownResponse,

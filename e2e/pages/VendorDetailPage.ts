@@ -1,5 +1,8 @@
 /**
- * Page Object Model for the Vendor Detail page (/budget/vendors/:id)
+ * Page Object Model for the Vendor Detail page (/settings/vendors/:id)
+ *
+ * Vendors moved from Budget section to Settings section in Story #1283.
+ * Legacy route /budget/vendors/:id redirects to /settings/vendors/:id via React Router.
  *
  * The page renders:
  * - A back button navigation ("← Back to Vendors")
@@ -204,7 +207,7 @@ export class VendorDetailPage {
   }
 
   async goto(vendorId: string): Promise<void> {
-    await this.page.goto(`/budget/vendors/${vendorId}`);
+    await this.page.goto(`/settings/vendors/${vendorId}`);
     await this.pageTitle.waitFor({ state: 'visible' });
   }
 
@@ -213,7 +216,7 @@ export class VendorDetailPage {
    */
   async goBackToVendors(): Promise<void> {
     await this.backToVendorsButton.click();
-    await this.page.waitForURL('**/budget/vendors');
+    await this.page.waitForURL('**/settings/vendors');
   }
 
   /**
@@ -271,7 +274,7 @@ export class VendorDetailPage {
   }
 
   /**
-   * Confirm deletion in the modal. The page navigates away to /budget/vendors on success.
+   * Confirm deletion in the modal. The page navigates away to /settings/vendors on success.
    */
   async confirmDelete(): Promise<void> {
     await this.deleteConfirmButton.click();

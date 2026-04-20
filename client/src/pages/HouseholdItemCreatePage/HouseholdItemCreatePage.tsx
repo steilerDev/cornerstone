@@ -65,7 +65,7 @@ export function HouseholdItemCreatePage() {
         setCategories(categoriesResponse.categories);
         // Set default category to first one from API for better UX
         if (categoriesResponse.categories.length > 0) {
-          setCategory(categoriesResponse.categories[0].id as HouseholdItemCategory);
+          setCategory(categoriesResponse.categories[0]!.id as HouseholdItemCategory); // guarded by length check
         }
       } catch (err) {
         setError('Failed to load form data. Please try again.');

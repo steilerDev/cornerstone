@@ -8,6 +8,7 @@ import { Modal } from '../../components/Modal/Modal.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
+import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { listWorkItems, deleteWorkItem } from '../../lib/workItemsApi.js';
@@ -29,6 +30,7 @@ const PROJECT_TABS: SubNavTab[] = [
 
 export function WorkItemsPage() {
   const { t } = useTranslation('workItems');
+  const { t: tCommon } = useTranslation('common');
   const navigate = useNavigate();
   const { formatDate } = useFormatters();
   const { areas } = useAreas();
@@ -216,19 +218,22 @@ export function WorkItemsPage() {
     (): ColumnDef<WorkItemSummary>[] => [
       {
         key: 'title',
-        label: t('list.table.title'),
+        label: t('list.table.title')!,
         sortable: true,
         sortKey: 'title',
         defaultVisible: true,
         render: (item) => (
-          <Link to={`/project/work-items/${item.id}`} className={styles.itemLink}>
-            {item.title}
-          </Link>
+          <div className={styles.titleCell}>
+            <Link to={`/project/work-items/${item.id}`} className={styles.itemLink}>
+              {item.title}
+            </Link>
+            <AreaBreadcrumb area={item.area ?? null} variant="compact" />
+          </div>
         ),
       },
       {
         key: 'status',
-        label: t('list.table.status'),
+        label: t('list.table.status')!,
         sortable: true,
         sortKey: 'status',
         defaultVisible: true,
@@ -244,18 +249,18 @@ export function WorkItemsPage() {
       },
       {
         key: 'assignedTo',
-        label: t('list.table.assignedTo'),
+        label: t('list.table.assignedTo')!,
         sortable: false,
         defaultVisible: true,
         filterable: true,
         filterType: 'enum',
         filterParamKey: 'assignedUserId',
         enumOptions: users.map((u) => ({ value: u.id, label: u.displayName })),
-        render: (item) => item.assignedUser?.displayName || '—',
+        render: (item) => item.assignedUser?.displayName || item.assignedVendor?.name || '—',
       },
       {
         key: 'vendor',
-        label: t('list.table.vendor'),
+        label: t('list.table.vendor')!,
         sortable: false,
         defaultVisible: false,
         filterable: true,
@@ -266,7 +271,7 @@ export function WorkItemsPage() {
       },
       {
         key: 'area',
-        label: t('list.table.area'),
+        label: t('list.table.area')!,
         sortable: false,
         defaultVisible: false,
         filterable: true,
@@ -274,11 +279,14 @@ export function WorkItemsPage() {
         filterParamKey: 'areaId',
         enumOptions: areas.map((a) => ({ value: a.id, label: a.name })),
         enumHierarchy: areas.map((a) => ({ id: a.id, parentId: a.parentId ?? null })),
+        enumIncludeNone: true,
+        enumNoneLabel: tCommon('noArea'),
+        enumNoneDescription: tCommon('noAreaDescription'),
         render: (item) => item.area?.name || '—',
       },
       {
         key: 'startDate',
-        label: t('list.table.startDate'),
+        label: t('list.table.startDate')!,
         sortable: true,
         sortKey: 'start_date',
         defaultVisible: true,
@@ -289,7 +297,7 @@ export function WorkItemsPage() {
       },
       {
         key: 'endDate',
-        label: t('list.table.endDate'),
+        label: t('list.table.endDate')!,
         sortable: true,
         sortKey: 'end_date',
         defaultVisible: true,
@@ -300,7 +308,7 @@ export function WorkItemsPage() {
       },
       {
         key: 'budgetLines',
-        label: t('list.table.budgetLines'),
+        label: t('list.table.budgetLines')!,
         sortable: false,
         defaultVisible: true,
         filterable: true,
@@ -311,7 +319,7 @@ export function WorkItemsPage() {
         render: (item) => item.budgetLineCount,
       },
     ],
-    [t, formatDate, wiStatusVariants, users, vendors, areas],
+    [t, tCommon, formatDate, wiStatusVariants, users, vendors, areas],
   );
 
   // Close action menu on outside click and Escape key
@@ -381,7 +389,7 @@ export function WorkItemsPage() {
       {
         key: 'n',
         handler: () => navigate('/project/work-items/new'),
-        description: t('list.shortcuts.newWorkItem'),
+        description: t('list.shortcuts.newWorkItem')!,
       },
       {
         key: '/',
@@ -389,12 +397,12 @@ export function WorkItemsPage() {
           const searchInput = document.querySelector<HTMLInputElement>('input[type="search"]');
           searchInput?.focus();
         },
-        description: t('list.shortcuts.focusSearch'),
+        description: t('list.shortcuts.focusSearch')!,
       },
       {
         key: '?',
         handler: () => setShowShortcutsHelp(true),
-        description: t('list.shortcuts.showShortcuts'),
+        description: t('list.shortcuts.showShortcuts')!,
       },
       {
         key: 'Escape',
@@ -407,7 +415,7 @@ export function WorkItemsPage() {
             setActiveMenuId(null);
           }
         },
-        description: t('list.shortcuts.closeOrCancel'),
+        description: t('list.shortcuts.closeOrCancel')!,
       },
     ],
     [navigate, showShortcutsHelp, deletingItem, activeMenuId, t],
@@ -446,10 +454,10 @@ export function WorkItemsPage() {
         onStateChange={handleStateChange}
         filterMeta={filterMeta}
         emptyState={{
-          message: t('list.empty.noItemsTitle'),
-          description: t('list.empty.noItemsText'),
+          message: t('list.empty.noItemsTitle')!,
+          description: t('list.empty.noItemsText')!,
           action: {
-            label: t('list.empty.createFirst'),
+            label: t('list.empty.createFirst')!,
             onClick: () => navigate('/project/work-items/new'),
           },
         }}

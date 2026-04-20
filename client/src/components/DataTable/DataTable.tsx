@@ -47,6 +47,11 @@ export interface ColumnDef<T> {
   filterParamKey?: string;
   enumOptions?: EnumOption[];
   enumHierarchy?: EnumHierarchyItem[];
+  enumIncludeNone?: boolean;
+  /** Already-translated label shown in the "none" sentinel row */
+  enumNoneLabel?: string;
+  /** Used as aria-label on the sentinel checkbox (already translated) */
+  enumNoneDescription?: string;
   entitySearchFn?: SearchPickerProps<unknown>['searchFn'];
   entityRenderItem?: SearchPickerProps<unknown>['renderItem'];
   entityPlaceholder?: string;
@@ -207,8 +212,10 @@ export function DataTable<T>({
       if (!filterVal) continue;
       const minMatch = filterVal.match(/min:([\d.]+)/);
       const maxMatch = filterVal.match(/max:([\d.]+)/);
-      const filterMin = minMatch ? parseFloat(minMatch[1]) : undefined;
-      const filterMax = maxMatch ? parseFloat(maxMatch[1]) : undefined;
+      // minMatch is guaranteed to have [1] if it matched
+      const filterMin = minMatch ? parseFloat(minMatch[1]!) : undefined;
+      // maxMatch is guaranteed to have [1] if it matched
+      const filterMax = maxMatch ? parseFloat(maxMatch[1]!) : undefined;
       result = result.filter((item) => {
         const val = col.getValue!(item);
         if (filterMin !== undefined && val < filterMin) return false;
@@ -418,7 +425,7 @@ export function DataTable<T>({
           description={!hasActiveFilters ? emptyState?.description : undefined}
           action={
             hasActiveFilters
-              ? { label: t('button.clearFilters'), onClick: handleResetFilters }
+              ? { label: t('button.clearFilters')!, onClick: handleResetFilters }
               : emptyState?.action
           }
         />

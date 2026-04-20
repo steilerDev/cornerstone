@@ -49,7 +49,7 @@ At the start of each `/develop` invocation, create tasks to track progress. Thes
 6. **Implement + Test** — Full multi-phase cycle: spec → backend → frontend → QA/E2E → review → fix loop → commit → trailer verification
 7. **Verify PR** — Confirm PR exists targeting beta
 8. **Agent reviews** — Launch product-architect, security-engineer, product-owner, ux-designer reviews
-9. **Merge** — Wait for CI, persist metrics, squash merge to beta
+9. **Merge** — Wait for CI, squash merge to beta
 10. **Close issues & clean up** — Close issues, move to Done, clean up branch
 
 **Progress rule:** Before starting each step, mark its task `in_progress`. After completing, mark it `completed`. If a step is skipped (conditional), mark it `completed` with a note in the description.
@@ -362,13 +362,13 @@ If none of these patterns match, skip the security review. The full security aud
 
 Review results are posted as **comments on the PR**. All review agents must prefix their comments with their agent name (e.g., `**[product-architect]**`).
 
-After all reviews are posted, note each reviewer's verdict and finding counts from their `REVIEW_METRICS` block. Track this as review round 1.
+After all reviews are posted, note each reviewer's verdict. Track this as review round 1.
 
 In multi-item mode, reviewers must validate that **all items** in the batch are addressed.
 
 ### 9. Fix Loop
 
-Track `fixLoopCount` (starts at 0). Each fix-and-re-review iteration increments this counter. Record which agent(s) triggered each round in `fixLoopTriggers`.
+Track fix loop iterations. Each fix-and-re-review cycle counts as one round.
 
 If any reviewer identifies blocking issues:
 
@@ -383,15 +383,14 @@ If any reviewer identifies blocking issues:
 5. Launch **dev-team-lead** in `[MODE: commit]` to commit, push, and watch CI
 6. Run **trailer verification** (same as step 6h)
 7. Re-request review from the agent(s) that flagged issues
-8. Increment `fixLoopCount` and record the new round's `REVIEW_METRICS`
-9. **Update the implementation checklist**: If the fix loop was caused by a recurring pattern not yet in `.claude/checklists/implementation-checklist.md`, add the new pattern. This creates a flywheel where each fix loop reduces future occurrences.
-10. Repeat until all reviewers approve
+8. **Update the implementation checklist**: If the fix loop was caused by a recurring pattern not yet in `.claude/checklists/implementation-checklist.md`, add the new pattern. This creates a flywheel where each fix loop reduces future occurrences.
+9. Repeat until all reviewers approve
 
 ### 10. Merge
 
 Once all reviews are clean, wait for CI to go green:
 
-After pushing, **wait 5 seconds** for GitHub to compute merge status, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if the result is `MERGEABLE`.** If `CONFLICTING`, rebase onto `beta`, force-push, and re-check. If `UNKNOWN`, wait a few more seconds and retry. Once mergeability is confirmed, use the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant — wait for `Quality Gates` + `CLA`).
+After pushing, **wait 5 seconds** for GitHub to compute merge status, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if the result is `MERGEABLE`.** If `CONFLICTING`, rebase onto `beta`, force-push, and re-check. If `UNKNOWN`, wait a few more seconds and retry. Once mergeability is confirmed, use the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant — wait for `Quality Gates`).
 
 After CI is green, present the user with:
 
@@ -411,60 +410,13 @@ In multi-item mode, present a **per-item summary table**:
 | #61   | Add export button to Gantt     | Resolved |
 ```
 
-Once CI is green and all reviewers have approved, proceed to step 10a (persist metrics) and then merge.
-
-If the user reports issues with a merged PR, take the user's feedback as new input and start a new `/develop` cycle to address it.
-
-### 10a. Persist Metrics
-
-**Before merging**, collect PR metadata and append a record to `.claude/metrics/review-metrics.jsonl`:
-
-1. Fetch PR data:
-
-   ```bash
-   gh pr view <pr-number> --json number,additions,deletions,changedFiles
-   ```
-
-2. Append a single JSON line (do not overwrite the file):
-
-   ```json
-   {
-     "pr": <number>,
-     "issues": [<issue-numbers>],
-     "epic": <epic-number-or-null>,
-     "type": "<feat|fix|chore>",
-     "createdAt": "<ISO-8601 of PR creation>",
-     "mergedAt": "<ISO-8601 of merge>",
-     "filesChanged": <N>,
-     "linesChanged": <additions+deletions>,
-     "touchesClient": <true|false>,
-     "touchesServer": <true|false>,
-     "fixLoopCount": <N>,
-     "internalFixLoopCount": <N from step 6f>,
-     "fixLoopTriggers": [{"round": 1, "agents": ["agent-name"]}],
-     "reviews": [
-       { "agent": "<name>", "verdict": "<approve|request-changes>", "findings": { "critical": 0, "high": 0, "medium": 0, "low": 0, "informational": 0 }, "round": <N> }
-     ],
-     "totalFindings": { "critical": 0, "high": 0, "medium": 0, "low": 0, "informational": 0 }
-   }
-   ```
-
-   **Schema rules:**
-   - `verdict` must be `"approve"` or `"request-changes"` — never `"comment"` (agents that would comment should approve with findings noted)
-   - `createdAt` is the PR creation timestamp; `mergedAt` is only set after actual merge
-   - `touchesClient` / `touchesServer` indicate whether files under `client/` or `server/`+`shared/` were changed
-   - `internalFixLoopCount` tracks pre-PR review cycles (step 6f); `fixLoopCount` tracks post-PR review cycles (step 9)
-   - `fixLoopTriggers` records which agent(s) caused each fix loop round
-
-3. Commit and push the updated metrics file: `chore: update review metrics for PR #<N>`
-
-### 10b. Merge
-
-After metrics are persisted, merge to beta:
+Once CI is green and all reviewers have approved, merge to beta:
 
 ```
 gh pr merge --squash <pr-url>
 ```
+
+If the user reports issues with a merged PR, take the user's feedback as new input and start a new `/develop` cycle to address it.
 
 ### 11. Close Issues & Clean Up
 

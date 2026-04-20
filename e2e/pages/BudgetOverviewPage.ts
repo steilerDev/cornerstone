@@ -11,7 +11,7 @@
  *   - A key metrics row: Available Funds, Projected Cost Range, Remaining
  *   - A BudgetBar stacked bar chart (role="img")
  *   - A footer showing subsidies and sources info
- *   - A category filter dropdown button
+ * - Cost Breakdown table (CostBreakdownTable) with area hierarchy expand/collapse
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -40,7 +40,9 @@ export class BudgetOverviewPage {
   // Budget overview hero card
   readonly heroCard: Locator;
   readonly budgetBar: Locator;
-  readonly categoryFilterButton: Locator;
+
+  // Cost Breakdown table (CostBreakdownTable, area hierarchy)
+  readonly costBreakdownCard: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -68,8 +70,26 @@ export class BudgetOverviewPage {
     // Budget bar: BudgetBar stacked bar chart with role="img"
     this.budgetBar = page.getByRole('img').filter({ has: page.locator('[class*="bar"]') });
 
-    // Category filter dropdown button
-    this.categoryFilterButton = page.getByRole('button', { name: /categories/i });
+    // Cost Breakdown table: <section aria-labelledby="breakdown-heading">
+    this.costBreakdownCard = page.locator('section[aria-labelledby="breakdown-heading"]');
+  }
+
+  /**
+   * Return the row inside the Cost Breakdown table that contains the given area name text.
+   */
+  breakdownAreaRow(name: string): Locator {
+    return this.costBreakdownCard.getByRole('row').filter({ hasText: name });
+  }
+
+  /**
+   * Return the expand/collapse toggle button for the given area name inside the Cost Breakdown table.
+   * The aria-label is either "Expand <name>" or "Collapse <name>" depending on state,
+   * so the regex matches both.
+   */
+  breakdownAreaToggle(name: string): Locator {
+    return this.costBreakdownCard.getByRole('button', {
+      name: new RegExp(`(?:expand|collapse) ${name}`, 'i'),
+    });
   }
 
   async goto(): Promise<void> {
@@ -101,5 +121,39 @@ export class BudgetOverviewPage {
    */
   async isSubNavVisible(): Promise<boolean> {
     return await this.subNav.isVisible();
+  }
+
+  // ── Print helpers ─────────────────────────────────────────────────────────
+
+  /**
+   * Dispatch the `beforeprint` window event and switch Playwright media to 'print'.
+   * Use this to simulate the browser print dialog opening.
+   */
+  async startPrint(): Promise<void> {
+    await this.page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
+    await this.page.emulateMedia({ media: 'print' });
+  }
+
+  /**
+   * Dispatch the `afterprint` window event and restore Playwright media to 'screen'.
+   * Use this to simulate the browser print dialog closing.
+   */
+  async endPrint(): Promise<void> {
+    await this.page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+    await this.page.emulateMedia({ media: 'screen' });
+  }
+
+  /**
+   * The sidebar `<aside>` element.
+   */
+  get sidebar(): Locator {
+    return this.page.locator('aside');
+  }
+
+  /**
+   * The Add dropdown button (budget-overview-add-button).
+   */
+  get addButton(): Locator {
+    return this.page.getByTestId('budget-overview-add-button');
   }
 }

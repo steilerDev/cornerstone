@@ -121,12 +121,12 @@ describe('workItemSubsidyService', () => {
       const result = workItemSubsidyService.listWorkItemSubsidies(db, workItemId);
 
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe(subsidyId);
-      expect(result[0].name).toBe('Green Energy Rebate');
-      expect(result[0].reductionType).toBe('percentage');
-      expect(result[0].reductionValue).toBe(15);
-      expect(result[0].applicationStatus).toBe('eligible');
-      expect(result[0].createdBy?.id).toBe('user-001');
+      expect(result[0]!.id).toBe(subsidyId);
+      expect(result[0]!.name).toBe('Green Energy Rebate');
+      expect(result[0]!.reductionType).toBe('percentage');
+      expect(result[0]!.reductionValue).toBe(15);
+      expect(result[0]!.applicationStatus).toBe('eligible');
+      expect(result[0]!.createdBy?.id).toBe('user-001');
     });
 
     it('returns multiple linked subsidy programs', () => {
@@ -171,8 +171,8 @@ describe('workItemSubsidyService', () => {
 
       const result = workItemSubsidyService.listWorkItemSubsidies(db, workItemId);
 
-      expect(result[0].applicableCategories).toBeDefined();
-      expect(Array.isArray(result[0].applicableCategories)).toBe(true);
+      expect(result[0]!.applicableCategories).toBeDefined();
+      expect(Array.isArray(result[0]!.applicableCategories)).toBe(true);
     });
 
     it('returns subsidy with null createdBy when createdBy is null', () => {
@@ -184,7 +184,7 @@ describe('workItemSubsidyService', () => {
       const result = workItemSubsidyService.listWorkItemSubsidies(db, workItemId);
 
       expect(result).toHaveLength(1);
-      expect(result[0].createdBy).toBeNull();
+      expect(result[0]!.createdBy).toBeNull();
     });
 
     it('throws NotFoundError when work item does not exist', () => {
@@ -224,7 +224,7 @@ describe('workItemSubsidyService', () => {
 
       const listed = workItemSubsidyService.listWorkItemSubsidies(db, workItemId);
       expect(listed).toHaveLength(1);
-      expect(listed[0].id).toBe(subsidyId);
+      expect(listed[0]!.id).toBe(subsidyId);
     });
 
     it('allows linking the same subsidy to multiple work items', () => {
@@ -267,14 +267,14 @@ describe('workItemSubsidyService', () => {
 
       // Link the category to the subsidy program
       db.insert(schema.subsidyProgramCategories)
-        .values({ subsidyProgramId: subsidyId, budgetCategoryId: categories[0].id })
+        .values({ subsidyProgramId: subsidyId, budgetCategoryId: categories[0]!.id })
         .run();
 
       db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
       const result = workItemSubsidyService.listWorkItemSubsidies(db, workItemId);
-      expect(result[0].applicableCategories).toHaveLength(1);
-      expect(result[0].applicableCategories[0].id).toBe(categories[0].id);
+      expect(result[0]!.applicableCategories).toHaveLength(1);
+      expect(result[0]!.applicableCategories[0]!.id).toBe(categories[0]!.id);
     });
 
     it('throws NotFoundError when work item does not exist', () => {
@@ -343,7 +343,7 @@ describe('workItemSubsidyService', () => {
 
       const result = workItemSubsidyService.listWorkItemSubsidies(db, workItemId);
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe(subsidyId2);
+      expect(result[0]!.id).toBe(subsidyId2);
     });
 
     it('throws NotFoundError when work item does not exist', () => {

@@ -71,7 +71,7 @@ describe('Scheduling Engine', () => {
       const result = schedule(fullParams([makeItem('A', 10)], [], '2026-03-01'));
 
       expect(result.scheduledItems).toHaveLength(1);
-      const item = result.scheduledItems[0];
+      const item = result.scheduledItems[0]!;
       expect(item.workItemId).toBe('A');
       expect(item.scheduledStartDate).toBe('2026-03-01');
       expect(item.scheduledEndDate).toBe('2026-03-11');
@@ -119,14 +119,14 @@ describe('Scheduling Engine', () => {
       expect(result.scheduledItems).toHaveLength(3);
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
 
-      expect(byId['A'].scheduledStartDate).toBe('2026-01-01');
-      expect(byId['A'].scheduledEndDate).toBe('2026-01-06');
+      expect(byId['A']!.scheduledStartDate).toBe('2026-01-01');
+      expect(byId['A']!.scheduledEndDate).toBe('2026-01-06');
 
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-06');
-      expect(byId['B'].scheduledEndDate).toBe('2026-01-09');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-06');
+      expect(byId['B']!.scheduledEndDate).toBe('2026-01-09');
 
-      expect(byId['C'].scheduledStartDate).toBe('2026-01-09');
-      expect(byId['C'].scheduledEndDate).toBe('2026-01-13');
+      expect(byId['C']!.scheduledStartDate).toBe('2026-01-09');
+      expect(byId['C']!.scheduledEndDate).toBe('2026-01-13');
     });
 
     it('should identify all items as critical in a single linear chain', () => {
@@ -137,8 +137,8 @@ describe('Scheduling Engine', () => {
       expect(result.criticalPath).toContain('A');
       expect(result.criticalPath).toContain('B');
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      expect(byId['A'].isCritical).toBe(true);
-      expect(byId['B'].isCritical).toBe(true);
+      expect(byId['A']!.isCritical).toBe(true);
+      expect(byId['B']!.isCritical).toBe(true);
     });
 
     it('should identify non-critical items when a parallel path has slack', () => {
@@ -149,24 +149,24 @@ describe('Scheduling Engine', () => {
       const result = schedule(fullParams(items, deps, '2026-01-01'));
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      expect(byId['A'].isCritical).toBe(true);
-      expect(byId['C'].isCritical).toBe(true);
-      expect(byId['B'].isCritical).toBe(false);
-      expect(byId['B'].totalFloat).toBe(9);
+      expect(byId['A']!.isCritical).toBe(true);
+      expect(byId['C']!.isCritical).toBe(true);
+      expect(byId['B']!.isCritical).toBe(false);
+      expect(byId['B']!.totalFloat).toBe(9);
     });
 
     it('should carry previousStartDate and previousEndDate from the work item', () => {
       const item = makeItem('A', 5, { startDate: '2025-12-01', endDate: '2025-12-06' });
       const result = schedule(fullParams([item], [], '2026-01-01'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.previousStartDate).toBe('2025-12-01');
       expect(si.previousEndDate).toBe('2025-12-06');
     });
 
     it('should carry null previousStartDate/previousEndDate when not set on work item', () => {
       const result = schedule(fullParams([makeItem('A', 5)], [], '2026-01-01'));
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.previousStartDate).toBeNull();
       expect(si.previousEndDate).toBeNull();
     });
@@ -209,7 +209,7 @@ describe('Scheduling Engine', () => {
       const result = schedule(params);
 
       expect(result.scheduledItems).toHaveLength(1);
-      expect(result.scheduledItems[0].workItemId).toBe('B');
+      expect(result.scheduledItems[0]!.workItemId).toBe('B');
     });
 
     it('should throw when anchorWorkItemId is missing in cascade mode', () => {
@@ -254,8 +254,8 @@ describe('Scheduling Engine', () => {
       );
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-06');
-      expect(byId['B'].scheduledEndDate).toBe('2026-01-09');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-06');
+      expect(byId['B']!.scheduledEndDate).toBe('2026-01-09');
     });
 
     it('start_to_start: successor starts when predecessor starts', () => {
@@ -270,8 +270,8 @@ describe('Scheduling Engine', () => {
       );
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-01');
-      expect(byId['B'].scheduledEndDate).toBe('2026-01-04');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-01');
+      expect(byId['B']!.scheduledEndDate).toBe('2026-01-04');
     });
 
     it('finish_to_finish: successor finishes when predecessor finishes', () => {
@@ -288,8 +288,8 @@ describe('Scheduling Engine', () => {
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
       // B must finish same time or after A finishes:
       // B.EF >= A.EF (2026-01-06) => B.ES >= 2026-01-06 - 3 = 2026-01-03
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-03');
-      expect(byId['B'].scheduledEndDate).toBe('2026-01-06');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-03');
+      expect(byId['B']!.scheduledEndDate).toBe('2026-01-06');
     });
 
     it('start_to_finish: successor finishes when predecessor starts', () => {
@@ -308,8 +308,8 @@ describe('Scheduling Engine', () => {
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
       // SF(A,B): B.EF >= A.ES + 0 = 2026-01-01 => CPM gives B.ES = 2025-12-29
       // Today floor pushes B.ES to 2026-01-01; B.EF = 2026-01-01 + 3 = 2026-01-04
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-01');
-      expect(byId['B'].scheduledEndDate).toBe('2026-01-04');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-01');
+      expect(byId['B']!.scheduledEndDate).toBe('2026-01-04');
     });
   });
 
@@ -329,8 +329,8 @@ describe('Scheduling Engine', () => {
       );
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-08'); // 2026-01-06 + 2
-      expect(byId['B'].scheduledEndDate).toBe('2026-01-11');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-08'); // 2026-01-06 + 2
+      expect(byId['B']!.scheduledEndDate).toBe('2026-01-11');
     });
 
     it('negative lead allows overlap with FS dependency', () => {
@@ -344,7 +344,7 @@ describe('Scheduling Engine', () => {
       );
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-04'); // 2026-01-06 - 2
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-04'); // 2026-01-06 - 2
     });
 
     it('positive lag on SS dependency delays successor start', () => {
@@ -358,7 +358,7 @@ describe('Scheduling Engine', () => {
       );
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-04');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-04');
     });
 
     it('positive lag on FF dependency shifts successor finish', () => {
@@ -372,7 +372,7 @@ describe('Scheduling Engine', () => {
       );
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      expect(byId['B'].scheduledEndDate).toBe('2026-01-08'); // A.EF(2026-01-06) + 2
+      expect(byId['B']!.scheduledEndDate).toBe('2026-01-08'); // A.EF(2026-01-06) + 2
     });
   });
 
@@ -388,7 +388,7 @@ describe('Scheduling Engine', () => {
       const result = schedule(fullParams(items, deps, '2026-01-01'));
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      expect(byId['C'].scheduledStartDate).toBe('2026-01-11');
+      expect(byId['C']!.scheduledStartDate).toBe('2026-01-11');
     });
 
     it('should compute float correctly when shorter path limits successor', () => {
@@ -403,9 +403,9 @@ describe('Scheduling Engine', () => {
       const result = schedule(fullParams(items, deps, '2026-01-01'));
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      expect(byId['B'].isCritical).toBe(true);
-      expect(byId['C'].isCritical).toBe(false);
-      expect(byId['C'].totalFloat).toBeGreaterThan(0);
+      expect(byId['B']!.isCritical).toBe(true);
+      expect(byId['C']!.isCritical).toBe(false);
+      expect(byId['C']!.totalFloat).toBeGreaterThan(0);
     });
   });
 
@@ -471,8 +471,8 @@ describe('Scheduling Engine', () => {
       const result = schedule(fullParams(items, deps, '2026-01-01'));
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-10');
-      expect(byId['B'].scheduledEndDate).toBe('2026-01-13');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-10');
+      expect(byId['B']!.scheduledEndDate).toBe('2026-01-13');
     });
 
     it('should not shift ES when startAfter is earlier than dependency-derived date', () => {
@@ -482,14 +482,14 @@ describe('Scheduling Engine', () => {
       const result = schedule(fullParams(items, deps, '2026-01-01'));
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-06');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-06');
     });
 
     it('should apply startAfter to an independent item with no predecessors', () => {
       const item = makeItem('A', 3, { startAfter: '2026-06-15' });
       const result = schedule(fullParams([item], [], '2026-01-01'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.scheduledStartDate).toBe('2026-06-15');
       expect(si.scheduledEndDate).toBe('2026-06-18');
     });
@@ -508,7 +508,7 @@ describe('Scheduling Engine', () => {
         (w) => w.workItemId === 'B' && w.type === 'start_before_violated',
       );
       expect(warnB).toHaveLength(1);
-      expect(warnB[0].message).toContain('2026-01-05');
+      expect(warnB[0]!.message).toContain('2026-01-05');
     });
 
     it('should still schedule the item even when startBefore is violated', () => {
@@ -518,7 +518,7 @@ describe('Scheduling Engine', () => {
       const result = schedule(fullParams(items, deps, '2026-01-01'));
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-11');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-11');
       expect(result.scheduledItems).toHaveLength(2);
     });
 
@@ -544,14 +544,14 @@ describe('Scheduling Engine', () => {
         (w) => w.workItemId === 'A' && w.type === 'no_duration',
       );
       expect(warnings).toHaveLength(1);
-      expect(warnings[0].message).toContain('zero-duration');
+      expect(warnings[0]!.message).toContain('zero-duration');
     });
 
     it('should schedule null-duration item as zero-duration (ES === EF)', () => {
       const item = makeItem('A', null);
       const result = schedule(fullParams([item], [], '2026-04-01'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.scheduledStartDate).toBe('2026-04-01');
       expect(si.scheduledEndDate).toBe('2026-04-01');
     });
@@ -563,7 +563,7 @@ describe('Scheduling Engine', () => {
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
       // M has 0 duration; B starts from M.EF = 2026-01-01
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-01');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-01');
     });
   });
 
@@ -621,7 +621,7 @@ describe('Scheduling Engine', () => {
 
       // Engine computes what the dates would be (ES=today), but does not modify the DB
       expect(result.scheduledItems).toHaveLength(1);
-      expect(result.scheduledItems[0].scheduledStartDate).toBe('2026-01-01');
+      expect(result.scheduledItems[0]!.scheduledStartDate).toBe('2026-01-01');
     });
   });
 
@@ -654,7 +654,7 @@ describe('Scheduling Engine', () => {
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
       for (const id of result.criticalPath) {
-        expect(byId[id].totalFloat).toBe(0);
+        expect(byId[id]!.totalFloat).toBe(0);
       }
     });
 
@@ -681,20 +681,20 @@ describe('Scheduling Engine', () => {
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
 
       // A starts today
-      expect(byId['A'].scheduledStartDate).toBe('2026-01-01');
-      expect(byId['A'].scheduledEndDate).toBe('2026-01-06');
+      expect(byId['A']!.scheduledStartDate).toBe('2026-01-01');
+      expect(byId['A']!.scheduledEndDate).toBe('2026-01-06');
 
       // B: FS from A, 8 days
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-06');
-      expect(byId['B'].scheduledEndDate).toBe('2026-01-14');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-06');
+      expect(byId['B']!.scheduledEndDate).toBe('2026-01-14');
 
       // C: FS from A, 3 days
-      expect(byId['C'].scheduledStartDate).toBe('2026-01-06');
-      expect(byId['C'].scheduledEndDate).toBe('2026-01-09');
+      expect(byId['C']!.scheduledStartDate).toBe('2026-01-06');
+      expect(byId['C']!.scheduledEndDate).toBe('2026-01-09');
 
       // D: max of B.EF and C.EF
-      expect(byId['D'].scheduledStartDate).toBe('2026-01-14');
-      expect(byId['D'].scheduledEndDate).toBe('2026-01-16');
+      expect(byId['D']!.scheduledStartDate).toBe('2026-01-14');
+      expect(byId['D']!.scheduledEndDate).toBe('2026-01-16');
 
       // Critical path: A -> B -> D (longer path)
       expect(result.criticalPath).toContain('A');
@@ -702,8 +702,8 @@ describe('Scheduling Engine', () => {
       expect(result.criticalPath).toContain('D');
 
       // C has positive float
-      expect(byId['C'].totalFloat).toBeGreaterThan(0);
-      expect(byId['C'].isCritical).toBe(false);
+      expect(byId['C']!.totalFloat).toBeGreaterThan(0);
+      expect(byId['C']!.isCritical).toBe(false);
     });
 
     it('should schedule 10 items in a chain correctly', () => {
@@ -722,9 +722,9 @@ describe('Scheduling Engine', () => {
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
       // First item starts on 2026-01-01, last ends on 2026-01-10+1=2026-01-11
-      expect(byId['item-0'].scheduledStartDate).toBe('2026-01-01');
-      expect(byId['item-9'].scheduledStartDate).toBe('2026-01-10');
-      expect(byId['item-9'].scheduledEndDate).toBe('2026-01-11');
+      expect(byId['item-0']!.scheduledStartDate).toBe('2026-01-01');
+      expect(byId['item-9']!.scheduledStartDate).toBe('2026-01-10');
+      expect(byId['item-9']!.scheduledEndDate).toBe('2026-01-11');
     });
 
     it('should handle a network with disconnected subgraphs', () => {
@@ -736,12 +736,12 @@ describe('Scheduling Engine', () => {
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
 
       // First chain: A -> B
-      expect(byId['A'].scheduledStartDate).toBe('2026-01-01');
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-04');
+      expect(byId['A']!.scheduledStartDate).toBe('2026-01-01');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-04');
 
       // Second chain: C -> D (independent, starts today)
-      expect(byId['C'].scheduledStartDate).toBe('2026-01-01');
-      expect(byId['D'].scheduledStartDate).toBe('2026-01-06');
+      expect(byId['C']!.scheduledStartDate).toBe('2026-01-01');
+      expect(byId['D']!.scheduledStartDate).toBe('2026-01-06');
     });
 
     it('should handle 50+ work items without error', () => {
@@ -772,7 +772,7 @@ describe('Scheduling Engine', () => {
       const result = schedule(fullParams([item], [], '2026-01-01'));
 
       expect(result.scheduledItems).toHaveLength(1);
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
 
       expect(si).toHaveProperty('workItemId');
       expect(si).toHaveProperty('previousStartDate');
@@ -791,7 +791,7 @@ describe('Scheduling Engine', () => {
       const result = schedule(fullParams([item], [], '2026-01-01'));
 
       expect(result.warnings.length).toBeGreaterThan(0);
-      const w = result.warnings[0];
+      const w = result.warnings[0]!;
       expect(w).toHaveProperty('workItemId');
       expect(w).toHaveProperty('type');
       expect(w).toHaveProperty('message');
@@ -819,12 +819,12 @@ describe('Scheduling Engine', () => {
       const result = schedule(fullParams(items, deps, '2026-01-01'));
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      expect(byId['C'].latestStartDate).toBe('2026-01-09');
-      expect(byId['C'].latestFinishDate).toBe('2026-01-13');
-      expect(byId['B'].latestStartDate).toBe('2026-01-06');
-      expect(byId['B'].latestFinishDate).toBe('2026-01-09');
-      expect(byId['A'].latestStartDate).toBe('2026-01-01');
-      expect(byId['A'].latestFinishDate).toBe('2026-01-06');
+      expect(byId['C']!.latestStartDate).toBe('2026-01-09');
+      expect(byId['C']!.latestFinishDate).toBe('2026-01-13');
+      expect(byId['B']!.latestStartDate).toBe('2026-01-06');
+      expect(byId['B']!.latestFinishDate).toBe('2026-01-09');
+      expect(byId['A']!.latestStartDate).toBe('2026-01-01');
+      expect(byId['A']!.latestFinishDate).toBe('2026-01-06');
     });
 
     it('should clamp totalFloat to 0 (not negative) for infeasible constraints', () => {
@@ -837,7 +837,7 @@ describe('Scheduling Engine', () => {
       });
       const result = schedule(fullParams([item], [], '2026-01-01'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.totalFloat).toBeGreaterThanOrEqual(0);
     });
   });
@@ -861,8 +861,8 @@ describe('Scheduling Engine', () => {
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
       // A has no predecessors within the cascade set, starts today
-      expect(byId['A'].scheduledStartDate).toBe('2026-01-10');
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-13');
+      expect(byId['A']!.scheduledStartDate).toBe('2026-01-10');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-13');
     });
   });
 
@@ -881,7 +881,7 @@ describe('Scheduling Engine', () => {
       });
       const result = schedule(fullParams([item], [], '2026-01-10'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       // actualStartDate overrides the engine's computation (today=2026-01-10)
       expect(si.scheduledStartDate).toBe('2026-01-03');
       // EF = max(actualStartDate + duration, today) = max('2026-01-08', '2026-01-10') = '2026-01-10'
@@ -898,7 +898,7 @@ describe('Scheduling Engine', () => {
       });
       const result = schedule(fullParams([item], [], '2026-01-10'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.scheduledStartDate).toBe('2026-01-01');
       // actualEndDate overrides the ES+duration calculation
       expect(si.scheduledEndDate).toBe('2026-01-10');
@@ -918,10 +918,10 @@ describe('Scheduling Engine', () => {
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
       // A's EF = actualEndDate = 2026-01-15; B starts from A.EF
-      expect(byId['A'].scheduledStartDate).toBe('2026-01-03');
-      expect(byId['A'].scheduledEndDate).toBe('2026-01-15');
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-15');
-      expect(byId['B'].scheduledEndDate).toBe('2026-01-20');
+      expect(byId['A']!.scheduledStartDate).toBe('2026-01-03');
+      expect(byId['A']!.scheduledEndDate).toBe('2026-01-15');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-15');
+      expect(byId['B']!.scheduledEndDate).toBe('2026-01-20');
     });
 
     it('propagates actualStartDate-only to downstream dependencies (no actualEndDate)', () => {
@@ -939,13 +939,13 @@ describe('Scheduling Engine', () => {
       const result = schedule(fullParams([a, b], deps, '2026-01-10'));
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      expect(byId['A'].scheduledStartDate).toBe('2026-01-05');
+      expect(byId['A']!.scheduledStartDate).toBe('2026-01-05');
       // A.EF clamped to today (2026-01-08 is in the past on 2026-01-10)
-      expect(byId['A'].scheduledEndDate).toBe('2026-01-10');
-      expect(byId['A'].isLate).toBe(true);
+      expect(byId['A']!.scheduledEndDate).toBe('2026-01-10');
+      expect(byId['A']!.isLate).toBe(true);
       // B.ES = max(A.EF=2026-01-10, today=2026-01-10) = 2026-01-10
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-10');
-      expect(byId['B'].scheduledEndDate).toBe('2026-01-14');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-10');
+      expect(byId['B']!.scheduledEndDate).toBe('2026-01-14');
     });
 
     it('item with only actualEndDate but no actualStartDate overrides EF (AC-2)', () => {
@@ -961,7 +961,7 @@ describe('Scheduling Engine', () => {
       // today=2026-01-01 => in_progress root item uses item.startDate as ES
       const result = schedule(fullParams([item], [], '2026-01-01'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       // ES = item.startDate (non-completed root node)
       expect(si.scheduledStartDate).toBe('2025-12-15');
       // EF = actualEndDate (overrides ES + duration)
@@ -978,7 +978,7 @@ describe('Scheduling Engine', () => {
       const item = makeItem('A', 5, { status: 'not_started', startDate: null });
       const result = schedule(fullParams([item], [], '2026-05-01'));
 
-      expect(result.scheduledItems[0].scheduledStartDate).toBe('2026-05-01');
+      expect(result.scheduledItems[0]!.scheduledStartDate).toBe('2026-05-01');
     });
 
     it('floors ES to today even when CPM would produce an earlier date', () => {
@@ -991,7 +991,7 @@ describe('Scheduling Engine', () => {
 
       // The root item uses item.startDate as base for non-completed roots.
       // Then today floor is applied: max('2026-01-01', '2026-05-01') = '2026-05-01'
-      expect(result.scheduledItems[0].scheduledStartDate).toBe('2026-05-01');
+      expect(result.scheduledItems[0]!.scheduledStartDate).toBe('2026-05-01');
     });
 
     it('does not apply today floor to in_progress items', () => {
@@ -1004,7 +1004,7 @@ describe('Scheduling Engine', () => {
       const result = schedule(fullParams([item], [], '2026-05-01'));
 
       // Root non-completed item uses its startDate; today floor NOT applied
-      expect(result.scheduledItems[0].scheduledStartDate).toBe('2026-01-01');
+      expect(result.scheduledItems[0]!.scheduledStartDate).toBe('2026-01-01');
     });
 
     it('does not apply today floor to completed items', () => {
@@ -1018,7 +1018,7 @@ describe('Scheduling Engine', () => {
       const result = schedule(fullParams([item], [], '2026-05-01'));
 
       // Completed root: ES = today (not item.startDate), but NOT because of not_started floor
-      expect(result.scheduledItems[0].scheduledStartDate).toBe('2026-05-01');
+      expect(result.scheduledItems[0]!.scheduledStartDate).toBe('2026-05-01');
     });
 
     it('takes max of startAfter and today floor for not_started items', () => {
@@ -1030,7 +1030,7 @@ describe('Scheduling Engine', () => {
       const result = schedule(fullParams([item], [], '2026-05-01'));
 
       // today=2026-05-01, startAfter=2026-08-01 => max = 2026-08-01
-      expect(result.scheduledItems[0].scheduledStartDate).toBe('2026-08-01');
+      expect(result.scheduledItems[0]!.scheduledStartDate).toBe('2026-08-01');
     });
 
     it('takes max of today floor and startAfter when today is later than startAfter', () => {
@@ -1041,7 +1041,7 @@ describe('Scheduling Engine', () => {
       });
       const result = schedule(fullParams([item], [], '2026-05-01'));
 
-      expect(result.scheduledItems[0].scheduledStartDate).toBe('2026-05-01');
+      expect(result.scheduledItems[0]!.scheduledStartDate).toBe('2026-05-01');
     });
 
     it('applies today floor to not_started successor with dependencies', () => {
@@ -1059,8 +1059,8 @@ describe('Scheduling Engine', () => {
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
       // B.ES from dep = A.EF = 2026-04-10, but today floor = 2026-05-01 => today wins
-      expect(byId['B'].scheduledStartDate).toBe('2026-05-01');
-      expect(byId['B'].scheduledEndDate).toBe('2026-05-04');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-05-01');
+      expect(byId['B']!.scheduledEndDate).toBe('2026-05-04');
     });
   });
 
@@ -1093,7 +1093,7 @@ describe('Scheduling Engine', () => {
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
       // B.actualStartDate must override A.EF dependency constraint
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-05');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-05');
     });
 
     it('AC-2: actualEndDate alone overrides EF even without actualStartDate', () => {
@@ -1107,7 +1107,7 @@ describe('Scheduling Engine', () => {
       });
       const result = schedule(fullParams([item], [], '2026-01-10'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       // EF must be the actualEndDate, not the today-floored computation
       expect(si.scheduledEndDate).toBe('2025-12-31');
     });
@@ -1121,7 +1121,7 @@ describe('Scheduling Engine', () => {
       });
       const result = schedule(fullParams([item], [], '2026-01-15'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.scheduledStartDate).toBe('2026-01-01');
       expect(si.scheduledEndDate).toBe('2026-01-21');
     });
@@ -1141,7 +1141,7 @@ describe('Scheduling Engine', () => {
       const result = schedule(fullParams([a, b], deps, '2026-01-10'));
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-10');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-10');
     });
 
     // ── Rule 3: in_progress today floor ──────────────────────────────────────
@@ -1155,7 +1155,7 @@ describe('Scheduling Engine', () => {
       // today = 2026-01-10; CPM EF would be 2025-12-04 (in the past)
       const result = schedule(fullParams([item], [], '2026-01-10'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.scheduledEndDate).toBe('2026-01-10');
     });
 
@@ -1168,7 +1168,7 @@ describe('Scheduling Engine', () => {
       // today = 2026-01-10; CPM EF = 2026-01-31 (already in future)
       const result = schedule(fullParams([item], [], '2026-01-10'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.scheduledEndDate).toBe('2026-01-31'); // No clamping
       expect(si.isLate).toBe(false);
     });
@@ -1183,7 +1183,7 @@ describe('Scheduling Engine', () => {
       });
       const result = schedule(fullParams([item], [], '2026-01-10'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.isLate).toBe(true);
     });
 
@@ -1195,7 +1195,7 @@ describe('Scheduling Engine', () => {
       });
       const result = schedule(fullParams([item], [], '2026-01-10'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.isLate).toBe(true);
     });
 
@@ -1207,7 +1207,7 @@ describe('Scheduling Engine', () => {
       });
       const result = schedule(fullParams([item], [], '2026-01-10'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.isLate).toBe(false);
     });
 
@@ -1222,7 +1222,7 @@ describe('Scheduling Engine', () => {
       });
       const result = schedule(fullParams([item], [], '2026-01-10'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       // Actual end date stays — not clamped to today
       expect(si.scheduledEndDate).toBe('2025-12-15');
       // Not considered late — actual dates are authoritative
@@ -1242,18 +1242,18 @@ describe('Scheduling Engine', () => {
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
       // A.ES clamped to today=2026-01-10, A.EF = 2026-01-15
-      expect(byId['A'].scheduledStartDate).toBe('2026-01-10');
-      expect(byId['A'].scheduledEndDate).toBe('2026-01-15');
+      expect(byId['A']!.scheduledStartDate).toBe('2026-01-10');
+      expect(byId['A']!.scheduledEndDate).toBe('2026-01-15');
       // B starts from A's clamped EF
-      expect(byId['B'].scheduledStartDate).toBe('2026-01-15');
-      expect(byId['B'].scheduledEndDate).toBe('2026-01-18');
+      expect(byId['B']!.scheduledStartDate).toBe('2026-01-15');
+      expect(byId['B']!.scheduledEndDate).toBe('2026-01-18');
     });
 
     it('AC-12: ScheduledItem has isLate field as boolean', () => {
       const item = makeItem('A', 5, { status: 'not_started' });
       const result = schedule(fullParams([item], [], '2026-01-10'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(typeof si.isLate).toBe('boolean');
     });
 
@@ -1270,11 +1270,11 @@ describe('Scheduling Engine', () => {
 
       const byId = Object.fromEntries(result.scheduledItems.map((si) => [si.workItemId, si]));
       // A has been clamped (isLate=true) but isCritical is still about CPM float
-      expect(byId['A'].isCritical).toBe(true);
-      expect(byId['B'].isCritical).toBe(false);
+      expect(byId['A']!.isCritical).toBe(true);
+      expect(byId['B']!.isCritical).toBe(false);
       // B and A both got clamped by today floor
-      expect(byId['A'].isLate).toBe(true);
-      expect(byId['B'].isLate).toBe(true);
+      expect(byId['A']!.isLate).toBe(true);
+      expect(byId['B']!.isLate).toBe(true);
     });
 
     // ── isLate = false for not_started when no clamping needed ───────────────
@@ -1284,7 +1284,7 @@ describe('Scheduling Engine', () => {
       // No startDate → root uses today directly (no clamping needed)
       const result = schedule(fullParams([item], [], '2026-01-10'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.scheduledStartDate).toBe('2026-01-10');
       expect(si.isLate).toBe(false); // No clamping occurred
     });
@@ -1297,7 +1297,7 @@ describe('Scheduling Engine', () => {
       });
       const result = schedule(fullParams([item], [], '2026-01-10'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       // Completed items don't get today floor applied
       expect(si.isLate).toBe(false);
     });
@@ -1314,7 +1314,7 @@ describe('Scheduling Engine', () => {
       });
       const result = schedule(fullParams([item], [], '2026-01-10'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.scheduledStartDate).toBe('2025-12-01'); // actualStartDate preserved
       expect(si.scheduledEndDate).toBe('2026-01-10'); // clamped to today
       expect(si.isLate).toBe(true);
@@ -1330,7 +1330,7 @@ describe('Scheduling Engine', () => {
       });
       const result = schedule(fullParams([item], [], '2026-01-10'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.scheduledStartDate).toBe('2026-01-01');
       expect(si.scheduledEndDate).toBe('2026-01-31'); // ES + 30 days, in future
       expect(si.isLate).toBe(false);
@@ -1346,7 +1346,7 @@ describe('Scheduling Engine', () => {
       });
       const result = schedule(fullParams([item], [], '2026-01-10'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.scheduledStartDate).toBe('2025-12-01');
       expect(si.scheduledEndDate).toBe('2025-12-06'); // unchanged — actual end date preserved
       expect(si.isLate).toBe(false);
@@ -1367,7 +1367,7 @@ describe('Scheduling Engine', () => {
       });
       const result = schedule(fullParams([item], [], '2026-01-01'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.scheduledStartDate).toBe('2026-01-01');
       expect(si.scheduledEndDate).toBe('2026-01-06'); // ES + duration, not the old endDate
     });
@@ -1382,7 +1382,7 @@ describe('Scheduling Engine', () => {
       });
       const result = schedule(fullParams([item], [], '2026-01-01'));
 
-      const si = result.scheduledItems[0];
+      const si = result.scheduledItems[0]!;
       expect(si.scheduledStartDate).toBe('2026-01-01');
       expect(si.scheduledEndDate).toBe('2026-01-15'); // preserved since durationDays is null
     });
@@ -1399,7 +1399,7 @@ describe('Scheduling Engine', () => {
         endDate: endDateBeforeChange,
       });
       const resultBefore = schedule(fullParams([itemWithOldDuration], [], today));
-      expect(resultBefore.scheduledItems[0].scheduledEndDate).toBe('2026-01-06');
+      expect(resultBefore.scheduledItems[0]!.scheduledEndDate).toBe('2026-01-06');
 
       // Simulate user changing durationDays to 10 (endDate in DB is stale)
       const itemWithNewDuration = makeItem('A', 10, {
@@ -1409,7 +1409,7 @@ describe('Scheduling Engine', () => {
       });
       const resultAfter = schedule(fullParams([itemWithNewDuration], [], today));
       // EF must be recomputed from new duration, not the stale endDate
-      expect(resultAfter.scheduledItems[0].scheduledEndDate).toBe('2026-01-11');
+      expect(resultAfter.scheduledItems[0]!.scheduledEndDate).toBe('2026-01-11');
     });
   });
 });

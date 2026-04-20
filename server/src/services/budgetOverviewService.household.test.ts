@@ -316,8 +316,8 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
         .all();
 
       expect(categories.length).toBeGreaterThan(0);
-      const categoryId = categories[0].id;
-      const _categoryName = categories[0].name;
+      const categoryId = categories[0]!.id;
+      const _categoryName = categories[0]!.name;
 
       const budgetId = createTestHouseholdItemBudget(householdItemId, 5000, categoryId);
       const vendorId = createTestVendor('Appliance Vendor');
@@ -344,10 +344,9 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
 
       const overview = budgetOverviewService.getBudgetOverview(db);
 
-      // Find the category summary for the assigned category
-      const categorySummary = overview.categorySummaries.find((cs) => cs.categoryId === categoryId);
-      expect(categorySummary).toBeDefined();
-      expect(categorySummary?.actualCost).toBe(2500);
+      // Verify global actualCost includes the household item invoice amount
+      expect(overview.actualCost).toBe(2500);
+      // Per-category assertion removed — categorySummaries dropped in #1243
     });
 
     it('combines household and work item invoices in category summary', () => {
@@ -358,7 +357,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
         .from(schema.budgetCategories)
         .all();
 
-      const categoryId = categories[0].id;
+      const categoryId = categories[0]!.id;
 
       // Household item with category
       const householdItemId = createTestHouseholdItem('Kitchen Appliance', userId);
@@ -442,23 +441,12 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
 
       const overview = budgetOverviewService.getBudgetOverview(db);
 
-      const categorySummary = overview.categorySummaries.find((cs) => cs.categoryId === categoryId);
-      expect(categorySummary).toBeDefined();
       // 1000 (household) + 800 (work item) = 1800
-      expect(categorySummary?.actualCost).toBe(1800);
+      expect(overview.actualCost).toBe(1800);
+      // Per-category assertion removed — categorySummaries dropped in #1243
     });
 
-    it('returns per-category actualCost as 0 for categories with no invoices', () => {
-      const overview = budgetOverviewService.getBudgetOverview(db);
-
-      // All categories should be present (from seeded data)
-      expect(overview.categorySummaries.length).toBeGreaterThan(0);
-
-      // All should have actualCost: 0 initially
-      for (const summary of overview.categorySummaries) {
-        expect(summary.actualCost).toBe(0);
-      }
-    });
+    // 'returns per-category actualCost as 0' test removed — categorySummaries dropped in #1243
   });
 
   // ─── getBudgetOverview() household items without category ────────────────────
@@ -530,23 +518,10 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
 
       const overview = budgetOverviewService.getBudgetOverview(db);
 
-      // Verify top-level structure
-      expect(overview).toHaveProperty('availableFunds');
-      expect(overview).toHaveProperty('categorySummaries');
-
       // Verify top-level fields
       expect(overview).toHaveProperty('availableFunds');
       expect(overview).toHaveProperty('sourceCount');
       expect(overview).toHaveProperty('actualCost');
-
-      // Verify categorySummaries structure
-      expect(Array.isArray(overview.categorySummaries)).toBe(true);
-      if (overview.categorySummaries.length > 0) {
-        const summary = overview.categorySummaries[0];
-        expect(summary).toHaveProperty('categoryId');
-        expect(summary).toHaveProperty('categoryName');
-        expect(summary).toHaveProperty('actualCost');
-      }
     });
   });
 });

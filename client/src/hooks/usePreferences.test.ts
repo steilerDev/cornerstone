@@ -203,8 +203,8 @@ describe('usePreferences', () => {
       });
 
       expect(result.current.preferences).toHaveLength(1);
-      expect(result.current.preferences[0].key).toBe('theme');
-      expect(result.current.preferences[0].value).toBe('dark');
+      expect(result.current.preferences[0]!.key).toBe('theme');
+      expect(result.current.preferences[0]!.value).toBe('dark');
     });
 
     it('optimistically updates an existing preference in local state', async () => {
@@ -220,8 +220,8 @@ describe('usePreferences', () => {
       });
 
       expect(result.current.preferences).toHaveLength(1);
-      expect(result.current.preferences[0].key).toBe('theme');
-      expect(result.current.preferences[0].value).toBe('dark');
+      expect(result.current.preferences[0]!.key).toBe('theme');
+      expect(result.current.preferences[0]!.value).toBe('dark');
     });
 
     it('re-throws when upsertPreference rejects', async () => {
@@ -259,7 +259,7 @@ describe('usePreferences', () => {
       });
 
       // State should remain unchanged since upsert failed before optimistic update
-      expect(result.current.preferences[0].value).toBe('light');
+      expect(result.current.preferences[0]!.value).toBe('light');
     });
   });
 
@@ -291,7 +291,7 @@ describe('usePreferences', () => {
       });
 
       expect(result.current.preferences).toHaveLength(1);
-      expect(result.current.preferences[0].key).toBe('dashboard.hiddenCards');
+      expect(result.current.preferences[0]!.key).toBe('dashboard.hiddenCards');
     });
 
     it('removes only the targeted preference when multiple exist', async () => {

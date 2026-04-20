@@ -226,7 +226,8 @@ export default async function davTokenRoutes(fastify: FastifyInstance) {
     } else {
       const protocol = request.protocol === 'https' ? 'https' : 'http';
       const hostParts = request.hostname.split(':');
-      hostname = hostParts[0];
+      // hostParts[0] is defined: split(':') always returns at least one element
+      hostname = hostParts[0]!;
       useSSL = protocol === 'https';
       port = hostParts[1] ? parseInt(hostParts[1], 10) : useSSL ? 443 : 80;
       accountDescription = `Cornerstone (${hostname})`;

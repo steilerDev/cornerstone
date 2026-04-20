@@ -74,8 +74,8 @@ describe('vendorsApi', () => {
 
       await fetchVendors();
 
-      const call = mockFetch.mock.calls[0];
-      expect(call[0]).toBe('/api/vendors');
+      const call = mockFetch.mock.calls[0]!;
+      expect(call[0]!).toBe('/api/vendors');
     });
 
     it('includes page parameter in query string when provided', async () => {
@@ -168,8 +168,8 @@ describe('vendorsApi', () => {
 
       await fetchVendors({ page: 1 });
 
-      const call = mockFetch.mock.calls[0];
-      expect(call[0]).not.toContain('q=');
+      const call = mockFetch.mock.calls[0]!;
+      expect(call[0]!).not.toContain('q=');
     });
 
     it('returns parsed vendor list response', async () => {
@@ -186,7 +186,7 @@ describe('vendorsApi', () => {
       const result = await fetchVendors();
 
       expect(result.vendors).toHaveLength(1);
-      expect(result.vendors[0].name).toBe('Smith Plumbing');
+      expect(result.vendors[0]!.name).toBe('Smith Plumbing');
       expect(result.pagination.totalItems).toBe(1);
     });
 

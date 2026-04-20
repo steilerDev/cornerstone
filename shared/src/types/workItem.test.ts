@@ -137,7 +137,7 @@ describe('WorkItemSummary interface', () => {
           translationKey: 'trades.tiling',
         },
       },
-      area: { id: 'area-bathroom', name: 'Bathroom', color: '#3B82F6' },
+      area: { id: 'area-bathroom', name: 'Bathroom', color: '#3B82F6', ancestors: [] },
       budgetLineCount: 3,
       createdAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-04-02T00:00:00Z',
@@ -253,7 +253,7 @@ describe('WorkItemDetail interface', () => {
           translationKey: 'trades.carpentry',
         },
       },
-      area: { id: 'area-kitchen', name: 'Kitchen', color: '#FF5733' },
+      area: { id: 'area-kitchen', name: 'Kitchen', color: '#FF5733', ancestors: [] },
       subtasks: [],
       dependencies: { predecessors: [], successors: [] },
       budgets: [],
@@ -607,8 +607,8 @@ describe('WorkItemMilestones interface', () => {
     };
 
     expect(milestones.required).toHaveLength(1);
-    expect(milestones.required[0].id).toBe(1);
-    expect(milestones.required[0].name).toBe('Foundation Complete');
+    expect(milestones.required[0]!.id).toBe(1);
+    expect(milestones.required[0]!.name).toBe('Foundation Complete');
     expect(milestones.linked).toHaveLength(0);
   });
 
@@ -657,10 +657,10 @@ describe('WorkItemListResponse type', () => {
     };
 
     expect(response.items).toHaveLength(1);
-    expect(response.items[0].title).toBe('Pave Driveway');
+    expect(response.items[0]!.title).toBe('Pave Driveway');
     expect(response.pagination.totalItems).toBe(1);
     // Confirm no tags on list items
-    expect((response.items[0] as any).tags).toBeUndefined();
+    expect((response.items[0]! as any).tags).toBeUndefined();
   });
 });
 

@@ -193,9 +193,9 @@ describe('Note Service', () => {
 
       // Then: Notes are sorted newest first
       expect(result).toHaveLength(3);
-      expect(result[0].id).toBe(note3Id); // Most recent
-      expect(result[1].id).toBe(note2Id);
-      expect(result[2].id).toBe(note1Id); // Oldest
+      expect(result[0]!.id).toBe(note3Id); // Most recent
+      expect(result[1]!.id).toBe(note2Id);
+      expect(result[2]!.id).toBe(note1Id); // Oldest
     });
 
     it('returns empty array when no notes exist (UAT-3.4-08)', () => {
@@ -224,8 +224,8 @@ describe('Note Service', () => {
 
       // Then: Each note includes correct author summary
       expect(result).toHaveLength(2);
-      expect(result[0].createdBy?.displayName).toBe('User Two');
-      expect(result[1].createdBy?.displayName).toBe('User One');
+      expect(result[0]!.createdBy?.displayName).toBe('User Two');
+      expect(result[1]!.createdBy?.displayName).toBe('User One');
     });
 
     it('throws NotFoundError if work item does not exist', () => {
@@ -254,7 +254,7 @@ describe('Note Service', () => {
 
       // Then: Note still exists but createdBy is null
       expect(result).toHaveLength(1);
-      expect(result[0].createdBy).toBeNull();
+      expect(result[0]!.createdBy).toBeNull();
     });
   });
 

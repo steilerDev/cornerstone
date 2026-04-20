@@ -69,6 +69,7 @@ function makeSummary(id: string, overrides: Partial<DiaryEntrySummary> = {}): Di
     isSigned: false,
     sourceEntityType: null,
     sourceEntityId: null,
+    sourceEntityArea: null,
     sourceEntityTitle: null,
     photoCount: 0,
     createdBy: { id: 'user-1', displayName: 'Alice' },

@@ -325,14 +325,14 @@ describe('Dependency Service', () => {
       const dependencies = dependencyService.getDependencies(db, workItemB);
 
       expect(dependencies.predecessors).toHaveLength(1);
-      expect(dependencies.predecessors[0].workItem.id).toBe(workItemA);
-      expect(dependencies.predecessors[0].workItem.title).toBe('Work Item A');
-      expect(dependencies.predecessors[0].dependencyType).toBe('finish_to_start');
+      expect(dependencies.predecessors[0]!.workItem.id).toBe(workItemA);
+      expect(dependencies.predecessors[0]!.workItem.title).toBe('Work Item A');
+      expect(dependencies.predecessors[0]!.dependencyType).toBe('finish_to_start');
 
       expect(dependencies.successors).toHaveLength(1);
-      expect(dependencies.successors[0].workItem.id).toBe(workItemC);
-      expect(dependencies.successors[0].workItem.title).toBe('Work Item C');
-      expect(dependencies.successors[0].dependencyType).toBe('finish_to_start');
+      expect(dependencies.successors[0]!.workItem.id).toBe(workItemC);
+      expect(dependencies.successors[0]!.workItem.title).toBe('Work Item C');
+      expect(dependencies.successors[0]!.dependencyType).toBe('finish_to_start');
     });
 
     it('should return empty arrays when work item has no dependencies', () => {
@@ -433,7 +433,7 @@ describe('Dependency Service', () => {
       // Verify C→B still exists
       const dependencies = dependencyService.getDependencies(db, workItemB);
       expect(dependencies.predecessors).toHaveLength(1);
-      expect(dependencies.predecessors[0].workItem.id).toBe(workItemC);
+      expect(dependencies.predecessors[0]!.workItem.id).toBe(workItemC);
     });
   });
 
@@ -492,7 +492,7 @@ describe('Dependency Service', () => {
       });
 
       const deps = dependencyService.getDependencies(db, workItemB);
-      expect(deps.predecessors[0].leadLagDays).toBe(5);
+      expect(deps.predecessors[0]!.leadLagDays).toBe(5);
     });
   });
 
@@ -630,7 +630,7 @@ describe('Dependency Service', () => {
       dependencyService.updateDependency(db, workItemB, workItemA, { leadLagDays: 5 });
 
       const deps = dependencyService.getDependencies(db, workItemB);
-      expect(deps.predecessors[0].leadLagDays).toBe(5);
+      expect(deps.predecessors[0]!.leadLagDays).toBe(5);
     });
   });
 });

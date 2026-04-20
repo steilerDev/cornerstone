@@ -38,7 +38,8 @@ const BINARY_CONTENT_TYPE_ALLOWLIST = new Set([
 function sanitizeBinaryContentType(contentType: string | null, fallback: string): string {
   if (!contentType) return fallback;
   // Strip any parameters (e.g., "image/webp; charset=utf-8") before checking
-  const mimeType = contentType.split(';')[0].trim().toLowerCase();
+  const [rawMimeType = ''] = contentType.split(';');
+  const mimeType = rawMimeType.trim().toLowerCase();
   return BINARY_CONTENT_TYPE_ALLOWLIST.has(mimeType) ? mimeType : 'application/octet-stream';
 }
 

@@ -37,7 +37,7 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
     );
   }
 
-  const nextItem = incompleteCritical[0];
+  const nextItem = incompleteCritical[0]!; // guarded by length check at line 32
   const deadline = nextItem.endDate;
 
   // Compute days remaining
@@ -46,7 +46,10 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
 
   let daysRemaining = 0;
   if (deadline) {
-    const [year, month, day] = deadline.split('-').map(Number);
+    const parts = deadline.split('-').map(Number);
+    const year = parts[0]!; // split ensures at least 1 part or throws
+    const month = parts[1]!; // must be YYYY-MM-DD format
+    const day = parts[2]!; // must be YYYY-MM-DD format
     const deadlineDate = new Date(year, month - 1, day);
     const diff = deadlineDate.getTime() - today.getTime();
     daysRemaining = Math.ceil(diff / (1000 * 60 * 60 * 24));

@@ -7,6 +7,8 @@
     "settings": "Settings"
   },
   "name": "Name",
+  "noArea": "No Area",
+  "noAreaDescription": "No Area — show items without an area assignment",
   "button": {
     "logout": "Logout",
     "close": "Close",
@@ -101,13 +103,13 @@
     "budget": {
       "overview": "Overview",
       "invoices": "Invoices",
-      "vendors": "Vendors",
       "sources": "Sources",
       "subsidies": "Subsidies"
     },
     "settings": {
       "profile": "Profile",
       "manage": "Manage",
+      "vendors": "Vendors",
       "userManagement": "User Management",
       "backups": "Backups"
     }

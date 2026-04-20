@@ -73,7 +73,7 @@ describe('useTableState', () => {
     });
   });
 
-  describe('setSearch with debounce', () => {
+  describe('setSearch (immediate)', () => {
     it('initializes searchInput from URL q param', () => {
       const { result } = renderHook(() => useTableState(), {
         wrapper: makeWrapper(['/?q=initial']),
@@ -81,8 +81,7 @@ describe('useTableState', () => {
       expect(result.current.searchInput).toBe('initial');
     });
 
-    it('does not update tableState.search before debounce fires (299ms)', () => {
-      jest.useFakeTimers();
+    it('updates tableState.search immediately after setSearch', async () => {
       const { result } = renderHook(() => useTableState(), {
         wrapper: makeWrapper(),
       });
@@ -91,19 +90,60 @@ describe('useTableState', () => {
         result.current.setSearch('hello');
       });
 
-      // Advance just under the 300ms debounce threshold
-      act(() => {
-        jest.advanceTimersByTime(299);
+      expect(result.current.tableState.search).toBe('hello');
+    });
+
+    it('updates URL search params to include q= after setSearch', async () => {
+      const { result } = renderHook(() => useTableState(), {
+        wrapper: makeWrapper(),
       });
 
-      // tableState.search should still be '' (debounce hasn't fired)
-      // The URL still has no ?q= param at this point
+      act(() => {
+        result.current.setSearch('foo');
+      });
+
+      expect(result.current.tableState.search).toBe('foo');
+      expect(result.current.toApiParams().q).toBe('foo');
+    });
+
+    it('resets page to 1 in URL when setSearch is called', async () => {
+      const { result } = renderHook(() => useTableState(), {
+        wrapper: makeWrapper(['/?page=5']),
+      });
+
+      act(() => {
+        result.current.setSearch('bar');
+      });
+
+      expect(result.current.tableState.page).toBe(1);
+    });
+
+    it('clearing search with setSearch("") removes q from tableState', async () => {
+      const { result } = renderHook(() => useTableState(), {
+        wrapper: makeWrapper(['/?q=existing']),
+      });
+
+      act(() => {
+        result.current.setSearch('');
+      });
+
       expect(result.current.tableState.search).toBe('');
+      expect(result.current.toApiParams().q).toBeUndefined();
+    });
+
+    it('searchInput always equals tableState.search', async () => {
+      const { result } = renderHook(() => useTableState(), {
+        wrapper: makeWrapper(),
+      });
+
+      act(() => {
+        result.current.setSearch('synced');
+      });
+
+      expect(result.current.searchInput).toBe(result.current.tableState.search);
     });
 
     it('search initialized from URL is reflected in tableState and toApiParams', () => {
-      // When the hook is initialized with a search query in the URL,
-      // tableState.search and toApiParams().q should reflect it immediately
       const { result } = renderHook(() => useTableState(), {
         wrapper: makeWrapper(['/?q=hello']),
       });
@@ -291,7 +331,6 @@ describe('useTableState', () => {
     });
 
     it('includes q when search is active', () => {
-      jest.useFakeTimers();
       const { result } = renderHook(() => useTableState(), {
         wrapper: makeWrapper(['/?q=search+term']),
       });

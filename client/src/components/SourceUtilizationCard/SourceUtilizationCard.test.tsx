@@ -60,6 +60,8 @@ const baseSource: BudgetSource = {
   actualAvailableAmount: 150000,
   paidAmount: 100000,
   projectedAmount: 120000,
+  projectedMinAmount: 100000,
+  projectedMaxAmount: 140000,
   isDiscretionary: false,
   interestRate: 3.5,
   terms: null,

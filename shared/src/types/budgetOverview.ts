@@ -4,19 +4,6 @@
  * subsidy reductions, and four remaining-funds perspectives.
  */
 
-export interface CategoryBudgetSummary {
-  categoryId: string | null;
-  categoryName: string;
-  categoryColor: string | null;
-  categoryTranslationKey: string | null;
-  minPlanned: number; // invoiced lines use actualCost; non-invoiced use confidence margins
-  maxPlanned: number; // invoiced lines use actualCost; non-invoiced use confidence margins
-  actualCost: number;
-  actualCostPaid: number;
-  actualCostClaimed: number;
-  budgetLineCount: number;
-}
-
 export interface BudgetOverview {
   availableFunds: number; // SUM(active budget_sources.total_amount)
   sourceCount: number;
@@ -38,8 +25,6 @@ export interface BudgetOverview {
   remainingVsMinPlannedWithPayback: number;
   /** Payback-adjusted remaining vs max planned: availableFunds + maxTotalPayback - maxPlanned */
   remainingVsMaxPlannedWithPayback: number;
-
-  categorySummaries: CategoryBudgetSummary[];
 
   subsidySummary: {
     totalReductions: number;

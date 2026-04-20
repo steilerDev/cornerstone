@@ -336,8 +336,23 @@
   --color-budget-pending: var(--color-primary-bg);
   --color-budget-projected: var(--color-primary-bg-hover);
   --color-budget-allocated: rgba(59, 130, 246, 0.15);
+  --color-budget-projected-uncertainty: color-mix(
+    in srgb,
+    var(--color-budget-projected) 50%,
+    transparent
+  );
   --color-budget-track: var(--color-bg-tertiary);
   --color-budget-overflow: var(--color-danger-bg-strong);
+
+  /* ============================================================
+   * LAYER 2 — SOURCE BUDGET LINE PANEL SURFACE TOKENS
+   * ============================================================ */
+
+  /* Area group container tint */
+  --color-surface-area-tint: var(--color-gray-50);
+
+  /* Parent item card tint */
+  --color-surface-item-tint: var(--color-white);
 
   /* ============================================================
    * LAYER 2 — GANTT CHART TOKENS
@@ -539,6 +554,10 @@
   --color-bg-inverse: var(--color-gray-100);
   --color-bg-hover: var(--color-slate-600);
 
+  /* --- Source Budget Line Panel surface tints (dark mode) --- */
+  --color-surface-area-tint: var(--color-slate-700);
+  --color-surface-item-tint: var(--color-slate-800);
+
   /* --- Text --- */
   --color-text-primary: var(--color-slate-50);
   --color-text-secondary: var(--color-slate-150);
@@ -663,6 +682,11 @@
   --color-budget-pending: rgba(59, 130, 246, 0.15);
   --color-budget-projected: rgba(59, 130, 246, 0.25);
   --color-budget-allocated: rgba(96, 165, 250, 0.35);
+  --color-budget-projected-uncertainty: color-mix(
+    in srgb,
+    var(--color-budget-projected) 55%,
+    transparent
+  );
   --color-budget-track: var(--color-slate-600);
   --color-budget-overflow: rgba(239, 68, 68, 0.2);
 

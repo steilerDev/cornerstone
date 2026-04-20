@@ -72,8 +72,8 @@ describe('createBudgetApi', () => {
 
       expect(result).toEqual(lines);
       expect(result).toHaveLength(2);
-      expect(result[0].id).toBe('bl-1');
-      expect(result[1].id).toBe('bl-2');
+      expect(result[0]!.id).toBe('bl-1');
+      expect(result[1]!.id).toBe('bl-2');
     });
 
     it('returns empty array when no budgets exist', async () => {
@@ -190,7 +190,7 @@ describe('createBudgetApi', () => {
 
       await api.createBudget('wi-123', requestData);
 
-      const bodyStr = mockFetch.mock.calls[0][1]?.body as string;
+      const bodyStr = mockFetch.mock.calls[0]![1]?.body as string;
       const body = JSON.parse(bodyStr) as typeof requestData;
 
       expect(body.description).toBe('Full budget line');
@@ -261,7 +261,7 @@ describe('createBudgetApi', () => {
 
       await api.updateBudget('wi-123', 'bl-1', { confidence: 'invoice' });
 
-      const bodyStr = mockFetch.mock.calls[0][1]?.body as string;
+      const bodyStr = mockFetch.mock.calls[0]![1]?.body as string;
       const body = JSON.parse(bodyStr) as Record<string, unknown>;
 
       expect(body.confidence).toBe('invoice');

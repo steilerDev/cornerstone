@@ -119,7 +119,8 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
         fastify.db,
         sub,
         email,
-        name || email.split('@')[0],
+        name || email.split('@')[0]!,
+        // email.split('@')[0] is defined: email is non-empty and split always returns at least one element
       );
 
       // Check if user is deactivated

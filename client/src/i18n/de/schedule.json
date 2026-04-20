@@ -75,6 +75,7 @@
         "startLabel": "Anfang",
         "endLabel": "Ende",
         "ownerLabel": "Verantwortlicher",
+        "areaLabel": "Bereich",
         "dependencies": "Abhängigkeiten",
         "more": "weitere"
       },
@@ -214,6 +215,8 @@
       "backToSchedule": "← Zurück zum Zeitplan",
       "toMilestones": "Zu Meilensteinen",
       "loading": "Meilenstein wird geladen...",
+      "error": "Fehler beim Laden des Meilensteins. Bitte versuchen Sie es erneut.",
+      "editButton": "Bearbeiten",
       "notFound": "Meilenstein nicht gefunden",
       "notFoundMessage": "Der gesuchte Meilenstein existiert nicht.",
       "backLink": "Zurück zu Meilensteinen",

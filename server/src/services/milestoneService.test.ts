@@ -106,9 +106,9 @@ describe('Milestone Service', () => {
 
       const result = milestoneService.getAllMilestones(db);
       expect(result.milestones).toHaveLength(3);
-      expect(result.milestones[0].title).toBe('Milestone A');
-      expect(result.milestones[1].title).toBe('Milestone B');
-      expect(result.milestones[2].title).toBe('Milestone C');
+      expect(result.milestones[0]!.title).toBe('Milestone A');
+      expect(result.milestones[1]!.title).toBe('Milestone B');
+      expect(result.milestones[2]!.title).toBe('Milestone C');
     });
 
     it('should include workItemCount=0 when no work items linked', () => {
@@ -120,7 +120,7 @@ describe('Milestone Service', () => {
       );
 
       const result = milestoneService.getAllMilestones(db);
-      expect(result.milestones[0].workItemCount).toBe(0);
+      expect(result.milestones[0]!.workItemCount).toBe(0);
     });
 
     it('should include correct workItemCount when work items are linked', () => {
@@ -137,7 +137,7 @@ describe('Milestone Service', () => {
       milestoneService.linkWorkItem(db, milestone.id, workItemB);
 
       const result = milestoneService.getAllMilestones(db);
-      expect(result.milestones[0].workItemCount).toBe(2);
+      expect(result.milestones[0]!.workItemCount).toBe(2);
     });
 
     it('should include createdBy user info when user exists', () => {
@@ -149,10 +149,10 @@ describe('Milestone Service', () => {
       );
 
       const result = milestoneService.getAllMilestones(db);
-      expect(result.milestones[0].createdBy).not.toBeNull();
-      expect(result.milestones[0].createdBy!.id).toBe(userId);
-      expect(result.milestones[0].createdBy!.displayName).toBe('Test User');
-      expect(result.milestones[0].createdBy!.email).toBe('user@example.com');
+      expect(result.milestones[0]!.createdBy).not.toBeNull();
+      expect(result.milestones[0]!.createdBy!.id).toBe(userId);
+      expect(result.milestones[0]!.createdBy!.displayName).toBe('Test User');
+      expect(result.milestones[0]!.createdBy!.email).toBe('user@example.com');
     });
 
     it('should include standard milestone summary fields', () => {
@@ -164,7 +164,7 @@ describe('Milestone Service', () => {
       );
 
       const result = milestoneService.getAllMilestones(db);
-      const ms = result.milestones[0];
+      const ms = result.milestones[0]!;
       expect(ms.id).toBeDefined();
       expect(ms.title).toBe('Foundation Complete');
       expect(ms.description).toBe('Desc');
@@ -486,7 +486,7 @@ describe('Milestone Service', () => {
 
       // Only the valid work item is linked; invalid IDs are silently skipped
       expect(result.workItems).toHaveLength(1);
-      expect(result.workItems[0].id).toBe(validWorkItem);
+      expect(result.workItems[0]!.id).toBe(validWorkItem);
     });
 
     it('should create milestone without workItemIds field (backward compatible)', () => {
@@ -815,8 +815,8 @@ describe('Milestone Service', () => {
 
       const detail = milestoneService.getMilestoneById(db, milestone.id);
       expect(detail.workItems).toHaveLength(1);
-      expect(detail.workItems[0].id).toBe(workItem);
-      expect(detail.workItems[0].title).toBe('Pour Foundation');
+      expect(detail.workItems[0]!.id).toBe(workItem);
+      expect(detail.workItems[0]!.title).toBe('Pour Foundation');
     });
 
     it('should increment workItemCount in getAllMilestones', () => {
@@ -833,7 +833,7 @@ describe('Milestone Service', () => {
       milestoneService.linkWorkItem(db, milestone.id, workItemB);
 
       const list = milestoneService.getAllMilestones(db);
-      expect(list.milestones[0].workItemCount).toBe(2);
+      expect(list.milestones[0]!.workItemCount).toBe(2);
     });
 
     it('should throw NotFoundError when milestone does not exist', () => {
@@ -951,7 +951,7 @@ describe('Milestone Service', () => {
 
       const after = milestoneService.getMilestoneById(db, milestone.id);
       expect(after.workItems).toHaveLength(1);
-      expect(after.workItems[0].id).toBe(workItemB);
+      expect(after.workItems[0]!.id).toBe(workItemB);
     });
 
     it('should throw NotFoundError when milestone does not exist', () => {

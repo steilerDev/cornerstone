@@ -18,7 +18,7 @@ export function DiaryEntryTypeSwitcher({ value, onChange }: DiaryEntryTypeSwitch
       const currentIndex = modes.indexOf(value);
       const newIndex = e.key === 'ArrowLeft' ? currentIndex - 1 : currentIndex + 1;
       if (newIndex >= 0 && newIndex < modes.length) {
-        onChange(modes[newIndex]);
+        onChange(modes[newIndex]!); // guard at line 20 ensures valid index
       }
     }
   };

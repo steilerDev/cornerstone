@@ -1,29 +1,33 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   BudgetSource,
   BudgetSourceType,
   BudgetSourceStatus,
   CreateBudgetSourceRequest,
+  BudgetSourceBudgetLinesResponse,
 } from '@cornerstone/shared';
 import {
   fetchBudgetSources,
   createBudgetSource,
   updateBudgetSource,
   deleteBudgetSource,
+  fetchBudgetLinesForSource,
 } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { useToast } from '../../components/Toast/ToastContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
+import { SourceBudgetLinePanel } from '../../components/SourceBudgetLinePanel/SourceBudgetLinePanel.js';
+import { MassMoveModal } from '../../components/MassMoveModal/MassMoveModal.js';
 import styles from './BudgetSourcesPage.module.css';
 
 const BUDGET_TABS: SubNavTab[] = [
   { labelKey: 'subnav.budget.overview', to: '/budget/overview' },
   { labelKey: 'subnav.budget.invoices', to: '/budget/invoices' },
-  { labelKey: 'subnav.budget.vendors', to: '/budget/vendors' },
   { labelKey: 'subnav.budget.sources', to: '/budget/sources' },
   { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
 ];
@@ -97,14 +101,18 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
 
   const claimedVal = source.claimedAmount;
   const paidVal = Math.max(0, source.paidAmount - source.claimedAmount);
-  const projectedVal = Math.max(0, source.projectedAmount - source.paidAmount);
-  const allocatedVal = Math.max(
-    0,
-    source.usedAmount - Math.max(source.projectedAmount, source.paidAmount),
-  );
+  const projectedVal = Math.max(0, source.projectedMinAmount - source.paidAmount);
+  const uncertaintyVal = Math.max(0, source.projectedMaxAmount - source.projectedMinAmount);
 
-  const maxValue = Math.max(source.totalAmount, source.projectedAmount, 1);
-  const overflow = Math.max(0, source.projectedAmount - source.totalAmount);
+  const maxValue = Math.max(source.totalAmount, source.projectedMaxAmount, 1);
+  const overflow = Math.max(0, source.projectedMaxAmount - source.totalAmount);
+
+  const projectedSecondaryNegative =
+    source.totalAmount - source.projectedMinAmount < 0 ||
+    source.totalAmount - source.projectedMaxAmount < 0;
+
+  const paidSecondaryNegative = source.totalAmount - source.paidAmount < 0;
+  const claimedSecondaryNegative = source.totalAmount - source.claimedAmount < 0;
 
   const segments: BudgetBarSegment[] = [
     {
@@ -126,18 +134,16 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
       value: projectedVal,
       color: 'var(--color-budget-projected)',
       label: t('sources.barChart.projected'),
-      totalValue: source.projectedAmount,
+      totalValue: source.projectedMinAmount,
     },
     {
-      key: 'allocated',
-      value: allocatedVal,
-      color: 'var(--color-budget-allocated)',
-      label: t('sources.barChart.allocated'),
-      totalValue: source.usedAmount,
+      key: 'projectedUncertainty',
+      value: uncertaintyVal,
+      color: 'var(--color-budget-projected-uncertainty)',
+      label: t('sources.barChart.projectedUncertainty'),
+      totalValue: source.projectedMaxAmount,
     },
   ];
-
-  const legendRows = segments.filter((s) => (s.totalValue ?? s.value) > 0);
 
   return (
     <div className={styles.sourceBarSection}>
@@ -151,6 +157,15 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
           onSegmentClick={handleSegmentClick}
           formatValue={formatCurrency}
         />
+        <span className={styles.srOnly} role="status" aria-atomic="true">
+          {t('sources.barChart.srOnly', {
+            claimed: formatCurrency(source.claimedAmount),
+            paid: formatCurrency(source.paidAmount),
+            projectedMin: formatCurrency(source.projectedMinAmount),
+            projectedMax: formatCurrency(source.projectedMaxAmount),
+            total: formatCurrency(source.totalAmount),
+          })}
+        </span>
         {hoveredSegment && (
           <div className={styles.barTooltipAnchor} role="status" aria-atomic="true">
             <div className={styles.segmentTooltip}>
@@ -174,64 +189,77 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
         )}
       </div>
 
-      {(legendRows.length > 0 || overflow > 0) && (
-        <div className={styles.barLegend}>
-          {legendRows.map((seg) => (
-            <div key={seg.key} className={styles.barLegendRow}>
-              <span
-                className={styles.barLegendDot}
-                style={{ backgroundColor: seg.color }}
-                aria-hidden="true"
-              />
-              <span className={styles.barLegendLabel}>{seg.label}</span>
-              <span className={styles.barLegendValue}>
-                {formatCurrency(seg.totalValue ?? seg.value)}
-              </span>
-            </div>
-          ))}
-          {overflow > 0 && (
-            <div className={styles.barLegendRow}>
-              <span
-                className={styles.barLegendDot}
-                style={{ backgroundColor: 'var(--color-budget-overflow)' }}
-                aria-hidden="true"
-              />
-              <span className={styles.barLegendLabel}>{t('sources.barChart.overflow')}</span>
-              <span className={styles.barLegendValue}>{formatCurrency(overflow)}</span>
-            </div>
-          )}
+      <div className={styles.summaryTable}>
+        {/* Projected row */}
+        <div className={styles.summaryRow}>
+          <span className={styles.summaryLabel}>
+            <span
+              className={styles.summaryLabelDot}
+              style={{ backgroundColor: 'var(--color-budget-projected)' }}
+              aria-hidden="true"
+            />
+            {t('sources.barChart.summaryProjectedLabel')}
+          </span>
+          <div className={styles.summaryValues}>
+            <span className={styles.summaryPrimary}>
+              {formatCurrency(source.projectedMinAmount)} {'\u2013'}{' '}
+              {formatCurrency(source.projectedMaxAmount)}
+            </span>
+            <span
+              className={`${styles.summarySecondary} ${projectedSecondaryNegative ? styles.summarySecondaryNegative : ''}`}
+            >
+              {t('sources.summary.remainingLabel')}{' '}
+              {formatCurrency(source.totalAmount - source.projectedMinAmount)} {'\u2013'}{' '}
+              {formatCurrency(source.totalAmount - source.projectedMaxAmount)}
+            </span>
+          </div>
         </div>
-      )}
 
-      <div className={styles.sourceSummaryRow}>
-        <span className={styles.summaryItem}>
-          {t('sources.barChart.total')} <strong>{formatCurrency(source.totalAmount)}</strong>
-        </span>
-        <span className={styles.summaryDivider} aria-hidden="true">
-          |
-        </span>
-        <span
-          className={`${styles.summaryItem} ${source.actualAvailableAmount < 0 ? styles.amountNegative : ''}`}
-        >
-          {t('sources.barChart.available')}{' '}
-          <strong>{formatCurrency(source.actualAvailableAmount)}</strong>
-        </span>
-        <span className={styles.summaryDivider} aria-hidden="true">
-          |
-        </span>
-        <span className={styles.summaryItem}>
-          {t('sources.barChart.planned')} <strong>{formatCurrency(source.usedAmount)}</strong>
-        </span>
-        {source.interestRate != null && (
-          <>
-            <span className={styles.summaryDivider} aria-hidden="true">
-              |
+        {/* Paid row */}
+        <div className={styles.summaryRow}>
+          <span className={styles.summaryLabel}>
+            <span
+              className={styles.summaryLabelDot}
+              style={{ backgroundColor: 'var(--color-budget-paid)' }}
+              aria-hidden="true"
+            />
+            {t('sources.barChart.summaryPaidLabel')}
+          </span>
+          <div className={styles.summaryValues}>
+            <span className={styles.summaryPrimary}>{formatCurrency(source.paidAmount)}</span>
+            <span
+              className={`${styles.summarySecondary}${
+                paidSecondaryNegative ? ` ${styles.summarySecondaryNegative}` : ''
+              }`}
+            >
+              {t('sources.summary.remainingLabel')}{' '}
+              {formatCurrency(source.totalAmount - source.paidAmount)}
             </span>
-            <span className={styles.summaryItem}>
-              {t('sources.barChart.rate')} <strong>{formatPercent(source.interestRate)}</strong>
+          </div>
+        </div>
+
+        {/* Claimed row */}
+        <div className={styles.summaryRow}>
+          <span className={styles.summaryLabel}>
+            <span
+              className={styles.summaryLabelDot}
+              style={{ backgroundColor: 'var(--color-budget-claimed)' }}
+              aria-hidden="true"
+            />
+            {t('sources.barChart.summaryClaimedLabel')}
+          </span>
+          <div className={styles.summaryValues}>
+            <span className={styles.summaryPrimary}>{formatCurrency(source.claimedAmount)}</span>
+            <span
+              className={`${styles.summarySecondary}${
+                claimedSecondaryNegative ? ` ${styles.summarySecondaryNegative}` : ''
+              }`}
+            >
+              {t('sources.summary.remainingLabel')}{' '}
+              {formatCurrency(source.totalAmount - source.claimedAmount)}
             </span>
-          </>
-        )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -242,6 +270,7 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
 export function BudgetSourcesPage() {
   const { t } = useTranslation('budget');
   const { formatCurrency, formatPercent } = useFormatters();
+  const { showToast } = useToast();
   const [sources, setSources] = useState<BudgetSource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -268,6 +297,18 @@ export function BudgetSourcesPage() {
   const [deletingSourceId, setDeletingSourceId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
+
+  // Budget lines expansion state
+  const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
+  const [linesCache, setLinesCache] = useState<Map<string, BudgetSourceBudgetLinesResponse>>(
+    new Map(),
+  );
+  const [linesLoading, setLinesLoading] = useState<Set<string>>(new Set());
+  const [linesError, setLinesError] = useState<Map<string, string>>(new Map());
+
+  // Selection state for mass-move
+  const [sourceSelections, setSourceSelections] = useState<Map<string, Set<string>>>(new Map());
+  const [moveModalSourceId, setMoveModalSourceId] = useState<string | null>(null);
 
   // Translation-dependent label maps
   const SOURCE_TYPE_LABELS: Record<BudgetSourceType, string> = {
@@ -474,6 +515,169 @@ export function BudgetSourcesPage() {
       setIsDeleting(false);
     }
   };
+
+  const handleToggleLines = async (sourceId: string) => {
+    const isCurrentlyExpanded = expandedSources.has(sourceId);
+
+    if (isCurrentlyExpanded) {
+      // Collapse: just remove from expanded set
+      const newExpanded = new Set(expandedSources);
+      newExpanded.delete(sourceId);
+      setExpandedSources(newExpanded);
+    } else {
+      // Expand: fetch if not cached
+      const isAlreadyCached = linesCache.has(sourceId);
+
+      if (!isAlreadyCached) {
+        setLinesLoading((prev) => new Set(prev).add(sourceId));
+        setLinesError((prev) => {
+          const newErr = new Map(prev);
+          newErr.delete(sourceId);
+          return newErr;
+        });
+
+        try {
+          const data = await fetchBudgetLinesForSource(sourceId);
+          setLinesCache((prev) => new Map(prev).set(sourceId, data));
+        } catch (err) {
+          let errorMsg = t('sources.lines.fetchError');
+          if (err instanceof ApiClientError) {
+            errorMsg = err.error.message;
+          }
+          setLinesError((prev) => new Map(prev).set(sourceId, errorMsg));
+        } finally {
+          setLinesLoading((prev) => {
+            const newLoading = new Set(prev);
+            newLoading.delete(sourceId);
+            return newLoading;
+          });
+        }
+      }
+
+      // Add to expanded set
+      const newExpanded = new Set(expandedSources);
+      newExpanded.add(sourceId);
+      setExpandedSources(newExpanded);
+
+      // Initialize selection set if not already present
+      setSourceSelections((prev) => {
+        if (prev.has(sourceId)) return prev;
+        return new Map(prev).set(sourceId, new Set<string>());
+      });
+    }
+  };
+
+  const handleRetryLines = async (sourceId: string) => {
+    setLinesLoading((prev) => new Set(prev).add(sourceId));
+    setLinesError((prev) => {
+      const newErr = new Map(prev);
+      newErr.delete(sourceId);
+      return newErr;
+    });
+
+    try {
+      const data = await fetchBudgetLinesForSource(sourceId);
+      setLinesCache((prev) => new Map(prev).set(sourceId, data));
+    } catch (err) {
+      let errorMsg = t('sources.lines.fetchError');
+      if (err instanceof ApiClientError) {
+        errorMsg = err.error.message;
+      }
+      setLinesError((prev) => new Map(prev).set(sourceId, errorMsg));
+    } finally {
+      setLinesLoading((prev) => {
+        const newLoading = new Set(prev);
+        newLoading.delete(sourceId);
+        return newLoading;
+      });
+    }
+  };
+
+  const handleSelectionChange = useCallback((sourceId: string, newSet: Set<string>) => {
+    setSourceSelections((prev) => {
+      const next = new Map(prev);
+      next.set(sourceId, newSet);
+      return next;
+    });
+  }, []);
+
+  const handleOpenMoveModal = useCallback((sourceId: string) => {
+    setMoveModalSourceId(sourceId);
+  }, []);
+
+  const activeMoveSource = moveModalSourceId
+    ? sources.find((s) => s.id === moveModalSourceId)
+    : null;
+  const activeMoveSelection = moveModalSourceId
+    ? (sourceSelections.get(moveModalSourceId) ?? new Set<string>())
+    : new Set<string>();
+  const activeLinesData = moveModalSourceId ? (linesCache.get(moveModalSourceId) ?? null) : null;
+
+  const { workItemBudgetIds, householdItemBudgetIds, claimedCount } = useMemo(() => {
+    if (!activeLinesData || activeMoveSelection.size === 0) {
+      return { workItemBudgetIds: [], householdItemBudgetIds: [], claimedCount: 0 };
+    }
+    const wiIds: string[] = [];
+    const hiIds: string[] = [];
+    let claimed = 0;
+
+    for (const line of activeLinesData.workItemLines) {
+      if (activeMoveSelection.has(line.id)) {
+        wiIds.push(line.id);
+        if (line.hasClaimedInvoice) claimed++;
+      }
+    }
+
+    for (const line of activeLinesData.householdItemLines) {
+      if (activeMoveSelection.has(line.id)) {
+        hiIds.push(line.id);
+        if (line.hasClaimedInvoice) claimed++;
+      }
+    }
+
+    return { workItemBudgetIds: wiIds, householdItemBudgetIds: hiIds, claimedCount: claimed };
+  }, [activeLinesData, activeMoveSelection]);
+
+  const handleMoveSuccess = useCallback(
+    (movedCount: number, targetName: string) => {
+      const srcId = moveModalSourceId;
+      setMoveModalSourceId(null);
+      setSourceSelections((prev) => {
+        const next = new Map(prev);
+        next.delete(srcId!);
+        return next;
+      });
+      showToast(
+        'success',
+        t('sources.budgetLines.move.successToast', { count: movedCount, targetName }),
+      );
+      // Invalidate lines cache so re-expand re-fetches
+      setLinesCache((prev) => {
+        const next = new Map(prev);
+        next.delete(srcId!);
+        return next;
+      });
+      void loadSources();
+    },
+    [moveModalSourceId, showToast, t],
+  );
+
+  // Clear selection when source is collapsed
+  const handleToggleLinesWithClearing = useCallback(
+    (sourceId: string) => {
+      const isCurrentlyExpanded = expandedSources.has(sourceId);
+      if (isCurrentlyExpanded) {
+        // Clear selection when collapsing
+        setSourceSelections((prev) => {
+          const next = new Map(prev);
+          next.delete(sourceId);
+          return next;
+        });
+      }
+      void handleToggleLines(sourceId);
+    },
+    [expandedSources, handleToggleLines],
+  );
 
   if (isLoading) {
     return (
@@ -712,244 +916,307 @@ export function BudgetSourcesPage() {
           <div className={styles.sourcesList}>
             {sources.map((source) => (
               <div key={source.id} className={styles.sourceRow}>
-                {editingSource?.id === source.id ? (
-                  <form
-                    onSubmit={handleUpdateSource}
-                    className={styles.editForm}
-                    aria-label={`Edit ${source.name}`}
-                  >
-                    {updateError && (
-                      <div className={styles.errorBanner} role="alert">
-                        {updateError}
-                      </div>
-                    )}
+                <div className={styles.sourceRowHeader}>
+                  {editingSource?.id === source.id ? (
+                    <form
+                      onSubmit={handleUpdateSource}
+                      className={styles.editForm}
+                      aria-label={`Edit ${source.name}`}
+                    >
+                      {updateError && (
+                        <div className={styles.errorBanner} role="alert">
+                          {updateError}
+                        </div>
+                      )}
 
-                    <div className={styles.editFormRow}>
-                      <div className={styles.fieldGrow}>
-                        <label htmlFor={`edit-name-${source.id}`} className={styles.label}>
-                          {t('sources.form.name')}{' '}
-                          <span className={styles.required}>{t('sources.form.required')}</span>
-                        </label>
-                        <input
-                          type="text"
-                          id={`edit-name-${source.id}`}
-                          value={editingSource.name}
-                          onChange={(e) =>
-                            setEditingSource({ ...editingSource, name: e.target.value })
-                          }
-                          className={styles.input}
-                          maxLength={200}
-                          disabled={isUpdating}
-                          autoFocus
-                        />
-                      </div>
+                      <div className={styles.editFormRow}>
+                        <div className={styles.fieldGrow}>
+                          <label htmlFor={`edit-name-${source.id}`} className={styles.label}>
+                            {t('sources.form.name')}{' '}
+                            <span className={styles.required}>{t('sources.form.required')}</span>
+                          </label>
+                          <input
+                            type="text"
+                            id={`edit-name-${source.id}`}
+                            value={editingSource.name}
+                            onChange={(e) =>
+                              setEditingSource({ ...editingSource, name: e.target.value })
+                            }
+                            className={styles.input}
+                            maxLength={200}
+                            disabled={isUpdating}
+                            autoFocus
+                          />
+                        </div>
 
-                      <div className={styles.fieldSelect}>
-                        <label htmlFor={`edit-type-${source.id}`} className={styles.label}>
-                          {t('sources.form.type')}
-                        </label>
-                        <select
-                          id={`edit-type-${source.id}`}
-                          value={editingSource.sourceType}
-                          onChange={(e) =>
-                            setEditingSource({
-                              ...editingSource,
-                              sourceType: e.target.value as BudgetSourceType,
-                            })
-                          }
-                          className={styles.select}
-                          disabled={isUpdating || source.isDiscretionary}
-                        >
-                          {Object.entries(SOURCE_TYPE_LABELS).map(([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className={styles.fieldSelect}>
-                        <label htmlFor={`edit-status-${source.id}`} className={styles.label}>
-                          {t('sources.form.status')}
-                        </label>
-                        <select
-                          id={`edit-status-${source.id}`}
-                          value={editingSource.status}
-                          onChange={(e) =>
-                            setEditingSource({
-                              ...editingSource,
-                              status: e.target.value as BudgetSourceStatus,
-                            })
-                          }
-                          className={styles.select}
-                          disabled={isUpdating}
-                        >
-                          {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className={styles.editFormRow}>
-                      <div className={styles.fieldGrow}>
-                        <label htmlFor={`edit-amount-${source.id}`} className={styles.label}>
-                          {t('sources.form.totalAmount')}{' '}
-                          <span className={styles.required}>{t('sources.form.required')}</span>
-                        </label>
-                        <input
-                          type="number"
-                          id={`edit-amount-${source.id}`}
-                          value={editingSource.totalAmount}
-                          onChange={(e) =>
-                            setEditingSource({ ...editingSource, totalAmount: e.target.value })
-                          }
-                          className={styles.input}
-                          min={0}
-                          step="0.01"
-                          disabled={isUpdating}
-                        />
-                      </div>
-
-                      <div className={styles.fieldNarrow}>
-                        <label htmlFor={`edit-rate-${source.id}`} className={styles.label}>
-                          {t('sources.form.interestRate')}
-                        </label>
-                        <input
-                          type="number"
-                          id={`edit-rate-${source.id}`}
-                          value={editingSource.interestRate}
-                          onChange={(e) =>
-                            setEditingSource({ ...editingSource, interestRate: e.target.value })
-                          }
-                          className={styles.input}
-                          min={0}
-                          step="0.01"
-                          disabled={isUpdating}
-                        />
-                      </div>
-                    </div>
-
-                    <div className={styles.field}>
-                      <label htmlFor={`edit-terms-${source.id}`} className={styles.label}>
-                        {t('sources.form.terms')}
-                      </label>
-                      <input
-                        type="text"
-                        id={`edit-terms-${source.id}`}
-                        value={editingSource.terms}
-                        onChange={(e) =>
-                          setEditingSource({ ...editingSource, terms: e.target.value })
-                        }
-                        className={styles.input}
-                        placeholder="e.g., 30-year fixed, monthly payments"
-                        maxLength={500}
-                        disabled={isUpdating}
-                      />
-                    </div>
-
-                    <div className={styles.field}>
-                      <label htmlFor={`edit-notes-${source.id}`} className={styles.label}>
-                        {t('sources.form.notes')}
-                      </label>
-                      <textarea
-                        id={`edit-notes-${source.id}`}
-                        value={editingSource.notes}
-                        onChange={(e) =>
-                          setEditingSource({ ...editingSource, notes: e.target.value })
-                        }
-                        className={styles.textarea}
-                        placeholder="Optional notes"
-                        maxLength={2000}
-                        disabled={isUpdating}
-                        rows={3}
-                      />
-                    </div>
-
-                    <div className={styles.editActions}>
-                      <button
-                        type="submit"
-                        className={styles.saveButton}
-                        disabled={
-                          isUpdating ||
-                          !editingSource.name.trim() ||
-                          !editingSource.totalAmount.trim()
-                        }
-                      >
-                        {isUpdating ? t('sources.buttons.saving') : t('sources.buttons.save')}
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.cancelButton}
-                        onClick={cancelEdit}
-                        disabled={isUpdating}
-                      >
-                        {t('sources.buttons.cancel')}
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <>
-                    <div className={styles.sourceInfo}>
-                      <div className={styles.sourceMain}>
-                        <span className={styles.sourceName}>{source.name}</span>
-                        <div className={styles.sourceBadges}>
-                          <span
-                            className={`${styles.typeBadge} ${getSourceTypeClass(styles, source.sourceType)}`}
+                        <div className={styles.fieldSelect}>
+                          <label htmlFor={`edit-type-${source.id}`} className={styles.label}>
+                            {t('sources.form.type')}
+                          </label>
+                          <select
+                            id={`edit-type-${source.id}`}
+                            value={editingSource.sourceType}
+                            onChange={(e) =>
+                              setEditingSource({
+                                ...editingSource,
+                                sourceType: e.target.value as BudgetSourceType,
+                              })
+                            }
+                            className={styles.select}
+                            disabled={isUpdating || source.isDiscretionary}
                           >
-                            {SOURCE_TYPE_LABELS[source.sourceType]}
-                          </span>
-                          <span
-                            className={`${styles.statusBadge} ${getStatusClass(styles, source.status)}`}
+                            {Object.entries(SOURCE_TYPE_LABELS).map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className={styles.fieldSelect}>
+                          <label htmlFor={`edit-status-${source.id}`} className={styles.label}>
+                            {t('sources.form.status')}
+                          </label>
+                          <select
+                            id={`edit-status-${source.id}`}
+                            value={editingSource.status}
+                            onChange={(e) =>
+                              setEditingSource({
+                                ...editingSource,
+                                status: e.target.value as BudgetSourceStatus,
+                              })
+                            }
+                            className={styles.select}
+                            disabled={isUpdating}
                           >
-                            {STATUS_LABELS[source.status]}
-                          </span>
-                          {source.isDiscretionary && (
-                            <span className={styles.systemBadge}>
-                              {t('sources.sourcesList.system')}
-                            </span>
-                          )}
+                            {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       </div>
 
-                      <SourceBarChart
-                        source={source}
-                        formatCurrency={formatCurrency}
-                        formatPercent={formatPercent}
-                      />
+                      <div className={styles.editFormRow}>
+                        <div className={styles.fieldGrow}>
+                          <label htmlFor={`edit-amount-${source.id}`} className={styles.label}>
+                            {t('sources.form.totalAmount')}{' '}
+                            <span className={styles.required}>{t('sources.form.required')}</span>
+                          </label>
+                          <input
+                            type="number"
+                            id={`edit-amount-${source.id}`}
+                            value={editingSource.totalAmount}
+                            onChange={(e) =>
+                              setEditingSource({ ...editingSource, totalAmount: e.target.value })
+                            }
+                            className={styles.input}
+                            min={0}
+                            step="0.01"
+                            disabled={isUpdating}
+                          />
+                        </div>
 
-                      {source.terms && (
-                        <p className={styles.sourceTerms} title="Terms">
-                          {source.terms}
-                        </p>
-                      )}
-                    </div>
+                        <div className={styles.fieldNarrow}>
+                          <label htmlFor={`edit-rate-${source.id}`} className={styles.label}>
+                            {t('sources.form.interestRate')}
+                          </label>
+                          <input
+                            type="number"
+                            id={`edit-rate-${source.id}`}
+                            value={editingSource.interestRate}
+                            onChange={(e) =>
+                              setEditingSource({ ...editingSource, interestRate: e.target.value })
+                            }
+                            className={styles.input}
+                            min={0}
+                            step="0.01"
+                            disabled={isUpdating}
+                          />
+                        </div>
+                      </div>
 
-                    <div className={styles.sourceActions}>
-                      <button
-                        type="button"
-                        className={styles.editButton}
-                        onClick={() => startEdit(source)}
-                        disabled={!!editingSource}
-                        aria-label={`${t('sources.buttons.edit')} ${source.name}`}
-                      >
-                        {t('sources.buttons.edit')}
-                      </button>
-                      {!source.isDiscretionary && (
+                      <div className={styles.field}>
+                        <label htmlFor={`edit-terms-${source.id}`} className={styles.label}>
+                          {t('sources.form.terms')}
+                        </label>
+                        <input
+                          type="text"
+                          id={`edit-terms-${source.id}`}
+                          value={editingSource.terms}
+                          onChange={(e) =>
+                            setEditingSource({ ...editingSource, terms: e.target.value })
+                          }
+                          className={styles.input}
+                          placeholder="e.g., 30-year fixed, monthly payments"
+                          maxLength={500}
+                          disabled={isUpdating}
+                        />
+                      </div>
+
+                      <div className={styles.field}>
+                        <label htmlFor={`edit-notes-${source.id}`} className={styles.label}>
+                          {t('sources.form.notes')}
+                        </label>
+                        <textarea
+                          id={`edit-notes-${source.id}`}
+                          value={editingSource.notes}
+                          onChange={(e) =>
+                            setEditingSource({ ...editingSource, notes: e.target.value })
+                          }
+                          className={styles.textarea}
+                          placeholder="Optional notes"
+                          maxLength={2000}
+                          disabled={isUpdating}
+                          rows={3}
+                        />
+                      </div>
+
+                      <div className={styles.editActions}>
+                        <button
+                          type="submit"
+                          className={styles.saveButton}
+                          disabled={
+                            isUpdating ||
+                            !editingSource.name.trim() ||
+                            !editingSource.totalAmount.trim()
+                          }
+                        >
+                          {isUpdating ? t('sources.buttons.saving') : t('sources.buttons.save')}
+                        </button>
                         <button
                           type="button"
-                          className={styles.deleteButton}
-                          onClick={() => openDeleteConfirm(source.id)}
-                          disabled={!!editingSource}
-                          aria-label={`${t('sources.buttons.delete')} ${source.name}`}
+                          className={styles.cancelButton}
+                          onClick={cancelEdit}
+                          disabled={isUpdating}
                         >
-                          {t('sources.buttons.delete')}
+                          {t('sources.buttons.cancel')}
                         </button>
-                      )}
-                    </div>
-                  </>
+                      </div>
+                    </form>
+                  ) : (
+                    <>
+                      <div className={styles.sourceInfo}>
+                        <div className={styles.sourceMain}>
+                          <span className={styles.sourceName}>{source.name}</span>
+                          <div className={styles.sourceBadges}>
+                            <span
+                              className={`${styles.typeBadge} ${getSourceTypeClass(styles, source.sourceType)}`}
+                            >
+                              {SOURCE_TYPE_LABELS[source.sourceType]}
+                            </span>
+                            <span
+                              className={`${styles.statusBadge} ${getStatusClass(styles, source.status)}`}
+                            >
+                              {STATUS_LABELS[source.status]}
+                            </span>
+                            {source.isDiscretionary && (
+                              <span className={styles.systemBadge}>
+                                {t('sources.sourcesList.system')}
+                              </span>
+                            )}
+                            <span
+                              className={styles.totalBadge}
+                              aria-label={t('sources.barChart.totalBadgeAriaLabel', {
+                                amount: formatCurrency(source.totalAmount),
+                              })}
+                            >
+                              {t('sources.barChart.totalBadge', {
+                                amount: formatCurrency(source.totalAmount),
+                              })}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className={`${styles.expandToggle} ${expandedSources.has(source.id) ? styles.expandToggleActive : ''}`}
+                            onClick={() => handleToggleLinesWithClearing(source.id)}
+                            disabled={!!editingSource}
+                            aria-expanded={expandedSources.has(source.id)}
+                            aria-controls={`source-lines-${source.id}`}
+                            aria-label={
+                              expandedSources.has(source.id)
+                                ? t('sources.lines.collapseAriaLabel', { name: source.name })
+                                : t('sources.lines.expandAriaLabel', { name: source.name })
+                            }
+                          >
+                            <svg
+                              className={`${styles.chevronIcon} ${expandedSources.has(source.id) ? styles.chevronExpanded : ''}`}
+                              viewBox="0 0 16 16"
+                              fill="currentColor"
+                              aria-hidden="true"
+                            >
+                              <path
+                                d="M6 5l4 4-4 4"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                fill="none"
+                              />
+                            </svg>
+                            <span>
+                              {expandedSources.has(source.id)
+                                ? t('sources.lines.collapse')
+                                : t('sources.lines.expand')}
+                            </span>
+                          </button>
+                        </div>
+
+                        {source.interestRate != null && (
+                          <p className={styles.sourceInterestRate}>
+                            {t('sources.barChart.rate')} {formatPercent(source.interestRate)}
+                          </p>
+                        )}
+
+                        <SourceBarChart
+                          source={source}
+                          formatCurrency={formatCurrency}
+                          formatPercent={formatPercent}
+                        />
+
+                        {source.terms && (
+                          <p className={styles.sourceTerms} title="Terms">
+                            {source.terms}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className={styles.sourceActions}>
+                        <button
+                          type="button"
+                          className={styles.editButton}
+                          onClick={() => startEdit(source)}
+                          disabled={!!editingSource}
+                          aria-label={`${t('sources.buttons.edit')} ${source.name}`}
+                        >
+                          {t('sources.buttons.edit')}
+                        </button>
+                        {!source.isDiscretionary && (
+                          <button
+                            type="button"
+                            className={styles.deleteButton}
+                            onClick={() => openDeleteConfirm(source.id)}
+                            disabled={!!editingSource}
+                            aria-label={`${t('sources.buttons.delete')} ${source.name}`}
+                          >
+                            {t('sources.buttons.delete')}
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+                {editingSource?.id !== source.id && expandedSources.has(source.id) && (
+                  <SourceBudgetLinePanel
+                    sourceId={source.id}
+                    sourceName={source.name}
+                    data={linesCache.get(source.id) ?? null}
+                    isLoading={linesLoading.has(source.id)}
+                    error={linesError.get(source.id) ?? null}
+                    onRetry={() => handleRetryLines(source.id)}
+                    selectedLineIds={sourceSelections.get(source.id)}
+                    onSelectionChange={(newSet) => handleSelectionChange(source.id, newSet)}
+                    onMoveLines={() => handleOpenMoveModal(source.id)}
+                  />
                 )}
               </div>
             ))}
@@ -1006,6 +1273,20 @@ export function BudgetSourcesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Mass-move modal */}
+      {moveModalSourceId && activeMoveSource && (
+        <MassMoveModal
+          sourceId={moveModalSourceId}
+          sourceName={activeMoveSource.name}
+          selectedLineIds={activeMoveSelection}
+          claimedCount={claimedCount}
+          workItemBudgetIds={workItemBudgetIds}
+          householdItemBudgetIds={householdItemBudgetIds}
+          onClose={() => setMoveModalSourceId(null)}
+          onSuccess={handleMoveSuccess}
+        />
       )}
     </PageLayout>
   );
