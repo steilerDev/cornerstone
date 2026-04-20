@@ -194,6 +194,8 @@
       "move": {
         "checkboxLabel": "Select {{description}}",
         "selectGroupLabel": "Select all in {{name}}",
+        "selectItemLabel": "Select all under {{name}}",
+        "navigateToItem": "Open {{name}}",
         "selectedCount_one": "{{count}} line selected",
         "selectedCount_other": "{{count}} lines selected",
         "openModalButton": "Move to another source…",
