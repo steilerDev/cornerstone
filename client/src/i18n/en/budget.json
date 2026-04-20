@@ -161,6 +161,9 @@
       "summaryClaimedLabel": "Claimed",
       "srOnly": "Claimed {{claimed}}, Paid {{paid}}, Projected {{projectedMin}} to {{projectedMax}}, of total {{total}}"
     },
+    "summary": {
+      "remainingLabel": "Remaining"
+    },
     "lines": {
       "expand": "Show lines",
       "collapse": "Hide lines",

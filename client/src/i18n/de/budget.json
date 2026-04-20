@@ -219,6 +219,9 @@
         "successToast_other": "{{count}} Positionen wurden nach {{targetName}} verschoben",
         "genericError": "Positionen konnten nicht verschoben werden. Bitte versuchen Sie es erneut."
       }
+    },
+    "summary": {
+      "remainingLabel": "Verbleibend"
     }
   },
   "vendors": {

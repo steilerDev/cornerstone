@@ -1887,14 +1887,57 @@ describe('BudgetSourcesPage', () => {
         expect(screen.getByText('Home Loan')).toBeInTheDocument();
       });
 
-      // The primary value for the Projected row shows both min and max amounts.
-      // In JSX raw text (outside {}), \u2013 is the literal characters \u2013, not en-dash.
-      // We verify both formatted values appear in the first summaryPrimary element.
+      // The primary value for the Projected row shows both min and max amounts separated by an en-dash.
+      // After fix #1333, the en-dash is rendered as the actual U+2013 character via JSX expression {'\u2013'}.
       const primaryCells = Array.from(container.querySelectorAll('[class*="summaryPrimary"]'));
       const projectedPrimary = primaryCells[0];
       expect(projectedPrimary).toBeTruthy();
       expect(projectedPrimary?.textContent).toMatch(/€80,000\.00/);
       expect(projectedPrimary?.textContent).toMatch(/€120,000\.00/);
+      // Verify the actual en-dash character (U+2013) is present, not the literal escape sequence
+      expect(projectedPrimary?.textContent).toContain('\u2013');
+      expect(projectedPrimary?.textContent).not.toContain('\\u2013');
+    });
+
+    it('projected row secondary value is prefixed with "Remaining" label', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sourceWithRange] });
+      const { container } = renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+      const summaryRows = Array.from(container.querySelectorAll('[class*="summaryRow"]'));
+      const projectedRow = summaryRows[0];
+      const secondaryEl = projectedRow?.querySelector('[class*="summarySecondary"]');
+      expect(secondaryEl?.textContent).toMatch(/^Remaining\s/);
+      expect(secondaryEl?.textContent).toContain('\u2013');
+      expect(secondaryEl?.textContent).not.toContain('\\u2013');
+      // Screen-reader-readable single text node: "Remaining €X – €Y"
+      const text = secondaryEl?.textContent?.trim() ?? '';
+      expect(text).toMatch(/^Remaining €[\d,.]+ – €[\d,.]+$/);
+    });
+
+    it('paid row secondary value is prefixed with "Remaining" label', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sourceWithRange] });
+      const { container } = renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+      const summaryRows = Array.from(container.querySelectorAll('[class*="summaryRow"]'));
+      const paidRow = summaryRows[1];
+      const secondaryEl = paidRow?.querySelector('[class*="summarySecondary"]');
+      expect(secondaryEl?.textContent).toMatch(/^Remaining\s/);
+    });
+
+    it('claimed row secondary value is prefixed with "Remaining" label', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sourceWithRange] });
+      const { container } = renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+      const summaryRows = Array.from(container.querySelectorAll('[class*="summaryRow"]'));
+      const claimedRow = summaryRows[2];
+      const secondaryEl = claimedRow?.querySelector('[class*="summarySecondary"]');
+      expect(secondaryEl?.textContent).toMatch(/^Remaining\s/);
     });
 
     it('Projected row secondary value gets danger class when projectedMaxAmount > totalAmount', async () => {
@@ -1923,6 +1966,8 @@ describe('BudgetSourcesPage', () => {
       expect(secondaryEl).toBeTruthy();
       // The secondary span should include summarySecondaryNegative when projection exceeds total
       expect(secondaryEl?.className).toMatch(/summarySecondaryNegative/);
+      // Even in negative state, the "Remaining" label prefix must be present
+      expect(secondaryEl?.textContent).toMatch(/^Remaining\s/);
     });
 
     it('Projected row secondary value does NOT get danger class when projectedMaxAmount <= totalAmount', async () => {
