@@ -3,6 +3,18 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## BudgetBar Module-Level Mock Anti-Pattern (2026-04-20)
+
+**Critical**: Mocking `BudgetBar` at module level (`jest.unstable_mockModule('../../components/BudgetBar/BudgetBar.js', ...)`) breaks ALL existing tests that rely on BudgetBar rendering content (labels, role="img", segment text). BudgetBar renders segment labels (e.g. "Paid (unclaimed)", "Claimed") that existing tests assert on. The fix: test segment keys via observable behavior (aria-label, summaryLabel text) rather than mock capture. For segment structure verification, use `container.querySelectorAll('[class*="summaryRow"]')` to check rows and their label text order.
+
+## JSX Raw Text Unicode Escapes (2026-04-20)
+
+`\u2013` in JSX raw text (NOT inside `{expr}`) renders as the literal 6 characters `\`, `u`, `2`, `0`, `1`, `3` — NOT as the en-dash character. Only inside JS string expressions (in `{}`) is `\u2013` a Unicode escape. Confirmed in `BudgetSourcesPage.tsx` line 206: `{formatCurrency(source.projectedMinAmount)} \u2013 {formatCurrency(source.projectedMaxAmount)}`. The actual text content received is `"€80,000.00 \\u2013 €120,000.00"`.
+
+## CSS Module Class Selectors in Jest/JSDOM (2026-04-20)
+
+`[class*="summaryLabel"]` matches BOTH `summaryLabel` AND `summaryLabelDot` (child span inside summaryLabel). To count summary rows, use `[class*="summaryRow"]` instead. To get label text within each row, do `row.querySelector('[class*="summaryLabel"]')` — returns the parent span including dot + text.
+
 ## de/budget.json Smart-Quote Bug (2026-04-16)
 
 `client/src/i18n/de/budget.json` had a JSON syntax error at line 211: `confirmDisabledHint` used „Ich verstehe" with a German open-quote (U+201E) but an ASCII close-quote (U+0022) which terminated the JSON string early. Fix: replace ASCII `"` with `\u201c` (U+201C German close-quote). **Symptom**: ALL Jest test suites fail to run with `SyntaxError: Expected double-quoted property name in JSON at position 9524`. i18next loads all locale JSON files, including de/budget.json, even in tests that don't use German translations.
