@@ -8,8 +8,10 @@
  * 4. Happy path (no claimed invoices) — move succeeds, toast shown  (@smoke)
  * 5. Claimed invoice warning gates confirm button
  * 6. API 409 STALE_OWNERSHIP → FormError visible, modal stays open, cancel closes
- * 7. Area group "select all" tri-state checkbox — selects all lines in the group
+ * 7. Area name tri-state click selects all lines in the group  (#1323)
  * 8. Mobile viewport — select line, action bar visible  (@smoke)
+ * 9. Parent item card select-all + toggle back  (#1323)
+ * 10. Mixed aria-checked + nav icon isolation  (#1323)
  *
  * API mocking strategy:
  * - Real sources created via API for stable IDs.
@@ -655,10 +657,10 @@ test.describe('API error → FormError in modal', { tag: '@responsive' }, () => 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 7: Area group "select all" tri-state checkbox
+// Scenario 7: Area name tri-state click selects all lines (#1323)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Area group tri-state checkbox selects all lines', { tag: '@responsive' }, () => {
-  test('clicking the area group checkbox selects all 3 lines in the group and shows "3 lines selected" in the action bar', async ({
+test.describe('Area name tri-state click selects all lines', { tag: '@responsive' }, () => {
+  test('clicking the area name selects all 3 lines and shows correct action bar count', async ({
     page,
     testPrefix,
   }) => {
@@ -684,28 +686,28 @@ test.describe('Area group tri-state checkbox selects all lines', { tag: '@respon
       await sourcesPage.expandSourceLines(sourceName);
       await expandResponse;
 
-      // The area group checkbox for "Bathroom"
-      const areaCheckbox = sourcesPage.getAreaGroupCheckbox(sourceId, 'Bathroom');
-      await areaCheckbox.waitFor({ state: 'visible' });
+      // The area name element (role="checkbox", aria-label="Select all in Bathroom")
+      const areaNameEl = sourcesPage.getAreaNameSelector(sourceId, 'Bathroom');
+      await areaNameEl.waitFor({ state: 'visible' });
 
-      // Initially unchecked
-      await expect(areaCheckbox).not.toBeChecked();
+      // Initially unchecked (aria-checked="false")
+      await expect(areaNameEl).toHaveAttribute('aria-checked', 'false');
 
-      // Click the area checkbox — should select all 3 lines
-      await areaCheckbox.check();
+      // Click the area name — should select all 3 lines
+      await areaNameEl.click();
 
       // All 3 individual line checkboxes must be checked
-      const cb1 = sourcesPage.getLineCheckbox(sourceId, 'Tile installation');
-      const cb2 = sourcesPage.getLineCheckbox(sourceId, 'Plumbing fixtures');
-      const cb3 = sourcesPage.getLineCheckbox(sourceId, 'Vanity cabinet');
-      await expect(cb1).toBeChecked();
-      await expect(cb2).toBeChecked();
-      await expect(cb3).toBeChecked();
+      await expect(sourcesPage.getLineCheckbox(sourceId, 'Tile installation')).toBeChecked();
+      await expect(sourcesPage.getLineCheckbox(sourceId, 'Plumbing fixtures')).toBeChecked();
+      await expect(sourcesPage.getLineCheckbox(sourceId, 'Vanity cabinet')).toBeChecked();
 
       // Action bar shows "3 lines selected"
       const actionBar = sourcesPage.getActionBar(sourceId);
       await expect(actionBar).toBeVisible();
       await expect(actionBar).toContainText('3 lines selected');
+
+      // aria-checked must reflect fully selected state
+      await expect(areaNameEl).toHaveAttribute('aria-checked', 'true');
     } finally {
       if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
       if (sourceId) await deleteSourceViaApi(page, sourceId);
@@ -763,4 +765,125 @@ test.describe('Mobile — select line shows action bar', { tag: ['@smoke', '@res
       }
     },
   );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 9: Parent item card select-all + toggle back (#1323)
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Parent item card tri-state click', { tag: '@responsive' }, () => {
+  test('clicking the parent item card selects all its lines and toggling back deselects them', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} ParentCard Source`;
+    let sourceId: string | null = null;
+
+    try {
+      sourceId = await createSourceViaApi(page, { name: sourceName, totalAmount: 30000 });
+
+      // mockTwoLines uses "Flooring" as the parentName for both lines in "Kitchen" area
+      await page.route(budgetLinesUrl(sourceId), async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(mockTwoLines(sourceId!)),
+        });
+      });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      const expandResponse = page.waitForResponse(budgetLinesUrl(sourceId));
+      await sourcesPage.expandSourceLines(sourceName);
+      await expandResponse;
+
+      // The parent item card for "Flooring" (role="checkbox", aria-label="Select all under Flooring")
+      const parentCard = sourcesPage.getParentItemCard(sourceId, 'Flooring');
+      await parentCard.waitFor({ state: 'visible' });
+
+      // Initially unchecked (aria-checked="false")
+      await expect(parentCard).toHaveAttribute('aria-checked', 'false');
+
+      // Click the parent card — should select both lines under "Flooring"
+      await parentCard.click();
+
+      await expect(
+        sourcesPage.getLineCheckbox(sourceId, 'Hardwood floor installation'),
+      ).toBeChecked();
+      await expect(sourcesPage.getLineCheckbox(sourceId, 'Subfloor preparation')).toBeChecked();
+
+      const actionBar = sourcesPage.getActionBar(sourceId);
+      await expect(actionBar).toBeVisible();
+      await expect(actionBar).toContainText('2 lines selected');
+      await expect(parentCard).toHaveAttribute('aria-checked', 'true');
+
+      // Toggle off — click again to deselect all
+      await parentCard.click();
+
+      await expect(
+        sourcesPage.getLineCheckbox(sourceId, 'Hardwood floor installation'),
+      ).not.toBeChecked();
+      await expect(actionBar).not.toBeVisible();
+      await expect(parentCard).toHaveAttribute('aria-checked', 'false');
+    } finally {
+      if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
+      if (sourceId) await deleteSourceViaApi(page, sourceId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 10: Mixed aria-checked + nav icon isolation (#1323)
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Mixed aria-checked and nav icon isolation', { tag: '@responsive' }, () => {
+  test('selecting one of two lines yields aria-checked="mixed" on parent card; nav icon has correct aria-label and href', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} MixedState Source`;
+    let sourceId: string | null = null;
+
+    try {
+      sourceId = await createSourceViaApi(page, { name: sourceName, totalAmount: 30000 });
+
+      // mockTwoLines: both lines share parentName "Flooring"
+      await page.route(budgetLinesUrl(sourceId), async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(mockTwoLines(sourceId!)),
+        });
+      });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      const expandResponse = page.waitForResponse(budgetLinesUrl(sourceId));
+      await sourcesPage.expandSourceLines(sourceName);
+      await expandResponse;
+
+      // Select only one of the two lines under "Flooring"
+      const cb = sourcesPage.getLineCheckbox(sourceId, 'Hardwood floor installation');
+      await cb.waitFor({ state: 'visible' });
+      await cb.check();
+
+      // Parent card must show "mixed" when only a subset of its lines are selected
+      const parentCard = sourcesPage.getParentItemCard(sourceId, 'Flooring');
+      await expect(parentCard).toHaveAttribute('aria-checked', 'mixed');
+
+      // Nav icon verification — do not click (would navigate away from the test page)
+      const navIcon = sourcesPage.getParentItemNavIcon(sourceId, 'Flooring');
+      await expect(navIcon).toBeVisible();
+      await expect(navIcon).toHaveAttribute('aria-label', 'Open Flooring');
+
+      // The href must point to a work-item or household-item detail page
+      const href = await navIcon.getAttribute('href');
+      expect(href).toMatch(/\/project\/(work-items|household-items)\//);
+    } finally {
+      if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
+      if (sourceId) await deleteSourceViaApi(page, sourceId);
+    }
+  });
 });
