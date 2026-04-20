@@ -2104,4 +2104,57 @@ describe('BudgetSourcesPage', () => {
       expect(secondaryEl?.className).toMatch(/summarySecondaryNegative/);
     });
   });
+
+  // ─── source actions layout (Issues #1335 + #1336) ────────────────────────────
+
+  describe('source actions layout', () => {
+    it('Show lines, Edit, and Delete buttons are all direct children of sourceActions in that order', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+      const { container } = renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+      const actionsDiv = container.querySelector('[class*="sourceActions"]');
+      expect(actionsDiv).not.toBeNull();
+      const buttons = Array.from(actionsDiv!.querySelectorAll('button'));
+      expect(buttons.length).toBe(3);
+      // Order: Show lines → Edit → Delete
+      expect(buttons[0]).toHaveAttribute('aria-label', expect.stringMatching(/expand budget lines for home loan/i));
+      expect(buttons[1]).toHaveAccessibleName(/edit home loan/i);
+      expect(buttons[2]).toHaveAccessibleName(/delete home loan/i);
+    });
+
+    it('discretionary source shows Show lines and Edit in sourceActions but not Delete', async () => {
+      const discretionarySource: BudgetSource = {
+        ...sampleSource1,
+        id: 'src-disc',
+        name: 'Contingency Reserve',
+        isDiscretionary: true,
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [discretionarySource] });
+      const { container } = renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Contingency Reserve')).toBeInTheDocument();
+      });
+      const actionsDiv = container.querySelector('[class*="sourceActions"]');
+      expect(actionsDiv).not.toBeNull();
+      const buttons = Array.from(actionsDiv!.querySelectorAll('button'));
+      expect(buttons.length).toBe(2);
+      expect(buttons[0]).toHaveAttribute('aria-label', expect.stringMatching(/expand budget lines for contingency reserve/i));
+      expect(buttons[1]).toHaveAccessibleName(/edit contingency reserve/i);
+      expect(screen.queryByRole('button', { name: /delete contingency reserve/i })).not.toBeInTheDocument();
+    });
+
+    it('expandToggle button is NOT inside sourceMain', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+      const { container } = renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+      const sourceMainDiv = container.querySelector('[class*="sourceMain"]');
+      expect(sourceMainDiv).not.toBeNull();
+      const toggleInsideMain = sourceMainDiv!.querySelector('[class*="expandToggle"]');
+      expect(toggleInsideMain).toBeNull();
+    });
+  });
 });

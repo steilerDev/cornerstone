@@ -1127,38 +1127,6 @@ export function BudgetSourcesPage() {
                               })}
                             </span>
                           </div>
-                          <button
-                            type="button"
-                            className={`${styles.expandToggle} ${expandedSources.has(source.id) ? styles.expandToggleActive : ''}`}
-                            onClick={() => handleToggleLinesWithClearing(source.id)}
-                            disabled={!!editingSource}
-                            aria-expanded={expandedSources.has(source.id)}
-                            aria-controls={`source-lines-${source.id}`}
-                            aria-label={
-                              expandedSources.has(source.id)
-                                ? t('sources.lines.collapseAriaLabel', { name: source.name })
-                                : t('sources.lines.expandAriaLabel', { name: source.name })
-                            }
-                          >
-                            <svg
-                              className={`${styles.chevronIcon} ${expandedSources.has(source.id) ? styles.chevronExpanded : ''}`}
-                              viewBox="0 0 16 16"
-                              fill="currentColor"
-                              aria-hidden="true"
-                            >
-                              <path
-                                d="M6 5l4 4-4 4"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                fill="none"
-                              />
-                            </svg>
-                            <span>
-                              {expandedSources.has(source.id)
-                                ? t('sources.lines.collapse')
-                                : t('sources.lines.expand')}
-                            </span>
-                          </button>
                         </div>
 
                         {source.interestRate != null && (
@@ -1181,6 +1149,38 @@ export function BudgetSourcesPage() {
                       </div>
 
                       <div className={styles.sourceActions}>
+                        <button
+                          type="button"
+                          className={`${styles.expandToggle} ${expandedSources.has(source.id) ? styles.expandToggleActive : ''}`}
+                          onClick={() => handleToggleLinesWithClearing(source.id)}
+                          disabled={!!editingSource}
+                          aria-expanded={expandedSources.has(source.id)}
+                          aria-controls={`source-lines-${source.id}`}
+                          aria-label={
+                            expandedSources.has(source.id)
+                              ? t('sources.lines.collapseAriaLabel', { name: source.name })
+                              : t('sources.lines.expandAriaLabel', { name: source.name })
+                          }
+                        >
+                          <svg
+                            className={`${styles.chevronIcon} ${expandedSources.has(source.id) ? styles.chevronExpanded : ''}`}
+                            viewBox="0 0 16 16"
+                            fill="currentColor"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d="M6 5l4 4-4 4"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              fill="none"
+                            />
+                          </svg>
+                          <span>
+                            {expandedSources.has(source.id)
+                              ? t('sources.lines.collapse')
+                              : t('sources.lines.expand')}
+                          </span>
+                        </button>
                         <button
                           type="button"
                           className={styles.editButton}
