@@ -1272,6 +1272,298 @@ describe('User Routes', () => {
     });
   });
 
+  describe('POST /api/users', () => {
+    it('admin creates a member user — returns 201 with user envelope, no passwordHash', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // When: Admin creates a new member user
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/users',
+        headers: { cookie },
+        payload: {
+          email: 'newmember@example.com',
+          displayName: 'New Member',
+          password: 'securepass123',
+          role: 'member',
+        },
+      });
+
+      // Then: Returns 201 Created
+      expect(response.statusCode).toBe(201);
+      const body = JSON.parse(response.body);
+
+      // And: Response is wrapped in { user: ... } envelope
+      expect(body.user).toBeDefined();
+      expect(body.user.id).toBeDefined();
+      expect(body.user.email).toBe('newmember@example.com');
+      expect(body.user.displayName).toBe('New Member');
+      expect(body.user.role).toBe('member');
+
+      // And: No sensitive fields in response
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((body.user as any).passwordHash).toBeUndefined();
+    });
+
+    it('admin creates an admin user — returns 201 with role === "admin"', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // When: Admin creates another admin
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/users',
+        headers: { cookie },
+        payload: {
+          email: 'newadmin@example.com',
+          displayName: 'New Admin',
+          password: 'securepass123',
+          role: 'admin',
+        },
+      });
+
+      // Then: Returns 201 with correct role
+      expect(response.statusCode).toBe(201);
+      const body = JSON.parse(response.body);
+      expect(body.user.role).toBe('admin');
+    });
+
+    it('returns 401 when not authenticated', async () => {
+      // Given: No session cookie
+      // When: Attempting to create user
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/users',
+        payload: {
+          email: 'test@example.com',
+          displayName: 'Test',
+          password: 'securepass123',
+          role: 'member',
+        },
+      });
+
+      // Then: Returns 401
+      expect(response.statusCode).toBe(401);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('returns 403 when authenticated as member (not admin)', async () => {
+      // Given: Member user
+      const { cookie } = await createUserWithSession(
+        'member@example.com',
+        'Member User',
+        'password123456',
+        'member',
+      );
+
+      // When: Member tries to create a user
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/users',
+        headers: { cookie },
+        payload: {
+          email: 'test@example.com',
+          displayName: 'Test',
+          password: 'securepass123',
+          role: 'member',
+        },
+      });
+
+      // Then: Returns 403 Forbidden
+      expect(response.statusCode).toBe(403);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('FORBIDDEN');
+    });
+
+    it('returns 400 for missing email', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // When: Sending request without email
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/users',
+        headers: { cookie },
+        payload: {
+          displayName: 'Test',
+          password: 'securepass123',
+          role: 'member',
+        },
+      });
+
+      // Then: Returns 400
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 for invalid email format', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // When: Sending invalid email
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/users',
+        headers: { cookie },
+        payload: {
+          email: 'not-an-email',
+          displayName: 'Test',
+          password: 'securepass123',
+          role: 'member',
+        },
+      });
+
+      // Then: Returns 400
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 for password shorter than 8 characters', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // When: Sending password that is too short
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/users',
+        headers: { cookie },
+        payload: {
+          email: 'test@example.com',
+          displayName: 'Test',
+          password: 'short',
+          role: 'member',
+        },
+      });
+
+      // Then: Returns 400
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 for empty displayName', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // When: Sending empty displayName
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/users',
+        headers: { cookie },
+        payload: {
+          email: 'test@example.com',
+          displayName: '',
+          password: 'securepass123',
+          role: 'member',
+        },
+      });
+
+      // Then: Returns 400
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 for invalid role value', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // When: Sending unsupported role
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/users',
+        headers: { cookie },
+        payload: {
+          email: 'test@example.com',
+          displayName: 'Test',
+          password: 'securepass123',
+          role: 'superadmin',
+        },
+      });
+
+      // Then: Returns 400
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 409 CONFLICT on duplicate email', async () => {
+      // Given: Admin user
+      const { cookie } = await createUserWithSession(
+        'admin@example.com',
+        'Admin User',
+        'password123456',
+        'admin',
+      );
+
+      // And: An existing user with the same email
+      await userService.createLocalUser(
+        app.db,
+        'duplicate@example.com',
+        'Existing User',
+        'password123456',
+        'member',
+      );
+
+      // When: Trying to create another user with the same email
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/users',
+        headers: { cookie },
+        payload: {
+          email: 'duplicate@example.com',
+          displayName: 'New User',
+          password: 'securepass123',
+          role: 'member',
+        },
+      });
+
+      // Then: Returns 409 Conflict
+      expect(response.statusCode).toBe(409);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('CONFLICT');
+    });
+  });
+
   describe('POST /api/users/:id/unlock', () => {
     it('admin can unlock a locked user account (204)', async () => {
       // Given: Admin with session

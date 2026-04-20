@@ -42,6 +42,21 @@ const listUsersSchema = {
   },
 };
 
+// JSON schema for POST /api/users (admin: create local user)
+const createUserSchema = {
+  body: {
+    type: 'object',
+    required: ['email', 'displayName', 'password', 'role'],
+    properties: {
+      email: { type: 'string', format: 'email', maxLength: 255 },
+      displayName: { type: 'string', minLength: 1, maxLength: 255 },
+      password: { type: 'string', minLength: 8, maxLength: 255 },
+      role: { type: 'string', enum: ['admin', 'member'] },
+    },
+    additionalProperties: false,
+  },
+};
+
 // JSON schema for PATCH /api/users/:id (admin update user)
 const adminUpdateUserSchema = {
   body: {
@@ -140,6 +155,47 @@ export default async function userRoutes(fastify: FastifyInstance) {
       userService.updatePassword(fastify.db, request.user.id, newPasswordHash);
 
       return reply.status(204).send();
+    },
+  );
+
+  /**
+   * POST /api/users
+   *
+   * Create a new local authentication user (admin only).
+   * Requires: email, displayName, password (min 8 chars), role (admin or member).
+   */
+  fastify.post(
+    '/',
+    { schema: createUserSchema, preHandler: requireRole('admin') },
+    async (request, reply) => {
+      const { email, displayName, password, role } = request.body as {
+        email: string;
+        displayName: string;
+        password: string;
+        role: 'admin' | 'member';
+      };
+
+      // Check if email is already in use
+      const existingUser = userService.findByEmail(fastify.db, email);
+      if (existingUser) {
+        throw new AppError(
+          'CONFLICT',
+          409,
+          'Email already in use',
+          { email },
+        );
+      }
+
+      // Create the new local user
+      const createdUser = await userService.createLocalUser(
+        fastify.db,
+        email,
+        displayName,
+        password,
+        role,
+      );
+
+      return reply.status(201).send({ user: userService.toUserResponse(createdUser) });
     },
   );
 
