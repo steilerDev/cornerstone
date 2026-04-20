@@ -786,13 +786,15 @@ test.describe('Lines cache — second expand does not refetch', { tag: '@respons
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Inter-work-item divider (Story #1309)
-// Validates that .parentItemBlock + .parentItemBlock { border-top: 1px solid }
-// is applied by the browser when two distinct parent groups render side-by-side.
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('inter-work-item divider', { tag: '@responsive' }, () => {
-  test('divider is visible between two work item groups', async ({ page, testPrefix }) => {
+/**
+ * Parent item card border tests
+ *
+ * Validates that each .parentItemBlock is rendered as a full card with a
+ * solid border on all sides, regardless of sibling position. Replaces the
+ * previous adjacent-sibling divider pattern.
+ */
+test.describe('parent item card borders', { tag: '@responsive' }, () => {
+  test('each parent item card has a full border', async ({ page, testPrefix }) => {
     const sourcesPage = new BudgetSourcesPage(page);
     const sourceName = `${testPrefix} Divider Multi Source`;
     let sourceId: string | null = null;
@@ -824,28 +826,27 @@ test.describe('inter-work-item divider', { tag: '@responsive' }, () => {
       const blocks = panel.locator('[class*="parentItemBlock"]');
       await expect(blocks).toHaveCount(2);
 
-      // Second block must have a solid border-top (the CSS adjacent-sibling divider).
-      const secondBlockBorderStyle = await blocks.nth(1).evaluate((el) => {
-        return getComputedStyle(el).borderTopStyle;
-      });
-      const secondBlockBorderWidth = await blocks.nth(1).evaluate((el) => {
-        return getComputedStyle(el).borderTopWidth;
-      });
-      expect(secondBlockBorderStyle).toBe('solid');
-      expect(secondBlockBorderWidth).not.toBe('0px');
+      // Each parent item card must have a solid full border (the card pattern).
+      for (let i = 0; i < 2; i++) {
+        const block = blocks.nth(i);
+        const borderStyle = await block.evaluate((el) => getComputedStyle(el).borderTopStyle);
+        const borderWidth = await block.evaluate((el) => getComputedStyle(el).borderTopWidth);
+        expect(borderStyle).toBe('solid');
+        expect(borderWidth).not.toBe('0px');
+      }
 
-      // First block must NOT have a border-top (no preceding sibling).
-      const firstBlockBorderStyle = await blocks.nth(0).evaluate((el) => {
-        return getComputedStyle(el).borderTopStyle;
-      });
-      expect(['none', '']).toContain(firstBlockBorderStyle);
+      // Cards must have margin-bottom for visual spacing between them (all but the last).
+      const firstBlockMarginBottom = await blocks
+        .nth(0)
+        .evaluate((el) => getComputedStyle(el).marginBottom);
+      expect(firstBlockMarginBottom).not.toBe('0px');
     } finally {
       if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
       if (sourceId) await deleteSourceViaApi(page, sourceId);
     }
   });
 
-  test('no divider when only one work item group is present', async ({ page, testPrefix }) => {
+  test('a sole parent item card still has a full border', async ({ page, testPrefix }) => {
     const sourcesPage = new BudgetSourcesPage(page);
     const sourceName = `${testPrefix} Divider Single Source`;
     let sourceId: string | null = null;
@@ -877,11 +878,11 @@ test.describe('inter-work-item divider', { tag: '@responsive' }, () => {
       const blocks = panel.locator('[class*="parentItemBlock"]');
       await expect(blocks).toHaveCount(1);
 
-      // The single block must NOT have a border-top.
-      const borderStyle = await blocks.nth(0).evaluate((el) => {
-        return getComputedStyle(el).borderTopStyle;
-      });
-      expect(['none', '']).toContain(borderStyle);
+      // The single card still has a solid full border (cards are not conditional).
+      const borderStyle = await blocks.nth(0).evaluate((el) => getComputedStyle(el).borderTopStyle);
+      const borderWidth = await blocks.nth(0).evaluate((el) => getComputedStyle(el).borderTopWidth);
+      expect(borderStyle).toBe('solid');
+      expect(borderWidth).not.toBe('0px');
     } finally {
       if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
       if (sourceId) await deleteSourceViaApi(page, sourceId);

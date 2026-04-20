@@ -907,9 +907,9 @@ describe('SourceBudgetLinePanel', () => {
 
       const blocks = document.querySelectorAll('[class*="parentItemBlock"]');
       expect(blocks.length).toBe(2);
-      // Both blocks must share the same parent — required for the CSS
-      // adjacent-sibling combinator (.parentItemBlock + .parentItemBlock) to
-      // apply the divider border-top.
+      // Both cards must share the same .areaGroup parent — confirms the
+      // nested card structure places consecutive work-item cards inside a
+      // single area container.
       expect(blocks[0]!.parentElement).toBe(blocks[1]!.parentElement);
     });
 
