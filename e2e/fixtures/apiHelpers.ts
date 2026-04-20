@@ -174,3 +174,30 @@ export async function createDiaryEntryViaApi(
 export async function deleteDiaryEntryViaApi(page: Page, id: string): Promise<void> {
   await page.request.delete(`${API.diaryEntries}/${id}`);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Users (admin-only — used for dedicated test-user isolation)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CreateLocalUserData {
+  email: string;
+  displayName: string;
+  password: string;
+  role?: 'admin' | 'member';
+}
+
+export async function createLocalUserViaApi(
+  page: Page,
+  data: CreateLocalUserData,
+): Promise<{ id: string; email: string }> {
+  const response = await page.request.post(API.users, {
+    data: { role: 'member', ...data },
+  });
+  expect(response.ok(), `POST user "${data.email}"`).toBeTruthy();
+  const body = (await response.json()) as { user: { id: string; email: string } };
+  return body.user;
+}
+
+export async function deleteUserViaApi(page: Page, userId: string): Promise<void> {
+  await page.request.delete(`${API.users}/${userId}`);
+}
