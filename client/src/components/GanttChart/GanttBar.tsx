@@ -74,8 +74,8 @@ const STATUS_LABELS: Record<WorkItemStatus, string> = {
  * Uses React.memo to avoid unnecessary re-renders when scrolling.
  */
 const INTERACTION_STATE_CLASSES: Record<BarInteractionState, string> = {
-  highlighted: styles.highlighted,
-  dimmed: styles.dimmed,
+  highlighted: styles.highlighted!,
+  dimmed: styles.dimmed!,
   default: '',
 };
 

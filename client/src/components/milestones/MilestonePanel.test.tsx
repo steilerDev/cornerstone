@@ -282,8 +282,8 @@ describe('MilestonePanel', () => {
       renderPanel({ milestones: [MILESTONE_2, MILESTONE_1] }); // 2 comes before 1 in the array
       const items = screen.getAllByTestId('milestone-list-item');
       // MILESTONE_1 (June 30) should appear before MILESTONE_2 (Sep 15)
-      expect(items[0]).toHaveTextContent('Foundation Complete');
-      expect(items[1]).toHaveTextContent('Framing Done');
+      expect(items[0]!).toHaveTextContent('Foundation Complete');
+      expect(items[1]!).toHaveTextContent('Framing Done');
     });
 
     it('renders "No milestones yet" when list is empty', () => {

@@ -68,9 +68,9 @@ describe('householdItemDepsApi', () => {
       const result = await fetchHouseholdItemDeps('hi-123');
 
       expect(result).toHaveLength(1);
-      expect(result[0]).toEqual(mockDep);
-      expect(result[0].predecessorType).toBe('work_item');
-      expect(result[0].predecessor.title).toBe('Foundation Work');
+      expect(result[0]!).toEqual(mockDep);
+      expect(result[0]!.predecessorType).toBe('work_item');
+      expect(result[0]!.predecessor.title).toBe('Foundation Work');
     });
 
     it('returns milestone dependency with correct shape', async () => {
@@ -95,8 +95,8 @@ describe('householdItemDepsApi', () => {
       const result = await fetchHouseholdItemDeps('hi-123');
 
       expect(result).toHaveLength(1);
-      expect(result[0].predecessorType).toBe('milestone');
-      expect(result[0].predecessor.status).toBeNull();
+      expect(result[0]!.predecessorType).toBe('milestone');
+      expect(result[0]!.predecessor.status).toBeNull();
     });
 
     it('returns multiple dependencies', async () => {
@@ -135,8 +135,8 @@ describe('householdItemDepsApi', () => {
       const result = await fetchHouseholdItemDeps('hi-123');
 
       expect(result).toHaveLength(2);
-      expect(result[0].predecessorType).toBe('work_item');
-      expect(result[1].predecessorType).toBe('milestone');
+      expect(result[0]!.predecessorType).toBe('work_item');
+      expect(result[1]!.predecessorType).toBe('milestone');
     });
 
     it('throws error when household item not found (404)', async () => {
@@ -223,7 +223,7 @@ describe('householdItemDepsApi', () => {
 
       await createHouseholdItemDep('hi-123', requestData);
 
-      const callArgs = mockFetch.mock.calls[0];
+      const callArgs = mockFetch.mock.calls[0]!;
       const bodyStr = callArgs[1]?.body as string;
       const body = JSON.parse(bodyStr);
 
@@ -256,7 +256,7 @@ describe('householdItemDepsApi', () => {
         predecessorId: '42',
       });
 
-      const callArgs = mockFetch.mock.calls[0];
+      const callArgs = mockFetch.mock.calls[0]!;
       const bodyStr = callArgs[1]?.body as string;
       const body = JSON.parse(bodyStr);
 

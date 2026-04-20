@@ -400,7 +400,7 @@ describe('Paperless Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<PaperlessDocumentListResponse>();
       expect(body.documents).toHaveLength(1);
-      expect(body.documents[0].id).toBe(42);
+      expect(body.documents[0]!.id).toBe(42);
       expect(body.pagination.totalItems).toBe(1);
     });
 
@@ -868,10 +868,10 @@ describe('Paperless Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<PaperlessTagListResponse>();
       expect(body.tags).toHaveLength(1);
-      expect(body.tags[0].id).toBe(5);
-      expect(body.tags[0].name).toBe('invoice');
-      expect(body.tags[0].color).toBe('#e31a1c'); // colour=6
-      expect(body.tags[0].documentCount).toBe(15);
+      expect(body.tags[0]!.id).toBe(5);
+      expect(body.tags[0]!.name).toBe('invoice');
+      expect(body.tags[0]!.color).toBe('#e31a1c'); // colour=6
+      expect(body.tags[0]!.documentCount).toBe(15);
     });
 
     it('returns 200 with empty array when no tags', async () => {

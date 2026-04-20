@@ -163,7 +163,7 @@ export function SignatureCapture({
     if (!canvas || !e.touches.length) return null;
 
     const rect = canvas.getBoundingClientRect();
-    const touch = e.touches[0];
+    const touch = e.touches[0]!; // guarded by length check at line 163
     return {
       x: touch.clientX - rect.left,
       y: touch.clientY - rect.top,

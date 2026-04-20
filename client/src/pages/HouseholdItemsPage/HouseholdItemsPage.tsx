@@ -217,7 +217,7 @@ export function HouseholdItemsPage() {
     (): ColumnDef<HouseholdItemSummary>[] => [
       {
         key: 'name',
-        label: t('table.headers.name'),
+        label: t('table.headers.name')!,
         sortable: true,
         sortKey: 'name',
         defaultVisible: true,
@@ -232,7 +232,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'category',
-        label: t('table.headers.category'),
+        label: t('table.headers.category')!,
         sortable: true,
         sortKey: 'category',
         defaultVisible: true,
@@ -252,7 +252,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'status',
-        label: t('table.headers.status'),
+        label: t('table.headers.status')!,
         sortable: true,
         sortKey: 'status',
         defaultVisible: true,
@@ -269,7 +269,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'area',
-        label: t('table.headers.area'),
+        label: t('table.headers.area')!,
         sortable: false,
         defaultVisible: true,
         filterable: true,
@@ -284,7 +284,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'vendor',
-        label: t('table.headers.vendor'),
+        label: t('table.headers.vendor')!,
         sortable: false,
         defaultVisible: true,
         filterable: true,
@@ -295,7 +295,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'plannedCost',
-        label: t('table.headers.plannedCost'),
+        label: t('table.headers.plannedCost')!,
         sortable: false,
         defaultVisible: true,
         filterable: true,
@@ -307,7 +307,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'targetDelivery',
-        label: t('table.headers.targetDelivery'),
+        label: t('table.headers.targetDelivery')!,
         sortable: true,
         sortKey: 'target_delivery_date',
         defaultVisible: true,
@@ -318,7 +318,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'actualDelivery',
-        label: t('table.headers.actualDelivery'),
+        label: t('table.headers.actualDelivery')!,
         sortable: true,
         sortKey: 'actual_delivery_date',
         defaultVisible: false,
@@ -329,7 +329,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'actualCost',
-        label: t('table.headers.actualCost'),
+        label: t('table.headers.actualCost')!,
         sortable: false,
         defaultVisible: false,
         filterable: true,
@@ -341,7 +341,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'subsidyReduction',
-        label: t('table.headers.subsidyReduction'),
+        label: t('table.headers.subsidyReduction')!,
         sortable: false,
         defaultVisible: false,
         filterable: true,
@@ -353,7 +353,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'netCost',
-        label: t('table.headers.netCost'),
+        label: t('table.headers.netCost')!,
         sortable: false,
         defaultVisible: false,
         filterable: true,
@@ -365,7 +365,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'orderDate',
-        label: t('table.headers.orderDate'),
+        label: t('table.headers.orderDate')!,
         sortable: true,
         sortKey: 'order_date',
         defaultVisible: false,
@@ -373,7 +373,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'budgetLines',
-        label: t('table.headers.budgetLines'),
+        label: t('table.headers.budgetLines')!,
         sortable: false,
         defaultVisible: false,
         filterable: true,
@@ -479,10 +479,10 @@ export function HouseholdItemsPage() {
         onStateChange={handleStateChange}
         filterMeta={filterMeta}
         emptyState={{
-          message: t('empty.noItems'),
-          description: t('empty.noItemsMessage'),
+          message: t('empty.noItems')!,
+          description: t('empty.noItemsMessage')!,
           action: {
-            label: t('empty.createFirstItem'),
+            label: t('empty.createFirstItem')!,
             onClick: () => navigate('/project/household-items/new'),
           },
         }}

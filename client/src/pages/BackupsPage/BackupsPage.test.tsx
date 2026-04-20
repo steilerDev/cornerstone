@@ -401,7 +401,7 @@ describe('BackupsPage', () => {
       // Click confirm button in the modal footer (role button with "Delete" text, not the row button)
       const confirmButtons = screen.getAllByRole('button', { name: /^delete$/i });
       // The last Delete button should be in the modal confirm footer
-      const confirmButton = confirmButtons[confirmButtons.length - 1];
+      const confirmButton = confirmButtons[confirmButtons.length - 1]!;
       await user.click(confirmButton);
 
       expect(mockDeleteBackup).toHaveBeenCalledWith(backup1.filename);
@@ -428,7 +428,7 @@ describe('BackupsPage', () => {
 
       // Confirm delete
       const confirmButtons = screen.getAllByRole('button', { name: /^delete$/i });
-      await user.click(confirmButtons[confirmButtons.length - 1]);
+      await user.click(confirmButtons[confirmButtons.length - 1]!);
 
       // Modal should be closed
       await waitFor(() => {

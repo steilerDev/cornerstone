@@ -240,7 +240,7 @@ export function VendorsPage() {
     (): ColumnDef<Vendor>[] => [
       {
         key: 'name',
-        label: t('vendors.tableHeaders.name'),
+        label: t('vendors.tableHeaders.name')!,
         sortable: true,
         sortKey: 'name',
         defaultVisible: true,
@@ -252,7 +252,7 @@ export function VendorsPage() {
       },
       {
         key: 'trade',
-        label: t('vendors.tableHeaders.trade'),
+        label: t('vendors.tableHeaders.trade')!,
         sortable: true,
         sortKey: 'trade',
         defaultVisible: true,
@@ -268,7 +268,7 @@ export function VendorsPage() {
       },
       {
         key: 'contactInfo',
-        label: t('vendors.tableHeaders.contactInfo'),
+        label: t('vendors.tableHeaders.contactInfo')!,
         sortable: false,
         defaultVisible: true,
         render: (v) => {
@@ -292,14 +292,14 @@ export function VendorsPage() {
       },
       {
         key: 'address',
-        label: t('vendors.tableHeaders.address'),
+        label: t('vendors.tableHeaders.address')!,
         sortable: false,
         defaultVisible: false,
         render: (v) => v.address || '—',
       },
       {
         key: 'notes',
-        label: t('vendors.tableHeaders.notes'),
+        label: t('vendors.tableHeaders.notes')!,
         sortable: false,
         defaultVisible: false,
         render: (v) => {
@@ -309,7 +309,7 @@ export function VendorsPage() {
       },
       {
         key: 'createdAt',
-        label: t('vendors.tableHeaders.createdAt'),
+        label: t('vendors.tableHeaders.createdAt')!,
         sortable: true,
         sortKey: 'created_at',
         defaultVisible: false,
@@ -317,7 +317,7 @@ export function VendorsPage() {
       },
       {
         key: 'updatedAt',
-        label: t('vendors.tableHeaders.updatedAt'),
+        label: t('vendors.tableHeaders.updatedAt')!,
         sortable: true,
         sortKey: 'updated_at',
         defaultVisible: false,
@@ -412,10 +412,10 @@ export function VendorsPage() {
         tableState={tableState}
         onStateChange={handleStateChange}
         emptyState={{
-          message: t('vendors.noVendorsTitle'),
-          description: t('vendors.noVendorsDescription'),
+          message: t('vendors.noVendorsTitle')!,
+          description: t('vendors.noVendorsDescription')!,
           action: {
-            label: t('vendors.addFirstVendor'),
+            label: t('vendors.addFirstVendor')!,
             onClick: openCreateModal,
           },
         }}

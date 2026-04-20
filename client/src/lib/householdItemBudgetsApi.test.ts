@@ -71,7 +71,7 @@ describe('householdItemBudgetsApi', () => {
 
       expect(result).toEqual([mockBudget]);
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('budget-1');
+      expect(result[0]!.id).toBe('budget-1');
     });
 
     it('returns empty array when no budgets exist', async () => {
@@ -225,7 +225,7 @@ describe('householdItemBudgetsApi', () => {
 
       await createHouseholdItemBudget('hi-123', requestData);
 
-      const callArgs = mockFetch.mock.calls[0];
+      const callArgs = mockFetch.mock.calls[0]!;
       const bodyStr = callArgs[1]?.body as string;
       const body = JSON.parse(bodyStr);
 
@@ -319,7 +319,7 @@ describe('householdItemBudgetsApi', () => {
         plannedAmount: 5000,
       });
 
-      const callArgs = mockFetch.mock.calls[0];
+      const callArgs = mockFetch.mock.calls[0]!;
       const bodyStr = callArgs[1]?.body as string;
       const body = JSON.parse(bodyStr);
 
@@ -337,7 +337,7 @@ describe('householdItemBudgetsApi', () => {
         confidence: 'invoice',
       });
 
-      const callArgs = mockFetch.mock.calls[0];
+      const callArgs = mockFetch.mock.calls[0]!;
       const bodyStr = callArgs[1]?.body as string;
       const body = JSON.parse(bodyStr);
 

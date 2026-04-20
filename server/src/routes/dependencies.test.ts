@@ -362,14 +362,14 @@ describe('Dependency Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<WorkItemDependenciesResponse>();
       expect(body.predecessors).toHaveLength(1);
-      expect(body.predecessors[0].workItem.id).toBe(workItemA);
-      expect(body.predecessors[0].workItem.title).toBe('Work Item A');
-      expect(body.predecessors[0].dependencyType).toBe('finish_to_start');
+      expect(body.predecessors[0]!.workItem.id).toBe(workItemA);
+      expect(body.predecessors[0]!.workItem.title).toBe('Work Item A');
+      expect(body.predecessors[0]!.dependencyType).toBe('finish_to_start');
 
       expect(body.successors).toHaveLength(1);
-      expect(body.successors[0].workItem.id).toBe(workItemC);
-      expect(body.successors[0].workItem.title).toBe('Work Item C');
-      expect(body.successors[0].dependencyType).toBe('finish_to_start');
+      expect(body.successors[0]!.workItem.id).toBe(workItemC);
+      expect(body.successors[0]!.workItem.title).toBe('Work Item C');
+      expect(body.successors[0]!.dependencyType).toBe('finish_to_start');
     });
 
     it('should return 200 with empty arrays when no dependencies exist', async () => {
@@ -570,7 +570,7 @@ describe('Dependency Routes', () => {
 
       expect(getResponse.statusCode).toBe(200);
       const body = getResponse.json<WorkItemDependenciesResponse>();
-      expect(body.predecessors[0].leadLagDays).toBe(5);
+      expect(body.predecessors[0]!.leadLagDays).toBe(5);
     });
   });
 
@@ -786,7 +786,7 @@ describe('Dependency Routes', () => {
       });
 
       const body = getResponse.json<WorkItemDependenciesResponse>();
-      expect(body.predecessors[0].leadLagDays).toBe(10);
+      expect(body.predecessors[0]!.leadLagDays).toBe(10);
     });
   });
 });

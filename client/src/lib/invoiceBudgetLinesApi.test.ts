@@ -125,7 +125,7 @@ describe('invoiceBudgetLinesApi', () => {
 
       expect(result).toEqual(mockResponse);
       expect(result.budgetLines).toHaveLength(1);
-      expect(result.budgetLines[0].id).toBe('ibl-1');
+      expect(result.budgetLines[0]!.id).toBe('ibl-1');
       expect(result.remainingAmount).toBe(750);
     });
 
@@ -167,8 +167,8 @@ describe('invoiceBudgetLinesApi', () => {
       const result = await fetchInvoiceBudgetLines('inv-100');
 
       expect(result.budgetLines).toHaveLength(2);
-      expect(result.budgetLines[0].parentItemType).toBe('work_item');
-      expect(result.budgetLines[1].parentItemType).toBe('household_item');
+      expect(result.budgetLines[0]!.parentItemType).toBe('work_item');
+      expect(result.budgetLines[1]!.parentItemType).toBe('household_item');
     });
 
     it('throws error when invoice not found (404)', async () => {

@@ -96,8 +96,9 @@ export function MonthGrid({
   const weekLaneMaps = useMemo(
     () =>
       weeks.map((week) => {
-        const weekStart = week[0].dateStr;
-        const weekEnd = week[6].dateStr;
+        // week is guaranteed to have 7 elements from getMonthGrid
+        const weekStart = week[0]!.dateStr;
+        const weekEnd = week[6]!.dateStr;
         return allocateLanes(weekStart, weekEnd, workItems);
       }),
     [weeks, workItems],
@@ -126,7 +127,8 @@ export function MonthGrid({
 
       {/* Week rows */}
       {weeks.map((week, weekIdx) => {
-        const laneMap = weekLaneMaps[weekIdx];
+        // weekLaneMaps is constructed from weeks.map, so each weekIdx has a corresponding laneMap
+        const laneMap = weekLaneMaps[weekIdx]!;
 
         // Determine the maximum lane count for this week row (to size containers)
         const maxLane = laneMap.size > 0 ? Math.max(...Array.from(laneMap.values())) : -1;

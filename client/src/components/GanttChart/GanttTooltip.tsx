@@ -138,9 +138,9 @@ interface GanttTooltipProps {
 // ---------------------------------------------------------------------------
 
 const STATUS_BADGE_CLASSES: Record<WorkItemStatus, string> = {
-  not_started: styles.statusNotStarted,
-  in_progress: styles.statusInProgress,
-  completed: styles.statusCompleted,
+  not_started: styles.statusNotStarted!,
+  in_progress: styles.statusInProgress!,
+  completed: styles.statusCompleted!,
 };
 
 const TOOLTIP_WIDTH = 240;
@@ -161,7 +161,8 @@ function formatDisplayDate(dateStr: string | null): string {
   if (!dateStr) return '—';
   // Input is YYYY-MM-DD; format to a readable form
   const [year, month, day] = dateStr.split('-').map(Number);
-  const d = new Date(year, month - 1, day);
+  // year, month, day are parsed from dateStr string (guaranteed to be valid numeric parts)
+  const d = new Date(year!, month! - 1, day!);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
@@ -175,16 +176,16 @@ function WorkItemTooltipContent({
   const { t } = useTranslation('schedule');
 
   const statusLabels: Record<WorkItemStatus, string> = {
-    not_started: t('gantt.tooltip.status.not_started'),
-    in_progress: t('gantt.tooltip.status.in_progress'),
-    completed: t('gantt.tooltip.status.completed'),
+    not_started: t('gantt.tooltip.status.not_started')!,
+    in_progress: t('gantt.tooltip.status.in_progress')!,
+    completed: t('gantt.tooltip.status.completed')!,
   };
 
   const dependencyTypeLabels: Record<DependencyType, string> = {
-    finish_to_start: t('gantt.tooltip.dependency.finishToStart'),
-    start_to_start: t('gantt.tooltip.dependency.startToStart'),
-    finish_to_finish: t('gantt.tooltip.dependency.finishToFinish'),
-    start_to_finish: t('gantt.tooltip.dependency.startToFinish'),
+    finish_to_start: t('gantt.tooltip.dependency.finishToStart')!,
+    start_to_start: t('gantt.tooltip.dependency.startToStart')!,
+    finish_to_finish: t('gantt.tooltip.dependency.finishToFinish')!,
+    start_to_finish: t('gantt.tooltip.dependency.startToFinish')!,
   };
 
   function formatDuration(days: number | null): string {
@@ -379,14 +380,14 @@ function MilestoneTooltipContent({
   let statusLabel: string;
   let statusClass: string;
   if (data.isCompleted) {
-    statusLabel = t('gantt.status.completed');
-    statusClass = styles.statusCompleted;
+    statusLabel = t('gantt.status.completed')!;
+    statusClass = styles.statusCompleted!;
   } else if (data.isLate) {
-    statusLabel = t('gantt.status.late');
-    statusClass = styles.statusLate;
+    statusLabel = t('gantt.status.late')!;
+    statusClass = styles.statusLate!;
   } else {
-    statusLabel = t('gantt.status.onTrack');
-    statusClass = styles.statusInProgress;
+    statusLabel = t('gantt.status.onTrack')!;
+    statusClass = styles.statusInProgress!;
   }
 
   const { linkedWorkItems, dependentWorkItems } = data;

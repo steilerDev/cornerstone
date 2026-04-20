@@ -241,7 +241,7 @@ describe('InvoicesPage', () => {
 
       // DataTable renders each item in both table row and mobile card (duplicate text)
       await waitFor(() => {
-        expect(screen.getAllByText('INV-2026-001')[0]).toBeInTheDocument();
+        expect(screen.getAllByText('INV-2026-001')[0]!).toBeInTheDocument();
       });
     });
 
@@ -252,9 +252,9 @@ describe('InvoicesPage', () => {
 
       // DataTable renders items in both table and mobile card view (duplicate text)
       await waitFor(() => {
-        expect(screen.getAllByText('ACME Construction')[0]).toBeInTheDocument();
+        expect(screen.getAllByText('ACME Construction')[0]!).toBeInTheDocument();
       });
-      expect(screen.getAllByText('Quality Plumbing')[0]).toBeInTheDocument();
+      expect(screen.getAllByText('Quality Plumbing')[0]!).toBeInTheDocument();
     });
 
     it('renders summary cards with correct counts', async () => {
@@ -263,7 +263,7 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByText('INV-2026-001')[0]).toBeInTheDocument();
+        expect(screen.getAllByText('INV-2026-001')[0]!).toBeInTheDocument();
       });
 
       // Pending count = 1 and paid count = 1 (paid + claimed) in summary cards.
@@ -287,7 +287,7 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByText('INV-2026-001')[0]).toBeInTheDocument();
+        expect(screen.getAllByText('INV-2026-001')[0]!).toBeInTheDocument();
       });
     });
   });
@@ -572,9 +572,9 @@ describe('InvoicesPage', () => {
 
       // DataTable renders renderActions in both table and mobile card — use getAllByTestId
       await waitFor(() => {
-        expect(screen.getAllByTestId('invoice-menu-button-inv-001')[0]).toBeInTheDocument();
+        expect(screen.getAllByTestId('invoice-menu-button-inv-001')[0]!).toBeInTheDocument();
       });
-      expect(screen.getAllByTestId('invoice-menu-button-inv-002')[0]).toBeInTheDocument();
+      expect(screen.getAllByTestId('invoice-menu-button-inv-002')[0]!).toBeInTheDocument();
     });
 
     it('shows view option in dropdown when menu opened', async () => {
@@ -584,12 +584,12 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('invoice-menu-button-inv-001')[0]).toBeInTheDocument();
+        expect(screen.getAllByTestId('invoice-menu-button-inv-001')[0]!).toBeInTheDocument();
       });
 
-      await user.click(screen.getAllByTestId('invoice-menu-button-inv-001')[0]);
+      await user.click(screen.getAllByTestId('invoice-menu-button-inv-001')[0]!);
 
-      expect(screen.getAllByTestId('invoice-view-inv-001')[0]).toBeInTheDocument();
+      expect(screen.getAllByTestId('invoice-view-inv-001')[0]!).toBeInTheDocument();
     });
 
     it('navigates to invoice detail on view click', async () => {
@@ -599,11 +599,11 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('invoice-menu-button-inv-001')[0]).toBeInTheDocument();
+        expect(screen.getAllByTestId('invoice-menu-button-inv-001')[0]!).toBeInTheDocument();
       });
 
-      await user.click(screen.getAllByTestId('invoice-menu-button-inv-001')[0]);
-      await user.click(screen.getAllByTestId('invoice-view-inv-001')[0]);
+      await user.click(screen.getAllByTestId('invoice-menu-button-inv-001')[0]!);
+      await user.click(screen.getAllByTestId('invoice-view-inv-001')[0]!);
 
       await waitFor(() => {
         expect(screen.getByTestId('location')).toHaveTextContent('/budget/invoices/inv-001');
@@ -621,7 +621,7 @@ describe('InvoicesPage', () => {
 
       // DataTable renders each item in both table row and mobile card (duplicate text)
       await waitFor(() => {
-        expect(screen.getAllByText('INV-2026-001')[0]).toBeInTheDocument();
+        expect(screen.getAllByText('INV-2026-001')[0]!).toBeInTheDocument();
       });
 
       // The summaryGrid renders labels for pending, paid, and quotation
@@ -647,7 +647,7 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByText('Quality Plumbing')[0]).toBeInTheDocument();
+        expect(screen.getAllByText('Quality Plumbing')[0]!).toBeInTheDocument();
       });
     });
   });

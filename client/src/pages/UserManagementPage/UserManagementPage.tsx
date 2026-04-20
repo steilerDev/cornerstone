@@ -249,12 +249,12 @@ export function UserManagementPage() {
   const roleVariants = useMemo(
     (): BadgeVariantMap => ({
       admin: {
-        label: t('userManagement.roles.admin'),
-        className: badgeStyles.roleAdmin,
+        label: t('userManagement.roles.admin')!,
+        className: badgeStyles.roleAdmin!,
       },
       member: {
-        label: t('userManagement.roles.member'),
-        className: badgeStyles.roleMember,
+        label: t('userManagement.roles.member')!,
+        className: badgeStyles.roleMember!,
       },
     }),
     [t],
@@ -263,12 +263,12 @@ export function UserManagementPage() {
   const statusVariants = useMemo(
     (): BadgeVariantMap => ({
       active: {
-        label: t('userManagement.status.active'),
-        className: badgeStyles.userActive,
+        label: t('userManagement.status.active')!,
+        className: badgeStyles.userActive!,
       },
       deactivated: {
-        label: t('userManagement.status.deactivated'),
-        className: badgeStyles.userDeactivated,
+        label: t('userManagement.status.deactivated')!,
+        className: badgeStyles.userDeactivated!,
       },
     }),
     [t],
@@ -338,7 +338,7 @@ export function UserManagementPage() {
     (): ColumnDef<UserResponse>[] => [
       {
         key: 'displayName',
-        label: t('userManagement.tableHeaders.name'),
+        label: t('userManagement.tableHeaders.name')!,
         sortable: true,
         filterable: false,
         defaultVisible: true,
@@ -346,7 +346,7 @@ export function UserManagementPage() {
       },
       {
         key: 'email',
-        label: t('userManagement.tableHeaders.email'),
+        label: t('userManagement.tableHeaders.email')!,
         sortable: true,
         filterable: false,
         defaultVisible: true,
@@ -354,7 +354,7 @@ export function UserManagementPage() {
       },
       {
         key: 'role',
-        label: t('userManagement.tableHeaders.role'),
+        label: t('userManagement.tableHeaders.role')!,
         sortable: true,
         filterable: true,
         filterType: 'enum',
@@ -368,7 +368,7 @@ export function UserManagementPage() {
       },
       {
         key: 'createdAt',
-        label: t('userManagement.tableHeaders.memberSince'),
+        label: t('userManagement.tableHeaders.memberSince')!,
         sortable: true,
         filterable: false,
         defaultVisible: true,
@@ -376,18 +376,18 @@ export function UserManagementPage() {
       },
       {
         key: 'authProvider',
-        label: t('userManagement.tableHeaders.authProvider'),
+        label: t('userManagement.tableHeaders.authProvider')!,
         sortable: false,
         filterable: false,
         defaultVisible: false,
         render: (u) =>
           u.authProvider === 'local'
             ? t('userManagement.authProviders.local')
-            : t('userManagement.authProviders.oidc'),
+            : t('userManagement.authProviders.oidc')!,
       },
       {
         key: 'status',
-        label: t('userManagement.tableHeaders.status'),
+        label: t('userManagement.tableHeaders.status')!,
         sortable: true,
         sortKey: 'deactivatedAt',
         filterable: true,
@@ -487,8 +487,8 @@ export function UserManagementPage() {
         tableState={tableState}
         onStateChange={setTableState}
         emptyState={{
-          message: t('userManagement.emptyState'),
-          description: t('userManagement.emptyStateSearch'),
+          message: t('userManagement.emptyState')!,
+          description: t('userManagement.emptyStateSearch')!,
         }}
       />
 

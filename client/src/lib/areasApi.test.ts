@@ -74,8 +74,8 @@ describe('areasApi', () => {
       const result = await fetchAreas();
 
       expect(result.areas).toHaveLength(1);
-      expect(result.areas[0].id).toBe('area-1');
-      expect(result.areas[0].name).toBe('Kitchen');
+      expect(result.areas[0]!.id).toBe('area-1');
+      expect(result.areas[0]!.name).toBe('Kitchen');
     });
 
     it('returns empty areas array when no areas exist', async () => {

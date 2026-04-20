@@ -155,9 +155,9 @@ describe('householdItemBudgetService', () => {
       const result = listHouseholdItemBudgets(db, hiId);
 
       expect(result).toHaveLength(1);
-      expect(result[0].householdItemId).toBe(hiId);
-      expect(result[0].plannedAmount).toBe(1000);
-      expect(result[0].description).toBe('Living room sofa');
+      expect(result[0]!.householdItemId).toBe(hiId);
+      expect(result[0]!.plannedAmount).toBe(1000);
+      expect(result[0]!.description).toBe('Living room sofa');
     });
 
     it('returns multiple budget lines sorted by creation order', () => {
@@ -197,7 +197,7 @@ describe('householdItemBudgetService', () => {
       const result = listHouseholdItemBudgets(db, hiId1);
 
       expect(result).toHaveLength(1);
-      expect(result[0].plannedAmount).toBe(1000);
+      expect(result[0]!.plannedAmount).toBe(1000);
     });
   });
 

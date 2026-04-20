@@ -8,10 +8,10 @@ import badgeStyles from '../Badge/Badge.module.css';
 
 // Variant map mirroring the production definition in HouseholdItemsPage.tsx
 const HI_STATUS_VARIANTS = {
-  planned: { label: 'Planned', className: badgeStyles.planned },
-  purchased: { label: 'Purchased', className: badgeStyles.purchased },
-  scheduled: { label: 'Scheduled', className: badgeStyles.scheduled },
-  arrived: { label: 'Arrived', className: badgeStyles.arrived },
+  planned: { label: 'Planned', className: badgeStyles.planned! },
+  purchased: { label: 'Purchased', className: badgeStyles.purchased! },
+  scheduled: { label: 'Scheduled', className: badgeStyles.scheduled! },
+  arrived: { label: 'Arrived', className: badgeStyles.arrived! },
 };
 
 describe('Badge — household item status variants', () => {

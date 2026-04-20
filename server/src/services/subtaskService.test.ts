@@ -224,12 +224,12 @@ describe('Subtask Service', () => {
 
       // Then: Subtasks are sorted by sortOrder ASC
       expect(result).toHaveLength(3);
-      expect(result[0].id).toBe(subtask0Id);
-      expect(result[0].sortOrder).toBe(0);
-      expect(result[1].id).toBe(subtask1Id);
-      expect(result[1].sortOrder).toBe(1);
-      expect(result[2].id).toBe(subtask2Id);
-      expect(result[2].sortOrder).toBe(2);
+      expect(result[0]!.id).toBe(subtask0Id);
+      expect(result[0]!.sortOrder).toBe(0);
+      expect(result[1]!.id).toBe(subtask1Id);
+      expect(result[1]!.sortOrder).toBe(1);
+      expect(result[2]!.id).toBe(subtask2Id);
+      expect(result[2]!.sortOrder).toBe(2);
     });
 
     it('returns empty array when no subtasks exist (UAT-3.4-23)', () => {
@@ -267,12 +267,12 @@ describe('Subtask Service', () => {
 
       // Then: All properties are returned
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBeDefined();
-      expect(result[0].title).toBe('Test subtask');
-      expect(result[0].isCompleted).toBe(true);
-      expect(result[0].sortOrder).toBe(0);
-      expect(result[0].createdAt).toBeDefined();
-      expect(result[0].updatedAt).toBeDefined();
+      expect(result[0]!.id).toBeDefined();
+      expect(result[0]!.title).toBe('Test subtask');
+      expect(result[0]!.isCompleted).toBe(true);
+      expect(result[0]!.sortOrder).toBe(0);
+      expect(result[0]!.createdAt).toBeDefined();
+      expect(result[0]!.updatedAt).toBeDefined();
     });
   });
 
@@ -545,12 +545,12 @@ describe('Subtask Service', () => {
 
       // Then: Subtasks are reordered
       expect(result).toHaveLength(3);
-      expect(result[0].id).toBe(subtask2Id);
-      expect(result[0].sortOrder).toBe(0);
-      expect(result[1].id).toBe(subtask1Id);
-      expect(result[1].sortOrder).toBe(1);
-      expect(result[2].id).toBe(subtask0Id);
-      expect(result[2].sortOrder).toBe(2);
+      expect(result[0]!.id).toBe(subtask2Id);
+      expect(result[0]!.sortOrder).toBe(0);
+      expect(result[1]!.id).toBe(subtask1Id);
+      expect(result[1]!.sortOrder).toBe(1);
+      expect(result[2]!.id).toBe(subtask0Id);
+      expect(result[2]!.sortOrder).toBe(2);
     });
 
     it('updates updatedAt timestamp when reordering', async () => {
@@ -575,8 +575,8 @@ describe('Subtask Service', () => {
       const result = subtaskService.reorderSubtasks(db, workItemId, data);
 
       // Then: updatedAt is changed
-      expect(result[1].id).toBe(subtask0Id);
-      expect(result[1].updatedAt).not.toBe(originalSubtask?.updatedAt);
+      expect(result[1]!.id).toBe(subtask0Id);
+      expect(result[1]!.updatedAt).not.toBe(originalSubtask?.updatedAt);
     });
 
     it('throws ValidationError if subtaskIds array is empty (UAT-3.4-32)', () => {

@@ -979,8 +979,8 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
       // Range appears in both rows; check the first one
       const rangeEls = screen.getAllByText(/€400.00.*€600.00/);
       expect(rangeEls.length).toBeGreaterThanOrEqual(1);
-      expect(rangeEls[0].getAttribute('class')).toContain('budgetValue');
-      expect(rangeEls[0].getAttribute('class')).not.toContain('budgetValueMuted');
+      expect(rangeEls[0]!.getAttribute('class')).toContain('budgetValue');
+      expect(rangeEls[0]!.getAttribute('class')).not.toContain('budgetValueMuted');
     });
   });
 

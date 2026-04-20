@@ -69,10 +69,10 @@ import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import styles from './HouseholdItemDetailPage.module.css';
 
 const HI_STATUS_VARIANTS = {
-  planned: { label: 'Planned', className: badgeStyles.planned },
-  purchased: { label: 'Purchased', className: badgeStyles.purchased },
-  scheduled: { label: 'Scheduled', className: badgeStyles.scheduled },
-  arrived: { label: 'Arrived', className: badgeStyles.arrived },
+  planned: { label: 'Planned', className: badgeStyles.planned! },
+  purchased: { label: 'Purchased', className: badgeStyles.purchased! },
+  scheduled: { label: 'Scheduled', className: badgeStyles.scheduled! },
+  arrived: { label: 'Arrived', className: badgeStyles.arrived! },
 };
 
 export function HouseholdItemDetailPage() {
@@ -257,8 +257,8 @@ export function HouseholdItemDetailPage() {
         );
         const focusableArray = Array.from(focusable);
         if (focusableArray.length === 0) return;
-        const firstEl = focusableArray[0];
-        const lastEl = focusableArray[focusableArray.length - 1];
+        const firstEl = focusableArray[0]!; // guarded by length check at line 259
+        const lastEl = focusableArray[focusableArray.length - 1]!; // guarded by length check at line 259
         if (e.shiftKey) {
           if (document.activeElement === firstEl) {
             e.preventDefault();

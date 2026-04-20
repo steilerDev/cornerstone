@@ -129,9 +129,10 @@ function buildAreaTree(lines: BudgetSourceBudgetLine[]): AreaNode[] {
         const chain = line.area?.ancestors ?? [];
         const idx = chain.findIndex((a) => a.id === areaId);
         if (idx >= 0) {
+          // idx is guaranteed to be valid by the if condition
           areaMap.set(areaId, {
-            name: chain[idx].name,
-            color: chain[idx].color,
+            name: chain[idx]!.name,
+            color: chain[idx]!.color,
             ancestors: chain.slice(0, idx),
             lines: [],
           });
@@ -153,8 +154,9 @@ function buildAreaTree(lines: BudgetSourceBudgetLine[]): AreaNode[] {
   const parentMap = new Map<string | null, string[]>();
   for (const [areaId, data] of areaMap.entries()) {
     if (areaId === null) continue;
+    // data.ancestors.length > 0 guard ensures array access is valid
     const parentId =
-      data.ancestors.length > 0 ? data.ancestors[data.ancestors.length - 1].id : null;
+      data.ancestors.length > 0 ? data.ancestors[data.ancestors.length - 1]!.id : null;
     if (!parentMap.has(parentId)) {
       parentMap.set(parentId, []);
     }

@@ -284,8 +284,8 @@ describe('TimelineHouseholdItem interface', () => {
     expect(hi.name).toBe('Kitchen Island');
     expect(hi.category).toBe('hic-furniture');
     expect(hi.dependencyIds).toHaveLength(2);
-    expect(hi.dependencyIds[0].predecessorType).toBe('work_item');
-    expect(hi.dependencyIds[1].predecessorType).toBe('milestone');
+    expect(hi.dependencyIds[0]!.predecessorType).toBe('work_item');
+    expect(hi.dependencyIds[1]!.predecessorType).toBe('milestone');
   });
 
   it('allows delivery dates to be null and dependencyIds to be empty', () => {
@@ -399,8 +399,8 @@ describe('TimelineResponse interface', () => {
     };
 
     expect(response.workItems).toHaveLength(1);
-    expect(response.workItems[0].assignedVendor?.trade?.name).toBe('Tiling');
-    expect(response.workItems[0].area?.name).toBe('Bathroom');
+    expect(response.workItems[0]!.assignedVendor?.trade?.name).toBe('Tiling');
+    expect(response.workItems[0]!.area?.name).toBe('Bathroom');
     expect(response.dependencies).toHaveLength(1);
     expect(response.milestones).toHaveLength(1);
     expect(response.householdItems).toHaveLength(1);

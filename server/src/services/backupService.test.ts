@@ -74,7 +74,7 @@ describe('backupService', () => {
 
       const yearMatch = filename.match(/cornerstone-backup-(\d{4})-/);
       expect(yearMatch).not.toBeNull();
-      const year = parseInt(yearMatch![1], 10);
+      const year = parseInt(yearMatch![1]!, 10);
 
       // The year must be either the before or after year (handles midnight boundary)
       expect([before.getUTCFullYear(), after.getUTCFullYear()]).toContain(year);
@@ -85,8 +85,8 @@ describe('backupService', () => {
       // Format: cornerstone-backup-YYYY-MM-DDTHHMMSSZ.tar.gz
       const match = filename.match(/cornerstone-backup-\d{4}-(\d{2})-(\d{2})T/);
       expect(match).not.toBeNull();
-      const month = parseInt(match![1], 10);
-      const day = parseInt(match![2], 10);
+      const month = parseInt(match![1]!, 10);
+      const day = parseInt(match![2]!, 10);
       expect(month).toBeGreaterThanOrEqual(1);
       expect(month).toBeLessThanOrEqual(12);
       expect(day).toBeGreaterThanOrEqual(1);
@@ -228,8 +228,8 @@ describe('backupService', () => {
       const result = await listBackups(tempDir.path);
 
       expect(result).toHaveLength(2);
-      expect(result[0].filename).toBe(newerFilename);
-      expect(result[1].filename).toBe(olderFilename);
+      expect(result[0]!.filename).toBe(newerFilename);
+      expect(result[1]!.filename).toBe(olderFilename);
     });
 
     it('returns correct BackupMeta shape for a backup file', async () => {
@@ -239,10 +239,10 @@ describe('backupService', () => {
       const result = await listBackups(tempDir.path);
 
       expect(result).toHaveLength(1);
-      expect(result[0].filename).toBe(filename);
-      expect(result[0].createdAt).toBe('2026-03-22T02:00:00.000Z');
-      expect(typeof result[0].sizeBytes).toBe('number');
-      expect(result[0].sizeBytes).toBeGreaterThan(0);
+      expect(result[0]!.filename).toBe(filename);
+      expect(result[0]!.createdAt).toBe('2026-03-22T02:00:00.000Z');
+      expect(typeof result[0]!.sizeBytes).toBe('number');
+      expect(result[0]!.sizeBytes).toBeGreaterThan(0);
     });
 
     it('ignores non-backup files in the directory', async () => {
@@ -253,7 +253,7 @@ describe('backupService', () => {
       const result = await listBackups(tempDir.path);
 
       expect(result).toHaveLength(1);
-      expect(result[0].filename).toBe('cornerstone-backup-2026-03-22T020000Z.tar.gz');
+      expect(result[0]!.filename).toBe('cornerstone-backup-2026-03-22T020000Z.tar.gz');
     });
 
     it('handles multiple backup files with correct sort order', async () => {
@@ -270,9 +270,9 @@ describe('backupService', () => {
 
       expect(result).toHaveLength(3);
       // Sorted newest-first
-      expect(result[0].filename).toBe('cornerstone-backup-2026-03-01T080000Z.tar.gz');
-      expect(result[1].filename).toBe('cornerstone-backup-2026-02-10T150000Z.tar.gz');
-      expect(result[2].filename).toBe('cornerstone-backup-2026-01-15T100000Z.tar.gz');
+      expect(result[0]!.filename).toBe('cornerstone-backup-2026-03-01T080000Z.tar.gz');
+      expect(result[1]!.filename).toBe('cornerstone-backup-2026-02-10T150000Z.tar.gz');
+      expect(result[2]!.filename).toBe('cornerstone-backup-2026-01-15T100000Z.tar.gz');
     });
   });
 
@@ -339,7 +339,7 @@ describe('backupService', () => {
 
       const remaining = await listBackups(tempDir.path);
       expect(remaining).toHaveLength(1);
-      expect(remaining[0].filename).toBe(file2);
+      expect(remaining[0]!.filename).toBe(file2);
     });
   });
 

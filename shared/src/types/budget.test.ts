@@ -562,8 +562,8 @@ describe('SubsidyPaybackEntry interface', () => {
       },
     ];
 
-    expect(entries[0].reductionType).toBe('percentage');
-    expect(entries[1].reductionType).toBe('fixed');
+    expect(entries[0]!.reductionType).toBe('percentage');
+    expect(entries[1]!.reductionType).toBe('fixed');
   });
 });
 

@@ -275,8 +275,8 @@ describe('Backup Routes', () => {
       const body = response.json<BackupListResponse>();
       expect(body.backups).toHaveLength(2);
       // Sorted newest-first
-      expect(body.backups[0].filename).toBe('cornerstone-backup-2026-03-22T020000Z.tar.gz');
-      expect(body.backups[1].filename).toBe('cornerstone-backup-2026-01-01T000000Z.tar.gz');
+      expect(body.backups[0]!.filename).toBe('cornerstone-backup-2026-03-22T020000Z.tar.gz');
+      expect(body.backups[1]!.filename).toBe('cornerstone-backup-2026-01-01T000000Z.tar.gz');
     });
 
     it('DELETE /api/backups/:filename returns 404 for a non-existent file', async () => {

@@ -147,13 +147,13 @@ describe('WeekGrid', () => {
       renderGrid({});
       const headers = screen.getAllByRole('columnheader');
       // aria-label format: "Sun 10 March"
-      expect(headers[0].getAttribute('aria-label')).toMatch(/^Sun/);
+      expect(headers[0]!.getAttribute('aria-label')).toMatch(/^Sun/);
     });
 
     it('last column header is Saturday', () => {
       renderGrid({});
       const headers = screen.getAllByRole('columnheader');
-      expect(headers[6].getAttribute('aria-label')).toMatch(/^Sat/);
+      expect(headers[6]!.getAttribute('aria-label')).toMatch(/^Sat/);
     });
 
     it('column headers display day names', () => {
@@ -171,8 +171,8 @@ describe('WeekGrid', () => {
       // WEEK_DATE = Wednesday March 13 → week is Sun Mar 10 – Sat Mar 16
       renderGrid({});
       const cells = screen.getAllByRole('gridcell');
-      expect(cells[0]).toHaveAttribute('aria-label', 'Sunday, March 10, 2024'); // Sunday
-      expect(cells[6]).toHaveAttribute('aria-label', 'Saturday, March 16, 2024'); // Saturday
+      expect(cells[0]!).toHaveAttribute('aria-label', 'Sunday, March 10, 2024'); // Sunday
+      expect(cells[6]!).toHaveAttribute('aria-label', 'Saturday, March 16, 2024'); // Saturday
     });
 
     it('renders correct days for a different input weekDate', () => {
@@ -180,15 +180,15 @@ describe('WeekGrid', () => {
       // Week: Sun Jun 16 – Sat Jun 22
       renderGrid({ weekDate: satDate });
       const cells = screen.getAllByRole('gridcell');
-      expect(cells[0]).toHaveAttribute('aria-label', 'Sunday, June 16, 2024');
-      expect(cells[6]).toHaveAttribute('aria-label', 'Saturday, June 22, 2024');
+      expect(cells[0]!).toHaveAttribute('aria-label', 'Sunday, June 16, 2024');
+      expect(cells[6]!).toHaveAttribute('aria-label', 'Saturday, June 22, 2024');
     });
 
     it('column header includes month name', () => {
       renderGrid({});
       // Headers: "Sun 10 March", "Mon 11 March", etc.
       const headers = screen.getAllByRole('columnheader');
-      expect(headers[0].getAttribute('aria-label')).toContain('March');
+      expect(headers[0]!.getAttribute('aria-label')).toContain('March');
     });
   });
 
@@ -323,8 +323,8 @@ describe('WeekGrid', () => {
       renderGrid({});
       const headers = screen.getAllByRole('columnheader');
       // Each header should contain the day-of-month digit
-      expect(headers[0]).toHaveTextContent('10'); // Sunday Mar 10
-      expect(headers[6]).toHaveTextContent('16'); // Saturday Mar 16
+      expect(headers[0]!).toHaveTextContent('10'); // Sunday Mar 10
+      expect(headers[6]!).toHaveTextContent('16'); // Saturday Mar 16
     });
   });
 
@@ -336,8 +336,8 @@ describe('WeekGrid', () => {
       const weekDate = new Date(Date.UTC(2024, 2, 31)); // March 31 (Sunday)
       renderGrid({ weekDate });
       const cells = screen.getAllByRole('gridcell');
-      expect(cells[0]).toHaveAttribute('aria-label', 'Sunday, March 31, 2024');
-      expect(cells[6]).toHaveAttribute('aria-label', 'Saturday, April 6, 2024');
+      expect(cells[0]!).toHaveAttribute('aria-label', 'Sunday, March 31, 2024');
+      expect(cells[6]!).toHaveAttribute('aria-label', 'Saturday, April 6, 2024');
     });
 
     it('renders column header with correct month name for cross-month weeks', () => {
@@ -345,9 +345,9 @@ describe('WeekGrid', () => {
       renderGrid({ weekDate });
       const headers = screen.getAllByRole('columnheader');
       // First header (Sunday March 31) should say March
-      expect(headers[0].getAttribute('aria-label')).toContain('March');
+      expect(headers[0]!.getAttribute('aria-label')).toContain('March');
       // Last header (Saturday April 6) should say April
-      expect(headers[6].getAttribute('aria-label')).toContain('April');
+      expect(headers[6]!.getAttribute('aria-label')).toContain('April');
     });
   });
 

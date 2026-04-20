@@ -118,8 +118,8 @@ describe('budgetSourcesApi', () => {
       const result = await fetchBudgetSources();
 
       expect(result.budgetSources).toHaveLength(2);
-      expect(result.budgetSources[0].name).toBe('Home Loan');
-      expect(result.budgetSources[1].name).toBe('Savings');
+      expect(result.budgetSources[0]!.name).toBe('Home Loan');
+      expect(result.budgetSources[1]!.name).toBe('Savings');
     });
 
     it('throws ApiClientError when server returns error', async () => {
@@ -697,7 +697,7 @@ describe('budgetSourcesApi', () => {
 
       expect(result).toEqual(filledResponse);
       expect(result.workItemLines).toHaveLength(1);
-      expect(result.workItemLines[0].id).toBe('line-1');
+      expect(result.workItemLines[0]!.id).toBe('line-1');
     });
 
     it('uses the provided sourceId in the URL path', async () => {

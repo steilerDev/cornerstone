@@ -210,7 +210,7 @@ describe('i18n locale coverage — settings namespace category keys', () => {
     for (const key of tradeKeys) {
       it(`has non-empty value for key "${key}"`, () => {
         expect(typeof en.trades[key]).toBe('string');
-        expect(en.trades[key].length).toBeGreaterThan(0);
+        expect(en.trades[key]!.length).toBeGreaterThan(0);
       });
     }
   });
@@ -219,7 +219,7 @@ describe('i18n locale coverage — settings namespace category keys', () => {
     for (const key of tradeKeys) {
       it(`has non-empty value for key "${key}"`, () => {
         expect(typeof de.trades[key]).toBe('string');
-        expect(de.trades[key].length).toBeGreaterThan(0);
+        expect(de.trades[key]!.length).toBeGreaterThan(0);
       });
     }
   });
@@ -228,7 +228,7 @@ describe('i18n locale coverage — settings namespace category keys', () => {
     for (const key of budgetCategoryKeys) {
       it(`has non-empty value for key "${key}"`, () => {
         expect(typeof en.budgetCategories[key]).toBe('string');
-        expect(en.budgetCategories[key].length).toBeGreaterThan(0);
+        expect(en.budgetCategories[key]!.length).toBeGreaterThan(0);
       });
     }
   });
@@ -237,7 +237,7 @@ describe('i18n locale coverage — settings namespace category keys', () => {
     for (const key of budgetCategoryKeys) {
       it(`has non-empty value for key "${key}"`, () => {
         expect(typeof de.budgetCategories[key]).toBe('string');
-        expect(de.budgetCategories[key].length).toBeGreaterThan(0);
+        expect(de.budgetCategories[key]!.length).toBeGreaterThan(0);
       });
     }
   });
@@ -246,7 +246,7 @@ describe('i18n locale coverage — settings namespace category keys', () => {
     for (const key of householdItemCategoryKeys) {
       it(`has non-empty value for key "${key}"`, () => {
         expect(typeof en.householdItemCategories[key]).toBe('string');
-        expect(en.householdItemCategories[key].length).toBeGreaterThan(0);
+        expect(en.householdItemCategories[key]!.length).toBeGreaterThan(0);
       });
     }
   });
@@ -255,7 +255,7 @@ describe('i18n locale coverage — settings namespace category keys', () => {
     for (const key of householdItemCategoryKeys) {
       it(`has non-empty value for key "${key}"`, () => {
         expect(typeof de.householdItemCategories[key]).toBe('string');
-        expect(de.householdItemCategories[key].length).toBeGreaterThan(0);
+        expect(de.householdItemCategories[key]!.length).toBeGreaterThan(0);
       });
     }
   });

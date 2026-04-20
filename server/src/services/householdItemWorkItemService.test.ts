@@ -219,8 +219,8 @@ describe('householdItemWorkItemService', () => {
       const result = listDependentHouseholdItemsForWorkItem(db, wiId);
 
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe(hiId);
-      expect(result[0].name).toBe('Kitchen Appliances');
+      expect(result[0]!.id).toBe(hiId);
+      expect(result[0]!.name).toBe('Kitchen Appliances');
     });
 
     it('returns the correct category for the household item', () => {
@@ -232,7 +232,7 @@ describe('householdItemWorkItemService', () => {
 
       const result = listDependentHouseholdItemsForWorkItem(db, wiId);
 
-      expect(result[0].category).toBe('hic-furniture');
+      expect(result[0]!.category).toBe('hic-furniture');
     });
 
     it('returns the correct status for the household item', () => {
@@ -244,7 +244,7 @@ describe('householdItemWorkItemService', () => {
 
       const result = listDependentHouseholdItemsForWorkItem(db, wiId);
 
-      expect(result[0].status).toBe('purchased');
+      expect(result[0]!.status).toBe('purchased');
     });
 
     it('returns delivery date fields as null when not set', () => {
@@ -256,9 +256,9 @@ describe('householdItemWorkItemService', () => {
 
       const result = listDependentHouseholdItemsForWorkItem(db, wiId);
 
-      expect(result[0].targetDeliveryDate).toBeNull();
-      expect(result[0].earliestDeliveryDate).toBeNull();
-      expect(result[0].latestDeliveryDate).toBeNull();
+      expect(result[0]!.targetDeliveryDate).toBeNull();
+      expect(result[0]!.earliestDeliveryDate).toBeNull();
+      expect(result[0]!.latestDeliveryDate).toBeNull();
     });
 
     it('returns delivery date fields when they are set', () => {
@@ -274,9 +274,9 @@ describe('householdItemWorkItemService', () => {
 
       const result = listDependentHouseholdItemsForWorkItem(db, wiId);
 
-      expect(result[0].targetDeliveryDate).toBe('2026-09-15');
-      expect(result[0].earliestDeliveryDate).toBe('2026-09-10');
-      expect(result[0].latestDeliveryDate).toBe('2026-09-20');
+      expect(result[0]!.targetDeliveryDate).toBe('2026-09-15');
+      expect(result[0]!.earliestDeliveryDate).toBe('2026-09-10');
+      expect(result[0]!.latestDeliveryDate).toBe('2026-09-20');
     });
 
     it('returns all required fields in the summary object', () => {
@@ -287,7 +287,7 @@ describe('householdItemWorkItemService', () => {
       insertDep(hiId, 'work_item', wiId);
 
       const result = listDependentHouseholdItemsForWorkItem(db, wiId);
-      const summary = result[0];
+      const summary = result[0]!;
 
       expect(summary).toHaveProperty('id');
       expect(summary).toHaveProperty('name');
@@ -336,7 +336,7 @@ describe('householdItemWorkItemService', () => {
       const result = listDependentHouseholdItemsForWorkItem(db, wiId1);
 
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe(hiId1);
+      expect(result[0]!.id).toBe(hiId1);
     });
 
     it('excludes milestone-dependent items from work item results even if same HI has both', () => {
@@ -355,7 +355,7 @@ describe('householdItemWorkItemService', () => {
       const result = listDependentHouseholdItemsForWorkItem(db, wiId);
 
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe(hiId1);
+      expect(result[0]!.id).toBe(hiId1);
     });
   });
 
@@ -378,9 +378,9 @@ describe('householdItemWorkItemService', () => {
       const result = listDependentHouseholdItemsForWorkItem(db, wiId);
       expect(result).toHaveLength(4);
 
-      const resultMap = new Map(result.map((r) => [r.id, r]));
+      const resultMap = new Map(result.map((r) => [r.id, r]!));
       for (let i = 0; i < statuses.length; i++) {
-        expect(resultMap.get(hiIds[i])?.status).toBe(statuses[i]);
+        expect(resultMap.get(hiIds[i]!)?.status).toBe(statuses[i]);
       }
     });
   });

@@ -283,9 +283,9 @@ describe('Subtask Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ subtasks: SubtaskResponse[] }>();
       expect(body.subtasks).toHaveLength(3);
-      expect(body.subtasks[0].id).toBe(subtask0Id);
-      expect(body.subtasks[1].id).toBe(subtask1Id);
-      expect(body.subtasks[2].id).toBe(subtask2Id);
+      expect(body.subtasks[0]!.id).toBe(subtask0Id);
+      expect(body.subtasks[1]!.id).toBe(subtask1Id);
+      expect(body.subtasks[2]!.id).toBe(subtask2Id);
     });
 
     it('returns empty array when no subtasks exist (UAT-3.4-23)', async () => {
@@ -518,12 +518,12 @@ describe('Subtask Routes', () => {
       expect(response.statusCode).toBe(200);
       const result = response.json<{ subtasks: SubtaskResponse[] }>();
       expect(result.subtasks).toHaveLength(3);
-      expect(result.subtasks[0].id).toBe(subtask2Id);
-      expect(result.subtasks[0].sortOrder).toBe(0);
-      expect(result.subtasks[1].id).toBe(subtask1Id);
-      expect(result.subtasks[1].sortOrder).toBe(1);
-      expect(result.subtasks[2].id).toBe(subtask0Id);
-      expect(result.subtasks[2].sortOrder).toBe(2);
+      expect(result.subtasks[0]!.id).toBe(subtask2Id);
+      expect(result.subtasks[0]!.sortOrder).toBe(0);
+      expect(result.subtasks[1]!.id).toBe(subtask1Id);
+      expect(result.subtasks[1]!.sortOrder).toBe(1);
+      expect(result.subtasks[2]!.id).toBe(subtask0Id);
+      expect(result.subtasks[2]!.sortOrder).toBe(2);
     });
 
     it('returns 400 if subtaskIds array is empty (UAT-3.4-32)', async () => {

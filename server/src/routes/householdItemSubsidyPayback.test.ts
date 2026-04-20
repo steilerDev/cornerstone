@@ -383,8 +383,8 @@ describe('Household Item Subsidy Payback Routes', () => {
       const body = response.json<HouseholdItemSubsidyPaybackResponse>();
       expect(body.minTotalPayback).toBe(0);
       expect(body.maxTotalPayback).toBe(0);
-      expect(body.subsidies[0].minPayback).toBe(0);
-      expect(body.subsidies[0].maxPayback).toBe(0);
+      expect(body.subsidies[0]!.minPayback).toBe(0);
+      expect(body.subsidies[0]!.maxPayback).toBe(0);
     });
   });
 
@@ -411,8 +411,8 @@ describe('Household Item Subsidy Payback Routes', () => {
       const body = response.json<HouseholdItemSubsidyPaybackResponse>();
       expect(body.minTotalPayback).toBe(3000);
       expect(body.maxTotalPayback).toBe(3000);
-      expect(body.subsidies[0].minPayback).toBe(3000);
-      expect(body.subsidies[0].maxPayback).toBe(3000);
+      expect(body.subsidies[0]!.minPayback).toBe(3000);
+      expect(body.subsidies[0]!.maxPayback).toBe(3000);
     });
 
     it('returns fixed amount even when item has no budget lines', async () => {
@@ -614,7 +614,7 @@ describe('Household Item Subsidy Payback Routes', () => {
       const body = response.json<HouseholdItemSubsidyPaybackResponse>();
       expect(body.subsidies).toHaveLength(1);
 
-      const entry = body.subsidies[0];
+      const entry = body.subsidies[0]!;
       expect(entry.subsidyProgramId).toBe(spId);
       expect(entry.name).toBe('Heat Pump Rebate');
       expect(entry.reductionType).toBe('percentage');

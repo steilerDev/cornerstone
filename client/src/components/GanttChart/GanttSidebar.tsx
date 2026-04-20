@@ -72,7 +72,8 @@ export const GanttSidebar = function GanttSidebar({
         const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1;
 
         if (nextIdx >= 0 && nextIdx < rows.length) {
-          const nextRow = rows[nextIdx];
+          // nextIdx is guaranteed to be in bounds by the condition above
+          const nextRow = rows[nextIdx]!;
           nextRow.focus();
           // Scroll the row into view within the sidebar
           nextRow.scrollIntoView?.({ block: 'nearest' });
@@ -99,7 +100,8 @@ export const GanttSidebar = function GanttSidebar({
         const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1;
 
         if (nextIdx >= 0 && nextIdx < rows.length) {
-          const nextRow = rows[nextIdx];
+          // nextIdx is guaranteed to be in bounds by the condition above
+          const nextRow = rows[nextIdx]!;
           nextRow.focus();
           // Scroll the row into view within the sidebar
           nextRow.scrollIntoView?.({ block: 'nearest' });
@@ -126,7 +128,8 @@ export const GanttSidebar = function GanttSidebar({
         const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1;
 
         if (nextIdx >= 0 && nextIdx < rows.length) {
-          const nextRow = rows[nextIdx];
+          // nextIdx is guaranteed to be in bounds by the condition above
+          const nextRow = rows[nextIdx]!;
           nextRow.focus();
           // Scroll the row into view within the sidebar
           nextRow.scrollIntoView?.({ block: 'nearest' });

@@ -227,9 +227,9 @@ describe('Invoice Budget Line Service', () => {
       const result = invoiceBudgetLineService.listInvoiceBudgetLines(db, invoiceId);
 
       expect(result.budgetLines).toHaveLength(1);
-      expect(result.budgetLines[0].itemizedAmount).toBe(400);
-      expect(result.budgetLines[0].parentItemType).toBe('work_item');
-      expect(result.budgetLines[0].parentItemTitle).toBe('Painting');
+      expect(result.budgetLines[0]!.itemizedAmount).toBe(400);
+      expect(result.budgetLines[0]!.parentItemType).toBe('work_item');
+      expect(result.budgetLines[0]!.parentItemTitle).toBe('Painting');
       expect(result.remainingAmount).toBe(600);
     });
 
@@ -247,9 +247,9 @@ describe('Invoice Budget Line Service', () => {
       const result = invoiceBudgetLineService.listInvoiceBudgetLines(db, invoiceId);
 
       expect(result.budgetLines).toHaveLength(1);
-      expect(result.budgetLines[0].itemizedAmount).toBe(200);
-      expect(result.budgetLines[0].parentItemType).toBe('household_item');
-      expect(result.budgetLines[0].parentItemTitle).toBe('Test Household Item');
+      expect(result.budgetLines[0]!.itemizedAmount).toBe(200);
+      expect(result.budgetLines[0]!.parentItemType).toBe('household_item');
+      expect(result.budgetLines[0]!.parentItemTitle).toBe('Test Household Item');
       expect(result.remainingAmount).toBe(300);
     });
 
@@ -273,8 +273,8 @@ describe('Invoice Budget Line Service', () => {
       const result = invoiceBudgetLineService.listInvoiceBudgetLines(db, invoiceId);
 
       expect(result.budgetLines).toHaveLength(2);
-      expect(result.budgetLines[0].parentItemTitle).toBe('Task One');
-      expect(result.budgetLines[1].parentItemTitle).toBe('Task Two');
+      expect(result.budgetLines[0]!.parentItemTitle).toBe('Task One');
+      expect(result.budgetLines[1]!.parentItemTitle).toBe('Task Two');
       expect(result.remainingAmount).toBe(1000);
     });
 
@@ -290,7 +290,7 @@ describe('Invoice Budget Line Service', () => {
       });
 
       const result = invoiceBudgetLineService.listInvoiceBudgetLines(db, invoiceId);
-      const line = result.budgetLines[0];
+      const line = result.budgetLines[0]!;
 
       expect(line.id).toBeDefined();
       expect(line.invoiceId).toBe(invoiceId);
@@ -818,7 +818,7 @@ describe('Invoice Budget Line Service', () => {
 
       const listResult = invoiceBudgetLineService.listInvoiceBudgetLines(db, invoiceId);
       expect(listResult.budgetLines).toHaveLength(1);
-      expect(listResult.budgetLines[0].itemizedAmount).toBe(200);
+      expect(listResult.budgetLines[0]!.itemizedAmount).toBe(200);
     });
   });
 
@@ -849,7 +849,7 @@ describe('Invoice Budget Line Service', () => {
       const result = invoiceBudgetLineService.getInvoiceBudgetLinesForInvoice(db, invoiceId, 1000);
 
       expect(result.budgetLines).toHaveLength(1);
-      const line = result.budgetLines[0];
+      const line = result.budgetLines[0]!;
       expect(line.id).toBeDefined();
       expect(line.budgetLineId).toBe(wibId);
       expect(line.budgetLineType).toBe('work_item');
@@ -873,8 +873,8 @@ describe('Invoice Budget Line Service', () => {
       const result = invoiceBudgetLineService.getInvoiceBudgetLinesForInvoice(db, invoiceId, 500);
 
       expect(result.budgetLines).toHaveLength(1);
-      expect(result.budgetLines[0].budgetLineType).toBe('household_item');
-      expect(result.budgetLines[0].budgetLineId).toBe(hibId);
+      expect(result.budgetLines[0]!.budgetLineType).toBe('household_item');
+      expect(result.budgetLines[0]!.budgetLineId).toBe(hibId);
       expect(result.remainingAmount).toBe(300);
     });
 

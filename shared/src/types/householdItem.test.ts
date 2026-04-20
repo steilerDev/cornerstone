@@ -392,7 +392,7 @@ describe('HouseholdItemDetail interface', () => {
     expect(detail.createdBy?.displayName).toBe('Alice');
     expect(detail.dependencies).toHaveLength(1);
     expect(detail.subsidies).toHaveLength(1);
-    expect(detail.subsidies[0].applicationStatus).toBe('applied');
+    expect(detail.subsidies[0]!.applicationStatus).toBe('applied');
     expect(detail.earliestDeliveryDate).toBe('2025-01-15');
     expect(detail.latestDeliveryDate).toBe('2025-01-25');
   });
@@ -680,10 +680,10 @@ describe('HouseholdItemListResponse type', () => {
     const paginated: PaginatedResponse<(typeof response.items)[0]> = response;
     expect(paginated.items).toHaveLength(1);
     expect(paginated.pagination.totalItems).toBe(1);
-    expect(response.items[0].name).toBe('Sofa');
+    expect(response.items[0]!.name).toBe('Sofa');
     // Verify no old fields
-    expect((response.items[0] as any).room).toBeUndefined();
-    expect((response.items[0] as any).tagIds).toBeUndefined();
+    expect((response.items[0]! as any).room).toBeUndefined();
+    expect((response.items[0]! as any).tagIds).toBeUndefined();
   });
 
   it('handles empty list correctly', () => {

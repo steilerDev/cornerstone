@@ -464,7 +464,7 @@ describe('WorkItemCreatePage', () => {
 
       // Focus slot 1 picker to open it
       const pickerInputs = screen.getAllByPlaceholderText(/search/i);
-      await user.click(pickerInputs[0]);
+      await user.click(pickerInputs[0]!);
 
       await waitFor(() => {
         expect(screen.getByText('Foundation')).toBeInTheDocument();

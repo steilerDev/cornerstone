@@ -113,8 +113,8 @@ describe('BudgetBar', () => {
     const { container } = render(<BudgetBar segments={segments} maxValue={100000} />);
 
     const segmentDivs = container.querySelectorAll('[aria-hidden="true"]');
-    expect(segmentDivs[0]).toHaveStyle({ width: '50%' });
-    expect(segmentDivs[1]).toHaveStyle({ width: '25%' });
+    expect(segmentDivs[0]!).toHaveStyle({ width: '50%' });
+    expect(segmentDivs[1]!).toHaveStyle({ width: '25%' });
   });
 
   it('caps segment width at 100% when value exceeds maxValue', () => {
@@ -202,10 +202,10 @@ describe('BudgetBar', () => {
       <BudgetBar segments={baseSegments} maxValue={100000} onSegmentHover={onSegmentHover} />,
     );
 
-    const firstSegment = container.querySelectorAll('[aria-hidden="true"]')[0] as HTMLElement;
+    const firstSegment = container.querySelectorAll('[aria-hidden="true"]')[0]! as HTMLElement;
     await user.hover(firstSegment);
 
-    expect(onSegmentHover).toHaveBeenCalledWith(baseSegments[0]);
+    expect(onSegmentHover).toHaveBeenCalledWith(baseSegments[0]!);
   });
 
   it('calls onSegmentHover with null on mouseleave', async () => {
@@ -216,12 +216,12 @@ describe('BudgetBar', () => {
       <BudgetBar segments={baseSegments} maxValue={100000} onSegmentHover={onSegmentHover} />,
     );
 
-    const firstSegment = container.querySelectorAll('[aria-hidden="true"]')[0] as HTMLElement;
+    const firstSegment = container.querySelectorAll('[aria-hidden="true"]')[0]! as HTMLElement;
     await user.hover(firstSegment);
     await user.unhover(firstSegment);
 
     const calls = onSegmentHover.mock.calls;
-    expect(calls[calls.length - 1][0]).toBeNull();
+    expect(calls[calls.length - 1]![0]).toBeNull();
   });
 
   it('calls onSegmentHover with overflow segment data on overflow mouseenter', async () => {
@@ -239,7 +239,7 @@ describe('BudgetBar', () => {
 
     // The overflow segment is the last one
     const allSegments = container.querySelectorAll('[aria-hidden="true"]');
-    const overflowSegment = allSegments[allSegments.length - 1] as HTMLElement;
+    const overflowSegment = allSegments[allSegments.length - 1]! as HTMLElement;
     await user.hover(overflowSegment);
 
     expect(onSegmentHover).toHaveBeenCalledWith(
@@ -257,10 +257,10 @@ describe('BudgetBar', () => {
       <BudgetBar segments={baseSegments} maxValue={100000} onSegmentClick={onSegmentClick} />,
     );
 
-    const firstSegment = container.querySelectorAll('[aria-hidden="true"]')[0] as HTMLElement;
+    const firstSegment = container.querySelectorAll('[aria-hidden="true"]')[0]! as HTMLElement;
     await user.click(firstSegment);
 
-    expect(onSegmentClick).toHaveBeenCalledWith(baseSegments[0]);
+    expect(onSegmentClick).toHaveBeenCalledWith(baseSegments[0]!);
   });
 
   it('calls onSegmentClick with overflow segment data on overflow click', async () => {
@@ -277,7 +277,7 @@ describe('BudgetBar', () => {
     );
 
     const allSegments = container.querySelectorAll('[aria-hidden="true"]');
-    const overflowSegment = allSegments[allSegments.length - 1] as HTMLElement;
+    const overflowSegment = allSegments[allSegments.length - 1]! as HTMLElement;
     await user.click(overflowSegment);
 
     expect(onSegmentClick).toHaveBeenCalledWith(

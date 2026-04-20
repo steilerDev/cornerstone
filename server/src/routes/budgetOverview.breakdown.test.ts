@@ -350,7 +350,7 @@ describe('GET /api/budget/breakdown', () => {
     const { breakdown } = response.json<BudgetBreakdownResponse>();
 
     expect(breakdown.workItems.areas).toHaveLength(1);
-    const cat = breakdown.workItems.areas[0];
+    const cat = breakdown.workItems.areas[0]!;
 
     expect(cat).toHaveProperty('areaId');
     expect(cat).toHaveProperty('name');
@@ -379,7 +379,7 @@ describe('GET /api/budget/breakdown', () => {
     expect(response.statusCode).toBe(200);
     const { breakdown } = response.json<BudgetBreakdownResponse>();
 
-    const item = breakdown.workItems.areas[0].items[0];
+    const item = breakdown.workItems.areas[0]!.items[0]!;
     expect(typeof item.workItemId).toBe('string');
     expect(typeof item.title).toBe('string');
     expect(typeof item.projectedMin).toBe('number');
@@ -408,7 +408,7 @@ describe('GET /api/budget/breakdown', () => {
     expect(response.statusCode).toBe(200);
     const { breakdown } = response.json<BudgetBreakdownResponse>();
 
-    const line = breakdown.workItems.areas[0].items[0].budgetLines[0];
+    const line = breakdown.workItems.areas[0]!.items[0]!.budgetLines[0]!;
     expect(typeof line.id).toBe('string');
     expect(typeof line.plannedAmount).toBe('number');
     expect(typeof line.actualCost).toBe('number');
@@ -436,7 +436,7 @@ describe('GET /api/budget/breakdown', () => {
     expect(response.statusCode).toBe(200);
     const { breakdown } = response.json<BudgetBreakdownResponse>();
 
-    const item = breakdown.workItems.areas[0].items[0];
+    const item = breakdown.workItems.areas[0]!.items[0]!;
     expect(item.projectedMax).toBeCloseTo(1200, 5);
     expect(item.costDisplay).toBe('projected');
   });
@@ -456,12 +456,12 @@ describe('GET /api/budget/breakdown', () => {
     const { breakdown } = response.json<BudgetBreakdownResponse>();
 
     expect(breakdown.householdItems.areas).toHaveLength(1);
-    const hiCat = breakdown.householdItems.areas[0];
+    const hiCat = breakdown.householdItems.areas[0]!;
     expect(typeof hiCat.areaId === 'string' || hiCat.areaId === null).toBe(true);
     expect(typeof hiCat.name).toBe('string');
     expect(hiCat.name.length).toBeGreaterThan(0);
     // color is either a string or null
     expect(hiCat.color === null || typeof hiCat.color === 'string').toBe(true);
-    expect(hiCat.items[0].costDisplay).toBe('projected');
+    expect(hiCat.items[0]!.costDisplay).toBe('projected');
   });
 });

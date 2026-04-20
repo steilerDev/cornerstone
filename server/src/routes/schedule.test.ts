@@ -281,9 +281,9 @@ describe('Schedule Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<ScheduleResponse>();
       expect(body.scheduledItems).toHaveLength(1);
-      expect(body.scheduledItems[0].workItemId).toBe(wiId);
-      expect(body.scheduledItems[0].totalFloat).toBe(0);
-      expect(body.scheduledItems[0].isCritical).toBe(true);
+      expect(body.scheduledItems[0]!.workItemId).toBe(wiId);
+      expect(body.scheduledItems[0]!.totalFloat).toBe(0);
+      expect(body.scheduledItems[0]!.isCritical).toBe(true);
     });
 
     it('should schedule multiple work items with FS dependency in full mode', async () => {
@@ -310,7 +310,7 @@ describe('Schedule Routes', () => {
       const byId = Object.fromEntries(body.scheduledItems.map((si) => [si.workItemId, si]));
 
       // B must start on or after A's scheduled end date
-      expect(byId[wiB].scheduledStartDate >= byId[wiA].scheduledEndDate).toBe(true);
+      expect(byId[wiB]!.scheduledStartDate >= byId[wiA]!.scheduledEndDate).toBe(true);
 
       // Both should be on the critical path
       expect(body.criticalPath).toContain(wiA);
@@ -340,7 +340,7 @@ describe('Schedule Routes', () => {
       const body = response.json<ScheduleResponse>();
       expect(body.scheduledItems).toHaveLength(1);
 
-      const si = body.scheduledItems[0];
+      const si = body.scheduledItems[0]!;
       expect(si).toHaveProperty('workItemId');
       expect(si).toHaveProperty('previousStartDate');
       expect(si).toHaveProperty('previousEndDate');
@@ -482,7 +482,7 @@ describe('Schedule Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<ScheduleResponse>();
       expect(body.scheduledItems).toHaveLength(1);
-      expect(body.scheduledItems[0].workItemId).toBe(wiA);
+      expect(body.scheduledItems[0]!.workItemId).toBe(wiA);
     });
   });
 
@@ -648,7 +648,7 @@ describe('Schedule Routes', () => {
 
       const byId = Object.fromEntries(body.scheduledItems.map((si) => [si.workItemId, si]));
       // SS: B should start same time or after A
-      expect(byId[wiB].scheduledStartDate >= byId[wiA].scheduledStartDate).toBe(true);
+      expect(byId[wiB]!.scheduledStartDate >= byId[wiA]!.scheduledStartDate).toBe(true);
     });
 
     it('should correctly handle finish_to_finish dependency', async () => {
@@ -672,7 +672,7 @@ describe('Schedule Routes', () => {
       const body = response.json<ScheduleResponse>();
       const byId = Object.fromEntries(body.scheduledItems.map((si) => [si.workItemId, si]));
       // FF: B should finish same time or after A
-      expect(byId[wiB].scheduledEndDate >= byId[wiA].scheduledEndDate).toBe(true);
+      expect(byId[wiB]!.scheduledEndDate >= byId[wiA]!.scheduledEndDate).toBe(true);
     });
 
     it('should correctly handle start_to_finish dependency', async () => {
@@ -720,10 +720,10 @@ describe('Schedule Routes', () => {
       const byId = Object.fromEntries(body.scheduledItems.map((si) => [si.workItemId, si]));
 
       // B should start 5 days after A's end (lag = 5)
-      const aEndDate = new Date(byId[wiA].scheduledEndDate + 'T00:00:00Z');
+      const aEndDate = new Date(byId[wiA]!.scheduledEndDate + 'T00:00:00Z');
       aEndDate.setUTCDate(aEndDate.getUTCDate() + 5);
       const expectedStart = aEndDate.toISOString().slice(0, 10);
-      expect(byId[wiB].scheduledStartDate).toBe(expectedStart);
+      expect(byId[wiB]!.scheduledStartDate).toBe(expectedStart);
     });
 
     it('should correctly handle dependency with negative lead days (overlap)', async () => {
@@ -748,10 +748,10 @@ describe('Schedule Routes', () => {
       const byId = Object.fromEntries(body.scheduledItems.map((si) => [si.workItemId, si]));
 
       // B starts 3 days before A's scheduled end (lead = -3)
-      const aEndDate = new Date(byId[wiA].scheduledEndDate + 'T00:00:00Z');
+      const aEndDate = new Date(byId[wiA]!.scheduledEndDate + 'T00:00:00Z');
       aEndDate.setUTCDate(aEndDate.getUTCDate() - 3);
       const expectedStart = aEndDate.toISOString().slice(0, 10);
-      expect(byId[wiB].scheduledStartDate).toBe(expectedStart);
+      expect(byId[wiB]!.scheduledStartDate).toBe(expectedStart);
     });
   });
 
@@ -817,7 +817,7 @@ describe('Schedule Routes', () => {
       const body = response.json<ScheduleResponse>();
       const completedWarnings = body.warnings.filter((w) => w.type === 'already_completed');
       expect(completedWarnings.length).toBeGreaterThan(0);
-      expect(completedWarnings[0].workItemId).toBe(wiB);
+      expect(completedWarnings[0]!.workItemId).toBe(wiB);
     });
   });
 });

@@ -158,22 +158,22 @@ const DiamondMarker = memo(function DiamondMarker({
     fill = 'transparent';
     stroke = colors.lateStroke;
     hoverGlow = 'transparent';
-    statusClass = styles.diamondGhost;
+    statusClass = styles.diamondGhost!;
   } else if (status === 'completed') {
     fill = colors.completeFill;
     stroke = colors.completeStroke;
     hoverGlow = colors.completeHoverGlow;
-    statusClass = styles.diamondComplete;
+    statusClass = styles.diamondComplete!;
   } else if (status === 'late') {
     fill = colors.lateFill;
     stroke = colors.lateStroke;
     hoverGlow = colors.lateHoverGlow;
-    statusClass = styles.diamondLate;
+    statusClass = styles.diamondLate!;
   } else if (status === 'ahead') {
     fill = colors.aheadFill;
     stroke = colors.aheadStroke;
     hoverGlow = colors.aheadHoverGlow;
-    statusClass = styles.diamondAhead;
+    statusClass = styles.diamondAhead!;
   } else {
     fill = colors.incompleteFill;
     stroke = colors.incompleteStroke;

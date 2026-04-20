@@ -64,8 +64,8 @@ describe('workItemMilestonesApi', () => {
 
       expect(result.required).toHaveLength(1);
       expect(result.linked).toHaveLength(1);
-      expect(result.required[0].name).toBe('Foundation Approved');
-      expect(result.linked[0].name).toBe('Framing Complete');
+      expect(result.required[0]!.name).toBe('Foundation Approved');
+      expect(result.linked[0]!.name).toBe('Framing Complete');
     });
 
     it('returns empty arrays when no milestones are associated', async () => {

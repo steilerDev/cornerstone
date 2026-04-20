@@ -478,10 +478,10 @@ describe('Document Links Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<DocumentLinkListResponse>();
       expect(body.documentLinks).toHaveLength(1);
-      expect(body.documentLinks[0].entityType).toBe('work_item');
-      expect(body.documentLinks[0].entityId).toBe(workItemId);
-      expect(body.documentLinks[0].paperlessDocumentId).toBe(42);
-      expect(body.documentLinks[0].document).toBeNull();
+      expect(body.documentLinks[0]!.entityType).toBe('work_item');
+      expect(body.documentLinks[0]!.entityId).toBe(workItemId);
+      expect(body.documentLinks[0]!.paperlessDocumentId).toBe(42);
+      expect(body.documentLinks[0]!.document).toBeNull();
     });
 
     it('returns enriched links with Paperless metadata when configured', async () => {
@@ -514,12 +514,12 @@ describe('Document Links Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<DocumentLinkListResponse>();
       expect(body.documentLinks).toHaveLength(1);
-      expect(body.documentLinks[0].document).not.toBeNull();
-      expect(body.documentLinks[0].document?.id).toBe(42);
-      expect(body.documentLinks[0].document?.title).toBe('Invoice from Builder Co');
+      expect(body.documentLinks[0]!.document).not.toBeNull();
+      expect(body.documentLinks[0]!.document?.id).toBe(42);
+      expect(body.documentLinks[0]!.document?.title).toBe('Invoice from Builder Co');
       // content must be null in list response
-      expect(body.documentLinks[0].document?.content).toBeNull();
-      expect(body.documentLinks[0].document?.tags).toHaveLength(1);
+      expect(body.documentLinks[0]!.document?.content).toBeNull();
+      expect(body.documentLinks[0]!.document?.tags).toHaveLength(1);
     });
 
     it('returns document: null for deleted Paperless document (404)', async () => {
@@ -549,7 +549,7 @@ describe('Document Links Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<DocumentLinkListResponse>();
-      expect(body.documentLinks[0].document).toBeNull();
+      expect(body.documentLinks[0]!.document).toBeNull();
     });
 
     it('returns links for invoice entity type', async () => {
@@ -576,7 +576,7 @@ describe('Document Links Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<DocumentLinkListResponse>();
       expect(body.documentLinks).toHaveLength(1);
-      expect(body.documentLinks[0].entityType).toBe('invoice');
+      expect(body.documentLinks[0]!.entityType).toBe('invoice');
     });
   });
 
@@ -707,7 +707,7 @@ describe('Document Links Routes', () => {
 
       const body = listResponse.json<DocumentLinkListResponse>();
       expect(body.documentLinks).toHaveLength(1);
-      expect(body.documentLinks[0].paperlessDocumentId).toBe(99);
+      expect(body.documentLinks[0]!.paperlessDocumentId).toBe(99);
     });
   });
 

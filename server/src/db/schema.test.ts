@@ -133,10 +133,10 @@ describe('User Database Schema & Migration', () => {
 
       const users = await db.select().from(schema.users).where(eq(schema.users.id, userId));
       expect(users).toHaveLength(1);
-      expect(users[0].email).toBe('local@example.com');
-      expect(users[0].authProvider).toBe('local');
-      expect(users[0].passwordHash).toBe('$2b$10$hashedpassword');
-      expect(users[0].oidcSubject).toBeNull();
+      expect(users[0]!.email).toBe('local@example.com');
+      expect(users[0]!.authProvider).toBe('local');
+      expect(users[0]!.passwordHash).toBe('$2b$10$hashedpassword');
+      expect(users[0]!.oidcSubject).toBeNull();
     });
 
     it('can insert an OIDC user (with oidc_subject, no password_hash)', async () => {
@@ -158,10 +158,10 @@ describe('User Database Schema & Migration', () => {
 
       const users = await db.select().from(schema.users).where(eq(schema.users.id, userId));
       expect(users).toHaveLength(1);
-      expect(users[0].email).toBe('oidc@example.com');
-      expect(users[0].authProvider).toBe('oidc');
-      expect(users[0].oidcSubject).toBe('oidc-provider-subject-123');
-      expect(users[0].passwordHash).toBeNull();
+      expect(users[0]!.email).toBe('oidc@example.com');
+      expect(users[0]!.authProvider).toBe('oidc');
+      expect(users[0]!.oidcSubject).toBe('oidc-provider-subject-123');
+      expect(users[0]!.passwordHash).toBeNull();
     });
   });
 
@@ -427,7 +427,7 @@ describe('User Database Schema & Migration', () => {
       });
 
       const users = await db.select().from(schema.users).where(eq(schema.users.id, 'user-active'));
-      expect(users[0].deactivatedAt).toBeNull();
+      expect(users[0]!.deactivatedAt).toBeNull();
     });
 
     it('allows deactivated_at to be a timestamp', async () => {
@@ -451,7 +451,7 @@ describe('User Database Schema & Migration', () => {
         .select()
         .from(schema.users)
         .where(eq(schema.users.id, 'user-deactivated'));
-      expect(users[0].deactivatedAt).toBe(deactivatedAt);
+      expect(users[0]!.deactivatedAt).toBe(deactivatedAt);
     });
   });
 
@@ -543,7 +543,7 @@ describe('User Database Schema & Migration', () => {
         .all() as Array<{ id: string }>;
 
       expect(activeUsers).toHaveLength(1);
-      expect(activeUsers[0].id).toBe('user-active');
+      expect(activeUsers[0]!.id).toBe('user-active');
     });
 
     it('can insert a session and query by user_id', async () => {
@@ -581,9 +581,9 @@ describe('User Database Schema & Migration', () => {
         .where(eq(schema.sessions.userId, userId));
 
       expect(sessions).toHaveLength(1);
-      expect(sessions[0].id).toBe(sessionId);
-      expect(sessions[0].userId).toBe(userId);
-      expect(sessions[0].expiresAt).toBe(expiresAt);
+      expect(sessions[0]!.id).toBe(sessionId);
+      expect(sessions[0]!.userId).toBe(userId);
+      expect(sessions[0]!.expiresAt).toBe(expiresAt);
     });
 
     it('can query sessions by expires_at index', async () => {
@@ -628,7 +628,7 @@ describe('User Database Schema & Migration', () => {
         .all(now) as Array<{ id: string }>;
 
       expect(expiredSessions).toHaveLength(1);
-      expect(expiredSessions[0].id).toBe('session-expired');
+      expect(expiredSessions[0]!.id).toBe('session-expired');
     });
   });
 });
@@ -667,7 +667,7 @@ describe('Work Items Database Schema & Migration', () => {
         .all() as Array<{ name: string }>;
 
       expect(migrations).toHaveLength(1);
-      expect(migrations[0].name).toBe('0002_create_work_items.sql');
+      expect(migrations[0]!.name).toBe('0002_create_work_items.sql');
     });
 
     it('UAT-3.1-02: all work item tables exist', () => {
@@ -1069,8 +1069,8 @@ describe('Work Items Database Schema & Migration', () => {
         .from(schema.workItems)
         .where(eq(schema.workItems.id, workItemId));
       expect(workItems).toHaveLength(1);
-      expect(workItems[0].areaId).toBeNull();
-      expect(workItems[0].assignedVendorId).toBeNull();
+      expect(workItems[0]!.areaId).toBeNull();
+      expect(workItems[0]!.assignedVendorId).toBeNull();
     });
 
     it('UAT-3.1-13: deleting a work item cascades to dependencies', async () => {
@@ -1196,7 +1196,7 @@ describe('Work Items Database Schema & Migration', () => {
         .select()
         .from(schema.workItems)
         .where(eq(schema.workItems.id, 'work-item-4'));
-      expect(workItems[0].assignedUserId).toBe(assignedUserId);
+      expect(workItems[0]!.assignedUserId).toBe(assignedUserId);
 
       // Delete the assigned user
       await db.delete(schema.users).where(eq(schema.users.id, assignedUserId));
@@ -1207,7 +1207,7 @@ describe('Work Items Database Schema & Migration', () => {
         .from(schema.workItems)
         .where(eq(schema.workItems.id, 'work-item-4'));
       expect(workItems).toHaveLength(1);
-      expect(workItems[0].assignedUserId).toBeNull();
+      expect(workItems[0]!.assignedUserId).toBeNull();
     });
 
     it('UAT-3.1-15: deleting a user sets created_by to NULL', async () => {
@@ -1260,7 +1260,7 @@ describe('Work Items Database Schema & Migration', () => {
         .select()
         .from(schema.workItemNotes)
         .where(eq(schema.workItemNotes.id, 'note-3'));
-      expect(notesBefore[0].createdBy).toBe(noteAuthorId);
+      expect(notesBefore[0]!.createdBy).toBe(noteAuthorId);
 
       // Delete the note author - should succeed and set created_by to NULL
       await db.delete(schema.users).where(eq(schema.users.id, noteAuthorId));
@@ -1271,7 +1271,7 @@ describe('Work Items Database Schema & Migration', () => {
         .from(schema.workItemNotes)
         .where(eq(schema.workItemNotes.id, 'note-3'));
       expect(notesAfter).toHaveLength(1);
-      expect(notesAfter[0].createdBy).toBeNull();
+      expect(notesAfter[0]!.createdBy).toBeNull();
     });
 
     it('UAT-3.1-16: tags and work_item_tags tables do not exist (removed in migration 0028)', () => {
@@ -1720,16 +1720,16 @@ describe('Work Items Database Schema & Migration', () => {
         .from(schema.workItems)
         .where(eq(schema.workItems.id, workItemId));
       expect(workItems).toHaveLength(1);
-      expect(workItems[0].title).toBe('Complete Work Item');
-      expect(workItems[0].description).toBe('Full description text');
-      expect(workItems[0].status).toBe('in_progress');
-      expect(workItems[0].startDate).toBe('2024-01-01');
-      expect(workItems[0].endDate).toBe('2024-01-31');
-      expect(workItems[0].durationDays).toBe(30);
-      expect(workItems[0].startAfter).toBe('2023-12-15');
-      expect(workItems[0].startBefore).toBe('2024-01-05');
-      expect(workItems[0].assignedUserId).toBe(testUserId);
-      expect(workItems[0].createdBy).toBe(testUserId);
+      expect(workItems[0]!.title).toBe('Complete Work Item');
+      expect(workItems[0]!.description).toBe('Full description text');
+      expect(workItems[0]!.status).toBe('in_progress');
+      expect(workItems[0]!.startDate).toBe('2024-01-01');
+      expect(workItems[0]!.endDate).toBe('2024-01-31');
+      expect(workItems[0]!.durationDays).toBe(30);
+      expect(workItems[0]!.startAfter).toBe('2023-12-15');
+      expect(workItems[0]!.startBefore).toBe('2024-01-05');
+      expect(workItems[0]!.assignedUserId).toBe(testUserId);
+      expect(workItems[0]!.createdBy).toBe(testUserId);
     });
 
     it('can insert a minimal work item with only required fields', async () => {
@@ -1757,10 +1757,10 @@ describe('Work Items Database Schema & Migration', () => {
         .from(schema.workItems)
         .where(eq(schema.workItems.id, workItemId));
       expect(workItems).toHaveLength(1);
-      expect(workItems[0].title).toBe('Minimal Work Item');
-      expect(workItems[0].description).toBeNull();
-      expect(workItems[0].status).toBe('not_started');
-      expect(workItems[0].assignedUserId).toBeNull();
+      expect(workItems[0]!.title).toBe('Minimal Work Item');
+      expect(workItems[0]!.description).toBeNull();
+      expect(workItems[0]!.status).toBe('not_started');
+      expect(workItems[0]!.assignedUserId).toBeNull();
     });
 
     it('can query default trades seeded by migration 0028', async () => {
@@ -1797,7 +1797,7 @@ describe('Work Items Database Schema & Migration', () => {
         .from(schema.vendors)
         .where(eq(schema.vendors.id, vendorId));
       expect(vendorRows).toHaveLength(1);
-      expect(vendorRows[0].tradeId).toBe('trade-plumbing');
+      expect(vendorRows[0]!.tradeId).toBe('trade-plumbing');
     });
 
     it('can insert notes on a work item', async () => {
@@ -2103,10 +2103,10 @@ describe('Budget Schema (EPIC-05)', () => {
         .where(eq(schema.budgetCategories.id, 'cat-full'));
 
       expect(rows).toHaveLength(1);
-      expect(rows[0].name).toBe('Test Schema Full Cat');
-      expect(rows[0].description).toBe('Construction labor costs');
-      expect(rows[0].color).toBe('#3B82F6');
-      expect(rows[0].sortOrder).toBe(5);
+      expect(rows[0]!.name).toBe('Test Schema Full Cat');
+      expect(rows[0]!.description).toBe('Construction labor costs');
+      expect(rows[0]!.color).toBe('#3B82F6');
+      expect(rows[0]!.sortOrder).toBe(5);
     });
 
     it('can insert a category with null optional fields', async () => {
@@ -2127,9 +2127,9 @@ describe('Budget Schema (EPIC-05)', () => {
         .where(eq(schema.budgetCategories.id, 'cat-minimal'));
 
       expect(rows).toHaveLength(1);
-      expect(rows[0].description).toBeNull();
-      expect(rows[0].color).toBeNull();
-      expect(rows[0].sortOrder).toBe(0); // Default value
+      expect(rows[0]!.description).toBeNull();
+      expect(rows[0]!.color).toBeNull();
+      expect(rows[0]!.sortOrder).toBe(0); // Default value
     });
   });
 
@@ -2182,8 +2182,8 @@ describe('Budget Schema (EPIC-05)', () => {
       const rows = await db.select().from(schema.vendors).where(eq(schema.vendors.id, 'vendor-1'));
 
       expect(rows).toHaveLength(1);
-      expect(rows[0].name).toBe('ABC Construction');
-      expect(rows[0].tradeId).toBe('trade-electrical');
+      expect(rows[0]!.name).toBe('ABC Construction');
+      expect(rows[0]!.tradeId).toBe('trade-electrical');
     });
 
     it('creates idx_vendors_new_name index', () => {
@@ -2330,10 +2330,10 @@ describe('Budget Schema (EPIC-05)', () => {
         .where(eq(schema.budgetSources.id, 'source-1'));
 
       expect(rows).toHaveLength(1);
-      expect(rows[0].name).toBe('Bank Loan');
-      expect(rows[0].sourceType).toBe('bank_loan');
-      expect(rows[0].totalAmount).toBe(200000.0);
-      expect(rows[0].status).toBe('active'); // Default value
+      expect(rows[0]!.name).toBe('Bank Loan');
+      expect(rows[0]!.sourceType).toBe('bank_loan');
+      expect(rows[0]!.totalAmount).toBe(200000.0);
+      expect(rows[0]!.status).toBe('active'); // Default value
     });
   });
 
@@ -2382,10 +2382,10 @@ describe('Budget Schema (EPIC-05)', () => {
         .where(eq(schema.subsidyPrograms.id, 'subsidy-1'));
 
       expect(rows).toHaveLength(1);
-      expect(rows[0].name).toBe('Green Energy Rebate');
-      expect(rows[0].reductionType).toBe('percentage');
-      expect(rows[0].reductionValue).toBe(15.0);
-      expect(rows[0].applicationStatus).toBe('eligible'); // Default
+      expect(rows[0]!.name).toBe('Green Energy Rebate');
+      expect(rows[0]!.reductionType).toBe('percentage');
+      expect(rows[0]!.reductionValue).toBe(15.0);
+      expect(rows[0]!.applicationStatus).toBe('eligible'); // Default
     });
   });
 
@@ -2440,8 +2440,8 @@ describe('Budget Schema (EPIC-05)', () => {
 
       const rows = await db.select().from(schema.subsidyProgramCategories);
       expect(rows).toHaveLength(1);
-      expect(rows[0].subsidyProgramId).toBe('prog-a');
-      expect(rows[0].budgetCategoryId).toBe('cat-a');
+      expect(rows[0]!.subsidyProgramId).toBe('prog-a');
+      expect(rows[0]!.budgetCategoryId).toBe('cat-a');
     });
 
     it('CASCADE deletes junction rows when budget_category is deleted', async () => {

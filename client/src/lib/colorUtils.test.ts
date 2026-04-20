@@ -12,7 +12,7 @@ describe('generateRandomColor', () => {
 
     it('starts with a hash character', () => {
       const result = generateRandomColor();
-      expect(result[0]).toBe('#');
+      expect(result[0]!).toBe('#');
     });
 
     it('has exactly 7 characters total (# plus 6 hex digits)', () => {

@@ -239,7 +239,7 @@ describe('Vendor Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<{ vendors: Vendor[] }>();
-      const vendor = body.vendors[0];
+      const vendor = body.vendors[0]!;
       expect(vendor.name).toBe('Full Vendor');
       expect(vendor.trade).toBeNull();
       expect(vendor.phone).toBe('555-1234');
@@ -345,8 +345,8 @@ describe('Vendor Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<{ vendors: Vendor[] }>();
-      expect(body.vendors[0].name).toBe('Alpha Services');
-      expect(body.vendors[1].name).toBe('Zeta Corp');
+      expect(body.vendors[0]!.name).toBe('Alpha Services');
+      expect(body.vendors[1]!.name).toBe('Zeta Corp');
     });
 
     it('sorts by name descending', async () => {
@@ -362,7 +362,7 @@ describe('Vendor Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<{ vendors: Vendor[] }>();
-      expect(body.vendors[0].name).toBe('Zeta Corp');
+      expect(body.vendors[0]!.name).toBe('Zeta Corp');
     });
 
     it('sorts by trade name ascending (sortBy=trade)', async () => {
@@ -381,8 +381,8 @@ describe('Vendor Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ vendors: Vendor[] }>();
       // Electrical comes before Roofing alphabetically
-      expect(body.vendors[0].trade?.id).toBe(electrical.id);
-      expect(body.vendors[1].trade?.id).toBe(roofing.id);
+      expect(body.vendors[0]!.trade?.id).toBe(electrical.id);
+      expect(body.vendors[1]!.trade?.id).toBe(roofing.id);
     });
 
     it('returns 401 without authentication', async () => {

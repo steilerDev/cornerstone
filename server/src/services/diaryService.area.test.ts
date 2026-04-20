@@ -233,7 +233,7 @@ describe('diaryService — sourceEntityArea enrichment', () => {
       expect(result.sourceEntityArea).toBeNull();
     });
 
-    it('work_item in child area with root ancestor → ancestors[0].name equals root area name', () => {
+    it('work_item in child area with root ancestor → ancestors[0]!.name equals root area name', () => {
       const rootAreaId = insertArea({ name: 'Ground Floor', color: '#aabbcc' });
       const childAreaId = insertArea({ name: 'Kitchen', parentId: rootAreaId });
       const wiId = insertWorkItem({ areaId: childAreaId });
@@ -245,8 +245,8 @@ describe('diaryService — sourceEntityArea enrichment', () => {
       expect(result.sourceEntityArea!.id).toBe(childAreaId);
       expect(result.sourceEntityArea!.name).toBe('Kitchen');
       expect(result.sourceEntityArea!.ancestors).toHaveLength(1);
-      expect(result.sourceEntityArea!.ancestors[0].name).toBe('Ground Floor');
-      expect(result.sourceEntityArea!.ancestors[0].id).toBe(rootAreaId);
+      expect(result.sourceEntityArea!.ancestors[0]!.name).toBe('Ground Floor');
+      expect(result.sourceEntityArea!.ancestors[0]!.id).toBe(rootAreaId);
     });
   });
 

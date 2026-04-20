@@ -144,8 +144,8 @@ describe('AreaListResponse interface', () => {
     };
 
     expect(response.areas).toHaveLength(2);
-    expect(response.areas[0].name).toBe('Ground Floor');
-    expect(response.areas[1].name).toBe('First Floor');
+    expect(response.areas[0]!.name).toBe('Ground Floor');
+    expect(response.areas[1]!.name).toBe('First Floor');
   });
 
   it('handles empty area list', () => {

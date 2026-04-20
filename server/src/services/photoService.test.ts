@@ -243,7 +243,7 @@ describe('photoService', () => {
       expect(photo.mimeType).toBe('image/png');
       // PNG uses .png extension
       const rows = db.select().from(schema.photos).all();
-      expect(rows[0].filename).toBe('original.png');
+      expect(rows[0]!.filename).toBe('original.png');
     });
 
     it('uploads a WebP photo with correct extension', async () => {
@@ -260,7 +260,7 @@ describe('photoService', () => {
 
       expect(photo.mimeType).toBe('image/webp');
       const rows = db.select().from(schema.photos).all();
-      expect(rows[0].filename).toBe('original.webp');
+      expect(rows[0]!.filename).toBe('original.webp');
     });
 
     it('converts HEIC to JPEG (uses .jpg extension)', async () => {
@@ -278,7 +278,7 @@ describe('photoService', () => {
       expect(photo.mimeType).toBe('image/heic');
       // HEIC converts to JPEG on disk
       const rows = db.select().from(schema.photos).all();
-      expect(rows[0].filename).toBe('original.jpg');
+      expect(rows[0]!.filename).toBe('original.jpg');
     });
 
     it('converts HEIF to JPEG (uses .jpg extension)', async () => {
@@ -294,7 +294,7 @@ describe('photoService', () => {
       );
 
       const rows = db.select().from(schema.photos).all();
-      expect(rows[0].filename).toBe('original.jpg');
+      expect(rows[0]!.filename).toBe('original.jpg');
     });
 
     it('accepts an optional caption', async () => {
@@ -674,8 +674,8 @@ describe('photoService', () => {
 
       const result = photoService.getPhotosForEntity(db, 'test', 'entity-sort');
       expect(result).toHaveLength(2);
-      expect(result[0].id).toBe(photoIdB); // sortOrder 1 first
-      expect(result[1].id).toBe(photoIdA); // sortOrder 2 second
+      expect(result[0]!.id).toBe(photoIdB); // sortOrder 1 first
+      expect(result[1]!.id).toBe(photoIdA); // sortOrder 2 second
     });
   });
 
@@ -810,7 +810,7 @@ describe('photoService', () => {
         [idA, 'a.jpg'],
         [idB, 'b.jpg'],
         [idC, 'c.jpg'],
-      ]) {
+      ] as [string, string][]) {
         db.insert(schema.photos)
           .values({
             id,
@@ -836,9 +836,9 @@ describe('photoService', () => {
       photoService.reorderPhotos(db, 'test', 'entity-reorder', [idC, idA, idB]);
 
       const rows = photoService.getPhotosForEntity(db, 'test', 'entity-reorder');
-      expect(rows[0].id).toBe(idC); // sortOrder 0
-      expect(rows[1].id).toBe(idA); // sortOrder 1
-      expect(rows[2].id).toBe(idB); // sortOrder 2
+      expect(rows[0]!.id).toBe(idC); // sortOrder 0
+      expect(rows[1]!.id).toBe(idA); // sortOrder 1
+      expect(rows[2]!.id).toBe(idB); // sortOrder 2
     });
 
     it('does not update photos for a different entity', async () => {
@@ -868,7 +868,7 @@ describe('photoService', () => {
       // Reorder with different entityId — should be a no-op for entity-other
       photoService.reorderPhotos(db, 'test', 'entity-different', [idA]);
 
-      const row = db.select().from(schema.photos).all()[0];
+      const row = db.select().from(schema.photos).all()[0]!;
       expect(row.sortOrder).toBe(0); // unchanged
     });
 

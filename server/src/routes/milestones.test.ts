@@ -146,9 +146,9 @@ describe('Milestone Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<MilestoneListResponse>();
       expect(body.milestones).toHaveLength(3);
-      expect(body.milestones[0].title).toBe('Milestone A');
-      expect(body.milestones[1].title).toBe('Milestone B');
-      expect(body.milestones[2].title).toBe('Milestone C');
+      expect(body.milestones[0]!.title).toBe('Milestone A');
+      expect(body.milestones[1]!.title).toBe('Milestone B');
+      expect(body.milestones[2]!.title).toBe('Milestone C');
     });
 
     it('should include workItemCount in list response', async () => {
@@ -187,7 +187,7 @@ describe('Milestone Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<MilestoneListResponse>();
-      expect(body.milestones[0].workItemCount).toBe(2);
+      expect(body.milestones[0]!.workItemCount).toBe(2);
     });
 
     it('should return 401 when unauthenticated', async () => {
@@ -439,7 +439,7 @@ describe('Milestone Routes', () => {
       expect(response.statusCode).toBe(201);
       const body = response.json<MilestoneDetail>();
       expect(body.workItems).toHaveLength(1);
-      expect(body.workItems[0].id).toBe(validId);
+      expect(body.workItems[0]!.id).toBe(validId);
     });
 
     it('should create milestone without workItemIds field (backward compatible)', async () => {
@@ -949,8 +949,8 @@ describe('Milestone Routes', () => {
       });
       const detail = getResponse.json<MilestoneDetail>();
       expect(detail.workItems).toHaveLength(1);
-      expect(detail.workItems[0].id).toBe(workItem);
-      expect(detail.workItems[0].title).toBe('Pour Foundation');
+      expect(detail.workItems[0]!.id).toBe(workItem);
+      expect(detail.workItems[0]!.title).toBe('Pour Foundation');
     });
 
     it('should return 409 when work item is already linked to this milestone', async () => {
@@ -1142,7 +1142,7 @@ describe('Milestone Routes', () => {
       });
       const detail = getResponse.json<MilestoneDetail>();
       expect(detail.workItems).toHaveLength(1);
-      expect(detail.workItems[0].id).toBe(workItemB);
+      expect(detail.workItems[0]!.id).toBe(workItemB);
     });
 
     it('should return 404 when milestone does not exist', async () => {

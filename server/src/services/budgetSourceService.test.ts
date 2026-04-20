@@ -368,7 +368,7 @@ describe('Budget Source Service', () => {
       // Migration 0021 seeds the "Discretionary Funding" system row, so the list is never empty.
       const result = budgetSourceService.listBudgetSources(db);
       expect(result).toHaveLength(1);
-      expect(result[0].isDiscretionary).toBe(true);
+      expect(result[0]!.isDiscretionary).toBe(true);
     });
 
     it('returns a single source after insertion (plus seeded discretionary source)', () => {
@@ -388,11 +388,11 @@ describe('Budget Source Service', () => {
 
       const result = budgetSourceService.listBudgetSources(db);
       const nonDisc = result.filter((s) => !s.isDiscretionary);
-      expect(nonDisc[0].name).toBe('Alpha Bank Loan');
-      expect(nonDisc[1].name).toBe('Mid Credit Line');
-      expect(nonDisc[2].name).toBe('Zebra Fund');
+      expect(nonDisc[0]!.name).toBe('Alpha Bank Loan');
+      expect(nonDisc[1]!.name).toBe('Mid Credit Line');
+      expect(nonDisc[2]!.name).toBe('Zebra Fund');
       // Discretionary is always last
-      expect(result[result.length - 1].isDiscretionary).toBe(true);
+      expect(result[result.length - 1]!.isDiscretionary).toBe(true);
     });
 
     it('returns all expected fields for a source', () => {
@@ -440,28 +440,28 @@ describe('Budget Source Service', () => {
       });
 
       const result = budgetSourceService.listBudgetSources(db);
-      expect(result[0].createdBy).not.toBeNull();
-      expect(result[0].createdBy?.id).toBe(TEST_USER_ID);
-      expect(result[0].createdBy?.email).toBe(`${TEST_USER_ID}@example.com`);
+      expect(result[0]!.createdBy).not.toBeNull();
+      expect(result[0]!.createdBy?.id).toBe(TEST_USER_ID);
+      expect(result[0]!.createdBy?.email).toBe(`${TEST_USER_ID}@example.com`);
     });
 
     it('returns createdBy as null when createdBy is null', () => {
       insertRawSource({ name: 'No Creator', sourceType: 'savings', totalAmount: 10000 });
 
       const result = budgetSourceService.listBudgetSources(db);
-      expect(result[0].createdBy).toBeNull();
+      expect(result[0]!.createdBy).toBeNull();
     });
 
     it('computes usedAmount as 0 when no work items reference the source', () => {
       insertRawSource({ name: 'Computing Loan', sourceType: 'bank_loan', totalAmount: 50000 });
 
       const result = budgetSourceService.listBudgetSources(db);
-      expect(result[0].usedAmount).toBe(0);
-      expect(result[0].availableAmount).toBe(50000);
+      expect(result[0]!.usedAmount).toBe(0);
+      expect(result[0]!.availableAmount).toBe(50000);
       // No claimed or paid invoices → both amounts are 0
-      expect(result[0].claimedAmount).toBe(0);
-      expect(result[0].unclaimedAmount).toBe(0);
-      expect(result[0].actualAvailableAmount).toBe(50000);
+      expect(result[0]!.claimedAmount).toBe(0);
+      expect(result[0]!.unclaimedAmount).toBe(0);
+      expect(result[0]!.actualAvailableAmount).toBe(50000);
     });
 
     it('computes usedAmount as sum of work item actualCost values', () => {
@@ -535,7 +535,7 @@ describe('Budget Source Service', () => {
       insertRawSource({ name: 'No Rate Loan', sourceType: 'savings', totalAmount: 5000 });
 
       const result = budgetSourceService.listBudgetSources(db);
-      expect(result[0].interestRate).toBeNull();
+      expect(result[0]!.interestRate).toBeNull();
     });
   });
 
@@ -1849,7 +1849,7 @@ describe('Budget Source Service', () => {
 
       // At least 3 sources: Aardvark Fund, Zebra Loan, discretionary-system
       expect(results.length).toBeGreaterThanOrEqual(3);
-      const last = results[results.length - 1];
+      const last = results[results.length - 1]!;
       expect(last.isDiscretionary).toBe(true);
       expect(last.id).toBe('discretionary-system');
     });
@@ -1861,8 +1861,8 @@ describe('Budget Source Service', () => {
       const results = budgetSourceService.listBudgetSources(db);
       const regularSources = results.filter((s) => !s.isDiscretionary);
 
-      expect(regularSources[0].name).toBe('Alpha Loan');
-      expect(regularSources[1].name).toBe('Mango Credit');
+      expect(regularSources[0]!.name).toBe('Alpha Loan');
+      expect(regularSources[1]!.name).toBe('Mango Credit');
     });
   });
 

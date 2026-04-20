@@ -363,10 +363,10 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]!).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Hide Budget Summary card' })[0]);
+    await userEvent.click(screen.getAllByRole('button', { name: 'Hide Budget Summary card' })[0]!);
 
     await waitFor(() => {
       expect(mockUpsertPreference).toHaveBeenCalledWith(
@@ -391,10 +391,10 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]!).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Hide Budget Summary card' })[0]);
+    await userEvent.click(screen.getAllByRole('button', { name: 'Hide Budget Summary card' })[0]!);
 
     await waitFor(() => {
       expect(mockUpsertPreference).toHaveBeenCalledWith(

@@ -144,7 +144,7 @@ describe('Diary Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ items: DiaryEntrySummary[] }>();
       expect(body.items).toHaveLength(1);
-      expect(body.items[0].entryType).toBe('daily_log');
+      expect(body.items[0]!.entryType).toBe('daily_log');
     });
 
     it('filters by automatic=true', async () => {
@@ -165,7 +165,7 @@ describe('Diary Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ items: DiaryEntrySummary[] }>();
       expect(body.items).toHaveLength(1);
-      expect(body.items[0].isAutomatic).toBe(true);
+      expect(body.items[0]!.isAutomatic).toBe(true);
     });
 
     it('performs full-text search with q parameter', async () => {
@@ -182,7 +182,7 @@ describe('Diary Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ items: DiaryEntrySummary[] }>();
       expect(body.items).toHaveLength(1);
-      expect(body.items[0].title).toBe('Concrete pouring');
+      expect(body.items[0]!.title).toBe('Concrete pouring');
     });
 
     it('filters by dateFrom and dateTo range', async () => {
@@ -200,7 +200,7 @@ describe('Diary Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ items: DiaryEntrySummary[] }>();
       expect(body.items).toHaveLength(1);
-      expect(body.items[0].entryDate).toBe('2026-01-15');
+      expect(body.items[0]!.entryDate).toBe('2026-01-15');
     });
 
     it('returns correct pagination metadata for page 2', async () => {

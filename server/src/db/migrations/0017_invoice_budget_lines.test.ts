@@ -472,10 +472,10 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
         .all('inv-wib-1') as Array<Record<string, unknown>>;
 
       expect(junctionRows).toHaveLength(1);
-      expect(junctionRows[0].invoice_id).toBe('inv-wib-1');
-      expect(junctionRows[0].work_item_budget_id).toBe('wib-1');
-      expect(junctionRows[0].household_item_budget_id).toBeNull();
-      expect(junctionRows[0].itemized_amount).toBe(250.0);
+      expect(junctionRows[0]!.invoice_id).toBe('inv-wib-1');
+      expect(junctionRows[0]!.work_item_budget_id).toBe('wib-1');
+      expect(junctionRows[0]!.household_item_budget_id).toBeNull();
+      expect(junctionRows[0]!.itemized_amount).toBe(250.0);
 
       db.close();
     });
@@ -582,12 +582,12 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
         .all() as Array<Record<string, unknown>>;
 
       expect(junctionRows).toHaveLength(2);
-      expect(junctionRows[0].invoice_id).toBe('inv-multi-wi-1');
-      expect(junctionRows[0].work_item_budget_id).toBe('wib-multi-1');
-      expect(junctionRows[0].itemized_amount).toBe(100.0);
-      expect(junctionRows[1].invoice_id).toBe('inv-multi-wi-2');
-      expect(junctionRows[1].work_item_budget_id).toBe('wib-multi-2');
-      expect(junctionRows[1].itemized_amount).toBe(200.0);
+      expect(junctionRows[0]!.invoice_id).toBe('inv-multi-wi-1');
+      expect(junctionRows[0]!.work_item_budget_id).toBe('wib-multi-1');
+      expect(junctionRows[0]!.itemized_amount).toBe(100.0);
+      expect(junctionRows[1]!.invoice_id).toBe('inv-multi-wi-2');
+      expect(junctionRows[1]!.work_item_budget_id).toBe('wib-multi-2');
+      expect(junctionRows[1]!.itemized_amount).toBe(200.0);
 
       db.close();
     });
@@ -616,10 +616,10 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
         .all('inv-hib-1') as Array<Record<string, unknown>>;
 
       expect(junctionRows).toHaveLength(1);
-      expect(junctionRows[0].invoice_id).toBe('inv-hib-1');
-      expect(junctionRows[0].work_item_budget_id).toBeNull();
-      expect(junctionRows[0].household_item_budget_id).toBe('hib-1');
-      expect(junctionRows[0].itemized_amount).toBe(400.0);
+      expect(junctionRows[0]!.invoice_id).toBe('inv-hib-1');
+      expect(junctionRows[0]!.work_item_budget_id).toBeNull();
+      expect(junctionRows[0]!.household_item_budget_id).toBe('hib-1');
+      expect(junctionRows[0]!.itemized_amount).toBe(400.0);
 
       db.close();
     });
@@ -742,7 +742,7 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
         .all() as Array<{ invoice_id: string }>;
 
       expect(junctionRows).toHaveLength(1);
-      expect(junctionRows[0].invoice_id).toBe('inv-mix-linked');
+      expect(junctionRows[0]!.invoice_id).toBe('inv-mix-linked');
 
       db.close();
     });
@@ -782,8 +782,8 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
         .all('wib-dedup-1') as Array<Record<string, unknown>>;
 
       expect(junctionRows).toHaveLength(1);
-      expect(junctionRows[0].invoice_id).toBe('inv-dedup-new');
-      expect(junctionRows[0].itemized_amount).toBe(200.0);
+      expect(junctionRows[0]!.invoice_id).toBe('inv-dedup-new');
+      expect(junctionRows[0]!.itemized_amount).toBe(200.0);
 
       db.close();
     });
@@ -818,8 +818,8 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
         .all('hib-dedup-1') as Array<Record<string, unknown>>;
 
       expect(junctionRows).toHaveLength(1);
-      expect(junctionRows[0].invoice_id).toBe('inv-dedup-hi-new');
-      expect(junctionRows[0].itemized_amount).toBe(400.0);
+      expect(junctionRows[0]!.invoice_id).toBe('inv-dedup-hi-new');
+      expect(junctionRows[0]!.itemized_amount).toBe(400.0);
 
       db.close();
     });

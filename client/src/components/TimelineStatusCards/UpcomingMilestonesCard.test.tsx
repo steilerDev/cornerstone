@@ -145,9 +145,9 @@ describe('UpcomingMilestonesCard', () => {
     renderWithRouter(<UpcomingMilestonesCard milestones={milestones} />);
 
     const rows = screen.getAllByTestId('milestone-row');
-    expect(rows[0]).toHaveTextContent('Earlier Milestone');
-    expect(rows[1]).toHaveTextContent('Middle Milestone');
-    expect(rows[2]).toHaveTextContent('Later Milestone');
+    expect(rows[0]!).toHaveTextContent('Earlier Milestone');
+    expect(rows[1]!).toHaveTextContent('Middle Milestone');
+    expect(rows[2]!).toHaveTextContent('Later Milestone');
   });
 
   // ── Test 6: Displays milestone title text within the row ──────────────────

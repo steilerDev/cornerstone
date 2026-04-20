@@ -27,7 +27,7 @@ describe('usePrintExpansion', () => {
     });
 
     expect(setExpandedKeys).toHaveBeenCalledTimes(1);
-    const calledWith = setExpandedKeys.mock.calls[0][0] as Set<string>;
+    const calledWith = setExpandedKeys.mock.calls[0]![0] as Set<string>;
     expect(calledWith).toBeInstanceOf(Set);
     expect([...calledWith].sort()).toEqual(['a', 'b', 'c']);
   });
@@ -47,8 +47,8 @@ describe('usePrintExpansion', () => {
     });
 
     expect(setExpandedKeys).toHaveBeenCalledTimes(2);
-    const firstCall = setExpandedKeys.mock.calls[0][0] as Set<string>;
-    const secondCall = setExpandedKeys.mock.calls[1][0] as Set<string>;
+    const firstCall = setExpandedKeys.mock.calls[0]![0] as Set<string>;
+    const secondCall = setExpandedKeys.mock.calls[1]![0] as Set<string>;
 
     // First call: expanded to all keys
     expect([...firstCall].sort()).toEqual(['a', 'b', 'c']);
@@ -120,7 +120,7 @@ describe('usePrintExpansion', () => {
     });
 
     expect(setExpandedKeys).toHaveBeenCalledTimes(1);
-    const calledWith = setExpandedKeys.mock.calls[0][0] as Set<string>;
+    const calledWith = setExpandedKeys.mock.calls[0]![0] as Set<string>;
     expect(calledWith).toBeInstanceOf(Set);
     expect(calledWith.size).toBe(0);
   });
@@ -140,7 +140,7 @@ describe('usePrintExpansion', () => {
     });
 
     expect(setExpandedKeys).toHaveBeenCalledTimes(2);
-    const restoredSnapshot = setExpandedKeys.mock.calls[1][0] as Set<string>;
+    const restoredSnapshot = setExpandedKeys.mock.calls[1]![0] as Set<string>;
     expect([...restoredSnapshot]).toEqual(['a']);
   });
 
@@ -159,7 +159,7 @@ describe('usePrintExpansion', () => {
     });
 
     expect(setExpandedKeys).toHaveBeenCalledTimes(2);
-    const cycle1Snapshot = setExpandedKeys.mock.calls[1][0] as Set<string>;
+    const cycle1Snapshot = setExpandedKeys.mock.calls[1]![0] as Set<string>;
     expect([...cycle1Snapshot].sort()).toEqual(['x', 'y']);
 
     setExpandedKeys.mockClear();
@@ -173,7 +173,7 @@ describe('usePrintExpansion', () => {
     });
 
     expect(setExpandedKeys).toHaveBeenCalledTimes(2);
-    const cycle2Snapshot = setExpandedKeys.mock.calls[1][0] as Set<string>;
+    const cycle2Snapshot = setExpandedKeys.mock.calls[1]![0] as Set<string>;
     expect([...cycle2Snapshot].sort()).toEqual(['x', 'y']);
   });
 });

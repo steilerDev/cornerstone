@@ -189,7 +189,7 @@ describe('DateFilter', () => {
       const dayBtn25 = findDayButton(container2, 25);
       fireEvent.click(dayBtn25!);
 
-      const calledValue = mockOnChange.mock.calls[0][0];
+      const calledValue = mockOnChange.mock.calls[0]![0];
       expect(calledValue).toMatch(/^from:/);
     });
 
@@ -207,7 +207,7 @@ describe('DateFilter', () => {
       const dayBtn25 = findDayButton(container2, 25);
       fireEvent.click(dayBtn25!);
 
-      const calledValue = mockOnChange.mock.calls[0][0];
+      const calledValue = mockOnChange.mock.calls[0]![0];
       expect(calledValue).toMatch(/to:/);
     });
 
@@ -225,7 +225,7 @@ describe('DateFilter', () => {
       const dayBtn25 = findDayButton(container2, 25);
       fireEvent.click(dayBtn25!);
 
-      const calledValue = mockOnChange.mock.calls[0][0];
+      const calledValue = mockOnChange.mock.calls[0]![0];
       expect(calledValue).toMatch(/from:.+,to:.+/);
     });
   });

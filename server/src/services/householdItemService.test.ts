@@ -408,8 +408,8 @@ describe('Household Item Service', () => {
 
       // Then: Dependency is included
       expect(result.dependencies).toHaveLength(1);
-      expect(result.dependencies[0].predecessorType).toBe('work_item');
-      expect(result.dependencies[0].predecessorId).toBe(workItemId);
+      expect(result.dependencies[0]!.predecessorType).toBe('work_item');
+      expect(result.dependencies[0]!.predecessorId).toBe(workItemId);
     });
   });
 
@@ -800,7 +800,7 @@ describe('Household Item Service', () => {
 
       // Then: Only appliances returned
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].name).toBe('Dishwasher');
+      expect(result.items[0]!.name).toBe('Dishwasher');
     });
 
     it('filters by status (exact match)', () => {
@@ -824,7 +824,7 @@ describe('Household Item Service', () => {
 
       // Then: Only purchased items
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].name).toBe('Item B');
+      expect(result.items[0]!.name).toBe('Item B');
     });
 
     it('filters by vendorId (exact match)', () => {
@@ -847,7 +847,7 @@ describe('Household Item Service', () => {
 
       // Then: Only vendor1's items
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].name).toBe('Billy Shelf');
+      expect(result.items[0]!.name).toBe('Billy Shelf');
     });
 
     it('filters by areaId (exact match)', () => {
@@ -884,8 +884,8 @@ describe('Household Item Service', () => {
 
       // Then: Only items in that area are returned
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].name).toBe('King Bed');
-      expect(result.items[0].area!.id).toBe(areaId);
+      expect(result.items[0]!.name).toBe('King Bed');
+      expect(result.items[0]!.area!.id).toBe(areaId);
     });
 
     it('areaId filter on a leaf area (no descendants) returns only exact-match items', () => {
@@ -907,8 +907,8 @@ describe('Household Item Service', () => {
 
       // Then: Only the item in the leaf area is returned
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].name).toBe('Washing Machine');
-      expect(result.items[0].area!.id).toBe(leafAreaId);
+      expect(result.items[0]!.name).toBe('Washing Machine');
+      expect(result.items[0]!.area!.id).toBe(leafAreaId);
     });
 
     it('areaId filter on a parent area includes items from direct child areas', () => {
@@ -966,7 +966,7 @@ describe('Household Item Service', () => {
       // When: Filtering by child — should return 1 (leaf only)
       const childResult = householdItemService.listHouseholdItems(db, { areaId: childId });
       expect(childResult.items).toHaveLength(1);
-      expect(childResult.items[0].name).toBe('Desk Chair');
+      expect(childResult.items[0]!.name).toBe('Desk Chair');
     });
 
     it('search q matches name (case-insensitive)', () => {
@@ -981,7 +981,7 @@ describe('Household Item Service', () => {
 
       // Then: Only matching items
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].name).toBe('Living Room Sofa');
+      expect(result.items[0]!.name).toBe('Living Room Sofa');
     });
 
     it('search q matches description (case-insensitive)', () => {
@@ -1001,7 +1001,7 @@ describe('Household Item Service', () => {
 
       // Then: Only matching items
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].name).toBe('Item A');
+      expect(result.items[0]!.name).toBe('Item A');
     });
 
     it('search q matches url (case-insensitive)', () => {
@@ -1021,7 +1021,7 @@ describe('Household Item Service', () => {
 
       // Then: Only matching items
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].name).toBe('Shelf');
+      expect(result.items[0]!.name).toBe('Shelf');
     });
 
     it('sorts by name ascending', () => {
@@ -1103,8 +1103,8 @@ describe('Household Item Service', () => {
 
       // Then: Aggregates are correct
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].budgetLineCount).toBe(2);
-      expect(result.items[0].totalPlannedAmount).toBe(225.5);
+      expect(result.items[0]!.budgetLineCount).toBe(2);
+      expect(result.items[0]!.totalPlannedAmount).toBe(225.5);
     });
 
     it('combined category + status filter works correctly', () => {
@@ -1134,7 +1134,7 @@ describe('Household Item Service', () => {
 
       // Then: Only the matching item is returned
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].name).toBe('Match');
+      expect(result.items[0]!.name).toBe('Match');
     });
   });
 
@@ -1154,7 +1154,7 @@ describe('Household Item Service', () => {
       const result = householdItemService.listHouseholdItems(db, {});
 
       // Then: area in summary is null when unset
-      expect(result.items[0].area).toBeNull();
+      expect(result.items[0]!.area).toBeNull();
     });
 
     it('returns summary with earliestDeliveryDate and latestDeliveryDate fields', () => {
@@ -1170,8 +1170,8 @@ describe('Household Item Service', () => {
       // Then: Summary includes delivery date fields
       expect(result.items[0]).toHaveProperty('earliestDeliveryDate');
       expect(result.items[0]).toHaveProperty('latestDeliveryDate');
-      expect(result.items[0].earliestDeliveryDate).toBeNull();
-      expect(result.items[0].latestDeliveryDate).toBeNull();
+      expect(result.items[0]!.earliestDeliveryDate).toBeNull();
+      expect(result.items[0]!.latestDeliveryDate).toBeNull();
     });
   });
 });

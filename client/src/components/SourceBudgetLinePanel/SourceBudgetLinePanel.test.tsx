@@ -1276,7 +1276,7 @@ describe('SourceBudgetLinePanel', () => {
       renderPanel({ data: makeResponse([line1, line2], []) });
 
       // identity-obj-proxy returns the key name as the class value, so
-      // styles.parentItemBlock resolves to the literal string "parentItemBlock".
+      // styles.parentItemBlock! resolves to the literal string "parentItemBlock".
       expect(document.querySelectorAll('[class*="parentItemBlock"]').length).toBe(2);
     });
 
@@ -1380,7 +1380,7 @@ describe('SourceBudgetLinePanel', () => {
       renderPanel({ data: makeResponse([line], []) });
 
       // identity-obj-proxy resolves CSS module keys to their literal key names,
-      // so styles.areaGroup renders as the class string "areaGroup"
+      // so styles.areaGroup! renders as the class string "areaGroup"
       expect(document.querySelector('[class*="areaGroup"]')).not.toBeNull();
     });
   });

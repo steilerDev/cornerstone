@@ -248,8 +248,8 @@ describe('subsidyPaybackService', () => {
       // min: 1000 * 0.80 * 10% = 80, max: 1000 * 1.20 * 10% = 120
       expect(result.minTotalPayback).toBeCloseTo(80);
       expect(result.maxTotalPayback).toBeCloseTo(120);
-      expect(result.subsidies[0].minPayback).toBeCloseTo(80);
-      expect(result.subsidies[0].maxPayback).toBeCloseTo(120);
+      expect(result.subsidies[0]!.minPayback).toBeCloseTo(80);
+      expect(result.subsidies[0]!.maxPayback).toBeCloseTo(120);
     });
 
     it('applies professional_estimate margin (±10%) to produce min/max range', () => {
@@ -331,8 +331,8 @@ describe('subsidyPaybackService', () => {
       // Actual cost 800, no margin: min = max = 800 * 10% = 80
       expect(result.minTotalPayback).toBeCloseTo(80);
       expect(result.maxTotalPayback).toBeCloseTo(80);
-      expect(result.subsidies[0].minPayback).toBeCloseTo(80);
-      expect(result.subsidies[0].maxPayback).toBeCloseTo(80);
+      expect(result.subsidies[0]!.minPayback).toBeCloseTo(80);
+      expect(result.subsidies[0]!.maxPayback).toBeCloseTo(80);
     });
 
     it('uses actual invoiced cost across multiple budget lines as actual cost (min === max)', () => {
@@ -483,8 +483,8 @@ describe('subsidyPaybackService', () => {
 
       expect(result.minTotalPayback).toBe(0);
       expect(result.maxTotalPayback).toBe(0);
-      expect(result.subsidies[0].minPayback).toBe(0);
-      expect(result.subsidies[0].maxPayback).toBe(0);
+      expect(result.subsidies[0]!.minPayback).toBe(0);
+      expect(result.subsidies[0]!.maxPayback).toBe(0);
     });
 
     it('returns 0 min/max when work item has no budget lines', () => {
@@ -496,8 +496,8 @@ describe('subsidyPaybackService', () => {
 
       expect(result.minTotalPayback).toBe(0);
       expect(result.maxTotalPayback).toBe(0);
-      expect(result.subsidies[0].minPayback).toBe(0);
-      expect(result.subsidies[0].maxPayback).toBe(0);
+      expect(result.subsidies[0]!.minPayback).toBe(0);
+      expect(result.subsidies[0]!.maxPayback).toBe(0);
     });
   });
 
@@ -513,8 +513,8 @@ describe('subsidyPaybackService', () => {
 
       expect(result.minTotalPayback).toBe(5000);
       expect(result.maxTotalPayback).toBe(5000);
-      expect(result.subsidies[0].minPayback).toBe(5000);
-      expect(result.subsidies[0].maxPayback).toBe(5000);
+      expect(result.subsidies[0]!.minPayback).toBe(5000);
+      expect(result.subsidies[0]!.maxPayback).toBe(5000);
     });
 
     it('returns fixed amount even when work item has no budget lines', () => {
@@ -635,7 +635,7 @@ describe('subsidyPaybackService', () => {
 
       const result = getWorkItemSubsidyPayback(db, workItemId);
 
-      const entry = result.subsidies[0];
+      const entry = result.subsidies[0]!;
       expect(entry.subsidyProgramId).toBe(subsidyId);
       expect(entry.name).toBe('Solar Rebate');
       expect(entry.reductionType).toBe('percentage');

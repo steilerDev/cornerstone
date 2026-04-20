@@ -74,8 +74,8 @@ describe('tradesApi', () => {
       const result = await fetchTrades();
 
       expect(result.trades).toHaveLength(1);
-      expect(result.trades[0].id).toBe('trade-1');
-      expect(result.trades[0].name).toBe('Plumbing');
+      expect(result.trades[0]!.id).toBe('trade-1');
+      expect(result.trades[0]!.name).toBe('Plumbing');
     });
 
     it('returns empty trades array when no trades exist', async () => {

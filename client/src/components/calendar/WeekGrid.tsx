@@ -91,8 +91,8 @@ export function WeekGrid({
 
   // Lane allocation for the entire week
   const laneMap = useMemo(() => {
-    const weekStart = days[0].dateStr;
-    const weekEnd = days[6].dateStr;
+    const weekStart = days[0]!.dateStr; // getWeekDates always returns 7 elements
+    const weekEnd = days[6]!.dateStr; // getWeekDates always returns 7 elements
     return allocateLanes(weekStart, weekEnd, workItems);
   }, [days, workItems]);
 

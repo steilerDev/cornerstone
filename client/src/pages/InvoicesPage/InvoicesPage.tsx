@@ -257,7 +257,7 @@ export function InvoicesPage() {
     for (const status of statuses) {
       variants[status] = {
         label: t(`invoices.statusLabels.${status}`),
-        className: styles[status],
+        className: styles[status]!,
       };
     }
     return variants;
@@ -268,7 +268,7 @@ export function InvoicesPage() {
     (): ColumnDef<Invoice>[] => [
       {
         key: 'invoiceNumber',
-        label: t('invoices.tableHeaders.invoiceNumber'),
+        label: t('invoices.tableHeaders.invoiceNumber')!,
         sortable: false,
         defaultVisible: true,
         render: (inv) =>
@@ -287,7 +287,7 @@ export function InvoicesPage() {
       },
       {
         key: 'vendor',
-        label: t('invoices.tableHeaders.vendor'),
+        label: t('invoices.tableHeaders.vendor')!,
         sortable: true,
         sortKey: 'vendor_name',
         defaultVisible: true,
@@ -303,7 +303,7 @@ export function InvoicesPage() {
       },
       {
         key: 'date',
-        label: t('invoices.tableHeaders.date'),
+        label: t('invoices.tableHeaders.date')!,
         sortable: true,
         sortKey: 'date',
         defaultVisible: true,
@@ -314,7 +314,7 @@ export function InvoicesPage() {
       },
       {
         key: 'amount',
-        label: t('invoices.tableHeaders.amount'),
+        label: t('invoices.tableHeaders.amount')!,
         sortable: true,
         sortKey: 'amount',
         defaultVisible: true,
@@ -324,18 +324,18 @@ export function InvoicesPage() {
         numberMin: 0,
         numberStep: 0.01,
         render: (inv) => formatCurrency(inv.amount),
-        className: styles.amountCell,
+        className: styles.amountCell!!,
       },
       {
         key: 'allocated',
-        label: t('invoices.tableHeaders.allocated'),
+        label: t('invoices.tableHeaders.allocated')!,
         sortable: false,
         defaultVisible: true,
         render: (inv) => getAttributionLabel(inv, t),
       },
       {
         key: 'dueDate',
-        label: t('invoices.tableHeaders.dueDate'),
+        label: t('invoices.tableHeaders.dueDate')!,
         sortable: true,
         sortKey: 'due_date',
         defaultVisible: true,
@@ -346,7 +346,7 @@ export function InvoicesPage() {
       },
       {
         key: 'status',
-        label: t('invoices.tableHeaders.status'),
+        label: t('invoices.tableHeaders.status')!,
         sortable: true,
         sortKey: 'status',
         defaultVisible: true,
@@ -369,7 +369,7 @@ export function InvoicesPage() {
       },
       {
         key: 'notes',
-        label: t('invoices.tableHeaders.notes'),
+        label: t('invoices.tableHeaders.notes')!,
         sortable: false,
         defaultVisible: false,
         render: (inv) => {
@@ -379,7 +379,7 @@ export function InvoicesPage() {
       },
       {
         key: 'remainingAmount',
-        label: t('invoices.tableHeaders.remainingAmount'),
+        label: t('invoices.tableHeaders.remainingAmount')!,
         sortable: false,
         defaultVisible: false,
         filterable: true,
@@ -482,10 +482,10 @@ export function InvoicesPage() {
         onStateChange={handleStateChange}
         filterMeta={filterMeta}
         emptyState={{
-          message: t('invoices.noInvoicesTitle'),
-          description: t('invoices.noInvoicesDescription'),
+          message: t('invoices.noInvoicesTitle')!,
+          description: t('invoices.noInvoicesDescription')!,
           action: {
-            label: t('invoices.addFirstInvoice'),
+            label: t('invoices.addFirstInvoice')!,
             onClick: openCreateModal,
           },
         }}

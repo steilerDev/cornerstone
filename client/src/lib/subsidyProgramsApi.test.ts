@@ -100,8 +100,8 @@ describe('subsidyProgramsApi', () => {
       const result = await fetchSubsidyPrograms();
 
       expect(result.subsidyPrograms).toHaveLength(2);
-      expect(result.subsidyPrograms[0].name).toBe('Energy Rebate');
-      expect(result.subsidyPrograms[1].name).toBe('Fixed Grant');
+      expect(result.subsidyPrograms[0]!.name).toBe('Energy Rebate');
+      expect(result.subsidyPrograms[1]!.name).toBe('Fixed Grant');
     });
 
     it('throws ApiClientError when server returns error', async () => {

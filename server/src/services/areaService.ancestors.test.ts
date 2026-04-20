@@ -149,10 +149,10 @@ describe('areaService — loadAreaMap and resolveAreaAncestors', () => {
       const ancestors = resolveAreaAncestors('pantry-1', map);
 
       expect(ancestors).toHaveLength(4);
-      expect(ancestors[0].name).toBe('Property');
-      expect(ancestors[1].name).toBe('House');
-      expect(ancestors[2].name).toBe('Floor 1');
-      expect(ancestors[3].name).toBe('Kitchen Area');
+      expect(ancestors[0]!.name).toBe('Property');
+      expect(ancestors[1]!.name).toBe('House');
+      expect(ancestors[2]!.name).toBe('Floor 1');
+      expect(ancestors[3]!.name).toBe('Kitchen Area');
 
       // Pantry itself must NOT appear in the ancestors array
       const pantryInAncestors = ancestors.some((a) => a.id === 'pantry-1');

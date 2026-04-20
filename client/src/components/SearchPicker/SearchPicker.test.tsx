@@ -117,8 +117,8 @@ describe('SearchPicker', () => {
         // searchFn should have been called (at most once per debounced invocation)
         expect(mockSearchFn).toHaveBeenCalled();
         // The final call should include the full typed string
-        const lastCall = mockSearchFn.mock.calls[mockSearchFn.mock.calls.length - 1];
-        expect(lastCall[0]).toBe('Alp');
+        const lastCall = mockSearchFn.mock.calls[mockSearchFn.mock.calls.length - 1]!;
+        expect(lastCall[0]!).toBe('Alp');
       });
     });
 

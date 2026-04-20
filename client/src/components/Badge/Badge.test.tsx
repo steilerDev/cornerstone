@@ -9,8 +9,8 @@ import badgeStyles from './Badge.module.css';
 // identity-obj-proxy returns the CSS class name as its own key (e.g. badgeStyles.badge === 'badge')
 
 const SIMPLE_VARIANTS = {
-  foo: { label: 'Foo Label', className: badgeStyles.not_started },
-  bar: { label: 'Bar Label', className: badgeStyles.in_progress },
+  foo: { label: 'Foo Label', className: badgeStyles.not_started! },
+  bar: { label: 'Bar Label', className: badgeStyles.in_progress! },
 };
 
 describe('Badge', () => {

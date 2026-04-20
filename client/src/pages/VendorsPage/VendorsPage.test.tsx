@@ -503,7 +503,7 @@ describe('VendorsPage', () => {
       });
 
       // Click the first menu button (table row)
-      fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]);
+      fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]!);
 
       expect(screen.getAllByTestId('vendor-delete-vendor-1').length).toBeGreaterThan(0);
     });
@@ -521,7 +521,7 @@ describe('VendorsPage', () => {
       // The vendor name rendered by the DataTable name column is a <Link to="/settings/vendors/:id">
       const vendorLinks = screen.getAllByRole('link', { name: 'Acme Construction' });
       expect(vendorLinks.length).toBeGreaterThan(0);
-      expect(vendorLinks[0]).toHaveAttribute('href', '/settings/vendors/vendor-1');
+      expect(vendorLinks[0]!).toHaveAttribute('href', '/settings/vendors/vendor-1');
     });
 
     it('action menu "View" button navigates to /settings/vendors/:id', async () => {
@@ -534,7 +534,7 @@ describe('VendorsPage', () => {
         expect(screen.getAllByTestId('vendor-menu-button-vendor-1').length).toBeGreaterThan(0);
       });
 
-      fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]);
+      fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]!);
 
       // vendor-view-vendor-1 button calls navigate('/settings/vendors/vendor-1')
       expect(screen.getAllByTestId('vendor-view-vendor-1').length).toBeGreaterThan(0);
@@ -550,8 +550,8 @@ describe('VendorsPage', () => {
         expect(screen.getAllByTestId('vendor-menu-button-vendor-1').length).toBeGreaterThan(0);
       });
 
-      fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]);
-      fireEvent.click(screen.getAllByTestId('vendor-delete-vendor-1')[0]);
+      fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]!);
+      fireEvent.click(screen.getAllByTestId('vendor-delete-vendor-1')[0]!);
 
       // Delete modal should show vendor name
       await waitFor(() => {
@@ -574,8 +574,8 @@ describe('VendorsPage', () => {
       });
 
       // Open menu -> click delete
-      fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]);
-      fireEvent.click(screen.getAllByTestId('vendor-delete-vendor-1')[0]);
+      fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]!);
+      fireEvent.click(screen.getAllByTestId('vendor-delete-vendor-1')[0]!);
 
       // Find and click the confirm delete button
       await waitFor(() => {
@@ -599,8 +599,8 @@ describe('VendorsPage', () => {
         expect(screen.getAllByTestId('vendor-menu-button-vendor-1').length).toBeGreaterThan(0);
       });
 
-      fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]);
-      fireEvent.click(screen.getAllByTestId('vendor-delete-vendor-1')[0]);
+      fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]!);
+      fireEvent.click(screen.getAllByTestId('vendor-delete-vendor-1')[0]!);
 
       // The delete modal should be visible now — verify by vendor name in the modal
       await waitFor(() => {
