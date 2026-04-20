@@ -120,3 +120,15 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - "I understand" checkbox quoted reference → use German quotation marks „Ich verstehe" (not "Ich verstehe")
 - `confirmDisabledHint` quotes the checkbox label using „…" German quotation style within the sentence
 - `successToast_one` uses "wurde … verschoben" (sg); `successToast_other` uses "wurden … verschoben" (pl) — standard German passive past
+
+## Bar Chart Summary Labels — sources.barChart (2026-04-19)
+
+- `projectedRange` / `summaryProjectedLabel` → "Projiziert" (same as existing `projected`)
+- `projectedUncertainty` → "Prognoseunsicherheit" (range/uncertainty band label)
+- `headroom` → "Spielraum" (available unused budget headroom — natural German business term)
+- `totalBadge` → "Gesamt: {{amount}}" (preserving {{amount}} placeholder)
+- `totalBadgeAriaLabel` → "Gesamtbetrag: {{amount}}"
+- `summaryPaidLabel` → "Bezahlt"
+- `summaryClaimedLabel` → "Eingereicht" (bar chart summary; consistent with `barChart.claimed` = "Eingereicht")
+- `srOnly` screen reader text: "Eingereicht {{claimed}}, Bezahlt {{paid}}, Projiziert {{projectedMin}} bis {{projectedMax}}, von Gesamt {{total}}"
+- Obsolete keys removed in this update: `allocated`, `total`, `available`, `planned`
