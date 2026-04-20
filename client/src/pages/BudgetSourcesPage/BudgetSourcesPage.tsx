@@ -202,13 +202,14 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
           </span>
           <div className={styles.summaryValues}>
             <span className={styles.summaryPrimary}>
-              {formatCurrency(source.projectedMinAmount)} \u2013{' '}
+              {formatCurrency(source.projectedMinAmount)} {'\u2013'}{' '}
               {formatCurrency(source.projectedMaxAmount)}
             </span>
             <span
               className={`${styles.summarySecondary} ${projectedSecondaryNegative ? styles.summarySecondaryNegative : ''}`}
             >
-              {formatCurrency(source.totalAmount - source.projectedMinAmount)} \u2013{' '}
+              {t('sources.summary.remainingLabel')}{' '}
+              {formatCurrency(source.totalAmount - source.projectedMinAmount)} {'\u2013'}{' '}
               {formatCurrency(source.totalAmount - source.projectedMaxAmount)}
             </span>
           </div>
@@ -231,6 +232,7 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
                 paidSecondaryNegative ? ` ${styles.summarySecondaryNegative}` : ''
               }`}
             >
+              {t('sources.summary.remainingLabel')}{' '}
               {formatCurrency(source.totalAmount - source.paidAmount)}
             </span>
           </div>
@@ -253,6 +255,7 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
                 claimedSecondaryNegative ? ` ${styles.summarySecondaryNegative}` : ''
               }`}
             >
+              {t('sources.summary.remainingLabel')}{' '}
               {formatCurrency(source.totalAmount - source.claimedAmount)}
             </span>
           </div>
