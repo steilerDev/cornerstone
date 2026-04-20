@@ -200,7 +200,10 @@ export class VendorsPage {
    * Get all card locators (mobile view).
    */
   async getCards(): Promise<Locator[]> {
-    return this.cardsContainer.locator('[class*="card"]').all();
+    return this.cardsContainer
+      .locator('[class*="card"]')
+      .filter({ has: this.page.locator('[class*="vendorLink"]') })
+      .all();
   }
 
   /**
@@ -308,8 +311,11 @@ export class VendorsPage {
       // DataTableCard renders the name column via the same render() function as the table —
       // the vendor name link uses class vendorLink (Link with styles.vendorLink). There is
       // no separate cardName class. Match by vendorLink text inside each card.
-      await this.cardsContainer.locator('[class*="card"]').first().waitFor({ state: 'visible' });
-      const cards = await this.cardsContainer.locator('[class*="card"]').all();
+      const cardLocator = this.cardsContainer
+        .locator('[class*="card"]')
+        .filter({ has: this.page.locator('[class*="vendorLink"]') });
+      await cardLocator.first().waitFor({ state: 'visible' });
+      const cards = await cardLocator.all();
       for (const card of cards) {
         const nameEl = card.locator('[class*="vendorLink"]');
         const nameCount = await nameEl.count();
@@ -386,7 +392,11 @@ export class VendorsPage {
   async waitForVendorsLoaded(): Promise<void> {
     await Promise.race([
       this.tableBody.locator('tr').first().waitFor({ state: 'visible' }),
-      this.cardsContainer.locator('[class*="card"]').first().waitFor({ state: 'visible' }),
+      this.cardsContainer
+        .locator('[class*="card"]')
+        .filter({ has: this.page.locator('[class*="vendorLink"]') })
+        .first()
+        .waitFor({ state: 'visible' }),
       this.emptyState.waitFor({ state: 'visible' }),
     ]);
   }

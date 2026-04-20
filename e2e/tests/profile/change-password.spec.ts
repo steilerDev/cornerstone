@@ -6,11 +6,12 @@ import { test, expect } from '../../fixtures/auth.js';
 import { ProfilePage } from '../../pages/ProfilePage.js';
 import { LoginPage } from '../../pages/LoginPage.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
-import { TEST_ADMIN, ROUTES } from '../../fixtures/testData.js';
+import { ROUTES } from '../../fixtures/testData.js';
+import { createLocalUserViaApi, deleteUserViaApi } from '../../fixtures/apiHelpers.js';
 
 test.describe('Change Password', { tag: '@responsive' }, () => {
-  // Serialize tests within this describe block — they all modify the shared admin
-  // user's password and must not run in parallel with each other.
+  // Serialize tests within this describe block to keep serial state expectations stable
+  // (e.g., "Local user sees password change form" runs before the change test).
   test.describe.configure({ mode: 'serial' });
 
   test('Local user sees password change form', async ({ page }) => {
@@ -31,29 +32,41 @@ test.describe('Change Password', { tag: '@responsive' }, () => {
     expect(isOidcUser).toBe(false);
   });
 
-  test('Local user changes password successfully', async ({ browser }) => {
+  test('Local user changes password successfully', async ({ page, browser, testPrefix }) => {
+    // Create a dedicated user so that the password-change flow does NOT mutate the
+    // shared TEST_ADMIN credentials, eliminating 401 races across parallel workers.
+    const dedicatedEmail = `pwchange-${testPrefix}@e2e-test.local`;
+    const originalPassword = 'pw-orig-123!';
+    const newPassword = 'pw-new-secure-456!';
+
+    // Use the main page fixture (has admin session) to create the dedicated user.
+    const dedicatedUser = await createLocalUserViaApi(page, {
+      email: dedicatedEmail,
+      displayName: 'E2E PwChange User',
+      password: originalPassword,
+    });
+
     // Use an isolated browser context so the logout/re-login cycle does NOT
-    // destroy the shared storageState session used by parallel tests.
+    // touch the shared storageState session used by parallel tests.
     const context = await browser.newContext({
       storageState: { cookies: [], origins: [] },
     });
-    const page = await context.newPage();
+    const scopedPage = await context.newPage();
 
     try {
-      // Log in with a fresh session (separate from the shared one)
-      const loginPage = new LoginPage(page);
+      // Log in as the dedicated user
+      const loginPage = new LoginPage(scopedPage);
       await loginPage.goto();
-      await loginPage.login(TEST_ADMIN.email, TEST_ADMIN.password);
-      await expect(page).toHaveURL(ROUTES.home);
+      await loginPage.login(dedicatedEmail, originalPassword);
+      await expect(scopedPage).toHaveURL(ROUTES.home);
 
-      const profilePage = new ProfilePage(page);
-      const newPassword = 'new-secure-password-123!';
+      const profilePage = new ProfilePage(scopedPage);
 
       // Given: User is on profile page
       await profilePage.goto();
 
       // When: User changes password
-      await profilePage.changePassword(TEST_ADMIN.password, newPassword, newPassword);
+      await profilePage.changePassword(originalPassword, newPassword, newPassword);
 
       // Then: Success banner should appear
       const successBanner = await profilePage.getPasswordSuccessBanner();
@@ -61,22 +74,19 @@ test.describe('Change Password', { tag: '@responsive' }, () => {
       expect(successBanner?.toLowerCase()).toContain('success');
 
       // Verify new password works by logging out and back in
-      const appShell = new AppShellPage(page);
-      const viewport = page.viewportSize();
+      const appShell = new AppShellPage(scopedPage);
+      const viewport = scopedPage.viewportSize();
       if (viewport && viewport.width < 1024) {
         await appShell.openSidebar();
       }
       await appShell.logout();
 
-      await loginPage.login(TEST_ADMIN.email, newPassword);
-      await expect(page).toHaveURL(ROUTES.home);
-
-      // Restore original password for subsequent tests
-      await profilePage.goto();
-      await profilePage.changePassword(newPassword, TEST_ADMIN.password, TEST_ADMIN.password);
-      await expect(profilePage.passwordSuccessBanner).toBeVisible();
+      await loginPage.login(dedicatedEmail, newPassword);
+      await expect(scopedPage).toHaveURL(ROUTES.home);
     } finally {
       await context.close();
+      // Delete the dedicated user using the main admin page fixture.
+      await deleteUserViaApi(page, dedicatedUser.id);
     }
   });
 
@@ -102,7 +112,7 @@ test.describe('Change Password', { tag: '@responsive' }, () => {
     await profilePage.goto();
 
     // When: User enters mismatched passwords
-    await profilePage.currentPasswordInput.fill(TEST_ADMIN.password);
+    await profilePage.currentPasswordInput.fill('e2e-secure-password-123!');
     await profilePage.newPasswordInput.fill('new-password-123!');
     await profilePage.confirmPasswordInput.fill('different-password-123!');
     await profilePage.changePasswordButton.click();
