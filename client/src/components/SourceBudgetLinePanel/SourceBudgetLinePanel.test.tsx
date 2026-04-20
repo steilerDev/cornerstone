@@ -1101,7 +1101,11 @@ describe('SourceBudgetLinePanel', () => {
       renderPanel({
         data: makeResponse(
           [
-            makeLine({ id: 'line-1', parentId: 'parent-kitchen', parentName: 'Kitchen Renovation' }),
+            makeLine({
+              id: 'line-1',
+              parentId: 'parent-kitchen',
+              parentName: 'Kitchen Renovation',
+            }),
             makeLine({
               id: 'line-2',
               parentId: 'parent-kitchen',
@@ -1543,8 +1547,7 @@ describe('SourceBudgetLinePanel', () => {
         const links = screen.getAllByRole('link');
         const plainNameLink = links.find(
           (l) =>
-            l.textContent?.trim() === 'Kitchen Renovation' &&
-            l.getAttribute('aria-label') === null,
+            l.textContent?.trim() === 'Kitchen Renovation' && l.getAttribute('aria-label') === null,
         );
         expect(plainNameLink).toBeUndefined();
       });

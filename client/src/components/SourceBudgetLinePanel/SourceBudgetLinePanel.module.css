@@ -77,7 +77,6 @@
   margin-left: auto;
 }
 
-
 .areaColorDot {
   display: inline-block;
   width: var(--spacing-3);
@@ -189,11 +188,11 @@
   border-color: var(--color-primary);
 }
 
-.parentItemBlock[role="checkbox"] {
+.parentItemBlock[role='checkbox'] {
   cursor: pointer;
 }
 
-.parentItemBlock[role="checkbox"]:focus-visible {
+.parentItemBlock[role='checkbox']:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
 }

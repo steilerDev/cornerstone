@@ -1,10 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type {
-  BudgetSourceBudgetLinesResponse,
-  BudgetSourceBudgetLine,
-} from '@cornerstone/shared';
+import type { BudgetSourceBudgetLinesResponse, BudgetSourceBudgetLine } from '@cornerstone/shared';
 import type { AreaAncestor } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
 import { Skeleton } from '../Skeleton/Skeleton.js';
@@ -514,8 +511,7 @@ export function SourceBudgetLinePanel({
           const parentAllSelected =
             parentSelectedCount === selectableLineIdsInParent.length &&
             selectableLineIdsInParent.length > 0;
-          const parentSomeSelected =
-            parentSelectedCount > 0 && !parentAllSelected;
+          const parentSomeSelected = parentSelectedCount > 0 && !parentAllSelected;
 
           if (isSelectable) {
             return (
@@ -529,26 +525,18 @@ export function SourceBudgetLinePanel({
                       : ''
                 }`}
                 role="checkbox"
-                aria-checked={
-                  parentAllSelected ? true : parentSomeSelected ? 'mixed' : false
-                }
+                aria-checked={parentAllSelected ? true : parentSomeSelected ? 'mixed' : false}
                 aria-label={t('sources.budgetLines.move.selectItemLabel', {
                   name: parentGroup.parentName,
                 })}
                 tabIndex={0}
                 onClick={() =>
-                  handleParentGroupToggle(
-                    selectableLineIdsInParent,
-                    parentAllSelected,
-                  )
+                  handleParentGroupToggle(selectableLineIdsInParent, parentAllSelected)
                 }
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    handleParentGroupToggle(
-                      selectableLineIdsInParent,
-                      parentAllSelected,
-                    );
+                    handleParentGroupToggle(selectableLineIdsInParent, parentAllSelected);
                   }
                 }}
               >
@@ -640,11 +628,7 @@ export function SourceBudgetLinePanel({
                     const invoiceStatusLabel = getInvoiceStatusLabel(line, t);
 
                     return (
-                      <li
-                        key={line.id}
-                        role="listitem"
-                        className={styles.lineRow}
-                      >
+                      <li key={line.id} role="listitem" className={styles.lineRow}>
                         <span className={styles.lineDescription}>{line.description ?? '—'}</span>
 
                         <span className={styles.lineType}>{confidenceLabel}</span>
