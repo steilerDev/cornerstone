@@ -578,12 +578,6 @@
   color: var(--color-warning-badge-text);
 }
 
-/* ---- Amount value styling (reused in summary row) ---- */
-
-.amountNegative {
-  color: var(--color-danger);
-}
-
 /* Terms line */
 .sourceTerms {
   font-size: var(--font-size-xs);
@@ -641,21 +635,29 @@
   opacity: 0.8;
 }
 
-.barLegend {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
-}
-
-.barLegendRow {
+/* ---- Source bar summary table ---- */
+.summaryTable {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: var(--spacing-2);
-  font-size: var(--font-size-xs);
+  grid-template-columns: 1fr auto;
+  row-gap: var(--spacing-2);
+  column-gap: var(--spacing-4);
+  margin-top: var(--spacing-1);
 }
 
-.barLegendDot {
+.summaryRow {
+  display: contents;
+}
+
+.summaryLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.summaryLabelDot {
   width: var(--spacing-2);
   height: var(--spacing-2);
   border-radius: var(--radius-circle);
@@ -663,38 +665,62 @@
   display: inline-block;
 }
 
-.barLegendLabel {
-  color: var(--color-text-muted);
-}
-
-.barLegendValue {
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text-primary);
-  font-weight: var(--font-weight-medium);
-  text-align: right;
-}
-
-.sourceSummaryRow {
+.summaryValues {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--spacing-1-5);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--spacing-0-5);
+}
+
+.summaryPrimary {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.summarySecondary {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
-.summaryItem {
-  white-space: nowrap;
+.summarySecondaryNegative {
+  color: var(--color-danger);
 }
 
-.summaryItem strong {
-  color: var(--color-text-primary);
+/* ---- Interest rate subtitle ---- */
+.sourceInterestRate {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-normal);
+  margin: 0;
+}
+
+/* ---- Total badge (in .sourceBadges row) ---- */
+.totalBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
+  line-height: 1.4;
+  white-space: nowrap;
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
 }
 
-.summaryDivider {
-  color: var(--color-border-strong);
-  user-select: none;
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
 /* ---- Source actions (right side) ---- */

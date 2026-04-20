@@ -129,6 +129,8 @@ function makeBudgetSource(
     actualAvailableAmount: 100000,
     paidAmount: 0,
     projectedAmount: 0,
+    projectedMinAmount: 0,
+    projectedMaxAmount: 0,
     isDiscretionary: false,
     interestRate: null,
     terms: null,

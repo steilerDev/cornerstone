@@ -40,6 +40,19 @@ jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
   ToastProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+// ─── Mock: LocaleContext — prevents useLocale() from throwing outside LocaleProvider ───
+
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // ─── Mock: formatters — provides useFormatters() hook ────────────────────────
 
 jest.unstable_mockModule('../../lib/formatters.js', () => {
@@ -119,6 +132,8 @@ describe('BudgetSourcesPage', () => {
     paidAmount: 0,
     actualAvailableAmount: 200000,
     projectedAmount: 0,
+    projectedMinAmount: 0,
+    projectedMaxAmount: 0,
     interestRate: 3.5,
     terms: '30-year fixed',
     notes: 'Primary financing',
@@ -141,6 +156,8 @@ describe('BudgetSourcesPage', () => {
     paidAmount: 0,
     actualAvailableAmount: 50000,
     projectedAmount: 0,
+    projectedMinAmount: 0,
+    projectedMaxAmount: 0,
     interestRate: null,
     terms: null,
     notes: null,
@@ -172,6 +189,7 @@ describe('BudgetSourcesPage', () => {
     mockUpdateBudgetSource.mockReset();
     mockDeleteBudgetSource.mockReset();
     mockFetchBudgetLinesForSource.mockReset();
+
   });
 
   function renderPage() {
@@ -344,75 +362,6 @@ describe('BudgetSourcesPage', () => {
       });
     });
 
-    it('displays Claimed label in bar legend and Available in summary row', async () => {
-      const sourceWithClaimed: BudgetSource = {
-        ...sampleSource1,
-        claimedAmount: 10000,
-      };
-      mockFetchBudgetSources.mockResolvedValueOnce({
-        budgetSources: [sourceWithClaimed],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        // claimedAmount = 10000 → Claimed appears in bar legend
-        expect(screen.getByText('Claimed')).toBeInTheDocument();
-        // Available appears inline in summary row (no colon after i18n)
-        expect(screen.getAllByText(/available/i).length).toBeGreaterThanOrEqual(1);
-        // Old standalone 'Unclaimed' label is gone — replaced by 'Paid (unclaimed)' in legend
-        expect(screen.queryByText('Unclaimed')).not.toBeInTheDocument();
-      });
-    });
-
-    it('displays the Planned secondary line showing usedAmount', async () => {
-      const sourceWithPlanned: BudgetSource = {
-        ...sampleSource1,
-        usedAmount: 150000,
-        availableAmount: 50000,
-      };
-      mockFetchBudgetSources.mockResolvedValueOnce({
-        budgetSources: [sourceWithPlanned],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getAllByText(/planned/i).length).toBeGreaterThanOrEqual(1);
-        expect(screen.getAllByText(/€150,000\.00/).length).toBeGreaterThanOrEqual(1);
-      });
-    });
-
-    it('displays source with non-zero claimedAmount and paidAmount in bar legend', async () => {
-      const sourceWithAmounts: BudgetSource = {
-        ...sampleSource1,
-        totalAmount: 100000,
-        claimedAmount: 30000,
-        unclaimedAmount: 20000,
-        paidAmount: 50000, // paidVal = 50000 - 30000 = 20000 → 'Paid (unclaimed)' in legend
-        actualAvailableAmount: 70000, // 100000 - 30000
-        usedAmount: 80000,
-        availableAmount: 20000,
-      };
-      mockFetchBudgetSources.mockResolvedValueOnce({
-        budgetSources: [sourceWithAmounts],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        // Bar legend shows 'Claimed' (totalValue=30000) and 'Paid (unclaimed)' (totalValue=50000)
-        expect(screen.getByText('Claimed')).toBeInTheDocument();
-        expect(screen.getByText('Paid (unclaimed)')).toBeInTheDocument();
-        // Old standalone 'Unclaimed' label is gone
-        expect(screen.queryByText('Unclaimed')).not.toBeInTheDocument();
-        // Available €70,000.00 appears in summary row (no colon after i18n)
-        expect(screen.getAllByText(/available/i).length).toBeGreaterThanOrEqual(1);
-        // Planned appears in summary row
-        expect(screen.getAllByText(/planned/i).length).toBeGreaterThanOrEqual(1);
-      });
-    });
-
     it('displays interest rate when present', async () => {
       mockFetchBudgetSources.mockResolvedValueOnce({
         budgetSources: [sampleSource1],
@@ -421,8 +370,8 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        // sampleSource1.interestRate = 3.5 → "3.50%"
-        expect(screen.getByText('3.50%')).toBeInTheDocument();
+        // sampleSource1.interestRate = 3.5 → "3.50%" rendered in a paragraph with the "Rate" label
+        expect(screen.getByText(/3\.50%/)).toBeInTheDocument();
       });
     });
 
@@ -1445,6 +1394,8 @@ describe('BudgetSourcesPage', () => {
       paidAmount: 0,
       actualAvailableAmount: 0,
       projectedAmount: 0,
+      projectedMinAmount: 0,
+      projectedMaxAmount: 0,
       interestRate: null,
       terms: null,
       notes: null,
@@ -1550,58 +1501,24 @@ describe('BudgetSourcesPage', () => {
     it('displays Projected amount for a source', async () => {
       const sourceWithProjected: BudgetSource = {
         ...sampleSource1,
-        projectedAmount: 240000,
+        projectedMinAmount: 160000,
+        projectedMaxAmount: 240000,
       };
       mockFetchBudgetSources.mockResolvedValueOnce({
         budgetSources: [sourceWithProjected],
       });
 
-      renderPage();
+      const { container } = renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Projected')).toBeInTheDocument();
-        expect(screen.getByText('€240,000.00')).toBeInTheDocument();
-      });
-    });
-
-    it('displays Paid (unclaimed) label for a source with paidAmount > claimedAmount', async () => {
-      const sourceWithPaid: BudgetSource = {
-        ...sampleSource1,
-        claimedAmount: 50000,
-        unclaimedAmount: 25000,
-        paidAmount: 75000,
-      };
-      mockFetchBudgetSources.mockResolvedValueOnce({
-        budgetSources: [sourceWithPaid],
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
       });
 
-      renderPage();
-
-      await waitFor(() => {
-        // paidVal = 75000 - 50000 = 25000 → 'Paid (unclaimed)' in legend with totalValue=75000
-        expect(screen.getByText('Paid (unclaimed)')).toBeInTheDocument();
-        expect(screen.getByText('€75,000.00')).toBeInTheDocument();
-        // The old standalone 'Paid' label is gone — now reads 'Paid (unclaimed)'
-        expect(screen.queryByText('Paid')).not.toBeInTheDocument();
-      });
-    });
-
-    it('displays both Claimed and Paid (unclaimed) labels when both non-zero', async () => {
-      const sourceWithBoth: BudgetSource = {
-        ...sampleSource1,
-        claimedAmount: 30000,
-        paidAmount: 50000, // paidVal = 50000 - 30000 = 20000 → 'Paid (unclaimed)'
-      };
-      mockFetchBudgetSources.mockResolvedValueOnce({
-        budgetSources: [sourceWithBoth],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Claimed')).toBeInTheDocument();
-        expect(screen.getByText('Paid (unclaimed)')).toBeInTheDocument();
-      });
+      // Projected summary row renders both min and max amounts in the primary cell
+      const primaryCells = Array.from(container.querySelectorAll('[class*="summaryPrimary"]'));
+      const projectedPrimary = primaryCells[0];
+      expect(projectedPrimary?.textContent).toMatch(/€160,000\.00/);
+      expect(projectedPrimary?.textContent).toMatch(/€240,000\.00/);
     });
 
     it('discretionary source type badge displays "Discretionary" label', async () => {
@@ -1682,23 +1599,6 @@ describe('BudgetSourcesPage', () => {
       });
     });
 
-    it('bar legend shows Paid (unclaimed) when paidAmount exceeds claimedAmount', async () => {
-      const sourceWithPaidUnclaimed: BudgetSource = {
-        ...sampleSource1,
-        claimedAmount: 20000,
-        paidAmount: 50000, // paidVal = 50000 - 20000 = 30000
-      };
-      mockFetchBudgetSources.mockResolvedValueOnce({
-        budgetSources: [sourceWithPaidUnclaimed],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Paid (unclaimed)')).toBeInTheDocument();
-      });
-    });
-
     it('bar legend hides all segments when all amounts are zero', async () => {
       const zeroSource: BudgetSource = {
         ...sampleSource2, // paidAmount=0, claimedAmount=0, projectedAmount=0, usedAmount=0
@@ -1713,96 +1613,17 @@ describe('BudgetSourcesPage', () => {
         expect(screen.getByText('Savings Account')).toBeInTheDocument();
       });
 
-      // No legend segments rendered when all amounts are zero
-      expect(screen.queryByText('Claimed')).not.toBeInTheDocument();
+      // The new rework always renders Projected, Paid, Claimed summaryLabel rows regardless of amounts.
+      // Old-layout labels that are fully removed:
       expect(screen.queryByText('Paid (unclaimed)')).not.toBeInTheDocument();
-      expect(screen.queryByText('Projected')).not.toBeInTheDocument();
       expect(screen.queryByText('Allocated (planned)')).not.toBeInTheDocument();
-    });
-
-    it('bar legend shows Overflow row when projectedAmount exceeds totalAmount', async () => {
-      const overflowSource: BudgetSource = {
-        ...sampleSource1,
-        totalAmount: 100000,
-        projectedAmount: 130000, // overflow = 130000 - 100000 = 30000
-      };
-      mockFetchBudgetSources.mockResolvedValueOnce({
-        budgetSources: [overflowSource],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Overflow')).toBeInTheDocument();
-      });
-    });
-
-    it('bar legend does NOT show Overflow when projectedAmount does not exceed totalAmount', async () => {
-      const noOverflowSource: BudgetSource = {
-        ...sampleSource1,
-        totalAmount: 200000,
-        projectedAmount: 150000, // no overflow
-      };
-      mockFetchBudgetSources.mockResolvedValueOnce({
-        budgetSources: [noOverflowSource],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Home Loan')).toBeInTheDocument();
-      });
-
-      expect(screen.queryByText('Overflow')).not.toBeInTheDocument();
-    });
-
-    it('summary row shows Total, Available, and Planned labels', async () => {
-      mockFetchBudgetSources.mockResolvedValueOnce({
-        budgetSources: [sampleSource1],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getAllByText(/total/i).length).toBeGreaterThanOrEqual(1);
-        expect(screen.getAllByText(/available/i).length).toBeGreaterThanOrEqual(1);
-        expect(screen.getAllByText(/planned/i).length).toBeGreaterThanOrEqual(1);
-      });
-    });
-
-    it('summary row shows Rate when interestRate is set', async () => {
-      // sampleSource1 has interestRate: 3.5
-      mockFetchBudgetSources.mockResolvedValueOnce({
-        budgetSources: [sampleSource1],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Rate')).toBeInTheDocument();
-      });
-    });
-
-    it('summary row does NOT show Rate when interestRate is null', async () => {
-      // sampleSource2 has interestRate: null
-      mockFetchBudgetSources.mockResolvedValueOnce({
-        budgetSources: [sampleSource2],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText('Savings Account')).toBeInTheDocument();
-      });
-
-      expect(screen.queryByText('Rate')).not.toBeInTheDocument();
     });
 
     it('old standalone "Unclaimed" label is no longer present', async () => {
       const sourceWithUnclaimed: BudgetSource = {
         ...sampleSource1,
         claimedAmount: 10000,
-        paidAmount: 30000, // previously shown as 'Unclaimed', now 'Paid (unclaimed)'
+        paidAmount: 30000,
       };
       mockFetchBudgetSources.mockResolvedValueOnce({
         budgetSources: [sourceWithUnclaimed],
@@ -1816,8 +1637,6 @@ describe('BudgetSourcesPage', () => {
 
       // The old standalone 'Unclaimed' label is gone from the redesigned layout
       expect(screen.queryByText('Unclaimed')).not.toBeInTheDocument();
-      // Replaced by 'Paid (unclaimed)' in the bar legend
-      expect(screen.getByText('Paid (unclaimed)')).toBeInTheDocument();
     });
 
     it('terms are still displayed below the bar chart', async () => {
@@ -1959,6 +1778,286 @@ describe('BudgetSourcesPage', () => {
         name: /expand budget lines for savings account/i,
       });
       expect(savingsToggle).toBeDisabled();
+    });
+  });
+
+  // ─── SourceBarChart — rework #1319 ─────────────────────────────────────────
+
+  describe('SourceBarChart — rework #1319', () => {
+    const sourceWithRange: BudgetSource = {
+      ...sampleSource1,
+      totalAmount: 200000,
+      projectedMinAmount: 80000,
+      projectedMaxAmount: 120000,
+      paidAmount: 0,
+      claimedAmount: 0,
+    };
+
+    it('total badge is rendered in the source header row', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+
+      renderPage();
+
+      await waitFor(() => {
+        // t('sources.barChart.totalBadge') renders as "Total: <amount>"
+        expect(screen.getByText(/Total:/)).toBeInTheDocument();
+      });
+    });
+
+    it('total badge has an aria-label containing "Total amount:"', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+
+      renderPage();
+
+      await waitFor(() => {
+        const badge = screen.getByText(/Total:/);
+        expect(badge).toBeInTheDocument();
+        // aria-label is on the span containing the total badge text
+        const ariaLabel = badge.getAttribute('aria-label');
+        expect(ariaLabel).toMatch(/Total amount:/i);
+      });
+    });
+
+    it('summary table renders exactly 3 summaryLabel elements in Projected, Paid, Claimed order', async () => {
+      // Render with a single source so we get exactly 3 summary labels (one per row)
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      // Each summary row has a summaryLabel span containing a summaryLabelDot and text.
+      // To count rows, use summaryRow which is unique per row.
+      // Query within the rendered container to avoid cross-test pollution.
+      const summaryRows = Array.from(container.querySelectorAll('[class*="summaryRow"]'));
+      expect(summaryRows.length).toBe(3);
+
+      // Verify the label text order: Projected, Paid, Claimed
+      // Each summaryRow contains a summaryLabel span whose textContent includes the label text
+      const labelTexts = summaryRows.map((row) => {
+        const labelEl = row.querySelector('[class*="summaryLabel"]');
+        return labelEl?.textContent?.trim() ?? '';
+      });
+      expect(labelTexts[0]).toMatch(/Projected/);
+      expect(labelTexts[1]).toMatch(/Paid/);
+      expect(labelTexts[2]).toMatch(/Claimed/);
+    });
+
+    it('no "Allocated" label is present in the rendered output', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(/allocated/i)).toBeNull();
+    });
+
+    it('no footer "Available" or "Planned" summary rows are present', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      // These were in the old layout; they should not appear as standalone footer rows.
+      // We check that no leaf element text starts with "Available " or "Planned ".
+      const availableMatches = Array.from(container.querySelectorAll('*')).filter(
+        (el) => el.children.length === 0 && /^Available\s/.test(el.textContent?.trim() ?? ''),
+      );
+      expect(availableMatches).toHaveLength(0);
+
+      const plannedMatches = Array.from(container.querySelectorAll('*')).filter(
+        (el) => el.children.length === 0 && /^Planned\s/.test(el.textContent?.trim() ?? ''),
+      );
+      expect(plannedMatches).toHaveLength(0);
+    });
+
+    it('projected range row displays both min and max formatted values', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sourceWithRange] });
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      // The primary value for the Projected row shows both min and max amounts.
+      // In JSX raw text (outside {}), \u2013 is the literal characters \u2013, not en-dash.
+      // We verify both formatted values appear in the first summaryPrimary element.
+      const primaryCells = Array.from(container.querySelectorAll('[class*="summaryPrimary"]'));
+      const projectedPrimary = primaryCells[0];
+      expect(projectedPrimary).toBeTruthy();
+      expect(projectedPrimary?.textContent).toMatch(/€80,000\.00/);
+      expect(projectedPrimary?.textContent).toMatch(/€120,000\.00/);
+    });
+
+    it('Projected row secondary value gets danger class when projectedMaxAmount > totalAmount', async () => {
+      // The summarySecondaryNegative class is applied to the Projected row (not Paid row).
+      // Condition: totalAmount - projectedMinAmount < 0 OR totalAmount - projectedMaxAmount < 0
+      const overProjectedSource: BudgetSource = {
+        ...sampleSource1,
+        totalAmount: 100000,
+        projectedMinAmount: 80000,
+        projectedMaxAmount: 120000, // 100000 - 120000 < 0 → triggers negative class
+        paidAmount: 0,
+        claimedAmount: 0,
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [overProjectedSource] });
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      // The Projected row is the 1st summaryRow (index 0)
+      const summaryRows = Array.from(container.querySelectorAll('[class*="summaryRow"]'));
+      const projectedRow = summaryRows[0];
+      const secondaryEl = projectedRow?.querySelector('[class*="summarySecondary"]');
+      expect(secondaryEl).toBeTruthy();
+      // The secondary span should include summarySecondaryNegative when projection exceeds total
+      expect(secondaryEl?.className).toMatch(/summarySecondaryNegative/);
+    });
+
+    it('Projected row secondary value does NOT get danger class when projectedMaxAmount <= totalAmount', async () => {
+      const underProjectedSource: BudgetSource = {
+        ...sampleSource1,
+        totalAmount: 200000,
+        projectedMinAmount: 80000,
+        projectedMaxAmount: 120000, // both within totalAmount
+        paidAmount: 0,
+        claimedAmount: 0,
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [underProjectedSource] });
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      const summaryRows = Array.from(container.querySelectorAll('[class*="summaryRow"]'));
+      const projectedRow = summaryRows[0];
+      const secondaryEl = projectedRow?.querySelector('[class*="summarySecondary"]');
+      expect(secondaryEl).toBeTruthy();
+      // Must NOT include summarySecondaryNegative when projection is within total
+      expect(secondaryEl?.className).not.toMatch(/summarySecondaryNegative/);
+    });
+
+    it('interest rate subtitle is present when interestRate is set', async () => {
+      // sampleSource1 has interestRate: 3.5
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      // The interest rate paragraph contains "Rate" and "3.50%"
+      const rateEl = document.querySelector('[class*="sourceInterestRate"]');
+      expect(rateEl).not.toBeNull();
+      expect(rateEl?.textContent).toMatch(/Rate/i);
+      expect(rateEl?.textContent).toMatch(/3\.50%/);
+    });
+
+    it('interest rate subtitle is absent when interestRate is null', async () => {
+      // sampleSource2 has interestRate: null
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource2] });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Savings Account')).toBeInTheDocument();
+      });
+
+      const rateEl = document.querySelector('[class*="sourceInterestRate"]');
+      expect(rateEl).toBeNull();
+    });
+
+    it('bar renders 4 segment labels (claimed, paid, projected, projectedUncertainty) with no "allocated" segment', async () => {
+      // Use a source with non-zero values so BudgetBar renders visible segments in its aria-label
+      const activeSource: BudgetSource = {
+        ...sampleSource1,
+        totalAmount: 200000,
+        claimedAmount: 20000,
+        paidAmount: 50000, // paidVal = 50000 - 20000 = 30000
+        projectedMinAmount: 80000,
+        projectedMaxAmount: 120000,
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [activeSource] });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      // BudgetBar renders a role="img" div whose aria-label lists visible segment labels.
+      // The 4 expected segment labels (from t() calls):
+      //   claimed → "Claimed", paid → "Paid (unclaimed)", projected → "Projected",
+      //   projectedUncertainty → "Projected uncertainty"
+      // There should be NO "Allocated" label — that belonged to the pre-rework layout.
+      const budgetBar = screen.getByRole('img');
+      const ariaLabel = budgetBar.getAttribute('aria-label') ?? '';
+
+      // Verify none of the 4 segment translations includes "Allocated"
+      expect(ariaLabel).not.toMatch(/allocated/i);
+
+      // The summary table always shows Projected, Paid, Claimed labels (regardless of values)
+      // Verify no "Allocated" appears anywhere in the rendered output
+      expect(screen.queryByText(/^Allocated$/i)).toBeNull();
+    });
+
+    it('Paid row secondary value gets danger class when paidAmount > totalAmount', async () => {
+      const overPaidSource: BudgetSource = {
+        ...sampleSource1,
+        totalAmount: 100000,
+        paidAmount: 120000, // 100000 - 120000 < 0 → triggers negative class
+        claimedAmount: 0,
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [overPaidSource] });
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(overPaidSource.name)).toBeInTheDocument();
+      });
+
+      const summaryRows = Array.from(container.querySelectorAll('[class*="summaryRow"]'));
+      const paidRow = summaryRows[1]; // index 1 = Paid (after Projected)
+      const secondaryEl = paidRow?.querySelector('[class*="summarySecondary"]');
+      expect(secondaryEl).toBeTruthy();
+      expect(secondaryEl?.className).toMatch(/summarySecondaryNegative/);
+    });
+
+    it('Claimed row secondary value gets danger class when claimedAmount > totalAmount', async () => {
+      const overClaimedSource: BudgetSource = {
+        ...sampleSource1,
+        totalAmount: 100000,
+        paidAmount: 0,
+        claimedAmount: 120000,
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [overClaimedSource] });
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(overClaimedSource.name)).toBeInTheDocument();
+      });
+
+      const summaryRows = Array.from(container.querySelectorAll('[class*="summaryRow"]'));
+      const claimedRow = summaryRows[2]; // index 2 = Claimed
+      const secondaryEl = claimedRow?.querySelector('[class*="summarySecondary"]');
+      expect(secondaryEl).toBeTruthy();
+      expect(secondaryEl?.className).toMatch(/summarySecondaryNegative/);
     });
   });
 });

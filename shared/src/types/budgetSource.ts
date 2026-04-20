@@ -34,6 +34,8 @@ export interface BudgetSource {
   paidAmount: number; // paid and claimed: claimedAmount + unclaimedAmount
   actualAvailableAmount: number; // totalAmount - claimedAmount (actual perspective)
   projectedAmount: number; // confidence-margined planned amount for non-invoiced lines + actual cost for invoiced
+  projectedMinAmount: number; // lower bound: planned × (1 − margin) for non-invoiced + actual for invoiced
+  projectedMaxAmount: number; // upper bound: planned × (1 + margin) for non-invoiced + actual for invoiced
   interestRate: number | null;
   terms: string | null;
   notes: string | null;

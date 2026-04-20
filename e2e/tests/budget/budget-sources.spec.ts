@@ -834,7 +834,7 @@ test.describe('Discretionary Funding source', () => {
     }
   });
 
-  test('Bar chart and summary row are visible on source rows', async ({ page }) => {
+  test('Bar chart and summary table are visible on source rows', async ({ page }) => {
     const sourcesPage = new BudgetSourcesPage(page);
 
     await sourcesPage.goto();
@@ -848,35 +848,21 @@ test.describe('Discretionary Funding source', () => {
     const barSection = row.locator('[class*="sourceBarSection"]');
     await expect(barSection).toBeVisible();
 
-    // The summary row (Total / Available / Planned) always renders regardless of amounts
-    const summaryItems = row.locator('[class*="summaryItem"]');
-    const summaryCount = await summaryItems.count();
-    // At minimum: Total, Available, Planned (3 items; Rate only appears when interestRate set)
-    expect(summaryCount).toBeGreaterThanOrEqual(3);
+    // After bar chart rework (#1319): summary table has exactly 3 rows — Projected, Paid, Claimed
+    // (the old footer "Total / Available / Planned / Rate" row was removed)
+    const summaryLabels = sourcesPage.getSummaryLabels(DISCRETIONARY_NAME);
+    const labelCount = await summaryLabels.count();
+    expect(labelCount).toBe(3);
 
-    // Collect all summary item texts and verify they contain expected labels
-    const summaryTexts = await summaryItems.allTextContents();
-    const summaryNormalised = summaryTexts.map((t) => t.trim());
-    expect(summaryNormalised.some((t) => t.includes('Total'))).toBe(true);
-    expect(summaryNormalised.some((t) => t.includes('Available'))).toBe(true);
-    expect(summaryNormalised.some((t) => t.includes('Planned'))).toBe(true);
+    const labelTexts = await summaryLabels.allTextContents();
+    const normalised = labelTexts.map((t) => t.trim().replace(/\s+/g, ' '));
+    expect(normalised.some((t) => t.includes('Projected'))).toBe(true);
+    expect(normalised.some((t) => t.includes('Paid'))).toBe(true);
+    expect(normalised.some((t) => t.includes('Claimed'))).toBe(true);
 
-    // If there are budget lines (non-zero amounts), legend labels should also render
-    const legendLabels = sourcesPage.getAmountLabelsInRow(DISCRETIONARY_NAME);
-    const legendCount = await legendLabels.count();
-    if (legendCount > 0) {
-      const labelTexts = await legendLabels.allTextContents();
-      const normalised = labelTexts.map((t) => t.trim());
-      // Known legend label values from SourceBarChart component
-      const knownLabels = [
-        'Claimed',
-        'Paid (unclaimed)',
-        'Projected',
-        'Allocated (planned)',
-        'Overflow',
-      ];
-      expect(normalised.every((l) => knownLabels.includes(l))).toBe(true);
-    }
+    // "Allocated" must NOT appear anywhere in the row (removed in #1319)
+    const rowText = await row.textContent();
+    expect(rowText).not.toMatch(/Allocated/i);
   });
 
   test('Discretionary source appears last in the sources list', async ({ page }) => {
@@ -899,6 +885,172 @@ test.describe('Discretionary Funding source', () => {
       expect(names[names.length - 1]).toBe(DISCRETIONARY_NAME);
     } finally {
       if (tempId) await deleteSourceViaApi(page, tempId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bar chart rework #1319
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Bar chart rework #1319', { tag: '@responsive' }, () => {
+  test('Source row does not contain "Allocated" text', async ({ page, testPrefix }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} NoAlloc Source`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 80000 });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      const row = sourcesPage.getSourceRowByName(sourceName);
+      await expect(row).toBeVisible();
+
+      const rowText = await row.textContent();
+      expect(rowText).not.toMatch(/Allocated/i);
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+
+  test('Total badge is visible in source row header and contains "Total:"', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Total Badge Source`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 100000 });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      const badge = sourcesPage.getTotalBadge(sourceName);
+      // No explicit timeout — uses project-level expect.timeout.
+      await expect(badge).toBeVisible();
+
+      const badgeText = await badge.textContent();
+      expect(badgeText).toMatch(/Total:/);
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+
+  test('Summary table shows exactly 3 rows: Projected, Paid, Claimed', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Summary Table Source`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 50000 });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      const labels = sourcesPage.getSummaryLabels(sourceName);
+      // No explicit timeout — uses project-level expect.timeout.
+      await expect(labels.first()).toBeVisible();
+
+      const count = await labels.count();
+      expect(count).toBe(3);
+
+      const texts = await labels.allTextContents();
+      const normalised = texts.map((t) => t.trim().replace(/\s+/g, ' '));
+      // Order must be: Projected, Paid, Claimed
+      expect(normalised[0]).toContain('Projected');
+      expect(normalised[1]).toContain('Paid');
+      expect(normalised[2]).toContain('Claimed');
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+
+  test('Interest rate subtitle is visible when interestRate is set', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Rate Source`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createSourceViaApi(page, {
+        name: sourceName,
+        totalAmount: 200000,
+        interestRate: 3.5,
+      });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      const subtitle = sourcesPage.getInterestRateSubtitle(sourceName);
+      // No explicit timeout — uses project-level expect.timeout.
+      await expect(subtitle).toBeVisible();
+
+      const subtitleText = await subtitle.textContent();
+      expect(subtitleText).toMatch(/Rate/i);
+      expect(subtitleText).toMatch(/%/);
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+
+  test('Interest rate subtitle is absent when interestRate is not set', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} NoRate Source`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createSourceViaApi(page, {
+        name: sourceName,
+        totalAmount: 60000,
+        interestRate: null,
+      });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      const subtitle = sourcesPage.getInterestRateSubtitle(sourceName);
+      const subtitleCount = await subtitle.count();
+      expect(subtitleCount).toBe(0);
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+
+  test('Dark mode: source row and total badge remain visible', async ({ page, testPrefix }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Dark Mode Bar Source`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 75000 });
+
+      await page.goto('/budget/sources');
+      await page.evaluate(() => {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      });
+      // No explicit timeout — uses project-level actionTimeout.
+      await sourcesPage.heading.waitFor({ state: 'visible' });
+      await sourcesPage.waitForSourcesLoaded();
+
+      const row = sourcesPage.getSourceRowByName(sourceName);
+      // No explicit timeout — uses project-level expect.timeout.
+      await expect(row).toBeVisible();
+
+      const badge = sourcesPage.getTotalBadge(sourceName);
+      await expect(badge).toBeVisible();
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
     }
   });
 });

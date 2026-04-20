@@ -348,11 +348,41 @@ export class BudgetSourcesPage {
   }
 
   /**
-   * Get all legend label spans within a source row (the SourceBarChart bar legend labels).
-   * The app renders these with the `barLegendLabel` CSS module class.
+   * Get all summary label spans within a source row (the SourceBarChart summary table labels).
+   * After the bar chart rework (#1319), the summary table uses `summaryLabel` CSS module class.
+   * Each label corresponds to one row: Projected, Paid, Claimed (in that order).
+   *
+   * @deprecated `barLegendLabel` no longer exists after PR #1319. Use `getSummaryLabels()` instead.
    */
   getAmountLabelsInRow(sourceName: string): import('@playwright/test').Locator {
-    return this.getSourceRowByName(sourceName).locator('[class*="barLegendLabel"]');
+    return this.getSummaryLabels(sourceName);
+  }
+
+  /**
+   * Get the total badge span within the source row header.
+   * Renders as: <span class="totalBadge">Total: €100,000.00</span>
+   * (class name contains "totalBadge" after CSS Modules transformation)
+   */
+  getTotalBadge(sourceName: string): import('@playwright/test').Locator {
+    return this.getSourceRowByName(sourceName).locator('[class*="totalBadge"]');
+  }
+
+  /**
+   * Get all summary label spans within a source row.
+   * Three labels render in order: Projected, Paid, Claimed.
+   * Each label is a <span class="summaryLabel"> inside the summary table.
+   */
+  getSummaryLabels(sourceName: string): import('@playwright/test').Locator {
+    return this.getSourceRowByName(sourceName).locator('[class*="summaryLabel"]:not([class*="summaryLabelDot"])');
+  }
+
+  /**
+   * Get the interest rate subtitle paragraph within the source row.
+   * Renders as: <p class="sourceInterestRate">Rate X.X%</p>
+   * Only present when the source has a non-null interestRate.
+   */
+  getInterestRateSubtitle(sourceName: string): import('@playwright/test').Locator {
+    return this.getSourceRowByName(sourceName).locator('[class*="sourceInterestRate"]');
   }
 
   // ─── Budget Lines Expansion helpers (Story #1247) ────────────────────────────

@@ -168,6 +168,8 @@ describe('BudgetOverviewPage', () => {
       actualAvailableAmount: opts.totalAmount ?? 80000,
       paidAmount: 0,
       projectedAmount: 0,
+      projectedMinAmount: 0,
+      projectedMaxAmount: 0,
       isDiscretionary: false,
       interestRate: null,
       terms: null,

@@ -101,14 +101,18 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
 
   const claimedVal = source.claimedAmount;
   const paidVal = Math.max(0, source.paidAmount - source.claimedAmount);
-  const projectedVal = Math.max(0, source.projectedAmount - source.paidAmount);
-  const allocatedVal = Math.max(
-    0,
-    source.usedAmount - Math.max(source.projectedAmount, source.paidAmount),
-  );
+  const projectedVal = Math.max(0, source.projectedMinAmount - source.paidAmount);
+  const uncertaintyVal = Math.max(0, source.projectedMaxAmount - source.projectedMinAmount);
 
-  const maxValue = Math.max(source.totalAmount, source.projectedAmount, 1);
-  const overflow = Math.max(0, source.projectedAmount - source.totalAmount);
+  const maxValue = Math.max(source.totalAmount, source.projectedMaxAmount, 1);
+  const overflow = Math.max(0, source.projectedMaxAmount - source.totalAmount);
+
+  const projectedSecondaryNegative =
+    source.totalAmount - source.projectedMinAmount < 0 ||
+    source.totalAmount - source.projectedMaxAmount < 0;
+
+  const paidSecondaryNegative = source.totalAmount - source.paidAmount < 0;
+  const claimedSecondaryNegative = source.totalAmount - source.claimedAmount < 0;
 
   const segments: BudgetBarSegment[] = [
     {
@@ -130,18 +134,16 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
       value: projectedVal,
       color: 'var(--color-budget-projected)',
       label: t('sources.barChart.projected'),
-      totalValue: source.projectedAmount,
+      totalValue: source.projectedMinAmount,
     },
     {
-      key: 'allocated',
-      value: allocatedVal,
-      color: 'var(--color-budget-allocated)',
-      label: t('sources.barChart.allocated'),
-      totalValue: source.usedAmount,
+      key: 'projectedUncertainty',
+      value: uncertaintyVal,
+      color: 'var(--color-budget-projected-uncertainty)',
+      label: t('sources.barChart.projectedUncertainty'),
+      totalValue: source.projectedMaxAmount,
     },
   ];
-
-  const legendRows = segments.filter((s) => (s.totalValue ?? s.value) > 0);
 
   return (
     <div className={styles.sourceBarSection}>
@@ -155,6 +157,19 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
           onSegmentClick={handleSegmentClick}
           formatValue={formatCurrency}
         />
+        <span
+          className={styles.srOnly}
+          role="status"
+          aria-atomic="true"
+        >
+          {t('sources.barChart.srOnly', {
+            claimed: formatCurrency(source.claimedAmount),
+            paid: formatCurrency(source.paidAmount),
+            projectedMin: formatCurrency(source.projectedMinAmount),
+            projectedMax: formatCurrency(source.projectedMaxAmount),
+            total: formatCurrency(source.totalAmount),
+          })}
+        </span>
         {hoveredSegment && (
           <div className={styles.barTooltipAnchor} role="status" aria-atomic="true">
             <div className={styles.segmentTooltip}>
@@ -178,64 +193,73 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
         )}
       </div>
 
-      {(legendRows.length > 0 || overflow > 0) && (
-        <div className={styles.barLegend}>
-          {legendRows.map((seg) => (
-            <div key={seg.key} className={styles.barLegendRow}>
-              <span
-                className={styles.barLegendDot}
-                style={{ backgroundColor: seg.color }}
-                aria-hidden="true"
-              />
-              <span className={styles.barLegendLabel}>{seg.label}</span>
-              <span className={styles.barLegendValue}>
-                {formatCurrency(seg.totalValue ?? seg.value)}
-              </span>
-            </div>
-          ))}
-          {overflow > 0 && (
-            <div className={styles.barLegendRow}>
-              <span
-                className={styles.barLegendDot}
-                style={{ backgroundColor: 'var(--color-budget-overflow)' }}
-                aria-hidden="true"
-              />
-              <span className={styles.barLegendLabel}>{t('sources.barChart.overflow')}</span>
-              <span className={styles.barLegendValue}>{formatCurrency(overflow)}</span>
-            </div>
-          )}
+      <div className={styles.summaryTable}>
+        {/* Projected row */}
+        <div className={styles.summaryRow}>
+          <span className={styles.summaryLabel}>
+            <span
+              className={styles.summaryLabelDot}
+              style={{ backgroundColor: 'var(--color-budget-projected)' }}
+              aria-hidden="true"
+            />
+            {t('sources.barChart.summaryProjectedLabel')}
+          </span>
+          <div className={styles.summaryValues}>
+            <span className={styles.summaryPrimary}>
+              {formatCurrency(source.projectedMinAmount)} \u2013 {formatCurrency(source.projectedMaxAmount)}
+            </span>
+            <span
+              className={`${styles.summarySecondary} ${projectedSecondaryNegative ? styles.summarySecondaryNegative : ''}`}
+            >
+              {formatCurrency(source.totalAmount - source.projectedMinAmount)} \u2013{' '}
+              {formatCurrency(source.totalAmount - source.projectedMaxAmount)}
+            </span>
+          </div>
         </div>
-      )}
 
-      <div className={styles.sourceSummaryRow}>
-        <span className={styles.summaryItem}>
-          {t('sources.barChart.total')} <strong>{formatCurrency(source.totalAmount)}</strong>
-        </span>
-        <span className={styles.summaryDivider} aria-hidden="true">
-          |
-        </span>
-        <span
-          className={`${styles.summaryItem} ${source.actualAvailableAmount < 0 ? styles.amountNegative : ''}`}
-        >
-          {t('sources.barChart.available')}{' '}
-          <strong>{formatCurrency(source.actualAvailableAmount)}</strong>
-        </span>
-        <span className={styles.summaryDivider} aria-hidden="true">
-          |
-        </span>
-        <span className={styles.summaryItem}>
-          {t('sources.barChart.planned')} <strong>{formatCurrency(source.usedAmount)}</strong>
-        </span>
-        {source.interestRate != null && (
-          <>
-            <span className={styles.summaryDivider} aria-hidden="true">
-              |
+        {/* Paid row */}
+        <div className={styles.summaryRow}>
+          <span className={styles.summaryLabel}>
+            <span
+              className={styles.summaryLabelDot}
+              style={{ backgroundColor: 'var(--color-budget-paid)' }}
+              aria-hidden="true"
+            />
+            {t('sources.barChart.summaryPaidLabel')}
+          </span>
+          <div className={styles.summaryValues}>
+            <span className={styles.summaryPrimary}>{formatCurrency(source.paidAmount)}</span>
+            <span
+              className={`${styles.summarySecondary}${
+                paidSecondaryNegative ? ` ${styles.summarySecondaryNegative}` : ''
+              }`}
+            >
+              {formatCurrency(source.totalAmount - source.paidAmount)}
             </span>
-            <span className={styles.summaryItem}>
-              {t('sources.barChart.rate')} <strong>{formatPercent(source.interestRate)}</strong>
+          </div>
+        </div>
+
+        {/* Claimed row */}
+        <div className={styles.summaryRow}>
+          <span className={styles.summaryLabel}>
+            <span
+              className={styles.summaryLabelDot}
+              style={{ backgroundColor: 'var(--color-budget-claimed)' }}
+              aria-hidden="true"
+            />
+            {t('sources.barChart.summaryClaimedLabel')}
+          </span>
+          <div className={styles.summaryValues}>
+            <span className={styles.summaryPrimary}>{formatCurrency(source.claimedAmount)}</span>
+            <span
+              className={`${styles.summarySecondary}${
+                claimedSecondaryNegative ? ` ${styles.summarySecondaryNegative}` : ''
+              }`}
+            >
+              {formatCurrency(source.totalAmount - source.claimedAmount)}
             </span>
-          </>
-        )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1092,6 +1116,12 @@ export function BudgetSourcesPage() {
                                 {t('sources.sourcesList.system')}
                               </span>
                             )}
+                            <span
+                              className={styles.totalBadge}
+                              aria-label={t('sources.barChart.totalBadgeAriaLabel', { amount: formatCurrency(source.totalAmount) })}
+                            >
+                              {t('sources.barChart.totalBadge', { amount: formatCurrency(source.totalAmount) })}
+                            </span>
                           </div>
                           <button
                             type="button"
@@ -1126,6 +1156,12 @@ export function BudgetSourcesPage() {
                             </span>
                           </button>
                         </div>
+
+                        {source.interestRate != null && (
+                          <p className={styles.sourceInterestRate}>
+                            {t('sources.barChart.rate')} {formatPercent(source.interestRate)}
+                          </p>
+                        )}
 
                         <SourceBarChart
                           source={source}

@@ -64,6 +64,8 @@ function toBudgetSource(
   claimedAmount: number,
   unclaimedAmount: number,
   projectedAmount: number,
+  projectedMinAmount: number,
+  projectedMaxAmount: number,
 ): BudgetSource {
   const createdByUser = row.createdBy
     ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
@@ -85,6 +87,8 @@ function toBudgetSource(
     paidAmount,
     actualAvailableAmount,
     projectedAmount,
+    projectedMinAmount,
+    projectedMaxAmount,
     interestRate: row.interestRate,
     terms: row.terms,
     notes: row.notes,
@@ -266,20 +270,80 @@ function computeProjectedAmount(db: DbType, sourceId: string): number {
 }
 
 /**
+ * Compute the projected cost range for a budget source.
+ * For invoiced lines: actual cost contributes equally to both min and max.
+ * For non-invoiced lines: min = planned × (1 − margin), max = planned × (1 + margin).
+ */
+function computeProjectedRange(
+  db: DbType,
+  sourceId: string,
+): { projectedMinAmount: number; projectedMaxAmount: number } {
+  const lines = db.all<{
+    id: string;
+    plannedAmount: number;
+    confidence: string;
+  }>(
+    sql`SELECT id, planned_amount AS plannedAmount, confidence
+    FROM work_item_budgets WHERE budget_source_id = ${sourceId}
+    UNION ALL
+    SELECT id, planned_amount AS plannedAmount, confidence
+    FROM household_item_budgets WHERE budget_source_id = ${sourceId}`,
+  );
+
+  if (lines.length === 0) return { projectedMinAmount: 0, projectedMaxAmount: 0 };
+
+  let minTotal = 0;
+  let maxTotal = 0;
+  for (const line of lines) {
+    const inv = db.get<{ total: number }>(
+      sql`SELECT COALESCE(SUM(ibl.itemized_amount), 0) AS total
+      FROM invoice_budget_lines ibl
+      WHERE ibl.work_item_budget_id = ${line.id}
+         OR ibl.household_item_budget_id = ${line.id}`,
+    );
+    const actualCost = inv?.total ?? 0;
+    if (actualCost > 0) {
+      minTotal += actualCost;
+      maxTotal += actualCost;
+    } else {
+      const margin = CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ?? 0;
+      minTotal += line.plannedAmount * (1 - margin);
+      maxTotal += line.plannedAmount * (1 + margin);
+    }
+  }
+  return { projectedMinAmount: minTotal, projectedMaxAmount: maxTotal };
+}
+
+/**
  * Get all computed amounts for a budget source in one operation.
  * Handles both regular and discretionary sources differently.
  */
 function getSourceAmounts(
   db: DbType,
   row: typeof budgetSources.$inferSelect,
-): { usedAmount: number; claimedAmount: number; unclaimedAmount: number; projectedAmount: number } {
+): {
+  usedAmount: number;
+  claimedAmount: number;
+  unclaimedAmount: number;
+  projectedAmount: number;
+  projectedMinAmount: number;
+  projectedMaxAmount: number;
+} {
   const usedAmount = computeUsedAmount(db, row.id);
   const projectedAmount = computeProjectedAmount(db, row.id);
+  const projectedRange = computeProjectedRange(db, row.id);
 
   if (row.isDiscretionary) {
     const claimedAmount = computeDiscretionaryInvoiceAmount(db, 'claimed');
     const unclaimedAmount = computeDiscretionaryInvoiceAmount(db, 'paid');
-    return { usedAmount, claimedAmount, unclaimedAmount, projectedAmount };
+    return {
+      usedAmount,
+      claimedAmount,
+      unclaimedAmount,
+      projectedAmount,
+      projectedMinAmount: projectedRange.projectedMinAmount,
+      projectedMaxAmount: projectedRange.projectedMaxAmount,
+    };
   }
 
   return {
@@ -287,6 +351,8 @@ function getSourceAmounts(
     claimedAmount: computeClaimedAmount(db, row.id),
     unclaimedAmount: computeUnclaimedAmount(db, row.id),
     projectedAmount,
+    projectedMinAmount: projectedRange.projectedMinAmount,
+    projectedMaxAmount: projectedRange.projectedMaxAmount,
   };
 }
 
@@ -310,6 +376,8 @@ export function listBudgetSources(db: DbType): BudgetSource[] {
       amounts.claimedAmount,
       amounts.unclaimedAmount,
       amounts.projectedAmount,
+      amounts.projectedMinAmount,
+      amounts.projectedMaxAmount,
     );
   });
 }
@@ -332,6 +400,8 @@ export function getBudgetSourceById(db: DbType, id: string): BudgetSource {
     amounts.claimedAmount,
     amounts.unclaimedAmount,
     amounts.projectedAmount,
+    amounts.projectedMinAmount,
+    amounts.projectedMaxAmount,
   );
 }
 
