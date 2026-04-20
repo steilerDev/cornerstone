@@ -216,7 +216,13 @@ test.describe(
         areaIds.push(areaId);
         workItemIds.push(await createWorkItemViaApi(page, { title: wiAssignedName, areaId }));
 
-        await page.goto(`${WORK_ITEMS_ROUTE}?areaId=__none__`);
+        // Combine areaId=__none__ with a search scoped to this worker's testPrefix so that
+        // unassigned items created by other parallel workers do not appear in the result set.
+        // This worker's only item (wiAssignedName) has an areaId, so the intersection must
+        // always be empty regardless of how many other workers are running concurrently.
+        await page.goto(
+          `${WORK_ITEMS_ROUTE}?areaId=__none__&q=${encodeURIComponent(testPrefix)}`,
+        );
         await listPage.heading.waitFor({ state: 'visible' });
 
         // Wait for the filter empty state
@@ -228,7 +234,8 @@ test.describe(
         const emptyText = await listPage.emptyState.textContent();
         expect(emptyText?.toLowerCase()).toMatch(/no items match the current filters/);
 
-        // "Clear Filters" button must be visible (DataTable renders it in the empty state action)
+        // "Clear Filters" button must be visible — hasActiveFilters is true because BOTH
+        // the search query and the area filter are active.
         const clearButton = listPage.emptyState.getByRole('button', {
           name: /Clear Filters/i,
         });
