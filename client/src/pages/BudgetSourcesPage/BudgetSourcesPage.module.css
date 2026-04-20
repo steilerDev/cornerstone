@@ -429,7 +429,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-2);
-  padding: var(--spacing-2) var(--spacing-3);
+  padding: var(--spacing-1-5) var(--spacing-3);
   background-color: transparent;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -686,7 +686,7 @@
 }
 
 .summarySecondaryNegative {
-  color: var(--color-danger);
+  color: var(--color-danger-text-on-light);
 }
 
 /* ---- Interest rate subtitle ---- */
@@ -893,7 +893,8 @@
   }
 
   .editButton,
-  .deleteButton {
+  .deleteButton,
+  .expandToggle {
     flex: 1;
   }
 
@@ -928,6 +929,7 @@
   .cancelButton,
   .editButton,
   .deleteButton,
+  .expandToggle,
   .confirmDeleteButton {
     min-height: 44px;
   }
