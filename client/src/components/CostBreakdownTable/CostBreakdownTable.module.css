@@ -630,16 +630,10 @@
 
   /* ========= INNER (item) BOX — lighter gray ========= */
 
-  /* Inner left edge — inset shadow on item and budget-line rows */
-  .costSection .rowLevel2 td:first-child,
-  .costSection .rowLevel3 td:first-child {
-    box-shadow: inset 8pt 0 0 -6pt var(--color-border);
-  }
-
-  /* Inner right edge — inset shadow on item and budget-line rows */
-  .costSection .rowLevel2 td:last-child,
-  .costSection .rowLevel3 td:last-child {
-    box-shadow: inset -8pt 0 0 -6pt var(--color-border);
+  /* Inner (item) box — light gray top border on every item row creates a visible
+   * boundary between items. Item's left/right edges inherit from the outer area box. */
+  .costSection .rowLevel2 td {
+    border-top: 1pt solid var(--color-border);
   }
 
   /* Level 2 (item rows): suppress bottom border when followed by budget lines */

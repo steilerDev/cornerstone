@@ -577,8 +577,41 @@
   }
 
   /* Apply proper margins to all pages */
+  /* stylelint-disable-next-line -- CSS Paged Media @top-* / @bottom-* margin boxes required to suppress browser-injected chrome */
   @page {
     margin: 1.5cm 1cm;
+
+    /* Explicitly empty all 10 margin boxes to suppress browser-injected header/footer */
+    @top-left-corner {
+      content: '';
+    }
+    @top-left {
+      content: '';
+    }
+    @top-center {
+      content: '';
+    }
+    @top-right {
+      content: '';
+    }
+    @top-right-corner {
+      content: '';
+    }
+    @bottom-left-corner {
+      content: '';
+    }
+    @bottom-left {
+      content: '';
+    }
+    @bottom-center {
+      content: '';
+    }
+    @bottom-right {
+      content: '';
+    }
+    @bottom-right-corner {
+      content: '';
+    }
   }
 
   /* No scrollable ancestor should reserve scrollbar gutter */
