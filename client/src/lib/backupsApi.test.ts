@@ -78,8 +78,8 @@ describe('backupsApi', () => {
       const result = await listBackups();
 
       expect(result.backups).toHaveLength(2);
-      expect(result.backups[0].filename).toBe('cornerstone-backup-2026-03-22T020000Z.tar.gz');
-      expect(result.backups[0].sizeBytes).toBe(102400);
+      expect(result.backups[0]!.filename).toBe('cornerstone-backup-2026-03-22T020000Z.tar.gz');
+      expect(result.backups[0]!.sizeBytes).toBe(102400);
     });
 
     it('throws ApiClientError when server returns 503 BACKUP_NOT_CONFIGURED', async () => {
@@ -214,7 +214,7 @@ describe('backupsApi', () => {
       const filename = 'cornerstone-backup-2026-03-22T020000Z.tar.gz';
       await deleteBackup(filename);
 
-      const calledUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+      const calledUrl = (mockFetch.mock.calls[0]! as [string, ...unknown[]])[0];
       expect(calledUrl).toBe(`/api/backups/${encodeURIComponent(filename)}`);
     });
 
@@ -278,7 +278,7 @@ describe('backupsApi', () => {
       const filename = 'cornerstone-backup-2026-03-22T020000Z.tar.gz';
       await restoreBackup(filename);
 
-      const calledUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+      const calledUrl = (mockFetch.mock.calls[0]! as [string, ...unknown[]])[0];
       expect(calledUrl).toBe(`/api/backups/${encodeURIComponent(filename)}/restore`);
     });
 

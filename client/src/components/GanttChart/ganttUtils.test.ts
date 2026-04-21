@@ -521,7 +521,7 @@ describe('dateToX', () => {
       const dates = ['2024-01-15', '2024-03-10', '2024-06-15', '2024-09-01', '2024-11-30'];
       const xs = dates.map((d) => dateToX(toUtcMidnight(d), range, 'month'));
       for (let i = 1; i < xs.length; i++) {
-        expect(xs[i]).toBeGreaterThan(xs[i - 1]);
+        expect(xs[i]!).toBeGreaterThan(xs[i - 1]!);
       }
     });
 
@@ -630,7 +630,7 @@ describe('generateGridLines', () => {
       const range = makeRange('2024-06-01', '2024-06-10');
       const lines = generateGridLines(range, 'day');
       for (let i = 1; i < lines.length; i++) {
-        expect(lines[i].x).toBeGreaterThan(lines[i - 1].x);
+        expect(lines[i]!.x).toBeGreaterThan(lines[i - 1]!.x);
       }
     });
 
@@ -672,7 +672,7 @@ describe('generateGridLines', () => {
       const range = makeRange('2024-06-03', '2024-08-26');
       const lines = generateGridLines(range, 'week');
       for (let i = 1; i < lines.length; i++) {
-        expect(lines[i].x).toBeGreaterThan(lines[i - 1].x);
+        expect(lines[i]!.x).toBeGreaterThan(lines[i - 1]!.x);
       }
     });
   });
@@ -704,7 +704,7 @@ describe('generateGridLines', () => {
       const range = makeRange('2024-01-01', '2024-12-31');
       const lines = generateGridLines(range, 'month');
       for (let i = 1; i < lines.length; i++) {
-        expect(lines[i].x).toBeGreaterThan(lines[i - 1].x);
+        expect(lines[i]!.x).toBeGreaterThan(lines[i - 1]!.x);
       }
     });
 
@@ -740,18 +740,18 @@ describe('generateHeaderCells', () => {
     it('each cell has the correct label (day-of-month)', () => {
       const range = makeRange('2024-06-01', '2024-06-04');
       const cells = generateHeaderCells(range, 'day', TODAY);
-      expect(cells[0].label).toBe('1');
-      expect(cells[1].label).toBe('2');
-      expect(cells[2].label).toBe('3');
+      expect(cells[0]!.label).toBe('1');
+      expect(cells[1]!.label).toBe('2');
+      expect(cells[2]!.label).toBe('3');
     });
 
     it('each cell has the correct sublabel (weekday abbreviation)', () => {
       // 2024-06-01 is Saturday
       const range = makeRange('2024-06-01', '2024-06-04');
       const cells = generateHeaderCells(range, 'day', TODAY);
-      expect(cells[0].sublabel).toBe('Sat');
-      expect(cells[1].sublabel).toBe('Sun');
-      expect(cells[2].sublabel).toBe('Mon');
+      expect(cells[0]!.sublabel).toBe('Sat');
+      expect(cells[1]!.sublabel).toBe('Sun');
+      expect(cells[2]!.sublabel).toBe('Mon');
     });
 
     it('cell width equals COLUMN_WIDTHS.day', () => {
@@ -783,14 +783,14 @@ describe('generateHeaderCells', () => {
       const range = makeRange('2024-06-01', '2024-06-10');
       const cells = generateHeaderCells(range, 'day', TODAY);
       for (let i = 1; i < cells.length; i++) {
-        expect(cells[i].x).toBeGreaterThan(cells[i - 1].x);
+        expect(cells[i]!.x).toBeGreaterThan(cells[i - 1]!.x);
       }
     });
 
     it('first cell starts at x=0', () => {
       const range = makeRange('2024-06-01', '2024-06-10');
       const cells = generateHeaderCells(range, 'day', TODAY);
-      expect(cells[0].x).toBe(0);
+      expect(cells[0]!.x).toBe(0);
     });
 
     it('each cell has a date property', () => {
@@ -814,8 +814,8 @@ describe('generateHeaderCells', () => {
       // 2024-06-03 (Mon) to 2024-06-09 (Sun)
       const range = makeRange('2024-06-03', '2024-06-10');
       const cells = generateHeaderCells(range, 'week', TODAY);
-      expect(cells[0].label).toContain('Jun 3');
-      expect(cells[0].label).toContain('9'); // end day
+      expect(cells[0]!.label).toContain('Jun 3');
+      expect(cells[0]!.label).toContain('9'); // end day
     });
 
     it('cell width equals COLUMN_WIDTHS.week', () => {
@@ -842,21 +842,21 @@ describe('generateHeaderCells', () => {
       const range = makeRange('2024-06-24', '2024-07-08');
       const cells = generateHeaderCells(range, 'week', TODAY);
       // Cell for Jun 24-Jun 30 — same month so no month prefix on end
-      expect(cells[0].label).toMatch(/Jun/);
+      expect(cells[0]!.label).toMatch(/Jun/);
     });
 
     it('cells have increasing x positions', () => {
       const range = makeRange('2024-06-03', '2024-08-05');
       const cells = generateHeaderCells(range, 'week', TODAY);
       for (let i = 1; i < cells.length; i++) {
-        expect(cells[i].x).toBeGreaterThan(cells[i - 1].x);
+        expect(cells[i]!.x).toBeGreaterThan(cells[i - 1]!.x);
       }
     });
 
     it('cell does not have sublabel property set', () => {
       const range = makeRange('2024-06-03', '2024-06-10');
       const cells = generateHeaderCells(range, 'week', TODAY);
-      expect(cells[0].sublabel).toBeUndefined();
+      expect(cells[0]!.sublabel).toBeUndefined();
     });
   });
 
@@ -870,9 +870,9 @@ describe('generateHeaderCells', () => {
     it('cell label includes month name and year', () => {
       const range = makeRange('2024-01-01', '2024-04-01');
       const cells = generateHeaderCells(range, 'month', TODAY);
-      expect(cells[0].label).toBe('January 2024');
-      expect(cells[1].label).toBe('February 2024');
-      expect(cells[2].label).toBe('March 2024');
+      expect(cells[0]!.label).toBe('January 2024');
+      expect(cells[1]!.label).toBe('February 2024');
+      expect(cells[2]!.label).toBe('March 2024');
     });
 
     it('marks current month as isToday=true', () => {
@@ -888,29 +888,29 @@ describe('generateHeaderCells', () => {
       const range = makeRange('2024-01-01', '2024-03-01'); // Jan + Feb 2024
       const cells = generateHeaderCells(range, 'month', TODAY);
       // January (31 days) should be wider than February 2024 (29 days)
-      expect(cells[0].width).toBeGreaterThan(cells[1].width);
+      expect(cells[0]!.width).toBeGreaterThan(cells[1]!.width);
     });
 
     it('cells span the full year correctly', () => {
       const range = makeRange('2024-01-01', '2025-01-01');
       const cells = generateHeaderCells(range, 'month', TODAY);
       expect(cells).toHaveLength(12);
-      expect(cells[0].label).toBe('January 2024');
-      expect(cells[11].label).toBe('December 2024');
+      expect(cells[0]!.label).toBe('January 2024');
+      expect(cells[11]!.label).toBe('December 2024');
     });
 
     it('handles year spanning ranges (Dec → Jan)', () => {
       const range = makeRange('2024-11-01', '2025-03-01');
       const cells = generateHeaderCells(range, 'month', TODAY);
       expect(cells).toHaveLength(4);
-      expect(cells[2].label).toBe('January 2025');
+      expect(cells[2]!.label).toBe('January 2025');
     });
 
     it('cells have increasing x positions', () => {
       const range = makeRange('2024-01-01', '2024-12-31');
       const cells = generateHeaderCells(range, 'month', TODAY);
       for (let i = 1; i < cells.length; i++) {
-        expect(cells[i].x).toBeGreaterThan(cells[i - 1].x);
+        expect(cells[i]!.x).toBeGreaterThan(cells[i - 1]!.x);
       }
     });
 

@@ -361,7 +361,7 @@ describe('useDocumentLinks', () => {
       });
 
       expect(result.current.links).toHaveLength(1);
-      expect(result.current.links[0].id).toBe('link-2');
+      expect(result.current.links[0]!.id).toBe('link-2');
     });
 
     it('removes only the targeted link when multiple links are present', async () => {

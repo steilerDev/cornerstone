@@ -145,13 +145,13 @@ describe('MonthGrid', () => {
     it('first column header is Sunday', () => {
       renderGrid({});
       const headers = screen.getAllByRole('columnheader');
-      expect(headers[0]).toHaveAttribute('aria-label', 'Sun');
+      expect(headers[0]!).toHaveAttribute('aria-label', 'Sun');
     });
 
     it('last column header is Saturday', () => {
       renderGrid({});
       const headers = screen.getAllByRole('columnheader');
-      expect(headers[6]).toHaveAttribute('aria-label', 'Sat');
+      expect(headers[6]!).toHaveAttribute('aria-label', 'Sat');
     });
   });
 
@@ -201,7 +201,7 @@ describe('MonthGrid', () => {
       renderGrid({ year: 2024, month: 9 });
       const cells = screen.getAllByRole('gridcell');
       // First cell should be Sunday, September 1, 2024
-      expect(cells[0]).toHaveAttribute('aria-label', 'Sunday, September 1, 2024');
+      expect(cells[0]!).toHaveAttribute('aria-label', 'Sunday, September 1, 2024');
     });
   });
 
@@ -312,7 +312,7 @@ describe('MonthGrid', () => {
       renderGrid({ year: 2024, month: 6 });
       const cells = screen.getAllByRole('gridcell');
       // First 6 cells should have the otherMonth class
-      const firstCell = cells[0];
+      const firstCell = cells[0]!;
       expect(firstCell.className).toContain('otherMonth');
     });
 
@@ -321,7 +321,7 @@ describe('MonthGrid', () => {
       renderGrid({ year: 2024, month: 9 });
       const cells = screen.getAllByRole('gridcell');
       // First cell is Sep 1 (in-month)
-      expect(cells[0].className).not.toContain('otherMonth');
+      expect(cells[0]!.className).not.toContain('otherMonth');
     });
   });
 

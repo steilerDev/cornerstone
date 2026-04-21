@@ -123,7 +123,7 @@ describe('translateApiError', () => {
     it('all German error translations are non-empty strings', () => {
       for (const code of allErrorCodes) {
         expect(typeof deErrors[code]).toBe('string');
-        expect((deErrors as Record<string, string>)[code].length).toBeGreaterThan(0);
+        expect((deErrors as Record<string, string>)[code]!.length).toBeGreaterThan(0);
       }
     });
 

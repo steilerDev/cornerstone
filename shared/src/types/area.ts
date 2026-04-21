@@ -7,12 +7,27 @@
 import type { PaginatedResponse } from './pagination.js';
 
 /**
+ * A single ancestor entry in the area parent chain.
+ * Contains only the fields needed for breadcrumb rendering.
+ */
+export interface AreaAncestor {
+  id: string;
+  name: string;
+  color: string | null;
+}
+
+/**
  * Area summary shape used in work item and household item responses.
  */
 export interface AreaSummary {
   id: string;
   name: string;
   color: string | null;
+  /**
+   * Ancestor chain in root-first order. Does NOT include the area itself.
+   * Empty array for root-level areas (no parent).
+   */
+  ancestors: AreaAncestor[];
 }
 
 /**

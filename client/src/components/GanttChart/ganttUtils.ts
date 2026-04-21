@@ -59,7 +59,10 @@ export const TEXT_LABEL_MIN_WIDTH = 60;
  */
 export function toUtcMidnight(dateStr: string): Date {
   // Parse YYYY-MM-DD as local midnight to avoid UTC offset day shifting
-  const [year, month, day] = dateStr.split('-').map(Number);
+  const parts = dateStr.split('-').map(Number);
+  const year = parts[0]!; // split ensures at least 1 part or throws
+  const month = parts[1]!; // must be YYYY-MM-DD format
+  const day = parts[2]!; // must be YYYY-MM-DD format
   return new Date(year, month - 1, day, 12, 0, 0, 0);
 }
 

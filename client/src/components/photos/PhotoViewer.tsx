@@ -13,7 +13,8 @@ export function PhotoViewer({ photos, initialIndex, onClose }: PhotoViewerProps)
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
-  const currentPhoto = photos[currentIndex];
+  // currentIndex is always within bounds [0, photos.length) due to cyclic navigation logic
+  const currentPhoto = photos[currentIndex]!;
 
   // Store previous focus and restore on close
   useEffect(() => {

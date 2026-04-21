@@ -279,7 +279,7 @@ describe('Budget Source Routes', () => {
       const body = response.json<BudgetSourceListResponse>();
       // Only the seeded discretionary source exists
       expect(body.budgetSources).toHaveLength(1);
-      expect(body.budgetSources[0].isDiscretionary).toBe(true);
+      expect(body.budgetSources[0]!.isDiscretionary).toBe(true);
     });
 
     it('returns sources sorted by name ascending', async () => {
@@ -298,10 +298,10 @@ describe('Budget Source Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<BudgetSourceListResponse>();
       // User sources sorted alphabetically, then discretionary last
-      expect(body.budgetSources[0].name).toBe('Alpha Source');
-      expect(body.budgetSources[1].name).toBe('Mid Source');
-      expect(body.budgetSources[2].name).toBe('Zeta Source');
-      expect(body.budgetSources[3].isDiscretionary).toBe(true);
+      expect(body.budgetSources[0]!.name).toBe('Alpha Source');
+      expect(body.budgetSources[1]!.name).toBe('Mid Source');
+      expect(body.budgetSources[2]!.name).toBe('Zeta Source');
+      expect(body.budgetSources[3]!.isDiscretionary).toBe(true);
     });
 
     it('returns all source fields including computed amounts', async () => {
@@ -325,7 +325,7 @@ describe('Budget Source Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<BudgetSourceListResponse>();
-      const source = body.budgetSources[0];
+      const source = body.budgetSources[0]!;
       expect(source.name).toBe('Full Source');
       expect(source.sourceType).toBe('credit_line');
       expect(source.totalAmount).toBe(75000);
@@ -1240,7 +1240,7 @@ describe('Budget Source Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<BudgetSourceListResponse>();
-      const source = body.budgetSources[0];
+      const source = body.budgetSources[0]!;
       expect(source.claimedAmount).toBe(0);
       expect(source.actualAvailableAmount).toBe(30000);
     });
@@ -1378,7 +1378,7 @@ describe('Budget Source Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<BudgetSourceListResponse>();
-      const source = body.budgetSources[0];
+      const source = body.budgetSources[0]!;
       expect(source.unclaimedAmount).toBe(0);
     });
 

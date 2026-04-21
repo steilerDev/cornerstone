@@ -134,7 +134,6 @@ const minimalBudgetOverview: BudgetOverview = {
   remainingVsActualClaimed: 90000,
   remainingVsMinPlannedWithPayback: 20000,
   remainingVsMaxPlannedWithPayback: 10000,
-  categorySummaries: [],
   subsidySummary: {
     totalReductions: 0,
     activeSubsidyCount: 0,
@@ -364,10 +363,10 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]!).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Hide Budget Summary card' })[0]);
+    await userEvent.click(screen.getAllByRole('button', { name: 'Hide Budget Summary card' })[0]!);
 
     await waitFor(() => {
       expect(mockUpsertPreference).toHaveBeenCalledWith(
@@ -392,10 +391,10 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]!).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getAllByRole('button', { name: 'Hide Budget Summary card' })[0]);
+    await userEvent.click(screen.getAllByRole('button', { name: 'Hide Budget Summary card' })[0]!);
 
     await waitFor(() => {
       expect(mockUpsertPreference).toHaveBeenCalledWith(
@@ -690,6 +689,8 @@ describe('DashboardPage', () => {
         actualAvailableAmount: 150000,
         paidAmount: 100000,
         projectedAmount: 120000,
+        projectedMinAmount: 100000,
+        projectedMaxAmount: 140000,
         isDiscretionary: false,
         interestRate: 3.5,
         terms: null,
@@ -711,6 +712,8 @@ describe('DashboardPage', () => {
         actualAvailableAmount: 50000,
         paidAmount: 0,
         projectedAmount: 0,
+        projectedMinAmount: 0,
+        projectedMaxAmount: 0,
         isDiscretionary: false,
         interestRate: null,
         terms: null,

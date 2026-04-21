@@ -21,6 +21,9 @@
  * - Delete confirmation modal uses role="dialog"
  * - Budget section h2: "Budget" (rendered conditionally based on budget lines)
  * - Documents section uses LinkedDocumentsSection (same as work items, invoices)
+ *
+ * fix/1278: areaBreadcrumb and its Tooltip/tabIndex have been removed from the detail header.
+ * areaBreadcrumbNav is retained in the POM for negative assertions only (must NOT be visible).
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -32,6 +35,11 @@ export class HouseholdItemDetailPage {
   readonly heading: Locator;
   readonly backLink: Locator;
   readonly editButton: Locator;
+
+  // Area breadcrumb nav locator (kept for negative assertions after fix/1278)
+  // fix/1278: the breadcrumb has been REMOVED from the HouseholdItemDetailPage header.
+  // areaBreadcrumbNav is retained so Scenario 2 and 5 tests can assert not.toBeVisible().
+  readonly areaBreadcrumbNav: Locator;
 
   // Content sections
   readonly budgetSection: Locator;
@@ -58,6 +66,10 @@ export class HouseholdItemDetailPage {
     // Edit button — located in the pageActions area; class="editButton"
     // Multiple "Edit" buttons may exist (budget line edit). Use first() to get the page-level one.
     this.editButton = page.locator('[class*="editButton"]').first();
+
+    // fix/1278: breadcrumb removed from HouseholdItemDetailPage header.
+    // areaBreadcrumbNav retained for negative assertions (must NOT be visible).
+    this.areaBreadcrumbNav = page.getByRole('navigation', { name: /area path/i });
 
     // Budget section
     this.budgetSection = page.locator('[class*="budgetSection"], [class*="budget"]').first();

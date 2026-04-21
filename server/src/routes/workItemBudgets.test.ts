@@ -179,9 +179,9 @@ describe('Work Item Budget Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ budgets: WorkItemBudgetLine[] }>();
       expect(body.budgets).toHaveLength(1);
-      expect(body.budgets[0].description).toBe('Initial budget estimate');
-      expect(body.budgets[0].plannedAmount).toBe(5000);
-      expect(body.budgets[0].invoiceLink).toBeNull();
+      expect(body.budgets[0]!.description).toBe('Initial budget estimate');
+      expect(body.budgets[0]!.plannedAmount).toBe(5000);
+      expect(body.budgets[0]!.invoiceLink).toBeNull();
     });
 
     it('returns 404 when work item does not exist', async () => {

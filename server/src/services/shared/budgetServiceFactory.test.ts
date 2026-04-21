@@ -267,8 +267,8 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         const result = listWorkItemBudgets(db, workItemId);
 
         expect(result).toHaveLength(2);
-        expect(result[0].id).toBe(line1.id);
-        expect(result[1].id).toBe(line2.id);
+        expect(result[0]!.id).toBe(line1.id);
+        expect(result[1]!.id).toBe(line2.id);
       });
 
       it('throws NotFoundError for missing work item', () => {
@@ -382,9 +382,9 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
         const result = listHouseholdItemBudgets(db, hiId);
 
-        expect(result[0].invoiceCount).toBe(1);
-        expect(result[0].actualCost).toBe(200);
-        expect(result[0].actualCostPaid).toBe(200); // claimed counts as paid
+        expect(result[0]!.invoiceCount).toBe(1);
+        expect(result[0]!.actualCost).toBe(200);
+        expect(result[0]!.actualCostPaid).toBe(200); // claimed counts as paid
       });
     });
   });
@@ -1369,10 +1369,10 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
       const result = listWorkItemBudgets(db, workItemId);
 
-      expect(result[0].invoiceLink).not.toBeNull();
-      expect(result[0].invoiceLink?.itemizedAmount).toBe(250);
-      expect(result[0].invoiceLink?.invoiceStatus).toBe('paid');
-      expect(result[0].invoiceCount).toBe(1);
+      expect(result[0]!.invoiceLink).not.toBeNull();
+      expect(result[0]!.invoiceLink?.itemizedAmount).toBe(250);
+      expect(result[0]!.invoiceLink?.invoiceStatus).toBe('paid');
+      expect(result[0]!.invoiceCount).toBe(1);
     });
   });
 
@@ -1820,7 +1820,7 @@ describe('resolveRelationsBatch()', () => {
     }
 
     // Link one invoice to the first line
-    insertInvoiceLinkedToWorkItemBudget(lines[0].line.id, vendorId, {
+    insertInvoiceLinkedToWorkItemBudget(lines[0]!.line.id, vendorId, {
       amount: 50,
       status: 'paid',
     });
@@ -1831,14 +1831,14 @@ describe('resolveRelationsBatch()', () => {
 
     // Verify each line has its own correct category
     for (let i = 0; i < 5; i++) {
-      const resultLine = result.find((r) => r.id === lines[i].line.id)!;
+      const resultLine = result.find((r) => r.id === lines[i]!.line.id)!;
       expect(resultLine).toBeDefined();
       expect(resultLine.plannedAmount).toBe((i + 1) * 100);
-      expect(resultLine.budgetCategory?.id).toBe(lines[i].catId);
+      expect(resultLine.budgetCategory?.id).toBe(lines[i]!.catId);
     }
 
     // Verify invoice aggregates on the first line
-    const firstResult = result.find((r) => r.id === lines[0].line.id)!;
+    const firstResult = result.find((r) => r.id === lines[0]!.line.id)!;
     expect(firstResult.actualCost).toBe(50);
     expect(firstResult.actualCostPaid).toBe(50);
     expect(firstResult.invoiceCount).toBe(1);
@@ -1846,7 +1846,7 @@ describe('resolveRelationsBatch()', () => {
 
     // Verify zero aggregates on lines 2-5
     for (let i = 1; i < 5; i++) {
-      const r = result.find((res) => res.id === lines[i].line.id)!;
+      const r = result.find((res) => res.id === lines[i]!.line.id)!;
       expect(r.actualCost).toBe(0);
       expect(r.invoiceLink).toBeNull();
     }

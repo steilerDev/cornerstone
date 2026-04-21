@@ -38,7 +38,7 @@ When a vendor invoice arrives for work covered by a budget line, you can link th
 
 When multiple budget lines on the same work item share an invoice, they collapse into an **Invoice Group** showing the invoice total alongside each line's planned and itemized amounts.
 
-See [Vendors & Invoices](vendors-and-invoices) for details on managing invoices and the linking workflow.
+See [Invoices & Vendors](vendors-and-invoices) for details on managing invoices and the linking workflow.
 
 ## Multiple Budget Lines per Work Item
 

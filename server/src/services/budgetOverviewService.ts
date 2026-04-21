@@ -2,11 +2,7 @@ import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
-import type {
-  BudgetOverview,
-  CategoryBudgetSummary,
-  OversubscribedSubsidy,
-} from '@cornerstone/shared';
+import type { BudgetOverview, OversubscribedSubsidy } from '@cornerstone/shared';
 import { computeSubsidyEffects, applySubsidyCaps } from './shared/subsidyCalculationEngine.js';
 import type {
   LinkedSubsidy,
@@ -192,22 +188,9 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   //
   // We'll compute this lazily per-line below.
 
-  // ── 7. Compute per-line planned amounts and per-category aggregates ─────────
+  // ── 7. Compute per-line planned amounts ──────────────────────────────────────
   let totalMinPlanned = 0;
   let totalMaxPlanned = 0;
-
-  // Category summaries: categoryId -> running totals
-  const categoryAgg = new Map<
-    string | null,
-    {
-      minPlanned: number;
-      maxPlanned: number;
-      actualCost: number;
-      actualCostPaid: number;
-      actualCostClaimed: number;
-      budgetLineCount: number;
-    }
-  >();
 
   // Per-work-item fixed subsidy line counts (memoized):
   // key = `${workItemId}:${subsidyId}` -> count of matching lines
@@ -293,23 +276,6 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
 
     totalMinPlanned += minPlanned;
     totalMaxPlanned += maxPlanned;
-
-    // Aggregate per category (null key = uncategorized)
-    let agg = categoryAgg.get(line.budgetCategoryId);
-    if (!agg) {
-      agg = {
-        minPlanned: 0,
-        maxPlanned: 0,
-        actualCost: 0,
-        actualCostPaid: 0,
-        actualCostClaimed: 0,
-        budgetLineCount: 0,
-      };
-      categoryAgg.set(line.budgetCategoryId, agg);
-    }
-    agg.minPlanned += minPlanned;
-    agg.maxPlanned += maxPlanned;
-    agg.budgetLineCount += 1;
   }
 
   // ── 8. Actual costs from invoices linked to budget lines ──────────────────
@@ -333,110 +299,14 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   const actualCostPaid = invoiceTotalsRow?.actualCostPaid ?? 0;
   const actualCostClaimed = invoiceTotalsRow?.actualCostClaimed ?? 0;
 
-  // ── 9. Per-category actual costs from invoices ────────────────────────────
-  // Include both work item and household item budget invoices using UNION ALL
-  // Exclude quotation invoices from actual cost aggregates
-  const categoryInvoiceRows = db.all<{
-    budgetCategoryId: string | null;
-    actualCost: number;
-    actualCostPaid: number;
-    actualCostClaimed: number;
-  }>(
-    sql`SELECT
-      wib.budget_category_id                                                                      AS budgetCategoryId,
-      COALESCE(SUM(ibl.itemized_amount), 0)                                                                AS actualCost,
-      COALESCE(SUM(CASE WHEN i.status IN ('paid', 'claimed') THEN ibl.itemized_amount ELSE 0 END), 0)   AS actualCostPaid,
-      COALESCE(SUM(CASE WHEN i.status = 'claimed' THEN ibl.itemized_amount ELSE 0 END), 0)              AS actualCostClaimed
-    FROM invoice_budget_lines ibl
-    INNER JOIN invoices i ON i.id = ibl.invoice_id
-    INNER JOIN work_item_budgets wib ON wib.id = ibl.work_item_budget_id
-    WHERE i.status != 'quotation'
-    GROUP BY wib.budget_category_id
-    UNION ALL
-    SELECT
-      hib.budget_category_id                                                                      AS budgetCategoryId,
-      COALESCE(SUM(ibl.itemized_amount), 0)                                                                AS actualCost,
-      COALESCE(SUM(CASE WHEN i.status IN ('paid', 'claimed') THEN ibl.itemized_amount ELSE 0 END), 0)   AS actualCostPaid,
-      COALESCE(SUM(CASE WHEN i.status = 'claimed' THEN ibl.itemized_amount ELSE 0 END), 0)              AS actualCostClaimed
-    FROM invoice_budget_lines ibl
-    INNER JOIN invoices i ON i.id = ibl.invoice_id
-    INNER JOIN household_item_budgets hib ON hib.id = ibl.household_item_budget_id
-    WHERE i.status != 'quotation'
-    GROUP BY hib.budget_category_id`,
-  );
-
-  for (const row of categoryInvoiceRows) {
-    let agg = categoryAgg.get(row.budgetCategoryId);
-    if (!agg) {
-      agg = {
-        minPlanned: 0,
-        maxPlanned: 0,
-        actualCost: 0,
-        actualCostPaid: 0,
-        actualCostClaimed: 0,
-        budgetLineCount: 0,
-      };
-      categoryAgg.set(row.budgetCategoryId, agg);
-    }
-    // Use += to accumulate for duplicate categories (one from work items, one from household items)
-    agg.actualCost += row.actualCost;
-    agg.actualCostPaid += row.actualCostPaid;
-    agg.actualCostClaimed += row.actualCostClaimed;
-  }
-
-  // ── 10. Budget category metadata (name, color, translation_key) ────────────────────────────
-  const categoryMetaRows = db.all<{
-    id: string;
-    name: string;
-    color: string | null;
-    translationKey: string | null;
-  }>(
-    sql`SELECT id, name, color, translation_key AS translationKey
-    FROM budget_categories
-    ORDER BY sort_order ASC, name ASC`,
-  );
-
-  const categorySummaries: CategoryBudgetSummary[] = categoryMetaRows.map((cat) => {
-    const agg = categoryAgg.get(cat.id);
-    return {
-      categoryId: cat.id,
-      categoryName: cat.name,
-      categoryColor: cat.color,
-      categoryTranslationKey: cat.translationKey,
-      minPlanned: agg?.minPlanned ?? 0,
-      maxPlanned: agg?.maxPlanned ?? 0,
-      actualCost: agg?.actualCost ?? 0,
-      actualCostPaid: agg?.actualCostPaid ?? 0,
-      actualCostClaimed: agg?.actualCostClaimed ?? 0,
-      budgetLineCount: agg?.budgetLineCount ?? 0,
-    };
-  });
-
-  // Append virtual "Uncategorized" entry if any budget lines have no category
-  const uncategorizedAgg = categoryAgg.get(null);
-  if (uncategorizedAgg) {
-    categorySummaries.push({
-      categoryId: null,
-      categoryName: 'Uncategorized',
-      categoryColor: null,
-      categoryTranslationKey: null,
-      minPlanned: uncategorizedAgg.minPlanned,
-      maxPlanned: uncategorizedAgg.maxPlanned,
-      actualCost: uncategorizedAgg.actualCost,
-      actualCostPaid: uncategorizedAgg.actualCostPaid,
-      actualCostClaimed: uncategorizedAgg.actualCostClaimed,
-      budgetLineCount: uncategorizedAgg.budgetLineCount,
-    });
-  }
-
-  // ── 11. Subsidy summary ───────────────────────────────────────────────────
+  // ── 9. Subsidy summary ───────────────────────────────────────────────────
   const subsidyCountRow = db.get<{ activeSubsidyCount: number }>(
     sql`SELECT COUNT(*) AS activeSubsidyCount
     FROM subsidy_programs
     WHERE application_status != 'rejected'`,
   );
 
-  // ── 11b. Aggregate subsidy payback across all work items ──────────────────
+  // ── 9a. Aggregate subsidy payback across all work items ─────────────────
   //
   // Replicates subsidyPaybackService logic globally across all budget lines.
   // For percentage subsidies: iterate over matching budget lines per work item.
@@ -558,7 +428,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     oversubscribedSubsidies,
   };
 
-  // ── 12. Remaining-funds perspectives ───────────────────────────────────────
+  // ── 10. Remaining-funds perspectives ───────────────────────────────────────
   const remainingVsMinPlanned = availableFunds - totalMinPlanned;
   const remainingVsMaxPlanned = availableFunds - totalMaxPlanned;
   const remainingVsActualCost = availableFunds - actualCost;
@@ -586,7 +456,6 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     remainingVsActualClaimed,
     remainingVsMinPlannedWithPayback,
     remainingVsMaxPlannedWithPayback,
-    categorySummaries,
     subsidySummary,
   };
 }

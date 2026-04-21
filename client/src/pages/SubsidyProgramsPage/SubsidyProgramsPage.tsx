@@ -25,7 +25,6 @@ import styles from './SubsidyProgramsPage.module.css';
 const BUDGET_TABS: SubNavTab[] = [
   { labelKey: 'subnav.budget.overview', to: '/budget/overview', ns: 'common' },
   { labelKey: 'subnav.budget.invoices', to: '/budget/invoices', ns: 'common' },
-  { labelKey: 'subnav.budget.vendors', to: '/budget/vendors', ns: 'common' },
   { labelKey: 'subnav.budget.sources', to: '/budget/sources', ns: 'common' },
   { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies', ns: 'common' },
 ];
@@ -477,8 +476,8 @@ export function SubsidyProgramsPage() {
                   disabled={isCreating}
                 >
                   {Object.entries({
-                    percentage: t('subsidies.reductionTypeLabels.percentage'),
-                    fixed: t('subsidies.reductionTypeLabels.fixed'),
+                    percentage: t('subsidies.reductionTypeLabels.percentage')!,
+                    fixed: t('subsidies.reductionTypeLabels.fixed')!,
                   }).map(([value, label]) => (
                     <option key={value} value={value}>
                       {label}
@@ -522,11 +521,11 @@ export function SubsidyProgramsPage() {
                   disabled={isCreating}
                 >
                   {Object.entries({
-                    eligible: t('subsidies.statusLabels.eligible'),
-                    applied: t('subsidies.statusLabels.applied'),
-                    approved: t('subsidies.statusLabels.approved'),
-                    received: t('subsidies.statusLabels.received'),
-                    rejected: t('subsidies.statusLabels.rejected'),
+                    eligible: t('subsidies.statusLabels.eligible')!,
+                    applied: t('subsidies.statusLabels.applied')!,
+                    approved: t('subsidies.statusLabels.approved')!,
+                    received: t('subsidies.statusLabels.received')!,
+                    rejected: t('subsidies.statusLabels.rejected')!,
                   }).map(([value, label]) => (
                     <option key={value} value={value}>
                       {label}
@@ -752,8 +751,8 @@ export function SubsidyProgramsPage() {
                           disabled={isUpdating}
                         >
                           {Object.entries({
-                            percentage: t('subsidies.reductionTypeLabels.percentage'),
-                            fixed: t('subsidies.reductionTypeLabels.fixed'),
+                            percentage: t('subsidies.reductionTypeLabels.percentage')!,
+                            fixed: t('subsidies.reductionTypeLabels.fixed')!,
                           }).map(([value, label]) => (
                             <option key={value} value={value}>
                               {label}
@@ -807,11 +806,11 @@ export function SubsidyProgramsPage() {
                           disabled={isUpdating}
                         >
                           {Object.entries({
-                            eligible: t('subsidies.statusLabels.eligible'),
-                            applied: t('subsidies.statusLabels.applied'),
-                            approved: t('subsidies.statusLabels.approved'),
-                            received: t('subsidies.statusLabels.received'),
-                            rejected: t('subsidies.statusLabels.rejected'),
+                            eligible: t('subsidies.statusLabels.eligible')!,
+                            applied: t('subsidies.statusLabels.applied')!,
+                            approved: t('subsidies.statusLabels.approved')!,
+                            received: t('subsidies.statusLabels.received')!,
+                            rejected: t('subsidies.statusLabels.rejected')!,
                           }).map(([value, label]) => (
                             <option key={value} value={value}>
                               {label}

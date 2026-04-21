@@ -2,7 +2,7 @@
   "_meta": {
     "description": "Single source of truth for domain terminology translations. The translator agent enforces these.",
     "locales": ["de"],
-    "lastUpdated": "2026-03-19"
+    "lastUpdated": "2026-04-16"
   },
   "terms": {
     "Work Item": { "de": { "singular": "Arbeitspaket", "plural": "Arbeitspakete" } },
@@ -22,6 +22,7 @@
     "Dashboard": { "de": { "singular": "Projektübersicht" } },
     "Quotation": { "de": { "singular": "Angebot", "plural": "Angebote" } },
     "Area": { "de": { "singular": "Bereich", "plural": "Bereiche" } },
-    "Trade": { "de": { "singular": "Gewerk", "plural": "Gewerke" } }
+    "Trade": { "de": { "singular": "Gewerk", "plural": "Gewerke" } },
+    "Unassigned": { "de": { "singular": "Nicht zugewiesen" } }
   }
 }

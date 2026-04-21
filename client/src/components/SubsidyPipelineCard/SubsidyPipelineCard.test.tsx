@@ -110,7 +110,7 @@ describe('SubsidyPipelineCard', () => {
     const badges = screen.getAllByTestId('status-badge');
     expect(badges).toHaveLength(3);
     // First group must be 'eligible'
-    expect(badges[0]).toHaveTextContent('Eligible');
+    expect(badges[0]!).toHaveTextContent('Eligible');
   });
 
   // ── Test 4: Rejected renders last ────────────────────────────────────────────
@@ -125,8 +125,8 @@ describe('SubsidyPipelineCard', () => {
 
     const badges = screen.getAllByTestId('status-badge');
     expect(badges).toHaveLength(2);
-    expect(badges[0]).toHaveTextContent('Eligible');
-    expect(badges[1]).toHaveTextContent('Rejected');
+    expect(badges[0]!).toHaveTextContent('Eligible');
+    expect(badges[1]!).toHaveTextContent('Rejected');
   });
 
   // ── Test 5: Group count ───────────────────────────────────────────────────────

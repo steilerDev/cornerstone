@@ -50,8 +50,8 @@ describe('computeSubsidyEffects', () => {
       const result = computeSubsidyEffects([], [subsidy], emptyCategories, emptyInvoices);
 
       expect(result.subsidies).toHaveLength(1);
-      expect(result.subsidies[0].minPayback).toBe(5000);
-      expect(result.subsidies[0].maxPayback).toBe(5000);
+      expect(result.subsidies[0]!.minPayback).toBe(5000);
+      expect(result.subsidies[0]!.maxPayback).toBe(5000);
       expect(result.minTotalPayback).toBe(5000);
       expect(result.maxTotalPayback).toBe(5000);
     });
@@ -61,8 +61,8 @@ describe('computeSubsidyEffects', () => {
       const result = computeSubsidyEffects([], [subsidy], emptyCategories, emptyInvoices);
 
       expect(result.subsidies).toHaveLength(1);
-      expect(result.subsidies[0].minPayback).toBe(0);
-      expect(result.subsidies[0].maxPayback).toBe(0);
+      expect(result.subsidies[0]!.minPayback).toBe(0);
+      expect(result.subsidies[0]!.maxPayback).toBe(0);
       expect(result.minTotalPayback).toBe(0);
       expect(result.maxTotalPayback).toBe(0);
     });
@@ -77,8 +77,8 @@ describe('computeSubsidyEffects', () => {
       const subsidy = makeSubsidy({ reductionType: 'percentage', reductionValue: 10 });
       const result = computeSubsidyEffects([line], [subsidy], emptyCategories, emptyInvoices);
 
-      expect(result.subsidies[0].minPayback).toBe(80);
-      expect(result.subsidies[0].maxPayback).toBe(120);
+      expect(result.subsidies[0]!.minPayback).toBe(80);
+      expect(result.subsidies[0]!.maxPayback).toBe(120);
     });
 
     it('professional_estimate (±10%), 1000 planned, 10% rate → min=90, max=110', () => {
@@ -86,8 +86,8 @@ describe('computeSubsidyEffects', () => {
       const subsidy = makeSubsidy({ reductionType: 'percentage', reductionValue: 10 });
       const result = computeSubsidyEffects([line], [subsidy], emptyCategories, emptyInvoices);
 
-      expect(result.subsidies[0].minPayback).toBe(90);
-      expect(result.subsidies[0].maxPayback).toBe(110);
+      expect(result.subsidies[0]!.minPayback).toBe(90);
+      expect(result.subsidies[0]!.maxPayback).toBe(110);
     });
 
     it('quote (±5%), 1000 planned, 10% rate → min=95, max=105', () => {
@@ -95,8 +95,8 @@ describe('computeSubsidyEffects', () => {
       const subsidy = makeSubsidy({ reductionType: 'percentage', reductionValue: 10 });
       const result = computeSubsidyEffects([line], [subsidy], emptyCategories, emptyInvoices);
 
-      expect(result.subsidies[0].minPayback).toBe(95);
-      expect(result.subsidies[0].maxPayback).toBe(105);
+      expect(result.subsidies[0]!.minPayback).toBe(95);
+      expect(result.subsidies[0]!.maxPayback).toBe(105);
     });
 
     it('invoice (±0%), 1000 planned, 10% rate → min === max === 100', () => {
@@ -104,8 +104,8 @@ describe('computeSubsidyEffects', () => {
       const subsidy = makeSubsidy({ reductionType: 'percentage', reductionValue: 10 });
       const result = computeSubsidyEffects([line], [subsidy], emptyCategories, emptyInvoices);
 
-      expect(result.subsidies[0].minPayback).toBe(100);
-      expect(result.subsidies[0].maxPayback).toBe(100);
+      expect(result.subsidies[0]!.minPayback).toBe(100);
+      expect(result.subsidies[0]!.maxPayback).toBe(100);
     });
   });
 
@@ -119,8 +119,8 @@ describe('computeSubsidyEffects', () => {
       const invoices = new Map([['line-a', 800]]);
       const result = computeSubsidyEffects([line], [subsidy], emptyCategories, invoices);
 
-      expect(result.subsidies[0].minPayback).toBe(80);
-      expect(result.subsidies[0].maxPayback).toBe(80);
+      expect(result.subsidies[0]!.minPayback).toBe(80);
+      expect(result.subsidies[0]!.maxPayback).toBe(80);
     });
 
     it('mixed: one invoiced (800), one not (1000, own_estimate), 10% → min=160, max=200', () => {
@@ -144,8 +144,8 @@ describe('computeSubsidyEffects', () => {
       );
 
       // invoiced: min=max=80; uninvoiced own_estimate: min=80, max=120 → totals: min=160, max=200
-      expect(result.subsidies[0].minPayback).toBe(160);
-      expect(result.subsidies[0].maxPayback).toBe(200);
+      expect(result.subsidies[0]!.minPayback).toBe(160);
+      expect(result.subsidies[0]!.maxPayback).toBe(200);
     });
   });
 
@@ -161,16 +161,16 @@ describe('computeSubsidyEffects', () => {
       const subsidy = makeSubsidy({ reductionType: 'fixed', reductionValue: 5000 });
       const result = computeSubsidyEffects(lines, [subsidy], emptyCategories, emptyInvoices);
 
-      expect(result.subsidies[0].minPayback).toBe(5000);
-      expect(result.subsidies[0].maxPayback).toBe(5000);
+      expect(result.subsidies[0]!.minPayback).toBe(5000);
+      expect(result.subsidies[0]!.maxPayback).toBe(5000);
     });
 
     it('fixed 5000 with zero budget lines → min=max=5000', () => {
       const subsidy = makeSubsidy({ reductionType: 'fixed', reductionValue: 5000 });
       const result = computeSubsidyEffects([], [subsidy], emptyCategories, emptyInvoices);
 
-      expect(result.subsidies[0].minPayback).toBe(5000);
-      expect(result.subsidies[0].maxPayback).toBe(5000);
+      expect(result.subsidies[0]!.minPayback).toBe(5000);
+      expect(result.subsidies[0]!.maxPayback).toBe(5000);
     });
 
     it('two fixed subsidies (1000 + 2000) → totalMin=totalMax=3000', () => {
@@ -216,8 +216,8 @@ describe('computeSubsidyEffects', () => {
       const result = computeSubsidyEffects([lineA, lineB], [subsidy], catMap, emptyInvoices);
 
       // Only cat-A line contributes: 1000 * 0.10 = 100
-      expect(result.subsidies[0].minPayback).toBe(100);
-      expect(result.subsidies[0].maxPayback).toBe(100);
+      expect(result.subsidies[0]!.minPayback).toBe(100);
+      expect(result.subsidies[0]!.maxPayback).toBe(100);
     });
 
     it('universal subsidy (empty Set); all lines contribute', () => {
@@ -241,8 +241,8 @@ describe('computeSubsidyEffects', () => {
       const result = computeSubsidyEffects([lineA, lineB], [subsidy], catMap, emptyInvoices);
 
       // Both lines contribute: (1000 + 500) * 0.10 = 150
-      expect(result.subsidies[0].minPayback).toBe(150);
-      expect(result.subsidies[0].maxPayback).toBe(150);
+      expect(result.subsidies[0]!.minPayback).toBe(150);
+      expect(result.subsidies[0]!.maxPayback).toBe(150);
     });
 
     it('null budgetCategoryId + restricted subsidy → line is excluded', () => {
@@ -260,8 +260,8 @@ describe('computeSubsidyEffects', () => {
       const result = computeSubsidyEffects([nullLine], [subsidy], catMap, emptyInvoices);
 
       // null category cannot match any restricted category → excluded
-      expect(result.subsidies[0].minPayback).toBe(0);
-      expect(result.subsidies[0].maxPayback).toBe(0);
+      expect(result.subsidies[0]!.minPayback).toBe(0);
+      expect(result.subsidies[0]!.maxPayback).toBe(0);
     });
 
     it('null budgetCategoryId + universal subsidy → line is included', () => {
@@ -279,8 +279,8 @@ describe('computeSubsidyEffects', () => {
       const result = computeSubsidyEffects([nullLine], [subsidy], emptyCategories, emptyInvoices);
 
       // Universal: null budgetCategoryId is included → 1000 * 0.10 = 100
-      expect(result.subsidies[0].minPayback).toBe(100);
-      expect(result.subsidies[0].maxPayback).toBe(100);
+      expect(result.subsidies[0]!.minPayback).toBe(100);
+      expect(result.subsidies[0]!.maxPayback).toBe(100);
     });
   });
 
@@ -391,8 +391,8 @@ describe('computeSubsidyEffects', () => {
       const result = computeSubsidyEffects([line], [subsidy], emptyCategories, emptyInvoices);
 
       // own_estimate margin = 0.20 → min=80, max=120
-      expect(result.subsidies[0].minPayback).toBe(80);
-      expect(result.subsidies[0].maxPayback).toBe(120);
+      expect(result.subsidies[0]!.minPayback).toBe(80);
+      expect(result.subsidies[0]!.maxPayback).toBe(120);
     });
   });
 });

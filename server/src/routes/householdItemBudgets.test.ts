@@ -166,8 +166,8 @@ describe('Household Item Budget Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ budgets: HouseholdItemBudgetLine[] }>();
       expect(body.budgets).toHaveLength(1);
-      expect(body.budgets[0].description).toBe('Initial budget estimate');
-      expect(body.budgets[0].plannedAmount).toBe(500);
+      expect(body.budgets[0]!.description).toBe('Initial budget estimate');
+      expect(body.budgets[0]!.plannedAmount).toBe(500);
     });
 
     it('returns 404 when household item does not exist', async () => {

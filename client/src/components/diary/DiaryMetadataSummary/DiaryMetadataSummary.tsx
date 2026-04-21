@@ -26,16 +26,16 @@ const WEATHER_EMOJI: Record<string, string> = {
 };
 
 const DIARY_OUTCOME_VARIANTS = {
-  pass: { label: 'Pass', className: badgeStyles.pass },
-  fail: { label: 'Fail', className: badgeStyles.fail },
-  conditional: { label: 'Conditional', className: badgeStyles.conditional },
+  pass: { label: 'Pass', className: badgeStyles.pass! },
+  fail: { label: 'Fail', className: badgeStyles.fail! },
+  conditional: { label: 'Conditional', className: badgeStyles.conditional! },
 };
 
 const DIARY_SEVERITY_VARIANTS = {
-  low: { label: 'Low', className: badgeStyles.low },
-  medium: { label: 'Medium', className: badgeStyles.medium },
-  high: { label: 'High', className: badgeStyles.high },
-  critical: { label: 'Critical', className: badgeStyles.critical },
+  low: { label: 'Low', className: badgeStyles.low! },
+  medium: { label: 'Medium', className: badgeStyles.medium! },
+  high: { label: 'High', className: badgeStyles.high! },
+  critical: { label: 'Critical', className: badgeStyles.critical! },
 };
 
 export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSummaryProps) {

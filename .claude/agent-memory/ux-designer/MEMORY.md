@@ -250,6 +250,17 @@ Key decisions:
 
 See `story-9-2-dashboard.md`. Key: 3/2/1 col grid, card = `<article>`, skeleton replaces body only (header+footer always visible), Customize button only when ≥1 hidden card, no new tokens needed.
 
+## AreaBreadcrumb + SearchPicker renderSecondary (Issue #1237)
+
+- Breadcrumb tokens: `--font-size-xs`, `--color-text-muted` (no new tokens)
+- Compact truncation: CSS `direction: rtl` + `unicode-bidi: plaintext` + `text-overflow: ellipsis` (no JS needed)
+- Tooltip on compact: wrap in existing `Tooltip` component; add `tabIndex={0}` for touch/tap
+- Null area: same muted style, NOT italic; plain `<span>` (no nav/ol)
+- ARIA: `<nav aria-label="Area path"><ol>` with separator `<li aria-hidden="true">` for populated; plain `<span>` for null
+- `color` field on AreaAncestor: ignore in breadcrumb (used by Badge elsewhere)
+- SearchPicker `.resultSecondary`: `--font-size-xs`, `--color-text-muted`, `margin-top: --spacing-0-5`; omit from selectedDisplay
+- Tooltip component already handles `onFocus`/`onBlur` — no new Tooltip behavior needed
+
 ## Issue #933 — DAV Access Card + Vendor Contacts
 
 See `story-933-dav-vendor-contacts.md`. Token-once reveal panel: `role="status" aria-atomic="true"`. ContactCard is a new shared component. VendorContacts section placed between Vendor Info card and Invoices card.

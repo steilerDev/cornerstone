@@ -438,9 +438,9 @@ describe('Migration 0012: Household Item Deps', () => {
       }>;
 
       expect(rows).toHaveLength(1);
-      expect(rows[0].household_item_id).toBe('item-query-test');
-      expect(rows[0].predecessor_type).toBe('work_item');
-      expect(rows[0].predecessor_id).toBe('wi-query-test');
+      expect(rows[0]!.household_item_id).toBe('item-query-test');
+      expect(rows[0]!.predecessor_type).toBe('work_item');
+      expect(rows[0]!.predecessor_id).toBe('wi-query-test');
     });
   });
 

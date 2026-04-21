@@ -1,4 +1,4 @@
-import { describe, it, expect, jest } from '@jest/globals';
+import { describe, it, expect, jest, beforeAll, afterAll } from '@jest/globals';
 import type { ReactNode } from 'react';
 import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
 import { DateFilter } from './DateFilter.js';
@@ -25,6 +25,22 @@ function findDayButton(container: HTMLElement, dayNumber: number): HTMLButtonEle
 }
 
 describe('DateFilter', () => {
+  // Freeze time to 2026-03-15 so the underlying DateRangePicker's default "current month" is
+  // always March 2026. Tests that click day numbers and assert March dates are time-bombs
+  // without this: once the real clock advances past March 2026 the picker shows a different
+  // month and the expected date strings no longer match.
+  // doNotFake preserves real async timers so React Testing Library's findBy* and internal
+  // microtasks (act, etc.) continue to work correctly.
+  beforeAll(() => {
+    jest.useFakeTimers({
+      doNotFake: ['setTimeout', 'setInterval', 'setImmediate', 'queueMicrotask', 'performance'],
+    });
+    jest.setSystemTime(new Date('2026-03-15T12:00:00Z'));
+  });
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
   describe('rendering', () => {
     it('renders the DateRangePicker component with calendar grid', () => {
       const { container } = render(<DateFilter value="" onChange={jest.fn()} />);
@@ -173,7 +189,7 @@ describe('DateFilter', () => {
       const dayBtn25 = findDayButton(container2, 25);
       fireEvent.click(dayBtn25!);
 
-      const calledValue = mockOnChange.mock.calls[0][0];
+      const calledValue = mockOnChange.mock.calls[0]![0];
       expect(calledValue).toMatch(/^from:/);
     });
 
@@ -191,7 +207,7 @@ describe('DateFilter', () => {
       const dayBtn25 = findDayButton(container2, 25);
       fireEvent.click(dayBtn25!);
 
-      const calledValue = mockOnChange.mock.calls[0][0];
+      const calledValue = mockOnChange.mock.calls[0]![0];
       expect(calledValue).toMatch(/to:/);
     });
 
@@ -209,7 +225,7 @@ describe('DateFilter', () => {
       const dayBtn25 = findDayButton(container2, 25);
       fireEvent.click(dayBtn25!);
 
-      const calledValue = mockOnChange.mock.calls[0][0];
+      const calledValue = mockOnChange.mock.calls[0]![0];
       expect(calledValue).toMatch(/from:.+,to:.+/);
     });
   });
@@ -252,6 +268,37 @@ describe('DateFilter', () => {
       const { container } = render(<DateFilter value="from:invalid-date" onChange={jest.fn()} />);
       const grid = container.querySelector('[role="grid"]');
       expect(grid).toBeInTheDocument(); // Should render without crashing
+    });
+  });
+
+  describe('single-instance two-click flow (issue #1178 regression)', () => {
+    it('clicking start then end within a single mounted instance calls onChange once with full range', () => {
+      // Regression test: without the fix, the DateRangePicker's phase reset to 'selecting-start'
+      // after the first click (because the startDate prop was still '' when the component re-rendered).
+      // With the fix (pendingStartDate internal state), the phase correctly stays 'selecting-end'
+      // so the second click completes the range without requiring a prop update between clicks.
+      const mockOnChange = jest.fn();
+      const { container } = render(<DateFilter value="" onChange={mockOnChange} />);
+
+      // Step 1: Click day 15 — partial selection (start date only)
+      const dayBtn15 = findDayButton(container, 15);
+      expect(dayBtn15).toBeTruthy();
+      fireEvent.click(dayBtn15!);
+      // DateFilter must NOT call onChange for a partial selection
+      expect(mockOnChange).not.toHaveBeenCalled();
+
+      // Phase label inside the DateRangePicker must immediately show "end" — no re-mount needed
+      const phaseLabel = container.querySelector('.phaseLabel');
+      expect(phaseLabel?.textContent?.toLowerCase()).toContain('end');
+
+      // Step 2: Click day 25 — completes the range within the same mounted component
+      const dayBtn25 = findDayButton(container, 25);
+      expect(dayBtn25).toBeTruthy();
+      fireEvent.click(dayBtn25!);
+
+      // DateFilter must now call onChange with the full range format
+      expect(mockOnChange).toHaveBeenCalledTimes(1);
+      expect(mockOnChange).toHaveBeenCalledWith('from:2026-03-15,to:2026-03-25');
     });
   });
 });

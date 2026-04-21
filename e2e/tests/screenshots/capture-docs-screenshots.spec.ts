@@ -594,7 +594,7 @@ test.describe('Documentation screenshots', () => {
       return;
     }
 
-    await page.goto(`${baseUrl}${ROUTES.budgetVendors}/${vendorId}`);
+    await page.goto(`${baseUrl}${ROUTES.settingsVendors}/${vendorId}`);
     await page.waitForLoadState('networkidle');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     await page.waitForTimeout(500);
@@ -613,7 +613,7 @@ test.describe('Documentation screenshots', () => {
       return;
     }
 
-    await page.goto(`${baseUrl}${ROUTES.budgetVendors}/${vendorId}`);
+    await page.goto(`${baseUrl}${ROUTES.settingsVendors}/${vendorId}`);
     await page.waitForLoadState('networkidle');
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 

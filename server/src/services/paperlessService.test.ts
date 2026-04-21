@@ -70,7 +70,7 @@ function mockBinaryResponse(data: Buffer, contentType = 'image/webp'): Response 
 const RAW_TAG_1 = { id: 5, name: 'invoice', colour: 6, document_count: 15 };
 const RAW_TAG_2 = { id: 12, name: 'contract', colour: 2, document_count: 8 };
 
-const RAW_TAGS_RESPONSE = { count: 2, results: [RAW_TAG_1, RAW_TAG_2] };
+const RAW_TAGS_RESPONSE = { count: 2, results: [RAW_TAG_1, RAW_TAG_2]! };
 
 const RAW_DOCUMENT_1 = {
   id: 42,
@@ -257,15 +257,15 @@ describe('listDocuments()', () => {
     const result = await paperlessService.listDocuments(BASE_URL, TOKEN, {});
 
     expect(result.documents).toHaveLength(1);
-    const doc = result.documents[0];
+    const doc = result.documents[0]!;
     expect(doc.id).toBe(42);
     expect(doc.title).toBe('Invoice from Builder Co');
     expect(doc.content).toBeNull(); // list view omits content
     expect(doc.correspondent).toBe('Builder Co');
     expect(doc.documentType).toBe('Invoice');
     expect(doc.tags).toHaveLength(2);
-    expect(doc.tags[0].name).toBe('invoice');
-    expect(doc.tags[1].name).toBe('contract');
+    expect(doc.tags[0]!.name).toBe('invoice');
+    expect(doc.tags[1]!.name).toBe('contract');
     expect(doc.searchHit).toBeNull(); // no search query
   });
 
@@ -274,7 +274,7 @@ describe('listDocuments()', () => {
 
     const result = await paperlessService.listDocuments(BASE_URL, TOKEN, {});
 
-    expect(result.documents[0].created).toBe('2026-01-15');
+    expect(result.documents[0]!.created).toBe('2026-01-15');
   });
 
   it('returns correct pagination metadata', async () => {
@@ -398,7 +398,7 @@ describe('listDocuments()', () => {
 
     const result = await paperlessService.listDocuments(BASE_URL, TOKEN, { query: 'invoice' });
 
-    expect(result.documents[0].searchHit).toEqual({
+    expect(result.documents[0]!.searchHit).toEqual({
       score: 0.95,
       highlights: 'This <em>invoice</em>...',
       rank: 1,
@@ -419,8 +419,8 @@ describe('listDocuments()', () => {
     // Should only have 4 fetch calls (docs + tags + 1 correspondent + 1 doc type)
     expect(mockFetch).toHaveBeenCalledTimes(4);
     expect(result.documents).toHaveLength(2);
-    expect(result.documents[0].correspondent).toBe('Builder Co');
-    expect(result.documents[1].correspondent).toBe('Builder Co');
+    expect(result.documents[0]!.correspondent).toBe('Builder Co');
+    expect(result.documents[1]!.correspondent).toBe('Builder Co');
   });
 
   it('handles documents with no tags, correspondent, or document type', async () => {
@@ -443,7 +443,7 @@ describe('listDocuments()', () => {
 
     const result = await paperlessService.listDocuments(BASE_URL, TOKEN, {});
 
-    const doc = result.documents[0];
+    const doc = result.documents[0]!;
     expect(doc.tags).toEqual([]);
     expect(doc.created).toBeNull();
     expect(doc.correspondent).toBeNull();
@@ -460,16 +460,16 @@ describe('listDocuments()', () => {
 
     const result = await paperlessService.listDocuments(BASE_URL, TOKEN, {});
 
-    const invoiceTag = result.documents[0].tags.find((t) => t.name === 'invoice');
+    const invoiceTag = result.documents[0]!.tags.find((t) => t.name === 'invoice');
     expect(invoiceTag?.color).toBe('#e31a1c'); // colour=6 maps to #e31a1c
 
-    const contractTag = result.documents[0].tags.find((t) => t.name === 'contract');
+    const contractTag = result.documents[0]!.tags.find((t) => t.name === 'contract');
     expect(contractTag?.color).toBe('#1f78b4'); // colour=2 maps to #1f78b4
   });
 
   it('returns null color for unknown colour IDs', async () => {
     const rawTagUnknownColor = { id: 20, name: 'misc', colour: 99, document_count: 3 };
-    const docWithUnknownColorTag = { ...RAW_DOCUMENT_1, tags: [20] };
+    const docWithUnknownColorTag = { ...RAW_DOCUMENT_1, tags: [20]! };
     mockFetch.mockResolvedValueOnce(
       mockJsonResponse({ count: 1, results: [docWithUnknownColorTag] }),
     );
@@ -479,7 +479,7 @@ describe('listDocuments()', () => {
 
     const result = await paperlessService.listDocuments(BASE_URL, TOKEN, {});
 
-    expect(result.documents[0].tags[0].color).toBeNull();
+    expect(result.documents[0]!.tags[0]!.color).toBeNull();
   });
 
   it('throws PAPERLESS_UNREACHABLE on network error', async () => {
@@ -613,7 +613,7 @@ describe('getDocument()', () => {
 
     await paperlessService.getDocument(BASE_URL, TOKEN, 42);
 
-    expect(mockFetch.mock.calls[0][0]).toBe(`${BASE_URL}/api/documents/42/`);
+    expect(mockFetch.mock.calls[0]![0]).toBe(`${BASE_URL}/api/documents/42/`);
   });
 
   it('throws NOT_FOUND (404) when Paperless returns 404', async () => {
@@ -726,9 +726,9 @@ describe('listTags()', () => {
     const result = await paperlessService.listTags(BASE_URL, TOKEN);
 
     expect(result.tags).toHaveLength(3);
-    expect(result.tags[0].id).toBe(5);
-    expect(result.tags[1].id).toBe(12);
-    expect(result.tags[2].id).toBe(20);
+    expect(result.tags[0]!.id).toBe(5);
+    expect(result.tags[1]!.id).toBe(12);
+    expect(result.tags[2]!.id).toBe(20);
   });
 
   it('maps tag fields correctly', async () => {

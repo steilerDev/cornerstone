@@ -1,3 +1,9 @@
+.titleCell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
 .errorBanner {
   background-color: var(--color-danger-bg);
   border: 1px solid var(--color-danger-border);

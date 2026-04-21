@@ -3,6 +3,145 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## BudgetBar Module-Level Mock Anti-Pattern (2026-04-20)
+
+**Critical**: Mocking `BudgetBar` at module level (`jest.unstable_mockModule('../../components/BudgetBar/BudgetBar.js', ...)`) breaks ALL existing tests that rely on BudgetBar rendering content (labels, role="img", segment text). BudgetBar renders segment labels (e.g. "Paid (unclaimed)", "Claimed") that existing tests assert on. The fix: test segment keys via observable behavior (aria-label, summaryLabel text) rather than mock capture. For segment structure verification, use `container.querySelectorAll('[class*="summaryRow"]')` to check rows and their label text order.
+
+## JSX Raw Text Unicode Escapes (2026-04-20)
+
+`\u2013` in JSX raw text (NOT inside `{expr}`) renders as the literal 6 characters `\`, `u`, `2`, `0`, `1`, `3` — NOT as the en-dash character. Only inside JS string expressions (in `{}`) is `\u2013` a Unicode escape. Confirmed in `BudgetSourcesPage.tsx` line 206: `{formatCurrency(source.projectedMinAmount)} \u2013 {formatCurrency(source.projectedMaxAmount)}`. The actual text content received is `"€80,000.00 \\u2013 €120,000.00"`.
+
+## CSS Module Class Selectors in Jest/JSDOM (2026-04-20)
+
+`[class*="summaryLabel"]` matches BOTH `summaryLabel` AND `summaryLabelDot` (child span inside summaryLabel). To count summary rows, use `[class*="summaryRow"]` instead. To get label text within each row, do `row.querySelector('[class*="summaryLabel"]')` — returns the parent span including dot + text.
+
+## de/budget.json Smart-Quote Bug (2026-04-16)
+
+`client/src/i18n/de/budget.json` had a JSON syntax error at line 211: `confirmDisabledHint` used „Ich verstehe" with a German open-quote (U+201E) but an ASCII close-quote (U+0022) which terminated the JSON string early. Fix: replace ASCII `"` with `\u201c` (U+201C German close-quote). **Symptom**: ALL Jest test suites fail to run with `SyntaxError: Expected double-quoted property name in JSON at position 9524`. i18next loads all locale JSON files, including de/budget.json, even in tests that don't use German translations.
+
+## ESM Module Spy Anti-Pattern (2026-04-16)
+
+**Critical**: `jest.spyOn(module, 'functionName')` ALWAYS THROWS on ESM static imports with error `TypeError: Cannot assign to read only property 'functionName' of object '[object Module]'`. This causes the **entire test suite to fail to run**, not just that test. ESM exports are read-only live bindings — you cannot reassign them. The fix: remove the spy entirely. If an efficiency check (`loadAreaMap called once`) was the purpose, verify correctness via observable behavior instead. Affected file: `server/src/routes/workItems.ancestors.test.ts` (fixed 2026-04-16). If spying on ESM is required, use `jest.unstable_mockModule()` at the top level before imports.
+
+## Fastify AJV Default: removeAdditional=true (2026-03-26)
+
+**Critical pattern**: Fastify's `@fastify/ajv-compiler` defaults to `removeAdditional: true`. This means `additionalProperties: false` in body/querystring schemas does NOT reject unknown properties with 400 — it strips them and lets the request proceed. Tests that expect 400 for unknown fields are wrong. The correct test is to assert the request succeeds (201/200) with extra fields silently removed. See `server/src/routes/auth.test.ts` comment for reference.
+
+**Affected test files fixed (2026-03-26)**: `invoiceBudgetLines.test.ts` (POST + PATCH), `standaloneInvoices.test.ts` (GET querystring).
+
+**Correct test pattern** (from `invoices.test.ts`):
+
+```ts
+it('strips unknown properties from request body (additionalProperties: false)', async () => {
+  // ...send with unknownField...
+  expect(response.statusCode).toBe(201); // Fastify strips extra props — still succeeds
+});
+```
+
+## Gap 5 — Client Vendor/Trade/Area Utility Tests (2026-03-26)
+
+**Files** (10 new): `client/src/lib/areasApi.test.ts`, `tradesApi.test.ts`, `vendorContactsApi.test.ts`, `davTokensApi.test.ts`, `timelineApi.test.ts`, `areaTreeUtils.test.ts`, `client/src/hooks/useAreas.test.ts`, `useTrades.test.ts`, `useVendorContacts.test.ts`, `useDavToken.test.ts`.
+
+**Key patterns**:
+
+- **`makeArea` helper**: Use function body + `{ ...defaults, ...overrides }` — NOT inline object literal with explicit + spread of same key. TypeScript TS2783 fires when `id`/`name` appear both explicitly and in `...overrides`.
+- **API tests for DELETE**: Use `status: 204, text: async () => ''` not `json: async () => undefined`. apiClient short-circuits at 204 and never calls `.json()`.
+- **`fetchAreas`/`fetchTrades` empty search**: Passing `{ search: '' }` should NOT include `?search=` param (falsy guard in source).
+- **`useVendorContacts` empty vendorId**: When vendorId is empty string, hook skips fetch immediately — assert `not.toHaveBeenCalled()` for listVendorContacts.
+- **`useDavToken` generate flow**: After `generateDavToken()`, hook calls `getDavTokenStatus()` again. Mock `getDavTokenStatus` must return success twice (initial mount + after generate).
+- **Pre-existing TS errors in worktree**: `usePhotos.test.ts`, `HouseholdItemsPage.test.tsx`, `VendorsPage.test.tsx`, `UserManagementPage.test.tsx` had TypeScript errors from other agents' work BEFORE this session. These are not caused by Gap 5 files.
+
+## Gap 3 (Client) — usePhotos hook + photoApi client Tests (2026-03-26)
+
+**Files**: `client/src/hooks/usePhotos.test.ts` (40+ tests), `client/src/lib/photoApi.test.ts` (30+ tests).
+
+**Key patterns**:
+
+- **`mockUploadPhotoApi` needs variadic type**: Hook mock typed as `jest.fn<() => Promise<unknown>>()` fails when `mockImplementationOnce` passes a 5-arg function. Fix: `jest.fn<(...args: any[]) => Promise<unknown>>()`.
+- **`mockXhr.open` / `mockXhr.send` must match call signatures**: If typed as `() => void`, `toHaveBeenCalledWith('POST', '/api/photos')` fails TypeScript (expects 0 args, called with 2). Fix: type as `(method: string, url: string) => void` and `(body?: FormData) => void`.
+- **FormData access**: With typed `send: MockedFunction<(body?: FormData) => void>`, use `mockXhr.send.mock.calls[0][0] as FormData` — no extra cast needed.
+- **XHR mock pattern**: Build `mockXhr` object inside `beforeEach`, override `globalThis.XMLHttpRequest = jest.fn(() => mockXhr) as unknown as typeof XMLHttpRequest`. Capture event handlers in closure vars (`xhrEventHandlers`, `xhrUploadEventHandlers`). Fire `xhrEventHandlers['load']()` to trigger promise resolution.
+- **`upload.addEventListener` should NOT be called when `onProgress` is not provided**: The hook checks `if (onProgress)` before registering. Assert `mockXhr.upload.addEventListener.not.toHaveBeenCalled()`.
+- **Clearing upload progress**: After success/failure, progress map entry is deleted. Test by capturing the internal `progressWrapper` via `mockImplementationOnce`, calling it, then awaiting the upload and asserting `uploadProgress.has(filename) === false`.
+
+## Gap 3 — photoService + photos route Tests (2026-03-26)
+
+**Files**: `server/src/services/photoService.test.ts` (51 tests), `server/src/routes/photos.test.ts` (45 tests).
+
+**Key patterns**:
+
+- **Mock `sharp` with `jest.unstable_mockModule('sharp', () => ({ default: mockSharpFn }))`**: sharp is not compiled for the test environment (native binary). Return a chainable mock instance.
+- **`AnyMock` type**: `type AnyMock = jest.MockedFunction<(...args: any[]) => any>` — use this for all mock functions where TypeScript infers `never` from bare `jest.fn()`. Cast with `jest.fn() as AnyMock`.
+- **Chainable sharp mock**: `mockSharpInstance` object with each method typed `as AnyMock` and each chain method returning `mockSharpInstance`. Use `mockResolvedValue` (not `Once`) in `beforeEach` to avoid state leakage between tests.
+- **FK constraint for `photos.createdBy`**: Cannot pass non-existent userId — SQLite throws FK error. Test `createdBy: null` by: upload with real user, delete user (cascade sets NULL), then `getPhoto`.
+- **`route` tests mock ALL service exports**: `deletePhotosForEntity` must be in the mock even if not directly used by route handlers. ESM named export binding validation fails otherwise.
+- **Auth guard lines unreachable via inject()**: `if (!request.user) throw new UnauthorizedError()` inside route handlers is never reached when global auth hook fires first. This is a known coverage gap (~8% branch coverage).
+- **Multipart body builder**: Build raw `multipart/form-data` bodies using `Buffer.concat()` with CRLF boundaries. Use `buildMultipartBody()` helper pattern.
+- **`readdirSync` import**: ESM has no `require()`. Always import `readdirSync` from `'node:fs'` at top of file.
+
+## Gap 7 — calendarIcal + vendorVcard Unit Tests (2026-03-26)
+
+**Files**: `server/src/services/calendarIcal.test.ts` (49 tests), `server/src/services/vendorVcard.test.ts` (46 tests). Both files were in commit `ba297480` on branch `chore/1204-test-coverage-gaps`.
+
+**Key patterns**:
+
+- **`calendarIcal.ts` exports**: `toDateOnly`, `computeETag`, `computeCalendarETag` (needs DB), `buildCalendar`, `DescriptionMap` type
+- **`vendorVcard.ts` exports**: `computeAddressBookETag` (needs DB), `buildVendorVcard`, `buildContactVcard`
+- **DB for ETag tests**: Use `Object.assign(drizzle(sqliteDb, {schema}), { $client: sqliteDb }) as DbType` pattern for in-memory SQLite
+- **`HouseholdItemCategory = string`** (type alias, not interface) — use `'Furniture'` not `{ id, name }`
+- **`WorkItemStatus`**: `'not_started' | 'in_progress' | 'completed'` (not `'planned'`)
+- **DescriptionMap key format**: `wi-{id}` for work items, `milestone-{id}` for milestones, `hi-{id}` for household items — matches what `buildCalendar` uses
+- **`buildVendorVcard` injects `KIND:org\r\nUID:...\r\nREV:...`** before `END:VCARD` via string replace
+- **`buildContactVcard` injects `UID:...\r\nREV:...`** before `END:VCARD` (no KIND:org)
+- **Multi-agent branch**: When multiple agents push to the same branch, CI failures may be from OTHER agents' commits, not yours. Check commit SHA in CI run to identify which commit caused failures.
+
+## Gap 2 — Invoice Budget Lines + Standalone Invoices Tests (2026-03-25)
+
+**Test files**: `invoiceBudgetLineService.test.ts` (service unit, ~40 tests), `invoiceBudgetLines.test.ts` (route integration, ~30 tests), `standaloneInvoices.test.ts` (route integration, ~30 tests).
+
+**Key patterns**:
+
+- **`invoiceBudgetLines` UNIQUE constraints**: `work_item_budget_id` and `household_item_budget_id` each have a partial unique index `WHERE NOT NULL`. This means each budget line can only link to ONE invoice. Test that linking same WIB to a 2nd invoice throws `BudgetLineAlreadyLinkedError` (409). Linking the same WIB to the SAME invoice throws `ValidationError` (400).
+- **`ItemizedSumExceedsInvoiceError` is 400**: Uses `super('ITEMIZED_SUM_EXCEEDS_INVOICE', 400, ...)`. Check body `error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE'`.
+- **`BudgetLineAlreadyLinkedError` is 409**: Uses `super('BUDGET_LINE_ALREADY_LINKED', 409, ...)`. Check body `error.code === 'BUDGET_LINE_ALREADY_LINKED'`.
+- **XOR validation**: Service checks `hasWorkItem` (non-null + defined) vs `hasHouseholdItem`. Providing `null` for one and a real ID for the other = valid one-sided link.
+- **`updateInvoiceBudgetLine` rejects budget ID changes**: Any attempt to set `workItemBudgetId` or `householdItemBudgetId` in update body → `ValidationError`, even if null.
+- **`householdItems` requires `categoryId: 'hic-furniture'`**: Seeded in migration; always use this. NOT NULL FK constraint.
+- **`listAllInvoices` returns `{ invoices, pagination, summary, filterMeta }`**: `summary` is GLOBAL (unfiltered); `filterMeta.amount` reflects base conditions (excluding amount range filter).
+- **`getInvoiceById` wraps result in `{ invoice }` envelope**: Route sends `{ invoice }` not bare object.
+- **Standalone invoice routes registered at `/api/invoices`**: Uses `standaloneInvoiceRoutes` prefix. Route for `/:invoiceId` conflicts with vendor subroutes at `/api/vendors/:vendorId/invoices/:invoiceId`.
+- **`additionalProperties: false` on `standaloneInvoices` querystring**: Unknown query params return 400.
+- **Sort options**: `sortBy` accepts `date|amount|status|vendor_name|due_date`. Invalid value → 400.
+- **`getInvoiceBudgetLinesForInvoice` uses raw SQL**: Uses `db.all<{...}>(sql\`...\`)`pattern for efficiency — test via`createInvoiceBudgetLine`first then verify`getInvoiceBudgetLinesForInvoice`result has correct`budgetLineId`, `budgetLineType`, `itemName`.
+
+## Gap 4+6 Client Page + API Tests (2026-03-25)
+
+**Files**: `VendorsPage.test.tsx`, `UserManagementPage.test.tsx`, `HouseholdItemsPage.test.tsx`, `workItemBudgetsApi.test.ts`, `workItemMilestonesApi.test.ts`.
+
+**Key patterns**:
+
+- **`WorkItemBudgetLine` fixture**: Uses `BaseBudgetLine` shape: `confidence: 'own_estimate'` (NOT `'medium'`), `confidenceMargin`, `budgetCategory/budgetSource/vendor: null`, `actualCost`, `actualCostPaid`, `invoiceLink: null`, `quantity/unit/unitPrice/includesVat: null`.
+- **`WorkItemMilestones` fixture**: `required/linked` arrays of `MilestoneSummaryForWorkItem` — only `{ id: number, name: string, targetDate: string | null }`. NOT `title`, `dueDate`, etc.
+- **`CreateBudgetLineRequest`**: `budgetSourceId`, `budgetCategoryId`, `plannedAmount`, `description` — NOT `sourceId/categoryId/notes`.
+- **Page tests need `useTableState` mock**: Pages using `useTableState` hook require mocking `../../hooks/useTableState.js` returning full object with `tableState`, `searchInput`, `setSearch`, `toApiParams`, `setFilter`.
+- **`HouseholdItemsPage` needs 4 mocks**: `householdItemsApi`, `vendorsApi`, `householdItemCategoriesApi`, `useAreas`.
+- **`UserManagementPage` needs `AuthContext` mock**: Imports `useAuth()` for `isAdmin` — mock `../../contexts/AuthContext.js`.
+- **`VendorsPage` needs `useTrades` + `TradePicker` mocks**: Both must be mocked to avoid cascading fetch calls in hook.
+- **Cannot run tests locally**: worktree node_modules/.bin is sparse (no jest binary). Commit and rely on CI.
+
+## Bug #1201 Backup Execution Path Tests (2026-03-25)
+
+**Test files modified**: `backupService.test.ts`, `backups.test.ts`.
+
+**Key patterns**:
+
+- **Real DB construction**: `import Database from 'better-sqlite3'; import { drizzle } from 'drizzle-orm/better-sqlite3'; const rawDb = new Database(join(tempDir, 'test.db')); const db = drizzle(rawDb);`. Close in `afterEach` with `if (rawDb && rawDb.open) rawDb.close()`.
+- **Mock `db.$client.backup`**: The service calls `getClient(db).backup(path)`. Mock with `{ $client: { backup: jest.fn().mockRejectedValue(...) } } as any`. Pass `Object.assign(new Error('...'), { code: 'SQLITE_IOERR' })` to simulate SqliteError.
+- **chmod read-only test requires non-root guard**: `if (process.getuid?.() === 0) { return; }` — chmod doesn't restrict root in CI containers. Restore permissions in `finally`/`afterEach` before directory cleanup.
+- **Two separate `mkdtempSync` calls for service tests**: Same pattern as route tests — `tempDir` for app data (DB path), `backupTempDir` for backups (must be outside app data dir per config validation).
+- **Retention test seeding**: Pre-write stub `.tar.gz` files with valid names (e.g. `cornerstone-backup-2026-01-01T000000Z.tar.gz`) using `writeFileSync`. After the real backup runs, assert `listBackups()` length equals retention limit and oldest stub is absent.
+- **Docker failure separate from tests**: All 6 test shards passed. Docker build failed because `COPY --from=deps /usr/bin/tar /usr/bin/tar` requires `tar` to be explicitly installed in the `deps` stage first (`apk add --no-cache tar`). This is a Dockerfile production fix, not a test issue.
+
 ## Story #1146 Backup/Restore Tests (2026-03-22)
 
 **Test files**: `backupService.test.ts`, `backups.test.ts` (routes), `backupsApi.test.ts`, `BackupsPage.test.tsx`.

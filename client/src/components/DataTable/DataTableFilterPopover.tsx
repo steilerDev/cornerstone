@@ -81,6 +81,9 @@ export function DataTableFilterPopover<T>({
               onChange={handleChange}
               options={column.enumOptions}
               hierarchy={column.enumHierarchy}
+              enumIncludeNone={column.enumIncludeNone}
+              enumNoneLabel={column.enumNoneLabel}
+              enumNoneDescription={column.enumNoneDescription}
             />
           )
         );

@@ -99,7 +99,7 @@ describe('paperlessApi', () => {
 
       await paperlessApi.listPaperlessDocuments({ page: 2, pageSize: 10 });
 
-      const url = (mockGet.mock.calls[0] as string[])[0];
+      const url = (mockGet.mock.calls[0]! as string[])[0];
       expect(url).toContain('page=2');
       expect(url).toContain('pageSize=10');
     });
@@ -112,7 +112,7 @@ describe('paperlessApi', () => {
 
       await paperlessApi.listPaperlessDocuments({ correspondent: 5, documentType: 3 });
 
-      const url = (mockGet.mock.calls[0] as string[])[0];
+      const url = (mockGet.mock.calls[0]! as string[])[0];
       expect(url).toContain('correspondent=5');
       expect(url).toContain('documentType=3');
     });
@@ -125,7 +125,7 @@ describe('paperlessApi', () => {
 
       await paperlessApi.listPaperlessDocuments({ sortBy: 'created', sortOrder: 'desc' });
 
-      const url = (mockGet.mock.calls[0] as string[])[0];
+      const url = (mockGet.mock.calls[0]! as string[])[0];
       expect(url).toContain('sortBy=created');
       expect(url).toContain('sortOrder=desc');
     });
@@ -138,7 +138,7 @@ describe('paperlessApi', () => {
 
       await paperlessApi.listPaperlessDocuments({ query: undefined, page: 1 });
 
-      const url = (mockGet.mock.calls[0] as string[])[0];
+      const url = (mockGet.mock.calls[0]! as string[])[0];
       expect(url).not.toContain('query=');
       expect(url).toContain('page=1');
     });

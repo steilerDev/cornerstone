@@ -233,14 +233,14 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
         const result = service.list(db, workItemId);
 
         expect(result).toHaveLength(1);
-        expect(result[0].id).toBe(subsidyId);
-        expect(result[0].name).toBe('Green Energy Rebate');
-        expect(result[0].reductionType).toBe('percentage');
-        expect(result[0].reductionValue).toBe(15);
-        expect(result[0].applicationStatus).toBe('eligible');
-        expect(result[0].applicableCategories).toBeDefined();
-        expect(Array.isArray(result[0].applicableCategories)).toBe(true);
-        expect(result[0].createdBy?.id).toBe('user-001');
+        expect(result[0]!.id).toBe(subsidyId);
+        expect(result[0]!.name).toBe('Green Energy Rebate');
+        expect(result[0]!.reductionType).toBe('percentage');
+        expect(result[0]!.reductionValue).toBe(15);
+        expect(result[0]!.applicationStatus).toBe('eligible');
+        expect(result[0]!.applicableCategories).toBeDefined();
+        expect(Array.isArray(result[0]!.applicableCategories)).toBe(true);
+        expect(result[0]!.createdBy?.id).toBe('user-001');
       });
 
       it('returns multiple linked subsidy programs', () => {
@@ -274,7 +274,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
         const result = service.list(db, workItemId);
 
         expect(result).toHaveLength(1);
-        expect(result[0].createdBy).toBeNull();
+        expect(result[0]!.createdBy).toBeNull();
       });
 
       it('throws NotFoundError when work item does not exist', () => {
@@ -353,7 +353,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
 
         const listed = service.list(db, workItemId);
         expect(listed).toHaveLength(1);
-        expect(listed[0].id).toBe(subsidyId);
+        expect(listed[0]!.id).toBe(subsidyId);
       });
 
       it('throws NotFoundError when work item does not exist', () => {
@@ -500,7 +500,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
 
         const result = service.list(db, workItemId);
         expect(result).toHaveLength(1);
-        expect(result[0].id).toBe(subsidyId2);
+        expect(result[0]!.id).toBe(subsidyId2);
       });
 
       it('throws NotFoundError when work item does not exist', () => {
@@ -609,11 +609,11 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
         maximumAmount: 500,
       });
       db.insert(schema.subsidyProgramCategories)
-        .values({ subsidyProgramId: subsidyId, budgetCategoryId: categories[0].id })
+        .values({ subsidyProgramId: subsidyId, budgetCategoryId: categories[0]!.id })
         .run();
 
       const workItemId = insertWorkItem('WI Over Pct');
-      insertWorkItemBudgetLine(workItemId, 10000, categories[0].id);
+      insertWorkItemBudgetLine(workItemId, 10000, categories[0]!.id);
 
       expect(() => {
         service.link(db, workItemId, subsidyId);
@@ -634,14 +634,14 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
       if (categories.length === 0) return; // guard: skip if no categories seeded
 
       db.insert(schema.subsidyProgramCategories)
-        .values({ subsidyProgramId: subsidyId, budgetCategoryId: categories[0].id })
+        .values({ subsidyProgramId: subsidyId, budgetCategoryId: categories[0]!.id })
         .run();
       db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
       const result = service.list(db, workItemId);
 
-      expect(result[0].applicableCategories).toHaveLength(1);
-      expect(result[0].applicableCategories[0].id).toBe(categories[0].id);
+      expect(result[0]!.applicableCategories).toHaveLength(1);
+      expect(result[0]!.applicableCategories[0]!.id).toBe(categories[0]!.id);
     });
 
     it('returns empty applicableCategories when none are linked to the subsidy', () => {
@@ -652,7 +652,7 @@ describe('subsidyServiceFactory — createSubsidyService()', () => {
 
       const result = service.list(db, workItemId);
 
-      expect(result[0].applicableCategories).toEqual([]);
+      expect(result[0]!.applicableCategories).toEqual([]);
     });
   });
 });

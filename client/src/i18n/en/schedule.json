@@ -75,6 +75,7 @@
         "startLabel": "Start",
         "endLabel": "End",
         "ownerLabel": "Owner",
+        "areaLabel": "Area",
         "dependencies": "Dependencies",
         "more": "more"
       },
@@ -217,7 +218,9 @@
       "notFound": "Milestone not found",
       "notFoundMessage": "The milestone you're looking for doesn't exist.",
       "backLink": "Back to Milestones",
+      "error": "Failed to load milestone. Please try again.",
       "edit": "Edit",
+      "editButton": "Edit",
       "view": {
         "targetDate": "Target Date",
         "projectedDate": "Projected Date",

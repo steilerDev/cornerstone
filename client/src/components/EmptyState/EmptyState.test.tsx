@@ -58,7 +58,7 @@ describe('EmptyState', () => {
     // Only the message paragraph should be in the document; no extra paragraph
     const paragraphs = screen.getAllByRole('paragraph');
     expect(paragraphs).toHaveLength(1);
-    expect(paragraphs[0]).toHaveTextContent('No items');
+    expect(paragraphs[0]!).toHaveTextContent('No items');
   });
 
   // ── action — link variant ─────────────────────────────────────────────────

@@ -8,6 +8,7 @@ import { Modal } from '../../components/Modal/Modal.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { TradePicker } from '../../components/TradePicker/TradePicker.js';
+import { useAuth } from '../../contexts/AuthContext.js';
 import { useTrades } from '../../hooks/useTrades.js';
 import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -17,20 +18,31 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './VendorsPage.module.css';
 
-const BUDGET_TABS: SubNavTab[] = [
-  { labelKey: 'subnav.budget.overview', to: '/budget/overview' },
-  { labelKey: 'subnav.budget.invoices', to: '/budget/invoices' },
-  { labelKey: 'subnav.budget.vendors', to: '/budget/vendors' },
-  { labelKey: 'subnav.budget.sources', to: '/budget/sources' },
-  { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
-];
-
 export function VendorsPage() {
   const { t } = useTranslation('budget');
   const { t: tSettings } = useTranslation('settings');
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { trades } = useTrades();
   const { formatDate } = useFormatters();
+
+  const settingsTabs: SubNavTab[] = [
+    { labelKey: 'subnav.settings.profile', to: '/settings/profile', ns: 'common' },
+    { labelKey: 'subnav.settings.manage', to: '/settings/manage', ns: 'common' },
+    { labelKey: 'subnav.settings.vendors', to: '/settings/vendors', ns: 'common' },
+    {
+      labelKey: 'subnav.settings.userManagement',
+      to: '/settings/users',
+      ns: 'common',
+      visible: user?.role === 'admin',
+    },
+    {
+      labelKey: 'subnav.settings.backups',
+      to: '/settings/backups',
+      ns: 'common',
+      visible: user?.role === 'admin',
+    },
+  ];
 
   // Data state
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -228,19 +240,19 @@ export function VendorsPage() {
     (): ColumnDef<Vendor>[] => [
       {
         key: 'name',
-        label: t('vendors.tableHeaders.name'),
+        label: t('vendors.tableHeaders.name')!,
         sortable: true,
         sortKey: 'name',
         defaultVisible: true,
         render: (v) => (
-          <Link to={`/budget/vendors/${v.id}`} className={styles.vendorLink}>
+          <Link to={`/settings/vendors/${v.id}`} className={styles.vendorLink}>
             {v.name}
           </Link>
         ),
       },
       {
         key: 'trade',
-        label: t('vendors.tableHeaders.trade'),
+        label: t('vendors.tableHeaders.trade')!,
         sortable: true,
         sortKey: 'trade',
         defaultVisible: true,
@@ -256,7 +268,7 @@ export function VendorsPage() {
       },
       {
         key: 'contactInfo',
-        label: t('vendors.tableHeaders.contactInfo'),
+        label: t('vendors.tableHeaders.contactInfo')!,
         sortable: false,
         defaultVisible: true,
         render: (v) => {
@@ -280,14 +292,14 @@ export function VendorsPage() {
       },
       {
         key: 'address',
-        label: t('vendors.tableHeaders.address'),
+        label: t('vendors.tableHeaders.address')!,
         sortable: false,
         defaultVisible: false,
         render: (v) => v.address || '—',
       },
       {
         key: 'notes',
-        label: t('vendors.tableHeaders.notes'),
+        label: t('vendors.tableHeaders.notes')!,
         sortable: false,
         defaultVisible: false,
         render: (v) => {
@@ -297,7 +309,7 @@ export function VendorsPage() {
       },
       {
         key: 'createdAt',
-        label: t('vendors.tableHeaders.createdAt'),
+        label: t('vendors.tableHeaders.createdAt')!,
         sortable: true,
         sortKey: 'created_at',
         defaultVisible: false,
@@ -305,7 +317,7 @@ export function VendorsPage() {
       },
       {
         key: 'updatedAt',
-        label: t('vendors.tableHeaders.updatedAt'),
+        label: t('vendors.tableHeaders.updatedAt')!,
         sortable: true,
         sortKey: 'updated_at',
         defaultVisible: false,
@@ -352,7 +364,7 @@ export function VendorsPage() {
           <button
             type="button"
             className={styles.menuItem}
-            onClick={() => navigate(`/budget/vendors/${vendor.id}`)}
+            onClick={() => navigate(`/settings/vendors/${vendor.id}`)}
             data-testid={`vendor-view-${vendor.id}`}
           >
             {t('vendors.buttons.view')}
@@ -383,7 +395,7 @@ export function VendorsPage() {
           {t('vendors.addVendor')}
         </button>
       }
-      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+      subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
     >
       <DataTable<Vendor>
         pageKey="vendors"
@@ -395,15 +407,15 @@ export function VendorsPage() {
         isLoading={isLoading}
         error={error}
         getRowKey={(v) => v.id}
-        onRowClick={(v) => navigate(`/budget/vendors/${v.id}`)}
+        onRowClick={(v) => navigate(`/settings/vendors/${v.id}`)}
         renderActions={renderActions}
         tableState={tableState}
         onStateChange={handleStateChange}
         emptyState={{
-          message: t('vendors.noVendorsTitle'),
-          description: t('vendors.noVendorsDescription'),
+          message: t('vendors.noVendorsTitle')!,
+          description: t('vendors.noVendorsDescription')!,
           action: {
-            label: t('vendors.addFirstVendor'),
+            label: t('vendors.addFirstVendor')!,
             onClick: openCreateModal,
           },
         }}

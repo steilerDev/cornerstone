@@ -166,6 +166,13 @@
   border-left: 3px solid var(--color-border-strong);
 }
 
+/* Area name cell with depth-based indent driven by inline --area-depth custom property.
+ * Scoped to .rowLevel1 to beat the .rowLevel1 td padding shorthand specificity. */
+.rowLevel1 .cellAreaName {
+  padding-left: calc(var(--spacing-8) + (var(--spacing-6) * var(--area-depth, 0)));
+  border-left: 3px solid var(--color-border-strong);
+}
+
 /* ---- Level 2: Item rows ---- */
 
 .rowLevel2 td {
@@ -181,8 +188,9 @@
   background: var(--color-bg-hover);
 }
 
-.cellLevel2Name {
-  padding-left: var(--spacing-14);
+/* Level-2 item name cell — depth inherits from the parent area via --item-depth. */
+.rowLevel2 .cellLevel2Name {
+  padding-left: calc(var(--spacing-12) + (var(--spacing-6) * var(--item-depth, 0)));
 }
 
 /* ---- Level 3: Budget line rows ---- */
@@ -200,8 +208,9 @@
   background: var(--color-bg-hover);
 }
 
-.cellLevel3Name {
-  padding-left: var(--spacing-20);
+/* Level-3 budget line name cell — depth inherits from the parent item via --item-depth. */
+.rowLevel3 .cellLevel3Name {
+  padding-left: calc(var(--spacing-16) + (var(--spacing-6) * var(--item-depth, 0)));
 }
 
 /* ---- Sum rows ---- */
@@ -513,5 +522,127 @@
     min-height: 44px;
     display: inline-flex;
     align-items: center;
+  }
+}
+
+/* ============================================================
+ * PRINT STYLES — Forces full expansion and hides chrome
+ * ============================================================ */
+
+@media print {
+  .perspectiveToggle {
+    display: none !important;
+  }
+
+  .tableWrapper {
+    overflow: visible;
+    overflow-x: visible;
+    -webkit-overflow-scrolling: auto;
+    scrollbar-width: none;
+  }
+
+  .table {
+    width: 100%;
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .colName {
+    min-width: 0;
+    position: static;
+  }
+
+  .colBudget,
+  .colPayback,
+  .colRemaining {
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .breakdownCard {
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+  }
+
+  .expandBtn {
+    display: none !important;
+  }
+
+  .costSection td.colBudget,
+  .costSection td.colPayback {
+    box-shadow: none !important;
+  }
+
+  .rowLevel0,
+  .rowLevel1,
+  .rowLevel2,
+  .rowLevel3 {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .nameLink {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .nameLink::after {
+    content: none !important;
+  }
+
+  /* --- Three-level visual hierarchy for print --- */
+
+  /* Level 1 (area rows): strong top border + tinted background */
+  .rowLevel1 td {
+    border-top: 3pt solid var(--color-border-strong);
+    border-bottom: none;
+    background-color: var(--color-bg-secondary) !important;
+    font-weight: 600;
+  }
+
+  /* ========= OUTER (area) BOX — medium gray ========= */
+
+  /* Left edge of outer box — every row in cost section gets left border */
+  .costSection .rowLevel1 td:first-child,
+  .costSection .rowLevel2 td:first-child,
+  .costSection .rowLevel3 td:first-child {
+    border-left: 1.5pt solid var(--color-border-strong);
+  }
+
+  /* Right edge of outer box — every row in cost section gets right border */
+  .costSection .rowLevel1 td:last-child,
+  .costSection .rowLevel2 td:last-child,
+  .costSection .rowLevel3 td:last-child {
+    border-right: 1.5pt solid var(--color-border-strong);
+  }
+
+  /* Bottom edge of outer box — rows before next area or sum get bottom border */
+  .costSection .rowLevel2:has(+ .rowLevel1) td,
+  .costSection .rowLevel3:has(+ .rowLevel1) td,
+  .costSection .rowLevel2:has(+ .rowSum) td,
+  .costSection .rowLevel3:has(+ .rowSum) td,
+  .costSection .rowLevel2:last-child td,
+  .costSection .rowLevel3:last-child td {
+    border-bottom: 1.5pt solid var(--color-border-strong);
+  }
+
+  /* ========= INNER (item) BOX — lighter gray ========= */
+
+  /* Inner (item) box — light gray top border on every item row creates a visible
+   * boundary between items. Item's left/right edges inherit from the outer area box. */
+  .costSection .rowLevel2 td {
+    border-top: 1pt solid var(--color-border);
+  }
+
+  /* Level 2 (item rows): suppress bottom border when followed by budget lines */
+  .rowLevel2:has(+ .rowLevel3) td {
+    border-bottom: none;
+  }
+
+  /* Level 3 (budget line rows): light dotted border — grouped under parent */
+  .rowLevel3 td {
+    border-bottom: 1pt dotted var(--color-border);
   }
 }

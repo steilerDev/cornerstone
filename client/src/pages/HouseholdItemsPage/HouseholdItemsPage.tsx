@@ -16,6 +16,7 @@ import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesA
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './HouseholdItemsPage.module.css';
 
@@ -29,6 +30,7 @@ const PROJECT_TABS: SubNavTab[] = [
 export function HouseholdItemsPage() {
   const { t } = useTranslation('householdItems');
   const { t: tSettings } = useTranslation('settings');
+  const { t: tCommon } = useTranslation('common');
   const navigate = useNavigate();
   const { formatCurrency, formatDate } = useFormatters();
   const { areas } = useAreas();
@@ -215,19 +217,22 @@ export function HouseholdItemsPage() {
     (): ColumnDef<HouseholdItemSummary>[] => [
       {
         key: 'name',
-        label: t('table.headers.name'),
+        label: t('table.headers.name')!,
         sortable: true,
         sortKey: 'name',
         defaultVisible: true,
         render: (item) => (
-          <Link to={`/project/household-items/${item.id}`} className={styles.itemLink}>
-            {item.name}
-          </Link>
+          <div className={styles.titleCell}>
+            <Link to={`/project/household-items/${item.id}`} className={styles.itemLink}>
+              {item.name}
+            </Link>
+            <AreaBreadcrumb area={item.area ?? null} variant="compact" />
+          </div>
         ),
       },
       {
         key: 'category',
-        label: t('table.headers.category'),
+        label: t('table.headers.category')!,
         sortable: true,
         sortKey: 'category',
         defaultVisible: true,
@@ -247,7 +252,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'status',
-        label: t('table.headers.status'),
+        label: t('table.headers.status')!,
         sortable: true,
         sortKey: 'status',
         defaultVisible: true,
@@ -264,7 +269,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'area',
-        label: t('table.headers.area'),
+        label: t('table.headers.area')!,
         sortable: false,
         defaultVisible: true,
         filterable: true,
@@ -272,11 +277,14 @@ export function HouseholdItemsPage() {
         filterParamKey: 'areaId',
         enumOptions: areas.map((a) => ({ value: a.id, label: a.name })),
         enumHierarchy: areas.map((a) => ({ id: a.id, parentId: a.parentId ?? null })),
+        enumIncludeNone: true,
+        enumNoneLabel: tCommon('noArea'),
+        enumNoneDescription: tCommon('noAreaDescription'),
         render: (item) => item.area?.name || '—',
       },
       {
         key: 'vendor',
-        label: t('table.headers.vendor'),
+        label: t('table.headers.vendor')!,
         sortable: false,
         defaultVisible: true,
         filterable: true,
@@ -287,7 +295,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'plannedCost',
-        label: t('table.headers.plannedCost'),
+        label: t('table.headers.plannedCost')!,
         sortable: false,
         defaultVisible: true,
         filterable: true,
@@ -299,7 +307,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'targetDelivery',
-        label: t('table.headers.targetDelivery'),
+        label: t('table.headers.targetDelivery')!,
         sortable: true,
         sortKey: 'target_delivery_date',
         defaultVisible: true,
@@ -310,7 +318,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'actualDelivery',
-        label: t('table.headers.actualDelivery'),
+        label: t('table.headers.actualDelivery')!,
         sortable: true,
         sortKey: 'actual_delivery_date',
         defaultVisible: false,
@@ -321,7 +329,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'actualCost',
-        label: t('table.headers.actualCost'),
+        label: t('table.headers.actualCost')!,
         sortable: false,
         defaultVisible: false,
         filterable: true,
@@ -333,7 +341,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'subsidyReduction',
-        label: t('table.headers.subsidyReduction'),
+        label: t('table.headers.subsidyReduction')!,
         sortable: false,
         defaultVisible: false,
         filterable: true,
@@ -345,7 +353,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'netCost',
-        label: t('table.headers.netCost'),
+        label: t('table.headers.netCost')!,
         sortable: false,
         defaultVisible: false,
         filterable: true,
@@ -357,7 +365,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'orderDate',
-        label: t('table.headers.orderDate'),
+        label: t('table.headers.orderDate')!,
         sortable: true,
         sortKey: 'order_date',
         defaultVisible: false,
@@ -365,7 +373,7 @@ export function HouseholdItemsPage() {
       },
       {
         key: 'budgetLines',
-        label: t('table.headers.budgetLines'),
+        label: t('table.headers.budgetLines')!,
         sortable: false,
         defaultVisible: false,
         filterable: true,
@@ -376,7 +384,7 @@ export function HouseholdItemsPage() {
         render: (item) => item.budgetLineCount,
       },
     ],
-    [t, categories, formatCurrency, formatDate, hiStatusVariants, vendors, areas],
+    [t, tCommon, categories, formatCurrency, formatDate, hiStatusVariants, vendors, areas],
   );
 
   // Close action menu on outside click and Escape key
@@ -471,10 +479,10 @@ export function HouseholdItemsPage() {
         onStateChange={handleStateChange}
         filterMeta={filterMeta}
         emptyState={{
-          message: t('empty.noItems'),
-          description: t('empty.noItemsMessage'),
+          message: t('empty.noItems')!,
+          description: t('empty.noItemsMessage')!,
           action: {
-            label: t('empty.createFirstItem'),
+            label: t('empty.createFirstItem')!,
             onClick: () => navigate('/project/household-items/new'),
           },
         }}

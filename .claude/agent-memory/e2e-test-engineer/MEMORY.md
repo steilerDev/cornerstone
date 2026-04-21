@@ -1,7 +1,111 @@
 # E2E Test Engineer — Agent Memory (Index)
 
 > Detailed notes live in topic files. This index links to them.
-> See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`
+> See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`
+
+## Print E2E Patterns (Issue #1310, 2026-04-19)
+
+- `page.emulateMedia({ media: 'print' })` makes CSS `@media print` rules apply without dispatching window events.
+- `usePrintExpansion` hook listens to `beforeprint`/`afterprint` — dispatch via `page.evaluate(() => window.dispatchEvent(new Event('beforeprint')))` BEFORE calling `emulateMedia`.
+- After dispatching `beforeprint`, React re-renders asynchronously. Use `page.waitForFunction(() => section.querySelector('[aria-expanded="true"]') !== null)` to wait for DOM update before asserting.
+- `breakdownAreaRow('Keller')` strict mode violation when Kellerbau is also in DOM: "Keller" is substring of "Kellerbau". Fix: `getByRole('row').filter({ has: page.locator('span', { hasText: /^Keller$/ }) })` for exact span match.
+- `getPropertyValue('--color-bg-primary').trim()` may return `'#ffffff'` OR `'rgb(255, 255, 255)'` depending on browser. Robust approach: create throwaway element, set `background-color: var(--my-var)`, read `getComputedStyle(el).backgroundColor` — always returns normalized `rgb()`.
+- `waitFor()` uses `actionTimeout` (5000ms for desktop). `expect().toBeVisible()` uses `expect.timeout` (7000ms for desktop). Use the latter for heading checks that may race with SPA init.
+- Desktop playwright project: `actionTimeout: 5000`, `expect.timeout: 7000`, `timeout: 15000`.
+- **afterprint state restore race**: if pre-print state already has some rows expanded, `waitForFunction('[aria-expanded="true"]')` resolves IMMEDIATELY (the element already exists), so `endPrint()` fires before full print expansion completes. Wait for a SPECIFIC element that was hidden before print to become visible (e.g., Kellerbau) before calling `endPrint()`. After `endPrint()`, use `waitFor({ state: 'hidden' })` for async restore.
+- **endPrint() must be in finally**: if test throws before `endPrint()`, print media leaks. Add `await endPrint().catch(() => {})` to `finally` block. `emulateMedia` is per-page so new pages get screen by default, but same-page tests in same worker can see leaked state.
+- **Playwright route glob `**/api/foo*`vs`/api/foo**`**: prefer `\*\*/api/foo*`(leading`**`) to match full URLs including `http://localhost:PORT/`prefix. The path-only form`/api/foo**` relies on baseURL prepending which can be unreliable. See diary-list.spec.ts pattern.
+
+## Stories #1271/#1272/#1273 E2E (2026-04-19)
+
+- Diary source entity breadcrumb: `PATCH /api/work-items/:id { status }` triggers auto diary entry. Find it via `GET /api/diary-entries?type=work_item_status&pageSize=50`, then filter by `sourceEntityId === workItemId`.
+- `AreaBreadcrumb` null area: renders `<span class*="muted">No area</span>` — NOT inside `[class*="compact"]`. Use `getByText('No area', { exact: true })` + `locator('[class*="compact"]').not.toBeVisible()`.
+- `InvoiceDetailPage` POM `budgetLinesSection` locator was wrong (`[class*="budgetLinesSection"]` doesn't exist). Fixed to `[aria-labelledby="budget-lines-title"]` (InvoiceBudgetLinesSection renders `<section aria-labelledby="budget-lines-title">`).
+- Invoice budget line creation: `POST /api/invoices/:invoiceId/budget-lines` (NOT `/api/vendors/:vendorId/invoices/:invoiceId/budget-lines`).
+- WI budget POST response: `{ budget: { id } }`. HI budget POST response: `{ budget: { id } }`. Invoice budget line POST: `{ budgetLine: { id } }`.
+- HI dependency creation: `POST /api/household-items/:id/dependencies { predecessorType, predecessorId }`.
+- HI dep list locator: `page.getByRole('list').filter({ has: page.locator('[class*="depRow"]') })` — only one list on the page.
+- Diary auto events enabled by default (`DIARY_AUTO_EVENTS=true`). No need to configure E2E container.
+
+## Budget Source Lines/Move + Work Item Create Regressions (fix/1279, 2026-04-18)
+
+- `getByText('Unassigned', { exact: true })` strict-mode violation: after PR #1265 made `isSelectable=true`, TriStateCheckbox renders `<span>Select all in Unassigned</span>` in the area group header. Playwright's `getByText` resolves to 2 elements (both the `<span>` AND the `areaName` span). Fix: use `panel.locator('[class*="areaName"]', { hasText: 'Unassigned' })`.
+- `checkbox.uncheck()` timeout: sticky `actionBar` (position:sticky; bottom:0) covers the checkbox on narrow viewports after Playwright's internal `scrollIntoViewIfNeeded()` positions the element under the bar. Fix: use `checkbox.click({ force: true })` to bypass coverage check.
+- `waitForURL('**/project/work-items/**')` resolves immediately on `/new` — glob `**` matches `new`. Fix: use UUID regex `waitForURL(/\/project\/work-items\/[0-9a-f]{8}-...-[0-9a-f]{12}$/)`.
+
+## Vendors to Settings Migration E2E (Story #1283, 2026-04-18)
+
+- Vendors moved from `/budget/vendors` to `/settings/vendors`; legacy redirects via React Router `<Navigate replace>`
+- `VENDORS_ROUTE` in VendorsPage POM = `/settings/vendors`; `ROUTES.budgetVendors` renamed to `ROUTES.settingsVendors` in testData.ts
+- `vendors.title` i18n key still = "Budget" — h1 heading on VendorsPage remains "Budget" (not "Vendors")
+- VendorsPage SubNav: `ariaLabel="Settings section navigation"` (was "Budget section navigation")
+- i18n.spec.ts German vendors test: updated SubNav aria-label + route constant
+- `e2e/tests/budget/vendors.spec.ts` deleted; moved to `e2e/tests/vendors/vendors.spec.ts`
+- Pre-existing CI failure on shard 5 (run 24531406436): milestones `getErrorBannerText()` returning null — not vendors-related
+
+## HI Breadcrumb E2E (Story #1240, 2026-04-17)
+
+- HouseholdItemDetailPage POM: `areaBreadcrumbNav` + `areaBreadcrumb` added (same pattern as WorkItemDetailPage)
+- HouseholdItemsPage list: name column renders `<div class*="titleCell">` → compact AreaBreadcrumb inside — `[class*="compact"]` selector
+- HouseholdItemDetailPage: default breadcrumb in `<div class*="titleBreadcrumb">` below h1 — `getByRole('navigation', { name: /area path/i })`
+- HouseholdItemPicker: `renderSecondary` renders compact breadcrumb in dropdown options — test via InvoiceDetailPage "Add Budget Line" modal
+- InvoiceDetailPage budget line modal: `getByRole('dialog', { name: 'Add Budget Line' })` → HI picker input `getByPlaceholder('Search household items...')`
+- Invoice route is `/budget/invoices/:id` (NOT `/project/budget/invoices/:id`)
+- Invoice API: `POST /api/vendors/:vendorId/invoices` (requires vendor first) → `{ invoice: { id } }`
+- **Invoice status enum**: valid values are `'pending'`, `'paid'`, `'claimed'`, `'quotation'` — NOT `'draft'`. Using `'draft'` causes 400 validation error.
+- `budget-source-lines.spec.ts` failures on feat/1239 branch: pre-existing, caused by `fix/source-lines-layout-links` feature not yet merged, not a breadcrumb regression
+- CI Shard 5 failure on beta release run (2026-04-16): from concurrent release workflow, not from feature work
+
+## Embeds/Pickers Breadcrumb E2E (Story #1239, 2026-04-16)
+
+- Gantt bar: `data-testid="gantt-bar-{id}"` on the SVG `<g>` element — use `page.getByTestId()` for hover
+- Gantt sidebar WI row: `data-testid="gantt-sidebar-row-{id}"` — `ganttSidebarRow(id)` helper added to TimelinePage POM
+- TimelinePage POM: `ganttBar(id)` helper added for bar hover tests
+- Milestone detail linked WI row: `[class*="linkedWorkItem"].filter({hasText:title})` — `linkedWorkItemRow(title)` helper added to MilestoneDetailPage POM
+- Link WI to milestone via API: `POST /api/milestones/:id/work-items` with `{ workItemId }`
+- GanttChart tooltip areaName: plain text string (not AreaBreadcrumb), joined with `›` — check `tooltip.textContent()` for area names
+- **Missing translation key**: `gantt.tooltip.workItem.areaLabel` is used in GanttTooltip.tsx but absent from `schedule.json` — i18next renders the key as fallback label text. Not a test issue; label text may show key string. Assert on the value (area path), not the label.
+- WorkItemPicker search results: `[role="option"]` buttons inside `getByRole('listbox')` — compact breadcrumb in `[class*="compact"]` inside option
+- Gantt sidebar + bar hover Gantt tests: skip on viewportWidth < 1200 (Gantt collapses on tablet/mobile)
+- WI create date pattern for Gantt visibility: `startDate=first of current month`, `endDate=last of 2 months ahead`
+
+## AreaBreadcrumb E2E Selectors (Story #1238, 2026-04-16)
+
+- compact variant: `[tabIndex="0"][class*="compact"]` — spans in list rows/cards
+- default variant: `getByRole('navigation', { name: /area path/i })` — in detail header & create preview
+- null area (both variants): `getByText('No area', { exact: true })` — span with class\*="muted"
+- Tooltip uses CSS opacity (0→1), so `toBeVisible()` works after `focus()` on the compact span
+- AreaPicker input: `getByPlaceholder('Select an area')` (i18n key common.aria.selectArea)
+- **CRITICAL**: `areaPickerInput` (placeholder locator) is ABSENT from DOM once an area is selected.
+  SearchPicker replaces the `<input>` with a `selectedDisplay` chip + clear button. Never click/fill
+  the input locator after selection. Use `getByRole('button', { name: 'Clear selection', exact: true })`
+  to clear — this is `t('aria.clearSelection')` = "Clear selection". POM: `clearAreaPicker()` helper.
+- Listbox option: `getByRole('option', { name: /areaName/ })` inside `getByRole('listbox')`
+- "No area" special option in AreaPicker: `getByRole('option', { name: 'No area', exact: true })`
+- `createAreaViaApi` and `deleteAreaViaApi` already exist in `e2e/fixtures/apiHelpers.ts`
+- `areas` POST response shape: `{ area: { id: string } }` (confirmed from existing helper)
+- Milestones validation CI failure (2026-04-16): `milestones.spec.ts` scenarios 6+7 fail on beta/main
+  promotion run — `getErrorBannerText()` returns null. Pre-existing on Dependabot bump commits.
+  Not from feature work. Triage: pre-existing flaky/broken test on beta.
+
+## Invoices + Manage Settings E2E (2026-03-26) — Fixed 2026-03-26
+
+POMs: `InvoicesPage.ts`, `InvoiceDetailPage.ts`, `HouseholdItemEditPage.ts`.
+Tests: `e2e/tests/invoices/invoices.spec.ts`, `e2e/tests/navigation/settings-manage.spec.ts`.
+Key API response shapes: Areas POST → `{area:{id}}`, Trades POST → `{trade:{id}}`, HI-Categories POST → `{id}` (entity directly), Invoices POST → `{invoice:{id}}`.
+InvoicesPage.heading = "Budget" (from PageLayout title=t('invoices.title')). Modal locator: `getByRole('dialog',{name:/Invoice/i})`.
+InvoiceDetailPage: edit modal `[role="dialog"][aria-labelledby="edit-modal-title"]`, delete modal `[aria-labelledby="delete-modal-title"]`, confirm delete button `[class*="confirmDeleteButton"]`.
+ManagePage tab panel IDs: `areas-panel`, `trades-panel`, `budget-categories-panel`, `hi-categories-panel`. Create form IDs: `#areaName`, `#tradeName`, `#categoryName` (same for budget AND hi-cat tabs — only one renders at a time).
+**ManagePage area/trade delete buttons have NO aria-label** — only text "Delete". Must scope via
+`panel.locator('[class*="itemRow"]').filter({ hasText: entityName }).getByRole('button', { name: 'Delete', exact: true })`.
+HI-categories delete buttons DO have `aria-label={Delete \${name}}` — getByRole with name works.
+InvoicesPage.waitForLoaded() uses Promise.any() (not Promise.race()) to avoid dangling rejections.
+
+## Milestones E2E (2026-03-26) — See milestones-e2e.md
+
+Heading="Project", newMilestone=testId("new-milestone-button"), search=client-side (no waitForResponse).
+List deleteModal=`getByRole('dialog',{name:'Delete Milestone'})`. Detail deleteModal=`[role="dialog"][aria-modal="true"]` (own impl).
+Milestone IDs are integers (not strings). Back/cancel on CreatePage are `<Link>` anchors, not buttons.
 
 ## i18n German Locale: page.reload() Required After setLanguage() + page.goto() (2026-03-23)
 

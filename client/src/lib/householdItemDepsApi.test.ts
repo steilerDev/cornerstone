@@ -56,6 +56,7 @@ describe('householdItemDepsApi', () => {
           title: 'Foundation Work',
           status: 'in_progress',
           endDate: '2026-05-15',
+          area: null,
         },
       };
 
@@ -67,9 +68,9 @@ describe('householdItemDepsApi', () => {
       const result = await fetchHouseholdItemDeps('hi-123');
 
       expect(result).toHaveLength(1);
-      expect(result[0]).toEqual(mockDep);
-      expect(result[0].predecessorType).toBe('work_item');
-      expect(result[0].predecessor.title).toBe('Foundation Work');
+      expect(result[0]!).toEqual(mockDep);
+      expect(result[0]!.predecessorType).toBe('work_item');
+      expect(result[0]!.predecessor.title).toBe('Foundation Work');
     });
 
     it('returns milestone dependency with correct shape', async () => {
@@ -82,6 +83,7 @@ describe('householdItemDepsApi', () => {
           title: 'Frame Complete',
           status: null, // milestones have null status
           endDate: '2026-04-30',
+          area: null,
         },
       };
 
@@ -93,8 +95,8 @@ describe('householdItemDepsApi', () => {
       const result = await fetchHouseholdItemDeps('hi-123');
 
       expect(result).toHaveLength(1);
-      expect(result[0].predecessorType).toBe('milestone');
-      expect(result[0].predecessor.status).toBeNull();
+      expect(result[0]!.predecessorType).toBe('milestone');
+      expect(result[0]!.predecessor.status).toBeNull();
     });
 
     it('returns multiple dependencies', async () => {
@@ -103,13 +105,25 @@ describe('householdItemDepsApi', () => {
           householdItemId: 'hi-123',
           predecessorType: 'work_item',
           predecessorId: 'wi-1',
-          predecessor: { id: 'wi-1', title: 'Work A', status: 'not_started', endDate: null },
+          predecessor: {
+            id: 'wi-1',
+            title: 'Work A',
+            status: 'not_started',
+            endDate: null,
+            area: null,
+          },
         },
         {
           householdItemId: 'hi-123',
           predecessorType: 'milestone',
           predecessorId: '10',
-          predecessor: { id: '10', title: 'Phase 1 Done', status: null, endDate: '2026-03-31' },
+          predecessor: {
+            id: '10',
+            title: 'Phase 1 Done',
+            status: null,
+            endDate: '2026-03-31',
+            area: null,
+          },
         },
       ];
 
@@ -121,8 +135,8 @@ describe('householdItemDepsApi', () => {
       const result = await fetchHouseholdItemDeps('hi-123');
 
       expect(result).toHaveLength(2);
-      expect(result[0].predecessorType).toBe('work_item');
-      expect(result[1].predecessorType).toBe('milestone');
+      expect(result[0]!.predecessorType).toBe('work_item');
+      expect(result[1]!.predecessorType).toBe('milestone');
     });
 
     it('throws error when household item not found (404)', async () => {
@@ -154,7 +168,13 @@ describe('householdItemDepsApi', () => {
         householdItemId: 'hi-123',
         predecessorType: 'work_item',
         predecessorId: 'wi-456',
-        predecessor: { id: 'wi-456', title: 'Foundation', status: 'not_started', endDate: null },
+        predecessor: {
+          id: 'wi-456',
+          title: 'Foundation',
+          status: 'not_started',
+          endDate: null,
+          area: null,
+        },
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -181,7 +201,13 @@ describe('householdItemDepsApi', () => {
         householdItemId: 'hi-123',
         predecessorType: 'work_item',
         predecessorId: 'wi-456',
-        predecessor: { id: 'wi-456', title: 'Foundation', status: 'not_started', endDate: null },
+        predecessor: {
+          id: 'wi-456',
+          title: 'Foundation',
+          status: 'not_started',
+          endDate: null,
+          area: null,
+        },
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -197,7 +223,7 @@ describe('householdItemDepsApi', () => {
 
       await createHouseholdItemDep('hi-123', requestData);
 
-      const callArgs = mockFetch.mock.calls[0];
+      const callArgs = mockFetch.mock.calls[0]!;
       const bodyStr = callArgs[1]?.body as string;
       const body = JSON.parse(bodyStr);
 
@@ -210,7 +236,13 @@ describe('householdItemDepsApi', () => {
         householdItemId: 'hi-456',
         predecessorType: 'milestone',
         predecessorId: '42',
-        predecessor: { id: '42', title: 'Frame Done', status: null, endDate: '2026-04-15' },
+        predecessor: {
+          id: '42',
+          title: 'Frame Done',
+          status: null,
+          endDate: '2026-04-15',
+          area: null,
+        },
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -224,7 +256,7 @@ describe('householdItemDepsApi', () => {
         predecessorId: '42',
       });
 
-      const callArgs = mockFetch.mock.calls[0];
+      const callArgs = mockFetch.mock.calls[0]!;
       const bodyStr = callArgs[1]?.body as string;
       const body = JSON.parse(bodyStr);
 
@@ -242,6 +274,7 @@ describe('householdItemDepsApi', () => {
           title: 'Flooring',
           status: 'in_progress',
           endDate: '2026-06-30',
+          area: null,
         },
       };
 

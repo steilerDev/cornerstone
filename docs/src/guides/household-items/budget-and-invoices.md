@@ -39,7 +39,7 @@ When a vendor invoice arrives for a household item purchase, you can link the it
 
 A single invoice can cover multiple budget lines across different items. When multiple budget lines on the same household item share an invoice, they collapse into an **Invoice Group** showing the invoice total alongside each line's planned and itemized amounts.
 
-See [Vendors & Invoices](/guides/budget/vendors-and-invoices) for details on managing invoices and the full linking workflow.
+See [Invoices & Vendors](/guides/budget/vendors-and-invoices) for details on managing invoices and the full linking workflow.
 
 ## Subsidies
 

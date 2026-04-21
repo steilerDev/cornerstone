@@ -119,8 +119,8 @@ describe('SignatureSection', () => {
       const signatures = [makeSig({ signerName: 'Alice' }), makeSig({ signerName: 'Bob' })];
       render(<SignatureSection {...makeProps({ signatures })} />);
       const items = screen.getAllByTestId('signature-capture');
-      expect(items[0].getAttribute('data-signer-name')).toBe('Alice');
-      expect(items[1].getAttribute('data-signer-name')).toBe('Bob');
+      expect(items[0]!.getAttribute('data-signer-name')).toBe('Alice');
+      expect(items[1]!.getAttribute('data-signer-name')).toBe('Bob');
     });
 
     it('passes disabled=true to SignatureCapture items when disabled', () => {

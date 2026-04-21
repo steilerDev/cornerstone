@@ -117,8 +117,8 @@ describe('SearchPicker', () => {
         // searchFn should have been called (at most once per debounced invocation)
         expect(mockSearchFn).toHaveBeenCalled();
         // The final call should include the full typed string
-        const lastCall = mockSearchFn.mock.calls[mockSearchFn.mock.calls.length - 1];
-        expect(lastCall[0]).toBe('Alp');
+        const lastCall = mockSearchFn.mock.calls[mockSearchFn.mock.calls.length - 1]!;
+        expect(lastCall[0]!).toBe('Alp');
       });
     });
 
@@ -881,6 +881,107 @@ describe('SearchPicker', () => {
 
       const separator = document.querySelector('[role="separator"]');
       expect(separator).not.toBeInTheDocument();
+    });
+  });
+});
+
+// ── renderSecondary slot ──────────────────────────────────────────────────────
+// Tests for the renderSecondary prop added to SearchPicker.
+// These use the same TestItem / mockSearchFn / renderPicker helpers defined above.
+
+describe('renderSecondary slot', () => {
+  beforeEach(() => {
+    mockSearchFn.mockReset();
+    mockSearchFn.mockResolvedValue(sampleItems);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  // ── 9. Secondary renders per item ─────────────────────────────────────────
+
+  it('renders one secondary element per result item', async () => {
+    const user = userEvent.setup();
+    renderPicker({
+      showItemsOnFocus: true,
+      renderSecondary: (item: TestItem) => <span data-testid="secondary-line">{item.status}</span>,
+      placeholder: 'Search...',
+    });
+
+    const input = screen.getByPlaceholderText('Search...');
+    await user.click(input);
+
+    await waitFor(() => {
+      const secondaries = screen.getAllByTestId('secondary-line');
+      expect(secondaries).toHaveLength(3);
+    });
+  });
+
+  // ── 10. CSS classes applied (identity-obj-proxy) ──────────────────────────
+
+  it('applies resultSecondary and resultContent CSS classes to each result', async () => {
+    const user = userEvent.setup();
+    renderPicker({
+      showItemsOnFocus: true,
+      renderSecondary: (item: TestItem) => <span data-testid="secondary-line">{item.status}</span>,
+      placeholder: 'Search...',
+    });
+
+    const input = screen.getByPlaceholderText('Search...');
+    await user.click(input);
+
+    await waitFor(() => {
+      // identity-obj-proxy returns the class name as a string, so class="resultSecondary"
+      const secondarySpans = document.querySelectorAll('[class*="resultSecondary"]');
+      expect(secondarySpans).toHaveLength(3);
+
+      const contentSpans = document.querySelectorAll('[class*="resultContent"]');
+      expect(contentSpans).toHaveLength(3);
+    });
+  });
+
+  // ── 11. No secondary DOM when prop absent (regression guard) ──────────────
+
+  it('renders no resultSecondary or resultContent elements when renderSecondary is absent', async () => {
+    const user = userEvent.setup();
+    renderPicker({
+      showItemsOnFocus: true,
+      placeholder: 'Search...',
+      // renderSecondary intentionally omitted
+    });
+
+    const input = screen.getByPlaceholderText('Search...');
+    await user.click(input);
+
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'Alpha Widget' })).toBeInTheDocument();
+    });
+
+    expect(document.querySelectorAll('[class*="resultSecondary"]')).toHaveLength(0);
+    expect(document.querySelectorAll('[class*="resultContent"]')).toHaveLength(0);
+  });
+
+  // ── 12. Secondary NOT in selectedDisplay ─────────────────────────────────
+
+  it('secondary element is absent after an item is selected', async () => {
+    const user = userEvent.setup();
+    renderPicker({
+      showItemsOnFocus: true,
+      renderSecondary: (item: TestItem) => <span data-testid="secondary-line">{item.status}</span>,
+      placeholder: 'Search...',
+    });
+
+    const input = screen.getByPlaceholderText('Search...');
+    await user.click(input);
+
+    await waitFor(() => expect(screen.getByText('Alpha Widget')).toBeInTheDocument());
+
+    await user.click(screen.getByText('Alpha Widget'));
+
+    await waitFor(() => {
+      // After selection the input is replaced by selectedDisplay — no secondary
+      expect(screen.queryByTestId('secondary-line')).not.toBeInTheDocument();
     });
   });
 });

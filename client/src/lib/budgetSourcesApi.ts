@@ -5,6 +5,9 @@ import type {
   BudgetSourceResponse,
   CreateBudgetSourceRequest,
   UpdateBudgetSourceRequest,
+  BudgetSourceBudgetLinesResponse,
+  MoveBudgetLinesRequest,
+  MoveBudgetLinesResponse,
 } from '@cornerstone/shared';
 
 /**
@@ -46,4 +49,23 @@ export async function updateBudgetSource(
  */
 export function deleteBudgetSource(id: string): Promise<void> {
   return del<void>(`/budget-sources/${id}`);
+}
+
+/**
+ * Fetches budget lines for a specific budget source, grouped by parent type.
+ */
+export function fetchBudgetLinesForSource(
+  sourceId: string,
+): Promise<BudgetSourceBudgetLinesResponse> {
+  return get<BudgetSourceBudgetLinesResponse>(`/budget-sources/${sourceId}/budget-lines`);
+}
+
+/**
+ * Moves budget lines from one budget source to another.
+ */
+export function moveBudgetLinesBetweenSources(
+  sourceId: string,
+  data: MoveBudgetLinesRequest,
+): Promise<MoveBudgetLinesResponse> {
+  return patch<MoveBudgetLinesResponse>(`/budget-sources/${sourceId}/budget-lines/move`, data);
 }

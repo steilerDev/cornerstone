@@ -525,8 +525,9 @@ export function CalendarView({
     navLabel = `${getMonthName(displayMonth, localeString)} ${displayYear}`;
   } else {
     const weekDays = getWeekDates(weekDate);
-    const first = weekDays[0];
-    const last = weekDays[6];
+    // getWeekDates always returns exactly 7 elements
+    const first = weekDays[0]!;
+    const last = weekDays[6]!;
     const firstMonth = getMonthName(first.date.getUTCMonth() + 1, localeString);
     const lastMonth = getMonthName(last.date.getUTCMonth() + 1, localeString);
     if (firstMonth === lastMonth) {
@@ -558,12 +559,12 @@ export function CalendarView({
             aria-label={
               calendarMode === 'month'
                 ? t('calendar.navigation.previousMonth')
-                : t('calendar.navigation.previousWeek')
+                : t('calendar.navigation.previousWeek')!
             }
             title={
               calendarMode === 'month'
                 ? t('calendar.navigation.previousMonth')
-                : t('calendar.navigation.previousWeek')
+                : t('calendar.navigation.previousWeek')!
             }
           >
             <ChevronLeftIcon />
@@ -585,12 +586,12 @@ export function CalendarView({
             aria-label={
               calendarMode === 'month'
                 ? t('calendar.navigation.nextMonth')
-                : t('calendar.navigation.nextWeek')
+                : t('calendar.navigation.nextWeek')!
             }
             title={
               calendarMode === 'month'
                 ? t('calendar.navigation.nextMonth')
-                : t('calendar.navigation.nextWeek')
+                : t('calendar.navigation.nextWeek')!
             }
           >
             <ChevronRightIcon />

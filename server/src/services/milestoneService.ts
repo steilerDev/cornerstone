@@ -23,6 +23,8 @@ import type {
 import { NotFoundError, ValidationError, ConflictError } from '../errors/AppError.js';
 import { toWorkItemSummary } from './workItemService.js';
 import { autoReschedule } from './schedulingEngine.js';
+import { loadAreaMap } from './areaService.js';
+import type { AreaMapEntry } from './areaService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -47,7 +49,11 @@ function toUserSummary(user: typeof users.$inferSelect | null): UserSummary | nu
 /**
  * Fetch linked work items for a milestone.
  */
-function getLinkedWorkItems(db: DbType, milestoneId: number): WorkItemSummary[] {
+function getLinkedWorkItems(
+  db: DbType,
+  milestoneId: number,
+  areaMap: Map<string, AreaMapEntry>,
+): WorkItemSummary[] {
   const rows = db
     .select({ workItem: workItems })
     .from(milestoneWorkItems)
@@ -55,7 +61,7 @@ function getLinkedWorkItems(db: DbType, milestoneId: number): WorkItemSummary[] 
     .where(eq(milestoneWorkItems.milestoneId, milestoneId))
     .all();
 
-  return rows.map((row) => toWorkItemSummary(db, row.workItem));
+  return rows.map((row) => toWorkItemSummary(db, row.workItem, areaMap));
 }
 
 /**
@@ -150,7 +156,11 @@ function toMilestoneSummary(
 /**
  * Convert a database milestone row to MilestoneDetail shape (includes work items).
  */
-function toMilestoneDetail(db: DbType, milestone: typeof milestones.$inferSelect): MilestoneDetail {
+function toMilestoneDetail(
+  db: DbType,
+  milestone: typeof milestones.$inferSelect,
+  areaMap: Map<string, AreaMapEntry>,
+): MilestoneDetail {
   return {
     id: milestone.id,
     title: milestone.title,
@@ -159,7 +169,7 @@ function toMilestoneDetail(db: DbType, milestone: typeof milestones.$inferSelect
     isCompleted: milestone.isCompleted,
     completedAt: milestone.completedAt,
     color: milestone.color,
-    workItems: getLinkedWorkItems(db, milestone.id),
+    workItems: getLinkedWorkItems(db, milestone.id, areaMap),
     dependentWorkItems: getWorkItemsWithDep(db, milestone.id),
     createdBy: getCreatedByUser(db, milestone.createdBy),
     createdAt: milestone.createdAt,
@@ -204,7 +214,8 @@ export function getMilestoneById(db: DbType, id: number): MilestoneDetail {
   if (!milestone) {
     throw new NotFoundError('Milestone not found');
   }
-  return toMilestoneDetail(db, milestone);
+  const areaMap = loadAreaMap(db);
+  return toMilestoneDetail(db, milestone, areaMap);
 }
 
 /**
@@ -266,7 +277,8 @@ export function createMilestone(
   }
 
   const milestone = db.select().from(milestones).where(eq(milestones.id, result.id)).get()!;
-  return toMilestoneDetail(db, milestone);
+  const areaMap = loadAreaMap(db);
+  return toMilestoneDetail(db, milestone, areaMap);
 }
 
 /**
@@ -343,7 +355,8 @@ export function updateMilestone(
   db.update(milestones).set(updateData).where(eq(milestones.id, id)).run();
 
   const updated = db.select().from(milestones).where(eq(milestones.id, id)).get()!;
-  return toMilestoneDetail(db, updated);
+  const areaMap = loadAreaMap(db);
+  return toMilestoneDetail(db, updated, areaMap);
 }
 
 /**

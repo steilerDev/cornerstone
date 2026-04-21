@@ -7,6 +7,7 @@
  */
 
 import type { ConfidenceLevel } from './budget.js';
+import type { AreaSummary } from './area.js';
 
 /**
  * Invoice budget line entity as returned by the API.
@@ -106,6 +107,7 @@ export interface InvoiceBudgetLineDetailResponse {
   parentItemId: string;
   parentItemTitle: string;
   parentItemType: 'work_item' | 'household_item';
+  parentItemArea: AreaSummary | null;
   createdAt: string;
   updatedAt: string;
 }

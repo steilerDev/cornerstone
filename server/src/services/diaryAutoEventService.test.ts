@@ -72,7 +72,7 @@ describe('diaryAutoEventService', () => {
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
 
-      const entry = entries[0];
+      const entry = entries[0]!;
       expect(entry.entryType).toBe('work_item_status');
       expect(entry.isAutomatic).toBe(true);
       expect(entry.sourceEntityType).toBe('work_item');
@@ -110,10 +110,10 @@ describe('diaryAutoEventService', () => {
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
 
-      expect(entries[0].title).not.toBeNull();
-      expect(entries[0].title).toContain('Not Started');
-      expect(entries[0].title).toContain('Completed');
-      expect(entries[0].metadata).toBeNull();
+      expect(entries[0]!.title).not.toBeNull();
+      expect(entries[0]!.title).toContain('Not Started');
+      expect(entries[0]!.title).toContain('Completed');
+      expect(entries[0]!.metadata).toBeNull();
     });
   });
 
@@ -126,7 +126,7 @@ describe('diaryAutoEventService', () => {
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
 
-      const entry = entries[0];
+      const entry = entries[0]!;
       expect(entry.entryType).toBe('invoice_status');
       expect(entry.isAutomatic).toBe(true);
       expect(entry.sourceEntityType).toBe('invoice');
@@ -144,7 +144,7 @@ describe('diaryAutoEventService', () => {
       expect(entries).toHaveLength(1);
 
       // Empty string is falsy, so template renders 'N/A'
-      expect(entries[0].body).toContain('N/A');
+      expect(entries[0]!.body).toContain('N/A');
     });
 
     it('stores title with status change summary and null metadata', () => {
@@ -152,9 +152,9 @@ describe('diaryAutoEventService', () => {
 
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
-      expect(entries[0].title).toContain('Pending');
-      expect(entries[0].title).toContain('Paid');
-      expect(entries[0].metadata).toBeNull();
+      expect(entries[0]!.title).toContain('Pending');
+      expect(entries[0]!.title).toContain('Paid');
+      expect(entries[0]!.metadata).toBeNull();
     });
 
     it('does not create entry when enabled=false', () => {
@@ -172,7 +172,7 @@ describe('diaryAutoEventService', () => {
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
 
-      const entry = entries[0];
+      const entry = entries[0]!;
       expect(entry.entryType).toBe('milestone_delay');
       expect(entry.isAutomatic).toBe(true);
       expect(entry.sourceEntityType).toBe('milestone');
@@ -184,7 +184,7 @@ describe('diaryAutoEventService', () => {
       onMilestoneDelayed(db, true, 999, 'Roof Complete', '2026-04-01', '2026-04-10');
 
       const entries = getAllEntries();
-      expect(entries[0].sourceEntityId).toBe('999');
+      expect(entries[0]!.sourceEntityId).toBe('999');
     });
 
     it('does not create entry when enabled=false', () => {
@@ -202,7 +202,7 @@ describe('diaryAutoEventService', () => {
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
 
-      const entry = entries[0];
+      const entry = entries[0]!;
       expect(entry.entryType).toBe('budget_breach');
       expect(entry.isAutomatic).toBe(true);
       expect(entry.sourceEntityType).toBe('budget_source');
@@ -247,7 +247,7 @@ describe('diaryAutoEventService', () => {
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
 
-      const entry = entries[0];
+      const entry = entries[0]!;
       expect(entry.entryType).toBe('subsidy_status');
       expect(entry.isAutomatic).toBe(true);
       expect(entry.sourceEntityType).toBe('subsidy_program');
@@ -267,9 +267,9 @@ describe('diaryAutoEventService', () => {
       );
 
       const entries = getAllEntries();
-      expect(entries[0].title).toContain('Applied');
-      expect(entries[0].title).toContain('Received');
-      expect(entries[0].metadata).toBeNull();
+      expect(entries[0]!.title).toContain('Applied');
+      expect(entries[0]!.title).toContain('Received');
+      expect(entries[0]!.metadata).toBeNull();
     });
 
     it('does not create entry when enabled=false', () => {
@@ -287,7 +287,7 @@ describe('diaryAutoEventService', () => {
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
 
-      const entry = entries[0];
+      const entry = entries[0]!;
       expect(entry.entryType).toBe('invoice_created');
       expect(entry.isAutomatic).toBe(true);
       expect(entry.sourceEntityType).toBe('invoice');
@@ -301,8 +301,8 @@ describe('diaryAutoEventService', () => {
 
       const entries = getAllEntries();
       expect(entries).toHaveLength(1);
-      expect(entries[0].title).not.toBeNull();
-      expect(entries[0].metadata).toBeNull();
+      expect(entries[0]!.title).not.toBeNull();
+      expect(entries[0]!.metadata).toBeNull();
     });
 
     it('does not create entry when enabled=false', () => {
@@ -329,7 +329,7 @@ describe('diaryAutoEventService', () => {
 
       // console.warn must have been called with the failure info
       expect(warnSpy).toHaveBeenCalled();
-      const firstCallArgs = warnSpy.mock.calls[0];
+      const firstCallArgs = warnSpy.mock.calls[0]!;
       expect(firstCallArgs[0]).toContain('[diaryAutoEvent]');
     });
   });

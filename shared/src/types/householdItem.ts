@@ -99,6 +99,7 @@ export interface HouseholdItemDepPredecessorSummary {
   title: string; // work item title or milestone title
   status: string | null; // work item status (null for milestones)
   endDate: string | null; // work item endDate or milestone targetDate
+  area: AreaSummary | null; // non-null only when predecessorType === 'work_item'; null for milestones
 }
 
 /**
@@ -256,6 +257,13 @@ export interface HouseholdItemListQuery {
   q?: string;
   category?: HouseholdItemCategory;
   status?: HouseholdItemStatus;
+  /**
+   * Filter by area UUID or comma-separated list of area UUIDs.
+   * For each supplied ID the server expands descendants server-side;
+   * results are the union of all matching subtrees.
+   * Use the sentinel value `__none__` to include items with no area assignment.
+   * `__none__` can be combined with UUIDs (e.g., `__none__,kitchen-uuid`) for union.
+   */
   areaId?: string;
   vendorId?: string;
   plannedCostMin?: number;

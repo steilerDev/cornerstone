@@ -169,8 +169,8 @@ describe('TradeListResponse interface', () => {
     };
 
     expect(response.trades).toHaveLength(2);
-    expect(response.trades[0].id).toBe('trade-plumbing');
-    expect(response.trades[1].id).toBe('trade-hvac');
+    expect(response.trades[0]!.id).toBe('trade-plumbing');
+    expect(response.trades[1]!.id).toBe('trade-hvac');
   });
 
   it('handles empty trades list', () => {

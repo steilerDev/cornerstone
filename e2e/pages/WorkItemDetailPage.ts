@@ -53,6 +53,11 @@ export class WorkItemDetailPage {
   readonly heading: Locator; // h1 (work item title)
   readonly statusSelect: Locator;
 
+  // Area breadcrumb nav locator (kept for negative assertions after fix/1278)
+  // fix/1278: the breadcrumb has been REMOVED from the WorkItemDetailPage header entirely.
+  // areaBreadcrumbNav is retained so Scenario 2 and 5 tests can assert not.toBeVisible().
+  readonly areaBreadcrumbNav: Locator;
+
   // Sections (left column)
   readonly descriptionSection: Locator;
   readonly scheduleSection: Locator;
@@ -103,6 +108,10 @@ export class WorkItemDetailPage {
     this.backButton = page.getByRole('button', { name: /← Back to Work Items/i });
     this.heading = page.getByRole('heading', { level: 1 });
     this.statusSelect = page.locator('[class*="statusSelect"]');
+
+    // fix/1278: breadcrumb removed from WorkItemDetailPage header.
+    // areaBreadcrumbNav retained for negative assertions (must NOT be visible).
+    this.areaBreadcrumbNav = page.getByRole('navigation', { name: /area path/i });
 
     // Left column sections — scoped by h2 heading text
     this.descriptionSection = page

@@ -13,11 +13,11 @@ export function SourceUtilizationCard({ sources }: SourceUtilizationCardProps) {
   const { formatCurrency } = useFormatters();
 
   const SOURCE_TYPE_LABELS: Record<BudgetSourceType, string> = {
-    bank_loan: t('cards.sourceUtilization.sourceTypes.bank_loan'),
-    credit_line: t('cards.sourceUtilization.sourceTypes.credit_line'),
-    savings: t('cards.sourceUtilization.sourceTypes.savings'),
-    other: t('cards.sourceUtilization.sourceTypes.other'),
-    discretionary: t('cards.sourceUtilization.sourceTypes.discretionary'),
+    bank_loan: t('cards.sourceUtilization.sourceTypes.bank_loan')!,
+    credit_line: t('cards.sourceUtilization.sourceTypes.credit_line')!,
+    savings: t('cards.sourceUtilization.sourceTypes.savings')!,
+    other: t('cards.sourceUtilization.sourceTypes.other')!,
+    discretionary: t('cards.sourceUtilization.sourceTypes.discretionary')!,
   };
   // Sort: high utilization (>= 90% or exhausted) first, then by utilization descending
   const sortedSources = [...sources].sort((a, b) => {
@@ -55,7 +55,7 @@ export function SourceUtilizationCard({ sources }: SourceUtilizationCardProps) {
                   key: 'used',
                   value: source.usedAmount,
                   color: 'var(--color-primary)',
-                  label: t('cards.sourceUtilization.usedLabel'),
+                  label: t('cards.sourceUtilization.usedLabel')!,
                 },
               ]}
               maxValue={maxValue}

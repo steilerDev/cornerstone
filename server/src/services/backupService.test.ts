@@ -5,9 +5,11 @@
  */
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync, chmodSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { disposableTempDir, disposableDb } from '../test-helpers/disposables.js';
+import type { DisposableTempDir } from '../test-helpers/disposables.js';
 
 // ─── Import service functions ───────────────────────────────────────────────
 
@@ -72,7 +74,7 @@ describe('backupService', () => {
 
       const yearMatch = filename.match(/cornerstone-backup-(\d{4})-/);
       expect(yearMatch).not.toBeNull();
-      const year = parseInt(yearMatch![1], 10);
+      const year = parseInt(yearMatch![1]!, 10);
 
       // The year must be either the before or after year (handles midnight boundary)
       expect([before.getUTCFullYear(), after.getUTCFullYear()]).toContain(year);
@@ -83,8 +85,8 @@ describe('backupService', () => {
       // Format: cornerstone-backup-YYYY-MM-DDTHHMMSSZ.tar.gz
       const match = filename.match(/cornerstone-backup-\d{4}-(\d{2})-(\d{2})T/);
       expect(match).not.toBeNull();
-      const month = parseInt(match![1], 10);
-      const day = parseInt(match![2], 10);
+      const month = parseInt(match![1]!, 10);
+      const day = parseInt(match![2]!, 10);
       expect(month).toBeGreaterThanOrEqual(1);
       expect(month).toBeLessThanOrEqual(12);
       expect(day).toBeGreaterThanOrEqual(1);
@@ -197,65 +199,61 @@ describe('backupService', () => {
   // ─── listBackups ──────────────────────────────────────────────────────────
 
   describe('listBackups()', () => {
-    let tempDir: string;
+    let tempDir: DisposableTempDir;
 
     beforeEach(() => {
-      tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-backup-list-test-'));
+      tempDir = disposableTempDir('cornerstone-backup-list-test-');
     });
 
     afterEach(() => {
-      try {
-        rmSync(tempDir, { recursive: true, force: true });
-      } catch {
-        // ignore cleanup errors
-      }
+      tempDir[Symbol.dispose]();
     });
 
     it('returns empty array for an empty directory', async () => {
-      const result = await listBackups(tempDir);
+      const result = await listBackups(tempDir.path);
       expect(result).toEqual([]);
     });
 
     it('returns empty array when the directory does not exist (ENOENT)', async () => {
-      const result = await listBackups(join(tempDir, 'nonexistent-dir'));
+      const result = await listBackups(join(tempDir.path, 'nonexistent-dir'));
       expect(result).toEqual([]);
     });
 
     it('returns backup files sorted newest-first by timestamp', async () => {
       const olderFilename = 'cornerstone-backup-2026-01-01T000000Z.tar.gz';
       const newerFilename = 'cornerstone-backup-2026-06-15T120000Z.tar.gz';
-      writeFileSync(join(tempDir, olderFilename), 'older content');
-      writeFileSync(join(tempDir, newerFilename), 'newer content');
+      writeFileSync(join(tempDir.path, olderFilename), 'older content');
+      writeFileSync(join(tempDir.path, newerFilename), 'newer content');
 
-      const result = await listBackups(tempDir);
+      const result = await listBackups(tempDir.path);
 
       expect(result).toHaveLength(2);
-      expect(result[0].filename).toBe(newerFilename);
-      expect(result[1].filename).toBe(olderFilename);
+      expect(result[0]!.filename).toBe(newerFilename);
+      expect(result[1]!.filename).toBe(olderFilename);
     });
 
     it('returns correct BackupMeta shape for a backup file', async () => {
       const filename = 'cornerstone-backup-2026-03-22T020000Z.tar.gz';
-      writeFileSync(join(tempDir, filename), 'test content');
+      writeFileSync(join(tempDir.path, filename), 'test content');
 
-      const result = await listBackups(tempDir);
+      const result = await listBackups(tempDir.path);
 
       expect(result).toHaveLength(1);
-      expect(result[0].filename).toBe(filename);
-      expect(result[0].createdAt).toBe('2026-03-22T02:00:00.000Z');
-      expect(typeof result[0].sizeBytes).toBe('number');
-      expect(result[0].sizeBytes).toBeGreaterThan(0);
+      expect(result[0]!.filename).toBe(filename);
+      expect(result[0]!.createdAt).toBe('2026-03-22T02:00:00.000Z');
+      expect(typeof result[0]!.sizeBytes).toBe('number');
+      expect(result[0]!.sizeBytes).toBeGreaterThan(0);
     });
 
     it('ignores non-backup files in the directory', async () => {
-      writeFileSync(join(tempDir, 'README.txt'), 'readme');
-      writeFileSync(join(tempDir, 'some-other-archive.tar.gz'), 'other');
-      writeFileSync(join(tempDir, 'cornerstone-backup-2026-03-22T020000Z.tar.gz'), 'backup');
+      writeFileSync(join(tempDir.path, 'README.txt'), 'readme');
+      writeFileSync(join(tempDir.path, 'some-other-archive.tar.gz'), 'other');
+      writeFileSync(join(tempDir.path, 'cornerstone-backup-2026-03-22T020000Z.tar.gz'), 'backup');
 
-      const result = await listBackups(tempDir);
+      const result = await listBackups(tempDir.path);
 
       expect(result).toHaveLength(1);
-      expect(result[0].filename).toBe('cornerstone-backup-2026-03-22T020000Z.tar.gz');
+      expect(result[0]!.filename).toBe('cornerstone-backup-2026-03-22T020000Z.tar.gz');
     });
 
     it('handles multiple backup files with correct sort order', async () => {
@@ -265,72 +263,68 @@ describe('backupService', () => {
         'cornerstone-backup-2026-02-10T150000Z.tar.gz',
       ];
       for (const f of files) {
-        writeFileSync(join(tempDir, f), 'content');
+        writeFileSync(join(tempDir.path, f), 'content');
       }
 
-      const result = await listBackups(tempDir);
+      const result = await listBackups(tempDir.path);
 
       expect(result).toHaveLength(3);
       // Sorted newest-first
-      expect(result[0].filename).toBe('cornerstone-backup-2026-03-01T080000Z.tar.gz');
-      expect(result[1].filename).toBe('cornerstone-backup-2026-02-10T150000Z.tar.gz');
-      expect(result[2].filename).toBe('cornerstone-backup-2026-01-15T100000Z.tar.gz');
+      expect(result[0]!.filename).toBe('cornerstone-backup-2026-03-01T080000Z.tar.gz');
+      expect(result[1]!.filename).toBe('cornerstone-backup-2026-02-10T150000Z.tar.gz');
+      expect(result[2]!.filename).toBe('cornerstone-backup-2026-01-15T100000Z.tar.gz');
     });
   });
 
   // ─── deleteBackup ─────────────────────────────────────────────────────────
 
   describe('deleteBackup()', () => {
-    let tempDir: string;
+    let tempDir: DisposableTempDir;
 
     beforeEach(() => {
-      tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-backup-delete-test-'));
+      tempDir = disposableTempDir('cornerstone-backup-delete-test-');
     });
 
     afterEach(() => {
-      try {
-        rmSync(tempDir, { recursive: true, force: true });
-      } catch {
-        // ignore cleanup errors
-      }
+      tempDir[Symbol.dispose]();
     });
 
     it('deletes an existing backup file successfully', async () => {
       const filename = 'cornerstone-backup-2026-03-22T020000Z.tar.gz';
-      writeFileSync(join(tempDir, filename), 'backup content');
+      writeFileSync(join(tempDir.path, filename), 'backup content');
 
-      await expect(deleteBackup(tempDir, filename)).resolves.toBeUndefined();
+      await expect(deleteBackup(tempDir.path, filename)).resolves.toBeUndefined();
 
       // Verify the file was actually removed
-      const remaining = await listBackups(tempDir);
+      const remaining = await listBackups(tempDir.path);
       expect(remaining).toHaveLength(0);
     });
 
     it('throws BackupNotFoundError (code BACKUP_NOT_FOUND) when file does not exist', async () => {
       await expect(
-        deleteBackup(tempDir, 'cornerstone-backup-2099-01-01T000000Z.tar.gz'),
+        deleteBackup(tempDir.path, 'cornerstone-backup-2099-01-01T000000Z.tar.gz'),
       ).rejects.toMatchObject({
         code: 'BACKUP_NOT_FOUND',
       });
     });
 
     it('throws BackupNotFoundError for path traversal filename (../../etc/passwd)', async () => {
-      await expect(deleteBackup(tempDir, '../../etc/passwd')).rejects.toMatchObject({
+      await expect(deleteBackup(tempDir.path, '../../etc/passwd')).rejects.toMatchObject({
         code: 'BACKUP_NOT_FOUND',
       });
     });
 
     it('throws BackupNotFoundError for filename with backslash', async () => {
       await expect(
-        deleteBackup(tempDir, 'cornerstone-backup-2026\\T000000Z.tar.gz'),
+        deleteBackup(tempDir.path, 'cornerstone-backup-2026\\T000000Z.tar.gz'),
       ).rejects.toMatchObject({
         code: 'BACKUP_NOT_FOUND',
       });
     });
 
     it('throws BackupNotFoundError for a random non-backup filename', async () => {
-      writeFileSync(join(tempDir, 'random-file.txt'), 'content');
-      await expect(deleteBackup(tempDir, 'random-file.txt')).rejects.toMatchObject({
+      writeFileSync(join(tempDir.path, 'random-file.txt'), 'content');
+      await expect(deleteBackup(tempDir.path, 'random-file.txt')).rejects.toMatchObject({
         code: 'BACKUP_NOT_FOUND',
       });
     });
@@ -338,14 +332,14 @@ describe('backupService', () => {
     it('only deletes the targeted file, leaving others intact', async () => {
       const file1 = 'cornerstone-backup-2026-01-01T000000Z.tar.gz';
       const file2 = 'cornerstone-backup-2026-06-01T000000Z.tar.gz';
-      writeFileSync(join(tempDir, file1), 'content1');
-      writeFileSync(join(tempDir, file2), 'content2');
+      writeFileSync(join(tempDir.path, file1), 'content1');
+      writeFileSync(join(tempDir.path, file2), 'content2');
 
-      await deleteBackup(tempDir, file1);
+      await deleteBackup(tempDir.path, file1);
 
-      const remaining = await listBackups(tempDir);
+      const remaining = await listBackups(tempDir.path);
       expect(remaining).toHaveLength(1);
-      expect(remaining[0].filename).toBe(file2);
+      expect(remaining[0]!.filename).toBe(file2);
     });
   });
 
@@ -354,21 +348,134 @@ describe('backupService', () => {
   describe('createBackup() — guard conditions', () => {
     it('throws BackupNotConfiguredError (code BACKUP_NOT_CONFIGURED) when backupEnabled is false', async () => {
       const db = {} as any;
-      const config = makeConfig({ backupEnabled: false, backupDir: undefined });
+      const config = makeConfig({ backupEnabled: false });
 
       await expect(createBackup(db, config)).rejects.toMatchObject({
         code: 'BACKUP_NOT_CONFIGURED',
       });
     });
+  });
 
-    it('throws BackupNotConfiguredError (code BACKUP_NOT_CONFIGURED) when backupDir is not set', async () => {
-      const db = {} as any;
-      // The service checks !config.backupEnabled || !config.backupDir
-      const config = makeConfig({ backupEnabled: true, backupDir: undefined });
+  // ─── createBackup — execution path ───────────────────────────────────────
+
+  describe('createBackup() — execution path', () => {
+    let tempDir: DisposableTempDir;
+    let backupTempDir: DisposableTempDir;
+
+    beforeEach(() => {
+      // App data directory (DB lives here) — separate from backup directory
+      tempDir = disposableTempDir('cornerstone-backup-exec-appdata-');
+      // Backup directory MUST be outside the app data directory (config validation)
+      backupTempDir = disposableTempDir('cornerstone-backup-exec-backups-');
+    });
+
+    afterEach(() => {
+      // Restore writable permissions before cleanup (in case a test made the dir read-only)
+      try {
+        chmodSync(backupTempDir.path, 0o755);
+      } catch {
+        // ignore
+      }
+      tempDir[Symbol.dispose]();
+      backupTempDir[Symbol.dispose]();
+    });
+
+    it('createBackup succeeds with a real DB and real tar: returns valid BackupMeta and writes the .tar.gz file', async () => {
+      using rawDb = disposableDb(join(tempDir.path, 'test.db'));
+      const db = drizzle(rawDb);
+
+      const config = makeConfig({
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: backupTempDir.path,
+        backupEnabled: true,
+        backupRetention: undefined,
+      });
+
+      const result = await createBackup(db, config);
+
+      // Returned BackupMeta must be well-formed
+      expect(result.filename).toMatch(/^cornerstone-backup-\d{4}-\d{2}-\d{2}T\d{6}Z\.tar\.gz$/);
+      expect(result.createdAt).toBeTruthy();
+      expect(typeof result.createdAt).toBe('string');
+      expect(result.sizeBytes).toBeGreaterThan(0);
+
+      // The archive file must exist on disk
+      const archivePath = join(backupTempDir.path, result.filename);
+      expect(existsSync(archivePath)).toBe(true);
+    });
+
+    it('createBackup throws BackupFailedError (code BACKUP_FAILED) when backup directory is not writable', async () => {
+      // chmod does not restrict root — skip this test when running as root
+      if (process.getuid?.() === 0) {
+        return;
+      }
+
+      using rawDb = disposableDb(join(tempDir.path, 'test.db'));
+      const db = drizzle(rawDb);
+
+      // Make the backup directory read-only
+      chmodSync(backupTempDir.path, 0o444);
+
+      const config = makeConfig({
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: backupTempDir.path,
+        backupEnabled: true,
+      });
 
       await expect(createBackup(db, config)).rejects.toMatchObject({
-        code: 'BACKUP_NOT_CONFIGURED',
+        code: 'BACKUP_FAILED',
       });
+    });
+
+    it('createBackup throws BackupFailedError (code BACKUP_FAILED) when db.backup() throws', async () => {
+      // Create a mock db whose $client.backup throws a SqliteError-like object
+      const mockBackup = jest
+        .fn<() => Promise<void>>()
+        .mockRejectedValue(Object.assign(new Error('disk I/O error'), { code: 'SQLITE_IOERR' }));
+      const db = {
+        $client: {
+          backup: mockBackup,
+        },
+      } as any;
+
+      const config = makeConfig({
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: backupTempDir.path,
+        backupEnabled: true,
+      });
+
+      await expect(createBackup(db, config)).rejects.toMatchObject({
+        code: 'BACKUP_FAILED',
+      });
+    });
+
+    it('createBackup enforces retention policy and deletes oldest backups when limit is exceeded', async () => {
+      using rawDb = disposableDb(join(tempDir.path, 'test.db'));
+      const db = drizzle(rawDb);
+
+      const config = makeConfig({
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: backupTempDir.path,
+        backupEnabled: true,
+        backupRetention: 2,
+      });
+
+      // Pre-seed two older backup stubs with valid filenames
+      const stub1 = 'cornerstone-backup-2026-01-01T000000Z.tar.gz';
+      const stub2 = 'cornerstone-backup-2026-01-02T000000Z.tar.gz';
+      writeFileSync(join(backupTempDir.path, stub1), 'stub content 1');
+      writeFileSync(join(backupTempDir.path, stub2), 'stub content 2');
+
+      // Third backup created for real — this should push total to 3, triggering retention
+      await createBackup(db, config);
+
+      // After retention enforcement, only 2 files should remain
+      const remaining = await listBackups(backupTempDir.path);
+      expect(remaining).toHaveLength(2);
+
+      // The two oldest stubs should have been deleted; only the 2 newest remain
+      const filenames = remaining.map((b) => b.filename);
+      expect(filenames).not.toContain(stub1);
     });
   });
 });

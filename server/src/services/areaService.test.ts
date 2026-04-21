@@ -132,9 +132,9 @@ describe('Area Service', () => {
       createTestArea('Beta Area', { sortOrder: 5 });
 
       const result = areaService.listAreas(db);
-      expect(result[0].name).toBe('Alpha Area');
-      expect(result[1].name).toBe('Beta Area');
-      expect(result[2].name).toBe('Zeta Area');
+      expect(result[0]!.name).toBe('Alpha Area');
+      expect(result[1]!.name).toBe('Beta Area');
+      expect(result[2]!.name).toBe('Zeta Area');
     });
 
     it('returns all area fields', () => {

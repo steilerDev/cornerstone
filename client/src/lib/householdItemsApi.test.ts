@@ -158,7 +158,7 @@ describe('householdItemsApi', () => {
 
       await listHouseholdItems({ page: 1 });
 
-      const callUrl = mockFetch.mock.calls[0][0] as string;
+      const callUrl = mockFetch.mock.calls[0]![0] as string;
       expect(callUrl).not.toContain('areaId');
     });
 
@@ -175,7 +175,7 @@ describe('householdItemsApi', () => {
 
       await listHouseholdItems({ areaId: undefined });
 
-      const callUrl = mockFetch.mock.calls[0][0] as string;
+      const callUrl = mockFetch.mock.calls[0]![0] as string;
       expect(callUrl).not.toContain('areaId');
     });
 
@@ -276,7 +276,7 @@ describe('householdItemsApi', () => {
         sortOrder: 'desc',
       });
 
-      const callUrl = mockFetch.mock.calls[0][0] as string;
+      const callUrl = mockFetch.mock.calls[0]![0] as string;
       expect(callUrl).toContain('page=2');
       expect(callUrl).toContain('pageSize=50');
       expect(callUrl).toContain('category=appliances');
@@ -325,7 +325,7 @@ describe('householdItemsApi', () => {
 
       expect(result).toEqual(mockResponse);
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].name).toBe('Coffee table');
+      expect(result.items[0]!.name).toBe('Coffee table');
     });
 
     it('throws error when response is not OK', async () => {

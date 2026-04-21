@@ -214,7 +214,6 @@ describe('SubsidyProgramsPage', () => {
       remainingVsActualClaimed: 0,
       remainingVsMinPlannedWithPayback: 0,
       remainingVsMaxPlannedWithPayback: 0,
-      categorySummaries: [],
       subsidySummary: {
         totalReductions: 0,
         activeSubsidyCount: 0,

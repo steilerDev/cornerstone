@@ -43,6 +43,7 @@
     },
     "ofAvailableFunds": "of available funds",
     "costBreakdown": {
+      "tableCaption": "Budget cost breakdown by area and item",
       "loading": "Loading cost breakdown…",
       "title": "Cost Breakdown",
       "emptyState": "No budget data to display",
@@ -59,7 +60,14 @@
         "net": "Net"
       },
       "subsidyAdjustments": "Subsidies",
-      "oversubscribed": "This subsidy is oversubscribed, maximum amount is {{amount}}"
+      "oversubscribed": "This subsidy is oversubscribed, maximum amount is {{amount}}",
+      "area": {
+        "expandArea": "Expand {{name}}",
+        "collapseArea": "Collapse {{name}}",
+        "unassigned": "No Area",
+        "expandWorkItemsLabel": "Expand work item budget by area",
+        "expandHouseholdItemsLabel": "Expand household item budget by area"
+      }
     }
   },
   "sources": {
@@ -139,18 +147,87 @@
       "claimed": "Claimed",
       "paidUnclaimed": "Paid (unclaimed)",
       "projected": "Projected",
-      "allocated": "Allocated (planned)",
-      "total": "Total",
-      "available": "Available",
-      "planned": "Planned",
-      "rate": "Rate",
+      "projectedRange": "Projected",
+      "projectedUncertainty": "Projected uncertainty",
+      "overflow": "Overflow",
       "ofTotal": "of total",
       "remaining": "Remaining",
-      "overflow": "Overflow"
+      "rate": "Rate",
+      "headroom": "Headroom",
+      "totalBadge": "Total: {{amount}}",
+      "totalBadgeAriaLabel": "Total amount: {{amount}}",
+      "summaryProjectedLabel": "Projected",
+      "summaryPaidLabel": "Paid",
+      "summaryClaimedLabel": "Claimed",
+      "srOnly": "Claimed {{claimed}}, Paid {{paid}}, Projected {{projectedMin}} to {{projectedMax}}, of total {{total}}"
+    },
+    "summary": {
+      "remainingLabel": "Remaining"
+    },
+    "lines": {
+      "expand": "Show lines",
+      "collapse": "Hide lines",
+      "loadingLabel": "Loading budget lines…",
+      "empty": "No budget lines assigned",
+      "emptyDescription": "Budget lines from work items and household items appear here when assigned to this source.",
+      "workItemSection": "Work Item Lines",
+      "householdItemSection": "Household Item Lines",
+      "unassignedArea": "No Area",
+      "fetchError": "Could not load budget lines.",
+      "retry": "Retry",
+      "areaLineCount_one": "{{count}} line",
+      "areaLineCount_other": "{{count}} lines",
+      "expandAriaLabel": "Expand budget lines for {{name}}",
+      "collapseAriaLabel": "Collapse budget lines for {{name}}",
+      "panelAriaLabel": "Budget lines for {{name}}",
+      "categoryVendorSeparator": " · ",
+      "confidence": {
+        "own_estimate": "Own estimate",
+        "professional_estimate": "Pro estimate",
+        "quote": "Quote",
+        "invoice": "Invoice"
+      },
+      "invoiceLinked": "Invoiced",
+      "invoiceStatus": {
+        "none": "Not invoiced",
+        "pending": "Pending",
+        "paid": "Paid",
+        "claimed": "Claimed",
+        "quotation": "Quotation"
+      },
+      "typeColumnHeader": "Type",
+      "statusColumnHeader": "Status"
+    },
+    "budgetLines": {
+      "move": {
+        "checkboxLabel": "Select {{description}}",
+        "selectGroupLabel": "Select all in {{name}}",
+        "selectItemLabel": "Select all under {{name}}",
+        "navigateToItem": "Open {{name}}",
+        "selectedCount_one": "{{count}} line selected",
+        "selectedCount_other": "{{count}} lines selected",
+        "openModalButton": "Move to another source…",
+        "modalTitle": "Move lines to another source",
+        "movingCount_one": "Moving {{count}} line from {{sourceName}}",
+        "movingCount_other": "Moving {{count}} lines from {{sourceName}}",
+        "targetLabel": "Destination source",
+        "pickerPlaceholder": "Search sources…",
+        "pickerEmpty": "No other sources found",
+        "claimedWarningHeading_one": "{{count}} line has a claimed invoice",
+        "claimedWarningHeading_other": "{{count}} lines have a claimed invoice",
+        "claimedWarningBody": "Reassigning these lines will not affect the invoice claim. Verify with your accountant before proceeding.",
+        "understoodLabel": "I understand this will reassign lines with a claimed invoice",
+        "confirmButton": "Move lines",
+        "confirmDisabledHint": "Check the \"I understand\" checkbox to enable confirmation",
+        "confirmDisabledNoTarget": "Select a destination source to enable confirmation",
+        "successToast_one": "Moved {{count}} line to {{targetName}}",
+        "successToast_other": "Moved {{count}} lines to {{targetName}}",
+        "genericError": "Failed to move lines. Please try again."
+      }
     }
   },
   "vendors": {
-    "title": "Budget",
+    "title": "Vendors",
     "sectionTitle": "Vendors",
     "addVendor": "Add Vendor",
     "addFirstVendor": "Add First Vendor",
@@ -407,7 +484,8 @@
       "placeholders": {
         "vendor": "Select a vendor...",
         "invoiceNumber": "e.g., INV-001",
-        "amount": "0.00"
+        "amount": "0.00",
+        "notes": "Optional notes about this invoice"
       }
     },
     "validation": {
@@ -421,8 +499,7 @@
       "save": "Save Changes",
       "saving": "Saving...",
       "cancel": "Cancel",
-      "view": "View",
-      "delete": "Delete"
+      "view": "View"
     },
     "actions": {
       "menuAriaLabel": "Actions for invoice {{number}}"
@@ -435,6 +512,7 @@
     },
     "modal": {
       "title": "Add Invoice",
+      "description": "Fill in the details below to add a new invoice.",
       "deleteTitle": "Delete Invoice",
       "deleteConfirm": "Are you sure you want to delete invoice {{number}} for {{amount}}?",
       "deleteWarning": "This action cannot be undone."

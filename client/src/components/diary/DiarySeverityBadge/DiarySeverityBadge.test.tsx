@@ -8,10 +8,10 @@ import badgeStyles from '../../Badge/Badge.module.css';
 
 // Variant map mirroring the production definition in DiaryMetadataSummary.tsx
 const DIARY_SEVERITY_VARIANTS = {
-  low: { label: 'Low', className: badgeStyles.low },
-  medium: { label: 'Medium', className: badgeStyles.medium },
-  high: { label: 'High', className: badgeStyles.high },
-  critical: { label: 'Critical', className: badgeStyles.critical },
+  low: { label: 'Low', className: badgeStyles.low! },
+  medium: { label: 'Medium', className: badgeStyles.medium! },
+  high: { label: 'High', className: badgeStyles.high! },
+  critical: { label: 'Critical', className: badgeStyles.critical! },
 };
 
 describe('Badge — diary severity variants', () => {

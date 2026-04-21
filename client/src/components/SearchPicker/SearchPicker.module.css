@@ -120,6 +120,22 @@
   white-space: nowrap;
 }
 
+.resultContent {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.resultSecondary {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-0-5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .stateMessage {
   padding: var(--spacing-4);
   text-align: center;

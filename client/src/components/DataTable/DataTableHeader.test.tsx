@@ -122,7 +122,7 @@ describe('DataTableHeader', () => {
       const { container } = renderHeader({
         tableState: makeTableState({ sortBy: 'title', sortDir: 'asc' }),
       });
-      const titleTh = container.querySelectorAll('th')[0];
+      const titleTh = container.querySelectorAll('th')[0]!;
       expect(titleTh).toHaveAttribute('aria-sort', 'ascending');
     });
 
@@ -130,7 +130,7 @@ describe('DataTableHeader', () => {
       const { container } = renderHeader({
         tableState: makeTableState({ sortBy: 'title', sortDir: 'desc' }),
       });
-      const titleTh = container.querySelectorAll('th')[0];
+      const titleTh = container.querySelectorAll('th')[0]!;
       expect(titleTh).toHaveAttribute('aria-sort', 'descending');
     });
 
@@ -139,7 +139,7 @@ describe('DataTableHeader', () => {
         tableState: makeTableState({ sortBy: 'title', sortDir: 'asc' }),
       });
       // 'amount' is index 1, not being sorted
-      const amountTh = container.querySelectorAll('th')[1];
+      const amountTh = container.querySelectorAll('th')[1]!;
       expect(amountTh).toHaveAttribute('aria-sort', 'none');
     });
 
@@ -163,7 +163,7 @@ describe('DataTableHeader', () => {
       const user = userEvent.setup();
       const mockOnSort = jest.fn();
       const { container } = renderHeader({ onSort: mockOnSort });
-      const titleTh = container.querySelectorAll('th')[0];
+      const titleTh = container.querySelectorAll('th')[0]!;
       await user.click(titleTh);
       expect(mockOnSort).toHaveBeenCalledWith('title', undefined);
     });
@@ -173,7 +173,7 @@ describe('DataTableHeader', () => {
       const mockOnSort = jest.fn();
       const { container } = renderHeader({ onSort: mockOnSort });
       // 'id' column (index 2) is not sortable
-      const idTh = container.querySelectorAll('th')[2];
+      const idTh = container.querySelectorAll('th')[2]!;
       await user.click(idTh);
       expect(mockOnSort).not.toHaveBeenCalled();
     });
@@ -313,7 +313,7 @@ describe('DataTableHeader', () => {
       );
       const headers = container.querySelectorAll('th');
       // Actions should be the last header
-      expect(headers[headers.length - 1].textContent?.trim()).toBe('Actions');
+      expect(headers[headers.length - 1]!.textContent?.trim()).toBe('Actions');
     });
   });
 });

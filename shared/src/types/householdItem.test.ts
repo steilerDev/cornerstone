@@ -221,7 +221,7 @@ describe('HouseholdItemSummary interface', () => {
         name: 'IKEA',
         trade: null,
       },
-      area: { id: 'area-living-room', name: 'Living Room', color: '#FF5733' },
+      area: { id: 'area-living-room', name: 'Living Room', color: '#FF5733', ancestors: [] },
       quantity: 1,
       orderDate: '2025-01-15',
       targetDeliveryDate: '2025-02-15',
@@ -332,7 +332,7 @@ describe('HouseholdItemDetail interface', () => {
       category: 'hic-electronics',
       status: 'arrived',
       vendor: null,
-      area: { id: 'area-living-room', name: 'Living Room', color: null },
+      area: { id: 'area-living-room', name: 'Living Room', color: null, ancestors: [] },
       quantity: 1,
       orderDate: '2025-01-01',
       targetDeliveryDate: '2025-01-20',
@@ -366,6 +366,7 @@ describe('HouseholdItemDetail interface', () => {
             title: 'Mount TV',
             status: 'not_started',
             endDate: '2026-05-05',
+            area: null,
           },
         },
       ],
@@ -391,7 +392,7 @@ describe('HouseholdItemDetail interface', () => {
     expect(detail.createdBy?.displayName).toBe('Alice');
     expect(detail.dependencies).toHaveLength(1);
     expect(detail.subsidies).toHaveLength(1);
-    expect(detail.subsidies[0].applicationStatus).toBe('applied');
+    expect(detail.subsidies[0]!.applicationStatus).toBe('applied');
     expect(detail.earliestDeliveryDate).toBe('2025-01-15');
     expect(detail.latestDeliveryDate).toBe('2025-01-25');
   });
@@ -679,10 +680,10 @@ describe('HouseholdItemListResponse type', () => {
     const paginated: PaginatedResponse<(typeof response.items)[0]> = response;
     expect(paginated.items).toHaveLength(1);
     expect(paginated.pagination.totalItems).toBe(1);
-    expect(response.items[0].name).toBe('Sofa');
+    expect(response.items[0]!.name).toBe('Sofa');
     // Verify no old fields
-    expect((response.items[0] as any).room).toBeUndefined();
-    expect((response.items[0] as any).tagIds).toBeUndefined();
+    expect((response.items[0]! as any).room).toBeUndefined();
+    expect((response.items[0]! as any).tagIds).toBeUndefined();
   });
 
   it('handles empty list correctly', () => {

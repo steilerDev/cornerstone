@@ -375,8 +375,7 @@
 
 .sourceRow {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  flex-direction: column;
   padding: var(--spacing-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -388,14 +387,12 @@
   background-color: var(--color-bg-secondary);
 }
 
-/* ---- Source info (left side) ---- */
-
-.sourceInfo {
-  flex: 1;
-  min-width: 0;
+.sourceRowHeader {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-2);
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
 }
 
 .sourceMain {
@@ -415,6 +412,70 @@
   display: flex;
   gap: var(--spacing-2);
   flex-wrap: wrap;
+}
+
+/* ---- Expand toggle button ---- */
+
+.expandToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-1-5) var(--spacing-3);
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-normal),
+    border-color var(--transition-normal),
+    color var(--transition-normal);
+  min-height: 44px;
+}
+
+.expandToggle:hover:not(:disabled) {
+  background-color: var(--color-bg-tertiary);
+}
+
+.expandToggle:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.expandToggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.expandToggleActive {
+  background-color: var(--color-primary-bg);
+  color: var(--color-primary-badge-text);
+  border-color: var(--color-primary);
+}
+
+.expandToggleActive:hover {
+  background-color: var(--color-primary-bg);
+  border-color: var(--color-primary);
+  color: var(--color-primary-badge-text);
+}
+
+.chevronIcon {
+  width: var(--spacing-3);
+  height: var(--spacing-3);
+  transition: transform var(--transition-normal);
+  flex-shrink: 0;
+}
+
+.chevronExpanded {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevronIcon {
+    transition: none;
+  }
 }
 
 /* ---- Source type badge ---- */
@@ -506,12 +567,6 @@
   color: var(--color-warning-badge-text);
 }
 
-/* ---- Amount value styling (reused in summary row) ---- */
-
-.amountNegative {
-  color: var(--color-danger);
-}
-
 /* Terms line */
 .sourceTerms {
   font-size: var(--font-size-xs);
@@ -569,21 +624,29 @@
   opacity: 0.8;
 }
 
-.barLegend {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
-}
-
-.barLegendRow {
+/* ---- Source bar summary table ---- */
+.summaryTable {
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: var(--spacing-2);
-  font-size: var(--font-size-xs);
+  grid-template-columns: 1fr auto;
+  row-gap: var(--spacing-2);
+  column-gap: var(--spacing-4);
+  margin-top: var(--spacing-1);
 }
 
-.barLegendDot {
+.summaryRow {
+  display: contents;
+}
+
+.summaryLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.summaryLabelDot {
   width: var(--spacing-2);
   height: var(--spacing-2);
   border-radius: var(--radius-circle);
@@ -591,38 +654,62 @@
   display: inline-block;
 }
 
-.barLegendLabel {
-  color: var(--color-text-muted);
-}
-
-.barLegendValue {
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text-primary);
-  font-weight: var(--font-weight-medium);
-  text-align: right;
-}
-
-.sourceSummaryRow {
+.summaryValues {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--spacing-1-5);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--spacing-0-5);
+}
+
+.summaryPrimary {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.summarySecondary {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
-.summaryItem {
-  white-space: nowrap;
+.summarySecondaryNegative {
+  color: var(--color-danger-text-on-light);
 }
 
-.summaryItem strong {
-  color: var(--color-text-primary);
+/* ---- Interest rate subtitle ---- */
+.sourceInterestRate {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-normal);
+  margin: 0;
+}
+
+/* ---- Total badge (in .sourceBadges row) ---- */
+.totalBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
+  line-height: 1.4;
+  white-space: nowrap;
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
 }
 
-.summaryDivider {
-  color: var(--color-border-strong);
-  user-select: none;
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
 /* ---- Source actions (right side) ---- */
@@ -783,8 +870,8 @@
     text-align: center;
   }
 
-  /* Source row becomes a column on mobile */
-  .sourceRow {
+  /* Source row is already a column; sourceRowHeader adapts on mobile */
+  .sourceRowHeader {
     flex-direction: column;
     align-items: stretch;
     gap: var(--spacing-3);
@@ -795,7 +882,8 @@
   }
 
   .editButton,
-  .deleteButton {
+  .deleteButton,
+  .expandToggle {
     flex: 1;
   }
 
@@ -830,6 +918,7 @@
   .cancelButton,
   .editButton,
   .deleteButton,
+  .expandToggle,
   .confirmDeleteButton {
     min-height: 44px;
   }

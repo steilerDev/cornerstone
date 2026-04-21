@@ -47,6 +47,10 @@ Household items move through a purchase lifecycle:
 | **Scheduled** | Delivery date confirmed |
 | **Arrived** | Item delivered |
 
+## Area Breadcrumbs
+
+Household items display the full **area ancestor path** (e.g. `House / Ground Floor / Kitchen`) wherever they appear -- list pages, detail pages, pickers, and any work item or diary entry that references them. See [Areas & Trades](/guides/work-items/areas-and-trades) for how the area hierarchy works.
+
 ## List View
 
 The household items list page provides:
@@ -58,6 +62,10 @@ The household items list page provides:
 - **Responsive layout** -- Table view on desktop, card view on mobile and tablet
 
 All filter and sort settings are synced to the URL, so your view is bookmarkable and shareable.
+
+### Filtering by Area
+
+The **Area** filter supports the full area hierarchy: picking a parent area also matches every descendant area. A dedicated **No Area** option surfaces items that have not yet been assigned to any area.
 
 ![Household items list page](/img/screenshots/household-items-list-light.png)
 

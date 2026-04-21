@@ -277,8 +277,8 @@ describe('subtasksApi', () => {
           body: JSON.stringify(requestData),
         }),
       );
-      expect(result.subtasks[0].id).toBe('subtask-2');
-      expect(result.subtasks[1].id).toBe('subtask-1');
+      expect(result.subtasks[0]!.id).toBe('subtask-2');
+      expect(result.subtasks[1]!.id).toBe('subtask-1');
     });
 
     it('throws ApiClientError on validation error for invalid subtaskIds', async () => {

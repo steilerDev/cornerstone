@@ -75,8 +75,8 @@ describe('invoicesApi', () => {
       const result = await fetchInvoices('vendor-1');
 
       expect(result).toHaveLength(2);
-      expect(result[0].id).toBe('invoice-1');
-      expect(result[1].id).toBe('invoice-2');
+      expect(result[0]!.id).toBe('invoice-1');
+      expect(result[1]!.id).toBe('invoice-2');
     });
 
     it('unwraps the invoices array from the response envelope', async () => {
@@ -90,7 +90,7 @@ describe('invoicesApi', () => {
       const result = await fetchInvoices('vendor-1');
 
       expect(Array.isArray(result)).toBe(true);
-      expect(result[0]).toEqual(sampleInvoice);
+      expect(result[0]!).toEqual(sampleInvoice);
     });
 
     it('uses the correct vendorId in the URL', async () => {
@@ -101,8 +101,8 @@ describe('invoicesApi', () => {
 
       await fetchInvoices('vendor-abc-123');
 
-      const call = mockFetch.mock.calls[0];
-      expect(call[0]).toBe('/api/vendors/vendor-abc-123/invoices');
+      const call = mockFetch.mock.calls[0]!;
+      expect(call[0]!).toBe('/api/vendors/vendor-abc-123/invoices');
     });
 
     it('throws when server returns 401 UNAUTHORIZED', async () => {
@@ -245,8 +245,8 @@ describe('invoicesApi', () => {
 
       await createInvoice('vendor-xyz', { amount: 100, date: '2026-01-01' });
 
-      const call = mockFetch.mock.calls[0];
-      expect(call[0]).toBe('/api/vendors/vendor-xyz/invoices');
+      const call = mockFetch.mock.calls[0]!;
+      expect(call[0]!).toBe('/api/vendors/vendor-xyz/invoices');
     });
   });
 
@@ -382,8 +382,8 @@ describe('invoicesApi', () => {
 
       await updateInvoice('vendor-abc', 'inv-xyz', { amount: 999 });
 
-      const call = mockFetch.mock.calls[0];
-      expect(call[0]).toBe('/api/vendors/vendor-abc/invoices/inv-xyz');
+      const call = mockFetch.mock.calls[0]!;
+      expect(call[0]!).toBe('/api/vendors/vendor-abc/invoices/inv-xyz');
     });
   });
 
@@ -455,8 +455,8 @@ describe('invoicesApi', () => {
 
       await deleteInvoice('vendor-abc', 'inv-xyz');
 
-      const call = mockFetch.mock.calls[0];
-      expect(call[0]).toBe('/api/vendors/vendor-abc/invoices/inv-xyz');
+      const call = mockFetch.mock.calls[0]!;
+      expect(call[0]!).toBe('/api/vendors/vendor-abc/invoices/inv-xyz');
     });
   });
 
@@ -493,9 +493,9 @@ describe('invoicesApi', () => {
 
       await fetchAllInvoices({ page: 2, pageSize: 10 });
 
-      const call = mockFetch.mock.calls[0];
-      expect(call[0]).toContain('page=2');
-      expect(call[0]).toContain('pageSize=10');
+      const call = mockFetch.mock.calls[0]!;
+      expect(call[0]!).toContain('page=2');
+      expect(call[0]!).toContain('pageSize=10');
     });
 
     it('sends correct query string when q, status, and vendorId are provided', async () => {
@@ -506,7 +506,7 @@ describe('invoicesApi', () => {
 
       await fetchAllInvoices({ q: 'INV-001', status: 'pending', vendorId: 'vendor-1' });
 
-      const call = mockFetch.mock.calls[0];
+      const call = mockFetch.mock.calls[0]!;
       const url = call[0] as string;
       expect(url).toContain('q=INV-001');
       expect(url).toContain('status=pending');
@@ -521,7 +521,7 @@ describe('invoicesApi', () => {
 
       await fetchAllInvoices({ sortBy: 'amount', sortOrder: 'asc' });
 
-      const call = mockFetch.mock.calls[0];
+      const call = mockFetch.mock.calls[0]!;
       const url = call[0] as string;
       expect(url).toContain('sortBy=amount');
       expect(url).toContain('sortOrder=asc');
@@ -552,7 +552,7 @@ describe('invoicesApi', () => {
 
       await fetchAllInvoices({ page: 1 }); // only page, no other params
 
-      const call = mockFetch.mock.calls[0];
+      const call = mockFetch.mock.calls[0]!;
       const url = call[0] as string;
       expect(url).toContain('page=1');
       expect(url).not.toContain('pageSize');
@@ -569,8 +569,8 @@ describe('invoicesApi', () => {
 
       await fetchAllInvoices();
 
-      const call = mockFetch.mock.calls[0];
-      expect(call[0]).toBe('/api/invoices');
+      const call = mockFetch.mock.calls[0]!;
+      expect(call[0]!).toBe('/api/invoices');
     });
 
     it('throws on 401 UNAUTHORIZED', async () => {
@@ -616,8 +616,8 @@ describe('invoicesApi', () => {
 
       await fetchInvoiceById('inv-abc-999');
 
-      const call = mockFetch.mock.calls[0];
-      expect(call[0]).toBe('/api/invoices/inv-abc-999');
+      const call = mockFetch.mock.calls[0]!;
+      expect(call[0]!).toBe('/api/invoices/inv-abc-999');
     });
 
     it('returns the unwrapped Invoice from the { invoice } envelope', async () => {

@@ -243,7 +243,7 @@ export function InvoiceDetailPage() {
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.vendor')}</dt>
               <dd className={styles.infoValue}>
-                <Link to={`/budget/vendors/${invoice.vendorId}`} className={styles.infoLink}>
+                <Link to={`/settings/vendors/${invoice.vendorId}`} className={styles.infoLink}>
                   {invoice.vendorName}
                 </Link>
               </dd>
@@ -450,7 +450,7 @@ export function InvoiceDetailPage() {
               {t('invoiceDetail.modal.deleteConfirm', {
                 number: invoice.invoiceNumber
                   ? `#${invoice.invoiceNumber}`
-                  : t('invoiceDetail.invoiceDetails'),
+                  : t('invoiceDetail.invoiceDetails')!,
                 amount: formatCurrency(invoice.amount),
               })}
             </p>

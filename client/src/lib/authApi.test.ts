@@ -186,7 +186,7 @@ describe('authApi', () => {
       expect(mockPost).toHaveBeenCalledWith('/auth/logout');
       expect(mockPost).toHaveBeenCalledTimes(1);
       // Verify no second argument (no body)
-      expect(mockPost.mock.calls[0]).toHaveLength(1);
+      expect(mockPost.mock.calls[0]!).toHaveLength(1);
     });
 
     it('returns a promise that resolves to void', async () => {

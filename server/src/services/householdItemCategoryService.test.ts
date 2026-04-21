@@ -121,9 +121,9 @@ describe('Household Item Category Service', () => {
       const result = householdItemCategoryService.listHouseholdItemCategories(db);
       const testCats = result.filter((c) => c.name.startsWith('Test HIC'));
       expect(testCats).toHaveLength(3);
-      expect(testCats[0].name).toBe('Test HIC Alpha');
-      expect(testCats[1].name).toBe('Test HIC Beta');
-      expect(testCats[2].name).toBe('Test HIC Gamma');
+      expect(testCats[0]!.name).toBe('Test HIC Alpha');
+      expect(testCats[1]!.name).toBe('Test HIC Beta');
+      expect(testCats[2]!.name).toBe('Test HIC Gamma');
     });
 
     it('includes newly created categories in the result', () => {

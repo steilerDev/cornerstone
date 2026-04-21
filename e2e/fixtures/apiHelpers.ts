@@ -7,7 +7,7 @@
  * succeeds so that test setup failures surface with a clear message rather
  * than a cryptic null-reference error later in the test.
  *
- * Pattern mirrors the inline helpers in e2e/tests/budget/vendors.spec.ts but
+ * Pattern mirrors the inline helpers in e2e/tests/vendors/vendors.spec.ts but
  * lives here so multiple spec files can share them without duplication.
  */
 
@@ -90,8 +90,9 @@ export async function createMilestoneViaApi(
 ): Promise<number> {
   const response = await page.request.post(API.milestones, { data });
   expect(response.ok()).toBeTruthy();
-  const body = (await response.json()) as { milestone: { id: number } };
-  return body.milestone.id;
+  // POST /api/milestones returns MilestoneDetail directly (no wrapper object)
+  const body = (await response.json()) as { id: number };
+  return body.id;
 }
 
 export async function deleteMilestoneViaApi(page: Page, id: number): Promise<void> {
@@ -172,4 +173,31 @@ export async function createDiaryEntryViaApi(
 
 export async function deleteDiaryEntryViaApi(page: Page, id: string): Promise<void> {
   await page.request.delete(`${API.diaryEntries}/${id}`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Users (admin-only — used for dedicated test-user isolation)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CreateLocalUserData {
+  email: string;
+  displayName: string;
+  password: string;
+  role?: 'admin' | 'member';
+}
+
+export async function createLocalUserViaApi(
+  page: Page,
+  data: CreateLocalUserData,
+): Promise<{ id: string; email: string }> {
+  const response = await page.request.post(API.users, {
+    data: { role: 'member', ...data },
+  });
+  expect(response.ok(), `POST user "${data.email}"`).toBeTruthy();
+  const body = (await response.json()) as { user: { id: string; email: string } };
+  return body.user;
+}
+
+export async function deleteUserViaApi(page: Page, userId: string): Promise<void> {
+  await page.request.delete(`${API.users}/${userId}`);
 }

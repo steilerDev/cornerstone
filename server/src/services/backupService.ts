@@ -9,8 +9,7 @@
 
 import path from 'node:path';
 import { promises as fs } from 'node:fs';
-import { execFile as execFileCallback } from 'node:child_process';
-import { promisify } from 'node:util';
+import * as tar from 'tar';
 import cron, { type ScheduledTask } from 'node-cron';
 import type { FastifyInstance } from 'fastify';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -22,9 +21,8 @@ import {
   BackupInProgressError,
   BackupNotFoundError,
   RestoreFailedError,
+  BackupFailedError,
 } from '../errors/AppError.js';
-
-const execFile = promisify(execFileCallback);
 
 /**
  * Extract the underlying better-sqlite3 Database instance from a Drizzle ORM wrapper.
@@ -139,7 +137,7 @@ export async function createBackup(
   db: BetterSQLite3Database<any>,
   config: AppConfig,
 ): Promise<BackupMeta> {
-  if (!config.backupEnabled || !config.backupDir) {
+  if (!config.backupEnabled) {
     throw new BackupNotConfiguredError();
   }
 
@@ -152,31 +150,45 @@ export async function createBackup(
     // Ensure backup directory exists
     await fs.mkdir(config.backupDir, { recursive: true });
 
+    // Verify backup directory is writable
+    const probeFile = path.join(config.backupDir, `.write-check-${Date.now()}`);
+    try {
+      await fs.writeFile(probeFile, '');
+      await fs.unlink(probeFile);
+    } catch (probeErr) {
+      throw new BackupFailedError(
+        `Backup directory is not writable: ${(probeErr as Error).message}`,
+        { backupDir: config.backupDir },
+      );
+    }
+
     const filename = generateBackupFilename();
     const backupPath = path.join(config.backupDir, filename);
     const dataDir = path.dirname(config.databaseUrl);
 
     // Use better-sqlite3's backup API to safely snapshot the live database
-    const dbSnapshotPath = backupPath.replace('.tar.gz', '.db');
-    await getClient(db).backup(dbSnapshotPath);
+    const dbSnapshotPath = path.join(dataDir, filename.replace('.tar.gz', '.db'));
+    try {
+      await getClient(db).backup(dbSnapshotPath);
+    } catch (dbErr) {
+      throw new BackupFailedError(`Database backup failed: ${(dbErr as Error).message}`, {
+        code: (dbErr as { code?: string }).code,
+      });
+    }
 
     // Create tar.gz archive of the entire app data directory
     try {
-      await execFile('tar', [
-        '-czf',
-        backupPath,
-        '-C',
-        path.dirname(dataDir),
+      await tar.create({ gzip: true, file: backupPath, cwd: path.dirname(dataDir) }, [
         path.basename(dataDir),
       ]);
-    } catch (error) {
-      // Clean up backup database file on tar failure
-      await fs.unlink(backupPath.replace('.tar.gz', '.db')).catch(() => {});
-      throw error;
+    } catch (tarErr) {
+      // Clean up the snapshot DB file on tar failure
+      await fs.unlink(dbSnapshotPath).catch(() => {});
+      throw new BackupFailedError(`Backup archive creation failed: ${(tarErr as Error).message}`);
     }
 
     // Clean up the temporary backup database file
-    await fs.unlink(backupPath.replace('.tar.gz', '.db')).catch(() => {});
+    await fs.unlink(dbSnapshotPath).catch(() => {});
 
     // Get metadata for the created backup
     const stats = await fs.stat(backupPath);
@@ -235,7 +247,7 @@ export async function restoreBackup(
   config: AppConfig,
   filename: string,
 ): Promise<void> {
-  if (!config.backupEnabled || !config.backupDir) {
+  if (!config.backupEnabled) {
     throw new BackupNotConfiguredError();
   }
 
@@ -269,7 +281,7 @@ export async function restoreBackup(
 
     try {
       // Extract tar.gz to temp directory
-      await execFile('tar', ['-xzf', backupPath, '-C', tempDir]);
+      await tar.extract({ file: backupPath, cwd: tempDir });
 
       // Close database connection
       getClient(db).close();

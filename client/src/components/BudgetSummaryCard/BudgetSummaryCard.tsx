@@ -33,7 +33,7 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
       key: 'actual-cost',
       value: Math.max(0, actualCost),
       color: 'var(--color-budget-paid)',
-      label: t('cards.budgetSummary.actualSpend'),
+      label: t('cards.budgetSummary.actualSpend')!,
     },
   ];
 
@@ -43,7 +43,7 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
       key: 'remaining',
       value: mediumNetRemaining,
       color: 'var(--color-budget-track)',
-      label: t('cards.budgetSummary.remainingBudget'),
+      label: t('cards.budgetSummary.remainingBudget')!,
     });
   }
 

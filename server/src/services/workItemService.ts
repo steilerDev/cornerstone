@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { eq, sql, and, or, desc, asc, inArray } from 'drizzle-orm';
+import { eq, sql, and, or, desc, asc, inArray, isNull } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
+import type { areas } from '../db/schema.js';
 import {
   workItems,
   users,
@@ -10,13 +11,18 @@ import {
   householdItemDeps,
   workItemBudgets,
   vendors,
-  areas,
   trades,
 } from '../db/schema.js';
 import { listWorkItemBudgets } from './workItemBudgetService.js';
 import { autoReschedule } from './schedulingEngine.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
-import { getDescendantIds } from './areaService.js';
+import {
+  getDescendantIds,
+  loadAreaMap,
+  resolveAreaAncestors,
+  resolveAreaFilter,
+} from './areaService.js';
+import type { AreaMapEntry } from './areaService.js';
 import {
   onWorkItemStatusChanged,
   onMilestoneDelayed,
@@ -89,12 +95,26 @@ function getAssignedVendor(
 }
 
 /**
- * Fetch area for a work item.
+ * Get area with ancestors resolved from the area map.
+ * Returns null if areaId is null or area is not found in the map.
  */
-function getArea(db: DbType, areaId: string | null): ReturnType<typeof toAreaSummary> {
+function getAreaWithAncestors(
+  areaId: string | null,
+  areaMap: Map<string, AreaMapEntry>,
+): ReturnType<typeof toAreaSummary> {
   if (!areaId) return null;
-  const area = db.select().from(areas).where(eq(areas.id, areaId)).get();
-  return toAreaSummary(area || null);
+  const entry = areaMap.get(areaId);
+  if (!entry) return null;
+  const ancestors = resolveAreaAncestors(areaId, areaMap);
+  return toAreaSummary(
+    {
+      id: entry.id,
+      name: entry.name,
+      color: entry.color,
+      parentId: entry.parentId,
+    } as typeof areas.$inferSelect,
+    ancestors,
+  );
 }
 
 /**
@@ -103,10 +123,11 @@ function getArea(db: DbType, areaId: string | null): ReturnType<typeof toAreaSum
 export function toWorkItemSummary(
   db: DbType,
   workItem: typeof workItems.$inferSelect,
+  areaMap: Map<string, AreaMapEntry>,
 ): WorkItemSummary {
   const assignedUser = getAssignedUser(db, workItem.assignedUserId);
   const assignedVendor = getAssignedVendor(db, workItem.assignedVendorId);
-  const area = getArea(db, workItem.areaId);
+  const area = getAreaWithAncestors(workItem.areaId, areaMap);
   const budgetLineCount = getBudgetLineCount(db, workItem.id);
 
   return {
@@ -147,6 +168,7 @@ function getWorkItemSubtasks(db: DbType, workItemId: string): SubtaskResponse[] 
 function getWorkItemDependencies(
   db: DbType,
   workItemId: string,
+  areaMap: Map<string, AreaMapEntry>,
 ): { predecessors: DependencyResponse[]; successors: DependencyResponse[] } {
   // Predecessors: work items that this item depends on
   const predecessorRows = db
@@ -160,7 +182,7 @@ function getWorkItemDependencies(
     .all();
 
   const predecessors: DependencyResponse[] = predecessorRows.map((row) => ({
-    workItem: toWorkItemSummary(db, row.workItem),
+    workItem: toWorkItemSummary(db, row.workItem, areaMap),
     dependencyType: row.dependency.dependencyType,
     leadLagDays: row.dependency.leadLagDays,
   }));
@@ -177,7 +199,7 @@ function getWorkItemDependencies(
     .all();
 
   const successors: DependencyResponse[] = successorRows.map((row) => ({
-    workItem: toWorkItemSummary(db, row.workItem),
+    workItem: toWorkItemSummary(db, row.workItem, areaMap),
     dependencyType: row.dependency.dependencyType,
     leadLagDays: row.dependency.leadLagDays,
   }));
@@ -191,15 +213,16 @@ function getWorkItemDependencies(
 export function toWorkItemDetail(
   db: DbType,
   workItem: typeof workItems.$inferSelect,
+  areaMap: Map<string, AreaMapEntry>,
 ): WorkItemDetail {
   const assignedUser = getAssignedUser(db, workItem.assignedUserId);
   const assignedVendor = getAssignedVendor(db, workItem.assignedVendorId);
-  const area = getArea(db, workItem.areaId);
+  const area = getAreaWithAncestors(workItem.areaId, areaMap);
   const createdByUser = workItem.createdBy
     ? db.select().from(users).where(eq(users.id, workItem.createdBy)).get()
     : null;
   const subtasks = getWorkItemSubtasks(db, workItem.id);
-  const dependencies = getWorkItemDependencies(db, workItem.id);
+  const dependencies = getWorkItemDependencies(db, workItem.id, areaMap);
 
   const budgets: WorkItemBudgetLine[] = listWorkItemBudgets(db, workItem.id);
 
@@ -334,7 +357,8 @@ export function createWorkItem(
 
   // Fetch and return the created work item
   const workItem = db.select().from(workItems).where(eq(workItems.id, id)).get();
-  return toWorkItemDetail(db, workItem!);
+  const areaMap = loadAreaMap(db);
+  return toWorkItemDetail(db, workItem!, areaMap);
 }
 
 /**
@@ -367,7 +391,8 @@ export function getWorkItemDetail(db: DbType, id: string): WorkItemDetail {
   if (!workItem) {
     throw new NotFoundError('Work item not found');
   }
-  return toWorkItemDetail(db, workItem);
+  const areaMap = loadAreaMap(db);
+  return toWorkItemDetail(db, workItem, areaMap);
 }
 
 /**
@@ -560,7 +585,8 @@ export function updateWorkItem(
 
   // Fetch and return the updated work item
   const updatedWorkItem = db.select().from(workItems).where(eq(workItems.id, id)).get();
-  return toWorkItemDetail(db, updatedWorkItem!);
+  const areaMap = loadAreaMap(db);
+  return toWorkItemDetail(db, updatedWorkItem!, areaMap);
 }
 
 /**
@@ -613,8 +639,18 @@ export function listWorkItems(
   }
 
   if (query.areaId) {
-    const areaIds = getDescendantIds(db, query.areaId);
-    baseConditions.push(inArray(workItems.areaId, areaIds));
+    const { areaIds, includeNull, hasInput } = resolveAreaFilter(db, query.areaId);
+    if (includeNull && areaIds.length > 0) {
+      baseConditions.push(or(isNull(workItems.areaId), inArray(workItems.areaId, areaIds))!);
+    } else if (includeNull) {
+      baseConditions.push(isNull(workItems.areaId));
+    } else if (areaIds.length > 0) {
+      baseConditions.push(inArray(workItems.areaId, areaIds));
+    } else if (hasInput) {
+      // User supplied ID(s) but all were unknown — yield empty result
+      baseConditions.push(sql`1 = 0`);
+    }
+    // else: no meaningful input (empty/whitespace-only CSV) — skip filter
   }
 
   if (query.assignedVendorId) {
@@ -687,6 +723,9 @@ export function listWorkItems(
 
   const orderBy = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
 
+  // Load area map once for all items
+  const areaMap = loadAreaMap(db);
+
   // Fetch paginated items
   const offset = (page - 1) * pageSize;
   const workItemRows = db
@@ -698,7 +737,7 @@ export function listWorkItems(
     .offset(offset)
     .all();
 
-  const items = workItemRows.map((wi) => toWorkItemSummary(db, wi));
+  const items = workItemRows.map((wi) => toWorkItemSummary(db, wi, areaMap));
 
   const filterMeta: FilterMeta = {
     budgetLines: { min: metaRow?.budgetLinesMin ?? 0, max: metaRow?.budgetLinesMax ?? 0 },

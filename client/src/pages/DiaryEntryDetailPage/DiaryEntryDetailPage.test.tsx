@@ -122,6 +122,7 @@ const baseDetail: DiaryEntryDetail = {
   isSigned: false,
   sourceEntityType: null,
   sourceEntityId: null,
+  sourceEntityArea: null,
   sourceEntityTitle: null,
   photoCount: 0,
   createdBy: { id: 'user-1', displayName: 'Alice Builder' },

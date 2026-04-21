@@ -66,8 +66,8 @@ describe('vendorContactService', () => {
 
       const contacts = vendorContactService.listContacts(app.db, vendorId);
       expect(contacts).toHaveLength(2);
-      expect(contacts[0].name).toBe('Alice Smith');
-      expect(contacts[1].name).toBe('Bob Jones');
+      expect(contacts[0]!.name).toBe('Alice Smith');
+      expect(contacts[1]!.name).toBe('Bob Jones');
     });
   });
 
@@ -176,7 +176,7 @@ describe('vendorContactService', () => {
       });
       const listed = vendorContactService.listContacts(app.db, vendorId);
       expect(listed).toHaveLength(1);
-      expect(listed[0].id).toBe(created.id);
+      expect(listed[0]!.id).toBe(created.id);
     });
   });
 

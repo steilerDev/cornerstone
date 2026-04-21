@@ -139,7 +139,7 @@ describe('Subsidy Program Service', () => {
 
       const result = subsidyProgramService.listSubsidyPrograms(db);
       expect(result).toHaveLength(1);
-      expect(result[0].name).toBe('Energy Rebate');
+      expect(result[0]!.name).toBe('Energy Rebate');
     });
 
     it('returns programs sorted by name ascending', () => {
@@ -148,9 +148,9 @@ describe('Subsidy Program Service', () => {
       insertRawProgram({ name: 'Mid Program' });
 
       const result = subsidyProgramService.listSubsidyPrograms(db);
-      expect(result[0].name).toBe('Alpha Subsidy');
-      expect(result[1].name).toBe('Mid Program');
-      expect(result[2].name).toBe('Zebra Grant');
+      expect(result[0]!.name).toBe('Alpha Subsidy');
+      expect(result[1]!.name).toBe('Mid Program');
+      expect(result[2]!.name).toBe('Zebra Grant');
     });
 
     it('returns all expected fields for a program', () => {
@@ -170,7 +170,7 @@ describe('Subsidy Program Service', () => {
       const result = subsidyProgramService.listSubsidyPrograms(db);
       expect(result).toHaveLength(1);
 
-      const prog = result[0];
+      const prog = result[0]!;
       expect(prog.id).toBeDefined();
       expect(prog.name).toBe('Full Program');
       expect(prog.description).toBe('A full program');
@@ -189,17 +189,17 @@ describe('Subsidy Program Service', () => {
       insertRawProgram({ name: 'With Creator', createdBy: TEST_USER_ID });
 
       const result = subsidyProgramService.listSubsidyPrograms(db);
-      expect(result[0].createdBy).not.toBeNull();
-      expect(result[0].createdBy?.id).toBe(TEST_USER_ID);
-      expect(result[0].createdBy?.email).toBe(`${TEST_USER_ID}@example.com`);
-      expect(result[0].createdBy?.displayName).toBe('Test User');
+      expect(result[0]!.createdBy).not.toBeNull();
+      expect(result[0]!.createdBy?.id).toBe(TEST_USER_ID);
+      expect(result[0]!.createdBy?.email).toBe(`${TEST_USER_ID}@example.com`);
+      expect(result[0]!.createdBy?.displayName).toBe('Test User');
     });
 
     it('returns createdBy as null when createdBy is null', () => {
       insertRawProgram({ name: 'No Creator' });
 
       const result = subsidyProgramService.listSubsidyPrograms(db);
-      expect(result[0].createdBy).toBeNull();
+      expect(result[0]!.createdBy).toBeNull();
     });
 
     it('returns applicable categories linked to a program', () => {
@@ -212,9 +212,9 @@ describe('Subsidy Program Service', () => {
         .run();
 
       const result = subsidyProgramService.listSubsidyPrograms(db);
-      expect(result[0].applicableCategories).toHaveLength(1);
-      expect(result[0].applicableCategories[0].id).toBe(catId);
-      expect(result[0].applicableCategories[0].name).toBe('TestMaterials');
+      expect(result[0]!.applicableCategories).toHaveLength(1);
+      expect(result[0]!.applicableCategories[0]!.id).toBe(catId);
+      expect(result[0]!.applicableCategories[0]!.name).toBe('TestMaterials');
     });
 
     it('returns applicable categories sorted by sortOrder then name', () => {
@@ -231,7 +231,7 @@ describe('Subsidy Program Service', () => {
 
       const result = subsidyProgramService.listSubsidyPrograms(db);
       // Both categories should be present
-      expect(result[0].applicableCategories).toHaveLength(2);
+      expect(result[0]!.applicableCategories).toHaveLength(2);
     });
 
     it('returns multiple programs with correct data', () => {
@@ -246,10 +246,10 @@ describe('Subsidy Program Service', () => {
       insertRawProgram({ name: 'Minimal Program' });
 
       const result = subsidyProgramService.listSubsidyPrograms(db);
-      expect(result[0].description).toBeNull();
-      expect(result[0].eligibility).toBeNull();
-      expect(result[0].applicationDeadline).toBeNull();
-      expect(result[0].notes).toBeNull();
+      expect(result[0]!.description).toBeNull();
+      expect(result[0]!.eligibility).toBeNull();
+      expect(result[0]!.applicationDeadline).toBeNull();
+      expect(result[0]!.notes).toBeNull();
     });
   });
 
@@ -298,7 +298,7 @@ describe('Subsidy Program Service', () => {
 
       const result = subsidyProgramService.getSubsidyProgramById(db, id);
       expect(result.applicableCategories).toHaveLength(1);
-      expect(result.applicableCategories[0].name).toBe('TestDesignCat');
+      expect(result.applicableCategories[0]!.name).toBe('TestDesignCat');
     });
 
     it('throws NotFoundError when program does not exist', () => {
@@ -847,7 +847,7 @@ describe('Subsidy Program Service', () => {
       const result = subsidyProgramService.updateSubsidyProgram(db, id, data);
 
       expect(result.applicableCategories).toHaveLength(1);
-      expect(result.applicableCategories[0].id).toBe(catB);
+      expect(result.applicableCategories[0]!.id).toBe(catB);
     });
 
     it('clears all category links when categoryIds is empty array', () => {

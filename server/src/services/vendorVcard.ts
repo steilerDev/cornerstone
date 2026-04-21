@@ -61,19 +61,19 @@ export function buildVendorVcard(
 ): string {
   const vcard = new VCardCreator();
   // For organizations: FN is the company name, N is minimal
-  vcard.addName('', vendor.name);
-  vcard.addCompany(vendor.name);
+  vcard.addName({ familyName: vendor.name });
+  vcard.addCompany({ name: vendor.name });
 
   if (vendor.email) {
-    vcard.addEmail(vendor.email, 'WORK');
+    vcard.addEmail({ address: vendor.email, type: ['work'] });
   }
 
   if (vendor.phone) {
-    vcard.addPhoneNumber(vendor.phone as unknown as number, 'WORK');
+    vcard.addPhoneNumber({ number: vendor.phone, type: ['work'] });
   }
 
   if (vendor.address) {
-    vcard.addAddress('', '', vendor.address, '', '', '', '', 'WORK');
+    vcard.addAddress({ street: vendor.address, type: ['work'] });
   }
 
   if (vendor.notes) {
@@ -81,7 +81,7 @@ export function buildVendorVcard(
   }
 
   if (baseUrl) {
-    vcard.addURL(`${baseUrl}/budget/vendors/${vendor.id}`, 'WORK');
+    vcard.addUrl({ url: `${baseUrl}/budget/vendors/${vendor.id}`, type: ['work'] });
   }
 
   let vcardStr = vcard.toString();
@@ -117,19 +117,19 @@ export function buildContactVcard(
   baseUrl?: string,
 ): string {
   const vcard = new VCardCreator();
-  // addName(lastName, firstName) — maps to N:lastName;firstName;;;
-  vcard.addName(contact.lastName ?? '', contact.firstName ?? '');
+  // addName({ familyName, givenName }) — maps to N:familyName;givenName;;;
+  vcard.addName({ familyName: contact.lastName ?? '', givenName: contact.firstName ?? '' });
 
   if (contact.role) {
     vcard.addJobtitle(contact.role);
   }
 
   if (contact.email) {
-    vcard.addEmail(contact.email, 'WORK');
+    vcard.addEmail({ address: contact.email, type: ['work'] });
   }
 
   if (contact.phone) {
-    vcard.addPhoneNumber(contact.phone as unknown as number, 'WORK');
+    vcard.addPhoneNumber({ number: contact.phone, type: ['work'] });
   }
 
   if (contact.notes) {
@@ -137,10 +137,10 @@ export function buildContactVcard(
   }
 
   // Add organization (vendor name)
-  vcard.addCompany(vendorName);
+  vcard.addCompany({ name: vendorName });
 
   if (baseUrl) {
-    vcard.addURL(`${baseUrl}/budget/vendors/${contact.vendorId}`, 'WORK');
+    vcard.addUrl({ url: `${baseUrl}/budget/vendors/${contact.vendorId}`, type: ['work'] });
   }
 
   let vcardStr = vcard.toString();

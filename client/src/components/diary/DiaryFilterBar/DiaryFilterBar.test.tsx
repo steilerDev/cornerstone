@@ -247,7 +247,7 @@ describe('DiaryFilterBar', () => {
     expect(onSearchChange).toHaveBeenCalled();
     // Last call should have the final value
     const calls = onSearchChange.mock.calls;
-    expect(calls[calls.length - 1][0]).toBe('e'); // last character typed
+    expect(calls[calls.length - 1]![0]).toBe('e'); // last character typed
   });
 
   it('shows the current search query value in the input', () => {

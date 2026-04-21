@@ -274,7 +274,7 @@ describe('GanttHouseholdItems', () => {
       const circle = screen.getByTestId('gantt-hi-circle');
       // The main filled circle is the 3rd circle element (hit area + glow + main)
       const circles = circle.querySelectorAll('circle');
-      const mainCircle = circles[circles.length - 1];
+      const mainCircle = circles[circles.length - 1]!;
       expect(mainCircle.getAttribute('fill')).toBe(COLORS.arrivedFill);
     });
 
@@ -286,7 +286,7 @@ describe('GanttHouseholdItems', () => {
       });
       const circle = screen.getByTestId('gantt-hi-circle');
       const circles = circle.querySelectorAll('circle');
-      const mainCircle = circles[circles.length - 1];
+      const mainCircle = circles[circles.length - 1]!;
       expect(mainCircle.getAttribute('fill')).toBe(COLORS.fill);
     });
 
@@ -297,7 +297,7 @@ describe('GanttHouseholdItems', () => {
       });
       const circle = screen.getByTestId('gantt-hi-circle');
       const circles = circle.querySelectorAll('circle');
-      const mainCircle = circles[circles.length - 1];
+      const mainCircle = circles[circles.length - 1]!;
       expect(mainCircle.getAttribute('fill')).toBe(COLORS.fill);
     });
 

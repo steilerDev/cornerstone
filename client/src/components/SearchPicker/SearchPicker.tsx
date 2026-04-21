@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import styles from './SearchPicker.module.css';
@@ -18,6 +19,7 @@ export interface SearchPickerProps<T> {
   placeholder?: string;
   searchFn: (query: string, excludeIds: string[]) => Promise<T[]>;
   renderItem: (item: T) => { id: string; label: string };
+  renderSecondary?: (item: T) => ReactNode;
   getStatusBorderColor?: (item: T) => string | undefined;
   specialOptions?: SpecialOption[];
   showItemsOnFocus?: boolean;
@@ -38,6 +40,7 @@ export function SearchPicker<T>({
   placeholder,
   searchFn,
   renderItem,
+  renderSecondary,
   getStatusBorderColor,
   specialOptions,
   showItemsOnFocus,
@@ -329,7 +332,14 @@ export function SearchPicker<T>({
                   className={styles.resultOption}
                   onClick={() => handleSelect(item)}
                 >
-                  <span className={styles.resultTitle}>{rendered.label}</span>
+                  {renderSecondary !== undefined ? (
+                    <span className={styles.resultContent}>
+                      <span className={styles.resultTitle}>{rendered.label}</span>
+                      <span className={styles.resultSecondary}>{renderSecondary(item)}</span>
+                    </span>
+                  ) : (
+                    <span className={styles.resultTitle}>{rendered.label}</span>
+                  )}
                 </button>
               );
             })}

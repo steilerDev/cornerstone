@@ -74,9 +74,9 @@ describe('KeyboardShortcutsHelp', () => {
     const kbdElements = container.querySelectorAll('kbd');
     expect(kbdElements).toHaveLength(3);
 
-    expect(kbdElements[0]).toHaveTextContent('n');
-    expect(kbdElements[1]).toHaveTextContent('Escape');
-    expect(kbdElements[2]).toHaveTextContent('?');
+    expect(kbdElements[0]!).toHaveTextContent('n');
+    expect(kbdElements[1]!).toHaveTextContent('Escape');
+    expect(kbdElements[2]!).toHaveTextContent('?');
   });
 
   it('should have correct ARIA attributes', () => {

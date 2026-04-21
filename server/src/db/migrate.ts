@@ -2,6 +2,7 @@ import type Database from 'better-sqlite3';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { foreignKeysDisabled } from './disposables.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -34,17 +35,13 @@ export function runMigrations(db: Database.Database, customMigrationsDir?: strin
     if (applied.has(file)) continue;
     const sql = readFileSync(join(migrationsDir, file), 'utf-8');
 
-    // Disable FK enforcement OUTSIDE the transaction (PRAGMA is a no-op inside transactions).
-    // This prevents CASCADE deletes during table-recreation migrations.
-    db.pragma('foreign_keys = OFF');
-
-    db.transaction(() => {
-      db.exec(sql);
-      db.prepare('INSERT INTO _migrations (name) VALUES (?)').run(file);
-    })();
-
-    // Re-enable FK enforcement after migration completes
-    db.pragma('foreign_keys = ON');
+    {
+      using _fk = foreignKeysDisabled(db);
+      db.transaction(() => {
+        db.exec(sql);
+        db.prepare('INSERT INTO _migrations (name) VALUES (?)').run(file);
+      })();
+    } // FK re-enabled here even if transaction throws
 
     console.warn(`Applied migration: ${file}`);
   }

@@ -136,7 +136,7 @@ describe('InvoicePipelineCard', () => {
     const rows = screen.getAllByTestId('invoice-row');
     expect(rows).toHaveLength(3);
     // Oldest (Jan 15) must be first
-    expect(rows[0]).toHaveTextContent('January Vendor');
+    expect(rows[0]!).toHaveTextContent('January Vendor');
   });
 
   // ── Test 5: Caps at 5 invoices ───────────────────────────────────────────────
@@ -260,11 +260,11 @@ describe('InvoicePipelineCard', () => {
     expect(rows).toHaveLength(2);
 
     // Each row must contain an <a> pointing to the invoice detail page
-    const linkAAA = rows[0].querySelector('a');
+    const linkAAA = rows[0]!.querySelector('a');
     expect(linkAAA).not.toBeNull();
     expect(linkAAA).toHaveAttribute('href', '/budget/invoices/inv-aaa');
 
-    const linkBBB = rows[1].querySelector('a');
+    const linkBBB = rows[1]!.querySelector('a');
     expect(linkBBB).not.toBeNull();
     expect(linkBBB).toHaveAttribute('href', '/budget/invoices/inv-bbb');
   });

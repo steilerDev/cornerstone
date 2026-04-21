@@ -159,7 +159,7 @@ describe('buildDependencyDescription — via aria-label', () => {
       workItemTitles: titles,
     });
     const arrows = screen.getAllByRole('graphics-symbol');
-    expect(arrows[0].getAttribute('aria-label')).toContain('wi-unknown');
+    expect(arrows[0]!.getAttribute('aria-label')).toContain('wi-unknown');
   });
 
   it('falls back to ID when successor title is missing from the titles map', () => {
@@ -174,7 +174,7 @@ describe('buildDependencyDescription — via aria-label', () => {
       workItemTitles: titles,
     });
     const arrows = screen.getAllByRole('graphics-symbol');
-    expect(arrows[0].getAttribute('aria-label')).toContain('wi-unknown-succ');
+    expect(arrows[0]!.getAttribute('aria-label')).toContain('wi-unknown-succ');
   });
 });
 
@@ -233,7 +233,7 @@ describe('Milestone arrow descriptions — via aria-label', () => {
       // omitting milestoneTitles — should fall back to "Milestone 1"
     });
     const arrows = screen.getAllByRole('graphics-symbol');
-    expect(arrows[0].getAttribute('aria-label')).toContain('Milestone 1');
+    expect(arrows[0]!.getAttribute('aria-label')).toContain('Milestone 1');
   });
 });
 
@@ -302,7 +302,7 @@ describe('Arrow hover callbacks', () => {
     renderArrows({ onArrowHover });
 
     const [arrowGroup] = screen.getAllByRole('graphics-symbol');
-    fireEvent.mouseEnter(arrowGroup, { clientX: 200, clientY: 100 });
+    fireEvent.mouseEnter(arrowGroup!, { clientX: 200, clientY: 100 });
 
     expect(onArrowHover).toHaveBeenCalledTimes(1);
     const [connectedIds, description, mouseEvent] = (
@@ -326,8 +326,8 @@ describe('Arrow hover callbacks', () => {
     renderArrows({ onArrowLeave });
 
     const [arrowGroup] = screen.getAllByRole('graphics-symbol');
-    fireEvent.mouseEnter(arrowGroup);
-    fireEvent.mouseLeave(arrowGroup);
+    fireEvent.mouseEnter(arrowGroup!);
+    fireEvent.mouseLeave(arrowGroup!);
 
     expect(onArrowLeave).toHaveBeenCalledTimes(1);
   });
@@ -337,7 +337,7 @@ describe('Arrow hover callbacks', () => {
     renderArrows({ onArrowMouseMove });
 
     const [arrowGroup] = screen.getAllByRole('graphics-symbol');
-    fireEvent.mouseMove(arrowGroup, { clientX: 300, clientY: 150 });
+    fireEvent.mouseMove(arrowGroup!, { clientX: 300, clientY: 150 });
 
     expect(onArrowMouseMove).toHaveBeenCalledTimes(1);
     const [mouseEvent] = (onArrowMouseMove as jest.MockedFunction<typeof onArrowMouseMove>).mock
@@ -354,9 +354,9 @@ describe('Arrow hover callbacks', () => {
     });
     const [arrowGroup] = screen.getAllByRole('graphics-symbol');
     expect(() => {
-      fireEvent.mouseEnter(arrowGroup);
-      fireEvent.mouseMove(arrowGroup);
-      fireEvent.mouseLeave(arrowGroup);
+      fireEvent.mouseEnter(arrowGroup!);
+      fireEvent.mouseMove(arrowGroup!);
+      fireEvent.mouseLeave(arrowGroup!);
     }).not.toThrow();
   });
 
@@ -370,7 +370,7 @@ describe('Arrow hover callbacks', () => {
     });
 
     const arrows = screen.getAllByRole('graphics-symbol');
-    fireEvent.mouseEnter(arrows[0], { clientX: 100, clientY: 50 });
+    fireEvent.mouseEnter(arrows[0]!, { clientX: 100, clientY: 50 });
 
     expect(onArrowHover).toHaveBeenCalledTimes(1);
     const [connectedIds] = (onArrowHover as jest.MockedFunction<typeof onArrowHover>).mock
@@ -394,7 +394,7 @@ describe('Keyboard accessibility — focus/blur', () => {
     Object.defineProperty(arrowGroup, 'getBoundingClientRect', {
       value: () => ({ left: 200, top: 50, width: 100, height: 10 }),
     });
-    fireEvent.focus(arrowGroup);
+    fireEvent.focus(arrowGroup!);
 
     expect(onArrowHover).toHaveBeenCalledTimes(1);
     const [connectedIds, description] = (onArrowHover as jest.MockedFunction<typeof onArrowHover>)
@@ -409,8 +409,8 @@ describe('Keyboard accessibility — focus/blur', () => {
     renderArrows({ onArrowLeave });
 
     const [arrowGroup] = screen.getAllByRole('graphics-symbol');
-    fireEvent.focus(arrowGroup);
-    fireEvent.blur(arrowGroup);
+    fireEvent.focus(arrowGroup!);
+    fireEvent.blur(arrowGroup!);
 
     expect(onArrowLeave).toHaveBeenCalledTimes(1);
   });
@@ -423,7 +423,7 @@ describe('Keyboard accessibility — focus/blur', () => {
     Object.defineProperty(arrowGroup, 'getBoundingClientRect', {
       value: () => ({ left: 100, top: 40, width: 200, height: 20 }),
     });
-    fireEvent.focus(arrowGroup);
+    fireEvent.focus(arrowGroup!);
 
     const [, , mouseEvent] = (onArrowHover as jest.MockedFunction<typeof onArrowHover>).mock
       .calls[0] as [ReadonlySet<string>, string, { clientX: number; clientY: number }];
@@ -455,10 +455,10 @@ describe('Arrow group CSS class application (hover/dim state)', () => {
     expect(arrows.length).toBeGreaterThanOrEqual(2);
 
     // Hover the first arrow
-    fireEvent.mouseEnter(arrows[0]);
+    fireEvent.mouseEnter(arrows[0]!);
 
     // After hover, hovered arrow should have the hovered class
-    expect(arrows[0].getAttribute('class')).toContain('arrowGroupHovered');
+    expect(arrows[0]!.getAttribute('class')).toContain('arrowGroupHovered');
   });
 
   it('applies arrowGroupDimmed class to non-hovered arrows when one is hovered', () => {
@@ -475,10 +475,10 @@ describe('Arrow group CSS class application (hover/dim state)', () => {
     expect(arrows.length).toBeGreaterThanOrEqual(2);
 
     // Hover the first arrow
-    fireEvent.mouseEnter(arrows[0]);
+    fireEvent.mouseEnter(arrows[0]!);
 
     // The second arrow should be dimmed
-    expect(arrows[1].getAttribute('class')).toContain('arrowGroupDimmed');
+    expect(arrows[1]!.getAttribute('class')).toContain('arrowGroupDimmed');
   });
 
   it('removes hovered/dimmed classes when mouse leaves the arrow', () => {
@@ -493,13 +493,13 @@ describe('Arrow group CSS class application (hover/dim state)', () => {
 
     const arrows = screen.getAllByRole('graphics-symbol');
 
-    fireEvent.mouseEnter(arrows[0]);
-    fireEvent.mouseLeave(arrows[0]);
+    fireEvent.mouseEnter(arrows[0]!);
+    fireEvent.mouseLeave(arrows[0]!);
 
     // After leave — neither hovered nor dimmed classes
-    expect(arrows[0].getAttribute('class')).not.toContain('arrowGroupHovered');
-    expect(arrows[0].getAttribute('class')).not.toContain('arrowGroupDimmed');
-    expect(arrows[1].getAttribute('class')).not.toContain('arrowGroupDimmed');
+    expect(arrows[0]!.getAttribute('class')).not.toContain('arrowGroupHovered');
+    expect(arrows[0]!.getAttribute('class')).not.toContain('arrowGroupDimmed');
+    expect(arrows[1]!.getAttribute('class')).not.toContain('arrowGroupDimmed');
   });
 
   it('only arrowGroup class is applied when no arrow is hovered (default state)', () => {
@@ -510,9 +510,9 @@ describe('Arrow group CSS class application (hover/dim state)', () => {
     });
 
     const arrows = screen.getAllByRole('graphics-symbol');
-    expect(arrows[0].getAttribute('class')).toContain('arrowGroup');
-    expect(arrows[0].getAttribute('class')).not.toContain('arrowGroupHovered');
-    expect(arrows[0].getAttribute('class')).not.toContain('arrowGroupDimmed');
+    expect(arrows[0]!.getAttribute('class')).toContain('arrowGroup');
+    expect(arrows[0]!.getAttribute('class')).not.toContain('arrowGroupHovered');
+    expect(arrows[0]!.getAttribute('class')).not.toContain('arrowGroupDimmed');
   });
 });
 
@@ -524,7 +524,7 @@ describe('tabIndex controlled by visible prop', () => {
   it('sets tabIndex=0 when visible=true', () => {
     renderArrows({ visible: true });
     const arrows = screen.getAllByRole('graphics-symbol');
-    expect(arrows[0].getAttribute('tabindex')).toBe('0');
+    expect(arrows[0]!.getAttribute('tabindex')).toBe('0');
   });
 
   it('sets tabIndex=-1 when visible=false', () => {
@@ -534,7 +534,7 @@ describe('tabIndex controlled by visible prop', () => {
     const arrowGroups = svgContainer?.querySelectorAll('[role="graphics-symbol"]');
     expect(arrowGroups).toBeDefined();
     if (arrowGroups && arrowGroups.length > 0) {
-      expect(arrowGroups[0].getAttribute('tabindex')).toBe('-1');
+      expect(arrowGroups[0]!.getAttribute('tabindex')).toBe('-1');
     }
   });
 });
@@ -598,7 +598,7 @@ describe('Milestone arrow connectedIds encoding', () => {
     });
 
     const arrows = screen.getAllByRole('graphics-symbol');
-    fireEvent.mouseEnter(arrows[0], { clientX: 100, clientY: 50 });
+    fireEvent.mouseEnter(arrows[0]!, { clientX: 100, clientY: 50 });
 
     expect(onArrowHover).toHaveBeenCalledTimes(1);
     const [connectedIds] = (onArrowHover as jest.MockedFunction<typeof onArrowHover>).mock
@@ -621,7 +621,7 @@ describe('Milestone arrow connectedIds encoding', () => {
     });
 
     const arrows = screen.getAllByRole('graphics-symbol');
-    fireEvent.mouseEnter(arrows[0], { clientX: 100, clientY: 50 });
+    fireEvent.mouseEnter(arrows[0]!, { clientX: 100, clientY: 50 });
 
     expect(onArrowHover).toHaveBeenCalledTimes(1);
     const [connectedIds] = (onArrowHover as jest.MockedFunction<typeof onArrowHover>).mock
@@ -691,7 +691,7 @@ describe('Multiple dependencies rendering', () => {
       criticalPathOrder: [],
     });
     const arrows = screen.getAllByRole('graphics-symbol');
-    expect(arrows[0].getAttribute('filter')).toBeNull();
+    expect(arrows[0]!.getAttribute('filter')).toBeNull();
   });
 });
 
@@ -796,9 +796,9 @@ describe('highlightedArrowKeys prop — item-hover-driven highlighting (Issue #2
     });
 
     const arrows = screen.getAllByRole('graphics-symbol');
-    expect(arrows[0].getAttribute('class')).toContain('arrowGroup');
-    expect(arrows[0].getAttribute('class')).not.toContain('arrowGroupHovered');
-    expect(arrows[0].getAttribute('class')).not.toContain('arrowGroupDimmed');
+    expect(arrows[0]!.getAttribute('class')).toContain('arrowGroup');
+    expect(arrows[0]!.getAttribute('class')).not.toContain('arrowGroupHovered');
+    expect(arrows[0]!.getAttribute('class')).not.toContain('arrowGroupDimmed');
   });
 
   it('renders all arrows in default class when highlightedArrowKeys is an empty set', () => {
@@ -810,8 +810,8 @@ describe('highlightedArrowKeys prop — item-hover-driven highlighting (Issue #2
     });
 
     const arrows = screen.getAllByRole('graphics-symbol');
-    expect(arrows[0].getAttribute('class')).not.toContain('arrowGroupHovered');
-    expect(arrows[0].getAttribute('class')).not.toContain('arrowGroupDimmed');
+    expect(arrows[0]!.getAttribute('class')).not.toContain('arrowGroupHovered');
+    expect(arrows[0]!.getAttribute('class')).not.toContain('arrowGroupDimmed');
   });
 
   it('highlights multiple arrows when highlightedArrowKeys contains multiple keys', () => {
@@ -868,7 +868,8 @@ describe('highlightedArrowKeys prop — item-hover-driven highlighting (Issue #2
       onArrowHover,
     });
 
-    const [arrowGroup] = screen.getAllByRole('graphics-symbol');
+    const arrowGroups = screen.getAllByRole('graphics-symbol');
+    const arrowGroup = arrowGroups[0]!;
     fireEvent.mouseEnter(arrowGroup, { clientX: 200, clientY: 100 });
 
     expect(onArrowHover).toHaveBeenCalledTimes(1);
