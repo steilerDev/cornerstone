@@ -2164,5 +2164,45 @@ describe('BudgetSourcesPage', () => {
       const toggleInsideMain = sourceMainDiv!.querySelector('[class*="expandToggle"]');
       expect(toggleInsideMain).toBeNull();
     });
+
+    it('sourceInfo wrapper div is NOT rendered in view mode', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+      const { container } = renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+      const sourceInfoDiv = container.querySelector('[class*="sourceInfo"]');
+      expect(sourceInfoDiv).toBeNull();
+    });
+
+    it('SourceBarChart renders as a sibling of sourceRowHeader, not inside it', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+      const { container } = renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+      const header = container.querySelector('[class*="sourceRowHeader"]');
+      expect(header).not.toBeNull();
+      const barInsideHeader = header!.querySelector('[class*="sourceBarSection"]');
+      expect(barInsideHeader).toBeNull();
+
+      // Bar chart still exists in the row
+      const sourceRow = container.querySelector('[class*="sourceRow"]');
+      expect(sourceRow!.querySelector('[class*="sourceBarSection"]')).not.toBeNull();
+    });
+
+    it('sourceMain is a direct child of sourceRowHeader after restructure', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+      const { container } = renderPage();
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+      const header = container.querySelector('[class*="sourceRowHeader"]');
+      expect(header).not.toBeNull();
+      const sourceMainAsDirectChild = Array.from(header!.children).find((el) =>
+        el.className.includes('sourceMain'),
+      );
+      expect(sourceMainAsDirectChild).toBeDefined();
+    });
   });
 });
