@@ -66,8 +66,10 @@
   },
   "overrides": {
     "minimatch@>=10.0.0 <10.2.3": "10.2.4",
+    "picomatch@>=4.0.0 <4.0.4": "4.0.4",
     "react": "19.2.5",
     "react-dom": "19.2.5",
+    "serialize-javascript": "7.0.5",
     "webpack": "5.105.0"
   }
 }
