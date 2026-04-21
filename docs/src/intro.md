@@ -31,8 +31,9 @@ Cornerstone is designed for **homeowners managing a construction or renovation p
 
 ## Key Features
 
-- **Work Items** -- Create and manage construction tasks with statuses, dates, assignments, areas, notes, subtasks, and dependencies
-- **Budget Management** -- Track costs with budget categories, financing sources, multi-budget-line invoice linking with itemized amounts, subsidies, and a dashboard with multiple projection perspectives
+- **Work Items** -- Create and manage construction tasks with statuses, dates, assignments, areas, notes, subtasks, and dependencies -- each work item surfaces its full area ancestor path (e.g. `House / Ground Floor / Kitchen`) as a breadcrumb wherever it appears
+- **Budget Management** -- Track costs with budget categories, financing sources, multi-budget-line invoice linking with itemized amounts, subsidies, and an area-grouped overview dashboard with multiple projection perspectives, clickable summary tiles, and print-friendly export
+- **Hierarchical Financing Sources** -- Click any source to expand it inline, see every attached budget line grouped by area and work item, and mass-move selected lines between sources
 - **Timeline & Gantt Chart** -- Interactive Gantt chart with dependency arrows, critical path highlighting, zoom controls, milestones, and automatic scheduling via the Critical Path Method
 - **Calendar View** -- Monthly and weekly calendar grids showing work items and milestones
 - **Milestones** -- Track major project checkpoints with target dates, projected completion, and late detection

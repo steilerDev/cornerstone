@@ -12,11 +12,11 @@ The budget system in Cornerstone helps you track construction costs across your 
 The budget system provides:
 
 - **Budget Categories** -- Organize costs into categories like "Electrical", "Plumbing", or "Windows & Doors"
-- **Financing Sources** -- Track where money comes from (construction loan, savings, family loan) with depletion tracking
+- **Financing Sources** -- Track where money comes from (construction loan, savings, family loan) with depletion tracking, inline expansion of all attached budget lines, and a mass-move tool to reassign lines to a different source
 - **Work Item Budget Lines** -- Link estimated costs to work items with confidence levels that reflect estimate accuracy
-- **Vendors & Invoices** -- Track vendors, their invoices, and line items linked to budget lines
+- **Invoices** -- Track vendor invoices and their line-item links to budget lines (vendor records now live under the Settings section -- see [Invoices & Vendors](vendors-and-invoices))
 - **Subsidy Programs** -- Manage percentage-based or fixed-amount subsidies that reduce your effective costs
-- **Budget Overview Dashboard** -- See your project's financial health at a glance with four "remaining budget" perspectives
+- **Budget Overview Dashboard** -- See your project's financial health grouped by **area hierarchy**, with clickable summary tiles, expandable nested rows, and print-friendly styling
 
 ## How It Fits Together
 
@@ -31,8 +31,8 @@ When a vendor submits an **invoice**, you link the relevant budget lines to the 
 ## Next Steps
 
 - [Budget Categories](categories) -- Create and manage budget categories
-- [Financing Sources](financing-sources) -- Track your funding sources and depletion
+- [Financing Sources](financing-sources) -- Track funding sources, inline expansion of attached lines, and mass-move
 - [Work Item Budgets](work-item-budgets) -- Add cost estimates to work items
-- [Vendors & Invoices](vendors-and-invoices) -- Track vendors and their invoices
+- [Invoices](vendors-and-invoices) -- Track invoices and link them to budget lines (vendors are managed from Settings)
 - [Subsidies](subsidies) -- Manage subsidy programs
-- [Budget Overview](budget-overview) -- Understand the overview dashboard and projections
+- [Budget Overview](budget-overview) -- Area-grouped cost breakdown, clickable tiles, and print output

@@ -1,17 +1,21 @@
 ---
 sidebar_position: 4
-title: Vendors & Invoices
+title: Invoices & Vendors
 ---
 
-# Vendors & Invoices
+# Invoices & Vendors
 
-Vendors are the companies and contractors that provide services or materials for your project. Each vendor can have multiple invoices, and each invoice can be linked to multiple budget lines across your work items and household items.
+Invoices track the real cost of your project -- the receipts from everyone you pay. Each invoice can be linked to multiple budget lines across your work items and household items, and each vendor can have any number of invoices attached.
 
-## Vendors
+:::info Vendors now live under Settings
+Vendor records have moved out of the Budget subnav and into **Settings > Vendors**. That makes sense because a vendor's name, trade, and contact details are master data you set up once -- similar to areas, trades, and user accounts -- whereas invoices are financial transactions that belong with the rest of the budget. All existing links between invoices, budget lines, and vendors are preserved; only the menu location has changed.
+:::
+
+## Vendors (under Settings)
 
 ### Vendor List
 
-Navigate to **Budget > Vendors** in the sidebar to see all vendors. The list supports:
+Navigate to **Settings > Vendors** in the sidebar to see all vendors. The list supports:
 
 - **Search** -- Find vendors by name
 - **Sorting** -- Sort by name or creation date
@@ -31,7 +35,7 @@ Click a vendor to see their detail page, which shows the vendor's information, a
 
 ### Invoice List
 
-Navigate to **Budget > Invoices** in the sidebar to see all invoices across all vendors. The list supports:
+Navigate to **Budget > Invoices** in the sidebar to see all invoices across all vendors. (Invoices remain in the Budget section; only the vendor records themselves moved to Settings.) The list supports:
 
 - **Search** -- Find invoices by number or vendor name
 - **Status Filter** -- Filter by Quotation, Pending, Paid, or Claimed
