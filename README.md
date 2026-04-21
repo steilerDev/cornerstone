@@ -36,9 +36,9 @@ A self-hosted home building project management tool for homeowners. Track work i
 
 ## Features
 
-- **Work Items** -- Manage construction tasks with statuses, dates, area assignments, notes, subtasks, dependencies, and keyboard shortcuts
-- **Areas & Trades** -- Organize your project with hierarchical areas (rooms, floors, zones) and trade specialties (Electrical, Plumbing, etc.) for vendors
-- **Budget Management** -- Budget categories, financing sources, multi-budget-line invoice linking with itemized amounts, subsidies with caps, quotation tracking, and an overview dashboard with projections
+- **Work Items** -- Manage construction tasks with statuses, dates, area assignments, notes, subtasks, dependencies, and keyboard shortcuts -- every work item shows its full area ancestor path (e.g. `House / Ground Floor / Kitchen`) as a breadcrumb across lists, detail pages, pickers, and every place it is referenced
+- **Areas & Trades** -- Organize your project with hierarchical areas (rooms, floors, zones) and trade specialties (Electrical, Plumbing, etc.) for vendors; a dedicated "No Area" filter surfaces items that have not been classified yet
+- **Budget Management** -- Budget categories, financing sources with inline expansion and mass-move of attached lines, multi-budget-line invoice linking with itemized amounts, subsidies with caps, quotation tracking, and an area-grouped overview dashboard with clickable summary tiles and print-friendly export
 - **Timeline & Gantt Chart** -- Interactive Gantt chart with dependency arrows, critical path, zoom controls, milestones, and CPM-based auto-scheduling
 - **Calendar View** -- Monthly and weekly calendar grids with work items and milestones
 - **Household Items** -- Track furniture, appliances, and fixtures with categories, area assignment, delivery scheduling, budget integration, and work item linking

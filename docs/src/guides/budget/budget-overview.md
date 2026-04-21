@@ -5,7 +5,11 @@ title: Budget Overview
 
 # Budget Overview
 
-The budget overview dashboard at **Budget > Overview** gives you a high-level view of your project's financial health. It shows totals by budget category, financing source allocations, and four different "remaining budget" perspectives.
+The budget overview dashboard at **Budget > Overview** gives you a high-level view of your project's financial health. It surfaces totals across financing sources, four different "remaining budget" perspectives, and a cost breakdown grouped by **area hierarchy**.
+
+## Summary Tiles
+
+At the top of the overview you see a set of summary tiles -- Total Budget, Total Estimated, Total Invoiced, Total Remaining, and one per financing source. Each tile is **clickable**: clicking a tile selects every matching budget line in the table below, so you can jump straight from a headline number into the underlying lines that drive it. Click the same tile again (or click in empty space) to clear the selection.
 
 ## Remaining Budget Perspectives
 
@@ -41,13 +45,16 @@ The margin applied to non-invoiced budget lines depends on the confidence level:
 | Quote | +/- 5% |
 | Invoice | 0% (actual cost used) |
 
-## Category Breakdown
+## Cost Breakdown by Area
 
-The overview groups costs by budget category, showing:
+The cost breakdown table is grouped by your **area hierarchy** rather than by category. This makes it easy to see what each room, floor, or zone of the project actually costs.
 
-- Total estimated amount for the category
-- Progress bar indicating how much has been invoiced vs estimated
-- Subsidy reductions applied to the category
+- Each **area** is a row. Its totals roll up every descendant area beneath it.
+- Clicking a row expands it to show child areas and, at the leaf level, the individual budget lines.
+- Nested rows are visually indented so the tree is easy to scan.
+- Budget lines whose work item or household item has no area assigned are collected in a dedicated **No Area** bucket at the bottom of the table (previously labeled "Unassigned").
+
+Each row displays the estimated total, invoiced total, subsidy reduction, and remaining amount for that slice of the project.
 
 ## Financing Source Summary
 
@@ -57,8 +64,24 @@ A summary of each financing source shows:
 - Current depletion (based on actual invoice costs)
 - Remaining balance
 
+For a much deeper view of each source -- including every budget line attached to it, grouped by area and work item, with multi-select and mass-move -- see [Financing Sources](financing-sources).
+
 ## Subsidy Impact
 
 Approved and disbursed [subsidies](subsidies) are factored into the overview calculations. The dashboard shows how much each subsidy reduces the total cost for its linked category. Pending and rejected subsidies are excluded from calculations.
+
+## Printing the Overview
+
+The Budget Overview has dedicated **print styling** so you can hand your bank, accountant, or partner a clean PDF or paper copy.
+
+- Use your browser's Print command (`Cmd+P` on macOS, `Ctrl+P` on Windows/Linux) directly from the overview page.
+- The app chrome -- sidebar, navigation, floating buttons -- is suppressed in print.
+- Page margins, title spacing, and nested area group boxes are tuned for A4/Letter output.
+- Inner item separators keep individual budget lines readable when an area group contains many children.
+- The browser's own print header/footer is suppressed; pick your target (printer or "Save as PDF") and go.
+
+:::tip
+If the exported PDF does not match what you see on screen, make sure your browser's "Background graphics" option is enabled in the print dialog -- the nested group boxes rely on background color to stay legible.
+:::
 
 ![Budget overview dashboard](/img/screenshots/budget-overview-light.png)

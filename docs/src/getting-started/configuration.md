@@ -32,7 +32,7 @@ All configuration is done through environment variables. The defaults are suitab
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `TRUST_PROXY` | `false` | Set to `true` when running behind a reverse proxy (nginx, Caddy, Traefik, etc.) |
+| `TRUST_PROXY` | `false` | Set to `true` when running behind a reverse proxy (nginx, Caddy, Traefik, etc.). Only the first proxy hop is trusted, and rate limiting uses a resilient client identifier that resists `X-Forwarded-For` spoofing. |
 | `EXTERNAL_URL` | -- | Public-facing base URL (e.g., `https://myhouse.example.com`). Used for OIDC callback, CalDAV/CardDAV discovery, and `.mobileconfig` generation. |
 
 When deploying behind a reverse proxy, set `TRUST_PROXY=true` so the server correctly reads forwarded headers (`X-Forwarded-For`, `X-Forwarded-Proto`, etc.). Set `EXTERNAL_URL` to the public URL users access your instance at -- this ensures OIDC callbacks, CalDAV/CardDAV discovery, and Apple configuration profiles work correctly regardless of internal networking.

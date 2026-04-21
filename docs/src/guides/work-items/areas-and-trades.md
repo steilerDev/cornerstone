@@ -28,11 +28,26 @@ Navigate to **Manage** in the sidebar to access the areas and trades management 
 
 ### Hierarchy
 
-Areas can be nested to any depth. A parent area implicitly includes all its children -- for example, filtering work items by "Ground Floor" will also show items assigned to "Kitchen", "Living Room", and any other child areas.
+Areas can be nested to any depth. A parent area implicitly includes all its children -- for example, filtering work items by "Ground Floor" will also show items assigned to "Kitchen", "Living Room", and any other child areas. Filters support arbitrary hierarchy depth, so deeply nested trees resolve correctly across every list page.
 
 ### Assigning Areas
 
 When creating or editing a work item or household item, select an area from the area picker. The picker displays the full hierarchy so you can quickly find the right location.
+
+### Area Breadcrumbs Everywhere
+
+Once you assign an area, Cornerstone displays the **full ancestor path** as a breadcrumb (e.g. `House / Ground Floor / Kitchen`) wherever the item surfaces:
+
+- Work item and household item lists, detail pages, and create pages
+- Pickers that let you select a work item, household item, or budget line (the area appears as a secondary line under the title)
+- Embedded references -- diary entries, invoices, and household item dependencies that point back to a work item
+- The Budget Overview cost breakdown and the Budget Sources line panel (grouped by the full area hierarchy)
+
+The breadcrumb keeps each item grounded in its location at a glance, without having to click through to the detail page.
+
+### The "No Area" Option
+
+Not every item has an area assigned -- maybe it is a project-wide task, an administrative item, or something you have not classified yet. The Work Items and Household Items lists include a dedicated **No Area** filter option that surfaces exactly those items, separate from any real area. The Budget Overview uses the same label ("No Area") for the bucket of budget lines whose work item or household item has no area assigned.
 
 ## Trades
 

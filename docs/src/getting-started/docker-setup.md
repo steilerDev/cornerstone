@@ -49,6 +49,10 @@ SECURE_COOKIES=true
 
 `TRUST_PROXY` tells Cornerstone to read forwarded headers (`X-Forwarded-For`, `X-Forwarded-Proto`, etc.). This is required for secure cookies and OIDC redirects to work properly behind a proxy.
 
+:::note Safer proxy handling
+Cornerstone's proxy handling has been tightened: when `TRUST_PROXY=true`, only the **first** proxy hop is trusted (your own reverse proxy), and the rate-limit plugin uses a resilient client identifier that cannot be spoofed by a user-supplied `X-Forwarded-For` header. In short, you still need to set `TRUST_PROXY=true` when running behind nginx/Caddy/Traefik, but that setting no longer exposes rate limiting to header spoofing from the public internet. No configuration change is required to benefit from this -- upgrading to the current release is enough.
+:::
+
 :::tip Large file uploads
 
 Cornerstone supports photo uploads which can produce large request payloads. Most reverse proxies limit request body size by default (e.g., nginx defaults to 1 MB). Make sure your proxy is configured to allow sufficiently large uploads -- for example, in **nginx**:
