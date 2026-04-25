@@ -464,4 +464,119 @@ describe('GET /api/budget/breakdown', () => {
     expect(hiCat.color === null || typeof hiCat.color === 'string').toBe(true);
     expect(hiCat.items[0]!.costDisplay).toBe('projected');
   });
+
+  // ─── budgetSources in response (Scenarios 8 & 9) ──────────────────────────
+
+  /**
+   * Insert a budget source directly into the app's database.
+   */
+  function insertBudgetSource(opts: { name?: string; totalAmount?: number } = {}): string {
+    const id = `src-bd-${idCounter++}`;
+    const now = new Date().toISOString();
+    app.db
+      .insert(schema.budgetSources)
+      .values({
+        id,
+        name: opts.name ?? `Source ${id}`,
+        sourceType: 'savings',
+        totalAmount: opts.totalAmount ?? 10000,
+        status: 'active',
+        isDiscretionary: false,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return id;
+  }
+
+  /**
+   * Insert a work item whose budget line is linked to the given budget source.
+   */
+  function insertWorkItemWithSource(opts: {
+    plannedAmount?: number;
+    confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
+    budgetSourceId: string;
+  }): { workItemId: string; budgetLineId: string } {
+    const id = `wi-src-${idCounter++}`;
+    const now = new Date().toISOString();
+    app.db
+      .insert(schema.workItems)
+      .values({
+        id,
+        title: `Sourced WI ${id}`,
+        status: 'not_started',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+
+    const budgetId = `bud-src-${idCounter++}`;
+    app.db
+      .insert(schema.workItemBudgets)
+      .values({
+        id: budgetId,
+        workItemId: id,
+        plannedAmount: opts.plannedAmount ?? 1000,
+        confidence: opts.confidence ?? 'own_estimate',
+        budgetCategoryId: null,
+        budgetSourceId: opts.budgetSourceId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+
+    return { workItemId: id, budgetLineId: budgetId };
+  }
+
+  it('response includes budgetSources array at the breakdown root (Scenario 8)', async () => {
+    const { cookie } = await createUserWithSession(
+      'sources-shape@example.com',
+      'Sources Shape User',
+      'password',
+    );
+
+    const sourceId = insertBudgetSource({ name: 'Route Test Source', totalAmount: 50000 });
+    insertWorkItemWithSource({ plannedAmount: 2000, budgetSourceId: sourceId });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/budget/breakdown',
+      headers: { cookie },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const { breakdown } = response.json<BudgetBreakdownResponse>();
+
+    expect(Array.isArray(breakdown.budgetSources)).toBe(true);
+    expect(breakdown.budgetSources.length).toBeGreaterThanOrEqual(1);
+    const source = breakdown.budgetSources.find((s) => s.id === sourceId);
+    expect(source).toBeDefined();
+    expect(source!.name).toBe('Route Test Source');
+    expect(typeof source!.totalAmount).toBe('number');
+    expect(typeof source!.projectedMin).toBe('number');
+    expect(typeof source!.projectedMax).toBe('number');
+  });
+
+  it('budgetSources is an empty array when no sources are assigned to any budget lines (Scenario 9)', async () => {
+    const { cookie } = await createUserWithSession(
+      'sources-empty@example.com',
+      'Sources Empty User',
+      'password',
+    );
+
+    // Insert a work item with NO budget source linked — budgetSources should be []
+    insertWorkItem({ plannedAmount: 1000 });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/budget/breakdown',
+      headers: { cookie },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const { breakdown } = response.json<BudgetBreakdownResponse>();
+
+    expect(Array.isArray(breakdown.budgetSources)).toBe(true);
+    expect(breakdown.budgetSources).toHaveLength(0);
+  });
 });

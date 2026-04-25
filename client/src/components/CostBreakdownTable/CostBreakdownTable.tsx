@@ -1,4 +1,4 @@
-import { useState, useRef, createContext, useContext, useMemo } from 'react';
+import { useState, useRef, createContext, useContext, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -9,12 +9,18 @@ import type {
   BreakdownBudgetLine,
   BreakdownHouseholdItem,
   ConfidenceLevel,
-  BudgetSource,
   SubsidyAdjustment,
+  BudgetSourceSummaryBreakdown,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
 import { usePrintExpansion } from '../../hooks/usePrintExpansion.js';
+import { BudgetSourceChip } from '../BudgetSourceChip/index.js';
+import { Badge } from '../Badge/Badge.js';
+import badgeStyles from '../Badge/Badge.module.css';
+import { EmptyState } from '../EmptyState/EmptyState.js';
+import { getSourceColorIndex, getSourceBadgeStyleKey } from '../../lib/budgetSourceColors.js';
+import sharedStyles from '../../styles/shared.module.css';
 import styles from './CostBreakdownTable.module.css';
 
 // Context to pass formatCurrency down to sub-components that aren't React components (can't use hooks)
@@ -28,12 +34,31 @@ function useFormatterContext() {
   return formatter;
 }
 
+// Context for source filter state
+interface BreakdownContextValue {
+  budgetSources: BudgetSourceSummaryBreakdown[];
+  hasSourceFilter: boolean;
+  visibleLineIds: Set<string>;
+}
+
+const BreakdownContext = createContext<BreakdownContextValue | null>(null);
+
+function useBreakdownContext() {
+  const context = useContext(BreakdownContext);
+  if (!context) {
+    throw new Error('useBreakdownContext must be used within CostBreakdownTable');
+  }
+  return context;
+}
+
 type CostPerspective = 'min' | 'max' | 'avg';
 
 interface CostBreakdownTableProps {
   breakdown: BudgetBreakdown;
   overview: BudgetOverview;
-  budgetSources: BudgetSource[];
+  selectedSourceIds: Set<string>;
+  onSourceToggle: (sourceId: string | null) => void;
+  onClearSources: () => void;
 }
 
 /**
@@ -167,12 +192,19 @@ function BudgetLineRow({
 }) {
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
+  const { hasSourceFilter, visibleLineIds, budgetSources } = useBreakdownContext();
+
+  // Return null if this line is filtered out
+  if (hasSourceFilter && !visibleLineIds.has(line.id)) {
+    return null;
+  }
+
   const key = `line-${line.id}`;
   const margin = CONFIDENCE_MARGINS[line.confidence];
   const costMin = line.plannedAmount * (1 - margin);
   const costMax = line.plannedAmount * (1 + margin);
   const perspectiveValue = resolveProjected(costMin, costMax, perspective);
-  const rowClassName = styles.rowLevel3;
+  const rowClassName = `${styles.rowLevel3}${hasSourceFilter && visibleLineIds.has(line.id) ? ` ${styles.rowFiltered}` : ''}`;
 
   // Calculate quoted range (±5%)
   const quotedMin = line.actualCost * 0.95;
@@ -184,6 +216,14 @@ function BudgetLineRow({
     : line.hasInvoice
       ? line.actualCost
       : perspectiveValue;
+
+  // Get source badge info
+  const sourceId = line.budgetSourceId ?? null;
+  const sourceName: string = budgetSources.find((s) => s.id === sourceId)?.name
+    ?? t('overview.costBreakdown.sourceFilter.unassigned');
+  const styleKey = getSourceBadgeStyleKey(sourceId);
+  const isTruncated = sourceName.length > 20;
+  const label = isTruncated ? `${sourceName.slice(0, 20)}…` : sourceName;
 
   return (
     <tr className={rowClassName} key={key}>
@@ -200,6 +240,19 @@ function BudgetLineRow({
           ) : (
             <ConfidenceBadge confidence={line.confidence} />
           )}
+          <span
+            className={styles.sourceBadgeDot}
+            style={{ backgroundColor: `var(--color-source-${getSourceColorIndex(sourceId)}-dot)` }}
+            aria-hidden="true"
+          />
+          <span className={styles.sourceBadgeLabel}>
+            <Badge
+              variants={{ src: { label, className: badgeStyles[styleKey] ?? '' } }}
+              value="src"
+              ariaLabel={t('overview.costBreakdown.sourceBadge.ariaLabel', { name: sourceName })}
+              title={isTruncated ? sourceName : undefined}
+            />
+          </span>
         </div>
       </td>
       <td className={styles.colBudget}>
@@ -625,12 +678,16 @@ function ChevronSvg({ className }: { className: string }) {
 export function CostBreakdownTable({
   breakdown,
   overview,
-  budgetSources,
+  selectedSourceIds,
+  onSourceToggle,
+  onClearSources,
 }: CostBreakdownTableProps) {
   const { t } = useTranslation('budget');
   const { formatCurrency } = useFormatters();
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [perspective, setPerspective] = useState<CostPerspective>('avg');
+  const availFundsButtonRef = useRef<HTMLButtonElement>(null);
+  const budgetSources: BudgetSourceSummaryBreakdown[] = breakdown.budgetSources ?? [];
 
   const toggle = (key: string) => {
     const next = new Set(expandedKeys);
@@ -728,6 +785,128 @@ export function CostBreakdownTable({
    */
   const sum = overview.availableFunds - totalRawProjected + adjustedTotalPayback;
 
+  // Source filter state
+  const hasSourceFilter = selectedSourceIds.size > 0;
+
+  // Derive visible line IDs from filter
+  const visibleLineIds = useMemo<Set<string>>(() => {
+    if (!hasSourceFilter) return new Set(); // empty = all visible (optimization)
+    const ids = new Set<string>();
+    // Walk all lines across all areas
+    function collectWi(areas: BreakdownArea<BreakdownWorkItem>[]) {
+      for (const area of areas) {
+        for (const item of area.items) {
+          for (const line of item.budgetLines) {
+            const lineKey = line.budgetSourceId ?? 'unassigned';
+            if (selectedSourceIds.has(lineKey)) ids.add(line.id);
+          }
+        }
+        collectWi(area.children);
+      }
+    }
+    function collectHi(areas: BreakdownArea<BreakdownHouseholdItem>[]) {
+      for (const area of areas) {
+        for (const item of area.items) {
+          for (const line of item.budgetLines) {
+            const lineKey = line.budgetSourceId ?? 'unassigned';
+            if (selectedSourceIds.has(lineKey)) ids.add(line.id);
+          }
+        }
+        collectHi(area.children);
+      }
+    }
+    collectWi(wiAreas);
+    collectHi(hiAreas);
+    return ids;
+  }, [hasSourceFilter, selectedSourceIds, wiAreas, hiAreas]);
+
+  // Compute filtered grand totals (Sum + Remaining Budget rows only)
+  // Individual area/item rows use backend-computed values.
+  const filteredRawProjected = useMemo<number>(() => {
+    if (!hasSourceFilter) return totalRawProjected;
+    // Sum perspective-resolved cost of visible lines only
+    let total = 0;
+    function walkWi(areas: BreakdownArea<BreakdownWorkItem>[]) {
+      for (const area of areas) {
+        for (const item of area.items) {
+          for (const line of item.budgetLines) {
+            if (!visibleLineIds.has(line.id)) continue;
+            const margin = CONFIDENCE_MARGINS[line.confidence];
+            const costMin = line.plannedAmount * (1 - margin);
+            const costMax = line.plannedAmount * (1 + margin);
+            total += line.hasInvoice
+              ? line.isQuotation
+                ? resolveProjected(line.actualCost * 0.95, line.actualCost * 1.05, perspective)
+                : line.actualCost
+              : resolveProjected(costMin, costMax, perspective);
+          }
+        }
+        walkWi(area.children);
+      }
+    }
+    function walkHi(areas: BreakdownArea<BreakdownHouseholdItem>[]) {
+      for (const area of areas) {
+        for (const item of area.items) {
+          for (const line of item.budgetLines) {
+            if (!visibleLineIds.has(line.id)) continue;
+            const margin = CONFIDENCE_MARGINS[line.confidence];
+            const costMin = line.plannedAmount * (1 - margin);
+            const costMax = line.plannedAmount * (1 + margin);
+            total += line.hasInvoice
+              ? line.isQuotation
+                ? resolveProjected(line.actualCost * 0.95, line.actualCost * 1.05, perspective)
+                : line.actualCost
+              : resolveProjected(costMin, costMax, perspective);
+          }
+        }
+        walkHi(area.children);
+      }
+    }
+    walkWi(wiAreas);
+    walkHi(hiAreas);
+    return total;
+  }, [hasSourceFilter, visibleLineIds, wiAreas, hiAreas, perspective]);
+
+  // Total line count for screen reader announcements
+  const totalLineCount = useMemo<number>(() => {
+    let count = 0;
+    function countWi(areas: BreakdownArea<BreakdownWorkItem>[]) {
+      for (const area of areas) {
+        for (const item of area.items) {
+          count += item.budgetLines.length;
+        }
+        countWi(area.children);
+      }
+    }
+    function countHi(areas: BreakdownArea<BreakdownHouseholdItem>[]) {
+      for (const area of areas) {
+        for (const item of area.items) {
+          count += item.budgetLines.length;
+        }
+        countHi(area.children);
+      }
+    }
+    countWi(wiAreas);
+    countHi(hiAreas);
+    return count;
+  }, [wiAreas, hiAreas]);
+
+  // Check if any lines are unassigned
+  const hasUnassignedLines = useMemo<boolean>(() => {
+    function check(areas: BreakdownArea<BreakdownWorkItem | BreakdownHouseholdItem>[]): boolean {
+      for (const area of areas) {
+        for (const item of area.items) {
+          for (const line of item.budgetLines) {
+            if (line.budgetSourceId === null) return true;
+          }
+        }
+        if (check(area.children)) return true;
+      }
+      return false;
+    }
+    return check([...(wiAreas as BreakdownArea<BreakdownWorkItem | BreakdownHouseholdItem>[]), ...(hiAreas as BreakdownArea<BreakdownWorkItem | BreakdownHouseholdItem>[])]);
+  }, [wiAreas, hiAreas]);
+
   // Empty state
   const hasData = wiAreas.length > 0 || hiAreas.length > 0;
 
@@ -749,8 +928,23 @@ export function CostBreakdownTable({
   const hiSectionExpanded = expandedKeys.has(hiSectionKey);
   const availFundsExpanded = expandedKeys.has(availFundsKey);
 
+  function handleToolbarKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === 'Escape' && selectedSourceIds.size > 0) {
+      e.preventDefault();
+      onClearSources();
+      availFundsButtonRef.current?.focus();
+    }
+  }
+
   return (
     <FormatterContext.Provider value={formatCurrency}>
+      <BreakdownContext.Provider
+        value={{
+          budgetSources,
+          hasSourceFilter,
+          visibleLineIds,
+        }}
+      >
       <section className={styles.breakdownCard} aria-labelledby="breakdown-heading">
         <h2 id="breakdown-heading" className={styles.breakdownTitle}>
           {t('overview.costBreakdown.title')}
@@ -779,7 +973,7 @@ export function CostBreakdownTable({
             </thead>
 
             {/* ===== COST SECTION (with column tints) ===== */}
-            <tbody className={styles.costSection}>
+            <tbody id="cost-breakdown-table-cost-section" className={styles.costSection}>
               {/* Work Item Budget row (expandable) */}
               {wiAreas.length > 0 && (
                 <>
@@ -1011,7 +1205,10 @@ export function CostBreakdownTable({
                 </td>
                 <td className={styles.colBudget}>
                   <span className={styles.valueNegative}>
-                    {formatCost(totalRawProjected, formatCurrency)}
+                    {formatCost(
+                      hasSourceFilter ? filteredRawProjected : totalRawProjected,
+                      formatCurrency,
+                    )}
                   </span>
                 </td>
                 <td className={styles.colPayback}>
@@ -1024,7 +1221,12 @@ export function CostBreakdownTable({
                   )}
                 </td>
                 <td className={styles.colRemaining}>
-                  {renderNet(totalRawProjected, adjustedTotalPayback, styles, formatCurrency)}
+                  {renderNet(
+                    hasSourceFilter ? filteredRawProjected : totalRawProjected,
+                    adjustedTotalPayback,
+                    styles,
+                    formatCurrency,
+                  )}
                 </td>
               </tr>
 
@@ -1034,6 +1236,7 @@ export function CostBreakdownTable({
                   <div className={styles.nameContent}>
                     {budgetSources.length > 0 && (
                       <button
+                        ref={availFundsButtonRef}
                         type="button"
                         className={styles.expandBtn}
                         aria-expanded={availFundsExpanded}
@@ -1053,20 +1256,86 @@ export function CostBreakdownTable({
                 </td>
               </tr>
 
-              {/* Budget source sub-rows */}
+              {/* Source filter chip strip */}
+              {availFundsExpanded && (
+                <tr>
+                  <td colSpan={4}>
+                    <div
+                      role="toolbar"
+                      aria-label={t('overview.costBreakdown.sourceFilter.label')}
+                      aria-controls="cost-breakdown-table-cost-section"
+                      className={styles.sourceFilterStrip}
+                      onKeyDown={handleToolbarKeyDown}
+                    >
+                      {budgetSources.map((source) => (
+                        <BudgetSourceChip
+                          key={source.id}
+                          sourceId={source.id}
+                          name={source.name}
+                          isSelected={selectedSourceIds.has(source.id)}
+                          onToggle={onSourceToggle}
+                        />
+                      ))}
+                      {hasUnassignedLines && (
+                        <BudgetSourceChip
+                          key="unassigned"
+                          sourceId={null}
+                          name={t('overview.costBreakdown.sourceFilter.unassigned')}
+                          isSelected={selectedSourceIds.has('unassigned')}
+                          onToggle={onSourceToggle}
+                        />
+                      )}
+                      {selectedSourceIds.size > 0 && (
+                        <button
+                          type="button"
+                          className={sharedStyles.btnSecondaryCompact}
+                          onClick={onClearSources}
+                          aria-label={t('overview.costBreakdown.sourceFilter.clearAriaLabel')}
+                        >
+                          {t('overview.costBreakdown.sourceFilter.allSources')}
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+
+              {/* Enhanced source detail rows */}
               {availFundsExpanded &&
-                budgetSources.map((source: BudgetSource) => (
-                  <tr key={source.id} className={styles.rowSourceDetail}>
-                    <td className={styles.colName}>
-                      <div className={`${styles.nameContent} ${styles.nameIndented}`}>
-                        <span>{source.name}</span>
-                      </div>
-                    </td>
-                    <td className={styles.colBudget} colSpan={3}>
-                      {formatCurrency(source.totalAmount)}
-                    </td>
-                  </tr>
-                ))}
+                budgetSources.map((source: BudgetSourceSummaryBreakdown) => {
+                  const colorIndex = getSourceColorIndex(source.id);
+                  const isSelected = selectedSourceIds.has(source.id);
+                  const allocatedCost = resolveProjected(source.projectedMin, source.projectedMax, perspective);
+                  const remaining = source.totalAmount - allocatedCost;
+                  const rowStyle = { '--chip-dot': `var(--color-source-${colorIndex}-dot)` } as React.CSSProperties;
+                  return (
+                    <tr
+                      key={source.id}
+                      className={`${styles.rowSourceDetail} ${isSelected ? styles.rowSourceDetailSelected : ''}`}
+                      style={rowStyle}
+                    >
+                      <td className={styles.colName}>
+                        <div className={`${styles.nameContent} ${styles.nameIndented}`}>
+                          <span
+                            className={styles.sourceDot}
+                            style={{ backgroundColor: `var(--color-source-${colorIndex}-dot)` }}
+                            aria-hidden="true"
+                          />
+                          <span>{source.name}</span>
+                        </div>
+                      </td>
+                      <td className={styles.colBudget}>{formatCurrency(source.totalAmount)}</td>
+                      <td className={`${styles.colPayback} ${styles.colAllocatedMobile}`}>
+                        <span>-{formatCurrency(allocatedCost)}</span>
+                      </td>
+                      <td className={styles.colRemaining}>
+                        <span className={remaining >= 0 ? styles.valuePositive : styles.valueNegative}>
+                          {formatCurrency(remaining)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
 
               {/* Remaining Budget row */}
               <tr className={`${styles.rowLevel0} ${styles.rowSummary}`}>
@@ -1078,25 +1347,61 @@ export function CostBreakdownTable({
                 <td className={styles.colBudget}>
                   <span
                     className={
-                      overview.availableFunds - totalRawProjected >= 0
+                      overview.availableFunds - (hasSourceFilter ? filteredRawProjected : totalRawProjected) >= 0
                         ? styles.valuePositive
                         : styles.valueNegative
                     }
                   >
-                    {formatCurrency(overview.availableFunds - totalRawProjected)}
+                    {formatCurrency(
+                      overview.availableFunds - (hasSourceFilter ? filteredRawProjected : totalRawProjected),
+                    )}
                   </span>
                 </td>
                 <td className={styles.colPayback} />
                 <td className={styles.colRemaining}>
-                  <span className={sum >= 0 ? styles.valuePositive : styles.valueNegative}>
-                    {formatCurrency(sum)}
+                  <span
+                    className={
+                      (overview.availableFunds - (hasSourceFilter ? filteredRawProjected : totalRawProjected) + adjustedTotalPayback) >= 0
+                        ? styles.valuePositive
+                        : styles.valueNegative
+                    }
+                  >
+                    {formatCurrency(
+                      overview.availableFunds - (hasSourceFilter ? filteredRawProjected : totalRawProjected) + adjustedTotalPayback,
+                    )}
                   </span>
                 </td>
               </tr>
             </tbody>
+
+            {/* Empty state when filter returns no results */}
+            {hasSourceFilter && visibleLineIds.size === 0 && (
+              <tbody>
+                <tr>
+                  <td colSpan={4}>
+                    <EmptyState
+                      message={t('overview.costBreakdown.sourceFilter.empty')}
+                      action={{ label: t('overview.costBreakdown.sourceFilter.clear'), onClick: onClearSources }}
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            )}
           </table>
+
+          {/* Screen reader live region for filter announcements */}
+          <div role="status" aria-atomic="true" className={styles.srOnly}>
+            {hasSourceFilter
+              ? t('overview.costBreakdown.sourceFilter.activeAnnouncement', {
+                  count: String(visibleLineIds.size),
+                  total: String(totalLineCount),
+                  sources: [...selectedSourceIds].join(', '),
+                })
+              : t('overview.costBreakdown.sourceFilter.allSourcesAnnouncement')}
+          </div>
         </div>
       </section>
+      </BreakdownContext.Provider>
     </FormatterContext.Provider>
   );
 }

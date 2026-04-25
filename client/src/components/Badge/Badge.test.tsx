@@ -128,4 +128,20 @@ describe('Badge', () => {
     const span = container.querySelector('span');
     expect(span?.textContent).toBe('raw_value');
   });
+
+  // ─── title prop ─────────────────────────────────────────────────────────────
+
+  it('forwards title prop to the rendered span', () => {
+    const { container } = render(
+      <Badge variants={SIMPLE_VARIANTS} value="foo" title="Full Source Name" />,
+    );
+    const span = container.querySelector('span');
+    expect(span).toHaveAttribute('title', 'Full Source Name');
+  });
+
+  it('does not render title attribute when title prop is not passed', () => {
+    const { container } = render(<Badge variants={SIMPLE_VARIANTS} value="foo" />);
+    const span = container.querySelector('span');
+    expect(span).not.toHaveAttribute('title');
+  });
 });

@@ -1,0 +1,70 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-1-5) var(--spacing-3);
+  min-height: var(--spacing-8);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  transition: background-color var(--transition-normal), border-color var(--transition-normal),
+    box-shadow var(--transition-normal);
+  flex-shrink: 0;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chip:hover:not(:disabled) {
+  background-color: var(--color-bg-hover);
+}
+
+.chipSelected {
+  background-color: var(--chip-bg);
+  color: var(--chip-text);
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--chip-dot);
+}
+
+.chipSelected:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.chip:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.chipSelected:focus-visible {
+  box-shadow: var(--shadow-focus), 0 0 0 2px var(--chip-dot);
+}
+
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dot {
+  width: var(--spacing-2);
+  height: var(--spacing-2);
+  border-radius: var(--radius-circle);
+  background-color: var(--chip-dot);
+  flex-shrink: 0;
+}
+
+.label {
+  /* inherits from .chip */
+}
+
+@media (max-width: 767px) {
+  .chip {
+    min-height: 44px;
+    padding: var(--spacing-2) var(--spacing-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip {
+    transition: none;
+  }
+}

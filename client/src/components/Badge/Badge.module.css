@@ -142,6 +142,63 @@
   color: var(--color-user-inactive-text);
 }
 
+/* Budget source badge variants (source0–source9, sourceUnassigned) */
+.source0 {
+  background-color: var(--color-source-0-bg);
+  color: var(--color-source-0-text);
+}
+
+.source1 {
+  background-color: var(--color-source-1-bg);
+  color: var(--color-source-1-text);
+}
+
+.source2 {
+  background-color: var(--color-source-2-bg);
+  color: var(--color-source-2-text);
+}
+
+.source3 {
+  background-color: var(--color-source-3-bg);
+  color: var(--color-source-3-text);
+}
+
+.source4 {
+  background-color: var(--color-source-4-bg);
+  color: var(--color-source-4-text);
+}
+
+.source5 {
+  background-color: var(--color-source-5-bg);
+  color: var(--color-source-5-text);
+}
+
+.source6 {
+  background-color: var(--color-source-6-bg);
+  color: var(--color-source-6-text);
+}
+
+.source7 {
+  background-color: var(--color-source-7-bg);
+  color: var(--color-source-7-text);
+}
+
+.source8 {
+  background-color: var(--color-source-8-bg);
+  color: var(--color-source-8-text);
+}
+
+.source9 {
+  background-color: var(--color-source-9-bg);
+  color: var(--color-source-9-text);
+}
+
+.sourceUnassigned {
+  background-color: var(--color-source-0-bg);
+  color: var(--color-source-0-text);
+  font-style: italic;
+}
+
 /* Responsive */
 @media (max-width: 767px) {
   .badge {

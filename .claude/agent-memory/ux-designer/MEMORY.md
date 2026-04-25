@@ -274,3 +274,7 @@ Zero new tokens, zero new CSS, zero new components. Text replacement only. Key r
 - German currency trailing `€` with space may widen budget table cells — acceptable, no layout fix needed
 - SearchPicker default prop strings (`placeholder`, `emptyHint`, etc.) replaced with `t()` — no CSS change
 - Language selector UI is Story #917 (ProfilePage) — not this story
+
+## Story #1354 — Source Badges & Filter (Budget Overview)
+
+See [story-1354-source-badges-filter.md](story-1354-source-badges-filter.md). Key: 10-slot `--color-source-N-{bg,text,dot}` token family; `BudgetSourceChip` new shared component; `role="toolbar"` for chip strip; scoped `--chip-*` CSS custom properties pattern for per-slot colors.

@@ -67,6 +67,26 @@
         "unassigned": "No Area",
         "expandWorkItemsLabel": "Expand work item budget by area",
         "expandHouseholdItemsLabel": "Expand household item budget by area"
+      },
+      "sourceFilter": {
+        "label": "Filter by source",
+        "allSources": "All sources",
+        "clear": "Clear filters",
+        "clearAriaLabel": "Clear source filter — show all sources",
+        "unassigned": "Unassigned",
+        "activeAnnouncement": "Showing {{count}} of {{total}} budget lines",
+        "allSourcesAnnouncement": "Showing all budget lines",
+        "empty": "No budget lines match the selected source filter.",
+        "chipSelected": "Filter: {{name}} (selected)",
+        "chipNotSelected": "Filter: {{name}} (not selected)"
+      },
+      "sourceImpact": {
+        "allocated": "Allocated",
+        "remaining": "Remaining"
+      },
+      "sourceBadge": {
+        "ariaLabel": "Budget source: {{name}}",
+        "unassigned": "Unassigned"
       }
     }
   },

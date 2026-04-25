@@ -5,7 +5,8 @@ import { jest, describe, it, expect, beforeAll } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { CostBreakdownTable as CostBreakdownTableType } from './CostBreakdownTable.js';
-import type { BudgetBreakdown, BudgetOverview, BudgetSource } from '@cornerstone/shared';
+import type { BudgetBreakdown, BudgetOverview } from '@cornerstone/shared';
+import type { BudgetSourceSummaryBreakdown } from '@cornerstone/shared';
 
 // CSS modules mocked via identity-obj-proxy
 
@@ -86,11 +87,21 @@ beforeAll(async () => {
 function renderWithRouter(
   breakdown: BudgetBreakdown,
   overview: BudgetOverview,
-  budgetSources: BudgetSource[] = [],
+  opts: {
+    selectedSourceIds?: Set<string>;
+    onSourceToggle?: (sourceId: string | null) => void;
+    onClearSources?: () => void;
+  } = {},
 ) {
   return render(
     <MemoryRouter>
-      <CostBreakdownTable breakdown={breakdown} overview={overview} budgetSources={budgetSources} />
+      <CostBreakdownTable
+        breakdown={breakdown}
+        overview={overview}
+        selectedSourceIds={opts.selectedSourceIds ?? new Set()}
+        onSourceToggle={opts.onSourceToggle ?? (() => {})}
+        onClearSources={opts.onClearSources ?? (() => {})}
+      />
     </MemoryRouter>,
   );
 }
@@ -241,6 +252,7 @@ function buildEmptyBreakdown(): BudgetBreakdown {
       },
     },
     subsidyAdjustments: [],
+    budgetSources: [],
   };
 }
 
@@ -315,6 +327,7 @@ function buildBreakdownWithWI(
                   actualCost,
                   hasInvoice,
                   isQuotation: false,
+                  budgetSourceId: null,
                 },
               ],
             },
@@ -345,6 +358,7 @@ function buildBreakdownWithWI(
       },
     },
     subsidyAdjustments: [],
+    budgetSources: [],
   };
 }
 
@@ -429,6 +443,7 @@ function buildBreakdownWithHI(
                   actualCost,
                   hasInvoice: actualCost > 0,
                   isQuotation: false,
+                  budgetSourceId: null,
                 },
               ],
             },
@@ -447,37 +462,218 @@ function buildBreakdownWithHI(
       },
     },
     subsidyAdjustments: [],
+    budgetSources: [],
   };
 }
 
 /**
- * Build a minimal BudgetSource for tests.
+ * Build a BudgetSourceSummaryBreakdown for tests.
  */
-function buildBudgetSource(
-  opts: { id?: string; name?: string; totalAmount?: number } = {},
-): BudgetSource {
+function buildSourceSummary(
+  opts: {
+    id?: string;
+    name?: string;
+    totalAmount?: number;
+    projectedMin?: number;
+    projectedMax?: number;
+  } = {},
+): BudgetSourceSummaryBreakdown {
   return {
     id: opts.id ?? 'src-1',
     name: opts.name ?? 'Bank Loan',
-    sourceType: 'bank_loan',
-    totalAmount: opts.totalAmount ?? 80000,
-    usedAmount: 0,
-    availableAmount: opts.totalAmount ?? 80000,
-    claimedAmount: 0,
-    unclaimedAmount: 0,
-    actualAvailableAmount: opts.totalAmount ?? 80000,
-    paidAmount: 0,
-    projectedAmount: 0,
-    projectedMinAmount: 0,
-    projectedMaxAmount: 0,
-    isDiscretionary: false,
-    interestRate: null,
-    terms: null,
-    notes: null,
-    status: 'active',
-    createdBy: null,
-    createdAt: '2025-01-01T00:00:00.000Z',
-    updatedAt: '2025-01-01T00:00:00.000Z',
+    totalAmount: opts.totalAmount ?? 100000,
+    projectedMin: opts.projectedMin ?? 5000,
+    projectedMax: opts.projectedMax ?? 8000,
+  };
+}
+
+/**
+ * Build a breakdown with one WI item whose budget line has a specific budgetSourceId.
+ * Used for source badge and filter tests.
+ */
+function buildBreakdownWithSourcedWI(opts: {
+  budgetSourceId: string | null;
+  lineId?: string;
+  budgetSources?: BudgetSourceSummaryBreakdown[];
+}): BudgetBreakdown {
+  return {
+    workItems: {
+      areas: [
+        {
+          areaId: null,
+          name: 'Unassigned',
+          parentId: null,
+          color: null,
+          projectedMin: 800,
+          projectedMax: 1200,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 800,
+          rawProjectedMax: 1200,
+          minSubsidyPayback: 0,
+          items: [
+            {
+              workItemId: 'wi-src-1',
+              title: 'Sourced Work Item',
+              projectedMin: 800,
+              projectedMax: 1200,
+              actualCost: 0,
+              subsidyPayback: 0,
+              rawProjectedMin: 800,
+              rawProjectedMax: 1200,
+              minSubsidyPayback: 0,
+              costDisplay: 'projected',
+              budgetLines: [
+                {
+                  id: opts.lineId ?? 'sourced-line-1',
+                  description: 'Sourced budget line',
+                  plannedAmount: 1000,
+                  confidence: 'own_estimate',
+                  actualCost: 0,
+                  hasInvoice: false,
+                  isQuotation: false,
+                  budgetSourceId: opts.budgetSourceId,
+                },
+              ],
+            },
+          ],
+          children: [],
+        },
+      ],
+      totals: {
+        projectedMin: 800,
+        projectedMax: 1200,
+        actualCost: 0,
+        subsidyPayback: 0,
+        rawProjectedMin: 800,
+        rawProjectedMax: 1200,
+        minSubsidyPayback: 0,
+      },
+    },
+    householdItems: {
+      areas: [],
+      totals: {
+        projectedMin: 0,
+        projectedMax: 0,
+        actualCost: 0,
+        subsidyPayback: 0,
+        rawProjectedMin: 0,
+        rawProjectedMax: 0,
+        minSubsidyPayback: 0,
+      },
+    },
+    subsidyAdjustments: [],
+    budgetSources: opts.budgetSources ?? [],
+  };
+}
+
+/**
+ * Build a breakdown with two WI items in the same area — one with a source, one without.
+ */
+function buildBreakdownWithMixedSourceLines(opts: {
+  sourceId: string;
+  sourceName: string;
+}): BudgetBreakdown {
+  return {
+    workItems: {
+      areas: [
+        {
+          areaId: null,
+          name: 'Unassigned',
+          parentId: null,
+          color: null,
+          projectedMin: 1600,
+          projectedMax: 2400,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 1600,
+          rawProjectedMax: 2400,
+          minSubsidyPayback: 0,
+          items: [
+            {
+              workItemId: 'wi-mix-1',
+              title: 'With Source',
+              projectedMin: 800,
+              projectedMax: 1200,
+              actualCost: 0,
+              subsidyPayback: 0,
+              rawProjectedMin: 800,
+              rawProjectedMax: 1200,
+              minSubsidyPayback: 0,
+              costDisplay: 'projected',
+              budgetLines: [
+                {
+                  id: 'mix-line-src',
+                  description: 'Line with source',
+                  plannedAmount: 1000,
+                  confidence: 'own_estimate',
+                  actualCost: 0,
+                  hasInvoice: false,
+                  isQuotation: false,
+                  budgetSourceId: opts.sourceId,
+                },
+              ],
+            },
+            {
+              workItemId: 'wi-mix-2',
+              title: 'Without Source',
+              projectedMin: 800,
+              projectedMax: 1200,
+              actualCost: 0,
+              subsidyPayback: 0,
+              rawProjectedMin: 800,
+              rawProjectedMax: 1200,
+              minSubsidyPayback: 0,
+              costDisplay: 'projected',
+              budgetLines: [
+                {
+                  id: 'mix-line-null',
+                  description: 'Unassigned line',
+                  plannedAmount: 1000,
+                  confidence: 'own_estimate',
+                  actualCost: 0,
+                  hasInvoice: false,
+                  isQuotation: false,
+                  budgetSourceId: null,
+                },
+              ],
+            },
+          ],
+          children: [],
+        },
+      ],
+      totals: {
+        projectedMin: 1600,
+        projectedMax: 2400,
+        actualCost: 0,
+        subsidyPayback: 0,
+        rawProjectedMin: 1600,
+        rawProjectedMax: 2400,
+        minSubsidyPayback: 0,
+      },
+    },
+    householdItems: {
+      areas: [],
+      totals: {
+        projectedMin: 0,
+        projectedMax: 0,
+        actualCost: 0,
+        subsidyPayback: 0,
+        rawProjectedMin: 0,
+        rawProjectedMax: 0,
+        minSubsidyPayback: 0,
+      },
+    },
+    subsidyAdjustments: [],
+    budgetSources: [
+      {
+        id: opts.sourceId,
+        name: opts.sourceName,
+        totalAmount: 100000,
+        projectedMin: 800,
+        projectedMax: 1200,
+      },
+    ],
   };
 }
 
@@ -491,7 +687,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -505,7 +701,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 })}
         overview={buildOverview(50000)}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -518,7 +714,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 })}
         overview={buildOverview(100000)}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -532,7 +728,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -544,7 +740,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithHI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -558,7 +754,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -573,7 +769,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -588,7 +784,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -832,10 +1028,11 @@ describe('CostBreakdownTable', () => {
         },
       },
       subsidyAdjustments: [],
+    budgetSources: [],
     };
 
     const { container } = render(
-      <CostBreakdownTable breakdown={breakdown} overview={buildOverview()} budgetSources={[]} />,
+      <CostBreakdownTable breakdown={breakdown} overview={buildOverview()} selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}} />,
     );
 
     // Expand WI section
@@ -888,10 +1085,11 @@ describe('CostBreakdownTable', () => {
         },
       },
       subsidyAdjustments: [],
+    budgetSources: [],
     };
 
     const { container } = render(
-      <CostBreakdownTable breakdown={breakdown} overview={buildOverview()} budgetSources={[]} />,
+      <CostBreakdownTable breakdown={breakdown} overview={buildOverview()} selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}} />,
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
@@ -944,10 +1142,11 @@ describe('CostBreakdownTable', () => {
         },
       },
       subsidyAdjustments: [],
+    budgetSources: [],
     };
 
     render(
-      <CostBreakdownTable breakdown={breakdown} overview={buildOverview()} budgetSources={[]} />,
+      <CostBreakdownTable breakdown={breakdown} overview={buildOverview()} selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}} />,
     );
 
     // HI section should still be visible
@@ -962,7 +1161,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMax: 1200 })}
         overview={buildOverview(100000)}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -978,7 +1177,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMax: 50000 })}
         overview={buildOverview(100)}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -993,7 +1192,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildEmptyBreakdown()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1005,7 +1204,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildEmptyBreakdown()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1017,7 +1216,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildEmptyBreakdown()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1031,7 +1230,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1044,7 +1243,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithHI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1057,7 +1256,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1070,7 +1269,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1105,7 +1304,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithHI({ hiCategory: 'Home Office' })}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1139,7 +1338,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1162,7 +1361,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1176,7 +1375,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1188,7 +1387,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1259,13 +1458,14 @@ describe('CostBreakdownTable', () => {
         },
       },
       subsidyAdjustments: [],
+    budgetSources: [],
     };
 
     render(
       <CostBreakdownTable
         breakdown={breakdown}
         overview={buildOverview(100000)}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1314,7 +1514,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1331,7 +1531,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1407,7 +1607,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1429,7 +1629,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1594,7 +1794,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview(100000)}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1608,9 +1808,9 @@ describe('CostBreakdownTable', () => {
   it('Available Funds row has an expand button with aria-expanded=false when sources exist', () => {
     render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
+        breakdown={{ ...buildBreakdownWithWI(), budgetSources: [buildSourceSummary({ id: 'src-1', name: 'Bank Loan', totalAmount: 80000 })] }}
         overview={buildOverview(100000)}
-        budgetSources={[buildBudgetSource({ id: 'src-1', name: 'Bank Loan', totalAmount: 80000 })]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1623,23 +1823,20 @@ describe('CostBreakdownTable', () => {
   it('clicking Available Funds expand shows source sub-rows with name and totalAmount', () => {
     render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
+        breakdown={{ ...buildBreakdownWithWI(), budgetSources: [buildSourceSummary({ id: 'src-1', name: 'Savings Account', totalAmount: 50000 }), buildSourceSummary({ id: 'src-2', name: 'Bank Loan', totalAmount: 80000 })] }}
         overview={buildOverview(130000)}
-        budgetSources={[
-          buildBudgetSource({ id: 'src-1', name: 'Savings Account', totalAmount: 50000 }),
-          buildBudgetSource({ id: 'src-2', name: 'Bank Loan', totalAmount: 80000 }),
-        ]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
     const expandBtn = screen.getByRole('button', { name: /expand available funds/i });
     fireEvent.click(expandBtn);
 
-    // Sub-rows should show source names
-    expect(screen.getByText('Savings Account')).toBeInTheDocument();
-    expect(screen.getByText('Bank Loan')).toBeInTheDocument();
+    // Source names appear in both chip strip AND sub-rows — 2 of each
+    expect(screen.getAllByText('Savings Account')).toHaveLength(2);
+    expect(screen.getAllByText('Bank Loan')).toHaveLength(2);
 
-    // And their totalAmount values as currency
+    // Sub-row totalAmount values are unique to the sub-rows
     expect(screen.getByText('€50,000.00')).toBeInTheDocument();
     expect(screen.getByText('€80,000.00')).toBeInTheDocument();
   });
@@ -1648,21 +1845,19 @@ describe('CostBreakdownTable', () => {
   it('clicking Available Funds expand again collapses source sub-rows', () => {
     render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
+        breakdown={{ ...buildBreakdownWithWI(), budgetSources: [buildSourceSummary({ id: 'src-1', name: 'Credit Line', totalAmount: 60000 })] }}
         overview={buildOverview(100000)}
-        budgetSources={[
-          buildBudgetSource({ id: 'src-1', name: 'Credit Line', totalAmount: 60000 }),
-        ]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
     const expandBtn = screen.getByRole('button', { name: /expand available funds/i });
 
-    // Expand
+    // Expand: source name appears in both chip strip and sub-row
     fireEvent.click(expandBtn);
-    expect(screen.getByText('Credit Line')).toBeInTheDocument();
+    expect(screen.getAllByText('Credit Line')).toHaveLength(2);
 
-    // Collapse
+    // Collapse: chip strip and sub-row both unmount (both gated by availFundsExpanded)
     fireEvent.click(expandBtn);
     expect(screen.queryByText('Credit Line')).not.toBeInTheDocument();
   });
@@ -1690,7 +1885,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 800,
         })}
         overview={buildOverview(10000)}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1714,7 +1909,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 1000,
         })}
         overview={buildOverview(20000)}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1741,7 +1936,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 1000,
         })}
         overview={buildOverview(20000)}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1768,7 +1963,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 1000,
         })}
         overview={buildOverview(20000)}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1785,7 +1980,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1802,7 +1997,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1969,7 +2164,7 @@ describe('CostBreakdownTable', () => {
         <CostBreakdownTable
           breakdown={buildBreakdownWithHI({ hiCategory: 'Master Bedroom' })}
           overview={buildOverview()}
-          budgetSources={[]}
+          selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
         />
       </MemoryRouter>,
     );
@@ -2016,7 +2211,7 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -2039,7 +2234,7 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 5000,
         })}
         overview={buildOverview(10000)}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -2067,7 +2262,7 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 100,
         })}
         overview={buildOverview(10000)}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -2091,7 +2286,7 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 5000,
         })}
         overview={buildOverview(10000)}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -2114,7 +2309,7 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 5000,
         })}
         overview={buildOverview(100)}
-        budgetSources={[]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -2412,6 +2607,7 @@ describe('CostBreakdownTable', () => {
                             actualCost: 0,
                             hasInvoice: false,
                             isQuotation: false,
+                            budgetSourceId: null,
                           },
                         ]
                       : [],
@@ -2445,6 +2641,7 @@ describe('CostBreakdownTable', () => {
         },
       },
       subsidyAdjustments: [],
+    budgetSources: [],
     };
   }
 
@@ -2524,6 +2721,7 @@ describe('CostBreakdownTable', () => {
         },
       },
       subsidyAdjustments: [],
+    budgetSources: [],
     };
   }
 
@@ -2690,6 +2888,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
           actualCost: 0,
           hasInvoice: false,
           isQuotation: false,
+          budgetSourceId: null,
         },
       ],
     };
@@ -2746,6 +2945,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
         },
       },
       subsidyAdjustments: [],
+    budgetSources: [],
     };
   }
 
@@ -2773,6 +2973,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
           actualCost: 0,
           hasInvoice: false,
           isQuotation: false,
+          budgetSourceId: null,
         },
       ],
     };
@@ -2829,6 +3030,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
         },
       },
       subsidyAdjustments: [],
+    budgetSources: [],
     };
   }
 
@@ -2938,5 +3140,284 @@ describe('Bug #586 — item expand state is independent per category', () => {
     const expandedBtns = screen.getAllByRole('button', { name: /Expand Shared Work Item/ });
     expect(expandedBtns[0]).toHaveAttribute('aria-expanded', 'true');
     expect(expandedBtns[1]).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  // ── Source badge rendering (scenario 22) ─────────────────────────────────
+
+  it('renders a source badge on Level 3 budget line row when budgetSourceId is set', () => {
+    const sourceId = 'src-bank-1';
+    const sourceName = 'Bank Loan';
+    const breakdown = buildBreakdownWithSourcedWI({
+      budgetSourceId: sourceId,
+      budgetSources: [buildSourceSummary({ id: sourceId, name: sourceName })],
+    });
+
+    const { container } = renderWithRouter(breakdown, buildOverview());
+
+    // Expand WI section → area → item
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
+    fireEvent.click(getButtonByLabel('Expand Sourced Work Item'));
+
+    // The source badge should render with the source name (or truncated version)
+    const badgeEl = screen.getByRole('generic', {
+      name: new RegExp(`Budget source: ${sourceName}`, 'i'),
+    });
+    expect(badgeEl).toBeInTheDocument();
+  });
+
+  it('renders source badge with aria-label containing source name', () => {
+    const sourceId = 'src-bank-1';
+    const sourceName = 'Bank Loan';
+    const breakdown = buildBreakdownWithSourcedWI({
+      budgetSourceId: sourceId,
+      budgetSources: [buildSourceSummary({ id: sourceId, name: sourceName })],
+    });
+
+    const { container } = renderWithRouter(breakdown, buildOverview());
+
+    // Expand to line level
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
+    fireEvent.click(getButtonByLabel('Expand Sourced Work Item'));
+
+    // aria-label includes the full source name
+    const badgeEl = container.querySelector(`[aria-label*="${sourceName}"]`);
+    expect(badgeEl).toBeInTheDocument();
+  });
+
+  // ── Unassigned badge (scenario 23) ────────────────────────────────────────
+
+  it('renders unassigned badge text for budget line with null budgetSourceId', () => {
+    const breakdown = buildBreakdownWithSourcedWI({
+      budgetSourceId: null,
+      budgetSources: [],
+    });
+
+    const { container } = renderWithRouter(breakdown, buildOverview());
+
+    // Expand to line level
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
+    fireEvent.click(getButtonByLabel('Expand Sourced Work Item'));
+
+    // The badge for a null source should show "Unassigned" (from translation)
+    const unassignedBadge = container.querySelector('[aria-label*="Unassigned"]');
+    expect(unassignedBadge).toBeInTheDocument();
+  });
+
+  // ── Filter strip (scenario 24) ─────────────────────────────────────────────
+
+  it('renders chip strip when Available Funds is expanded and budgetSources is non-empty', () => {
+    const sourceId = 'src-bank-1';
+    const breakdown = buildBreakdownWithSourcedWI({
+      budgetSourceId: sourceId,
+      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Bank Loan' })],
+    });
+
+    const { container } = renderWithRouter(breakdown, buildOverview());
+
+    // Expand Available Funds section
+    fireEvent.click(getButtonByControls(container, 'avail-funds'));
+
+    // A chip for the named source should appear
+    const chipBtn = screen.getByRole('button', { name: /Filter: Bank Loan/i });
+    expect(chipBtn).toBeInTheDocument();
+  });
+
+  // ── Unassigned chip (scenario 25) ─────────────────────────────────────────
+
+  it('shows Unassigned chip when at least one line has null budgetSourceId', () => {
+    const sourceId = 'src-bank-1';
+    const breakdown = buildBreakdownWithMixedSourceLines({
+      sourceId,
+      sourceName: 'Bank Loan',
+    });
+
+    const { container } = renderWithRouter(breakdown, buildOverview());
+
+    // Expand Available Funds section
+    fireEvent.click(getButtonByControls(container, 'avail-funds'));
+
+    // The Unassigned chip should appear alongside the Bank Loan chip
+    const unassignedChip = screen.getByRole('button', { name: /Filter: Unassigned/i });
+    expect(unassignedChip).toBeInTheDocument();
+  });
+
+  // ── Filter toggle calls onSourceToggle (scenario 26) ─────────────────────
+
+  it('calls onSourceToggle with the source ID when a chip is clicked', () => {
+    const sourceId = 'src-bank-1';
+    const onSourceToggle = jest.fn();
+    const breakdown = buildBreakdownWithSourcedWI({
+      budgetSourceId: sourceId,
+      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Bank Loan' })],
+    });
+
+    const { container } = renderWithRouter(breakdown, buildOverview(), { onSourceToggle });
+
+    // Expand Available Funds to reveal chips
+    fireEvent.click(getButtonByControls(container, 'avail-funds'));
+
+    // Click the Bank Loan chip
+    const chipBtn = screen.getByRole('button', { name: /Filter: Bank Loan/i });
+    fireEvent.click(chipBtn);
+
+    expect(onSourceToggle).toHaveBeenCalledTimes(1);
+    expect(onSourceToggle).toHaveBeenCalledWith(sourceId);
+  });
+
+  // ── Clear button visible only when ≥1 source selected (scenario 27) ────────
+
+  it('shows "All sources" clear button when selectedSourceIds is non-empty', () => {
+    const sourceId = 'src-bank-1';
+    const breakdown = buildBreakdownWithSourcedWI({
+      budgetSourceId: sourceId,
+      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Bank Loan' })],
+    });
+
+    const { container } = renderWithRouter(breakdown, buildOverview(), {
+      selectedSourceIds: new Set([sourceId]),
+    });
+
+    // Expand Available Funds to reveal chip strip
+    fireEvent.click(getButtonByControls(container, 'avail-funds'));
+
+    // Clear/All sources button should be visible
+    const clearBtn = screen.getByRole('button', { name: /All sources/i });
+    expect(clearBtn).toBeInTheDocument();
+  });
+
+  it('does not show "All sources" clear button when selectedSourceIds is empty', () => {
+    const sourceId = 'src-bank-1';
+    const breakdown = buildBreakdownWithSourcedWI({
+      budgetSourceId: sourceId,
+      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Bank Loan' })],
+    });
+
+    const { container } = renderWithRouter(breakdown, buildOverview(), {
+      selectedSourceIds: new Set(),
+    });
+
+    // Expand Available Funds
+    fireEvent.click(getButtonByControls(container, 'avail-funds'));
+
+    // Clear button should NOT be present
+    expect(screen.queryByRole('button', { name: /All sources/i })).not.toBeInTheDocument();
+  });
+
+  // ── Filter empty state (scenario 28) ─────────────────────────────────────
+
+  it('shows empty state message when filter is active but no lines match', () => {
+    const sourceId = 'src-bank-1';
+    const breakdown = buildBreakdownWithSourcedWI({
+      budgetSourceId: null, // line has NO source
+      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Bank Loan' })],
+    });
+
+    // Select 'src-bank-1' but the line has budgetSourceId=null → no match
+    renderWithRouter(breakdown, buildOverview(), {
+      selectedSourceIds: new Set([sourceId]),
+    });
+
+    // The empty state should appear with the "no lines match" message
+    expect(
+      screen.getByText(/No budget lines match the selected source filter/i),
+    ).toBeInTheDocument();
+  });
+
+  // ── Clear sources calls onClearSources (scenario 27b) ─────────────────────
+
+  it('calls onClearSources when the clear button is clicked', () => {
+    const sourceId = 'src-bank-1';
+    const onClearSources = jest.fn();
+    const breakdown = buildBreakdownWithSourcedWI({
+      budgetSourceId: sourceId,
+      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Bank Loan' })],
+    });
+
+    const { container } = renderWithRouter(breakdown, buildOverview(), {
+      selectedSourceIds: new Set([sourceId]),
+      onClearSources,
+    });
+
+    // Expand Available Funds to reveal chip strip + clear button
+    fireEvent.click(getButtonByControls(container, 'avail-funds'));
+
+    const clearBtn = screen.getByRole('button', { name: /All sources/i });
+    fireEvent.click(clearBtn);
+
+    expect(onClearSources).toHaveBeenCalledTimes(1);
+  });
+
+  // ── Selected chip shows aria-pressed="true" ───────────────────────────────
+
+  it('selected chip has aria-pressed="true"', () => {
+    const sourceId = 'src-bank-1';
+    const breakdown = buildBreakdownWithSourcedWI({
+      budgetSourceId: sourceId,
+      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Bank Loan' })],
+    });
+
+    const { container } = renderWithRouter(breakdown, buildOverview(), {
+      selectedSourceIds: new Set([sourceId]),
+    });
+
+    // Expand Available Funds
+    fireEvent.click(getButtonByControls(container, 'avail-funds'));
+
+    // The selected chip should be pressed
+    const chipBtn = screen.getByRole('button', { name: /Filter: Bank Loan.*selected/i });
+    expect(chipBtn).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  // ── Escape key handler (Escape clears source filter via toolbar keyDown) ──
+
+  it('pressing Escape in the chip toolbar when a source is selected calls onClearSources', () => {
+    const sourceId = 'src-esc-1';
+    const onClearSources = jest.fn();
+    const breakdown = buildBreakdownWithSourcedWI({
+      budgetSourceId: sourceId,
+      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Credit Line' })],
+    });
+
+    const { container } = renderWithRouter(breakdown, buildOverview(), {
+      selectedSourceIds: new Set([sourceId]),
+      onClearSources,
+    });
+
+    // Expand Available Funds to show the chip toolbar
+    fireEvent.click(getButtonByControls(container, 'avail-funds'));
+
+    // The toolbar should be visible
+    const toolbar = screen.getByRole('toolbar');
+    expect(toolbar).toBeInTheDocument();
+
+    // Fire Escape key on the toolbar — should call onClearSources
+    fireEvent.keyDown(toolbar, { key: 'Escape' });
+    expect(onClearSources).toHaveBeenCalledTimes(1);
+  });
+
+  it('pressing Escape in the chip toolbar when no source is selected does not call onClearSources', () => {
+    const sourceId = 'src-esc-2';
+    const onClearSources = jest.fn();
+    const breakdown = buildBreakdownWithSourcedWI({
+      budgetSourceId: sourceId,
+      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Savings' })],
+    });
+
+    const { container } = renderWithRouter(breakdown, buildOverview(), {
+      selectedSourceIds: new Set(), // no source selected
+      onClearSources,
+    });
+
+    // Expand Available Funds to show the chip toolbar
+    fireEvent.click(getButtonByControls(container, 'avail-funds'));
+
+    const toolbar = screen.getByRole('toolbar');
+
+    // Escape with no selected sources should NOT call onClearSources
+    fireEvent.keyDown(toolbar, { key: 'Escape' });
+    expect(onClearSources).not.toHaveBeenCalled();
   });
 });

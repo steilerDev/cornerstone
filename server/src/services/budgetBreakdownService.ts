@@ -10,6 +10,7 @@ import type {
   BreakdownTotals,
   CostDisplay,
   SubsidyAdjustment,
+  BudgetSourceSummaryBreakdown,
 } from '@cornerstone/shared';
 import { computeSubsidyEffects, applySubsidyCaps } from './shared/subsidyCalculationEngine.js';
 import { getDescendantIds } from './areaService.js';
@@ -46,6 +47,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     plannedAmount: number;
     confidence: string;
     budgetCategoryId: string | null;
+    budgetSourceId: string | null;
   }>(
     sql`SELECT
       wi.id                  AS workItemId,
@@ -55,7 +57,8 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       wib.description        AS description,
       wib.planned_amount     AS plannedAmount,
       wib.confidence         AS confidence,
-      wib.budget_category_id AS budgetCategoryId
+      wib.budget_category_id AS budgetCategoryId,
+      wib.budget_source_id   AS budgetSourceId
     FROM work_items wi
     INNER JOIN work_item_budgets wib ON wib.work_item_id = wi.id
     ORDER BY wi.area_id ASC, wi.title ASC`,
@@ -96,6 +99,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     plannedAmount: number;
     confidence: string;
     budgetCategoryId: string | null;
+    budgetSourceId: string | null;
   }>(
     sql`SELECT
       hi.id                     AS householdItemId,
@@ -105,7 +109,8 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       hib.description           AS description,
       hib.planned_amount        AS plannedAmount,
       hib.confidence            AS confidence,
-      hib.budget_category_id    AS budgetCategoryId
+      hib.budget_category_id    AS budgetCategoryId,
+      hib.budget_source_id      AS budgetSourceId
     FROM household_items hi
     INNER JOIN household_item_budgets hib ON hib.household_item_id = hi.id
     ORDER BY hi.area_id ASC, hi.name ASC`,
@@ -543,6 +548,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       actualCost,
       hasInvoice: wiLineInvoiceMap.has(row.budgetLineId),
       isQuotation,
+      budgetSourceId: row.budgetSourceId ?? null,
     });
 
     item.projectedMin += min;
@@ -559,10 +565,12 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     item.rawProjectedMax += rawMax;
   }
 
-  // Build budget category map for work items
+  // Build budget category and source maps for work items
   const wiBudgetLineCategoryMap = new Map<string, string | null>();
+  const wiBudgetLineSourceMap = new Map<string, string | null>();
   for (const row of workItemLineRows) {
     wiBudgetLineCategoryMap.set(row.budgetLineId, row.budgetCategoryId);
+    wiBudgetLineSourceMap.set(row.budgetLineId, row.budgetSourceId ?? null);
   }
 
   // Apply subsidy payback and cost display
@@ -704,6 +712,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       actualCost,
       hasInvoice: hiLineInvoiceMap.has(row.budgetLineId),
       isQuotation,
+      budgetSourceId: row.budgetSourceId ?? null,
     });
 
     item.projectedMin += min;
@@ -720,10 +729,12 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     item.rawProjectedMax += rawMax;
   }
 
-  // Build budget category map for household items
+  // Build budget category and source maps for household items
   const hiBudgetLineCategoryMap = new Map<string, string | null>();
+  const hiBudgetLineSourceMap = new Map<string, string | null>();
   for (const row of hiLineRows) {
     hiBudgetLineCategoryMap.set(row.budgetLineId, row.budgetCategoryId);
+    hiBudgetLineSourceMap.set(row.budgetLineId, row.budgetSourceId ?? null);
   }
 
   // Apply subsidy payback and cost display
@@ -926,6 +937,96 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     maxExcess: s.maxExcess,
   }));
 
+  // ── Aggregate per-source projectedMin/Max for the budgetSources array ────────
+  // Query budget source metadata
+  const budgetSourceRows = db.all<{
+    id: string;
+    name: string;
+    totalAmount: number;
+  }>(
+    sql`SELECT id, name, total_amount AS totalAmount FROM budget_sources ORDER BY name ASC`,
+  );
+
+  const budgetSourceMetaMap = new Map(budgetSourceRows.map((r) => [r.id, r]));
+
+  // Accumulate per-source projected totals
+  const sourceProjectedMap = new Map<
+    string,
+    { name: string; totalAmount: number; min: number; max: number }
+  >();
+
+  // Iterate work items' budget lines
+  for (const item of wiEntityData.values()) {
+    for (const line of item.budgetLines) {
+      if (line.budgetSourceId === null) continue;
+      const { min, max } = computeLineProjected(
+        line.plannedAmount,
+        line.confidence,
+        line.actualCost,
+        line.hasInvoice,
+        line.isQuotation,
+      );
+      const existing = sourceProjectedMap.get(line.budgetSourceId);
+      if (existing) {
+        existing.min += min;
+        existing.max += max;
+      } else {
+        const meta = budgetSourceMetaMap.get(line.budgetSourceId);
+        if (meta) {
+          sourceProjectedMap.set(line.budgetSourceId, {
+            name: meta.name,
+            totalAmount: meta.totalAmount,
+            min,
+            max,
+          });
+        }
+      }
+    }
+  }
+
+  // Iterate household items' budget lines
+  for (const item of hiEntityData.values()) {
+    for (const line of item.budgetLines) {
+      if (line.budgetSourceId === null) continue;
+      const { min, max } = computeLineProjected(
+        line.plannedAmount,
+        line.confidence,
+        line.actualCost,
+        line.hasInvoice,
+        line.isQuotation,
+      );
+      const existing = sourceProjectedMap.get(line.budgetSourceId);
+      if (existing) {
+        existing.min += min;
+        existing.max += max;
+      } else {
+        const meta = budgetSourceMetaMap.get(line.budgetSourceId);
+        if (meta) {
+          sourceProjectedMap.set(line.budgetSourceId, {
+            name: meta.name,
+            totalAmount: meta.totalAmount,
+            min,
+            max,
+          });
+        }
+      }
+    }
+  }
+
+  // Build budgetSources array: include only sources with at least one budget line
+  const budgetSources: BudgetSourceSummaryBreakdown[] = budgetSourceRows
+    .filter((r) => sourceProjectedMap.has(r.id))
+    .map((r) => {
+      const proj = sourceProjectedMap.get(r.id)!;
+      return {
+        id: r.id,
+        name: r.name,
+        totalAmount: r.totalAmount,
+        projectedMin: proj.min,
+        projectedMax: proj.max,
+      };
+    });
+
   return {
     workItems: {
       areas: wiAreas,
@@ -936,5 +1037,6 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       totals: hiTotals,
     },
     subsidyAdjustments,
+    budgetSources,
   };
 }
