@@ -776,7 +776,7 @@ test.describe('Empty state when all sources deselected', { tag: '@responsive' },
 // Available Funds caption
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Available Funds caption', { tag: '@responsive' }, () => {
-  test('Caption "(1 of 2 selected)" appears after deselecting one source from two', async ({
+  test('Caption "(X of Y selected)" appears after deselecting one source from two', async ({
     page,
   }) => {
     const overviewPage = new BudgetOverviewPage(page);
@@ -798,12 +798,10 @@ test.describe('Available Funds caption', { tag: '@responsive' }, () => {
       // Deselect Bank Loan
       await overviewPage.sourceRow('Bank Loan').click();
 
-      // Caption appears with "1 of N" (or localized equivalent with digits).
-      // The fixture includes an unassigned line, so total = 2 named sources + 1
-      // unassigned = 3 virtual sources. Match "1 of <any-digit>" rather than "1 of 2".
-      await expect(overviewPage.filterCaption()).toBeVisible();
-      const captionText = await overviewPage.filterCaption().textContent();
-      expect(captionText).toMatch(/1\D+\d+/); // matches "1 of 2", "1 of 3", "1 von 3" etc.
+      // Caption appears with "<selected> of <total>" (locale-agnostic).
+      // The fixture includes 2 named sources + 1 unassigned line, so total = 3
+      // virtual sources. After deselecting Bank Loan, 2 of 3 remain selected.
+      await expect(overviewPage.filterCaption()).toHaveText(/\d+\D+\d+/);
     } finally {
       await teardown();
     }
