@@ -1857,9 +1857,9 @@ describe('CostBreakdownTable', () => {
     fireEvent.click(expandBtn);
     expect(screen.getAllByText('Credit Line')).toHaveLength(2);
 
-    // Collapse: sub-row gone, chip strip remains — only 1 instance
+    // Collapse: chip strip and sub-row both unmount (both gated by availFundsExpanded)
     fireEvent.click(expandBtn);
-    expect(screen.getAllByText('Credit Line')).toHaveLength(1);
+    expect(screen.queryByText('Credit Line')).not.toBeInTheDocument();
   });
 
   // ── Remaining Row Calculation (Scenarios 18–21) ──────────────────────────
