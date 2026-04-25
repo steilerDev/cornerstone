@@ -525,8 +525,8 @@
   }
 
   .rowSourceDetailToggle td {
-    padding-top: var(--spacing-3);
-    padding-bottom: var(--spacing-3);
+    padding-top: var(--spacing-4);
+    padding-bottom: var(--spacing-4);
   }
 
   /* Sticky colName background must match row state */

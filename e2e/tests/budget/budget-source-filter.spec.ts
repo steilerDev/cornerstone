@@ -1134,9 +1134,9 @@ test.describe('Live region', { tag: '@responsive' }, () => {
 
       // Live region text must contain "<selected> of <total>" (locale-agnostic).
       // Fixture has 2 named sources + 1 unassigned line = 3 virtual sources.
-      // After deselecting one, expect "1" and a separate digit ≥ 2.
-      const announcementText = await overviewPage.filterAnnouncement().textContent();
-      expect(announcementText).toMatch(/\d+\D+\d+/);
+      // Use toHaveText with regex so the assertion auto-retries while React
+      // re-renders the live region after the click → URL state → state update.
+      await expect(overviewPage.filterAnnouncement()).toHaveText(/\d+\D+\d+/);
     } finally {
       await teardown();
     }
