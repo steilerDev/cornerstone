@@ -206,9 +206,11 @@ export class BudgetOverviewPage {
 
   /**
    * Source detail row for a given source name (expanded under Available Funds).
+   * Scoped to `tr[class*="rowSourceDetail"]` to avoid matching the chip-toolbar row,
+   * which also contains the source name inside its chips.
    */
   sourceDetailRow(name: string): Locator {
-    return this.costBreakdownCard.getByRole('row').filter({
+    return this.costBreakdownCard.locator('tr[class*="rowSourceDetail"]').filter({
       has: this.page.getByText(name, { exact: true }),
     });
   }

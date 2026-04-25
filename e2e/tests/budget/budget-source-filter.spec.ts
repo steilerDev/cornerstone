@@ -1196,12 +1196,16 @@ test.describe('Dark mode: badge color smoke check', { tag: '@responsive' }, () =
         .getByRole('button', { name: /Expand Main Work Item/i })
         .click();
 
-      // Get the source badge for Line A1
+      // Get the source badge for Line A1.
+      // On mobile the badge label is wrapped in .sourceBadgeLabel which is
+      // CSS-hidden (display: none), but the element is still attached and its
+      // computed background-color is the dark-mode token value, which is what
+      // we want to assert here.
       const badge = overviewPage.costBreakdownCard
         .getByRole('row')
         .filter({ hasText: 'Line A1 (Source A)' })
         .locator('[aria-label="Budget source: Bank Loan"]');
-      await expect(badge).toBeVisible();
+      await expect(badge).toBeAttached();
 
       // Check background is not white (dark mode should use dark palette)
       const bgColor = await badge.evaluate((el) => {

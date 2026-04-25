@@ -687,6 +687,7 @@ export function CostBreakdownTable({
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [perspective, setPerspective] = useState<CostPerspective>('avg');
   const availFundsButtonRef = useRef<HTMLButtonElement>(null);
+  const budgetSources: BudgetSourceSummaryBreakdown[] = breakdown.budgetSources ?? [];
 
   const toggle = (key: string) => {
     const next = new Set(expandedKeys);
@@ -939,7 +940,7 @@ export function CostBreakdownTable({
     <FormatterContext.Provider value={formatCurrency}>
       <BreakdownContext.Provider
         value={{
-          budgetSources: breakdown.budgetSources,
+          budgetSources,
           hasSourceFilter,
           visibleLineIds,
         }}
@@ -1233,7 +1234,7 @@ export function CostBreakdownTable({
               <tr className={styles.rowLevel0}>
                 <td className={styles.colName}>
                   <div className={styles.nameContent}>
-                    {breakdown.budgetSources.length > 0 && (
+                    {budgetSources.length > 0 && (
                       <button
                         ref={availFundsButtonRef}
                         type="button"
@@ -1266,7 +1267,7 @@ export function CostBreakdownTable({
                       className={styles.sourceFilterStrip}
                       onKeyDown={handleToolbarKeyDown}
                     >
-                      {breakdown.budgetSources.map((source) => (
+                      {budgetSources.map((source) => (
                         <BudgetSourceChip
                           key={source.id}
                           sourceId={source.id}
@@ -1301,7 +1302,7 @@ export function CostBreakdownTable({
 
               {/* Enhanced source detail rows */}
               {availFundsExpanded &&
-                breakdown.budgetSources.map((source: BudgetSourceSummaryBreakdown) => {
+                budgetSources.map((source: BudgetSourceSummaryBreakdown) => {
                   const colorIndex = getSourceColorIndex(source.id);
                   const isSelected = selectedSourceIds.has(source.id);
                   const allocatedCost = resolveProjected(source.projectedMin, source.projectedMax, perspective);
