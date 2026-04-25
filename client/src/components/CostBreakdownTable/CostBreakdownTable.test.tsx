@@ -4215,7 +4215,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
 
     // WI Item A row: Cost = filtered avg = 5000 → '-€5,000.00'
     const wiItemARow = screen.getByRole('link', { name: 'WI Item A' }).closest('tr')!;
-    expect(within(wiItemARow).getByText('-€5,000.00')).toBeInTheDocument();
+    const wiItemACostCell = wiItemARow.querySelector('td[class*="colBudget"]');
+    expect(wiItemACostCell).not.toBeNull();
+    expect(wiItemACostCell!.textContent?.replace(/\s+/g, '')).toBe('-€5,000.00');
 
     // WI Item B is cascade-hidden (all its lines belong to src-b)
     expect(screen.queryByText('WI Item B')).not.toBeInTheDocument();
@@ -4242,7 +4244,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
 
     // HI Item X row: filtered Cost = avg of src-a line only = 2000 → '-€2,000.00'
     const hiItemXRow = screen.getByRole('link', { name: 'HI Item X' }).closest('tr')!;
-    expect(within(hiItemXRow).getByText('-€2,000.00')).toBeInTheDocument();
+    const hiItemXCostCell = hiItemXRow.querySelector('td[class*="colBudget"]');
+    expect(hiItemXCostCell).not.toBeNull();
+    expect(hiItemXCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€2,000.00');
 
     // The server's project-wide HI item avg cost (3000) must NOT appear in this row
     expect(within(hiItemXRow).queryByText('-€3,000.00')).not.toBeInTheDocument();
@@ -4374,7 +4378,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
     const areaRow = screen.getByRole('button', { name: 'Expand WI Area' }).closest('tr')!;
 
     // Filtered area Cost = 5000 (only WI-A, src-a line)
-    expect(within(areaRow).getByText('-€5,000.00')).toBeInTheDocument();
+    const wiAreaCostCell = areaRow.querySelector('td[class*="colBudget"]');
+    expect(wiAreaCostCell).not.toBeNull();
+    expect(wiAreaCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€5,000.00');
     // Server project-wide area avg cost (8000) must NOT appear in the area row
     expect(within(areaRow).queryByText('-€8,000.00')).not.toBeInTheDocument();
   });
@@ -4396,7 +4402,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
     const hiAreaRow = screen.getByRole('button', { name: 'Expand HI Area' }).closest('tr')!;
 
     // Filtered area Cost = 2000 (HI Item X, src-a line only)
-    expect(within(hiAreaRow).getByText('-€2,000.00')).toBeInTheDocument();
+    const hiAreaCostCell = hiAreaRow.querySelector('td[class*="colBudget"]');
+    expect(hiAreaCostCell).not.toBeNull();
+    expect(hiAreaCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€2,000.00');
     // Server project-wide HI area avg cost (3000) must NOT appear in the area row
     expect(within(hiAreaRow).queryByText('-€3,000.00')).not.toBeInTheDocument();
   });
@@ -4422,7 +4430,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
       .closest('tr')!;
 
     // Filtered WI section Cost = avg of src-a lines only = 5000 → '-€5,000.00'
-    expect(within(wiSectionRow).getByText('-€5,000.00')).toBeInTheDocument();
+    const wiSectionCostCell = wiSectionRow.querySelector('td[class*="colBudget"]');
+    expect(wiSectionCostCell).not.toBeNull();
+    expect(wiSectionCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€5,000.00');
 
     // Server project-wide WI section avg (8000) must NOT appear in this header row
     expect(within(wiSectionRow).queryByText('-€8,000.00')).not.toBeInTheDocument();
@@ -4444,7 +4454,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
       .closest('tr')!;
 
     // Filtered HI section Cost = avg of src-a HI lines only = 2000 → '-€2,000.00'
-    expect(within(hiSectionRow).getByText('-€2,000.00')).toBeInTheDocument();
+    const hiSectionCostCell = hiSectionRow.querySelector('td[class*="colBudget"]');
+    expect(hiSectionCostCell).not.toBeNull();
+    expect(hiSectionCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€2,000.00');
 
     // Server project-wide HI section avg (3000) must NOT appear in this header row
     expect(within(hiSectionRow).queryByText('-€3,000.00')).not.toBeInTheDocument();
@@ -4553,7 +4565,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
 
     const sumRow = screen.getByRole('row', { name: /^Sum$/i });
     // Sum row Payback = €1,600.00 (pro-rata: src-sp-a share)
-    expect(within(sumRow).getByText('€1,600.00')).toBeInTheDocument();
+    const sumPaybackCell = sumRow.querySelector('td[class*="colPayback"]');
+    expect(sumPaybackCell).not.toBeNull();
+    expect(sumPaybackCell!.textContent?.replace(/\s+/g, '')).toBe('€1,600.00');
     // Full project payback (2000) must NOT appear in Sum row Payback column
     expect(within(sumRow).queryByText('€2,000.00')).not.toBeInTheDocument();
   });
@@ -4575,7 +4589,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
 
     const remainingRow = screen.getByRole('row', { name: /remaining budget/i });
     // Net = 100000 - 7000 = 93000 → '€93,000.00'
-    expect(within(remainingRow).getByText('€93,000.00')).toBeInTheDocument();
+    const remainingNetCell = remainingRow.querySelector('td[class*="colRemaining"]');
+    expect(remainingNetCell).not.toBeNull();
+    expect(remainingNetCell!.textContent?.replace(/\s+/g, '')).toBe('€93,000.00');
     // Unfiltered remaining (139000) must NOT appear in this row
     expect(within(remainingRow).queryByText('€139,000.00')).not.toBeInTheDocument();
   });
@@ -4601,26 +4617,36 @@ describe('Source filter — aggregate consistency (#1358)', () => {
     const wiSectionRow = screen
       .getByRole('button', { name: 'Expand work item budget by area' })
       .closest('tr')!;
-    expect(within(wiSectionRow).getByText('-€8,000.00')).toBeInTheDocument();
+    const noFiltWiSectionCostCell = wiSectionRow.querySelector('td[class*="colBudget"]');
+    expect(noFiltWiSectionCostCell).not.toBeNull();
+    expect(noFiltWiSectionCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€8,000.00');
 
     // HI section Level 0 header shows server avg cost
     const hiSectionRow = screen
       .getByRole('button', { name: 'Expand household item budget by area' })
       .closest('tr')!;
-    expect(within(hiSectionRow).getByText('-€3,000.00')).toBeInTheDocument();
+    const noFiltHiSectionCostCell = hiSectionRow.querySelector('td[class*="colBudget"]');
+    expect(noFiltHiSectionCostCell).not.toBeNull();
+    expect(noFiltHiSectionCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€3,000.00');
 
     // Expand to see Level 1 area rows
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
     const wiAreaRow = screen.getByRole('button', { name: 'Expand WI Area' }).closest('tr')!;
-    expect(within(wiAreaRow).getByText('-€8,000.00')).toBeInTheDocument();
+    const noFiltWiAreaCostCell = wiAreaRow.querySelector('td[class*="colBudget"]');
+    expect(noFiltWiAreaCostCell).not.toBeNull();
+    expect(noFiltWiAreaCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€8,000.00');
 
     fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
     const hiAreaRow = screen.getByRole('button', { name: 'Expand HI Area' }).closest('tr')!;
-    expect(within(hiAreaRow).getByText('-€3,000.00')).toBeInTheDocument();
+    const noFiltHiAreaCostCell = hiAreaRow.querySelector('td[class*="colBudget"]');
+    expect(noFiltHiAreaCostCell).not.toBeNull();
+    expect(noFiltHiAreaCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€3,000.00');
 
     // Remaining Budget Net = 150000 - 11000 + 0 = 139000
     const remainingRow = screen.getByRole('row', { name: /remaining budget/i });
-    expect(within(remainingRow).getByText('€139,000.00')).toBeInTheDocument();
+    const noFiltRemainingNetCell = remainingRow.querySelector('td[class*="colRemaining"]');
+    expect(noFiltRemainingNetCell).not.toBeNull();
+    expect(noFiltRemainingNetCell!.textContent?.replace(/\s+/g, '')).toBe('€139,000.00');
   });
 
   // ── Test 11: Internal consistency — visible Area Cost = sum of visible Item Costs ─
@@ -4775,7 +4801,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
 
     const itemRow = screen.getByRole('link', { name: 'Actual Filter Item' }).closest('tr')!;
     // Filtered cost = 5000 (only line-inv-a visible)
-    expect(within(itemRow).getByText('-€5,000.00')).toBeInTheDocument();
+    const invItemCostCell = itemRow.querySelector('td[class*="colBudget"]');
+    expect(invItemCostCell).not.toBeNull();
+    expect(invItemCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€5,000.00');
     // Full item actualCost (8000) must NOT appear in this item row
     expect(within(itemRow).queryByText('-€8,000.00')).not.toBeInTheDocument();
   });
