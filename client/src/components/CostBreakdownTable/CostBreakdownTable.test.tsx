@@ -1900,15 +1900,28 @@ describe('CostBreakdownTable', () => {
     expect(expandBtn).toHaveAttribute('aria-expanded', 'false');
   });
 
-  // Scenario 16: clicking expand shows one sub-row per source with name and totalAmount
-  it('clicking Available Funds expand shows source sub-rows with name and totalAmount', () => {
+  // Scenario 16: clicking expand shows one sub-row per source with name and Net column
+  it('clicking Available Funds expand shows source sub-rows with name and Net value', () => {
     render(
       <CostBreakdownTable
         breakdown={{
           ...buildBreakdownWithWI(),
           budgetSources: [
-            buildSourceSummary({ id: 'src-1', name: 'Savings Account', totalAmount: 50000 }),
-            buildSourceSummary({ id: 'src-2', name: 'Bank Loan', totalAmount: 80000 }),
+            // No allocated cost/payback for these sources → Net = totalAmount
+            buildSourceSummary({
+              id: 'src-1',
+              name: 'Savings Account',
+              totalAmount: 50000,
+              projectedMin: 0,
+              projectedMax: 0,
+            }),
+            buildSourceSummary({
+              id: 'src-2',
+              name: 'Bank Loan',
+              totalAmount: 80000,
+              projectedMin: 0,
+              projectedMax: 0,
+            }),
           ],
         }}
         overview={buildOverview(130000)}
@@ -1925,7 +1938,8 @@ describe('CostBreakdownTable', () => {
     expect(screen.getByText('Savings Account')).toBeInTheDocument();
     expect(screen.getByText('Bank Loan')).toBeInTheDocument();
 
-    // Source totalAmount values appear in the source detail rows
+    // With zero cost/payback for these sources, Net = totalAmount, so the
+    // totalAmount values appear in the Net column of the source detail rows.
     expect(screen.getByText('€50,000.00')).toBeInTheDocument();
     expect(screen.getByText('€80,000.00')).toBeInTheDocument();
   });
@@ -3513,9 +3527,10 @@ describe('Bug #586 — item expand state is independent per category', () => {
       deselectedSourceIds: new Set([sourceId]),
     });
 
-    // Expand WI section → area
+    // Expand WI section. The 'No Area' container is also cascade-hidden because
+    // its only item has no surviving lines, so its expand button doesn't exist —
+    // we just assert the work-item title is absent at that depth.
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:No Area'));
 
     // The work item 'Sourced Work Item' should NOT be present (all its lines are deselected)
     expect(screen.queryByText('Sourced Work Item')).not.toBeInTheDocument();
