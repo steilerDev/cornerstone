@@ -1832,11 +1832,11 @@ describe('CostBreakdownTable', () => {
     const expandBtn = screen.getByRole('button', { name: /expand available funds/i });
     fireEvent.click(expandBtn);
 
-    // Sub-rows should show source names
-    expect(screen.getByText('Savings Account')).toBeInTheDocument();
-    expect(screen.getByText('Bank Loan')).toBeInTheDocument();
+    // Source names appear in both chip strip AND sub-rows — 2 of each
+    expect(screen.getAllByText('Savings Account')).toHaveLength(2);
+    expect(screen.getAllByText('Bank Loan')).toHaveLength(2);
 
-    // And their totalAmount values as currency
+    // Sub-row totalAmount values are unique to the sub-rows
     expect(screen.getByText('€50,000.00')).toBeInTheDocument();
     expect(screen.getByText('€80,000.00')).toBeInTheDocument();
   });
@@ -1853,13 +1853,13 @@ describe('CostBreakdownTable', () => {
 
     const expandBtn = screen.getByRole('button', { name: /expand available funds/i });
 
-    // Expand
+    // Expand: source name appears in both chip strip and sub-row
     fireEvent.click(expandBtn);
-    expect(screen.getByText('Credit Line')).toBeInTheDocument();
+    expect(screen.getAllByText('Credit Line')).toHaveLength(2);
 
-    // Collapse
+    // Collapse: sub-row gone, chip strip remains — only 1 instance
     fireEvent.click(expandBtn);
-    expect(screen.queryByText('Credit Line')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Credit Line')).toHaveLength(1);
   });
 
   // ── Remaining Row Calculation (Scenarios 18–21) ──────────────────────────
