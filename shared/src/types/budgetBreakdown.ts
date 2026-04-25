@@ -28,6 +28,7 @@ export interface BreakdownBudgetLine {
   actualCost: number;
   hasInvoice: boolean;
   isQuotation: boolean;
+  budgetSourceId: string | null;
 }
 
 /**
@@ -110,6 +111,19 @@ export interface SubsidyAdjustment {
 }
 
 /**
+ * Per-source aggregate for the budget breakdown response.
+ * projectedMin/Max are perspective-dependent totals for lines assigned to this source.
+ * The frontend computes allocatedCost at the active perspective and derives remaining.
+ */
+export interface BudgetSourceSummaryBreakdown {
+  id: string;
+  name: string;
+  totalAmount: number;
+  projectedMin: number;
+  projectedMax: number;
+}
+
+/**
  * Complete budget breakdown structure.
  */
 export interface BudgetBreakdown {
@@ -122,6 +136,7 @@ export interface BudgetBreakdown {
     totals: BreakdownTotals;
   };
   subsidyAdjustments: SubsidyAdjustment[];
+  budgetSources: BudgetSourceSummaryBreakdown[];
 }
 
 /**

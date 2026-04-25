@@ -3,6 +3,14 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1354 — CostBreakdownTable Props Refactor Pattern (2026-04-25)
+
+`CostBreakdownTable` had `budgetSources={[]}` prop replaced with `selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}`. When a component's prop API changes, use `replace_all: true` on Edit tool to update all test usages in one pass (28 occurrences updated at once). Also add new required fixture fields (`budgetSources: []` on BudgetBreakdown, `budgetSourceId: null` on BreakdownBudgetLine) via Python `sed`-style script when the pattern is uniform across many objects.
+
+**Fix Loop Round 1 (2026-04-25)**: Tests at lines ~1844/1859/1884 still passed `budgetSources` as a JSX prop AND were missing required props. Fix: move source data into `breakdown={{ ...buildBreakdownWithWI(), budgetSources: [buildSourceSummary(...)] }}` and add `selectedSourceIds onSourceToggle onClearSources`. Also removed obsolete `buildBudgetSource()` helper (used `BudgetSource` full type — now use `buildSourceSummary()` with `BudgetSourceSummaryBreakdown`). In `BudgetOverviewPage.test.tsx`, Scenario 30 was testing the old `budgetSources` prop flow; updated to populate `breakdown.budgetSources` instead. Added Escape key tests for new `handleToolbarKeyDown` behavior.
+
+**Stale dist warning**: `node_modules/@cornerstone/shared/dist/` must be rebuilt (`tsc -p shared/tsconfig.json --outDir node_modules/@cornerstone/shared/dist`) when shared types change. Without rebuild, `tsc --noEmit` on client shows false positives for `budgetSourceId`, `budgetSources`, `BudgetSourceSummaryBreakdown`. Jest is unaffected (maps to source).
+
 ## BudgetBar Module-Level Mock Anti-Pattern (2026-04-20)
 
 **Critical**: Mocking `BudgetBar` at module level (`jest.unstable_mockModule('../../components/BudgetBar/BudgetBar.js', ...)`) breaks ALL existing tests that rely on BudgetBar rendering content (labels, role="img", segment text). BudgetBar renders segment labels (e.g. "Paid (unclaimed)", "Claimed") that existing tests assert on. The fix: test segment keys via observable behavior (aria-label, summaryLabel text) rather than mock capture. For segment structure verification, use `container.querySelectorAll('[class*="summaryRow"]')` to check rows and their label text order.

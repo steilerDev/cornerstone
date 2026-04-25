@@ -2,6 +2,12 @@ import { describe, it, expect } from '@jest/globals';
 import { getSourceColorIndex, getSourceBadgeStyleKey } from './budgetSourceColors.js';
 
 describe('getSourceColorIndex', () => {
+  // ── 9. null → 0 (unassigned slot) ─────────────────────────────────────────
+
+  it('returns 0 for null sourceId', () => {
+    expect(getSourceColorIndex(null)).toBe(0);
+  });
+
   // ── 10. Always in [1, 9] ──────────────────────────────────────────────────
 
   it('returns a value in [1, 9] for a single UUID', () => {

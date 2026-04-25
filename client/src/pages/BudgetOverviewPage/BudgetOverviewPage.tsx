@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { BudgetOverview, BudgetBreakdown, BudgetSource } from '@cornerstone/shared';
 import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverviewApi.js';
@@ -180,6 +180,47 @@ export function BudgetOverviewPage() {
   // Add dropdown state
   const [addOpen, setAddOpen] = useState(false);
   const addRef = useRef<HTMLDivElement>(null);
+
+  // Source filter state (from URL)
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Derive selected source IDs from URL ?sources= param
+  // 'unassigned' is the literal key for null-source lines
+  const selectedSourceIds = useMemo<Set<string>>(() => {
+    const raw = searchParams.get('sources');
+    if (!raw) return new Set();
+    return new Set(raw.split(',').filter(Boolean));
+  }, [searchParams]);
+
+  const handleSourceToggle = useCallback(
+    (sourceId: string | null) => {
+      const key = sourceId ?? 'unassigned';
+      setSearchParams((prev) => {
+        const current = new Set(prev.get('sources')?.split(',').filter(Boolean) ?? []);
+        if (current.has(key)) {
+          current.delete(key);
+        } else {
+          current.add(key);
+        }
+        const params = new URLSearchParams(prev);
+        if (current.size === 0) {
+          params.delete('sources');
+        } else {
+          params.set('sources', [...current].join(','));
+        }
+        return params;
+      });
+    },
+    [setSearchParams],
+  );
+
+  const handleClearSources = useCallback(() => {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      params.delete('sources');
+      return params;
+    });
+  }, [setSearchParams]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -615,7 +656,9 @@ export function BudgetOverviewPage() {
           <CostBreakdownTable
             breakdown={breakdown}
             overview={overview}
-            budgetSources={budgetSources}
+            selectedSourceIds={selectedSourceIds}
+            onSourceToggle={handleSourceToggle}
+            onClearSources={handleClearSources}
           />
         ) : null)}
     </PageLayout>

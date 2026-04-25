@@ -132,3 +132,17 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - `summaryClaimedLabel` → "Eingereicht" (bar chart summary; consistent with `barChart.claimed` = "Eingereicht")
 - `srOnly` screen reader text: "Eingereicht {{claimed}}, Bezahlt {{paid}}, Projiziert {{projectedMin}} bis {{projectedMax}}, von Gesamt {{total}}"
 - Obsolete keys removed in this update: `allocated`, `total`, `available`, `planned`
+
+## Source Filter & Source Badge Patterns — Issue #1354 (2026-04-25)
+
+- `overview.costBreakdown.sourceFilter.*`, `sourceImpact.*`, `sourceBadge.*` added to `de/budget.json`
+- "Filter by source" → "Nach Quelle filtern" (matches `filterByStatus` = "Nach Status filtern" / `filterByVendor` = "Nach Auftragnehmer filtern" pattern)
+- "All sources" → "Alle Quellen" (matches `allStatuses` = "Alle Status" / `allVendors` = "Alle Auftragnehmer" pattern)
+- "Clear filters" (button label) → "Filter Löschen" (exact match with `invoices.clearFilters`)
+- "clearAriaLabel" (descriptive aria label) → sentence-style with en-dash: "Quellenfilter löschen – alle Quellen anzeigen"
+- "Unassigned" (source filter / source badge context) → "Nicht zugewiesen" (glossary `Unassigned` term, not "Kein X" pattern which is used for area/category absence)
+- Live-region announcement sentence structure: "Es werden {{count}} von {{total}} Budgetpositionen angezeigt" / "Es werden alle Budgetpositionen angezeigt"
+- "Budget source: {{name}}" (aria label) → "Budgetquelle: {{name}}" — always use full glossary term "Budgetquelle" in aria labels, short "Quelle" only in UI labels
+- `sourceImpact.allocated` → "Zugeordnet" (consistent with `invoices.tableHeaders.allocated` = "Zugeordnet")
+- `sourceImpact.remaining` → "Verbleibend" (consistent with established `barChart.remaining` / `summary.remainingLabel`)
+- Chip aria labels: "Filter: {{name}} (ausgewählt)" / "Filter: {{name}} (nicht ausgewählt)"

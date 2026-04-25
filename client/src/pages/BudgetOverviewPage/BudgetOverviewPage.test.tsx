@@ -8,7 +8,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import type * as BudgetOverviewApiTypes from '../../lib/budgetOverviewApi.js';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import type { BudgetOverview, BudgetSource } from '@cornerstone/shared';
+import type { BudgetOverview } from '@cornerstone/shared';
 
 // Mock the API modules BEFORE importing the component
 const mockFetchBudgetOverview = jest.fn<typeof BudgetOverviewApiTypes.fetchBudgetOverview>();
@@ -145,41 +145,6 @@ describe('BudgetOverviewPage', () => {
       oversubscribedSubsidies: [],
     },
   };
-
-  /**
-   * Build a minimal BudgetSource for tests.
-   */
-  function buildBudgetSource(
-    opts: {
-      id?: string;
-      name?: string;
-      totalAmount?: number;
-    } = {},
-  ): BudgetSource {
-    return {
-      id: opts.id ?? 'src-1',
-      name: opts.name ?? 'Bank Loan',
-      sourceType: 'bank_loan',
-      totalAmount: opts.totalAmount ?? 80000,
-      usedAmount: 0,
-      availableAmount: opts.totalAmount ?? 80000,
-      claimedAmount: 0,
-      unclaimedAmount: 0,
-      actualAvailableAmount: opts.totalAmount ?? 80000,
-      paidAmount: 0,
-      projectedAmount: 0,
-      projectedMinAmount: 0,
-      projectedMaxAmount: 0,
-      isDiscretionary: false,
-      interestRate: null,
-      terms: null,
-      notes: null,
-      status: 'active',
-      createdBy: null,
-      createdAt: '2025-01-01T00:00:00.000Z',
-      updatedAt: '2025-01-01T00:00:00.000Z',
-    };
-  }
 
   /** Empty breakdown returned by default in all tests */
   const emptyBreakdown = {
@@ -782,22 +747,17 @@ describe('BudgetOverviewPage', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
-    // Scenario 30: budgetSources prop on CostBreakdownTable matches fetchBudgetSources data
-    it('passes budgetSources returned by fetchBudgetSources to CostBreakdownTable', async () => {
-      const sources = [
-        buildBudgetSource({ id: 'src-1', name: 'Savings Account', totalAmount: 50000 }),
-        buildBudgetSource({ id: 'src-2', name: 'Bank Loan', totalAmount: 80000 }),
-      ];
-
+    // Scenario 30: breakdown.budgetSources drives the Available Funds expand button in CostBreakdownTable
+    it('shows Available Funds expand button when breakdown contains budget sources', async () => {
       const overviewWithData: BudgetOverview = {
         ...richOverview,
         availableFunds: 130000,
       };
 
       mockFetchBudgetOverview.mockResolvedValueOnce(overviewWithData);
-      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: sources });
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [] });
 
-      // Provide a non-empty breakdown so the CostBreakdownTable renders
+      // Provide a non-empty breakdown with budget sources so the expand button appears
       mockFetchBudgetBreakdown.mockResolvedValueOnce({
         workItems: {
           areas: [
@@ -840,7 +800,10 @@ describe('BudgetOverviewPage', () => {
           },
         },
         subsidyAdjustments: [],
-        budgetSources: [],
+        budgetSources: [
+          { id: 'src-1', name: 'Savings Account', totalAmount: 50000, projectedMin: 0, projectedMax: 0 },
+          { id: 'src-2', name: 'Bank Loan', totalAmount: 80000, projectedMin: 0, projectedMax: 0 },
+        ],
       });
 
       renderPage();
@@ -851,7 +814,7 @@ describe('BudgetOverviewPage', () => {
       });
 
       // CostBreakdownTable should be visible with the "Available funds" expand button
-      // (only appears when budgetSources.length > 0)
+      // (only appears when breakdown.budgetSources.length > 0)
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /expand available funds/i })).toBeInTheDocument();
       });

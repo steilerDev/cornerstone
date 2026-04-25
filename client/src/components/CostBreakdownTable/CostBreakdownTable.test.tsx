@@ -5,7 +5,7 @@ import { jest, describe, it, expect, beforeAll } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { CostBreakdownTable as CostBreakdownTableType } from './CostBreakdownTable.js';
-import type { BudgetBreakdown, BudgetOverview, BudgetSource } from '@cornerstone/shared';
+import type { BudgetBreakdown, BudgetOverview } from '@cornerstone/shared';
 import type { BudgetSourceSummaryBreakdown } from '@cornerstone/shared';
 
 // CSS modules mocked via identity-obj-proxy
@@ -463,37 +463,6 @@ function buildBreakdownWithHI(
     },
     subsidyAdjustments: [],
     budgetSources: [],
-  };
-}
-
-/**
- * Build a minimal BudgetSource for tests.
- */
-function buildBudgetSource(
-  opts: { id?: string; name?: string; totalAmount?: number } = {},
-): BudgetSource {
-  return {
-    id: opts.id ?? 'src-1',
-    name: opts.name ?? 'Bank Loan',
-    sourceType: 'bank_loan',
-    totalAmount: opts.totalAmount ?? 80000,
-    usedAmount: 0,
-    availableAmount: opts.totalAmount ?? 80000,
-    claimedAmount: 0,
-    unclaimedAmount: 0,
-    actualAvailableAmount: opts.totalAmount ?? 80000,
-    paidAmount: 0,
-    projectedAmount: 0,
-    projectedMinAmount: 0,
-    projectedMaxAmount: 0,
-    isDiscretionary: false,
-    interestRate: null,
-    terms: null,
-    notes: null,
-    status: 'active',
-    createdBy: null,
-    createdAt: '2025-01-01T00:00:00.000Z',
-    updatedAt: '2025-01-01T00:00:00.000Z',
   };
 }
 
@@ -1839,9 +1808,9 @@ describe('CostBreakdownTable', () => {
   it('Available Funds row has an expand button with aria-expanded=false when sources exist', () => {
     render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
+        breakdown={{ ...buildBreakdownWithWI(), budgetSources: [buildSourceSummary({ id: 'src-1', name: 'Bank Loan', totalAmount: 80000 })] }}
         overview={buildOverview(100000)}
-        budgetSources={[buildBudgetSource({ id: 'src-1', name: 'Bank Loan', totalAmount: 80000 })]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1854,12 +1823,9 @@ describe('CostBreakdownTable', () => {
   it('clicking Available Funds expand shows source sub-rows with name and totalAmount', () => {
     render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
+        breakdown={{ ...buildBreakdownWithWI(), budgetSources: [buildSourceSummary({ id: 'src-1', name: 'Savings Account', totalAmount: 50000 }), buildSourceSummary({ id: 'src-2', name: 'Bank Loan', totalAmount: 80000 })] }}
         overview={buildOverview(130000)}
-        budgetSources={[
-          buildBudgetSource({ id: 'src-1', name: 'Savings Account', totalAmount: 50000 }),
-          buildBudgetSource({ id: 'src-2', name: 'Bank Loan', totalAmount: 80000 }),
-        ]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -1879,11 +1845,9 @@ describe('CostBreakdownTable', () => {
   it('clicking Available Funds expand again collapses source sub-rows', () => {
     render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI()}
+        breakdown={{ ...buildBreakdownWithWI(), budgetSources: [buildSourceSummary({ id: 'src-1', name: 'Credit Line', totalAmount: 60000 })] }}
         overview={buildOverview(100000)}
-        budgetSources={[
-          buildBudgetSource({ id: 'src-1', name: 'Credit Line', totalAmount: 60000 }),
-        ]}
+        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
       />,
     );
 
@@ -3405,5 +3369,55 @@ describe('Bug #586 — item expand state is independent per category', () => {
     // The selected chip should be pressed
     const chipBtn = screen.getByRole('button', { name: /Filter: Bank Loan.*selected/i });
     expect(chipBtn).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  // ── Escape key handler (Escape clears source filter via toolbar keyDown) ──
+
+  it('pressing Escape in the chip toolbar when a source is selected calls onClearSources', () => {
+    const sourceId = 'src-esc-1';
+    const onClearSources = jest.fn();
+    const breakdown = buildBreakdownWithSourcedWI({
+      budgetSourceId: sourceId,
+      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Credit Line' })],
+    });
+
+    const { container } = renderWithRouter(breakdown, buildOverview(), {
+      selectedSourceIds: new Set([sourceId]),
+      onClearSources,
+    });
+
+    // Expand Available Funds to show the chip toolbar
+    fireEvent.click(getButtonByControls(container, 'avail-funds'));
+
+    // The toolbar should be visible
+    const toolbar = screen.getByRole('toolbar');
+    expect(toolbar).toBeInTheDocument();
+
+    // Fire Escape key on the toolbar — should call onClearSources
+    fireEvent.keyDown(toolbar, { key: 'Escape' });
+    expect(onClearSources).toHaveBeenCalledTimes(1);
+  });
+
+  it('pressing Escape in the chip toolbar when no source is selected does not call onClearSources', () => {
+    const sourceId = 'src-esc-2';
+    const onClearSources = jest.fn();
+    const breakdown = buildBreakdownWithSourcedWI({
+      budgetSourceId: sourceId,
+      budgetSources: [buildSourceSummary({ id: sourceId, name: 'Savings' })],
+    });
+
+    const { container } = renderWithRouter(breakdown, buildOverview(), {
+      selectedSourceIds: new Set(), // no source selected
+      onClearSources,
+    });
+
+    // Expand Available Funds to show the chip toolbar
+    fireEvent.click(getButtonByControls(container, 'avail-funds'));
+
+    const toolbar = screen.getByRole('toolbar');
+
+    // Escape with no selected sources should NOT call onClearSources
+    fireEvent.keyDown(toolbar, { key: 'Escape' });
+    expect(onClearSources).not.toHaveBeenCalled();
   });
 });

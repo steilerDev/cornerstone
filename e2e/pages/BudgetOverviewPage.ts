@@ -17,6 +17,7 @@
 import type { Page, Locator } from '@playwright/test';
 
 export const BUDGET_OVERVIEW_ROUTE = '/budget/overview';
+export const BUDGET_OVERVIEW_URL_PATTERN = /\/budget\/overview/;
 
 export class BudgetOverviewPage {
   readonly page: Page;
@@ -155,5 +156,60 @@ export class BudgetOverviewPage {
    */
   get addButton(): Locator {
     return this.page.getByTestId('budget-overview-add-button');
+  }
+
+  // ── Source filter helpers ─────────────────────────────────────────────────
+
+  /**
+   * The source filter chip toolbar.
+   * i18n label: "Filter by source"
+   */
+  filterToolbar(): Locator {
+    return this.costBreakdownCard.getByRole('toolbar', { name: 'Filter by source' });
+  }
+
+  /**
+   * A specific chip by source name (uses regex for partial match).
+   * Chips are <button aria-pressed> inside the filter toolbar.
+   */
+  sourceChip(name: string): Locator {
+    return this.filterToolbar().getByRole('button', { name: new RegExp(name) });
+  }
+
+  /**
+   * The "All sources" clear filter button.
+   * aria-label: "Clear source filter — show all sources"
+   */
+  clearFiltersButton(): Locator {
+    return this.filterToolbar().getByRole('button', {
+      name: /Clear source filter/i,
+    });
+  }
+
+  /**
+   * The screen-reader live region for filter count announcements (role="status").
+   * Note: the element is visually hidden (sr-only) but still in the DOM.
+   */
+  filterAnnouncement(): Locator {
+    return this.costBreakdownCard.locator('[role="status"]');
+  }
+
+  /**
+   * The Available Funds expand/collapse button.
+   * aria-label: "Expand available funds sources"
+   */
+  availableFundsButton(): Locator {
+    return this.costBreakdownCard.getByRole('button', {
+      name: /Expand available funds sources/i,
+    });
+  }
+
+  /**
+   * Source detail row for a given source name (expanded under Available Funds).
+   */
+  sourceDetailRow(name: string): Locator {
+    return this.costBreakdownCard.getByRole('row').filter({
+      has: this.page.getByText(name, { exact: true }),
+    });
   }
 }
