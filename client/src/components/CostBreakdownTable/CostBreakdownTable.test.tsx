@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeAll } from '@jest/globals';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { CostBreakdownTable as CostBreakdownTableType } from './CostBreakdownTable.js';
 import type { BudgetBreakdown, BudgetOverview } from '@cornerstone/shared';
@@ -3582,8 +3582,11 @@ describe('Bug #586 — item expand state is independent per category', () => {
       deselectedSourceIds: new Set(['src-1']),
     });
 
-    // Available Funds shows €200,000.00 (only src-2 selected)
-    expect(screen.getByText('€200,000.00')).toBeInTheDocument();
+    // Available Funds shows €200,000.00 (only src-2 selected).
+    // Scope to the Available Funds row — €200,000.00 also appears in the
+    // Source Two detail row's Net column (totalAmount + 0 - 0 = 200,000).
+    const availableFundsRow = screen.getByRole('row', { name: /available funds/i });
+    expect(within(availableFundsRow).getByText('€200,000.00')).toBeInTheDocument();
   });
 
   it('Available Funds shows overview.availableFunds when all sources are selected', () => {

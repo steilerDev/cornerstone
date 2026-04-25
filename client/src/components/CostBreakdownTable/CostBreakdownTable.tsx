@@ -1409,7 +1409,7 @@ export function CostBreakdownTable({
                     {formatCurrency(filteredAvailableFunds)}
                     {hasSourceFilter && (
                       <span className={styles.availableFundsFilterCaption}>
-                        {t('overview.costBreakdown.availableFunds.activeFilterCaption', {
+                        {t('overview.costBreakdown.availableFundsFilter.activeFilterCaption', {
                           selected: String(
                             budgetSources.filter((s) => !deselectedSourceIds.has(s.id)).length,
                           ),

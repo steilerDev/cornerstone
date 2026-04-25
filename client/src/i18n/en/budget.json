@@ -51,6 +51,9 @@
       "householdItems": "Household Items",
       "sum": "Sum",
       "availableFunds": "Available funds",
+      "availableFundsFilter": {
+        "activeFilterCaption": "({{selected}} of {{total}} selected)"
+      },
       "remainingBudget": "Remaining Budget",
       "quoted": "Quoted",
       "tableHeaders": {
@@ -78,9 +81,6 @@
       "sourceRow": {
         "selectedAriaLabel": "{{name}}, selected — click to deselect",
         "deselectedAriaLabel": "{{name}}, deselected — click to select"
-      },
-      "availableFunds": {
-        "activeFilterCaption": "({{selected}} of {{total}} selected)"
       },
       "sourceImpact": {
         "allocated": "Allocated",
