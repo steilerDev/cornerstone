@@ -411,11 +411,15 @@ test.describe('Source badge on Level 3 rows', { tag: '@responsive' }, () => {
     try {
       await expandToLevel3(overviewPage);
 
-      // Assert source badge for "Bank Loan" is visible on Line A1
+      // Assert source badge for "Bank Loan" is in the DOM on Line A1.
+      // Use toBeAttached() instead of toBeVisible() because on mobile the
+      // badge label is wrapped in .sourceBadgeLabel which is CSS-hidden
+      // (display: none); the dot is shown instead. Both keep the
+      // aria-label on the badge span for screen readers.
       const lineA1Row = overviewPage.costBreakdownCard
         .getByRole('row')
         .filter({ hasText: 'Line A1 (Source A)' });
-      await expect(lineA1Row.locator('[aria-label="Budget source: Bank Loan"]')).toBeVisible();
+      await expect(lineA1Row.locator('[aria-label="Budget source: Bank Loan"]')).toBeAttached();
     } finally {
       await teardown();
     }
@@ -432,12 +436,13 @@ test.describe('Source badge on Level 3 rows', { tag: '@responsive' }, () => {
     try {
       await expandToLevel3(overviewPage);
 
-      // Assert unassigned badge for the no-source line
+      // Assert unassigned badge for the no-source line is in the DOM.
+      // Mobile hides the label via CSS but keeps the badge attached for SR users.
       const unassignedRow = overviewPage.costBreakdownCard
         .getByRole('row')
         .filter({ hasText: 'Line Unassigned (No source)' });
       // aria-label contains "Unassigned" (from t('sourceBadge.ariaLabel', { name: 'Unassigned' }))
-      await expect(unassignedRow.locator('[aria-label="Budget source: Unassigned"]')).toBeVisible();
+      await expect(unassignedRow.locator('[aria-label="Budget source: Unassigned"]')).toBeAttached();
     } finally {
       await teardown();
     }
@@ -459,9 +464,11 @@ test.describe('Source badge on Level 3 rows', { tag: '@responsive' }, () => {
         .getByRole('row')
         .filter({ hasText: 'Line Long Name Source' });
 
-      // The badge label text should be truncated (>20 chars → truncated)
+      // The badge label text should be truncated (>20 chars → truncated).
+      // Mobile hides the label via CSS, so use toBeAttached() — the textContent
+      // and title attribute assertions below still work on a hidden element.
       const badge = longRow.locator('[aria-label*="Budget source:"]');
-      await expect(badge).toBeVisible();
+      await expect(badge).toBeAttached();
 
       // The displayed text ends with ellipsis (…)
       const badgeText = await badge.textContent();
@@ -1022,14 +1029,12 @@ test.describe('Source detail rows under Available Funds', { tag: '@responsive' }
       // Select the chip
       await overviewPage.sourceChip('Bank Loan').click();
 
-      // After selecting: the source detail row should get the selected class
-      // (the CSS module produces a hashed class, so check via border-left style
-      //  which is driven by the --chip-dot CSS variable via rowSourceDetailSelected)
-      // Playwright resolves CSS module classes at runtime — use class attribute substring match
-      const classNameAfter = await sourceRow.getAttribute('class');
-      // The class list should include the rowSourceDetailSelected CSS module class
-      // CSS modules hash the name, but the attribute will have something like "rowSourceDetailSelected_xyz"
-      expect(classNameAfter).toMatch(/rowSourceDetailSelected/);
+      // After selecting: the source detail row should get the selected class.
+      // Use toHaveClass (auto-retries) instead of getAttribute() so the assertion
+      // tolerates the URL-state -> React-render round-trip after the chip click.
+      // CSS modules hash class names at build time, so the attribute will look like
+      // "rowSourceDetail_xyz rowSourceDetailSelected_abc" — match by substring.
+      await expect(sourceRow).toHaveClass(/rowSourceDetailSelected/);
     } finally {
       await teardown();
     }
