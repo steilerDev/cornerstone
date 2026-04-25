@@ -1411,7 +1411,10 @@ export function CostBreakdownTable({
                       <span className={styles.availableFundsFilterCaption}>
                         {t('overview.costBreakdown.availableFundsFilter.activeFilterCaption', {
                           selected: String(
-                            budgetSources.filter((s) => !deselectedSourceIds.has(s.id)).length,
+                            budgetSources.filter((s) => !deselectedSourceIds.has(s.id)).length +
+                              (hasUnassignedLines && !deselectedSourceIds.has('unassigned')
+                                ? 1
+                                : 0),
                           ),
                           total: String(budgetSources.length + (hasUnassignedLines ? 1 : 0)),
                         })}
@@ -1635,7 +1638,10 @@ export function CostBreakdownTable({
           <div role="status" aria-atomic="true" className={styles.srOnly}>
             {hasSourceFilter
               ? t('overview.costBreakdown.sourceFilter.statusAnnouncement', {
-                  selected: String(budgetSources.length - deselectedSourceIds.size),
+                  selected: String(
+                    budgetSources.filter((s) => !deselectedSourceIds.has(s.id)).length +
+                      (hasUnassignedLines && !deselectedSourceIds.has('unassigned') ? 1 : 0),
+                  ),
                   total: String(budgetSources.length + (hasUnassignedLines ? 1 : 0)),
                 })
               : t('overview.costBreakdown.sourceFilter.allSourcesAnnouncement')}
