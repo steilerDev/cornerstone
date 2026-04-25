@@ -69,16 +69,18 @@
         "expandHouseholdItemsLabel": "Haushaltsartikel nach Bereich aufklappen"
       },
       "sourceFilter": {
-        "label": "Nach Quelle filtern",
-        "allSources": "Alle Quellen",
-        "clear": "Filter Löschen",
-        "clearAriaLabel": "Quellenfilter löschen – alle Quellen anzeigen",
         "unassigned": "Nicht zugewiesen",
-        "activeAnnouncement": "Es werden {{count}} von {{total}} Budgetpositionen angezeigt",
         "allSourcesAnnouncement": "Es werden alle Budgetpositionen angezeigt",
+        "statusAnnouncement": "{{selected}} von {{total}} Budgetquellen ausgewählt",
         "empty": "Keine Budgetpositionen entsprechen dem ausgewählten Quellenfilter.",
-        "chipSelected": "Filter: {{name}} (ausgewählt)",
-        "chipNotSelected": "Filter: {{name}} (nicht ausgewählt)"
+        "clear": "Filter Löschen"
+      },
+      "sourceRow": {
+        "selectedAriaLabel": "{{name}}, ausgewählt – zum Abwählen klicken",
+        "deselectedAriaLabel": "{{name}}, abgewählt – zum Auswählen klicken"
+      },
+      "availableFunds": {
+        "activeFilterCaption": "({{selected}} von {{total}} ausgewählt)"
       },
       "sourceImpact": {
         "allocated": "Zugeordnet",

@@ -278,3 +278,7 @@ Zero new tokens, zero new CSS, zero new components. Text replacement only. Key r
 ## Story #1354 — Source Badges & Filter (Budget Overview)
 
 See [story-1354-source-badges-filter.md](story-1354-source-badges-filter.md). Key: 10-slot `--color-source-N-{bg,text,dot}` token family; `BudgetSourceChip` new shared component; `role="toolbar"` for chip strip; scoped `--chip-*` CSS custom properties pattern for per-slot colors.
+
+## Issue #1356 — Per-Source Filter Rework (CostBreakdownTable)
+
+Spec posted at https://github.com/steilerDev/cornerstone/issues/1356#issuecomment-4319895233. Key: chip toolbar + `BudgetSourceChip` deleted entirely; source detail rows become `<tr role="button" tabIndex={0} aria-pressed>`; filter semantics inverted to `deselectedSourceIds`; URL param renamed `?sources=` → `?deselectedSources=`; deselected state = muted text + `opacity:0.4` dot + transparent border (non-color signals required); Escape on focused row → select-all; no new tokens; cascade requires emptying parent nodes when all children hidden.

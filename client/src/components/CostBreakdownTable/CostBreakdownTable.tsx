@@ -15,7 +15,6 @@ import type {
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
 import { usePrintExpansion } from '../../hooks/usePrintExpansion.js';
-import { BudgetSourceChip } from '../BudgetSourceChip/index.js';
 import { Badge } from '../Badge/Badge.js';
 import badgeStyles from '../Badge/Badge.module.css';
 import { EmptyState } from '../EmptyState/EmptyState.js';
@@ -56,9 +55,9 @@ type CostPerspective = 'min' | 'max' | 'avg';
 interface CostBreakdownTableProps {
   breakdown: BudgetBreakdown;
   overview: BudgetOverview;
-  selectedSourceIds: Set<string>;
+  deselectedSourceIds: Set<string>;
   onSourceToggle: (sourceId: string | null) => void;
-  onClearSources: () => void;
+  onSelectAllSources: () => void;
 }
 
 /**
@@ -72,6 +71,74 @@ function resolveProjected(
   if (perspective === 'min') return projectedMin;
   if (perspective === 'max') return projectedMax;
   return (projectedMin + projectedMax) / 2;
+}
+
+/**
+ * Computes per-source subsidy payback attribution using entity-level pro-rata weighting.
+ *
+ * For each entity (work item or household item), the entity's perspective-resolved payback
+ * is distributed across its budget lines weighted by each line's max-perspective cost
+ * (using computeLineProjected max, i.e. plannedAmount * (1 + margin)).
+ * The result is bucketed by budgetSourceId (null → 'unassigned').
+ *
+ * Edge case: if an entity's totalLineMaxCost === 0 but entityPayback > 0,
+ * payback is distributed equally across all lines.
+ *
+ * AC-11: computed over ALL entities regardless of selection state.
+ */
+function computePerSourcePayback(
+  breakdown: BudgetBreakdown,
+  perspective: CostPerspective,
+): Map<string, number> {
+  const map = new Map<string, number>();
+
+  function processLines(
+    budgetLines: BreakdownBudgetLine[],
+    subsidyPayback: number,
+    minSubsidyPayback: number,
+  ) {
+    const entityPayback = perspective === 'min' ? minSubsidyPayback : subsidyPayback;
+    if (entityPayback === 0) return;
+
+    // Compute max-perspective cost for each line (for weighting)
+    const lineCosts = budgetLines.map((line) => {
+      const margin = CONFIDENCE_MARGINS[line.confidence];
+      if (line.hasInvoice && !line.isQuotation) return line.actualCost;
+      if (line.isQuotation) return line.actualCost * 1.05;
+      return line.plannedAmount * (1 + margin);
+    });
+
+    const totalCost = lineCosts.reduce((s, c) => s + c, 0);
+    const n = budgetLines.length;
+
+    budgetLines.forEach((line, i) => {
+      const weight = totalCost === 0 ? (n > 0 ? 1 / n : 0) : (lineCosts[i] ?? 0) / totalCost;
+      const paybackForLine = entityPayback * weight;
+      const key = line.budgetSourceId ?? 'unassigned';
+      map.set(key, (map.get(key) ?? 0) + paybackForLine);
+    });
+  }
+
+  function walkWi(areas: BreakdownArea<BreakdownWorkItem>[]) {
+    for (const area of areas) {
+      for (const item of area.items) {
+        processLines(item.budgetLines, item.subsidyPayback, item.minSubsidyPayback);
+      }
+      walkWi(area.children);
+    }
+  }
+  function walkHi(areas: BreakdownArea<BreakdownHouseholdItem>[]) {
+    for (const area of areas) {
+      for (const item of area.items) {
+        processLines(item.budgetLines, item.subsidyPayback, item.minSubsidyPayback);
+      }
+      walkHi(area.children);
+    }
+  }
+
+  walkWi(breakdown.workItems.areas);
+  walkHi(breakdown.householdItems.areas);
+  return map;
 }
 
 /**
@@ -168,6 +235,24 @@ function PerspectiveToggle({
       ))}
     </div>
   );
+}
+
+/**
+ * Helper function to check if an area has visible lines (for cascade hiding).
+ */
+function areaHasVisibleLines(
+  a: BreakdownArea<BreakdownWorkItem | BreakdownHouseholdItem>,
+  visibleIds: Set<string>,
+): boolean {
+  for (const item of a.items) {
+    for (const line of item.budgetLines) {
+      if (visibleIds.has(line.id)) return true;
+    }
+  }
+  for (const child of a.children) {
+    if (areaHasVisibleLines(child, visibleIds)) return true;
+  }
+  return false;
 }
 
 /**
@@ -293,8 +378,14 @@ function WorkItemRow({
 }) {
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
+  const { hasSourceFilter, visibleLineIds } = useBreakdownContext();
   const key = expandKey;
   const rowClassName = styles.rowLevel2;
+
+  // Cascade: hide item if filter is active and none of its lines are visible
+  if (hasSourceFilter && item.budgetLines.every((line) => !visibleLineIds.has(line.id))) {
+    return null;
+  }
 
   const resolvedRawCost =
     item.costDisplay === 'actual'
@@ -383,8 +474,21 @@ function WorkItemAreaSection({
   formatCurrencyFn: (value: number) => string;
 }) {
   const { t } = useTranslation('budget');
+  const { hasSourceFilter, visibleLineIds } = useBreakdownContext();
   const areaKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}`;
   const isExpanded = expandedKeys.has(areaKey);
+
+  // Cascade: hide area if filter is active and none of its items/children have visible lines
+  if (
+    hasSourceFilter &&
+    !areaHasVisibleLines(
+      area as BreakdownArea<BreakdownWorkItem | BreakdownHouseholdItem>,
+      visibleLineIds,
+    )
+  ) {
+    return null;
+  }
+
   const resolvedRawCost = resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
   const resolvedPayback = resolveProjected(
     area.minSubsidyPayback,
@@ -480,8 +584,14 @@ function HouseholdItemRow({
 }) {
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
+  const { hasSourceFilter, visibleLineIds } = useBreakdownContext();
   const key = expandKey;
   const rowClassName = styles.rowLevel2;
+
+  // Cascade: hide item if filter is active and none of its lines are visible
+  if (hasSourceFilter && item.budgetLines.every((line) => !visibleLineIds.has(line.id))) {
+    return null;
+  }
 
   const resolvedRawCost =
     item.costDisplay === 'actual'
@@ -573,8 +683,21 @@ function HouseholdItemAreaSection({
   formatCurrencyFn: (value: number) => string;
 }) {
   const { t } = useTranslation('budget');
+  const { hasSourceFilter, visibleLineIds } = useBreakdownContext();
   const areaKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}`;
   const isExpanded = expandedKeys.has(areaKey);
+
+  // Cascade: hide area if filter is active and none of its items/children have visible lines
+  if (
+    hasSourceFilter &&
+    !areaHasVisibleLines(
+      area as BreakdownArea<BreakdownWorkItem | BreakdownHouseholdItem>,
+      visibleLineIds,
+    )
+  ) {
+    return null;
+  }
+
   const resolvedRawCost = resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
   const resolvedPayback = resolveProjected(
     area.minSubsidyPayback,
@@ -679,15 +802,14 @@ function ChevronSvg({ className }: { className: string }) {
 export function CostBreakdownTable({
   breakdown,
   overview,
-  selectedSourceIds,
+  deselectedSourceIds,
   onSourceToggle,
-  onClearSources,
+  onSelectAllSources,
 }: CostBreakdownTableProps) {
   const { t } = useTranslation('budget');
   const { formatCurrency } = useFormatters();
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [perspective, setPerspective] = useState<CostPerspective>('avg');
-  const availFundsButtonRef = useRef<HTMLButtonElement>(null);
   const budgetSources: BudgetSourceSummaryBreakdown[] = breakdown.budgetSources ?? [];
 
   const toggle = (key: string) => {
@@ -787,9 +909,9 @@ export function CostBreakdownTable({
   const sum = overview.availableFunds - totalRawProjected + adjustedTotalPayback;
 
   // Source filter state
-  const hasSourceFilter = selectedSourceIds.size > 0;
+  const hasSourceFilter = deselectedSourceIds.size > 0;
 
-  // Derive visible line IDs from filter
+  // Derive visible line IDs from filter (a line is visible if its source is NOT deselected)
   const visibleLineIds = useMemo<Set<string>>(() => {
     if (!hasSourceFilter) return new Set(); // empty = all visible (optimization)
     const ids = new Set<string>();
@@ -799,7 +921,7 @@ export function CostBreakdownTable({
         for (const item of area.items) {
           for (const line of item.budgetLines) {
             const lineKey = line.budgetSourceId ?? 'unassigned';
-            if (selectedSourceIds.has(lineKey)) ids.add(line.id);
+            if (!deselectedSourceIds.has(lineKey)) ids.add(line.id);
           }
         }
         collectWi(area.children);
@@ -810,7 +932,7 @@ export function CostBreakdownTable({
         for (const item of area.items) {
           for (const line of item.budgetLines) {
             const lineKey = line.budgetSourceId ?? 'unassigned';
-            if (selectedSourceIds.has(lineKey)) ids.add(line.id);
+            if (!deselectedSourceIds.has(lineKey)) ids.add(line.id);
           }
         }
         collectHi(area.children);
@@ -819,7 +941,65 @@ export function CostBreakdownTable({
     collectWi(wiAreas);
     collectHi(hiAreas);
     return ids;
-  }, [hasSourceFilter, selectedSourceIds, wiAreas, hiAreas]);
+  }, [hasSourceFilter, deselectedSourceIds, wiAreas, hiAreas]);
+
+  // Per-source payback (pro-rata, always full-project, AC-11)
+  const perSourcePayback = useMemo(
+    () => computePerSourcePayback(breakdown, perspective),
+    [breakdown, perspective],
+  );
+
+  // Available Funds: sum of selected sources' totalAmount (AC-16)
+  const filteredAvailableFunds = useMemo<number>(() => {
+    if (!hasSourceFilter) return overview.availableFunds;
+    return budgetSources
+      .filter((s) => !deselectedSourceIds.has(s.id))
+      .reduce((sum, s) => sum + s.totalAmount, 0);
+  }, [hasSourceFilter, budgetSources, deselectedSourceIds, overview.availableFunds]);
+
+  // Compute unassigned allocated cost (for source detail rows)
+  const unassignedAllocatedCost = useMemo<number>(() => {
+    let total = 0;
+    function walkWi(areas: BreakdownArea<BreakdownWorkItem>[]) {
+      for (const area of areas) {
+        for (const item of area.items) {
+          for (const line of item.budgetLines) {
+            if (line.budgetSourceId !== null) continue;
+            const margin = CONFIDENCE_MARGINS[line.confidence];
+            const costMin = line.plannedAmount * (1 - margin);
+            const costMax = line.plannedAmount * (1 + margin);
+            total += line.hasInvoice
+              ? line.isQuotation
+                ? resolveProjected(line.actualCost * 0.95, line.actualCost * 1.05, perspective)
+                : line.actualCost
+              : resolveProjected(costMin, costMax, perspective);
+          }
+        }
+        walkWi(area.children);
+      }
+    }
+    function walkHi(areas: BreakdownArea<BreakdownHouseholdItem>[]) {
+      for (const area of areas) {
+        for (const item of area.items) {
+          for (const line of item.budgetLines) {
+            if (line.budgetSourceId !== null) continue;
+            const margin = CONFIDENCE_MARGINS[line.confidence];
+            const costMin = line.plannedAmount * (1 - margin);
+            const costMax = line.plannedAmount * (1 + margin);
+            total += line.hasInvoice
+              ? line.isQuotation
+                ? resolveProjected(line.actualCost * 0.95, line.actualCost * 1.05, perspective)
+                : line.actualCost
+              : resolveProjected(costMin, costMax, perspective);
+          }
+        }
+        walkHi(area.children);
+      }
+    }
+    walkWi(wiAreas);
+    walkHi(hiAreas);
+    return total;
+  }, [wiAreas, hiAreas, perspective]);
 
   // Compute filtered grand totals (Sum + Remaining Budget rows only)
   // Individual area/item rows use backend-computed values.
@@ -868,30 +1048,6 @@ export function CostBreakdownTable({
     return total;
   }, [hasSourceFilter, visibleLineIds, wiAreas, hiAreas, perspective]);
 
-  // Total line count for screen reader announcements
-  const totalLineCount = useMemo<number>(() => {
-    let count = 0;
-    function countWi(areas: BreakdownArea<BreakdownWorkItem>[]) {
-      for (const area of areas) {
-        for (const item of area.items) {
-          count += item.budgetLines.length;
-        }
-        countWi(area.children);
-      }
-    }
-    function countHi(areas: BreakdownArea<BreakdownHouseholdItem>[]) {
-      for (const area of areas) {
-        for (const item of area.items) {
-          count += item.budgetLines.length;
-        }
-        countHi(area.children);
-      }
-    }
-    countWi(wiAreas);
-    countHi(hiAreas);
-    return count;
-  }, [wiAreas, hiAreas]);
-
   // Check if any lines are unassigned
   const hasUnassignedLines = useMemo<boolean>(() => {
     function check(areas: BreakdownArea<BreakdownWorkItem | BreakdownHouseholdItem>[]): boolean {
@@ -932,13 +1088,6 @@ export function CostBreakdownTable({
   const hiSectionExpanded = expandedKeys.has(hiSectionKey);
   const availFundsExpanded = expandedKeys.has(availFundsKey);
 
-  function handleToolbarKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-    if (e.key === 'Escape' && selectedSourceIds.size > 0) {
-      e.preventDefault();
-      onClearSources();
-      availFundsButtonRef.current?.focus();
-    }
-  }
 
   return (
     <FormatterContext.Provider value={formatCurrency}>
@@ -1242,7 +1391,6 @@ export function CostBreakdownTable({
                     <div className={styles.nameContent}>
                       {budgetSources.length > 0 && (
                         <button
-                          ref={availFundsButtonRef}
                           type="button"
                           className={styles.expandBtn}
                           aria-expanded={availFundsExpanded}
@@ -1258,98 +1406,166 @@ export function CostBreakdownTable({
                     </div>
                   </td>
                   <td className={styles.colBudget} colSpan={3}>
-                    {formatCurrency(overview.availableFunds)}
+                    {formatCurrency(filteredAvailableFunds)}
+                    {hasSourceFilter && (
+                      <span className={styles.availableFundsFilterCaption}>
+                        {t('overview.costBreakdown.availableFunds.activeFilterCaption', {
+                          selected: String(
+                            budgetSources.filter((s) => !deselectedSourceIds.has(s.id)).length,
+                          ),
+                          total: String(budgetSources.length + (hasUnassignedLines ? 1 : 0)),
+                        })}
+                      </span>
+                    )}
                   </td>
                 </tr>
 
-                {/* Source filter chip strip */}
-                {availFundsExpanded && (
-                  <tr>
-                    <td colSpan={4}>
-                      <div
-                        role="toolbar"
-                        aria-label={t('overview.costBreakdown.sourceFilter.label')}
-                        aria-controls="cost-breakdown-table-cost-section"
-                        className={styles.sourceFilterStrip}
-                        onKeyDown={handleToolbarKeyDown}
-                      >
-                        {budgetSources.map((source) => (
-                          <BudgetSourceChip
-                            key={source.id}
-                            sourceId={source.id}
-                            name={source.name}
-                            isSelected={selectedSourceIds.has(source.id)}
-                            onToggle={onSourceToggle}
-                          />
-                        ))}
-                        {hasUnassignedLines && (
-                          <BudgetSourceChip
-                            key="unassigned"
-                            sourceId={null}
-                            name={t('overview.costBreakdown.sourceFilter.unassigned')}
-                            isSelected={selectedSourceIds.has('unassigned')}
-                            onToggle={onSourceToggle}
-                          />
-                        )}
-                        {selectedSourceIds.size > 0 && (
-                          <button
-                            type="button"
-                            className={sharedStyles.btnSecondaryCompact}
-                            onClick={onClearSources}
-                            aria-label={t('overview.costBreakdown.sourceFilter.clearAriaLabel')}
-                          >
-                            {t('overview.costBreakdown.sourceFilter.allSources')}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )}
-
-                {/* Enhanced source detail rows */}
+                {/* Source detail rows as toggle buttons */}
                 {availFundsExpanded &&
-                  budgetSources.map((source: BudgetSourceSummaryBreakdown) => {
-                    const colorIndex = getSourceColorIndex(source.id);
-                    const isSelected = selectedSourceIds.has(source.id);
-                    const allocatedCost = resolveProjected(
-                      source.projectedMin,
-                      source.projectedMax,
-                      perspective,
-                    );
-                    const remaining = source.totalAmount - allocatedCost;
-                    const rowStyle = {
-                      '--chip-dot': `var(--color-source-${colorIndex}-dot)`,
-                    } as React.CSSProperties;
-                    return (
-                      <tr
-                        key={source.id}
-                        className={`${styles.rowSourceDetail} ${isSelected ? styles.rowSourceDetailSelected : ''}`}
-                        style={rowStyle}
-                      >
-                        <td className={styles.colName}>
-                          <div className={`${styles.nameContent} ${styles.nameIndented}`}>
+                  (() => {
+                    const sourceRows: React.ReactNode[] = [];
+
+                    budgetSources.forEach((source: BudgetSourceSummaryBreakdown) => {
+                      const colorIndex = getSourceColorIndex(source.id);
+                      const isSelected = !deselectedSourceIds.has(source.id);
+                      const allocatedCost = resolveProjected(
+                        source.projectedMin,
+                        source.projectedMax,
+                        perspective,
+                      );
+                      const payback = perSourcePayback.get(source.id) ?? 0;
+                      const net = source.totalAmount + payback - allocatedCost;
+                      const rowStyle = {
+                        '--chip-dot': `var(--color-source-${colorIndex}-dot)`,
+                      } as React.CSSProperties;
+
+                      sourceRows.push(
+                        <tr
+                          key={source.id}
+                          role="button"
+                          tabIndex={0}
+                          aria-pressed={isSelected}
+                          aria-label={
+                            isSelected
+                              ? t('overview.costBreakdown.sourceRow.selectedAriaLabel', {
+                                  name: source.name,
+                                })
+                              : t('overview.costBreakdown.sourceRow.deselectedAriaLabel', {
+                                  name: source.name,
+                                })
+                          }
+                          className={`${styles.rowSourceDetail} ${styles.rowSourceDetailToggle}`}
+                          style={rowStyle}
+                          onClick={() => onSourceToggle(source.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              onSourceToggle(source.id);
+                            } else if (e.key === 'Escape') {
+                              e.preventDefault();
+                              onSelectAllSources();
+                            }
+                          }}
+                        >
+                          <td className={styles.colName}>
+                            <div className={`${styles.nameContent} ${styles.nameIndented}`}>
+                              <span
+                                className={styles.sourceDot}
+                                style={{ backgroundColor: 'var(--chip-dot)' }}
+                                aria-hidden="true"
+                              />
+                              <span>{source.name}</span>
+                            </div>
+                          </td>
+                          <td className={styles.colBudget}>
+                            <span className={styles.valueNegative}>
+                              {formatCost(allocatedCost, formatCurrency)}
+                            </span>
+                          </td>
+                          <td className={styles.colPayback}>
+                            {payback > 0 ? (
+                              <span className={styles.valuePositive}>{formatCurrency(payback)}</span>
+                            ) : (
+                              <span className={styles.valuePositive}>{formatCurrency(0)}</span>
+                            )}
+                          </td>
+                          <td className={styles.colRemaining}>
+                            <span className={net >= 0 ? styles.valuePositive : styles.valueNegative}>
+                              {formatCurrency(net)}
+                            </span>
+                          </td>
+                        </tr>,
+                      );
+                    });
+
+                    // Unassigned pseudo-row (only when unassigned lines exist)
+                    if (hasUnassignedLines) {
+                      const colorIndex = 0; // unassigned uses index 0
+                      const isSelected = !deselectedSourceIds.has('unassigned');
+                      const unassignedPayback = perSourcePayback.get('unassigned') ?? 0;
+                      const unassignedNet = unassignedPayback - unassignedAllocatedCost;
+
+                      sourceRows.push(
+                        <tr
+                          key="unassigned"
+                          role="button"
+                          tabIndex={0}
+                          aria-pressed={isSelected}
+                          aria-label={
+                            isSelected
+                              ? t('overview.costBreakdown.sourceRow.selectedAriaLabel', {
+                                  name: t('overview.costBreakdown.sourceFilter.unassigned'),
+                                })
+                              : t('overview.costBreakdown.sourceRow.deselectedAriaLabel', {
+                                  name: t('overview.costBreakdown.sourceFilter.unassigned'),
+                                })
+                          }
+                          className={`${styles.rowSourceDetail} ${styles.rowSourceDetailToggle}`}
+                          style={{ '--chip-dot': `var(--color-source-${colorIndex}-dot)` } as React.CSSProperties}
+                          onClick={() => onSourceToggle(null)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              onSourceToggle(null);
+                            } else if (e.key === 'Escape') {
+                              e.preventDefault();
+                              onSelectAllSources();
+                            }
+                          }}
+                        >
+                          <td className={styles.colName}>
+                            <div className={`${styles.nameContent} ${styles.nameIndented}`}>
+                              <span
+                                className={styles.sourceDot}
+                                style={{ backgroundColor: 'var(--chip-dot)' }}
+                                aria-hidden="true"
+                              />
+                              <span>{t('overview.costBreakdown.sourceFilter.unassigned')}</span>
+                            </div>
+                          </td>
+                          <td className={styles.colBudget}>
+                            <span className={styles.valueNegative}>
+                              {formatCost(unassignedAllocatedCost, formatCurrency)}
+                            </span>
+                          </td>
+                          <td className={styles.colPayback}>
+                            <span className={styles.valuePositive}>{formatCurrency(unassignedPayback)}</span>
+                          </td>
+                          <td className={styles.colRemaining}>
                             <span
-                              className={styles.sourceDot}
-                              style={{ backgroundColor: `var(--color-source-${colorIndex}-dot)` }}
-                              aria-hidden="true"
-                            />
-                            <span>{source.name}</span>
-                          </div>
-                        </td>
-                        <td className={styles.colBudget}>{formatCurrency(source.totalAmount)}</td>
-                        <td className={`${styles.colPayback} ${styles.colAllocatedMobile}`}>
-                          <span>-{formatCurrency(allocatedCost)}</span>
-                        </td>
-                        <td className={styles.colRemaining}>
-                          <span
-                            className={remaining >= 0 ? styles.valuePositive : styles.valueNegative}
-                          >
-                            {formatCurrency(remaining)}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                              className={
+                                unassignedNet >= 0 ? styles.valuePositive : styles.valueNegative
+                              }
+                            >
+                              {formatCurrency(unassignedNet)}
+                            </span>
+                          </td>
+                        </tr>,
+                      );
+                    }
+
+                    return sourceRows;
+                  })()}
 
                 {/* Remaining Budget row */}
                 <tr className={`${styles.rowLevel0} ${styles.rowSummary}`}>
@@ -1361,7 +1577,7 @@ export function CostBreakdownTable({
                   <td className={styles.colBudget}>
                     <span
                       className={
-                        overview.availableFunds -
+                        filteredAvailableFunds -
                           (hasSourceFilter ? filteredRawProjected : totalRawProjected) >=
                         0
                           ? styles.valuePositive
@@ -1369,7 +1585,7 @@ export function CostBreakdownTable({
                       }
                     >
                       {formatCurrency(
-                        overview.availableFunds -
+                        filteredAvailableFunds -
                           (hasSourceFilter ? filteredRawProjected : totalRawProjected),
                       )}
                     </span>
@@ -1378,7 +1594,7 @@ export function CostBreakdownTable({
                   <td className={styles.colRemaining}>
                     <span
                       className={
-                        overview.availableFunds -
+                        filteredAvailableFunds -
                           (hasSourceFilter ? filteredRawProjected : totalRawProjected) +
                           adjustedTotalPayback >=
                         0
@@ -1387,7 +1603,7 @@ export function CostBreakdownTable({
                       }
                     >
                       {formatCurrency(
-                        overview.availableFunds -
+                        filteredAvailableFunds -
                           (hasSourceFilter ? filteredRawProjected : totalRawProjected) +
                           adjustedTotalPayback,
                       )}
@@ -1405,7 +1621,7 @@ export function CostBreakdownTable({
                         message={t('overview.costBreakdown.sourceFilter.empty')}
                         action={{
                           label: t('overview.costBreakdown.sourceFilter.clear'),
-                          onClick: onClearSources,
+                          onClick: onSelectAllSources,
                         }}
                       />
                     </td>
@@ -1413,17 +1629,16 @@ export function CostBreakdownTable({
                 </tbody>
               )}
             </table>
+          </div>
 
-            {/* Screen reader live region for filter announcements */}
-            <div role="status" aria-atomic="true" className={styles.srOnly}>
-              {hasSourceFilter
-                ? t('overview.costBreakdown.sourceFilter.activeAnnouncement', {
-                    count: String(visibleLineIds.size),
-                    total: String(totalLineCount),
-                    sources: [...selectedSourceIds].join(', '),
-                  })
-                : t('overview.costBreakdown.sourceFilter.allSourcesAnnouncement')}
-            </div>
+          {/* Screen reader live region for filter announcements (outside tableWrapper) */}
+          <div role="status" aria-atomic="true" className={styles.srOnly}>
+            {hasSourceFilter
+              ? t('overview.costBreakdown.sourceFilter.statusAnnouncement', {
+                  selected: String(budgetSources.length - deselectedSourceIds.size),
+                  total: String(budgetSources.length + (hasUnassignedLines ? 1 : 0)),
+                })
+              : t('overview.costBreakdown.sourceFilter.allSourcesAnnouncement')}
           </div>
         </section>
       </BreakdownContext.Provider>

@@ -1,27 +1,31 @@
 /**
- * E2E tests for Budget Source Filter (Story #1354)
+ * E2E tests for Budget Source Filter (Story #1356 — per-source row-toggle rework)
  *
  * Covers:
- * - Source badge visible on Level 3 (budget line) rows
+ * - Source badge visible on Level 3 (budget line) rows (carry-over from #1354)
  * - Unassigned badge for lines with no source
- * - Long source name truncation
- * - Filter chip strip visibility in Available Funds section
- * - Single-source filter: rows hidden, URL updated
- * - Multi-source filter: OR semantics
- * - Unassigned chip: null-source lines shown, named-source lines hidden
- * - URL state survives page reload
- * - Clear filters via "All sources" button
- * - Empty state when no lines match filter
- * - Clear filters from empty state
- * - Keyboard navigation through chips (Tab + Space/Enter)
- * - Keyboard Escape clears filter
- * - Source detail rows show 3 currency values
- * - Perspective toggle updates allocated values in source detail rows
- * - No filter strip when no budget sources
- * - Selected source detail row accent (class/border)
- * - Dark mode: badge colors smoke check
- * - Mobile: chip strip scrolls horizontally, no page-level scroll
- * - Responsive layout: no horizontal scroll at any viewport
+ * - Long source name truncation in badge
+ * - Default state: all sources selected, no URL param
+ * - Click source row to deselect: aria-pressed="false", URL updated, lines hidden
+ * - Click deselected row to re-select: aria-pressed="true", URL cleared
+ * - Cascade hiding: work item with all lines deselected is hidden
+ * - Deselect all sources → empty state
+ * - Available Funds caption "(X of Y selected)"
+ * - URL round-trip: ?deselectedSources= restores filter state
+ * - Stale/unknown ID in ?deselectedSources= is silently ignored
+ * - Old ?sources= param is silently ignored
+ * - Per-source Cost/Payback/Net columns present
+ * - Perspective toggle changes Cost value in source row
+ * - Source row values unchanged when deselected (only visual style changes)
+ * - Keyboard: Space key toggles source row
+ * - Keyboard: Enter key toggles source row
+ * - Keyboard: Escape on focused row calls select-all
+ * - Live region announces source count change
+ * - No chip toolbar present at any time
+ * - Mobile: source row touch target >= 44px
+ * - Dark mode: badge color smoke check
+ * - Responsive layout: no horizontal scroll
+ * - Source badge visible at all viewports
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -32,7 +36,7 @@ import { API } from '../../fixtures/testData.js';
 // Mock data helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** A known source UUID used consistently for mock data. */
+/** Known source UUIDs used consistently across mock data. */
 const SOURCE_A_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
 const SOURCE_B_ID = 'bbbbbbbb-0000-0000-0000-000000000002';
 const LONG_SOURCE_NAME = 'Very Long Source Name Exceeds Limit';
@@ -81,16 +85,15 @@ function makeEmptyTotals() {
 
 /**
  * Build a BudgetBreakdown response with:
- * - Source A: 2 budget lines (IDs line-a1, line-a2)
- * - No-source: 1 budget line (ID line-unassigned)
- * - Optional second source B: 1 line (ID line-b1)
- * - Optional long-name source: 1 line (ID line-long)
+ * - Source A (Bank Loan): 2 budget lines (line-a1, line-a2)
+ * - No-source: 1 budget line (line-unassigned)
+ * - Optional Source B (Equity): 1 line (line-b1)
+ * - Optional long-name source: 1 line (line-long)
  */
 function makeBreakdownResponse(
   opts: {
     includeSourceB?: boolean;
     includeLongName?: boolean;
-    sourceBLines?: number;
   } = {},
 ) {
   const { includeSourceB = false, includeLongName = false } = opts;
@@ -161,6 +164,7 @@ function makeBreakdownResponse(
       totalAmount: 150000,
       projectedMin: 30000,
       projectedMax: 35000,
+      subsidyPayback: 0,
     },
   ];
 
@@ -171,6 +175,7 @@ function makeBreakdownResponse(
       totalAmount: 100000,
       projectedMin: 8000,
       projectedMax: 8000,
+      subsidyPayback: 0,
     });
   }
 
@@ -181,6 +186,7 @@ function makeBreakdownResponse(
       totalAmount: 50000,
       projectedMin: 3000,
       projectedMax: 3000,
+      subsidyPayback: 0,
     });
   }
 
@@ -236,48 +242,48 @@ function makeBreakdownResponse(
   };
 }
 
-/** Breakdown with NO budget sources (empty sources array). */
-function makeBreakdownNoSources() {
+/**
+ * Breakdown with only Source A lines (no unassigned) — used for cascade-hide tests
+ * where deselecting SOURCE_A must hide the work item entirely.
+ */
+function makeBreakdownSourceAOnly() {
   return {
-    ...makeBreakdownResponse(),
-    budgetSources: [],
     workItems: {
-      ...makeBreakdownResponse().workItems,
       areas: [
         {
-          areaId: 'area-nosrc',
-          name: 'No Source Area',
+          areaId: 'area-main',
+          name: 'Main Area',
           parentId: null,
-          color: null,
-          projectedMin: 5000,
-          projectedMax: 5000,
+          color: '#3B82F6',
+          projectedMin: 30000,
+          projectedMax: 35000,
           actualCost: 0,
           subsidyPayback: 0,
-          rawProjectedMin: 5000,
-          rawProjectedMax: 5000,
+          rawProjectedMin: 30000,
+          rawProjectedMax: 35000,
           minSubsidyPayback: 0,
           items: [
             {
-              workItemId: 'wi-nosrc-1',
-              title: 'No Source Work Item',
-              projectedMin: 5000,
-              projectedMax: 5000,
+              workItemId: 'wi-main-1',
+              title: 'Main Work Item',
+              projectedMin: 30000,
+              projectedMax: 35000,
               actualCost: 0,
               subsidyPayback: 0,
-              rawProjectedMin: 5000,
-              rawProjectedMax: 5000,
+              rawProjectedMin: 30000,
+              rawProjectedMax: 35000,
               minSubsidyPayback: 0,
               costDisplay: 'projected',
               budgetLines: [
                 {
-                  id: 'line-nosrc-1',
-                  description: 'No source line',
-                  plannedAmount: 5000,
+                  id: 'line-a1',
+                  description: 'Line A1 (Source A)',
+                  plannedAmount: 30000,
                   confidence: 'own_estimate',
                   actualCost: 0,
                   hasInvoice: false,
                   isQuotation: false,
-                  budgetSourceId: null,
+                  budgetSourceId: SOURCE_A_ID,
                 },
               ],
             },
@@ -286,15 +292,30 @@ function makeBreakdownNoSources() {
         },
       ],
       totals: {
-        projectedMin: 5000,
-        projectedMax: 5000,
+        projectedMin: 30000,
+        projectedMax: 35000,
         actualCost: 0,
         subsidyPayback: 0,
-        rawProjectedMin: 5000,
-        rawProjectedMax: 5000,
+        rawProjectedMin: 30000,
+        rawProjectedMax: 35000,
         minSubsidyPayback: 0,
       },
     },
+    householdItems: {
+      areas: [],
+      totals: makeEmptyTotals(),
+    },
+    subsidyAdjustments: [],
+    budgetSources: [
+      {
+        id: SOURCE_A_ID,
+        name: 'Bank Loan',
+        totalAmount: 150000,
+        projectedMin: 30000,
+        projectedMax: 35000,
+        subsidyPayback: 0,
+      },
+    ],
   };
 }
 
@@ -327,7 +348,7 @@ async function mountOverviewRoutes(page: PageParam, overviewBody: object, breakd
       await route.continue();
     }
   });
-  // Mock budget sources API to return empty (breakdown mock already has budgetSources inline)
+  // Mock budget sources API (breakdown mock has budgetSources inline)
   await page.route(`${API.budgetSources}`, async (route) => {
     if (route.request().method() === 'GET') {
       await route.fulfill({
@@ -347,42 +368,39 @@ async function mountOverviewRoutes(page: PageParam, overviewBody: object, breakd
 }
 
 /**
- * Navigate to the budget overview page, wait for data to load, then expand:
+ * Navigate to /budget/overview, wait for data to load, then expand:
  * 1. Work Items section
- * 2. The first area (Main Area)
- * 3. The first work item (Main Work Item) to reveal budget lines
+ * 2. Main Area
+ * 3. Main Work Item to reveal Level 3 budget lines
  */
 async function expandToLevel3(overviewPage: BudgetOverviewPage) {
   await overviewPage.goto();
   await overviewPage.waitForLoaded();
 
-  // Expand Work Items section
   await overviewPage.costBreakdownCard
     .getByRole('button', { name: /expand work item budget by area/i })
     .click();
 
-  // Expand the area
   await overviewPage.breakdownAreaToggle('Main Area').click();
   await expect(
     overviewPage.costBreakdownCard.getByRole('button', { name: /Expand Main Work Item/i }),
   ).toBeVisible();
 
-  // Expand the work item to reveal budget lines
   await overviewPage.costBreakdownCard
     .getByRole('button', { name: /Expand Main Work Item/i })
     .click();
 }
 
 /**
- * Navigate to budget overview with URL ?sources= param pre-set and expand
- * to level 3 budget line rows.
+ * Navigate to /budget/overview with a preset URL param (e.g. ?deselectedSources=<id>),
+ * wait for load, then expand to Level 3.
  */
-async function navigateWithFilterAndExpand(
+async function navigateWithParamAndExpand(
   page: PageParam,
   overviewPage: BudgetOverviewPage,
-  sourcesParam: string,
+  paramString: string,
 ) {
-  await page.goto(`${BUDGET_OVERVIEW_ROUTE}?sources=${sourcesParam}`);
+  await page.goto(`${BUDGET_OVERVIEW_ROUTE}?${paramString}`);
   await overviewPage.waitForLoaded();
 
   await overviewPage.costBreakdownCard
@@ -395,7 +413,7 @@ async function navigateWithFilterAndExpand(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Source badge on Level 3 rows
+// Source badge on Level 3 rows (carry-over from #1354 — behavior unchanged)
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Source badge on Level 3 rows', { tag: '@responsive' }, () => {
   test('Source badge with source name visible on Level 3 budget line row', async ({ page }) => {
@@ -409,14 +427,11 @@ test.describe('Source badge on Level 3 rows', { tag: '@responsive' }, () => {
     try {
       await expandToLevel3(overviewPage);
 
-      // Assert source badge for "Bank Loan" is in the DOM on Line A1.
-      // Use toBeAttached() instead of toBeVisible() because on mobile the
-      // badge label is wrapped in .sourceBadgeLabel which is CSS-hidden
-      // (display: none); the dot is shown instead. Both keep the
-      // aria-label on the badge span for screen readers.
       const lineA1Row = overviewPage.costBreakdownCard
         .getByRole('row')
         .filter({ hasText: 'Line A1 (Source A)' });
+      // toBeAttached() because on mobile the badge label is CSS-hidden; the dot is shown instead.
+      // aria-label remains in DOM for screen readers.
       await expect(lineA1Row.locator('[aria-label="Budget source: Bank Loan"]')).toBeAttached();
     } finally {
       await teardown();
@@ -434,12 +449,9 @@ test.describe('Source badge on Level 3 rows', { tag: '@responsive' }, () => {
     try {
       await expandToLevel3(overviewPage);
 
-      // Assert unassigned badge for the no-source line is in the DOM.
-      // Mobile hides the label via CSS but keeps the badge attached for SR users.
       const unassignedRow = overviewPage.costBreakdownCard
         .getByRole('row')
         .filter({ hasText: 'Line Unassigned (No source)' });
-      // aria-label contains "Unassigned" (from t('sourceBadge.ariaLabel', { name: 'Unassigned' }))
       await expect(
         unassignedRow.locator('[aria-label="Budget source: Unassigned"]'),
       ).toBeAttached();
@@ -459,23 +471,17 @@ test.describe('Source badge on Level 3 rows', { tag: '@responsive' }, () => {
     try {
       await expandToLevel3(overviewPage);
 
-      // Find the row for the long-name source line
       const longRow = overviewPage.costBreakdownCard
         .getByRole('row')
         .filter({ hasText: 'Line Long Name Source' });
 
-      // The badge label text should be truncated (>20 chars → truncated).
-      // Mobile hides the label via CSS, so use toBeAttached() — the textContent
-      // and title attribute assertions below still work on a hidden element.
       const badge = longRow.locator('[aria-label*="Budget source:"]');
       await expect(badge).toBeAttached();
 
-      // The displayed text ends with ellipsis (…)
       const badgeText = await badge.textContent();
       expect(badgeText).toMatch(/…$/);
       expect(badgeText?.length).toBeLessThanOrEqual(22); // 20 chars + '…'
 
-      // The title attribute contains the full source name
       const titleAttr = await badge.getAttribute('title');
       expect(titleAttr).toBe(LONG_SOURCE_NAME);
     } finally {
@@ -485,62 +491,10 @@ test.describe('Source badge on Level 3 rows', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Filter chip strip
+// Default state
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Filter chip strip', { tag: '@responsive' }, () => {
-  test('Filter chip toolbar visible after expanding Available Funds', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountOverviewRoutes(
-      page,
-      makeBudgetOverviewResponse(),
-      makeBreakdownResponse(),
-    );
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      // Expand Available Funds
-      await overviewPage.availableFundsButton().click();
-
-      // Toolbar visible
-      await expect(overviewPage.filterToolbar()).toBeVisible();
-
-      // Source chip for "Bank Loan" visible
-      await expect(overviewPage.sourceChip('Bank Loan')).toBeVisible();
-
-      // Unassigned chip visible (there is at least one unassigned line)
-      await expect(overviewPage.sourceChip('Unassigned')).toBeVisible();
-    } finally {
-      await teardown();
-    }
-  });
-
-  test('No filter toolbar when budgetSources is empty', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountOverviewRoutes(
-      page,
-      makeBudgetOverviewResponse(),
-      makeBreakdownNoSources(),
-    );
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      // Available Funds row exists but has no expand button (no sources)
-      // The toolbar must NOT be present in the DOM
-      await expect(overviewPage.filterToolbar()).not.toBeVisible();
-      // No chip buttons
-      await expect(
-        overviewPage.costBreakdownCard.getByRole('button', { name: /Filter:/ }),
-      ).not.toBeVisible();
-    } finally {
-      await teardown();
-    }
-  });
-
-  test('Each budget source appears as a chip button with aria-pressed', async ({ page }) => {
+test.describe('Default state — all sources selected', { tag: '@responsive' }, () => {
+  test('No source rows are deselected and URL has no deselectedSources param', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
@@ -554,13 +508,19 @@ test.describe('Filter chip strip', { tag: '@responsive' }, () => {
 
       await overviewPage.availableFundsButton().click();
 
-      // Both source chips have aria-pressed="false" initially
-      const chipA = overviewPage.sourceChip('Bank Loan');
-      const chipB = overviewPage.sourceChip('Equity');
-      await expect(chipA).toBeVisible();
-      await expect(chipB).toBeVisible();
-      await expect(chipA).toHaveAttribute('aria-pressed', 'false');
-      await expect(chipB).toHaveAttribute('aria-pressed', 'false');
+      // Both source rows must be in selected state (aria-pressed="true")
+      const rowA = overviewPage.sourceRow('Bank Loan');
+      const rowB = overviewPage.sourceRow('Equity');
+      await expect(rowA).toBeVisible();
+      await expect(rowB).toBeVisible();
+      await expect(rowA).toHaveAttribute('aria-pressed', 'true');
+      await expect(rowB).toHaveAttribute('aria-pressed', 'true');
+
+      // URL must not contain deselectedSources
+      await expect(page).not.toHaveURL(/deselectedSources/);
+
+      // No filter caption present when all sources are selected
+      await expect(overviewPage.filterCaption()).not.toBeVisible();
     } finally {
       await teardown();
     }
@@ -568,12 +528,10 @@ test.describe('Filter chip strip', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Single-source filter
+// Deselect a source row
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Single-source filter', { tag: '@responsive' }, () => {
-  test('Single source filter: chip becomes pressed, URL updated, non-matching lines hidden', async ({
-    page,
-  }) => {
+test.describe('Deselect source row', { tag: '@responsive' }, () => {
+  test('Click source row → aria-pressed="false", URL updated, lines hidden', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
@@ -585,20 +543,18 @@ test.describe('Single-source filter', { tag: '@responsive' }, () => {
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
 
-      // Expand Available Funds to access filter strip
       await overviewPage.availableFundsButton().click();
 
-      // Click the "Bank Loan" chip
-      const chip = overviewPage.sourceChip('Bank Loan');
-      await chip.click();
+      const row = overviewPage.sourceRow('Bank Loan');
+      await row.click();
 
-      // Chip becomes pressed
-      await expect(chip).toHaveAttribute('aria-pressed', 'true');
+      // Row becomes deselected
+      await expect(row).toHaveAttribute('aria-pressed', 'false');
 
-      // URL contains ?sources=<id>
-      await expect(page).toHaveURL(new RegExp(`sources=${SOURCE_A_ID}`));
+      // URL contains deselectedSources=<id>
+      await expect(page).toHaveURL(new RegExp(`deselectedSources=${SOURCE_A_ID}`));
 
-      // Expand to level 3 to check visible lines
+      // Expand to Level 3 — Bank Loan lines must not be rendered
       await overviewPage.costBreakdownCard
         .getByRole('button', { name: /expand work item budget by area/i })
         .click();
@@ -607,31 +563,55 @@ test.describe('Single-source filter', { tag: '@responsive' }, () => {
         .getByRole('button', { name: /Expand Main Work Item/i })
         .click();
 
-      // Bank Loan lines (line-a1, line-a2) are visible
       await expect(
         overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Line A1 (Source A)' }),
-      ).toBeVisible();
+      ).not.toBeVisible();
       await expect(
         overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Line A2 (Source A)' }),
-      ).toBeVisible();
+      ).not.toBeVisible();
 
-      // Unassigned line is hidden (not rendered when filtered out)
+      // The unassigned line (not deselected) is still visible
       await expect(
         overviewPage.costBreakdownCard
           .getByRole('row')
           .filter({ hasText: 'Line Unassigned (No source)' }),
-      ).not.toBeVisible();
+      ).toBeVisible();
     } finally {
       await teardown();
     }
   });
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Multi-source filter (OR semantics)
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Multi-source filter', { tag: '@responsive' }, () => {
-  test('Multi-source filter shows lines from EITHER source (OR semantics)', async ({ page }) => {
+  test('Click deselected source row re-selects it and clears URL param', async ({ page }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownResponse(),
+    );
+
+    try {
+      // Start with Bank Loan deselected via URL
+      await page.goto(`${BUDGET_OVERVIEW_ROUTE}?deselectedSources=${SOURCE_A_ID}`);
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+
+      const row = overviewPage.sourceRow('Bank Loan');
+      await expect(row).toHaveAttribute('aria-pressed', 'false');
+
+      // Click to re-select
+      await row.click();
+
+      await expect(row).toHaveAttribute('aria-pressed', 'true');
+      await expect(page).not.toHaveURL(/deselectedSources/);
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Multi-deselection: both IDs appear in URL, lines from both sources are hidden', async ({
+    page,
+  }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
@@ -645,20 +625,17 @@ test.describe('Multi-source filter', { tag: '@responsive' }, () => {
 
       await overviewPage.availableFundsButton().click();
 
-      // Select both Source A ("Bank Loan") and Source B ("Equity")
-      await overviewPage.sourceChip('Bank Loan').click();
-      await overviewPage.sourceChip('Equity').click();
+      await overviewPage.sourceRow('Bank Loan').click();
+      await overviewPage.sourceRow('Equity').click();
 
-      // Both chips are pressed
-      await expect(overviewPage.sourceChip('Bank Loan')).toHaveAttribute('aria-pressed', 'true');
-      await expect(overviewPage.sourceChip('Equity')).toHaveAttribute('aria-pressed', 'true');
+      await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
+      await expect(overviewPage.sourceRow('Equity')).toHaveAttribute('aria-pressed', 'false');
 
-      // URL contains both source IDs
       const url = page.url();
       expect(url).toContain(SOURCE_A_ID);
       expect(url).toContain(SOURCE_B_ID);
 
-      // Expand to budget line level
+      // Expand to level 3 — both sources' lines must be hidden
       await overviewPage.costBreakdownCard
         .getByRole('button', { name: /expand work item budget by area/i })
         .click();
@@ -667,22 +644,19 @@ test.describe('Multi-source filter', { tag: '@responsive' }, () => {
         .getByRole('button', { name: /Expand Main Work Item/i })
         .click();
 
-      // Source A lines visible
       await expect(
         overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Line A1 (Source A)' }),
-      ).toBeVisible();
-
-      // Source B line visible
+      ).not.toBeVisible();
       await expect(
         overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Line B1 (Source B)' }),
-      ).toBeVisible();
+      ).not.toBeVisible();
 
-      // Unassigned line hidden (not in either selected source)
+      // Unassigned line still visible (null source — not deselected)
       await expect(
         overviewPage.costBreakdownCard
           .getByRole('row')
           .filter({ hasText: 'Line Unassigned (No source)' }),
-      ).not.toBeVisible();
+      ).toBeVisible();
     } finally {
       await teardown();
     }
@@ -690,143 +664,35 @@ test.describe('Multi-source filter', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Unassigned chip
+// Cascade hiding
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Unassigned chip', { tag: '@responsive' }, () => {
-  test('Unassigned chip selects null-source lines; named-source lines are hidden', async ({
-    page,
-  }) => {
+test.describe('Cascade hiding', { tag: '@responsive' }, () => {
+  test('Deselecting the only source hides work item row and area row', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
       makeBudgetOverviewResponse(),
-      makeBreakdownResponse(),
+      makeBreakdownSourceAOnly(),
     );
 
     try {
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
 
+      // Deselect Bank Loan
       await overviewPage.availableFundsButton().click();
+      await overviewPage.sourceRow('Bank Loan').click();
+      await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
 
-      // Click the Unassigned chip
-      await overviewPage.sourceChip('Unassigned').click();
-      await expect(overviewPage.sourceChip('Unassigned')).toHaveAttribute('aria-pressed', 'true');
-
-      // URL contains ?sources=unassigned
-      await expect(page).toHaveURL(/sources=unassigned/);
-
-      // Expand to budget lines
+      // Expand Work Items section
       await overviewPage.costBreakdownCard
         .getByRole('button', { name: /expand work item budget by area/i })
         .click();
-      await overviewPage.breakdownAreaToggle('Main Area').click();
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: /Expand Main Work Item/i })
-        .click();
 
-      // Unassigned line is visible
+      // Main Area row must not be visible (cascade-hidden)
       await expect(
-        overviewPage.costBreakdownCard
-          .getByRole('row')
-          .filter({ hasText: 'Line Unassigned (No source)' }),
-      ).toBeVisible();
-
-      // Source A lines are hidden
-      await expect(
-        overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Line A1 (Source A)' }),
+        overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Main Area' }),
       ).not.toBeVisible();
-    } finally {
-      await teardown();
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// URL state survives reload
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('URL state on reload', { tag: '@responsive' }, () => {
-  test('URL ?sources= filter state is restored after page reload', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountOverviewRoutes(
-      page,
-      makeBudgetOverviewResponse(),
-      makeBreakdownResponse(),
-    );
-
-    try {
-      // Navigate directly with sources param
-      await navigateWithFilterAndExpand(page, overviewPage, SOURCE_A_ID);
-
-      // Expand available funds
-      await overviewPage.availableFundsButton().click();
-
-      // The chip for "Bank Loan" should be pressed (filter is active)
-      await expect(overviewPage.sourceChip('Bank Loan')).toHaveAttribute('aria-pressed', 'true');
-
-      // Unassigned line is not visible (filtered out)
-      await expect(
-        overviewPage.costBreakdownCard
-          .getByRole('row')
-          .filter({ hasText: 'Line Unassigned (No source)' }),
-      ).not.toBeVisible();
-    } finally {
-      await teardown();
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Clear filters
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Clear filters', { tag: '@responsive' }, () => {
-  test('Clear filters button deselects all chips and removes URL param', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountOverviewRoutes(
-      page,
-      makeBudgetOverviewResponse(),
-      makeBreakdownResponse(),
-    );
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      await overviewPage.availableFundsButton().click();
-
-      // Enable a filter
-      await overviewPage.sourceChip('Bank Loan').click();
-      await expect(overviewPage.sourceChip('Bank Loan')).toHaveAttribute('aria-pressed', 'true');
-
-      // Click clear
-      await overviewPage.clearFiltersButton().click();
-
-      // All chips are deselected
-      await expect(overviewPage.sourceChip('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
-
-      // URL no longer has ?sources=
-      await expect(page).not.toHaveURL(/sources=/);
-    } finally {
-      await teardown();
-    }
-  });
-
-  test('Clear filters button not visible when no filter is active', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountOverviewRoutes(
-      page,
-      makeBudgetOverviewResponse(),
-      makeBreakdownResponse(),
-    );
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      await overviewPage.availableFundsButton().click();
-
-      // No filter active — clear button should not be visible
-      await expect(overviewPage.clearFiltersButton()).not.toBeVisible();
     } finally {
       await teardown();
     }
@@ -836,34 +702,14 @@ test.describe('Clear filters', { tag: '@responsive' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Empty state
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Empty state when filter matches no lines', { tag: '@responsive' }, () => {
-  /**
-   * We need a source that has NO budget lines — use Source B with no lines.
-   * Create a custom breakdown where SOURCE_B_ID exists in budgetSources but has no lines.
-   */
-  function makeBreakdownSourceBNoLines() {
-    const base = makeBreakdownResponse();
-    return {
-      ...base,
-      budgetSources: [
-        ...base.budgetSources,
-        {
-          id: SOURCE_B_ID,
-          name: 'Equity',
-          totalAmount: 100000,
-          projectedMin: 0,
-          projectedMax: 0,
-        },
-      ],
-    };
-  }
-
-  test('Empty state shown when filter matches no budget lines', async ({ page }) => {
+test.describe('Empty state when all sources deselected', { tag: '@responsive' }, () => {
+  test('Deselecting all sources shows empty state', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
+    // Use SOURCE_A_ID only breakdown (no unassigned) so deselecting one source covers everything
     const teardown = await mountOverviewRoutes(
       page,
       makeBudgetOverviewResponse(),
-      makeBreakdownSourceBNoLines(),
+      makeBreakdownSourceAOnly(),
     );
 
     try {
@@ -871,11 +717,9 @@ test.describe('Empty state when filter matches no lines', { tag: '@responsive' }
       await overviewPage.waitForLoaded();
 
       await overviewPage.availableFundsButton().click();
+      await overviewPage.sourceRow('Bank Loan').click();
 
-      // Click the Equity chip (which has no associated budget lines)
-      await overviewPage.sourceChip('Equity').click();
-
-      // EmptyState component appears with "no match" message
+      // EmptyState message appears
       const emptyMsg = overviewPage.costBreakdownCard.getByText(
         'No budget lines match the selected source filter.',
         { exact: true },
@@ -886,12 +730,12 @@ test.describe('Empty state when filter matches no lines', { tag: '@responsive' }
     }
   });
 
-  test('Clear filters from empty state clears filter and shows all lines', async ({ page }) => {
+  test('Clear filters action from empty state restores all lines', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
       makeBudgetOverviewResponse(),
-      makeBreakdownSourceBNoLines(),
+      makeBreakdownSourceAOnly(),
     );
 
     try {
@@ -899,9 +743,9 @@ test.describe('Empty state when filter matches no lines', { tag: '@responsive' }
       await overviewPage.waitForLoaded();
 
       await overviewPage.availableFundsButton().click();
+      await overviewPage.sourceRow('Bank Loan').click();
 
-      // Apply filter that results in empty state
-      await overviewPage.sourceChip('Equity').click();
+      // Confirm empty state is shown
       await expect(
         overviewPage.costBreakdownCard.getByText(
           'No budget lines match the selected source filter.',
@@ -914,16 +758,14 @@ test.describe('Empty state when filter matches no lines', { tag: '@responsive' }
         .getByRole('button', { name: 'Clear filters', exact: true })
         .click();
 
-      // Empty state is gone
+      // Empty state is gone, URL is clean
       await expect(
         overviewPage.costBreakdownCard.getByText(
           'No budget lines match the selected source filter.',
           { exact: true },
         ),
       ).not.toBeVisible();
-
-      // Filter URL param is removed
-      await expect(page).not.toHaveURL(/sources=/);
+      await expect(page).not.toHaveURL(/deselectedSources/);
     } finally {
       await teardown();
     }
@@ -931,10 +773,76 @@ test.describe('Empty state when filter matches no lines', { tag: '@responsive' }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Source detail rows
+// Available Funds caption
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Source detail rows under Available Funds', { tag: '@responsive' }, () => {
-  test('Source detail rows show source name, total, allocated, and remaining values', async ({
+test.describe('Available Funds caption', { tag: '@responsive' }, () => {
+  test('Caption "(1 of 2 selected)" appears after deselecting one source from two', async ({
+    page,
+  }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownResponse({ includeSourceB: true }),
+    );
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+
+      // Caption not yet visible — all sources selected
+      await expect(overviewPage.filterCaption()).not.toBeVisible();
+
+      // Deselect Bank Loan
+      await overviewPage.sourceRow('Bank Loan').click();
+
+      // Caption appears with "1 of 2" (or localized equivalent with digits)
+      await expect(overviewPage.filterCaption()).toBeVisible();
+      const captionText = await overviewPage.filterCaption().textContent();
+      expect(captionText).toMatch(/1.+2/); // matches "1 of 2" or "1 von 2" etc.
+    } finally {
+      await teardown();
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// URL round-trip
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('URL round-trip', { tag: '@responsive' }, () => {
+  test('?deselectedSources= param restores filter on load', async ({ page }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownResponse(),
+    );
+
+    try {
+      // Navigate directly with deselectedSources param
+      await navigateWithParamAndExpand(
+        page,
+        overviewPage,
+        `deselectedSources=${SOURCE_A_ID}`,
+      );
+
+      await overviewPage.availableFundsButton().click();
+
+      // Bank Loan row must be rendered as deselected
+      await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
+
+      // Bank Loan budget lines must not be rendered
+      await expect(
+        overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Line A1 (Source A)' }),
+      ).not.toBeVisible();
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Stale/unknown ID in ?deselectedSources= is silently ignored — all sources selected', async ({
     page,
   }) => {
     const overviewPage = new BudgetOverviewPage(page);
@@ -945,34 +853,76 @@ test.describe('Source detail rows under Available Funds', { tag: '@responsive' }
     );
 
     try {
+      await page.goto(`${BUDGET_OVERVIEW_ROUTE}?deselectedSources=nonexistent-uuid`);
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+
+      // Bank Loan row must still be selected (unknown ID dropped silently)
+      await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'true');
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Old ?sources= param is ignored — all sources selected', async ({ page }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownResponse(),
+    );
+
+    try {
+      await page.goto(`${BUDGET_OVERVIEW_ROUTE}?sources=${SOURCE_A_ID}`);
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+
+      // Row must be selected — legacy param not read
+      await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'true');
+    } finally {
+      await teardown();
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Source detail row columns
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Source detail row columns', { tag: '@responsive' }, () => {
+  test('Source row has 4 cells: Source · Cost · Payback · Net', async ({ page }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownResponse(),
+    );
+
+    try {
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
 
-      // Expand Available Funds
       await overviewPage.availableFundsButton().click();
 
-      // Find the source detail row for "Bank Loan"
-      const sourceRow = overviewPage.sourceDetailRow('Bank Loan');
-      await expect(sourceRow).toBeVisible();
+      const row = overviewPage.sourceRow('Bank Loan');
+      await expect(row).toBeVisible();
 
-      // Row should have 4 cells: name, total, allocated, remaining
-      const cells = sourceRow.locator('td');
+      const cells = row.locator('td');
       await expect(cells).toHaveCount(4);
 
-      // All non-name cells should contain currency-like text (€ or numbers)
-      const totalCell = cells.nth(1);
-      const allocatedCell = cells.nth(2);
-      const remainingCell = cells.nth(3);
-
-      await expect(totalCell).toContainText(/[€\d]/);
-      await expect(allocatedCell).toContainText(/[€\d]/);
-      await expect(remainingCell).toContainText(/[€\d]/);
+      // Cost cell (index 1) should contain a currency amount (negative, e.g. "-€30,000")
+      await expect(cells.nth(1)).toContainText(/[€\d]/);
+      // Payback cell (index 2) — may be 0 but must contain a currency value
+      await expect(cells.nth(2)).toContainText(/[€\d]/);
+      // Net cell (index 3)
+      await expect(cells.nth(3)).toContainText(/[€\d]/);
     } finally {
       await teardown();
     }
   });
 
-  test('Perspective toggle changes allocated cost in source detail row', async ({ page }) => {
+  test('Source row values are identical when deselected (only style changes)', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
@@ -986,61 +936,55 @@ test.describe('Source detail rows under Available Funds', { tag: '@responsive' }
 
       await overviewPage.availableFundsButton().click();
 
-      const sourceRow = overviewPage.sourceDetailRow('Bank Loan');
-      const allocatedCell = sourceRow.locator('td').nth(2);
+      const row = overviewPage.sourceRow('Bank Loan');
+      const cells = row.locator('td');
 
-      // Record the "Avg" perspective value
-      const avgText = await allocatedCell.textContent();
+      // Record values before deselection
+      const costBefore = await cells.nth(1).textContent();
+      const paybackBefore = await cells.nth(2).textContent();
+      const netBefore = await cells.nth(3).textContent();
 
-      // Switch to "Min" perspective
+      // Deselect
+      await row.click();
+      await expect(row).toHaveAttribute('aria-pressed', 'false');
+
+      // Values must not change (only visual styling changes)
+      await expect(cells.nth(1)).toHaveText(costBefore ?? '');
+      await expect(cells.nth(2)).toHaveText(paybackBefore ?? '');
+      await expect(cells.nth(3)).toHaveText(netBefore ?? '');
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Perspective toggle changes Cost value in source row', async ({ page }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownResponse(),
+    );
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+
+      const row = overviewPage.sourceRow('Bank Loan');
+      const costCell = row.locator('td').nth(1);
+
+      const avgText = await costCell.textContent();
+
       await overviewPage.costBreakdownCard.getByRole('radio', { name: 'Min' }).click();
+      const minText = await costCell.textContent();
 
-      const minText = await allocatedCell.textContent();
-
-      // Switch to "Max" perspective
       await overviewPage.costBreakdownCard.getByRole('radio', { name: 'Max' }).click();
+      const maxText = await costCell.textContent();
 
-      const maxText = await allocatedCell.textContent();
-
-      // The Bank Loan source has projectedMin=30000, projectedMax=35000
-      // Min < Avg < Max (or at minimum Min <= Avg <= Max)
-      // They should not all be equal — at least some variation
-      // (min and max values differ, so at least two of the three should differ)
+      // Bank Loan has projectedMin=30000 ≠ projectedMax=35000, so at least two values differ
       const allSame = minText === avgText && avgText === maxText;
       expect(allSame).toBe(false);
-    } finally {
-      await teardown();
-    }
-  });
-
-  test('Selected source chip highlights corresponding source detail row', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountOverviewRoutes(
-      page,
-      makeBudgetOverviewResponse(),
-      makeBreakdownResponse(),
-    );
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      await overviewPage.availableFundsButton().click();
-
-      // Before selecting: source detail row should NOT have the selected class
-      const sourceRow = overviewPage.sourceDetailRow('Bank Loan');
-      const classNameBefore = await sourceRow.getAttribute('class');
-      expect(classNameBefore).not.toMatch(/rowSourceDetailSelected/);
-
-      // Select the chip
-      await overviewPage.sourceChip('Bank Loan').click();
-
-      // After selecting: the source detail row should get the selected class.
-      // Use toHaveClass (auto-retries) instead of getAttribute() so the assertion
-      // tolerates the URL-state -> React-render round-trip after the chip click.
-      // CSS modules hash class names at build time, so the attribute will look like
-      // "rowSourceDetail_xyz rowSourceDetailSelected_abc" — match by substring.
-      await expect(sourceRow).toHaveClass(/rowSourceDetailSelected/);
     } finally {
       await teardown();
     }
@@ -1051,8 +995,7 @@ test.describe('Source detail rows under Available Funds', { tag: '@responsive' }
 // Keyboard navigation
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Keyboard navigation', () => {
-  // Keyboard tests are desktop-only (tablet/mobile don't use keyboard navigation)
-  test('Space key toggles chip selection', async ({ page }) => {
+  test('Space key toggles source row selection', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
@@ -1066,22 +1009,22 @@ test.describe('Keyboard navigation', () => {
 
       await overviewPage.availableFundsButton().click();
 
-      const chip = overviewPage.sourceChip('Bank Loan');
-      await chip.focus();
+      const row = overviewPage.sourceRow('Bank Loan');
+      await row.focus();
 
-      // Press Space to toggle on
+      // Space deselects (all sources start selected)
       await page.keyboard.press('Space');
-      await expect(chip).toHaveAttribute('aria-pressed', 'true');
+      await expect(row).toHaveAttribute('aria-pressed', 'false');
 
-      // Press Space again to toggle off
+      // Space re-selects
       await page.keyboard.press('Space');
-      await expect(chip).toHaveAttribute('aria-pressed', 'false');
+      await expect(row).toHaveAttribute('aria-pressed', 'true');
     } finally {
       await teardown();
     }
   });
 
-  test('Enter key toggles chip selection', async ({ page }) => {
+  test('Enter key toggles source row selection', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
@@ -1095,18 +1038,51 @@ test.describe('Keyboard navigation', () => {
 
       await overviewPage.availableFundsButton().click();
 
-      const chip = overviewPage.sourceChip('Bank Loan');
-      await chip.focus();
+      const row = overviewPage.sourceRow('Bank Loan');
+      await row.focus();
 
-      // Press Enter to toggle on
       await page.keyboard.press('Enter');
-      await expect(chip).toHaveAttribute('aria-pressed', 'true');
+      await expect(row).toHaveAttribute('aria-pressed', 'false');
     } finally {
       await teardown();
     }
   });
 
-  test('Escape key clears source filter and refocuses Available Funds button', async ({ page }) => {
+  test('Escape on focused row calls select-all (clears deselections)', async ({ page }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownResponse({ includeSourceB: true }),
+    );
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+
+      // Deselect Bank Loan
+      const row = overviewPage.sourceRow('Bank Loan');
+      await row.click();
+      await expect(row).toHaveAttribute('aria-pressed', 'false');
+      await expect(page).toHaveURL(new RegExp(`deselectedSources=${SOURCE_A_ID}`));
+
+      // Focus the row and press Escape — should select-all (clear deselections)
+      await row.focus();
+      await page.keyboard.press('Escape');
+
+      // Bank Loan is re-selected
+      await expect(row).toHaveAttribute('aria-pressed', 'true');
+
+      // URL no longer contains deselectedSources
+      await expect(page).not.toHaveURL(/deselectedSources/);
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Escape on row when no sources are deselected is a no-op', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
@@ -1118,62 +1094,74 @@ test.describe('Keyboard navigation', () => {
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
 
-      // Expand Available Funds to make chip strip visible
       await overviewPage.availableFundsButton().click();
 
-      // Click the "Bank Loan" chip to select it
-      const chip = overviewPage.sourceChip('Bank Loan');
-      await chip.click();
-
-      // Verify chip is selected and URL reflects the filter
-      await expect(chip).toHaveAttribute('aria-pressed', 'true');
-      await expect(page).toHaveURL(new RegExp(`sources=${SOURCE_A_ID}`));
-
-      // Focus the chip (it is inside the toolbar) and press Escape
-      await chip.focus();
+      const row = overviewPage.sourceRow('Bank Loan');
+      // All sources are selected — Escape should be a no-op
+      await row.focus();
       await page.keyboard.press('Escape');
 
-      // Chip should be deselected
-      await expect(chip).toHaveAttribute('aria-pressed', 'false');
-
-      // URL should no longer contain the sources param
-      await expect(page).not.toHaveURL(/sources=/);
-
-      // Focus should have moved to the Available Funds expand/collapse button
-      const availFundsBtn = overviewPage.availableFundsButton();
-      await expect(availFundsBtn).toBeFocused();
+      // Row remains selected
+      await expect(row).toHaveAttribute('aria-pressed', 'true');
+      await expect(page).not.toHaveURL(/deselectedSources/);
     } finally {
       await teardown();
     }
   });
+});
 
-  test('Escape key on toolbar with no active filter is a no-op', async ({ page }) => {
+// ─────────────────────────────────────────────────────────────────────────────
+// Live region
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Live region', { tag: '@responsive' }, () => {
+  test('Live region announces "1 of 2" after deselecting one source', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
       makeBudgetOverviewResponse(),
-      makeBreakdownResponse(),
+      makeBreakdownResponse({ includeSourceB: true }),
     );
 
     try {
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
 
-      // Expand Available Funds — no filter active
       await overviewPage.availableFundsButton().click();
 
-      const chip = overviewPage.sourceChip('Bank Loan');
-      await expect(chip).toHaveAttribute('aria-pressed', 'false');
+      await overviewPage.sourceRow('Bank Loan').click();
 
-      // Focus a chip and press Escape — should be a no-op (no sources selected)
-      await chip.focus();
-      await page.keyboard.press('Escape');
+      // Live region text must contain "1" and "2" (locale-agnostic digit check)
+      const announcementText = await overviewPage.filterAnnouncement().textContent();
+      expect(announcementText).toMatch(/1/);
+      expect(announcementText).toMatch(/2/);
+    } finally {
+      await teardown();
+    }
+  });
+});
 
-      // Chip remains unselected
-      await expect(chip).toHaveAttribute('aria-pressed', 'false');
+// ─────────────────────────────────────────────────────────────────────────────
+// No chip toolbar
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('No chip toolbar', { tag: '@responsive' }, () => {
+  test('No role="toolbar" element exists at any time', async ({ page }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownResponse({ includeSourceB: true }),
+    );
 
-      // URL still has no sources param
-      await expect(page).not.toHaveURL(/sources=/);
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+
+      // Select a source to make the UI "active" — toolbar must still not appear
+      await overviewPage.sourceRow('Bank Loan').click();
+
+      await expect(page.getByRole('toolbar')).not.toBeAttached();
     } finally {
       await teardown();
     }
@@ -1207,20 +1195,14 @@ test.describe('Dark mode: badge color smoke check', { tag: '@responsive' }, () =
         .getByRole('button', { name: /Expand Main Work Item/i })
         .click();
 
-      // Get the source badge for Line A1.
-      // On mobile the badge label is wrapped in .sourceBadgeLabel which is
-      // CSS-hidden (display: none), but the element is still attached and its
-      // computed background-color is the dark-mode token value, which is what
-      // we want to assert here.
       const badge = overviewPage.costBreakdownCard
         .getByRole('row')
         .filter({ hasText: 'Line A1 (Source A)' })
         .locator('[aria-label="Budget source: Bank Loan"]');
       await expect(badge).toBeAttached();
 
-      // Check background is not white (dark mode should use dark palette)
+      // Normalize background-color via a throw-away element (handles var() and hex forms)
       const bgColor = await badge.evaluate((el) => {
-        // Create a throw-away element to compute background-color via CSS var
         const dummy = document.createElement('span');
         dummy.style.backgroundColor = getComputedStyle(el).backgroundColor;
         document.body.appendChild(dummy);
@@ -1229,8 +1211,42 @@ test.describe('Dark mode: badge color smoke check', { tag: '@responsive' }, () =
         return result;
       });
 
-      // In dark mode, the background should not be rgb(255, 255, 255) (white)
+      // In dark mode the background must not be white
       expect(bgColor).not.toBe('rgb(255, 255, 255)');
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Deselected source row is visually distinct in dark mode (class smoke check)', async ({
+    page,
+  }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownResponse(),
+    );
+
+    try {
+      await page.goto(BUDGET_OVERVIEW_ROUTE);
+      await page.evaluate(() => {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      });
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+
+      const row = overviewPage.sourceRow('Bank Loan');
+      const classNameSelected = await row.getAttribute('class');
+
+      await row.click();
+      await expect(row).toHaveAttribute('aria-pressed', 'false');
+
+      const classNameDeselected = await row.getAttribute('class');
+
+      // The class attribute must differ between selected and deselected states
+      expect(classNameDeselected).not.toBe(classNameSelected);
     } finally {
       await teardown();
     }
@@ -1241,7 +1257,7 @@ test.describe('Dark mode: badge color smoke check', { tag: '@responsive' }, () =
 // Responsive layout
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Responsive layout', { tag: '@responsive' }, () => {
-  test('Budget source filter page has no horizontal scroll at current viewport', async ({
+  test('No horizontal scroll at current viewport after expanding Available Funds', async ({
     page,
   }) => {
     const overviewPage = new BudgetOverviewPage(page);
@@ -1255,11 +1271,8 @@ test.describe('Responsive layout', { tag: '@responsive' }, () => {
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
 
-      // Expand available funds to show filter strip
       await overviewPage.availableFundsButton().click();
-      await expect(overviewPage.filterToolbar()).toBeVisible();
 
-      // No page-level horizontal scroll
       const hasHorizontalScroll = await page.evaluate(() => {
         return document.documentElement.scrollWidth > window.innerWidth;
       });
@@ -1284,28 +1297,19 @@ test.describe('Responsive layout', { tag: '@responsive' }, () => {
         .getByRole('row')
         .filter({ hasText: 'Line A1 (Source A)' });
 
-      // The badge must be present in DOM with correct aria-label regardless of viewport
       const badge = lineA1Row.locator('[aria-label="Budget source: Bank Loan"]');
-
-      // The badge should be present (it may be visually condensed on mobile but still in DOM)
       await expect(badge).toBeAttached();
 
-      // ── Mobile dot-only behaviour ────────────────────────────────────────────
-      // At ≤767px the CSS module hides .sourceBadgeLabel (display:none) and shows
-      // .sourceBadgeDot (display:inline-block).  CSS module names are hashed at
-      // build time, so we locate these spans by their class substring.
       const viewportWidth = page.viewportSize()?.width ?? 1920;
       if (viewportWidth <= 767) {
-        // The dot span (aria-hidden) should be visible
+        // Mobile: dot visible, label wrapper hidden
         const dotSpan = lineA1Row.locator('[class*="sourceBadgeDot"]');
         await expect(dotSpan).toBeVisible();
 
-        // The label wrapper span should be hidden via CSS display:none
         const labelSpan = lineA1Row.locator('[class*="sourceBadgeLabel"]');
         await expect(labelSpan).toBeHidden();
 
-        // The <Badge> aria-label must still exist in the DOM for screen-reader
-        // access even though the label wrapper is visually hidden
+        // aria-label still in DOM for SR
         await expect(badge).toBeAttached();
       }
     } finally {
@@ -1313,34 +1317,7 @@ test.describe('Responsive layout', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Chip strip container has overflow-x: auto (scroll-ready) on any viewport', async ({
-    page,
-  }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountOverviewRoutes(
-      page,
-      makeBudgetOverviewResponse(),
-      makeBreakdownResponse({ includeSourceB: true }),
-    );
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      await overviewPage.availableFundsButton().click();
-
-      const toolbar = overviewPage.filterToolbar();
-      await expect(toolbar).toBeVisible();
-
-      // The .sourceFilterStrip div has overflow-x: auto
-      const overflowX = await toolbar.evaluate((el) => getComputedStyle(el).overflowX);
-      expect(overflowX).toBe('auto');
-    } finally {
-      await teardown();
-    }
-  });
-
-  test('Chip touch targets are at least 44px high on any viewport', async ({ page }) => {
+  test('Source row touch target >= 44px on mobile viewport', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
@@ -1354,21 +1331,50 @@ test.describe('Responsive layout', { tag: '@responsive' }, () => {
 
       await overviewPage.availableFundsButton().click();
 
-      const chip = overviewPage.sourceChip('Bank Loan');
-      await expect(chip).toBeVisible();
+      const row = overviewPage.sourceRow('Bank Loan');
+      await expect(row).toBeVisible();
 
-      const box = await chip.boundingBox();
+      const box = await row.boundingBox();
       expect(box).not.toBeNull();
-      // Min-height 44px per CSS (.chip: min-height: var(--spacing-8) = 32px on desktop,
-      //  but on mobile .chip: min-height: 44px)
-      // Check box height — at mobile viewport this must be >= 44
+
       const viewportWidth = page.viewportSize()?.width ?? 1920;
       if (viewportWidth <= 767) {
+        // Mobile: touch target must be >= 44px
         expect(box!.height).toBeGreaterThanOrEqual(44);
       } else {
-        // Desktop/tablet: min-height is --spacing-8 (typically 32px), still needs to be usable
         expect(box!.height).toBeGreaterThan(0);
       }
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Source rows cascade-hide on mobile viewport when source is deselected', async ({
+    page,
+  }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownSourceAOnly(),
+    );
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+      await overviewPage.sourceRow('Bank Loan').click();
+      await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
+
+      await overviewPage.costBreakdownCard
+        .getByRole('button', { name: /expand work item budget by area/i })
+        .click();
+
+      // Main Area row hidden (cascade)
+      await expect(
+        overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Main Area' }),
+      ).not.toBeVisible();
     } finally {
       await teardown();
     }
