@@ -208,6 +208,7 @@ describe('BudgetOverviewPage', () => {
       },
     },
     subsidyAdjustments: [],
+    budgetSources: [],
   };
 
   beforeEach(async () => {
@@ -839,6 +840,7 @@ describe('BudgetOverviewPage', () => {
           },
         },
         subsidyAdjustments: [],
+        budgetSources: [],
       });
 
       renderPage();

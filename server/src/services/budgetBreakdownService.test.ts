@@ -328,6 +328,106 @@ describe('getBudgetBreakdown', () => {
     db.insert(schema.householdItemSubsidies).values({ householdItemId, subsidyProgramId }).run();
   }
 
+  /**
+   * Insert a budget source and return its id.
+   */
+  function insertBudgetSource(opts: {
+    name?: string;
+    totalAmount?: number;
+    sourceType?: 'bank_loan' | 'credit_line' | 'savings' | 'other' | 'discretionary';
+  } = {}): string {
+    const id = `src-test-${idCounter++}`;
+    const now = new Date().toISOString();
+    db.insert(schema.budgetSources)
+      .values({
+        id,
+        name: opts.name ?? `Budget Source ${id}`,
+        sourceType: opts.sourceType ?? 'bank_loan',
+        totalAmount: opts.totalAmount ?? 100000,
+        status: 'active',
+        isDiscretionary: false,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return id;
+  }
+
+  /**
+   * Insert a work item budget line with a specific budget source assigned.
+   * Returns the budget line id.
+   */
+  function insertWorkItemWithSource(opts: {
+    plannedAmount?: number;
+    confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
+    budgetSourceId: string | null;
+  }): { workItemId: string; budgetLineId: string } {
+    const id = `wi-src-${idCounter++}`;
+    const budgetId = `bud-src-${idCounter++}`;
+    const now = new Date().toISOString();
+    db.insert(schema.workItems)
+      .values({
+        id,
+        title: `Work Item with Source ${id}`,
+        status: 'not_started',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    db.insert(schema.workItemBudgets)
+      .values({
+        id: budgetId,
+        workItemId: id,
+        plannedAmount: opts.plannedAmount ?? 1000,
+        confidence: opts.confidence ?? 'own_estimate',
+        budgetCategoryId: null,
+        budgetSourceId: opts.budgetSourceId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return { workItemId: id, budgetLineId: budgetId };
+  }
+
+  /**
+   * Insert a household item budget line with a specific budget source assigned.
+   * Returns the budget line id.
+   */
+  function insertHouseholdItemWithSource(opts: {
+    plannedAmount?: number;
+    confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
+    budgetSourceId: string | null;
+  }): { householdItemId: string; budgetLineId: string } {
+    const id = `hi-src-${idCounter++}`;
+    const budgetId = `hibud-src-${idCounter++}`;
+    const now = new Date().toISOString();
+    db.insert(schema.householdItems)
+      .values({
+        id,
+        name: `Household Item with Source ${id}`,
+        categoryId: 'hic-furniture',
+        status: 'planned',
+        quantity: 1,
+        isLate: false,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    db.insert(schema.householdItemBudgets)
+      .values({
+        id: budgetId,
+        householdItemId: id,
+        plannedAmount: opts.plannedAmount ?? 500,
+        confidence: opts.confidence ?? 'own_estimate',
+        budgetCategoryId: null,
+        budgetSourceId: opts.budgetSourceId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return { householdItemId: id, budgetLineId: budgetId };
+  }
+
   beforeEach(() => {
     const testDb = createTestDb();
     sqlite = testDb.sqlite;
@@ -1225,6 +1325,200 @@ describe('getBudgetBreakdown', () => {
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.budgetLines[0]!.description).toBeNull();
+    });
+  });
+
+  // ── 15. budgetSourceId attribution ─────────────────────────────────────────
+
+  describe('budgetSourceId attribution on budget lines', () => {
+    // Scenario 1: budgetSourceId populated on WI lines
+    it('populates budgetSourceId on work item budget lines when a source is assigned', () => {
+      const sourceId = insertBudgetSource({ name: 'Bank Loan', totalAmount: 200000 });
+      const { budgetLineId } = insertWorkItemWithSource({
+        plannedAmount: 1000,
+        budgetSourceId: sourceId,
+      });
+
+      const result = getBudgetBreakdown(db);
+
+      const item = result.workItems.areas[0]!.items[0]!;
+      expect(item.budgetLines).toHaveLength(1);
+      expect(item.budgetLines[0]!.id).toBe(budgetLineId);
+      expect(item.budgetLines[0]!.budgetSourceId).toBe(sourceId);
+    });
+
+    // Scenario 2: budgetSourceId null when no source
+    it('sets budgetSourceId to null on work item budget lines when no source is assigned', () => {
+      insertWorkItemWithSource({ plannedAmount: 1000, budgetSourceId: null });
+
+      const result = getBudgetBreakdown(db);
+
+      const item = result.workItems.areas[0]!.items[0]!;
+      expect(item.budgetLines[0]!.budgetSourceId).toBeNull();
+    });
+
+    // Scenario 6: HI lines also attributed
+    it('populates budgetSourceId on household item budget lines when a source is assigned', () => {
+      const sourceId = insertBudgetSource({ name: 'Savings', totalAmount: 50000 });
+      const { budgetLineId } = insertHouseholdItemWithSource({
+        plannedAmount: 500,
+        budgetSourceId: sourceId,
+      });
+
+      const result = getBudgetBreakdown(db);
+
+      const hiItem = result.householdItems.areas[0]!.items[0]!;
+      expect(hiItem.budgetLines).toHaveLength(1);
+      expect(hiItem.budgetLines[0]!.id).toBe(budgetLineId);
+      expect(hiItem.budgetLines[0]!.budgetSourceId).toBe(sourceId);
+    });
+
+    it('sets budgetSourceId to null on household item budget lines when no source is assigned', () => {
+      insertHouseholdItemWithSource({ plannedAmount: 500, budgetSourceId: null });
+
+      const result = getBudgetBreakdown(db);
+
+      const hiItem = result.householdItems.areas[0]!.items[0]!;
+      expect(hiItem.budgetLines[0]!.budgetSourceId).toBeNull();
+    });
+  });
+
+  // ── 16. budgetSources aggregate ────────────────────────────────────────────
+
+  describe('budgetSources aggregate in breakdown result', () => {
+    // Scenario 3: budgetSources array populated
+    it('includes sources with correct id, name, and totalAmount in budgetSources array', () => {
+      const sourceId = insertBudgetSource({ name: 'Bank Loan', totalAmount: 150000 });
+      insertWorkItemWithSource({ plannedAmount: 1000, budgetSourceId: sourceId });
+
+      const result = getBudgetBreakdown(db);
+
+      expect(result.budgetSources).toHaveLength(1);
+      expect(result.budgetSources[0]!.id).toBe(sourceId);
+      expect(result.budgetSources[0]!.name).toBe('Bank Loan');
+      expect(result.budgetSources[0]!.totalAmount).toBe(150000);
+    });
+
+    // Scenario 4: projectedMin/Max correct for own_estimate confidence
+    it('computes correct projectedMin and projectedMax for source with own_estimate line', () => {
+      // own_estimate margin = 0.2 → min = 1000 * 0.8 = 800, max = 1000 * 1.2 = 1200
+      const sourceId = insertBudgetSource({ name: 'Savings', totalAmount: 100000 });
+      insertWorkItemWithSource({
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+        budgetSourceId: sourceId,
+      });
+
+      const result = getBudgetBreakdown(db);
+
+      expect(result.budgetSources).toHaveLength(1);
+      const src = result.budgetSources[0]!;
+      expect(src.projectedMin).toBeCloseTo(800, 5);
+      expect(src.projectedMax).toBeCloseTo(1200, 5);
+    });
+
+    it('computes correct projectedMin and projectedMax for source with quote confidence', () => {
+      // quote margin = 0.05 → min = 2000 * 0.95 = 1900, max = 2000 * 1.05 = 2100
+      const sourceId = insertBudgetSource({ name: 'Mortgage', totalAmount: 200000 });
+      insertWorkItemWithSource({
+        plannedAmount: 2000,
+        confidence: 'quote',
+        budgetSourceId: sourceId,
+      });
+
+      const result = getBudgetBreakdown(db);
+
+      const src = result.budgetSources[0]!;
+      expect(src.projectedMin).toBeCloseTo(1900, 5);
+      expect(src.projectedMax).toBeCloseTo(2100, 5);
+    });
+
+    it('accumulates projectedMin/Max across multiple lines assigned to the same source', () => {
+      // Source has two WI lines: own_estimate 1000 + quote 2000
+      // min = 800 + 1900 = 2700, max = 1200 + 2100 = 3300
+      const sourceId = insertBudgetSource({ name: 'Mixed Funding', totalAmount: 300000 });
+      insertWorkItemWithSource({
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+        budgetSourceId: sourceId,
+      });
+      insertWorkItemWithSource({
+        plannedAmount: 2000,
+        confidence: 'quote',
+        budgetSourceId: sourceId,
+      });
+
+      const result = getBudgetBreakdown(db);
+
+      const src = result.budgetSources[0]!;
+      expect(src.projectedMin).toBeCloseTo(800 + 1900, 5);
+      expect(src.projectedMax).toBeCloseTo(1200 + 2100, 5);
+    });
+
+    it('includes household item lines in source projected totals', () => {
+      // WI line: own_estimate 1000 → min=800, max=1200
+      // HI line: quote 2000 → min=1900, max=2100
+      // Combined: min=2700, max=3300
+      const sourceId = insertBudgetSource({ name: 'Combined', totalAmount: 400000 });
+      insertWorkItemWithSource({
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+        budgetSourceId: sourceId,
+      });
+      insertHouseholdItemWithSource({
+        plannedAmount: 2000,
+        confidence: 'quote',
+        budgetSourceId: sourceId,
+      });
+
+      const result = getBudgetBreakdown(db);
+
+      const src = result.budgetSources[0]!;
+      expect(src.projectedMin).toBeCloseTo(800 + 1900, 5);
+      expect(src.projectedMax).toBeCloseTo(1200 + 2100, 5);
+    });
+
+    // Scenario 5: budgetSources excludes sources with no lines
+    it('excludes a budget source that exists in the DB but has no budget lines assigned', () => {
+      // Create a source but don't assign any budget lines to it
+      insertBudgetSource({ name: 'Unused Source', totalAmount: 50000 });
+
+      // Insert a WI budget line with NO source
+      insertWorkItemWithSource({ plannedAmount: 1000, budgetSourceId: null });
+
+      const result = getBudgetBreakdown(db);
+
+      // budgetSources should be empty — the unused source is excluded
+      expect(result.budgetSources).toHaveLength(0);
+    });
+
+    // Scenario 7: budgetSources empty when no sources exist
+    it('returns empty budgetSources array when no budget sources exist in the database', () => {
+      insertWorkItem({ plannedAmount: 1000 });
+
+      const result = getBudgetBreakdown(db);
+
+      expect(result.budgetSources).toEqual([]);
+    });
+
+    it('returns empty budgetSources array when no data exists at all', () => {
+      const result = getBudgetBreakdown(db);
+
+      expect(result.budgetSources).toEqual([]);
+    });
+
+    it('returns multiple sources in order when multiple sources have lines', () => {
+      const sourceA = insertBudgetSource({ name: 'Alpha Source', totalAmount: 50000 });
+      const sourceB = insertBudgetSource({ name: 'Beta Source', totalAmount: 75000 });
+      insertWorkItemWithSource({ plannedAmount: 1000, budgetSourceId: sourceA });
+      insertWorkItemWithSource({ plannedAmount: 2000, budgetSourceId: sourceB });
+
+      const result = getBudgetBreakdown(db);
+
+      expect(result.budgetSources).toHaveLength(2);
+      const ids = result.budgetSources.map((s) => s.id);
+      expect(ids).toContain(sourceA);
+      expect(ids).toContain(sourceB);
     });
   });
 });
