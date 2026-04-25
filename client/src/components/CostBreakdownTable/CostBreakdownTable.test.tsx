@@ -4563,7 +4563,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
       deselectedSourceIds: new Set(['src-sp-b']),
     });
 
-    const sumRow = screen.getByRole('row', { name: /^Sum$/i });
+    // The row's accessible name concatenates all cell text (e.g., "Sum -€... €... €..."),
+    // so anchor only at the start — do not use $ end-anchor.
+    const sumRow = screen.getByRole('row', { name: /^Sum\b/i });
     // Sum row Payback = €1,600.00 (pro-rata: src-sp-a share)
     const sumPaybackCell = sumRow.querySelector('td[class*="colPayback"]');
     expect(sumPaybackCell).not.toBeNull();
