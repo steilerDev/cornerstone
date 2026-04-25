@@ -219,8 +219,9 @@ function BudgetLineRow({
 
   // Get source badge info
   const sourceId = line.budgetSourceId ?? null;
-  const sourceName: string = budgetSources.find((s) => s.id === sourceId)?.name
-    ?? t('overview.costBreakdown.sourceFilter.unassigned');
+  const sourceName: string =
+    budgetSources.find((s) => s.id === sourceId)?.name ??
+    t('overview.costBreakdown.sourceFilter.unassigned');
   const styleKey = getSourceBadgeStyleKey(sourceId);
   const isTruncated = sourceName.length > 20;
   const label = isTruncated ? `${sourceName.slice(0, 20)}…` : sourceName;
@@ -904,7 +905,10 @@ export function CostBreakdownTable({
       }
       return false;
     }
-    return check([...(wiAreas as BreakdownArea<BreakdownWorkItem | BreakdownHouseholdItem>[]), ...(hiAreas as BreakdownArea<BreakdownWorkItem | BreakdownHouseholdItem>[])]);
+    return check([
+      ...(wiAreas as BreakdownArea<BreakdownWorkItem | BreakdownHouseholdItem>[]),
+      ...(hiAreas as BreakdownArea<BreakdownWorkItem | BreakdownHouseholdItem>[]),
+    ]);
   }, [wiAreas, hiAreas]);
 
   // Empty state
@@ -945,462 +949,483 @@ export function CostBreakdownTable({
           visibleLineIds,
         }}
       >
-      <section className={styles.breakdownCard} aria-labelledby="breakdown-heading">
-        <h2 id="breakdown-heading" className={styles.breakdownTitle}>
-          {t('overview.costBreakdown.title')}
-        </h2>
+        <section className={styles.breakdownCard} aria-labelledby="breakdown-heading">
+          <h2 id="breakdown-heading" className={styles.breakdownTitle}>
+            {t('overview.costBreakdown.title')}
+          </h2>
 
-        <PerspectiveToggle value={perspective} onChange={setPerspective} />
+          <PerspectiveToggle value={perspective} onChange={setPerspective} />
 
-        <div className={styles.tableWrapper}>
-          <table className={styles.table}>
-            <caption className={styles.srOnly}>{t('overview.costBreakdown.tableCaption')}</caption>
-            <thead>
-              <tr>
-                <th scope="col" className={styles.colName}>
-                  {t('overview.costBreakdown.tableHeaders.name')}
-                </th>
-                <th scope="col" className={styles.colBudget}>
-                  {t('overview.costBreakdown.tableHeaders.cost')}
-                </th>
-                <th scope="col" className={styles.colPayback}>
-                  {t('overview.costBreakdown.tableHeaders.payback')}
-                </th>
-                <th scope="col" className={styles.colRemaining}>
-                  {t('overview.costBreakdown.tableHeaders.net')}
-                </th>
-              </tr>
-            </thead>
+          <div className={styles.tableWrapper}>
+            <table className={styles.table}>
+              <caption className={styles.srOnly}>
+                {t('overview.costBreakdown.tableCaption')}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col" className={styles.colName}>
+                    {t('overview.costBreakdown.tableHeaders.name')}
+                  </th>
+                  <th scope="col" className={styles.colBudget}>
+                    {t('overview.costBreakdown.tableHeaders.cost')}
+                  </th>
+                  <th scope="col" className={styles.colPayback}>
+                    {t('overview.costBreakdown.tableHeaders.payback')}
+                  </th>
+                  <th scope="col" className={styles.colRemaining}>
+                    {t('overview.costBreakdown.tableHeaders.net')}
+                  </th>
+                </tr>
+              </thead>
 
-            {/* ===== COST SECTION (with column tints) ===== */}
-            <tbody id="cost-breakdown-table-cost-section" className={styles.costSection}>
-              {/* Work Item Budget row (expandable) */}
-              {wiAreas.length > 0 && (
-                <>
-                  <tr className={styles.rowLevel0} key={wiSectionKey}>
-                    <td className={styles.colName}>
-                      <div className={styles.nameContent}>
-                        <button
-                          type="button"
-                          className={styles.expandBtn}
-                          aria-expanded={wiSectionExpanded}
-                          aria-label={t('overview.costBreakdown.area.expandWorkItemsLabel')}
-                          onClick={() => toggle(wiSectionKey)}
-                        >
-                          <ChevronSvg
-                            className={`${styles.chevron} ${wiSectionExpanded ? styles.chevronOpen : ''}`}
-                          />
-                        </button>
-                        <span>{t('overview.costBreakdown.workItems')}</span>
-                      </div>
-                    </td>
-                    <td className={styles.colBudget}>
-                      {formatCost(
-                        resolveProjected(
-                          wiTotals.rawProjectedMin,
-                          wiTotals.rawProjectedMax,
-                          perspective,
-                        ),
-                        formatCurrency,
-                      )}
-                    </td>
-                    <td className={styles.colPayback}>
-                      {wiTotals.subsidyPayback > 0
-                        ? formatCurrency(
-                            resolveProjected(
-                              wiTotals.minSubsidyPayback,
-                              wiTotals.subsidyPayback,
-                              perspective,
-                            ),
-                          )
-                        : '—'}
-                    </td>
-                    <td className={styles.colRemaining}>
-                      {renderNet(
-                        resolveProjected(
-                          wiTotals.rawProjectedMin,
-                          wiTotals.rawProjectedMax,
-                          perspective,
-                        ),
-                        resolveProjected(
-                          wiTotals.minSubsidyPayback,
-                          wiTotals.subsidyPayback,
-                          perspective,
-                        ),
-                        styles,
-                        formatCurrency,
-                      )}
-                    </td>
-                  </tr>
-
-                  {wiSectionExpanded && (
-                    <>
-                      {wiAreas.map((area) => (
-                        <WorkItemAreaSection
-                          key={`wi-area-${area.areaId ?? 'unassigned'}`}
-                          area={area}
-                          depth={0}
-                          sectionKey="wi"
-                          expandedKeys={expandedKeys}
-                          onToggle={toggle}
-                          perspective={perspective}
-                          formatCurrencyFn={formatCurrency}
-                        />
-                      ))}
-                    </>
-                  )}
-                </>
-              )}
-
-              {/* Household Item Budget row (expandable) */}
-              {hiAreas.length > 0 && (
-                <>
-                  <tr className={styles.rowLevel0} key={hiSectionKey}>
-                    <td className={styles.colName}>
-                      <div className={styles.nameContent}>
-                        <button
-                          type="button"
-                          className={styles.expandBtn}
-                          aria-expanded={hiSectionExpanded}
-                          aria-label={t('overview.costBreakdown.area.expandHouseholdItemsLabel')}
-                          onClick={() => toggle(hiSectionKey)}
-                        >
-                          <ChevronSvg
-                            className={`${styles.chevron} ${hiSectionExpanded ? styles.chevronOpen : ''}`}
-                          />
-                        </button>
-                        <span>{t('overview.costBreakdown.householdItems')}</span>
-                      </div>
-                    </td>
-                    <td className={styles.colBudget}>
-                      {formatCost(
-                        resolveProjected(
-                          hiTotals.rawProjectedMin,
-                          hiTotals.rawProjectedMax,
-                          perspective,
-                        ),
-                        formatCurrency,
-                      )}
-                    </td>
-                    <td className={styles.colPayback}>
-                      {hiTotals.subsidyPayback > 0
-                        ? formatCurrency(
-                            resolveProjected(
-                              hiTotals.minSubsidyPayback,
-                              hiTotals.subsidyPayback,
-                              perspective,
-                            ),
-                          )
-                        : '—'}
-                    </td>
-                    <td className={styles.colRemaining}>
-                      {renderNet(
-                        resolveProjected(
-                          hiTotals.rawProjectedMin,
-                          hiTotals.rawProjectedMax,
-                          perspective,
-                        ),
-                        resolveProjected(
-                          hiTotals.minSubsidyPayback,
-                          hiTotals.subsidyPayback,
-                          perspective,
-                        ),
-                        styles,
-                        formatCurrency,
-                      )}
-                    </td>
-                  </tr>
-
-                  {hiSectionExpanded && (
-                    <>
-                      {hiAreas.map((area) => (
-                        <HouseholdItemAreaSection
-                          key={`hi-area-${area.areaId ?? 'unassigned'}`}
-                          area={area}
-                          depth={0}
-                          sectionKey="hi"
-                          expandedKeys={expandedKeys}
-                          onToggle={toggle}
-                          perspective={perspective}
-                          formatCurrencyFn={formatCurrency}
-                        />
-                      ))}
-                    </>
-                  )}
-                </>
-              )}
-            </tbody>
-
-            {/* ===== SUBSIDY ADJUSTMENTS SECTION ===== */}
-            {subsidyAdjustments.length > 0 &&
-              (() => {
-                const adjSectionKey = 'adj-section';
-                const adjSectionExpanded = expandedKeys.has(adjSectionKey);
-                return (
-                  <tbody>
-                    <tr className={styles.rowLevel0}>
+              {/* ===== COST SECTION (with column tints) ===== */}
+              <tbody id="cost-breakdown-table-cost-section" className={styles.costSection}>
+                {/* Work Item Budget row (expandable) */}
+                {wiAreas.length > 0 && (
+                  <>
+                    <tr className={styles.rowLevel0} key={wiSectionKey}>
                       <td className={styles.colName}>
                         <div className={styles.nameContent}>
                           <button
                             type="button"
                             className={styles.expandBtn}
-                            aria-expanded={adjSectionExpanded}
-                            aria-label="Expand subsidy adjustments"
-                            onClick={() => toggle(adjSectionKey)}
+                            aria-expanded={wiSectionExpanded}
+                            aria-label={t('overview.costBreakdown.area.expandWorkItemsLabel')}
+                            onClick={() => toggle(wiSectionKey)}
                           >
                             <ChevronSvg
-                              className={`${styles.chevron} ${adjSectionExpanded ? styles.chevronOpen : ''}`}
+                              className={`${styles.chevron} ${wiSectionExpanded ? styles.chevronOpen : ''}`}
                             />
                           </button>
-                          <span>{t('overview.costBreakdown.subsidyAdjustments')}</span>
+                          <span>{t('overview.costBreakdown.workItems')}</span>
                         </div>
                       </td>
-                      <td className={styles.colBudget} />
-                      <td className={styles.colPayback} colSpan={2}>
-                        <span className={styles.adjustmentValue}>
-                          {formatCost(resolvedTotalExcess, formatCurrency)}
-                        </span>
+                      <td className={styles.colBudget}>
+                        {formatCost(
+                          resolveProjected(
+                            wiTotals.rawProjectedMin,
+                            wiTotals.rawProjectedMax,
+                            perspective,
+                          ),
+                          formatCurrency,
+                        )}
                       </td>
-                    </tr>
-                    {adjSectionExpanded &&
-                      subsidyAdjustments.map((adj: SubsidyAdjustment) => {
-                        const adjExcess = resolveProjected(
-                          adj.minExcess,
-                          adj.maxExcess,
-                          perspective,
-                        );
-                        return (
-                          <tr key={adj.subsidyProgramId} className={styles.rowLevel1}>
-                            <td className={`${styles.colName} ${styles.cellLevel1Name}`}>
-                              <div className={styles.adjustmentName}>
-                                <span>{adj.name}</span>
-                                <span className={styles.adjustmentHint}>
-                                  {t('overview.costBreakdown.oversubscribed', {
-                                    amount: formatCurrency(adj.maximumAmount),
-                                  })}
-                                </span>
-                              </div>
-                            </td>
-                            <td className={styles.colBudget} />
-                            <td className={styles.colPayback} colSpan={2}>
-                              <span className={styles.adjustmentValue}>
-                                {formatCost(adjExcess, formatCurrency)}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                );
-              })()}
-
-            {/* ===== SUMMARY SECTION (no column tints) ===== */}
-            <tbody>
-              {/* Sum row */}
-              <tr className={`${styles.rowLevel0} ${styles.rowSummary}`}>
-                <td className={styles.colName}>
-                  <div className={styles.nameContent}>
-                    <span>{t('overview.costBreakdown.sum')}</span>
-                  </div>
-                </td>
-                <td className={styles.colBudget}>
-                  <span className={styles.valueNegative}>
-                    {formatCost(
-                      hasSourceFilter ? filteredRawProjected : totalRawProjected,
-                      formatCurrency,
-                    )}
-                  </span>
-                </td>
-                <td className={styles.colPayback}>
-                  {maxTotalPayback > 0 ? (
-                    <span className={styles.valuePositive}>
-                      {formatCurrency(adjustedTotalPayback)}
-                    </span>
-                  ) : (
-                    '—'
-                  )}
-                </td>
-                <td className={styles.colRemaining}>
-                  {renderNet(
-                    hasSourceFilter ? filteredRawProjected : totalRawProjected,
-                    adjustedTotalPayback,
-                    styles,
-                    formatCurrency,
-                  )}
-                </td>
-              </tr>
-
-              {/* Available Funds row (expandable when sources exist) */}
-              <tr className={styles.rowLevel0}>
-                <td className={styles.colName}>
-                  <div className={styles.nameContent}>
-                    {budgetSources.length > 0 && (
-                      <button
-                        ref={availFundsButtonRef}
-                        type="button"
-                        className={styles.expandBtn}
-                        aria-expanded={availFundsExpanded}
-                        aria-label="Expand available funds sources"
-                        onClick={() => toggle(availFundsKey)}
-                      >
-                        <ChevronSvg
-                          className={`${styles.chevron} ${availFundsExpanded ? styles.chevronOpen : ''}`}
-                        />
-                      </button>
-                    )}
-                    <span>{t('overview.costBreakdown.availableFunds')}</span>
-                  </div>
-                </td>
-                <td className={styles.colBudget} colSpan={3}>
-                  {formatCurrency(overview.availableFunds)}
-                </td>
-              </tr>
-
-              {/* Source filter chip strip */}
-              {availFundsExpanded && (
-                <tr>
-                  <td colSpan={4}>
-                    <div
-                      role="toolbar"
-                      aria-label={t('overview.costBreakdown.sourceFilter.label')}
-                      aria-controls="cost-breakdown-table-cost-section"
-                      className={styles.sourceFilterStrip}
-                      onKeyDown={handleToolbarKeyDown}
-                    >
-                      {budgetSources.map((source) => (
-                        <BudgetSourceChip
-                          key={source.id}
-                          sourceId={source.id}
-                          name={source.name}
-                          isSelected={selectedSourceIds.has(source.id)}
-                          onToggle={onSourceToggle}
-                        />
-                      ))}
-                      {hasUnassignedLines && (
-                        <BudgetSourceChip
-                          key="unassigned"
-                          sourceId={null}
-                          name={t('overview.costBreakdown.sourceFilter.unassigned')}
-                          isSelected={selectedSourceIds.has('unassigned')}
-                          onToggle={onSourceToggle}
-                        />
-                      )}
-                      {selectedSourceIds.size > 0 && (
-                        <button
-                          type="button"
-                          className={sharedStyles.btnSecondaryCompact}
-                          onClick={onClearSources}
-                          aria-label={t('overview.costBreakdown.sourceFilter.clearAriaLabel')}
-                        >
-                          {t('overview.costBreakdown.sourceFilter.allSources')}
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              )}
-
-              {/* Enhanced source detail rows */}
-              {availFundsExpanded &&
-                budgetSources.map((source: BudgetSourceSummaryBreakdown) => {
-                  const colorIndex = getSourceColorIndex(source.id);
-                  const isSelected = selectedSourceIds.has(source.id);
-                  const allocatedCost = resolveProjected(source.projectedMin, source.projectedMax, perspective);
-                  const remaining = source.totalAmount - allocatedCost;
-                  const rowStyle = { '--chip-dot': `var(--color-source-${colorIndex}-dot)` } as React.CSSProperties;
-                  return (
-                    <tr
-                      key={source.id}
-                      className={`${styles.rowSourceDetail} ${isSelected ? styles.rowSourceDetailSelected : ''}`}
-                      style={rowStyle}
-                    >
-                      <td className={styles.colName}>
-                        <div className={`${styles.nameContent} ${styles.nameIndented}`}>
-                          <span
-                            className={styles.sourceDot}
-                            style={{ backgroundColor: `var(--color-source-${colorIndex}-dot)` }}
-                            aria-hidden="true"
-                          />
-                          <span>{source.name}</span>
-                        </div>
-                      </td>
-                      <td className={styles.colBudget}>{formatCurrency(source.totalAmount)}</td>
-                      <td className={`${styles.colPayback} ${styles.colAllocatedMobile}`}>
-                        <span>-{formatCurrency(allocatedCost)}</span>
+                      <td className={styles.colPayback}>
+                        {wiTotals.subsidyPayback > 0
+                          ? formatCurrency(
+                              resolveProjected(
+                                wiTotals.minSubsidyPayback,
+                                wiTotals.subsidyPayback,
+                                perspective,
+                              ),
+                            )
+                          : '—'}
                       </td>
                       <td className={styles.colRemaining}>
-                        <span className={remaining >= 0 ? styles.valuePositive : styles.valueNegative}>
-                          {formatCurrency(remaining)}
-                        </span>
+                        {renderNet(
+                          resolveProjected(
+                            wiTotals.rawProjectedMin,
+                            wiTotals.rawProjectedMax,
+                            perspective,
+                          ),
+                          resolveProjected(
+                            wiTotals.minSubsidyPayback,
+                            wiTotals.subsidyPayback,
+                            perspective,
+                          ),
+                          styles,
+                          formatCurrency,
+                        )}
                       </td>
                     </tr>
+
+                    {wiSectionExpanded && (
+                      <>
+                        {wiAreas.map((area) => (
+                          <WorkItemAreaSection
+                            key={`wi-area-${area.areaId ?? 'unassigned'}`}
+                            area={area}
+                            depth={0}
+                            sectionKey="wi"
+                            expandedKeys={expandedKeys}
+                            onToggle={toggle}
+                            perspective={perspective}
+                            formatCurrencyFn={formatCurrency}
+                          />
+                        ))}
+                      </>
+                    )}
+                  </>
+                )}
+
+                {/* Household Item Budget row (expandable) */}
+                {hiAreas.length > 0 && (
+                  <>
+                    <tr className={styles.rowLevel0} key={hiSectionKey}>
+                      <td className={styles.colName}>
+                        <div className={styles.nameContent}>
+                          <button
+                            type="button"
+                            className={styles.expandBtn}
+                            aria-expanded={hiSectionExpanded}
+                            aria-label={t('overview.costBreakdown.area.expandHouseholdItemsLabel')}
+                            onClick={() => toggle(hiSectionKey)}
+                          >
+                            <ChevronSvg
+                              className={`${styles.chevron} ${hiSectionExpanded ? styles.chevronOpen : ''}`}
+                            />
+                          </button>
+                          <span>{t('overview.costBreakdown.householdItems')}</span>
+                        </div>
+                      </td>
+                      <td className={styles.colBudget}>
+                        {formatCost(
+                          resolveProjected(
+                            hiTotals.rawProjectedMin,
+                            hiTotals.rawProjectedMax,
+                            perspective,
+                          ),
+                          formatCurrency,
+                        )}
+                      </td>
+                      <td className={styles.colPayback}>
+                        {hiTotals.subsidyPayback > 0
+                          ? formatCurrency(
+                              resolveProjected(
+                                hiTotals.minSubsidyPayback,
+                                hiTotals.subsidyPayback,
+                                perspective,
+                              ),
+                            )
+                          : '—'}
+                      </td>
+                      <td className={styles.colRemaining}>
+                        {renderNet(
+                          resolveProjected(
+                            hiTotals.rawProjectedMin,
+                            hiTotals.rawProjectedMax,
+                            perspective,
+                          ),
+                          resolveProjected(
+                            hiTotals.minSubsidyPayback,
+                            hiTotals.subsidyPayback,
+                            perspective,
+                          ),
+                          styles,
+                          formatCurrency,
+                        )}
+                      </td>
+                    </tr>
+
+                    {hiSectionExpanded && (
+                      <>
+                        {hiAreas.map((area) => (
+                          <HouseholdItemAreaSection
+                            key={`hi-area-${area.areaId ?? 'unassigned'}`}
+                            area={area}
+                            depth={0}
+                            sectionKey="hi"
+                            expandedKeys={expandedKeys}
+                            onToggle={toggle}
+                            perspective={perspective}
+                            formatCurrencyFn={formatCurrency}
+                          />
+                        ))}
+                      </>
+                    )}
+                  </>
+                )}
+              </tbody>
+
+              {/* ===== SUBSIDY ADJUSTMENTS SECTION ===== */}
+              {subsidyAdjustments.length > 0 &&
+                (() => {
+                  const adjSectionKey = 'adj-section';
+                  const adjSectionExpanded = expandedKeys.has(adjSectionKey);
+                  return (
+                    <tbody>
+                      <tr className={styles.rowLevel0}>
+                        <td className={styles.colName}>
+                          <div className={styles.nameContent}>
+                            <button
+                              type="button"
+                              className={styles.expandBtn}
+                              aria-expanded={adjSectionExpanded}
+                              aria-label="Expand subsidy adjustments"
+                              onClick={() => toggle(adjSectionKey)}
+                            >
+                              <ChevronSvg
+                                className={`${styles.chevron} ${adjSectionExpanded ? styles.chevronOpen : ''}`}
+                              />
+                            </button>
+                            <span>{t('overview.costBreakdown.subsidyAdjustments')}</span>
+                          </div>
+                        </td>
+                        <td className={styles.colBudget} />
+                        <td className={styles.colPayback} colSpan={2}>
+                          <span className={styles.adjustmentValue}>
+                            {formatCost(resolvedTotalExcess, formatCurrency)}
+                          </span>
+                        </td>
+                      </tr>
+                      {adjSectionExpanded &&
+                        subsidyAdjustments.map((adj: SubsidyAdjustment) => {
+                          const adjExcess = resolveProjected(
+                            adj.minExcess,
+                            adj.maxExcess,
+                            perspective,
+                          );
+                          return (
+                            <tr key={adj.subsidyProgramId} className={styles.rowLevel1}>
+                              <td className={`${styles.colName} ${styles.cellLevel1Name}`}>
+                                <div className={styles.adjustmentName}>
+                                  <span>{adj.name}</span>
+                                  <span className={styles.adjustmentHint}>
+                                    {t('overview.costBreakdown.oversubscribed', {
+                                      amount: formatCurrency(adj.maximumAmount),
+                                    })}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className={styles.colBudget} />
+                              <td className={styles.colPayback} colSpan={2}>
+                                <span className={styles.adjustmentValue}>
+                                  {formatCost(adjExcess, formatCurrency)}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
                   );
-                })}
+                })()}
 
-              {/* Remaining Budget row */}
-              <tr className={`${styles.rowLevel0} ${styles.rowSummary}`}>
-                <td className={styles.colName}>
-                  <div className={styles.nameContent}>
-                    <span>{t('overview.costBreakdown.remainingBudget')}</span>
-                  </div>
-                </td>
-                <td className={styles.colBudget}>
-                  <span
-                    className={
-                      overview.availableFunds - (hasSourceFilter ? filteredRawProjected : totalRawProjected) >= 0
-                        ? styles.valuePositive
-                        : styles.valueNegative
-                    }
-                  >
-                    {formatCurrency(
-                      overview.availableFunds - (hasSourceFilter ? filteredRawProjected : totalRawProjected),
-                    )}
-                  </span>
-                </td>
-                <td className={styles.colPayback} />
-                <td className={styles.colRemaining}>
-                  <span
-                    className={
-                      (overview.availableFunds - (hasSourceFilter ? filteredRawProjected : totalRawProjected) + adjustedTotalPayback) >= 0
-                        ? styles.valuePositive
-                        : styles.valueNegative
-                    }
-                  >
-                    {formatCurrency(
-                      overview.availableFunds - (hasSourceFilter ? filteredRawProjected : totalRawProjected) + adjustedTotalPayback,
-                    )}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-
-            {/* Empty state when filter returns no results */}
-            {hasSourceFilter && visibleLineIds.size === 0 && (
+              {/* ===== SUMMARY SECTION (no column tints) ===== */}
               <tbody>
-                <tr>
-                  <td colSpan={4}>
-                    <EmptyState
-                      message={t('overview.costBreakdown.sourceFilter.empty')}
-                      action={{ label: t('overview.costBreakdown.sourceFilter.clear'), onClick: onClearSources }}
-                    />
+                {/* Sum row */}
+                <tr className={`${styles.rowLevel0} ${styles.rowSummary}`}>
+                  <td className={styles.colName}>
+                    <div className={styles.nameContent}>
+                      <span>{t('overview.costBreakdown.sum')}</span>
+                    </div>
+                  </td>
+                  <td className={styles.colBudget}>
+                    <span className={styles.valueNegative}>
+                      {formatCost(
+                        hasSourceFilter ? filteredRawProjected : totalRawProjected,
+                        formatCurrency,
+                      )}
+                    </span>
+                  </td>
+                  <td className={styles.colPayback}>
+                    {maxTotalPayback > 0 ? (
+                      <span className={styles.valuePositive}>
+                        {formatCurrency(adjustedTotalPayback)}
+                      </span>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td className={styles.colRemaining}>
+                    {renderNet(
+                      hasSourceFilter ? filteredRawProjected : totalRawProjected,
+                      adjustedTotalPayback,
+                      styles,
+                      formatCurrency,
+                    )}
+                  </td>
+                </tr>
+
+                {/* Available Funds row (expandable when sources exist) */}
+                <tr className={styles.rowLevel0}>
+                  <td className={styles.colName}>
+                    <div className={styles.nameContent}>
+                      {budgetSources.length > 0 && (
+                        <button
+                          ref={availFundsButtonRef}
+                          type="button"
+                          className={styles.expandBtn}
+                          aria-expanded={availFundsExpanded}
+                          aria-label="Expand available funds sources"
+                          onClick={() => toggle(availFundsKey)}
+                        >
+                          <ChevronSvg
+                            className={`${styles.chevron} ${availFundsExpanded ? styles.chevronOpen : ''}`}
+                          />
+                        </button>
+                      )}
+                      <span>{t('overview.costBreakdown.availableFunds')}</span>
+                    </div>
+                  </td>
+                  <td className={styles.colBudget} colSpan={3}>
+                    {formatCurrency(overview.availableFunds)}
+                  </td>
+                </tr>
+
+                {/* Source filter chip strip */}
+                {availFundsExpanded && (
+                  <tr>
+                    <td colSpan={4}>
+                      <div
+                        role="toolbar"
+                        aria-label={t('overview.costBreakdown.sourceFilter.label')}
+                        aria-controls="cost-breakdown-table-cost-section"
+                        className={styles.sourceFilterStrip}
+                        onKeyDown={handleToolbarKeyDown}
+                      >
+                        {budgetSources.map((source) => (
+                          <BudgetSourceChip
+                            key={source.id}
+                            sourceId={source.id}
+                            name={source.name}
+                            isSelected={selectedSourceIds.has(source.id)}
+                            onToggle={onSourceToggle}
+                          />
+                        ))}
+                        {hasUnassignedLines && (
+                          <BudgetSourceChip
+                            key="unassigned"
+                            sourceId={null}
+                            name={t('overview.costBreakdown.sourceFilter.unassigned')}
+                            isSelected={selectedSourceIds.has('unassigned')}
+                            onToggle={onSourceToggle}
+                          />
+                        )}
+                        {selectedSourceIds.size > 0 && (
+                          <button
+                            type="button"
+                            className={sharedStyles.btnSecondaryCompact}
+                            onClick={onClearSources}
+                            aria-label={t('overview.costBreakdown.sourceFilter.clearAriaLabel')}
+                          >
+                            {t('overview.costBreakdown.sourceFilter.allSources')}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {/* Enhanced source detail rows */}
+                {availFundsExpanded &&
+                  budgetSources.map((source: BudgetSourceSummaryBreakdown) => {
+                    const colorIndex = getSourceColorIndex(source.id);
+                    const isSelected = selectedSourceIds.has(source.id);
+                    const allocatedCost = resolveProjected(
+                      source.projectedMin,
+                      source.projectedMax,
+                      perspective,
+                    );
+                    const remaining = source.totalAmount - allocatedCost;
+                    const rowStyle = {
+                      '--chip-dot': `var(--color-source-${colorIndex}-dot)`,
+                    } as React.CSSProperties;
+                    return (
+                      <tr
+                        key={source.id}
+                        className={`${styles.rowSourceDetail} ${isSelected ? styles.rowSourceDetailSelected : ''}`}
+                        style={rowStyle}
+                      >
+                        <td className={styles.colName}>
+                          <div className={`${styles.nameContent} ${styles.nameIndented}`}>
+                            <span
+                              className={styles.sourceDot}
+                              style={{ backgroundColor: `var(--color-source-${colorIndex}-dot)` }}
+                              aria-hidden="true"
+                            />
+                            <span>{source.name}</span>
+                          </div>
+                        </td>
+                        <td className={styles.colBudget}>{formatCurrency(source.totalAmount)}</td>
+                        <td className={`${styles.colPayback} ${styles.colAllocatedMobile}`}>
+                          <span>-{formatCurrency(allocatedCost)}</span>
+                        </td>
+                        <td className={styles.colRemaining}>
+                          <span
+                            className={remaining >= 0 ? styles.valuePositive : styles.valueNegative}
+                          >
+                            {formatCurrency(remaining)}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                {/* Remaining Budget row */}
+                <tr className={`${styles.rowLevel0} ${styles.rowSummary}`}>
+                  <td className={styles.colName}>
+                    <div className={styles.nameContent}>
+                      <span>{t('overview.costBreakdown.remainingBudget')}</span>
+                    </div>
+                  </td>
+                  <td className={styles.colBudget}>
+                    <span
+                      className={
+                        overview.availableFunds -
+                          (hasSourceFilter ? filteredRawProjected : totalRawProjected) >=
+                        0
+                          ? styles.valuePositive
+                          : styles.valueNegative
+                      }
+                    >
+                      {formatCurrency(
+                        overview.availableFunds -
+                          (hasSourceFilter ? filteredRawProjected : totalRawProjected),
+                      )}
+                    </span>
+                  </td>
+                  <td className={styles.colPayback} />
+                  <td className={styles.colRemaining}>
+                    <span
+                      className={
+                        overview.availableFunds -
+                          (hasSourceFilter ? filteredRawProjected : totalRawProjected) +
+                          adjustedTotalPayback >=
+                        0
+                          ? styles.valuePositive
+                          : styles.valueNegative
+                      }
+                    >
+                      {formatCurrency(
+                        overview.availableFunds -
+                          (hasSourceFilter ? filteredRawProjected : totalRawProjected) +
+                          adjustedTotalPayback,
+                      )}
+                    </span>
                   </td>
                 </tr>
               </tbody>
-            )}
-          </table>
 
-          {/* Screen reader live region for filter announcements */}
-          <div role="status" aria-atomic="true" className={styles.srOnly}>
-            {hasSourceFilter
-              ? t('overview.costBreakdown.sourceFilter.activeAnnouncement', {
-                  count: String(visibleLineIds.size),
-                  total: String(totalLineCount),
-                  sources: [...selectedSourceIds].join(', '),
-                })
-              : t('overview.costBreakdown.sourceFilter.allSourcesAnnouncement')}
+              {/* Empty state when filter returns no results */}
+              {hasSourceFilter && visibleLineIds.size === 0 && (
+                <tbody>
+                  <tr>
+                    <td colSpan={4}>
+                      <EmptyState
+                        message={t('overview.costBreakdown.sourceFilter.empty')}
+                        action={{
+                          label: t('overview.costBreakdown.sourceFilter.clear'),
+                          onClick: onClearSources,
+                        }}
+                      />
+                    </td>
+                  </tr>
+                </tbody>
+              )}
+            </table>
+
+            {/* Screen reader live region for filter announcements */}
+            <div role="status" aria-atomic="true" className={styles.srOnly}>
+              {hasSourceFilter
+                ? t('overview.costBreakdown.sourceFilter.activeAnnouncement', {
+                    count: String(visibleLineIds.size),
+                    total: String(totalLineCount),
+                    sources: [...selectedSourceIds].join(', '),
+                  })
+                : t('overview.costBreakdown.sourceFilter.allSourcesAnnouncement')}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
       </BreakdownContext.Provider>
     </FormatterContext.Provider>
   );

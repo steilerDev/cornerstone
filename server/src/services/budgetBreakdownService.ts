@@ -943,9 +943,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     id: string;
     name: string;
     totalAmount: number;
-  }>(
-    sql`SELECT id, name, total_amount AS totalAmount FROM budget_sources ORDER BY name ASC`,
-  );
+  }>(sql`SELECT id, name, total_amount AS totalAmount FROM budget_sources ORDER BY name ASC`);
 
   const budgetSourceMetaMap = new Map(budgetSourceRows.map((r) => [r.id, r]));
 

@@ -50,12 +50,7 @@ describe('BudgetSourceChip', () => {
   it('renders a button with the source name visible', () => {
     const onToggle = jest.fn();
     render(
-      <BudgetSourceChip
-        sourceId="src-1"
-        name="Bank Loan"
-        isSelected={false}
-        onToggle={onToggle}
-      />,
+      <BudgetSourceChip sourceId="src-1" name="Bank Loan" isSelected={false} onToggle={onToggle} />,
     );
 
     expect(screen.getByRole('button')).toBeInTheDocument();
@@ -65,12 +60,7 @@ describe('BudgetSourceChip', () => {
   it('renders as a button element', () => {
     const onToggle = jest.fn();
     render(
-      <BudgetSourceChip
-        sourceId="src-1"
-        name="Bank Loan"
-        isSelected={false}
-        onToggle={onToggle}
-      />,
+      <BudgetSourceChip sourceId="src-1" name="Bank Loan" isSelected={false} onToggle={onToggle} />,
     );
 
     const btn = screen.getByRole('button');
@@ -95,12 +85,7 @@ describe('BudgetSourceChip', () => {
     const onToggle = jest.fn();
     const exactName = 'Exactly24CharsLongSource'; // 24 chars
     render(
-      <BudgetSourceChip
-        sourceId="src-1"
-        name={exactName}
-        isSelected={false}
-        onToggle={onToggle}
-      />,
+      <BudgetSourceChip sourceId="src-1" name={exactName} isSelected={false} onToggle={onToggle} />,
     );
 
     // Should show the full name without ellipsis
@@ -112,12 +97,7 @@ describe('BudgetSourceChip', () => {
   it('sets aria-pressed="true" when isSelected=true', () => {
     const onToggle = jest.fn();
     render(
-      <BudgetSourceChip
-        sourceId="src-1"
-        name="Bank Loan"
-        isSelected={true}
-        onToggle={onToggle}
-      />,
+      <BudgetSourceChip sourceId="src-1" name="Bank Loan" isSelected={true} onToggle={onToggle} />,
     );
 
     const btn = screen.getByRole('button');
@@ -129,12 +109,7 @@ describe('BudgetSourceChip', () => {
   it('sets aria-pressed="false" when isSelected=false', () => {
     const onToggle = jest.fn();
     render(
-      <BudgetSourceChip
-        sourceId="src-1"
-        name="Bank Loan"
-        isSelected={false}
-        onToggle={onToggle}
-      />,
+      <BudgetSourceChip sourceId="src-1" name="Bank Loan" isSelected={false} onToggle={onToggle} />,
     );
 
     const btn = screen.getByRole('button');
@@ -146,12 +121,7 @@ describe('BudgetSourceChip', () => {
   it('calls onToggle with sourceId when clicked', () => {
     const onToggle = jest.fn();
     render(
-      <BudgetSourceChip
-        sourceId="src-1"
-        name="Bank Loan"
-        isSelected={false}
-        onToggle={onToggle}
-      />,
+      <BudgetSourceChip sourceId="src-1" name="Bank Loan" isSelected={false} onToggle={onToggle} />,
     );
 
     fireEvent.click(screen.getByRole('button'));
@@ -164,12 +134,7 @@ describe('BudgetSourceChip', () => {
   it('calls onToggle with null when sourceId is null (unassigned chip)', () => {
     const onToggle = jest.fn();
     render(
-      <BudgetSourceChip
-        sourceId={null}
-        name="Unassigned"
-        isSelected={false}
-        onToggle={onToggle}
-      />,
+      <BudgetSourceChip sourceId={null} name="Unassigned" isSelected={false} onToggle={onToggle} />,
     );
 
     fireEvent.click(screen.getByRole('button'));
@@ -216,12 +181,7 @@ describe('BudgetSourceChip', () => {
   it('applies --chip-dot CSS custom property using source color index (named source)', () => {
     const onToggle = jest.fn();
     render(
-      <BudgetSourceChip
-        sourceId="src-1"
-        name="Bank Loan"
-        isSelected={false}
-        onToggle={onToggle}
-      />,
+      <BudgetSourceChip sourceId="src-1" name="Bank Loan" isSelected={false} onToggle={onToggle} />,
     );
 
     const btn = screen.getByRole('button');
@@ -233,12 +193,7 @@ describe('BudgetSourceChip', () => {
   it('applies --chip-dot CSS custom property using index 0 for null (unassigned) source', () => {
     const onToggle = jest.fn();
     render(
-      <BudgetSourceChip
-        sourceId={null}
-        name="Unassigned"
-        isSelected={false}
-        onToggle={onToggle}
-      />,
+      <BudgetSourceChip sourceId={null} name="Unassigned" isSelected={false} onToggle={onToggle} />,
     );
 
     const btn = screen.getByRole('button');
@@ -250,12 +205,7 @@ describe('BudgetSourceChip', () => {
   it('applies --chip-bg and --chip-text CSS custom properties', () => {
     const onToggle = jest.fn();
     render(
-      <BudgetSourceChip
-        sourceId="src-1"
-        name="Bank Loan"
-        isSelected={false}
-        onToggle={onToggle}
-      />,
+      <BudgetSourceChip sourceId="src-1" name="Bank Loan" isSelected={false} onToggle={onToggle} />,
     );
 
     const btn = screen.getByRole('button');
@@ -269,12 +219,7 @@ describe('BudgetSourceChip', () => {
   it('sets aria-label for "not selected" state using translation key', () => {
     const onToggle = jest.fn();
     render(
-      <BudgetSourceChip
-        sourceId="src-1"
-        name="Bank Loan"
-        isSelected={false}
-        onToggle={onToggle}
-      />,
+      <BudgetSourceChip sourceId="src-1" name="Bank Loan" isSelected={false} onToggle={onToggle} />,
     );
 
     const btn = screen.getByRole('button');
@@ -284,12 +229,7 @@ describe('BudgetSourceChip', () => {
   it('sets aria-label for "selected" state using translation key', () => {
     const onToggle = jest.fn();
     render(
-      <BudgetSourceChip
-        sourceId="src-1"
-        name="Bank Loan"
-        isSelected={true}
-        onToggle={onToggle}
-      />,
+      <BudgetSourceChip sourceId="src-1" name="Bank Loan" isSelected={true} onToggle={onToggle} />,
     );
 
     const btn = screen.getByRole('button');
@@ -301,12 +241,7 @@ describe('BudgetSourceChip', () => {
   it('renders the color dot span with aria-hidden="true"', () => {
     const onToggle = jest.fn();
     const { container } = render(
-      <BudgetSourceChip
-        sourceId="src-1"
-        name="Bank Loan"
-        isSelected={false}
-        onToggle={onToggle}
-      />,
+      <BudgetSourceChip sourceId="src-1" name="Bank Loan" isSelected={false} onToggle={onToggle} />,
     );
 
     const dotEl = container.querySelector('[aria-hidden="true"]');
@@ -318,12 +253,7 @@ describe('BudgetSourceChip', () => {
   it('calls onToggle when Space key is pressed on the button', () => {
     const onToggle = jest.fn();
     render(
-      <BudgetSourceChip
-        sourceId="src-1"
-        name="Bank Loan"
-        isSelected={false}
-        onToggle={onToggle}
-      />,
+      <BudgetSourceChip sourceId="src-1" name="Bank Loan" isSelected={false} onToggle={onToggle} />,
     );
 
     const btn = screen.getByRole('button');
@@ -336,12 +266,7 @@ describe('BudgetSourceChip', () => {
   it('calls onToggle when Enter key is pressed on the button', () => {
     const onToggle = jest.fn();
     render(
-      <BudgetSourceChip
-        sourceId="src-1"
-        name="Bank Loan"
-        isSelected={false}
-        onToggle={onToggle}
-      />,
+      <BudgetSourceChip sourceId="src-1" name="Bank Loan" isSelected={false} onToggle={onToggle} />,
     );
 
     const btn = screen.getByRole('button');

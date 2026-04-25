@@ -687,7 +687,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -701,7 +703,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 })}
         overview={buildOverview(50000)}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -714,7 +718,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 })}
         overview={buildOverview(100000)}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -728,7 +734,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -740,7 +748,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithHI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -754,7 +764,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -769,7 +781,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -784,7 +798,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1028,11 +1044,17 @@ describe('CostBreakdownTable', () => {
         },
       },
       subsidyAdjustments: [],
-    budgetSources: [],
+      budgetSources: [],
     };
 
     const { container } = render(
-      <CostBreakdownTable breakdown={breakdown} overview={buildOverview()} selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}} />,
+      <CostBreakdownTable
+        breakdown={breakdown}
+        overview={buildOverview()}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
+      />,
     );
 
     // Expand WI section
@@ -1085,11 +1107,17 @@ describe('CostBreakdownTable', () => {
         },
       },
       subsidyAdjustments: [],
-    budgetSources: [],
+      budgetSources: [],
     };
 
     const { container } = render(
-      <CostBreakdownTable breakdown={breakdown} overview={buildOverview()} selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}} />,
+      <CostBreakdownTable
+        breakdown={breakdown}
+        overview={buildOverview()}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
+      />,
     );
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
@@ -1142,11 +1170,17 @@ describe('CostBreakdownTable', () => {
         },
       },
       subsidyAdjustments: [],
-    budgetSources: [],
+      budgetSources: [],
     };
 
     render(
-      <CostBreakdownTable breakdown={breakdown} overview={buildOverview()} selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}} />,
+      <CostBreakdownTable
+        breakdown={breakdown}
+        overview={buildOverview()}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
+      />,
     );
 
     // HI section should still be visible
@@ -1161,7 +1195,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMax: 1200 })}
         overview={buildOverview(100000)}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1177,7 +1213,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI({ projectedMax: 50000 })}
         overview={buildOverview(100)}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1192,7 +1230,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildEmptyBreakdown()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1204,7 +1244,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildEmptyBreakdown()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1216,7 +1258,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildEmptyBreakdown()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1230,7 +1274,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1243,7 +1289,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithHI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1256,7 +1304,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1269,7 +1319,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1304,7 +1356,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithHI({ hiCategory: 'Home Office' })}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1338,7 +1392,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1361,7 +1417,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1375,7 +1433,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1387,7 +1447,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1458,14 +1520,16 @@ describe('CostBreakdownTable', () => {
         },
       },
       subsidyAdjustments: [],
-    budgetSources: [],
+      budgetSources: [],
     };
 
     render(
       <CostBreakdownTable
         breakdown={breakdown}
         overview={buildOverview(100000)}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1514,7 +1578,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1531,7 +1597,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1607,7 +1675,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1629,7 +1699,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1794,7 +1866,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview(100000)}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1808,9 +1882,16 @@ describe('CostBreakdownTable', () => {
   it('Available Funds row has an expand button with aria-expanded=false when sources exist', () => {
     render(
       <CostBreakdownTable
-        breakdown={{ ...buildBreakdownWithWI(), budgetSources: [buildSourceSummary({ id: 'src-1', name: 'Bank Loan', totalAmount: 80000 })] }}
+        breakdown={{
+          ...buildBreakdownWithWI(),
+          budgetSources: [
+            buildSourceSummary({ id: 'src-1', name: 'Bank Loan', totalAmount: 80000 }),
+          ],
+        }}
         overview={buildOverview(100000)}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1823,9 +1904,17 @@ describe('CostBreakdownTable', () => {
   it('clicking Available Funds expand shows source sub-rows with name and totalAmount', () => {
     render(
       <CostBreakdownTable
-        breakdown={{ ...buildBreakdownWithWI(), budgetSources: [buildSourceSummary({ id: 'src-1', name: 'Savings Account', totalAmount: 50000 }), buildSourceSummary({ id: 'src-2', name: 'Bank Loan', totalAmount: 80000 })] }}
+        breakdown={{
+          ...buildBreakdownWithWI(),
+          budgetSources: [
+            buildSourceSummary({ id: 'src-1', name: 'Savings Account', totalAmount: 50000 }),
+            buildSourceSummary({ id: 'src-2', name: 'Bank Loan', totalAmount: 80000 }),
+          ],
+        }}
         overview={buildOverview(130000)}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1845,9 +1934,16 @@ describe('CostBreakdownTable', () => {
   it('clicking Available Funds expand again collapses source sub-rows', () => {
     render(
       <CostBreakdownTable
-        breakdown={{ ...buildBreakdownWithWI(), budgetSources: [buildSourceSummary({ id: 'src-1', name: 'Credit Line', totalAmount: 60000 })] }}
+        breakdown={{
+          ...buildBreakdownWithWI(),
+          budgetSources: [
+            buildSourceSummary({ id: 'src-1', name: 'Credit Line', totalAmount: 60000 }),
+          ],
+        }}
         overview={buildOverview(100000)}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1885,7 +1981,9 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 800,
         })}
         overview={buildOverview(10000)}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1909,7 +2007,9 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 1000,
         })}
         overview={buildOverview(20000)}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1936,7 +2036,9 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 1000,
         })}
         overview={buildOverview(20000)}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1963,7 +2065,9 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 1000,
         })}
         overview={buildOverview(20000)}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1980,7 +2084,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -1997,7 +2103,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -2164,7 +2272,9 @@ describe('CostBreakdownTable', () => {
         <CostBreakdownTable
           breakdown={buildBreakdownWithHI({ hiCategory: 'Master Bedroom' })}
           overview={buildOverview()}
-          selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+          selectedSourceIds={new Set()}
+          onSourceToggle={() => {}}
+          onClearSources={() => {}}
         />
       </MemoryRouter>,
     );
@@ -2211,7 +2321,9 @@ describe('CostBreakdownTable', () => {
       <CostBreakdownTable
         breakdown={buildBreakdownWithWI()}
         overview={buildOverview()}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -2234,7 +2346,9 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 5000,
         })}
         overview={buildOverview(10000)}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -2262,7 +2376,9 @@ describe('CostBreakdownTable', () => {
           minSubsidyPayback: 100,
         })}
         overview={buildOverview(10000)}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -2286,7 +2402,9 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 5000,
         })}
         overview={buildOverview(10000)}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -2309,7 +2427,9 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 5000,
         })}
         overview={buildOverview(100)}
-        selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}
+        selectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onClearSources={() => {}}
       />,
     );
 
@@ -2641,7 +2761,7 @@ describe('CostBreakdownTable', () => {
         },
       },
       subsidyAdjustments: [],
-    budgetSources: [],
+      budgetSources: [],
     };
   }
 
@@ -2721,7 +2841,7 @@ describe('CostBreakdownTable', () => {
         },
       },
       subsidyAdjustments: [],
-    budgetSources: [],
+      budgetSources: [],
     };
   }
 
@@ -2945,7 +3065,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
         },
       },
       subsidyAdjustments: [],
-    budgetSources: [],
+      budgetSources: [],
     };
   }
 
@@ -3030,7 +3150,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
         },
       },
       subsidyAdjustments: [],
-    budgetSources: [],
+      budgetSources: [],
     };
   }
 

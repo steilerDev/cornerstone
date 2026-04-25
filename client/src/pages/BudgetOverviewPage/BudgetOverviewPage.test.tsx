@@ -801,7 +801,13 @@ describe('BudgetOverviewPage', () => {
         },
         subsidyAdjustments: [],
         budgetSources: [
-          { id: 'src-1', name: 'Savings Account', totalAmount: 50000, projectedMin: 0, projectedMax: 0 },
+          {
+            id: 'src-1',
+            name: 'Savings Account',
+            totalAmount: 50000,
+            projectedMin: 0,
+            projectedMax: 0,
+          },
           { id: 'src-2', name: 'Bank Loan', totalAmount: 80000, projectedMin: 0, projectedMax: 0 },
         ],
       });

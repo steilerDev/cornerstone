@@ -11,7 +11,6 @@ export function getSourceColorIndex(sourceId: string | null): number {
   if (sourceId === null) return 0;
   let hash = 0;
   for (let i = 0; i < sourceId.length; i++) {
-    // eslint-disable-next-line no-bitwise
     hash = (hash * 31 + sourceId.charCodeAt(i)) | 0;
   }
   // Ensure result is in [1, 9] for named sources (slot 0 is reserved for unassigned)
@@ -22,7 +21,9 @@ export function getSourceColorIndex(sourceId: string | null): number {
  * Returns the CSS module class name for the source badge slot.
  * Pass sourceId === null for "Unassigned", or a source UUID string for named sources.
  */
-export type SourceBadgeStyleKey = `source${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}` | 'sourceUnassigned';
+export type SourceBadgeStyleKey =
+  | `source${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}`
+  | 'sourceUnassigned';
 
 export function getSourceBadgeStyleKey(sourceId: string | null): SourceBadgeStyleKey {
   if (sourceId === null) return 'sourceUnassigned';

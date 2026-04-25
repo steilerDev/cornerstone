@@ -17,7 +17,13 @@ function truncate(s: string): string {
   return s.length > MAX_LABEL_LENGTH ? `${s.slice(0, MAX_LABEL_LENGTH)}…` : s;
 }
 
-export function BudgetSourceChip({ sourceId, name, isSelected, onToggle, disabled }: BudgetSourceChipProps) {
+export function BudgetSourceChip({
+  sourceId,
+  name,
+  isSelected,
+  onToggle,
+  disabled,
+}: BudgetSourceChipProps) {
   const { t } = useTranslation('budget');
   const colorIndex = sourceId === null ? 0 : getSourceColorIndex(sourceId);
   const label = truncate(name);

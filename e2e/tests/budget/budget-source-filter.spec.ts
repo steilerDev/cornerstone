@@ -86,11 +86,13 @@ function makeEmptyTotals() {
  * - Optional second source B: 1 line (ID line-b1)
  * - Optional long-name source: 1 line (ID line-long)
  */
-function makeBreakdownResponse(opts: {
-  includeSourceB?: boolean;
-  includeLongName?: boolean;
-  sourceBLines?: number;
-} = {}) {
+function makeBreakdownResponse(
+  opts: {
+    includeSourceB?: boolean;
+    includeLongName?: boolean;
+    sourceBLines?: number;
+  } = {},
+) {
   const { includeSourceB = false, includeLongName = false } = opts;
 
   const budgetLines = [
@@ -302,11 +304,7 @@ function makeBreakdownNoSources() {
 
 type PageParam = Parameters<typeof test>[1]['page'];
 
-async function mountOverviewRoutes(
-  page: PageParam,
-  overviewBody: object,
-  breakdownBody: object,
-) {
+async function mountOverviewRoutes(page: PageParam, overviewBody: object, breakdownBody: object) {
   await page.route(`${API.budgetOverview}`, async (route) => {
     if (route.request().method() === 'GET') {
       await route.fulfill({
@@ -442,7 +440,9 @@ test.describe('Source badge on Level 3 rows', { tag: '@responsive' }, () => {
         .getByRole('row')
         .filter({ hasText: 'Line Unassigned (No source)' });
       // aria-label contains "Unassigned" (from t('sourceBadge.ariaLabel', { name: 'Unassigned' }))
-      await expect(unassignedRow.locator('[aria-label="Budget source: Unassigned"]')).toBeAttached();
+      await expect(
+        unassignedRow.locator('[aria-label="Budget source: Unassigned"]'),
+      ).toBeAttached();
     } finally {
       await teardown();
     }
@@ -532,7 +532,9 @@ test.describe('Filter chip strip', { tag: '@responsive' }, () => {
       // The toolbar must NOT be present in the DOM
       await expect(overviewPage.filterToolbar()).not.toBeVisible();
       // No chip buttons
-      await expect(overviewPage.costBreakdownCard.getByRole('button', { name: /Filter:/ })).not.toBeVisible();
+      await expect(
+        overviewPage.costBreakdownCard.getByRole('button', { name: /Filter:/ }),
+      ).not.toBeVisible();
     } finally {
       await teardown();
     }
@@ -615,7 +617,9 @@ test.describe('Single-source filter', { tag: '@responsive' }, () => {
 
       // Unassigned line is hidden (not rendered when filtered out)
       await expect(
-        overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Line Unassigned (No source)' }),
+        overviewPage.costBreakdownCard
+          .getByRole('row')
+          .filter({ hasText: 'Line Unassigned (No source)' }),
       ).not.toBeVisible();
     } finally {
       await teardown();
@@ -675,7 +679,9 @@ test.describe('Multi-source filter', { tag: '@responsive' }, () => {
 
       // Unassigned line hidden (not in either selected source)
       await expect(
-        overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Line Unassigned (No source)' }),
+        overviewPage.costBreakdownCard
+          .getByRole('row')
+          .filter({ hasText: 'Line Unassigned (No source)' }),
       ).not.toBeVisible();
     } finally {
       await teardown();
@@ -721,7 +727,9 @@ test.describe('Unassigned chip', { tag: '@responsive' }, () => {
 
       // Unassigned line is visible
       await expect(
-        overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Line Unassigned (No source)' }),
+        overviewPage.costBreakdownCard
+          .getByRole('row')
+          .filter({ hasText: 'Line Unassigned (No source)' }),
       ).toBeVisible();
 
       // Source A lines are hidden
@@ -758,7 +766,9 @@ test.describe('URL state on reload', { tag: '@responsive' }, () => {
 
       // Unassigned line is not visible (filtered out)
       await expect(
-        overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Line Unassigned (No source)' }),
+        overviewPage.costBreakdownCard
+          .getByRole('row')
+          .filter({ hasText: 'Line Unassigned (No source)' }),
       ).not.toBeVisible();
     } finally {
       await teardown();
@@ -983,16 +993,12 @@ test.describe('Source detail rows under Available Funds', { tag: '@responsive' }
       const avgText = await allocatedCell.textContent();
 
       // Switch to "Min" perspective
-      await overviewPage.costBreakdownCard
-        .getByRole('radio', { name: 'Min' })
-        .click();
+      await overviewPage.costBreakdownCard.getByRole('radio', { name: 'Min' }).click();
 
       const minText = await allocatedCell.textContent();
 
       // Switch to "Max" perspective
-      await overviewPage.costBreakdownCard
-        .getByRole('radio', { name: 'Max' })
-        .click();
+      await overviewPage.costBreakdownCard.getByRole('radio', { name: 'Max' }).click();
 
       const maxText = await allocatedCell.textContent();
 

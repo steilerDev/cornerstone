@@ -331,11 +331,13 @@ describe('getBudgetBreakdown', () => {
   /**
    * Insert a budget source and return its id.
    */
-  function insertBudgetSource(opts: {
-    name?: string;
-    totalAmount?: number;
-    sourceType?: 'bank_loan' | 'credit_line' | 'savings' | 'other' | 'discretionary';
-  } = {}): string {
+  function insertBudgetSource(
+    opts: {
+      name?: string;
+      totalAmount?: number;
+      sourceType?: 'bank_loan' | 'credit_line' | 'savings' | 'other' | 'discretionary';
+    } = {},
+  ): string {
     const id = `src-test-${idCounter++}`;
     const now = new Date().toISOString();
     db.insert(schema.budgetSources)
