@@ -1074,7 +1074,15 @@ describe('BudgetOverviewPage', () => {
             minSubsidyPayback: 0,
           },
         },
-        budgetSources: [{ id: 'src-1', name: 'Savings', totalAmount: 100000, projectedMin: 5000, projectedMax: 5000 }],
+        budgetSources: [
+          {
+            id: 'src-1',
+            name: 'Savings',
+            totalAmount: 100000,
+            projectedMin: 5000,
+            projectedMax: 5000,
+          },
+        ],
       });
 
       renderPageWithUrl('/budget/overview');
@@ -1121,7 +1129,15 @@ describe('BudgetOverviewPage', () => {
             minSubsidyPayback: 0,
           },
         },
-        budgetSources: [{ id: 'src-1', name: 'Savings', totalAmount: 100000, projectedMin: 5000, projectedMax: 5000 }],
+        budgetSources: [
+          {
+            id: 'src-1',
+            name: 'Savings',
+            totalAmount: 100000,
+            projectedMin: 5000,
+            projectedMax: 5000,
+          },
+        ],
       });
 
       // Legacy ?sources= param — should be ignored, NOT treated as deselectedSources

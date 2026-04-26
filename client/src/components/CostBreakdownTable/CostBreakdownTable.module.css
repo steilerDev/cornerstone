@@ -530,11 +530,11 @@
   }
 
   /* Sticky colName background must match row state */
-  .rowSourceDetailToggle[aria-pressed="true"] .colName {
+  .rowSourceDetailToggle[aria-pressed='true'] .colName {
     background: var(--color-bg-secondary);
   }
 
-  .rowSourceDetailToggle[aria-pressed="false"] .colName {
+  .rowSourceDetailToggle[aria-pressed='false'] .colName {
     background: var(--color-bg-secondary);
   }
 }
@@ -696,28 +696,30 @@
 }
 
 /* Selected state (default) — left-border accent via --chip-dot CSS var */
-.rowSourceDetailToggle[aria-pressed="true"] .colName {
+.rowSourceDetailToggle[aria-pressed='true'] .colName {
   border-left: 3px solid var(--chip-dot);
 }
 
 /* Deselected state — grey out entire row */
-.rowSourceDetailToggle[aria-pressed="false"] td {
+.rowSourceDetailToggle[aria-pressed='false'] td {
   background: var(--color-bg-secondary);
   color: var(--color-text-muted);
-  transition: background-color var(--transition-normal), color var(--transition-normal);
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal);
 }
 
-.rowSourceDetailToggle[aria-pressed="false"] .colName {
+.rowSourceDetailToggle[aria-pressed='false'] .colName {
   border-left: 3px solid transparent;
 }
 
-.rowSourceDetailToggle[aria-pressed="false"] .sourceDot {
+.rowSourceDetailToggle[aria-pressed='false'] .sourceDot {
   opacity: 0.4;
 }
 
 /* Override value colors in deselected state */
-.rowSourceDetailToggle[aria-pressed="false"] .valuePositive,
-.rowSourceDetailToggle[aria-pressed="false"] .valueNegative {
+.rowSourceDetailToggle[aria-pressed='false'] .valuePositive,
+.rowSourceDetailToggle[aria-pressed='false'] .valueNegative {
   color: var(--color-text-muted);
 }
 

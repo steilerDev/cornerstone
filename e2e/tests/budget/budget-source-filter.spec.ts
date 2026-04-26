@@ -822,11 +822,7 @@ test.describe('URL round-trip', { tag: '@responsive' }, () => {
 
     try {
       // Navigate directly with deselectedSources param
-      await navigateWithParamAndExpand(
-        page,
-        overviewPage,
-        `deselectedSources=${SOURCE_A_ID}`,
-      );
+      await navigateWithParamAndExpand(page, overviewPage, `deselectedSources=${SOURCE_A_ID}`);
 
       await overviewPage.availableFundsButton().click();
 

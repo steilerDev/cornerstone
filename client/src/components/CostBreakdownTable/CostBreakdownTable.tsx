@@ -1088,7 +1088,6 @@ export function CostBreakdownTable({
   const hiSectionExpanded = expandedKeys.has(hiSectionKey);
   const availFundsExpanded = expandedKeys.has(availFundsKey);
 
-
   return (
     <FormatterContext.Provider value={formatCurrency}>
       <BreakdownContext.Provider
@@ -1487,13 +1486,17 @@ export function CostBreakdownTable({
                           </td>
                           <td className={styles.colPayback}>
                             {payback > 0 ? (
-                              <span className={styles.valuePositive}>{formatCurrency(payback)}</span>
+                              <span className={styles.valuePositive}>
+                                {formatCurrency(payback)}
+                              </span>
                             ) : (
                               <span className={styles.valuePositive}>{formatCurrency(0)}</span>
                             )}
                           </td>
                           <td className={styles.colRemaining}>
-                            <span className={net >= 0 ? styles.valuePositive : styles.valueNegative}>
+                            <span
+                              className={net >= 0 ? styles.valuePositive : styles.valueNegative}
+                            >
                               {formatCurrency(net)}
                             </span>
                           </td>
@@ -1524,7 +1527,11 @@ export function CostBreakdownTable({
                                 })
                           }
                           className={`${styles.rowSourceDetail} ${styles.rowSourceDetailToggle}`}
-                          style={{ '--chip-dot': `var(--color-source-${colorIndex}-dot)` } as React.CSSProperties}
+                          style={
+                            {
+                              '--chip-dot': `var(--color-source-${colorIndex}-dot)`,
+                            } as React.CSSProperties
+                          }
                           onClick={() => onSourceToggle(null)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
@@ -1552,7 +1559,9 @@ export function CostBreakdownTable({
                             </span>
                           </td>
                           <td className={styles.colPayback}>
-                            <span className={styles.valuePositive}>{formatCurrency(unassignedPayback)}</span>
+                            <span className={styles.valuePositive}>
+                              {formatCurrency(unassignedPayback)}
+                            </span>
                           </td>
                           <td className={styles.colRemaining}>
                             <span
