@@ -3962,5 +3962,74 @@ describe('Server-driven render path (#1360)', () => {
     expect(remainingNetCell!.textContent?.replace(/\s+/g, '')).toBe('€150,750.00');
   });
 
+  // ── Scenario 24: All-deselected UX — full table renders when sources configured (#1360) ──
+  // Regression guard: when the server prunes all areas because all sources are deselected
+  // (wiAreas=[], hiAreas=[]) but budgetSources is non-empty, the early-return empty state
+  // must NOT fire. The full table (source rows, Available Funds, Sum, Remaining Budget)
+  // must remain visible so the user can re-select sources.
+  it('renders full table — source rows and totals — when all sources are deselected but sources are configured (Scenario 24)', () => {
+    const breakdown: BudgetBreakdown = {
+      workItems: {
+        areas: [],
+        totals: {
+          projectedMin: 0,
+          projectedMax: 0,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 0,
+          rawProjectedMax: 0,
+          minSubsidyPayback: 0,
+        },
+      },
+      householdItems: {
+        areas: [],
+        totals: {
+          projectedMin: 0,
+          projectedMax: 0,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 0,
+          rawProjectedMax: 0,
+          minSubsidyPayback: 0,
+        },
+      },
+      subsidyAdjustments: [],
+      budgetSources: [
+        buildSourceSummary({ id: 'src-1', name: 'Bank Loan', totalAmount: 100000 }),
+        buildSourceSummary({ id: 'src-2', name: 'Equity', totalAmount: 50000 }),
+      ],
+    };
+
+    const { container } = renderWithRouter(breakdown, buildOverview(150000), {
+      deselectedSourceIds: new Set(['src-1', 'src-2']),
+    });
+
+    // The empty-state message must NOT appear — the table is fully rendered.
+    expect(screen.queryByText('No budget data to display')).not.toBeInTheDocument();
+
+    // Available Funds row must be present (full table rendered, not early-return).
+    expect(screen.getByText('Available funds')).toBeInTheDocument();
+
+    // Sum and Remaining Budget rows must be present.
+    expect(screen.getByText('Sum')).toBeInTheDocument();
+    expect(screen.getByText('Remaining Budget')).toBeInTheDocument();
+
+    // Expand the Available Funds section to reveal source detail toggle rows.
+    const expandBtn = screen.getByRole('button', { name: /expand available funds/i });
+    fireEvent.click(expandBtn);
+
+    // Source rows must be visible so the user can re-select them.
+    expect(screen.getByText('Bank Loan')).toBeInTheDocument();
+    expect(screen.getByText('Equity')).toBeInTheDocument();
+
+    // The Sum row's Cost cell shows €0.00 (no items → zero projected cost).
+    const sumRow = screen.getByText('Sum').closest('tr')!;
+    const sumCostCell = sumRow.querySelector('td[class*="colBudget"]');
+    expect(sumCostCell?.textContent?.replace(/\s+/g, '')).toMatch(/€0\.00$/);
+
+    // The table element must be in the DOM (as opposed to the empty-state path which omits it).
+    expect(container.querySelector('table')).toBeInTheDocument();
+  });
+
 });
 

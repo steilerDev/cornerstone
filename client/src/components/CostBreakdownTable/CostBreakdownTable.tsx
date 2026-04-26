@@ -799,10 +799,13 @@ export function CostBreakdownTable({
   const sum = overview.availableFunds - totalRawProjected + adjustedTotalPayback;
 
 
-  // Empty state
+  // Empty state: only show early-return empty state if there are NO sources configured AND no items.
+  // If sources are configured (even if all deselected, which prunes items), render the full table
+  // so users can re-enable sources.
   const hasData = wiAreas.length > 0 || hiAreas.length > 0;
+  const hasSources = budgetSources.length > 0;
 
-  if (!hasData) {
+  if (!hasData && !hasSources) {
     return (
       <section className={styles.breakdownCard} aria-labelledby="breakdown-heading">
         <h2 id="breakdown-heading" className={styles.breakdownTitle}>
