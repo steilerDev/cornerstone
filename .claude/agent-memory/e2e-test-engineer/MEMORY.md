@@ -3,20 +3,24 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`
 
-## Budget Source Filter E2E (Story #1354, 2026-04-25)
+## Budget Source Filter E2E (Story #1360, 2026-04-25 — server-side filter)
 
-- BudgetSourceChip `aria-label` = `"Filter: {name} (selected)"` / `"Filter: {name} (not selected)"` — use `new RegExp(name)` in `getByRole('button', { name })`.
-- Filter toolbar `aria-label` = `"Filter by source"` (i18n key `overview.costBreakdown.sourceFilter.label`).
-- Clear filter button `aria-label` = `"Clear source filter — show all sources"` — use `/Clear source filter/i`.
+- **Story #1360** rewrote filter from client-side to server-side. `BudgetSourceSummaryBreakdown` now has `subsidyPaybackMin/Max` NOT `subsidyPayback`.
+- URL format: `?deselectedSources=id1,id2` (comma-separated, URL-encoded via `encodeURIComponent(join(','))`).
+- `waitForResponse` predicate for filtered: `url.includes('/api/budget/breakdown') && url.includes('deselectedSources=')`.
+- `waitForResponse` predicate for unfiltered: `url.includes('/api/budget/breakdown') && !url.includes('deselectedSources=')`.
+- **MUST register `waitForResponse` BEFORE the click** that triggers the debounced refetch.
+- Route mock glob for breakdown: `'**/api/budget/breakdown**'` (leading `**` + trailing `**`) to match full URLs with `http://localhost:PORT/` prefix AND `?deselectedSources=` query strings. Path-only `${API.budgetBreakdown}**` is unreliable — see Playwright route glob memory note.
+- `mountOverviewRoutes` now accepts 4th arg `filteredBreakdownBody?` — returns it when `deselectedSources=` is in URL.
+- `makeBreakdownResponse` unassigned source in `budgetSources` now has `id:'unassigned'` — included by default (no opt-in).
+- `makeBreakdownSourceAOnly` budgetSources: uses `subsidyPaybackMin: 0, subsidyPaybackMax: 0` (not `subsidyPayback`).
+- `breakdownRefetching` CSS class applied to wrapping div during in-flight refetch — testable via `[class*="breakdownRefetching"]`.
+- Debounce is 50ms. Debounce debounce coalescence: `filteredRequestCount` listener on `page.on('request')` — works across AbortController cancellations.
 - Available Funds expand button `aria-label` = `"Expand available funds sources"` (hardcoded, not i18n).
 - Source badge in Level 3 rows: `<span aria-label="Budget source: {name}">`. Unassigned: `aria-label="Budget source: Unassigned"`.
-- Long name truncation: badge label text ends with `…`. Full name in `title` attribute.
-- Mobile "badge dot-only" behavior: IMPLEMENTED. `<span class*="sourceBadgeDot">` (aria-hidden) shown at ≤767px; `<span class*="sourceBadgeLabel">` hidden (display:none). Select via `[class*="sourceBadgeDot"]` / `[class*="sourceBadgeLabel"]` (hashed CSS module names). The Badge aria-label stays in DOM inside the hidden label span for screen readers.
-- CSS module class for selected source detail row: `rowSourceDetailSelected` — Playwright sees hashed class e.g. `rowSourceDetailSelected_xyz`. Use `.toMatch(/rowSourceDetailSelected/)` regex on class attribute.
-- `overflow-x: auto` on `.sourceFilterStrip` — testable via `getComputedStyle(el).overflowX === 'auto'`.
-- `budgetSources` array comes from `breakdown.budgetSources` (in the breakdown response), NOT from the `/api/budget-sources` endpoint — mock both if needed.
-- Escape clears filter: IMPLEMENTED. `handleToolbarKeyDown` on `<div role="toolbar">` checks `e.key === 'Escape' && selectedSourceIds.size > 0`, calls `onClearSources()` + `availFundsButtonRef.current?.focus()`. No-op when no sources selected. Test via `chip.focus(); keyboard.press('Escape')` then assert `aria-pressed=false`, URL clean, and `availFundsButton.toBeFocused()`.
+- Source row toggle: `tr[class*="rowSourceDetail"]` with `aria-pressed` attribute. Filter by `getByText(name, {exact:true})`.
 - Dark mode color check: create throw-away element to normalize `rgb()` format (see Print E2E Patterns note).
+- Prior Story #1354 chips/toolbar pattern is gone — no `role="toolbar"` anymore (tests assert its absence).
 
 ## Print E2E Patterns (Issue #1310, 2026-04-19)
 

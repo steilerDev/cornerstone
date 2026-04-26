@@ -35,8 +35,18 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
  * - If mixed: costDisplay='mixed', show both
  *
  * Applies subsidy payback per entity using the same logic as budgetOverviewService.
+ *
+ * @param db Database instance
+ * @param deselectedSources Set of budget source IDs (and/or literal 'unassigned') to exclude
+ *   from filtering. Empty set = no filtering (backward compatible, AC #1/#2).
+ *   Filter applies BEFORE aggregation and subsidy engine (AC #3/#4/#6/#7).
+ *   Per-source projections are ALWAYS unfiltered (architect decision A).
+ *   Per-source payback is pro-rata attributed from filtered engine run (architect decision B).
  */
-export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
+export function getBudgetBreakdown(
+  db: DbType,
+  deselectedSources: Set<string> = new Set(),
+): BudgetBreakdown {
   // ── 1. Query A: Work item budget lines with area assignment ──────────────
   const workItemLineRows = db.all<{
     workItemId: string;
@@ -140,6 +150,18 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
       isQuotation: row.invoiceStatus === 'quotation',
     });
   }
+
+  // ── 4.5. Apply source filter to line rows ────────────────────────────────────
+  // A line is excluded if its budgetSourceId matches a deselected source UUID,
+  // or if its budgetSourceId is null and 'unassigned' is in deselectedSources.
+  // Unknown UUIDs in deselectedSources are silently ignored.
+  function isLineFiltered(budgetSourceId: string | null): boolean {
+    if (budgetSourceId === null) return deselectedSources.has('unassigned');
+    return deselectedSources.has(budgetSourceId);
+  }
+
+  const filteredWiLineRows = workItemLineRows.filter((r) => !isLineFiltered(r.budgetSourceId));
+  const filteredHiLineRows = hiLineRows.filter((r) => !isLineFiltered(r.budgetSourceId));
 
   // ── 5. Queries E/F/G/H: Subsidy data (same pattern as budgetOverviewService) ──
   const subsidyRows = db.all<{
@@ -508,7 +530,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
   const wiByArea = new Map<string | null, BreakdownWorkItem[]>();
   const wiEntityData = new Map<string, BreakdownWorkItem>();
 
-  for (const row of workItemLineRows) {
+  for (const row of filteredWiLineRows) {
     // Get or create entity entry
     let item = wiEntityData.get(row.workItemId);
     if (!item) {
@@ -568,7 +590,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
   // Build budget category and source maps for work items
   const wiBudgetLineCategoryMap = new Map<string, string | null>();
   const wiBudgetLineSourceMap = new Map<string, string | null>();
-  for (const row of workItemLineRows) {
+  for (const row of filteredWiLineRows) {
     wiBudgetLineCategoryMap.set(row.budgetLineId, row.budgetCategoryId);
     wiBudgetLineSourceMap.set(row.budgetLineId, row.budgetSourceId ?? null);
   }
@@ -610,7 +632,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
   // item don't push it multiple times, while still allowing multiple distinct
   // items into the same area.
   const wiAddedToArea = new Set<string>();
-  for (const row of workItemLineRows) {
+  for (const row of filteredWiLineRows) {
     const item = wiEntityData.get(row.workItemId);
     if (!item) continue;
     const dedupeKey = `${row.areaId ?? 'null'}:${row.workItemId}`;
@@ -672,7 +694,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
   const hiByArea = new Map<string | null, BreakdownHouseholdItem[]>();
   const hiEntityData = new Map<string, BreakdownHouseholdItem>();
 
-  for (const row of hiLineRows) {
+  for (const row of filteredHiLineRows) {
     // Get or create entity entry
     let item = hiEntityData.get(row.householdItemId);
     if (!item) {
@@ -732,7 +754,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
   // Build budget category and source maps for household items
   const hiBudgetLineCategoryMap = new Map<string, string | null>();
   const hiBudgetLineSourceMap = new Map<string, string | null>();
-  for (const row of hiLineRows) {
+  for (const row of filteredHiLineRows) {
     hiBudgetLineCategoryMap.set(row.budgetLineId, row.budgetCategoryId);
     hiBudgetLineSourceMap.set(row.budgetLineId, row.budgetSourceId ?? null);
   }
@@ -774,7 +796,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
   // item don't push it multiple times, while still allowing multiple distinct
   // items into the same area.
   const hiAddedToArea = new Set<string>();
-  for (const row of hiLineRows) {
+  for (const row of filteredHiLineRows) {
     const item = hiEntityData.get(row.householdItemId);
     if (!item) continue;
     const dedupeKey = `${row.areaId ?? 'null'}:${row.householdItemId}`;
@@ -820,7 +842,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
   // ── Aggregate per-subsidy payback totals for cap enforcement ─────────────────
   const perSubsidyPayback = new Map<string, { min: number; max: number }>();
 
-  // Re-iterate all entities to collect per-subsidy payback
+  // Re-iterate all FILTERED entities to collect per-subsidy payback
   const allEntityLines = new Map<
     string,
     Array<{
@@ -831,7 +853,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     }>
   >();
 
-  for (const row of workItemLineRows) {
+  for (const row of filteredWiLineRows) {
     let arr = allEntityLines.get(row.workItemId);
     if (!arr) {
       arr = [];
@@ -845,7 +867,7 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
     });
   }
 
-  for (const row of hiLineRows) {
+  for (const row of filteredHiLineRows) {
     let arr = allEntityLines.get(row.householdItemId);
     if (!arr) {
       arr = [];
@@ -947,83 +969,210 @@ export function getBudgetBreakdown(db: DbType): BudgetBreakdown {
 
   const budgetSourceMetaMap = new Map(budgetSourceRows.map((r) => [r.id, r]));
 
-  // Accumulate per-source projected totals
+  // ── Accumulate per-source projected totals — ALWAYS UNFILTERED (architect decision A) ──
+  // We iterate the original (unfiltered) line rows so deselected sources still reflect
+  // their full contribution in the budgetSources[] array.
   const sourceProjectedMap = new Map<
     string,
     { name: string; totalAmount: number; min: number; max: number }
   >();
 
-  // Iterate work items' budget lines
-  for (const item of wiEntityData.values()) {
-    for (const line of item.budgetLines) {
-      if (line.budgetSourceId === null) continue;
-      const { min, max } = computeLineProjected(
-        line.plannedAmount,
-        line.confidence,
-        line.actualCost,
-        line.hasInvoice,
-        line.isQuotation,
-      );
-      const existing = sourceProjectedMap.get(line.budgetSourceId);
-      if (existing) {
-        existing.min += min;
-        existing.max += max;
-      } else {
-        const meta = budgetSourceMetaMap.get(line.budgetSourceId);
-        if (meta) {
-          sourceProjectedMap.set(line.budgetSourceId, {
-            name: meta.name,
-            totalAmount: meta.totalAmount,
-            min,
-            max,
-          });
-        }
+  // ── Iterate UNFILTERED WI line rows for per-source projections ──
+  for (const row of workItemLineRows) {
+    const sid = row.budgetSourceId;
+    if (sid === null) continue; // unassigned source handled separately below
+    const invoiceData = wiLineInvoiceMap.get(row.budgetLineId);
+    const actualCost = invoiceData?.actualCost ?? 0;
+    const isQuotation = invoiceData?.isQuotation ?? false;
+    const { min, max } = computeLineProjected(
+      row.plannedAmount,
+      row.confidence,
+      actualCost,
+      wiLineInvoiceMap.has(row.budgetLineId),
+      isQuotation,
+    );
+    const existing = sourceProjectedMap.get(sid);
+    if (existing) {
+      existing.min += min;
+      existing.max += max;
+    } else {
+      const meta = budgetSourceMetaMap.get(sid);
+      if (meta) {
+        sourceProjectedMap.set(sid, { name: meta.name, totalAmount: meta.totalAmount, min, max });
       }
     }
   }
 
-  // Iterate household items' budget lines
-  for (const item of hiEntityData.values()) {
-    for (const line of item.budgetLines) {
-      if (line.budgetSourceId === null) continue;
-      const { min, max } = computeLineProjected(
-        line.plannedAmount,
-        line.confidence,
-        line.actualCost,
-        line.hasInvoice,
-        line.isQuotation,
-      );
-      const existing = sourceProjectedMap.get(line.budgetSourceId);
-      if (existing) {
-        existing.min += min;
-        existing.max += max;
-      } else {
-        const meta = budgetSourceMetaMap.get(line.budgetSourceId);
-        if (meta) {
-          sourceProjectedMap.set(line.budgetSourceId, {
-            name: meta.name,
-            totalAmount: meta.totalAmount,
-            min,
-            max,
-          });
-        }
+  // ── Iterate UNFILTERED HI line rows for per-source projections ──
+  for (const row of hiLineRows) {
+    const sid = row.budgetSourceId;
+    if (sid === null) continue;
+    const invoiceData = hiLineInvoiceMap.get(row.budgetLineId);
+    const actualCost = invoiceData?.actualCost ?? 0;
+    const isQuotation = invoiceData?.isQuotation ?? false;
+    const { min, max } = computeLineProjected(
+      row.plannedAmount,
+      row.confidence,
+      actualCost,
+      hiLineInvoiceMap.has(row.budgetLineId),
+      isQuotation,
+    );
+    const existing = sourceProjectedMap.get(sid);
+    if (existing) {
+      existing.min += min;
+      existing.max += max;
+    } else {
+      const meta = budgetSourceMetaMap.get(sid);
+      if (meta) {
+        sourceProjectedMap.set(sid, { name: meta.name, totalAmount: meta.totalAmount, min, max });
       }
     }
   }
 
-  // Build budgetSources array: include only sources with at least one budget line
-  const budgetSources: BudgetSourceSummaryBreakdown[] = budgetSourceRows
-    .filter((r) => sourceProjectedMap.has(r.id))
-    .map((r) => {
-      const proj = sourceProjectedMap.get(r.id)!;
-      return {
-        id: r.id,
-        name: r.name,
-        totalAmount: r.totalAmount,
-        projectedMin: proj.min,
-        projectedMax: proj.max,
-      };
+  // ── Compute unassigned projected totals from UNFILTERED rows ──
+  let unassignedProjMin = 0;
+  let unassignedProjMax = 0;
+  for (const row of workItemLineRows) {
+    if (row.budgetSourceId !== null) continue;
+    const invoiceData = wiLineInvoiceMap.get(row.budgetLineId);
+    const actualCost = invoiceData?.actualCost ?? 0;
+    const isQuotation = invoiceData?.isQuotation ?? false;
+    const { min, max } = computeLineProjected(
+      row.plannedAmount,
+      row.confidence,
+      actualCost,
+      wiLineInvoiceMap.has(row.budgetLineId),
+      isQuotation,
+    );
+    unassignedProjMin += min;
+    unassignedProjMax += max;
+  }
+  for (const row of hiLineRows) {
+    if (row.budgetSourceId !== null) continue;
+    const invoiceData = hiLineInvoiceMap.get(row.budgetLineId);
+    const actualCost = invoiceData?.actualCost ?? 0;
+    const isQuotation = invoiceData?.isQuotation ?? false;
+    const { min, max } = computeLineProjected(
+      row.plannedAmount,
+      row.confidence,
+      actualCost,
+      hiLineInvoiceMap.has(row.budgetLineId),
+      isQuotation,
+    );
+    unassignedProjMin += min;
+    unassignedProjMax += max;
+  }
+  const hasUnassignedLines = unassignedProjMin > 0 || unassignedProjMax > 0;
+
+  // ── Per-source payback attribution (pro-rata, filtered lines only) ──
+  // For each entity that survived the filter, distribute its payback
+  // across its surviving budget lines weighted by max-perspective cost,
+  // then bucket by budgetSourceId.
+  const sourcePaybackMap = new Map<string, { min: number; max: number }>();
+
+  function addSourcePayback(
+    entityLines: Array<{
+      id: string;
+      budgetSourceId: string | null;
+      plannedAmount: number;
+      confidence: string;
+      actualCost: number;
+      hasInvoice: boolean;
+      isQuotation: boolean;
+    }>,
+    maxPayback: number,
+    minPayback: number,
+  ): void {
+    if (maxPayback === 0 && minPayback === 0) return;
+
+    // Weight by max-perspective resolved cost of each surviving line
+    const lineCosts = entityLines.map((line) => {
+      const margin =
+        CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ??
+        CONFIDENCE_MARGINS.own_estimate;
+      if (line.hasInvoice && !line.isQuotation) return line.actualCost;
+      if (line.isQuotation) return line.actualCost * 1.05;
+      return line.plannedAmount * (1 + margin);
     });
+    const totalCost = lineCosts.reduce((s, c) => s + c, 0);
+    const n = entityLines.length;
+
+    entityLines.forEach((line, i) => {
+      const weight = totalCost === 0 ? (n > 0 ? 1 / n : 0) : (lineCosts[i] ?? 0) / totalCost;
+      const key = line.budgetSourceId ?? 'unassigned';
+      const existing = sourcePaybackMap.get(key) ?? { min: 0, max: 0 };
+      existing.max += maxPayback * weight;
+      existing.min += minPayback * weight;
+      sourcePaybackMap.set(key, existing);
+    });
+  }
+
+  // Walk filtered WI entities
+  for (const item of wiEntityData.values()) {
+    addSourcePayback(
+      item.budgetLines.map((bl) => ({
+        id: bl.id,
+        budgetSourceId: bl.budgetSourceId,
+        plannedAmount: bl.plannedAmount,
+        confidence: bl.confidence,
+        actualCost: bl.actualCost,
+        hasInvoice: bl.hasInvoice,
+        isQuotation: bl.isQuotation,
+      })),
+      item.subsidyPayback,
+      item.minSubsidyPayback,
+    );
+  }
+
+  // Walk filtered HI entities
+  for (const item of hiEntityData.values()) {
+    addSourcePayback(
+      item.budgetLines.map((bl) => ({
+        id: bl.id,
+        budgetSourceId: bl.budgetSourceId,
+        plannedAmount: bl.plannedAmount,
+        confidence: bl.confidence,
+        actualCost: bl.actualCost,
+        hasInvoice: bl.hasInvoice,
+        isQuotation: bl.isQuotation,
+      })),
+      item.subsidyPayback,
+      item.minSubsidyPayback,
+    );
+  }
+
+  // ── Build budgetSources array with new shape ──
+  // ALL configured sources always included, plus synthetic 'unassigned' when present.
+  // projectedMin/Max = unfiltered per-source values (architect decision A).
+  // subsidyPaybackMin/Max = pro-rata from filtered engine run (0 for deselected sources
+  // since their lines don't feed the filtered engine and therefore don't appear in sourcePaybackMap).
+  const budgetSources: BudgetSourceSummaryBreakdown[] = budgetSourceRows.map((r) => {
+    const proj = sourceProjectedMap.get(r.id);
+    const payback = sourcePaybackMap.get(r.id) ?? { min: 0, max: 0 };
+    return {
+      id: r.id,
+      name: r.name,
+      totalAmount: r.totalAmount,
+      projectedMin: proj?.min ?? 0,
+      projectedMax: proj?.max ?? 0,
+      subsidyPaybackMin: payback.min,
+      subsidyPaybackMax: payback.max,
+    };
+  });
+
+  // Synthetic 'unassigned' entry: always included when any unassigned lines exist
+  if (hasUnassignedLines) {
+    const unassignedPayback = sourcePaybackMap.get('unassigned') ?? { min: 0, max: 0 };
+    budgetSources.unshift({
+      id: 'unassigned',
+      name: 'Unassigned',
+      totalAmount: 0,
+      projectedMin: unassignedProjMin,
+      projectedMax: unassignedProjMax,
+      subsidyPaybackMin: unassignedPayback.min,
+      subsidyPaybackMax: unassignedPayback.max,
+    });
+  }
 
   return {
     workItems: {
