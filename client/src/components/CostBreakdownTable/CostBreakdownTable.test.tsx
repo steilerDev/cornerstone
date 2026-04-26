@@ -4202,11 +4202,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
   // Server rawProjectedMin/Max of WI-A = 4000/6000 → avg 5000 (same for WI-A but...)
   // More importantly: WI-B is cascade-hidden, proving filter is active.
   it('WI Level 2 Cost shows only visible-source line cost when filter is active', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithTwoSources(),
-      buildOverview(150000),
-      { deselectedSourceIds: new Set(['src-b']) },
-    );
+    const { container } = renderWithRouter(buildBreakdownWithTwoSources(), buildOverview(150000), {
+      deselectedSourceIds: new Set(['src-b']),
+    });
 
     // Expand WI section → area → item A
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
@@ -4231,11 +4229,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
   // Filtered HI-X Cost = resolveLineCost(line-hi-a, avg) = 2000 → '-€2,000.00'
   // Server rawProjectedMin/Max of HI-X = 2400/3600 → avg 3000
   it('HI Level 2 Cost shows only remaining-source line cost when filter is active', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithTwoSources(),
-      buildOverview(150000),
-      { deselectedSourceIds: new Set(['src-b']) },
-    );
+    const { container } = renderWithRouter(buildBreakdownWithTwoSources(), buildOverview(150000), {
+      deselectedSourceIds: new Set(['src-b']),
+    });
 
     // Expand HI section → HI Area → HI Item X
     fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
@@ -4365,11 +4361,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
   // After src-b deselected: WI Area filtered avg cost = 5000 (only WI-A visible)
   // Server WI area avg cost = (6400+9600)/2 = 8000
   it('WI Area Level 1 Cost equals sum of visible-source item costs when filter is active', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithTwoSources(),
-      buildOverview(150000),
-      { deselectedSourceIds: new Set(['src-b']) },
-    );
+    const { container } = renderWithRouter(buildBreakdownWithTwoSources(), buildOverview(150000), {
+      deselectedSourceIds: new Set(['src-b']),
+    });
 
     // Expand WI section to reveal area row
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
@@ -4389,11 +4383,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
   // After src-b deselected: HI Area filtered avg cost = 2000 (only HI-X src-a line)
   // Server HI area avg cost = (2400+3600)/2 = 3000
   it('HI Area Level 1 Cost equals sum of visible-source item costs when filter is active', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithTwoSources(),
-      buildOverview(150000),
-      { deselectedSourceIds: new Set(['src-b']) },
-    );
+    const { container } = renderWithRouter(buildBreakdownWithTwoSources(), buildOverview(150000), {
+      deselectedSourceIds: new Set(['src-b']),
+    });
 
     // Expand HI section to reveal area row
     fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
@@ -4417,11 +4409,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
   //   WI section Payback = '—' (0 payback)
   //   WI section Net = payback - cost = 0 - 5000 = -5000 → '-€5,000.00' net
   it('WI Level 0 section header shows filtered aggregate Cost and does NOT match server rawProjected', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithTwoSources(),
-      buildOverview(150000),
-      { deselectedSourceIds: new Set(['src-b']) },
-    );
+    const { container } = renderWithRouter(buildBreakdownWithTwoSources(), buildOverview(150000), {
+      deselectedSourceIds: new Set(['src-b']),
+    });
 
     // The WI section Level 0 row is always visible (not inside expansion)
     // It contains the "Work Items" label and the Expand work item budget button
@@ -4443,11 +4433,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
   //   filteredAggregates.hiTotals: rawMin=1600, rawMax=2400 → avg=2000
   //   HI section Cost = '-€2,000.00' (NOT server rawProjectedMin/Max avg=-€3,000.00)
   it('HI Level 0 section header shows filtered aggregate Cost and does NOT match server rawProjected', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithTwoSources(),
-      buildOverview(150000),
-      { deselectedSourceIds: new Set(['src-b']) },
-    );
+    const { container } = renderWithRouter(buildBreakdownWithTwoSources(), buildOverview(150000), {
+      deselectedSourceIds: new Set(['src-b']),
+    });
 
     const hiSectionRow = screen
       .getByRole('button', { name: 'Expand household item budget by area' })
@@ -4609,11 +4597,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
   //   HI area avg cost = 3000 → '-€3,000.00'
   //   Remaining Net = 150000 - (8000+3000) + 0 = 139000 → '€139,000.00'
   it('no filter: all aggregate rows display server-computed values unchanged', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithTwoSources(),
-      buildOverview(150000),
-      { deselectedSourceIds: new Set() },
-    );
+    const { container } = renderWithRouter(buildBreakdownWithTwoSources(), buildOverview(150000), {
+      deselectedSourceIds: new Set(),
+    });
 
     // WI section Level 0 header shows server avg cost
     const wiSectionRow = screen
@@ -4658,11 +4644,9 @@ describe('Source filter — aggregate consistency (#1358)', () => {
   //   WI Area filtered cost = 5000 (must equal WI-A's cost, not 5000+anything)
   //   WI section Cost = 5000 (must equal WI Area cost)
   it('visible Area Level 1 Cost equals sum of visible Item costs; section header equals area sum', () => {
-    const { container } = renderWithRouter(
-      buildBreakdownWithTwoSources(),
-      buildOverview(150000),
-      { deselectedSourceIds: new Set(['src-b']) },
-    );
+    const { container } = renderWithRouter(buildBreakdownWithTwoSources(), buildOverview(150000), {
+      deselectedSourceIds: new Set(['src-b']),
+    });
 
     // Read WI section header cost
     const wiSectionRow = screen

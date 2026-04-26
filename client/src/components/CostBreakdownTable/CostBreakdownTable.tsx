@@ -213,7 +213,8 @@ function computeFilteredAggregates(
 
       budgetLines.forEach((line, i) => {
         if (!visibleLineIds.has(line.id)) return;
-        const weight = totalWeight === 0 ? (n > 0 ? 1 / n : 0) : (allLineCosts[i] ?? 0) / totalWeight;
+        const weight =
+          totalWeight === 0 ? (n > 0 ? 1 / n : 0) : (allLineCosts[i] ?? 0) / totalWeight;
         totals.subsidyPayback += subsidyPayback * weight;
         totals.minSubsidyPayback += minSubsidyPayback * weight;
       });
@@ -542,11 +543,7 @@ function WorkItemRow({
       : resolveProjected(item.rawProjectedMin, item.rawProjectedMax, perspective);
   const resolvedPayback = filteredTotals
     ? resolveProjected(filteredTotals.minSubsidyPayback, filteredTotals.subsidyPayback, perspective)
-    : resolveProjected(
-        item.minSubsidyPayback,
-        item.subsidyPayback,
-        perspective,
-      );
+    : resolveProjected(item.minSubsidyPayback, item.subsidyPayback, perspective);
 
   const effectiveMaxPayback = filteredTotals ? filteredTotals.subsidyPayback : item.subsidyPayback;
 
@@ -644,18 +641,16 @@ function WorkItemAreaSection({
     return null;
   }
 
-  const filteredTotals = hasSourceFilter ? filteredAggregates?.areaTotalsMap.get(areaKey) : undefined;
+  const filteredTotals = hasSourceFilter
+    ? filteredAggregates?.areaTotalsMap.get(areaKey)
+    : undefined;
 
   const resolvedRawCost = filteredTotals
     ? resolveProjected(filteredTotals.rawProjectedMin, filteredTotals.rawProjectedMax, perspective)
     : resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
   const resolvedPayback = filteredTotals
     ? resolveProjected(filteredTotals.minSubsidyPayback, filteredTotals.subsidyPayback, perspective)
-    : resolveProjected(
-        area.minSubsidyPayback,
-        area.subsidyPayback,
-        perspective,
-      );
+    : resolveProjected(area.minSubsidyPayback, area.subsidyPayback, perspective);
   const effectiveMaxPayback = filteredTotals ? filteredTotals.subsidyPayback : area.subsidyPayback;
   const areaName = area.areaId === null ? t('overview.costBreakdown.area.unassigned') : area.name;
 
@@ -767,11 +762,7 @@ function HouseholdItemRow({
       : resolveProjected(item.rawProjectedMin, item.rawProjectedMax, perspective);
   const resolvedPayback = filteredTotals
     ? resolveProjected(filteredTotals.minSubsidyPayback, filteredTotals.subsidyPayback, perspective)
-    : resolveProjected(
-        item.minSubsidyPayback,
-        item.subsidyPayback,
-        perspective,
-      );
+    : resolveProjected(item.minSubsidyPayback, item.subsidyPayback, perspective);
 
   const effectiveMaxPayback = filteredTotals ? filteredTotals.subsidyPayback : item.subsidyPayback;
 
@@ -872,18 +863,16 @@ function HouseholdItemAreaSection({
     return null;
   }
 
-  const filteredTotals = hasSourceFilter ? filteredAggregates?.areaTotalsMap.get(areaKey) : undefined;
+  const filteredTotals = hasSourceFilter
+    ? filteredAggregates?.areaTotalsMap.get(areaKey)
+    : undefined;
 
   const resolvedRawCost = filteredTotals
     ? resolveProjected(filteredTotals.rawProjectedMin, filteredTotals.rawProjectedMax, perspective)
     : resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
   const resolvedPayback = filteredTotals
     ? resolveProjected(filteredTotals.minSubsidyPayback, filteredTotals.subsidyPayback, perspective)
-    : resolveProjected(
-        area.minSubsidyPayback,
-        area.subsidyPayback,
-        perspective,
-      );
+    : resolveProjected(area.minSubsidyPayback, area.subsidyPayback, perspective);
   const effectiveMaxPayback = filteredTotals ? filteredTotals.subsidyPayback : area.subsidyPayback;
   const areaName = area.areaId === null ? t('overview.costBreakdown.area.unassigned') : area.name;
 
@@ -1216,7 +1205,13 @@ export function CostBreakdownTable({
       }
     }
     return total - resolvedTotalExcess;
-  }, [hasSourceFilter, perSourcePayback, deselectedSourceIds, adjustedTotalPayback, resolvedTotalExcess]);
+  }, [
+    hasSourceFilter,
+    perSourcePayback,
+    deselectedSourceIds,
+    adjustedTotalPayback,
+    resolvedTotalExcess,
+  ]);
 
   // Check if any lines are unassigned
   const hasUnassignedLines = useMemo<boolean>(() => {
@@ -1336,7 +1331,9 @@ export function CostBreakdownTable({
                         )}
                       </td>
                       <td className={styles.colPayback}>
-                        {(filteredAggregates ? filteredAggregates.wiTotals.subsidyPayback : wiTotals.subsidyPayback) > 0
+                        {(filteredAggregates
+                          ? filteredAggregates.wiTotals.subsidyPayback
+                          : wiTotals.subsidyPayback) > 0
                           ? formatCurrency(
                               filteredAggregates
                                 ? resolveProjected(
@@ -1439,7 +1436,9 @@ export function CostBreakdownTable({
                         )}
                       </td>
                       <td className={styles.colPayback}>
-                        {(filteredAggregates ? filteredAggregates.hiTotals.subsidyPayback : hiTotals.subsidyPayback) > 0
+                        {(filteredAggregates
+                          ? filteredAggregates.hiTotals.subsidyPayback
+                          : hiTotals.subsidyPayback) > 0
                           ? formatCurrency(
                               filteredAggregates
                                 ? resolveProjected(
@@ -1588,7 +1587,8 @@ export function CostBreakdownTable({
                   </td>
                   <td className={styles.colPayback}>
                     {(filteredAggregates
-                      ? filteredAggregates.wiTotals.subsidyPayback + filteredAggregates.hiTotals.subsidyPayback
+                      ? filteredAggregates.wiTotals.subsidyPayback +
+                        filteredAggregates.hiTotals.subsidyPayback
                       : maxTotalPayback) > 0 ? (
                       <span className={styles.valuePositive}>
                         {formatCurrency(filteredAdjustedTotalPayback)}
