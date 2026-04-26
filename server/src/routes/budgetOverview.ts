@@ -22,6 +22,7 @@ export default async function budgetOverviewRoutes(fastify: FastifyInstance) {
    * GET /api/budget/breakdown
    * Returns item-level and budget-line-level cost detail for expandable breakdown table.
    * Includes both work items and household items with per-entity subsidy payback.
+   * Supports server-side source filtering via ?deselectedSources=id1,id2,unassigned
    * Auth required: Yes (both admin and member)
    */
   fastify.get('/breakdown', async (request, reply) => {
@@ -29,7 +30,17 @@ export default async function budgetOverviewRoutes(fastify: FastifyInstance) {
       throw new UnauthorizedError();
     }
 
-    const breakdown = getBudgetBreakdown(fastify.db);
+    // Parse ?deselectedSources=<id1>,<id2>,unassigned
+    // Empty/missing param → empty set (unchanged behavior)
+    const rawParam = (request.query as Record<string, string>)['deselectedSources'] ?? '';
+    const deselectedSources = new Set(
+      rawParam
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    );
+
+    const breakdown = getBudgetBreakdown(fastify.db, deselectedSources);
     return reply.status(200).send({ breakdown });
   });
 }

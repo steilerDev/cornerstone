@@ -624,3 +624,51 @@
   }
 }
 /* stylelint-enable color-no-hex */
+
+/* ---- Breakdown refetch loading state ---- */
+
+.breakdownRefetching {
+  opacity: 0.6;
+  pointer-events: none;
+  transition: opacity var(--transition-fast);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breakdownRefetching {
+    transition: none;
+  }
+}
+
+/* ---- Breakdown refetch error banner ---- */
+
+.breakdownErrorBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4);
+  margin-bottom: var(--spacing-3);
+  background: var(--color-bg-inverse);
+  border-left: 4px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+}
+
+.breakdownErrorBanner button {
+  padding: var(--spacing-1-5) var(--spacing-2);
+  background: transparent;
+  border: none;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.breakdownErrorBanner button:hover {
+  opacity: 0.8;
+}
+
+.breakdownErrorBanner button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

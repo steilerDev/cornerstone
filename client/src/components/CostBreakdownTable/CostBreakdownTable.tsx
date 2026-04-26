@@ -36,9 +36,6 @@ function useFormatterContext() {
 // Context for source filter state
 interface BreakdownContextValue {
   budgetSources: BudgetSourceSummaryBreakdown[];
-  hasSourceFilter: boolean;
-  visibleLineIds: Set<string>;
-  filteredAggregates: FilteredAggregates | null;
 }
 
 const BreakdownContext = createContext<BreakdownContextValue | null>(null);
@@ -92,199 +89,6 @@ function resolveLineCost(line: BreakdownBudgetLine, perspective: CostPerspective
   );
 }
 
-/**
- * Computes per-source subsidy payback attribution using entity-level pro-rata weighting.
- *
- * For each entity (work item or household item), the entity's perspective-resolved payback
- * is distributed across its budget lines weighted by each line's max-perspective cost
- * (using computeLineProjected max, i.e. plannedAmount * (1 + margin)).
- * The result is bucketed by budgetSourceId (null → 'unassigned').
- *
- * Edge case: if an entity's totalLineMaxCost === 0 but entityPayback > 0,
- * payback is distributed equally across all lines.
- *
- * AC-11: computed over ALL entities regardless of selection state.
- */
-function computePerSourcePayback(
-  breakdown: BudgetBreakdown,
-  perspective: CostPerspective,
-): Map<string, number> {
-  const map = new Map<string, number>();
-
-  function processLines(
-    budgetLines: BreakdownBudgetLine[],
-    subsidyPayback: number,
-    minSubsidyPayback: number,
-  ) {
-    const entityPayback = perspective === 'min' ? minSubsidyPayback : subsidyPayback;
-    if (entityPayback === 0) return;
-
-    // Compute max-perspective cost for each line (for weighting)
-    const lineCosts = budgetLines.map((line) => resolveLineCost(line, 'max'));
-
-    const totalCost = lineCosts.reduce((s, c) => s + c, 0);
-    const n = budgetLines.length;
-
-    budgetLines.forEach((line, i) => {
-      const weight = totalCost === 0 ? (n > 0 ? 1 / n : 0) : (lineCosts[i] ?? 0) / totalCost;
-      const paybackForLine = entityPayback * weight;
-      const key = line.budgetSourceId ?? 'unassigned';
-      map.set(key, (map.get(key) ?? 0) + paybackForLine);
-    });
-  }
-
-  function walkWi(areas: BreakdownArea<BreakdownWorkItem>[]) {
-    for (const area of areas) {
-      for (const item of area.items) {
-        processLines(item.budgetLines, item.subsidyPayback, item.minSubsidyPayback);
-      }
-      walkWi(area.children);
-    }
-  }
-  function walkHi(areas: BreakdownArea<BreakdownHouseholdItem>[]) {
-    for (const area of areas) {
-      for (const item of area.items) {
-        processLines(item.budgetLines, item.subsidyPayback, item.minSubsidyPayback);
-      }
-      walkHi(area.children);
-    }
-  }
-
-  walkWi(breakdown.workItems.areas);
-  walkHi(breakdown.householdItems.areas);
-  return map;
-}
-
-interface FilteredEntityTotals {
-  rawProjectedMin: number;
-  rawProjectedMax: number;
-  subsidyPayback: number;
-  minSubsidyPayback: number;
-}
-
-interface FilteredAggregates {
-  itemTotalsMap: Map<string, FilteredEntityTotals>;
-  areaTotalsMap: Map<string, FilteredEntityTotals>;
-  wiTotals: FilteredEntityTotals;
-  hiTotals: FilteredEntityTotals;
-}
-
-function computeFilteredAggregates(
-  breakdown: BudgetBreakdown,
-  perspective: CostPerspective,
-  hasSourceFilter: boolean,
-  visibleLineIds: Set<string>,
-): FilteredAggregates | null {
-  if (!hasSourceFilter) return null;
-
-  const itemTotalsMap = new Map<string, FilteredEntityTotals>();
-  const areaTotalsMap = new Map<string, FilteredEntityTotals>();
-
-  function zero(): FilteredEntityTotals {
-    return { rawProjectedMin: 0, rawProjectedMax: 0, subsidyPayback: 0, minSubsidyPayback: 0 };
-  }
-
-  function addToTotals(t: FilteredEntityTotals, delta: FilteredEntityTotals): void {
-    t.rawProjectedMin += delta.rawProjectedMin;
-    t.rawProjectedMax += delta.rawProjectedMax;
-    t.subsidyPayback += delta.subsidyPayback;
-    t.minSubsidyPayback += delta.minSubsidyPayback;
-  }
-
-  function processItem(
-    itemKey: string,
-    budgetLines: BreakdownBudgetLine[],
-    subsidyPayback: number,
-    minSubsidyPayback: number,
-  ): FilteredEntityTotals {
-    const totals = zero();
-
-    const visibleLines = budgetLines.filter((l) => visibleLineIds.has(l.id));
-
-    for (const line of visibleLines) {
-      totals.rawProjectedMin += resolveLineCost(line, 'min');
-      totals.rawProjectedMax += resolveLineCost(line, 'max');
-    }
-
-    if (subsidyPayback > 0 || minSubsidyPayback > 0) {
-      const allLineCosts = budgetLines.map((l) => resolveLineCost(l, 'max'));
-      const totalWeight = allLineCosts.reduce((s, c) => s + c, 0);
-      const n = budgetLines.length;
-
-      budgetLines.forEach((line, i) => {
-        if (!visibleLineIds.has(line.id)) return;
-        const weight =
-          totalWeight === 0 ? (n > 0 ? 1 / n : 0) : (allLineCosts[i] ?? 0) / totalWeight;
-        totals.subsidyPayback += subsidyPayback * weight;
-        totals.minSubsidyPayback += minSubsidyPayback * weight;
-      });
-    }
-
-    itemTotalsMap.set(itemKey, totals);
-    return totals;
-  }
-
-  function walkWiAreas(
-    areas: BreakdownArea<BreakdownWorkItem>[],
-    sectionKey: string,
-  ): FilteredEntityTotals {
-    const sectionTotals = zero();
-    for (const area of areas) {
-      const areaKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}`;
-      const areaTotals = zero();
-
-      for (const item of area.items) {
-        const itemTotals = processItem(
-          item.workItemId,
-          item.budgetLines,
-          item.subsidyPayback,
-          item.minSubsidyPayback,
-        );
-        addToTotals(areaTotals, itemTotals);
-      }
-
-      const childTotals = walkWiAreas(area.children, sectionKey);
-      addToTotals(areaTotals, childTotals);
-
-      areaTotalsMap.set(areaKey, areaTotals);
-      addToTotals(sectionTotals, areaTotals);
-    }
-    return sectionTotals;
-  }
-
-  function walkHiAreas(
-    areas: BreakdownArea<BreakdownHouseholdItem>[],
-    sectionKey: string,
-  ): FilteredEntityTotals {
-    const sectionTotals = zero();
-    for (const area of areas) {
-      const areaKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}`;
-      const areaTotals = zero();
-
-      for (const item of area.items) {
-        const itemTotals = processItem(
-          item.householdItemId,
-          item.budgetLines,
-          item.subsidyPayback,
-          item.minSubsidyPayback,
-        );
-        addToTotals(areaTotals, itemTotals);
-      }
-
-      const childTotals = walkHiAreas(area.children, sectionKey);
-      addToTotals(areaTotals, childTotals);
-
-      areaTotalsMap.set(areaKey, areaTotals);
-      addToTotals(sectionTotals, areaTotals);
-    }
-    return sectionTotals;
-  }
-
-  const wiTotals = walkWiAreas(breakdown.workItems.areas, 'wi');
-  const hiTotals = walkHiAreas(breakdown.householdItems.areas, 'hi');
-
-  return { itemTotalsMap, areaTotalsMap, wiTotals, hiTotals };
-}
 
 /**
  * Formats cost with explicit minus sign.
@@ -383,24 +187,6 @@ function PerspectiveToggle({
 }
 
 /**
- * Helper function to check if an area has visible lines (for cascade hiding).
- */
-function areaHasVisibleLines(
-  a: BreakdownArea<BreakdownWorkItem | BreakdownHouseholdItem>,
-  visibleIds: Set<string>,
-): boolean {
-  for (const item of a.items) {
-    for (const line of item.budgetLines) {
-      if (visibleIds.has(line.id)) return true;
-    }
-  }
-  for (const child of a.children) {
-    if (areaHasVisibleLines(child, visibleIds)) return true;
-  }
-  return false;
-}
-
-/**
  * Renders a confidence badge (e.g., "own_estimate") for a budget line.
  */
 function ConfidenceBadge({ confidence }: { confidence: ConfidenceLevel }) {
@@ -422,19 +208,14 @@ function BudgetLineRow({
 }) {
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
-  const { hasSourceFilter, visibleLineIds, budgetSources } = useBreakdownContext();
-
-  // Return null if this line is filtered out
-  if (hasSourceFilter && !visibleLineIds.has(line.id)) {
-    return null;
-  }
+  const { budgetSources } = useBreakdownContext();
 
   const key = `line-${line.id}`;
   const margin = CONFIDENCE_MARGINS[line.confidence];
   const costMin = line.plannedAmount * (1 - margin);
   const costMax = line.plannedAmount * (1 + margin);
   const perspectiveValue = resolveProjected(costMin, costMax, perspective);
-  const rowClassName = `${styles.rowLevel3}${hasSourceFilter && visibleLineIds.has(line.id) ? ` ${styles.rowFiltered}` : ''}`;
+  const rowClassName = styles.rowLevel3;
 
   // Calculate quoted range (±5%)
   const quotedMin = line.actualCost * 0.95;
@@ -523,29 +304,18 @@ function WorkItemRow({
 }) {
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
-  const { hasSourceFilter, visibleLineIds, filteredAggregates } = useBreakdownContext();
   const key = expandKey;
   const rowClassName = styles.rowLevel2;
 
-  // Cascade: hide item if filter is active and none of its lines are visible
-  if (hasSourceFilter && item.budgetLines.every((line) => !visibleLineIds.has(line.id))) {
-    return null;
-  }
-
-  const filteredTotals = hasSourceFilter
-    ? filteredAggregates?.itemTotalsMap.get(item.workItemId)
-    : undefined;
-
-  const resolvedRawCost = filteredTotals
-    ? resolveProjected(filteredTotals.rawProjectedMin, filteredTotals.rawProjectedMax, perspective)
-    : item.costDisplay === 'actual'
+  const resolvedRawCost =
+    item.costDisplay === 'actual'
       ? item.actualCost
       : resolveProjected(item.rawProjectedMin, item.rawProjectedMax, perspective);
-  const resolvedPayback = filteredTotals
-    ? resolveProjected(filteredTotals.minSubsidyPayback, filteredTotals.subsidyPayback, perspective)
-    : resolveProjected(item.minSubsidyPayback, item.subsidyPayback, perspective);
-
-  const effectiveMaxPayback = filteredTotals ? filteredTotals.subsidyPayback : item.subsidyPayback;
+  const resolvedPayback = resolveProjected(
+    item.minSubsidyPayback,
+    item.subsidyPayback,
+    perspective,
+  );
 
   return (
     <>
@@ -578,14 +348,10 @@ function WorkItemRow({
           </div>
         </td>
         <td className={styles.colBudget}>
-          {item.costDisplay === 'actual' && !filteredTotals ? (
-            <span>-{formatCurrencyFn(item.actualCost)}</span>
-          ) : (
-            <span>-{formatCurrencyFn(resolvedRawCost)}</span>
-          )}
+          <span>-{formatCurrencyFn(resolvedRawCost)}</span>
         </td>
         <td className={styles.colPayback}>
-          {effectiveMaxPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
+          {item.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
           {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
@@ -614,7 +380,6 @@ function WorkItemAreaSection({
   onToggle,
   perspective,
   formatCurrencyFn,
-  filteredAggregates,
 }: {
   area: BreakdownArea<BreakdownWorkItem>;
   depth: number;
@@ -623,35 +388,21 @@ function WorkItemAreaSection({
   onToggle: (key: string) => void;
   perspective: CostPerspective;
   formatCurrencyFn: (value: number) => string;
-  filteredAggregates: FilteredAggregates | null;
 }) {
   const { t } = useTranslation('budget');
-  const { hasSourceFilter, visibleLineIds } = useBreakdownContext();
   const areaKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}`;
   const isExpanded = expandedKeys.has(areaKey);
 
-  // Cascade: hide area if filter is active and none of its items/children have visible lines
-  if (
-    hasSourceFilter &&
-    !areaHasVisibleLines(
-      area as BreakdownArea<BreakdownWorkItem | BreakdownHouseholdItem>,
-      visibleLineIds,
-    )
-  ) {
-    return null;
-  }
-
-  const filteredTotals = hasSourceFilter
-    ? filteredAggregates?.areaTotalsMap.get(areaKey)
-    : undefined;
-
-  const resolvedRawCost = filteredTotals
-    ? resolveProjected(filteredTotals.rawProjectedMin, filteredTotals.rawProjectedMax, perspective)
-    : resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
-  const resolvedPayback = filteredTotals
-    ? resolveProjected(filteredTotals.minSubsidyPayback, filteredTotals.subsidyPayback, perspective)
-    : resolveProjected(area.minSubsidyPayback, area.subsidyPayback, perspective);
-  const effectiveMaxPayback = filteredTotals ? filteredTotals.subsidyPayback : area.subsidyPayback;
+  const resolvedRawCost = resolveProjected(
+    area.rawProjectedMin,
+    area.rawProjectedMax,
+    perspective,
+  );
+  const resolvedPayback = resolveProjected(
+    area.minSubsidyPayback,
+    area.subsidyPayback,
+    perspective,
+  );
   const areaName = area.areaId === null ? t('overview.costBreakdown.area.unassigned') : area.name;
 
   return (
@@ -680,7 +431,7 @@ function WorkItemAreaSection({
         </td>
         <td className={styles.colBudget}>-{formatCurrencyFn(resolvedRawCost)}</td>
         <td className={styles.colPayback}>
-          {effectiveMaxPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
+          {area.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
           {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
@@ -713,7 +464,6 @@ function WorkItemAreaSection({
               onToggle={onToggle}
               perspective={perspective}
               formatCurrencyFn={formatCurrencyFn}
-              filteredAggregates={filteredAggregates}
             />
           ))}
         </>
@@ -742,29 +492,18 @@ function HouseholdItemRow({
 }) {
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
-  const { hasSourceFilter, visibleLineIds, filteredAggregates } = useBreakdownContext();
   const key = expandKey;
   const rowClassName = styles.rowLevel2;
 
-  // Cascade: hide item if filter is active and none of its lines are visible
-  if (hasSourceFilter && item.budgetLines.every((line) => !visibleLineIds.has(line.id))) {
-    return null;
-  }
-
-  const filteredTotals = hasSourceFilter
-    ? filteredAggregates?.itemTotalsMap.get(item.householdItemId)
-    : undefined;
-
-  const resolvedRawCost = filteredTotals
-    ? resolveProjected(filteredTotals.rawProjectedMin, filteredTotals.rawProjectedMax, perspective)
-    : item.costDisplay === 'actual'
+  const resolvedRawCost =
+    item.costDisplay === 'actual'
       ? item.actualCost
       : resolveProjected(item.rawProjectedMin, item.rawProjectedMax, perspective);
-  const resolvedPayback = filteredTotals
-    ? resolveProjected(filteredTotals.minSubsidyPayback, filteredTotals.subsidyPayback, perspective)
-    : resolveProjected(item.minSubsidyPayback, item.subsidyPayback, perspective);
-
-  const effectiveMaxPayback = filteredTotals ? filteredTotals.subsidyPayback : item.subsidyPayback;
+  const resolvedPayback = resolveProjected(
+    item.minSubsidyPayback,
+    item.subsidyPayback,
+    perspective,
+  );
 
   return (
     <>
@@ -800,14 +539,10 @@ function HouseholdItemRow({
           </div>
         </td>
         <td className={styles.colBudget}>
-          {item.costDisplay === 'actual' && !filteredTotals ? (
-            <span>-{formatCurrencyFn(item.actualCost)}</span>
-          ) : (
-            <span>-{formatCurrencyFn(resolvedRawCost)}</span>
-          )}
+          <span>-{formatCurrencyFn(resolvedRawCost)}</span>
         </td>
         <td className={styles.colPayback}>
-          {effectiveMaxPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
+          {item.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
           {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
@@ -836,7 +571,6 @@ function HouseholdItemAreaSection({
   onToggle,
   perspective,
   formatCurrencyFn,
-  filteredAggregates,
 }: {
   area: BreakdownArea<BreakdownHouseholdItem>;
   depth: number;
@@ -845,35 +579,21 @@ function HouseholdItemAreaSection({
   onToggle: (key: string) => void;
   perspective: CostPerspective;
   formatCurrencyFn: (value: number) => string;
-  filteredAggregates: FilteredAggregates | null;
 }) {
   const { t } = useTranslation('budget');
-  const { hasSourceFilter, visibleLineIds } = useBreakdownContext();
   const areaKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}`;
   const isExpanded = expandedKeys.has(areaKey);
 
-  // Cascade: hide area if filter is active and none of its items/children have visible lines
-  if (
-    hasSourceFilter &&
-    !areaHasVisibleLines(
-      area as BreakdownArea<BreakdownWorkItem | BreakdownHouseholdItem>,
-      visibleLineIds,
-    )
-  ) {
-    return null;
-  }
-
-  const filteredTotals = hasSourceFilter
-    ? filteredAggregates?.areaTotalsMap.get(areaKey)
-    : undefined;
-
-  const resolvedRawCost = filteredTotals
-    ? resolveProjected(filteredTotals.rawProjectedMin, filteredTotals.rawProjectedMax, perspective)
-    : resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
-  const resolvedPayback = filteredTotals
-    ? resolveProjected(filteredTotals.minSubsidyPayback, filteredTotals.subsidyPayback, perspective)
-    : resolveProjected(area.minSubsidyPayback, area.subsidyPayback, perspective);
-  const effectiveMaxPayback = filteredTotals ? filteredTotals.subsidyPayback : area.subsidyPayback;
+  const resolvedRawCost = resolveProjected(
+    area.rawProjectedMin,
+    area.rawProjectedMax,
+    perspective,
+  );
+  const resolvedPayback = resolveProjected(
+    area.minSubsidyPayback,
+    area.subsidyPayback,
+    perspective,
+  );
   const areaName = area.areaId === null ? t('overview.costBreakdown.area.unassigned') : area.name;
 
   return (
@@ -902,7 +622,7 @@ function HouseholdItemAreaSection({
         </td>
         <td className={styles.colBudget}>-{formatCurrencyFn(resolvedRawCost)}</td>
         <td className={styles.colPayback}>
-          {effectiveMaxPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
+          {area.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
           {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
@@ -935,7 +655,6 @@ function HouseholdItemAreaSection({
               onToggle={onToggle}
               perspective={perspective}
               formatCurrencyFn={formatCurrencyFn}
-              filteredAggregates={filteredAggregates}
             />
           ))}
         </>
@@ -1079,158 +798,6 @@ export function CostBreakdownTable({
    */
   const sum = overview.availableFunds - totalRawProjected + adjustedTotalPayback;
 
-  // Source filter state
-  const hasSourceFilter = deselectedSourceIds.size > 0;
-
-  // Derive visible line IDs from filter (a line is visible if its source is NOT deselected)
-  const visibleLineIds = useMemo<Set<string>>(() => {
-    if (!hasSourceFilter) return new Set(); // empty = all visible (optimization)
-    const ids = new Set<string>();
-    // Walk all lines across all areas
-    function collectWi(areas: BreakdownArea<BreakdownWorkItem>[]) {
-      for (const area of areas) {
-        for (const item of area.items) {
-          for (const line of item.budgetLines) {
-            const lineKey = line.budgetSourceId ?? 'unassigned';
-            if (!deselectedSourceIds.has(lineKey)) ids.add(line.id);
-          }
-        }
-        collectWi(area.children);
-      }
-    }
-    function collectHi(areas: BreakdownArea<BreakdownHouseholdItem>[]) {
-      for (const area of areas) {
-        for (const item of area.items) {
-          for (const line of item.budgetLines) {
-            const lineKey = line.budgetSourceId ?? 'unassigned';
-            if (!deselectedSourceIds.has(lineKey)) ids.add(line.id);
-          }
-        }
-        collectHi(area.children);
-      }
-    }
-    collectWi(wiAreas);
-    collectHi(hiAreas);
-    return ids;
-  }, [hasSourceFilter, deselectedSourceIds, wiAreas, hiAreas]);
-
-  // Per-source payback (pro-rata, always full-project, AC-11)
-  const perSourcePayback = useMemo(
-    () => computePerSourcePayback(breakdown, perspective),
-    [breakdown, perspective],
-  );
-
-  // Available Funds: sum of selected sources' totalAmount (AC-16)
-  const filteredAvailableFunds = useMemo<number>(() => {
-    if (!hasSourceFilter) return overview.availableFunds;
-    return budgetSources
-      .filter((s) => !deselectedSourceIds.has(s.id))
-      .reduce((sum, s) => sum + s.totalAmount, 0);
-  }, [hasSourceFilter, budgetSources, deselectedSourceIds, overview.availableFunds]);
-
-  // Compute unassigned allocated cost (for source detail rows)
-  const unassignedAllocatedCost = useMemo<number>(() => {
-    let total = 0;
-    function walkWi(areas: BreakdownArea<BreakdownWorkItem>[]) {
-      for (const area of areas) {
-        for (const item of area.items) {
-          for (const line of item.budgetLines) {
-            if (line.budgetSourceId !== null) continue;
-            total += resolveLineCost(line, perspective);
-          }
-        }
-        walkWi(area.children);
-      }
-    }
-    function walkHi(areas: BreakdownArea<BreakdownHouseholdItem>[]) {
-      for (const area of areas) {
-        for (const item of area.items) {
-          for (const line of item.budgetLines) {
-            if (line.budgetSourceId !== null) continue;
-            total += resolveLineCost(line, perspective);
-          }
-        }
-        walkHi(area.children);
-      }
-    }
-    walkWi(wiAreas);
-    walkHi(hiAreas);
-    return total;
-  }, [wiAreas, hiAreas, perspective]);
-
-  // Compute filtered grand totals (Sum + Remaining Budget rows only)
-  // Individual area/item rows use backend-computed values.
-  const filteredRawProjected = useMemo<number>(() => {
-    if (!hasSourceFilter) return totalRawProjected;
-    // Sum perspective-resolved cost of visible lines only
-    let total = 0;
-    function walkWi(areas: BreakdownArea<BreakdownWorkItem>[]) {
-      for (const area of areas) {
-        for (const item of area.items) {
-          for (const line of item.budgetLines) {
-            if (!visibleLineIds.has(line.id)) continue;
-            total += resolveLineCost(line, perspective);
-          }
-        }
-        walkWi(area.children);
-      }
-    }
-    function walkHi(areas: BreakdownArea<BreakdownHouseholdItem>[]) {
-      for (const area of areas) {
-        for (const item of area.items) {
-          for (const line of item.budgetLines) {
-            if (!visibleLineIds.has(line.id)) continue;
-            total += resolveLineCost(line, perspective);
-          }
-        }
-        walkHi(area.children);
-      }
-    }
-    walkWi(wiAreas);
-    walkHi(hiAreas);
-    return total;
-  }, [hasSourceFilter, visibleLineIds, wiAreas, hiAreas, perspective]);
-
-  const filteredAggregates = useMemo(
-    () => computeFilteredAggregates(breakdown, perspective, hasSourceFilter, visibleLineIds),
-    [breakdown, perspective, hasSourceFilter, visibleLineIds],
-  );
-
-  const filteredAdjustedTotalPayback = useMemo<number>(() => {
-    if (!hasSourceFilter) return adjustedTotalPayback;
-    let total = 0;
-    for (const [key, payback] of perSourcePayback) {
-      if (!deselectedSourceIds.has(key)) {
-        total += payback;
-      }
-    }
-    return total - resolvedTotalExcess;
-  }, [
-    hasSourceFilter,
-    perSourcePayback,
-    deselectedSourceIds,
-    adjustedTotalPayback,
-    resolvedTotalExcess,
-  ]);
-
-  // Check if any lines are unassigned
-  const hasUnassignedLines = useMemo<boolean>(() => {
-    function check(areas: BreakdownArea<BreakdownWorkItem | BreakdownHouseholdItem>[]): boolean {
-      for (const area of areas) {
-        for (const item of area.items) {
-          for (const line of item.budgetLines) {
-            if (line.budgetSourceId === null) return true;
-          }
-        }
-        if (check(area.children)) return true;
-      }
-      return false;
-    }
-    return check([
-      ...(wiAreas as BreakdownArea<BreakdownWorkItem | BreakdownHouseholdItem>[]),
-      ...(hiAreas as BreakdownArea<BreakdownWorkItem | BreakdownHouseholdItem>[]),
-    ]);
-  }, [wiAreas, hiAreas]);
 
   // Empty state
   const hasData = wiAreas.length > 0 || hiAreas.length > 0;
@@ -1258,9 +825,6 @@ export function CostBreakdownTable({
       <BreakdownContext.Provider
         value={{
           budgetSources,
-          hasSourceFilter,
-          visibleLineIds,
-          filteredAggregates,
         }}
       >
         <section className={styles.breakdownCard} aria-labelledby="breakdown-heading">
@@ -1316,63 +880,37 @@ export function CostBreakdownTable({
                       </td>
                       <td className={styles.colBudget}>
                         {formatCost(
-                          filteredAggregates
-                            ? resolveProjected(
-                                filteredAggregates.wiTotals.rawProjectedMin,
-                                filteredAggregates.wiTotals.rawProjectedMax,
-                                perspective,
-                              )
-                            : resolveProjected(
-                                wiTotals.rawProjectedMin,
-                                wiTotals.rawProjectedMax,
-                                perspective,
-                              ),
+                          resolveProjected(
+                            wiTotals.rawProjectedMin,
+                            wiTotals.rawProjectedMax,
+                            perspective,
+                          ),
                           formatCurrency,
                         )}
                       </td>
                       <td className={styles.colPayback}>
-                        {(filteredAggregates
-                          ? filteredAggregates.wiTotals.subsidyPayback
-                          : wiTotals.subsidyPayback) > 0
+                        {wiTotals.subsidyPayback > 0
                           ? formatCurrency(
-                              filteredAggregates
-                                ? resolveProjected(
-                                    filteredAggregates.wiTotals.minSubsidyPayback,
-                                    filteredAggregates.wiTotals.subsidyPayback,
-                                    perspective,
-                                  )
-                                : resolveProjected(
-                                    wiTotals.minSubsidyPayback,
-                                    wiTotals.subsidyPayback,
-                                    perspective,
-                                  ),
+                              resolveProjected(
+                                wiTotals.minSubsidyPayback,
+                                wiTotals.subsidyPayback,
+                                perspective,
+                              ),
                             )
                           : '—'}
                       </td>
                       <td className={styles.colRemaining}>
                         {renderNet(
-                          filteredAggregates
-                            ? resolveProjected(
-                                filteredAggregates.wiTotals.rawProjectedMin,
-                                filteredAggregates.wiTotals.rawProjectedMax,
-                                perspective,
-                              )
-                            : resolveProjected(
-                                wiTotals.rawProjectedMin,
-                                wiTotals.rawProjectedMax,
-                                perspective,
-                              ),
-                          filteredAggregates
-                            ? resolveProjected(
-                                filteredAggregates.wiTotals.minSubsidyPayback,
-                                filteredAggregates.wiTotals.subsidyPayback,
-                                perspective,
-                              )
-                            : resolveProjected(
-                                wiTotals.minSubsidyPayback,
-                                wiTotals.subsidyPayback,
-                                perspective,
-                              ),
+                          resolveProjected(
+                            wiTotals.rawProjectedMin,
+                            wiTotals.rawProjectedMax,
+                            perspective,
+                          ),
+                          resolveProjected(
+                            wiTotals.minSubsidyPayback,
+                            wiTotals.subsidyPayback,
+                            perspective,
+                          ),
                           styles,
                           formatCurrency,
                         )}
@@ -1391,7 +929,6 @@ export function CostBreakdownTable({
                             onToggle={toggle}
                             perspective={perspective}
                             formatCurrencyFn={formatCurrency}
-                            filteredAggregates={filteredAggregates}
                           />
                         ))}
                       </>
@@ -1421,63 +958,37 @@ export function CostBreakdownTable({
                       </td>
                       <td className={styles.colBudget}>
                         {formatCost(
-                          filteredAggregates
-                            ? resolveProjected(
-                                filteredAggregates.hiTotals.rawProjectedMin,
-                                filteredAggregates.hiTotals.rawProjectedMax,
-                                perspective,
-                              )
-                            : resolveProjected(
-                                hiTotals.rawProjectedMin,
-                                hiTotals.rawProjectedMax,
-                                perspective,
-                              ),
+                          resolveProjected(
+                            hiTotals.rawProjectedMin,
+                            hiTotals.rawProjectedMax,
+                            perspective,
+                          ),
                           formatCurrency,
                         )}
                       </td>
                       <td className={styles.colPayback}>
-                        {(filteredAggregates
-                          ? filteredAggregates.hiTotals.subsidyPayback
-                          : hiTotals.subsidyPayback) > 0
+                        {hiTotals.subsidyPayback > 0
                           ? formatCurrency(
-                              filteredAggregates
-                                ? resolveProjected(
-                                    filteredAggregates.hiTotals.minSubsidyPayback,
-                                    filteredAggregates.hiTotals.subsidyPayback,
-                                    perspective,
-                                  )
-                                : resolveProjected(
-                                    hiTotals.minSubsidyPayback,
-                                    hiTotals.subsidyPayback,
-                                    perspective,
-                                  ),
+                              resolveProjected(
+                                hiTotals.minSubsidyPayback,
+                                hiTotals.subsidyPayback,
+                                perspective,
+                              ),
                             )
                           : '—'}
                       </td>
                       <td className={styles.colRemaining}>
                         {renderNet(
-                          filteredAggregates
-                            ? resolveProjected(
-                                filteredAggregates.hiTotals.rawProjectedMin,
-                                filteredAggregates.hiTotals.rawProjectedMax,
-                                perspective,
-                              )
-                            : resolveProjected(
-                                hiTotals.rawProjectedMin,
-                                hiTotals.rawProjectedMax,
-                                perspective,
-                              ),
-                          filteredAggregates
-                            ? resolveProjected(
-                                filteredAggregates.hiTotals.minSubsidyPayback,
-                                filteredAggregates.hiTotals.subsidyPayback,
-                                perspective,
-                              )
-                            : resolveProjected(
-                                hiTotals.minSubsidyPayback,
-                                hiTotals.subsidyPayback,
-                                perspective,
-                              ),
+                          resolveProjected(
+                            hiTotals.rawProjectedMin,
+                            hiTotals.rawProjectedMax,
+                            perspective,
+                          ),
+                          resolveProjected(
+                            hiTotals.minSubsidyPayback,
+                            hiTotals.subsidyPayback,
+                            perspective,
+                          ),
                           styles,
                           formatCurrency,
                         )}
@@ -1496,7 +1007,6 @@ export function CostBreakdownTable({
                             onToggle={toggle}
                             perspective={perspective}
                             formatCurrencyFn={formatCurrency}
-                            filteredAggregates={filteredAggregates}
                           />
                         ))}
                       </>
@@ -1579,19 +1089,13 @@ export function CostBreakdownTable({
                   </td>
                   <td className={styles.colBudget}>
                     <span className={styles.valueNegative}>
-                      {formatCost(
-                        hasSourceFilter ? filteredRawProjected : totalRawProjected,
-                        formatCurrency,
-                      )}
+                      {formatCost(totalRawProjected, formatCurrency)}
                     </span>
                   </td>
                   <td className={styles.colPayback}>
-                    {(filteredAggregates
-                      ? filteredAggregates.wiTotals.subsidyPayback +
-                        filteredAggregates.hiTotals.subsidyPayback
-                      : maxTotalPayback) > 0 ? (
+                    {maxTotalPayback > 0 ? (
                       <span className={styles.valuePositive}>
-                        {formatCurrency(filteredAdjustedTotalPayback)}
+                        {formatCurrency(adjustedTotalPayback)}
                       </span>
                     ) : (
                       '—'
@@ -1599,8 +1103,8 @@ export function CostBreakdownTable({
                   </td>
                   <td className={styles.colRemaining}>
                     {renderNet(
-                      hasSourceFilter ? filteredRawProjected : totalRawProjected,
-                      filteredAdjustedTotalPayback,
+                      totalRawProjected,
+                      adjustedTotalPayback,
                       styles,
                       formatCurrency,
                     )}
@@ -1628,17 +1132,14 @@ export function CostBreakdownTable({
                     </div>
                   </td>
                   <td className={styles.colBudget} colSpan={3}>
-                    {formatCurrency(filteredAvailableFunds)}
-                    {hasSourceFilter && (
+                    {formatCurrency(overview.availableFunds)}
+                    {deselectedSourceIds.size > 0 && (
                       <span className={styles.availableFundsFilterCaption}>
                         {t('overview.costBreakdown.availableFundsFilter.activeFilterCaption', {
                           selected: String(
-                            budgetSources.filter((s) => !deselectedSourceIds.has(s.id)).length +
-                              (hasUnassignedLines && !deselectedSourceIds.has('unassigned')
-                                ? 1
-                                : 0),
+                            budgetSources.filter((s) => !deselectedSourceIds.has(s.id)).length,
                           ),
-                          total: String(budgetSources.length + (hasUnassignedLines ? 1 : 0)),
+                          total: String(budgetSources.length),
                         })}
                       </span>
                     )}
@@ -1658,11 +1159,19 @@ export function CostBreakdownTable({
                         source.projectedMax,
                         perspective,
                       );
-                      const payback = perSourcePayback.get(source.id) ?? 0;
+                      const payback = resolveProjected(
+                        source.subsidyPaybackMin,
+                        source.subsidyPaybackMax,
+                        perspective,
+                      );
                       const net = source.totalAmount + payback - allocatedCost;
                       const rowStyle = {
                         '--chip-dot': `var(--color-source-${colorIndex}-dot)`,
                       } as React.CSSProperties;
+                      const displayName =
+                        source.id === 'unassigned'
+                          ? t('overview.costBreakdown.sourceFilter.unassigned')
+                          : source.name;
 
                       sourceRows.push(
                         <tr
@@ -1673,19 +1182,19 @@ export function CostBreakdownTable({
                           aria-label={
                             isSelected
                               ? t('overview.costBreakdown.sourceRow.selectedAriaLabel', {
-                                  name: source.name,
+                                  name: displayName,
                                 })
                               : t('overview.costBreakdown.sourceRow.deselectedAriaLabel', {
-                                  name: source.name,
+                                  name: displayName,
                                 })
                           }
                           className={`${styles.rowSourceDetail} ${styles.rowSourceDetailToggle}`}
                           style={rowStyle}
-                          onClick={() => onSourceToggle(source.id)}
+                          onClick={() => onSourceToggle(source.id === 'unassigned' ? null : source.id)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
                               e.preventDefault();
-                              onSourceToggle(source.id);
+                              onSourceToggle(source.id === 'unassigned' ? null : source.id);
                             } else if (e.key === 'Escape') {
                               e.preventDefault();
                               onSelectAllSources();
@@ -1699,7 +1208,7 @@ export function CostBreakdownTable({
                                 style={{ backgroundColor: 'var(--chip-dot)' }}
                                 aria-hidden="true"
                               />
-                              <span>{source.name}</span>
+                              <span>{displayName}</span>
                             </div>
                           </td>
                           <td className={styles.colBudget}>
@@ -1708,13 +1217,9 @@ export function CostBreakdownTable({
                             </span>
                           </td>
                           <td className={styles.colPayback}>
-                            {payback > 0 ? (
-                              <span className={styles.valuePositive}>
-                                {formatCurrency(payback)}
-                              </span>
-                            ) : (
-                              <span className={styles.valuePositive}>{formatCurrency(0)}</span>
-                            )}
+                            <span className={styles.valuePositive}>
+                              {formatCurrency(payback)}
+                            </span>
                           </td>
                           <td className={styles.colRemaining}>
                             <span
@@ -1726,78 +1231,6 @@ export function CostBreakdownTable({
                         </tr>,
                       );
                     });
-
-                    // Unassigned pseudo-row (only when unassigned lines exist)
-                    if (hasUnassignedLines) {
-                      const colorIndex = 0; // unassigned uses index 0
-                      const isSelected = !deselectedSourceIds.has('unassigned');
-                      const unassignedPayback = perSourcePayback.get('unassigned') ?? 0;
-                      const unassignedNet = unassignedPayback - unassignedAllocatedCost;
-
-                      sourceRows.push(
-                        <tr
-                          key="unassigned"
-                          role="button"
-                          tabIndex={0}
-                          aria-pressed={isSelected}
-                          aria-label={
-                            isSelected
-                              ? t('overview.costBreakdown.sourceRow.selectedAriaLabel', {
-                                  name: t('overview.costBreakdown.sourceFilter.unassigned'),
-                                })
-                              : t('overview.costBreakdown.sourceRow.deselectedAriaLabel', {
-                                  name: t('overview.costBreakdown.sourceFilter.unassigned'),
-                                })
-                          }
-                          className={`${styles.rowSourceDetail} ${styles.rowSourceDetailToggle}`}
-                          style={
-                            {
-                              '--chip-dot': `var(--color-source-${colorIndex}-dot)`,
-                            } as React.CSSProperties
-                          }
-                          onClick={() => onSourceToggle(null)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              onSourceToggle(null);
-                            } else if (e.key === 'Escape') {
-                              e.preventDefault();
-                              onSelectAllSources();
-                            }
-                          }}
-                        >
-                          <td className={styles.colName}>
-                            <div className={`${styles.nameContent} ${styles.nameIndented}`}>
-                              <span
-                                className={styles.sourceDot}
-                                style={{ backgroundColor: 'var(--chip-dot)' }}
-                                aria-hidden="true"
-                              />
-                              <span>{t('overview.costBreakdown.sourceFilter.unassigned')}</span>
-                            </div>
-                          </td>
-                          <td className={styles.colBudget}>
-                            <span className={styles.valueNegative}>
-                              {formatCost(unassignedAllocatedCost, formatCurrency)}
-                            </span>
-                          </td>
-                          <td className={styles.colPayback}>
-                            <span className={styles.valuePositive}>
-                              {formatCurrency(unassignedPayback)}
-                            </span>
-                          </td>
-                          <td className={styles.colRemaining}>
-                            <span
-                              className={
-                                unassignedNet >= 0 ? styles.valuePositive : styles.valueNegative
-                              }
-                            >
-                              {formatCurrency(unassignedNet)}
-                            </span>
-                          </td>
-                        </tr>,
-                      );
-                    }
 
                     return sourceRows;
                   })()}
@@ -1812,69 +1245,60 @@ export function CostBreakdownTable({
                   <td className={styles.colBudget}>
                     <span
                       className={
-                        filteredAvailableFunds -
-                          (hasSourceFilter ? filteredRawProjected : totalRawProjected) >=
-                        0
+                        overview.availableFunds - totalRawProjected >= 0
                           ? styles.valuePositive
                           : styles.valueNegative
                       }
                     >
-                      {formatCurrency(
-                        filteredAvailableFunds -
-                          (hasSourceFilter ? filteredRawProjected : totalRawProjected),
-                      )}
+                      {formatCurrency(overview.availableFunds - totalRawProjected)}
                     </span>
                   </td>
                   <td className={styles.colPayback} />
                   <td className={styles.colRemaining}>
                     <span
                       className={
-                        filteredAvailableFunds -
-                          (hasSourceFilter ? filteredRawProjected : totalRawProjected) +
-                          filteredAdjustedTotalPayback >=
-                        0
+                        overview.availableFunds - totalRawProjected + adjustedTotalPayback >= 0
                           ? styles.valuePositive
                           : styles.valueNegative
                       }
                     >
                       {formatCurrency(
-                        filteredAvailableFunds -
-                          (hasSourceFilter ? filteredRawProjected : totalRawProjected) +
-                          filteredAdjustedTotalPayback,
+                        overview.availableFunds - totalRawProjected + adjustedTotalPayback,
                       )}
                     </span>
                   </td>
                 </tr>
               </tbody>
 
-              {/* Empty state when filter returns no results */}
-              {hasSourceFilter && visibleLineIds.size === 0 && (
-                <tbody>
-                  <tr>
-                    <td colSpan={4}>
-                      <EmptyState
-                        message={t('overview.costBreakdown.sourceFilter.empty')}
-                        action={{
-                          label: t('overview.costBreakdown.sourceFilter.clear'),
-                          onClick: onSelectAllSources,
-                        }}
-                      />
-                    </td>
-                  </tr>
-                </tbody>
-              )}
+              {/* Empty state when all sources deselected */}
+              {deselectedSourceIds.size > 0 &&
+                breakdown.workItems.areas.length === 0 &&
+                breakdown.householdItems.areas.length === 0 && (
+                  <tbody>
+                    <tr>
+                      <td colSpan={4}>
+                        <EmptyState
+                          message={t('overview.costBreakdown.sourceFilter.empty')}
+                          action={{
+                            label: t('overview.costBreakdown.sourceFilter.clear'),
+                            onClick: onSelectAllSources,
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                )}
             </table>
           </div>
 
           {/* Screen reader live region for filter announcements (outside tableWrapper) */}
           <div role="status" aria-atomic="true" className={styles.srOnly}>
-            {hasSourceFilter
+            {deselectedSourceIds.size > 0
               ? t('overview.costBreakdown.sourceFilter.statusAnnouncement', {
                   selected: String(
-                    budgetSources.filter((s) => !deselectedSourceIds.has(s.id)).length +
-                      (hasUnassignedLines && !deselectedSourceIds.has('unassigned') ? 1 : 0),
+                    budgetSources.filter((s) => !deselectedSourceIds.has(s.id)).length,
                   ),
-                  total: String(budgetSources.length + (hasUnassignedLines ? 1 : 0)),
+                  total: String(budgetSources.length),
                 })
               : t('overview.costBreakdown.sourceFilter.allSourcesAnnouncement')}
           </div>

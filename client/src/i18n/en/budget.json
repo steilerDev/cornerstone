@@ -78,6 +78,8 @@
         "empty": "No budget lines match the selected source filter.",
         "clear": "Clear filters"
       },
+      "refetchError": "Failed to refresh breakdown. Please try again.",
+      "dismissError": "Dismiss",
       "sourceRow": {
         "selectedAriaLabel": "{{name}}, selected — click to deselect",
         "deselectedAriaLabel": "{{name}}, deselected — click to select"

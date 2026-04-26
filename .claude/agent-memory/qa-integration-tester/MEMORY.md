@@ -3,6 +3,16 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1360 — Server-Side Source Filter Tests (2026-04-25)
+
+**CostBreakdownTable.test.tsx**: Replaced the 12-test `describe('Source filter — aggregate consistency (#1358)')` block with 4-test `describe('Server-driven render path (#1360)')`. The 12 old tests tested deleted client-side helpers (`computePerSourcePayback`, `computeFilteredAggregates`, `visibleLineIds`). Removal strategy: Python `content.replace()` on large block — incremental Edit tool calls left orphaned code. The `buildBreakdownWithTwoSources()` helper was replaced by `buildServerFilteredBreakdown()`.
+
+**Route test `insertWorkItemWithSource` has `budgetSourceId: string` (NOT nullable)**: Use `insertWorkItem({ plannedAmount, confidence })` for null-source WIs in route tests — it always sets `budgetSourceId: null`.
+
+**`BudgetSourceSummaryBreakdown` type now requires `subsidyPaybackMin/Max`**: Existing tests that use `{ id, name, totalAmount, projectedMin, projectedMax }` without these fields will have TypeScript errors. New tests must include both fields.
+
+**Debounce + AbortController test patterns**: For Scenario 29 (error path), use real timers + `waitFor({ timeout: 5000 })` instead of fake timers. The `DEBOUNCE_MS=50` effect fires after `isLoading` transitions to false (double-fetch on mount is intentional — debounce effect re-runs when `isLoading` changes). For scenarios with fake timers: use `await act(async () => { jest.advanceTimersByTime(100); await Promise.resolve(); })` to advance timers and flush microtasks together.
+
 ## Story #1358 — CostBreakdownTable Filtered Aggregate Tests (2026-04-25)
 
 Added `describe('Source filter — aggregate consistency (#1358)')` block (12 tests, lines ~4003–4782) to `CostBreakdownTable.test.tsx`. Key patterns: (1) Use `within(row).getByText(...)` to avoid multi-match collisions. (2) Get Level 0 header row via `screen.getByRole('button', { name: 'Expand work item budget by area' }).closest('tr')`. (3) Get Level 1 area row via `screen.getByRole('button', { name: 'Expand WI Area' }).closest('tr')`. (4) Get Level 2 item row via `screen.getByRole('link', { name: 'Item Title' }).closest('tr')`. (5) `td.colBudget` selector on rows for cost cell text assertions. (6) Math: `resolveLineCost(line, avg)` for `own_estimate` with `plannedAmount=N` = N (avg of 0.8N and 1.2N). (7) Pro-rata payback share = weight × entityPayback where weight = max-cost / sum-of-max-costs.

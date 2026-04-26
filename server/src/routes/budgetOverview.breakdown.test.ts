@@ -579,4 +579,144 @@ describe('GET /api/budget/breakdown', () => {
     expect(Array.isArray(breakdown.budgetSources)).toBe(true);
     expect(breakdown.budgetSources).toHaveLength(0);
   });
+
+  // ── Server-side source filtering via query param (Scenarios 11–15, AC #30) ──
+
+  describe('deselectedSources query param', () => {
+    // Scenario 11: Query param accepted; deselected source lines excluded (AC #30)
+    it('excludes lines for the deselected source when ?deselectedSources=<id> is passed (Scenario 11)', async () => {
+      const { cookie } = await createUserWithSession(
+        'filter-s11@example.com',
+        'Filter S11',
+        'password',
+      );
+
+      const srcA = insertBudgetSource({ name: 'Source A S11', totalAmount: 80000 });
+      const srcB = insertBudgetSource({ name: 'Source B S11', totalAmount: 50000 });
+      insertWorkItemWithSource({ plannedAmount: 8000, confidence: 'own_estimate', budgetSourceId: srcA });
+      insertWorkItemWithSource({ plannedAmount: 3000, confidence: 'own_estimate', budgetSourceId: srcB });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/budget/breakdown?deselectedSources=${encodeURIComponent(srcA)}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const { breakdown } = response.json<BudgetBreakdownResponse>();
+
+      // Only srcB WI survives
+      expect(breakdown.workItems.areas).toHaveLength(1);
+      expect(breakdown.workItems.areas[0]!.items).toHaveLength(1);
+      // srcB: own_estimate 3000 → max = 3600
+      expect(breakdown.workItems.areas[0]!.items[0]!.projectedMax).toBeCloseTo(3600, 5);
+      // budgetSources still has both sources
+      expect(breakdown.budgetSources.some((s) => s.id === srcA)).toBe(true);
+      expect(breakdown.budgetSources.some((s) => s.id === srcB)).toBe(true);
+    });
+
+    // Scenario 12: Empty param is no-op (AC #30)
+    it('returns all lines when ?deselectedSources= (empty string) is passed (Scenario 12)', async () => {
+      const { cookie } = await createUserWithSession(
+        'filter-s12@example.com',
+        'Filter S12',
+        'password',
+      );
+
+      const srcA = insertBudgetSource({ name: 'Source A S12', totalAmount: 80000 });
+      insertWorkItemWithSource({ plannedAmount: 5000, confidence: 'own_estimate', budgetSourceId: srcA });
+
+      const withEmpty = await app.inject({
+        method: 'GET',
+        url: '/api/budget/breakdown?deselectedSources=',
+        headers: { cookie },
+      });
+      const withoutParam = await app.inject({
+        method: 'GET',
+        url: '/api/budget/breakdown',
+        headers: { cookie },
+      });
+
+      expect(withEmpty.statusCode).toBe(200);
+      expect(withoutParam.statusCode).toBe(200);
+
+      const bdWithEmpty = withEmpty.json<BudgetBreakdownResponse>().breakdown;
+      const bdWithout = withoutParam.json<BudgetBreakdownResponse>().breakdown;
+
+      expect(bdWithEmpty.workItems.totals.rawProjectedMin).toBeCloseTo(
+        bdWithout.workItems.totals.rawProjectedMin,
+        5,
+      );
+      expect(bdWithEmpty.workItems.areas.length).toBe(bdWithout.workItems.areas.length);
+    });
+
+    // Scenario 13: Comma-separated list of IDs (AC #30)
+    it('excludes lines for all sources in a comma-separated ?deselectedSources list (Scenario 13)', async () => {
+      const { cookie } = await createUserWithSession(
+        'filter-s13@example.com',
+        'Filter S13',
+        'password',
+      );
+
+      const srcA = insertBudgetSource({ name: 'Source A S13', totalAmount: 80000 });
+      const srcB = insertBudgetSource({ name: 'Source B S13', totalAmount: 50000 });
+      const srcC = insertBudgetSource({ name: 'Source C S13', totalAmount: 30000 });
+      insertWorkItemWithSource({ plannedAmount: 8000, confidence: 'own_estimate', budgetSourceId: srcA });
+      insertWorkItemWithSource({ plannedAmount: 4000, confidence: 'own_estimate', budgetSourceId: srcB });
+      insertWorkItemWithSource({ plannedAmount: 2000, confidence: 'own_estimate', budgetSourceId: srcC });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/budget/breakdown?deselectedSources=${encodeURIComponent(`${srcA},${srcB}`)}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const { breakdown } = response.json<BudgetBreakdownResponse>();
+
+      // Only srcC WI survives (srcA and srcB excluded)
+      expect(breakdown.workItems.areas).toHaveLength(1);
+      expect(breakdown.workItems.areas[0]!.items).toHaveLength(1);
+      expect(breakdown.workItems.areas[0]!.items[0]!.projectedMax).toBeCloseTo(2400, 5); // 1.2×2000
+    });
+
+    // Scenario 14: Unauthenticated request returns 401 (AC #30)
+    it('returns 401 when ?deselectedSources param is present but no session cookie (Scenario 14)', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/budget/breakdown?deselectedSources=some-id',
+      });
+
+      expect(response.statusCode).toBe(401);
+    });
+
+    // Scenario 15: 'unassigned' literal in deselectedSources param (AC #30)
+    it("excludes null-source lines when ?deselectedSources=unassigned is passed (Scenario 15)", async () => {
+      const { cookie } = await createUserWithSession(
+        'filter-s15@example.com',
+        'Filter S15',
+        'password',
+      );
+
+      const srcA = insertBudgetSource({ name: 'Source A S15', totalAmount: 80000 });
+      insertWorkItemWithSource({ plannedAmount: 5000, confidence: 'own_estimate', budgetSourceId: srcA });
+      // Insert an unassigned WI (budgetSourceId=null) using the standard insertWorkItem helper
+      insertWorkItem({ plannedAmount: 2000, confidence: 'own_estimate' });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/budget/breakdown?deselectedSources=unassigned',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const { breakdown } = response.json<BudgetBreakdownResponse>();
+
+      // Only srcA WI survives (null-source WI excluded)
+      expect(breakdown.workItems.areas).toHaveLength(1);
+      expect(breakdown.workItems.areas[0]!.items).toHaveLength(1);
+      // srcA WI: 5000 × 1.2 = 6000 max
+      expect(breakdown.workItems.areas[0]!.items[0]!.projectedMax).toBeCloseTo(6000, 5);
+    });
+  });
 });

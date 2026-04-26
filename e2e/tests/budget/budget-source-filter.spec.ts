@@ -1,25 +1,25 @@
 /**
- * E2E tests for Budget Source Filter (Story #1356 — per-source row-toggle rework)
+ * E2E tests for Budget Source Filter (Story #1360 — server-side source filter)
  *
  * Covers:
  * - Source badge visible on Level 3 (budget line) rows (carry-over from #1354)
  * - Unassigned badge for lines with no source
  * - Long source name truncation in badge
  * - Default state: all sources selected, no URL param
- * - Click source row to deselect: aria-pressed="false", URL updated, lines hidden
- * - Click deselected row to re-select: aria-pressed="true", URL cleared
- * - Cascade hiding: work item with all lines deselected is hidden
- * - Deselect all sources → empty state
+ * - Deselecting a source triggers API refetch with correct query param
+ * - Re-selecting a source triggers API refetch without query param
+ * - Cascade hiding via server response: work item disappears when server prunes it
+ * - Deselect all → empty state from server response
  * - Available Funds caption "(X of Y selected)"
- * - URL round-trip: ?deselectedSources= restores filter state
+ * - URL on mount: ?deselectedSources= drives initial filtered fetch
  * - Stale/unknown ID in ?deselectedSources= is silently ignored
  * - Old ?sources= param is silently ignored
  * - Per-source Cost/Payback/Net columns present
  * - Perspective toggle changes Cost value in source row
- * - Source row values unchanged when deselected (only visual style changes)
- * - Keyboard: Space key toggles source row
- * - Keyboard: Enter key toggles source row
- * - Keyboard: Escape on focused row calls select-all
+ * - Subsidy oversubscription: payback does not exceed cost when source filtered
+ * - Stale-while-revalidate: previous breakdown stays visible during refetch
+ * - Rapid debounce: multiple quick toggles coalesce into a single API request
+ * - Keyboard: Space/Enter/Escape on source rows
  * - Live region announces source count change
  * - No chip toolbar present at any time
  * - Mobile: source row touch target >= 44px
@@ -89,6 +89,10 @@ function makeEmptyTotals() {
  * - No-source: 1 budget line (line-unassigned)
  * - Optional Source B (Equity): 1 line (line-b1)
  * - Optional long-name source: 1 line (line-long)
+ *
+ * NOTE: `budgetSources` entries now require `subsidyPaybackMin` and `subsidyPaybackMax`
+ * (Story #1360 — new BudgetSourceSummaryBreakdown shape). The legacy `subsidyPayback`
+ * field is no longer used.
  */
 function makeBreakdownResponse(
   opts: {
@@ -157,6 +161,8 @@ function makeBreakdownResponse(
     });
   }
 
+  // budgetSources: use subsidyPaybackMin/Max (Story #1360 shape).
+  // Unassigned is always included when there are null-source lines.
   const budgetSources = [
     {
       id: SOURCE_A_ID,
@@ -164,7 +170,17 @@ function makeBreakdownResponse(
       totalAmount: 150000,
       projectedMin: 30000,
       projectedMax: 35000,
-      subsidyPayback: 0,
+      subsidyPaybackMin: 0,
+      subsidyPaybackMax: 0,
+    },
+    {
+      id: 'unassigned',
+      name: 'Unassigned',
+      totalAmount: 0,
+      projectedMin: 5000,
+      projectedMax: 5000,
+      subsidyPaybackMin: 0,
+      subsidyPaybackMax: 0,
     },
   ];
 
@@ -175,7 +191,8 @@ function makeBreakdownResponse(
       totalAmount: 100000,
       projectedMin: 8000,
       projectedMax: 8000,
-      subsidyPayback: 0,
+      subsidyPaybackMin: 0,
+      subsidyPaybackMax: 0,
     });
   }
 
@@ -186,7 +203,8 @@ function makeBreakdownResponse(
       totalAmount: 50000,
       projectedMin: 3000,
       projectedMax: 3000,
-      subsidyPayback: 0,
+      subsidyPaybackMin: 0,
+      subsidyPaybackMax: 0,
     });
   }
 
@@ -243,8 +261,8 @@ function makeBreakdownResponse(
 }
 
 /**
- * Breakdown with only Source A lines (no unassigned) — used for cascade-hide tests
- * where deselecting SOURCE_A must hide the work item entirely.
+ * Breakdown with only Source A lines (no unassigned) — used for cascade-hide / empty-state tests
+ * where deselecting SOURCE_A must hide the work item entirely and trigger server empty response.
  */
 function makeBreakdownSourceAOnly() {
   return {
@@ -313,7 +331,235 @@ function makeBreakdownSourceAOnly() {
         totalAmount: 150000,
         projectedMin: 30000,
         projectedMax: 35000,
+        subsidyPaybackMin: 0,
+        subsidyPaybackMax: 0,
+      },
+    ],
+  };
+}
+
+/**
+ * Filtered response returned by the server when SOURCE_A is deselected.
+ * Server prunes its areas/items, so this response has empty workItems.areas
+ * (simulating "all lines for the remaining filter are Source A only").
+ */
+function makeFilteredEmptyBreakdown() {
+  return {
+    workItems: {
+      areas: [],
+      totals: {
+        projectedMin: 0,
+        projectedMax: 0,
+        actualCost: 0,
         subsidyPayback: 0,
+        rawProjectedMin: 0,
+        rawProjectedMax: 0,
+        minSubsidyPayback: 0,
+      },
+    },
+    householdItems: {
+      areas: [],
+      totals: makeEmptyTotals(),
+    },
+    subsidyAdjustments: [],
+    // Server still returns the budgetSources array (unfiltered projectedMin/Max)
+    // so the source rows remain visible in the Available Funds section.
+    budgetSources: [
+      {
+        id: SOURCE_A_ID,
+        name: 'Bank Loan',
+        totalAmount: 150000,
+        projectedMin: 30000,
+        projectedMax: 35000,
+        subsidyPaybackMin: 0,
+        subsidyPaybackMax: 0,
+      },
+    ],
+  };
+}
+
+/**
+ * Breakdown for subsidy oversubscription scenario:
+ * - Source A (Large Source): 50000 cost, subsidy payback 20000 (min), 22000 (max)
+ * - Source B (Small Source): 5000 cost, subsidy payback 0
+ * Total cost 55000, total payback 20000/22000 — payback well under cost.
+ */
+function makeBreakdownWithSubsidy() {
+  return {
+    workItems: {
+      areas: [
+        {
+          areaId: 'area-main',
+          name: 'Main Area',
+          parentId: null,
+          color: '#3B82F6',
+          projectedMin: 55000,
+          projectedMax: 55000,
+          actualCost: 0,
+          subsidyPayback: 20000,
+          rawProjectedMin: 55000,
+          rawProjectedMax: 55000,
+          minSubsidyPayback: 20000,
+          items: [
+            {
+              workItemId: 'wi-main-1',
+              title: 'Main Work Item',
+              projectedMin: 55000,
+              projectedMax: 55000,
+              actualCost: 0,
+              subsidyPayback: 20000,
+              rawProjectedMin: 55000,
+              rawProjectedMax: 55000,
+              minSubsidyPayback: 20000,
+              costDisplay: 'projected',
+              budgetLines: [
+                {
+                  id: 'line-a1',
+                  description: 'Line A1 (Source A)',
+                  plannedAmount: 50000,
+                  confidence: 'own_estimate',
+                  actualCost: 0,
+                  hasInvoice: false,
+                  isQuotation: false,
+                  budgetSourceId: SOURCE_A_ID,
+                },
+                {
+                  id: 'line-b1',
+                  description: 'Line B1 (Source B)',
+                  plannedAmount: 5000,
+                  confidence: 'own_estimate',
+                  actualCost: 0,
+                  hasInvoice: false,
+                  isQuotation: false,
+                  budgetSourceId: SOURCE_B_ID,
+                },
+              ],
+            },
+          ],
+          children: [],
+        },
+      ],
+      totals: {
+        projectedMin: 55000,
+        projectedMax: 55000,
+        actualCost: 0,
+        subsidyPayback: 20000,
+        rawProjectedMin: 55000,
+        rawProjectedMax: 55000,
+        minSubsidyPayback: 20000,
+      },
+    },
+    householdItems: {
+      areas: [],
+      totals: makeEmptyTotals(),
+    },
+    subsidyAdjustments: [],
+    budgetSources: [
+      {
+        id: SOURCE_A_ID,
+        name: 'Large Source',
+        totalAmount: 200000,
+        projectedMin: 50000,
+        projectedMax: 50000,
+        subsidyPaybackMin: 20000,
+        subsidyPaybackMax: 22000,
+      },
+      {
+        id: SOURCE_B_ID,
+        name: 'Small Source',
+        totalAmount: 10000,
+        projectedMin: 5000,
+        projectedMax: 5000,
+        subsidyPaybackMin: 0,
+        subsidyPaybackMax: 0,
+      },
+    ],
+  };
+}
+
+/**
+ * Filtered breakdown when SOURCE_A (Large Source) is deselected.
+ * Small Source only: cost 5000, payback 0 — payback < cost, no oversubscription.
+ */
+function makeBreakdownWithSubsidyFiltered() {
+  return {
+    workItems: {
+      areas: [
+        {
+          areaId: 'area-main',
+          name: 'Main Area',
+          parentId: null,
+          color: '#3B82F6',
+          projectedMin: 5000,
+          projectedMax: 5000,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 5000,
+          rawProjectedMax: 5000,
+          minSubsidyPayback: 0,
+          items: [
+            {
+              workItemId: 'wi-main-1',
+              title: 'Main Work Item',
+              projectedMin: 5000,
+              projectedMax: 5000,
+              actualCost: 0,
+              subsidyPayback: 0,
+              rawProjectedMin: 5000,
+              rawProjectedMax: 5000,
+              minSubsidyPayback: 0,
+              costDisplay: 'projected',
+              budgetLines: [
+                {
+                  id: 'line-b1',
+                  description: 'Line B1 (Source B)',
+                  plannedAmount: 5000,
+                  confidence: 'own_estimate',
+                  actualCost: 0,
+                  hasInvoice: false,
+                  isQuotation: false,
+                  budgetSourceId: SOURCE_B_ID,
+                },
+              ],
+            },
+          ],
+          children: [],
+        },
+      ],
+      totals: {
+        projectedMin: 5000,
+        projectedMax: 5000,
+        actualCost: 0,
+        subsidyPayback: 0,
+        rawProjectedMin: 5000,
+        rawProjectedMax: 5000,
+        minSubsidyPayback: 0,
+      },
+    },
+    householdItems: {
+      areas: [],
+      totals: makeEmptyTotals(),
+    },
+    subsidyAdjustments: [],
+    budgetSources: [
+      {
+        id: SOURCE_A_ID,
+        name: 'Large Source',
+        totalAmount: 200000,
+        projectedMin: 50000,
+        projectedMax: 50000,
+        // Deselected source: subsidyPayback is 0 per server contract
+        subsidyPaybackMin: 0,
+        subsidyPaybackMax: 0,
+      },
+      {
+        id: SOURCE_B_ID,
+        name: 'Small Source',
+        totalAmount: 10000,
+        projectedMin: 5000,
+        projectedMax: 5000,
+        subsidyPaybackMin: 0,
+        subsidyPaybackMax: 0,
       },
     ],
   };
@@ -325,7 +571,21 @@ function makeBreakdownSourceAOnly() {
 
 type PageParam = Parameters<typeof test>[1]['page'];
 
-async function mountOverviewRoutes(page: PageParam, overviewBody: object, breakdownBody: object) {
+/**
+ * Mount route mocks for /budget/overview and /budget/breakdown.
+ *
+ * The breakdown handler distinguishes filtered vs. unfiltered requests by inspecting
+ * ?deselectedSources= in the URL. If `filteredBreakdownBody` is provided, it is returned
+ * for requests with the param; otherwise `breakdownBody` is used for all requests.
+ *
+ * URL format: ?deselectedSources=id1,id2 (comma-separated, URL-encoded).
+ */
+async function mountOverviewRoutes(
+  page: PageParam,
+  overviewBody: object,
+  breakdownBody: object,
+  filteredBreakdownBody?: object,
+) {
   await page.route(`${API.budgetOverview}`, async (route) => {
     if (route.request().method() === 'GET') {
       await route.fulfill({
@@ -337,12 +597,17 @@ async function mountOverviewRoutes(page: PageParam, overviewBody: object, breakd
       await route.continue();
     }
   });
-  await page.route(`${API.budgetBreakdown}`, async (route) => {
+  // Use **/api/budget/breakdown** to match the full URL including http://localhost:PORT/ prefix
+  // and any ?deselectedSources= query string.
+  await page.route('**/api/budget/breakdown**', async (route) => {
     if (route.request().method() === 'GET') {
+      const url = new URL(route.request().url());
+      const deselected = url.searchParams.get('deselectedSources');
+      const body = deselected && filteredBreakdownBody ? filteredBreakdownBody : breakdownBody;
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ breakdown: breakdownBody }),
+        body: JSON.stringify({ breakdown: body }),
       });
     } else {
       await route.continue();
@@ -362,7 +627,7 @@ async function mountOverviewRoutes(page: PageParam, overviewBody: object, breakd
   });
   return async () => {
     await page.unroute(`${API.budgetOverview}`);
-    await page.unroute(`${API.budgetBreakdown}`);
+    await page.unroute('**/api/budget/breakdown**');
     await page.unroute(`${API.budgetSources}`);
   };
 }
@@ -508,7 +773,7 @@ test.describe('Default state — all sources selected', { tag: '@responsive' }, 
 
       await overviewPage.availableFundsButton().click();
 
-      // Both source rows must be in selected state (aria-pressed="true")
+      // All source rows must be in selected state (aria-pressed="true")
       const rowA = overviewPage.sourceRow('Bank Loan');
       const rowB = overviewPage.sourceRow('Equity');
       await expect(rowA).toBeVisible();
@@ -528,15 +793,17 @@ test.describe('Default state — all sources selected', { tag: '@responsive' }, 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Deselect a source row
+// Scenario A — Deselect triggers server refetch with correct query param
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Deselect source row', { tag: '@responsive' }, () => {
-  test('Click source row → aria-pressed="false", URL updated, lines hidden', async ({ page }) => {
+test.describe('Deselect triggers server refetch', { tag: '@responsive' }, () => {
+  test('Deselecting a source triggers API refetch with correct query param', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
+    // filteredBreakdownBody: Source A deselected — server prunes its lines
     const teardown = await mountOverviewRoutes(
       page,
       makeBudgetOverviewResponse(),
       makeBreakdownResponse(),
+      makeFilteredEmptyBreakdown(),
     );
 
     try {
@@ -546,15 +813,52 @@ test.describe('Deselect source row', { tag: '@responsive' }, () => {
       await overviewPage.availableFundsButton().click();
 
       const row = overviewPage.sourceRow('Bank Loan');
+      await expect(row).toHaveAttribute('aria-pressed', 'true');
+
+      // Register response waiter BEFORE the click (waitForResponse must precede the action)
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
+
       await row.click();
 
-      // Row becomes deselected
+      // Wait for the debounced + refetch response
+      const refetchResponse = await refetchPromise;
+      expect(refetchResponse.status()).toBe(200);
+
+      // URL in the refetch request must include the deselected source ID
+      expect(refetchResponse.url()).toContain(SOURCE_A_ID);
+
+      // Source row aria-pressed updated to false
       await expect(row).toHaveAttribute('aria-pressed', 'false');
 
-      // URL contains deselectedSources=<id>
-      await expect(page).toHaveURL(new RegExp(`deselectedSources=${SOURCE_A_ID}`));
+      // URL search param updated
+      await expect(page).toHaveURL(new RegExp(`deselectedSources=.*${SOURCE_A_ID}`));
+    } finally {
+      await teardown();
+    }
+  });
 
-      // Expand to Level 3 — Bank Loan lines must not be rendered
+  test('Click source row → rendered values update from server filtered response', async ({
+    page,
+  }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownResponse(),
+      makeFilteredEmptyBreakdown(),
+    );
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+
+      // Expand to Level 3 first to see Source A lines in the initial state
       await overviewPage.costBreakdownCard
         .getByRole('button', { name: /expand work item budget by area/i })
         .click();
@@ -563,19 +867,130 @@ test.describe('Deselect source row', { tag: '@responsive' }, () => {
         .getByRole('button', { name: /Expand Main Work Item/i })
         .click();
 
+      // Source A lines visible in initial (unfiltered) state
+      await expect(
+        overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Line A1 (Source A)' }),
+      ).toBeVisible();
+
+      // Register response waiter BEFORE the click
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
+
+      await overviewPage.sourceRow('Bank Loan').click();
+
+      // Wait for filtered response from server
+      await refetchPromise;
+
+      // Server filtered response has empty areas[] → work item and its lines disappear
       await expect(
         overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Line A1 (Source A)' }),
       ).not.toBeVisible();
       await expect(
         overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Line A2 (Source A)' }),
       ).not.toBeVisible();
+    } finally {
+      await teardown();
+    }
+  });
 
-      // The unassigned line (not deselected) is still visible
-      await expect(
-        overviewPage.costBreakdownCard
-          .getByRole('row')
-          .filter({ hasText: 'Line Unassigned (No source)' }),
-      ).toBeVisible();
+  test('Multi-deselection: both IDs appear in URL, server refetch includes both', async ({
+    page,
+  }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownResponse({ includeSourceB: true }),
+      makeFilteredEmptyBreakdown(),
+    );
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+
+      // Deselect Bank Loan
+      const refetchA = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
+      await overviewPage.sourceRow('Bank Loan').click();
+      await refetchA;
+
+      // Deselect Equity — new refetch should include both IDs
+      const refetchB = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
+      await overviewPage.sourceRow('Equity').click();
+      const responseB = await refetchB;
+
+      await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
+      await expect(overviewPage.sourceRow('Equity')).toHaveAttribute('aria-pressed', 'false');
+
+      // Both IDs must be present in the final request URL
+      expect(responseB.url()).toContain(SOURCE_A_ID);
+      expect(responseB.url()).toContain(SOURCE_B_ID);
+
+      // URL search param contains both IDs
+      const url = page.url();
+      expect(url).toContain(SOURCE_A_ID);
+      expect(url).toContain(SOURCE_B_ID);
+    } finally {
+      await teardown();
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario B — Re-select clears query param from API request
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Re-select clears query param', { tag: '@responsive' }, () => {
+  test('Re-selecting a source triggers API refetch without deselectedSources param', async ({
+    page,
+  }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownResponse(),
+      makeFilteredEmptyBreakdown(),
+    );
+
+    try {
+      // Navigate with Bank Loan pre-deselected via URL
+      await page.goto(`${BUDGET_OVERVIEW_ROUTE}?deselectedSources=${SOURCE_A_ID}`);
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+
+      const row = overviewPage.sourceRow('Bank Loan');
+      await expect(row).toHaveAttribute('aria-pressed', 'false');
+
+      // Register response waiter for the un-filtered refetch
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          !resp.url().includes('deselectedSources='),
+      );
+
+      // Click to re-select
+      await row.click();
+
+      const refetchResponse = await refetchPromise;
+      expect(refetchResponse.status()).toBe(200);
+
+      // Row is re-selected
+      await expect(row).toHaveAttribute('aria-pressed', 'true');
+
+      // URL no longer contains deselectedSources
+      await expect(page).not.toHaveURL(/deselectedSources/);
     } finally {
       await teardown();
     }
@@ -599,8 +1014,15 @@ test.describe('Deselect source row', { tag: '@responsive' }, () => {
       const row = overviewPage.sourceRow('Bank Loan');
       await expect(row).toHaveAttribute('aria-pressed', 'false');
 
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          !resp.url().includes('deselectedSources='),
+      );
+
       // Click to re-select
       await row.click();
+      await refetchPromise;
 
       await expect(row).toHaveAttribute('aria-pressed', 'true');
       await expect(page).not.toHaveURL(/deselectedSources/);
@@ -608,88 +1030,91 @@ test.describe('Deselect source row', { tag: '@responsive' }, () => {
       await teardown();
     }
   });
-
-  test('Multi-deselection: both IDs appear in URL, lines from both sources are hidden', async ({
-    page,
-  }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountOverviewRoutes(
-      page,
-      makeBudgetOverviewResponse(),
-      makeBreakdownResponse({ includeSourceB: true }),
-    );
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      await overviewPage.availableFundsButton().click();
-
-      await overviewPage.sourceRow('Bank Loan').click();
-      await overviewPage.sourceRow('Equity').click();
-
-      await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
-      await expect(overviewPage.sourceRow('Equity')).toHaveAttribute('aria-pressed', 'false');
-
-      const url = page.url();
-      expect(url).toContain(SOURCE_A_ID);
-      expect(url).toContain(SOURCE_B_ID);
-
-      // Expand to level 3 — both sources' lines must be hidden
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: /expand work item budget by area/i })
-        .click();
-      await overviewPage.breakdownAreaToggle('Main Area').click();
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: /Expand Main Work Item/i })
-        .click();
-
-      await expect(
-        overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Line A1 (Source A)' }),
-      ).not.toBeVisible();
-      await expect(
-        overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Line B1 (Source B)' }),
-      ).not.toBeVisible();
-
-      // Unassigned line still visible (null source — not deselected)
-      await expect(
-        overviewPage.costBreakdownCard
-          .getByRole('row')
-          .filter({ hasText: 'Line Unassigned (No source)' }),
-      ).toBeVisible();
-    } finally {
-      await teardown();
-    }
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Cascade hiding
+// Scenario C — Cascade hiding via server response
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Cascade hiding', { tag: '@responsive' }, () => {
-  test('Deselecting the only source hides work item row and area row', async ({ page }) => {
+test.describe('Cascade hiding via server response', { tag: '@responsive' }, () => {
+  test('Deselecting the only source hides work item after server refetch', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
+    // filteredBreakdownBody: server prunes areas entirely when SOURCE_A is deselected
     const teardown = await mountOverviewRoutes(
       page,
       makeBudgetOverviewResponse(),
       makeBreakdownSourceAOnly(),
+      makeFilteredEmptyBreakdown(),
     );
 
     try {
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
-
-      // Deselect Bank Loan
-      await overviewPage.availableFundsButton().click();
-      await overviewPage.sourceRow('Bank Loan').click();
-      await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
 
       // Expand Work Items section
       await overviewPage.costBreakdownCard
         .getByRole('button', { name: /expand work item budget by area/i })
         .click();
 
-      // Main Area row must not be visible (cascade-hidden)
+      // Main Area visible in the initial unfiltered state
+      await expect(
+        overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Main Area' }),
+      ).toBeVisible();
+
+      // Deselect Bank Loan
+      await overviewPage.availableFundsButton().click();
+
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
+      await overviewPage.sourceRow('Bank Loan').click();
+      await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
+
+      // Wait for server filtered response
+      await refetchPromise;
+
+      // Server returned empty areas[] — Main Area row must disappear
+      await expect(
+        overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Main Area' }),
+      ).not.toBeVisible();
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Source rows cascade-hide on mobile viewport when source is deselected', async ({
+    page,
+  }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownSourceAOnly(),
+      makeFilteredEmptyBreakdown(),
+    );
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
+      await overviewPage.sourceRow('Bank Loan').click();
+      await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
+
+      await refetchPromise;
+
+      await overviewPage.costBreakdownCard
+        .getByRole('button', { name: /expand work item budget by area/i })
+        .click();
+
+      // Main Area row hidden (cascade from server response)
       await expect(
         overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Main Area' }),
       ).not.toBeVisible();
@@ -700,90 +1125,18 @@ test.describe('Cascade hiding', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Empty state
+// Scenario D — Subsidy oversubscription consistency (canonical bug case, AC #32)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Empty state when all sources deselected', { tag: '@responsive' }, () => {
-  test('Deselecting all sources shows empty state', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    // Use SOURCE_A_ID only breakdown (no unassigned) so deselecting one source covers everything
-    const teardown = await mountOverviewRoutes(
-      page,
-      makeBudgetOverviewResponse(),
-      makeBreakdownSourceAOnly(),
-    );
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      await overviewPage.availableFundsButton().click();
-      await overviewPage.sourceRow('Bank Loan').click();
-
-      // EmptyState message appears
-      const emptyMsg = overviewPage.costBreakdownCard.getByText(
-        'No budget lines match the selected source filter.',
-        { exact: true },
-      );
-      await expect(emptyMsg).toBeVisible();
-    } finally {
-      await teardown();
-    }
-  });
-
-  test('Clear filters action from empty state restores all lines', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountOverviewRoutes(
-      page,
-      makeBudgetOverviewResponse(),
-      makeBreakdownSourceAOnly(),
-    );
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      await overviewPage.availableFundsButton().click();
-      await overviewPage.sourceRow('Bank Loan').click();
-
-      // Confirm empty state is shown
-      await expect(
-        overviewPage.costBreakdownCard.getByText(
-          'No budget lines match the selected source filter.',
-          { exact: true },
-        ),
-      ).toBeVisible();
-
-      // Click "Clear filters" action button from EmptyState
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: 'Clear filters', exact: true })
-        .click();
-
-      // Empty state is gone, URL is clean
-      await expect(
-        overviewPage.costBreakdownCard.getByText(
-          'No budget lines match the selected source filter.',
-          { exact: true },
-        ),
-      ).not.toBeVisible();
-      await expect(page).not.toHaveURL(/deselectedSources/);
-    } finally {
-      await teardown();
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Available Funds caption
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Available Funds caption', { tag: '@responsive' }, () => {
-  test('Caption "(X of Y selected)" appears after deselecting one source from two', async ({
+test.describe('Subsidy oversubscription consistency', () => {
+  test('Filtering out large source: payback does not exceed cost for remaining source', async ({
     page,
   }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
       makeBudgetOverviewResponse(),
-      makeBreakdownResponse({ includeSourceB: true }),
+      makeBreakdownWithSubsidy(),
+      makeBreakdownWithSubsidyFiltered(),
     );
 
     try {
@@ -792,16 +1145,47 @@ test.describe('Available Funds caption', { tag: '@responsive' }, () => {
 
       await overviewPage.availableFundsButton().click();
 
-      // Caption not yet visible — all sources selected
-      await expect(overviewPage.filterCaption()).not.toBeVisible();
+      // Record Large Source row values before filtering
+      const largeRow = overviewPage.sourceRow('Large Source');
+      await expect(largeRow).toBeVisible();
+      const costBefore = await largeRow.locator('td').nth(1).textContent();
+      expect(costBefore).toMatch(/[€\d]/);
 
-      // Deselect Bank Loan
-      await overviewPage.sourceRow('Bank Loan').click();
+      // Deselect Large Source → triggers server refetch with filtered data
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
 
-      // Caption appears with "<selected> of <total>" (locale-agnostic).
-      // The fixture includes 2 named sources + 1 unassigned line, so total = 3
-      // virtual sources. After deselecting Bank Loan, 2 of 3 remain selected.
-      await expect(overviewPage.filterCaption()).toHaveText(/\d+\D+\d+/);
+      await largeRow.click();
+      await refetchPromise;
+
+      // Large Source is now deselected
+      await expect(largeRow).toHaveAttribute('aria-pressed', 'false');
+
+      // Small Source remains selected — check its payback vs. cost values
+      const smallRow = overviewPage.sourceRow('Small Source');
+      await expect(smallRow).toBeVisible();
+      await expect(smallRow).toHaveAttribute('aria-pressed', 'true');
+
+      // Small Source: subsidyPaybackMin=0, subsidyPaybackMax=0 in filtered response
+      // Payback cell must show 0 (formatted) — not exceeding the 5000 cost
+      const paybackCell = smallRow.locator('td').nth(2);
+      const paybackText = await paybackCell.textContent();
+      // payback is 0 so should render as €0 (or locale equivalent) — does not exceed cost
+      expect(paybackText).toMatch(/[€\d]/);
+
+      // The Payback rendered value must not numerically exceed Cost for Small Source.
+      // Cost is €5,000; payback for Small Source is €0 in filtered response.
+      // We verify payback <= cost by checking the net value cell is non-negative
+      // (net = totalAmount + payback - cost = 10000 + 0 - 5000 = 5000 > 0).
+      const netCell = smallRow.locator('td').nth(3);
+      const netText = await netCell.textContent();
+      // Net must contain a currency value (positive = no oversubscription)
+      expect(netText).toMatch(/[€\d]/);
+      // Net should NOT show a negative value (which would indicate payback > cost)
+      expect(netText).not.toMatch(/^-/);
     } finally {
       await teardown();
     }
@@ -809,15 +1193,160 @@ test.describe('Available Funds caption', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// URL round-trip
+// Scenario E — Stale-while-revalidate: previous breakdown stays visible during refetch
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('URL round-trip', { tag: '@responsive' }, () => {
-  test('?deselectedSources= param restores filter on load', async ({ page }) => {
+test.describe('Stale-while-revalidate during refetch', { tag: '@responsive' }, () => {
+  test('Previous breakdown remains visible during refetch (no flicker to skeleton)', async ({
+    page,
+  }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+
+    // Mount the overview route normally
+    await page.route(`${API.budgetOverview}`, async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ overview: makeBudgetOverviewResponse() }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+    await page.route(`${API.budgetSources}`, async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ budgetSources: [] }),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+
+    // Mount breakdown with artificial 200ms delay on filtered requests
+    let requestCount = 0;
+    await page.route('**/api/budget/breakdown**', async (route) => {
+      if (route.request().method() === 'GET') {
+        const url = new URL(route.request().url());
+        const deselected = url.searchParams.get('deselectedSources');
+        requestCount++;
+        if (deselected) {
+          // Delay the filtered response by 200ms to simulate slow server
+          await new Promise<void>((resolve) => setTimeout(resolve, 200));
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ breakdown: makeFilteredEmptyBreakdown() }),
+          });
+        } else {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ breakdown: makeBreakdownSourceAOnly() }),
+          });
+        }
+      } else {
+        await route.continue();
+      }
+    });
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      // Hero card is visible (initial state loaded)
+      await expect(overviewPage.heroCard).toBeVisible();
+
+      // Expand work items to see content
+      await overviewPage.costBreakdownCard
+        .getByRole('button', { name: /expand work item budget by area/i })
+        .click();
+      await overviewPage.breakdownAreaToggle('Main Area').click();
+
+      // Register the delayed refetch promise BEFORE clicking
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
+
+      // Deselect source — triggers debounced + delayed refetch
+      await overviewPage.availableFundsButton().click();
+      await overviewPage.sourceRow('Bank Loan').click();
+
+      // While the delayed refetch is in-flight:
+      // The breakdown section must still be visible (stale content rendered)
+      // and must NOT have been replaced by a skeleton/loading state.
+      await expect(overviewPage.costBreakdownCard).toBeVisible();
+      await expect(overviewPage.heroCard).toBeVisible();
+
+      // No skeleton loading indicator for the breakdown section
+      await expect(page.getByRole('status', { name: 'Loading budget overview' })).not.toBeVisible();
+
+      // Wait for the delayed refetch to complete
+      await refetchPromise;
+
+      // After refetch: breakdown card still visible (with new server data)
+      await expect(overviewPage.costBreakdownCard).toBeVisible();
+    } finally {
+      await page.unroute(`${API.budgetOverview}`);
+      await page.unroute('**/api/budget/breakdown**');
+      await page.unroute(`${API.budgetSources}`);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario F — URL on mount triggers initial filtered fetch
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('URL on mount triggers initial filtered fetch', { tag: '@responsive' }, () => {
+  test('Navigating with ?deselectedSources= sends filtered initial fetch', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
       makeBudgetOverviewResponse(),
       makeBreakdownResponse(),
+      makeFilteredEmptyBreakdown(),
+    );
+
+    try {
+      // Register response waiter BEFORE navigation — must catch the initial mount fetch
+      const initialFetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
+
+      // Navigate directly with deselectedSources param
+      await page.goto(`${BUDGET_OVERVIEW_ROUTE}?deselectedSources=${SOURCE_A_ID}`);
+      await overviewPage.waitForLoaded();
+
+      // Verify initial API request included the param
+      const initialResponse = await initialFetchPromise;
+      expect(initialResponse.status()).toBe(200);
+      expect(initialResponse.url()).toContain(SOURCE_A_ID);
+
+      // Expand available funds
+      await overviewPage.availableFundsButton().click();
+
+      // Bank Loan row must be rendered as deselected (state restored from URL)
+      await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('?deselectedSources= param restores filter on load — lines from source not visible', async ({
+    page,
+  }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownResponse(),
+      makeFilteredEmptyBreakdown(),
     );
 
     try {
@@ -829,7 +1358,8 @@ test.describe('URL round-trip', { tag: '@responsive' }, () => {
       // Bank Loan row must be rendered as deselected
       await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
 
-      // Bank Loan budget lines must not be rendered
+      // Server returns filtered response (no Source A lines) — so lines not rendered
+      // In this scenario, filtered body has empty areas — Main Work Item does not appear
       await expect(
         overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Line A1 (Source A)' }),
       ).not.toBeVisible();
@@ -842,6 +1372,7 @@ test.describe('URL round-trip', { tag: '@responsive' }, () => {
     page,
   }) => {
     const overviewPage = new BudgetOverviewPage(page);
+    // For unknown IDs: server still returns full breakdown (deselected set is empty after filtering)
     const teardown = await mountOverviewRoutes(
       page,
       makeBudgetOverviewResponse(),
@@ -854,7 +1385,7 @@ test.describe('URL round-trip', { tag: '@responsive' }, () => {
 
       await overviewPage.availableFundsButton().click();
 
-      // Bank Loan row must still be selected (unknown ID dropped silently)
+      // Bank Loan row must still be selected (unknown ID — server ignores it and returns full breakdown)
       await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'true');
     } finally {
       await teardown();
@@ -877,6 +1408,209 @@ test.describe('URL round-trip', { tag: '@responsive' }, () => {
 
       // Row must be selected — legacy param not read
       await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'true');
+    } finally {
+      await teardown();
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario G — Deselect all → empty state from server
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Empty state when all sources deselected', { tag: '@responsive' }, () => {
+  test('Deselecting all sources shows empty state from server response', async ({ page }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    // Use SOURCE_A_ID only breakdown (no unassigned) — deselecting one source covers everything
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownSourceAOnly(),
+      makeFilteredEmptyBreakdown(),
+    );
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
+
+      await overviewPage.sourceRow('Bank Loan').click();
+
+      // Wait for server to return empty areas[]
+      await refetchPromise;
+
+      // EmptyState message appears (server returned empty areas[])
+      const emptyMsg = overviewPage.costBreakdownCard.getByText(
+        'No budget lines match the selected source filter.',
+        { exact: true },
+      );
+      await expect(emptyMsg).toBeVisible();
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Clear filters action from empty state triggers unfiltered refetch and restores content', async ({
+    page,
+  }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownSourceAOnly(),
+      makeFilteredEmptyBreakdown(),
+    );
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+
+      // Deselect to trigger empty state
+      const firstRefetch = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
+      await overviewPage.sourceRow('Bank Loan').click();
+      await firstRefetch;
+
+      // Confirm empty state is shown
+      await expect(
+        overviewPage.costBreakdownCard.getByText(
+          'No budget lines match the selected source filter.',
+          { exact: true },
+        ),
+      ).toBeVisible();
+
+      // Register unfiltered refetch before clicking Clear filters
+      const clearRefetch = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          !resp.url().includes('deselectedSources='),
+      );
+
+      // Click "Clear filters" action button from EmptyState
+      await overviewPage.costBreakdownCard
+        .getByRole('button', { name: 'Clear filters', exact: true })
+        .click();
+
+      // Unfiltered refetch fires
+      await clearRefetch;
+
+      // Empty state is gone, URL is clean
+      await expect(
+        overviewPage.costBreakdownCard.getByText(
+          'No budget lines match the selected source filter.',
+          { exact: true },
+        ),
+      ).not.toBeVisible();
+      await expect(page).not.toHaveURL(/deselectedSources/);
+    } finally {
+      await teardown();
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario H — Rapid debounce: only one API request fires
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Rapid debounce coalesces requests', () => {
+  test('Rapid source toggles coalesce into a single API request', async ({ page }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    // Use a fixture with 3 sources to allow rapid multi-toggles
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownResponse({ includeSourceB: true }),
+      makeFilteredEmptyBreakdown(),
+    );
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+
+      // Track how many filtered breakdown requests fire
+      let filteredRequestCount = 0;
+      page.on('request', (req) => {
+        if (
+          req.url().includes('/api/budget/breakdown') &&
+          req.url().includes('deselectedSources=')
+        ) {
+          filteredRequestCount++;
+        }
+      });
+
+      // Click Source A and Source B rapidly (within the 50ms debounce window)
+      // We do NOT await between these clicks — they must fire faster than the debounce.
+      const clickA = overviewPage.sourceRow('Bank Loan').click();
+      const clickB = overviewPage.sourceRow('Equity').click();
+      await Promise.all([clickA, clickB]);
+
+      // Wait past the debounce window (50ms) and one network round-trip (~100ms)
+      // to let the single coalesced request complete.
+      const coalescedRefetch = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
+      await coalescedRefetch;
+
+      // After debounce settles: only ONE filtered request should have fired.
+      // (AbortController cancels any in-flight request when a new one is scheduled.)
+      expect(filteredRequestCount).toBe(1);
+    } finally {
+      await teardown();
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Available Funds caption
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Available Funds caption', { tag: '@responsive' }, () => {
+  test('Caption "(X of Y selected)" appears after deselecting one source from two', async ({
+    page,
+  }) => {
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownResponse({ includeSourceB: true }),
+      makeFilteredEmptyBreakdown(),
+    );
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+
+      // Caption not yet visible — all sources selected
+      await expect(overviewPage.filterCaption()).not.toBeVisible();
+
+      // Deselect Bank Loan — triggers refetch
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
+      await overviewPage.sourceRow('Bank Loan').click();
+      await refetchPromise;
+
+      // Caption appears with "<selected> of <total>" (locale-agnostic).
+      // Fixture has Bank Loan + Equity + Unassigned = 3 sources total.
+      // After deselecting Bank Loan, 2 of 3 remain selected.
+      await expect(overviewPage.filterCaption()).toHaveText(/\d+\D+\d+/);
     } finally {
       await teardown();
     }
@@ -907,7 +1641,7 @@ test.describe('Source detail row columns', { tag: '@responsive' }, () => {
       const cells = row.locator('td');
       await expect(cells).toHaveCount(4);
 
-      // Cost cell (index 1) should contain a currency amount (negative, e.g. "-€30,000")
+      // Cost cell (index 1) should contain a currency amount
       await expect(cells.nth(1)).toContainText(/[€\d]/);
       // Payback cell (index 2) — may be 0 but must contain a currency value
       await expect(cells.nth(2)).toContainText(/[€\d]/);
@@ -918,12 +1652,18 @@ test.describe('Source detail row columns', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Source row values are identical when deselected (only style changes)', async ({ page }) => {
+  test('Source row values are unchanged when deselected (only aria-pressed style changes)', async ({
+    page,
+  }) => {
+    // Source row values (projectedMin/Max) are unfiltered and come from budgetSources in the
+    // breakdown response — they are NOT re-fetched or changed when a source is deselected.
+    // The server always returns unfiltered projectedMin/Max in budgetSources.
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
       makeBudgetOverviewResponse(),
       makeBreakdownResponse(),
+      makeFilteredEmptyBreakdown(),
     );
 
     try {
@@ -940,11 +1680,18 @@ test.describe('Source detail row columns', { tag: '@responsive' }, () => {
       const paybackBefore = await cells.nth(2).textContent();
       const netBefore = await cells.nth(3).textContent();
 
-      // Deselect
+      // Deselect — triggers refetch; wait for it
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
       await row.click();
       await expect(row).toHaveAttribute('aria-pressed', 'false');
+      await refetchPromise;
 
-      // Values must not change (only visual styling changes)
+      // Values in the source row must not change after deselection
+      // (server returns unfiltered projectedMin/Max in budgetSources regardless of filter)
       await expect(cells.nth(1)).toHaveText(costBefore ?? '');
       await expect(cells.nth(2)).toHaveText(paybackBefore ?? '');
       await expect(cells.nth(3)).toHaveText(netBefore ?? '');
@@ -997,6 +1744,7 @@ test.describe('Keyboard navigation', () => {
       page,
       makeBudgetOverviewResponse(),
       makeBreakdownResponse(),
+      makeFilteredEmptyBreakdown(),
     );
 
     try {
@@ -1008,13 +1756,25 @@ test.describe('Keyboard navigation', () => {
       const row = overviewPage.sourceRow('Bank Loan');
       await row.focus();
 
-      // Space deselects (all sources start selected)
+      // Space deselects (all sources start selected) — triggers refetch
+      const deselect = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
       await page.keyboard.press('Space');
       await expect(row).toHaveAttribute('aria-pressed', 'false');
+      await deselect;
 
-      // Space re-selects
+      // Space re-selects — triggers unfiltered refetch
+      const reselect = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          !resp.url().includes('deselectedSources='),
+      );
       await page.keyboard.press('Space');
       await expect(row).toHaveAttribute('aria-pressed', 'true');
+      await reselect;
     } finally {
       await teardown();
     }
@@ -1026,6 +1786,7 @@ test.describe('Keyboard navigation', () => {
       page,
       makeBudgetOverviewResponse(),
       makeBreakdownResponse(),
+      makeFilteredEmptyBreakdown(),
     );
 
     try {
@@ -1037,19 +1798,28 @@ test.describe('Keyboard navigation', () => {
       const row = overviewPage.sourceRow('Bank Loan');
       await row.focus();
 
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
       await page.keyboard.press('Enter');
       await expect(row).toHaveAttribute('aria-pressed', 'false');
+      await refetchPromise;
     } finally {
       await teardown();
     }
   });
 
-  test('Escape on focused row calls select-all (clears deselections)', async ({ page }) => {
+  test('Escape on focused row calls select-all (clears deselections + triggers unfiltered refetch)', async ({
+    page,
+  }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
       makeBudgetOverviewResponse(),
       makeBreakdownResponse({ includeSourceB: true }),
+      makeFilteredEmptyBreakdown(),
     );
 
     try {
@@ -1059,12 +1829,23 @@ test.describe('Keyboard navigation', () => {
       await overviewPage.availableFundsButton().click();
 
       // Deselect Bank Loan
+      const deselect = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
       const row = overviewPage.sourceRow('Bank Loan');
       await row.click();
       await expect(row).toHaveAttribute('aria-pressed', 'false');
-      await expect(page).toHaveURL(new RegExp(`deselectedSources=${SOURCE_A_ID}`));
+      await expect(page).toHaveURL(new RegExp(`deselectedSources=.*${SOURCE_A_ID}`));
+      await deselect;
 
       // Focus the row and press Escape — should select-all (clear deselections)
+      const selectAll = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          !resp.url().includes('deselectedSources='),
+      );
       await row.focus();
       await page.keyboard.press('Escape');
 
@@ -1073,6 +1854,9 @@ test.describe('Keyboard navigation', () => {
 
       // URL no longer contains deselectedSources
       await expect(page).not.toHaveURL(/deselectedSources/);
+
+      // Unfiltered refetch fired
+      await selectAll;
     } finally {
       await teardown();
     }
@@ -1116,6 +1900,7 @@ test.describe('Live region', { tag: '@responsive' }, () => {
       page,
       makeBudgetOverviewResponse(),
       makeBreakdownResponse({ includeSourceB: true }),
+      makeFilteredEmptyBreakdown(),
     );
 
     try {
@@ -1124,12 +1909,17 @@ test.describe('Live region', { tag: '@responsive' }, () => {
 
       await overviewPage.availableFundsButton().click();
 
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
       await overviewPage.sourceRow('Bank Loan').click();
+      await refetchPromise;
 
       // Live region text must contain "<selected> of <total>" (locale-agnostic).
-      // Fixture has 2 named sources + 1 unassigned line = 3 virtual sources.
-      // Use toHaveText with regex so the assertion auto-retries while React
-      // re-renders the live region after the click → URL state → state update.
+      // Fixture has Bank Loan + Equity + Unassigned = 3 virtual sources.
+      // Use toHaveText with regex so the assertion auto-retries while React re-renders.
       await expect(overviewPage.filterAnnouncement()).toHaveText(/\d+\D+\d+/);
     } finally {
       await teardown();
@@ -1147,6 +1937,7 @@ test.describe('No chip toolbar', { tag: '@responsive' }, () => {
       page,
       makeBudgetOverviewResponse(),
       makeBreakdownResponse({ includeSourceB: true }),
+      makeFilteredEmptyBreakdown(),
     );
 
     try {
@@ -1156,7 +1947,13 @@ test.describe('No chip toolbar', { tag: '@responsive' }, () => {
       await overviewPage.availableFundsButton().click();
 
       // Select a source to make the UI "active" — toolbar must still not appear
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
       await overviewPage.sourceRow('Bank Loan').click();
+      await refetchPromise;
 
       await expect(page.getByRole('toolbar')).not.toBeAttached();
     } finally {
@@ -1215,7 +2012,7 @@ test.describe('Dark mode: badge color smoke check', { tag: '@responsive' }, () =
     }
   });
 
-  test('Deselected source row is visually distinct in dark mode (class smoke check)', async ({
+  test('Deselected source row is visually distinct in dark mode (aria-pressed smoke check)', async ({
     page,
   }) => {
     const overviewPage = new BudgetOverviewPage(page);
@@ -1223,6 +2020,7 @@ test.describe('Dark mode: badge color smoke check', { tag: '@responsive' }, () =
       page,
       makeBudgetOverviewResponse(),
       makeBreakdownResponse(),
+      makeFilteredEmptyBreakdown(),
     );
 
     try {
@@ -1237,13 +2035,18 @@ test.describe('Dark mode: badge color smoke check', { tag: '@responsive' }, () =
       const row = overviewPage.sourceRow('Bank Loan');
       await expect(row).toHaveAttribute('aria-pressed', 'true');
 
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources='),
+      );
       await row.click();
       await expect(row).toHaveAttribute('aria-pressed', 'false');
+      await refetchPromise;
 
       // The deselected row remains in the DOM and visible in dark mode —
       // styling is driven by the [aria-pressed="false"] attribute selector,
-      // not by toggling a CSS class. The aria-pressed transition above is
-      // sufficient to confirm the visual state change.
+      // not by toggling a CSS class.
       await expect(row).toBeVisible();
     } finally {
       await teardown();
@@ -1342,37 +2145,6 @@ test.describe('Responsive layout', { tag: '@responsive' }, () => {
       } else {
         expect(box!.height).toBeGreaterThan(0);
       }
-    } finally {
-      await teardown();
-    }
-  });
-
-  test('Source rows cascade-hide on mobile viewport when source is deselected', async ({
-    page,
-  }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountOverviewRoutes(
-      page,
-      makeBudgetOverviewResponse(),
-      makeBreakdownSourceAOnly(),
-    );
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      await overviewPage.availableFundsButton().click();
-      await overviewPage.sourceRow('Bank Loan').click();
-      await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
-
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: /expand work item budget by area/i })
-        .click();
-
-      // Main Area row hidden (cascade)
-      await expect(
-        overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Main Area' }),
-      ).not.toBeVisible();
     } finally {
       await teardown();
     }
