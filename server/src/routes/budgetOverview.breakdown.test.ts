@@ -577,7 +577,12 @@ describe('GET /api/budget/breakdown', () => {
     const { breakdown } = response.json<BudgetBreakdownResponse>();
 
     expect(Array.isArray(breakdown.budgetSources)).toBe(true);
-    expect(breakdown.budgetSources).toHaveLength(0);
+    // Filter out always-present built-in sources (discretionary-system seeded by migration 0021,
+    // and the synthetic unassigned entry); no user-created sources should be present
+    const userSources = breakdown.budgetSources.filter(
+      (s) => s.id !== 'discretionary-system' && s.id !== 'unassigned',
+    );
+    expect(userSources).toHaveLength(0);
   });
 
   // ── Server-side source filtering via query param (Scenarios 11–15, AC #30) ──

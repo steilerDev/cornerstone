@@ -1395,10 +1395,11 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      expect(result.budgetSources).toHaveLength(1);
-      expect(result.budgetSources[0]!.id).toBe(sourceId);
-      expect(result.budgetSources[0]!.name).toBe('Bank Loan');
-      expect(result.budgetSources[0]!.totalAmount).toBe(150000);
+      const found = result.budgetSources.find((s) => s.id === sourceId);
+      expect(found).toBeDefined();
+      expect(found!.id).toBe(sourceId);
+      expect(found!.name).toBe('Bank Loan');
+      expect(found!.totalAmount).toBe(150000);
     });
 
     // Scenario 4: projectedMin/Max correct for own_estimate confidence
@@ -1413,10 +1414,10 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      expect(result.budgetSources).toHaveLength(1);
-      const src = result.budgetSources[0]!;
-      expect(src.projectedMin).toBeCloseTo(800, 5);
-      expect(src.projectedMax).toBeCloseTo(1200, 5);
+      const src = result.budgetSources.find((s) => s.id === sourceId);
+      expect(src).toBeDefined();
+      expect(src!.projectedMin).toBeCloseTo(800, 5);
+      expect(src!.projectedMax).toBeCloseTo(1200, 5);
     });
 
     it('computes correct projectedMin and projectedMax for source with quote confidence', () => {
@@ -1430,9 +1431,10 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const src = result.budgetSources[0]!;
-      expect(src.projectedMin).toBeCloseTo(1900, 5);
-      expect(src.projectedMax).toBeCloseTo(2100, 5);
+      const src = result.budgetSources.find((s) => s.id === sourceId);
+      expect(src).toBeDefined();
+      expect(src!.projectedMin).toBeCloseTo(1900, 5);
+      expect(src!.projectedMax).toBeCloseTo(2100, 5);
     });
 
     it('accumulates projectedMin/Max across multiple lines assigned to the same source', () => {
@@ -1452,9 +1454,10 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const src = result.budgetSources[0]!;
-      expect(src.projectedMin).toBeCloseTo(800 + 1900, 5);
-      expect(src.projectedMax).toBeCloseTo(1200 + 2100, 5);
+      const src = result.budgetSources.find((s) => s.id === sourceId);
+      expect(src).toBeDefined();
+      expect(src!.projectedMin).toBeCloseTo(800 + 1900, 5);
+      expect(src!.projectedMax).toBeCloseTo(1200 + 2100, 5);
     });
 
     it('includes household item lines in source projected totals', () => {
@@ -1475,9 +1478,10 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      const src = result.budgetSources[0]!;
-      expect(src.projectedMin).toBeCloseTo(800 + 1900, 5);
-      expect(src.projectedMax).toBeCloseTo(1200 + 2100, 5);
+      const src = result.budgetSources.find((s) => s.id === sourceId);
+      expect(src).toBeDefined();
+      expect(src!.projectedMin).toBeCloseTo(800 + 1900, 5);
+      expect(src!.projectedMax).toBeCloseTo(1200 + 2100, 5);
     });
 
     // Scenario 5: budgetSources includes sources with no lines (always full list — Decision A)
@@ -1491,27 +1495,31 @@ describe('getBudgetBreakdown', () => {
       const result = getBudgetBreakdown(db);
 
       // budgetSources always contains all configured sources — unused source is still included
-      expect(result.budgetSources).toHaveLength(1);
-      expect(result.budgetSources[0]!.id).toBe(unusedSourceId);
-      expect(result.budgetSources[0]!.projectedMin).toBe(0);
-      expect(result.budgetSources[0]!.projectedMax).toBe(0);
-      expect(result.budgetSources[0]!.subsidyPaybackMin).toBe(0);
-      expect(result.budgetSources[0]!.subsidyPaybackMax).toBe(0);
+      const found = result.budgetSources.find((s) => s.id === unusedSourceId);
+      expect(found).toBeDefined();
+      expect(found!.projectedMin).toBe(0);
+      expect(found!.projectedMax).toBe(0);
+      expect(found!.subsidyPaybackMin).toBe(0);
+      expect(found!.subsidyPaybackMax).toBe(0);
     });
 
-    // Scenario 7: budgetSources empty when no sources exist
+    // Scenario 7: budgetSources empty when no user sources exist (discretionary-system is always present)
     it('returns empty budgetSources array when no budget sources exist in the database', () => {
       insertWorkItem({ plannedAmount: 1000 });
 
       const result = getBudgetBreakdown(db);
 
-      expect(result.budgetSources).toEqual([]);
+      // Filter out discretionary-system which is always seeded by migration 0021
+      const userSources = result.budgetSources.filter((s) => s.id !== 'discretionary-system');
+      expect(userSources).toHaveLength(0);
     });
 
     it('returns empty budgetSources array when no data exists at all', () => {
       const result = getBudgetBreakdown(db);
 
-      expect(result.budgetSources).toEqual([]);
+      // Filter out discretionary-system which is always seeded by migration 0021
+      const userSources = result.budgetSources.filter((s) => s.id !== 'discretionary-system');
+      expect(userSources).toHaveLength(0);
     });
 
     it('returns multiple sources in order when multiple sources have lines', () => {
@@ -1522,7 +1530,7 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      expect(result.budgetSources).toHaveLength(2);
+      // Both user-created sources must appear (discretionary-system may also be present)
       const ids = result.budgetSources.map((s) => s.id);
       expect(ids).toContain(sourceA);
       expect(ids).toContain(sourceB);
@@ -1690,11 +1698,10 @@ describe('getBudgetBreakdown', () => {
     it('subsidyAdjustments reflects only surviving lines (Scenario 7b)', () => {
       const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 100000 });
       const srcB = insertBudgetSource({ name: 'Source B', totalAmount: 50000 });
-      const catId = insertBudgetCategory('Test Cat B');
+      // Universal subsidy (no categoryIds) applies to all linked WI lines
       const subsidy = insertSubsidyProgram({
         reductionType: 'percentage',
         reductionValue: 20,
-        categoryIds: [catId],
       });
       // Two WIs, only WI-A (srcA) linked to subsidy
       const { workItemId: wiA } = insertWorkItemWithSource({
@@ -1754,8 +1761,9 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db, new Set([srcA]));
 
-      // budgetSources should have 3 entries: srcA, srcB, synthetic unassigned
-      expect(result.budgetSources).toHaveLength(3);
+      // budgetSources should have at least 3 entries: srcA, srcB, synthetic unassigned
+      // (discretionary-system seeded by migration 0021 may also be present)
+      expect(result.budgetSources.length).toBeGreaterThanOrEqual(3);
 
       const srcAEntry = result.budgetSources.find((s) => s.id === srcA);
       const srcBEntry = result.budgetSources.find((s) => s.id === srcB);
@@ -1782,21 +1790,16 @@ describe('getBudgetBreakdown', () => {
     // Scenario 10: Per-source subsidyPayback attribution
     it('budgetSources[srcA].subsidyPaybackMax > 0 when no filter; = 0 when srcA deselected (Scenario 10)', () => {
       const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 100000 });
-      const catId = insertBudgetCategory('Subsidy Cat');
+      // Universal subsidy (no categoryIds) applies to all linked WI lines regardless of category
       const subsidy = insertSubsidyProgram({
         reductionType: 'percentage',
         reductionValue: 20,
-        categoryIds: [catId],
       });
       const { workItemId } = insertWorkItemWithSource({
         plannedAmount: 10000,
         confidence: 'own_estimate',
         budgetSourceId: srcA,
       });
-      // Note: the subsidy link requires the WI to have a budget line in the subsidy category
-      // The subsidy program uses categoryIds to filter eligible lines.
-      // For this test, we link the WI directly to the subsidy (via workItemSubsidies table),
-      // which bypasses category eligibility in getBudgetBreakdown's subsidy engine.
       linkWorkItemSubsidy(workItemId, subsidy);
 
       // No filter — srcA line feeds the subsidy engine
