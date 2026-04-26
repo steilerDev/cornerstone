@@ -651,14 +651,14 @@
   background: var(--color-bg-inverse);
   border-left: 4px solid var(--color-danger);
   border-radius: var(--radius-md);
-  color: var(--color-text-primary);
+  color: var(--color-text-inverse);
 }
 
 .breakdownErrorBanner button {
   padding: var(--spacing-1-5) var(--spacing-2);
   background: transparent;
   border: none;
-  color: var(--color-text-primary);
+  color: var(--color-text-inverse);
   font-size: var(--font-size-sm);
   cursor: pointer;
   text-decoration: underline;
@@ -669,6 +669,6 @@
 }
 
 .breakdownErrorBanner button:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+  box-shadow: var(--shadow-focus);
+  outline: none;
 }
