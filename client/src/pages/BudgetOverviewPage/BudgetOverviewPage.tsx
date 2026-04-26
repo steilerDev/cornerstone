@@ -184,10 +184,10 @@ export function BudgetOverviewPage() {
   // Source filter state (from URL)
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Derive selected source IDs from URL ?sources= param
+  // Derive deselected source IDs from URL ?deselectedSources= param
   // 'unassigned' is the literal key for null-source lines
-  const selectedSourceIds = useMemo<Set<string>>(() => {
-    const raw = searchParams.get('sources');
+  const deselectedSourceIds = useMemo<Set<string>>(() => {
+    const raw = searchParams.get('deselectedSources');
     if (!raw) return new Set();
     return new Set(raw.split(',').filter(Boolean));
   }, [searchParams]);
@@ -196,7 +196,7 @@ export function BudgetOverviewPage() {
     (sourceId: string | null) => {
       const key = sourceId ?? 'unassigned';
       setSearchParams((prev) => {
-        const current = new Set(prev.get('sources')?.split(',').filter(Boolean) ?? []);
+        const current = new Set(prev.get('deselectedSources')?.split(',').filter(Boolean) ?? []);
         if (current.has(key)) {
           current.delete(key);
         } else {
@@ -204,9 +204,9 @@ export function BudgetOverviewPage() {
         }
         const params = new URLSearchParams(prev);
         if (current.size === 0) {
-          params.delete('sources');
+          params.delete('deselectedSources');
         } else {
-          params.set('sources', [...current].join(','));
+          params.set('deselectedSources', [...current].join(','));
         }
         return params;
       });
@@ -214,10 +214,10 @@ export function BudgetOverviewPage() {
     [setSearchParams],
   );
 
-  const handleClearSources = useCallback(() => {
+  const handleSelectAllSources = useCallback(() => {
     setSearchParams((prev) => {
       const params = new URLSearchParams(prev);
-      params.delete('sources');
+      params.delete('deselectedSources');
       return params;
     });
   }, [setSearchParams]);
@@ -656,9 +656,9 @@ export function BudgetOverviewPage() {
           <CostBreakdownTable
             breakdown={breakdown}
             overview={overview}
-            selectedSourceIds={selectedSourceIds}
+            deselectedSourceIds={deselectedSourceIds}
             onSourceToggle={handleSourceToggle}
-            onClearSources={handleClearSources}
+            onSelectAllSources={handleSelectAllSources}
           />
         ) : null)}
     </PageLayout>

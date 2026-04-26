@@ -161,34 +161,8 @@ export class BudgetOverviewPage {
   // ── Source filter helpers ─────────────────────────────────────────────────
 
   /**
-   * The source filter chip toolbar.
-   * i18n label: "Filter by source"
-   */
-  filterToolbar(): Locator {
-    return this.costBreakdownCard.getByRole('toolbar', { name: 'Filter by source' });
-  }
-
-  /**
-   * A specific chip by source name (uses regex for partial match).
-   * Chips are <button aria-pressed> inside the filter toolbar.
-   */
-  sourceChip(name: string): Locator {
-    return this.filterToolbar().getByRole('button', { name: new RegExp(name) });
-  }
-
-  /**
-   * The "All sources" clear filter button.
-   * aria-label: "Clear source filter — show all sources"
-   */
-  clearFiltersButton(): Locator {
-    return this.filterToolbar().getByRole('button', {
-      name: /Clear source filter/i,
-    });
-  }
-
-  /**
    * The screen-reader live region for filter count announcements (role="status").
-   * Note: the element is visually hidden (sr-only) but still in the DOM.
+   * Lives outside tableWrapper — always mounted, visually hidden (sr-only).
    */
   filterAnnouncement(): Locator {
     return this.costBreakdownCard.locator('[role="status"]');
@@ -206,12 +180,39 @@ export class BudgetOverviewPage {
 
   /**
    * Source detail row for a given source name (expanded under Available Funds).
-   * Scoped to `tr[class*="rowSourceDetail"]` to avoid matching the chip-toolbar row,
-   * which also contains the source name inside its chips.
+   * These rows are `<tr role="button" aria-pressed>` toggles.
+   * Scoped to `tr[class*="rowSourceDetail"]`.
    */
-  sourceDetailRow(name: string): Locator {
+  sourceRow(name: string): Locator {
     return this.costBreakdownCard.locator('tr[class*="rowSourceDetail"]').filter({
       has: this.page.getByText(name, { exact: true }),
     });
+  }
+
+  /**
+   * @deprecated Use `sourceRow(name)` instead (renamed from #1354 → #1356 rework).
+   * Kept for any callers in other spec files that reference `sourceDetailRow`.
+   */
+  sourceDetailRow(name: string): Locator {
+    return this.sourceRow(name);
+  }
+
+  /**
+   * The Available Funds amount cell.
+   * The value lives in `td[colspan="3"]` inside the Available Funds header row.
+   */
+  availableFundsValue(): Locator {
+    return this.costBreakdownCard
+      .getByRole('row')
+      .filter({ hasText: /available funds/i })
+      .locator('td[colspan="3"]');
+  }
+
+  /**
+   * The filter caption "(X of Y selected)" shown below the Available Funds value.
+   * Rendered only when at least one source is deselected.
+   */
+  filterCaption(): Locator {
+    return this.availableFundsValue().locator('[class*="availableFundsFilterCaption"]');
   }
 }

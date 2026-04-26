@@ -51,6 +51,9 @@
       "householdItems": "Household Items",
       "sum": "Sum",
       "availableFunds": "Available funds",
+      "availableFundsFilter": {
+        "activeFilterCaption": "({{selected}} of {{total}} selected)"
+      },
       "remainingBudget": "Remaining Budget",
       "quoted": "Quoted",
       "tableHeaders": {
@@ -69,16 +72,15 @@
         "expandHouseholdItemsLabel": "Expand household item budget by area"
       },
       "sourceFilter": {
-        "label": "Filter by source",
-        "allSources": "All sources",
-        "clear": "Clear filters",
-        "clearAriaLabel": "Clear source filter — show all sources",
         "unassigned": "Unassigned",
-        "activeAnnouncement": "Showing {{count}} of {{total}} budget lines",
         "allSourcesAnnouncement": "Showing all budget lines",
+        "statusAnnouncement": "{{selected}} of {{total}} budget sources selected",
         "empty": "No budget lines match the selected source filter.",
-        "chipSelected": "Filter: {{name}} (selected)",
-        "chipNotSelected": "Filter: {{name}} (not selected)"
+        "clear": "Clear filters"
+      },
+      "sourceRow": {
+        "selectedAriaLabel": "{{name}}, selected — click to deselect",
+        "deselectedAriaLabel": "{{name}}, deselected — click to select"
       },
       "sourceImpact": {
         "allocated": "Allocated",

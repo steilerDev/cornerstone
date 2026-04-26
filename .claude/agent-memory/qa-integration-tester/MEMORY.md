@@ -3,6 +3,10 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1356 — CostBreakdownTable Per-Source Filter Rework (2026-04-25)
+
+Props changed again: `selectedSourceIds` → `deselectedSourceIds`, `onClearSources` → `onSelectAllSources`. Semantics inverted — a source is HIDDEN when its ID is in `deselectedSourceIds`. Source rows changed from chip toolbar (`role="toolbar"`, `Filter: Name` buttons) to `<tr role="button" aria-pressed="true|false" tabIndex={0}>` toggle rows directly in the Available Funds expansion. Tests checking `role="toolbar"` or `Filter: Name` buttons must be removed and replaced with `container.querySelector('tr[role="button"]')` assertions. Replace all old chip count assertions (e.g. `toHaveLength(2)` for "chip + sub-row") with `toBeInTheDocument()` for the single source detail row. The `onSelectAllSources` prop is called on Escape keydown on the source row (not on a toolbar).
+
 ## Story #1354 — CostBreakdownTable Props Refactor Pattern (2026-04-25)
 
 `CostBreakdownTable` had `budgetSources={[]}` prop replaced with `selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}`. When a component's prop API changes, use `replace_all: true` on Edit tool to update all test usages in one pass (28 occurrences updated at once). Also add new required fixture fields (`budgetSources: []` on BudgetBreakdown, `budgetSourceId: null` on BreakdownBudgetLine) via Python `sed`-style script when the pattern is uniform across many objects.

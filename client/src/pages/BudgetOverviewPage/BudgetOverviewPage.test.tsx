@@ -1027,4 +1027,112 @@ describe('BudgetOverviewPage', () => {
       expect(screen.getByTestId('location')).toHaveTextContent('/settings/vendors');
     });
   });
+
+  // ─── URL state: deselectedSources param ───────────────────────────────────
+
+  describe('URL state: ?deselectedSources param', () => {
+    // Render the page with a custom initial URL
+    function renderPageWithUrl(url: string) {
+      return render(
+        <MemoryRouter initialEntries={[url]}>
+          <BudgetOverviewPage />
+        </MemoryRouter>,
+      );
+    }
+
+    it('does not apply source filter when URL has no ?deselectedSources param', async () => {
+      // Page loads without deselectedSources → no filter active → Available Funds shows overview value
+      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetBreakdown.mockResolvedValueOnce({
+        ...emptyBreakdown,
+        workItems: {
+          ...emptyBreakdown.workItems,
+          areas: [
+            {
+              areaId: null,
+              name: 'Unassigned',
+              parentId: null,
+              color: null,
+              projectedMin: 5000,
+              projectedMax: 5000,
+              actualCost: 0,
+              subsidyPayback: 0,
+              rawProjectedMin: 5000,
+              rawProjectedMax: 5000,
+              minSubsidyPayback: 0,
+              items: [],
+              children: [],
+            },
+          ],
+          totals: {
+            projectedMin: 5000,
+            projectedMax: 5000,
+            actualCost: 0,
+            subsidyPayback: 0,
+            rawProjectedMin: 5000,
+            rawProjectedMax: 5000,
+            minSubsidyPayback: 0,
+          },
+        },
+        budgetSources: [{ id: 'src-1', name: 'Savings', totalAmount: 100000, projectedMin: 5000, projectedMax: 5000 }],
+      });
+
+      renderPageWithUrl('/budget/overview');
+
+      await waitFor(() => {
+        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
+      });
+
+      // The page rendered successfully without a filter; no "(X of Y selected)" caption should appear
+      expect(screen.queryByText(/selected\)/i)).not.toBeInTheDocument();
+    });
+
+    it('ignores legacy ?sources= URL param and does not apply a filter', async () => {
+      // Legacy URL with ?sources=src-1 should be ignored — no filter applied
+      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetBreakdown.mockResolvedValueOnce({
+        ...emptyBreakdown,
+        workItems: {
+          ...emptyBreakdown.workItems,
+          areas: [
+            {
+              areaId: null,
+              name: 'Unassigned',
+              parentId: null,
+              color: null,
+              projectedMin: 5000,
+              projectedMax: 5000,
+              actualCost: 0,
+              subsidyPayback: 0,
+              rawProjectedMin: 5000,
+              rawProjectedMax: 5000,
+              minSubsidyPayback: 0,
+              items: [],
+              children: [],
+            },
+          ],
+          totals: {
+            projectedMin: 5000,
+            projectedMax: 5000,
+            actualCost: 0,
+            subsidyPayback: 0,
+            rawProjectedMin: 5000,
+            rawProjectedMax: 5000,
+            minSubsidyPayback: 0,
+          },
+        },
+        budgetSources: [{ id: 'src-1', name: 'Savings', totalAmount: 100000, projectedMin: 5000, projectedMax: 5000 }],
+      });
+
+      // Legacy ?sources= param — should be ignored, NOT treated as deselectedSources
+      renderPageWithUrl('/budget/overview?sources=src-1');
+
+      await waitFor(() => {
+        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
+      });
+
+      // No filter caption should appear (legacy param has no effect)
+      expect(screen.queryByText(/selected\)/i)).not.toBeInTheDocument();
+    });
+  });
 });
