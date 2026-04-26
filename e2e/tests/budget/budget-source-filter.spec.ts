@@ -1489,19 +1489,22 @@ test.describe('URL on mount triggers initial filtered fetch', { tag: '@responsiv
     );
 
     try {
-      // Navigate directly with deselectedSources param
-      await navigateWithParamAndExpand(page, overviewPage, `deselectedSources=${SOURCE_A_ID}`);
+      // Navigate directly with the filter param. The filtered fixture has empty
+      // areas, so we don't try to expand the WI section — there's nothing to
+      // expand. The test goal is just to verify the filter state is restored
+      // from the URL and Source A lines are absent from the DOM.
+      await page.goto(`${BUDGET_OVERVIEW_ROUTE}?deselectedSources=${SOURCE_A_ID}`);
+      await overviewPage.waitForLoaded();
 
       await overviewPage.availableFundsButton().click();
 
       // Bank Loan row must be rendered as deselected
       await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
 
-      // Server returns filtered response (no Source A lines) — so lines not rendered
-      // In this scenario, filtered body has empty areas — Main Work Item does not appear
+      // Server returns filtered response (empty areas) — Source A lines are not in the DOM
       await expect(
         overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Line A1 (Source A)' }),
-      ).not.toBeVisible();
+      ).toHaveCount(0);
     } finally {
       await teardown();
     }
