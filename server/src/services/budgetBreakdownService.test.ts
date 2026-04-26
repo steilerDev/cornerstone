@@ -292,6 +292,7 @@ describe('getBudgetBreakdown', () => {
     name?: string;
     reductionType: 'percentage' | 'fixed';
     reductionValue: number;
+    maximumAmount?: number | null;
     applicationStatus?: 'eligible' | 'applied' | 'approved' | 'received' | 'rejected';
     categoryIds?: string[];
   }): string {
@@ -303,6 +304,7 @@ describe('getBudgetBreakdown', () => {
         name: opts.name ?? `Subsidy ${id}`,
         reductionType: opts.reductionType,
         reductionValue: opts.reductionValue,
+        maximumAmount: opts.maximumAmount ?? null,
         applicationStatus: opts.applicationStatus ?? 'eligible',
         createdAt: now,
         updatedAt: now,
@@ -1509,8 +1511,11 @@ describe('getBudgetBreakdown', () => {
 
       const result = getBudgetBreakdown(db);
 
-      // Filter out discretionary-system which is always seeded by migration 0021
-      const userSources = result.budgetSources.filter((s) => s.id !== 'discretionary-system');
+      // Filter out discretionary-system (always seeded by migration 0021) and
+      // the synthetic 'unassigned' entry (emitted when any lines have budgetSourceId=null)
+      const userSources = result.budgetSources.filter(
+        (s) => s.id !== 'discretionary-system' && s.id !== 'unassigned',
+      );
       expect(userSources).toHaveLength(0);
     });
 
@@ -1698,10 +1703,12 @@ describe('getBudgetBreakdown', () => {
     it('subsidyAdjustments reflects only surviving lines (Scenario 7b)', () => {
       const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 100000 });
       const srcB = insertBudgetSource({ name: 'Source B', totalAmount: 50000 });
-      // Universal subsidy (no categoryIds) applies to all linked WI lines
+      // Universal subsidy (no categoryIds) applies to all linked WI lines.
+      // maximumAmount=100 is a low cap: WI-A payback = 20% × 5000 = 1000 > 100 → oversubscribed.
       const subsidy = insertSubsidyProgram({
         reductionType: 'percentage',
         reductionValue: 20,
+        maximumAmount: 100,
       });
       // Two WIs, only WI-A (srcA) linked to subsidy
       const { workItemId: wiA } = insertWorkItemWithSource({
