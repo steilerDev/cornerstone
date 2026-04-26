@@ -38,6 +38,7 @@ interface BreakdownContextValue {
   budgetSources: BudgetSourceSummaryBreakdown[];
   hasSourceFilter: boolean;
   visibleLineIds: Set<string>;
+  filteredAggregates: FilteredAggregates | null;
 }
 
 const BreakdownContext = createContext<BreakdownContextValue | null>(null);
@@ -74,6 +75,24 @@ function resolveProjected(
 }
 
 /**
+ * Resolves the perspective-dependent cost for a single budget line.
+ * Mirrors the cost logic in BudgetLineRow (Level 3) and used throughout
+ * aggregate computation to ensure a single source of truth.
+ */
+function resolveLineCost(line: BreakdownBudgetLine, perspective: CostPerspective): number {
+  if (line.hasInvoice && !line.isQuotation) return line.actualCost;
+  if (line.isQuotation) {
+    return resolveProjected(line.actualCost * 0.95, line.actualCost * 1.05, perspective);
+  }
+  const margin = CONFIDENCE_MARGINS[line.confidence];
+  return resolveProjected(
+    line.plannedAmount * (1 - margin),
+    line.plannedAmount * (1 + margin),
+    perspective,
+  );
+}
+
+/**
  * Computes per-source subsidy payback attribution using entity-level pro-rata weighting.
  *
  * For each entity (work item or household item), the entity's perspective-resolved payback
@@ -101,12 +120,7 @@ function computePerSourcePayback(
     if (entityPayback === 0) return;
 
     // Compute max-perspective cost for each line (for weighting)
-    const lineCosts = budgetLines.map((line) => {
-      const margin = CONFIDENCE_MARGINS[line.confidence];
-      if (line.hasInvoice && !line.isQuotation) return line.actualCost;
-      if (line.isQuotation) return line.actualCost * 1.05;
-      return line.plannedAmount * (1 + margin);
-    });
+    const lineCosts = budgetLines.map((line) => resolveLineCost(line, 'max'));
 
     const totalCost = lineCosts.reduce((s, c) => s + c, 0);
     const n = budgetLines.length;
@@ -139,6 +153,136 @@ function computePerSourcePayback(
   walkWi(breakdown.workItems.areas);
   walkHi(breakdown.householdItems.areas);
   return map;
+}
+
+interface FilteredEntityTotals {
+  rawProjectedMin: number;
+  rawProjectedMax: number;
+  subsidyPayback: number;
+  minSubsidyPayback: number;
+}
+
+interface FilteredAggregates {
+  itemTotalsMap: Map<string, FilteredEntityTotals>;
+  areaTotalsMap: Map<string, FilteredEntityTotals>;
+  wiTotals: FilteredEntityTotals;
+  hiTotals: FilteredEntityTotals;
+}
+
+function computeFilteredAggregates(
+  breakdown: BudgetBreakdown,
+  perspective: CostPerspective,
+  hasSourceFilter: boolean,
+  visibleLineIds: Set<string>,
+): FilteredAggregates | null {
+  if (!hasSourceFilter) return null;
+
+  const itemTotalsMap = new Map<string, FilteredEntityTotals>();
+  const areaTotalsMap = new Map<string, FilteredEntityTotals>();
+
+  function zero(): FilteredEntityTotals {
+    return { rawProjectedMin: 0, rawProjectedMax: 0, subsidyPayback: 0, minSubsidyPayback: 0 };
+  }
+
+  function addToTotals(t: FilteredEntityTotals, delta: FilteredEntityTotals): void {
+    t.rawProjectedMin += delta.rawProjectedMin;
+    t.rawProjectedMax += delta.rawProjectedMax;
+    t.subsidyPayback += delta.subsidyPayback;
+    t.minSubsidyPayback += delta.minSubsidyPayback;
+  }
+
+  function processItem(
+    itemKey: string,
+    budgetLines: BreakdownBudgetLine[],
+    subsidyPayback: number,
+    minSubsidyPayback: number,
+  ): FilteredEntityTotals {
+    const totals = zero();
+
+    const visibleLines = budgetLines.filter((l) => visibleLineIds.has(l.id));
+
+    for (const line of visibleLines) {
+      totals.rawProjectedMin += resolveLineCost(line, 'min');
+      totals.rawProjectedMax += resolveLineCost(line, 'max');
+    }
+
+    if (subsidyPayback > 0 || minSubsidyPayback > 0) {
+      const allLineCosts = budgetLines.map((l) => resolveLineCost(l, 'max'));
+      const totalWeight = allLineCosts.reduce((s, c) => s + c, 0);
+      const n = budgetLines.length;
+
+      budgetLines.forEach((line, i) => {
+        if (!visibleLineIds.has(line.id)) return;
+        const weight = totalWeight === 0 ? (n > 0 ? 1 / n : 0) : (allLineCosts[i] ?? 0) / totalWeight;
+        totals.subsidyPayback += subsidyPayback * weight;
+        totals.minSubsidyPayback += minSubsidyPayback * weight;
+      });
+    }
+
+    itemTotalsMap.set(itemKey, totals);
+    return totals;
+  }
+
+  function walkWiAreas(
+    areas: BreakdownArea<BreakdownWorkItem>[],
+    sectionKey: string,
+  ): FilteredEntityTotals {
+    const sectionTotals = zero();
+    for (const area of areas) {
+      const areaKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}`;
+      const areaTotals = zero();
+
+      for (const item of area.items) {
+        const itemTotals = processItem(
+          item.workItemId,
+          item.budgetLines,
+          item.subsidyPayback,
+          item.minSubsidyPayback,
+        );
+        addToTotals(areaTotals, itemTotals);
+      }
+
+      const childTotals = walkWiAreas(area.children, sectionKey);
+      addToTotals(areaTotals, childTotals);
+
+      areaTotalsMap.set(areaKey, areaTotals);
+      addToTotals(sectionTotals, areaTotals);
+    }
+    return sectionTotals;
+  }
+
+  function walkHiAreas(
+    areas: BreakdownArea<BreakdownHouseholdItem>[],
+    sectionKey: string,
+  ): FilteredEntityTotals {
+    const sectionTotals = zero();
+    for (const area of areas) {
+      const areaKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}`;
+      const areaTotals = zero();
+
+      for (const item of area.items) {
+        const itemTotals = processItem(
+          item.householdItemId,
+          item.budgetLines,
+          item.subsidyPayback,
+          item.minSubsidyPayback,
+        );
+        addToTotals(areaTotals, itemTotals);
+      }
+
+      const childTotals = walkHiAreas(area.children, sectionKey);
+      addToTotals(areaTotals, childTotals);
+
+      areaTotalsMap.set(areaKey, areaTotals);
+      addToTotals(sectionTotals, areaTotals);
+    }
+    return sectionTotals;
+  }
+
+  const wiTotals = walkWiAreas(breakdown.workItems.areas, 'wi');
+  const hiTotals = walkHiAreas(breakdown.householdItems.areas, 'hi');
+
+  return { itemTotalsMap, areaTotalsMap, wiTotals, hiTotals };
 }
 
 /**
@@ -378,7 +522,7 @@ function WorkItemRow({
 }) {
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
-  const { hasSourceFilter, visibleLineIds } = useBreakdownContext();
+  const { hasSourceFilter, visibleLineIds, filteredAggregates } = useBreakdownContext();
   const key = expandKey;
   const rowClassName = styles.rowLevel2;
 
@@ -387,15 +531,24 @@ function WorkItemRow({
     return null;
   }
 
-  const resolvedRawCost =
-    item.costDisplay === 'actual'
+  const filteredTotals = hasSourceFilter
+    ? filteredAggregates?.itemTotalsMap.get(item.workItemId)
+    : undefined;
+
+  const resolvedRawCost = filteredTotals
+    ? resolveProjected(filteredTotals.rawProjectedMin, filteredTotals.rawProjectedMax, perspective)
+    : item.costDisplay === 'actual'
       ? item.actualCost
       : resolveProjected(item.rawProjectedMin, item.rawProjectedMax, perspective);
-  const resolvedPayback = resolveProjected(
-    item.minSubsidyPayback,
-    item.subsidyPayback,
-    perspective,
-  );
+  const resolvedPayback = filteredTotals
+    ? resolveProjected(filteredTotals.minSubsidyPayback, filteredTotals.subsidyPayback, perspective)
+    : resolveProjected(
+        item.minSubsidyPayback,
+        item.subsidyPayback,
+        perspective,
+      );
+
+  const effectiveMaxPayback = filteredTotals ? filteredTotals.subsidyPayback : item.subsidyPayback;
 
   return (
     <>
@@ -428,14 +581,14 @@ function WorkItemRow({
           </div>
         </td>
         <td className={styles.colBudget}>
-          {item.costDisplay === 'actual' ? (
+          {item.costDisplay === 'actual' && !filteredTotals ? (
             <span>-{formatCurrencyFn(item.actualCost)}</span>
           ) : (
             <span>-{formatCurrencyFn(resolvedRawCost)}</span>
           )}
         </td>
         <td className={styles.colPayback}>
-          {item.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
+          {effectiveMaxPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
           {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
@@ -464,6 +617,7 @@ function WorkItemAreaSection({
   onToggle,
   perspective,
   formatCurrencyFn,
+  filteredAggregates,
 }: {
   area: BreakdownArea<BreakdownWorkItem>;
   depth: number;
@@ -472,6 +626,7 @@ function WorkItemAreaSection({
   onToggle: (key: string) => void;
   perspective: CostPerspective;
   formatCurrencyFn: (value: number) => string;
+  filteredAggregates: FilteredAggregates | null;
 }) {
   const { t } = useTranslation('budget');
   const { hasSourceFilter, visibleLineIds } = useBreakdownContext();
@@ -489,12 +644,19 @@ function WorkItemAreaSection({
     return null;
   }
 
-  const resolvedRawCost = resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
-  const resolvedPayback = resolveProjected(
-    area.minSubsidyPayback,
-    area.subsidyPayback,
-    perspective,
-  );
+  const filteredTotals = hasSourceFilter ? filteredAggregates?.areaTotalsMap.get(areaKey) : undefined;
+
+  const resolvedRawCost = filteredTotals
+    ? resolveProjected(filteredTotals.rawProjectedMin, filteredTotals.rawProjectedMax, perspective)
+    : resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
+  const resolvedPayback = filteredTotals
+    ? resolveProjected(filteredTotals.minSubsidyPayback, filteredTotals.subsidyPayback, perspective)
+    : resolveProjected(
+        area.minSubsidyPayback,
+        area.subsidyPayback,
+        perspective,
+      );
+  const effectiveMaxPayback = filteredTotals ? filteredTotals.subsidyPayback : area.subsidyPayback;
   const areaName = area.areaId === null ? t('overview.costBreakdown.area.unassigned') : area.name;
 
   return (
@@ -523,7 +685,7 @@ function WorkItemAreaSection({
         </td>
         <td className={styles.colBudget}>-{formatCurrencyFn(resolvedRawCost)}</td>
         <td className={styles.colPayback}>
-          {area.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
+          {effectiveMaxPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
           {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
@@ -556,6 +718,7 @@ function WorkItemAreaSection({
               onToggle={onToggle}
               perspective={perspective}
               formatCurrencyFn={formatCurrencyFn}
+              filteredAggregates={filteredAggregates}
             />
           ))}
         </>
@@ -584,7 +747,7 @@ function HouseholdItemRow({
 }) {
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
-  const { hasSourceFilter, visibleLineIds } = useBreakdownContext();
+  const { hasSourceFilter, visibleLineIds, filteredAggregates } = useBreakdownContext();
   const key = expandKey;
   const rowClassName = styles.rowLevel2;
 
@@ -593,15 +756,24 @@ function HouseholdItemRow({
     return null;
   }
 
-  const resolvedRawCost =
-    item.costDisplay === 'actual'
+  const filteredTotals = hasSourceFilter
+    ? filteredAggregates?.itemTotalsMap.get(item.householdItemId)
+    : undefined;
+
+  const resolvedRawCost = filteredTotals
+    ? resolveProjected(filteredTotals.rawProjectedMin, filteredTotals.rawProjectedMax, perspective)
+    : item.costDisplay === 'actual'
       ? item.actualCost
       : resolveProjected(item.rawProjectedMin, item.rawProjectedMax, perspective);
-  const resolvedPayback = resolveProjected(
-    item.minSubsidyPayback,
-    item.subsidyPayback,
-    perspective,
-  );
+  const resolvedPayback = filteredTotals
+    ? resolveProjected(filteredTotals.minSubsidyPayback, filteredTotals.subsidyPayback, perspective)
+    : resolveProjected(
+        item.minSubsidyPayback,
+        item.subsidyPayback,
+        perspective,
+      );
+
+  const effectiveMaxPayback = filteredTotals ? filteredTotals.subsidyPayback : item.subsidyPayback;
 
   return (
     <>
@@ -637,14 +809,14 @@ function HouseholdItemRow({
           </div>
         </td>
         <td className={styles.colBudget}>
-          {item.costDisplay === 'actual' ? (
+          {item.costDisplay === 'actual' && !filteredTotals ? (
             <span>-{formatCurrencyFn(item.actualCost)}</span>
           ) : (
             <span>-{formatCurrencyFn(resolvedRawCost)}</span>
           )}
         </td>
         <td className={styles.colPayback}>
-          {item.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
+          {effectiveMaxPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
           {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
@@ -673,6 +845,7 @@ function HouseholdItemAreaSection({
   onToggle,
   perspective,
   formatCurrencyFn,
+  filteredAggregates,
 }: {
   area: BreakdownArea<BreakdownHouseholdItem>;
   depth: number;
@@ -681,6 +854,7 @@ function HouseholdItemAreaSection({
   onToggle: (key: string) => void;
   perspective: CostPerspective;
   formatCurrencyFn: (value: number) => string;
+  filteredAggregates: FilteredAggregates | null;
 }) {
   const { t } = useTranslation('budget');
   const { hasSourceFilter, visibleLineIds } = useBreakdownContext();
@@ -698,12 +872,19 @@ function HouseholdItemAreaSection({
     return null;
   }
 
-  const resolvedRawCost = resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
-  const resolvedPayback = resolveProjected(
-    area.minSubsidyPayback,
-    area.subsidyPayback,
-    perspective,
-  );
+  const filteredTotals = hasSourceFilter ? filteredAggregates?.areaTotalsMap.get(areaKey) : undefined;
+
+  const resolvedRawCost = filteredTotals
+    ? resolveProjected(filteredTotals.rawProjectedMin, filteredTotals.rawProjectedMax, perspective)
+    : resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
+  const resolvedPayback = filteredTotals
+    ? resolveProjected(filteredTotals.minSubsidyPayback, filteredTotals.subsidyPayback, perspective)
+    : resolveProjected(
+        area.minSubsidyPayback,
+        area.subsidyPayback,
+        perspective,
+      );
+  const effectiveMaxPayback = filteredTotals ? filteredTotals.subsidyPayback : area.subsidyPayback;
   const areaName = area.areaId === null ? t('overview.costBreakdown.area.unassigned') : area.name;
 
   return (
@@ -732,7 +913,7 @@ function HouseholdItemAreaSection({
         </td>
         <td className={styles.colBudget}>-{formatCurrencyFn(resolvedRawCost)}</td>
         <td className={styles.colPayback}>
-          {area.subsidyPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
+          {effectiveMaxPayback > 0 ? formatCurrencyFn(resolvedPayback) : '—'}
         </td>
         <td className={styles.colRemaining}>
           {renderNet(resolvedRawCost, resolvedPayback, styles, formatCurrencyFn)}
@@ -765,6 +946,7 @@ function HouseholdItemAreaSection({
               onToggle={onToggle}
               perspective={perspective}
               formatCurrencyFn={formatCurrencyFn}
+              filteredAggregates={filteredAggregates}
             />
           ))}
         </>
@@ -965,14 +1147,7 @@ export function CostBreakdownTable({
         for (const item of area.items) {
           for (const line of item.budgetLines) {
             if (line.budgetSourceId !== null) continue;
-            const margin = CONFIDENCE_MARGINS[line.confidence];
-            const costMin = line.plannedAmount * (1 - margin);
-            const costMax = line.plannedAmount * (1 + margin);
-            total += line.hasInvoice
-              ? line.isQuotation
-                ? resolveProjected(line.actualCost * 0.95, line.actualCost * 1.05, perspective)
-                : line.actualCost
-              : resolveProjected(costMin, costMax, perspective);
+            total += resolveLineCost(line, perspective);
           }
         }
         walkWi(area.children);
@@ -983,14 +1158,7 @@ export function CostBreakdownTable({
         for (const item of area.items) {
           for (const line of item.budgetLines) {
             if (line.budgetSourceId !== null) continue;
-            const margin = CONFIDENCE_MARGINS[line.confidence];
-            const costMin = line.plannedAmount * (1 - margin);
-            const costMax = line.plannedAmount * (1 + margin);
-            total += line.hasInvoice
-              ? line.isQuotation
-                ? resolveProjected(line.actualCost * 0.95, line.actualCost * 1.05, perspective)
-                : line.actualCost
-              : resolveProjected(costMin, costMax, perspective);
+            total += resolveLineCost(line, perspective);
           }
         }
         walkHi(area.children);
@@ -1012,14 +1180,7 @@ export function CostBreakdownTable({
         for (const item of area.items) {
           for (const line of item.budgetLines) {
             if (!visibleLineIds.has(line.id)) continue;
-            const margin = CONFIDENCE_MARGINS[line.confidence];
-            const costMin = line.plannedAmount * (1 - margin);
-            const costMax = line.plannedAmount * (1 + margin);
-            total += line.hasInvoice
-              ? line.isQuotation
-                ? resolveProjected(line.actualCost * 0.95, line.actualCost * 1.05, perspective)
-                : line.actualCost
-              : resolveProjected(costMin, costMax, perspective);
+            total += resolveLineCost(line, perspective);
           }
         }
         walkWi(area.children);
@@ -1030,14 +1191,7 @@ export function CostBreakdownTable({
         for (const item of area.items) {
           for (const line of item.budgetLines) {
             if (!visibleLineIds.has(line.id)) continue;
-            const margin = CONFIDENCE_MARGINS[line.confidence];
-            const costMin = line.plannedAmount * (1 - margin);
-            const costMax = line.plannedAmount * (1 + margin);
-            total += line.hasInvoice
-              ? line.isQuotation
-                ? resolveProjected(line.actualCost * 0.95, line.actualCost * 1.05, perspective)
-                : line.actualCost
-              : resolveProjected(costMin, costMax, perspective);
+            total += resolveLineCost(line, perspective);
           }
         }
         walkHi(area.children);
@@ -1047,6 +1201,22 @@ export function CostBreakdownTable({
     walkHi(hiAreas);
     return total;
   }, [hasSourceFilter, visibleLineIds, wiAreas, hiAreas, perspective]);
+
+  const filteredAggregates = useMemo(
+    () => computeFilteredAggregates(breakdown, perspective, hasSourceFilter, visibleLineIds),
+    [breakdown, perspective, hasSourceFilter, visibleLineIds],
+  );
+
+  const filteredAdjustedTotalPayback = useMemo<number>(() => {
+    if (!hasSourceFilter) return adjustedTotalPayback;
+    let total = 0;
+    for (const [key, payback] of perSourcePayback) {
+      if (!deselectedSourceIds.has(key)) {
+        total += payback;
+      }
+    }
+    return total - resolvedTotalExcess;
+  }, [hasSourceFilter, perSourcePayback, deselectedSourceIds, adjustedTotalPayback, resolvedTotalExcess]);
 
   // Check if any lines are unassigned
   const hasUnassignedLines = useMemo<boolean>(() => {
@@ -1095,6 +1265,7 @@ export function CostBreakdownTable({
           budgetSources,
           hasSourceFilter,
           visibleLineIds,
+          filteredAggregates,
         }}
       >
         <section className={styles.breakdownCard} aria-labelledby="breakdown-heading">
@@ -1150,37 +1321,61 @@ export function CostBreakdownTable({
                       </td>
                       <td className={styles.colBudget}>
                         {formatCost(
-                          resolveProjected(
-                            wiTotals.rawProjectedMin,
-                            wiTotals.rawProjectedMax,
-                            perspective,
-                          ),
+                          filteredAggregates
+                            ? resolveProjected(
+                                filteredAggregates.wiTotals.rawProjectedMin,
+                                filteredAggregates.wiTotals.rawProjectedMax,
+                                perspective,
+                              )
+                            : resolveProjected(
+                                wiTotals.rawProjectedMin,
+                                wiTotals.rawProjectedMax,
+                                perspective,
+                              ),
                           formatCurrency,
                         )}
                       </td>
                       <td className={styles.colPayback}>
-                        {wiTotals.subsidyPayback > 0
+                        {(filteredAggregates ? filteredAggregates.wiTotals.subsidyPayback : wiTotals.subsidyPayback) > 0
                           ? formatCurrency(
-                              resolveProjected(
-                                wiTotals.minSubsidyPayback,
-                                wiTotals.subsidyPayback,
-                                perspective,
-                              ),
+                              filteredAggregates
+                                ? resolveProjected(
+                                    filteredAggregates.wiTotals.minSubsidyPayback,
+                                    filteredAggregates.wiTotals.subsidyPayback,
+                                    perspective,
+                                  )
+                                : resolveProjected(
+                                    wiTotals.minSubsidyPayback,
+                                    wiTotals.subsidyPayback,
+                                    perspective,
+                                  ),
                             )
                           : '—'}
                       </td>
                       <td className={styles.colRemaining}>
                         {renderNet(
-                          resolveProjected(
-                            wiTotals.rawProjectedMin,
-                            wiTotals.rawProjectedMax,
-                            perspective,
-                          ),
-                          resolveProjected(
-                            wiTotals.minSubsidyPayback,
-                            wiTotals.subsidyPayback,
-                            perspective,
-                          ),
+                          filteredAggregates
+                            ? resolveProjected(
+                                filteredAggregates.wiTotals.rawProjectedMin,
+                                filteredAggregates.wiTotals.rawProjectedMax,
+                                perspective,
+                              )
+                            : resolveProjected(
+                                wiTotals.rawProjectedMin,
+                                wiTotals.rawProjectedMax,
+                                perspective,
+                              ),
+                          filteredAggregates
+                            ? resolveProjected(
+                                filteredAggregates.wiTotals.minSubsidyPayback,
+                                filteredAggregates.wiTotals.subsidyPayback,
+                                perspective,
+                              )
+                            : resolveProjected(
+                                wiTotals.minSubsidyPayback,
+                                wiTotals.subsidyPayback,
+                                perspective,
+                              ),
                           styles,
                           formatCurrency,
                         )}
@@ -1199,6 +1394,7 @@ export function CostBreakdownTable({
                             onToggle={toggle}
                             perspective={perspective}
                             formatCurrencyFn={formatCurrency}
+                            filteredAggregates={filteredAggregates}
                           />
                         ))}
                       </>
@@ -1228,37 +1424,61 @@ export function CostBreakdownTable({
                       </td>
                       <td className={styles.colBudget}>
                         {formatCost(
-                          resolveProjected(
-                            hiTotals.rawProjectedMin,
-                            hiTotals.rawProjectedMax,
-                            perspective,
-                          ),
+                          filteredAggregates
+                            ? resolveProjected(
+                                filteredAggregates.hiTotals.rawProjectedMin,
+                                filteredAggregates.hiTotals.rawProjectedMax,
+                                perspective,
+                              )
+                            : resolveProjected(
+                                hiTotals.rawProjectedMin,
+                                hiTotals.rawProjectedMax,
+                                perspective,
+                              ),
                           formatCurrency,
                         )}
                       </td>
                       <td className={styles.colPayback}>
-                        {hiTotals.subsidyPayback > 0
+                        {(filteredAggregates ? filteredAggregates.hiTotals.subsidyPayback : hiTotals.subsidyPayback) > 0
                           ? formatCurrency(
-                              resolveProjected(
-                                hiTotals.minSubsidyPayback,
-                                hiTotals.subsidyPayback,
-                                perspective,
-                              ),
+                              filteredAggregates
+                                ? resolveProjected(
+                                    filteredAggregates.hiTotals.minSubsidyPayback,
+                                    filteredAggregates.hiTotals.subsidyPayback,
+                                    perspective,
+                                  )
+                                : resolveProjected(
+                                    hiTotals.minSubsidyPayback,
+                                    hiTotals.subsidyPayback,
+                                    perspective,
+                                  ),
                             )
                           : '—'}
                       </td>
                       <td className={styles.colRemaining}>
                         {renderNet(
-                          resolveProjected(
-                            hiTotals.rawProjectedMin,
-                            hiTotals.rawProjectedMax,
-                            perspective,
-                          ),
-                          resolveProjected(
-                            hiTotals.minSubsidyPayback,
-                            hiTotals.subsidyPayback,
-                            perspective,
-                          ),
+                          filteredAggregates
+                            ? resolveProjected(
+                                filteredAggregates.hiTotals.rawProjectedMin,
+                                filteredAggregates.hiTotals.rawProjectedMax,
+                                perspective,
+                              )
+                            : resolveProjected(
+                                hiTotals.rawProjectedMin,
+                                hiTotals.rawProjectedMax,
+                                perspective,
+                              ),
+                          filteredAggregates
+                            ? resolveProjected(
+                                filteredAggregates.hiTotals.minSubsidyPayback,
+                                filteredAggregates.hiTotals.subsidyPayback,
+                                perspective,
+                              )
+                            : resolveProjected(
+                                hiTotals.minSubsidyPayback,
+                                hiTotals.subsidyPayback,
+                                perspective,
+                              ),
                           styles,
                           formatCurrency,
                         )}
@@ -1277,6 +1497,7 @@ export function CostBreakdownTable({
                             onToggle={toggle}
                             perspective={perspective}
                             formatCurrencyFn={formatCurrency}
+                            filteredAggregates={filteredAggregates}
                           />
                         ))}
                       </>
@@ -1366,9 +1587,11 @@ export function CostBreakdownTable({
                     </span>
                   </td>
                   <td className={styles.colPayback}>
-                    {maxTotalPayback > 0 ? (
+                    {(filteredAggregates
+                      ? filteredAggregates.wiTotals.subsidyPayback + filteredAggregates.hiTotals.subsidyPayback
+                      : maxTotalPayback) > 0 ? (
                       <span className={styles.valuePositive}>
-                        {formatCurrency(adjustedTotalPayback)}
+                        {formatCurrency(filteredAdjustedTotalPayback)}
                       </span>
                     ) : (
                       '—'
@@ -1377,7 +1600,7 @@ export function CostBreakdownTable({
                   <td className={styles.colRemaining}>
                     {renderNet(
                       hasSourceFilter ? filteredRawProjected : totalRawProjected,
-                      adjustedTotalPayback,
+                      filteredAdjustedTotalPayback,
                       styles,
                       formatCurrency,
                     )}
@@ -1608,7 +1831,7 @@ export function CostBreakdownTable({
                       className={
                         filteredAvailableFunds -
                           (hasSourceFilter ? filteredRawProjected : totalRawProjected) +
-                          adjustedTotalPayback >=
+                          filteredAdjustedTotalPayback >=
                         0
                           ? styles.valuePositive
                           : styles.valueNegative
@@ -1617,7 +1840,7 @@ export function CostBreakdownTable({
                       {formatCurrency(
                         filteredAvailableFunds -
                           (hasSourceFilter ? filteredRawProjected : totalRawProjected) +
-                          adjustedTotalPayback,
+                          filteredAdjustedTotalPayback,
                       )}
                     </span>
                   </td>

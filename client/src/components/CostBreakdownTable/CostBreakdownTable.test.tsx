@@ -3982,3 +3982,831 @@ describe('Bug #586 — item expand state is independent per category', () => {
     expect(row1Text).toBe(row2Text);
   });
 });
+
+// ── Source filter — aggregate consistency (#1358) ────────────────────────────
+//
+// These tests verify that when a source filter is active, every aggregate row
+// (Level 0/1/2 + Sum + Remaining) shows filter-aware values derived from
+// visible budget lines — not the server's project-wide rawProjectedMin/Max.
+//
+// Math reference (all with 'avg' perspective, confidence='own_estimate', margin=0.2):
+//
+//   resolveLineCost(line, perspective):
+//     projected:   min = plannedAmount * 0.8,  max = plannedAmount * 1.2,  avg = plannedAmount
+//     invoiced:    actualCost (regardless of perspective)
+//
+//   For plannedAmount=5000: min=4000, max=6000, avg=5000
+//   For plannedAmount=3000: min=2400, max=3600, avg=3000
+//   For plannedAmount=2000: min=1600, max=2400, avg=2000
+//   For plannedAmount=1000: min=800,  max=1200, avg=1000
+
+describe('Source filter — aggregate consistency (#1358)', () => {
+  /**
+   * Builds a breakdown with two budget sources:
+   *   - Source A ('src-a', totalAmount=100000): used by WI-A and HI lines
+   *   - Source B ('src-b', totalAmount=50000):  used by WI-B and HI lines
+   *
+   * Work item structure (one WI area, 'WI Area'):
+   *   WI-A ('wi-1358-a'):  1 line → src-a, plannedAmount=5000
+   *                        item rawProjectedMin=4000, rawProjectedMax=6000
+   *   WI-B ('wi-1358-b'):  1 line → src-b, plannedAmount=3000
+   *                        item rawProjectedMin=2400, rawProjectedMax=3600
+   *   WI area total:       rawProjectedMin=6400, rawProjectedMax=9600
+   *   WI section totals:   rawProjectedMin=6400, rawProjectedMax=9600
+   *
+   * Household item structure (one HI area, 'HI Area'):
+   *   HI-X ('hi-1358-x'):  2 lines:
+   *                           line-hi-a → src-a, plannedAmount=2000
+   *                           line-hi-b → src-b, plannedAmount=1000
+   *                        item rawProjectedMin=2400, rawProjectedMax=3600
+   *   HI area total:       rawProjectedMin=2400, rawProjectedMax=3600
+   *   HI section totals:   rawProjectedMin=2400, rawProjectedMax=3600
+   *
+   * Server aggregate values (project-wide, no filter):
+   *   WI section avg cost = (6400+9600)/2 = 8000
+   *   HI section avg cost = (2400+3600)/2 = 3000
+   *   WI area avg cost = 8000
+   *   HI area avg cost = 3000
+   *
+   * With src-b DESELECTED (src-a only visible):
+   *   visibleLines = { line-wi-a, line-hi-a }
+   *   WI-A filtered avg cost = 5000
+   *   WI-B cascade-hidden (its only line is src-b)
+   *   WI area filtered avg cost = 5000 (NOT 8000)
+   *   WI section filtered avg cost = 5000 (NOT 8000)
+   *   HI-X filtered avg cost = 2000 (NOT 3000) — only line-hi-a visible
+   *   HI area filtered avg cost = 2000 (NOT 3000)
+   *   HI section filtered avg cost = 2000 (NOT 3000)
+   *
+   * Available funds:
+   *   With src-b deselected: filteredAvailableFunds = src-a.totalAmount = 100000
+   *   filteredRawProjected = 5000 (WI-A) + 2000 (HI-X line-hi-a) = 7000
+   *   filteredAdjustedTotalPayback = 0 (no payback in this fixture)
+   *   Remaining Net = 100000 - 7000 + 0 = 93000
+   */
+  function buildBreakdownWithTwoSources(): BudgetBreakdown {
+    return {
+      workItems: {
+        areas: [
+          {
+            areaId: 'area-1358-wi',
+            name: 'WI Area',
+            parentId: null,
+            color: null,
+            // Server-computed project-wide aggregates (both sources included)
+            projectedMin: 6400,
+            projectedMax: 9600,
+            actualCost: 0,
+            subsidyPayback: 0,
+            rawProjectedMin: 6400,
+            rawProjectedMax: 9600,
+            minSubsidyPayback: 0,
+            items: [
+              {
+                workItemId: 'wi-1358-a',
+                title: 'WI Item A',
+                projectedMin: 4000,
+                projectedMax: 6000,
+                actualCost: 0,
+                subsidyPayback: 0,
+                rawProjectedMin: 4000,
+                rawProjectedMax: 6000,
+                minSubsidyPayback: 0,
+                costDisplay: 'projected',
+                budgetLines: [
+                  {
+                    id: 'line-wi-a',
+                    description: 'WI line A (src-a)',
+                    plannedAmount: 5000,
+                    confidence: 'own_estimate',
+                    actualCost: 0,
+                    hasInvoice: false,
+                    isQuotation: false,
+                    budgetSourceId: 'src-a',
+                  },
+                ],
+              },
+              {
+                workItemId: 'wi-1358-b',
+                title: 'WI Item B',
+                projectedMin: 2400,
+                projectedMax: 3600,
+                actualCost: 0,
+                subsidyPayback: 0,
+                rawProjectedMin: 2400,
+                rawProjectedMax: 3600,
+                minSubsidyPayback: 0,
+                costDisplay: 'projected',
+                budgetLines: [
+                  {
+                    id: 'line-wi-b',
+                    description: 'WI line B (src-b)',
+                    plannedAmount: 3000,
+                    confidence: 'own_estimate',
+                    actualCost: 0,
+                    hasInvoice: false,
+                    isQuotation: false,
+                    budgetSourceId: 'src-b',
+                  },
+                ],
+              },
+            ],
+            children: [],
+          },
+        ],
+        totals: {
+          projectedMin: 6400,
+          projectedMax: 9600,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 6400,
+          rawProjectedMax: 9600,
+          minSubsidyPayback: 0,
+        },
+      },
+      householdItems: {
+        areas: [
+          {
+            areaId: 'area-1358-hi',
+            name: 'HI Area',
+            parentId: null,
+            color: null,
+            // Server-computed project-wide aggregates (both sources included)
+            projectedMin: 2400,
+            projectedMax: 3600,
+            actualCost: 0,
+            subsidyPayback: 0,
+            rawProjectedMin: 2400,
+            rawProjectedMax: 3600,
+            minSubsidyPayback: 0,
+            items: [
+              {
+                householdItemId: 'hi-1358-x',
+                name: 'HI Item X',
+                projectedMin: 2400,
+                projectedMax: 3600,
+                actualCost: 0,
+                subsidyPayback: 0,
+                rawProjectedMin: 2400,
+                rawProjectedMax: 3600,
+                minSubsidyPayback: 0,
+                costDisplay: 'projected',
+                budgetLines: [
+                  {
+                    id: 'line-hi-a',
+                    description: 'HI line A (src-a)',
+                    plannedAmount: 2000,
+                    confidence: 'own_estimate',
+                    actualCost: 0,
+                    hasInvoice: false,
+                    isQuotation: false,
+                    budgetSourceId: 'src-a',
+                  },
+                  {
+                    id: 'line-hi-b',
+                    description: 'HI line B (src-b)',
+                    plannedAmount: 1000,
+                    confidence: 'own_estimate',
+                    actualCost: 0,
+                    hasInvoice: false,
+                    isQuotation: false,
+                    budgetSourceId: 'src-b',
+                  },
+                ],
+              },
+            ],
+            children: [],
+          },
+        ],
+        totals: {
+          projectedMin: 2400,
+          projectedMax: 3600,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 2400,
+          rawProjectedMax: 3600,
+          minSubsidyPayback: 0,
+        },
+      },
+      subsidyAdjustments: [],
+      budgetSources: [
+        buildSourceSummary({ id: 'src-a', name: 'Source A', totalAmount: 100000 }),
+        buildSourceSummary({ id: 'src-b', name: 'Source B', totalAmount: 50000 }),
+      ],
+    };
+  }
+
+  // ── Test 1: WI Level 2 Cost column with filter ────────────────────────────
+  // Deselect src-b; expand to WI Item A (src-a only).
+  // Item row Cost = resolveLineCost(line-wi-a, avg) = 5000 → '-€5,000.00'
+  // Server rawProjectedMin/Max of WI-A = 4000/6000 → avg 5000 (same for WI-A but...)
+  // More importantly: WI-B is cascade-hidden, proving filter is active.
+  it('WI Level 2 Cost shows only visible-source line cost when filter is active', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithTwoSources(),
+      buildOverview(150000),
+      { deselectedSourceIds: new Set(['src-b']) },
+    );
+
+    // Expand WI section → area → item A
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByLabel('Expand WI Area'));
+    fireEvent.click(getButtonByLabel('Expand WI Item A'));
+
+    // WI Item A row: Cost = filtered avg = 5000 → '-€5,000.00'
+    const wiItemARow = screen.getByRole('link', { name: 'WI Item A' }).closest('tr')!;
+    const wiItemACostCell = wiItemARow.querySelector('td[class*="colBudget"]');
+    expect(wiItemACostCell).not.toBeNull();
+    expect(wiItemACostCell!.textContent?.replace(/\s+/g, '')).toBe('-€5,000.00');
+
+    // WI Item B is cascade-hidden (all its lines belong to src-b)
+    expect(screen.queryByText('WI Item B')).not.toBeInTheDocument();
+
+    // The server's project-wide area avg cost (8000) must NOT appear in the WI item A row
+    expect(within(wiItemARow).queryByText('-€8,000.00')).not.toBeInTheDocument();
+  });
+
+  // ── Test 2: HI Level 2 Cost column with filter ────────────────────────────
+  // HI-X has two lines (src-a + src-b). Deselect src-b; only src-a line is visible.
+  // Filtered HI-X Cost = resolveLineCost(line-hi-a, avg) = 2000 → '-€2,000.00'
+  // Server rawProjectedMin/Max of HI-X = 2400/3600 → avg 3000
+  it('HI Level 2 Cost shows only remaining-source line cost when filter is active', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithTwoSources(),
+      buildOverview(150000),
+      { deselectedSourceIds: new Set(['src-b']) },
+    );
+
+    // Expand HI section → HI Area → HI Item X
+    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
+    fireEvent.click(getButtonByLabel('Expand HI Area'));
+    fireEvent.click(getButtonByLabel('Expand HI Item X'));
+
+    // HI Item X row: filtered Cost = avg of src-a line only = 2000 → '-€2,000.00'
+    const hiItemXRow = screen.getByRole('link', { name: 'HI Item X' }).closest('tr')!;
+    const hiItemXCostCell = hiItemXRow.querySelector('td[class*="colBudget"]');
+    expect(hiItemXCostCell).not.toBeNull();
+    expect(hiItemXCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€2,000.00');
+
+    // The server's project-wide HI item avg cost (3000) must NOT appear in this row
+    expect(within(hiItemXRow).queryByText('-€3,000.00')).not.toBeInTheDocument();
+  });
+
+  // ── Test 3: Item Payback column with filter (pro-rata share) ─────────────
+  // WI item with subsidyPayback=2000, minSubsidyPayback=1000, two lines:
+  //   line-pa (src-a, plannedAmount=8000): max cost = 9600
+  //   line-pb (src-b, plannedAmount=2000): max cost = 2400
+  //   totalWeight = 12000
+  // With src-b deselected:
+  //   filteredTotals.subsidyPayback = 2000 * (9600/12000) = 1600
+  //   filteredTotals.minSubsidyPayback = 1000 * (9600/12000) = 800
+  //   resolvedPayback (avg) = (800 + 1600) / 2 = 1200 → '€1,200.00'
+  // Without filter: resolvedPayback (avg) = (1000 + 2000) / 2 = 1500 → '€1,500.00'
+  it('item Payback shows pro-rata share for visible source line when filter is active', () => {
+    const breakdown: BudgetBreakdown = {
+      workItems: {
+        areas: [
+          {
+            areaId: null,
+            name: 'Unassigned',
+            parentId: null,
+            color: null,
+            projectedMin: 8400,
+            projectedMax: 12000,
+            actualCost: 0,
+            subsidyPayback: 2000,
+            rawProjectedMin: 8000,
+            rawProjectedMax: 12000,
+            minSubsidyPayback: 1000,
+            items: [
+              {
+                workItemId: 'wi-payback-1358',
+                title: 'Payback Item',
+                projectedMin: 8400,
+                projectedMax: 12000,
+                actualCost: 0,
+                subsidyPayback: 2000,
+                rawProjectedMin: 8000,
+                rawProjectedMax: 12000,
+                minSubsidyPayback: 1000,
+                costDisplay: 'projected',
+                budgetLines: [
+                  {
+                    id: 'line-pa',
+                    description: 'Line PA',
+                    plannedAmount: 8000,
+                    confidence: 'own_estimate',
+                    actualCost: 0,
+                    hasInvoice: false,
+                    isQuotation: false,
+                    budgetSourceId: 'src-pay-a',
+                  },
+                  {
+                    id: 'line-pb',
+                    description: 'Line PB',
+                    plannedAmount: 2000,
+                    confidence: 'own_estimate',
+                    actualCost: 0,
+                    hasInvoice: false,
+                    isQuotation: false,
+                    budgetSourceId: 'src-pay-b',
+                  },
+                ],
+              },
+            ],
+            children: [],
+          },
+        ],
+        totals: {
+          projectedMin: 8400,
+          projectedMax: 12000,
+          actualCost: 0,
+          subsidyPayback: 2000,
+          rawProjectedMin: 8000,
+          rawProjectedMax: 12000,
+          minSubsidyPayback: 1000,
+        },
+      },
+      householdItems: {
+        areas: [],
+        totals: {
+          projectedMin: 0,
+          projectedMax: 0,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 0,
+          rawProjectedMax: 0,
+          minSubsidyPayback: 0,
+        },
+      },
+      subsidyAdjustments: [],
+      budgetSources: [
+        buildSourceSummary({ id: 'src-pay-a', name: 'Pay Source A', totalAmount: 80000 }),
+        buildSourceSummary({ id: 'src-pay-b', name: 'Pay Source B', totalAmount: 20000 }),
+      ],
+    };
+
+    // With src-pay-b deselected: pro-rata payback for src-pay-a = 1200
+    const { container } = renderWithRouter(breakdown, buildOverview(100000), {
+      deselectedSourceIds: new Set(['src-pay-b']),
+    });
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
+
+    const itemRow = screen.getByRole('link', { name: 'Payback Item' }).closest('tr')!;
+    // Filtered payback = 1200
+    expect(within(itemRow).getByText('€1,200.00')).toBeInTheDocument();
+    // Full server payback avg (1500) must NOT appear in this row
+    expect(within(itemRow).queryByText('€1,500.00')).not.toBeInTheDocument();
+  });
+
+  // ── Test 4: WI Area Level 1 Cost column with filter ──────────────────────
+  // After src-b deselected: WI Area filtered avg cost = 5000 (only WI-A visible)
+  // Server WI area avg cost = (6400+9600)/2 = 8000
+  it('WI Area Level 1 Cost equals sum of visible-source item costs when filter is active', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithTwoSources(),
+      buildOverview(150000),
+      { deselectedSourceIds: new Set(['src-b']) },
+    );
+
+    // Expand WI section to reveal area row
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+
+    // Find the WI Area row (Level 1) by its expand button sibling text
+    const areaRow = screen.getByRole('button', { name: 'Expand WI Area' }).closest('tr')!;
+
+    // Filtered area Cost = 5000 (only WI-A, src-a line)
+    const wiAreaCostCell = areaRow.querySelector('td[class*="colBudget"]');
+    expect(wiAreaCostCell).not.toBeNull();
+    expect(wiAreaCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€5,000.00');
+    // Server project-wide area avg cost (8000) must NOT appear in the area row
+    expect(within(areaRow).queryByText('-€8,000.00')).not.toBeInTheDocument();
+  });
+
+  // ── Test 5: HI Area Level 1 Cost column with filter ──────────────────────
+  // After src-b deselected: HI Area filtered avg cost = 2000 (only HI-X src-a line)
+  // Server HI area avg cost = (2400+3600)/2 = 3000
+  it('HI Area Level 1 Cost equals sum of visible-source item costs when filter is active', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithTwoSources(),
+      buildOverview(150000),
+      { deselectedSourceIds: new Set(['src-b']) },
+    );
+
+    // Expand HI section to reveal area row
+    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
+
+    // Find the HI Area row by its expand button
+    const hiAreaRow = screen.getByRole('button', { name: 'Expand HI Area' }).closest('tr')!;
+
+    // Filtered area Cost = 2000 (HI Item X, src-a line only)
+    const hiAreaCostCell = hiAreaRow.querySelector('td[class*="colBudget"]');
+    expect(hiAreaCostCell).not.toBeNull();
+    expect(hiAreaCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€2,000.00');
+    // Server project-wide HI area avg cost (3000) must NOT appear in the area row
+    expect(within(hiAreaRow).queryByText('-€3,000.00')).not.toBeInTheDocument();
+  });
+
+  // ── Test 6: WI Level 0 section header with filter ────────────────────────
+  // After src-b deselected:
+  //   filteredAggregates.wiTotals: rawMin=4000, rawMax=6000 → avg=5000
+  //   filteredAggregates.wiTotals.subsidyPayback = 0 (no payback in fixture)
+  //   WI section Cost = '-€5,000.00' (NOT the server rawProjectedMin/Max avg=-€8,000.00)
+  //   WI section Payback = '—' (0 payback)
+  //   WI section Net = payback - cost = 0 - 5000 = -5000 → '-€5,000.00' net
+  it('WI Level 0 section header shows filtered aggregate Cost and does NOT match server rawProjected', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithTwoSources(),
+      buildOverview(150000),
+      { deselectedSourceIds: new Set(['src-b']) },
+    );
+
+    // The WI section Level 0 row is always visible (not inside expansion)
+    // It contains the "Work Items" label and the Expand work item budget button
+    const wiSectionRow = screen
+      .getByRole('button', { name: 'Expand work item budget by area' })
+      .closest('tr')!;
+
+    // Filtered WI section Cost = avg of src-a lines only = 5000 → '-€5,000.00'
+    const wiSectionCostCell = wiSectionRow.querySelector('td[class*="colBudget"]');
+    expect(wiSectionCostCell).not.toBeNull();
+    expect(wiSectionCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€5,000.00');
+
+    // Server project-wide WI section avg (8000) must NOT appear in this header row
+    expect(within(wiSectionRow).queryByText('-€8,000.00')).not.toBeInTheDocument();
+  });
+
+  // ── Test 7: HI Level 0 section header with filter ────────────────────────
+  // After src-b deselected:
+  //   filteredAggregates.hiTotals: rawMin=1600, rawMax=2400 → avg=2000
+  //   HI section Cost = '-€2,000.00' (NOT server rawProjectedMin/Max avg=-€3,000.00)
+  it('HI Level 0 section header shows filtered aggregate Cost and does NOT match server rawProjected', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithTwoSources(),
+      buildOverview(150000),
+      { deselectedSourceIds: new Set(['src-b']) },
+    );
+
+    const hiSectionRow = screen
+      .getByRole('button', { name: 'Expand household item budget by area' })
+      .closest('tr')!;
+
+    // Filtered HI section Cost = avg of src-a HI lines only = 2000 → '-€2,000.00'
+    const hiSectionCostCell = hiSectionRow.querySelector('td[class*="colBudget"]');
+    expect(hiSectionCostCell).not.toBeNull();
+    expect(hiSectionCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€2,000.00');
+
+    // Server project-wide HI section avg (3000) must NOT appear in this header row
+    expect(within(hiSectionRow).queryByText('-€3,000.00')).not.toBeInTheDocument();
+  });
+
+  // ── Test 8: Sum row Payback column with filter ────────────────────────────
+  // Uses the payback fixture from Test 3.
+  // computePerSourcePayback (avg, full project):
+  //   entityPayback = subsidyPayback = 2000 (avg perspective uses max)
+  //   line-pa max = 8000*1.2 = 9600, line-pb max = 2000*1.2 = 2400, total = 12000
+  //   src-pay-a payback = (9600/12000) * 2000 = 1600
+  //   src-pay-b payback = (2400/12000) * 2000 = 400
+  //
+  // filteredAdjustedTotalPayback (src-pay-b deselected, no subsidyAdjustments):
+  //   = perSourcePayback['src-pay-a'] = 1600 → '€1,600.00'
+  //
+  // Full project Sum payback = 2000 → '€2,000.00' (would appear without filter)
+  it('Sum row Payback shows filteredAdjustedTotalPayback (pro-rata selected sources only)', () => {
+    const breakdown: BudgetBreakdown = {
+      workItems: {
+        areas: [
+          {
+            areaId: null,
+            name: 'Unassigned',
+            parentId: null,
+            color: null,
+            projectedMin: 8400,
+            projectedMax: 12000,
+            actualCost: 0,
+            subsidyPayback: 2000,
+            rawProjectedMin: 8000,
+            rawProjectedMax: 12000,
+            minSubsidyPayback: 1000,
+            items: [
+              {
+                workItemId: 'wi-sum-payback',
+                title: 'Sum Payback Item',
+                projectedMin: 8400,
+                projectedMax: 12000,
+                actualCost: 0,
+                subsidyPayback: 2000,
+                rawProjectedMin: 8000,
+                rawProjectedMax: 12000,
+                minSubsidyPayback: 1000,
+                costDisplay: 'projected',
+                budgetLines: [
+                  {
+                    id: 'sp-line-a',
+                    description: 'SP Line A',
+                    plannedAmount: 8000,
+                    confidence: 'own_estimate',
+                    actualCost: 0,
+                    hasInvoice: false,
+                    isQuotation: false,
+                    budgetSourceId: 'src-sp-a',
+                  },
+                  {
+                    id: 'sp-line-b',
+                    description: 'SP Line B',
+                    plannedAmount: 2000,
+                    confidence: 'own_estimate',
+                    actualCost: 0,
+                    hasInvoice: false,
+                    isQuotation: false,
+                    budgetSourceId: 'src-sp-b',
+                  },
+                ],
+              },
+            ],
+            children: [],
+          },
+        ],
+        totals: {
+          projectedMin: 8400,
+          projectedMax: 12000,
+          actualCost: 0,
+          subsidyPayback: 2000,
+          rawProjectedMin: 8000,
+          rawProjectedMax: 12000,
+          minSubsidyPayback: 1000,
+        },
+      },
+      householdItems: {
+        areas: [],
+        totals: {
+          projectedMin: 0,
+          projectedMax: 0,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 0,
+          rawProjectedMax: 0,
+          minSubsidyPayback: 0,
+        },
+      },
+      subsidyAdjustments: [],
+      budgetSources: [
+        buildSourceSummary({ id: 'src-sp-a', name: 'SP Source A', totalAmount: 80000 }),
+        buildSourceSummary({ id: 'src-sp-b', name: 'SP Source B', totalAmount: 20000 }),
+      ],
+    };
+
+    // Deselect src-sp-b → filteredAdjustedTotalPayback = 1600
+    renderWithRouter(breakdown, buildOverview(100000), {
+      deselectedSourceIds: new Set(['src-sp-b']),
+    });
+
+    // The row's accessible name concatenates all cell text (e.g., "Sum -€... €... €..."),
+    // so anchor only at the start — do not use $ end-anchor.
+    const sumRow = screen.getByRole('row', { name: /^Sum\b/i });
+    // Sum row Payback = €1,600.00 (pro-rata: src-sp-a share)
+    const sumPaybackCell = sumRow.querySelector('td[class*="colPayback"]');
+    expect(sumPaybackCell).not.toBeNull();
+    expect(sumPaybackCell!.textContent?.replace(/\s+/g, '')).toBe('€1,600.00');
+    // Full project payback (2000) must NOT appear in Sum row Payback column
+    expect(within(sumRow).queryByText('€2,000.00')).not.toBeInTheDocument();
+  });
+
+  // ── Test 9: Remaining Budget row Net column with filter ───────────────────
+  // With src-b deselected on two-sources fixture (no payback):
+  //   filteredAvailableFunds = src-a.totalAmount = 100000
+  //   filteredRawProjected:
+  //     line-wi-a (src-a, avg=5000) + line-hi-a (src-a, avg=2000) = 7000
+  //   filteredAdjustedTotalPayback = 0
+  //   Remaining Net = 100000 - 7000 + 0 = 93000 → '€93,000.00'
+  //
+  // Without filter (availableFunds=150000):
+  //   Remaining Net = 150000 - (8000+3000) + 0 = 139000 (different → confirms filter applies)
+  it('Remaining Budget Net = filteredAvailableFunds − filteredRawProjected + filteredAdjustedTotalPayback', () => {
+    renderWithRouter(buildBreakdownWithTwoSources(), buildOverview(150000), {
+      deselectedSourceIds: new Set(['src-b']),
+    });
+
+    const remainingRow = screen.getByRole('row', { name: /remaining budget/i });
+    // Net = 100000 - 7000 = 93000 → '€93,000.00'
+    const remainingNetCell = remainingRow.querySelector('td[class*="colRemaining"]');
+    expect(remainingNetCell).not.toBeNull();
+    expect(remainingNetCell!.textContent?.replace(/\s+/g, '')).toBe('€93,000.00');
+    // Unfiltered remaining (139000) must NOT appear in this row
+    expect(within(remainingRow).queryByText('€139,000.00')).not.toBeInTheDocument();
+  });
+
+  // ── Test 10: Regression — no filter, all aggregate rows match server values ─
+  // With deselectedSourceIds = new Set():
+  //   hasSourceFilter = false → filteredAggregates = null
+  //   All rows use server rawProjected values directly.
+  //
+  //   WI section avg cost = (6400+9600)/2 = 8000 → '-€8,000.00'
+  //   HI section avg cost = (2400+3600)/2 = 3000 → '-€3,000.00'
+  //   WI area avg cost = 8000 → '-€8,000.00'
+  //   HI area avg cost = 3000 → '-€3,000.00'
+  //   Remaining Net = 150000 - (8000+3000) + 0 = 139000 → '€139,000.00'
+  it('no filter: all aggregate rows display server-computed values unchanged', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithTwoSources(),
+      buildOverview(150000),
+      { deselectedSourceIds: new Set() },
+    );
+
+    // WI section Level 0 header shows server avg cost
+    const wiSectionRow = screen
+      .getByRole('button', { name: 'Expand work item budget by area' })
+      .closest('tr')!;
+    const noFiltWiSectionCostCell = wiSectionRow.querySelector('td[class*="colBudget"]');
+    expect(noFiltWiSectionCostCell).not.toBeNull();
+    expect(noFiltWiSectionCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€8,000.00');
+
+    // HI section Level 0 header shows server avg cost
+    const hiSectionRow = screen
+      .getByRole('button', { name: 'Expand household item budget by area' })
+      .closest('tr')!;
+    const noFiltHiSectionCostCell = hiSectionRow.querySelector('td[class*="colBudget"]');
+    expect(noFiltHiSectionCostCell).not.toBeNull();
+    expect(noFiltHiSectionCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€3,000.00');
+
+    // Expand to see Level 1 area rows
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    const wiAreaRow = screen.getByRole('button', { name: 'Expand WI Area' }).closest('tr')!;
+    const noFiltWiAreaCostCell = wiAreaRow.querySelector('td[class*="colBudget"]');
+    expect(noFiltWiAreaCostCell).not.toBeNull();
+    expect(noFiltWiAreaCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€8,000.00');
+
+    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
+    const hiAreaRow = screen.getByRole('button', { name: 'Expand HI Area' }).closest('tr')!;
+    const noFiltHiAreaCostCell = hiAreaRow.querySelector('td[class*="colBudget"]');
+    expect(noFiltHiAreaCostCell).not.toBeNull();
+    expect(noFiltHiAreaCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€3,000.00');
+
+    // Remaining Budget Net = 150000 - 11000 + 0 = 139000
+    const remainingRow = screen.getByRole('row', { name: /remaining budget/i });
+    const noFiltRemainingNetCell = remainingRow.querySelector('td[class*="colRemaining"]');
+    expect(noFiltRemainingNetCell).not.toBeNull();
+    expect(noFiltRemainingNetCell!.textContent?.replace(/\s+/g, '')).toBe('€139,000.00');
+  });
+
+  // ── Test 11: Internal consistency — visible Area Cost = sum of visible Item Costs ─
+  // With src-b deselected:
+  //   Visible WI items: WI-A only (WI-B cascade-hidden)
+  //   WI-A filtered cost = 5000
+  //   WI Area filtered cost = 5000 (must equal WI-A's cost, not 5000+anything)
+  //   WI section Cost = 5000 (must equal WI Area cost)
+  it('visible Area Level 1 Cost equals sum of visible Item costs; section header equals area sum', () => {
+    const { container } = renderWithRouter(
+      buildBreakdownWithTwoSources(),
+      buildOverview(150000),
+      { deselectedSourceIds: new Set(['src-b']) },
+    );
+
+    // Read WI section header cost
+    const wiSectionRow = screen
+      .getByRole('button', { name: 'Expand work item budget by area' })
+      .closest('tr')!;
+    const wiSectionCostCell = wiSectionRow.querySelector('td.colBudget');
+    expect(wiSectionCostCell).not.toBeNull();
+    const wiSectionCost = wiSectionCostCell!.textContent?.trim();
+
+    // Expand WI section → area
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    const wiAreaRow = screen.getByRole('button', { name: 'Expand WI Area' }).closest('tr')!;
+    const wiAreaCostCell = wiAreaRow.querySelector('td.colBudget');
+    expect(wiAreaCostCell).not.toBeNull();
+    const wiAreaCost = wiAreaCostCell!.textContent?.trim();
+
+    // WI section Cost = WI area Cost (only one area)
+    expect(wiSectionCost).toBe(wiAreaCost);
+    // Both equal the filtered value (WI-A only): '-€5,000.00'
+    expect(wiSectionCost).toBe('-€5,000.00');
+
+    // Expand area → verify WI Item A cost matches (WI-B is hidden)
+    fireEvent.click(getButtonByLabel('Expand WI Area'));
+    const wiItemARow = screen.getByRole('link', { name: 'WI Item A' }).closest('tr')!;
+    const wiItemACostCell = wiItemARow.querySelector('td.colBudget');
+    expect(wiItemACostCell).not.toBeNull();
+    const wiItemACost = wiItemACostCell!.textContent?.trim();
+
+    // Area Cost = Item A Cost (WI-B hidden)
+    expect(wiAreaCost).toBe(wiItemACost);
+  });
+
+  // ── Test 12: costDisplay='actual' with partial line filter ────────────────
+  // WI item with costDisplay='actual', two invoiced lines:
+  //   line-inv-a (src-a, hasInvoice=true, actualCost=5000)
+  //   line-inv-b (src-b, hasInvoice=true, actualCost=3000)
+  //   item.actualCost = 8000 (project-wide)
+  //
+  // resolveLineCost(line, perspective) for invoiced lines = actualCost (ignores perspective)
+  //   line-inv-a min=max=avg=5000
+  //   line-inv-b min=max=avg=3000
+  //
+  // With src-b deselected:
+  //   filteredTotals.rawProjectedMin = filteredTotals.rawProjectedMax = 5000
+  //   resolvedRawCost (avg) = 5000 (NOT item.actualCost = 8000)
+  //   Displayed as '-€5,000.00' (NOT '-€8,000.00')
+  it('costDisplay=actual item Cost shows visible-invoiced-line actualCost with partial filter', () => {
+    const breakdown: BudgetBreakdown = {
+      workItems: {
+        areas: [
+          {
+            areaId: null,
+            name: 'Unassigned',
+            parentId: null,
+            color: null,
+            projectedMin: 8000,
+            projectedMax: 8000,
+            actualCost: 8000,
+            subsidyPayback: 0,
+            rawProjectedMin: 8000,
+            rawProjectedMax: 8000,
+            minSubsidyPayback: 0,
+            items: [
+              {
+                workItemId: 'wi-actual-filter',
+                title: 'Actual Filter Item',
+                projectedMin: 8000,
+                projectedMax: 8000,
+                actualCost: 8000,
+                subsidyPayback: 0,
+                rawProjectedMin: 8000,
+                rawProjectedMax: 8000,
+                minSubsidyPayback: 0,
+                costDisplay: 'actual',
+                budgetLines: [
+                  {
+                    id: 'line-inv-a',
+                    description: 'Invoiced line A',
+                    plannedAmount: 5000,
+                    confidence: 'invoice',
+                    actualCost: 5000,
+                    hasInvoice: true,
+                    isQuotation: false,
+                    budgetSourceId: 'src-inv-a',
+                  },
+                  {
+                    id: 'line-inv-b',
+                    description: 'Invoiced line B',
+                    plannedAmount: 3000,
+                    confidence: 'invoice',
+                    actualCost: 3000,
+                    hasInvoice: true,
+                    isQuotation: false,
+                    budgetSourceId: 'src-inv-b',
+                  },
+                ],
+              },
+            ],
+            children: [],
+          },
+        ],
+        totals: {
+          projectedMin: 8000,
+          projectedMax: 8000,
+          actualCost: 8000,
+          subsidyPayback: 0,
+          rawProjectedMin: 8000,
+          rawProjectedMax: 8000,
+          minSubsidyPayback: 0,
+        },
+      },
+      householdItems: {
+        areas: [],
+        totals: {
+          projectedMin: 0,
+          projectedMax: 0,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 0,
+          rawProjectedMax: 0,
+          minSubsidyPayback: 0,
+        },
+      },
+      subsidyAdjustments: [],
+      budgetSources: [
+        buildSourceSummary({ id: 'src-inv-a', name: 'Invoice Source A', totalAmount: 50000 }),
+        buildSourceSummary({ id: 'src-inv-b', name: 'Invoice Source B', totalAmount: 30000 }),
+      ],
+    };
+
+    // With src-inv-b deselected: only line-inv-a (actualCost=5000) is visible
+    const { container } = renderWithRouter(breakdown, buildOverview(100000), {
+      deselectedSourceIds: new Set(['src-inv-b']),
+    });
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
+
+    const itemRow = screen.getByRole('link', { name: 'Actual Filter Item' }).closest('tr')!;
+    // Filtered cost = 5000 (only line-inv-a visible)
+    const invItemCostCell = itemRow.querySelector('td[class*="colBudget"]');
+    expect(invItemCostCell).not.toBeNull();
+    expect(invItemCostCell!.textContent?.replace(/\s+/g, '')).toBe('-€5,000.00');
+    // Full item actualCost (8000) must NOT appear in this item row
+    expect(within(itemRow).queryByText('-€8,000.00')).not.toBeInTheDocument();
+  });
+});
