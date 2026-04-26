@@ -3462,7 +3462,6 @@ describe('Bug #586 — item expand state is independent per category', () => {
     expect(screen.queryByText(/selected\)/i)).not.toBeInTheDocument();
   });
 
-
   // ── Live region announces source count (scenario 36) ─────────────────────
 
   it('role="status" contains source-count announcement when filter is active', () => {
@@ -4030,6 +4029,4 @@ describe('Server-driven render path (#1360)', () => {
     // The table element must be in the DOM (as opposed to the empty-state path which omits it).
     expect(container.querySelector('table')).toBeInTheDocument();
   });
-
 });
-

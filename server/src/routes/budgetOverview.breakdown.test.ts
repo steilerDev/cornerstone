@@ -598,8 +598,16 @@ describe('GET /api/budget/breakdown', () => {
 
       const srcA = insertBudgetSource({ name: 'Source A S11', totalAmount: 80000 });
       const srcB = insertBudgetSource({ name: 'Source B S11', totalAmount: 50000 });
-      insertWorkItemWithSource({ plannedAmount: 8000, confidence: 'own_estimate', budgetSourceId: srcA });
-      insertWorkItemWithSource({ plannedAmount: 3000, confidence: 'own_estimate', budgetSourceId: srcB });
+      insertWorkItemWithSource({
+        plannedAmount: 8000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
+      insertWorkItemWithSource({
+        plannedAmount: 3000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcB,
+      });
 
       const response = await app.inject({
         method: 'GET',
@@ -629,7 +637,11 @@ describe('GET /api/budget/breakdown', () => {
       );
 
       const srcA = insertBudgetSource({ name: 'Source A S12', totalAmount: 80000 });
-      insertWorkItemWithSource({ plannedAmount: 5000, confidence: 'own_estimate', budgetSourceId: srcA });
+      insertWorkItemWithSource({
+        plannedAmount: 5000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
 
       const withEmpty = await app.inject({
         method: 'GET',
@@ -666,9 +678,21 @@ describe('GET /api/budget/breakdown', () => {
       const srcA = insertBudgetSource({ name: 'Source A S13', totalAmount: 80000 });
       const srcB = insertBudgetSource({ name: 'Source B S13', totalAmount: 50000 });
       const srcC = insertBudgetSource({ name: 'Source C S13', totalAmount: 30000 });
-      insertWorkItemWithSource({ plannedAmount: 8000, confidence: 'own_estimate', budgetSourceId: srcA });
-      insertWorkItemWithSource({ plannedAmount: 4000, confidence: 'own_estimate', budgetSourceId: srcB });
-      insertWorkItemWithSource({ plannedAmount: 2000, confidence: 'own_estimate', budgetSourceId: srcC });
+      insertWorkItemWithSource({
+        plannedAmount: 8000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
+      insertWorkItemWithSource({
+        plannedAmount: 4000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcB,
+      });
+      insertWorkItemWithSource({
+        plannedAmount: 2000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcC,
+      });
 
       const response = await app.inject({
         method: 'GET',
@@ -696,7 +720,7 @@ describe('GET /api/budget/breakdown', () => {
     });
 
     // Scenario 15: 'unassigned' literal in deselectedSources param (AC #30)
-    it("excludes null-source lines when ?deselectedSources=unassigned is passed (Scenario 15)", async () => {
+    it('excludes null-source lines when ?deselectedSources=unassigned is passed (Scenario 15)', async () => {
       const { cookie } = await createUserWithSession(
         'filter-s15@example.com',
         'Filter S15',
@@ -704,7 +728,11 @@ describe('GET /api/budget/breakdown', () => {
       );
 
       const srcA = insertBudgetSource({ name: 'Source A S15', totalAmount: 80000 });
-      insertWorkItemWithSource({ plannedAmount: 5000, confidence: 'own_estimate', budgetSourceId: srcA });
+      insertWorkItemWithSource({
+        plannedAmount: 5000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
       // Insert an unassigned WI (budgetSourceId=null) using the standard insertWorkItem helper
       insertWorkItem({ plannedAmount: 2000, confidence: 'own_estimate' });
 

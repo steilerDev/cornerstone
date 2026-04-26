@@ -1590,8 +1590,16 @@ describe('getBudgetBreakdown', () => {
     it('excludes lines for the deselected source; deselected source remains in budgetSources[] (Scenario 3)', () => {
       const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 80000 });
       const srcB = insertBudgetSource({ name: 'Source B', totalAmount: 50000 });
-      insertWorkItemWithSource({ plannedAmount: 8000, confidence: 'own_estimate', budgetSourceId: srcA });
-      insertWorkItemWithSource({ plannedAmount: 3000, confidence: 'own_estimate', budgetSourceId: srcB });
+      insertWorkItemWithSource({
+        plannedAmount: 8000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
+      insertWorkItemWithSource({
+        plannedAmount: 3000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcB,
+      });
 
       // Deselect srcA — only srcB lines should survive
       const result = getBudgetBreakdown(db, new Set([srcA]));
@@ -1614,8 +1622,16 @@ describe('getBudgetBreakdown', () => {
     // Scenario 4: Filter 'unassigned' (AC #4)
     it("excludes null-source lines when 'unassigned' is in deselectedSources; unassigned entry stays in budgetSources[] (Scenario 4)", () => {
       const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 80000 });
-      insertWorkItemWithSource({ plannedAmount: 5000, confidence: 'own_estimate', budgetSourceId: srcA });
-      insertWorkItemWithSource({ plannedAmount: 2000, confidence: 'own_estimate', budgetSourceId: null }); // unassigned
+      insertWorkItemWithSource({
+        plannedAmount: 5000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
+      insertWorkItemWithSource({
+        plannedAmount: 2000,
+        confidence: 'own_estimate',
+        budgetSourceId: null,
+      }); // unassigned
 
       const result = getBudgetBreakdown(db, new Set(['unassigned']));
 
@@ -1637,7 +1653,11 @@ describe('getBudgetBreakdown', () => {
     // Scenario 5: Unknown UUID in deselectedSources is silently ignored (AC #5)
     it('returns all lines when deselectedSources contains only an unknown UUID (Scenario 5)', () => {
       const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 80000 });
-      insertWorkItemWithSource({ plannedAmount: 5000, confidence: 'own_estimate', budgetSourceId: srcA });
+      insertWorkItemWithSource({
+        plannedAmount: 5000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
 
       const noFilter = getBudgetBreakdown(db);
       const withUnknown = getBudgetBreakdown(db, new Set(['unknown-uuid-999']));
@@ -1659,8 +1679,16 @@ describe('getBudgetBreakdown', () => {
       const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 100000 });
       const srcB = insertBudgetSource({ name: 'Source B', totalAmount: 50000 });
       // Two WIs in the same implicit Unassigned area
-      insertWorkItemWithSource({ plannedAmount: 10000, confidence: 'own_estimate', budgetSourceId: srcA });
-      insertWorkItemWithSource({ plannedAmount: 5000, confidence: 'own_estimate', budgetSourceId: srcB });
+      insertWorkItemWithSource({
+        plannedAmount: 10000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
+      insertWorkItemWithSource({
+        plannedAmount: 5000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcB,
+      });
 
       const result = getBudgetBreakdown(db, new Set([srcA]));
 
@@ -1740,9 +1768,17 @@ describe('getBudgetBreakdown', () => {
       const srcB = insertBudgetSource({ name: 'Source B', totalAmount: 50000 });
 
       // WI-A (srcA) — will be deselected
-      insertWorkItemWithSource({ plannedAmount: 8000, confidence: 'own_estimate', budgetSourceId: srcA });
+      insertWorkItemWithSource({
+        plannedAmount: 8000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
       // WI-B (srcB) — will survive
-      insertWorkItemWithSource({ plannedAmount: 4000, confidence: 'own_estimate', budgetSourceId: srcB });
+      insertWorkItemWithSource({
+        plannedAmount: 4000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcB,
+      });
 
       const result = getBudgetBreakdown(db, new Set([srcA]));
 
@@ -1762,9 +1798,21 @@ describe('getBudgetBreakdown', () => {
       const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 100000 });
       const srcB = insertBudgetSource({ name: 'Source B', totalAmount: 50000 });
       // Assign lines to both sources + one unassigned
-      insertWorkItemWithSource({ plannedAmount: 6000, confidence: 'own_estimate', budgetSourceId: srcA });
-      insertWorkItemWithSource({ plannedAmount: 4000, confidence: 'own_estimate', budgetSourceId: srcB });
-      insertWorkItemWithSource({ plannedAmount: 2000, confidence: 'own_estimate', budgetSourceId: null });
+      insertWorkItemWithSource({
+        plannedAmount: 6000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
+      insertWorkItemWithSource({
+        plannedAmount: 4000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcB,
+      });
+      insertWorkItemWithSource({
+        plannedAmount: 2000,
+        confidence: 'own_estimate',
+        budgetSourceId: null,
+      });
 
       const result = getBudgetBreakdown(db, new Set([srcA]));
 

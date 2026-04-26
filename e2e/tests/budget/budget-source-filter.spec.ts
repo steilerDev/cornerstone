@@ -932,8 +932,7 @@ test.describe('Deselect triggers server refetch', { tag: '@responsive' }, () => 
       // Register response waiter BEFORE the click (waitForResponse must precede the action)
       const refetchPromise = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
 
       await row.click();
@@ -990,8 +989,7 @@ test.describe('Deselect triggers server refetch', { tag: '@responsive' }, () => 
       // Register response waiter BEFORE the click
       const refetchPromise = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
 
       await overviewPage.sourceRow('Bank Loan').click();
@@ -1036,8 +1034,7 @@ test.describe('Deselect triggers server refetch', { tag: '@responsive' }, () => 
       // Deselect Bank Loan — first refetch includes only SOURCE_A_ID
       const refetchA = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
       await overviewPage.sourceRow('Bank Loan').click();
       // aria-pressed updates from URL state change before the server response
@@ -1047,8 +1044,7 @@ test.describe('Deselect triggers server refetch', { tag: '@responsive' }, () => 
       // Deselect Equity — new refetch should include both IDs
       const refetchB = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
       await overviewPage.sourceRow('Equity').click();
       // aria-pressed for Equity updates from URL state before server response
@@ -1192,8 +1188,7 @@ test.describe('Cascade hiding via server response', { tag: '@responsive' }, () =
 
       const refetchPromise = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
       await overviewPage.sourceRow('Bank Loan').click();
       await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
@@ -1243,8 +1238,7 @@ test.describe('Cascade hiding via server response', { tag: '@responsive' }, () =
 
       const refetchPromise = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
       await overviewPage.sourceRow('Bank Loan').click();
       // aria-pressed updates from URL state change before server response
@@ -1293,8 +1287,7 @@ test.describe('Subsidy oversubscription consistency', () => {
       // Deselect Large Source → triggers server refetch with filtered data
       const refetchPromise = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
 
       await largeRow.click();
@@ -1407,8 +1400,7 @@ test.describe('Stale-while-revalidate during refetch', { tag: '@responsive' }, (
       // Register the delayed refetch promise BEFORE clicking
       const refetchPromise = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
 
       // Deselect source — triggers debounced + delayed refetch
@@ -1454,8 +1446,7 @@ test.describe('URL on mount triggers initial filtered fetch', { tag: '@responsiv
       // Register response waiter BEFORE navigation — must catch the initial mount fetch
       const initialFetchPromise = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
 
       // Navigate directly with deselectedSources param
@@ -1578,8 +1569,7 @@ test.describe('Empty state when all sources deselected', { tag: '@responsive' },
 
       const refetchPromise = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
 
       await overviewPage.sourceRow('Bank Loan').click();
@@ -1618,8 +1608,7 @@ test.describe('Empty state when all sources deselected', { tag: '@responsive' },
       // Deselect to trigger empty state
       const firstRefetch = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
       await overviewPage.sourceRow('Bank Loan').click();
       await firstRefetch;
@@ -1702,8 +1691,7 @@ test.describe('Rapid debounce coalesces requests', () => {
       // to let the single coalesced request complete.
       const coalescedRefetch = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
       await coalescedRefetch;
 
@@ -1743,8 +1731,7 @@ test.describe('Available Funds caption', { tag: '@responsive' }, () => {
       // Deselect Bank Loan — triggers refetch
       const refetchPromise = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
       await overviewPage.sourceRow('Bank Loan').click();
       await refetchPromise;
@@ -1825,8 +1812,7 @@ test.describe('Source detail row columns', { tag: '@responsive' }, () => {
       // Deselect — triggers refetch; wait for it
       const refetchPromise = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
       await row.click();
       await expect(row).toHaveAttribute('aria-pressed', 'false');
@@ -1901,8 +1887,7 @@ test.describe('Keyboard navigation', () => {
       // Space deselects (all sources start selected) — triggers refetch
       const deselect = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
       await page.keyboard.press('Space');
       await expect(row).toHaveAttribute('aria-pressed', 'false');
@@ -1942,8 +1927,7 @@ test.describe('Keyboard navigation', () => {
 
       const refetchPromise = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
       await page.keyboard.press('Enter');
       await expect(row).toHaveAttribute('aria-pressed', 'false');
@@ -1973,8 +1957,7 @@ test.describe('Keyboard navigation', () => {
       // Deselect Bank Loan
       const deselect = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
       const row = overviewPage.sourceRow('Bank Loan');
       await row.click();
@@ -2053,8 +2036,7 @@ test.describe('Live region', { tag: '@responsive' }, () => {
 
       const refetchPromise = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
       await overviewPage.sourceRow('Bank Loan').click();
       await refetchPromise;
@@ -2091,8 +2073,7 @@ test.describe('No chip toolbar', { tag: '@responsive' }, () => {
       // Select a source to make the UI "active" — toolbar must still not appear
       const refetchPromise = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
       await overviewPage.sourceRow('Bank Loan').click();
       await refetchPromise;
@@ -2179,8 +2160,7 @@ test.describe('Dark mode: badge color smoke check', { tag: '@responsive' }, () =
 
       const refetchPromise = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') &&
-          resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
       );
       await row.click();
       await expect(row).toHaveAttribute('aria-pressed', 'false');

@@ -1,6 +1,10 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { fetchBudgetOverview, fetchBudgetBreakdown } from './budgetOverviewApi.js';
-import type { BudgetOverview, BudgetOverviewResponse, BudgetBreakdownResponse } from '@cornerstone/shared';
+import type {
+  BudgetOverview,
+  BudgetOverviewResponse,
+  BudgetBreakdownResponse,
+} from '@cornerstone/shared';
 
 describe('budgetOverviewApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;

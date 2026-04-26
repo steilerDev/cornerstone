@@ -89,7 +89,6 @@ function resolveLineCost(line: BreakdownBudgetLine, perspective: CostPerspective
   );
 }
 
-
 /**
  * Formats cost with explicit minus sign.
  * Must be called with the formatCurrency function from useFormatterContext or useFormatters.
@@ -393,11 +392,7 @@ function WorkItemAreaSection({
   const areaKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}`;
   const isExpanded = expandedKeys.has(areaKey);
 
-  const resolvedRawCost = resolveProjected(
-    area.rawProjectedMin,
-    area.rawProjectedMax,
-    perspective,
-  );
+  const resolvedRawCost = resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
   const resolvedPayback = resolveProjected(
     area.minSubsidyPayback,
     area.subsidyPayback,
@@ -584,11 +579,7 @@ function HouseholdItemAreaSection({
   const areaKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}`;
   const isExpanded = expandedKeys.has(areaKey);
 
-  const resolvedRawCost = resolveProjected(
-    area.rawProjectedMin,
-    area.rawProjectedMax,
-    perspective,
-  );
+  const resolvedRawCost = resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
   const resolvedPayback = resolveProjected(
     area.minSubsidyPayback,
     area.subsidyPayback,
@@ -797,7 +788,6 @@ export function CostBreakdownTable({
    * Sum = availableFunds - totalRawProjected + adjustedTotalPayback.
    */
   const sum = overview.availableFunds - totalRawProjected + adjustedTotalPayback;
-
 
   // Empty state: only show early-return empty state if there are NO sources configured AND no items.
   // If sources are configured (even if all deselected, which prunes items), render the full table
@@ -1105,12 +1095,7 @@ export function CostBreakdownTable({
                     )}
                   </td>
                   <td className={styles.colRemaining}>
-                    {renderNet(
-                      totalRawProjected,
-                      adjustedTotalPayback,
-                      styles,
-                      formatCurrency,
-                    )}
+                    {renderNet(totalRawProjected, adjustedTotalPayback, styles, formatCurrency)}
                   </td>
                 </tr>
 
@@ -1193,7 +1178,9 @@ export function CostBreakdownTable({
                           }
                           className={`${styles.rowSourceDetail} ${styles.rowSourceDetailToggle}`}
                           style={rowStyle}
-                          onClick={() => onSourceToggle(source.id === 'unassigned' ? null : source.id)}
+                          onClick={() =>
+                            onSourceToggle(source.id === 'unassigned' ? null : source.id)
+                          }
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
                               e.preventDefault();
@@ -1220,9 +1207,7 @@ export function CostBreakdownTable({
                             </span>
                           </td>
                           <td className={styles.colPayback}>
-                            <span className={styles.valuePositive}>
-                              {formatCurrency(payback)}
-                            </span>
+                            <span className={styles.valuePositive}>{formatCurrency(payback)}</span>
                           </td>
                           <td className={styles.colRemaining}>
                             <span
