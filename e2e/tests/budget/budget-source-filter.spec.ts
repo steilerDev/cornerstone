@@ -339,6 +339,120 @@ function makeBreakdownSourceAOnly() {
 }
 
 /**
+ * Filtered response returned by the server when SOURCE_A is deselected but
+ * there are still other lines (Unassigned) remaining — so workItems.areas
+ * is non-empty. Used in tests that need the CostBreakdownTable to keep
+ * rendering its full layout (source rows included) after the filter.
+ *
+ * Simulates: Bank Loan deselected, Unassigned source still has lines.
+ *
+ * @param includeSourceB - When true, also includes Source B (Equity) in
+ *   budgetSources so that its toggle row remains visible. Used by
+ *   multi-deselection tests that need to click the Equity row after
+ *   the first filtered response replaces the breakdown.
+ */
+function makeFilteredBreakdownBankLoanDeselected(opts: { includeSourceB?: boolean } = {}) {
+  const { includeSourceB = false } = opts;
+
+  const budgetSources = [
+    {
+      id: SOURCE_A_ID,
+      name: 'Bank Loan',
+      totalAmount: 150000,
+      projectedMin: 30000,
+      projectedMax: 35000,
+      subsidyPaybackMin: 0,
+      subsidyPaybackMax: 0,
+    },
+    {
+      id: 'unassigned',
+      name: 'Unassigned',
+      totalAmount: 0,
+      projectedMin: 5000,
+      projectedMax: 5000,
+      subsidyPaybackMin: 0,
+      subsidyPaybackMax: 0,
+    },
+  ];
+
+  if (includeSourceB) {
+    budgetSources.push({
+      id: SOURCE_B_ID,
+      name: 'Equity',
+      totalAmount: 100000,
+      projectedMin: 8000,
+      projectedMax: 8000,
+      subsidyPaybackMin: 0,
+      subsidyPaybackMax: 0,
+    });
+  }
+
+  return {
+    workItems: {
+      areas: [
+        {
+          areaId: 'area-main',
+          name: 'Main Area',
+          parentId: null,
+          color: '#3B82F6',
+          projectedMin: 5000,
+          projectedMax: 5000,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 5000,
+          rawProjectedMax: 5000,
+          minSubsidyPayback: 0,
+          items: [
+            {
+              workItemId: 'wi-main-1',
+              title: 'Main Work Item',
+              projectedMin: 5000,
+              projectedMax: 5000,
+              actualCost: 0,
+              subsidyPayback: 0,
+              rawProjectedMin: 5000,
+              rawProjectedMax: 5000,
+              minSubsidyPayback: 0,
+              costDisplay: 'projected',
+              budgetLines: [
+                {
+                  id: 'line-unassigned',
+                  description: 'Line Unassigned (No source)',
+                  plannedAmount: 5000,
+                  confidence: 'own_estimate',
+                  actualCost: 0,
+                  hasInvoice: false,
+                  isQuotation: false,
+                  budgetSourceId: null,
+                },
+              ],
+            },
+          ],
+          children: [],
+        },
+      ],
+      totals: {
+        projectedMin: 5000,
+        projectedMax: 5000,
+        actualCost: 0,
+        subsidyPayback: 0,
+        rawProjectedMin: 5000,
+        rawProjectedMax: 5000,
+        minSubsidyPayback: 0,
+      },
+    },
+    householdItems: {
+      areas: [],
+      totals: makeEmptyTotals(),
+    },
+    subsidyAdjustments: [],
+    // Server still returns budgetSources so source rows remain visible in
+    // the Available Funds section.
+    budgetSources,
+  };
+}
+
+/**
  * Filtered response returned by the server when SOURCE_A is deselected.
  * Server prunes its areas/items, so this response has empty workItems.areas
  * (simulating "all lines for the remaining filter are Source A only").
@@ -824,15 +938,16 @@ test.describe('Deselect triggers server refetch', { tag: '@responsive' }, () => 
 
       await row.click();
 
+      // aria-pressed updates immediately from URL state change (setSearchParams),
+      // before the debounced server refetch completes — assert here.
+      await expect(row).toHaveAttribute('aria-pressed', 'false');
+
       // Wait for the debounced + refetch response
       const refetchResponse = await refetchPromise;
       expect(refetchResponse.status()).toBe(200);
 
       // URL in the refetch request must include the deselected source ID
       expect(refetchResponse.url()).toContain(SOURCE_A_ID);
-
-      // Source row aria-pressed updated to false
-      await expect(row).toHaveAttribute('aria-pressed', 'false');
 
       // URL search param updated
       await expect(page).toHaveURL(new RegExp(`deselectedSources=.*${SOURCE_A_ID}`));
@@ -900,11 +1015,16 @@ test.describe('Deselect triggers server refetch', { tag: '@responsive' }, () => 
     page,
   }) => {
     const overviewPage = new BudgetOverviewPage(page);
+    // Use makeFilteredBreakdownBankLoanDeselected({ includeSourceB: true }) so that after
+    // Bank Loan is deselected, the table still renders with non-empty areas (Unassigned
+    // lines remain) AND the Equity source row stays visible (included in budgetSources).
+    // makeFilteredEmptyBreakdown() would collapse to empty state and hide all source rows,
+    // preventing the second click on Equity.
     const teardown = await mountOverviewRoutes(
       page,
       makeBudgetOverviewResponse(),
       makeBreakdownResponse({ includeSourceB: true }),
-      makeFilteredEmptyBreakdown(),
+      makeFilteredBreakdownBankLoanDeselected({ includeSourceB: true }),
     );
 
     try {
@@ -913,13 +1033,15 @@ test.describe('Deselect triggers server refetch', { tag: '@responsive' }, () => 
 
       await overviewPage.availableFundsButton().click();
 
-      // Deselect Bank Loan
+      // Deselect Bank Loan — first refetch includes only SOURCE_A_ID
       const refetchA = page.waitForResponse(
         (resp) =>
           resp.url().includes('/api/budget/breakdown') &&
           resp.url().includes('deselectedSources='),
       );
       await overviewPage.sourceRow('Bank Loan').click();
+      // aria-pressed updates from URL state change before the server response
+      await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
       await refetchA;
 
       // Deselect Equity — new refetch should include both IDs
@@ -929,10 +1051,9 @@ test.describe('Deselect triggers server refetch', { tag: '@responsive' }, () => 
           resp.url().includes('deselectedSources='),
       );
       await overviewPage.sourceRow('Equity').click();
-      const responseB = await refetchB;
-
-      await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
+      // aria-pressed for Equity updates from URL state before server response
       await expect(overviewPage.sourceRow('Equity')).toHaveAttribute('aria-pressed', 'false');
+      const responseB = await refetchB;
 
       // Both IDs must be present in the final request URL
       expect(responseB.url()).toContain(SOURCE_A_ID);
@@ -956,11 +1077,17 @@ test.describe('Re-select clears query param', { tag: '@responsive' }, () => {
     page,
   }) => {
     const overviewPage = new BudgetOverviewPage(page);
+    // Use makeFilteredBreakdownBankLoanDeselected() so the initial page load
+    // (with ?deselectedSources=SOURCE_A_ID) renders non-empty areas. If
+    // makeFilteredEmptyBreakdown() were used instead, CostBreakdownTable would
+    // switch to its empty-state branch and the source rows (including Bank Loan)
+    // would not be in the DOM — making availableFundsButton() and sourceRow()
+    // unreachable.
     const teardown = await mountOverviewRoutes(
       page,
       makeBudgetOverviewResponse(),
       makeBreakdownResponse(),
-      makeFilteredEmptyBreakdown(),
+      makeFilteredBreakdownBankLoanDeselected(),
     );
 
     try {
@@ -983,11 +1110,11 @@ test.describe('Re-select clears query param', { tag: '@responsive' }, () => {
       // Click to re-select
       await row.click();
 
+      // aria-pressed updates from URL state change before server response
+      await expect(row).toHaveAttribute('aria-pressed', 'true');
+
       const refetchResponse = await refetchPromise;
       expect(refetchResponse.status()).toBe(200);
-
-      // Row is re-selected
-      await expect(row).toHaveAttribute('aria-pressed', 'true');
 
       // URL no longer contains deselectedSources
       await expect(page).not.toHaveURL(/deselectedSources/);
@@ -1098,6 +1225,20 @@ test.describe('Cascade hiding via server response', { tag: '@responsive' }, () =
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
 
+      // Expand Work Items section BEFORE deselection so Main Area is visible.
+      // After the filtered response arrives (empty areas), the expand button
+      // disappears (CostBreakdownTable switches to empty state) so we must
+      // expand while the full table is still rendered.
+      await overviewPage.costBreakdownCard
+        .getByRole('button', { name: /expand work item budget by area/i })
+        .click();
+
+      // Confirm Main Area is visible in initial unfiltered state
+      await expect(
+        overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Main Area' }),
+      ).toBeVisible();
+
+      // Expand Available Funds to show source toggle rows
       await overviewPage.availableFundsButton().click();
 
       const refetchPromise = page.waitForResponse(
@@ -1106,15 +1247,13 @@ test.describe('Cascade hiding via server response', { tag: '@responsive' }, () =
           resp.url().includes('deselectedSources='),
       );
       await overviewPage.sourceRow('Bank Loan').click();
+      // aria-pressed updates from URL state change before server response
       await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
 
+      // Wait for server filtered response (empty areas[])
       await refetchPromise;
 
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: /expand work item budget by area/i })
-        .click();
-
-      // Main Area row hidden (cascade from server response)
+      // Server returned empty areas[] — Main Area row must disappear
       await expect(
         overviewPage.costBreakdownCard.getByRole('row').filter({ hasText: 'Main Area' }),
       ).not.toBeVisible();
