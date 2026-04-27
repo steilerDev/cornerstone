@@ -16,7 +16,7 @@ The budget system provides:
 - **Work Item Budget Lines** -- Link estimated costs to work items with confidence levels that reflect estimate accuracy
 - **Invoices** -- Track vendor invoices and their line-item links to budget lines (vendor records now live under the Settings section -- see [Invoices & Vendors](vendors-and-invoices))
 - **Subsidy Programs** -- Manage percentage-based or fixed-amount subsidies that reduce your effective costs
-- **Budget Overview Dashboard** -- See your project's financial health grouped by **area hierarchy**, with clickable summary tiles, expandable nested rows, and print-friendly styling
+- **Budget Overview Dashboard** -- See your project's financial health grouped by **area hierarchy**, with clickable summary tiles, expandable nested rows, source attribution badges on every line, a per-source filter that updates the entire breakdown, and print-friendly styling
 
 ## How It Fits Together
 
@@ -35,4 +35,4 @@ When a vendor submits an **invoice**, you link the relevant budget lines to the 
 - [Work Item Budgets](work-item-budgets) -- Add cost estimates to work items
 - [Invoices](vendors-and-invoices) -- Track invoices and link them to budget lines (vendors are managed from Settings)
 - [Subsidies](subsidies) -- Manage subsidy programs
-- [Budget Overview](budget-overview) -- Area-grouped cost breakdown, clickable tiles, and print output
+- [Budget Overview](budget-overview) -- Area-grouped cost breakdown, source attribution badges, per-source filter, clickable tiles, and print output

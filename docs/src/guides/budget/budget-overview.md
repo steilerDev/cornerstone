@@ -56,6 +56,37 @@ The cost breakdown table is grouped by your **area hierarchy** rather than by ca
 
 Each row displays the estimated total, invoiced total, subsidy reduction, and remaining amount for that slice of the project.
 
+### Source Attribution Badges
+
+Every leaf-level budget line carries a **source attribution badge** so you can see at a glance which financing source funds each line:
+
+- Each source is assigned a deterministic color from a 10-slot palette -- the same source always gets the same color across the table, between sessions, and in both light and dark mode.
+- On **desktop**, the badge shows the full source name next to a colored dot (long names are truncated with the full name available on hover).
+- On **mobile**, only the colored dot is shown to keep the row compact; tapping the line still opens the full detail.
+- Lines without a source assignment are shown with a neutral "Unassigned" badge in a reserved color slot.
+
+### Available Funds Row
+
+The cost breakdown includes a dedicated **Available Funds** row at the top of the totals section. Click the row to expand it and see one line per financing source, with three columns:
+
+- **Cost** -- how much of that source has been allocated to budget lines (perspective-aware: switches between min, max, and average projection)
+- **Payback** -- the subsidy payback expected against budget lines funded from this source
+- **Net** -- the remaining headroom on that source after subtracting cost and adding back payback
+
+This makes it easy to spot which source is most depleted, which one is being subsidized, and which one still has slack -- all in a single glance.
+
+### Filter by Source
+
+Click any source detail row inside the **Available Funds** expansion to toggle that source on or off. Deselected sources are dropped from the entire breakdown:
+
+- The summary tiles, projected cost range, remaining budget, and every nested area row recalculate against the visible set.
+- A small "X of N selected" caption appears next to **Available Funds** while a filter is active.
+- The selection is **persisted in the URL** as `?deselectedSources=<id>,<id>` so you can bookmark a filtered view, share it with your bank or partner, or refresh without losing state.
+- Press **Escape** while focused on a source row to clear all deselections in one go.
+- Source detail rows stay visible even when every source is deselected -- the filter is never a dead-end; you can always click your way back in.
+
+Filtering happens **server-side** (`GET /api/budget/breakdown?deselectedSources=...`), which means subsidy payback math stays consistent with the visible set: subsidies that no longer have any qualifying budget lines drop out cleanly instead of double-counting.
+
 ## Financing Source Summary
 
 A summary of each financing source shows:
