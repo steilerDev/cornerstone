@@ -2515,10 +2515,12 @@ test.describe('Filter-aware summary rows (Available Funds + Remaining Budget)', 
     page,
   }) => {
     // Source A: totalAmount=150 000, Source B: totalAmount=100 000
-    // projectedCost = 20 000 (rawProjectedMin=rawProjectedMax=20 000 → avg = 20 000)
-    // Initial Remaining Budget Cost = 250 000 - 20 000 = 230 000
-    // After deselecting Source B (Equity): filteredAvailableFunds = 150 000
-    //   Remaining Budget Cost = 150 000 - 20 000 = 130 000
+    // Initial (both selected): totalRawProjected = (20 000+20 000)/2 = 20 000
+    //   Remaining Budget Cost = 250 000 - 20 000 = 230 000
+    // After deselecting Source B (Equity): server returns filtered breakdown with
+    //   wiTotals.rawProjectedMin/Max = 10 000 → totalRawProjected = 10 000
+    //   filteredAvailableFunds = 150 000 (Bank Loan only)
+    //   Remaining Budget Cost = 150 000 - 10 000 = 140 000
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
@@ -2555,9 +2557,9 @@ test.describe('Filter-aware summary rows (Available Funds + Remaining Budget)', 
       await expect(overviewPage.sourceRow('Equity')).toHaveAttribute('aria-pressed', 'false');
       await refetchPromise;
 
-      // Remaining Budget Cost = 150 000 - 20 000 = 130 000
+      // Remaining Budget Cost = 150 000 - 10 000 = 140 000
       const filteredText = await costCell.textContent();
-      expect(filteredText).toContain('130');
+      expect(filteredText).toContain('140');
       expect(filteredText).not.toContain('230');
     } finally {
       await teardown();
