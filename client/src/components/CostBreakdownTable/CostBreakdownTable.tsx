@@ -785,9 +785,16 @@ export function CostBreakdownTable({
   );
 
   /**
-   * Sum = availableFunds - totalRawProjected + adjustedTotalPayback.
+   * Compute filtered available funds: sum of totalAmount for sources that are not deselected.
    */
-  const sum = overview.availableFunds - totalRawProjected + adjustedTotalPayback;
+  const filteredAvailableFunds = budgetSources
+    .filter((s) => !deselectedSourceIds.has(s.id))
+    .reduce((sum: number, s) => sum + s.totalAmount, 0);
+
+  /**
+   * Sum = filteredAvailableFunds - totalRawProjected + adjustedTotalPayback.
+   */
+  const sum = filteredAvailableFunds - totalRawProjected + adjustedTotalPayback;
 
   // Empty state: only show early-return empty state if there are NO sources configured AND no items.
   // If sources are configured (even if all deselected, which prunes items), render the full table
@@ -1120,7 +1127,7 @@ export function CostBreakdownTable({
                     </div>
                   </td>
                   <td className={styles.colBudget} colSpan={3}>
-                    {formatCurrency(overview.availableFunds)}
+                    {formatCurrency(filteredAvailableFunds)}
                     {deselectedSourceIds.size > 0 && (
                       <span className={styles.availableFundsFilterCaption}>
                         {t('overview.costBreakdown.availableFundsFilter.activeFilterCaption', {
@@ -1233,25 +1240,25 @@ export function CostBreakdownTable({
                   <td className={styles.colBudget}>
                     <span
                       className={
-                        overview.availableFunds - totalRawProjected >= 0
+                        filteredAvailableFunds - totalRawProjected >= 0
                           ? styles.valuePositive
                           : styles.valueNegative
                       }
                     >
-                      {formatCurrency(overview.availableFunds - totalRawProjected)}
+                      {formatCurrency(filteredAvailableFunds - totalRawProjected)}
                     </span>
                   </td>
                   <td className={styles.colPayback} />
                   <td className={styles.colRemaining}>
                     <span
                       className={
-                        overview.availableFunds - totalRawProjected + adjustedTotalPayback >= 0
+                        filteredAvailableFunds - totalRawProjected + adjustedTotalPayback >= 0
                           ? styles.valuePositive
                           : styles.valueNegative
                       }
                     >
                       {formatCurrency(
-                        overview.availableFunds - totalRawProjected + adjustedTotalPayback,
+                        filteredAvailableFunds - totalRawProjected + adjustedTotalPayback,
                       )}
                     </span>
                   </td>
