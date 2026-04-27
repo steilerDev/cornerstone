@@ -2272,3 +2272,441 @@ test.describe('Responsive layout', { tag: '@responsive' }, () => {
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Filter-aware summary rows (Available Funds + Remaining Budget)
+// AC refs: #4 (restore on re-select), #5 (zero sources), #8 (print hiding)
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Filter-aware summary rows (Available Funds + Remaining Budget)', () => {
+  /**
+   * Build a breakdown with two real sources (Source A: 150 000, Source B: 100 000)
+   * and a deterministic projected cost (rawProjectedMin === rawProjectedMax === 20 000)
+   * so that "avg" perspective gives the same value as min and max.
+   * Unassigned has totalAmount=0 and does not affect the Available Funds total.
+   */
+  function makeTwoSourceBreakdown() {
+    return {
+      workItems: {
+        areas: [
+          {
+            areaId: 'area-main',
+            name: 'Main Area',
+            parentId: null,
+            color: '#3B82F6',
+            projectedMin: 20000,
+            projectedMax: 20000,
+            actualCost: 0,
+            subsidyPayback: 0,
+            rawProjectedMin: 20000,
+            rawProjectedMax: 20000,
+            minSubsidyPayback: 0,
+            items: [
+              {
+                workItemId: 'wi-main-1',
+                title: 'Main Work Item',
+                projectedMin: 20000,
+                projectedMax: 20000,
+                actualCost: 0,
+                subsidyPayback: 0,
+                rawProjectedMin: 20000,
+                rawProjectedMax: 20000,
+                minSubsidyPayback: 0,
+                costDisplay: 'projected',
+                budgetLines: [
+                  {
+                    id: 'line-a1',
+                    description: 'Line A1',
+                    plannedAmount: 10000,
+                    confidence: 'own_estimate',
+                    actualCost: 0,
+                    hasInvoice: false,
+                    isQuotation: false,
+                    budgetSourceId: SOURCE_A_ID,
+                  },
+                  {
+                    id: 'line-b1',
+                    description: 'Line B1',
+                    plannedAmount: 10000,
+                    confidence: 'own_estimate',
+                    actualCost: 0,
+                    hasInvoice: false,
+                    isQuotation: false,
+                    budgetSourceId: SOURCE_B_ID,
+                  },
+                ],
+              },
+            ],
+            children: [],
+          },
+        ],
+        totals: {
+          projectedMin: 20000,
+          projectedMax: 20000,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 20000,
+          rawProjectedMax: 20000,
+          minSubsidyPayback: 0,
+        },
+      },
+      householdItems: {
+        areas: [],
+        totals: makeEmptyTotals(),
+      },
+      subsidyAdjustments: [],
+      budgetSources: [
+        {
+          id: SOURCE_A_ID,
+          name: 'Bank Loan',
+          totalAmount: 150000,
+          projectedMin: 10000,
+          projectedMax: 10000,
+          subsidyPaybackMin: 0,
+          subsidyPaybackMax: 0,
+        },
+        {
+          id: SOURCE_B_ID,
+          name: 'Equity',
+          totalAmount: 100000,
+          projectedMin: 10000,
+          projectedMax: 10000,
+          subsidyPaybackMin: 0,
+          subsidyPaybackMax: 0,
+        },
+      ],
+    };
+  }
+
+  /**
+   * Filtered breakdown returned when Source B (Equity) is deselected.
+   * Server prunes Source B lines — only Source A lines remain.
+   * budgetSources still contains both (server always returns unfiltered projectedMin/Max),
+   * so source toggle rows remain visible after the refetch.
+   */
+  function makeTwoSourceBreakdownEquityDeselected() {
+    return {
+      workItems: {
+        areas: [
+          {
+            areaId: 'area-main',
+            name: 'Main Area',
+            parentId: null,
+            color: '#3B82F6',
+            projectedMin: 10000,
+            projectedMax: 10000,
+            actualCost: 0,
+            subsidyPayback: 0,
+            rawProjectedMin: 10000,
+            rawProjectedMax: 10000,
+            minSubsidyPayback: 0,
+            items: [
+              {
+                workItemId: 'wi-main-1',
+                title: 'Main Work Item',
+                projectedMin: 10000,
+                projectedMax: 10000,
+                actualCost: 0,
+                subsidyPayback: 0,
+                rawProjectedMin: 10000,
+                rawProjectedMax: 10000,
+                minSubsidyPayback: 0,
+                costDisplay: 'projected',
+                budgetLines: [
+                  {
+                    id: 'line-a1',
+                    description: 'Line A1',
+                    plannedAmount: 10000,
+                    confidence: 'own_estimate',
+                    actualCost: 0,
+                    hasInvoice: false,
+                    isQuotation: false,
+                    budgetSourceId: SOURCE_A_ID,
+                  },
+                ],
+              },
+            ],
+            children: [],
+          },
+        ],
+        totals: {
+          projectedMin: 10000,
+          projectedMax: 10000,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 10000,
+          rawProjectedMax: 10000,
+          minSubsidyPayback: 0,
+        },
+      },
+      householdItems: {
+        areas: [],
+        totals: makeEmptyTotals(),
+      },
+      subsidyAdjustments: [],
+      // Server returns both sources regardless of filter
+      budgetSources: [
+        {
+          id: SOURCE_A_ID,
+          name: 'Bank Loan',
+          totalAmount: 150000,
+          projectedMin: 10000,
+          projectedMax: 10000,
+          subsidyPaybackMin: 0,
+          subsidyPaybackMax: 0,
+        },
+        {
+          id: SOURCE_B_ID,
+          name: 'Equity',
+          totalAmount: 100000,
+          projectedMin: 10000,
+          projectedMax: 10000,
+          subsidyPaybackMin: 0,
+          subsidyPaybackMax: 0,
+        },
+      ],
+    };
+  }
+
+  test('Scenario 1 — Available Funds updates when a source is deselected', async ({ page }) => {
+    // Source A: totalAmount=150 000, Source B: totalAmount=100 000 → combined=250 000.
+    // After deselecting Source B (Equity): filteredAvailableFunds = 150 000 (Source A only).
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeTwoSourceBreakdown(),
+      makeTwoSourceBreakdownEquityDeselected(),
+    );
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      // Initial state: both sources selected → Available Funds = 250 000
+      const afValue = overviewPage.availableFundsValue();
+      await expect(afValue).toBeVisible();
+      const initialText = await afValue.textContent();
+      // Combined total must contain "250" (as in €250,000)
+      expect(initialText).toContain('250');
+
+      // Expand source rows
+      await overviewPage.availableFundsButton().click();
+
+      // Deselect Equity — register waitForResponse BEFORE the click
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
+      );
+      await overviewPage.sourceRow('Equity').click();
+      await expect(overviewPage.sourceRow('Equity')).toHaveAttribute('aria-pressed', 'false');
+      await refetchPromise;
+
+      // Available Funds now shows only Source A total (150 000)
+      const filteredText = await afValue.textContent();
+      expect(filteredText).toContain('150');
+      // Must NOT still show 250 (combined)
+      expect(filteredText).not.toContain('250');
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Scenario 2 — Remaining Budget Cost updates when a source is deselected', async ({
+    page,
+  }) => {
+    // Source A: totalAmount=150 000, Source B: totalAmount=100 000
+    // projectedCost = 20 000 (rawProjectedMin=rawProjectedMax=20 000 → avg = 20 000)
+    // Initial Remaining Budget Cost = 250 000 - 20 000 = 230 000
+    // After deselecting Source B (Equity): filteredAvailableFunds = 150 000
+    //   Remaining Budget Cost = 150 000 - 20 000 = 130 000
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeTwoSourceBreakdown(),
+      makeTwoSourceBreakdownEquityDeselected(),
+    );
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      // Locate the "Remaining Budget" row by its label text
+      const remainingRow = overviewPage.costBreakdownCard
+        .getByRole('row')
+        .filter({ hasText: /remaining budget/i });
+
+      // Remaining Budget Cost cell (td index 1 = "Cost" column)
+      const costCell = remainingRow.locator('td').nth(1);
+      await expect(costCell).toBeVisible();
+      const initialText = await costCell.textContent();
+      // Should reflect 230 000 (250 000 - 20 000)
+      expect(initialText).toContain('230');
+
+      // Expand source rows
+      await overviewPage.availableFundsButton().click();
+
+      // Deselect Equity — register waitForResponse BEFORE the click
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
+      );
+      await overviewPage.sourceRow('Equity').click();
+      await expect(overviewPage.sourceRow('Equity')).toHaveAttribute('aria-pressed', 'false');
+      await refetchPromise;
+
+      // Remaining Budget Cost = 150 000 - 20 000 = 130 000
+      const filteredText = await costCell.textContent();
+      expect(filteredText).toContain('130');
+      expect(filteredText).not.toContain('230');
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Scenario 3 — Available Funds restores to full total on re-select (AC #4)', async ({
+    page,
+  }) => {
+    // Start with Source B (Equity) deselected via URL — Available Funds = 150 000 (Source A only).
+    // Re-select Equity → refetch fires without deselectedSources → Available Funds = 250 000.
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeTwoSourceBreakdown(),
+      makeTwoSourceBreakdownEquityDeselected(),
+    );
+
+    try {
+      // Navigate with Equity pre-deselected
+      await page.goto(`${BUDGET_OVERVIEW_ROUTE}?deselectedSources=${SOURCE_B_ID}`);
+      await overviewPage.waitForLoaded();
+
+      const afValue = overviewPage.availableFundsValue();
+      await expect(afValue).toBeVisible();
+
+      // Pre-deselected state: Available Funds = 150 000 (Bank Loan only)
+      const deselectedText = await afValue.textContent();
+      expect(deselectedText).toContain('150');
+
+      // Expand and re-select Equity
+      await overviewPage.availableFundsButton().click();
+      await expect(overviewPage.sourceRow('Equity')).toHaveAttribute('aria-pressed', 'false');
+
+      const reSelectPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') &&
+          !resp.url().includes('deselectedSources='),
+      );
+      await overviewPage.sourceRow('Equity').click();
+      await expect(overviewPage.sourceRow('Equity')).toHaveAttribute('aria-pressed', 'true');
+      await reSelectPromise;
+
+      // Available Funds restored to 250 000 (both sources selected)
+      const restoredText = await afValue.textContent();
+      expect(restoredText).toContain('250');
+      expect(restoredText).not.toContain('150');
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Scenario 4 — Zero sources selected: Available Funds shows €0 (AC #5)', async ({
+    page,
+  }) => {
+    // When all sources are deselected, filteredAvailableFunds = 0.
+    // Server returns empty areas (all lines belong to deselected sources).
+    // The Available Funds row must show €0.00 — not NaN and not the stale combined value.
+    const overviewPage = new BudgetOverviewPage(page);
+
+    // Use makeBreakdownSourceAOnly (single source: Bank Loan, totalAmount=150 000).
+    // Filtered response is makeFilteredEmptyBreakdown which has empty areas[].
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeBreakdownSourceAOnly(),
+      makeFilteredEmptyBreakdown(),
+    );
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      await overviewPage.availableFundsButton().click();
+
+      // Deselect the only source (Bank Loan)
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
+      );
+      await overviewPage.sourceRow('Bank Loan').click();
+      await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
+      await refetchPromise;
+
+      // Available Funds must show €0.00 — not NaN, not the stale 150 000 value
+      const afValue = overviewPage.availableFundsValue();
+      const valueText = await afValue.textContent();
+      // Must contain "0" as a number (e.g. "€0.00" or "€0,00")
+      expect(valueText).toMatch(/\b0\b|0,00|0\.00/);
+      // Must not contain "NaN"
+      expect(valueText).not.toContain('NaN');
+      // Must not contain the stale 150 000 total
+      expect(valueText).not.toContain('150');
+    } finally {
+      await teardown();
+    }
+  });
+
+  test('Scenario 5 — Print: deselected source rows hidden, selected source rows visible (AC #8)', async ({
+    page,
+  }) => {
+    // The @media print rule `.rowSourceDetailToggle[aria-pressed='false'] { display: none !important }`
+    // must hide deselected source rows in print and leave selected rows visible.
+    const overviewPage = new BudgetOverviewPage(page);
+    const teardown = await mountOverviewRoutes(
+      page,
+      makeBudgetOverviewResponse(),
+      makeTwoSourceBreakdown(),
+      makeTwoSourceBreakdownEquityDeselected(),
+    );
+
+    try {
+      await overviewPage.goto();
+      await overviewPage.waitForLoaded();
+
+      // Expand Available Funds section to show source toggle rows
+      await overviewPage.availableFundsButton().click();
+      await expect(overviewPage.sourceRow('Bank Loan')).toBeVisible();
+      await expect(overviewPage.sourceRow('Equity')).toBeVisible();
+
+      // Deselect Equity — register waitForResponse BEFORE the click
+      const refetchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
+      );
+      await overviewPage.sourceRow('Equity').click();
+      await expect(overviewPage.sourceRow('Equity')).toHaveAttribute('aria-pressed', 'false');
+      await refetchPromise;
+
+      // Switch to print media
+      await page.emulateMedia({ media: 'print' });
+
+      try {
+        // Deselected source row (Equity, aria-pressed='false') must be hidden by @media print
+        await expect(overviewPage.sourceRow('Equity')).toHaveCSS('display', 'none');
+
+        // Selected source row (Bank Loan, aria-pressed='true') must NOT be display:none
+        const bankLoanDisplay = await overviewPage
+          .sourceRow('Bank Loan')
+          .evaluate((el) => getComputedStyle(el).display);
+        expect(bankLoanDisplay).not.toBe('none');
+      } finally {
+        // Restore screen media — must be in finally to prevent print-mode from leaking
+        // into subsequent tests running in the same worker.
+        await page.emulateMedia({ media: 'screen' });
+      }
+    } finally {
+      await teardown();
+    }
+  });
+});
