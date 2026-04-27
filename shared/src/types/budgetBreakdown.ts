@@ -28,6 +28,7 @@ export interface BreakdownBudgetLine {
   actualCost: number;
   hasInvoice: boolean;
   isQuotation: boolean;
+  budgetSourceId: string | null;
 }
 
 /**
@@ -110,6 +111,32 @@ export interface SubsidyAdjustment {
 }
 
 /**
+ * Per-source aggregate for the budget breakdown response.
+ *
+ * - `id`: source UUID or the literal string 'unassigned' for null-source lines
+ * - `name`: source name or 'Unassigned' for the synthetic entry
+ * - `totalAmount`: configured funding amount (0 for unassigned)
+ * - `projectedMin/Max`: UNFILTERED per-source projected min/max cost — always reflects
+ *   the full contribution of all lines assigned to this source, regardless of the
+ *   current filter state. Used by the client to display per-source chip values.
+ * - `subsidyPaybackMin/Max`: pro-rata attributed payback from the filtered subsidy engine
+ *   run. For deselected sources, both are 0 because their lines don't feed the filtered
+ *   engine. For selected sources, reflects filter-aware payback computed by weighted
+ *   attribution across surviving budget lines.
+ *
+ * The frontend computes allocatedCost at the active perspective and derives remaining.
+ */
+export interface BudgetSourceSummaryBreakdown {
+  id: string;
+  name: string;
+  totalAmount: number;
+  projectedMin: number;
+  projectedMax: number;
+  subsidyPaybackMin: number;
+  subsidyPaybackMax: number;
+}
+
+/**
  * Complete budget breakdown structure.
  */
 export interface BudgetBreakdown {
@@ -122,6 +149,7 @@ export interface BudgetBreakdown {
     totals: BreakdownTotals;
   };
   subsidyAdjustments: SubsidyAdjustment[];
+  budgetSources: BudgetSourceSummaryBreakdown[];
 }
 
 /**

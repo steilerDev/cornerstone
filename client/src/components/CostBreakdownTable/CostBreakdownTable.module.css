@@ -523,6 +523,20 @@
     display: inline-flex;
     align-items: center;
   }
+
+  .rowSourceDetailToggle td {
+    padding-top: var(--spacing-4);
+    padding-bottom: var(--spacing-4);
+  }
+
+  /* Sticky colName background must match row state */
+  .rowSourceDetailToggle[aria-pressed='true'] .colName {
+    background: var(--color-bg-secondary);
+  }
+
+  .rowSourceDetailToggle[aria-pressed='false'] .colName {
+    background: var(--color-bg-secondary);
+  }
 }
 
 /* ============================================================
@@ -644,5 +658,143 @@
   /* Level 3 (budget line rows): light dotted border — grouped under parent */
   .rowLevel3 td {
     border-bottom: 1pt dotted var(--color-border);
+  }
+}
+
+/* ============================================================
+ * SOURCE FILTER STYLES
+ * ============================================================ */
+
+.sourceDot {
+  display: inline-block;
+  width: var(--spacing-2);
+  height: var(--spacing-2);
+  border-radius: var(--radius-circle);
+  flex-shrink: 0;
+  margin-right: var(--spacing-1);
+}
+
+.rowSourceDetail {
+  background: var(--color-bg-secondary);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rowSourceDetail .colName {
+  border-left: 3px solid var(--color-border);
+}
+
+.nameIndented {
+  padding-left: var(--spacing-8);
+}
+
+/* Toggle source detail row */
+.rowSourceDetailToggle {
+  cursor: pointer;
+}
+
+/* Selected state (default) — left-border accent via --chip-dot CSS var */
+.rowSourceDetailToggle[aria-pressed='true'] .colName {
+  border-left: 3px solid var(--chip-dot);
+}
+
+/* Deselected state — grey out entire row */
+.rowSourceDetailToggle[aria-pressed='false'] td {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal);
+}
+
+.rowSourceDetailToggle[aria-pressed='false'] .colName {
+  border-left: 3px solid transparent;
+}
+
+.rowSourceDetailToggle[aria-pressed='false'] .sourceDot {
+  opacity: 0.4;
+}
+
+/* Override value colors in deselected state */
+.rowSourceDetailToggle[aria-pressed='false'] .valuePositive,
+.rowSourceDetailToggle[aria-pressed='false'] .valueNegative {
+  color: var(--color-text-muted);
+}
+
+/* Hover state — both selected and deselected */
+.rowSourceDetailToggle:hover td {
+  background: var(--color-bg-hover);
+  transition: background-color var(--transition-normal);
+}
+
+/* Focus ring */
+.rowSourceDetailToggle:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  position: relative;
+  z-index: 1;
+}
+
+/* Available Funds filter caption */
+.availableFundsFilterCaption {
+  display: block;
+  margin-top: var(--spacing-0-5);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.colAllocatedMobile {
+  /* Will be hidden on mobile via media query below */
+}
+
+.rowFiltered {
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rowFiltered {
+    animation: none;
+  }
+
+  .rowSourceDetailToggle td,
+  .rowSourceDetailToggle .sourceDot {
+    transition: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .colAllocatedMobile {
+    display: none;
+  }
+}
+
+/* ---- Mobile dot-only source badge ---- */
+
+.sourceBadgeDot {
+  display: none;
+  width: var(--spacing-2);
+  height: var(--spacing-2);
+  border-radius: var(--radius-circle);
+  flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .sourceBadgeLabel {
+    display: none;
+  }
+
+  .sourceBadgeDot {
+    display: inline-block;
   }
 }

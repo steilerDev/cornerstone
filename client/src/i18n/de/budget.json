@@ -51,6 +51,9 @@
       "householdItems": "Haushaltsartikel",
       "sum": "Summe",
       "availableFunds": "Verfügbare Mittel",
+      "availableFundsFilter": {
+        "activeFilterCaption": "({{selected}} von {{total}} ausgewählt)"
+      },
       "remainingBudget": "Verbleibendes Budget",
       "quoted": "Angebot",
       "tableHeaders": {
@@ -67,6 +70,27 @@
         "unassigned": "Kein Bereich",
         "expandWorkItemsLabel": "Arbeitspakete nach Bereich aufklappen",
         "expandHouseholdItemsLabel": "Haushaltsartikel nach Bereich aufklappen"
+      },
+      "sourceFilter": {
+        "unassigned": "Nicht zugewiesen",
+        "allSourcesAnnouncement": "Es werden alle Budgetpositionen angezeigt",
+        "statusAnnouncement": "{{selected}} von {{total}} Budgetquellen ausgewählt",
+        "empty": "Keine Budgetpositionen entsprechen dem ausgewählten Quellenfilter.",
+        "clear": "Filter Löschen"
+      },
+      "refetchError": "Aufschlüsselung konnte nicht aktualisiert werden. Bitte erneut versuchen.",
+      "dismissError": "Schließen",
+      "sourceRow": {
+        "selectedAriaLabel": "{{name}}, ausgewählt – zum Abwählen klicken",
+        "deselectedAriaLabel": "{{name}}, abgewählt – zum Auswählen klicken"
+      },
+      "sourceImpact": {
+        "allocated": "Zugeordnet",
+        "remaining": "Verbleibend"
+      },
+      "sourceBadge": {
+        "ariaLabel": "Budgetquelle: {{name}}",
+        "unassigned": "Nicht zugewiesen"
       }
     }
   },

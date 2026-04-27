@@ -3,6 +3,32 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1360 — Server-Side Source Filter Tests (2026-04-25)
+
+**CostBreakdownTable.test.tsx**: Replaced the 12-test `describe('Source filter — aggregate consistency (#1358)')` block with 4-test `describe('Server-driven render path (#1360)')`. The 12 old tests tested deleted client-side helpers (`computePerSourcePayback`, `computeFilteredAggregates`, `visibleLineIds`). Removal strategy: Python `content.replace()` on large block — incremental Edit tool calls left orphaned code. The `buildBreakdownWithTwoSources()` helper was replaced by `buildServerFilteredBreakdown()`.
+
+**Route test `insertWorkItemWithSource` has `budgetSourceId: string` (NOT nullable)**: Use `insertWorkItem({ plannedAmount, confidence })` for null-source WIs in route tests — it always sets `budgetSourceId: null`.
+
+**`BudgetSourceSummaryBreakdown` type now requires `subsidyPaybackMin/Max`**: Existing tests that use `{ id, name, totalAmount, projectedMin, projectedMax }` without these fields will have TypeScript errors. New tests must include both fields.
+
+**Debounce + AbortController test patterns**: For Scenario 29 (error path), use real timers + `waitFor({ timeout: 5000 })` instead of fake timers. The `DEBOUNCE_MS=50` effect fires after `isLoading` transitions to false (double-fetch on mount is intentional — debounce effect re-runs when `isLoading` changes). For scenarios with fake timers: use `await act(async () => { jest.advanceTimersByTime(100); await Promise.resolve(); })` to advance timers and flush microtasks together.
+
+## Story #1358 — CostBreakdownTable Filtered Aggregate Tests (2026-04-25)
+
+Added `describe('Source filter — aggregate consistency (#1358)')` block (12 tests, lines ~4003–4782) to `CostBreakdownTable.test.tsx`. Key patterns: (1) Use `within(row).getByText(...)` to avoid multi-match collisions. (2) Get Level 0 header row via `screen.getByRole('button', { name: 'Expand work item budget by area' }).closest('tr')`. (3) Get Level 1 area row via `screen.getByRole('button', { name: 'Expand WI Area' }).closest('tr')`. (4) Get Level 2 item row via `screen.getByRole('link', { name: 'Item Title' }).closest('tr')`. (5) `td.colBudget` selector on rows for cost cell text assertions. (6) Math: `resolveLineCost(line, avg)` for `own_estimate` with `plannedAmount=N` = N (avg of 0.8N and 1.2N). (7) Pro-rata payback share = weight × entityPayback where weight = max-cost / sum-of-max-costs.
+
+## Story #1356 — CostBreakdownTable Per-Source Filter Rework (2026-04-25)
+
+Props changed again: `selectedSourceIds` → `deselectedSourceIds`, `onClearSources` → `onSelectAllSources`. Semantics inverted — a source is HIDDEN when its ID is in `deselectedSourceIds`. Source rows changed from chip toolbar (`role="toolbar"`, `Filter: Name` buttons) to `<tr role="button" aria-pressed="true|false" tabIndex={0}>` toggle rows directly in the Available Funds expansion. Tests checking `role="toolbar"` or `Filter: Name` buttons must be removed and replaced with `container.querySelector('tr[role="button"]')` assertions. Replace all old chip count assertions (e.g. `toHaveLength(2)` for "chip + sub-row") with `toBeInTheDocument()` for the single source detail row. The `onSelectAllSources` prop is called on Escape keydown on the source row (not on a toolbar).
+
+## Story #1354 — CostBreakdownTable Props Refactor Pattern (2026-04-25)
+
+`CostBreakdownTable` had `budgetSources={[]}` prop replaced with `selectedSourceIds={new Set()} onSourceToggle={() => {}} onClearSources={() => {}}`. When a component's prop API changes, use `replace_all: true` on Edit tool to update all test usages in one pass (28 occurrences updated at once). Also add new required fixture fields (`budgetSources: []` on BudgetBreakdown, `budgetSourceId: null` on BreakdownBudgetLine) via Python `sed`-style script when the pattern is uniform across many objects.
+
+**Fix Loop Round 1 (2026-04-25)**: Tests at lines ~1844/1859/1884 still passed `budgetSources` as a JSX prop AND were missing required props. Fix: move source data into `breakdown={{ ...buildBreakdownWithWI(), budgetSources: [buildSourceSummary(...)] }}` and add `selectedSourceIds onSourceToggle onClearSources`. Also removed obsolete `buildBudgetSource()` helper (used `BudgetSource` full type — now use `buildSourceSummary()` with `BudgetSourceSummaryBreakdown`). In `BudgetOverviewPage.test.tsx`, Scenario 30 was testing the old `budgetSources` prop flow; updated to populate `breakdown.budgetSources` instead. Added Escape key tests for new `handleToolbarKeyDown` behavior.
+
+**Stale dist warning**: `node_modules/@cornerstone/shared/dist/` must be rebuilt (`tsc -p shared/tsconfig.json --outDir node_modules/@cornerstone/shared/dist`) when shared types change. Without rebuild, `tsc --noEmit` on client shows false positives for `budgetSourceId`, `budgetSources`, `BudgetSourceSummaryBreakdown`. Jest is unaffected (maps to source).
+
 ## BudgetBar Module-Level Mock Anti-Pattern (2026-04-20)
 
 **Critical**: Mocking `BudgetBar` at module level (`jest.unstable_mockModule('../../components/BudgetBar/BudgetBar.js', ...)`) breaks ALL existing tests that rely on BudgetBar rendering content (labels, role="img", segment text). BudgetBar renders segment labels (e.g. "Paid (unclaimed)", "Claimed") that existing tests assert on. The fix: test segment keys via observable behavior (aria-label, summaryLabel text) rather than mock capture. For segment structure verification, use `container.querySelectorAll('[class*="summaryRow"]')` to check rows and their label text order.

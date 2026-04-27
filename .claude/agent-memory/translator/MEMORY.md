@@ -46,6 +46,8 @@ Action labels in German follow the pattern: `{Noun} {Verb}` with capitalised fir
 - `de/areas.json` created 2026-04-16 (Story #1237): `noArea` → "Kein Bereich", `pathLabel` → "Bereichspfad"
 - `de/budget.json` — `overview.costBreakdown.area.unassigned` and `sources.lines.unassignedArea` both updated to "Kein Bereich" 2026-04-19 (Issue #1295), aligned with `de/areas.json` and the `noCategory` → "Keine Kategorie" parallel pattern
 - `de/budget.json` — `sources.lines.noCategory` orphan deleted 2026-04-19 (Issue #1313); `sources.lines.invoiceStatus.*`, `sources.lines.underArea`, `sources.lines.typeColumnHeader`, `sources.lines.statusColumnHeader` added 2026-04-19 (Issue #1313)
+- `de/budget.json` — Issue #1356 (2026-04-25): `sourceFilter` rework — removed `label`, `allSources`, `clearAriaLabel`, `chipSelected`, `chipNotSelected`, `activeAnnouncement`; added `statusAnnouncement`; added new blocks `sourceRow.*` and `availableFunds.*`
+- **Pre-existing gap** (as of 2026-04-25, outside #1356 scope): `sources.lines.typeColumnHeader` and `sources.lines.statusColumnHeader` exist in `en` but not `de` — needs a dedicated spec to fix
 - Always check key parity when picking up a new translator spec
 
 ## Backup/Restore Terminology (2026-03-22)
@@ -132,3 +134,19 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - `summaryClaimedLabel` → "Eingereicht" (bar chart summary; consistent with `barChart.claimed` = "Eingereicht")
 - `srOnly` screen reader text: "Eingereicht {{claimed}}, Bezahlt {{paid}}, Projiziert {{projectedMin}} bis {{projectedMax}}, von Gesamt {{total}}"
 - Obsolete keys removed in this update: `allocated`, `total`, `available`, `planned`
+
+## Source Filter & Source Badge Patterns — Issue #1354 (2026-04-25)
+
+- `overview.costBreakdown.sourceFilter.*`, `sourceImpact.*`, `sourceBadge.*` added to `de/budget.json`
+- "Unassigned" (source filter / source badge context) → "Nicht zugewiesen" (glossary `Unassigned` term, not "Kein X" pattern which is used for area/category absence)
+- "Budget source: {{name}}" (aria label) → "Budgetquelle: {{name}}" — always use full glossary term "Budgetquelle" in aria labels, short "Quelle" only in UI labels
+- `sourceImpact.allocated` → "Zugeordnet"; `sourceImpact.remaining` → "Verbleibend"
+- **Note**: `label`, `allSources`, `clearAriaLabel`, `chipSelected`, `chipNotSelected` and `activeAnnouncement` were added in #1354 but removed again in #1356 rework (chip-based filter replaced)
+
+## Source Row & Status Announcement Patterns — Issue #1356 (2026-04-25)
+
+- `sourceFilter.statusAnnouncement` → "{{selected}} von {{total}} Budgetquellen ausgewählt" (uses plural "Budgetquellen" from glossary)
+- `sourceRow.selectedAriaLabel` → "{{name}}, ausgewählt – zum Abwählen klicken" (en-dash, infinitive construction)
+- `sourceRow.deselectedAriaLabel` → "{{name}}, abgewählt – zum Auswählen klicken"
+- `availableFunds.activeFilterCaption` → "({{selected}} von {{total}} ausgewählt)"
+- Aria label click-instruction pattern: "– zum [Verb] klicken" (en-dash, infinitive with "zu")

@@ -51,6 +51,9 @@
       "householdItems": "Household Items",
       "sum": "Sum",
       "availableFunds": "Available funds",
+      "availableFundsFilter": {
+        "activeFilterCaption": "({{selected}} of {{total}} selected)"
+      },
       "remainingBudget": "Remaining Budget",
       "quoted": "Quoted",
       "tableHeaders": {
@@ -67,6 +70,27 @@
         "unassigned": "No Area",
         "expandWorkItemsLabel": "Expand work item budget by area",
         "expandHouseholdItemsLabel": "Expand household item budget by area"
+      },
+      "sourceFilter": {
+        "unassigned": "Unassigned",
+        "allSourcesAnnouncement": "Showing all budget lines",
+        "statusAnnouncement": "{{selected}} of {{total}} budget sources selected",
+        "empty": "No budget lines match the selected source filter.",
+        "clear": "Clear filters"
+      },
+      "refetchError": "Failed to refresh breakdown. Please try again.",
+      "dismissError": "Dismiss",
+      "sourceRow": {
+        "selectedAriaLabel": "{{name}}, selected — click to deselect",
+        "deselectedAriaLabel": "{{name}}, deselected — click to select"
+      },
+      "sourceImpact": {
+        "allocated": "Allocated",
+        "remaining": "Remaining"
+      },
+      "sourceBadge": {
+        "ariaLabel": "Budget source: {{name}}",
+        "unassigned": "Unassigned"
       }
     }
   },

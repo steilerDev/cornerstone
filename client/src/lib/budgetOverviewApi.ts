@@ -16,9 +16,13 @@ export async function fetchBudgetOverview(): Promise<BudgetOverview> {
 
 /**
  * Fetches the itemized budget breakdown with all nested work items, categories, and budget lines.
- * Used for the expandable cost breakdown table on the budget dashboard.
+ * Pass deselectedSources to apply server-side source filtering.
  */
-export async function fetchBudgetBreakdown(): Promise<BudgetBreakdown> {
-  const response = await get<BudgetBreakdownResponse>('/budget/breakdown');
+export async function fetchBudgetBreakdown(deselectedSources?: string[]): Promise<BudgetBreakdown> {
+  const path =
+    deselectedSources && deselectedSources.length > 0
+      ? `/budget/breakdown?deselectedSources=${encodeURIComponent(deselectedSources.join(','))}`
+      : '/budget/breakdown';
+  const response = await get<BudgetBreakdownResponse>(path);
   return response.breakdown;
 }

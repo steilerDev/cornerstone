@@ -1,6 +1,10 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { fetchBudgetOverview } from './budgetOverviewApi.js';
-import type { BudgetOverview, BudgetOverviewResponse } from '@cornerstone/shared';
+import { fetchBudgetOverview, fetchBudgetBreakdown } from './budgetOverviewApi.js';
+import type {
+  BudgetOverview,
+  BudgetOverviewResponse,
+  BudgetBreakdownResponse,
+} from '@cornerstone/shared';
 
 describe('budgetOverviewApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
@@ -171,6 +175,104 @@ describe('budgetOverviewApi', () => {
       } as Response);
 
       await expect(fetchBudgetOverview()).rejects.toThrow();
+    });
+  });
+
+  // ─── fetchBudgetBreakdown — query param encoding (Scenarios 16–19) ─────────
+
+  describe('fetchBudgetBreakdown', () => {
+    const stubBreakdownResponse: BudgetBreakdownResponse = {
+      breakdown: {
+        workItems: {
+          areas: [],
+          totals: {
+            projectedMin: 0,
+            projectedMax: 0,
+            actualCost: 0,
+            subsidyPayback: 0,
+            rawProjectedMin: 0,
+            rawProjectedMax: 0,
+            minSubsidyPayback: 0,
+          },
+        },
+        householdItems: {
+          areas: [],
+          totals: {
+            projectedMin: 0,
+            projectedMax: 0,
+            actualCost: 0,
+            subsidyPayback: 0,
+            rawProjectedMin: 0,
+            rawProjectedMax: 0,
+            minSubsidyPayback: 0,
+          },
+        },
+        subsidyAdjustments: [],
+        budgetSources: [],
+      },
+    };
+
+    function mockSuccessResponse() {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => stubBreakdownResponse,
+      } as Response);
+    }
+
+    // Scenario 16: No args → no query string
+    it('calls fetch with /api/budget/breakdown (no query string) when called with no args (Scenario 16)', async () => {
+      mockSuccessResponse();
+
+      await fetchBudgetBreakdown();
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const url = (mockFetch.mock.calls[0] as [string, RequestInit])[0];
+      expect(url).toBe('/api/budget/breakdown');
+    });
+
+    // Scenario 17: Empty array → no query string
+    it('calls fetch with /api/budget/breakdown (no query string) when called with an empty array (Scenario 17)', async () => {
+      mockSuccessResponse();
+
+      await fetchBudgetBreakdown([]);
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const url = (mockFetch.mock.calls[0] as [string, RequestInit])[0];
+      expect(url).toBe('/api/budget/breakdown');
+    });
+
+    // Scenario 18: Single source → correct query string
+    it('calls fetch with ?deselectedSources=src-a for a single source (Scenario 18)', async () => {
+      mockSuccessResponse();
+
+      await fetchBudgetBreakdown(['src-a']);
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const url = (mockFetch.mock.calls[0] as [string, RequestInit])[0];
+      expect(url).toContain('/api/budget/breakdown?deselectedSources=');
+      // Decoded or encoded: src-a has no special chars, so the URL may contain 'src-a' directly
+      expect(decodeURIComponent(url)).toContain('src-a');
+    });
+
+    // Scenario 19: Multiple sources → comma-separated (URI-encoded) in query string
+    it('encodes multiple sources as comma-separated list in ?deselectedSources (Scenario 19)', async () => {
+      mockSuccessResponse();
+
+      await fetchBudgetBreakdown(['src-a', 'src-b']);
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const url = (mockFetch.mock.calls[0] as [string, RequestInit])[0];
+      expect(url).toContain('/api/budget/breakdown?deselectedSources=');
+      // The implementation uses encodeURIComponent('src-a,src-b') = 'src-a%2Csrc-b'
+      const decodedUrl = decodeURIComponent(url);
+      expect(decodedUrl).toContain('src-a');
+      expect(decodedUrl).toContain('src-b');
+      // Both IDs must be in the same query param value (comma-joined)
+      const qsStart = url.indexOf('?deselectedSources=') + '?deselectedSources='.length;
+      const rawQsValue = url.slice(qsStart);
+      const decodedQsValue = decodeURIComponent(rawQsValue);
+      expect(decodedQsValue).toContain('src-a');
+      expect(decodedQsValue).toContain('src-b');
     });
   });
 });

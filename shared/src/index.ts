@@ -202,6 +202,7 @@ export type {
   BudgetBreakdown,
   BudgetBreakdownResponse,
   SubsidyAdjustment,
+  BudgetSourceSummaryBreakdown,
 } from './types/budgetBreakdown.js';
 
 // Work Item Budgets

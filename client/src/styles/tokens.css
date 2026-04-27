@@ -355,6 +355,62 @@
   --color-surface-item-tint: var(--color-white);
 
   /* ============================================================
+   * LAYER 2 — BUDGET SOURCE BADGE TOKENS
+   * 10-slot palette: slot 0 is Unassigned (gray/neutral),
+   * slots 1–9 are distinct colors for named sources.
+   * ============================================================ */
+
+  /* Slot 0: Unassigned (gray) */
+  --color-source-0-bg: var(--color-gray-200);
+  --color-source-0-text: var(--color-gray-700);
+  --color-source-0-dot: var(--color-gray-500);
+
+  /* Slot 1: Blue */
+  --color-source-1-bg: var(--color-blue-100);
+  --color-source-1-text: var(--color-blue-800);
+  --color-source-1-dot: var(--color-blue-500);
+
+  /* Slot 2: Green */
+  --color-source-2-bg: var(--color-green-100);
+  --color-source-2-text: var(--color-green-900);
+  --color-source-2-dot: var(--color-green-500);
+
+  /* Slot 3: Red */
+  --color-source-3-bg: var(--color-red-100);
+  --color-source-3-text: var(--color-red-700);
+  --color-source-3-dot: var(--color-red-500);
+
+  /* Slot 4: Amber */
+  --color-source-4-bg: var(--color-amber-100);
+  --color-source-4-text: var(--color-amber-800);
+  --color-source-4-dot: var(--color-amber-300);
+
+  /* Slot 5: Purple */
+  --color-source-5-bg: #e9d5ff;
+  --color-source-5-text: #6b21a8;
+  --color-source-5-dot: #a855f7;
+
+  /* Slot 6: Cyan */
+  --color-source-6-bg: #cffafe;
+  --color-source-6-text: #0c4a6e;
+  --color-source-6-dot: #06b6d4;
+
+  /* Slot 7: Pink */
+  --color-source-7-bg: var(--color-blue-100);
+  --color-source-7-text: var(--color-blue-800);
+  --color-source-7-dot: #ec4899;
+
+  /* Slot 8: Teal */
+  --color-source-8-bg: #ccfbf1;
+  --color-source-8-text: #134e4a;
+  --color-source-8-dot: #14b8a6;
+
+  /* Slot 9: Orange */
+  --color-source-9-bg: #fed7aa;
+  --color-source-9-text: #9a3412;
+  --color-source-9-dot: #f97316;
+
+  /* ============================================================
    * LAYER 2 — GANTT CHART TOKENS
    * ============================================================ */
 
@@ -661,6 +717,47 @@
   --color-hi-status-scheduled-text: var(--color-amber-300);
   --color-hi-status-arrived-bg: rgba(16, 185, 129, 0.15);
   --color-hi-status-arrived-text: var(--color-emerald-200);
+
+  /* --- Budget source badge tokens (dark mode) --- */
+  --color-source-0-bg: var(--color-slate-500);
+  --color-source-0-text: var(--color-slate-100);
+  --color-source-0-dot: var(--color-slate-300);
+
+  --color-source-1-bg: rgba(59, 130, 246, 0.2);
+  --color-source-1-text: var(--color-blue-300);
+  --color-source-1-dot: var(--color-blue-300);
+
+  --color-source-2-bg: rgba(16, 185, 129, 0.15);
+  --color-source-2-text: var(--color-emerald-200);
+  --color-source-2-dot: var(--color-emerald-400);
+
+  --color-source-3-bg: rgba(239, 68, 68, 0.15);
+  --color-source-3-text: var(--color-red-300);
+  --color-source-3-dot: var(--color-red-400);
+
+  --color-source-4-bg: rgba(245, 158, 11, 0.2);
+  --color-source-4-text: var(--color-amber-300);
+  --color-source-4-dot: var(--color-amber-300);
+
+  --color-source-5-bg: rgba(168, 85, 247, 0.2);
+  --color-source-5-text: #e9d5ff;
+  --color-source-5-dot: #a855f7;
+
+  --color-source-6-bg: rgba(34, 211, 238, 0.15);
+  --color-source-6-text: #cffafe;
+  --color-source-6-dot: #06b6d4;
+
+  --color-source-7-bg: rgba(59, 130, 246, 0.2);
+  --color-source-7-text: var(--color-blue-300);
+  --color-source-7-dot: #ec4899;
+
+  --color-source-8-bg: rgba(20, 184, 166, 0.15);
+  --color-source-8-text: #ccfbf1;
+  --color-source-8-dot: #14b8a6;
+
+  --color-source-9-bg: rgba(249, 115, 22, 0.2);
+  --color-source-9-text: #fed7aa;
+  --color-source-9-dot: #f97316;
 
   /* --- Shadows (deeper/darker in dark mode) --- */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);

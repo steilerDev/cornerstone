@@ -17,6 +17,7 @@
 import type { Page, Locator } from '@playwright/test';
 
 export const BUDGET_OVERVIEW_ROUTE = '/budget/overview';
+export const BUDGET_OVERVIEW_URL_PATTERN = /\/budget\/overview/;
 
 export class BudgetOverviewPage {
   readonly page: Page;
@@ -155,5 +156,63 @@ export class BudgetOverviewPage {
    */
   get addButton(): Locator {
     return this.page.getByTestId('budget-overview-add-button');
+  }
+
+  // ── Source filter helpers ─────────────────────────────────────────────────
+
+  /**
+   * The screen-reader live region for filter count announcements (role="status").
+   * Lives outside tableWrapper — always mounted, visually hidden (sr-only).
+   */
+  filterAnnouncement(): Locator {
+    return this.costBreakdownCard.locator('[role="status"]');
+  }
+
+  /**
+   * The Available Funds expand/collapse button.
+   * aria-label: "Expand available funds sources"
+   */
+  availableFundsButton(): Locator {
+    return this.costBreakdownCard.getByRole('button', {
+      name: /Expand available funds sources/i,
+    });
+  }
+
+  /**
+   * Source detail row for a given source name (expanded under Available Funds).
+   * These rows are `<tr role="button" aria-pressed>` toggles.
+   * Scoped to `tr[class*="rowSourceDetail"]`.
+   */
+  sourceRow(name: string): Locator {
+    return this.costBreakdownCard.locator('tr[class*="rowSourceDetail"]').filter({
+      has: this.page.getByText(name, { exact: true }),
+    });
+  }
+
+  /**
+   * @deprecated Use `sourceRow(name)` instead (renamed from #1354 → #1356 rework).
+   * Kept for any callers in other spec files that reference `sourceDetailRow`.
+   */
+  sourceDetailRow(name: string): Locator {
+    return this.sourceRow(name);
+  }
+
+  /**
+   * The Available Funds amount cell.
+   * The value lives in `td[colspan="3"]` inside the Available Funds header row.
+   */
+  availableFundsValue(): Locator {
+    return this.costBreakdownCard
+      .getByRole('row')
+      .filter({ hasText: /available funds/i })
+      .locator('td[colspan="3"]');
+  }
+
+  /**
+   * The filter caption "(X of Y selected)" shown below the Available Funds value.
+   * Rendered only when at least one source is deselected.
+   */
+  filterCaption(): Locator {
+    return this.availableFundsValue().locator('[class*="availableFundsFilterCaption"]');
   }
 }

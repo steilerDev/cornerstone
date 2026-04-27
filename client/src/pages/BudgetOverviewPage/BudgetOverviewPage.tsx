@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { BudgetOverview, BudgetBreakdown, BudgetSource } from '@cornerstone/shared';
 import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverviewApi.js';
@@ -164,6 +164,12 @@ export function BudgetOverviewPage() {
   // Breakdown state
   const [breakdown, setBreakdown] = useState<BudgetBreakdown | null>(null);
   const [isBreakdownLoading, setIsBreakdownLoading] = useState(false);
+  const [isBreakdownRefetching, setIsBreakdownRefetching] = useState(false);
+  const [breakdownError, setBreakdownError] = useState<string>('');
+
+  // Refs for debounce + AbortController
+  const abortRef = useRef<AbortController | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Budget sources state
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
@@ -180,6 +186,93 @@ export function BudgetOverviewPage() {
   // Add dropdown state
   const [addOpen, setAddOpen] = useState(false);
   const addRef = useRef<HTMLDivElement>(null);
+
+  // Source filter state (from URL)
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Derive deselected source IDs from URL ?deselectedSources= param
+  // 'unassigned' is the literal key for null-source lines
+  const deselectedSourceIds = useMemo<Set<string>>(() => {
+    const raw = searchParams.get('deselectedSources');
+    if (!raw) return new Set();
+    return new Set(raw.split(',').filter(Boolean));
+  }, [searchParams]);
+
+  const handleSourceToggle = useCallback(
+    (sourceId: string | null) => {
+      const key = sourceId ?? 'unassigned';
+      setSearchParams((prev) => {
+        const current = new Set(prev.get('deselectedSources')?.split(',').filter(Boolean) ?? []);
+        if (current.has(key)) {
+          current.delete(key);
+        } else {
+          current.add(key);
+        }
+        const params = new URLSearchParams(prev);
+        if (current.size === 0) {
+          params.delete('deselectedSources');
+        } else {
+          params.set('deselectedSources', [...current].join(','));
+        }
+        return params;
+      });
+    },
+    [setSearchParams],
+  );
+
+  const handleSelectAllSources = useCallback(() => {
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      params.delete('deselectedSources');
+      return params;
+    });
+  }, [setSearchParams]);
+
+  // Standalone fetch function for debounced refetch
+  const fetchBreakdown = useCallback(
+    async (sourceIds: Set<string>, signal?: AbortSignal) => {
+      const deselectedArray = sourceIds.size > 0 ? [...sourceIds] : undefined;
+      try {
+        const bd = await fetchBudgetBreakdown(deselectedArray);
+        if (signal?.aborted) return; // double-check after await
+        setBreakdown(bd);
+        setBreakdownError(''); // Clear any prior error
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return; // expected, ignore
+        // Keep previous breakdown visible; surface error for AC #14
+        setBreakdownError(t('overview.costBreakdown.refetchError'));
+      } finally {
+        if (!signal?.aborted) setIsBreakdownRefetching(false);
+      }
+    },
+    [t],
+  );
+
+  // Debounced refetch on deselectedSourceIds change
+  const DEBOUNCE_MS = 50;
+  useEffect(() => {
+    // 1. Clear any pending debounced fetch
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    // 2. Abort any in-flight fetch
+    if (abortRef.current) abortRef.current.abort();
+
+    // Only trigger refetch after initial load completes
+    if (isLoading) return;
+
+    // 3. Schedule new fetch after debounce window
+    setIsBreakdownRefetching(true);
+    debounceRef.current = setTimeout(() => {
+      const controller = new AbortController();
+      abortRef.current = controller;
+      void fetchBreakdown(deselectedSourceIds, controller.signal);
+    }, DEBOUNCE_MS);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, [deselectedSourceIds, isLoading, fetchBreakdown]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -218,7 +311,8 @@ export function BudgetOverviewPage() {
       // Fetch breakdown data (non-critical, so silent failure)
       setIsBreakdownLoading(true);
       try {
-        const bd = await fetchBudgetBreakdown();
+        const deselectedArray = deselectedSourceIds.size > 0 ? [...deselectedSourceIds] : undefined;
+        const bd = await fetchBudgetBreakdown(deselectedArray);
         setBreakdown(bd);
       } catch {
         // breakdown is non-critical; silently fail and show empty state if it fails
@@ -612,11 +706,29 @@ export function BudgetOverviewPage() {
             <p>{t('overview.costBreakdown.loading')}</p>
           </div>
         ) : breakdown ? (
-          <CostBreakdownTable
-            breakdown={breakdown}
-            overview={overview}
-            budgetSources={budgetSources}
-          />
+          <>
+            {breakdownError && (
+              <div className={styles.breakdownErrorBanner} role="alert">
+                {breakdownError}
+                <button
+                  type="button"
+                  onClick={() => setBreakdownError('')}
+                  aria-label={t('overview.costBreakdown.dismissError')}
+                >
+                  {t('overview.costBreakdown.dismissError')}
+                </button>
+              </div>
+            )}
+            <div className={isBreakdownRefetching ? styles.breakdownRefetching : undefined}>
+              <CostBreakdownTable
+                breakdown={breakdown}
+                overview={overview}
+                deselectedSourceIds={deselectedSourceIds}
+                onSourceToggle={handleSourceToggle}
+                onSelectAllSources={handleSelectAllSources}
+              />
+            </div>
+          </>
         ) : null)}
     </PageLayout>
   );

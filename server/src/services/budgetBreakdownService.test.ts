@@ -292,6 +292,7 @@ describe('getBudgetBreakdown', () => {
     name?: string;
     reductionType: 'percentage' | 'fixed';
     reductionValue: number;
+    maximumAmount?: number | null;
     applicationStatus?: 'eligible' | 'applied' | 'approved' | 'received' | 'rejected';
     categoryIds?: string[];
   }): string {
@@ -303,6 +304,7 @@ describe('getBudgetBreakdown', () => {
         name: opts.name ?? `Subsidy ${id}`,
         reductionType: opts.reductionType,
         reductionValue: opts.reductionValue,
+        maximumAmount: opts.maximumAmount ?? null,
         applicationStatus: opts.applicationStatus ?? 'eligible',
         createdAt: now,
         updatedAt: now,
@@ -326,6 +328,108 @@ describe('getBudgetBreakdown', () => {
 
   function linkHouseholdItemSubsidy(householdItemId: string, subsidyProgramId: string) {
     db.insert(schema.householdItemSubsidies).values({ householdItemId, subsidyProgramId }).run();
+  }
+
+  /**
+   * Insert a budget source and return its id.
+   */
+  function insertBudgetSource(
+    opts: {
+      name?: string;
+      totalAmount?: number;
+      sourceType?: 'bank_loan' | 'credit_line' | 'savings' | 'other' | 'discretionary';
+    } = {},
+  ): string {
+    const id = `src-test-${idCounter++}`;
+    const now = new Date().toISOString();
+    db.insert(schema.budgetSources)
+      .values({
+        id,
+        name: opts.name ?? `Budget Source ${id}`,
+        sourceType: opts.sourceType ?? 'bank_loan',
+        totalAmount: opts.totalAmount ?? 100000,
+        status: 'active',
+        isDiscretionary: false,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return id;
+  }
+
+  /**
+   * Insert a work item budget line with a specific budget source assigned.
+   * Returns the budget line id.
+   */
+  function insertWorkItemWithSource(opts: {
+    plannedAmount?: number;
+    confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
+    budgetSourceId: string | null;
+  }): { workItemId: string; budgetLineId: string } {
+    const id = `wi-src-${idCounter++}`;
+    const budgetId = `bud-src-${idCounter++}`;
+    const now = new Date().toISOString();
+    db.insert(schema.workItems)
+      .values({
+        id,
+        title: `Work Item with Source ${id}`,
+        status: 'not_started',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    db.insert(schema.workItemBudgets)
+      .values({
+        id: budgetId,
+        workItemId: id,
+        plannedAmount: opts.plannedAmount ?? 1000,
+        confidence: opts.confidence ?? 'own_estimate',
+        budgetCategoryId: null,
+        budgetSourceId: opts.budgetSourceId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return { workItemId: id, budgetLineId: budgetId };
+  }
+
+  /**
+   * Insert a household item budget line with a specific budget source assigned.
+   * Returns the budget line id.
+   */
+  function insertHouseholdItemWithSource(opts: {
+    plannedAmount?: number;
+    confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
+    budgetSourceId: string | null;
+  }): { householdItemId: string; budgetLineId: string } {
+    const id = `hi-src-${idCounter++}`;
+    const budgetId = `hibud-src-${idCounter++}`;
+    const now = new Date().toISOString();
+    db.insert(schema.householdItems)
+      .values({
+        id,
+        name: `Household Item with Source ${id}`,
+        categoryId: 'hic-furniture',
+        status: 'planned',
+        quantity: 1,
+        isLate: false,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    db.insert(schema.householdItemBudgets)
+      .values({
+        id: budgetId,
+        householdItemId: id,
+        plannedAmount: opts.plannedAmount ?? 500,
+        confidence: opts.confidence ?? 'own_estimate',
+        budgetCategoryId: null,
+        budgetSourceId: opts.budgetSourceId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return { householdItemId: id, budgetLineId: budgetId };
   }
 
   beforeEach(() => {
@@ -1225,6 +1329,548 @@ describe('getBudgetBreakdown', () => {
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.budgetLines[0]!.description).toBeNull();
+    });
+  });
+
+  // ── 15. budgetSourceId attribution ─────────────────────────────────────────
+
+  describe('budgetSourceId attribution on budget lines', () => {
+    // Scenario 1: budgetSourceId populated on WI lines
+    it('populates budgetSourceId on work item budget lines when a source is assigned', () => {
+      const sourceId = insertBudgetSource({ name: 'Bank Loan', totalAmount: 200000 });
+      const { budgetLineId } = insertWorkItemWithSource({
+        plannedAmount: 1000,
+        budgetSourceId: sourceId,
+      });
+
+      const result = getBudgetBreakdown(db);
+
+      const item = result.workItems.areas[0]!.items[0]!;
+      expect(item.budgetLines).toHaveLength(1);
+      expect(item.budgetLines[0]!.id).toBe(budgetLineId);
+      expect(item.budgetLines[0]!.budgetSourceId).toBe(sourceId);
+    });
+
+    // Scenario 2: budgetSourceId null when no source
+    it('sets budgetSourceId to null on work item budget lines when no source is assigned', () => {
+      insertWorkItemWithSource({ plannedAmount: 1000, budgetSourceId: null });
+
+      const result = getBudgetBreakdown(db);
+
+      const item = result.workItems.areas[0]!.items[0]!;
+      expect(item.budgetLines[0]!.budgetSourceId).toBeNull();
+    });
+
+    // Scenario 6: HI lines also attributed
+    it('populates budgetSourceId on household item budget lines when a source is assigned', () => {
+      const sourceId = insertBudgetSource({ name: 'Savings', totalAmount: 50000 });
+      const { budgetLineId } = insertHouseholdItemWithSource({
+        plannedAmount: 500,
+        budgetSourceId: sourceId,
+      });
+
+      const result = getBudgetBreakdown(db);
+
+      const hiItem = result.householdItems.areas[0]!.items[0]!;
+      expect(hiItem.budgetLines).toHaveLength(1);
+      expect(hiItem.budgetLines[0]!.id).toBe(budgetLineId);
+      expect(hiItem.budgetLines[0]!.budgetSourceId).toBe(sourceId);
+    });
+
+    it('sets budgetSourceId to null on household item budget lines when no source is assigned', () => {
+      insertHouseholdItemWithSource({ plannedAmount: 500, budgetSourceId: null });
+
+      const result = getBudgetBreakdown(db);
+
+      const hiItem = result.householdItems.areas[0]!.items[0]!;
+      expect(hiItem.budgetLines[0]!.budgetSourceId).toBeNull();
+    });
+  });
+
+  // ── 16. budgetSources aggregate ────────────────────────────────────────────
+
+  describe('budgetSources aggregate in breakdown result', () => {
+    // Scenario 3: budgetSources array populated
+    it('includes sources with correct id, name, and totalAmount in budgetSources array', () => {
+      const sourceId = insertBudgetSource({ name: 'Bank Loan', totalAmount: 150000 });
+      insertWorkItemWithSource({ plannedAmount: 1000, budgetSourceId: sourceId });
+
+      const result = getBudgetBreakdown(db);
+
+      const found = result.budgetSources.find((s) => s.id === sourceId);
+      expect(found).toBeDefined();
+      expect(found!.id).toBe(sourceId);
+      expect(found!.name).toBe('Bank Loan');
+      expect(found!.totalAmount).toBe(150000);
+    });
+
+    // Scenario 4: projectedMin/Max correct for own_estimate confidence
+    it('computes correct projectedMin and projectedMax for source with own_estimate line', () => {
+      // own_estimate margin = 0.2 → min = 1000 * 0.8 = 800, max = 1000 * 1.2 = 1200
+      const sourceId = insertBudgetSource({ name: 'Savings', totalAmount: 100000 });
+      insertWorkItemWithSource({
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+        budgetSourceId: sourceId,
+      });
+
+      const result = getBudgetBreakdown(db);
+
+      const src = result.budgetSources.find((s) => s.id === sourceId);
+      expect(src).toBeDefined();
+      expect(src!.projectedMin).toBeCloseTo(800, 5);
+      expect(src!.projectedMax).toBeCloseTo(1200, 5);
+    });
+
+    it('computes correct projectedMin and projectedMax for source with quote confidence', () => {
+      // quote margin = 0.05 → min = 2000 * 0.95 = 1900, max = 2000 * 1.05 = 2100
+      const sourceId = insertBudgetSource({ name: 'Mortgage', totalAmount: 200000 });
+      insertWorkItemWithSource({
+        plannedAmount: 2000,
+        confidence: 'quote',
+        budgetSourceId: sourceId,
+      });
+
+      const result = getBudgetBreakdown(db);
+
+      const src = result.budgetSources.find((s) => s.id === sourceId);
+      expect(src).toBeDefined();
+      expect(src!.projectedMin).toBeCloseTo(1900, 5);
+      expect(src!.projectedMax).toBeCloseTo(2100, 5);
+    });
+
+    it('accumulates projectedMin/Max across multiple lines assigned to the same source', () => {
+      // Source has two WI lines: own_estimate 1000 + quote 2000
+      // min = 800 + 1900 = 2700, max = 1200 + 2100 = 3300
+      const sourceId = insertBudgetSource({ name: 'Mixed Funding', totalAmount: 300000 });
+      insertWorkItemWithSource({
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+        budgetSourceId: sourceId,
+      });
+      insertWorkItemWithSource({
+        plannedAmount: 2000,
+        confidence: 'quote',
+        budgetSourceId: sourceId,
+      });
+
+      const result = getBudgetBreakdown(db);
+
+      const src = result.budgetSources.find((s) => s.id === sourceId);
+      expect(src).toBeDefined();
+      expect(src!.projectedMin).toBeCloseTo(800 + 1900, 5);
+      expect(src!.projectedMax).toBeCloseTo(1200 + 2100, 5);
+    });
+
+    it('includes household item lines in source projected totals', () => {
+      // WI line: own_estimate 1000 → min=800, max=1200
+      // HI line: quote 2000 → min=1900, max=2100
+      // Combined: min=2700, max=3300
+      const sourceId = insertBudgetSource({ name: 'Combined', totalAmount: 400000 });
+      insertWorkItemWithSource({
+        plannedAmount: 1000,
+        confidence: 'own_estimate',
+        budgetSourceId: sourceId,
+      });
+      insertHouseholdItemWithSource({
+        plannedAmount: 2000,
+        confidence: 'quote',
+        budgetSourceId: sourceId,
+      });
+
+      const result = getBudgetBreakdown(db);
+
+      const src = result.budgetSources.find((s) => s.id === sourceId);
+      expect(src).toBeDefined();
+      expect(src!.projectedMin).toBeCloseTo(800 + 1900, 5);
+      expect(src!.projectedMax).toBeCloseTo(1200 + 2100, 5);
+    });
+
+    // Scenario 5: budgetSources includes sources with no lines (always full list — Decision A)
+    it('includes a budget source that exists in the DB but has no budget lines assigned', () => {
+      // Create a source but don't assign any budget lines to it
+      const unusedSourceId = insertBudgetSource({ name: 'Unused Source', totalAmount: 50000 });
+
+      // Insert a WI budget line with NO source
+      insertWorkItemWithSource({ plannedAmount: 1000, budgetSourceId: null });
+
+      const result = getBudgetBreakdown(db);
+
+      // budgetSources always contains all configured sources — unused source is still included
+      const found = result.budgetSources.find((s) => s.id === unusedSourceId);
+      expect(found).toBeDefined();
+      expect(found!.projectedMin).toBe(0);
+      expect(found!.projectedMax).toBe(0);
+      expect(found!.subsidyPaybackMin).toBe(0);
+      expect(found!.subsidyPaybackMax).toBe(0);
+    });
+
+    // Scenario 7: budgetSources empty when no user sources exist (discretionary-system is always present)
+    it('returns empty budgetSources array when no budget sources exist in the database', () => {
+      insertWorkItem({ plannedAmount: 1000 });
+
+      const result = getBudgetBreakdown(db);
+
+      // Filter out discretionary-system (always seeded by migration 0021) and
+      // the synthetic 'unassigned' entry (emitted when any lines have budgetSourceId=null)
+      const userSources = result.budgetSources.filter(
+        (s) => s.id !== 'discretionary-system' && s.id !== 'unassigned',
+      );
+      expect(userSources).toHaveLength(0);
+    });
+
+    it('returns empty budgetSources array when no data exists at all', () => {
+      const result = getBudgetBreakdown(db);
+
+      // Filter out discretionary-system which is always seeded by migration 0021
+      const userSources = result.budgetSources.filter((s) => s.id !== 'discretionary-system');
+      expect(userSources).toHaveLength(0);
+    });
+
+    it('returns multiple sources in order when multiple sources have lines', () => {
+      const sourceA = insertBudgetSource({ name: 'Alpha Source', totalAmount: 50000 });
+      const sourceB = insertBudgetSource({ name: 'Beta Source', totalAmount: 75000 });
+      insertWorkItemWithSource({ plannedAmount: 1000, budgetSourceId: sourceA });
+      insertWorkItemWithSource({ plannedAmount: 2000, budgetSourceId: sourceB });
+
+      const result = getBudgetBreakdown(db);
+
+      // Both user-created sources must appear (discretionary-system may also be present)
+      const ids = result.budgetSources.map((s) => s.id);
+      expect(ids).toContain(sourceA);
+      expect(ids).toContain(sourceB);
+    });
+  });
+
+  // ── Server-side source filtering (Scenarios 1–10, AC #1–#10) ───────────────
+
+  describe('deselectedSources filter — backward compatibility', () => {
+    // Scenario 1: No filter (backward compatibility, AC #1)
+    it('returns all lines when called with no args (Scenario 1)', () => {
+      const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 80000 });
+      const srcB = insertBudgetSource({ name: 'Source B', totalAmount: 50000 });
+      insertWorkItemWithSource({ plannedAmount: 5000, budgetSourceId: srcA });
+      insertWorkItemWithSource({ plannedAmount: 3000, budgetSourceId: srcB });
+      insertWorkItemWithSource({ plannedAmount: 2000, budgetSourceId: null }); // unassigned
+
+      const result = getBudgetBreakdown(db); // no args
+
+      // All 3 work items appear (each in Unassigned area since no area_id)
+      expect(result.workItems.areas).toHaveLength(1); // one synthetic Unassigned area
+      expect(result.workItems.areas[0]!.items).toHaveLength(3);
+      // Totals reflect all 3 lines — own_estimate: min=0.8×amt, max=1.2×amt
+      // 5000 + 3000 + 2000 = 10000 planned, rawMin = 0.8×10000 = 8000
+      expect(result.workItems.totals.rawProjectedMin).toBeCloseTo(8000, 5);
+      expect(result.workItems.totals.rawProjectedMax).toBeCloseTo(12000, 5);
+    });
+
+    // Scenario 2: Empty set is identical to no-args call (AC #2)
+    it('returns identical response when called with empty Set (Scenario 2)', () => {
+      const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 80000 });
+      insertWorkItemWithSource({ plannedAmount: 5000, budgetSourceId: srcA });
+      insertWorkItemWithSource({ plannedAmount: 2000, budgetSourceId: null });
+
+      const noArgs = getBudgetBreakdown(db);
+      const emptySet = getBudgetBreakdown(db, new Set());
+
+      expect(emptySet.workItems.totals.rawProjectedMin).toBeCloseTo(
+        noArgs.workItems.totals.rawProjectedMin,
+        5,
+      );
+      expect(emptySet.workItems.totals.rawProjectedMax).toBeCloseTo(
+        noArgs.workItems.totals.rawProjectedMax,
+        5,
+      );
+      expect(emptySet.workItems.areas.length).toBe(noArgs.workItems.areas.length);
+    });
+  });
+
+  describe('deselectedSources filter — known source UUID', () => {
+    // Scenario 3: Filter by known source UUID (AC #3)
+    it('excludes lines for the deselected source; deselected source remains in budgetSources[] (Scenario 3)', () => {
+      const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 80000 });
+      const srcB = insertBudgetSource({ name: 'Source B', totalAmount: 50000 });
+      insertWorkItemWithSource({
+        plannedAmount: 8000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
+      insertWorkItemWithSource({
+        plannedAmount: 3000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcB,
+      });
+
+      // Deselect srcA — only srcB lines should survive
+      const result = getBudgetBreakdown(db, new Set([srcA]));
+
+      // Only srcB WI survives (srcA WI excluded)
+      expect(result.workItems.areas).toHaveLength(1);
+      expect(result.workItems.areas[0]!.items).toHaveLength(1);
+      // Totals reflect only srcB: min=0.8×3000=2400, max=1.2×3000=3600
+      expect(result.workItems.totals.rawProjectedMin).toBeCloseTo(2400, 5);
+      expect(result.workItems.totals.rawProjectedMax).toBeCloseTo(3600, 5);
+      // srcA still in budgetSources with its UNFILTERED projectedMin/Max
+      const srcAEntry = result.budgetSources.find((s) => s.id === srcA);
+      expect(srcAEntry).toBeDefined();
+      expect(srcAEntry!.projectedMin).toBeCloseTo(6400, 5); // 0.8×8000
+      expect(srcAEntry!.projectedMax).toBeCloseTo(9600, 5); // 1.2×8000
+    });
+  });
+
+  describe('deselectedSources filter — unassigned lines', () => {
+    // Scenario 4: Filter 'unassigned' (AC #4)
+    it("excludes null-source lines when 'unassigned' is in deselectedSources; unassigned entry stays in budgetSources[] (Scenario 4)", () => {
+      const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 80000 });
+      insertWorkItemWithSource({
+        plannedAmount: 5000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
+      insertWorkItemWithSource({
+        plannedAmount: 2000,
+        confidence: 'own_estimate',
+        budgetSourceId: null,
+      }); // unassigned
+
+      const result = getBudgetBreakdown(db, new Set(['unassigned']));
+
+      // Only srcA WI survives (null-source WI excluded)
+      expect(result.workItems.areas).toHaveLength(1);
+      expect(result.workItems.areas[0]!.items).toHaveLength(1);
+      expect(result.workItems.totals.rawProjectedMin).toBeCloseTo(4000, 5); // 0.8×5000
+      expect(result.workItems.totals.rawProjectedMax).toBeCloseTo(6000, 5); // 1.2×5000
+
+      // The unassigned synthetic entry should still appear with UNFILTERED projectedMin/Max
+      const unassignedEntry = result.budgetSources.find((s) => s.id === 'unassigned');
+      expect(unassignedEntry).toBeDefined();
+      expect(unassignedEntry!.projectedMin).toBeCloseTo(1600, 5); // 0.8×2000
+      expect(unassignedEntry!.projectedMax).toBeCloseTo(2400, 5); // 1.2×2000
+    });
+  });
+
+  describe('deselectedSources filter — unknown UUID silently ignored', () => {
+    // Scenario 5: Unknown UUID in deselectedSources is silently ignored (AC #5)
+    it('returns all lines when deselectedSources contains only an unknown UUID (Scenario 5)', () => {
+      const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 80000 });
+      insertWorkItemWithSource({
+        plannedAmount: 5000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
+
+      const noFilter = getBudgetBreakdown(db);
+      const withUnknown = getBudgetBreakdown(db, new Set(['unknown-uuid-999']));
+
+      // Unknown UUID has no effect — response identical to no-filter
+      expect(withUnknown.workItems.totals.rawProjectedMin).toBeCloseTo(
+        noFilter.workItems.totals.rawProjectedMin,
+        5,
+      );
+      expect(withUnknown.workItems.areas[0]!.items).toHaveLength(
+        noFilter.workItems.areas[0]!.items.length,
+      );
+    });
+  });
+
+  describe('deselectedSources filter — aggregate consistency', () => {
+    // Scenario 6: All aggregates are filter-aware (AC #6)
+    it('area and totals projectedMin/Max only reflect non-deselected lines (Scenario 6)', () => {
+      const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 100000 });
+      const srcB = insertBudgetSource({ name: 'Source B', totalAmount: 50000 });
+      // Two WIs in the same implicit Unassigned area
+      insertWorkItemWithSource({
+        plannedAmount: 10000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
+      insertWorkItemWithSource({
+        plannedAmount: 5000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcB,
+      });
+
+      const result = getBudgetBreakdown(db, new Set([srcA]));
+
+      // Only srcB WI (5000) survives
+      const area = result.workItems.areas[0]!;
+      expect(area.items).toHaveLength(1);
+      // area rawProjectedMin = 0.8×5000 = 4000
+      expect(area.rawProjectedMin).toBeCloseTo(4000, 5);
+      expect(area.rawProjectedMax).toBeCloseTo(6000, 5);
+      // totals match area (only one area)
+      expect(result.workItems.totals.rawProjectedMin).toBeCloseTo(4000, 5);
+      expect(result.workItems.totals.rawProjectedMax).toBeCloseTo(6000, 5);
+    });
+  });
+
+  describe('deselectedSources filter — subsidy re-run on filtered set', () => {
+    // Scenario 7: Subsidy re-run on filtered set (AC #7)
+    it('subsidyAdjustments is empty when no subsidy-linked lines survive the filter (Scenario 7)', () => {
+      const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 100000 });
+      const catId = insertBudgetCategory('Test Cat');
+      const subsidy = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 20,
+        categoryIds: [catId],
+      });
+      const { workItemId } = insertWorkItemWithSource({
+        plannedAmount: 5000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
+      linkWorkItemSubsidy(workItemId, subsidy);
+
+      // Deselect srcA — no subsidy-linked lines survive
+      const result = getBudgetBreakdown(db, new Set([srcA]));
+
+      expect(result.subsidyAdjustments).toHaveLength(0);
+      expect(result.workItems.areas).toHaveLength(0);
+    });
+
+    it('subsidyAdjustments reflects only surviving lines (Scenario 7b)', () => {
+      const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 100000 });
+      const srcB = insertBudgetSource({ name: 'Source B', totalAmount: 50000 });
+      // Universal subsidy (no categoryIds) applies to all linked WI lines.
+      // maximumAmount=100 is a low cap: WI-A payback = 20% × 5000 = 1000 > 100 → oversubscribed.
+      const subsidy = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 20,
+        maximumAmount: 100,
+      });
+      // Two WIs, only WI-A (srcA) linked to subsidy
+      const { workItemId: wiA } = insertWorkItemWithSource({
+        plannedAmount: 5000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
+      insertWorkItemWithSource({
+        plannedAmount: 3000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcB,
+      });
+      linkWorkItemSubsidy(wiA, subsidy);
+
+      // Deselect srcB — WI-A (and its subsidy) survives
+      const resultSrcBDeselected = getBudgetBreakdown(db, new Set([srcB]));
+      expect(resultSrcBDeselected.subsidyAdjustments).toHaveLength(1);
+
+      // Deselect srcA — WI-A excluded, subsidy-X should NOT appear in subsidyAdjustments
+      const resultSrcADeselected = getBudgetBreakdown(db, new Set([srcA]));
+      expect(resultSrcADeselected.subsidyAdjustments).toHaveLength(0);
+    });
+  });
+
+  describe('deselectedSources filter — item and area pruning', () => {
+    // Scenario 8: Areas and items with only deselected-source lines are pruned (AC #8)
+    it('areas whose items are all filtered out are removed from breakdown (Scenario 8)', () => {
+      const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 100000 });
+      const srcB = insertBudgetSource({ name: 'Source B', totalAmount: 50000 });
+
+      // WI-A (srcA) — will be deselected
+      insertWorkItemWithSource({
+        plannedAmount: 8000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
+      // WI-B (srcB) — will survive
+      insertWorkItemWithSource({
+        plannedAmount: 4000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcB,
+      });
+
+      const result = getBudgetBreakdown(db, new Set([srcA]));
+
+      // Only WI-B's area survives; WI-A is pruned
+      expect(result.workItems.areas).toHaveLength(1);
+      expect(result.workItems.areas[0]!.items).toHaveLength(1);
+      // Verify the surviving WI is the srcB one (plannedAmount=4000)
+      const survivingItem = result.workItems.areas[0]!.items[0]!;
+      expect(survivingItem.rawProjectedMin).toBeCloseTo(3200, 5); // 0.8×4000
+      expect(survivingItem.rawProjectedMax).toBeCloseTo(4800, 5); // 1.2×4000
+    });
+  });
+
+  describe('deselectedSources filter — budgetSources[] shape (AC #9)', () => {
+    // Scenario 9: budgetSources[] always includes all configured sources + unassigned
+    it('all configured sources appear in budgetSources[] even when deselected; deselected source projectedMin/Max is UNFILTERED (Scenario 9)', () => {
+      const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 100000 });
+      const srcB = insertBudgetSource({ name: 'Source B', totalAmount: 50000 });
+      // Assign lines to both sources + one unassigned
+      insertWorkItemWithSource({
+        plannedAmount: 6000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
+      insertWorkItemWithSource({
+        plannedAmount: 4000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcB,
+      });
+      insertWorkItemWithSource({
+        plannedAmount: 2000,
+        confidence: 'own_estimate',
+        budgetSourceId: null,
+      });
+
+      const result = getBudgetBreakdown(db, new Set([srcA]));
+
+      // budgetSources should have at least 3 entries: srcA, srcB, synthetic unassigned
+      // (discretionary-system seeded by migration 0021 may also be present)
+      expect(result.budgetSources.length).toBeGreaterThanOrEqual(3);
+
+      const srcAEntry = result.budgetSources.find((s) => s.id === srcA);
+      const srcBEntry = result.budgetSources.find((s) => s.id === srcB);
+      const unassignedEntry = result.budgetSources.find((s) => s.id === 'unassigned');
+
+      expect(srcAEntry).toBeDefined();
+      expect(srcBEntry).toBeDefined();
+      expect(unassignedEntry).toBeDefined();
+
+      // srcA projectedMin/Max = UNFILTERED (architect decision A)
+      expect(srcAEntry!.projectedMin).toBeCloseTo(4800, 5); // 0.8×6000
+      expect(srcAEntry!.projectedMax).toBeCloseTo(7200, 5); // 1.2×6000
+
+      // srcB projectedMin/Max = its own lines' cost
+      expect(srcBEntry!.projectedMin).toBeCloseTo(3200, 5); // 0.8×4000
+      expect(srcBEntry!.projectedMax).toBeCloseTo(4800, 5); // 1.2×4000
+
+      // unassigned entry totalAmount = 0
+      expect(unassignedEntry!.totalAmount).toBe(0);
+    });
+  });
+
+  describe('deselectedSources filter — per-source subsidyPayback (AC #10)', () => {
+    // Scenario 10: Per-source subsidyPayback attribution
+    it('budgetSources[srcA].subsidyPaybackMax > 0 when no filter; = 0 when srcA deselected (Scenario 10)', () => {
+      const srcA = insertBudgetSource({ name: 'Source A', totalAmount: 100000 });
+      // Universal subsidy (no categoryIds) applies to all linked WI lines regardless of category
+      const subsidy = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 20,
+      });
+      const { workItemId } = insertWorkItemWithSource({
+        plannedAmount: 10000,
+        confidence: 'own_estimate',
+        budgetSourceId: srcA,
+      });
+      linkWorkItemSubsidy(workItemId, subsidy);
+
+      // No filter — srcA line feeds the subsidy engine
+      const noFilter = getBudgetBreakdown(db, new Set());
+      const srcANoFilter = noFilter.budgetSources.find((s) => s.id === srcA);
+      expect(srcANoFilter).toBeDefined();
+      // subsidyPaybackMax > 0 (20% of max cost = 0.2 × 10000×1.2 = 2400 approx)
+      expect(srcANoFilter!.subsidyPaybackMax).toBeGreaterThan(0);
+
+      // Deselect srcA — its lines don't feed the filtered engine
+      const srcADeselected = getBudgetBreakdown(db, new Set([srcA]));
+      const srcAFilteredEntry = srcADeselected.budgetSources.find((s) => s.id === srcA);
+      expect(srcAFilteredEntry).toBeDefined();
+      // subsidyPaybackMax = 0 (srcA lines excluded from filtered engine run)
+      expect(srcAFilteredEntry!.subsidyPaybackMax).toBe(0);
+      expect(srcAFilteredEntry!.subsidyPaybackMin).toBe(0);
     });
   });
 });
