@@ -3,6 +3,7 @@ name: Quality Gates
 on:
   pull_request:
     branches: [main, beta]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
