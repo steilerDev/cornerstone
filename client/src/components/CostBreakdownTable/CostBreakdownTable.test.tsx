@@ -274,6 +274,7 @@ function buildBreakdownWithWI(
     workItemId?: string;
     description?: string | null;
     hasInvoice?: boolean;
+    budgetSources?: BudgetSourceSummaryBreakdown[];
     // Legacy params — kept for backward compat but ignored (area is always No Area)
     categoryId?: string | null;
     categoryName?: string;
@@ -358,7 +359,7 @@ function buildBreakdownWithWI(
       },
     },
     subsidyAdjustments: [],
-    budgetSources: [],
+    budgetSources: opts.budgetSources ?? [],
   };
 }
 
@@ -1093,7 +1094,7 @@ describe('CostBreakdownTable', () => {
     // availableFunds=100000, projectedMax=1200 → remaining = 98800 > 0
     const { container } = render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({ projectedMax: 1200 })}
+        breakdown={buildBreakdownWithWI({ projectedMax: 1200, budgetSources: [buildSourceSummary({ totalAmount: 100000 })] })}
         overview={buildOverview(100000)}
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
@@ -1893,6 +1894,7 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 5000,
           subsidyPayback: 1200,
           minSubsidyPayback: 800,
+          budgetSources: [buildSourceSummary({ totalAmount: 10000 })],
         })}
         overview={buildOverview(10000)}
         deselectedSourceIds={new Set()}
@@ -1919,6 +1921,7 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 8000,
           subsidyPayback: 2000,
           minSubsidyPayback: 1000,
+          budgetSources: [buildSourceSummary({ totalAmount: 20000 })],
         })}
         overview={buildOverview(20000)}
         deselectedSourceIds={new Set()}
@@ -1948,6 +1951,7 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 8000,
           subsidyPayback: 2000,
           minSubsidyPayback: 1000,
+          budgetSources: [buildSourceSummary({ totalAmount: 20000 })],
         })}
         overview={buildOverview(20000)}
         deselectedSourceIds={new Set()}
@@ -1977,6 +1981,7 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 8000,
           subsidyPayback: 2000,
           minSubsidyPayback: 1000,
+          budgetSources: [buildSourceSummary({ totalAmount: 20000 })],
         })}
         overview={buildOverview(20000)}
         deselectedSourceIds={new Set()}
@@ -2258,6 +2263,7 @@ describe('CostBreakdownTable', () => {
           projectedMax: 5000,
           rawProjectedMin: 3000,
           rawProjectedMax: 5000,
+          budgetSources: [buildSourceSummary({ totalAmount: 10000 })],
         })}
         overview={buildOverview(10000)}
         deselectedSourceIds={new Set()}
@@ -2288,6 +2294,7 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 5000,
           subsidyPayback: 200,
           minSubsidyPayback: 100,
+          budgetSources: [buildSourceSummary({ totalAmount: 10000 })],
         })}
         overview={buildOverview(10000)}
         deselectedSourceIds={new Set()}
@@ -2314,6 +2321,7 @@ describe('CostBreakdownTable', () => {
           projectedMax: 5000,
           rawProjectedMin: 3000,
           rawProjectedMax: 5000,
+          budgetSources: [buildSourceSummary({ totalAmount: 10000 })],
         })}
         overview={buildOverview(10000)}
         deselectedSourceIds={new Set()}
