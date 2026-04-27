@@ -274,6 +274,7 @@ function buildBreakdownWithWI(
     workItemId?: string;
     description?: string | null;
     hasInvoice?: boolean;
+    budgetSources?: BudgetSourceSummaryBreakdown[];
     // Legacy params — kept for backward compat but ignored (area is always No Area)
     categoryId?: string | null;
     categoryName?: string;
@@ -358,7 +359,7 @@ function buildBreakdownWithWI(
       },
     },
     subsidyAdjustments: [],
-    budgetSources: [],
+    budgetSources: opts.budgetSources ?? [],
   };
 }
 
@@ -593,9 +594,15 @@ describe('CostBreakdownTable', () => {
   // ── 16. Summary rows show totals ──────────────────────────────────────────
 
   it('shows Available funds row with formatted currency value', () => {
+    // budgetSources must include a source with totalAmount=50000 so that
+    // filteredAvailableFunds (sum of non-deselected sources) equals €50,000.00.
+    const breakdown = {
+      ...buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 }),
+      budgetSources: [buildSourceSummary({ id: 'src-test', totalAmount: 50000 })],
+    };
     render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 })}
+        breakdown={breakdown}
         overview={buildOverview(50000)}
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
@@ -1087,7 +1094,7 @@ describe('CostBreakdownTable', () => {
     // availableFunds=100000, projectedMax=1200 → remaining = 98800 > 0
     const { container } = render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({ projectedMax: 1200 })}
+        breakdown={buildBreakdownWithWI({ projectedMax: 1200, budgetSources: [buildSourceSummary({ totalAmount: 100000 })] })}
         overview={buildOverview(100000)}
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
@@ -1887,6 +1894,7 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 5000,
           subsidyPayback: 1200,
           minSubsidyPayback: 800,
+          budgetSources: [buildSourceSummary({ totalAmount: 10000 })],
         })}
         overview={buildOverview(10000)}
         deselectedSourceIds={new Set()}
@@ -1913,6 +1921,7 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 8000,
           subsidyPayback: 2000,
           minSubsidyPayback: 1000,
+          budgetSources: [buildSourceSummary({ totalAmount: 20000 })],
         })}
         overview={buildOverview(20000)}
         deselectedSourceIds={new Set()}
@@ -1942,6 +1951,7 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 8000,
           subsidyPayback: 2000,
           minSubsidyPayback: 1000,
+          budgetSources: [buildSourceSummary({ totalAmount: 20000 })],
         })}
         overview={buildOverview(20000)}
         deselectedSourceIds={new Set()}
@@ -1971,6 +1981,7 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 8000,
           subsidyPayback: 2000,
           minSubsidyPayback: 1000,
+          budgetSources: [buildSourceSummary({ totalAmount: 20000 })],
         })}
         overview={buildOverview(20000)}
         deselectedSourceIds={new Set()}
@@ -2252,6 +2263,7 @@ describe('CostBreakdownTable', () => {
           projectedMax: 5000,
           rawProjectedMin: 3000,
           rawProjectedMax: 5000,
+          budgetSources: [buildSourceSummary({ totalAmount: 10000 })],
         })}
         overview={buildOverview(10000)}
         deselectedSourceIds={new Set()}
@@ -2282,6 +2294,7 @@ describe('CostBreakdownTable', () => {
           rawProjectedMax: 5000,
           subsidyPayback: 200,
           minSubsidyPayback: 100,
+          budgetSources: [buildSourceSummary({ totalAmount: 10000 })],
         })}
         overview={buildOverview(10000)}
         deselectedSourceIds={new Set()}
@@ -2308,6 +2321,7 @@ describe('CostBreakdownTable', () => {
           projectedMax: 5000,
           rawProjectedMin: 3000,
           rawProjectedMax: 5000,
+          budgetSources: [buildSourceSummary({ totalAmount: 10000 })],
         })}
         overview={buildOverview(10000)}
         deselectedSourceIds={new Set()}
@@ -3850,11 +3864,15 @@ describe('Server-driven render path (#1360)', () => {
       },
       subsidyAdjustments: [],
       budgetSources: [
-        // Source A: selected (not in deselectedSourceIds), has payback
+        // Source A: selected (not in deselectedSourceIds), has payback.
+        // totalAmount=200000 so that filteredAvailableFunds = 200000 (matching
+        // overview.availableFunds) — this keeps Scenario 23 internally consistent
+        // now that Available Funds uses sum-of-visible-sources rather than
+        // overview.availableFunds directly.
         buildSourceSummary({
           id: 'src-1360-a',
           name: 'Green Fund',
-          totalAmount: 100000,
+          totalAmount: 200000,
           projectedMin: 40000,
           projectedMax: 60000,
           subsidyPaybackMin: 500,
@@ -3933,26 +3951,25 @@ describe('Server-driven render path (#1360)', () => {
     expect(costCell!.textContent?.replace(/\s+/g, '')).toBe('-€50,000.00');
   });
 
-  // ── Scenario 23: Remaining Budget row uses overview.availableFunds (not filtered) ─
-  // With deselectedSourceIds=new Set(['src-1360-b']) (hypothetical — src-1360-b not in breakdown
-  // because server already excluded it), the row still reads:
-  //   overview.availableFunds - totalRawProjected + adjustedTotalPayback
-  //   = 200000 - 50000 + 750 = 150750
-  // The point: remaining = overview.availableFunds (not a filtered sub-amount).
+  // ── Scenario 23: Remaining Budget row uses filteredAvailableFunds ────────────
+  // filteredAvailableFunds = sum of budgetSources not in deselectedSourceIds.
+  // With deselectedSourceIds=new Set(['src-1360-b']) (hypothetical — src-1360-b is
+  // not present in the breakdown so no source is filtered out), the computation is:
+  //   filteredAvailableFunds = src-1360-a.totalAmount(200000) + unassigned.totalAmount(0) = 200000
+  //   totalRawProjected avg = (40000+60000)/2 = 50000 (WI only, no HI)
+  //   adjustedTotalPayback = resolvedTotalPayback - resolvedTotalExcess
+  //     totalMinPayback = 500 (wiTotals) + 0 (hiTotals) = 500
+  //     totalMaxPayback = 1000 + 0 = 1000
+  //     resolvedTotalPayback (avg) = (500+1000)/2 = 750
+  //     no subsidyAdjustments → excess = 0
+  //     adjustedTotalPayback = 750
+  //   Remaining Net = 200000 - 50000 + 750 = 150750 → '€150,750.00'
 
-  it('Remaining Budget row uses overview.availableFunds directly (Scenario 23)', () => {
+  it('Remaining Budget row uses filteredAvailableFunds (Scenario 23)', () => {
     const breakdown = buildServerFilteredBreakdown();
-    // availableFunds = 200000
-    // totalRawProjected avg = (40000+60000)/2 = 50000 (WI only, no HI)
-    // adjustedTotalPayback = resolvedTotalPayback - resolvedTotalExcess
-    //   totalMinPayback = 500 (wiTotals) + 0 (hiTotals) = 500
-    //   totalMaxPayback = 1000 + 0 = 1000
-    //   resolvedTotalPayback (avg) = (500+1000)/2 = 750
-    //   no subsidyAdjustments → excess = 0
-    //   adjustedTotalPayback = 750
-    // Remaining Net = 200000 - 50000 + 750 = 150750 → '€150,750.00'
+    // filteredAvailableFunds = 200000 (src-1360-a.totalAmount=200000; src-1360-b not in sources)
     renderWithRouter(breakdown, buildOverview(200000), {
-      deselectedSourceIds: new Set(['src-1360-b']), // hypothetical deselection
+      deselectedSourceIds: new Set(['src-1360-b']), // hypothetical deselection (src not in breakdown)
     });
 
     const remainingRow = screen.getByRole('row', { name: /remaining budget/i });
@@ -4028,5 +4045,428 @@ describe('Server-driven render path (#1360)', () => {
 
     // The table element must be in the DOM (as opposed to the empty-state path which omits it).
     expect(container.querySelector('table')).toBeInTheDocument();
+  });
+});
+
+// ── filteredAvailableFunds — Available Funds + Remaining Budget rows ──────────
+//
+// After the bug fix in #1362, the Available Funds row and Remaining Budget row
+// use filteredAvailableFunds = sum of totalAmount for sources NOT in deselectedSourceIds,
+// computed client-side from breakdown.budgetSources. These tests verify all three
+// filter states: all selected, partial deselection, and all deselected.
+
+describe('filteredAvailableFunds — Available Funds row and Remaining Budget row (#1362)', () => {
+  /**
+   * Builds a two-source breakdown fixture for filter-aware summary row tests.
+   *
+   * Source A: id='src-a', name='Bank Loan', totalAmount=150000
+   * Source B: id='src-b', name='Equity',    totalAmount=100000
+   * Total available funds (all selected): 250000
+   *
+   * rawProjectedMin = rawProjectedMax = 50000 (so avg perspective = 50000 exactly,
+   * making Remaining Budget Cost = filteredAvailableFunds - 50000, deterministic).
+   *
+   * No subsidies → adjustedTotalPayback = 0.
+   */
+  function buildTwoSourceBreakdown(): BudgetBreakdown {
+    return {
+      workItems: {
+        areas: [
+          {
+            areaId: null,
+            name: 'Unassigned',
+            parentId: null,
+            color: null,
+            projectedMin: 50000,
+            projectedMax: 50000,
+            actualCost: 0,
+            subsidyPayback: 0,
+            rawProjectedMin: 50000,
+            rawProjectedMax: 50000,
+            minSubsidyPayback: 0,
+            items: [
+              {
+                workItemId: 'wi-filter-1',
+                title: 'Foundation Work',
+                projectedMin: 50000,
+                projectedMax: 50000,
+                actualCost: 0,
+                subsidyPayback: 0,
+                rawProjectedMin: 50000,
+                rawProjectedMax: 50000,
+                minSubsidyPayback: 0,
+                costDisplay: 'projected',
+                budgetLines: [
+                  {
+                    id: 'line-filter-1',
+                    description: null,
+                    plannedAmount: 50000,
+                    confidence: 'own_estimate',
+                    actualCost: 0,
+                    hasInvoice: false,
+                    isQuotation: false,
+                    budgetSourceId: 'src-a',
+                  },
+                ],
+              },
+            ],
+            children: [],
+          },
+        ],
+        totals: {
+          projectedMin: 50000,
+          projectedMax: 50000,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 50000,
+          rawProjectedMax: 50000,
+          minSubsidyPayback: 0,
+        },
+      },
+      householdItems: {
+        areas: [],
+        totals: {
+          projectedMin: 0,
+          projectedMax: 0,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 0,
+          rawProjectedMax: 0,
+          minSubsidyPayback: 0,
+        },
+      },
+      subsidyAdjustments: [],
+      budgetSources: [
+        buildSourceSummary({
+          id: 'src-a',
+          name: 'Bank Loan',
+          totalAmount: 150000,
+          projectedMin: 40000,
+          projectedMax: 60000,
+          subsidyPaybackMin: 0,
+          subsidyPaybackMax: 0,
+        }),
+        buildSourceSummary({
+          id: 'src-b',
+          name: 'Equity',
+          totalAmount: 100000,
+          projectedMin: 10000,
+          projectedMax: 10000,
+          subsidyPaybackMin: 0,
+          subsidyPaybackMax: 0,
+        }),
+      ],
+    };
+  }
+
+  // Helper: get the Available Funds row <tr>
+  function getAvailFundsRow(): HTMLElement {
+    return screen.getByText('Available funds').closest('tr') as HTMLElement;
+  }
+
+  // Helper: get the Remaining Budget row <tr>
+  function getRemainingBudgetRow(): HTMLElement {
+    return screen.getByRole('row', { name: /remaining budget/i });
+  }
+
+  // ── Scenario 1: All sources selected (deselectedSourceIds = empty set) ───────
+  // filteredAvailableFunds = 150000 + 100000 = 250000
+
+  it('Available Funds row displays full sum of all source totalAmounts when deselectedSourceIds is empty (Scenario 1)', () => {
+    const breakdown = buildTwoSourceBreakdown();
+    renderWithRouter(breakdown, buildOverview(250000), {
+      deselectedSourceIds: new Set(),
+    });
+
+    const availFundsRow = getAvailFundsRow();
+    const costCell = availFundsRow.querySelector('td[class*="colBudget"]');
+    expect(costCell).not.toBeNull();
+    // filteredAvailableFunds = 150000 + 100000 = 250000
+    expect(costCell!.textContent?.replace(/\s+/g, '')).toContain('€250,000.00');
+  });
+
+  // ── Scenario 2: One source deselected ────────────────────────────────────────
+  // deselectedSourceIds = {'src-b'} → filteredAvailableFunds = 150000 only
+
+  it('Available Funds row displays sum of selected sources only when one source is deselected (Scenario 2)', () => {
+    const breakdown = buildTwoSourceBreakdown();
+    renderWithRouter(breakdown, buildOverview(250000), {
+      deselectedSourceIds: new Set(['src-b']),
+    });
+
+    const availFundsRow = getAvailFundsRow();
+    const costCell = availFundsRow.querySelector('td[class*="colBudget"]');
+    expect(costCell).not.toBeNull();
+    // filteredAvailableFunds = 150000 (src-b excluded)
+    expect(costCell!.textContent?.replace(/\s+/g, '')).toContain('€150,000.00');
+    // Must NOT contain the unfiltered total
+    expect(costCell!.textContent).not.toContain('€250,000.00');
+  });
+
+  // ── Scenario 3: All sources deselected ────────────────────────────────────────
+  // deselectedSourceIds = {'src-a', 'src-b'} → filteredAvailableFunds = 0
+
+  it('Available Funds row displays €0.00 when all sources are deselected (Scenario 3)', () => {
+    const breakdown = buildTwoSourceBreakdown();
+    renderWithRouter(breakdown, buildOverview(250000), {
+      deselectedSourceIds: new Set(['src-a', 'src-b']),
+    });
+
+    const availFundsRow = getAvailFundsRow();
+    const costCell = availFundsRow.querySelector('td[class*="colBudget"]');
+    expect(costCell).not.toBeNull();
+    // filteredAvailableFunds = 0
+    expect(costCell!.textContent?.replace(/\s+/g, '')).toContain('€0.00');
+    // Must NOT be NaN or undefined
+    expect(costCell!.textContent).not.toContain('NaN');
+    expect(costCell!.textContent).not.toContain('undefined');
+    // Must NOT show the unfiltered total
+    expect(costCell!.textContent).not.toContain('€250,000.00');
+  });
+
+  // ── Scenario 4: Remaining Budget Cost column — all selected ──────────────────
+  // filteredAvailableFunds = 250000, totalRawProjected = 50000 (avg of 50000/50000)
+  // Remaining Budget Cost = 250000 - 50000 = 200000
+
+  it('Remaining Budget Cost column = filteredAvailableFunds - totalRawProjected when all sources selected (Scenario 4)', () => {
+    const breakdown = buildTwoSourceBreakdown();
+    renderWithRouter(breakdown, buildOverview(250000), {
+      deselectedSourceIds: new Set(),
+    });
+
+    const remainingRow = getRemainingBudgetRow();
+    const costCell = remainingRow.querySelector('td[class*="colBudget"]');
+    expect(costCell).not.toBeNull();
+    // 250000 - 50000 = 200000
+    expect(costCell!.textContent?.replace(/\s+/g, '')).toContain('€200,000.00');
+  });
+
+  // ── Scenario 5: Remaining Budget Cost column — one source deselected ─────────
+  // deselectedSourceIds = {'src-b'} → filteredAvailableFunds = 150000
+  // Remaining Budget Cost = 150000 - 50000 = 100000 (NOT 250000 - 50000 = 200000)
+
+  it('Remaining Budget Cost column uses filteredAvailableFunds (not total) when one source is deselected (Scenario 5)', () => {
+    const breakdown = buildTwoSourceBreakdown();
+    renderWithRouter(breakdown, buildOverview(250000), {
+      deselectedSourceIds: new Set(['src-b']),
+    });
+
+    const remainingRow = getRemainingBudgetRow();
+    const costCell = remainingRow.querySelector('td[class*="colBudget"]');
+    expect(costCell).not.toBeNull();
+    // filteredAvailableFunds (150000) - totalRawProjected (50000) = 100000
+    expect(costCell!.textContent?.replace(/\s+/g, '')).toContain('€100,000.00');
+    // Must NOT use the unfiltered total: 250000 - 50000 = 200000
+    expect(costCell!.textContent).not.toContain('€200,000.00');
+  });
+
+  // ── Scenario 6: Remaining Budget Cost column — all sources deselected ────────
+  // deselectedSourceIds = {'src-a', 'src-b'} → filteredAvailableFunds = 0
+  // Remaining Budget Cost = 0 - 50000 = -50000 → negative, uses valueNegative CSS class
+
+  it('Remaining Budget Cost column is negative when all sources are deselected (Scenario 6)', () => {
+    const breakdown = buildTwoSourceBreakdown();
+    renderWithRouter(breakdown, buildOverview(250000), {
+      deselectedSourceIds: new Set(['src-a', 'src-b']),
+    });
+
+    const remainingRow = getRemainingBudgetRow();
+    const costCell = remainingRow.querySelector('td[class*="colBudget"]');
+    expect(costCell).not.toBeNull();
+    // 0 - 50000 = -50000: value is negative
+    const costSpan = costCell!.querySelector('span');
+    expect(costSpan).not.toBeNull();
+    // Span text should contain the cost amount and a minus sign
+    expect(costSpan!.textContent).toContain('50,000.00');
+    expect(costSpan!.textContent).toContain('-');
+    // Span should have the valueNegative class (filteredAvailableFunds - totalRawProjected < 0)
+    expect(costSpan).toHaveClass('valueNegative');
+  });
+
+  // ── Scenario 7: Remaining Budget Net column uses filteredAvailableFunds ───────
+  // Build breakdown with adjustedTotalPayback > 0 to verify it's included.
+  // deselectedSourceIds = {'src-b'} → filteredAvailableFunds = 150000
+  // totalRawProjected = 50000, adjustedTotalPayback = 5000 (from wi subsidyPayback)
+  // Remaining Budget Net = 150000 - 50000 + 5000 = 105000
+
+  it('Remaining Budget Net column = filteredAvailableFunds - totalRawProjected + adjustedTotalPayback when source is deselected (Scenario 7)', () => {
+    // Use a breakdown with WI subsidy payback to make adjustedTotalPayback > 0
+    const breakdown: BudgetBreakdown = {
+      workItems: {
+        areas: [
+          {
+            areaId: null,
+            name: 'Unassigned',
+            parentId: null,
+            color: null,
+            projectedMin: 50000,
+            projectedMax: 50000,
+            actualCost: 0,
+            subsidyPayback: 5000,
+            rawProjectedMin: 50000,
+            rawProjectedMax: 50000,
+            minSubsidyPayback: 5000,
+            items: [
+              {
+                workItemId: 'wi-payback-1',
+                title: 'Subsidized Work',
+                projectedMin: 50000,
+                projectedMax: 50000,
+                actualCost: 0,
+                subsidyPayback: 5000,
+                rawProjectedMin: 50000,
+                rawProjectedMax: 50000,
+                minSubsidyPayback: 5000,
+                costDisplay: 'projected',
+                budgetLines: [
+                  {
+                    id: 'line-payback-1',
+                    description: null,
+                    plannedAmount: 50000,
+                    confidence: 'own_estimate',
+                    actualCost: 0,
+                    hasInvoice: false,
+                    isQuotation: false,
+                    budgetSourceId: 'src-a',
+                  },
+                ],
+              },
+            ],
+            children: [],
+          },
+        ],
+        totals: {
+          projectedMin: 50000,
+          projectedMax: 50000,
+          actualCost: 0,
+          subsidyPayback: 5000,
+          rawProjectedMin: 50000,
+          rawProjectedMax: 50000,
+          minSubsidyPayback: 5000,
+        },
+      },
+      householdItems: {
+        areas: [],
+        totals: {
+          projectedMin: 0,
+          projectedMax: 0,
+          actualCost: 0,
+          subsidyPayback: 0,
+          rawProjectedMin: 0,
+          rawProjectedMax: 0,
+          minSubsidyPayback: 0,
+        },
+      },
+      subsidyAdjustments: [],
+      budgetSources: [
+        buildSourceSummary({
+          id: 'src-a',
+          name: 'Bank Loan',
+          totalAmount: 150000,
+          projectedMin: 40000,
+          projectedMax: 60000,
+          subsidyPaybackMin: 5000,
+          subsidyPaybackMax: 5000,
+        }),
+        buildSourceSummary({
+          id: 'src-b',
+          name: 'Equity',
+          totalAmount: 100000,
+          projectedMin: 10000,
+          projectedMax: 10000,
+          subsidyPaybackMin: 0,
+          subsidyPaybackMax: 0,
+        }),
+      ],
+    };
+
+    renderWithRouter(breakdown, buildOverview(250000), {
+      deselectedSourceIds: new Set(['src-b']),
+    });
+
+    const remainingRow = getRemainingBudgetRow();
+    const netCell = remainingRow.querySelector('td[class*="colRemaining"]');
+    expect(netCell).not.toBeNull();
+    // filteredAvailableFunds (150000) - totalRawProjected (50000) + adjustedTotalPayback (5000) = 105000
+    expect(netCell!.textContent?.replace(/\s+/g, '')).toContain('€105,000.00');
+  });
+
+  // ── Scenario 8: unassigned source deselected — totalAmount=0, no effect ──────
+  // The 'unassigned' source has totalAmount=0. Deselecting it changes filteredAvailableFunds
+  // by zero (subtracts 0 from the sum), so the totals stay the same as with it selected.
+
+  it('deselecting the unassigned source (totalAmount=0) does not change filteredAvailableFunds (Scenario 8)', () => {
+    const breakdown: BudgetBreakdown = {
+      ...buildTwoSourceBreakdown(),
+      budgetSources: [
+        buildSourceSummary({
+          id: 'src-a',
+          name: 'Bank Loan',
+          totalAmount: 150000,
+          projectedMin: 40000,
+          projectedMax: 60000,
+        }),
+        buildSourceSummary({
+          id: 'unassigned',
+          name: 'Unassigned',
+          totalAmount: 0,
+          projectedMin: 0,
+          projectedMax: 0,
+          subsidyPaybackMin: 0,
+          subsidyPaybackMax: 0,
+        }),
+      ],
+    };
+
+    // Deselect unassigned (totalAmount=0) — Available Funds should still = 150000
+    renderWithRouter(breakdown, buildOverview(150000), {
+      deselectedSourceIds: new Set(['unassigned']),
+    });
+
+    const availFundsRow = getAvailFundsRow();
+    const costCell = availFundsRow.querySelector('td[class*="colBudget"]');
+    expect(costCell).not.toBeNull();
+    // unassigned contributes 0, so filteredAvailableFunds = 150000
+    expect(costCell!.textContent?.replace(/\s+/g, '')).toContain('€150,000.00');
+  });
+
+  // ── Scenario 9: toggling back to all-selected restores unfiltered values ──────
+  // First render with src-b deselected (filteredAvailableFunds=150000), then
+  // re-render with empty deselectedSourceIds (filteredAvailableFunds=250000).
+
+  it('Available Funds and Remaining Budget restore to unfiltered values when deselectedSourceIds becomes empty (Scenario 9)', () => {
+    const breakdown = buildTwoSourceBreakdown();
+
+    // Phase 1: src-b deselected → filteredAvailableFunds = 150000
+    const { rerender } = renderWithRouter(breakdown, buildOverview(250000), {
+      deselectedSourceIds: new Set(['src-b']),
+    });
+
+    const availFundsRow1 = getAvailFundsRow();
+    const costCell1 = availFundsRow1.querySelector('td[class*="colBudget"]');
+    expect(costCell1!.textContent?.replace(/\s+/g, '')).toContain('€150,000.00');
+
+    // Phase 2: re-render with no deselection → filteredAvailableFunds = 250000
+    rerender(
+      <MemoryRouter>
+        <CostBreakdownTable
+          breakdown={breakdown}
+          overview={buildOverview(250000)}
+          deselectedSourceIds={new Set()}
+          onSourceToggle={() => {}}
+          onSelectAllSources={() => {}}
+        />
+      </MemoryRouter>,
+    );
+
+    const availFundsRow2 = getAvailFundsRow();
+    const costCell2 = availFundsRow2.querySelector('td[class*="colBudget"]');
+    expect(costCell2!.textContent?.replace(/\s+/g, '')).toContain('€250,000.00');
+
+    // Remaining Budget Cost should also restore
+    const remainingRow = getRemainingBudgetRow();
+    const remainingCostCell = remainingRow.querySelector('td[class*="colBudget"]');
+    // 250000 - 50000 = 200000
+    expect(remainingCostCell!.textContent?.replace(/\s+/g, '')).toContain('€200,000.00');
   });
 });
