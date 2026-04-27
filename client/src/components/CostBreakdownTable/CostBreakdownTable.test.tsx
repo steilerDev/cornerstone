@@ -593,9 +593,15 @@ describe('CostBreakdownTable', () => {
   // ── 16. Summary rows show totals ──────────────────────────────────────────
 
   it('shows Available funds row with formatted currency value', () => {
+    // budgetSources must include a source with totalAmount=50000 so that
+    // filteredAvailableFunds (sum of non-deselected sources) equals €50,000.00.
+    const breakdown = {
+      ...buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 }),
+      budgetSources: [buildSourceSummary({ id: 'src-test', totalAmount: 50000 })],
+    };
     render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({ projectedMin: 800, projectedMax: 1200 })}
+        breakdown={breakdown}
         overview={buildOverview(50000)}
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
@@ -3850,11 +3856,15 @@ describe('Server-driven render path (#1360)', () => {
       },
       subsidyAdjustments: [],
       budgetSources: [
-        // Source A: selected (not in deselectedSourceIds), has payback
+        // Source A: selected (not in deselectedSourceIds), has payback.
+        // totalAmount=200000 so that filteredAvailableFunds = 200000 (matching
+        // overview.availableFunds) — this keeps Scenario 23 internally consistent
+        // now that Available Funds uses sum-of-visible-sources rather than
+        // overview.availableFunds directly.
         buildSourceSummary({
           id: 'src-1360-a',
           name: 'Green Fund',
-          totalAmount: 100000,
+          totalAmount: 200000,
           projectedMin: 40000,
           projectedMax: 60000,
           subsidyPaybackMin: 500,
@@ -3933,26 +3943,25 @@ describe('Server-driven render path (#1360)', () => {
     expect(costCell!.textContent?.replace(/\s+/g, '')).toBe('-€50,000.00');
   });
 
-  // ── Scenario 23: Remaining Budget row uses overview.availableFunds (not filtered) ─
-  // With deselectedSourceIds=new Set(['src-1360-b']) (hypothetical — src-1360-b not in breakdown
-  // because server already excluded it), the row still reads:
-  //   overview.availableFunds - totalRawProjected + adjustedTotalPayback
-  //   = 200000 - 50000 + 750 = 150750
-  // The point: remaining = overview.availableFunds (not a filtered sub-amount).
+  // ── Scenario 23: Remaining Budget row uses filteredAvailableFunds ────────────
+  // filteredAvailableFunds = sum of budgetSources not in deselectedSourceIds.
+  // With deselectedSourceIds=new Set(['src-1360-b']) (hypothetical — src-1360-b is
+  // not present in the breakdown so no source is filtered out), the computation is:
+  //   filteredAvailableFunds = src-1360-a.totalAmount(200000) + unassigned.totalAmount(0) = 200000
+  //   totalRawProjected avg = (40000+60000)/2 = 50000 (WI only, no HI)
+  //   adjustedTotalPayback = resolvedTotalPayback - resolvedTotalExcess
+  //     totalMinPayback = 500 (wiTotals) + 0 (hiTotals) = 500
+  //     totalMaxPayback = 1000 + 0 = 1000
+  //     resolvedTotalPayback (avg) = (500+1000)/2 = 750
+  //     no subsidyAdjustments → excess = 0
+  //     adjustedTotalPayback = 750
+  //   Remaining Net = 200000 - 50000 + 750 = 150750 → '€150,750.00'
 
-  it('Remaining Budget row uses overview.availableFunds directly (Scenario 23)', () => {
+  it('Remaining Budget row uses filteredAvailableFunds (Scenario 23)', () => {
     const breakdown = buildServerFilteredBreakdown();
-    // availableFunds = 200000
-    // totalRawProjected avg = (40000+60000)/2 = 50000 (WI only, no HI)
-    // adjustedTotalPayback = resolvedTotalPayback - resolvedTotalExcess
-    //   totalMinPayback = 500 (wiTotals) + 0 (hiTotals) = 500
-    //   totalMaxPayback = 1000 + 0 = 1000
-    //   resolvedTotalPayback (avg) = (500+1000)/2 = 750
-    //   no subsidyAdjustments → excess = 0
-    //   adjustedTotalPayback = 750
-    // Remaining Net = 200000 - 50000 + 750 = 150750 → '€150,750.00'
+    // filteredAvailableFunds = 200000 (src-1360-a.totalAmount=200000; src-1360-b not in sources)
     renderWithRouter(breakdown, buildOverview(200000), {
-      deselectedSourceIds: new Set(['src-1360-b']), // hypothetical deselection
+      deselectedSourceIds: new Set(['src-1360-b']), // hypothetical deselection (src not in breakdown)
     });
 
     const remainingRow = screen.getByRole('row', { name: /remaining budget/i });
