@@ -1094,7 +1094,10 @@ describe('CostBreakdownTable', () => {
     // availableFunds=100000, projectedMax=1200 → remaining = 98800 > 0
     const { container } = render(
       <CostBreakdownTable
-        breakdown={buildBreakdownWithWI({ projectedMax: 1200, budgetSources: [buildSourceSummary({ totalAmount: 100000 })] })}
+        breakdown={buildBreakdownWithWI({
+          projectedMax: 1200,
+          budgetSources: [buildSourceSummary({ totalAmount: 100000 })],
+        })}
         overview={buildOverview(100000)}
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}

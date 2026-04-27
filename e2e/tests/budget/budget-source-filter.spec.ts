@@ -2613,9 +2613,7 @@ test.describe('Filter-aware summary rows (Available Funds + Remaining Budget)', 
     }
   });
 
-  test('Scenario 4 — Zero sources selected: Available Funds shows €0 (AC #5)', async ({
-    page,
-  }) => {
+  test('Scenario 4 — Zero sources selected: Available Funds shows €0 (AC #5)', async ({ page }) => {
     // When all sources are deselected, filteredAvailableFunds = 0.
     // Server returns empty areas (all lines belong to deselected sources).
     // The Available Funds row must show €0.00 — not NaN and not the stale combined value.
