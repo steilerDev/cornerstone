@@ -682,7 +682,7 @@ function ChevronSvg({ className }: { className: string }) {
  */
 export function CostBreakdownTable({
   breakdown,
-  overview,
+  overview: _overview,
   deselectedSourceIds,
   onSourceToggle,
   onSelectAllSources,
