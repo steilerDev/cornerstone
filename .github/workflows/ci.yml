@@ -23,7 +23,9 @@ jobs:
       - name: Classify changed paths
         id: filter
         run: |
-          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          BASE_REF="${{ github.base_ref }}"
+          if [ -z "$BASE_REF" ]; then BASE_REF="main"; fi
+          CHANGED=$(git diff --name-only origin/${BASE_REF}...HEAD)
           echo "Changed files:"
           echo "$CHANGED"
 
