@@ -504,6 +504,7 @@ export function SubsidyProgramsPage() {
                   max={newReductionType === 'percentage' ? 100 : undefined}
                   step={newReductionType === 'percentage' ? '0.01' : '0.01'}
                   disabled={isCreating}
+                  onWheel={(e) => e.currentTarget.blur()}
                 />
               </div>
 
@@ -564,6 +565,7 @@ export function SubsidyProgramsPage() {
                 min={0}
                 step="0.01"
                 disabled={isCreating}
+                onWheel={(e) => e.currentTarget.blur()}
               />
             </div>
 
@@ -786,6 +788,7 @@ export function SubsidyProgramsPage() {
                           max={editingProgram.reductionType === 'percentage' ? 100 : undefined}
                           step="0.01"
                           disabled={isUpdating}
+                          onWheel={(e) => e.currentTarget.blur()}
                         />
                       </div>
 
@@ -856,6 +859,7 @@ export function SubsidyProgramsPage() {
                         min={0}
                         step="0.01"
                         disabled={isUpdating}
+                        onWheel={(e) => e.currentTarget.blur()}
                       />
                     </div>
 

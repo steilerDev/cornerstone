@@ -304,6 +304,7 @@ export function DiaryEntryForm({
                 placeholder="-40 to 60"
                 min={-40}
                 max={60}
+                onWheel={(e) => e.currentTarget.blur()}
               />
             </div>
 
@@ -322,6 +323,7 @@ export function DiaryEntryForm({
                 }
                 disabled={disabled}
                 min={0}
+                onWheel={(e) => e.currentTarget.blur()}
               />
             </div>
           </div>

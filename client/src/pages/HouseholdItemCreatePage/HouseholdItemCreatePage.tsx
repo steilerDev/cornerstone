@@ -269,6 +269,7 @@ export function HouseholdItemCreatePage() {
               aria-required="true"
               aria-invalid={!!validationErrors.quantity}
               aria-describedby={validationErrors.quantity ? 'hi-create-quantity-error' : undefined}
+              onWheel={(e) => e.currentTarget.blur()}
             />
             {validationErrors.quantity && (
               <div id="hi-create-quantity-error" className={styles.errorText} role="alert">

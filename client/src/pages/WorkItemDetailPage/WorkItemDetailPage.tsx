@@ -1604,6 +1604,7 @@ export default function WorkItemDetailPage() {
                     onBlur={() => void handleDurationBlur()}
                     min="0"
                     placeholder="0"
+                    onWheel={(e) => e.currentTarget.blur()}
                   />
                   <AutosaveIndicator state={autosaveDuration} />
                 </div>

@@ -22,8 +22,14 @@
 
 .summaryGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--spacing-4);
+}
+
+@media (max-width: 640px) {
+  .summaryGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .summaryCard {

@@ -130,6 +130,12 @@
   text-overflow: ellipsis;
 }
 
+.dropdownItemVendor {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-0-5);
+}
+
 .dropdownEmpty {
   padding: var(--spacing-4) var(--spacing-3);
   text-align: center;

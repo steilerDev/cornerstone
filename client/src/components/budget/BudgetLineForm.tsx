@@ -80,23 +80,43 @@ export function BudgetLineForm({
         </div>
 
         {form.pricingMode === 'direct' ? (
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="budget-planned-amount">
-              {t('budgetLineForm.plannedAmountLabel', { currencySymbol: '€' })}
-            </label>
-            <input
-              type="number"
-              id="budget-planned-amount"
-              className={styles.input}
-              value={form.plannedAmount}
-              onChange={(e) => onFormChange({ plannedAmount: e.target.value })}
-              min="0"
-              step="0.01"
-              placeholder="0.00"
-              required
-              disabled={isSaving}
-            />
-          </div>
+          <>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="budget-planned-amount">
+                {t('budgetLineForm.plannedAmountLabel', { currencySymbol: '€' })}
+              </label>
+              <input
+                type="number"
+                id="budget-planned-amount"
+                className={styles.input}
+                value={form.plannedAmount}
+                onChange={(e) => onFormChange({ plannedAmount: e.target.value })}
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                required
+                disabled={isSaving}
+                onWheel={(e) => e.currentTarget.blur()}
+              />
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={form.includesVat}
+                  onChange={(e) => onFormChange({ includesVat: e.target.checked })}
+                  disabled={isSaving}
+                />
+                {t('budgetLineForm.includesVatLabel', { vatRate: '19' })}
+              </label>
+              {!form.includesVat && (
+                <div className={styles.vatNote}>
+                  {t('budgetLineForm.vatNote', { vatRate: '19' })}
+                </div>
+              )}
+            </div>
+          </>
         ) : (
           <>
             <div className={styles.unitPricingRow}>
@@ -114,6 +134,7 @@ export function BudgetLineForm({
                   step="0.01"
                   placeholder="0"
                   disabled={isSaving}
+                  onWheel={(e) => e.currentTarget.blur()}
                 />
               </div>
 
@@ -148,6 +169,7 @@ export function BudgetLineForm({
                   step="0.01"
                   placeholder="0.00"
                   disabled={isSaving}
+                  onWheel={(e) => e.currentTarget.blur()}
                 />
               </div>
 
