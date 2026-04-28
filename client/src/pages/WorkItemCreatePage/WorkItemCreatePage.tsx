@@ -340,6 +340,7 @@ export default function WorkItemCreatePage() {
               disabled={isSubmitting}
               min="0"
               placeholder="0"
+              onWheel={(e) => e.currentTarget.blur()}
             />
             {validationErrors.durationDays && (
               <div className={styles.errorText}>{validationErrors.durationDays}</div>

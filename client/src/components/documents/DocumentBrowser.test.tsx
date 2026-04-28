@@ -448,6 +448,91 @@ describe('DocumentBrowser', () => {
     });
   });
 
+  describe('hide linked documents (#1369)', () => {
+    it('does not render the hide-linked checkbox when linkedDocumentIds is empty', () => {
+      mockUsePaperless.mockReturnValue(makeHook());
+      render(<DocumentBrowser linkedDocumentIds={[]} />);
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
+
+    it('renders the hide-linked checkbox when linkedDocumentIds has entries', () => {
+      mockUsePaperless.mockReturnValue(makeHook());
+      render(<DocumentBrowser linkedDocumentIds={[1, 2]} />);
+      expect(screen.getByRole('checkbox')).toBeInTheDocument();
+    });
+
+    it('hide-linked checkbox is unchecked by default', () => {
+      mockUsePaperless.mockReturnValue(makeHook());
+      render(<DocumentBrowser linkedDocumentIds={[1, 2]} />);
+      expect(screen.getByRole('checkbox')).not.toBeChecked();
+    });
+
+    it('checkbox label text is "Hide already-linked documents"', () => {
+      mockUsePaperless.mockReturnValue(makeHook());
+      render(<DocumentBrowser linkedDocumentIds={[1, 2]} />);
+      expect(screen.getByText('Hide already-linked documents')).toBeInTheDocument();
+    });
+
+    it('all documents are visible when checkbox is unchecked', () => {
+      mockUsePaperless.mockReturnValue(makeHook({ documents: [makeDoc(1), makeDoc(2)] }));
+      render(<DocumentBrowser linkedDocumentIds={[1, 2]} />);
+      // Both docs should be visible
+      expect(screen.getByRole('button', { name: /Document: Document 1/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Document: Document 2/i })).toBeInTheDocument();
+    });
+
+    it('filters out linked documents when checkbox is checked', () => {
+      mockUsePaperless.mockReturnValue(makeHook({ documents: [makeDoc(1), makeDoc(2)] }));
+      render(<DocumentBrowser linkedDocumentIds={[1, 2]} />);
+
+      fireEvent.click(screen.getByRole('checkbox'));
+
+      expect(
+        screen.queryByRole('button', { name: /Document: Document 1/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /Document: Document 2/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('shows all documents again when checkbox is unchecked after being checked', () => {
+      mockUsePaperless.mockReturnValue(makeHook({ documents: [makeDoc(1), makeDoc(2)] }));
+      render(<DocumentBrowser linkedDocumentIds={[1, 2]} />);
+
+      const checkbox = screen.getByRole('checkbox');
+      fireEvent.click(checkbox); // check
+      fireEvent.click(checkbox); // uncheck
+
+      expect(screen.getByRole('button', { name: /Document: Document 1/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Document: Document 2/i })).toBeInTheDocument();
+    });
+
+    it('only filters documents whose ids are in linkedDocumentIds', () => {
+      mockUsePaperless.mockReturnValue(
+        makeHook({ documents: [makeDoc(1), makeDoc(2), makeDoc(3)] }),
+      );
+      render(<DocumentBrowser linkedDocumentIds={[1]} />);
+
+      fireEvent.click(screen.getByRole('checkbox'));
+
+      expect(
+        screen.queryByRole('button', { name: /Document: Document 1/i }),
+      ).not.toBeInTheDocument();
+      // Docs 2 and 3 are not linked — still visible
+      expect(screen.getByRole('button', { name: /Document: Document 2/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Document: Document 3/i })).toBeInTheDocument();
+    });
+
+    it('shows "no additional documents" empty state when all docs are linked and checkbox is checked', () => {
+      mockUsePaperless.mockReturnValue(makeHook({ documents: [makeDoc(1), makeDoc(2)] }));
+      render(<DocumentBrowser linkedDocumentIds={[1, 2]} />);
+
+      fireEvent.click(screen.getByRole('checkbox'));
+
+      expect(screen.getByText(/No additional documents/i)).toBeInTheDocument();
+    });
+  });
+
   describe('pagination', () => {
     it('does not render pagination when totalPages <= 1', () => {
       mockUsePaperless.mockReturnValue(makeHook({ pagination: makePagination(1, 1, 2) }));

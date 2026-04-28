@@ -342,6 +342,7 @@ export function InvoiceDetailPage() {
                     step="0.01"
                     required
                     disabled={isUpdating}
+                    onWheel={(e) => e.currentTarget.blur()}
                   />
                 </div>
               </div>

@@ -78,6 +78,7 @@ export function NumberFilter({
           max={defaultMax}
           step={defaultStep}
           autoFocus
+          onWheel={(e) => e.currentTarget.blur()}
         />
       </div>
       <input
@@ -101,6 +102,7 @@ export function NumberFilter({
           min={defaultMin}
           max={defaultMax}
           step={defaultStep}
+          onWheel={(e) => e.currentTarget.blur()}
         />
       </div>
       <input

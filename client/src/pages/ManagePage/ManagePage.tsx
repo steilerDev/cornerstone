@@ -294,6 +294,7 @@ function AreasTab() {
                 placeholder="0"
                 min={0}
                 disabled={isCreating}
+                onWheel={(e) => e.currentTarget.blur()}
               />
             </div>
           </div>
@@ -420,6 +421,7 @@ function AreasTab() {
                           className={styles.input}
                           min={0}
                           disabled={isUpdating}
+                          onWheel={(e) => e.currentTarget.blur()}
                         />
                       </div>
                     </div>
@@ -808,6 +810,7 @@ function TradesTab() {
                 placeholder="0"
                 min={0}
                 disabled={isCreating}
+                onWheel={(e) => e.currentTarget.blur()}
               />
             </div>
           </div>
@@ -915,6 +918,7 @@ function TradesTab() {
                           className={styles.input}
                           min={0}
                           disabled={isUpdating}
+                          onWheel={(e) => e.currentTarget.blur()}
                         />
                       </div>
                     </div>
@@ -1334,6 +1338,7 @@ function BudgetCategoriesTab() {
                 placeholder="0"
                 min={0}
                 disabled={isCreating}
+                onWheel={(e) => e.currentTarget.blur()}
               />
             </div>
           </div>
@@ -1451,6 +1456,7 @@ function BudgetCategoriesTab() {
                           className={styles.input}
                           min={0}
                           disabled={isUpdating}
+                          onWheel={(e) => e.currentTarget.blur()}
                         />
                       </div>
                     </div>
@@ -1893,6 +1899,7 @@ function HouseholdItemCategoriesTab() {
                 placeholder="0"
                 min={0}
                 disabled={isCreating}
+                onWheel={(e) => e.currentTarget.blur()}
               />
             </div>
           </div>
@@ -1994,6 +2001,7 @@ function HouseholdItemCategoriesTab() {
                           className={styles.input}
                           min={0}
                           disabled={isUpdating}
+                          onWheel={(e) => e.currentTarget.blur()}
                         />
                       </div>
                     </div>

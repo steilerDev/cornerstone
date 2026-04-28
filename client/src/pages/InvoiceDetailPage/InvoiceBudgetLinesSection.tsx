@@ -556,6 +556,7 @@ export function InvoiceBudgetLinesSection({
                           min="0"
                           step="0.01"
                           aria-label={`Edit itemized amount for budget line`}
+                          onWheel={(e) => e.currentTarget.blur()}
                         />
                         {editError && <div className={styles.editErrorMsg}>{editError}</div>}
                         <div className={styles.editActions}>
@@ -849,6 +850,7 @@ export function InvoiceBudgetLinesSection({
                           min="0"
                           step="0.01"
                           disabled={pickerState.isCreatingBudgetLine}
+                          onWheel={(e) => e.currentTarget.blur()}
                         />
                       </div>
 
@@ -925,6 +927,7 @@ export function InvoiceBudgetLinesSection({
                                   min="0"
                                   step="0.01"
                                   aria-label={`Itemized amount for ${line.description || 'budget line'}`}
+                                  onWheel={(e) => e.currentTarget.blur()}
                                 />
                               </div>
                             </div>

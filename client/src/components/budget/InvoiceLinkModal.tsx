@@ -103,7 +103,8 @@ export function InvoiceLinkModal({
       const searchLower = normalizedValue.toLowerCase();
       return (
         invoiceNumber.toLowerCase().includes(searchLower) ||
-        (inv.notes && inv.notes.toLowerCase().includes(searchLower))
+        (inv.notes && inv.notes.toLowerCase().includes(searchLower)) ||
+        (inv.vendorName && inv.vendorName.toLowerCase().includes(searchLower))
       );
     });
     setFilteredInvoices(filtered);
@@ -249,7 +250,7 @@ export function InvoiceLinkModal({
                   placeholder="Search by invoice number or description..."
                   value={
                     selectedInvoice && !searchInput
-                      ? `#${selectedInvoice.invoiceNumber || selectedInvoice.id.slice(0, 8)}`
+                      ? `#${selectedInvoice.invoiceNumber || selectedInvoice.id.slice(0, 8)}${selectedInvoice.vendorName ? ` — ${selectedInvoice.vendorName}` : ''}`
                       : searchInput
                   }
                   onChange={(e) => handleSearchChange(e.target.value)}
@@ -274,6 +275,9 @@ export function InvoiceLinkModal({
                         <span className={styles.dropdownItemAmount}>
                           {formatCurrency(inv.amount)}
                         </span>
+                        {inv.vendorName && (
+                          <span className={styles.dropdownItemVendor}>{inv.vendorName}</span>
+                        )}
                         {inv.notes && (
                           <span className={styles.dropdownItemDescription}>{inv.notes}</span>
                         )}
@@ -321,6 +325,7 @@ export function InvoiceLinkModal({
                 className={`${styles.input} ${error?.field === 'amount' ? styles.inputError : ''}`}
                 disabled={isSaving}
                 required
+                onWheel={(e) => e.currentTarget.blur()}
               />
               {(() => {
                 const amount = parseFloat(itemizedAmount);
@@ -357,6 +362,7 @@ export function InvoiceLinkModal({
               className={`${styles.input} ${error?.field === 'amount' ? styles.inputError : ''}`}
               disabled={isSaving}
               required
+              onWheel={(e) => e.currentTarget.blur()}
             />
           )}
           {error?.field === 'amount' && <FormError message={error.message} variant="field" />}

@@ -659,6 +659,11 @@
   .rowLevel3 td {
     border-bottom: 1pt dotted var(--color-border);
   }
+
+  /* Hide deselected source rows in print */
+  .rowSourceDetailToggle[aria-pressed='false'] {
+    display: none !important;
+  }
 }
 
 /* ============================================================

@@ -827,6 +827,7 @@ export function BudgetSourcesPage() {
                   min={0}
                   step="0.01"
                   disabled={isCreating}
+                  onWheel={(e) => e.currentTarget.blur()}
                 />
               </div>
 
@@ -844,6 +845,7 @@ export function BudgetSourcesPage() {
                   min={0}
                   step="0.01"
                   disabled={isCreating}
+                  onWheel={(e) => e.currentTarget.blur()}
                 />
               </div>
             </div>
@@ -1014,6 +1016,7 @@ export function BudgetSourcesPage() {
                           min={0}
                           step="0.01"
                           disabled={isUpdating}
+                          onWheel={(e) => e.currentTarget.blur()}
                         />
                       </div>
 
@@ -1032,6 +1035,7 @@ export function BudgetSourcesPage() {
                           min={0}
                           step="0.01"
                           disabled={isUpdating}
+                          onWheel={(e) => e.currentTarget.blur()}
                         />
                       </div>
                     </div>

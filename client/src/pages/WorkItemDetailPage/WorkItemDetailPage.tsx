@@ -264,11 +264,14 @@ export default function WorkItemDetailPage() {
       quantity: line.quantity !== null ? String(line.quantity) : '',
       unit: line.unit ?? '',
       unitPrice: line.unitPrice !== null ? String(line.unitPrice) : '',
-      includesVat: line.includesVat ?? true,
+      includesVat: line.quantity !== null ? (line.includesVat ?? true) : false,
     }),
     toPayload: (form: BudgetLineFormState): CreateWorkItemBudgetRequest => ({
       description: form.description.trim() || null,
-      plannedAmount: parseFloat(form.plannedAmount),
+      plannedAmount:
+        form.pricingMode === 'direct' && form.includesVat
+          ? Math.round((parseFloat(form.plannedAmount) / 1.19) * 100) / 100
+          : parseFloat(form.plannedAmount),
       confidence: form.confidence,
       budgetCategoryId: form.budgetCategoryId || null,
       budgetSourceId: form.budgetSourceId,
@@ -1604,6 +1607,7 @@ export default function WorkItemDetailPage() {
                     onBlur={() => void handleDurationBlur()}
                     min="0"
                     placeholder="0"
+                    onWheel={(e) => e.currentTarget.blur()}
                   />
                   <AutosaveIndicator state={autosaveDuration} />
                 </div>
