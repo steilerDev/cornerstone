@@ -211,7 +211,7 @@ export function HouseholdItemDetailPage() {
       quantity: line.quantity !== null ? String(line.quantity) : '',
       unit: line.unit ?? '',
       unitPrice: line.unitPrice !== null ? String(line.unitPrice) : '',
-      includesVat: line.includesVat ?? true,
+      includesVat: line.quantity !== null ? (line.includesVat ?? true) : false,
     }),
     toPayload: (form: BudgetLineFormState) => ({
       description: form.description.trim() || null,
