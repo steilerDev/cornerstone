@@ -215,7 +215,10 @@ export function HouseholdItemDetailPage() {
     }),
     toPayload: (form: BudgetLineFormState) => ({
       description: form.description.trim() || null,
-      plannedAmount: parseFloat(form.plannedAmount),
+      plannedAmount:
+        form.pricingMode === 'direct' && form.includesVat
+          ? Math.round((parseFloat(form.plannedAmount) / 1.19) * 100) / 100
+          : parseFloat(form.plannedAmount),
       confidence: form.confidence,
       budgetSourceId: form.budgetSourceId,
       vendorId: form.vendorId || null,

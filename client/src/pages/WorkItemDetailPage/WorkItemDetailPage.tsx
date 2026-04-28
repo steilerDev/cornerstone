@@ -268,7 +268,10 @@ export default function WorkItemDetailPage() {
     }),
     toPayload: (form: BudgetLineFormState): CreateWorkItemBudgetRequest => ({
       description: form.description.trim() || null,
-      plannedAmount: parseFloat(form.plannedAmount),
+      plannedAmount:
+        form.pricingMode === 'direct' && form.includesVat
+          ? Math.round((parseFloat(form.plannedAmount) / 1.19) * 100) / 100
+          : parseFloat(form.plannedAmount),
       confidence: form.confidence,
       budgetCategoryId: form.budgetCategoryId || null,
       budgetSourceId: form.budgetSourceId,
