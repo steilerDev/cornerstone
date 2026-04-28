@@ -870,6 +870,7 @@ export function VendorDetailPage() {
                     step="0.01"
                     required
                     disabled={isCreating}
+                    onWheel={(e) => e.currentTarget.blur()}
                   />
                 </div>
               </div>

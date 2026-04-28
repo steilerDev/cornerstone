@@ -26,7 +26,7 @@ export function DocumentBrowser({
   const hook = usePaperless();
   const [selectedDoc, setSelectedDoc] = useState<PaperlessDocumentSearchResult | null>(null);
   const [searchInput, setSearchInput] = useState('');
-  const [hideLinked, setHideLinked] = useState(true);
+  const [hideLinked, setHideLinked] = useState(false);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Debounced search — intentionally omits hook.search from dep array to prevent infinite loop

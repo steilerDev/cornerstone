@@ -258,6 +258,7 @@ export function HouseholdItemEditPage() {
               aria-required="true"
               aria-invalid={!!validationErrors.quantity}
               aria-describedby={validationErrors.quantity ? 'hi-edit-quantity-error' : undefined}
+              onWheel={(e) => e.currentTarget.blur()}
             />
             {validationErrors.quantity && (
               <div id="hi-edit-quantity-error" className={styles.errorText} role="alert">

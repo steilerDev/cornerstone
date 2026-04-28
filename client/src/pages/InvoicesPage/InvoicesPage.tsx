@@ -435,9 +435,16 @@ export function InvoicesPage() {
       </div>
       <div className={styles.summaryCard}>
         <span className={styles.summaryLabel}>{t('invoices.summaryPaid')}</span>
-        <span className={styles.summaryCount}>{summary.paid.count + summary.claimed.count}</span>
+        <span className={styles.summaryCount}>{summary.paid.count}</span>
         <span className={`${styles.summaryAmount} ${styles.summaryAmountPaid}`}>
-          {formatCurrency(summary.paid.totalAmount + summary.claimed.totalAmount)}
+          {formatCurrency(summary.paid.totalAmount)}
+        </span>
+      </div>
+      <div className={styles.summaryCard}>
+        <span className={styles.summaryLabel}>{t('invoices.summaryClaimed')}</span>
+        <span className={styles.summaryCount}>{summary.claimed.count}</span>
+        <span className={`${styles.summaryAmount} ${styles.summaryAmountPaid}`}>
+          {formatCurrency(summary.claimed.totalAmount)}
         </span>
       </div>
       <div className={styles.summaryCard}>
@@ -583,6 +590,7 @@ export function InvoicesPage() {
                   step="0.01"
                   required
                   disabled={isCreating}
+                  onWheel={(e) => e.currentTarget.blur()}
                 />
               </div>
             </div>

@@ -199,4 +199,44 @@ describe('NumberFilter', () => {
       expect(minInput).toHaveAttribute('step', '1');
     });
   });
+
+  describe('onWheel blurs numeric inputs to prevent scroll value change (#1370)', () => {
+    it('blurs the min number input when wheel event fires', () => {
+      render(<NumberFilter value="" onChange={jest.fn()} />);
+      const [minInput] = screen.getAllByRole('spinbutton') as [HTMLInputElement];
+      const blurSpy = jest.spyOn(minInput, 'blur');
+      minInput.focus();
+
+      fireEvent.wheel(minInput);
+
+      expect(blurSpy).toHaveBeenCalled();
+      blurSpy.mockRestore();
+    });
+
+    it('blurs the max number input when wheel event fires', () => {
+      render(<NumberFilter value="" onChange={jest.fn()} />);
+      const inputs = screen.getAllByRole('spinbutton') as HTMLInputElement[];
+      const maxInput = inputs[1]!;
+      const blurSpy = jest.spyOn(maxInput, 'blur');
+      maxInput.focus();
+
+      fireEvent.wheel(maxInput);
+
+      expect(blurSpy).toHaveBeenCalled();
+      blurSpy.mockRestore();
+    });
+
+    it('min input value is unchanged after wheel event', () => {
+      const mockOnChange = jest.fn();
+      render(<NumberFilter value="min:100,max:500" onChange={mockOnChange} />);
+      const [minInput] = screen.getAllByRole('spinbutton') as [HTMLInputElement];
+      minInput.focus();
+      expect(minInput.value).toBe('100');
+
+      fireEvent.wheel(minInput);
+
+      // Controlled value remains unchanged — blur does not alter value
+      expect(minInput.value).toBe('100');
+    });
+  });
 });

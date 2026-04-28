@@ -439,4 +439,175 @@ describe('InvoiceLinkModal', () => {
       expect(screen.getByText('Failed to load invoices. Please try again.')).toBeTruthy();
     });
   });
+
+  // ─── Vendor name display (#1372) ──────────────────────────────────────────
+
+  describe('vendor name display in invoice picker (#1372)', () => {
+    it('shows vendor name in the dropdown item', async () => {
+      const invoices = [{ ...buildInvoice('inv-1', 'INV-001'), vendorName: 'Acme Corp' }];
+      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
+
+      render(<InvoiceLinkModal {...buildProps()} />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading invoices...')).toBeNull();
+      });
+
+      // Open the dropdown
+      const searchInput = screen.getByPlaceholderText(/search by invoice/i);
+      fireEvent.focus(searchInput);
+
+      await waitFor(() => {
+        expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+      });
+    });
+
+    it('shows vendor name alongside invoice number in the dropdown', async () => {
+      const invoices = [{ ...buildInvoice('inv-1', 'INV-001'), vendorName: 'Acme Corp' }];
+      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
+
+      render(<InvoiceLinkModal {...buildProps()} />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading invoices...')).toBeNull();
+      });
+
+      // Open the dropdown
+      const searchInput = screen.getByPlaceholderText(/search by invoice/i);
+      fireEvent.focus(searchInput);
+
+      await waitFor(() => {
+        // Both invoice number and vendor name should be present
+        expect(screen.getByText('#INV-001')).toBeInTheDocument();
+        expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+      });
+    });
+
+    it('shows vendor name in the selected invoice display value', async () => {
+      const invoices = [{ ...buildInvoice('inv-1', 'INV-001'), vendorName: 'Acme Corp' }];
+      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
+
+      render(<InvoiceLinkModal {...buildProps()} />);
+
+      await waitFor(() => {
+        // After auto-select of first invoice, the input shows the invoice+vendor
+        const searchInput = screen.getByPlaceholderText(/search by invoice/i) as HTMLInputElement;
+        expect(searchInput.value).toContain('#INV-001');
+        expect(searchInput.value).toContain('Acme Corp');
+      });
+    });
+
+    it('vendor name search matches invoice — typing vendor name shows the invoice', async () => {
+      const invoices = [{ ...buildInvoice('inv-1', 'INV-001'), vendorName: 'Acme Corp' }];
+      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
+
+      render(<InvoiceLinkModal {...buildProps()} />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading invoices...')).toBeNull();
+      });
+
+      const searchInput = screen.getByPlaceholderText(/search by invoice/i);
+      fireEvent.change(searchInput, { target: { value: 'Acme' } });
+
+      await waitFor(() => {
+        expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+        expect(screen.getByText('#INV-001')).toBeInTheDocument();
+      });
+    });
+
+    it('typing a string matching neither invoice number nor vendor name shows empty dropdown', async () => {
+      const invoices = [{ ...buildInvoice('inv-1', 'INV-001'), vendorName: 'Acme Corp' }];
+      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
+
+      render(<InvoiceLinkModal {...buildProps()} />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading invoices...')).toBeNull();
+      });
+
+      const searchInput = screen.getByPlaceholderText(/search by invoice/i);
+      fireEvent.change(searchInput, { target: { value: 'ZZZNOMATCH' } });
+
+      await waitFor(() => {
+        expect(screen.getByText('No invoices match your search')).toBeInTheDocument();
+      });
+    });
+
+    it('selected invoice display includes both invoice number and vendor name', async () => {
+      const invoices = [
+        { ...buildInvoice('inv-1', 'INV-001'), vendorName: 'Acme Corp' },
+        { ...buildInvoice('inv-2', 'INV-002'), vendorName: 'Beta Ltd' },
+      ];
+      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
+
+      render(<InvoiceLinkModal {...buildProps()} />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading invoices...')).toBeNull();
+      });
+
+      // Open dropdown and select inv-2
+      const searchInput = screen.getByPlaceholderText(/search by invoice/i);
+      fireEvent.focus(searchInput);
+
+      await waitFor(() => {
+        expect(screen.getByText('Beta Ltd')).toBeInTheDocument();
+      });
+
+      const inv2Button = screen.getByText('Beta Ltd').closest('button');
+      expect(inv2Button).toBeTruthy();
+      fireEvent.click(inv2Button!);
+
+      await waitFor(() => {
+        const input = screen.getByPlaceholderText(/search by invoice/i) as HTMLInputElement;
+        expect(input.value).toContain('#INV-002');
+        expect(input.value).toContain('Beta Ltd');
+      });
+    });
+  });
+
+  // ─── onWheel blurs numeric inputs (#1370) ─────────────────────────────────
+
+  describe('onWheel prevents value change on numeric inputs (#1370)', () => {
+    it('blurs the amount input when wheel event fires', async () => {
+      const invoices = [buildInvoice('inv-1', 'INV-001')];
+      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 500 })} />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading invoices...')).toBeNull();
+      });
+
+      const amountInput = screen.getByLabelText(/itemized amount/i) as HTMLInputElement;
+      const blurSpy = jest.spyOn(amountInput, 'blur');
+      amountInput.focus();
+
+      fireEvent.wheel(amountInput);
+
+      expect(blurSpy).toHaveBeenCalled();
+      blurSpy.mockRestore();
+    });
+
+    it('amount input value is unchanged after wheel event', async () => {
+      const invoices = [buildInvoice('inv-1', 'INV-001')];
+      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 500 })} />);
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading invoices...')).toBeNull();
+      });
+
+      const amountInput = screen.getByLabelText(/itemized amount/i) as HTMLInputElement;
+      amountInput.focus();
+      expect(amountInput.value).toBe('500');
+
+      fireEvent.wheel(amountInput);
+
+      // Value is controlled — remains unchanged
+      expect(amountInput.value).toBe('500');
+    });
+  });
 });

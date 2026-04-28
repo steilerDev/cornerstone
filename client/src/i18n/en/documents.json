@@ -9,7 +9,7 @@
     "tryAgain": "Try Again",
     "searchPlaceholder": "Search documents...",
     "searchDocumentsAriaLabel": "Search documents",
-    "hideLinked": "Hide linked",
+    "hideLinked": "Hide already-linked documents",
     "noAdditionalDocuments": "No additional documents available to link.",
     "noDocumentsMatch": "No documents match your search.",
     "noDocuments": "No documents found.",
