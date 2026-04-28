@@ -274,8 +274,11 @@ test.describe('Document Linking — Duplicate (Scenario 5)', { tag: '@responsive
       pickerModal = page.getByRole('dialog', { name: 'Add Document' });
       await expect(pickerModal).toBeVisible();
 
-      // Uncheck "Hide linked" toggle so the already-linked document is visible
-      const hideLinkedCheckbox = pickerModal.getByRole('checkbox', { name: /hide linked/i });
+      // After fix #1369, "Hide already-linked documents" defaults to unchecked — linked docs visible.
+      // Label changed from the old "Hide linked" wording; uncheck() is a no-op but kept for clarity.
+      const hideLinkedCheckbox = pickerModal.getByRole('checkbox', {
+        name: /hide already-linked documents/i,
+      });
       await expect(hideLinkedCheckbox).toBeVisible({ timeout: 5000 });
       await hideLinkedCheckbox.uncheck();
 
