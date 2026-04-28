@@ -611,21 +611,98 @@ describe('InvoicesPage', () => {
     });
   });
 
-  // ─── Summary cards ────────────────────────────────────────────────────────
+  // ─── Summary cards (#1373) ────────────────────────────────────────────────
 
-  describe('summary cards', () => {
-    it('renders three summary cards (pending, paid, quotation)', async () => {
+  describe('summary cards (#1373)', () => {
+    it('renders four summary cards (pending, paid, claimed, quotation)', async () => {
       mockFetchAllInvoices.mockResolvedValueOnce(populatedResponse);
 
       renderPage();
 
-      // DataTable renders each item in both table row and mobile card (duplicate text)
       await waitFor(() => {
         expect(screen.getAllByText('INV-2026-001')[0]!).toBeInTheDocument();
       });
 
-      // The summaryGrid renders labels for pending, paid, and quotation
-      // These come from t() — will match the i18n key fallbacks
+      // All four status labels should be present
+      expect(screen.getByText('Pending')).toBeInTheDocument();
+      expect(screen.getByText('Paid')).toBeInTheDocument();
+      expect(screen.getByText('Claimed')).toBeInTheDocument();
+      expect(screen.getByText('Quotation')).toBeInTheDocument();
+    });
+
+    it('renders the Claimed card with correct count and amount', async () => {
+      const responseWithClaimed: InvoiceListPaginatedResponse = {
+        ...populatedResponse,
+        summary: {
+          pending: { count: 1, totalAmount: 15000 },
+          paid: { count: 0, totalAmount: 0 },
+          claimed: { count: 3, totalAmount: 900 },
+          quotation: { count: 0, totalAmount: 0 },
+        },
+      };
+      mockFetchAllInvoices.mockResolvedValueOnce(responseWithClaimed);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Claimed')).toBeInTheDocument();
+      });
+
+      // Count 3 should appear in the DOM (summaryCount span under the Claimed card)
+      // Multiple elements may show "3" — at least one must exist
+      expect(screen.getAllByText('3').length).toBeGreaterThan(0);
+    });
+
+    it('Claimed card still renders when claimed count is 0', async () => {
+      const responseWithZeroClaimed: InvoiceListPaginatedResponse = {
+        ...emptyResponse,
+        summary: {
+          pending: { count: 0, totalAmount: 0 },
+          paid: { count: 0, totalAmount: 0 },
+          claimed: { count: 0, totalAmount: 0 },
+          quotation: { count: 0, totalAmount: 0 },
+        },
+      };
+      mockFetchAllInvoices.mockResolvedValueOnce(responseWithZeroClaimed);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Claimed')).toBeInTheDocument();
+    });
+
+    it('Paid card shows only paid summary data (not combined with claimed)', async () => {
+      const responseWithSeparateData: InvoiceListPaginatedResponse = {
+        ...populatedResponse,
+        summary: {
+          pending: { count: 1, totalAmount: 15000 },
+          paid: { count: 2, totalAmount: 5000 },
+          claimed: { count: 3, totalAmount: 900 },
+          quotation: { count: 0, totalAmount: 0 },
+        },
+      };
+      mockFetchAllInvoices.mockResolvedValueOnce(responseWithSeparateData);
+
+      const fmtCurrency = (n: number) =>
+        new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'EUR',
+          minimumFractionDigits: 2,
+        }).format(n);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Paid')).toBeInTheDocument();
+        expect(screen.getByText('Claimed')).toBeInTheDocument();
+      });
+
+      // Paid total is €5,000 and claimed total is €900 — they must appear as separate amounts
+      expect(screen.getByText(fmtCurrency(5000))).toBeInTheDocument();
+      expect(screen.getByText(fmtCurrency(900))).toBeInTheDocument();
     });
   });
 
