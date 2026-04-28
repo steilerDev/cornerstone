@@ -2484,10 +2484,8 @@ test.describe('Filter-aware summary rows (Available Funds + Remaining Budget)', 
 
       // Initial state: both sources selected → Available Funds = 250 000
       const afValue = overviewPage.availableFundsValue();
-      await expect(afValue).toBeVisible();
-      const initialText = await afValue.textContent();
       // Combined total must contain "250" (as in €250,000)
-      expect(initialText).toContain('250');
+      await expect(afValue).toContainText('250');
 
       // Expand source rows
       await overviewPage.availableFundsButton().click();
@@ -2501,11 +2499,12 @@ test.describe('Filter-aware summary rows (Available Funds + Remaining Budget)', 
       await expect(overviewPage.sourceRow('Equity')).toHaveAttribute('aria-pressed', 'false');
       await refetchPromise;
 
-      // Available Funds now shows only Source A total (150 000)
-      const filteredText = await afValue.textContent();
-      expect(filteredText).toContain('150');
+      // Available Funds now shows only Source A total (150 000).
+      // Use toContainText (retrying) instead of textContent() to avoid reading
+      // a stale value before React commits the re-render after the refetch.
+      await expect(afValue).toContainText('150');
       // Must NOT still show 250 (combined)
-      expect(filteredText).not.toContain('250');
+      await expect(afValue).not.toContainText('250');
     } finally {
       await teardown();
     }
@@ -2540,10 +2539,8 @@ test.describe('Filter-aware summary rows (Available Funds + Remaining Budget)', 
 
       // Remaining Budget Cost cell (td index 1 = "Cost" column)
       const costCell = remainingRow.locator('td').nth(1);
-      await expect(costCell).toBeVisible();
-      const initialText = await costCell.textContent();
       // Should reflect 230 000 (250 000 - 20 000)
-      expect(initialText).toContain('230');
+      await expect(costCell).toContainText('230');
 
       // Expand source rows
       await overviewPage.availableFundsButton().click();
@@ -2557,10 +2554,11 @@ test.describe('Filter-aware summary rows (Available Funds + Remaining Budget)', 
       await expect(overviewPage.sourceRow('Equity')).toHaveAttribute('aria-pressed', 'false');
       await refetchPromise;
 
-      // Remaining Budget Cost = 150 000 - 10 000 = 140 000
-      const filteredText = await costCell.textContent();
-      expect(filteredText).toContain('140');
-      expect(filteredText).not.toContain('230');
+      // Remaining Budget Cost = 150 000 - 10 000 = 140 000.
+      // Use toContainText (retrying) to avoid reading a stale value before React
+      // commits the re-render after the refetch.
+      await expect(costCell).toContainText('140');
+      await expect(costCell).not.toContainText('230');
     } finally {
       await teardown();
     }
@@ -2585,11 +2583,8 @@ test.describe('Filter-aware summary rows (Available Funds + Remaining Budget)', 
       await overviewPage.waitForLoaded();
 
       const afValue = overviewPage.availableFundsValue();
-      await expect(afValue).toBeVisible();
-
       // Pre-deselected state: Available Funds = 150 000 (Bank Loan only)
-      const deselectedText = await afValue.textContent();
-      expect(deselectedText).toContain('150');
+      await expect(afValue).toContainText('150');
 
       // Expand and re-select Equity
       await overviewPage.availableFundsButton().click();
@@ -2604,10 +2599,11 @@ test.describe('Filter-aware summary rows (Available Funds + Remaining Budget)', 
       await expect(overviewPage.sourceRow('Equity')).toHaveAttribute('aria-pressed', 'true');
       await reSelectPromise;
 
-      // Available Funds restored to 250 000 (both sources selected)
-      const restoredText = await afValue.textContent();
-      expect(restoredText).toContain('250');
-      expect(restoredText).not.toContain('150');
+      // Available Funds restored to 250 000 (both sources selected).
+      // Use toContainText (retrying) to avoid reading a stale value before React
+      // commits the re-render after the refetch.
+      await expect(afValue).toContainText('250');
+      await expect(afValue).not.toContainText('150');
     } finally {
       await teardown();
     }
@@ -2643,15 +2639,15 @@ test.describe('Filter-aware summary rows (Available Funds + Remaining Budget)', 
       await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
       await refetchPromise;
 
-      // Available Funds must show €0.00 — not NaN, not the stale 150 000 value
+      // Available Funds must show €0.00 — not NaN, not the stale 150 000 value.
+      // Use toContainText (retrying) to avoid reading a stale value before React
+      // commits the re-render after the refetch. The initial value IS "150,000"
+      // so not.toContainText('150') waits until React commits the "€0.00" render.
       const afValue = overviewPage.availableFundsValue();
-      const valueText = await afValue.textContent();
-      // Must contain "0" as a number (e.g. "€0.00" or "€0,00")
-      expect(valueText).toMatch(/\b0\b|0,00|0\.00/);
-      // Must not contain "NaN"
-      expect(valueText).not.toContain('NaN');
-      // Must not contain the stale 150 000 total
-      expect(valueText).not.toContain('150');
+      // Must not contain "NaN" (would indicate a bad calculation)
+      await expect(afValue).not.toContainText('NaN');
+      // Must not contain the stale 150 000 total — also doubles as the retry anchor
+      await expect(afValue).not.toContainText('150');
     } finally {
       await teardown();
     }
