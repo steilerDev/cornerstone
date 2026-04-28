@@ -75,6 +75,8 @@ This checklist is updated after each epic's lessons-learned sync (see `/epic-clo
 - [ ] **95% coverage target**: New and modified code must meet the 95% unit test coverage target. The QA agent must run each new test file with `--coverage` and verify 95%+ statement coverage before committing.
 - [ ] **No mocking of internal modules**: Integration tests should use real implementations where possible. Only mock external services and system boundaries.
 - [ ] **E2E route coverage**: Every application route must have at least smoke-level E2E test coverage. The E2E test engineer verifies route coverage as part of every E2E task.
+- [ ] **E2E post-mutation assertions**: After actions that trigger a data mutation (clicking a button, selecting a picker item), use Playwright's retrying assertions (`toContainText()`, `toHaveText()`, `toBeVisible()`) rather than reading the DOM immediately with `textContent()` + sync `expect()`. `waitForResponse()` resolves at the network level before React re-renders the DOM — a sync DOM read immediately after it will see stale content.
+- [ ] **E2E text locators after label changes**: When a production PR renames a UI label, update all E2E test locators that match that text. Regex locators like `/hide linked/i` silently break when the label changes to "Hide already-linked documents" (no contiguous match). Prefer `data-testid` attributes for stability; when using text regex, keep the pattern broad enough to survive minor rewording (e.g. `/hide.*linked/i`).
 
 ## i18n — Translations
 
