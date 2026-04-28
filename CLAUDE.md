@@ -72,19 +72,7 @@ The GitHub Projects board uses 5 statuses: Backlog, Todo, In Progress, Done, Won
 
 **Mark stories in-progress before starting work.** When beginning a story, immediately move its GitHub Issue to "In Progress" on the Projects board.
 
-**The orchestrator delegates, never implements.** Must NEVER write production code, tests, or architectural artifacts. Delegate all implementation:
-
-- **Implementation specs** → `dev-team-lead` agent (produces specs, reviews code, commits)
-- **Backend code** → `backend-developer` agent (Haiku, launched by orchestrator with dev-team-lead specs)
-- **Frontend code** → `frontend-developer` agent (Haiku, launched by orchestrator with dev-team-lead specs)
-- **Non-English translations** → `translator` agent (Sonnet, launched by orchestrator with dev-team-lead Translator Specs)
-- **Unit/integration tests** → `qa-integration-tester` agent (launched by orchestrator with dev-team-lead specs)
-- **E2E browser tests** → `e2e-test-engineer` agent (launched by orchestrator with dev-team-lead specs)
-- **Visual specs, design tokens, brand assets, CSS files** → `ux-designer` agent
-- **Schema/API design, ADRs, wiki** → `product-architect` agent
-- **Story definitions** → `product-owner` agent
-- **Security reviews** → `security-engineer` agent
-- **User-facing documentation** (docs site + README) → `docs-writer` agent
+**The orchestrator delegates, never implements.** Must NEVER write production code, tests, or architectural artifacts. Route all work per the Agent Team table above.
 
 ### Orchestration Skills
 
@@ -100,7 +88,7 @@ The orchestrator uses four skills to drive work. Each skill contains the full op
 
 ## Acceptance & Validation
 
-Every epic follows a two-phase validation lifecycle. **Development phase** (`/develop`): PO defines acceptance criteria, QA + E2E + security review each story/bug PR — PRs auto-merge after CI green + all reviewers approved. **Epic validation phase** (`/epic-close`): refinement, E2E coverage confirmation, UAT scenarios fed to e2e-test-engineer, promotion, then docs update. Use `/epic-run` to execute the entire lifecycle in a single session. The only human gate is promotion from `beta` → `main`, where the user reviews a comprehensive summary with change inventory, validation report, and manual validation checklist. If the user provides feedback via `/tmp/notes.md`, fixes are applied autonomously (PO groups items into issues, `/develop` fixes each group) and the promotion PR is re-created — looping until the user approves. Documentation runs after approval to reflect the final state.
+Every epic has two phases: **Development** (`/develop`) where QA + E2E + security review each story PR; and **Epic validation** (`/epic-close`) where E2E coverage is confirmed and UAT runs before promotion. The only human gate is `beta` → `main` — the user approves after reviewing the change inventory. Feedback goes to `/tmp/notes.md`; fixes loop autonomously until approved.
 
 ### Key Rules
 
@@ -130,7 +118,9 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 - CI auto-fix bot: `npm run lint:fix` + `npm run format` + `npm audit fix` (runs on `beta` push, creates PR if changes needed)
 - CI Quality Gates: typecheck + test + build (runs on every PR)
 
-To validate your work: **commit and push**. After pushing, **always wait for the required CI gates to pass** before proceeding to the next step.
+To validate your work: **commit and push**. After pushing, **always wait for the required CI gates to pass** before proceeding to the next step. When running tests locally: only run specific files (`npx jest path/to/specific.test.ts --maxWorkers=1`), never the full suite — the sandbox is resource-constrained and CI owns full validation.
+
+The only exception is the QA agent running a specific test file it just wrote (e.g., `npx jest path/to/new.test.ts`) to verify correctness before committing — but never `npm test` (the full suite).
 
 #### CI Gate Polling (canonical pattern)
 
@@ -159,16 +149,6 @@ echo "Waiting for Quality Gates + E2E Gates..."; SECONDS=0; while true; do if [ 
 ```
 
 Replace `<PR>` with the PR number. The polling loop handles the "checks not yet reported" edge case — an empty bucket means we retry after 30s. Timeouts prevent agents from polling indefinitely if CI hangs.
-
-The only exception is the QA agent running a specific test file it just wrote (e.g., `npx jest path/to/new.test.ts`) to verify correctness before committing — but never `npm test` (the full suite).
-
-### Sandbox Test Execution Constraints
-
-The sandbox environment is resource-constrained. When running tests locally:
-
-- **Never run the full test suite** (`npm test`) — only run tightly scoped, specific test files (e.g., `npx jest path/to/specific.test.ts`)
-- **Always use a single worker** — pass `--maxWorkers=1` to Jest for any local test execution
-- Rely on CI for full suite validation
 
 ### GitHub Rate-Limit Retry Policy
 
@@ -298,21 +278,6 @@ cornerstone/
     src/                    # Markdown content (guides, getting-started, development)
 ```
 
-### Package Dependency Graph
-
-```
-@cornerstone/shared  <--  @cornerstone/server
-                     <--  @cornerstone/client
-@cornerstone/e2e     (standalone — runs against built app via testcontainers)
-@cornerstone/docs    (standalone — Docusaurus, deployed to GitHub Pages)
-```
-
-### Build Order
-
-`shared` (tsc) -> `client` (webpack build) -> `server` (tsc)
-
-The `docs` workspace is NOT part of the application build (`npm run build`). Build it separately with `npm run docs:build`.
-
 ## Dependency Policy
 
 - **Always use the latest stable (LTS if applicable) version** of a package when adding or upgrading dependencies
@@ -398,37 +363,13 @@ Before creating a new UI component, check if an existing shared component can be
 
 ### Coverage Enforcement
 
-Coverage is tracked and enforced through three complementary mechanisms:
+Coverage is enforced through three mechanisms:
 
-**1. CI Coverage Reports (automated)**
-
-Every PR triggers coverage collection across 6 Jest shards. The `Coverage Report` CI job merges shard results and uploads a `coverage-report` artifact containing `coverage-summary.json` (per-file and total percentages) and `coverage-final.json` (raw Istanbul data). Coverage reports are retained for 30 days.
-
-- Test shards run with `--coverage --coverageReporters=json`
-- The merge script (`scripts/merge-coverage.mjs`) combines shard data and prints a text summary in CI logs
-- To inspect coverage for a PR: download the `coverage-report` artifact from the CI run
-
-**2. Test File Parity (enforced by dev-team-lead)**
-
-During `[MODE: review]`, the dev-team-lead verifies that **every new or modified production file has a corresponding test file**. Production files added without test files result in `VERDICT: CHANGES_REQUIRED` with a fix spec routed to `qa-integration-tester`. This prevents untested code from entering the codebase.
-
-**3. Local Coverage Verification (enforced by qa-integration-tester)**
-
-The QA agent runs coverage on each new test file before committing:
-
-```bash
-npx jest path/to/file.test.ts --coverage --coverageReporters=text --maxWorkers=1
-```
-
-This verifies 95%+ coverage on the corresponding source file before the code leaves the agent.
+- **CI**: 6 Jest shards upload a `coverage-report` artifact (retained 30 days) — inspect via the CI run for per-file percentages.
+- **Test file parity**: dev-team-lead `[MODE: review]` rejects production files without a corresponding test file (`VERDICT: CHANGES_REQUIRED` → routed to `qa-integration-tester`).
+- **Local**: QA runs `npx jest path/to/file.test.ts --coverage --coverageReporters=text --maxWorkers=1` before committing; 95%+ required.
 
 ## Development Workflow
-
-### Prerequisites
-
-- Node.js >= 24
-- npm >= 11
-- Docker (for container builds)
 
 ### Getting Started
 
@@ -458,7 +399,7 @@ npm run dev                   # Start server (port 3000) + client dev server (po
 
 ### Documentation Site
 
-Docusaurus 3.x site deployed to GitHub Pages at `https://steilerDev.github.io/cornerstone/`. Deployed via the `docs-deploy` job in `.github/workflows/release.yml` on stable releases (screenshots are auto-captured from the released Docker image). Content: `docs/src/` (user guides, end users) · `wiki/` (architecture/ADRs, agents) · `README.md` (GitHub visitors) · `CLAUDE.md` (AI agents).
+Docusaurus site in `docs/` deployed to GitHub Pages on stable releases via `.github/workflows/release.yml`.
 
 ### Database Migrations
 
@@ -473,8 +414,16 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 | `DATABASE_URL`           | `/app/data/cornerstone.db` | SQLite database path                                                                  |
 | `LOG_LEVEL`              | `info`                     | Log level (trace/debug/info/warn/error/fatal)                                         |
 | `NODE_ENV`               | `production`               | Environment                                                                           |
-| `CLIENT_DEV_PORT`        | `5173`                     | Webpack dev server port (development only)                                            |
+| `SESSION_DURATION`       | `604800`                   | Session duration in seconds (default: 7 days)                                         |
+| `SECURE_COOKIES`         | `true`                     | Enable HTTPS-only cookie flag                                                         |
+| `TRUST_PROXY`            | `false`                    | Trust X-Forwarded-* headers from a reverse proxy                                      |
+| `OIDC_ISSUER`            | (none)                     | OpenID Connect issuer URL                                                             |
+| `OIDC_CLIENT_ID`         | (none)                     | OIDC application client ID                                                            |
+| `OIDC_CLIENT_SECRET`     | (none)                     | OIDC application client secret                                                        |
 | `EXTERNAL_URL`           | (none)                     | Public-facing base URL (e.g., `https://myhouse.example.com`) for reverse-proxy setups |
+| `PHOTO_MAX_FILE_SIZE_MB` | `20`                       | Maximum photo upload size in MB                                                       |
+| `PHOTO_STORAGE_PATH`     | `{DB_DIR}/photos`          | Directory for photo storage                                                           |
+| `DIARY_AUTO_EVENTS`      | `true`                     | Enable automatic diary event creation                                                 |
 | `PAPERLESS_URL`          | (none)                     | Paperless-ngx instance base URL                                                       |
 | `PAPERLESS_API_TOKEN`    | (none)                     | Paperless-ngx API authentication token                                                |
 | `PAPERLESS_EXTERNAL_URL` | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset)   |
@@ -506,22 +455,14 @@ When tests fail during development, a structured diagnostic protocol determines 
 - **Protocol owner**: The `dev-team-lead` runs the diagnostic decision tree during `[MODE: review]` when test failures are present in the review input. See the dev-team-lead agent definition for the full classification table and escalation rules.
 - **Test agents report, not diagnose**: `qa-integration-tester` and `e2e-test-engineer` submit structured failure reports but do not determine whether the fault lies in code or tests — that judgment belongs to the dev-team-lead.
 
-### Internationalization (i18n)
+### Internationalization & Translation
 
 The application supports multiple locales (English and German) via `i18next` and `react-i18next`. All agents must follow these conventions:
 
-- **Frontend**: All user-facing strings must use `t()` from react-i18next — never hardcode text in JSX. Translation files live in `client/src/i18n/{lang}/{namespace}.json`. Dev agents write English (`en`) keys only.
-- **Translator owns non-English locales**: The `translator` agent handles all non-English translations and enforces glossary compliance. Dev agents do not write German or other non-English translations.
-- **Backend**: API error responses must use `ErrorCode` enum values (machine-readable codes), not human-readable messages. The frontend translates error codes into locale-specific messages via `translateApiError()`. The `CURRENCY` env var (default: `EUR`) is exposed via `GET /api/config`.
-- **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent` from `client/src/lib/formatters.ts` — these read the locale from i18next automatically. Never use raw `toLocaleDateString()` or `Intl.NumberFormat` directly.
-- **Testing**: QA must verify translation keys exist in both locales. E2E tests must verify locale detection and switching behavior.
-- **Specs**: Dev-team-lead specs must include i18n requirements — translation namespace, English keys to add, and a Translator Spec section for the translator agent.
-
-### Translation & Glossary Convention
-
-- **Glossary**: `client/src/i18n/glossary.json` — single source of truth for domain term translations (multi-locale)
-- **Dev agents write English only**: frontend-developer adds `en` keys. Never writes non-English translations.
-- **Translator owns all non-English locales**: translates new keys + enforces glossary compliance
-- **Glossary scope**: Domain-specific terms only (Work Item, Invoice, etc.), not common UI words
-- **Glossary updates**: Translator proposes additions for new domain terms; product-owner approves terminology
-- **Adding a locale**: Add locale code to `glossary.json` `_meta.locales`, add translations for all terms, create `client/src/i18n/{locale}/` directory with namespace files, register in `client/src/i18n/index.ts`
+- **Frontend**: All user-facing strings must use `t()` — never hardcode text in JSX. Translation files: `client/src/i18n/{lang}/{namespace}.json`. Dev agents write English (`en`) keys only; never write non-English translations.
+- **Translator owns non-English locales**: `translator` agent translates new keys and enforces glossary compliance.
+- **Glossary**: `client/src/i18n/glossary.json` — domain-specific terms only (Work Item, Invoice, etc.). Translator proposes new terms; product-owner approves. To add a locale: update `glossary.json` `_meta.locales`, create `client/src/i18n/{locale}/` namespace files, register in `client/src/i18n/index.ts`.
+- **Backend**: API error responses use `ErrorCode` enum values; frontend translates via `translateApiError()`. `CURRENCY` env var (default: `EUR`) exposed via `GET /api/config`.
+- **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent` from `client/src/lib/formatters.ts` — never raw `toLocaleDateString()` or `Intl.NumberFormat`.
+- **Testing**: QA verifies keys exist in both locales. E2E verifies locale detection and switching.
+- **Specs**: Dev-team-lead specs must include translation namespace, English keys to add, and a Translator Spec section.
