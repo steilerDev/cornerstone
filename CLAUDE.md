@@ -416,7 +416,7 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 | `NODE_ENV`               | `production`               | Environment                                                                           |
 | `SESSION_DURATION`       | `604800`                   | Session duration in seconds (default: 7 days)                                         |
 | `SECURE_COOKIES`         | `true`                     | Enable HTTPS-only cookie flag                                                         |
-| `TRUST_PROXY`            | `false`                    | Trust X-Forwarded-* headers from a reverse proxy                                      |
+| `TRUST_PROXY`            | `false`                    | Trust X-Forwarded-\* headers from a reverse proxy                                     |
 | `OIDC_ISSUER`            | (none)                     | OpenID Connect issuer URL                                                             |
 | `OIDC_CLIENT_ID`         | (none)                     | OIDC application client ID                                                            |
 | `OIDC_CLIENT_SECRET`     | (none)                     | OIDC application client secret                                                        |
