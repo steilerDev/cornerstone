@@ -623,11 +623,12 @@ describe('InvoicesPage', () => {
         expect(screen.getAllByText('INV-2026-001')[0]!).toBeInTheDocument();
       });
 
-      // All four status labels should be present
-      expect(screen.getByText('Pending')).toBeInTheDocument();
-      expect(screen.getByText('Paid')).toBeInTheDocument();
-      expect(screen.getByText('Claimed')).toBeInTheDocument();
-      expect(screen.getByText('Quotation')).toBeInTheDocument();
+      // All four status labels should be present (getAllByText: labels appear in both
+      // summary cards and filter dropdown, so multiple matches are expected)
+      expect(screen.getAllByText('Pending').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Claimed').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Quotation').length).toBeGreaterThan(0);
     });
 
     it('renders the Claimed card with correct count and amount', async () => {
@@ -645,7 +646,7 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Claimed')).toBeInTheDocument();
+        expect(screen.getAllByText('Claimed').length).toBeGreaterThan(0);
       });
 
       // Count 3 should appear in the DOM (summaryCount span under the Claimed card)
@@ -671,7 +672,7 @@ describe('InvoicesPage', () => {
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
       });
 
-      expect(screen.getByText('Claimed')).toBeInTheDocument();
+      expect(screen.getAllByText('Claimed').length).toBeGreaterThan(0);
     });
 
     it('Paid card shows only paid summary data (not combined with claimed)', async () => {
@@ -696,8 +697,8 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Paid')).toBeInTheDocument();
-        expect(screen.getByText('Claimed')).toBeInTheDocument();
+        expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Claimed').length).toBeGreaterThan(0);
       });
 
       // Paid total is €5,000 and claimed total is €900 — they must appear as separate amounts
