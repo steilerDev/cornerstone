@@ -209,9 +209,7 @@ describe('BudgetLineForm — description, category, source, vendor fields', () =
   });
 
   it('renders dynamic category select when budgetCategories is provided', () => {
-    const budgetCategories = [
-      { id: 'cat-1', name: 'Electrical', translationKey: null },
-    ] as any[];
+    const budgetCategories = [{ id: 'cat-1', name: 'Electrical', translationKey: null }] as any[];
     const props = buildProps(buildDirectForm(), { budgetCategories });
     render(<BudgetLineForm {...props} />);
     expect(screen.getByRole('combobox', { name: /Category/i })).toBeInTheDocument();

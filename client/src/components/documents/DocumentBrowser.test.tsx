@@ -487,8 +487,12 @@ describe('DocumentBrowser', () => {
 
       fireEvent.click(screen.getByRole('checkbox'));
 
-      expect(screen.queryByRole('button', { name: /Document: Document 1/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /Document: Document 2/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /Document: Document 1/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /Document: Document 2/i }),
+      ).not.toBeInTheDocument();
     });
 
     it('shows all documents again when checkbox is unchecked after being checked', () => {
@@ -511,7 +515,9 @@ describe('DocumentBrowser', () => {
 
       fireEvent.click(screen.getByRole('checkbox'));
 
-      expect(screen.queryByRole('button', { name: /Document: Document 1/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /Document: Document 1/i }),
+      ).not.toBeInTheDocument();
       // Docs 2 and 3 are not linked — still visible
       expect(screen.getByRole('button', { name: /Document: Document 2/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /Document: Document 3/i })).toBeInTheDocument();
