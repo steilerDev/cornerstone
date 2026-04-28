@@ -31,6 +31,8 @@ Screenshots for the documents feature require a connected Paperless-ngx instance
 
 The document is immediately linked and appears in the Documents section. A screen reader announcement confirms the link was created.
 
+The picker shows **all documents** by default. If your document store is large and you only want to see documents that are not yet linked anywhere in Cornerstone, tick the **Hide already-linked documents** checkbox at the top of the picker -- it stays unchecked unless you turn it on, so you never have to clear it just to find a document you intend to re-link.
+
 :::note
 Each document can only be linked once to the same entity. If you try to link a document that is already attached, Cornerstone will show a message that the document is already linked.
 :::
