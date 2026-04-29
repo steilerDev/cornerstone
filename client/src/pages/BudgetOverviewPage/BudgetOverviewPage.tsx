@@ -17,7 +17,6 @@ const BUDGET_TABS: SubNavTab[] = [
   { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
 ];
 
-
 // ---- Main component ----
 
 export function BudgetOverviewPage() {
@@ -202,7 +201,6 @@ export function BudgetOverviewPage() {
       setIsLoading(false);
     }
   };
-
 
   // Action dropdown (reused across loading, error, and main states)
   const actionDropdown = (

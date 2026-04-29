@@ -318,7 +318,6 @@ describe('BudgetOverviewPage', () => {
         expect(screen.getByText(/start by adding budget categories/i)).toBeInTheDocument();
       });
     });
-
   });
 
   // ─── Page header ────────────────────────────────────────────────────────────
@@ -333,8 +332,6 @@ describe('BudgetOverviewPage', () => {
       });
     });
   });
-
-
 
   // ─── Budget Sources Fetch (Scenarios 28–30) ────────────────────────────────
 
@@ -454,7 +451,6 @@ describe('BudgetOverviewPage', () => {
       });
     });
   });
-
 
   // ─── Story #1039: Add dropdown button ─────────────────────────────────────
 

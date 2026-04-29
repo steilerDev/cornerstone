@@ -211,7 +211,11 @@ async function mountRoutes(
 test.describe('Budget Overview — hero card removed (#1389)', { tag: '@smoke' }, () => {
   test('Page loads and "Budget" heading is visible', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(page, populatedOverviewResponse(), populatedBreakdownResponse());
+    const teardown = await mountRoutes(
+      page,
+      populatedOverviewResponse(),
+      populatedBreakdownResponse(),
+    );
 
     try {
       await overviewPage.goto();
@@ -226,7 +230,11 @@ test.describe('Budget Overview — hero card removed (#1389)', { tag: '@smoke' }
 
   test('No element with aria-label "Budget overview" (hero card is gone)', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(page, populatedOverviewResponse(), populatedBreakdownResponse());
+    const teardown = await mountRoutes(
+      page,
+      populatedOverviewResponse(),
+      populatedBreakdownResponse(),
+    );
 
     try {
       await overviewPage.goto();
@@ -243,7 +251,11 @@ test.describe('Budget Overview — hero card removed (#1389)', { tag: '@smoke' }
     page,
   }) => {
     const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(page, populatedOverviewResponse(), populatedBreakdownResponse());
+    const teardown = await mountRoutes(
+      page,
+      populatedOverviewResponse(),
+      populatedBreakdownResponse(),
+    );
 
     try {
       await overviewPage.goto();
@@ -258,7 +270,11 @@ test.describe('Budget Overview — hero card removed (#1389)', { tag: '@smoke' }
 
   test('Add button is visible and opens dropdown with Add Invoice option', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(page, populatedOverviewResponse(), populatedBreakdownResponse());
+    const teardown = await mountRoutes(
+      page,
+      populatedOverviewResponse(),
+      populatedBreakdownResponse(),
+    );
 
     try {
       await overviewPage.goto();
@@ -277,7 +293,11 @@ test.describe('Budget Overview — hero card removed (#1389)', { tag: '@smoke' }
 
   test('Cost Breakdown Table section is rendered', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
-    const teardown = await mountRoutes(page, populatedOverviewResponse(), populatedBreakdownResponse());
+    const teardown = await mountRoutes(
+      page,
+      populatedOverviewResponse(),
+      populatedBreakdownResponse(),
+    );
 
     try {
       await overviewPage.goto();
@@ -323,9 +343,7 @@ test.describe('Budget Overview — source badge in breakdown (#1390)', { tag: '@
       // The source-badge span should now be in the DOM with the correct aria-label.
       // This confirms the source-badge markup is present on screen; the CSS print fix in
       // #1390 ensures the label is also visible in print media (tested via unit tests).
-      await expect(
-        page.locator('[aria-label="Budget source: Bank Loan"]'),
-      ).toBeAttached();
+      await expect(page.locator('[aria-label="Budget source: Bank Loan"]')).toBeAttached();
     } finally {
       await teardown();
     }
