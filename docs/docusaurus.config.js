@@ -88,6 +88,7 @@ const config = {
               { label: 'Household Items', to: '/guides/household-items' },
               { label: 'Documents', to: '/guides/documents' },
               { label: 'Diary', to: '/guides/diary' },
+              { label: 'Backups', to: '/guides/backup' },
               { label: 'Roadmap', to: '/roadmap' },
             ],
           },
