@@ -117,3 +117,10 @@ If the exported PDF does not match what you see on screen, make sure your browse
 :::
 
 ![Budget overview dashboard](/img/screenshots/budget-overview-light.png)
+
+## Related Pages
+
+- [Work Items](../work-items/overview) — track progress and link budget lines to construction tasks
+- [Household Items](../household-items/overview) — manage furniture and appliance purchases with their own budget lines
+- [Financing Sources](financing-sources) — detailed view of each financing source and its allocated lines
+- [Subsidies](subsidies) — manage subsidy applications and their impact on your budget
