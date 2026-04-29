@@ -94,6 +94,7 @@ function populatedBreakdownResponse() {
       },
     },
     subsidyAdjustments: [],
+    budgetSources: [],
   };
 }
 
@@ -103,6 +104,17 @@ function breakdownWithSourceBadge() {
   const area = bd.workItems.areas[0];
   return {
     ...bd,
+    budgetSources: [
+      {
+        id: 'src-bank',
+        name: 'Bank Loan',
+        totalAmount: 300000,
+        projectedMin: 0,
+        projectedMax: 0,
+        subsidyPaybackMin: 0,
+        subsidyPaybackMax: 0,
+      },
+    ],
     workItems: {
       ...bd.workItems,
       areas: [

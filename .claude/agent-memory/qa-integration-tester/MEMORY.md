@@ -3,6 +3,10 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Systemic jest.unstable_mockModule Issue in This Worktree (2026-04-29)
+
+ALL client tests using `jest.unstable_mockModule('../../lib/formatters.js', ...)` fail locally in this worktree with `useLocale must be used within a LocaleProvider`. This is a pre-existing environment issue — tests pass in CI. **Do not attempt to fix by changing mocks or adding LocaleProvider** — the tests are structurally correct and the mock works in CI. Just commit and let CI validate. The issue is specific to this worktree's Jest module resolution environment.
+
 ## Story #1360 — Server-Side Source Filter Tests (2026-04-25)
 
 **CostBreakdownTable.test.tsx**: Replaced the 12-test `describe('Source filter — aggregate consistency (#1358)')` block with 4-test `describe('Server-driven render path (#1360)')`. The 12 old tests tested deleted client-side helpers (`computePerSourcePayback`, `computeFilteredAggregates`, `visibleLineIds`). Removal strategy: Python `content.replace()` on large block — incremental Edit tool calls left orphaned code. The `buildBreakdownWithTwoSources()` helper was replaced by `buildServerFilteredBreakdown()`.
