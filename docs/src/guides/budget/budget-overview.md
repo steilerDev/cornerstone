@@ -79,13 +79,14 @@ This makes it easy to spot which source is most depleted, which one is being sub
 
 Click any source detail row inside the **Available Funds** expansion to toggle that source on or off. Deselected sources are dropped from the entire breakdown:
 
-- The summary tiles, projected cost range, remaining budget, and every nested area row recalculate against the visible set.
+- The summary tiles, projected cost range, every nested area row, and the **Available Funds** and **Remaining Budget** (Cost + Net) totals all recalculate against the visible set in real time as you toggle.
 - A small "X of N selected" caption appears next to **Available Funds** while a filter is active.
 - The selection is **persisted in the URL** as `?deselectedSources=<id>,<id>` so you can bookmark a filtered view, share it with your bank or partner, or refresh without losing state.
 - Press **Escape** while focused on a source row to clear all deselections in one go.
 - Source detail rows stay visible even when every source is deselected -- the filter is never a dead-end; you can always click your way back in.
+- When you print a filtered view, deselected source rows are hidden from the printed output so the report only shows the sources you actually have selected.
 
-Filtering happens **server-side** (`GET /api/budget/breakdown?deselectedSources=...`), which means subsidy payback math stays consistent with the visible set: subsidies that no longer have any qualifying budget lines drop out cleanly instead of double-counting.
+Filtering happens **server-side** (`GET /api/budget/breakdown?deselectedSources=...`), which means subsidy payback math stays consistent with the visible set: subsidies that no longer have any qualifying budget lines drop out cleanly instead of double-counting. The Pending, Paid, and Quotation summary cards at the top of the page also refresh in step with the filter -- pick the sources you care about and the headline numbers update without leaving the page.
 
 ## Financing Source Summary
 
@@ -116,3 +117,10 @@ If the exported PDF does not match what you see on screen, make sure your browse
 :::
 
 ![Budget overview dashboard](/img/screenshots/budget-overview-light.png)
+
+## Related Pages
+
+- [Work Items](../work-items/overview) — track progress and link budget lines to construction tasks
+- [Household Items](../household-items/overview) — manage furniture and appliance purchases with their own budget lines
+- [Financing Sources](financing-sources) — detailed view of each financing source and its allocated lines
+- [Subsidies](subsidies) — manage subsidy applications and their impact on your budget
