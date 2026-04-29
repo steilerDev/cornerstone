@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { BaseBudgetLine, ConfidenceLevel } from '@cornerstone/shared';
-import { CONFIDENCE_MARGINS } from '../../lib/budgetConstants.js';
+import { CONFIDENCE_MARGINS, effectivePlannedAmount } from '../../lib/budgetConstants.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import styles from './BudgetLineCard.module.css';
@@ -54,12 +54,12 @@ export function BudgetLineCard({
                 {isQuotation ? t('vendorDetail.quotedAmount') : 'Invoiced Amount'}
               </span>
               <span className={styles.plannedSecondary}>
-                (planned: {formatCurrency(line.plannedAmount)})
+                (planned: {formatCurrency(effectivePlannedAmount(line))})
               </span>
             </>
           ) : (
             <>
-              <span className={styles.amount}>{formatCurrency(line.plannedAmount)}</span>
+              <span className={styles.amount}>{formatCurrency(effectivePlannedAmount(line))}</span>
               <span className={styles.confidence}>
                 {confidenceLabels[line.confidence]}
                 {CONFIDENCE_MARGINS[line.confidence] > 0 && (

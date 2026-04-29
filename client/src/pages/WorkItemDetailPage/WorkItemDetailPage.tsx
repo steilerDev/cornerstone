@@ -264,14 +264,11 @@ export default function WorkItemDetailPage() {
       quantity: line.quantity !== null ? String(line.quantity) : '',
       unit: line.unit ?? '',
       unitPrice: line.unitPrice !== null ? String(line.unitPrice) : '',
-      includesVat: line.quantity !== null ? (line.includesVat ?? true) : false,
+      includesVat: line.includesVat ?? true,
     }),
     toPayload: (form: BudgetLineFormState): CreateWorkItemBudgetRequest => ({
       description: form.description.trim() || null,
-      plannedAmount:
-        form.pricingMode === 'direct' && form.includesVat
-          ? Math.round((parseFloat(form.plannedAmount) / 1.19) * 100) / 100
-          : parseFloat(form.plannedAmount),
+      plannedAmount: parseFloat(form.plannedAmount),
       confidence: form.confidence,
       budgetCategoryId: form.budgetCategoryId || null,
       budgetSourceId: form.budgetSourceId,
@@ -279,7 +276,7 @@ export default function WorkItemDetailPage() {
       quantity: form.pricingMode === 'unit' && form.quantity ? parseFloat(form.quantity) : null,
       unit: form.pricingMode === 'unit' && form.unit ? form.unit : null,
       unitPrice: form.pricingMode === 'unit' && form.unitPrice ? parseFloat(form.unitPrice) : null,
-      includesVat: form.pricingMode === 'unit' ? form.includesVat : null,
+      includesVat: form.includesVat,
     }),
     entityId: id ?? '',
     defaultBudgetSourceId: budgetSources.find((s) => s.isDiscretionary)?.id,
