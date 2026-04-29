@@ -67,6 +67,16 @@ The OIDC callback URL is automatically derived as `<EXTERNAL_URL>/api/auth/oidc/
 `PHOTO_STORAGE_PATH` defaults to a `photos` directory alongside your database file. If you use a custom `DATABASE_URL`, the photo directory is created relative to it. Make sure the path is within a persistent Docker volume so photos survive container restarts.
 :::
 
+## Backups
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BACKUP_DIR` | `/backups` | Directory where backup archives are written. Must be outside the app data directory. |
+| `BACKUP_CADENCE` | -- | Cron expression for automatic scheduled backups (e.g., `0 2 * * *` for daily at 2 AM). If unset, only manual backups are available. |
+| `BACKUP_RETENTION` | -- | Maximum number of backup archives to keep. The oldest archives are deleted when the limit is exceeded. If unset, backups are kept indefinitely. |
+
+The backup feature is enabled whenever `BACKUP_DIR` resolves to a directory outside the app data directory -- which is true by default. See [Backups](/guides/backup) for setup, scheduling, and restore instructions.
+
 ## Paperless-ngx (Document Integration)
 
 The document integration is automatically enabled when both `PAPERLESS_URL` and `PAPERLESS_API_TOKEN` are set.

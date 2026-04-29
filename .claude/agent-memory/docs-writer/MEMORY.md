@@ -35,6 +35,8 @@
 - `guides/household-items/` -- index, creating-editing-items, budget-and-invoices, work-item-linking, delivery-and-dependencies
 - `guides/diary/` -- index, manual-entries, automatic-events, signatures
 - `guides/dashboard/` -- index
+- `guides/feeds/` -- index, subscribing
+- `guides/backup/` -- index (BACKUP_DIR/CADENCE/RETENTION env vars, manual + scheduled backups, restore flow, off-site guidance) -- EPIC-19
 - `guides/appearance/` -- dark-mode
 - `development/` -- index, tech-stack, agentic/overview, agentic/agent-team, agentic/workflow, agentic/setup
 
