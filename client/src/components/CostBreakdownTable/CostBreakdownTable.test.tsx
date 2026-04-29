@@ -4473,3 +4473,40 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
     expect(remainingCostCell!.textContent?.replace(/\s+/g, '')).toContain('€200,000.00');
   });
 });
+
+// ── Source badge print visibility (#1390) ─────────────────────────────────────
+
+describe('source badge print visibility (#1390)', () => {
+  // Verifies the DOM structure that the print-mode CSS in CostBreakdownTable.module.css depends on.
+  // The CSS toggles .sourceBadgeDot off and .sourceBadgeLabel on inside @media print;
+  // jsdom does not evaluate @media, so this test asserts both elements are present in the DOM,
+  // which is the contract the CSS relies on.
+  it('renders both .sourceBadgeDot and .sourceBadgeLabel with the badge inside the label for each budget line', () => {
+    const sourceId = 'src-1';
+    const sourceName = 'Bank Loan';
+    const breakdown = buildBreakdownWithSourcedWI({
+      budgetSourceId: sourceId,
+      budgetSources: [buildSourceSummary({ id: sourceId, name: sourceName })],
+    });
+
+    const { container } = renderWithRouter(breakdown, buildOverview());
+
+    // Expand WI section → area → item so BudgetLineRow renders in the DOM
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
+    fireEvent.click(getButtonByLabel('Expand Sourced Work Item'));
+
+    // .sourceBadgeDot — screen-visible colored dot, hidden in print via CSS
+    const dot = container.querySelector('[class*="sourceBadgeDot"]');
+    expect(dot).not.toBeNull();
+    expect(dot!.getAttribute('aria-hidden')).toBe('true');
+
+    // .sourceBadgeLabel — wraps the Badge; hidden on screen, shown in print via CSS
+    const label = container.querySelector('[class*="sourceBadgeLabel"]');
+    expect(label).not.toBeNull();
+
+    // The Badge inside has aria-label set by the source-badge code path.
+    const badgeChild = label!.querySelector('[aria-label]');
+    expect(badgeChild).not.toBeNull();
+  });
+});
