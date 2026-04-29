@@ -124,7 +124,7 @@ describe('budgetServiceFactory — unit pricing fields', () => {
       expect(result.includesVat).toBe(false);
     });
 
-    it('returns null for all unit pricing fields when not provided on create', () => {
+    it('returns null for quantity/unit/unitPrice and true for includesVat when not provided on create', () => {
       const workItemId = insertWorkItem();
 
       const result = createWorkItemBudget(db, workItemId, 'user-001', {
@@ -135,7 +135,7 @@ describe('budgetServiceFactory — unit pricing fields', () => {
       expect(result.quantity).toBeNull();
       expect(result.unit).toBeNull();
       expect(result.unitPrice).toBeNull();
-      expect(result.includesVat).toBeNull();
+      expect(result.includesVat).toBe(true);
     });
 
     it('updates quantity only, leaving other unit pricing fields unchanged', () => {
@@ -160,7 +160,7 @@ describe('budgetServiceFactory — unit pricing fields', () => {
       expect(updated.includesVat).toBe(true);
     });
 
-    it('clears all unit pricing fields when explicitly set to null', () => {
+    it('clears quantity/unit/unitPrice when explicitly set to null; includesVat defaults to true when unset via null', () => {
       const workItemId = insertWorkItem();
 
       const created = createWorkItemBudget(db, workItemId, 'user-001', {
@@ -176,13 +176,12 @@ describe('budgetServiceFactory — unit pricing fields', () => {
         quantity: null,
         unit: null,
         unitPrice: null,
-        includesVat: null,
       });
 
       expect(updated.quantity).toBeNull();
       expect(updated.unit).toBeNull();
       expect(updated.unitPrice).toBeNull();
-      expect(updated.includesVat).toBeNull();
+      expect(updated.includesVat).toBe(false);
     });
 
     it('does not touch unit pricing fields when they are absent from update payload', () => {
@@ -230,7 +229,7 @@ describe('budgetServiceFactory — unit pricing fields', () => {
       expect(result.includesVat).toBe(true);
     });
 
-    it('returns null for all unit pricing fields when not provided on create', () => {
+    it('returns null for quantity/unit/unitPrice and true for includesVat when not provided on create', () => {
       const hiId = insertHouseholdItem();
 
       const result = createHouseholdItemBudget(db, hiId, 'user-001', {
@@ -241,7 +240,7 @@ describe('budgetServiceFactory — unit pricing fields', () => {
       expect(result.quantity).toBeNull();
       expect(result.unit).toBeNull();
       expect(result.unitPrice).toBeNull();
-      expect(result.includesVat).toBeNull();
+      expect(result.includesVat).toBe(true);
     });
 
     it('updates quantity only, leaving other unit pricing fields unchanged', () => {
@@ -266,7 +265,7 @@ describe('budgetServiceFactory — unit pricing fields', () => {
       expect(updated.includesVat).toBe(false);
     });
 
-    it('clears all unit pricing fields when explicitly set to null', () => {
+    it('clears quantity/unit/unitPrice when explicitly set to null; includesVat retains its value', () => {
       const hiId = insertHouseholdItem();
 
       const created = createHouseholdItemBudget(db, hiId, 'user-001', {
@@ -282,13 +281,12 @@ describe('budgetServiceFactory — unit pricing fields', () => {
         quantity: null,
         unit: null,
         unitPrice: null,
-        includesVat: null,
       });
 
       expect(updated.quantity).toBeNull();
       expect(updated.unit).toBeNull();
       expect(updated.unitPrice).toBeNull();
-      expect(updated.includesVat).toBeNull();
+      expect(updated.includesVat).toBe(true);
     });
   });
 });

@@ -59,7 +59,7 @@ describe('householdItemBudgetsApi', () => {
         quantity: null,
         unit: null,
         unitPrice: null,
-        includesVat: null,
+        includesVat: true,
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -128,7 +128,7 @@ describe('householdItemBudgetsApi', () => {
         quantity: null,
         unit: null,
         unitPrice: null,
-        includesVat: null,
+        includesVat: true,
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -184,7 +184,7 @@ describe('householdItemBudgetsApi', () => {
         quantity: null,
         unit: null,
         unitPrice: null,
-        includesVat: null,
+        includesVat: true,
       };
 
       mockFetch.mockResolvedValueOnce({
@@ -291,7 +291,7 @@ describe('householdItemBudgetsApi', () => {
         quantity: null,
         unit: null,
         unitPrice: null,
-        includesVat: null,
+        includesVat: true,
       };
 
       mockFetch.mockResolvedValueOnce({

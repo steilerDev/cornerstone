@@ -678,7 +678,7 @@ describe('budgetSourcesApi', () => {
             quantity: null,
             unit: null,
             unitPrice: null,
-            includesVat: null,
+            includesVat: true,
             createdBy: null,
             hasClaimedInvoice: false,
             createdAt: '2026-01-01T00:00:00.000Z',
