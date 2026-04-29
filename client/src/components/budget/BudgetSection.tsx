@@ -133,7 +133,10 @@ export function BudgetSection<T extends BaseBudgetLine>({
             (sum, line) => sum + (line.invoiceLink?.itemizedAmount || 0),
             0,
           );
-          const plannedTotal = groupLines.reduce((sum, line) => sum + effectivePlannedAmount(line), 0);
+          const plannedTotal = groupLines.reduce(
+            (sum, line) => sum + effectivePlannedAmount(line),
+            0,
+          );
 
           return (
             <InvoiceGroup
