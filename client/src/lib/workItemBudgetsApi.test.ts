@@ -36,7 +36,7 @@ describe('workItemBudgetsApi', () => {
     quantity: null,
     unit: null,
     unitPrice: null,
-    includesVat: null,
+    includesVat: true,
     createdBy: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',

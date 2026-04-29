@@ -106,7 +106,7 @@ function buildLine(id: string, invoiceLink: BudgetLineInvoiceLink | null = null)
     quantity: null,
     unit: null,
     unitPrice: null,
-    includesVat: null,
+    includesVat: true,
   };
 }
 

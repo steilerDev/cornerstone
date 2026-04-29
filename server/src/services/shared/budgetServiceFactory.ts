@@ -524,7 +524,7 @@ export function createBudgetService<
       }
 
       if ('includesVat' in data) {
-        updates.includesVat = data.includesVat ?? null;
+        updates.includesVat = data.includesVat ?? true;
       }
 
       updates.updatedAt = new Date().toISOString();
