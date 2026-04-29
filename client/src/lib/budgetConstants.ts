@@ -1,8 +1,8 @@
 import type { ConfidenceLevel, BaseBudgetLine } from '@cornerstone/shared';
-import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
+import { CONFIDENCE_MARGINS, effectivePlannedAmount } from '@cornerstone/shared';
 
-// Re-export CONFIDENCE_MARGINS for convenience in client code
-export { CONFIDENCE_MARGINS };
+// Re-export for convenience in client code
+export { CONFIDENCE_MARGINS, effectivePlannedAmount };
 
 /**
  * Human-readable labels for confidence levels used in budget forms and displays.
@@ -36,7 +36,7 @@ export interface BudgetTotals {
  * @returns BudgetTotals object with planned, actual, and range values
  */
 export function computeBudgetTotals(budgetLines: BaseBudgetLine[]): BudgetTotals {
-  const totalPlanned = budgetLines.reduce((sum, b) => sum + b.plannedAmount, 0);
+  const totalPlanned = budgetLines.reduce((sum, b) => sum + effectivePlannedAmount(b), 0);
   const totalActualCost = budgetLines.reduce((sum, b) => sum + b.actualCost, 0);
 
   const totalMinPlanned = budgetLines.reduce((sum, b) => {
@@ -45,7 +45,7 @@ export function computeBudgetTotals(budgetLines: BaseBudgetLine[]): BudgetTotals
       return sum + b.actualCost;
     }
     const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
-    return sum + b.plannedAmount * (1 - margin);
+    return sum + effectivePlannedAmount(b) * (1 - margin);
   }, 0);
 
   const totalMaxPlanned = budgetLines.reduce((sum, b) => {
@@ -54,7 +54,7 @@ export function computeBudgetTotals(budgetLines: BaseBudgetLine[]): BudgetTotals
       return sum + b.actualCost;
     }
     const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
-    return sum + b.plannedAmount * (1 + margin);
+    return sum + effectivePlannedAmount(b) * (1 + margin);
   }, 0);
 
   const hasPlannedRange = Math.abs(totalMaxPlanned - totalMinPlanned) > 0.01;

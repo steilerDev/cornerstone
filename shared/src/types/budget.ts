@@ -93,6 +93,20 @@ export interface BaseBudgetLine {
 }
 
 /**
+ * Returns the effective planned amount for display and aggregation.
+ * When includesVat is explicitly false, the stored amount is net; multiply by 1.19.
+ * null is treated as true (use as-is).
+ */
+export function effectivePlannedAmount(line: {
+  plannedAmount: number;
+  includesVat: boolean | null;
+}): number {
+  return line.includesVat === false
+    ? Math.round(line.plannedAmount * 1.19 * 100) / 100
+    : line.plannedAmount;
+}
+
+/**
  * Request body for creating a new budget line.
  * Used for both work item and household item budgets.
  */

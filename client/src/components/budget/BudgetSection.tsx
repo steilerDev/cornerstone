@@ -7,7 +7,7 @@ import type {
   SubsidyProgram,
 } from '@cornerstone/shared';
 import type { UseBudgetSectionReturn } from '../../hooks/useBudgetSection.js';
-import { CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
+import { CONFIDENCE_LABELS, effectivePlannedAmount } from '../../lib/budgetConstants.js';
 import { BudgetLineCard } from './BudgetLineCard.js';
 import { BudgetLineForm } from './BudgetLineForm.js';
 import { SubsidyLinkSection } from './SubsidyLinkSection.js';
@@ -133,7 +133,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
             (sum, line) => sum + (line.invoiceLink?.itemizedAmount || 0),
             0,
           );
-          const plannedTotal = groupLines.reduce((sum, line) => sum + line.plannedAmount, 0);
+          const plannedTotal = groupLines.reduce((sum, line) => sum + effectivePlannedAmount(line), 0);
 
           return (
             <InvoiceGroup
