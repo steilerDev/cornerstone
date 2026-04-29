@@ -18,3 +18,7 @@ docker pull steilerdev/cornerstone:latest
 ```
 
 Restart your container -- no database migration is required.
+
+---
+
+*Released: 2026-04-28*
