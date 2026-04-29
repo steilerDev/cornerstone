@@ -12,36 +12,7 @@
       "addInvoice": "Add Invoice",
       "addVendor": "Add Vendor"
     },
-    "availableFunds": "Available Funds",
-    "projectedCostRange": "Projected Cost Range",
     "expectedPayback": "Expected Payback",
-    "paybackCapped": "Some subsidies are oversubscribed — payback values are capped",
-    "remaining": "Remaining",
-    "remainingDetail": "Remaining budget — tap for details",
-    "categories": "Categories",
-    "allCategories": "All categories",
-    "noCategories": "No categories",
-    "selectAll": "Select All",
-    "clearAll": "Clear All",
-    "bars": {
-      "claimedInvoices": "Claimed Invoices",
-      "paidInvoices": "Paid Invoices",
-      "pendingInvoices": "Pending Invoices",
-      "projectedOptimistic": "Projected (optimistic)",
-      "projectedPessimistic": "Projected (pessimistic)",
-      "overflow": "Overflow"
-    },
-    "remainingPerspectives": {
-      "vsMinPlanned": "Remaining vs Min Planned",
-      "vsMaxPlanned": "Remaining vs Max Planned",
-      "vsProjectedMin": "Remaining vs Projected Min",
-      "vsProjectedMax": "Remaining vs Projected Max",
-      "vsActualCost": "Remaining vs Actual Cost",
-      "vsActualPaid": "Remaining vs Actual Paid",
-      "vsMinPlannedWithPayback": "Remaining vs Min Planned (incl. payback)",
-      "vsMaxPlannedWithPayback": "Remaining vs Max Planned (incl. payback)"
-    },
-    "ofAvailableFunds": "of available funds",
     "costBreakdown": {
       "tableCaption": "Budget cost breakdown by area and item",
       "loading": "Loading cost breakdown…",

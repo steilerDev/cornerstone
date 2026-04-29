@@ -12,36 +12,7 @@
       "addInvoice": "Rechnung Hinzufügen",
       "addVendor": "Auftragnehmer Hinzufügen"
     },
-    "availableFunds": "Verfügbare Mittel",
-    "projectedCostRange": "Geplanter Kostenbereich",
     "expectedPayback": "Erwartete Rückzahlung",
-    "paybackCapped": "Einige Förderprogramme sind überzeichnet – Rückzahlungswerte sind begrenzt",
-    "remaining": "Verbleibend",
-    "remainingDetail": "Verbleibendes Budget – tippen Sie für Details",
-    "categories": "Kategorien",
-    "allCategories": "Alle Kategorien",
-    "noCategories": "Keine Kategorien",
-    "selectAll": "Alle auswählen",
-    "clearAll": "Alle deaktivieren",
-    "bars": {
-      "claimedInvoices": "Eingereichte Rechnungen",
-      "paidInvoices": "Bezahlte Rechnungen",
-      "pendingInvoices": "Ausstehende Rechnungen",
-      "projectedOptimistic": "Projiziert (optimistisch)",
-      "projectedPessimistic": "Projiziert (pessimistisch)",
-      "overflow": "Überlauf"
-    },
-    "remainingPerspectives": {
-      "vsMinPlanned": "Verbleibend vs. Min. Geplant",
-      "vsMaxPlanned": "Verbleibend vs. Max. Geplant",
-      "vsProjectedMin": "Verbleibend vs. Projiz. Min.",
-      "vsProjectedMax": "Verbleibend vs. Projiz. Max.",
-      "vsActualCost": "Verbleibend vs. Tatsächliche Kosten",
-      "vsActualPaid": "Verbleibend vs. Tatsächlich Bezahlt",
-      "vsMinPlannedWithPayback": "Verbleibend vs. Min. Geplant (inkl. Rückzahlung)",
-      "vsMaxPlannedWithPayback": "Verbleibend vs. Max. Geplant (inkl. Rückzahlung)"
-    },
-    "ofAvailableFunds": "der verfügbaren Mittel",
     "costBreakdown": {
       "tableCaption": "Kostenaufschlüsselung nach Bereich und Element",
       "loading": "Kostenaufschlüsselung wird geladen…",

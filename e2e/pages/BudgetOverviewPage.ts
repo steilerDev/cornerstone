@@ -7,11 +7,11 @@
  * - Loading indicator while data is fetched
  * - Error card with a Retry button if the API fails
  * - Empty state when no budget data has been entered (all-zero response)
- * - Budget overview hero card containing:
- *   - A key metrics row: Available Funds, Projected Cost Range, Remaining
- *   - A BudgetBar stacked bar chart (role="img")
- *   - A footer showing subsidies and sources info
  * - Cost Breakdown table (CostBreakdownTable) with area hierarchy expand/collapse
+ *
+ * NOTE: The "Budget overview" hero card (<section aria-label="Budget overview">) was removed
+ * in issue #1389. The `heroCard` locator is retained for historical reference but will not
+ * match any element on the current page.
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -102,7 +102,10 @@ export class BudgetOverviewPage {
 
   /**
    * Wait until the page has finished loading data (loading indicator gone,
-   * either error card, empty state, or hero card is visible).
+   * either error card, empty state, or cost breakdown section is visible).
+   *
+   * NOTE: The hero card was removed in issue #1389. waitForLoaded() now races on
+   * errorCard, emptyState, and costBreakdownCard instead.
    */
   async waitForLoaded(): Promise<void> {
     // Wait for the loading indicator to disappear
@@ -113,7 +116,7 @@ export class BudgetOverviewPage {
     await Promise.race([
       this.errorCard.waitFor({ state: 'visible', timeout: 10000 }),
       this.emptyState.waitFor({ state: 'visible', timeout: 10000 }),
-      this.heroCard.waitFor({ state: 'visible', timeout: 10000 }),
+      this.costBreakdownCard.waitFor({ state: 'visible', timeout: 10000 }),
     ]);
   }
 

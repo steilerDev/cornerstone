@@ -664,6 +664,24 @@
   .rowSourceDetailToggle[aria-pressed='false'] {
     display: none !important;
   }
+
+  /* Issue #1390: Print viewports map to ~600-720px which triggers the mobile
+     breakpoint and hides .sourceBadgeLabel. Force the label visible and the
+     dot hidden in print regardless of viewport width. */
+  .sourceBadgeLabel {
+    display: inline-flex !important;
+  }
+
+  .sourceBadgeDot {
+    display: none !important;
+  }
+
+  /* Make source badge legible without background-color in print using a border. */
+  .sourceBadgeLabel > * {
+    background: transparent !important;
+    border: 1pt solid var(--color-border-strong) !important;
+    print-color-adjust: exact;
+  }
 }
 
 /* ============================================================

@@ -3,6 +3,17 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`
 
+## Budget Overview Hero Card Removed (Issues #1389/#1390, 2026-04-29)
+
+- `<section aria-label="Budget overview">` (heroCard) is **gone** from BudgetOverviewPage.tsx after #1389.
+- `BudgetOverviewPage.POM.waitForLoaded()` now races on `costBreakdownCard` instead of `heroCard`.
+- `heroCard` locator kept in POM for historical reference but never matches on-page elements.
+- Tests that asserted `heroCard.toBeVisible()` were removed from: `budget-overview.spec.ts`, `budget-overview-print.spec.ts`, `budget-source-filter.spec.ts`.
+- New spec: `e2e/tests/budget/budget-overview-no-hero-card.spec.ts` (smoke, @smoke tag).
+- Source badge (`aria-label="Budget source: {name}"`) is on Level 3 rows only — must expand Work Items → area → item to reveal budget lines.
+- `BreakdownBudgetLine` fields: `id`, `description`, `plannedAmount`, `confidence`, `actualCost`, `hasInvoice`, `isQuotation`, `budgetSourceId` (NOT `sourceId`/`sourceName`).
+- BudgetSources API mock response: `{ budgetSources: [{ id, name, ... }] }` — component only reads `s.id` and `s.name`.
+
 ## Budget Source Filter E2E (Story #1360, 2026-04-25 — server-side filter)
 
 - **Story #1360** rewrote filter from client-side to server-side. `BudgetSourceSummaryBreakdown` now has `subsidyPaybackMin/Max` NOT `subsidyPayback`.
