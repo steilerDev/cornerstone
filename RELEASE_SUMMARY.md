@@ -21,4 +21,4 @@ Restart your container -- no database migration is required.
 
 ---
 
-*Released: 2026-04-28*
+_Released: 2026-04-28_
