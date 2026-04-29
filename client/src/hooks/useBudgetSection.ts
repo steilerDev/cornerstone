@@ -209,9 +209,7 @@ export function useBudgetSection<T extends BaseBudgetLine>(
         return;
       }
 
-      // Calculate planned amount: qty * price * (includesVat ? 1 : 1.19)
-      const multiplier = budgetForm.includesVat ? 1 : 1.19;
-      plannedAmount = Math.round(qty * price * multiplier * 100) / 100;
+      plannedAmount = Math.round(qty * price * 100) / 100;
     }
 
     setIsSavingBudget(true);

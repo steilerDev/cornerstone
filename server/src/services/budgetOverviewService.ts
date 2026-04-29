@@ -51,13 +51,15 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     plannedAmount: number;
     confidence: string;
     budgetCategoryId: string | null;
+    includesVat: number | null;
   }>(
     sql`SELECT
       id              AS id,
       work_item_id    AS entityId,
       planned_amount  AS plannedAmount,
       confidence      AS confidence,
-      budget_category_id AS budgetCategoryId
+      budget_category_id AS budgetCategoryId,
+      includes_vat    AS includesVat
     FROM work_item_budgets
     UNION ALL
     SELECT
@@ -65,7 +67,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       household_item_id AS entityId,
       planned_amount  AS plannedAmount,
       confidence      AS confidence,
-      budget_category_id AS budgetCategoryId
+      budget_category_id AS budgetCategoryId,
+      includes_vat    AS includesVat
     FROM household_item_budgets`,
   );
 
@@ -197,10 +200,17 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   const fixedSubsidyLineCountCache = new Map<string, number>();
   let totalReductions = 0;
 
+  // VAT helper: convert stored net amount to effective amount if VAT not included
+  // SQLite returns 0/1 for boolean, so includesVat === 0 means false (VAT should be applied)
+  const effective = (l: { plannedAmount: number; includesVat: number | null }): number =>
+    l.includesVat === 0
+      ? Math.round(l.plannedAmount * 1.19 * 100) / 100
+      : l.plannedAmount;
+
   for (const line of budgetLines) {
     const margin = CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ?? 0;
-    const rawMin = line.plannedAmount * (1 - margin);
-    const rawMax = line.plannedAmount * (1 + margin);
+    const rawMin = effective(line) * (1 - margin);
+    const rawMax = effective(line) * (1 + margin);
 
     // Compute subsidy reduction for this line
     let subsidyReduction = 0;
@@ -218,10 +228,10 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
             continue;
         }
 
-        // Determine cost basis: use invoice amount if available, otherwise planned amount
+        // Determine cost basis: use invoice amount if available, otherwise effective planned amount
         const costBasis = lineInvoiceMap.has(line.id)
           ? lineInvoiceMap.get(line.id)!.actualCost
-          : line.plannedAmount;
+          : effective(line);
 
         // This subsidy applies to this line
         if (meta.reductionType === 'percentage') {
@@ -330,6 +340,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       plannedAmount: number;
       confidence: string;
       budgetCategoryId: string | null;
+      includesVat: number | null;
     }[]
   >();
   for (const line of budgetLines) {
@@ -345,11 +356,11 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   for (const [entityId, linkedSubsidyIds] of entitySubsidyMap) {
     const entityLines = linesByEntity.get(entityId) ?? [];
 
-    // Build engine inputs from the entity's budget lines
+    // Build engine inputs from the entity's budget lines (using effective amounts)
     const engineLines = entityLines.map((line) => ({
       id: line.id,
       budgetCategoryId: line.budgetCategoryId,
-      plannedAmount: line.plannedAmount,
+      plannedAmount: effective(line),
       confidence: line.confidence,
     }));
 
