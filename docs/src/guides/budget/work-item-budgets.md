@@ -44,3 +44,11 @@ See [Invoices & Vendors](vendors-and-invoices) for details on managing invoices 
 
 A single work item can have multiple budget lines. For example, "Renovate bathroom" might have separate budget lines for plumbing, electrical, and tiling -- each in a different category and potentially funded by different financing sources.
 
+## VAT Handling
+
+The budget line form has a **Price includes VAT** checkbox. When entering an amount that already includes VAT (gross), leave the box checked; when entering a net amount, uncheck the box and Cornerstone will apply the VAT multiplier on save.
+
+Internally, planned amounts are always stored as gross (VAT-inclusive). The checkbox controls how Cornerstone interprets your input, not how the value is stored -- so all comparisons in the [Budget Overview](budget-overview), Available Funds row, and printed reports are like-for-like across budget lines, regardless of the pricing mode you chose when entering each one. The same behavior applies whether you use direct pricing or unit pricing (quantity × unit price) on the budget line.
+
+
+

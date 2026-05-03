@@ -45,7 +45,7 @@ function toWorkItemBudgetLine(
     quantity: row.quantity ?? null,
     unit: row.unit ?? null,
     unitPrice: row.unitPrice ?? null,
-    includesVat: row.includesVat ?? null,
+    includesVat: row.includesVat ?? true,
     createdBy: rel.createdBy,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -76,7 +76,7 @@ function buildInsertValues(
     quantity: data.quantity ?? null,
     unit: data.unit ?? null,
     unitPrice: data.unitPrice ?? null,
-    includesVat: data.includesVat ?? null,
+    includesVat: data.includesVat ?? true,
     createdBy: userId,
   };
 }

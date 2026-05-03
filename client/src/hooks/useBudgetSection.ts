@@ -193,6 +193,8 @@ export function useBudgetSection<T extends BaseBudgetLine>(
         setBudgetFormError('Planned amount must be a valid non-negative number.');
         return;
       }
+      const multiplier = budgetForm.includesVat ? 1 : 1.19;
+      plannedAmount = Math.round(plannedAmount * multiplier * 100) / 100;
     } else {
       // Unit pricing mode
       const qty = parseFloat(budgetForm.quantity);

@@ -109,6 +109,7 @@ All 12 stories merged. Paperless-ngx links for invoices are EPIC-08; budget repo
 
 - **2026-02-27** — 11 issues #328-#338 (EPIC-06 + EPIC-05 sub-issues, 6 bugs / 5 stories)
 - **2026-04-28** — 5 standalone UI bugs #1369-#1373 (no active parent epic; all related epics closed): #1369 hide-linked filter on Paperless picker, #1370 disable scroll-wheel on numeric inputs, #1371 "Includes VAT" parity for direct-amount budget lines, #1372 vendor in invoice picker, #1373 "Claimed" total on Budget Invoices summary. All Todo. Only EPIC-16 (Floor Plans) is currently open and is unrelated to these.
+- **2026-04-29** — 2 standalone Budget Overview bugs #1389-#1390 (no parent epic): #1389 remove Budget Health hero card from `/budget/overview` (full deletion incl. helpers, state, CSS classes, i18n keys, hero-card-only tests), #1390 source-name badge missing from print preview (mobile media query hides label on print-width pages). Both Todo.
 
 ## Patterns and Conventions
 

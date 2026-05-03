@@ -314,7 +314,7 @@ describe('HouseholdItemDetailPage — unified Budget section (issue #566)', () =
       quantity: null,
       unit: null,
       unitPrice: null,
-      includesVat: null,
+      includesVat: true,
       ...overrides,
     };
   }

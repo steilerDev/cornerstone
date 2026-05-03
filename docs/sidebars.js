@@ -93,6 +93,7 @@ const sidebars = {
       items: ['guides/feeds/subscribing'],
     },
     'guides/dashboard/index',
+    'guides/backup/index',
     'guides/appearance/dark-mode',
     'roadmap',
   ],

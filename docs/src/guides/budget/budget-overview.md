@@ -5,36 +5,44 @@ title: Budget Overview
 
 # Budget Overview
 
-The budget overview dashboard at **Budget > Overview** gives you a high-level view of your project's financial health. It surfaces totals across financing sources, four different "remaining budget" perspectives, and a cost breakdown grouped by **area hierarchy**.
+The budget overview at **Budget > Overview** is a single-page report of your project's costs, grouped by **area hierarchy** rather than by category. It rolls everything up from individual budget lines through work items and household items into a clean, printable view of where your money is going -- and which financing source is funding each line.
 
-## Summary Tiles
+## Page Layout
 
-At the top of the overview you see a set of summary tiles -- Total Budget, Total Estimated, Total Invoiced, Total Remaining, and one per financing source. Each tile is **clickable**: clicking a tile selects every matching budget line in the table below, so you can jump straight from a headline number into the underlying lines that drive it. Click the same tile again (or click in empty space) to clear the selection.
+The page renders the **Cost Breakdown Table** as its primary view, with a per-source filter, a min / avg / max perspective toggle inside the table, and a built-in **Available Funds** row that summarizes each financing source.
 
-## Remaining Budget Perspectives
+If your project has no budget data yet, you see a short empty state inviting you to add work items, household items, or invoices. Once you have a few budget lines, the breakdown takes over the page.
 
-The overview provides four ways to look at how much budget remains, each answering a different question:
+## Cost Breakdown by Area
 
-| Perspective | Calculation | What It Tells You |
-|------------|-------------|-------------------|
-| **vs Min Planned** | Financing - (Estimated x (1 - margin)) | Best-case remaining budget assuming all estimates come in under |
-| **vs Max Planned** | Financing - (Estimated x (1 + margin)) | Worst-case remaining budget assuming all estimates come in over |
-| **vs Actual Cost** | Financing - Actual costs | Remaining budget based on real invoice amounts where available |
-| **vs Actual Paid** | Financing - Paid amounts | Remaining budget based on what has actually been paid out |
+The cost breakdown table is grouped by your **area hierarchy** rather than by category. This makes it easy to see what each room, floor, or zone of the project actually costs.
 
-Switch between perspectives to understand your financial position from different angles. Early in a project, the min/max planned views are most useful. As invoices arrive, the actual cost and actual paid views become more meaningful.
+- Each **area** is a row. Its totals roll up every descendant area beneath it.
+- Clicking a row expands it to show child areas and, at the leaf level, the individual budget lines.
+- Nested rows are visually indented so the tree is easy to scan.
+- Budget lines whose work item or household item has no area assigned are collected in a dedicated **No Area** bucket at the bottom of the table.
 
-## How Projections Work
+Each row displays the projected cost, subsidy payback, and remaining amount for that slice of the project.
 
-The budget overview uses a **blended projection model** that combines estimates and actuals:
+### Cost Perspectives
+
+A **Min / Avg / Max** segmented control above the table switches the projected-cost calculation between three views:
+
+| Perspective | What It Tells You |
+|------------|-------------------|
+| **Min** | Best-case cost assuming all estimates come in under their confidence margin |
+| **Avg** | Mid-point cost using the middle of each estimate's confidence range |
+| **Max** | Worst-case cost assuming all estimates come in over their confidence margin |
+
+Switch between perspectives to understand your financial position from different angles. Early in a project, Min and Max bracket your exposure. As invoices arrive and confidence levels rise, the three views converge.
+
+### How Projections Work
+
+The breakdown uses a **blended projection model** that combines estimates and actuals:
 
 - **Budget lines linked to a paid, pending, or claimed invoice** use the itemized invoice amount (0% margin)
 - **Budget lines linked to a quotation** use the itemized amount with a +/- 5% margin
-- **Budget lines without an invoice link** use the estimated amount with the confidence margin
-
-This means your projections automatically become more accurate as your project progresses and estimates are replaced by real invoices.
-
-### Confidence Margins
+- **Budget lines without an invoice link** use the planned amount with the confidence margin
 
 The margin applied to non-invoiced budget lines depends on the confidence level:
 
@@ -45,16 +53,7 @@ The margin applied to non-invoiced budget lines depends on the confidence level:
 | Quote | +/- 5% |
 | Invoice | 0% (actual cost used) |
 
-## Cost Breakdown by Area
-
-The cost breakdown table is grouped by your **area hierarchy** rather than by category. This makes it easy to see what each room, floor, or zone of the project actually costs.
-
-- Each **area** is a row. Its totals roll up every descendant area beneath it.
-- Clicking a row expands it to show child areas and, at the leaf level, the individual budget lines.
-- Nested rows are visually indented so the tree is easy to scan.
-- Budget lines whose work item or household item has no area assigned are collected in a dedicated **No Area** bucket at the bottom of the table (previously labeled "Unassigned").
-
-Each row displays the estimated total, invoiced total, subsidy reduction, and remaining amount for that slice of the project.
+This means projections automatically become more accurate as your project progresses and estimates are replaced by real invoices.
 
 ### Source Attribution Badges
 
@@ -79,28 +78,18 @@ This makes it easy to spot which source is most depleted, which one is being sub
 
 Click any source detail row inside the **Available Funds** expansion to toggle that source on or off. Deselected sources are dropped from the entire breakdown:
 
-- The summary tiles, projected cost range, every nested area row, and the **Available Funds** and **Remaining Budget** (Cost + Net) totals all recalculate against the visible set in real time as you toggle.
+- The projected cost range, every nested area row, and the **Available Funds** and **Remaining Budget** (Cost + Net) totals all recalculate against the visible set in real time as you toggle.
 - A small "X of N selected" caption appears next to **Available Funds** while a filter is active.
 - The selection is **persisted in the URL** as `?deselectedSources=<id>,<id>` so you can bookmark a filtered view, share it with your bank or partner, or refresh without losing state.
 - Press **Escape** while focused on a source row to clear all deselections in one go.
 - Source detail rows stay visible even when every source is deselected -- the filter is never a dead-end; you can always click your way back in.
 - When you print a filtered view, deselected source rows are hidden from the printed output so the report only shows the sources you actually have selected.
 
-Filtering happens **server-side** (`GET /api/budget/breakdown?deselectedSources=...`), which means subsidy payback math stays consistent with the visible set: subsidies that no longer have any qualifying budget lines drop out cleanly instead of double-counting. The Pending, Paid, and Quotation summary cards at the top of the page also refresh in step with the filter -- pick the sources you care about and the headline numbers update without leaving the page.
-
-## Financing Source Summary
-
-A summary of each financing source shows:
-
-- Total amount available
-- Current depletion (based on actual invoice costs)
-- Remaining balance
-
-For a much deeper view of each source -- including every budget line attached to it, grouped by area and work item, with multi-select and mass-move -- see [Financing Sources](financing-sources).
+Filtering happens **server-side** (`GET /api/budget/breakdown?deselectedSources=...`), which means subsidy payback math stays consistent with the visible set: subsidies that no longer have any qualifying budget lines drop out cleanly instead of double-counting.
 
 ## Subsidy Impact
 
-Approved and disbursed [subsidies](subsidies) are factored into the overview calculations. The dashboard shows how much each subsidy reduces the total cost for its linked category. Pending and rejected subsidies are excluded from calculations.
+Approved and disbursed [subsidies](subsidies) are factored into the breakdown calculations. The Available Funds row shows how much each subsidy reduces the net cost for its linked source. Pending and rejected subsidies are excluded from calculations.
 
 ## Printing the Overview
 
@@ -110,6 +99,7 @@ The Budget Overview has dedicated **print styling** so you can hand your bank, a
 - The app chrome -- sidebar, navigation, floating buttons -- is suppressed in print.
 - Page margins, title spacing, and nested area group boxes are tuned for A4/Letter output.
 - Inner item separators keep individual budget lines readable when an area group contains many children.
+- Source attribution badges keep their **full source name** on the printed page, with a border-based color treatment so the source is legible even if your printer doesn't preserve background colors.
 - The browser's own print header/footer is suppressed; pick your target (printer or "Save as PDF") and go.
 
 :::tip
@@ -120,7 +110,7 @@ If the exported PDF does not match what you see on screen, make sure your browse
 
 ## Related Pages
 
-- [Work Items](../work-items/overview) — track progress and link budget lines to construction tasks
-- [Household Items](../household-items/overview) — manage furniture and appliance purchases with their own budget lines
+- [Work Items](../work-items/) — track progress and link budget lines to construction tasks
+- [Household Items](../household-items/) — manage furniture and appliance purchases with their own budget lines
 - [Financing Sources](financing-sources) — detailed view of each financing source and its allocated lines
 - [Subsidies](subsidies) — manage subsidy applications and their impact on your budget

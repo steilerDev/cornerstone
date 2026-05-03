@@ -5,8 +5,6 @@
  * - Page loads with the correct h1 "Budget" heading
  * - Budget sub-navigation (tabs) is visible
  * - Empty state shown when no budget data exists
- * - Budget overview hero card visible when data is present
- * - Budget bar (stacked chart) is visible
  * - Error state with Retry button when API returns 500
  * - Responsive layout: no horizontal scroll
  * - Dark mode rendering
@@ -19,6 +17,9 @@
  * - Cost Breakdown area grouping: no No Area row when breakdown has none
  * - Cost Breakdown area grouping: nested-area indent increases with depth (bounding box)
  * - Cost Breakdown area grouping: no standalone Area Breakdown section renders (smoke)
+ *
+ * NOTE: Hero card ("Budget overview" section) was removed in issue #1389.
+ * Hero card / BudgetBar tests have been removed. See budget-overview-no-hero-card.spec.ts.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -169,65 +170,6 @@ test.describe('Empty state', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Hero card
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Hero card', { tag: '@responsive' }, () => {
-  test('Hero card is visible when data is present', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-
-    await page.route(`${API.budgetOverview}`, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ overview: populatedOverviewResponse() }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      // Then: The hero card is visible
-      await expect(overviewPage.heroCard).toBeVisible({ timeout: 8000 });
-    } finally {
-      await page.unroute(`${API.budgetOverview}`);
-    }
-  });
-
-  test('Budget bar is visible', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-
-    await page.route(`${API.budgetOverview}`, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ overview: populatedOverviewResponse() }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    try {
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      // Then: The BudgetBar stacked bar chart is visible (role="img")
-      await expect(page.getByRole('img', { name: /Budget breakdown/ })).toBeVisible({
-        timeout: 8000,
-      });
-    } finally {
-      await page.unroute(`${API.budgetOverview}`);
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Error state
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Error state', { tag: '@responsive' }, () => {
@@ -318,35 +260,8 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
     expect(hasHorizontalScroll).toBe(false);
   });
 
-  test('Hero card visible in dark mode when budget data is mocked', async ({ page }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-
-    await page.route(`${API.budgetOverview}`, async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ overview: populatedOverviewResponse() }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
-
-    try {
-      await page.goto('/budget/overview');
-      await page.evaluate(() => {
-        document.documentElement.setAttribute('data-theme', 'dark');
-      });
-
-      await overviewPage.waitForLoaded();
-
-      // Hero card visible in dark mode
-      await expect(overviewPage.heroCard).toBeVisible({ timeout: 8000 });
-    } finally {
-      await page.unroute(`${API.budgetOverview}`);
-    }
-  });
+  // NOTE: Hero card was removed in issue #1389. Dark mode hero card test removed.
+  // See budget-overview-no-hero-card.spec.ts for post-cleanup smoke tests.
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

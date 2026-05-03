@@ -1388,9 +1388,6 @@ test.describe('Stale-while-revalidate during refetch', { tag: '@responsive' }, (
       await overviewPage.goto();
       await overviewPage.waitForLoaded();
 
-      // Hero card is visible (initial state loaded)
-      await expect(overviewPage.heroCard).toBeVisible();
-
       // Expand work items to see content
       await overviewPage.costBreakdownCard
         .getByRole('button', { name: /expand work item budget by area/i })
@@ -1411,7 +1408,6 @@ test.describe('Stale-while-revalidate during refetch', { tag: '@responsive' }, (
       // The breakdown section must still be visible (stale content rendered)
       // and must NOT have been replaced by a skeleton/loading state.
       await expect(overviewPage.costBreakdownCard).toBeVisible();
-      await expect(overviewPage.heroCard).toBeVisible();
 
       // No skeleton loading indicator for the breakdown section
       await expect(page.getByRole('status', { name: 'Loading budget overview' })).not.toBeVisible();

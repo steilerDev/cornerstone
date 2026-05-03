@@ -5,12 +5,8 @@ import type { BudgetOverview, BudgetBreakdown, BudgetSource } from '@cornerstone
 import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
-import { useFormatters } from '../../lib/formatters.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
-import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
-import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
-import { Tooltip } from '../../components/Tooltip/Tooltip.js';
 import { CostBreakdownTable } from '../../components/CostBreakdownTable/CostBreakdownTable.js';
 import styles from './BudgetOverviewPage.module.css';
 
@@ -21,134 +17,11 @@ const BUDGET_TABS: SubNavTab[] = [
   { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
 ];
 
-// ---- Helpers ----
-
-// formatShort is defined inside the component to access formatCurrency from useFormatters()
-
-function formatPct(value: number, total: number): string {
-  if (total <= 0) return '0.0%';
-  return `${((value / total) * 100).toFixed(1)}%`;
-}
-
-// ---- Remaining Detail Panel ----
-
-interface RemainingDetail {
-  label: string;
-  value: number;
-}
-
-interface RemainingDetailPanelProps {
-  items: RemainingDetail[];
-  formatCurrency: (value: number) => string;
-}
-
-function RemainingDetailPanel({ items, formatCurrency }: RemainingDetailPanelProps) {
-  return (
-    <div className={styles.remainingPanel}>
-      {items.map((item) => {
-        const isPositive = item.value >= 0;
-        return (
-          <div key={item.label} className={styles.remainingPanelRow}>
-            <span className={styles.remainingPanelLabel}>{item.label}</span>
-            <span
-              className={`${styles.remainingPanelValue} ${isPositive ? styles.remainingPositive : styles.remainingNegative}`}
-            >
-              {formatCurrency(item.value)}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ---- Mobile bar detail panel ----
-
-interface MobileBarDetailProps {
-  segments: BudgetBarSegment[];
-  overflow: number;
-  availableFunds: number;
-  formatCurrency: (value: number) => string;
-}
-
-function MobileBarDetail({
-  segments,
-  overflow,
-  availableFunds,
-  formatCurrency,
-}: MobileBarDetailProps) {
-  const { t } = useTranslation('budget');
-  const rows = segments.filter((s) => s.value > 0);
-  return (
-    <div className={styles.mobileBarDetail}>
-      {rows.map((seg) => {
-        const displayValue = seg.totalValue ?? seg.value;
-        return (
-          <div key={seg.key} className={styles.mobileBarDetailRow}>
-            <span
-              className={styles.mobileBarDetailDot}
-              style={{ backgroundColor: seg.color }}
-              aria-hidden="true"
-            />
-            <span className={styles.mobileBarDetailLabel}>{seg.label}</span>
-            <span className={styles.mobileBarDetailValue}>{formatCurrency(displayValue)}</span>
-            <span className={styles.mobileBarDetailPct}>
-              ({formatPct(displayValue, availableFunds)})
-            </span>
-          </div>
-        );
-      })}
-      {overflow > 0 && (
-        <div className={styles.mobileBarDetailRow}>
-          <span
-            className={styles.mobileBarDetailDot}
-            style={{ backgroundColor: 'var(--color-budget-overflow)' }}
-            aria-hidden="true"
-          />
-          <span className={styles.mobileBarDetailLabel}>{t('overview.bars.overflow')}</span>
-          <span className={styles.mobileBarDetailValue}>{formatCurrency(overflow)}</span>
-          <span className={styles.mobileBarDetailPct}>({formatPct(overflow, availableFunds)})</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ---- Hover tooltip content ----
-
-interface SegmentTooltipProps {
-  segment: BudgetBarSegment;
-  availableFunds: number;
-  formatCurrency: (value: number) => string;
-}
-
-function SegmentTooltipContent({ segment, availableFunds, formatCurrency }: SegmentTooltipProps) {
-  const { t } = useTranslation('budget');
-  const displayValue = segment.totalValue ?? segment.value;
-  return (
-    <div className={styles.segmentTooltip}>
-      <span className={styles.segmentTooltipLabel}>{segment.label}</span>
-      <span className={styles.segmentTooltipValue}>{formatCurrency(displayValue)}</span>
-      <span className={styles.segmentTooltipPct}>
-        {formatPct(displayValue, availableFunds)} {t('overview.ofAvailableFunds')}
-      </span>
-    </div>
-  );
-}
-
 // ---- Main component ----
 
 export function BudgetOverviewPage() {
   const { t } = useTranslation('budget');
   const navigate = useNavigate();
-  const { formatCurrency } = useFormatters();
-
-  function formatShort(value: number): string {
-    const abs = Math.abs(value);
-    if (abs >= 1_000_000) return `€${(value / 1_000_000).toFixed(1)}M`;
-    if (abs >= 1_000) return `€${(value / 1_000).toFixed(0)}K`;
-    return formatCurrency(value);
-  }
 
   const [overview, setOverview] = useState<BudgetOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -173,15 +46,6 @@ export function BudgetOverviewPage() {
 
   // Budget sources state
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
-
-  // Hovered bar segment (desktop tooltip)
-  const [hoveredSegment, setHoveredSegment] = useState<BudgetBarSegment | null>(null);
-
-  // Mobile bar detail open
-  const [mobileBarOpen, setMobileBarOpen] = useState(false);
-
-  // Remaining detail open (hover or tap)
-  const [remainingDetailOpen, setRemainingDetailOpen] = useState(false);
 
   // Add dropdown state
   const [addOpen, setAddOpen] = useState(false);
@@ -338,14 +202,6 @@ export function BudgetOverviewPage() {
     }
   };
 
-  const handleSegmentHover = useCallback((segment: BudgetBarSegment | null) => {
-    setHoveredSegment(segment);
-  }, []);
-
-  const handleSegmentClick = useCallback((_segment: BudgetBarSegment | null) => {
-    setMobileBarOpen((v) => !v);
-  }, []);
-
   // Action dropdown (reused across loading, error, and main states)
   const actionDropdown = (
     <div className={styles.addContainer} ref={addRef}>
@@ -431,135 +287,6 @@ export function BudgetOverviewPage() {
 
   const hasData = overview.minPlanned > 0 || overview.actualCost > 0 || overview.sourceCount > 0;
 
-  // Use direct totals from overview (no filtering)
-  const filtered = {
-    actualCostClaimed: overview.actualCostClaimed,
-    actualCostPaid: overview.actualCostPaid,
-    actualCost: overview.actualCost,
-    minPlanned: overview.minPlanned,
-    maxPlanned: overview.maxPlanned,
-  };
-
-  // Segment values
-  const claimedVal = filtered.actualCostClaimed;
-  const paidVal = Math.max(0, filtered.actualCostPaid - filtered.actualCostClaimed);
-  const pendingVal = Math.max(0, filtered.actualCost - filtered.actualCostPaid);
-  const projMinVal = Math.max(0, filtered.minPlanned - filtered.actualCost);
-  const projMaxVal = Math.max(0, filtered.maxPlanned - filtered.minPlanned);
-  const overflow = Math.max(0, filtered.maxPlanned - overview.availableFunds);
-
-  // Remaining vs projected (using filtered totals)
-  const filteredRemainingVsProjectedMin = overview.availableFunds - filtered.minPlanned;
-  const filteredRemainingVsProjectedMax = overview.availableFunds - filtered.maxPlanned;
-
-  // Bar segments
-  const segments: BudgetBarSegment[] = [
-    {
-      key: 'claimed',
-      value: claimedVal,
-      color: 'var(--color-budget-claimed)',
-      label: t('overview.bars.claimedInvoices')!,
-      totalValue: filtered.actualCostClaimed,
-    },
-    {
-      key: 'paid',
-      value: paidVal,
-      color: 'var(--color-budget-paid)',
-      label: t('overview.bars.paidInvoices')!,
-      totalValue: filtered.actualCostPaid,
-    },
-    {
-      key: 'pending',
-      value: pendingVal,
-      color: 'var(--color-budget-pending)',
-      label: t('overview.bars.pendingInvoices')!,
-      totalValue: filtered.actualCost,
-    },
-    {
-      key: 'proj-min',
-      value: projMinVal,
-      color: 'var(--color-budget-projected)',
-      label: t('overview.bars.projectedOptimistic')!,
-      totalValue: filtered.minPlanned,
-    },
-    {
-      key: 'proj-max',
-      value: projMaxVal,
-      // Projected max layer is fainter — achieved via inline opacity on color
-      color: 'var(--color-budget-projected)',
-      label: t('overview.bars.projectedPessimistic')!,
-      totalValue: filtered.maxPlanned,
-    },
-  ];
-
-  // Payback visibility flag
-  const hasPayback = overview.subsidySummary.maxTotalPayback > 0;
-
-  // Determine remaining values for health indicator
-  const remainingMin = hasPayback
-    ? overview.remainingVsMinPlannedWithPayback
-    : overview.remainingVsMinPlanned;
-  const remainingMax = hasPayback
-    ? overview.remainingVsMaxPlannedWithPayback
-    : overview.remainingVsMaxPlanned;
-
-  // Remaining perspectives detail items (uses filtered where sensible)
-  const remainingDetailItems: RemainingDetail[] = [
-    {
-      label: t('overview.remainingPerspectives.vsMinPlanned')!,
-      value: overview.remainingVsMinPlanned,
-    },
-    {
-      label: t('overview.remainingPerspectives.vsMaxPlanned')!,
-      value: overview.remainingVsMaxPlanned,
-    },
-    {
-      label: t('overview.remainingPerspectives.vsProjectedMin')!,
-      value: filteredRemainingVsProjectedMin,
-    },
-    {
-      label: t('overview.remainingPerspectives.vsProjectedMax')!,
-      value: filteredRemainingVsProjectedMax,
-    },
-    {
-      label: t('overview.remainingPerspectives.vsActualCost')!,
-      value: overview.remainingVsActualCost,
-    },
-    {
-      label: t('overview.remainingPerspectives.vsActualPaid')!,
-      value: overview.remainingVsActualPaid,
-    },
-    ...(hasPayback
-      ? [
-          {
-            label: t('overview.remainingPerspectives.vsMinPlannedWithPayback')!,
-            value: overview.remainingVsMinPlannedWithPayback,
-          },
-          {
-            label: t('overview.remainingPerspectives.vsMaxPlannedWithPayback')!,
-            value: overview.remainingVsMaxPlannedWithPayback,
-          },
-        ]
-      : []),
-  ];
-
-  // Format projected max segment with reduced opacity
-  const segmentsForBar = segments.map((seg) => {
-    if (seg.key === 'proj-max') {
-      return {
-        ...seg,
-        // Pass as a CSS color with opacity via a wrapper style; BudgetBar accepts inline style via color string
-        // We encode it via a known CSS pattern — opacity half of projected
-        color: `color-mix(in srgb, var(--color-budget-projected) 50%, transparent)`,
-      };
-    }
-    return seg;
-  });
-
-  const remainingTooltipContent = (
-    <RemainingDetailPanel items={remainingDetailItems} formatCurrency={formatCurrency} />
-  );
-
   return (
     <PageLayout
       title={t('overview.title')}
@@ -573,127 +300,6 @@ export function BudgetOverviewPage() {
           <p className={styles.emptyStateDescription}>{t('overview.emptyStateDescription')}</p>
         </div>
       )}
-
-      {/* ========================================================
-       * Budget Health Hero Card
-       * ======================================================== */}
-      <section className={styles.heroCard} aria-label="Budget overview">
-        {/* Key metrics row */}
-        <div className={`${styles.metricsRow} ${hasPayback ? styles.metricsRowWithPayback : ''}`}>
-          {/* Available Funds */}
-          <div className={styles.metricGroup}>
-            <span className={styles.metricLabel}>{t('overview.availableFunds')}</span>
-            <span className={styles.metricValue}>{formatCurrency(overview.availableFunds)}</span>
-          </div>
-
-          {/* Projected Cost Range */}
-          <div className={styles.metricGroup}>
-            <span className={styles.metricLabel}>{t('overview.projectedCostRange')}</span>
-            <span className={styles.metricValue}>
-              <span className={styles.metricRange}>
-                {formatShort(filtered.minPlanned)}
-                <span className={styles.metricRangeSep}>&ndash;</span>
-                {formatShort(filtered.maxPlanned)}
-              </span>
-            </span>
-          </div>
-
-          {/* Expected Payback (only when hasPayback) */}
-          {hasPayback && (
-            <div className={styles.metricGroup}>
-              <span className={styles.metricLabel}>{t('overview.expectedPayback')}</span>
-              <span
-                className={`${styles.metricValue} ${styles.metricPaybackValue}`}
-                aria-live="polite"
-                aria-atomic="true"
-              >
-                <span className={styles.metricRange}>
-                  {formatShort(overview.subsidySummary.minTotalPayback)}
-                  {overview.subsidySummary.minTotalPayback !==
-                  overview.subsidySummary.maxTotalPayback ? (
-                    <>
-                      <span className={styles.metricRangeSep}>&ndash;</span>
-                      {formatShort(overview.subsidySummary.maxTotalPayback)}
-                    </>
-                  ) : null}
-                </span>
-              </span>
-              {overview.subsidySummary.oversubscribedSubsidies?.length > 0 && (
-                <span className={styles.paybackCappedNote}>{t('overview.paybackCapped')}</span>
-              )}
-            </div>
-          )}
-
-          {/* Remaining (best/worst) — with detail on hover/tap */}
-          <div className={styles.metricGroup}>
-            <span className={styles.metricLabel}>{t('overview.remaining')}</span>
-            <Tooltip content={remainingTooltipContent}>
-              <button
-                type="button"
-                className={`${styles.metricValue} ${styles.metricValueInteractive}`}
-                aria-label={t('overview.remainingDetail')}
-                onClick={() => setRemainingDetailOpen((v) => !v)}
-              >
-                <span className={remainingMin >= 0 ? styles.metricPositive : styles.metricNegative}>
-                  {formatShort(remainingMin)}
-                </span>
-                <span className={styles.metricRangeSep}>&ndash;</span>
-                <span className={remainingMax >= 0 ? styles.metricPositive : styles.metricNegative}>
-                  {formatShort(remainingMax)}
-                </span>
-                <span className={styles.metricHint} aria-hidden="true">
-                  &#9432;
-                </span>
-              </button>
-            </Tooltip>
-
-            {/* Mobile inline remaining detail — toggled by tap */}
-            <div
-              className={`${styles.remainingDetailPanel} ${remainingDetailOpen ? styles.remainingDetailPanelOpen : ''}`}
-              aria-hidden={!remainingDetailOpen}
-            >
-              <RemainingDetailPanel items={remainingDetailItems} formatCurrency={formatCurrency} />
-            </div>
-          </div>
-        </div>
-
-        {/* Stacked bar */}
-        <div className={styles.barWrapper}>
-          <BudgetBar
-            segments={segmentsForBar}
-            maxValue={Math.max(overview.availableFunds, filtered.maxPlanned, 1)}
-            overflow={overflow}
-            height="lg"
-            onSegmentHover={handleSegmentHover}
-            onSegmentClick={handleSegmentClick}
-            formatValue={formatCurrency}
-          />
-
-          {/* Desktop floating tooltip anchored below bar */}
-          {hoveredSegment && (
-            <div className={styles.barTooltipAnchor} role="status" aria-live="polite">
-              <SegmentTooltipContent
-                segment={hoveredSegment}
-                availableFunds={overview.availableFunds}
-                formatCurrency={formatCurrency}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Mobile bar detail panel */}
-        <div
-          className={`${styles.mobileDetail} ${mobileBarOpen ? styles.mobileDetailOpen : ''}`}
-          aria-hidden={!mobileBarOpen}
-        >
-          <MobileBarDetail
-            segments={segmentsForBar}
-            overflow={overflow}
-            availableFunds={overview.availableFunds}
-            formatCurrency={formatCurrency}
-          />
-        </div>
-      </section>
 
       {/* Cost Breakdown Table */}
       {overview &&

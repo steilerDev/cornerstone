@@ -28,7 +28,7 @@ const makeLine = (overrides: Partial<BaseBudgetLine> = {}): BaseBudgetLine => ({
   quantity: null,
   unit: null,
   unitPrice: null,
-  includesVat: null,
+  includesVat: true,
   ...overrides,
 });
 

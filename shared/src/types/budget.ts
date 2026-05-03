@@ -86,7 +86,7 @@ export interface BaseBudgetLine {
   quantity: number | null;
   unit: string | null;
   unitPrice: number | null;
-  includesVat: boolean | null;
+  includesVat: boolean;
   createdBy: UserSummary | null;
   createdAt: string;
   updatedAt: string;
@@ -120,7 +120,7 @@ export interface CreateBudgetLineRequest {
   quantity?: number | null;
   unit?: string | null;
   unitPrice?: number | null;
-  includesVat?: boolean | null;
+  includesVat?: boolean;
 }
 
 /**
@@ -138,7 +138,7 @@ export interface UpdateBudgetLineRequest {
   quantity?: number | null;
   unit?: string | null;
   unitPrice?: number | null;
-  includesVat?: boolean | null;
+  includesVat?: boolean;
 }
 
 /**

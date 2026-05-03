@@ -776,7 +776,7 @@ describe('Standalone Invoice Routes', () => {
           quantity: null,
           unit: null,
           unitPrice: null,
-          includesVat: null,
+          includesVat: true,
           createdBy: null,
           createdAt: ts,
           updatedAt: ts,
