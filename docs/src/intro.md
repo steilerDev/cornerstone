@@ -63,3 +63,4 @@ See the [Roadmap](roadmap) for upcoming features.
 - [Development](development) -- How Cornerstone is built by an AI agent team
 - [GitHub Repository](https://github.com/steilerDev/cornerstone) -- Source code and issue tracker
 - [GitHub Wiki](https://github.com/steilerDev/cornerstone/wiki) -- Technical architecture documentation
+
