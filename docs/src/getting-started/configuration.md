@@ -86,5 +86,6 @@ The document integration is automatically enabled when both `PAPERLESS_URL` and 
 | `PAPERLESS_URL` | -- | Base URL of your Paperless-ngx instance used by the server for API calls (e.g., `http://paperless:8000` in Docker) |
 | `PAPERLESS_API_TOKEN` | -- | API authentication token from Paperless-ngx |
 | `PAPERLESS_EXTERNAL_URL` | -- | Browser-facing URL for Paperless-ngx links (e.g., `https://paperless.example.com`). If unset, falls back to `PAPERLESS_URL`. |
+| `PAPERLESS_FILTER_TAG` | -- | Optional tag name. When set, only Paperless-ngx documents tagged with this name are visible to Cornerstone. Useful for keeping personal documents private when sharing a Paperless-ngx instance across applications. |
 
 For detailed setup instructions, see [Documents Setup](/guides/documents/setup).
