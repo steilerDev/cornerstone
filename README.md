@@ -59,10 +59,11 @@ docker run -d \
   --name cornerstone \
   -p 3000:3000 \
   -v cornerstone-data:/app/data \
+  -v cornerstone-backups:/backups \
   steilerdev/cornerstone:latest
 ```
 
-Open `http://localhost:3000` -- the setup wizard will guide you through creating your admin account. See the [full deployment guide](https://steilerDev.github.io/cornerstone/getting-started/docker-setup) for Docker Compose, reverse proxy, and OIDC configuration.
+Open `http://localhost:3000` -- the setup wizard will guide you through creating your admin account. See the [full deployment guide](https://steilerDev.github.io/cornerstone/getting-started/docker-setup) for Docker Compose, reverse proxy, OIDC, and [scheduled-backup configuration](https://steilerDev.github.io/cornerstone/guides/backup/).
 
 ## Roadmap
 
