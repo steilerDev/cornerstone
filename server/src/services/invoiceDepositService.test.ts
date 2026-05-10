@@ -597,9 +597,11 @@ describe('invoiceDepositService', () => {
 
     it('scenario 26b: deposits with same dueDate are ordered by createdAt ASC (tie-breaker)', () => {
       const { userId } = setup();
-      // Use a fresh invoice so only these deposits are present
-      const { vendorId } = setup();
-      const tieInvoiceId = createTestInvoice(vendorId, 2000);
+      // Use a fresh invoice so only these deposits are present.
+      // Create a new vendor + invoice directly (avoids a second setup() which would collide on the
+      // users.email UNIQUE constraint since setup() always inserts user@example.com).
+      const tieVendorId = createTestVendor('Tie Vendor');
+      const tieInvoiceId = createTestInvoice(tieVendorId, 2000);
 
       // Both deposits share the same dueDate; creation order determines final order
       const dFirst = createDeposit(
