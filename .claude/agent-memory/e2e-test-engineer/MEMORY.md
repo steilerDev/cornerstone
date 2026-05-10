@@ -3,6 +3,21 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`
 
+## InvoiceBudgetLinesSection Picker (Issue #1401, 2026-05-10)
+
+- Picker modal: `role="dialog"`, `aria-labelledby="picker-title"` — same modal for BOTH the invoice edit modal and the picker.
+- Step 1 WorkItemPicker: `getByPlaceholder('Search work items...')` inside the modal; results in `role="listbox"` → `role="option"` items.
+- Step 2 "Create Budget Line" button text: exact `"Create Budget Line"` — appears in empty-state OR below existing list (only one visible at a time).
+- BudgetLineForm IDs: `#budget-description`, `#budget-planned-amount`, `#budget-quantity`, `#budget-unit`, `#budget-unit-price`, `#budget-confidence`, `#budget-category`, `#budget-source`, `#budget-vendor`.
+- Mode toggle buttons: "Direct Amount" (default), "Unit Pricing" — plain `type="button"`.
+- Submit text: `"Add Line"` (isEditing=false) / `"Saving..."` — NOT "Save Changes".
+- On success: component calls `closePicker()` → modal unmounts. On ITEMIZED_SUM_EXCEEDS_INVOICE error: form closes, reverts to list view, error in `pickerState.error` (rendered as `role="alert"` inside modal).
+- Error message for exceeds: `"Linking this budget line would exceed the invoice total."` — test `.toContainText('exceed the invoice total')`.
+- `createBudgetSourceViaApi(page, { name, totalAmount })` — NOT `createBudgetSourceViaApi(page, name, { ... })`.
+- InvoiceGroup badge on WI detail: `[class*="invoiceLink"]` inside `budgetSection`; text = `#InvoiceNumber` or `"Invoice"` if no number.
+- `pickerErrorBanner` is scoped to `budgetLinePickerModal` via `locator('[role="alert"]')` — avoids confusion with the page-level error banner.
+- Test file: `e2e/tests/invoices/invoice-budget-line-create-and-link.spec.ts` (5 scenarios, no @smoke tag).
+
 ## Budget Overview Hero Card Removed (Issues #1389/#1390, 2026-04-29)
 
 - `<section aria-label="Budget overview">` (heroCard) is **gone** from BudgetOverviewPage.tsx after #1389.

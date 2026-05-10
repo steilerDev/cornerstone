@@ -635,20 +635,27 @@
 /* ---- Create Budget Line Form ---- */
 
 .createBudgetLineForm {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-4);
-  padding: var(--spacing-4);
-  background-color: var(--color-bg-secondary);
+  background: var(--color-bg-primary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
 }
 
-.createFormTitle {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
+.createBudgetLineFieldset {
+  border: none;
+  padding: 0;
   margin: 0;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
 .formGroup {
@@ -857,6 +864,12 @@
     left: 0;
     right: 0;
     max-height: 80vh;
+  }
+
+  .modalBody {
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
   }
 
   .modalActions {

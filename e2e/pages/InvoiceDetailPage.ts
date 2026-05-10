@@ -27,6 +27,19 @@
  * - Delete confirm: class="confirmDeleteButton", text="Delete Invoice" / "Deleting..."
  * - Error (not found): role="alert" inside div.errorCard
  * - InvoiceBudgetLinesSection has its own sections but we do not interact with it deeply here
+ *
+ * Budget Line Picker (two-step, Issue #1401):
+ * - Picker modal: role="dialog", aria-labelledby="picker-title"
+ * - Step 1: WorkItemPicker (placeholder "Search work items...") + HouseholdItemPicker
+ * - Step 2: existing budget lines list OR create form (BudgetLineForm)
+ * - "Create Budget Line" button appears in empty-state and below the existing list
+ * - BudgetLineForm fields: #budget-description, #budget-planned-amount, #budget-quantity,
+ *   #budget-unit, #budget-unit-price, #budget-confidence, #budget-category, #budget-source,
+ *   #budget-vendor
+ * - Mode toggle buttons: "Direct Amount" (default) / "Unit Pricing"
+ * - Submit button: button[type="submit"] inside <fieldset> (locale-independent structural locator)
+ * - Cancel button: [class*="cancelButton"] inside picker modal (locale-independent)
+ * - Error banner inside modal: role="alert"
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -73,6 +86,43 @@ export class InvoiceDetailPage {
 
   // Error card (not found / load failure)
   readonly errorCard: Locator;
+
+  // ─── Budget Line Picker locators (Issue #1401) ───────────────────────────
+  /** The two-step picker modal: role="dialog", aria-labelledby="picker-title" */
+  readonly budgetLinePickerModal: Locator;
+
+  /** "+ Add Budget Line" button inside the budgetLinesSection header */
+  readonly pickerAddBudgetLineButton: Locator;
+
+  /** "Create Budget Line" button inside the picker modal (step 2) */
+  readonly pickerCreateBudgetLineButton: Locator;
+
+  /** Error banner (role="alert") inside the picker modal */
+  readonly pickerErrorBanner: Locator;
+
+  /** Description input in the BudgetLineForm: #budget-description */
+  readonly createFormDescriptionInput: Locator;
+
+  /** "Unit Pricing" mode toggle button inside the picker modal */
+  readonly createFormUnitModeButton: Locator;
+
+  /** Quantity input: #budget-quantity (unit pricing mode) */
+  readonly createFormQuantityInput: Locator;
+
+  /** Unit price input: #budget-unit-price (unit pricing mode) */
+  readonly createFormUnitPriceInput: Locator;
+
+  /** Direct amount input: #budget-planned-amount (direct mode) */
+  readonly createFormDirectAmountInput: Locator;
+
+  /** Submit button: only button[type="submit"] inside the fieldset wrapping BudgetLineForm (locale-independent) */
+  readonly createFormSubmitButton: Locator;
+
+  /** Cancel button inside the picker modal form */
+  readonly createFormCancelButton: Locator;
+
+  /** The budget lines table inside budgetLinesSection */
+  readonly budgetLinesTable: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -132,6 +182,40 @@ export class InvoiceDetailPage {
 
     // Error card (rendered when invoice not found or load fails)
     this.errorCard = page.locator('[class*="errorCard"]');
+
+    // ─── Budget Line Picker locators (Issue #1401) ────────────────────────
+    this.budgetLinePickerModal = page.locator('[role="dialog"][aria-labelledby="picker-title"]');
+
+    this.pickerAddBudgetLineButton = this.budgetLinesSection.getByRole('button', {
+      name: /\+ Add Budget Line/i,
+    });
+
+    this.pickerCreateBudgetLineButton = this.budgetLinePickerModal.getByRole('button', {
+      name: /Create Budget Line/i,
+    });
+
+    this.pickerErrorBanner = this.budgetLinePickerModal.locator('[role="alert"]');
+
+    this.createFormDescriptionInput = page.locator('#budget-description');
+    // "Unit Pricing" is the second [class*="modeBtn"] button (index 1). Using a structural
+    // locator avoids locale breakage — BudgetLineForm renders this text via t('budgetLineForm.modeUnit').
+    this.createFormUnitModeButton = this.budgetLinePickerModal
+      .locator('[class*="modeBtn"]')
+      .nth(1);
+    this.createFormQuantityInput = page.locator('#budget-quantity');
+    this.createFormUnitPriceInput = page.locator('#budget-unit-price');
+    this.createFormDirectAmountInput = page.locator('#budget-planned-amount');
+    // Submit button is the only button[type="submit"] inside the <fieldset> that wraps
+    // BudgetLineForm in the picker modal. Using a structural locator avoids locale breakage —
+    // the button text comes from t('budgetLineForm.submitAdd') / t('budgetLineForm.submitSaving').
+    this.createFormSubmitButton = this.budgetLinePickerModal.locator(
+      'fieldset button[type="submit"]',
+    );
+    // Cancel button uses [class*="cancelButton"] — unique within the picker modal (the ×
+    // close button uses styles.modalClose, not styles.cancelButton). Avoids locale breakage
+    // from t('budgetLineForm.cancel').
+    this.createFormCancelButton = this.budgetLinePickerModal.locator('[class*="cancelButton"]');
+    this.budgetLinesTable = this.budgetLinesSection.locator('table');
   }
 
   /**
@@ -269,5 +353,81 @@ export class InvoiceDetailPage {
   async goBackToInvoices(): Promise<void> {
     await this.backButton.click();
     await this.page.waitForURL('**/budget/invoices');
+  }
+
+  // ─── Budget Line Picker helpers (Issue #1401) ────────────────────────────
+
+  /**
+   * Open the budget line picker modal by clicking "+ Add Budget Line".
+   * Waits for the modal to become visible.
+   */
+  async openBudgetLinePicker(): Promise<void> {
+    await this.pickerAddBudgetLineButton.click();
+    await this.budgetLinePickerModal.waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Creates a new budget line and links it to the invoice via the picker flow.
+   *
+   * Prerequisites: the picker modal must already be open at step 1.
+   *
+   * The method:
+   * 1. Searches for and clicks the item in step 1 (workItemPickerName selects a work item)
+   * 2. Clicks "Create Budget Line" to open the BudgetLineForm
+   * 3. Fills description, selects pricing mode, fills amounts
+   * 4. Submits the form
+   *
+   * Note: workItemPickerName must match the title shown in the WorkItemPicker dropdown.
+   * If omitted the caller must have already reached the create form before calling.
+   */
+  async createAndLinkBudgetLine(data: {
+    workItemPickerName?: string;
+    description: string;
+    mode?: 'direct' | 'unit';
+    amount?: string;
+    quantity?: string;
+    unit?: string;
+    unitPrice?: string;
+  }): Promise<void> {
+    // Step 1: select the work item from the picker if provided
+    if (data.workItemPickerName) {
+      const wiInput = this.budgetLinePickerModal.getByPlaceholder('Search work items...');
+      await wiInput.fill(data.workItemPickerName);
+      const option = this.budgetLinePickerModal.getByRole('option', {
+        name: data.workItemPickerName,
+      });
+      await option.waitFor({ state: 'visible' });
+      await option.click();
+      // Modal is now at step 2 — wait for "Create Budget Line" to appear
+      await this.pickerCreateBudgetLineButton.waitFor({ state: 'visible' });
+    }
+
+    // Click "Create Budget Line" to open the BudgetLineForm
+    await this.pickerCreateBudgetLineButton.click();
+    await this.createFormDescriptionInput.waitFor({ state: 'visible' });
+
+    // Fill description
+    if (data.description) {
+      await this.createFormDescriptionInput.fill(data.description);
+    }
+
+    // Switch pricing mode if needed
+    const mode = data.mode ?? 'direct';
+    if (mode === 'unit') {
+      await this.createFormUnitModeButton.click();
+      if (data.quantity !== undefined) {
+        await this.createFormQuantityInput.fill(data.quantity);
+      }
+      if (data.unit !== undefined) {
+        await this.page.locator('#budget-unit').fill(data.unit);
+      }
+      if (data.unitPrice !== undefined) {
+        await this.createFormUnitPriceInput.fill(data.unitPrice);
+      }
+    } else {
+      if (data.amount !== undefined) {
+        await this.createFormDirectAmountInput.fill(data.amount);
+      }
+    }
   }
 }

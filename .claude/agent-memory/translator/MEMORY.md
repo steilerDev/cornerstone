@@ -48,6 +48,7 @@ Action labels in German follow the pattern: `{Noun} {Verb}` with capitalised fir
 - `de/budget.json` — `sources.lines.noCategory` orphan deleted 2026-04-19 (Issue #1313); `sources.lines.invoiceStatus.*`, `sources.lines.underArea`, `sources.lines.typeColumnHeader`, `sources.lines.statusColumnHeader` added 2026-04-19 (Issue #1313)
 - `de/budget.json` — Issue #1356 (2026-04-25): `sourceFilter` rework — removed `label`, `allSources`, `clearAriaLabel`, `chipSelected`, `chipNotSelected`, `activeAnnouncement`; added `statusAnnouncement`; added new blocks `sourceRow.*` and `availableFunds.*`
 - **Pre-existing gap** (as of 2026-04-25, outside #1356 scope): `sources.lines.typeColumnHeader` and `sources.lines.statusColumnHeader` exist in `en` but not `de` — needs a dedicated spec to fix
+- `de/budget.json` — `invoiceDetail.budgetLines` block added 2026-05-10 (Issue #1401): `createFormLegend` + `autoLinkedSuccess`
 - Always check key parity when picking up a new translator spec
 
 ## Backup/Restore Terminology (2026-03-22)
