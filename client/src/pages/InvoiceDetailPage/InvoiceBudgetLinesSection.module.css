@@ -640,6 +640,12 @@
   border-radius: var(--radius-md);
 }
 
+.createBudgetLineFieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
 .srOnly {
   position: absolute;
   width: 1px;

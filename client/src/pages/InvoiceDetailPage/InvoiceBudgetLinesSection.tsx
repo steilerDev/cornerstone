@@ -848,7 +848,7 @@ export function InvoiceBudgetLinesSection({
 
                   {!pickerState.isLoading && pickerState.showCreateForm && pickerState.createForm && (
                     <div className={styles.createBudgetLineForm}>
-                      <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+                      <fieldset className={styles.createBudgetLineFieldset}>
                         <legend className={styles.srOnly}>
                           {t('invoiceDetail.budgetLines.createFormLegend')}
                         </legend>
