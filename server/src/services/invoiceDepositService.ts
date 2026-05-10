@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, asc } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { invoiceDeposits, invoices, users } from '../db/schema.js';
@@ -130,7 +130,7 @@ export function listDepositsForInvoice(db: DbType, invoiceId: string): InvoiceDe
     .select()
     .from(invoiceDeposits)
     .where(eq(invoiceDeposits.invoiceId, invoiceId))
-    .orderBy(invoiceDeposits.createdAt)
+    .orderBy(asc(invoiceDeposits.dueDate), asc(invoiceDeposits.createdAt))
     .all();
 
   return rows.map((row) => toInvoiceDeposit(db, row));

@@ -70,11 +70,12 @@ function toInvoice(
 
   const { budgetLines, remainingAmount } = getInvoiceBudgetLinesForInvoice(db, row.id, row.amount);
 
-  // Fetch deposits for this invoice
+  // Fetch deposits for this invoice, ordered by dueDate then createdAt
   const depositRows = db
     .select()
     .from(invoiceDeposits)
     .where(eq(invoiceDeposits.invoiceId, row.id))
+    .orderBy(asc(invoiceDeposits.dueDate), asc(invoiceDeposits.createdAt))
     .all();
 
   const deposits = depositRows.map((depositRow) => {
@@ -97,11 +98,9 @@ function toInvoice(
     };
   });
 
-  // Compute finalPaymentAmount: invoice total minus sum of claimed deposits
-  const claimedSum = depositRows
-    .filter((d) => d.status === 'claimed')
-    .reduce((sum, d) => sum + d.amount, 0);
-  const finalPaymentAmount = Math.max(0, row.amount - claimedSum);
+  // Compute finalPaymentAmount: invoice total minus sum of ALL deposits (regardless of status)
+  const depositSum = depositRows.reduce((sum, d) => sum + d.amount, 0);
+  const finalPaymentAmount = Math.max(0, row.amount - depositSum);
 
   return {
     id: row.id,

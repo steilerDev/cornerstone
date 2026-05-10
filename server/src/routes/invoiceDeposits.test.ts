@@ -353,7 +353,7 @@ describe('Invoice Deposit Routes', () => {
   // ─── GET /api/invoices/:invoiceId (invoice detail embeds deposits) ────────────
 
   describe('GET /api/invoices/:invoiceId includes deposits', () => {
-    it('scenario 53: GET /api/invoices/:id includes deposits array and finalPaymentAmount', async () => {
+    it('scenario 53: GET /api/invoices/:id includes deposits array and finalPaymentAmount (all statuses subtracted)', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user11@test.com',
         'Test User',
@@ -361,8 +361,8 @@ describe('Invoice Deposit Routes', () => {
       );
       const vendorId = createTestVendor();
       const invoiceId = createTestInvoice(vendorId, 1000);
-      createTestDeposit(invoiceId, userId, 300, 'pending');
-      createTestDeposit(invoiceId, userId, 200, 'claimed');
+      createTestDeposit(invoiceId, userId, 300, 'pending'); // pending — reduces final payment
+      createTestDeposit(invoiceId, userId, 200, 'claimed'); // claimed — reduces final payment
 
       const response = await app.inject({
         method: 'GET',
@@ -376,8 +376,9 @@ describe('Invoice Deposit Routes', () => {
       }>();
       expect(Array.isArray(body.invoice.deposits)).toBe(true);
       expect(body.invoice.deposits).toHaveLength(2);
-      // finalPaymentAmount = 1000 - 200 (claimed) = 800
-      expect(body.invoice.finalPaymentAmount).toBe(800);
+      // finalPaymentAmount = 1000 - 300 (pending) - 200 (claimed) = 500
+      // All deposits regardless of status are subtracted from the invoice amount
+      expect(body.invoice.finalPaymentAmount).toBe(500);
     });
   });
 

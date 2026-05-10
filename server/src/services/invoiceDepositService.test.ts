@@ -562,36 +562,65 @@ describe('invoiceDepositService', () => {
   // ─── Ordering of listDepositsForInvoice ─────────────────────────────────────
 
   describe('listDepositsForInvoice ordering', () => {
-    it('scenario 26: three deposits returned ordered by createdAt ASC (dueDate ASC, createdAt ASC)', () => {
+    it('scenario 26a: deposits returned ordered by dueDate ASC regardless of creation order', () => {
       const { userId, invoiceId } = setup();
 
-      // Create deposits with different due dates
-      const d1 = createDeposit(
+      // Created in order A -> B -> C, but dueDates are out of order: Mar, Jan, Feb
+      // Expected return order: B (Jan) -> C (Feb) -> A (Mar) — sorted by dueDate ASC
+      const dA = createDeposit(
         db,
         invoiceId,
-        { amount: 100, dueDate: '2026-03-01' },
+        { amount: 100, dueDate: '2026-03-15' }, // created first, due last
         userId,
       );
-      const d2 = createDeposit(
+      const dB = createDeposit(
         db,
         invoiceId,
-        { amount: 200, dueDate: '2026-02-01' },
+        { amount: 200, dueDate: '2026-01-15' }, // created second, due first
         userId,
       );
-      const d3 = createDeposit(
+      const dC = createDeposit(
         db,
         invoiceId,
-        { amount: 300, dueDate: '2026-04-01' },
+        { amount: 300, dueDate: '2026-02-15' }, // created third, due second
         userId,
       );
 
       const deposits = listDepositsForInvoice(db, invoiceId);
 
       expect(deposits).toHaveLength(3);
-      // Service orders by createdAt ASC (based on implementation)
-      expect(deposits[0]!.id).toBe(d1.id);
-      expect(deposits[1]!.id).toBe(d2.id);
-      expect(deposits[2]!.id).toBe(d3.id);
+      // Order must be dueDate ASC: Jan (B) -> Feb (C) -> Mar (A)
+      expect(deposits[0]!.id).toBe(dB.id);
+      expect(deposits[1]!.id).toBe(dC.id);
+      expect(deposits[2]!.id).toBe(dA.id);
+    });
+
+    it('scenario 26b: deposits with same dueDate are ordered by createdAt ASC (tie-breaker)', () => {
+      const { userId } = setup();
+      // Use a fresh invoice so only these deposits are present
+      const { vendorId } = setup();
+      const tieInvoiceId = createTestInvoice(vendorId, 2000);
+
+      // Both deposits share the same dueDate; creation order determines final order
+      const dFirst = createDeposit(
+        db,
+        tieInvoiceId,
+        { amount: 150, dueDate: '2026-05-01' }, // created first
+        userId,
+      );
+      const dSecond = createDeposit(
+        db,
+        tieInvoiceId,
+        { amount: 250, dueDate: '2026-05-01' }, // created second
+        userId,
+      );
+
+      const deposits = listDepositsForInvoice(db, tieInvoiceId);
+
+      expect(deposits).toHaveLength(2);
+      // Same dueDate — earlier createdAt must come first
+      expect(deposits[0]!.id).toBe(dFirst.id);
+      expect(deposits[1]!.id).toBe(dSecond.id);
     });
   });
 
@@ -627,11 +656,11 @@ describe('invoiceDepositService', () => {
   // ─── getInvoiceById embeds deposits ─────────────────────────────────────────
 
   describe('getInvoiceById embeds deposits', () => {
-    it('scenario 28: invoice with 2 deposits embeds them and computes finalPaymentAmount correctly', () => {
+    it('scenario 28: invoice with 2 deposits embeds them and computes finalPaymentAmount as total minus ALL deposits', () => {
       const { userId, vendorId } = setup();
       const invoiceId = createTestInvoice(vendorId, 1000);
 
-      // Create a paid deposit and a claimed deposit
+      // d1 = paid (200), d2 = claimed (300); both reduce finalPaymentAmount
       const d1 = createDeposit(
         db,
         invoiceId,
@@ -645,7 +674,7 @@ describe('invoiceDepositService', () => {
         userId,
       );
 
-      // Make d2 claimed to affect finalPaymentAmount
+      // Advance d2 through pending -> paid -> claimed
       updateDeposit(db, invoiceId, d2.id, { status: 'paid' });
       updateDeposit(db, invoiceId, d2.id, { status: 'claimed' });
 
@@ -654,8 +683,9 @@ describe('invoiceDepositService', () => {
       expect(invoice.deposits).toHaveLength(2);
       expect(invoice.deposits.some((d) => d.id === d1.id)).toBe(true);
       expect(invoice.deposits.some((d) => d.id === d2.id)).toBe(true);
-      // finalPaymentAmount = 1000 - claimedSum(300) = 700
-      expect(invoice.finalPaymentAmount).toBe(700);
+      // finalPaymentAmount = 1000 - 200 (paid) - 300 (claimed) = 500
+      // All deposits (regardless of status) are subtracted from the invoice amount
+      expect(invoice.finalPaymentAmount).toBe(500);
     });
 
     it('scenario 29: invoice with no deposits has empty deposits array and finalPaymentAmount = amount', () => {

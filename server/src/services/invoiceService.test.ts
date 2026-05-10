@@ -1168,16 +1168,17 @@ describe('Invoice Service', () => {
       expect(invoice.deposits.some((d) => d.id === d2Id)).toBe(true);
     });
 
-    it('computes finalPaymentAmount as invoice total minus sum of claimed deposits', () => {
+    it('computes finalPaymentAmount as invoice total minus sum of ALL deposits (pending + paid + claimed)', () => {
       const vendorId = createTestVendor('Final Payment Vendor');
       const invoiceId = insertRawInvoice(vendorId, { amount: 1000 });
-      insertRawDeposit(invoiceId, 200, 'paid');   // paid but not claimed — does not reduce final
-      insertRawDeposit(invoiceId, 300, 'claimed'); // claimed — reduces final
+      insertRawDeposit(invoiceId, 100, 'pending'); // pending — reduces final payment
+      insertRawDeposit(invoiceId, 200, 'paid');    // paid — reduces final payment
+      insertRawDeposit(invoiceId, 300, 'claimed'); // claimed — reduces final payment
 
       const invoice = invoiceService.getInvoiceById(db, invoiceId);
 
-      // finalPaymentAmount = 1000 - 300 (claimed only) = 700
-      expect(invoice.finalPaymentAmount).toBe(700);
+      // finalPaymentAmount = 1000 - 100 (pending) - 200 (paid) - 300 (claimed) = 400
+      expect(invoice.finalPaymentAmount).toBe(400);
     });
 
     it('returns empty deposits array and finalPaymentAmount = amount when no deposits', () => {
