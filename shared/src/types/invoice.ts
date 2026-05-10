@@ -18,6 +18,52 @@ import type { FilterMeta } from './filterMeta.js';
 export type InvoiceStatus = 'pending' | 'paid' | 'claimed' | 'quotation';
 
 /**
+ * Deposit status within an invoice: pending, paid, or claimed.
+ */
+export type InvoiceDepositStatus = 'pending' | 'paid' | 'claimed';
+
+/**
+ * Invoice deposit entity - represents a staged partial payment within an invoice.
+ */
+export interface InvoiceDeposit {
+  id: string;
+  invoiceId: string;
+  amount: number;
+  dueDate: string;
+  paidDate: string | null;
+  claimedDate: string | null;
+  description: string | null;
+  status: InvoiceDepositStatus;
+  createdBy: UserSummary | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Request body for creating a new invoice deposit.
+ */
+export interface CreateDepositRequest {
+  amount: number;
+  dueDate: string;
+  description?: string | null;
+  status?: InvoiceDepositStatus;
+  paidDate?: string | null;
+  claimedDate?: string | null;
+}
+
+/**
+ * Request body for updating an invoice deposit.
+ */
+export interface UpdateDepositRequest {
+  amount?: number;
+  dueDate?: string;
+  description?: string | null;
+  status?: InvoiceDepositStatus;
+  paidDate?: string | null;
+  claimedDate?: string | null;
+}
+
+/**
  * Invoice entity as returned by the API.
  */
 export interface Invoice {
@@ -34,6 +80,10 @@ export interface Invoice {
   budgetLines: InvoiceBudgetLineSummary[];
   /** Remaining amount: invoice total minus sum of itemized amounts across budget lines. */
   remainingAmount: number;
+  /** Deposits: staged partial payments for this invoice. */
+  deposits: InvoiceDeposit[];
+  /** Final payment amount: invoice total minus sum of all deposit amounts (any status). */
+  finalPaymentAmount: number;
   createdBy: UserSummary | null;
   createdAt: string;
   updatedAt: string;

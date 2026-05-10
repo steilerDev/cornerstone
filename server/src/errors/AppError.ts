@@ -271,3 +271,33 @@ export class StaleOwnershipError extends AppError {
     this.name = 'StaleOwnershipError';
   }
 }
+
+export class DepositsExceedInvoiceTotalError extends AppError {
+  constructor(
+    message = 'Sum of deposit amounts would exceed the invoice total',
+    details?: Record<string, unknown>,
+  ) {
+    super('DEPOSITS_EXCEED_INVOICE_TOTAL', 400, message, details);
+    this.name = 'DepositsExceedInvoiceTotalError';
+  }
+}
+
+export class InvalidDepositStatusTransitionError extends AppError {
+  constructor(
+    message = 'Deposit status transition is not allowed',
+    details?: Record<string, unknown>,
+  ) {
+    super('INVALID_DEPOSIT_STATUS_TRANSITION', 400, message, details);
+    this.name = 'InvalidDepositStatusTransitionError';
+  }
+}
+
+export class InvalidDepositDateForStatusError extends AppError {
+  constructor(
+    message = 'Date field cannot be set for the current deposit status',
+    details?: Record<string, unknown>,
+  ) {
+    super('INVALID_DEPOSIT_DATE_FOR_STATUS', 400, message, details);
+    this.name = 'InvalidDepositDateForStatusError';
+  }
+}

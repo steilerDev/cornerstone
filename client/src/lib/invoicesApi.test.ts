@@ -34,6 +34,8 @@ describe('invoicesApi', () => {
     dueDate: '2026-03-01',
     status: 'pending',
     notes: 'Initial deposit',
+    deposits: [],
+    finalPaymentAmount: 2500.0,
     createdBy: { id: 'user-1', displayName: 'Admin User', email: 'admin@example.com' },
     createdAt: '2026-02-01T00:00:00.000Z',
     updatedAt: '2026-02-01T00:00:00.000Z',

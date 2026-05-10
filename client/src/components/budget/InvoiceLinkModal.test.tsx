@@ -104,6 +104,8 @@ function buildInvoice(id: string, invoiceNumber: string | null = `INV-${id}`): I
     notes: null,
     budgetLines: [],
     remainingAmount: 1000,
+    deposits: [],
+    finalPaymentAmount: 1000,
     createdBy: null,
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
