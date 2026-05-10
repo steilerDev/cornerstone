@@ -480,6 +480,10 @@
     "messages": {
       "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
       "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
+    },
+    "budgetLines": {
+      "createFormLegend": "Neue Budgetposition erstellen",
+      "autoLinkedSuccess": "Budgetposition erstellt und mit {{amount}} hinzugefügt"
     }
   },
   "subsidies": {

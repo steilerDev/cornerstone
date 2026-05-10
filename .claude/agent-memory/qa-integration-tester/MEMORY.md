@@ -7,6 +7,18 @@
 
 ALL client tests using `jest.unstable_mockModule('../../lib/formatters.js', ...)` fail locally in this worktree with `useLocale must be used within a LocaleProvider`. This is a pre-existing environment issue — tests pass in CI. **Do not attempt to fix by changing mocks or adding LocaleProvider** — the tests are structurally correct and the mock works in CI. Just commit and let CI validate. The issue is specific to this worktree's Jest module resolution environment.
 
+**Also**: TypeScript errors like `TS2305: Module '@cornerstone/shared' has no exported member 'effectivePlannedAmount'` appear when `budgetConstants.ts` is transitively imported. These ALSO only fail locally (shared dist is stale). CI builds shared correctly. Same pattern — commit and let CI validate.
+
+## Story #1401 — InvoiceBudgetLinesSection Auto-Link Tests (2026-05-10)
+
+When a component gains new module-level dependencies (e.g., `fetchVendors`, `BudgetLineForm`), existing tests BREAK in CI with runtime errors because those modules aren't mocked. Pattern: check CI logs (`gh api repos/.../jobs/ID/logs`) to identify which error is new (runtime unmocked call) vs pre-existing (TS type error).
+
+**BudgetLineForm mock pattern**: Mock at module boundary with `jest.unstable_mockModule('../../components/budget/BudgetLineForm.js', ...)`. The mock renders a `<form data-testid="budget-line-form">` with controlled inputs for `form.description` and `form.plannedAmount`. `onFormChange` is wired to `onChange` handlers so tests can drive component state. `budgetCategories !== undefined` renders `[data-testid="has-categories"]` to test the work_item vs household_item branch.
+
+**Key test pattern for submit-path**: Always set `form-planned-amount` to a valid value via `fireEvent.change` before `fireEvent.submit` — initial form state has `plannedAmount: ''` which triggers the NaN validation guard and returns early without calling any APIs.
+
+**Old describe block replacement**: When an implementation changes (old inline form → new BudgetLineForm component), existing tests that tested old implementation internals (specific selectors, labels, headings) must be replaced with tests using the new mock's testids. Do NOT try to keep old tests that query DOM elements no longer rendered.
+
 ## Story #1360 — Server-Side Source Filter Tests (2026-04-25)
 
 **CostBreakdownTable.test.tsx**: Replaced the 12-test `describe('Source filter — aggregate consistency (#1358)')` block with 4-test `describe('Server-driven render path (#1360)')`. The 12 old tests tested deleted client-side helpers (`computePerSourcePayback`, `computeFilteredAggregates`, `visibleLineIds`). Removal strategy: Python `content.replace()` on large block — incremental Edit tool calls left orphaned code. The `buildBreakdownWithTwoSources()` helper was replaced by `buildServerFilteredBreakdown()`.
