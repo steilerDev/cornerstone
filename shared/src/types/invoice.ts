@@ -82,7 +82,7 @@ export interface Invoice {
   remainingAmount: number;
   /** Deposits: staged partial payments for this invoice. */
   deposits: InvoiceDeposit[];
-  /** Final payment amount: invoice total minus sum of claimed deposits. */
+  /** Final payment amount: invoice total minus sum of all deposit amounts (any status). */
   finalPaymentAmount: number;
   createdBy: UserSummary | null;
   createdAt: string;
