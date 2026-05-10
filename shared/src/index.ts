@@ -122,8 +122,12 @@ export type { DavTokenStatus, DavTokenResponse } from './types/dav.js';
 export type {
   Invoice,
   InvoiceStatus,
+  InvoiceDeposit,
+  InvoiceDepositStatus,
   CreateInvoiceRequest,
   UpdateInvoiceRequest,
+  CreateDepositRequest,
+  UpdateDepositRequest,
   InvoiceListResponse,
   InvoiceResponse,
   InvoiceStatusSummary,

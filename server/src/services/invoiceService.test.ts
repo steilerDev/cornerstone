@@ -1126,4 +1126,112 @@ describe('Invoice Service', () => {
       expect(remaining.find((inv) => inv.id === inv3Id)).toBeDefined();
     });
   });
+
+  // ─── toInvoice() embeds deposits + finalPaymentAmount (#1403) ───────────────
+
+  describe('getInvoiceById() deposit embedding (#1403)', () => {
+    function insertRawDeposit(
+      invoiceId: string,
+      amount: number,
+      status: 'pending' | 'paid' | 'claimed' = 'pending',
+    ): string {
+      const id = `deposit-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      const ts = new Date(Date.now() + timestampOffset++).toISOString();
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id,
+          invoiceId,
+          amount,
+          dueDate: '2026-02-01',
+          paidDate: status === 'paid' || status === 'claimed' ? '2026-01-20' : null,
+          claimedDate: status === 'claimed' ? '2026-01-25' : null,
+          description: null,
+          status,
+          createdBy: null,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return id;
+    }
+
+    it('embeds deposits array when invoice has deposits', () => {
+      const vendorId = createTestVendor('Deposit Embed Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 1000 });
+      const d1Id = insertRawDeposit(invoiceId, 200, 'paid');
+      const d2Id = insertRawDeposit(invoiceId, 300, 'pending');
+
+      const invoice = invoiceService.getInvoiceById(db, invoiceId);
+
+      expect(invoice.deposits).toHaveLength(2);
+      expect(invoice.deposits.some((d) => d.id === d1Id)).toBe(true);
+      expect(invoice.deposits.some((d) => d.id === d2Id)).toBe(true);
+    });
+
+    it('computes finalPaymentAmount as invoice total minus sum of claimed deposits', () => {
+      const vendorId = createTestVendor('Final Payment Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 1000 });
+      insertRawDeposit(invoiceId, 200, 'paid');   // paid but not claimed — does not reduce final
+      insertRawDeposit(invoiceId, 300, 'claimed'); // claimed — reduces final
+
+      const invoice = invoiceService.getInvoiceById(db, invoiceId);
+
+      // finalPaymentAmount = 1000 - 300 (claimed only) = 700
+      expect(invoice.finalPaymentAmount).toBe(700);
+    });
+
+    it('returns empty deposits array and finalPaymentAmount = amount when no deposits', () => {
+      const vendorId = createTestVendor('No Deposit Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 500 });
+
+      const invoice = invoiceService.getInvoiceById(db, invoiceId);
+
+      expect(invoice.deposits).toHaveLength(0);
+      expect(invoice.finalPaymentAmount).toBe(500);
+    });
+  });
+
+  // ─── listAllInvoices() deposit inline map (#1403) ────────────────────────────
+
+  describe('listAllInvoices() deposit inline map (#1403)', () => {
+    function insertRawDeposit(
+      invoiceId: string,
+      amount: number,
+      status: 'pending' | 'paid' | 'claimed' = 'pending',
+    ): string {
+      const id = `deposit-list-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      const ts = new Date(Date.now() + timestampOffset++).toISOString();
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id,
+          invoiceId,
+          amount,
+          dueDate: '2026-02-01',
+          paidDate: status === 'paid' || status === 'claimed' ? '2026-01-20' : null,
+          claimedDate: status === 'claimed' ? '2026-01-25' : null,
+          description: null,
+          status,
+          createdBy: null,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return id;
+    }
+
+    it('list response has deposits: [] and finalPaymentAmount = invoice amount (not computed)', () => {
+      const vendorId = createTestVendor('List Deposit Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 800 });
+      insertRawDeposit(invoiceId, 200, 'paid');
+      insertRawDeposit(invoiceId, 300, 'claimed');
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      const listed = result.invoices.find((inv) => inv.id === invoiceId);
+      expect(listed).toBeDefined();
+      expect(listed!.deposits).toHaveLength(0);
+      // List intentionally sets finalPaymentAmount = row.amount without computing
+      expect(listed!.finalPaymentAmount).toBe(800);
+    });
+  });
 });
