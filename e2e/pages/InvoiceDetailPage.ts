@@ -199,9 +199,7 @@ export class InvoiceDetailPage {
     this.createFormDescriptionInput = page.locator('#budget-description');
     // "Unit Pricing" is the second [class*="modeBtn"] button (index 1). Using a structural
     // locator avoids locale breakage — BudgetLineForm renders this text via t('budgetLineForm.modeUnit').
-    this.createFormUnitModeButton = this.budgetLinePickerModal
-      .locator('[class*="modeBtn"]')
-      .nth(1);
+    this.createFormUnitModeButton = this.budgetLinePickerModal.locator('[class*="modeBtn"]').nth(1);
     this.createFormQuantityInput = page.locator('#budget-quantity');
     this.createFormUnitPriceInput = page.locator('#budget-unit-price');
     this.createFormDirectAmountInput = page.locator('#budget-planned-amount');

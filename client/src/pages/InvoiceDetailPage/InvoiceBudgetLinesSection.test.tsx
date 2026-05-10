@@ -295,7 +295,10 @@ beforeEach(async () => {
   mockFetchHouseholdItemBudgets.mockResolvedValue([]);
 
   // Default: empty vendors list
-  mockFetchVendors.mockResolvedValue({ vendors: [], pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 } });
+  mockFetchVendors.mockResolvedValue({
+    vendors: [],
+    pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+  });
 
   // Default: categories and budget sources for create form
   mockFetchBudgetCategories.mockResolvedValue({
@@ -1201,9 +1204,7 @@ describe('InvoiceBudgetLinesSection', () => {
       });
 
       // Form should close and error should appear in the picker's error banner
-      await waitFor(() =>
-        expect(screen.queryByTestId('budget-line-form')).not.toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.queryByTestId('budget-line-form')).not.toBeInTheDocument());
       await waitFor(() =>
         expect(
           screen.getByText('Linking this budget line would exceed the invoice total.'),
@@ -1235,9 +1236,7 @@ describe('InvoiceBudgetLinesSection', () => {
         fireEvent.submit(screen.getByTestId('budget-line-form'));
       });
 
-      await waitFor(() =>
-        expect(screen.queryByTestId('budget-line-form')).not.toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.queryByTestId('budget-line-form')).not.toBeInTheDocument());
       await waitFor(() =>
         expect(
           screen.getByText('This budget line is already linked to another invoice.'),
@@ -1282,9 +1281,7 @@ describe('InvoiceBudgetLinesSection', () => {
       });
 
       // Form should be gone
-      await waitFor(() =>
-        expect(screen.queryByTestId('budget-line-form')).not.toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.queryByTestId('budget-line-form')).not.toBeInTheDocument());
 
       // List + Add Selected Lines button should reappear
       expect(screen.getByRole('button', { name: /Add Selected Lines/i })).toBeInTheDocument();
