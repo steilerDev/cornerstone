@@ -860,6 +860,12 @@
     max-height: 80vh;
   }
 
+  .modalBody {
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+  }
+
   .modalActions {
     flex-direction: column-reverse;
   }

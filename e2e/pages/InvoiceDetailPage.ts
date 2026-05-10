@@ -37,8 +37,8 @@
  *   #budget-unit, #budget-unit-price, #budget-confidence, #budget-category, #budget-source,
  *   #budget-vendor
  * - Mode toggle buttons: "Direct Amount" (default) / "Unit Pricing"
- * - Submit button text: "Add Line" (not saving) / "Saving..."
- * - Cancel button: text="Cancel"
+ * - Submit button: button[type="submit"] inside <fieldset> (locale-independent structural locator)
+ * - Cancel button: [class*="cancelButton"] inside picker modal (locale-independent)
  * - Error banner inside modal: role="alert"
  */
 
@@ -115,7 +115,7 @@ export class InvoiceDetailPage {
   /** Direct amount input: #budget-planned-amount (direct mode) */
   readonly createFormDirectAmountInput: Locator;
 
-  /** Submit button: text matches "Add Line" or "Saving..." */
+  /** Submit button: only button[type="submit"] inside the fieldset wrapping BudgetLineForm (locale-independent) */
   readonly createFormSubmitButton: Locator;
 
   /** Cancel button inside the picker modal form */
@@ -197,18 +197,24 @@ export class InvoiceDetailPage {
     this.pickerErrorBanner = this.budgetLinePickerModal.locator('[role="alert"]');
 
     this.createFormDescriptionInput = page.locator('#budget-description');
-    this.createFormUnitModeButton = this.budgetLinePickerModal.getByRole('button', {
-      name: /Unit Pricing/i,
-    });
+    // "Unit Pricing" is the second [class*="modeBtn"] button (index 1). Using a structural
+    // locator avoids locale breakage — BudgetLineForm renders this text via t('budgetLineForm.modeUnit').
+    this.createFormUnitModeButton = this.budgetLinePickerModal
+      .locator('[class*="modeBtn"]')
+      .nth(1);
     this.createFormQuantityInput = page.locator('#budget-quantity');
     this.createFormUnitPriceInput = page.locator('#budget-unit-price');
     this.createFormDirectAmountInput = page.locator('#budget-planned-amount');
-    this.createFormSubmitButton = this.budgetLinePickerModal.getByRole('button', {
-      name: /Add Line|Saving\.\.\./i,
-    });
-    this.createFormCancelButton = this.budgetLinePickerModal.getByRole('button', {
-      name: /^Cancel$/i,
-    });
+    // Submit button is the only button[type="submit"] inside the <fieldset> that wraps
+    // BudgetLineForm in the picker modal. Using a structural locator avoids locale breakage —
+    // the button text comes from t('budgetLineForm.submitAdd') / t('budgetLineForm.submitSaving').
+    this.createFormSubmitButton = this.budgetLinePickerModal.locator(
+      'fieldset button[type="submit"]',
+    );
+    // Cancel button uses [class*="cancelButton"] — unique within the picker modal (the ×
+    // close button uses styles.modalClose, not styles.cancelButton). Avoids locale breakage
+    // from t('budgetLineForm.cancel').
+    this.createFormCancelButton = this.budgetLinePickerModal.locator('[class*="cancelButton"]');
     this.budgetLinesTable = this.budgetLinesSection.locator('table');
   }
 
