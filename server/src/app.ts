@@ -167,7 +167,9 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(invoiceBudgetLineRoutes, { prefix: '/api/invoices/:invoiceId/budget-lines' });
 
   // Invoice deposit routes (nested under invoices, both vendor-scoped and standalone)
-  await app.register(invoiceDepositRoutes, { prefix: '/api/vendors/:vendorId/invoices/:invoiceId/deposits' });
+  await app.register(invoiceDepositRoutes, {
+    prefix: '/api/vendors/:vendorId/invoices/:invoiceId/deposits',
+  });
   await app.register(invoiceDepositRoutes, { prefix: '/api/invoices/:invoiceId/deposits' });
 
   // Subsidy program routes

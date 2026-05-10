@@ -320,11 +320,7 @@ describe('Invoice Deposit Routes', () => {
     });
 
     it('scenario 51: 404 deposit not found', async () => {
-      const { cookie } = await createUserWithSession(
-        'user10@test.com',
-        'Test User',
-        'password123',
-      );
+      const { cookie } = await createUserWithSession('user10@test.com', 'Test User', 'password123');
       const vendorId = createTestVendor();
       const invoiceId = createTestInvoice(vendorId, 1000);
 
@@ -386,11 +382,7 @@ describe('Invoice Deposit Routes', () => {
 
   describe('Vendor-scoped URL parity', () => {
     it('scenario 54: POST /api/vendors/:vendorId/invoices/:invoiceId/deposits — 201', async () => {
-      const { cookie } = await createUserWithSession(
-        'user12@test.com',
-        'Test User',
-        'password123',
-      );
+      const { cookie } = await createUserWithSession('user12@test.com', 'Test User', 'password123');
       const vendorId = createTestVendor();
       const invoiceId = createTestInvoice(vendorId, 1000);
 
@@ -487,11 +479,7 @@ describe('Invoice Deposit Routes', () => {
     });
 
     it('returns 404 for nonexistent invoice', async () => {
-      const { cookie } = await createUserWithSession(
-        'user16@test.com',
-        'Test User',
-        'password123',
-      );
+      const { cookie } = await createUserWithSession('user16@test.com', 'Test User', 'password123');
 
       const response = await app.inject({
         method: 'GET',

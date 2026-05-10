@@ -157,11 +157,7 @@ export default async function invoiceDepositRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      invoiceDepositService.deleteDeposit(
-        fastify.db,
-        request.params.invoiceId,
-        request.params.id,
-      );
+      invoiceDepositService.deleteDeposit(fastify.db, request.params.invoiceId, request.params.id);
       return reply.status(204).send();
     },
   );

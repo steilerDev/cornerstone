@@ -308,7 +308,11 @@ export function listAllInvoices(
       ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
       : null;
 
-    const { budgetLines, remainingAmount } = getInvoiceBudgetLinesForInvoice(db, row.id, row.amount);
+    const { budgetLines, remainingAmount } = getInvoiceBudgetLinesForInvoice(
+      db,
+      row.id,
+      row.amount,
+    );
 
     return {
       id: row.id,

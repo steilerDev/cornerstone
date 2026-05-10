@@ -1172,7 +1172,7 @@ describe('Invoice Service', () => {
       const vendorId = createTestVendor('Final Payment Vendor');
       const invoiceId = insertRawInvoice(vendorId, { amount: 1000 });
       insertRawDeposit(invoiceId, 100, 'pending'); // pending — reduces final payment
-      insertRawDeposit(invoiceId, 200, 'paid');    // paid — reduces final payment
+      insertRawDeposit(invoiceId, 200, 'paid'); // paid — reduces final payment
       insertRawDeposit(invoiceId, 300, 'claimed'); // claimed — reduces final payment
 
       const invoice = invoiceService.getInvoiceById(db, invoiceId);

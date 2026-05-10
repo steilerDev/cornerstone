@@ -448,13 +448,17 @@ export const invoiceDeposits = sqliteTable(
   'invoice_deposits',
   {
     id: text('id').primaryKey(),
-    invoiceId: text('invoice_id').notNull().references(() => invoices.id, { onDelete: 'cascade' }),
+    invoiceId: text('invoice_id')
+      .notNull()
+      .references(() => invoices.id, { onDelete: 'cascade' }),
     amount: real('amount').notNull(),
     dueDate: text('due_date').notNull(),
     paidDate: text('paid_date'),
     claimedDate: text('claimed_date'),
     description: text('description'),
-    status: text('status', { enum: ['pending', 'paid', 'claimed'] }).notNull().default('pending'),
+    status: text('status', { enum: ['pending', 'paid', 'claimed'] })
+      .notNull()
+      .default('pending'),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),

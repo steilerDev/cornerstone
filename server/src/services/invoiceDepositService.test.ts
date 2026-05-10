@@ -669,12 +669,7 @@ describe('invoiceDepositService', () => {
         { amount: 200, dueDate: '2026-02-01', status: 'paid' },
         userId,
       );
-      const d2 = createDeposit(
-        db,
-        invoiceId,
-        { amount: 300, dueDate: '2026-03-01' },
-        userId,
-      );
+      const d2 = createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-03-01' }, userId);
 
       // Advance d2 through pending -> paid -> claimed
       updateDeposit(db, invoiceId, d2.id, { status: 'paid' });
@@ -743,12 +738,7 @@ describe('invoiceDepositService', () => {
         })
         .run();
 
-      const deposit = createDeposit(
-        db,
-        invoiceId,
-        { amount: 300, dueDate: '2026-02-01' },
-        userId,
-      );
+      const deposit = createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-01' }, userId);
 
       expect(deposit.amount).toBe(300);
     });

@@ -376,10 +376,7 @@ export function updateDeposit(
 
   // Handle paidDate override without status change
   if (data.paidDate !== undefined && data.status === undefined) {
-    if (
-      effectiveNewStatus !== 'paid' &&
-      effectiveNewStatus !== 'claimed'
-    ) {
+    if (effectiveNewStatus !== 'paid' && effectiveNewStatus !== 'claimed') {
       throw new InvalidDepositDateForStatusError(
         'paidDate cannot be set when status is not paid or claimed',
         { field: 'paidDate', status: effectiveNewStatus },
@@ -420,7 +417,9 @@ export function updateDeposit(
       const otherSum = tx
         .select({ sum: sql<number>`COALESCE(SUM(${invoiceDeposits.amount}), 0)` })
         .from(invoiceDeposits)
-        .where(and(eq(invoiceDeposits.invoiceId, invoiceId), sql`${invoiceDeposits.id} != ${depositId}`))
+        .where(
+          and(eq(invoiceDeposits.invoiceId, invoiceId), sql`${invoiceDeposits.id} != ${depositId}`),
+        )
         .get();
 
       const otherTotal = otherSum?.sum ?? 0;
@@ -441,18 +440,25 @@ export function updateDeposit(
     }
 
     // Update the deposit
-    tx.update(invoiceDeposits)
-      .set(updates)
-      .where(eq(invoiceDeposits.id, depositId))
-      .run();
+    tx.update(invoiceDeposits).set(updates).where(eq(invoiceDeposits.id, depositId)).run();
 
     return tx.select().from(invoiceDeposits).where(eq(invoiceDeposits.id, depositId)).get()!;
   });
 
   // Fire diary event if status transitioned to paid or claimed (only these targets per AC-17)
-  if (data.status !== undefined && (effectiveNewStatus === 'paid' || effectiveNewStatus === 'claimed')) {
+  if (
+    data.status !== undefined &&
+    (effectiveNewStatus === 'paid' || effectiveNewStatus === 'claimed')
+  ) {
     const oldStatus = existing.status as InvoiceDepositStatus;
-    onDepositStatusChanged(db, diaryAutoEvents, depositId, invoiceNumber, oldStatus, effectiveNewStatus);
+    onDepositStatusChanged(
+      db,
+      diaryAutoEvents,
+      depositId,
+      invoiceNumber,
+      oldStatus,
+      effectiveNewStatus,
+    );
   }
 
   return toInvoiceDeposit(db, row);
