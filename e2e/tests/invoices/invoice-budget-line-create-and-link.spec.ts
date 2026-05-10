@@ -464,6 +464,7 @@ test.describe('Create and link budget line — mobile responsive (Scenario 4)', 
             resp.status() === 201,
         );
 
+        await detailPage.createFormSubmitButton.scrollIntoViewIfNeeded();
         await detailPage.createFormSubmitButton.click();
         await budgetCreatePromise;
         await linkCreatePromise;
