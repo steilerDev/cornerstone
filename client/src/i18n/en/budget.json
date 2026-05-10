@@ -593,6 +593,10 @@
     "messages": {
       "updateError": "Failed to update invoice. Please try again.",
       "deleteError": "Failed to delete invoice. Please try again."
+    },
+    "budgetLines": {
+      "createFormLegend": "Create new budget line",
+      "autoLinkedSuccess": "Budget line created and added for {{amount}}"
     }
   },
   "subsidies": {

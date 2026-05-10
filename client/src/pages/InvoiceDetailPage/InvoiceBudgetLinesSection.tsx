@@ -1,10 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   InvoiceBudgetLineDetailResponse,
   WorkItemBudgetLine,
   HouseholdItemBudgetLine,
+  Vendor,
+  BudgetCategory,
+  CreateInvoiceBudgetLineRequest,
 } from '@cornerstone/shared';
 import {
   fetchInvoiceBudgetLines,
@@ -19,10 +22,14 @@ import {
 } from '../../lib/householdItemBudgetsApi.js';
 import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
+import { fetchVendors } from '../../lib/vendorsApi.js';
 import type { BudgetSource } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
+import { BudgetLineForm } from '../../components/budget/BudgetLineForm.js';
+import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
+import { CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
 import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
 import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
@@ -48,15 +55,13 @@ interface PickerState {
   error?: string;
   itemizedAmounts?: Record<string, number>;
   showCreateForm?: boolean;
-  createFormData?: {
-    description: string;
-    amount: string;
-    categoryId?: string;
-    budgetSourceId?: string;
-  };
-  categories?: Array<{ id: string; name: string; translationKey: string | null }>;
+  // Rich form state (replaces createFormData)
+  createForm?: BudgetLineFormState;
+  categories?: BudgetCategory[];
   budgetSources?: BudgetSource[];
+  vendors?: Vendor[];
   isCreatingBudgetLine?: boolean;
+  createError?: string | null;
 }
 
 export function InvoiceBudgetLinesSection({
@@ -65,6 +70,7 @@ export function InvoiceBudgetLinesSection({
 }: InvoiceBudgetLinesSectionProps) {
   const { formatCurrency } = useFormatters();
   const { t: tSettings } = useTranslation('settings');
+  const { t } = useTranslation('budget');
   const [budgetLines, setBudgetLines] = useState<InvoiceBudgetLineDetailResponse[]>([]);
   const [remainingAmount, setRemainingAmount] = useState(invoiceTotal);
   const [isLoading, setIsLoading] = useState(true);
@@ -92,6 +98,7 @@ export function InvoiceBudgetLinesSection({
   const pickerModalRef = useRef<HTMLDivElement>(null);
   const remainingAmountRef = useRef<HTMLTableCellElement>(null);
   const newLineRowRef = useRef<HTMLTableRowElement>(null);
+  const createBudgetLineButtonRef = useRef<HTMLButtonElement>(null);
 
   // Load budget lines on mount
   useEffect(() => {
@@ -193,107 +200,176 @@ export function InvoiceBudgetLinesSection({
   };
 
   /**
-   * Show the inline form for creating a new budget line.
+   * Show the rich budget line form for creating a new budget line.
    */
   const showCreateBudgetLineForm = async () => {
     try {
-      const [categoriesResponse, sourcesResponse] = await Promise.all([
+      const [categoriesResponse, sourcesResponse, vendorsResponse] = await Promise.all([
         fetchBudgetCategories(),
         fetchBudgetSources(),
+        fetchVendors({ pageSize: 100 }),
       ]);
 
       const discretionaryId = sourcesResponse.budgetSources.find((s) => s.isDiscretionary)?.id;
 
-      setPickerState({
-        ...pickerState,
+      const initialForm: BudgetLineFormState = {
+        ...emptyCreateForm(),
+        budgetSourceId: discretionaryId ?? '',
+      };
+
+      setPickerState((prev) => ({
+        ...prev,
         showCreateForm: true,
-        createFormData: {
-          description: '',
-          amount: remainingAmount > 0 ? remainingAmount.toFixed(2) : '',
-          categoryId: undefined,
-          budgetSourceId: discretionaryId,
-        },
+        createForm: initialForm,
         categories: categoriesResponse.categories,
         budgetSources: sourcesResponse.budgetSources,
-      });
+        vendors: vendorsResponse.vendors,
+        createError: null,
+      }));
     } catch (err) {
       const errorMsg =
         err instanceof ApiClientError ? err.error.message : 'Failed to load form data.';
-      setPickerState({
-        ...pickerState,
+      setPickerState((prev) => ({
+        ...prev,
         error: errorMsg,
-      });
+      }));
     }
   };
 
   /**
-   * Handle creating a new budget line inline.
+   * Handle creating a new budget line via the rich form and auto-linking it to the invoice.
    */
-  const handleCreateBudgetLine = async () => {
-    if (!pickerState.itemId || !pickerState.type || !pickerState.createFormData) return;
+  const handleCreateBudgetLine = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!pickerState.itemId || !pickerState.type || !pickerState.createForm) return;
 
-    const { description, amount, categoryId, budgetSourceId } = pickerState.createFormData;
-    const parsedAmount = parseFloat(amount);
+    const form = pickerState.createForm;
 
-    if (!description.trim()) {
-      setPickerState({
-        ...pickerState,
-        error: 'Description is required.',
-      });
-      return;
+    let plannedAmount: number;
+    if (form.pricingMode === 'direct') {
+      plannedAmount = parseFloat(form.plannedAmount);
+      if (isNaN(plannedAmount) || plannedAmount < 0) {
+        setPickerState((prev) => ({
+          ...prev,
+          createError: 'Planned amount must be a valid non-negative number.',
+        }));
+        return;
+      }
+      const multiplier = form.includesVat ? 1 : 1.19;
+      plannedAmount = Math.round(plannedAmount * multiplier * 100) / 100;
+    } else {
+      const qty = parseFloat(form.quantity);
+      const price = parseFloat(form.unitPrice);
+      if (isNaN(qty) || qty <= 0) {
+        setPickerState((prev) => ({
+          ...prev,
+          createError: 'Quantity must be a valid positive number.',
+        }));
+        return;
+      }
+      if (isNaN(price) || price < 0) {
+        setPickerState((prev) => ({
+          ...prev,
+          createError: 'Unit price must be a valid non-negative number.',
+        }));
+        return;
+      }
+      plannedAmount = Math.round(qty * price * 100) / 100;
     }
 
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      setPickerState({
-        ...pickerState,
-        error: 'Amount must be a positive number.',
-      });
-      return;
-    }
-
-    setPickerState({
-      ...pickerState,
+    setPickerState((prev) => ({
+      ...prev,
       isCreatingBudgetLine: true,
+      createError: null,
       error: undefined,
-    });
+    }));
 
     try {
       const createFn =
         pickerState.type === 'work_item' ? createWorkItemBudget : createHouseholdItemBudget;
-      await createFn(pickerState.itemId, {
-        description,
-        plannedAmount: parsedAmount,
-        confidence: 'own_estimate',
-        budgetCategoryId: categoryId,
-        budgetSourceId: budgetSourceId ?? null,
-      });
+      const payload = {
+        description: form.description.trim() || null,
+        plannedAmount,
+        confidence: form.confidence,
+        budgetCategoryId: pickerState.type === 'work_item' ? (form.budgetCategoryId || null) : null,
+        budgetSourceId: form.budgetSourceId || null,
+        vendorId: form.vendorId || null,
+        quantity: form.pricingMode === 'unit' && form.quantity ? parseFloat(form.quantity) : null,
+        unit: form.pricingMode === 'unit' && form.unit ? form.unit : null,
+        unitPrice: form.pricingMode === 'unit' && form.unitPrice ? parseFloat(form.unitPrice) : null,
+        includesVat: form.includesVat,
+      };
+      const newBudgetLine = await createFn(pickerState.itemId, payload);
 
-      // After creating the budget line, re-fetch the list
-      const fetchFn =
-        pickerState.type === 'work_item' ? fetchWorkItemBudgets : fetchHouseholdItemBudgets;
-      const lines = await fetchFn(pickerState.itemId);
-      const unlinkedLines = lines.filter((bl) => bl.invoiceLink === null);
+      const linkData: CreateInvoiceBudgetLineRequest = {
+        invoiceId,
+        ...(pickerState.type === 'work_item'
+          ? { workItemBudgetId: newBudgetLine.id }
+          : { householdItemBudgetId: newBudgetLine.id }),
+        itemizedAmount: newBudgetLine.plannedAmount,
+      };
+      const linkResponse = await createInvoiceBudgetLine(invoiceId, linkData);
 
-      setPickerState({
-        step: 2,
-        type: pickerState.type,
-        itemId: pickerState.itemId,
-        itemTitle: pickerState.itemTitle,
-        budgetLines: unlinkedLines,
-        isLoading: false,
-        itemizedAmounts: {},
-        showCreateForm: false,
-        isCreatingBudgetLine: false,
-      });
+      setBudgetLines((prev) => [...prev, linkResponse.budgetLine]);
+      setRemainingAmount(linkResponse.remainingAmount);
+      closePicker();
+
+      setTimeout(() => {
+        newLineRowRef.current?.focus();
+      }, 100);
     } catch (err) {
-      const errorMsg =
-        err instanceof ApiClientError ? err.error.message : 'Failed to create budget line.';
+      if (err instanceof ApiClientError) {
+        if (
+          err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE' ||
+          err.error.code === 'BUDGET_LINE_ALREADY_LINKED'
+        ) {
+          try {
+            const fetchFn =
+              pickerState.type === 'work_item' ? fetchWorkItemBudgets : fetchHouseholdItemBudgets;
+            const lines = await fetchFn(pickerState.itemId!);
+            const unlinkedLines = lines.filter((bl) => bl.invoiceLink === null);
 
-      setPickerState({
-        ...pickerState,
-        error: errorMsg,
-        isCreatingBudgetLine: false,
-      });
+            let errorMsg: string;
+            if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
+              errorMsg = 'Linking this budget line would exceed the invoice total.';
+            } else {
+              errorMsg = 'This budget line is already linked to another invoice.';
+            }
+
+            setPickerState((prev) => ({
+              ...prev,
+              showCreateForm: false,
+              createForm: undefined,
+              budgetLines: unlinkedLines,
+              isCreatingBudgetLine: false,
+              createError: null,
+              error: errorMsg,
+            }));
+          } catch {
+            setPickerState((prev) => ({
+              ...prev,
+              showCreateForm: false,
+              createForm: undefined,
+              isCreatingBudgetLine: false,
+              createError: null,
+              error: err instanceof ApiClientError ? err.error.message : 'Failed to load budget lines.',
+            }));
+          }
+          return;
+        }
+
+        setPickerState((prev) => ({
+          ...prev,
+          isCreatingBudgetLine: false,
+          createError: err.error.message,
+        }));
+      } else {
+        setPickerState((prev) => ({
+          ...prev,
+          isCreatingBudgetLine: false,
+          createError: 'Failed to create budget line.',
+        }));
+      }
     }
   };
 
@@ -451,6 +527,34 @@ export function InvoiceBudgetLinesSection({
     if (remainingAmount < -0.01) return 'danger'; // < 0
     return 'neutral'; // ≈ 0
   };
+
+  /**
+   * Create an empty budget line form state.
+   */
+  const emptyCreateForm = (): BudgetLineFormState => ({
+    description: '',
+    plannedAmount: '',
+    confidence: 'own_estimate',
+    budgetCategoryId: '',
+    budgetSourceId: '',
+    vendorId: '',
+    pricingMode: 'direct',
+    quantity: '',
+    unit: '',
+    unitPrice: '',
+    includesVat: true,
+  });
+
+  /**
+   * Focus into the description field when the create form opens.
+   */
+  useEffect(() => {
+    if (pickerState.showCreateForm) {
+      setTimeout(() => {
+        document.getElementById('budget-description')?.focus();
+      }, 0);
+    }
+  }, [pickerState.showCreateForm]);
 
   return (
     <section aria-labelledby="budget-lines-title" className={styles.section}>
@@ -733,6 +837,7 @@ export function InvoiceBudgetLinesSection({
                         <p>No unlinked budget lines for this item.</p>
                         <button
                           type="button"
+                          ref={createBudgetLineButtonRef}
                           className={styles.addButton}
                           onClick={() => void showCreateBudgetLineForm()}
                         >
@@ -741,148 +846,51 @@ export function InvoiceBudgetLinesSection({
                       </div>
                     )}
 
-                  {!pickerState.isLoading && pickerState.showCreateForm && (
+                  {!pickerState.isLoading && pickerState.showCreateForm && pickerState.createForm && (
                     <div className={styles.createBudgetLineForm}>
-                      <h4 className={styles.createFormTitle}>Create Budget Line</h4>
-                      {pickerState.error && (
-                        <div className={styles.errorBanner} role="alert">
-                          {pickerState.error}
-                        </div>
-                      )}
-                      <div className={styles.formGroup}>
-                        <label className={styles.formLabel} htmlFor="budget-description">
-                          Description
-                        </label>
-                        <input
-                          id="budget-description"
-                          type="text"
-                          className={styles.formInput}
-                          value={pickerState.createFormData?.description ?? ''}
-                          onChange={(e) => {
-                            setPickerState({
-                              ...pickerState,
-                              createFormData: {
-                                ...pickerState.createFormData!,
-                                description: e.target.value,
-                              },
-                            });
-                          }}
-                          placeholder="e.g., Labor costs, Materials"
-                          disabled={pickerState.isCreatingBudgetLine}
-                        />
-                      </div>
-
-                      <div className={styles.formGroup}>
-                        <label className={styles.formLabel} htmlFor="budget-category">
-                          Category (Optional)
-                        </label>
-                        <select
-                          id="budget-category"
-                          className={styles.formSelect}
-                          value={pickerState.createFormData?.categoryId ?? ''}
-                          onChange={(e) => {
-                            setPickerState({
-                              ...pickerState,
-                              createFormData: {
-                                ...pickerState.createFormData!,
-                                categoryId: e.target.value || undefined,
-                              },
-                            });
-                          }}
-                          disabled={pickerState.isCreatingBudgetLine}
-                        >
-                          <option value="">No category</option>
-                          {pickerState.categories?.map((cat) => (
-                            <option key={cat.id} value={cat.id}>
-                              {getCategoryDisplayName(tSettings, cat.name, cat.translationKey)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className={styles.formGroup}>
-                        <label className={styles.formLabel} htmlFor="budget-source">
-                          Funding Source
-                        </label>
-                        <select
-                          id="budget-source"
-                          className={styles.formSelect}
-                          value={pickerState.createFormData?.budgetSourceId ?? ''}
-                          onChange={(e) => {
-                            setPickerState({
-                              ...pickerState,
-                              createFormData: {
-                                ...pickerState.createFormData!,
-                                budgetSourceId: e.target.value || undefined,
-                              },
-                            });
-                          }}
-                          disabled={pickerState.isCreatingBudgetLine}
-                        >
-                          <option value="">No funding source</option>
-                          {pickerState.budgetSources?.map((src) => (
-                            <option key={src.id} value={src.id}>
-                              {src.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className={styles.formGroup}>
-                        <label className={styles.formLabel} htmlFor="budget-amount">
-                          Planned Amount
-                        </label>
-                        <input
-                          id="budget-amount"
-                          type="number"
-                          className={styles.formInput}
-                          value={pickerState.createFormData?.amount ?? ''}
-                          onChange={(e) => {
-                            setPickerState({
-                              ...pickerState,
-                              createFormData: {
-                                ...pickerState.createFormData!,
-                                amount: e.target.value,
-                              },
-                            });
-                          }}
-                          placeholder="0.00"
-                          min="0"
-                          step="0.01"
-                          disabled={pickerState.isCreatingBudgetLine}
-                          onWheel={(e) => e.currentTarget.blur()}
-                        />
-                      </div>
-
-                      <div className={styles.formActions}>
-                        <button
-                          type="button"
-                          className={styles.cancelButton}
-                          onClick={() => {
-                            setPickerState({
-                              ...pickerState,
+                      <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+                        <legend className={styles.srOnly}>
+                          {t('invoiceDetail.budgetLines.createFormLegend')}
+                        </legend>
+                        <BudgetLineForm
+                          form={pickerState.createForm}
+                          onSubmit={(e) => void handleCreateBudgetLine(e)}
+                          onFormChange={(updates) =>
+                            setPickerState((prev) => ({
+                              ...prev,
+                              createForm: prev.createForm
+                                ? { ...prev.createForm, ...updates }
+                                : prev.createForm,
+                            }))
+                          }
+                          onCancel={() => {
+                            setPickerState((prev) => ({
+                              ...prev,
                               showCreateForm: false,
-                              createFormData: undefined,
-                              categories: undefined,
-                            });
+                              createForm: undefined,
+                              createError: null,
+                            }));
+                            setTimeout(() => {
+                              createBudgetLineButtonRef.current?.focus();
+                            }, 0);
                           }}
-                          disabled={pickerState.isCreatingBudgetLine}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.addButton}
-                          onClick={() => void handleCreateBudgetLine()}
-                          disabled={pickerState.isCreatingBudgetLine}
-                        >
-                          {pickerState.isCreatingBudgetLine ? 'Creating...' : 'Create'}
-                        </button>
-                      </div>
+                          error={pickerState.createError ?? null}
+                          isSaving={pickerState.isCreatingBudgetLine ?? false}
+                          isEditing={false}
+                          confidenceLabels={CONFIDENCE_LABELS}
+                          budgetSources={pickerState.budgetSources ?? []}
+                          vendors={pickerState.vendors ?? []}
+                          budgetCategories={
+                            pickerState.type === 'work_item' ? (pickerState.categories ?? []) : undefined
+                          }
+                        />
+                      </fieldset>
                     </div>
                   )}
 
-                  {!pickerState.isLoading && pickerState.budgetLines.length > 0 && (
+                  {!pickerState.isLoading &&
+                    pickerState.budgetLines.length > 0 &&
+                    !pickerState.showCreateForm && (
                     <>
                       <div className={styles.budgetLineList}>
                         {pickerState.budgetLines.map((line) => {
@@ -1035,6 +1043,14 @@ export function InvoiceBudgetLinesSection({
                         }
                       >
                         Add Selected Lines
+                      </button>
+                      <button
+                        type="button"
+                        ref={createBudgetLineButtonRef}
+                        className={styles.addButton}
+                        onClick={() => void showCreateBudgetLineForm()}
+                      >
+                        Create Budget Line
                       </button>
                     </>
                   )}
