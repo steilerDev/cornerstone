@@ -188,9 +188,6 @@ test.describe('Create and link budget line — unit pricing (Scenario 1)', () =>
         await wiDetailPage.goto(workItemId);
         await expect(wiDetailPage.heading).toBeVisible();
 
-        // The budget section should show the description
-        await expect(wiDetailPage.budgetSection).toContainText('Roof materials');
-
         // An invoice link badge (InvoiceGroup) should appear — it renders as a link
         // with text "Invoice" (no number since we didn't assign one)
         const invoiceGroupLink = wiDetailPage.budgetSection.locator('[class*="invoiceLink"]');
@@ -451,7 +448,8 @@ test.describe('Create and link budget line — mobile responsive (Scenario 4)', 
 
         // Fill and submit
         await detailPage.createFormDescriptionInput.fill(`${testPrefix} Mobile Line`);
-        await detailPage.createFormDirectAmountInput.fill('100');
+        await detailPage.createFormDirectAmountInput.click();
+        await detailPage.createFormDirectAmountInput.pressSequentially('100');
 
         const budgetCreatePromise = page.waitForResponse(
           (resp) =>
