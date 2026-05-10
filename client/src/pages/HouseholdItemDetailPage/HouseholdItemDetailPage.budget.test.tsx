@@ -328,7 +328,7 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
 
   /** Builds a minimal Invoice for testing. */
   function makeInvoice(overrides: Partial<Invoice> = {}): Invoice {
-    return {
+    const base = {
       id: 'inv-1',
       vendorId: 'vendor-1',
       vendorName: 'IKEA',
@@ -338,13 +338,15 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
       amount: 450,
       date: '2026-02-01',
       dueDate: null,
-      status: 'paid',
+      status: 'paid' as const,
       notes: null,
+      deposits: [] as Invoice['deposits'],
       createdBy: null,
       createdAt: '2026-02-01T10:00:00Z',
       updatedAt: '2026-02-01T10:00:00Z',
       ...overrides,
     };
+    return { ...base, finalPaymentAmount: overrides.finalPaymentAmount ?? base.amount };
   }
 
   function renderPage(itemId = 'item-1') {

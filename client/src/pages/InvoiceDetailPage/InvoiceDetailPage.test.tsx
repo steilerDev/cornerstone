@@ -113,6 +113,8 @@ const mockInvoice: Invoice = {
   dueDate: '2026-02-15',
   status: 'pending',
   notes: null,
+  deposits: [],
+  finalPaymentAmount: 1500.0,
   createdBy: {
     id: 'user-1',
     displayName: 'Jane Builder',
