@@ -547,11 +547,18 @@ export class InvoiceDetailPage {
     if (depositDescription !== undefined) {
       // The aria-label contains the description verbatim — use substring match
       // aria-label format: "Deposit actions for {description}"
+      // .filter({ visible: true }) is required on mobile: the desktop table rows are hidden
+      // but their overflow buttons remain in the DOM, so .first() without the filter picks
+      // the hidden table button instead of the visible mobile-card button.
       menuButton = this.depositsSection
         .locator(`button[aria-haspopup="true"][aria-label*="${depositDescription.replace(/"/g, '\\"')}"]`)
+        .filter({ visible: true })
         .first();
     } else {
-      menuButton = this.depositsSection.locator('button[aria-haspopup="true"]').first();
+      menuButton = this.depositsSection
+        .locator('button[aria-haspopup="true"]')
+        .filter({ visible: true })
+        .first();
     }
 
     await menuButton.click();
