@@ -177,8 +177,12 @@ export function InvoiceDepositsSection({
           dueDate: depositForm.dueDate,
           status: depositForm.status as InvoiceDepositStatus,
           description: depositForm.description.trim() || null,
-          paidDate: depositForm.paidDate || null,
-          claimedDate: depositForm.claimedDate || null,
+          ...(depositForm.status !== 'pending'
+            ? { paidDate: depositForm.paidDate || null }
+            : {}),
+          ...(depositForm.status === 'claimed'
+            ? { claimedDate: depositForm.claimedDate || null }
+            : {}),
         };
         await createDeposit(invoiceId, payload);
       } else if (modalMode === 'edit' && selectedDeposit) {
@@ -187,8 +191,12 @@ export function InvoiceDepositsSection({
           dueDate: depositForm.dueDate,
           status: depositForm.status as InvoiceDepositStatus,
           description: depositForm.description.trim() || null,
-          paidDate: depositForm.paidDate || null,
-          claimedDate: depositForm.claimedDate || null,
+          ...(depositForm.status !== 'pending'
+            ? { paidDate: depositForm.paidDate || null }
+            : {}),
+          ...(depositForm.status === 'claimed'
+            ? { claimedDate: depositForm.claimedDate || null }
+            : {}),
         };
         await updateDeposit(invoiceId, selectedDeposit.id, payload);
       }
