@@ -272,7 +272,7 @@ jobs:
       # --- Restore caches ---
       - name: Restore browser cache
         id: browser-cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
@@ -282,7 +282,7 @@ jobs:
 
       - name: Restore apt cache
         id: apt-cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: /var/cache/apt/archives
           key: apt-v3-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
@@ -295,7 +295,7 @@ jobs:
 
       - name: Save browser cache
         if: steps.browser-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
@@ -332,7 +332,7 @@ jobs:
 
       - name: Save apt cache
         if: steps.apt-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: /var/cache/apt/archives
           key: apt-v3-playwright-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
@@ -392,7 +392,7 @@ jobs:
         run: npm ci -w e2e
 
       - name: Restore browser cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
@@ -401,7 +401,7 @@ jobs:
         run: sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
 
       - name: Restore apt cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: /var/cache/apt/archives
           key: apt-v3-playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
@@ -473,7 +473,7 @@ jobs:
         run: npm ci -w e2e
 
       - name: Restore browser cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-v3-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
@@ -482,7 +482,7 @@ jobs:
         run: sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
 
       - name: Restore apt cache
-        uses: actions/cache/restore@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: /var/cache/apt/archives
           key: apt-v3-playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
