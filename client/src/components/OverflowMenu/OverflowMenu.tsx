@@ -54,7 +54,7 @@ export function OverflowMenu({
       // Focus first item after state updates
       setTimeout(() => {
         const firstMenuItem = menuRef.current?.querySelector(
-          '[role="menuitem"]',
+          '[role="menuitem"]:not(:disabled)',
         ) as HTMLButtonElement;
         firstMenuItem?.focus();
       }, 0);
@@ -62,7 +62,7 @@ export function OverflowMenu({
   };
 
   const handleMenuKeyDown = (e: React.KeyboardEvent) => {
-    const menuItems = menuRef.current?.querySelectorAll('[role="menuitem"]');
+    const menuItems = menuRef.current?.querySelectorAll('[role="menuitem"]:not(:disabled)');
     if (!menuItems || menuItems.length === 0) return;
 
     const currentIndex = Array.from(menuItems).findIndex(
