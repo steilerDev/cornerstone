@@ -562,8 +562,13 @@ export class InvoiceDetailPage {
     }
 
     await menuButton.click();
-    // Wait for menu to appear
-    await this.page.locator('[role="menu"]').first().waitFor({ state: 'visible' });
+    // Wait for menu to appear. The desktop table (display:none on mobile) keeps its
+    // [role="menu"] in the DOM, so filter to visible before resolving .first().
+    await this.page
+      .locator('[role="menu"]')
+      .filter({ visible: true })
+      .first()
+      .waitFor({ state: 'visible' });
   }
 
   /**
