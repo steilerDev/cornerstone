@@ -484,6 +484,75 @@
     "budgetLines": {
       "createFormLegend": "Neue Budgetposition erstellen",
       "autoLinkedSuccess": "Budgetposition erstellt und mit {{amount}} hinzugefügt"
+    },
+    "deposits": {
+      "sectionTitle": "Abschlagszahlungen",
+      "countChip": "{{count}} Abschlagszahlungen",
+      "addButton": "Abschlagszahlung Hinzufügen",
+      "loading": "Abschlagszahlungen werden geladen...",
+      "empty": {
+        "message": "Noch keine Abschlagszahlungen",
+        "description": "Teilen Sie diese Rechnung in Teilzahlungen auf, indem Sie eine Abschlagszahlung hinzufügen."
+      },
+      "finalPayment": "Schlusszahlung",
+      "columns": {
+        "dueDate": "Fälligkeitsdatum",
+        "amount": "Betrag",
+        "status": "Status",
+        "paidDate": "Bezahlt am",
+        "claimedDate": "Eingereicht am",
+        "description": "Beschreibung",
+        "actions": "Aktionen"
+      },
+      "mobile": {
+        "due": "Fällig",
+        "paid": "Bezahlt",
+        "claimed": "Eingereicht"
+      },
+      "menu": {
+        "markPaid": "Als bezahlt markieren…",
+        "markClaimed": "Als eingereicht markieren…",
+        "revertToPending": "Auf ausstehend zurücksetzen",
+        "revertToPaid": "Auf bezahlt zurücksetzen",
+        "edit": "Bearbeiten",
+        "delete": "Löschen",
+        "ariaLabel": "Aktionen für Abschlagszahlung {{description}}"
+      },
+      "modal": {
+        "addTitle": "Abschlagszahlung Hinzufügen",
+        "editTitle": "Abschlagszahlung Bearbeiten",
+        "deleteTitle": "Abschlagszahlung Löschen",
+        "deleteConfirm": "Diese Abschlagszahlung löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+        "deleteWarningPaidClaimed": "Diese Abschlagszahlung wurde als bezahlt/eingereicht markiert. Beim Löschen wird ihr Beitrag aus den Budgetgesamtwerten entfernt.",
+        "markPaidTitle": "Als bezahlt markieren",
+        "markClaimedTitle": "Als eingereicht markieren"
+      },
+      "form": {
+        "amount": "Betrag",
+        "dueDate": "Fälligkeitsdatum",
+        "status": "Status",
+        "paidDate": "Bezahlt am",
+        "claimedDate": "Eingereicht am",
+        "description": "Beschreibung",
+        "amountPlaceholder": "0.00",
+        "descriptionPlaceholder": "Optionale Beschreibung",
+        "charCounter": "{{count}} / 500",
+        "saving": "Wird gespeichert...",
+        "required": "*"
+      },
+      "errors": {
+        "exceedsTotal": "Betrag der Abschlagszahlung überschreitet den Rechnungsgesamtbetrag. Verfügbarer Spielraum: {{available}}",
+        "invalidTransition": "Statuswechsel von {{from}} nach {{to}} nicht möglich",
+        "invalidDate": "Ungültiges Datum für den ausgewählten Status",
+        "loadError": "Abschlagszahlungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+        "saveError": "Abschlagszahlung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+        "deleteError": "Abschlagszahlung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
+        "revertError": "Status der Abschlagszahlung konnte nicht zurückgesetzt werden. Bitte versuchen Sie es erneut."
+      },
+      "stateConfirm": {
+        "paidDateLabel": "Bezahlt am",
+        "claimedDateLabel": "Eingereicht am"
+      }
     }
   },
   "subsidies": {

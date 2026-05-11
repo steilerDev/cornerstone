@@ -8,6 +8,7 @@
  * - Edit and Delete action buttons in the header row
  * - A detail card (section) with a dl/dt/dd list of:
  *   - Invoice #, Vendor (link), Amount, Date, Due Date, Status, Notes, Created by
+ * - An InvoiceDepositsSection (deposits between details and budget lines) — Issue #1404
  * - An InvoiceBudgetLinesSection for linking work item / household item budget lines
  * - A LinkedDocumentsSection (Paperless-ngx integration)
  * - An Edit modal (role="dialog", aria-labelledby="edit-modal-title")
@@ -40,6 +41,32 @@
  * - Submit button: button[type="submit"] inside <fieldset> (locale-independent structural locator)
  * - Cancel button: [class*="cancelButton"] inside picker modal (locale-independent)
  * - Error banner inside modal: role="alert"
+ *
+ * Deposits Section (Issue #1404):
+ * - Section: <section aria-labelledby="deposits-title">
+ * - Add button: type="button", aria-label="Add deposit", className=sharedStyles.btnPrimary
+ * - Empty state: <button type="button">Add deposit</button> (EmptyState CTA)
+ * - Modals use the shared Modal component which generates a dynamic id via useId().
+ *   Locate modals by getByRole('dialog') filtered to the visible one, or by heading text.
+ * - Add/Edit modal: contains h2 "Add deposit" or "Edit deposit"
+ * - Delete modal: contains h2 "Delete deposit"
+ * - State confirm modal: contains h2 "Mark as paid" or "Mark as claimed"
+ * - Form inputs: #deposit-amount, #deposit-dueDate, #deposit-status,
+ *   #deposit-paidDate (conditional), #deposit-claimedDate (conditional), #deposit-description
+ * - Save button: type="submit", form="deposit-form", text from t('common:buttons.save')="Save"
+ * - Cancel button: text from t('common:buttons.cancel')="Cancel"
+ * - Confirm button (state confirm): text from t('common:buttons.confirm')="Confirm"
+ * - Error banner in form modals: role="alert" (FormError with variant='banner')
+ * - Warning banner in delete modal: [class*="warningBanner"] (visible for paid/claimed deposits)
+ * - Overflow menu trigger: button[aria-haspopup="true"], aria-label includes "deposit"
+ * - Menu: role="menu", items role="menuitem"
+ * - Menu items (pending): "Mark paid…", "Edit", "Delete"
+ * - Menu items (paid): "Mark claimed…", "Revert to pending", "Edit", "Delete"
+ * - Menu items (claimed): "Revert to paid", "Edit", "Delete"
+ * - Final payment row: [class*="finalPaymentRow"]
+ * - Final payment amount: aria-live="polite" inside finalPaymentRow
+ * - Mobile card list (≤767px): [class*="mobileCardList"] with role="list"
+ * - Desktop table (>767px): [class*="tableWrapper"] > table
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -86,6 +113,64 @@ export class InvoiceDetailPage {
 
   // Error card (not found / load failure)
   readonly errorCard: Locator;
+
+  // ─── Deposits Section locators (Issue #1404) ────────────────────────────
+  /** The deposits section: <section aria-labelledby="deposits-title"> */
+  readonly depositsSection: Locator;
+
+  /** "Add deposit" button in the section header (aria-label="Add deposit") */
+  readonly addDepositButton: Locator;
+
+  /** EmptyState "Add deposit" CTA (only visible when deposits.length === 0) */
+  readonly depositEmptyState: Locator;
+
+  /**
+   * Add/Edit deposit modal (shared Modal component — useId() generates a dynamic
+   * aria-labelledby, so we locate by role="dialog" + heading text instead).
+   * When multiple modals are on the page, use getDepositModal() to target by title.
+   */
+  readonly depositModal: Locator;
+
+  // Form inputs inside the add/edit modal
+  readonly depositAmountInput: Locator;
+  readonly depositDueDateInput: Locator;
+  readonly depositStatusSelect: Locator;
+  readonly depositPaidDateInput: Locator;
+  readonly depositClaimedDateInput: Locator;
+  readonly depositDescriptionInput: Locator;
+
+  /** Save button (type="submit", form="deposit-form", text="Save") */
+  readonly depositModalSave: Locator;
+
+  /** Cancel button inside the add/edit or delete deposit modal */
+  readonly depositModalCancel: Locator;
+
+  /** Error banner (role="alert") inside a deposit modal */
+  readonly depositModalError: Locator;
+
+  /** State confirm modal (Mark as paid / Mark as claimed) */
+  readonly stateConfirmModal: Locator;
+
+  /** Confirm button inside the state confirm modal */
+  readonly stateConfirmButton: Locator;
+
+  /** The state-confirm date input (#state-confirm-date) */
+  readonly stateConfirmDateInput: Locator;
+
+  /** Delete deposit modal — located by its title "Delete deposit" */
+  readonly deleteDepositModal: Locator;
+
+  /** Warning banner inside the delete deposit modal (visible for paid/claimed deposits) */
+  readonly deleteDepositWarning: Locator;
+
+  /** Confirm delete button inside the delete deposit modal */
+  readonly deleteDepositConfirmButton: Locator;
+
+  /** Final payment row at the bottom of the deposits table */
+  readonly finalPaymentRow: Locator;
+
+  /** aria-live amount inside the final payment row */
+  readonly finalPaymentAmount: Locator;
 
   // ─── Budget Line Picker locators (Issue #1401) ───────────────────────────
   /** The two-step picker modal: role="dialog", aria-labelledby="picker-title" */
@@ -182,6 +267,77 @@ export class InvoiceDetailPage {
 
     // Error card (rendered when invoice not found or load fails)
     this.errorCard = page.locator('[class*="errorCard"]');
+
+    // ─── Deposits Section locators (Issue #1404) ──────────────────────────
+    this.depositsSection = page.locator('[aria-labelledby="deposits-title"]');
+
+    // The "Add deposit" button in the section header has aria-label="Add deposit"
+    this.addDepositButton = this.depositsSection.getByRole('button', {
+      name: 'Add deposit',
+    });
+
+    // EmptyState CTA button (only rendered when deposits.length === 0)
+    this.depositEmptyState = this.depositsSection.locator('[class*="emptyState"], [class*="empty"]');
+
+    // The deposit modal renders via the shared Modal component which uses useId() for
+    // aria-labelledby — locate by role="dialog" + the visible h2 heading.
+    // When add/edit modal is open its h2 is "Add deposit" or "Edit deposit".
+    this.depositModal = page.locator('[role="dialog"]').filter({
+      has: page.locator('h2'),
+    });
+
+    // Form inputs are page-scoped (they render in a portal, so scoping to depositModal
+    // would miss them since the portal attaches to document.body).
+    this.depositAmountInput = page.locator('#deposit-amount');
+    this.depositDueDateInput = page.locator('#deposit-dueDate');
+    this.depositStatusSelect = page.locator('#deposit-status');
+    this.depositPaidDateInput = page.locator('#deposit-paidDate');
+    this.depositClaimedDateInput = page.locator('#deposit-claimedDate');
+    this.depositDescriptionInput = page.locator('#deposit-description');
+
+    // Save button: type="submit", form="deposit-form" — locale-independent structural locator
+    this.depositModalSave = page.locator('button[type="submit"][form="deposit-form"]');
+
+    // Cancel button in add/edit/delete deposit modals
+    // Scoped to any open dialog that contains #deposit-amount or the delete confirm text
+    this.depositModalCancel = page.locator('[role="dialog"]').getByRole('button', {
+      name: 'Cancel',
+      exact: true,
+    });
+
+    // Error banner (FormError with variant='banner' renders role="alert")
+    this.depositModalError = page.locator('[role="dialog"] [role="alert"]');
+
+    // State confirm modal: h2 is "Mark as paid" or "Mark as claimed"
+    this.stateConfirmModal = page.locator('[role="dialog"]').filter({
+      has: page.locator('h2'),
+    });
+
+    // Confirm button inside state confirm modal — text="Confirm"
+    this.stateConfirmButton = page.locator('[role="dialog"]').getByRole('button', {
+      name: 'Confirm',
+      exact: true,
+    });
+
+    // State confirm date input
+    this.stateConfirmDateInput = page.locator('#state-confirm-date');
+
+    // Delete deposit modal contains h2 "Delete deposit"
+    this.deleteDepositModal = page.locator('[role="dialog"]').filter({
+      has: page.locator('h2'),
+    });
+
+    // Warning banner inside delete deposit modal: [class*="warningBanner"]
+    this.deleteDepositWarning = page.locator('[class*="warningBanner"]');
+
+    // Delete deposit confirm button uses btnConfirmDelete class
+    this.deleteDepositConfirmButton = page.locator('[class*="btnConfirmDelete"]');
+
+    // Final payment row (always visible when deposits.length > 0)
+    this.finalPaymentRow = page.locator('[class*="finalPaymentRow"]');
+
+    // aria-live amount inside the final payment row
+    this.finalPaymentAmount = this.finalPaymentRow.locator('[aria-live="polite"]');
 
     // ─── Budget Line Picker locators (Issue #1401) ────────────────────────
     this.budgetLinePickerModal = page.locator('[role="dialog"][aria-labelledby="picker-title"]');
@@ -351,6 +507,149 @@ export class InvoiceDetailPage {
   async goBackToInvoices(): Promise<void> {
     await this.backButton.click();
     await this.page.waitForURL('**/budget/invoices');
+  }
+
+  // ─── Deposits Section helpers (Issue #1404) ─────────────────────────────
+
+  /**
+   * Opens the overflow menu for a deposit.
+   *
+   * The overflow menu button renders as:
+   *   <button type="button" aria-haspopup="true"
+   *           aria-label="Deposit actions for {description}">⋮</button>
+   * When description is null, the aria-label uses "deposit" as fallback.
+   *
+   * If depositDescription is provided, matches by aria-label substring.
+   * If omitted, clicks the first visible deposit menu button in the section.
+   */
+  async openDepositMenu(depositDescription?: string): Promise<void> {
+    let menuButton: Locator;
+    if (depositDescription !== undefined) {
+      // The aria-label contains the description verbatim — use substring match
+      // aria-label format: "Deposit actions for {description}"
+      menuButton = this.depositsSection
+        .locator(`button[aria-haspopup="true"][aria-label*="${depositDescription.replace(/"/g, '\\"')}"]`)
+        .first();
+    } else {
+      menuButton = this.depositsSection.locator('button[aria-haspopup="true"]').first();
+    }
+
+    await menuButton.click();
+    // Wait for menu to appear
+    await this.page.locator('[role="menu"]').first().waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Clicks a menu item by its label text within the currently open menu.
+   */
+  async clickDepositMenuItem(label: string | RegExp): Promise<void> {
+    const menuItem = this.page.locator('[role="menuitem"]').filter({ hasText: label });
+    await menuItem.first().click();
+  }
+
+  /**
+   * Opens the "Add deposit" modal by clicking the section header button.
+   * Waits for the form inputs to appear.
+   */
+  async openAddDepositModal(): Promise<void> {
+    await this.addDepositButton.click();
+    await this.depositAmountInput.waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Fills the add/edit deposit form. Only provided fields are updated.
+   * For status values other than 'pending', paidDate is required by the submit button.
+   */
+  async fillDepositForm(data: {
+    amount?: string;
+    dueDate?: string;
+    status?: 'pending' | 'paid' | 'claimed';
+    paidDate?: string;
+    claimedDate?: string;
+    description?: string;
+  }): Promise<void> {
+    if (data.amount !== undefined) {
+      await this.depositAmountInput.clear();
+      await this.depositAmountInput.fill(data.amount);
+    }
+    if (data.dueDate !== undefined) {
+      await this.depositDueDateInput.fill(data.dueDate);
+    }
+    if (data.status !== undefined) {
+      await this.depositStatusSelect.selectOption(data.status);
+    }
+    if (data.paidDate !== undefined) {
+      await this.depositPaidDateInput.fill(data.paidDate);
+    }
+    if (data.claimedDate !== undefined) {
+      await this.depositClaimedDateInput.fill(data.claimedDate);
+    }
+    if (data.description !== undefined) {
+      await this.depositDescriptionInput.fill(data.description);
+    }
+  }
+
+  /**
+   * Saves the add/edit deposit form. Registers waitForResponse before clicking.
+   * Returns after the API response and the amount input leaves the DOM.
+   */
+  async saveDepositForm(expectedStatus: 201 | 200 = 201): Promise<void> {
+    const method = expectedStatus === 201 ? 'POST' : 'PATCH';
+    const responsePromise = this.page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/invoices/') &&
+        resp.url().includes('/deposits') &&
+        resp.request().method() === method &&
+        resp.status() === expectedStatus,
+    );
+    await this.depositModalSave.click();
+    await responsePromise;
+    // Wait for form modal to close (amount input leaves DOM)
+    await this.depositAmountInput.waitFor({ state: 'hidden' });
+  }
+
+  /**
+   * Confirms the "Mark paid" or "Mark claimed" state transition.
+   * The state confirm modal must already be open.
+   * Optionally updates the date input before confirming.
+   */
+  async confirmStateTransition(date?: string): Promise<void> {
+    if (date !== undefined) {
+      await this.stateConfirmDateInput.fill(date);
+    }
+    const responsePromise = this.page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/deposits/') &&
+        resp.request().method() === 'PATCH' &&
+        resp.status() === 200,
+    );
+    await this.stateConfirmButton.click();
+    await responsePromise;
+  }
+
+  /**
+   * Confirms deletion of a deposit from the delete modal.
+   * Registers waitForResponse before clicking.
+   */
+  async confirmDepositDelete(): Promise<void> {
+    const responsePromise = this.page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/deposits/') &&
+        resp.request().method() === 'DELETE' &&
+        resp.status() === 204,
+    );
+    await this.deleteDepositConfirmButton.click();
+    await responsePromise;
+  }
+
+  /**
+   * Get the Badge text for a specific deposit row/card.
+   * Returns the badge element scoped to the table row or card that contains the amount text.
+   */
+  getDepositBadgeByAmount(formattedAmount: string): Locator {
+    return this.depositsSection.locator('[class*="tableRow"], [class*="mobileCard"]').filter({
+      hasText: formattedAmount,
+    }).locator('[class*="badge"], [class*="Badge"]');
   }
 
   // ─── Budget Line Picker helpers (Issue #1401) ────────────────────────────

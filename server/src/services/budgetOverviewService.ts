@@ -9,6 +9,7 @@ import type {
   SubsidyCapMeta,
   PerSubsidyTotals,
 } from './shared/subsidyCalculationEngine.js';
+import { computeDepositAwareAggregates, type DepositAwareRow } from './shared/depositAggregateUtils.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -286,26 +287,27 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     totalMaxPlanned += maxPlanned;
   }
 
-  // ── 8. Actual costs from invoices linked to budget lines ──────────────────
+  // ── 8. Actual costs from invoices linked to budget lines (deposit-aware) ──
   // Include both work item and household item invoices
   // Exclude quotation invoices from actual cost aggregates
-  const invoiceTotalsRow = db.get<{
-    actualCost: number | null;
-    actualCostPaid: number | null;
-    actualCostClaimed: number | null;
-  }>(
+  // Includes deposits split proportionally by amount
+  const overviewRows = db.all<DepositAwareRow>(
     sql`SELECT
-      COALESCE(SUM(ibl.itemized_amount), 0)                                                         AS actualCost,
-      COALESCE(SUM(CASE WHEN i.status IN ('paid', 'claimed') THEN ibl.itemized_amount ELSE 0 END), 0) AS actualCostPaid,
-      COALESCE(SUM(CASE WHEN i.status = 'claimed' THEN ibl.itemized_amount ELSE 0 END), 0)            AS actualCostClaimed
+      ibl.id              AS ibl_id,
+      ibl.itemized_amount AS itemized_amount,
+      i.id                AS invoice_id,
+      i.amount            AS invoice_amount,
+      i.status            AS invoice_status,
+      d.id                AS deposit_id,
+      d.amount            AS deposit_amount,
+      d.status            AS deposit_status
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
+    LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
     WHERE i.status != 'quotation'`,
   );
 
-  const actualCost = invoiceTotalsRow?.actualCost ?? 0;
-  const actualCostPaid = invoiceTotalsRow?.actualCostPaid ?? 0;
-  const actualCostClaimed = invoiceTotalsRow?.actualCostClaimed ?? 0;
+  const { actualCost, actualCostPaid, actualCostClaimed } = computeDepositAwareAggregates(overviewRows);
 
   // ── 9. Subsidy summary ───────────────────────────────────────────────────
   const subsidyCountRow = db.get<{ activeSubsidyCount: number }>(

@@ -7,6 +7,7 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { InvoiceBudgetLinesSection } from './InvoiceBudgetLinesSection.js';
+import { InvoiceDepositsSection } from './InvoiceDepositsSection.js';
 import styles from './InvoiceDetailPage.module.css';
 
 // STATUS_LABELS will be dynamically generated from i18n
@@ -284,6 +285,15 @@ export function InvoiceDetailPage() {
             </div>
           </dl>
         </section>
+
+        <InvoiceDepositsSection
+          invoiceId={id!}
+          invoiceTotal={invoice.amount}
+          invoiceStatus={invoice.status}
+          deposits={invoice.deposits}
+          finalPaymentAmount={invoice.finalPaymentAmount}
+          onDepositMutated={() => void loadInvoice()}
+        />
 
         <InvoiceBudgetLinesSection invoiceId={id!} invoiceTotal={invoice.amount} />
 

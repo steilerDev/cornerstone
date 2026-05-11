@@ -2420,4 +2420,157 @@ describe('Budget Source Service', () => {
       expect(result.projectedAmount).toBeCloseTo(result.projectedMaxAmount);
     });
   });
+
+  // ─── #1405 deposit-aware claimed/unclaimed/discretionary amounts ──────────
+
+  describe('deposit-aware amounts (#1405)', () => {
+    /**
+     * Helper: insert a deposit for a given invoice.
+     */
+    function insertDepositForInvoice(
+      invoiceId: string,
+      opts: { amount: number; status: 'pending' | 'paid' | 'claimed' },
+    ): string {
+      const id = `dep-src-${++workItemCounter}`;
+      const ts = new Date(Date.now() + workItemCounter).toISOString();
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id,
+          invoiceId,
+          amount: opts.amount,
+          dueDate: '2026-03-01',
+          status: opts.status,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return id;
+    }
+
+    /**
+     * Helper: insert a vendor + invoice with given amount and status, linked to a work item budget line.
+     * Returns the invoiceId.
+     */
+    function insertInvoiceForBudgetLine(
+      budgetLineId: string,
+      invoiceAmount: number,
+      status: 'pending' | 'paid' | 'claimed',
+    ): string {
+      const ts = new Date(Date.now() + workItemCounter).toISOString();
+      const vendorId = `vendor-dep-${++workItemCounter}`;
+      db.insert(schema.vendors)
+        .values({ id: vendorId, name: `Dep Vendor ${vendorId}`, createdAt: ts, updatedAt: ts })
+        .run();
+      const invoiceId = `inv-dep-${workItemCounter}`;
+      db.insert(schema.invoices)
+        .values({
+          id: invoiceId,
+          vendorId,
+          amount: invoiceAmount,
+          date: '2026-01-01',
+          status,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: budgetLineId,
+          itemizedAmount: invoiceAmount,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return invoiceId;
+    }
+
+    describe('computeClaimedAmount — with claimed deposit', () => {
+      it('AC-23: claimed deposit fraction is attributed to claimedAmount', () => {
+        // invoice=1000 pending, deposit 400 claimed → claimedAmount should be 400
+        const raw = insertRawSource({ name: 'Deposit Claim Source', totalAmount: 50000 });
+        const { budgetId } = insertRawWorkItemWithSource(raw.id, 1000);
+        const invoiceId = insertInvoiceForBudgetLine(budgetId, 1000, 'pending');
+        insertDepositForInvoice(invoiceId, { amount: 400, status: 'claimed' });
+
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        // claimedAmount = 400/1000 * 1000 = 400
+        expect(result.claimedAmount).toBeCloseTo(400);
+      });
+
+      it('claimed deposit on claimed invoice: both deposit and remaining residual are claimed', () => {
+        // invoice=1000 claimed, deposit 300 claimed, residual 700 claimed
+        // Both contribute to claimedAmount → total = 1000
+        const raw = insertRawSource({ name: 'Full Claim Source', totalAmount: 50000 });
+        const { budgetId } = insertRawWorkItemWithSource(raw.id, 1000);
+        const invoiceId = insertInvoiceForBudgetLine(budgetId, 1000, 'claimed');
+        insertDepositForInvoice(invoiceId, { amount: 300, status: 'claimed' });
+
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        expect(result.claimedAmount).toBeCloseTo(1000);
+      });
+
+      it('zero-deposit claimed invoice: claimedAmount unchanged from pre-deposit behavior (AC-10)', () => {
+        // No deposits: whole invoice amount contributes to claimedAmount
+        const raw = insertRawSource({ name: 'No Deposit Claim', totalAmount: 50000 });
+        const { budgetId } = insertRawWorkItemWithSource(raw.id, 800);
+        insertClaimedInvoice(budgetId, 800);
+
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        expect(result.claimedAmount).toBe(800);
+      });
+    });
+
+    describe('computeUnclaimedAmount — with paid deposit', () => {
+      it('AC-24: paid deposit fraction is attributed to unclaimedAmount', () => {
+        // invoice=1000 pending, deposit 300 paid → unclaimedAmount = 300
+        const raw = insertRawSource({ name: 'Unclaimed Dep Source', totalAmount: 50000 });
+        const { budgetId } = insertRawWorkItemWithSource(raw.id, 1000);
+        const invoiceId = insertInvoiceForBudgetLine(budgetId, 1000, 'pending');
+        insertDepositForInvoice(invoiceId, { amount: 300, status: 'paid' });
+
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        // unclaimedAmount = computeStatusContribution('paid') = 300
+        expect(result.unclaimedAmount).toBeCloseTo(300);
+      });
+
+      it('paid deposit on paid invoice: deposit fraction + residual paid fraction = full amount', () => {
+        // invoice=1000 paid, deposit 400 paid, residual 600 paid → unclaimedAmount = 1000
+        const raw = insertRawSource({ name: 'Full Unclaim Source', totalAmount: 50000 });
+        const { budgetId } = insertRawWorkItemWithSource(raw.id, 1000);
+        const invoiceId = insertInvoiceForBudgetLine(budgetId, 1000, 'paid');
+        insertDepositForInvoice(invoiceId, { amount: 400, status: 'paid' });
+
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        expect(result.unclaimedAmount).toBeCloseTo(1000);
+      });
+
+      it('zero-deposit paid invoice: unclaimedAmount unchanged from pre-deposit behavior (AC-10)', () => {
+        const raw = insertRawSource({ name: 'No Deposit Unclaim', totalAmount: 50000 });
+        const { budgetId } = insertRawWorkItemWithSource(raw.id, 500);
+        insertPaidInvoice(budgetId, 500);
+
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        expect(result.unclaimedAmount).toBe(500);
+      });
+    });
+
+    describe('paidAmount = claimedAmount + unclaimedAmount (deposit-aware)', () => {
+      it('paidAmount sums deposit-aware claimed + unclaimed contributions', () => {
+        // invoice=1000 pending; deposit 200 claimed + deposit 300 paid → residual 500 pending
+        // claimedAmount=200, unclaimedAmount=300, paidAmount=500
+        const raw = insertRawSource({ name: 'Mixed Dep Source', totalAmount: 50000 });
+        const { budgetId } = insertRawWorkItemWithSource(raw.id, 1000);
+        const invoiceId = insertInvoiceForBudgetLine(budgetId, 1000, 'pending');
+        insertDepositForInvoice(invoiceId, { amount: 200, status: 'claimed' });
+        insertDepositForInvoice(invoiceId, { amount: 300, status: 'paid' });
+
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        expect(result.claimedAmount).toBeCloseTo(200);
+        expect(result.unclaimedAmount).toBeCloseTo(300);
+        expect(result.paidAmount).toBeCloseTo(500);
+      });
+    });
+  });
 });

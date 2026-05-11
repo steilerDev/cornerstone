@@ -77,7 +77,8 @@ export interface BaseBudgetLine {
   vendor: VendorSummary | null;
   /** Computed: sum of all linked invoices (any status) */
   actualCost: number;
-  /** Computed: sum of linked invoices with status 'paid' or 'claimed' */
+  /** Computed: sum of paid+claimed contributions, including paid+claimed deposits within
+   *  partially-paid invoices (proportional split by deposit amount / invoice amount). */
   actualCostPaid: number;
   /** Computed: count of linked invoices */
   invoiceCount: number;
