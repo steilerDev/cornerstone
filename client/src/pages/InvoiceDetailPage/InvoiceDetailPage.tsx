@@ -288,7 +288,6 @@ export function InvoiceDetailPage() {
 
         <InvoiceDepositsSection
           invoiceId={id!}
-          invoiceTotal={invoice.amount}
           invoiceStatus={invoice.status}
           deposits={invoice.deposits}
           finalPaymentAmount={invoice.finalPaymentAmount}

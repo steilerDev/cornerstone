@@ -3,6 +3,7 @@ import {
   computeDepositAwareAggregates,
   computeStatusContribution,
   aggregateInvoiceStatusBreakdown,
+  splitByDeposits,
   type DepositAwareRow,
   type InvoiceDepositRow,
 } from './depositAggregateUtils.js';
@@ -555,5 +556,175 @@ describe('aggregateInvoiceStatusBreakdown', () => {
 
     expect(result['pending']!.count).toBe(0);
     expect(result['pending']!.totalAmount).toBe(100);
+  });
+});
+
+// ─── splitByDeposits ──────────────────────────────────────────────────────────
+
+/**
+ * Build a minimal row for splitByDeposits (no ibl_id / itemized_amount needed).
+ */
+function makeSplitRow(
+  invoiceId: string,
+  invoiceAmount: number,
+  invoiceStatus: string,
+  deposit?: { id: string; amount: number; status: string },
+) {
+  return {
+    invoice_id: invoiceId,
+    invoice_amount: invoiceAmount,
+    invoice_status: invoiceStatus,
+    deposit_id: deposit?.id ?? null,
+    deposit_amount: deposit?.amount ?? null,
+    deposit_status: deposit?.status ?? null,
+  };
+}
+
+describe('splitByDeposits', () => {
+  // ─── Scenario 1: Empty input ────────────────────────────────────────────────
+
+  it('Scenario 1: empty input returns empty Map', () => {
+    const result = splitByDeposits([]);
+    expect(result.size).toBe(0);
+  });
+
+  // ─── Scenario 2: Single invoice, no deposits ────────────────────────────────
+
+  it('Scenario 2: single invoice with no deposits → residualFraction=1, depositFractions=[]', () => {
+    const rows = [makeSplitRow('inv-1', 500, 'pending')];
+    const result = splitByDeposits(rows);
+
+    expect(result.size).toBe(1);
+    const split = result.get('inv-1')!;
+    expect(split.residualFraction).toBe(1);
+    expect(split.depositFractions).toHaveLength(0);
+    expect(split.invoiceAmount).toBe(500);
+    expect(split.invoiceStatus).toBe('pending');
+  });
+
+  // ─── Scenario 3: Single invoice, one deposit covering 50% ──────────────────
+
+  it('Scenario 3: single invoice with one deposit covering 50% → residualFraction=0.5, depositFractions=[{fraction:0.5}]', () => {
+    const rows = [makeSplitRow('inv-1', 1000, 'pending', { id: 'd-1', amount: 500, status: 'paid' })];
+    const result = splitByDeposits(rows);
+
+    const split = result.get('inv-1')!;
+    expect(split.residualFraction).toBeCloseTo(0.5);
+    expect(split.depositFractions).toHaveLength(1);
+    expect(split.depositFractions[0]!.fraction).toBeCloseTo(0.5);
+    expect(split.depositFractions[0]!.depositStatus).toBe('paid');
+  });
+
+  // ─── Scenario 4: Deposits sum > invoice amount → residualFraction clamped to 0 ─
+
+  it('Scenario 4: deposits sum > invoice amount → residualFraction = 0 (clamped, not negative)', () => {
+    // invoice = 100, deposit = 150 → residual = max(0, 100 - 150) / 100 = 0
+    const rows = [
+      makeSplitRow('inv-1', 100, 'pending', { id: 'd-1', amount: 150, status: 'paid' }),
+    ];
+    const result = splitByDeposits(rows);
+
+    const split = result.get('inv-1')!;
+    expect(split.residualFraction).toBe(0);
+    // Deposit fraction can exceed 1 since it is amount / safeInvoiceAmount
+    expect(split.depositFractions[0]!.fraction).toBeCloseTo(1.5);
+  });
+
+  // ─── Scenario 5: Zero invoice amount → no division by zero ──────────────────
+
+  it('Scenario 5: zero invoice amount → no division by zero (safeInvoiceAmount = 1)', () => {
+    const rows = [
+      makeSplitRow('inv-1', 0, 'paid', { id: 'd-1', amount: 0, status: 'paid' }),
+    ];
+    expect(() => splitByDeposits(rows)).not.toThrow();
+    const result = splitByDeposits(rows);
+    const split = result.get('inv-1')!;
+    // safeInvoiceAmount = 1 (since invoiceAmount = 0)
+    // residualFraction = max(0, 1 - 0) / 1 = 1 (since deposit_amount = 0, no subtraction)
+    // depositFraction = 0 / 1 = 0
+    expect(split.residualFraction).toBe(1);
+    expect(split.depositFractions[0]!.fraction).toBe(0);
+    expect(split.invoiceAmount).toBe(0);
+  });
+
+  // ─── Scenario 6: Multiple invoices, mixed ────────────────────────────────────
+
+  it('Scenario 6: multiple invoices split independently', () => {
+    const rows = [
+      // inv-1: 1000, one deposit 300 paid
+      makeSplitRow('inv-1', 1000, 'pending', { id: 'd-A', amount: 300, status: 'paid' }),
+      // inv-2: 500, no deposits
+      makeSplitRow('inv-2', 500, 'claimed'),
+    ];
+    const result = splitByDeposits(rows);
+
+    expect(result.size).toBe(2);
+
+    const split1 = result.get('inv-1')!;
+    expect(split1.residualFraction).toBeCloseTo(0.7); // (1000 - 300) / 1000
+    expect(split1.depositFractions).toHaveLength(1);
+    expect(split1.depositFractions[0]!.fraction).toBeCloseTo(0.3);
+
+    const split2 = result.get('inv-2')!;
+    expect(split2.residualFraction).toBe(1);
+    expect(split2.depositFractions).toHaveLength(0);
+    expect(split2.invoiceStatus).toBe('claimed');
+  });
+
+  // ─── Scenario 7: Duplicate deposit rows (same deposit_id) → deduplicated ────
+
+  it('Scenario 7: duplicate deposit_id rows across multiple rows → deposit counted once', () => {
+    // Same deposit_id d-1 appears in two rows (simulating LEFT JOIN row expansion)
+    const rows = [
+      makeSplitRow('inv-1', 1000, 'pending', { id: 'd-1', amount: 200, status: 'paid' }),
+      makeSplitRow('inv-1', 1000, 'pending', { id: 'd-1', amount: 200, status: 'paid' }),
+    ];
+    const result = splitByDeposits(rows);
+
+    const split = result.get('inv-1')!;
+    // Deposit should appear exactly once, not twice
+    expect(split.depositFractions).toHaveLength(1);
+    // residualFraction = (1000 - 200) / 1000 = 0.8, NOT (1000 - 400) / 1000 = 0.6
+    expect(split.residualFraction).toBeCloseTo(0.8);
+  });
+
+  // ─── Scenario 8: Mix — some invoices with deposits, some without ─────────────
+
+  it('Scenario 8: mix of invoices with and without deposits, each splits correctly', () => {
+    const rows = [
+      // Invoice A: has a 400-claimed deposit out of 800
+      makeSplitRow('inv-A', 800, 'pending', { id: 'dA', amount: 400, status: 'claimed' }),
+      // Invoice B: no deposits
+      makeSplitRow('inv-B', 200, 'paid'),
+      // Invoice C: fully covered (one deposit = invoice amount)
+      makeSplitRow('inv-C', 300, 'pending', { id: 'dC', amount: 300, status: 'paid' }),
+    ];
+    const result = splitByDeposits(rows);
+
+    expect(result.size).toBe(3);
+
+    const splitA = result.get('inv-A')!;
+    expect(splitA.residualFraction).toBeCloseTo(0.5); // (800 - 400) / 800
+    expect(splitA.depositFractions[0]!.depositStatus).toBe('claimed');
+    expect(splitA.depositFractions[0]!.fraction).toBeCloseTo(0.5);
+
+    const splitB = result.get('inv-B')!;
+    expect(splitB.residualFraction).toBe(1);
+    expect(splitB.depositFractions).toHaveLength(0);
+
+    const splitC = result.get('inv-C')!;
+    expect(splitC.residualFraction).toBeCloseTo(0); // (300 - 300) / 300 = 0
+    expect(splitC.depositFractions[0]!.fraction).toBeCloseTo(1);
+  });
+
+  // ─── Scenario 9: invoiceAmount field populated ──────────────────────────────
+
+  it('Scenario 9: invoiceAmount field in split matches the input invoice_amount', () => {
+    const rows = [
+      makeSplitRow('inv-1', 750, 'paid', { id: 'd-1', amount: 250, status: 'claimed' }),
+    ];
+    const result = splitByDeposits(rows);
+    const split = result.get('inv-1')!;
+    expect(split.invoiceAmount).toBe(750);
   });
 });
