@@ -1,0 +1,448 @@
+.depositsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+/* ---- Section Header ---- */
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+}
+
+.sectionTitle {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.countChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  padding: var(--spacing-0-5) var(--spacing-1-5);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  min-width: 24px;
+}
+
+/* ---- Table ---- */
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.table thead {
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-strong);
+}
+
+.table th {
+  padding: var(--spacing-3);
+  text-align: left;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border-strong);
+}
+
+.thPaidDate {
+  min-width: 120px;
+}
+
+.thClaimedDate {
+  min-width: 120px;
+}
+
+.thActions {
+  min-width: 120px;
+  text-align: center;
+}
+
+.tableRow {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tableRow:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.table tbody td {
+  padding: var(--spacing-3);
+  vertical-align: middle;
+}
+
+.tdPaidDate {
+  min-width: 120px;
+  color: var(--color-text-secondary);
+}
+
+.tdClaimedDate {
+  min-width: 120px;
+  color: var(--color-text-secondary);
+}
+
+.tdDescription {
+  color: var(--color-text-secondary);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tdActions {
+  text-align: center;
+}
+
+/* ---- Action Cell Menu ---- */
+
+.actionCell {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.menuButton {
+  background: none;
+  border: none;
+  padding: var(--spacing-2);
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-lg);
+  border-radius: var(--radius-md);
+  transition: var(--transition-button);
+}
+
+.menuButton:hover {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+.menuButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.menuButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: var(--z-dropdown);
+  min-width: 160px;
+  overflow: hidden;
+}
+
+.menuItem {
+  display: block;
+  width: 100%;
+  padding: var(--spacing-2-5) var(--spacing-3);
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  transition: var(--transition-button);
+}
+
+.menuItem:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.menuItem:focus-visible {
+  outline: none;
+  background-color: var(--color-bg-secondary);
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.menuItemDanger {
+  color: var(--color-danger-text-on-light);
+}
+
+.menuItemDanger:hover {
+  background-color: var(--color-danger-bg);
+}
+
+/* ---- Mobile Card List ---- */
+
+.mobileCardList {
+  display: none;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.mobileCard {
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.cardTopRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.cardAmount {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.cardFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-2);
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.cardField {
+  display: flex;
+  flex-direction: column;
+}
+
+.cardField dt {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  margin: 0;
+}
+
+.cardField dd {
+  color: var(--color-text-primary);
+  margin: var(--spacing-0-5) 0 0 0;
+}
+
+.cardActions {
+  display: flex;
+  justify-content: flex-end;
+  position: relative;
+}
+
+/* ---- Final Payment Row ---- */
+
+.finalPaymentRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-3);
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  gap: var(--spacing-3);
+  margin-top: var(--spacing-2);
+}
+
+.finalPaymentLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.finalPaymentRight {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.finalPaymentAmount {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.finalPaymentAmountMuted {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+/* ---- Status Badges (for deposits) ---- */
+
+.statusPending {
+  background-color: var(--color-status-not-started-bg);
+  color: var(--color-status-not-started-text);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.statusPaid {
+  background-color: var(--color-success-badge-bg);
+  color: var(--color-success-badge-text);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.statusClaimed {
+  background-color: var(--color-status-in-progress-bg);
+  color: var(--color-status-in-progress-text);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.statusQuotation {
+  background-color: var(--color-gray-200);
+  color: var(--color-gray-800);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+/* ---- Modal Styles ---- */
+
+.modal {
+  max-width: 600px;
+}
+
+.modalActions {
+  display: flex;
+  gap: var(--spacing-2);
+  justify-content: flex-end;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-4);
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.required {
+  color: var(--color-danger);
+}
+
+.charCounter {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-align: right;
+  margin-top: var(--spacing-1);
+}
+
+/* ---- Conditional Fields Animation ---- */
+
+.conditionalField {
+  overflow: hidden;
+  transition: max-height var(--transition-normal), opacity var(--transition-normal);
+  margin-bottom: var(--spacing-4);
+}
+
+.conditionalFieldHidden {
+  max-height: 0;
+  opacity: 0;
+}
+
+.conditionalFieldVisible {
+  max-height: 200px;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conditionalField {
+    transition: none;
+  }
+}
+
+/* ---- Delete Confirmation Styles ---- */
+
+.warningBanner {
+  background-color: var(--color-warning-bg);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-3);
+  margin-bottom: var(--spacing-3);
+  color: var(--color-warning-text-on-light);
+  font-size: var(--font-size-sm);
+}
+
+.deleteConfirmText {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+/* ---- Responsive: Mobile ---- */
+
+@media (max-width: 767px) {
+  .tableWrapper {
+    display: none;
+  }
+
+  .mobileCardList {
+    display: flex;
+  }
+
+  .finalPaymentRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .finalPaymentRight {
+    justify-content: space-between;
+  }
+
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+
+  .cardFields {
+    grid-template-columns: 1fr;
+  }
+}

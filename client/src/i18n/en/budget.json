@@ -597,6 +597,75 @@
     "budgetLines": {
       "createFormLegend": "Create new budget line",
       "autoLinkedSuccess": "Budget line created and added for {{amount}}"
+    },
+    "deposits": {
+      "sectionTitle": "Deposits",
+      "countChip": "{{count}} deposits",
+      "addButton": "Add deposit",
+      "loading": "Loading deposits...",
+      "empty": {
+        "message": "No deposits yet",
+        "description": "Break this invoice into staged payments by adding a deposit."
+      },
+      "finalPayment": "Final payment",
+      "columns": {
+        "dueDate": "Due date",
+        "amount": "Amount",
+        "status": "Status",
+        "paidDate": "Paid date",
+        "claimedDate": "Claimed date",
+        "description": "Description",
+        "actions": "Actions"
+      },
+      "mobile": {
+        "due": "Due",
+        "paid": "Paid",
+        "claimed": "Claimed"
+      },
+      "menu": {
+        "markPaid": "Mark paid…",
+        "markClaimed": "Mark claimed…",
+        "revertToPending": "Revert to pending",
+        "revertToPaid": "Revert to paid",
+        "edit": "Edit",
+        "delete": "Delete",
+        "ariaLabel": "Deposit actions for {{description}}"
+      },
+      "modal": {
+        "addTitle": "Add deposit",
+        "editTitle": "Edit deposit",
+        "deleteTitle": "Delete deposit",
+        "deleteConfirm": "Delete this deposit? This cannot be undone.",
+        "deleteWarningPaidClaimed": "This deposit has been marked paid/claimed. Deleting it will remove its contribution from budget totals.",
+        "markPaidTitle": "Mark as paid",
+        "markClaimedTitle": "Mark as claimed"
+      },
+      "form": {
+        "amount": "Amount",
+        "dueDate": "Due date",
+        "status": "Status",
+        "paidDate": "Paid date",
+        "claimedDate": "Claimed date",
+        "description": "Description",
+        "amountPlaceholder": "0.00",
+        "descriptionPlaceholder": "Optional description",
+        "charCounter": "{{count}} / 500",
+        "saving": "Saving...",
+        "required": "*"
+      },
+      "errors": {
+        "exceedsTotal": "Deposit amount exceeds invoice total. Available headroom: {{availableHeadroom}}",
+        "invalidTransition": "Cannot transition from {{from}} to {{to}}",
+        "invalidDate": "Invalid date for the selected status",
+        "loadError": "Failed to load deposits. Please try again.",
+        "saveError": "Failed to save deposit. Please try again.",
+        "deleteError": "Failed to delete deposit. Please try again.",
+        "revertError": "Failed to revert deposit status. Please try again."
+      },
+      "stateConfirm": {
+        "paidDateLabel": "Paid date",
+        "claimedDateLabel": "Claimed date"
+      }
     }
   },
   "subsidies": {
