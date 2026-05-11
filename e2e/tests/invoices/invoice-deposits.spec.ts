@@ -192,7 +192,13 @@ test.describe('Deposits — add deposit (Scenario 2)', { tag: '@responsive' }, (
 
         // Badge says "Pending" (locale-independent: look for the CSS class on the badge)
         // The badge renders inside the deposits section row
-        const depositRows = detailPage.depositsSection.locator('[class*="tableRow"], [class*="mobileCard"]');
+        // Filter to visible elements only: on mobile (≤767px) tableRow elements are
+        // hidden via CSS (display:none) while mobileCard elements are shown. Without the
+        // filter, .first() returns the first DOM-order match — a hidden tableRow — and
+        // toBeVisible() fails on mobile viewports.
+        const depositRows = detailPage.depositsSection
+          .locator('[class*="tableRow"], [class*="mobileCard"]')
+          .filter({ visible: true });
         await expect(depositRows.first()).toBeVisible();
 
         // Final Payment row is now visible: invoice total (1000) − deposit (300) = 700
@@ -319,10 +325,11 @@ test.describe('Deposits — full lifecycle (Scenario 3)', () => {
         await detailPage.clickDepositMenuItem(/Revert to paid/);
         await revertToPaidResponsePromise;
 
-        // Badge reverts to "Paid"
+        // Badge reverts to "Paid".
+        // Note: we do NOT assert not.toContainText('Claimed') here because the table
+        // always renders a "Claimed date" column header that contains the text "Claimed".
+        // The containText('Paid') assertion above is sufficient to confirm the badge state.
         await expect(detailPage.depositsSection).toContainText('Paid');
-        // "Claimed" badge should no longer be present
-        await expect(detailPage.depositsSection).not.toContainText('Claimed');
 
         // ── Step 5: Edit amount (overflow menu → "Edit") ──
         await detailPage.openDepositMenu();
