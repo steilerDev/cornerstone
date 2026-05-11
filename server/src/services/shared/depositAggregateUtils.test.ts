@@ -2,7 +2,9 @@ import { describe, it, expect } from '@jest/globals';
 import {
   computeDepositAwareAggregates,
   computeStatusContribution,
+  aggregateInvoiceStatusBreakdown,
   type DepositAwareRow,
+  type InvoiceDepositRow,
 } from './depositAggregateUtils.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -397,5 +399,163 @@ describe('computeStatusContribution', () => {
   it('handles invoice.amount = 0 safely', () => {
     const rows = [makeRow('ibl-1', 0, 'inv-1', 0, 'claimed')];
     expect(() => computeStatusContribution(rows, 'claimed')).not.toThrow();
+  });
+});
+
+// ─── aggregateInvoiceStatusBreakdown ──────────────────────────────────────────
+
+/**
+ * Build an InvoiceDepositRow with no deposit (deposit columns null).
+ */
+function makeInvoiceRow(
+  invoiceId: string,
+  invoiceAmount: number,
+  invoiceStatus: string,
+  deposit?: { id: string; amount: number; status: string },
+): InvoiceDepositRow {
+  return {
+    invoice_id: invoiceId,
+    invoice_amount: invoiceAmount,
+    invoice_status: invoiceStatus,
+    deposit_id: deposit?.id ?? null,
+    deposit_amount: deposit?.amount ?? null,
+    deposit_status: deposit?.status ?? null,
+  };
+}
+
+describe('aggregateInvoiceStatusBreakdown', () => {
+  // ─── Scenario 1: Empty rows ────────────────────────────────────────────────
+
+  it('returns {} for empty rows array', () => {
+    const result = aggregateInvoiceStatusBreakdown([]);
+    expect(result).toEqual({});
+  });
+
+  // ─── Scenario 2: Single invoice, no deposits ──────────────────────────────
+
+  it('single invoice with no deposits: full amount under invoice status', () => {
+    const rows: InvoiceDepositRow[] = [
+      makeInvoiceRow('i1', 1000, 'quotation'),
+    ];
+    const result = aggregateInvoiceStatusBreakdown(rows);
+    expect(result['quotation']).toEqual({ count: 1, totalAmount: 1000 });
+    // No deposit key should exist
+    expect(result['pending']).toBeUndefined();
+  });
+
+  // ─── Scenario 3: Single invoice with one pending deposit ──────────────────
+
+  it('single quotation invoice (1000) with one pending deposit (200): residual 800 under quotation, 200 under pending', () => {
+    const rows: InvoiceDepositRow[] = [
+      makeInvoiceRow('i1', 1000, 'quotation', { id: 'd1', amount: 200, status: 'pending' }),
+    ];
+    const result = aggregateInvoiceStatusBreakdown(rows);
+    expect(result['quotation']!.count).toBe(1);
+    expect(result['quotation']!.totalAmount).toBe(800);
+    expect(result['pending']!.count).toBe(0);
+    expect(result['pending']!.totalAmount).toBe(200);
+  });
+
+  // ─── Scenario 4: Sum invariant ────────────────────────────────────────────
+
+  it('sum invariant: quotation.totalAmount + pending.totalAmount === invoiceAmount', () => {
+    const invoiceAmount = 1000;
+    const depositAmount = 200;
+    const rows: InvoiceDepositRow[] = [
+      makeInvoiceRow('i1', invoiceAmount, 'quotation', {
+        id: 'd1',
+        amount: depositAmount,
+        status: 'pending',
+      }),
+    ];
+    const result = aggregateInvoiceStatusBreakdown(rows);
+    const quotationTotal = result['quotation']!.totalAmount;
+    const pendingTotal = result['pending']!.totalAmount;
+    expect(quotationTotal + pendingTotal).toBe(invoiceAmount);
+  });
+
+  // ─── Scenario 5: Multiple deposits on one invoice ─────────────────────────
+
+  it('multiple deposits on one invoice: residual + per-status accrual', () => {
+    // invoice 1200 quotation, deposits: 300 pending + 400 paid
+    // residual = 1200 - 300 - 400 = 500 under quotation
+    const rows: InvoiceDepositRow[] = [
+      makeInvoiceRow('i1', 1200, 'quotation', { id: 'd1', amount: 300, status: 'pending' }),
+      makeInvoiceRow('i1', 1200, 'quotation', { id: 'd2', amount: 400, status: 'paid' }),
+    ];
+    const result = aggregateInvoiceStatusBreakdown(rows);
+    expect(result['quotation']!.count).toBe(1);
+    expect(result['quotation']!.totalAmount).toBe(500);
+    expect(result['pending']!.totalAmount).toBe(300);
+    expect(result['paid']!.totalAmount).toBe(400);
+    // count is only incremented for the parent invoice status bucket
+    expect(result['pending']!.count).toBe(0);
+    expect(result['paid']!.count).toBe(0);
+  });
+
+  // ─── Scenario 6: Deposit sum exceeds invoice amount (clamped to 0) ─────────
+
+  it('deposit sum exceeds invoice amount: residual clamped to 0 via Math.max(0,...)', () => {
+    // invoice 100 quotation, deposit 150 paid → residual = Math.max(0, 100 - 150) = 0
+    const rows: InvoiceDepositRow[] = [
+      makeInvoiceRow('i1', 100, 'quotation', { id: 'd1', amount: 150, status: 'paid' }),
+    ];
+    const result = aggregateInvoiceStatusBreakdown(rows);
+    // residual = 0: quotation.totalAmount must be 0 (not negative)
+    expect(result['quotation']!.totalAmount).toBe(0);
+    // deposit amount still fully accrued
+    expect(result['paid']!.totalAmount).toBe(150);
+  });
+
+  // ─── Scenario 7: Multiple invoices, count once each ───────────────────────
+
+  it('multiple invoices with same status: count equals invoice count (not row count)', () => {
+    // Two pending invoices, no deposits
+    const rows: InvoiceDepositRow[] = [
+      makeInvoiceRow('i1', 300, 'pending'),
+      makeInvoiceRow('i2', 500, 'pending'),
+    ];
+    const result = aggregateInvoiceStatusBreakdown(rows);
+    expect(result['pending']!.count).toBe(2);
+    expect(result['pending']!.totalAmount).toBe(800);
+  });
+
+  // ─── Scenario 8: Duplicate deposit rows deduped ───────────────────────────
+
+  it('same deposit_id appearing multiple times in rows is counted only once', () => {
+    // SQLite LEFT JOIN can produce one row per invoice-deposit pair; this simulates
+    // that scenario where the same deposit appears twice (e.g. from a different source row).
+    const rows: InvoiceDepositRow[] = [
+      makeInvoiceRow('i1', 1000, 'pending', { id: 'd1', amount: 200, status: 'paid' }),
+      // Same deposit_id 'd1' appearing again (duplicate) — must be deduplicated
+      makeInvoiceRow('i1', 1000, 'pending', { id: 'd1', amount: 200, status: 'paid' }),
+    ];
+    const result = aggregateInvoiceStatusBreakdown(rows);
+    // residual = 1000 - 200 = 800, not 1000 - 400 = 600
+    expect(result['pending']!.totalAmount).toBe(800);
+    expect(result['paid']!.totalAmount).toBe(200);
+    // sum invariant: 800 + 200 = 1000
+    expect(result['pending']!.totalAmount + result['paid']!.totalAmount).toBe(1000);
+  });
+
+  // ─── Scenario 9: Mixed scenario ───────────────────────────────────────────
+
+  it('mixed scenario: invoice A (quotation, 500, pending deposit 100) + invoice B (paid, 200, no deposits)', () => {
+    // Invoice A: quotation 500, deposit 100 pending → quotation residual 400, pending 100
+    // Invoice B: paid 200, no deposits → paid 200
+    const rows: InvoiceDepositRow[] = [
+      makeInvoiceRow('invA', 500, 'quotation', { id: 'dA1', amount: 100, status: 'pending' }),
+      makeInvoiceRow('invB', 200, 'paid'),
+    ];
+    const result = aggregateInvoiceStatusBreakdown(rows);
+
+    expect(result['quotation']!.count).toBe(1);
+    expect(result['quotation']!.totalAmount).toBe(400);
+
+    expect(result['paid']!.count).toBe(1);
+    expect(result['paid']!.totalAmount).toBe(200);
+
+    expect(result['pending']!.count).toBe(0);
+    expect(result['pending']!.totalAmount).toBe(100);
   });
 });

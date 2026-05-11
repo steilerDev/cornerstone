@@ -18,6 +18,10 @@ import { NotFoundError, ValidationError } from '../errors/AppError.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { getInvoiceBudgetLinesForInvoice } from './invoiceBudgetLineService.js';
 import { onInvoiceStatusChanged } from './diaryAutoEventService.js';
+import {
+  aggregateInvoiceStatusBreakdown,
+  type InvoiceDepositRow,
+} from './shared/depositAggregateUtils.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -269,35 +273,31 @@ export function listAllInvoices(
     .offset(offset)
     .all();
 
-  // Compute global summary (unfiltered — across all invoices)
-  const summaryRows = db
+  // Compute deposit-aware GLOBAL summary across ALL invoices (filter-independent).
+  // The page filters only narrow the listed rows; the header summary always shows totals
+  // across the entire dataset so users can see what the other filter values would yield.
+  const summaryRawRows: InvoiceDepositRow[] = db
     .select({
-      status: invoices.status,
-      count: sql<number>`COUNT(*)`,
-      totalAmount: sql<number>`COALESCE(SUM(${invoices.amount}), 0)`,
+      invoice_id: invoices.id,
+      invoice_amount: invoices.amount,
+      invoice_status: invoices.status,
+      deposit_id: invoiceDeposits.id,
+      deposit_amount: invoiceDeposits.amount,
+      deposit_status: invoiceDeposits.status,
     })
     .from(invoices)
-    .groupBy(invoices.status)
+    .leftJoin(invoiceDeposits, eq(invoiceDeposits.invoiceId, invoices.id))
     .all();
+
+  const aggregated = aggregateInvoiceStatusBreakdown(summaryRawRows);
 
   const defaultSummary: InvoiceStatusSummary = { count: 0, totalAmount: 0 };
   const summary: InvoiceStatusBreakdown = {
-    pending: { ...defaultSummary },
-    paid: { ...defaultSummary },
-    claimed: { ...defaultSummary },
-    quotation: { ...defaultSummary },
+    pending: aggregated['pending'] ?? { ...defaultSummary },
+    paid: aggregated['paid'] ?? { ...defaultSummary },
+    claimed: aggregated['claimed'] ?? { ...defaultSummary },
+    quotation: aggregated['quotation'] ?? { ...defaultSummary },
   };
-  for (const row of summaryRows) {
-    const status = row.status as InvoiceStatus;
-    if (
-      status === 'pending' ||
-      status === 'paid' ||
-      status === 'claimed' ||
-      status === 'quotation'
-    ) {
-      summary[status] = { count: row.count, totalAmount: row.totalAmount };
-    }
-  }
 
   // Map rows directly (not using toInvoice()) to avoid fetching full deposits in list.
   // NOTE: List endpoints set deposits: [] and finalPaymentAmount: row.amount to keep payload small.
