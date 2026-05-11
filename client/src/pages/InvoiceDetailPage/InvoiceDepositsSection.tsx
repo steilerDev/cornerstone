@@ -207,10 +207,10 @@ export function InvoiceDepositsSection({
       if (err instanceof ApiClientError) {
         const code = err.error.code;
         if (code === 'DEPOSITS_EXCEED_INVOICE_TOTAL') {
-          const available = (err.error.details as { available?: number })?.available ?? 0;
+          const availableHeadroom = (err.error.details as { availableHeadroom?: number })?.availableHeadroom ?? 0;
           setFormError(
             t('budget:invoiceDetail.deposits.errors.exceedsTotal', {
-              available: formatCurrency(available),
+              availableHeadroom: formatCurrency(availableHeadroom),
             }),
           );
         } else if (code === 'INVALID_DEPOSIT_STATUS_TRANSITION') {
@@ -1069,6 +1069,7 @@ function AddEditDepositModal({
             className={sharedStyles.btnSecondary}
             onClick={onClose}
             disabled={isMutating}
+            data-testid="deposit-modal-cancel"
           >
             {t('common:buttons.cancel')}
           </button>
@@ -1079,6 +1080,7 @@ function AddEditDepositModal({
             disabled={
               isMutating || !form.amount || !form.dueDate || (form.status !== 'pending' && !form.paidDate) || (form.status === 'claimed' && !form.claimedDate)
             }
+            data-testid="deposit-modal-save"
           >
             {isMutating ? t('budget:invoiceDetail.deposits.form.saving') : t('common:buttons.save')}
           </button>
@@ -1251,6 +1253,7 @@ function DeleteDepositModal({
             className={sharedStyles.btnSecondary}
             onClick={onClose}
             disabled={isMutating}
+            data-testid="deposit-delete-cancel"
           >
             {t('common:buttons.cancel')}
           </button>
@@ -1259,6 +1262,7 @@ function DeleteDepositModal({
             className={sharedStyles.btnConfirmDelete}
             onClick={onConfirm}
             disabled={isMutating}
+            data-testid="deposit-delete-confirm"
           >
             {t('budget:invoiceDetail.deposits.modal.deleteTitle')}
           </button>
@@ -1325,6 +1329,7 @@ function StateConfirmModal({
             className={sharedStyles.btnSecondary}
             onClick={onClose}
             disabled={isMutating}
+            data-testid="state-confirm-cancel"
           >
             {t('common:buttons.cancel')}
           </button>
@@ -1333,6 +1338,7 @@ function StateConfirmModal({
             className={sharedStyles.btnPrimary}
             onClick={() => onConfirm(selectedDate)}
             disabled={isMutating}
+            data-testid="state-confirm-button"
           >
             {t('common:buttons.confirm')}
           </button>

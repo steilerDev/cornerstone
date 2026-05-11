@@ -654,7 +654,7 @@
         "required": "*"
       },
       "errors": {
-        "exceedsTotal": "Deposit amount exceeds invoice total. Available headroom: {{available}}",
+        "exceedsTotal": "Deposit amount exceeds invoice total. Available headroom: {{availableHeadroom}}",
         "invalidTransition": "Cannot transition from {{from}} to {{to}}",
         "invalidDate": "Invalid date for the selected status",
         "loadError": "Failed to load deposits. Please try again.",

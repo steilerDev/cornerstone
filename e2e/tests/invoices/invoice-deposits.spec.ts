@@ -394,15 +394,20 @@ test.describe('Deposits — delete paid deposit warning (Scenario 4)', () => {
           date: '2026-06-01',
         });
 
-        // Create a deposit already in 'paid' status via API
+        // Create a deposit in 'paid' status via the state machine: pending → paid
+        // Direct creation with status='paid' is rejected by the server (ALLOWED_TRANSITIONS).
         const today = new Date().toISOString().slice(0, 10);
         const deposit = await createDepositViaApi(page, invoiceId, {
           amount: 150,
           dueDate: '2026-07-01',
-          status: 'paid',
-          paidDate: today,
         });
         depositId = deposit.id;
+        // pending → paid
+        const paidResp = await page.request.patch(
+          `/api/invoices/${invoiceId}/deposits/${deposit.id}`,
+          { data: { status: 'paid', paidDate: today } },
+        );
+        expect(paidResp.ok(), `PATCH pending→paid failed: ${paidResp.status()}`).toBeTruthy();
 
         await detailPage.goto(invoiceId);
         await expect(detailPage.heading).toBeVisible();
@@ -462,15 +467,26 @@ test.describe('Deposits — delete paid deposit warning (Scenario 4)', () => {
         date: '2026-06-01',
       });
 
+      // Create a deposit in 'claimed' status via state machine: pending → paid → claimed.
+      // Direct creation with status='claimed' is rejected by the server (ALLOWED_TRANSITIONS).
       const today = new Date().toISOString().slice(0, 10);
       const deposit = await createDepositViaApi(page, invoiceId, {
         amount: 100,
         dueDate: '2026-07-01',
-        status: 'claimed',
-        paidDate: today,
-        claimedDate: today,
       });
       depositId = deposit.id;
+      // pending → paid
+      const paidResp = await page.request.patch(
+        `/api/invoices/${invoiceId}/deposits/${deposit.id}`,
+        { data: { status: 'paid', paidDate: today } },
+      );
+      expect(paidResp.ok(), `PATCH pending→paid failed: ${paidResp.status()}`).toBeTruthy();
+      // paid → claimed
+      const claimedResp = await page.request.patch(
+        `/api/invoices/${invoiceId}/deposits/${deposit.id}`,
+        { data: { status: 'claimed', claimedDate: today } },
+      );
+      expect(claimedResp.ok(), `PATCH paid→claimed failed: ${claimedResp.status()}`).toBeTruthy();
 
       await detailPage.goto(invoiceId);
       await expect(detailPage.heading).toBeVisible();

@@ -53,9 +53,12 @@
  * - State confirm modal: contains h2 "Mark as paid" or "Mark as claimed"
  * - Form inputs: #deposit-amount, #deposit-dueDate, #deposit-status,
  *   #deposit-paidDate (conditional), #deposit-claimedDate (conditional), #deposit-description
- * - Save button: type="submit", form="deposit-form", text from t('common:buttons.save')="Save"
- * - Cancel button: text from t('common:buttons.cancel')="Cancel"
- * - Confirm button (state confirm): text from t('common:buttons.confirm')="Confirm"
+ * - Save button: data-testid="deposit-modal-save" (added #1407)
+ * - Cancel button: data-testid="deposit-modal-cancel" (add/edit modal, added #1407)
+ * - Delete cancel: data-testid="deposit-delete-cancel" (delete modal, added #1407)
+ * - Delete confirm: data-testid="deposit-delete-confirm" (added #1407)
+ * - Confirm button (state confirm): data-testid="state-confirm-button" (added #1407)
+ * - State confirm cancel: data-testid="state-confirm-cancel" (added #1407)
  * - Error banner in form modals: role="alert" (FormError with variant='banner')
  * - Warning banner in delete modal: [class*="warningBanner"] (visible for paid/claimed deposits)
  * - Overflow menu trigger: button[aria-haspopup="true"], aria-label includes "deposit"
@@ -313,15 +316,11 @@ export class InvoiceDetailPage {
     this.depositClaimedDateInput = page.locator('#deposit-claimedDate');
     this.depositDescriptionInput = page.locator('#deposit-description');
 
-    // Save button: type="submit", form="deposit-form" — locale-independent structural locator
-    this.depositModalSave = page.locator('button[type="submit"][form="deposit-form"]');
+    // Save button in add/edit deposit modal — stable data-testid added in #1407
+    this.depositModalSave = page.getByTestId('deposit-modal-save');
 
-    // Cancel button in add/edit/delete deposit modals
-    // Scoped to any open dialog that contains #deposit-amount or the delete confirm text
-    this.depositModalCancel = page.locator('[role="dialog"]').getByRole('button', {
-      name: 'Cancel',
-      exact: true,
-    });
+    // Cancel button in add/edit deposit modal — stable data-testid added in #1407
+    this.depositModalCancel = page.getByTestId('deposit-modal-cancel');
 
     // Error banner (FormError with variant='banner' renders role="alert")
     this.depositModalError = page.locator('[role="dialog"] [role="alert"]');
@@ -331,11 +330,8 @@ export class InvoiceDetailPage {
       has: page.locator('h2'),
     });
 
-    // Confirm button inside state confirm modal — text="Confirm"
-    this.stateConfirmButton = page.locator('[role="dialog"]').getByRole('button', {
-      name: 'Confirm',
-      exact: true,
-    });
+    // Confirm button inside state confirm modal — stable data-testid added in #1407
+    this.stateConfirmButton = page.getByTestId('state-confirm-button');
 
     // State confirm date input
     this.stateConfirmDateInput = page.locator('#state-confirm-date');
@@ -348,8 +344,8 @@ export class InvoiceDetailPage {
     // Warning banner inside delete deposit modal: [class*="warningBanner"]
     this.deleteDepositWarning = page.locator('[class*="warningBanner"]');
 
-    // Delete deposit confirm button uses btnConfirmDelete class
-    this.deleteDepositConfirmButton = page.locator('[class*="btnConfirmDelete"]');
+    // Delete deposit confirm button — stable data-testid added in #1407
+    this.deleteDepositConfirmButton = page.getByTestId('deposit-delete-confirm');
 
     // Final payment row (always visible when deposits.length > 0)
     this.finalPaymentRow = page.locator('[class*="finalPaymentRow"]');

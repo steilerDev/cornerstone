@@ -541,7 +541,7 @@
         "required": "*"
       },
       "errors": {
-        "exceedsTotal": "Betrag der Abschlagszahlung überschreitet den Rechnungsgesamtbetrag. Verfügbarer Spielraum: {{available}}",
+        "exceedsTotal": "Betrag der Abschlagszahlung überschreitet den Rechnungsgesamtbetrag. Verfügbarer Spielraum: {{availableHeadroom}}",
         "invalidTransition": "Statuswechsel von {{from}} nach {{to}} nicht möglich",
         "invalidDate": "Ungültiges Datum für den ausgewählten Status",
         "loadError": "Abschlagszahlungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
