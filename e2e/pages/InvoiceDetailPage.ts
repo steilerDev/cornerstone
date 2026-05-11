@@ -121,7 +121,14 @@ export class InvoiceDetailPage {
   /** "Add deposit" button in the section header (aria-label="Add deposit") */
   readonly addDepositButton: Locator;
 
-  /** EmptyState "Add deposit" CTA (only visible when deposits.length === 0) */
+  /**
+   * "Add deposit" CTA inside the EmptyState component (only visible when deposits.length === 0).
+   * This button has visible text "Add deposit" but NO aria-label — use this locator when you
+   * specifically need to click the EmptyState CTA rather than the header button.
+   */
+  readonly addDepositFromEmptyState: Locator;
+
+  /** EmptyState container element (only visible when deposits.length === 0) */
   readonly depositEmptyState: Locator;
 
   /**
@@ -271,12 +278,23 @@ export class InvoiceDetailPage {
     // ─── Deposits Section locators (Issue #1404) ──────────────────────────
     this.depositsSection = page.locator('[aria-labelledby="deposits-title"]');
 
-    // The "Add deposit" button in the section header has aria-label="Add deposit"
-    this.addDepositButton = this.depositsSection.getByRole('button', {
-      name: 'Add deposit',
-    });
+    // The "Add deposit" button in the section header has aria-label="Add deposit".
+    // getByLabel matches elements whose aria-label === "Add deposit" — this is true
+    // ONLY for the header CTA. The EmptyState button has text but no aria-label, so
+    // getByLabel does NOT match it. This keeps strict mode happy when both buttons are
+    // rendered simultaneously (empty state scenario).
+    this.addDepositButton = this.depositsSection.getByLabel('Add deposit', { exact: true });
 
-    // EmptyState CTA button (only rendered when deposits.length === 0)
+    // EmptyState "Add deposit" CTA — the button rendered by the EmptyState component when
+    // deposits.length === 0. It has visible text "Add deposit" but NO aria-label attribute.
+    // We locate it via CSS attribute selector to exclude buttons that carry aria-label,
+    // which would otherwise match the header button too.
+    this.addDepositFromEmptyState = this.depositsSection.locator(
+      'button:not([aria-label])',
+      { hasText: 'Add deposit' },
+    );
+
+    // EmptyState container element (only visible when deposits.length === 0)
     this.depositEmptyState = this.depositsSection.locator('[class*="emptyState"], [class*="empty"]');
 
     // The deposit modal renders via the shared Modal component which uses useId() for

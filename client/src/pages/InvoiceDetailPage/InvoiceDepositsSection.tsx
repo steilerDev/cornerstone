@@ -65,6 +65,7 @@ export function InvoiceDepositsSection({
 }: InvoiceDepositsSectionProps) {
   const { formatCurrency, formatDate } = useFormatters();
   const { t } = useTranslation('budget');
+  const { t: tErrors } = useTranslation('errors');
 
   // Modal states
   const [modalMode, setModalMode] = useState<ModalMode>(null);
@@ -83,17 +84,17 @@ export function InvoiceDepositsSection({
 
   const invoiceStatusVariants: BadgeVariantMap = {
     pending: {
-      label: t('invoiceDetail.statusLabels.pending'),
-      className: styles.statusPending,
+      label: t('invoiceDetail.statusLabels.pending')!,
+      className: styles.statusPending!,
     },
-    paid: { label: t('invoiceDetail.statusLabels.paid'), className: styles.statusPaid },
+    paid: { label: t('invoiceDetail.statusLabels.paid')!, className: styles.statusPaid! },
     claimed: {
-      label: t('invoiceDetail.statusLabels.claimed'),
-      className: styles.statusClaimed,
+      label: t('invoiceDetail.statusLabels.claimed')!,
+      className: styles.statusClaimed!,
     },
     quotation: {
-      label: t('invoiceDetail.statusLabels.quotation'),
-      className: styles.statusQuotation,
+      label: t('invoiceDetail.statusLabels.quotation')!,
+      className: styles.statusQuotation!,
     },
   };
 
@@ -215,7 +216,7 @@ export function InvoiceDepositsSection({
         } else if (code === 'INVALID_DEPOSIT_DATE_FOR_STATUS') {
           setFormError(t('budget:invoiceDetail.deposits.errors.invalidDate'));
         } else {
-          setFormError(translateApiError(err.error.code));
+          setFormError(translateApiError(err.error.code, tErrors));
         }
       } else {
         setFormError(
@@ -241,7 +242,7 @@ export function InvoiceDepositsSection({
       onDepositMutated();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setFormError(translateApiError(err.error.code));
+        setFormError(translateApiError(err.error.code, tErrors));
       } else {
         setFormError(t('budget:invoiceDetail.deposits.errors.deleteError'));
       }
@@ -509,13 +510,13 @@ function DepositRow({
 
   const statusVariants: BadgeVariantMap = {
     pending: {
-      label: t('invoiceDetail.statusLabels.pending'),
-      className: styles.statusPending,
+      label: t('invoiceDetail.statusLabels.pending')!,
+      className: styles.statusPending!,
     },
-    paid: { label: t('invoiceDetail.statusLabels.paid'), className: styles.statusPaid },
+    paid: { label: t('invoiceDetail.statusLabels.paid')!, className: styles.statusPaid! },
     claimed: {
-      label: t('invoiceDetail.statusLabels.claimed'),
-      className: styles.statusClaimed,
+      label: t('invoiceDetail.statusLabels.claimed')!,
+      className: styles.statusClaimed!,
     },
   };
 
@@ -773,13 +774,13 @@ function DepositCard({
 
   const statusVariants: BadgeVariantMap = {
     pending: {
-      label: t('invoiceDetail.statusLabels.pending'),
-      className: styles.statusPending,
+      label: t('invoiceDetail.statusLabels.pending')!,
+      className: styles.statusPending!,
     },
-    paid: { label: t('invoiceDetail.statusLabels.paid'), className: styles.statusPaid },
+    paid: { label: t('invoiceDetail.statusLabels.paid')!, className: styles.statusPaid! },
     claimed: {
-      label: t('invoiceDetail.statusLabels.claimed'),
-      className: styles.statusClaimed,
+      label: t('invoiceDetail.statusLabels.claimed')!,
+      className: styles.statusClaimed!,
     },
   };
 
