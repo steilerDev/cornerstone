@@ -575,7 +575,13 @@ export class InvoiceDetailPage {
    * Clicks a menu item by its label text within the currently open menu.
    */
   async clickDepositMenuItem(label: string | RegExp): Promise<void> {
-    const menuItem = this.page.locator('[role="menuitem"]').filter({ hasText: label });
+    // Mobile/tablet hide the desktop table via CSS but keep its [role="menuitem"]
+    // nodes in the DOM. Filter to visible elements so .first() picks the visible
+    // menu item (not the hidden table duplicate).
+    const menuItem = this.page
+      .locator('[role="menuitem"]')
+      .filter({ visible: true })
+      .filter({ hasText: label });
     await menuItem.first().click();
   }
 
