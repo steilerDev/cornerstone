@@ -112,7 +112,8 @@ export function computeDepositAwareAggregates(rows: DepositAwareRow[]): {
       const safeInvoiceAmount = ibl.invoiceAmount > 0 ? ibl.invoiceAmount : 1;
 
       // Residual contribution under parent invoice status
-      const residualFraction = Math.max(0, safeInvoiceAmount - totalDepositAmount) / safeInvoiceAmount;
+      const residualFraction =
+        Math.max(0, safeInvoiceAmount - totalDepositAmount) / safeInvoiceAmount;
       const residualAmount = ibl.itemizedAmount * residualFraction;
       if (ibl.invoiceStatus === 'paid' || ibl.invoiceStatus === 'claimed') {
         actualCostPaid += residualAmount;
@@ -218,7 +219,8 @@ export function computeStatusContribution(
       const safeInvoiceAmount = ibl.invoiceAmount > 0 ? ibl.invoiceAmount : 1;
 
       // Residual contribution under parent invoice status
-      const residualFraction = Math.max(0, safeInvoiceAmount - totalDepositAmount) / safeInvoiceAmount;
+      const residualFraction =
+        Math.max(0, safeInvoiceAmount - totalDepositAmount) / safeInvoiceAmount;
       const residualAmount = ibl.itemizedAmount * residualFraction;
       if (ibl.invoiceStatus === targetStatus) {
         total += residualAmount;

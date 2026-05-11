@@ -28,10 +28,7 @@ jest.unstable_mockModule('../../lib/invoiceDepositsApi.js', () => ({
 class MockApiClientError extends Error {
   statusCode: number;
   error: { code: string; message?: string; details?: unknown };
-  constructor(
-    statusCode: number,
-    error: { code: string; message?: string; details?: unknown },
-  ) {
+  constructor(statusCode: number, error: { code: string; message?: string; details?: unknown }) {
     super(error.message ?? 'API Error');
     this.name = 'ApiClientError';
     this.statusCode = statusCode;
@@ -161,10 +158,7 @@ let InvoiceDepositsSection: (typeof InvoiceDepositsSectionTypes)['InvoiceDeposit
 const INVOICE_ID = 'inv-001';
 const INVOICE_TOTAL = 1000;
 
-function makeDeposit(
-  id: string,
-  overrides: Partial<InvoiceDeposit> = {},
-): InvoiceDeposit {
+function makeDeposit(id: string, overrides: Partial<InvoiceDeposit> = {}): InvoiceDeposit {
   return {
     id,
     invoiceId: INVOICE_ID,
@@ -292,7 +286,9 @@ describe('InvoiceDepositsSection', () => {
     });
 
     it('renders em-dash for null claimedDate', () => {
-      const deposits = [makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10', claimedDate: null })];
+      const deposits = [
+        makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10', claimedDate: null }),
+      ];
       renderSection(deposits);
       expect(screen.getAllByText('—').length).toBeGreaterThan(0);
     });
@@ -330,9 +326,7 @@ describe('InvoiceDepositsSection', () => {
       renderSection(deposits);
 
       // Open the first overflow menu button (⋮)
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
 
       // markPaid, edit, delete items should appear
@@ -347,9 +341,7 @@ describe('InvoiceDepositsSection', () => {
       const deposits = [makeDeposit('dep-1', { status: 'pending' })];
       renderSection(deposits);
 
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
 
       const menuItems = screen.getAllByRole('menuitem');
@@ -362,9 +354,7 @@ describe('InvoiceDepositsSection', () => {
       const deposits = [makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })];
       renderSection(deposits);
 
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
 
       const menuItems = screen.getAllByRole('menuitem');
@@ -379,9 +369,7 @@ describe('InvoiceDepositsSection', () => {
       const deposits = [makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })];
       renderSection(deposits);
 
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
 
       const menuItems = screen.getAllByRole('menuitem');
@@ -401,9 +389,7 @@ describe('InvoiceDepositsSection', () => {
       ];
       renderSection(deposits);
 
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
 
       const menuItems = screen.getAllByRole('menuitem');
@@ -423,9 +409,12 @@ describe('InvoiceDepositsSection', () => {
       renderSection([]);
 
       // Header button (aria-label includes "deposit")
-      const addBtn = screen.getAllByRole('button').find(
-        (b) => b.getAttribute('aria-label')?.includes('deposit') ?? b.textContent?.includes('deposit'),
-      )!;
+      const addBtn = screen
+        .getAllByRole('button')
+        .find(
+          (b) =>
+            b.getAttribute('aria-label')?.includes('deposit') ?? b.textContent?.includes('deposit'),
+        )!;
       fireEvent.click(addBtn);
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -447,9 +436,7 @@ describe('InvoiceDepositsSection', () => {
       fireEvent.click(screen.getByTestId('empty-state-action'));
 
       // amount input is empty by default; save button should be disabled
-      const saveBtn = screen
-        .getByTestId('modal-footer')
-        .querySelector('button[type="submit"]')!;
+      const saveBtn = screen.getByTestId('modal-footer').querySelector('button[type="submit"]')!;
       expect(saveBtn).toBeDisabled();
     });
 
@@ -546,14 +533,12 @@ describe('InvoiceDepositsSection', () => {
       renderSection([deposit]);
 
       // Open menu, click Edit
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
 
-      const editBtn = screen.getAllByRole('menuitem').find(
-        (m) => m.textContent?.toLowerCase().includes('edit'),
-      )!;
+      const editBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('edit'))!;
       fireEvent.click(editBtn);
 
       // Amount field should be pre-populated with 500
@@ -573,13 +558,11 @@ describe('InvoiceDepositsSection', () => {
       renderSection([deposit], { onDepositMutated: onMutated });
 
       // Open menu, click Edit
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
-      const editBtn = screen.getAllByRole('menuitem').find(
-        (m) => m.textContent?.toLowerCase().includes('edit'),
-      )!;
+      const editBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('edit'))!;
       fireEvent.click(editBtn);
 
       // Change amount
@@ -606,7 +589,11 @@ describe('InvoiceDepositsSection', () => {
 
   describe('Scenario 8: INVALID_DEPOSIT_STATUS_TRANSITION error on edit', () => {
     it('renders FormError with translated transition message', async () => {
-      const deposit = makeDeposit('dep-1', { status: 'pending', amount: 300, dueDate: '2026-03-01' });
+      const deposit = makeDeposit('dep-1', {
+        status: 'pending',
+        amount: 300,
+        dueDate: '2026-03-01',
+      });
       mockUpdateDeposit.mockRejectedValueOnce(
         new MockApiClientError(400, {
           code: 'INVALID_DEPOSIT_STATUS_TRANSITION',
@@ -618,13 +605,11 @@ describe('InvoiceDepositsSection', () => {
       renderSection([deposit]);
 
       // Open menu, click Edit
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
-      const editBtn = screen.getAllByRole('menuitem').find(
-        (m) => m.textContent?.toLowerCase().includes('edit'),
-      )!;
+      const editBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('edit'))!;
       fireEvent.click(editBtn);
 
       await waitFor(() => screen.getByLabelText(/amount/i));
@@ -706,14 +691,12 @@ describe('InvoiceDepositsSection', () => {
       const deposit = makeDeposit('dep-1', { status: 'pending' });
       renderSection([deposit]);
 
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
 
-      const markPaidBtn = screen.getAllByRole('menuitem').find(
-        (m) => m.textContent?.toLowerCase().includes('paid'),
-      )!;
+      const markPaidBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('paid'))!;
       fireEvent.click(markPaidBtn);
 
       // A dialog should appear
@@ -732,13 +715,11 @@ describe('InvoiceDepositsSection', () => {
       renderSection([deposit], { onDepositMutated: onMutated });
 
       // Open menu, click Mark paid
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
-      const markPaidBtn = screen.getAllByRole('menuitem').find(
-        (m) => m.textContent?.toLowerCase().includes('paid'),
-      )!;
+      const markPaidBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('paid'))!;
       fireEvent.click(markPaidBtn);
 
       // Click the Confirm button in the state confirm modal
@@ -766,14 +747,12 @@ describe('InvoiceDepositsSection', () => {
       const deposit = makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' });
       renderSection([deposit]);
 
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
 
-      const markClaimedBtn = screen.getAllByRole('menuitem').find(
-        (m) => m.textContent?.toLowerCase().includes('claimed'),
-      )!;
+      const markClaimedBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('claimed'))!;
       fireEvent.click(markClaimedBtn);
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -788,13 +767,11 @@ describe('InvoiceDepositsSection', () => {
       const onMutated = jest.fn();
       renderSection([deposit], { onDepositMutated: onMutated });
 
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
-      const markClaimedBtn = screen.getAllByRole('menuitem').find(
-        (m) => m.textContent?.toLowerCase().includes('claimed'),
-      )!;
+      const markClaimedBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('claimed'))!;
       fireEvent.click(markClaimedBtn);
 
       await waitFor(() => screen.getByRole('dialog'));
@@ -827,24 +804,18 @@ describe('InvoiceDepositsSection', () => {
       renderSection([deposit], { onDepositMutated: onMutated });
 
       // Open menu, click Revert to pending
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
 
-      const revertBtn = screen.getAllByRole('menuitem').find(
-        (m) => m.textContent?.toLowerCase().includes('pending'),
-      )!;
+      const revertBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('pending'))!;
       await act(async () => {
         fireEvent.click(revertBtn);
       });
 
       await waitFor(() => {
-        expect(mockUpdateDeposit).toHaveBeenCalledWith(
-          INVOICE_ID,
-          'dep-1',
-          { status: 'pending' },
-        );
+        expect(mockUpdateDeposit).toHaveBeenCalledWith(INVOICE_ID, 'dep-1', { status: 'pending' });
       });
       expect(onMutated).toHaveBeenCalled();
     });
@@ -866,24 +837,22 @@ describe('InvoiceDepositsSection', () => {
       const onMutated = jest.fn();
       renderSection([deposit], { onDepositMutated: onMutated });
 
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
 
-      const revertBtn = screen.getAllByRole('menuitem').find(
-        (m) => m.textContent?.toLowerCase().includes('revert') && m.textContent?.toLowerCase().includes('paid'),
-      )!;
+      const revertBtn = screen
+        .getAllByRole('menuitem')
+        .find(
+          (m) =>
+            m.textContent?.toLowerCase().includes('revert') &&
+            m.textContent?.toLowerCase().includes('paid'),
+        )!;
       await act(async () => {
         fireEvent.click(revertBtn);
       });
 
       await waitFor(() => {
-        expect(mockUpdateDeposit).toHaveBeenCalledWith(
-          INVOICE_ID,
-          'dep-1',
-          { status: 'paid' },
-        );
+        expect(mockUpdateDeposit).toHaveBeenCalledWith(INVOICE_ID, 'dep-1', { status: 'paid' });
       });
       expect(onMutated).toHaveBeenCalled();
     });
@@ -896,14 +865,12 @@ describe('InvoiceDepositsSection', () => {
       const deposit = makeDeposit('dep-1', { status: 'pending' });
       renderSection([deposit]);
 
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
 
-      const deleteBtn = screen.getAllByRole('menuitem').find(
-        (m) => m.textContent?.toLowerCase().includes('delete'),
-      )!;
+      const deleteBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('delete'))!;
       fireEvent.click(deleteBtn);
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -913,14 +880,12 @@ describe('InvoiceDepositsSection', () => {
       const deposit = makeDeposit('dep-1', { status: 'pending' });
       renderSection([deposit]);
 
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
 
-      const deleteBtn = screen.getAllByRole('menuitem').find(
-        (m) => m.textContent?.toLowerCase().includes('delete'),
-      )!;
+      const deleteBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('delete'))!;
       fireEvent.click(deleteBtn);
 
       // Warning banner should not be present for pending
@@ -932,14 +897,12 @@ describe('InvoiceDepositsSection', () => {
       const deposit = makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' });
       renderSection([deposit]);
 
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
 
-      const deleteBtn = screen.getAllByRole('menuitem').find(
-        (m) => m.textContent?.toLowerCase().includes('delete'),
-      )!;
+      const deleteBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('delete'))!;
       fireEvent.click(deleteBtn);
 
       const warningBanners = document.querySelectorAll('[class*="warningBanner"]');
@@ -954,14 +917,12 @@ describe('InvoiceDepositsSection', () => {
       });
       renderSection([deposit]);
 
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
 
-      const deleteBtn = screen.getAllByRole('menuitem').find(
-        (m) => m.textContent?.toLowerCase().includes('delete'),
-      )!;
+      const deleteBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('delete'))!;
       fireEvent.click(deleteBtn);
 
       const warningBanners = document.querySelectorAll('[class*="warningBanner"]');
@@ -976,19 +937,19 @@ describe('InvoiceDepositsSection', () => {
       renderSection([deposit], { onDepositMutated: onMutated });
 
       // Open menu → delete
-      const menuBtn = screen.getAllByRole('button').find(
-        (b) => b.textContent?.includes('⋮'),
-      )!;
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
       fireEvent.click(menuBtn);
-      const deleteMenuBtn = screen.getAllByRole('menuitem').find(
-        (m) => m.textContent?.toLowerCase().includes('delete'),
-      )!;
+      const deleteMenuBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('delete'))!;
       fireEvent.click(deleteMenuBtn);
 
       // Confirm in delete modal
       await waitFor(() => screen.getByRole('dialog'));
       // Click the confirm/delete button (last button in modal footer)
-      const confirmDeleteBtn = screen.getByTestId('modal-footer').querySelector('button:last-child')!;
+      const confirmDeleteBtn = screen
+        .getByTestId('modal-footer')
+        .querySelector('button:last-child')!;
       await act(async () => {
         fireEvent.click(confirmDeleteBtn);
       });

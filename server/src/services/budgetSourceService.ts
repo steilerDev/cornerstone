@@ -289,7 +289,8 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
       const safeInvoiceAmount = entry.invoiceAmount > 0 ? entry.invoiceAmount : 1;
 
       // Residual contribution under parent invoice status
-      const residualFraction = Math.max(0, safeInvoiceAmount - totalDepositAmount) / safeInvoiceAmount;
+      const residualFraction =
+        Math.max(0, safeInvoiceAmount - totalDepositAmount) / safeInvoiceAmount;
       const residualAmount = entry.remainderAmount * residualFraction;
       if (entry.invoiceStatus === status) {
         remainderTotal += residualAmount;

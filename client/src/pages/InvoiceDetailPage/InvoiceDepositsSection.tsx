@@ -1,15 +1,7 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type {
-  InvoiceDeposit,
-  InvoiceDepositStatus,
-  InvoiceStatus,
-} from '@cornerstone/shared';
-import {
-  createDeposit,
-  updateDeposit,
-  deleteDeposit,
-} from '../../lib/invoiceDepositsApi.js';
+import type { InvoiceDeposit, InvoiceDepositStatus, InvoiceStatus } from '@cornerstone/shared';
+import { createDeposit, updateDeposit, deleteDeposit } from '../../lib/invoiceDepositsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
@@ -177,9 +169,7 @@ export function InvoiceDepositsSection({
           dueDate: depositForm.dueDate,
           status: depositForm.status as InvoiceDepositStatus,
           description: depositForm.description.trim() || null,
-          ...(depositForm.status !== 'pending'
-            ? { paidDate: depositForm.paidDate || null }
-            : {}),
+          ...(depositForm.status !== 'pending' ? { paidDate: depositForm.paidDate || null } : {}),
           ...(depositForm.status === 'claimed'
             ? { claimedDate: depositForm.claimedDate || null }
             : {}),
@@ -191,9 +181,7 @@ export function InvoiceDepositsSection({
           dueDate: depositForm.dueDate,
           status: depositForm.status as InvoiceDepositStatus,
           description: depositForm.description.trim() || null,
-          ...(depositForm.status !== 'pending'
-            ? { paidDate: depositForm.paidDate || null }
-            : {}),
+          ...(depositForm.status !== 'pending' ? { paidDate: depositForm.paidDate || null } : {}),
           ...(depositForm.status === 'claimed'
             ? { claimedDate: depositForm.claimedDate || null }
             : {}),
@@ -207,7 +195,8 @@ export function InvoiceDepositsSection({
       if (err instanceof ApiClientError) {
         const code = err.error.code;
         if (code === 'DEPOSITS_EXCEED_INVOICE_TOTAL') {
-          const availableHeadroom = (err.error.details as { availableHeadroom?: number })?.availableHeadroom ?? 0;
+          const availableHeadroom =
+            (err.error.details as { availableHeadroom?: number })?.availableHeadroom ?? 0;
           setFormError(
             t('budget:invoiceDetail.deposits.errors.exceedsTotal', {
               availableHeadroom: formatCurrency(availableHeadroom),
@@ -368,7 +357,9 @@ export function InvoiceDepositsSection({
                     {t('budget:invoiceDetail.deposits.columns.claimedDate')}
                   </th>
                   <th>{t('budget:invoiceDetail.deposits.columns.description')}</th>
-                  <th className={styles.thActions}>{t('budget:invoiceDetail.deposits.columns.actions')}</th>
+                  <th className={styles.thActions}>
+                    {t('budget:invoiceDetail.deposits.columns.actions')}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -571,7 +562,9 @@ function DepositRow({
       e.preventDefault();
       onMenuToggle(deposit.id);
       setTimeout(() => {
-        const firstMenuItem = menuRef.current?.querySelector('[role="menuitem"]') as HTMLButtonElement;
+        const firstMenuItem = menuRef.current?.querySelector(
+          '[role="menuitem"]',
+        ) as HTMLButtonElement;
         firstMenuItem?.focus();
       }, 0);
     }
@@ -579,7 +572,9 @@ function DepositRow({
 
   useEffect(() => {
     if (isMenuOpen) {
-      const firstMenuItem = menuRef.current?.querySelector('[role="menuitem"]') as HTMLButtonElement;
+      const firstMenuItem = menuRef.current?.querySelector(
+        '[role="menuitem"]',
+      ) as HTMLButtonElement;
       firstMenuItem?.focus();
     }
   }, [isMenuOpen]);
@@ -754,8 +749,10 @@ function DepositRow({
 // Sub-component: DepositCard (mobile)
 // ============================================================================
 
-interface DepositCardProps
-  extends Omit<DepositRowProps, 'menuOpenId' | 'mutatingDepositId' | 'onMenuToggle'> {
+interface DepositCardProps extends Omit<
+  DepositRowProps,
+  'menuOpenId' | 'mutatingDepositId' | 'onMenuToggle'
+> {
   menuOpenId: string | null;
   mutatingDepositId: string | null;
   onMenuToggle: (id: string | null) => void;
@@ -835,7 +832,9 @@ function DepositCard({
       e.preventDefault();
       onMenuToggle(deposit.id);
       setTimeout(() => {
-        const firstMenuItem = menuRef.current?.querySelector('[role="menuitem"]') as HTMLButtonElement;
+        const firstMenuItem = menuRef.current?.querySelector(
+          '[role="menuitem"]',
+        ) as HTMLButtonElement;
         firstMenuItem?.focus();
       }, 0);
     }
@@ -843,7 +842,9 @@ function DepositCard({
 
   useEffect(() => {
     if (isMenuOpen) {
-      const firstMenuItem = menuRef.current?.querySelector('[role="menuitem"]') as HTMLButtonElement;
+      const firstMenuItem = menuRef.current?.querySelector(
+        '[role="menuitem"]',
+      ) as HTMLButtonElement;
       firstMenuItem?.focus();
     }
   }, [isMenuOpen]);
@@ -1058,7 +1059,9 @@ function AddEditDepositModal({
   return (
     <Modal
       title={
-        isEdit ? t('budget:invoiceDetail.deposits.modal.editTitle') : t('budget:invoiceDetail.deposits.modal.addTitle')
+        isEdit
+          ? t('budget:invoiceDetail.deposits.modal.editTitle')
+          : t('budget:invoiceDetail.deposits.modal.addTitle')
       }
       onClose={onClose}
       className={styles.modal}
@@ -1078,7 +1081,11 @@ function AddEditDepositModal({
             className={sharedStyles.btnPrimary}
             form="deposit-form"
             disabled={
-              isMutating || !form.amount || !form.dueDate || (form.status !== 'pending' && !form.paidDate) || (form.status === 'claimed' && !form.claimedDate)
+              isMutating ||
+              !form.amount ||
+              !form.dueDate ||
+              (form.status !== 'pending' && !form.paidDate) ||
+              (form.status === 'claimed' && !form.claimedDate)
             }
             data-testid="deposit-modal-save"
           >
@@ -1095,7 +1102,9 @@ function AddEditDepositModal({
           <div className={styles.formField}>
             <label htmlFor="deposit-amount" className={styles.label}>
               {t('budget:invoiceDetail.deposits.form.amount')}
-              <span className={styles.required}>{t('budget:invoiceDetail.deposits.form.required')}</span>
+              <span className={styles.required}>
+                {t('budget:invoiceDetail.deposits.form.required')}
+              </span>
             </label>
             <input
               type="number"
@@ -1115,7 +1124,9 @@ function AddEditDepositModal({
           <div className={styles.formField}>
             <label htmlFor="deposit-dueDate" className={styles.label}>
               {t('budget:invoiceDetail.deposits.form.dueDate')}
-              <span className={styles.required}>{t('budget:invoiceDetail.deposits.form.required')}</span>
+              <span className={styles.required}>
+                {t('budget:invoiceDetail.deposits.form.required')}
+              </span>
             </label>
             <input
               type="date"
@@ -1137,7 +1148,9 @@ function AddEditDepositModal({
           <select
             id="deposit-status"
             value={form.status}
-            onChange={(e) => onFormChange({ ...form, status: e.target.value as InvoiceDepositStatus })}
+            onChange={(e) =>
+              onFormChange({ ...form, status: e.target.value as InvoiceDepositStatus })
+            }
             className={sharedStyles.select}
             disabled={isMutating}
           >
@@ -1154,7 +1167,9 @@ function AddEditDepositModal({
           <div className={styles.formField}>
             <label htmlFor="deposit-paidDate" className={styles.label}>
               {t('budget:invoiceDetail.deposits.form.paidDate')}
-              <span className={styles.required}>{t('budget:invoiceDetail.deposits.form.required')}</span>
+              <span className={styles.required}>
+                {t('budget:invoiceDetail.deposits.form.required')}
+              </span>
             </label>
             <input
               type="date"
@@ -1174,7 +1189,9 @@ function AddEditDepositModal({
           <div className={styles.formField}>
             <label htmlFor="deposit-claimedDate" className={styles.label}>
               {t('budget:invoiceDetail.deposits.form.claimedDate')}
-              <span className={styles.required}>{t('budget:invoiceDetail.deposits.form.required')}</span>
+              <span className={styles.required}>
+                {t('budget:invoiceDetail.deposits.form.required')}
+              </span>
             </label>
             <input
               type="date"

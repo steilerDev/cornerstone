@@ -5,7 +5,11 @@ import {
   updateDeposit,
   deleteDeposit,
 } from './invoiceDepositsApi.js';
-import type { InvoiceDeposit, CreateDepositRequest, UpdateDepositRequest } from '@cornerstone/shared';
+import type {
+  InvoiceDeposit,
+  CreateDepositRequest,
+  UpdateDepositRequest,
+} from '@cornerstone/shared';
 
 describe('invoiceDepositsApi', () => {
   let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
@@ -310,9 +314,7 @@ describe('invoiceDepositsApi', () => {
         }),
       } as Response);
 
-      await expect(
-        updateDeposit(INVOICE_ID, DEPOSIT_ID, { status: 'pending' }),
-      ).rejects.toThrow();
+      await expect(updateDeposit(INVOICE_ID, DEPOSIT_ID, { status: 'pending' })).rejects.toThrow();
     });
 
     it('propagates 404 NOT_FOUND when deposit does not exist', async () => {
@@ -322,9 +324,7 @@ describe('invoiceDepositsApi', () => {
         json: async () => ({ error: { code: 'NOT_FOUND', message: 'Deposit not found' } }),
       } as Response);
 
-      await expect(
-        updateDeposit(INVOICE_ID, 'nonexistent-deposit', {}),
-      ).rejects.toThrow();
+      await expect(updateDeposit(INVOICE_ID, 'nonexistent-deposit', {})).rejects.toThrow();
     });
 
     it('uses the correct invoiceId and depositId in the URL', async () => {

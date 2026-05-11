@@ -30,10 +30,7 @@ export function updateDeposit(
   depositId: string,
   data: UpdateDepositRequest,
 ): Promise<{ deposit: InvoiceDeposit }> {
-  return patch<{ deposit: InvoiceDeposit }>(
-    `/invoices/${invoiceId}/deposits/${depositId}`,
-    data,
-  );
+  return patch<{ deposit: InvoiceDeposit }>(`/invoices/${invoiceId}/deposits/${depositId}`, data);
 }
 
 /**

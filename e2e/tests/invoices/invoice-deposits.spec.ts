@@ -259,126 +259,132 @@ test.describe('Deposits — add deposit (Scenario 2)', { tag: '@responsive' }, (
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Deposits — full lifecycle (Scenario 3)', () => {
-  test(
-    'Add → mark paid → mark claimed → revert to paid → edit amount → delete pending deposit',
-    async ({ page, testPrefix }) => {
-      const detailPage = new InvoiceDetailPage(page);
-      let vendorId = '';
-      let invoiceId = '';
+  test('Add → mark paid → mark claimed → revert to paid → edit amount → delete pending deposit', async ({
+    page,
+    testPrefix,
+  }) => {
+    const detailPage = new InvoiceDetailPage(page);
+    let vendorId = '';
+    let invoiceId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} Dep LifecycleVendor`);
-        // Invoice total = 500
-        invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 500,
-          date: '2026-06-01',
-        });
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} Dep LifecycleVendor`);
+      // Invoice total = 500
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 500,
+        date: '2026-06-01',
+      });
 
-        await detailPage.goto(invoiceId);
-        await expect(detailPage.heading).toBeVisible();
+      await detailPage.goto(invoiceId);
+      await expect(detailPage.heading).toBeVisible();
 
-        // ── Step 1: Add a deposit (amount=150, dueDate=2026-07-01, pending) ──
-        await detailPage.openAddDepositModal();
-        await detailPage.fillDepositForm({
-          amount: '150',
-          dueDate: '2026-07-01',
-        });
-        await detailPage.saveDepositForm(201);
+      // ── Step 1: Add a deposit (amount=150, dueDate=2026-07-01, pending) ──
+      await detailPage.openAddDepositModal();
+      await detailPage.fillDepositForm({
+        amount: '150',
+        dueDate: '2026-07-01',
+      });
+      await detailPage.saveDepositForm(201);
 
-        // Row appears; Final Payment = 500 − 150 = 350
-        await expect(detailPage.depositsSection).toContainText('150');
-        await expect(detailPage.finalPaymentAmount).toContainText('350');
+      // Row appears; Final Payment = 500 − 150 = 350
+      await expect(detailPage.depositsSection).toContainText('150');
+      await expect(detailPage.finalPaymentAmount).toContainText('350');
 
-        // ── Step 2: Mark paid (overflow menu → "Mark paid…") ──
-        await detailPage.openDepositMenu();
-        await detailPage.clickDepositMenuItem(/Mark paid/);
+      // ── Step 2: Mark paid (overflow menu → "Mark paid…") ──
+      await detailPage.openDepositMenu();
+      await detailPage.clickDepositMenuItem(/Mark paid/);
 
-        // State confirm modal opens with "Mark as paid" title
-        await expect(page.getByRole('dialog').filter({ has: page.getByText('Mark as paid') })).toBeVisible();
+      // State confirm modal opens with "Mark as paid" title
+      await expect(
+        page.getByRole('dialog').filter({ has: page.getByText('Mark as paid') }),
+      ).toBeVisible();
 
-        // Confirm (date is pre-filled with today)
-        await detailPage.confirmStateTransition();
+      // Confirm (date is pre-filled with today)
+      await detailPage.confirmStateTransition();
 
-        // Badge now shows "Paid" — the deposit row's badge class changes to statusPaid
-        // We verify by checking the status badge text via the badge component's visible text.
-        // The section should contain "Paid" text after the re-render.
-        await expect(detailPage.depositsSection).toContainText('Paid');
+      // Badge now shows "Paid" — the deposit row's badge class changes to statusPaid
+      // We verify by checking the status badge text via the badge component's visible text.
+      // The section should contain "Paid" text after the re-render.
+      await expect(detailPage.depositsSection).toContainText('Paid');
 
-        // ── Step 3: Mark claimed (overflow menu → "Mark claimed…") ──
-        await detailPage.openDepositMenu();
-        await detailPage.clickDepositMenuItem(/Mark claimed/);
+      // ── Step 3: Mark claimed (overflow menu → "Mark claimed…") ──
+      await detailPage.openDepositMenu();
+      await detailPage.clickDepositMenuItem(/Mark claimed/);
 
-        await expect(page.getByRole('dialog').filter({ has: page.getByText('Mark as claimed') })).toBeVisible();
+      await expect(
+        page.getByRole('dialog').filter({ has: page.getByText('Mark as claimed') }),
+      ).toBeVisible();
 
-        await detailPage.confirmStateTransition();
+      await detailPage.confirmStateTransition();
 
-        await expect(detailPage.depositsSection).toContainText('Claimed');
+      await expect(detailPage.depositsSection).toContainText('Claimed');
 
-        // ── Step 4: Revert to paid (overflow menu → "Revert to paid") ──
-        await detailPage.openDepositMenu();
-        const revertToPaidResponsePromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes('/deposits/') &&
-            resp.request().method() === 'PATCH' &&
-            resp.status() === 200,
-        );
-        await detailPage.clickDepositMenuItem(/Revert to paid/);
-        await revertToPaidResponsePromise;
+      // ── Step 4: Revert to paid (overflow menu → "Revert to paid") ──
+      await detailPage.openDepositMenu();
+      const revertToPaidResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/deposits/') &&
+          resp.request().method() === 'PATCH' &&
+          resp.status() === 200,
+      );
+      await detailPage.clickDepositMenuItem(/Revert to paid/);
+      await revertToPaidResponsePromise;
 
-        // Badge reverts to "Paid".
-        // Note: we do NOT assert not.toContainText('Claimed') here because the table
-        // always renders a "Claimed date" column header that contains the text "Claimed".
-        // The containText('Paid') assertion above is sufficient to confirm the badge state.
-        await expect(detailPage.depositsSection).toContainText('Paid');
+      // Badge reverts to "Paid".
+      // Note: we do NOT assert not.toContainText('Claimed') here because the table
+      // always renders a "Claimed date" column header that contains the text "Claimed".
+      // The containText('Paid') assertion above is sufficient to confirm the badge state.
+      await expect(detailPage.depositsSection).toContainText('Paid');
 
-        // ── Step 5: Edit amount (overflow menu → "Edit") ──
-        await detailPage.openDepositMenu();
-        await detailPage.clickDepositMenuItem(/Edit/);
+      // ── Step 5: Edit amount (overflow menu → "Edit") ──
+      await detailPage.openDepositMenu();
+      await detailPage.clickDepositMenuItem(/Edit/);
 
-        // Edit modal opens
-        await expect(detailPage.depositAmountInput).toBeVisible();
+      // Edit modal opens
+      await expect(detailPage.depositAmountInput).toBeVisible();
 
-        // Change amount from 150 to 200
-        await detailPage.depositAmountInput.clear();
-        await detailPage.depositAmountInput.fill('200');
+      // Change amount from 150 to 200
+      await detailPage.depositAmountInput.clear();
+      await detailPage.depositAmountInput.fill('200');
 
-        // Save edit (PATCH)
-        await detailPage.saveDepositForm(200);
+      // Save edit (PATCH)
+      await detailPage.saveDepositForm(200);
 
-        // Final Payment = 500 − 200 = 300
-        await expect(detailPage.depositsSection).toContainText('200');
-        await expect(detailPage.finalPaymentAmount).toContainText('300');
+      // Final Payment = 500 − 200 = 300
+      await expect(detailPage.depositsSection).toContainText('200');
+      await expect(detailPage.finalPaymentAmount).toContainText('300');
 
-        // ── Step 6: Revert to pending (so we can delete without paid warning) ──
-        await detailPage.openDepositMenu();
-        const revertToPendingResponsePromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes('/deposits/') &&
-            resp.request().method() === 'PATCH' &&
-            resp.status() === 200,
-        );
-        await detailPage.clickDepositMenuItem(/Revert to pending/);
-        await revertToPendingResponsePromise;
-        await expect(detailPage.depositsSection).toContainText('Pending');
+      // ── Step 6: Revert to pending (so we can delete without paid warning) ──
+      await detailPage.openDepositMenu();
+      const revertToPendingResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/deposits/') &&
+          resp.request().method() === 'PATCH' &&
+          resp.status() === 200,
+      );
+      await detailPage.clickDepositMenuItem(/Revert to pending/);
+      await revertToPendingResponsePromise;
+      await expect(detailPage.depositsSection).toContainText('Pending');
 
-        // ── Step 7: Delete the deposit ──
-        await detailPage.openDepositMenu();
-        await detailPage.clickDepositMenuItem(/Delete/);
+      // ── Step 7: Delete the deposit ──
+      await detailPage.openDepositMenu();
+      await detailPage.clickDepositMenuItem(/Delete/);
 
-        // Delete modal opens — for a pending deposit no warning banner
-        await expect(page.getByRole('dialog').filter({ has: page.getByText('Delete deposit') })).toBeVisible();
-        await expect(detailPage.deleteDepositWarning).not.toBeVisible();
+      // Delete modal opens — for a pending deposit no warning banner
+      await expect(
+        page.getByRole('dialog').filter({ has: page.getByText('Delete deposit') }),
+      ).toBeVisible();
+      await expect(detailPage.deleteDepositWarning).not.toBeVisible();
 
-        await detailPage.confirmDepositDelete();
+      await detailPage.confirmDepositDelete();
 
-        // Deposit removed — back to empty state
-        await expect(detailPage.depositsSection).toContainText('No deposits yet');
-        await expect(detailPage.finalPaymentRow).not.toBeVisible();
-      } finally {
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      // Deposit removed — back to empty state
+      await expect(detailPage.depositsSection).toContainText('No deposits yet');
+      await expect(detailPage.finalPaymentRow).not.toBeVisible();
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -386,80 +392,82 @@ test.describe('Deposits — full lifecycle (Scenario 3)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Deposits — delete paid deposit warning (Scenario 4)', () => {
-  test(
-    'Delete modal for a paid deposit shows warning banner; cancel keeps deposit; confirm removes it',
-    async ({ page, testPrefix }) => {
-      const detailPage = new InvoiceDetailPage(page);
-      let vendorId = '';
-      let invoiceId = '';
-      let depositId = '';
+  test('Delete modal for a paid deposit shows warning banner; cancel keeps deposit; confirm removes it', async ({
+    page,
+    testPrefix,
+  }) => {
+    const detailPage = new InvoiceDetailPage(page);
+    let vendorId = '';
+    let invoiceId = '';
+    let depositId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} Dep DelWarnVendor`);
-        invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 600,
-          date: '2026-06-01',
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} Dep DelWarnVendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 600,
+        date: '2026-06-01',
+      });
+
+      // Create a deposit in 'paid' status via the state machine: pending → paid
+      // Direct creation with status='paid' is rejected by the server (ALLOWED_TRANSITIONS).
+      const today = new Date().toISOString().slice(0, 10);
+      const deposit = await createDepositViaApi(page, invoiceId, {
+        amount: 150,
+        dueDate: '2026-07-01',
+      });
+      depositId = deposit.id;
+      // pending → paid
+      const paidResp = await page.request.patch(
+        `/api/invoices/${invoiceId}/deposits/${deposit.id}`,
+        { data: { status: 'paid', paidDate: today } },
+      );
+      expect(paidResp.ok(), `PATCH pending→paid failed: ${paidResp.status()}`).toBeTruthy();
+
+      await detailPage.goto(invoiceId);
+      await expect(detailPage.heading).toBeVisible();
+
+      // Deposit row is visible
+      await expect(detailPage.depositsSection).toContainText('150');
+      await expect(detailPage.depositsSection).toContainText('Paid');
+
+      // Open overflow menu → Delete
+      await detailPage.openDepositMenu();
+      await detailPage.clickDepositMenuItem(/Delete/);
+
+      // Delete modal opens
+      await expect(
+        page.getByRole('dialog').filter({ has: page.getByText('Delete deposit') }),
+      ).toBeVisible();
+
+      // Warning banner IS visible for a paid deposit
+      await expect(detailPage.deleteDepositWarning).toBeVisible();
+
+      // Cancel — deposit still present
+      await detailPage.deleteDepositCancelButton.click();
+      // Modal closes
+      await expect(detailPage.deleteDepositWarning).not.toBeVisible();
+
+      // Deposit still in the list
+      await expect(detailPage.depositsSection).toContainText('150');
+      await expect(detailPage.depositsSection).toContainText('Paid');
+
+      // Now actually delete
+      await detailPage.openDepositMenu();
+      await detailPage.clickDepositMenuItem(/Delete/);
+      await expect(detailPage.deleteDepositWarning).toBeVisible();
+      await detailPage.confirmDepositDelete();
+
+      // Deposit gone, empty state
+      depositId = ''; // cleared — no cleanup needed
+      await expect(detailPage.depositsSection).toContainText('No deposits yet');
+    } finally {
+      if (depositId && invoiceId)
+        await deleteDepositViaApi(page, invoiceId, depositId).catch(() => {
+          /* already deleted */
         });
-
-        // Create a deposit in 'paid' status via the state machine: pending → paid
-        // Direct creation with status='paid' is rejected by the server (ALLOWED_TRANSITIONS).
-        const today = new Date().toISOString().slice(0, 10);
-        const deposit = await createDepositViaApi(page, invoiceId, {
-          amount: 150,
-          dueDate: '2026-07-01',
-        });
-        depositId = deposit.id;
-        // pending → paid
-        const paidResp = await page.request.patch(
-          `/api/invoices/${invoiceId}/deposits/${deposit.id}`,
-          { data: { status: 'paid', paidDate: today } },
-        );
-        expect(paidResp.ok(), `PATCH pending→paid failed: ${paidResp.status()}`).toBeTruthy();
-
-        await detailPage.goto(invoiceId);
-        await expect(detailPage.heading).toBeVisible();
-
-        // Deposit row is visible
-        await expect(detailPage.depositsSection).toContainText('150');
-        await expect(detailPage.depositsSection).toContainText('Paid');
-
-        // Open overflow menu → Delete
-        await detailPage.openDepositMenu();
-        await detailPage.clickDepositMenuItem(/Delete/);
-
-        // Delete modal opens
-        await expect(page.getByRole('dialog').filter({ has: page.getByText('Delete deposit') })).toBeVisible();
-
-        // Warning banner IS visible for a paid deposit
-        await expect(detailPage.deleteDepositWarning).toBeVisible();
-
-        // Cancel — deposit still present
-        await detailPage.deleteDepositCancelButton.click();
-        // Modal closes
-        await expect(detailPage.deleteDepositWarning).not.toBeVisible();
-
-        // Deposit still in the list
-        await expect(detailPage.depositsSection).toContainText('150');
-        await expect(detailPage.depositsSection).toContainText('Paid');
-
-        // Now actually delete
-        await detailPage.openDepositMenu();
-        await detailPage.clickDepositMenuItem(/Delete/);
-        await expect(detailPage.deleteDepositWarning).toBeVisible();
-        await detailPage.confirmDepositDelete();
-
-        // Deposit gone, empty state
-        depositId = ''; // cleared — no cleanup needed
-        await expect(detailPage.depositsSection).toContainText('No deposits yet');
-      } finally {
-        if (depositId && invoiceId)
-          await deleteDepositViaApi(page, invoiceId, depositId).catch(() => {
-            /* already deleted */
-          });
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 
   test('Delete modal for a claimed deposit shows warning banner', async ({ page, testPrefix }) => {
     const detailPage = new InvoiceDetailPage(page);
@@ -501,7 +509,9 @@ test.describe('Deposits — delete paid deposit warning (Scenario 4)', () => {
       // Open Delete dialog
       await detailPage.openDepositMenu();
       await detailPage.clickDepositMenuItem(/Delete/);
-      await expect(page.getByRole('dialog').filter({ has: page.getByText('Delete deposit') })).toBeVisible();
+      await expect(
+        page.getByRole('dialog').filter({ has: page.getByText('Delete deposit') }),
+      ).toBeVisible();
 
       // Warning banner visible for claimed deposit too
       await expect(detailPage.deleteDepositWarning).toBeVisible();
@@ -526,68 +536,68 @@ test.describe('Deposits — delete paid deposit warning (Scenario 4)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Deposits — exceed invoice total error (Scenario 5)', () => {
-  test(
-    'Adding a deposit whose amount exceeds available headroom shows DEPOSITS_EXCEED_INVOICE_TOTAL error with available amount',
-    async ({ page, testPrefix }) => {
-      const detailPage = new InvoiceDetailPage(page);
-      let vendorId = '';
-      let invoiceId = '';
+  test('Adding a deposit whose amount exceeds available headroom shows DEPOSITS_EXCEED_INVOICE_TOTAL error with available amount', async ({
+    page,
+    testPrefix,
+  }) => {
+    const detailPage = new InvoiceDetailPage(page);
+    let vendorId = '';
+    let invoiceId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} Dep ExceedVendor`);
-        // Invoice total = 100
-        invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 100,
-          date: '2026-06-01',
-        });
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} Dep ExceedVendor`);
+      // Invoice total = 100
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 100,
+        date: '2026-06-01',
+      });
 
-        // Add first deposit of 60 (succeeds, headroom = 40 remaining)
-        await createDepositViaApi(page, invoiceId, {
-          amount: 60,
-          dueDate: '2026-07-01',
-        });
+      // Add first deposit of 60 (succeeds, headroom = 40 remaining)
+      await createDepositViaApi(page, invoiceId, {
+        amount: 60,
+        dueDate: '2026-07-01',
+      });
 
-        await detailPage.goto(invoiceId);
-        await expect(detailPage.heading).toBeVisible();
+      await detailPage.goto(invoiceId);
+      await expect(detailPage.heading).toBeVisible();
 
-        // Verify first deposit visible and Final Payment = 40
-        await expect(detailPage.depositsSection).toContainText('60');
-        await expect(detailPage.finalPaymentAmount).toContainText('40');
+      // Verify first deposit visible and Final Payment = 40
+      await expect(detailPage.depositsSection).toContainText('60');
+      await expect(detailPage.finalPaymentAmount).toContainText('40');
 
-        // Try to add a second deposit of 60 (exceeds remaining 40)
-        await detailPage.openAddDepositModal();
-        await detailPage.fillDepositForm({
-          amount: '60',
-          dueDate: '2026-08-01',
-        });
+      // Try to add a second deposit of 60 (exceeds remaining 40)
+      await detailPage.openAddDepositModal();
+      await detailPage.fillDepositForm({
+        amount: '60',
+        dueDate: '2026-08-01',
+      });
 
-        // Register the expected 400 response BEFORE clicking save
-        const errorResponsePromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes('/deposits') &&
-            resp.request().method() === 'POST' &&
-            resp.status() === 400,
-        );
+      // Register the expected 400 response BEFORE clicking save
+      const errorResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/deposits') &&
+          resp.request().method() === 'POST' &&
+          resp.status() === 400,
+      );
 
-        await detailPage.depositModalSave.click();
-        await errorResponsePromise;
+      await detailPage.depositModalSave.click();
+      await errorResponsePromise;
 
-        // Error banner renders in the modal with the error message
-        // The message includes "Available headroom" and the formatted available amount (40)
-        await expect(detailPage.depositModalError).toBeVisible();
-        await expect(detailPage.depositModalError).toContainText('40');
+      // Error banner renders in the modal with the error message
+      // The message includes "Available headroom" and the formatted available amount (40)
+      await expect(detailPage.depositModalError).toBeVisible();
+      await expect(detailPage.depositModalError).toContainText('40');
 
-        // Modal stays open — user can correct the amount
-        await expect(detailPage.depositAmountInput).toBeVisible();
+      // Modal stays open — user can correct the amount
+      await expect(detailPage.depositAmountInput).toBeVisible();
 
-        // Cancel to close modal
-        await detailPage.depositModalCancel.first().click();
-        await detailPage.depositAmountInput.waitFor({ state: 'hidden' });
-      } finally {
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      // Cancel to close modal
+      await detailPage.depositModalCancel.first().click();
+      await detailPage.depositAmountInput.waitFor({ state: 'hidden' });
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

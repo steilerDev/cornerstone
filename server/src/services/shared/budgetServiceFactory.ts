@@ -227,7 +227,8 @@ export function resolveRelationsBatch(
     }
 
     for (const [budgetId, budgetRows] of rowsByBudgetId) {
-      const { actualCost, actualCostPaid, invoiceCount } = computeDepositAwareAggregates(budgetRows);
+      const { actualCost, actualCostPaid, invoiceCount } =
+        computeDepositAwareAggregates(budgetRows);
       invoiceAggregatesMap.set(budgetId, {
         actualCost,
         actualCostPaid,

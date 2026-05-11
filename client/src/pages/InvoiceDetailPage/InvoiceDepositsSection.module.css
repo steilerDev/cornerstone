@@ -380,7 +380,9 @@
 
 .conditionalField {
   overflow: hidden;
-  transition: max-height var(--transition-normal), opacity var(--transition-normal);
+  transition:
+    max-height var(--transition-normal),
+    opacity var(--transition-normal);
   margin-bottom: var(--spacing-4);
 }
 

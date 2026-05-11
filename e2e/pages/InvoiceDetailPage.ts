@@ -295,13 +295,14 @@ export class InvoiceDetailPage {
     // deposits.length === 0. It has visible text "Add deposit" but NO aria-label attribute.
     // We locate it via CSS attribute selector to exclude buttons that carry aria-label,
     // which would otherwise match the header button too.
-    this.addDepositFromEmptyState = this.depositsSection.locator(
-      'button:not([aria-label])',
-      { hasText: 'Add deposit' },
-    );
+    this.addDepositFromEmptyState = this.depositsSection.locator('button:not([aria-label])', {
+      hasText: 'Add deposit',
+    });
 
     // EmptyState container element (only visible when deposits.length === 0)
-    this.depositEmptyState = this.depositsSection.locator('[class*="emptyState"], [class*="empty"]');
+    this.depositEmptyState = this.depositsSection.locator(
+      '[class*="emptyState"], [class*="empty"]',
+    );
 
     // The deposit modal renders via the shared Modal component which uses useId() for
     // aria-labelledby — locate by role="dialog" + the visible h2 heading.
@@ -551,7 +552,9 @@ export class InvoiceDetailPage {
       // but their overflow buttons remain in the DOM, so .first() without the filter picks
       // the hidden table button instead of the visible mobile-card button.
       menuButton = this.depositsSection
-        .locator(`button[aria-haspopup="true"][aria-label*="${depositDescription.replace(/"/g, '\\"')}"]`)
+        .locator(
+          `button[aria-haspopup="true"][aria-label*="${depositDescription.replace(/"/g, '\\"')}"]`,
+        )
         .filter({ visible: true })
         .first();
     } else {
@@ -685,9 +688,12 @@ export class InvoiceDetailPage {
    * Returns the badge element scoped to the table row or card that contains the amount text.
    */
   getDepositBadgeByAmount(formattedAmount: string): Locator {
-    return this.depositsSection.locator('[class*="tableRow"], [class*="mobileCard"]').filter({
-      hasText: formattedAmount,
-    }).locator('[class*="badge"], [class*="Badge"]');
+    return this.depositsSection
+      .locator('[class*="tableRow"], [class*="mobileCard"]')
+      .filter({
+        hasText: formattedAmount,
+      })
+      .locator('[class*="badge"], [class*="Badge"]');
   }
 
   // ─── Budget Line Picker helpers (Issue #1401) ────────────────────────────

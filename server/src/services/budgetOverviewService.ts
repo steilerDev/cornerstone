@@ -9,7 +9,10 @@ import type {
   SubsidyCapMeta,
   PerSubsidyTotals,
 } from './shared/subsidyCalculationEngine.js';
-import { computeDepositAwareAggregates, type DepositAwareRow } from './shared/depositAggregateUtils.js';
+import {
+  computeDepositAwareAggregates,
+  type DepositAwareRow,
+} from './shared/depositAggregateUtils.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -307,7 +310,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     WHERE i.status != 'quotation'`,
   );
 
-  const { actualCost, actualCostPaid, actualCostClaimed } = computeDepositAwareAggregates(overviewRows);
+  const { actualCost, actualCostPaid, actualCostClaimed } =
+    computeDepositAwareAggregates(overviewRows);
 
   // ── 9. Subsidy summary ───────────────────────────────────────────────────
   const subsidyCountRow = db.get<{ activeSubsidyCount: number }>(

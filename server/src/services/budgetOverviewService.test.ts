@@ -1368,14 +1368,12 @@ describe('getBudgetOverview', () => {
      * Create a paid invoice for a work item budget line and return its id.
      * The paid invoice uses the 'paid' status for insertion; allows deposit override.
      */
-    function insertWorkItemWithPaidInvoiceAndDeposits(
-      opts: {
-        plannedAmount: number;
-        invoiceAmount: number;
-        invoiceStatus: 'pending' | 'paid' | 'claimed';
-        deposits: Array<{ amount: number; status: 'pending' | 'paid' | 'claimed' }>;
-      },
-    ): string {
+    function insertWorkItemWithPaidInvoiceAndDeposits(opts: {
+      plannedAmount: number;
+      invoiceAmount: number;
+      invoiceStatus: 'pending' | 'paid' | 'claimed';
+      deposits: Array<{ amount: number; status: 'pending' | 'paid' | 'claimed' }>;
+    }): string {
       const { workItemId, budgetLineId } = insertWorkItem({
         plannedAmount: opts.plannedAmount,
         actualCost: opts.invoiceStatus !== 'pending' ? opts.invoiceAmount : undefined,
