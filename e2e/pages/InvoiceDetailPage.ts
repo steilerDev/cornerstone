@@ -173,6 +173,9 @@ export class InvoiceDetailPage {
   /** Warning banner inside the delete deposit modal (visible for paid/claimed deposits) */
   readonly deleteDepositWarning: Locator;
 
+  /** Cancel button inside the delete deposit modal (data-testid="deposit-delete-cancel") */
+  readonly deleteDepositCancelButton: Locator;
+
   /** Confirm delete button inside the delete deposit modal */
   readonly deleteDepositConfirmButton: Locator;
 
@@ -343,6 +346,9 @@ export class InvoiceDetailPage {
 
     // Warning banner inside delete deposit modal: [class*="warningBanner"]
     this.deleteDepositWarning = page.locator('[class*="warningBanner"]');
+
+    // Cancel button in delete deposit modal — stable data-testid added in #1407
+    this.deleteDepositCancelButton = page.getByTestId('deposit-delete-cancel');
 
     // Delete deposit confirm button — stable data-testid added in #1407
     this.deleteDepositConfirmButton = page.getByTestId('deposit-delete-confirm');

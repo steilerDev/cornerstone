@@ -427,7 +427,7 @@ test.describe('Deposits — delete paid deposit warning (Scenario 4)', () => {
         await expect(detailPage.deleteDepositWarning).toBeVisible();
 
         // Cancel — deposit still present
-        await detailPage.depositModalCancel.first().click();
+        await detailPage.deleteDepositCancelButton.click();
         // Modal closes
         await expect(detailPage.deleteDepositWarning).not.toBeVisible();
 
