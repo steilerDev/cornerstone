@@ -21,15 +21,11 @@ function buildItems(count = 2, overrides: Partial<OverflowMenuItem>[] = []): Ove
   }));
 }
 
-function renderMenu(props: Partial<Parameters<typeof OverflowMenu>[0]> & { items?: OverflowMenuItem[] } = {}) {
+function renderMenu(
+  props: Partial<Parameters<typeof OverflowMenu>[0]> & { items?: OverflowMenuItem[] } = {},
+) {
   const items = props.items ?? buildItems(3);
-  return render(
-    <OverflowMenu
-      items={items}
-      triggerAriaLabel="Open menu"
-      {...props}
-    />,
-  );
+  return render(<OverflowMenu items={items} triggerAriaLabel="Open menu" {...props} />);
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────

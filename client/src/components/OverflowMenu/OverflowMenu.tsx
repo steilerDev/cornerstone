@@ -65,9 +65,7 @@ export function OverflowMenu({
     const menuItems = menuRef.current?.querySelectorAll('[role="menuitem"]:not(:disabled)');
     if (!menuItems || menuItems.length === 0) return;
 
-    const currentIndex = Array.from(menuItems).findIndex(
-      (item) => item === document.activeElement,
-    );
+    const currentIndex = Array.from(menuItems).findIndex((item) => item === document.activeElement);
 
     switch (e.key) {
       case 'ArrowDown': {

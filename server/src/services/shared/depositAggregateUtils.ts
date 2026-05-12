@@ -101,7 +101,8 @@ export function splitByDeposits(
       });
     } else {
       const totalDepositAmount = deposits.reduce((s, d) => s + d.depositAmount, 0);
-      const residualFraction = Math.max(0, safeInvoiceAmount - totalDepositAmount) / safeInvoiceAmount;
+      const residualFraction =
+        Math.max(0, safeInvoiceAmount - totalDepositAmount) / safeInvoiceAmount;
       const depositFractions = deposits.map((d) => ({
         depositStatus: d.depositStatus,
         fraction: d.depositAmount / safeInvoiceAmount,

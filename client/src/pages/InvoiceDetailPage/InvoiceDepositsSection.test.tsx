@@ -1022,9 +1022,7 @@ describe('InvoiceDepositsSection', () => {
 
       const menuItems = openMenuForFirstDeposit();
       // For a paid deposit, "Revert to pending" is a menu item
-      const revertBtn = menuItems.find((m) =>
-        m.textContent?.toLowerCase().includes('pending'),
-      )!;
+      const revertBtn = menuItems.find((m) => m.textContent?.toLowerCase().includes('pending'))!;
       await act(async () => {
         fireEvent.click(revertBtn);
       });
@@ -1048,9 +1046,7 @@ describe('InvoiceDepositsSection', () => {
       renderSection([deposit]);
 
       const menuItems = openMenuForFirstDeposit();
-      const revertBtn = menuItems.find((m) =>
-        m.textContent?.toLowerCase().includes('pending'),
-      )!;
+      const revertBtn = menuItems.find((m) => m.textContent?.toLowerCase().includes('pending'))!;
       await act(async () => {
         fireEvent.click(revertBtn);
       });
@@ -1108,9 +1104,7 @@ describe('InvoiceDepositsSection', () => {
       renderSection([deposit]);
 
       const menuItems = openMenuForFirstDeposit();
-      const revertBtn = menuItems.find((m) =>
-        m.textContent?.toLowerCase().includes('pending'),
-      )!;
+      const revertBtn = menuItems.find((m) => m.textContent?.toLowerCase().includes('pending'))!;
 
       await act(async () => {
         fireEvent.click(revertBtn);
@@ -1150,9 +1144,7 @@ describe('InvoiceDepositsSection', () => {
 
       // Open menu and click "Mark paid"
       const menuItems = openMenuForFirstDeposit();
-      const markPaidBtn = menuItems.find((m) =>
-        m.textContent?.toLowerCase().includes('paid'),
-      )!;
+      const markPaidBtn = menuItems.find((m) => m.textContent?.toLowerCase().includes('paid'))!;
       fireEvent.click(markPaidBtn);
 
       // The state confirm dialog should appear
@@ -1170,7 +1162,9 @@ describe('InvoiceDepositsSection', () => {
         // role="alert" from FormError mock
         const alertInsideDialog = dialog.querySelector('[role="alert"]');
         expect(alertInsideDialog).toBeInTheDocument();
-        expect(alertInsideDialog!.textContent).toContain('translated:INVALID_DEPOSIT_STATUS_TRANSITION');
+        expect(alertInsideDialog!.textContent).toContain(
+          'translated:INVALID_DEPOSIT_STATUS_TRANSITION',
+        );
       });
     });
   });

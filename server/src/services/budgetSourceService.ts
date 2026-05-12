@@ -254,10 +254,7 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
     for (const row of remainderRows) {
       if (!remainderAmountByInvoice.has(row.invoice_id)) {
         const remainderAmount = row.invoice_amount - (row.total_itemized ?? 0);
-        remainderAmountByInvoice.set(
-          row.invoice_id,
-          remainderAmount > 0 ? remainderAmount : 0,
-        );
+        remainderAmountByInvoice.set(row.invoice_id, remainderAmount > 0 ? remainderAmount : 0);
       }
     }
 

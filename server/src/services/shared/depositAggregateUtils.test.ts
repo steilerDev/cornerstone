@@ -605,7 +605,9 @@ describe('splitByDeposits', () => {
   // ─── Scenario 3: Single invoice, one deposit covering 50% ──────────────────
 
   it('Scenario 3: single invoice with one deposit covering 50% → residualFraction=0.5, depositFractions=[{fraction:0.5}]', () => {
-    const rows = [makeSplitRow('inv-1', 1000, 'pending', { id: 'd-1', amount: 500, status: 'paid' })];
+    const rows = [
+      makeSplitRow('inv-1', 1000, 'pending', { id: 'd-1', amount: 500, status: 'paid' }),
+    ];
     const result = splitByDeposits(rows);
 
     const split = result.get('inv-1')!;
@@ -633,9 +635,7 @@ describe('splitByDeposits', () => {
   // ─── Scenario 5: Zero invoice amount → no division by zero ──────────────────
 
   it('Scenario 5: zero invoice amount → no division by zero (safeInvoiceAmount = 1)', () => {
-    const rows = [
-      makeSplitRow('inv-1', 0, 'paid', { id: 'd-1', amount: 0, status: 'paid' }),
-    ];
+    const rows = [makeSplitRow('inv-1', 0, 'paid', { id: 'd-1', amount: 0, status: 'paid' })];
     expect(() => splitByDeposits(rows)).not.toThrow();
     const result = splitByDeposits(rows);
     const split = result.get('inv-1')!;

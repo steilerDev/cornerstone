@@ -835,93 +835,93 @@ test.describe('Deposits — multiple deposits and sum invariant', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Deposits — revert-to-pending API error (Scenario 8)', () => {
-  test(
-    'Revert to pending fails with INVALID_DEPOSIT_STATUS_TRANSITION → section-level error banner is shown',
-    async ({ page, testPrefix }) => {
-      // Desktop-only: error banner is a single behaviour, viewport-independent.
-      // Skip on narrow viewports where this test would duplicate coverage unnecessarily.
-      const viewportWidth = page.viewportSize()?.width ?? 1440;
-      if (viewportWidth < 1024) {
-        test.skip(true, 'Error banner test — desktop viewport only');
-        return;
-      }
+  test('Revert to pending fails with INVALID_DEPOSIT_STATUS_TRANSITION → section-level error banner is shown', async ({
+    page,
+    testPrefix,
+  }) => {
+    // Desktop-only: error banner is a single behaviour, viewport-independent.
+    // Skip on narrow viewports where this test would duplicate coverage unnecessarily.
+    const viewportWidth = page.viewportSize()?.width ?? 1440;
+    if (viewportWidth < 1024) {
+      test.skip(true, 'Error banner test — desktop viewport only');
+      return;
+    }
 
-      const detailPage = new InvoiceDetailPage(page);
-      let vendorId = '';
-      let invoiceId = '';
+    const detailPage = new InvoiceDetailPage(page);
+    let vendorId = '';
+    let invoiceId = '';
 
-      // The page.route() interceptor handle — kept so we can unroute in teardown.
-      const routePattern = '**/api/invoices/*/deposits/*';
+    // The page.route() interceptor handle — kept so we can unroute in teardown.
+    const routePattern = '**/api/invoices/*/deposits/*';
 
-      try {
-        // ── Setup ────────────────────────────────────────────────────────────
-        vendorId = await createVendorViaApi(page, `${testPrefix} Dep RevertErrVendor`);
-        invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 500,
-          date: '2026-06-01',
-        });
+    try {
+      // ── Setup ────────────────────────────────────────────────────────────
+      vendorId = await createVendorViaApi(page, `${testPrefix} Dep RevertErrVendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 500,
+        date: '2026-06-01',
+      });
 
-        // Create a pending deposit, then transition it to 'paid' via the API.
-        const today = new Date().toISOString().slice(0, 10);
-        const deposit = await createDepositViaApi(page, invoiceId, {
-          amount: 200,
-          dueDate: '2026-07-01',
-        });
+      // Create a pending deposit, then transition it to 'paid' via the API.
+      const today = new Date().toISOString().slice(0, 10);
+      const deposit = await createDepositViaApi(page, invoiceId, {
+        amount: 200,
+        dueDate: '2026-07-01',
+      });
 
-        // pending → paid (real API call, before we install the mock)
-        const paidResp = await page.request.patch(
-          `/api/invoices/${invoiceId}/deposits/${deposit.id}`,
-          { data: { status: 'paid', paidDate: today } },
-        );
-        expect(paidResp.ok(), `PATCH pending→paid failed: ${paidResp.status()}`).toBeTruthy();
+      // pending → paid (real API call, before we install the mock)
+      const paidResp = await page.request.patch(
+        `/api/invoices/${invoiceId}/deposits/${deposit.id}`,
+        { data: { status: 'paid', paidDate: today } },
+      );
+      expect(paidResp.ok(), `PATCH pending→paid failed: ${paidResp.status()}`).toBeTruthy();
 
-        await detailPage.goto(invoiceId);
-        await expect(detailPage.heading).toBeVisible();
+      await detailPage.goto(invoiceId);
+      await expect(detailPage.heading).toBeVisible();
 
-        // Confirm the deposit is showing as Paid before installing the mock.
-        await expect(detailPage.depositsSection).toContainText('Paid');
+      // Confirm the deposit is showing as Paid before installing the mock.
+      await expect(detailPage.depositsSection).toContainText('Paid');
 
-        // ── Mock ─────────────────────────────────────────────────────────────
-        // Intercept the next PATCH to /api/invoices/*/deposits/* and return a 400
-        // INVALID_DEPOSIT_STATUS_TRANSITION error.  We use page.route() (not
-        // page.routeOnce()) so we can call page.unroute() explicitly in teardown.
-        await page.route(routePattern, async (route) => {
-          if (route.request().method() === 'PATCH') {
-            await route.fulfill({
-              status: 400,
-              contentType: 'application/json',
-              body: JSON.stringify({
-                error: {
-                  code: 'INVALID_DEPOSIT_STATUS_TRANSITION',
-                  message: 'Cannot revert',
-                },
-              }),
-            });
-          } else {
-            // Pass non-PATCH requests through unchanged (e.g. GET for page reload).
-            await route.continue();
-          }
-        });
+      // ── Mock ─────────────────────────────────────────────────────────────
+      // Intercept the next PATCH to /api/invoices/*/deposits/* and return a 400
+      // INVALID_DEPOSIT_STATUS_TRANSITION error.  We use page.route() (not
+      // page.routeOnce()) so we can call page.unroute() explicitly in teardown.
+      await page.route(routePattern, async (route) => {
+        if (route.request().method() === 'PATCH') {
+          await route.fulfill({
+            status: 400,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              error: {
+                code: 'INVALID_DEPOSIT_STATUS_TRANSITION',
+                message: 'Cannot revert',
+              },
+            }),
+          });
+        } else {
+          // Pass non-PATCH requests through unchanged (e.g. GET for page reload).
+          await route.continue();
+        }
+      });
 
-        // ── Action ───────────────────────────────────────────────────────────
-        // Open overflow menu for the paid deposit and click "Revert to pending".
-        // The menu for a 'paid' deposit contains: "Mark claimed…", "Revert to pending",
-        // "Edit", "Delete" — no confirm dialog for "Revert to pending".
-        await detailPage.openDepositMenu();
-        await detailPage.clickDepositMenuItem(/Revert to pending/);
+      // ── Action ───────────────────────────────────────────────────────────
+      // Open overflow menu for the paid deposit and click "Revert to pending".
+      // The menu for a 'paid' deposit contains: "Mark claimed…", "Revert to pending",
+      // "Edit", "Delete" — no confirm dialog for "Revert to pending".
+      await detailPage.openDepositMenu();
+      await detailPage.clickDepositMenuItem(/Revert to pending/);
 
-        // ── Assert ───────────────────────────────────────────────────────────
-        // The section-level error banner should appear after the mocked 400 response.
-        // The InvoiceDepositsSection renders API errors in a role="alert" element
-        // outside the add/edit modal context.
-        await expect(page.getByRole('alert')).toBeVisible();
-      } finally {
-        // ── Teardown ─────────────────────────────────────────────────────────
-        // Remove the route interceptor so subsequent tests are unaffected.
-        await page.unroute(routePattern);
+      // ── Assert ───────────────────────────────────────────────────────────
+      // The section-level error banner should appear after the mocked 400 response.
+      // The InvoiceDepositsSection renders API errors in a role="alert" element
+      // outside the add/edit modal context.
+      await expect(page.getByRole('alert')).toBeVisible();
+    } finally {
+      // ── Teardown ─────────────────────────────────────────────────────────
+      // Remove the route interceptor so subsequent tests are unaffected.
+      await page.unroute(routePattern);
 
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 });
