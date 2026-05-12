@@ -1018,7 +1018,7 @@ describe('Invoice Service', () => {
       const vendorId = createTestVendor('AC1 Vendor');
       const invoiceId = insertRawInvoice(vendorId, {
         // insertRawInvoice only types 'pending'|'paid'|'claimed' but the DB accepts 'quotation'
-        status: 'pending' as 'pending',
+        status: 'pending' as const,
         amount: 1000,
       });
       // Override status to 'quotation' via underlying better-sqlite3 (Drizzle type doesn't include it)

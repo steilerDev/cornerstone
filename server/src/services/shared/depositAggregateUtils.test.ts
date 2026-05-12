@@ -434,9 +434,7 @@ describe('aggregateInvoiceStatusBreakdown', () => {
   // ─── Scenario 2: Single invoice, no deposits ──────────────────────────────
 
   it('single invoice with no deposits: full amount under invoice status', () => {
-    const rows: InvoiceDepositRow[] = [
-      makeInvoiceRow('i1', 1000, 'quotation'),
-    ];
+    const rows: InvoiceDepositRow[] = [makeInvoiceRow('i1', 1000, 'quotation')];
     const result = aggregateInvoiceStatusBreakdown(rows);
     expect(result['quotation']).toEqual({ count: 1, totalAmount: 1000 });
     // No deposit key should exist
