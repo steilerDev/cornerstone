@@ -15,7 +15,11 @@ import {
   budgetCategories,
   vendors,
 } from '../db/schema.js';
-import { computeStatusContribution, type DepositAwareRow } from './shared/depositAggregateUtils.js';
+import {
+  computeStatusContribution,
+  splitByDeposits,
+  type DepositAwareRow,
+} from './shared/depositAggregateUtils.js';
 import type {
   BudgetSource,
   BudgetSourceType,
@@ -242,65 +246,38 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
     HAVING (i.amount - COALESCE(SUM(ibl.itemized_amount), 0)) > 0`,
   );
 
-  // Process remainder rows to compute deposit-aware contributions
+  // Build remainder amounts map and split by deposits
   let remainderTotal = 0;
-  const remainderByInvoice = new Map<
-    string,
-    {
-      invoiceAmount: number;
-      remainderAmount: number;
-      invoiceStatus: string;
-      deposits: Array<{ depositId: string; depositAmount: number; depositStatus: string }>;
-    }
-  >();
-
-  for (const row of remainderRows) {
-    const key = row.invoice_id;
-    if (!remainderByInvoice.has(key)) {
-      const remainderAmount = row.invoice_amount - (row.total_itemized ?? 0);
-      remainderByInvoice.set(key, {
-        invoiceAmount: row.invoice_amount,
-        remainderAmount: remainderAmount > 0 ? remainderAmount : 0,
-        invoiceStatus: row.invoice_status,
-        deposits: [],
-      });
-    }
-    if (row.deposit_id !== null && row.deposit_amount !== null && row.deposit_status !== null) {
-      const entry = remainderByInvoice.get(key)!;
-      if (!entry.deposits.find((d) => d.depositId === row.deposit_id)) {
-        entry.deposits.push({
-          depositId: row.deposit_id,
-          depositAmount: row.deposit_amount,
-          depositStatus: row.deposit_status,
-        });
+  if (remainderRows.length > 0) {
+    // First pass: collect remainder amounts
+    const remainderAmountByInvoice = new Map<string, number>();
+    for (const row of remainderRows) {
+      if (!remainderAmountByInvoice.has(row.invoice_id)) {
+        const remainderAmount = row.invoice_amount - (row.total_itemized ?? 0);
+        remainderAmountByInvoice.set(
+          row.invoice_id,
+          remainderAmount > 0 ? remainderAmount : 0,
+        );
       }
     }
-  }
 
-  // Compute proportional split for remainder
-  for (const [_invoiceId, entry] of remainderByInvoice) {
-    if (entry.deposits.length === 0) {
-      // No deposits: entire remainder contributes under parent status
-      if (entry.invoiceStatus === status) {
-        remainderTotal += entry.remainderAmount;
-      }
-    } else {
-      const totalDepositAmount = entry.deposits.reduce((s, d) => s + d.depositAmount, 0);
-      const safeInvoiceAmount = entry.invoiceAmount > 0 ? entry.invoiceAmount : 1;
+    // Split invoices by deposits
+    const splitsByInvoiceId = splitByDeposits(remainderRows);
+
+    // Compute proportional split for remainder
+    for (const [invoiceId, split] of splitsByInvoiceId) {
+      const remainderAmount = remainderAmountByInvoice.get(invoiceId)!;
 
       // Residual contribution under parent invoice status
-      const residualFraction =
-        Math.max(0, safeInvoiceAmount - totalDepositAmount) / safeInvoiceAmount;
-      const residualAmount = entry.remainderAmount * residualFraction;
-      if (entry.invoiceStatus === status) {
+      const residualAmount = remainderAmount * split.residualFraction;
+      if (split.invoiceStatus === status) {
         remainderTotal += residualAmount;
       }
 
       // Per-deposit contributions
-      for (const deposit of entry.deposits) {
-        if (deposit.depositStatus === status) {
-          const depositFraction = deposit.depositAmount / safeInvoiceAmount;
-          const depositContribution = entry.remainderAmount * depositFraction;
+      for (const df of split.depositFractions) {
+        if (df.depositStatus === status) {
+          const depositContribution = remainderAmount * df.fraction;
           remainderTotal += depositContribution;
         }
       }

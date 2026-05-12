@@ -660,7 +660,9 @@
         "loadError": "Failed to load deposits. Please try again.",
         "saveError": "Failed to save deposit. Please try again.",
         "deleteError": "Failed to delete deposit. Please try again.",
-        "revertError": "Failed to revert deposit status. Please try again."
+        "revertError": "Failed to revert deposit status. Please try again.",
+        "revertNetworkError": "Network error — could not revert deposit status. Please try again.",
+        "stateConfirmNetworkError": "Network error — could not update deposit status. Please try again."
       },
       "stateConfirm": {
         "paidDateLabel": "Paid date",

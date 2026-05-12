@@ -192,7 +192,6 @@ function renderSection(
   return render(
     <InvoiceDepositsSection
       invoiceId={INVOICE_ID}
-      invoiceTotal={opts.invoiceTotal ?? INVOICE_TOTAL}
       invoiceStatus={opts.invoiceStatus ?? 'pending'}
       deposits={deposits}
       finalPaymentAmount={finalPaymentAmount}
@@ -998,6 +997,181 @@ describe('InvoiceDepositsSection', () => {
       // No aria-label containing a count should exist for the heading
       const chips = document.querySelectorAll('[class*="countChip"]');
       expect(chips).toHaveLength(0);
+    });
+  });
+
+  // ─── Scenario 17–21: Revert error surfacing (#1413) ───────────────────────
+
+  describe('revert error surfacing (#1413)', () => {
+    // Helper: open the first overflow menu and return its menu items
+    function openMenuForFirstDeposit() {
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
+      fireEvent.click(menuBtn);
+      return screen.getAllByRole('menuitem');
+    }
+
+    // ─── Scenario 17: handleRevertToPending — API error ─────────────────────
+
+    it('Scenario 17: handleRevertToPending — ApiClientError shows section-level alert', async () => {
+      const deposit = makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' });
+      mockUpdateDeposit.mockRejectedValueOnce(
+        new MockApiClientError(400, { code: 'INVALID_DEPOSIT_STATUS_TRANSITION' }),
+      );
+
+      renderSection([deposit]);
+
+      const menuItems = openMenuForFirstDeposit();
+      // For a paid deposit, "Revert to pending" is a menu item
+      const revertBtn = menuItems.find((m) =>
+        m.textContent?.toLowerCase().includes('pending'),
+      )!;
+      await act(async () => {
+        fireEvent.click(revertBtn);
+      });
+
+      // The section-level FormError (role="alert") should appear
+      await waitFor(() => {
+        const alerts = screen.getAllByRole('alert');
+        expect(alerts.length).toBeGreaterThan(0);
+        // The error should contain the translated code from translateApiError mock
+        const alertText = alerts.map((a) => a.textContent ?? '').join(' ');
+        expect(alertText).toContain('translated:INVALID_DEPOSIT_STATUS_TRANSITION');
+      });
+    });
+
+    // ─── Scenario 18: handleRevertToPending — network error ──────────────────
+
+    it('Scenario 18: handleRevertToPending — plain Error shows revertNetworkError banner', async () => {
+      const deposit = makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' });
+      mockUpdateDeposit.mockRejectedValueOnce(new Error('network'));
+
+      renderSection([deposit]);
+
+      const menuItems = openMenuForFirstDeposit();
+      const revertBtn = menuItems.find((m) =>
+        m.textContent?.toLowerCase().includes('pending'),
+      )!;
+      await act(async () => {
+        fireEvent.click(revertBtn);
+      });
+
+      // revertNetworkError translation key is used; i18next returns the English string in tests
+      await waitFor(() => {
+        const alerts = screen.getAllByRole('alert');
+        expect(alerts.length).toBeGreaterThan(0);
+        const alertText = alerts.map((a) => a.textContent ?? '').join(' ');
+        expect(alertText).toContain('Network error');
+      });
+    });
+
+    // ─── Scenario 19: handleRevertToPaid — API error ─────────────────────────
+
+    it('Scenario 19: handleRevertToPaid — ApiClientError shows section-level alert', async () => {
+      const deposit = makeDeposit('dep-1', {
+        status: 'claimed',
+        paidDate: '2026-03-10',
+        claimedDate: '2026-03-20',
+      });
+      mockUpdateDeposit.mockRejectedValueOnce(
+        new MockApiClientError(400, { code: 'INVALID_DEPOSIT_STATUS_TRANSITION' }),
+      );
+
+      renderSection([deposit]);
+
+      const menuItems = openMenuForFirstDeposit();
+      // For a claimed deposit, "Revert to paid" is the revert action
+      const revertBtn = menuItems.find(
+        (m) =>
+          m.textContent?.toLowerCase().includes('revert') &&
+          m.textContent?.toLowerCase().includes('paid'),
+      )!;
+      await act(async () => {
+        fireEvent.click(revertBtn);
+      });
+
+      await waitFor(() => {
+        const alerts = screen.getAllByRole('alert');
+        expect(alerts.length).toBeGreaterThan(0);
+        const alertText = alerts.map((a) => a.textContent ?? '').join(' ');
+        expect(alertText).toContain('translated:INVALID_DEPOSIT_STATUS_TRANSITION');
+      });
+    });
+
+    // ─── Scenario 20: Banner auto-dismiss after 6000ms ────────────────────────
+
+    it('Scenario 20: revert error banner auto-dismisses after 6000ms', async () => {
+      jest.useFakeTimers();
+
+      const deposit = makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' });
+      mockUpdateDeposit.mockRejectedValueOnce(new Error('network'));
+
+      renderSection([deposit]);
+
+      const menuItems = openMenuForFirstDeposit();
+      const revertBtn = menuItems.find((m) =>
+        m.textContent?.toLowerCase().includes('pending'),
+      )!;
+
+      await act(async () => {
+        fireEvent.click(revertBtn);
+      });
+
+      // Banner should be present
+      await waitFor(() => {
+        expect(screen.getAllByRole('alert').length).toBeGreaterThan(0);
+      });
+
+      // Advance past the 6000ms auto-dismiss timer
+      await act(async () => {
+        jest.advanceTimersByTime(6001);
+        await Promise.resolve();
+      });
+
+      await waitFor(() => {
+        // After dismissal, the revert error alert should be gone
+        // (The section-level FormError is only rendered when revertError !== '')
+        const remainingAlerts = screen.queryAllByRole('alert');
+        expect(remainingAlerts.length).toBe(0);
+      });
+
+      jest.useRealTimers();
+    });
+
+    // ─── Scenario 21: handleStateConfirm — modal error ───────────────────────
+
+    it('Scenario 21: handleStateConfirm — PATCH rejects with API error, FormError inside dialog', async () => {
+      const deposit = makeDeposit('dep-1', { status: 'pending' });
+      // First call is for the state-confirm (mark-paid); it should reject
+      mockUpdateDeposit.mockRejectedValueOnce(
+        new MockApiClientError(400, { code: 'INVALID_DEPOSIT_STATUS_TRANSITION' }),
+      );
+
+      renderSection([deposit]);
+
+      // Open menu and click "Mark paid"
+      const menuItems = openMenuForFirstDeposit();
+      const markPaidBtn = menuItems.find((m) =>
+        m.textContent?.toLowerCase().includes('paid'),
+      )!;
+      fireEvent.click(markPaidBtn);
+
+      // The state confirm dialog should appear
+      await waitFor(() => screen.getByRole('dialog'));
+
+      // Click the confirm button
+      const confirmBtn = screen.getByTestId('modal-footer').querySelector('button:last-child')!;
+      await act(async () => {
+        fireEvent.click(confirmBtn);
+      });
+
+      // FormError should appear INSIDE the dialog
+      await waitFor(() => {
+        const dialog = screen.getByRole('dialog');
+        // role="alert" from FormError mock
+        const alertInsideDialog = dialog.querySelector('[role="alert"]');
+        expect(alertInsideDialog).toBeInTheDocument();
+        expect(alertInsideDialog!.textContent).toContain('translated:INVALID_DEPOSIT_STATUS_TRANSITION');
+      });
     });
   });
 });

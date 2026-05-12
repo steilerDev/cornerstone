@@ -6,6 +6,7 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
+import { OverflowMenu, type OverflowMenuItem } from '../../components/OverflowMenu/index.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { FormError } from '../../components/FormError/FormError.js';
@@ -14,7 +15,6 @@ import styles from './InvoiceDepositsSection.module.css';
 
 interface InvoiceDepositsSectionProps {
   invoiceId: string;
-  invoiceTotal: number;
   invoiceStatus: InvoiceStatus;
   deposits: InvoiceDeposit[];
   finalPaymentAmount: number;
@@ -38,18 +38,20 @@ interface StateConfirmState {
   action: StateConfirmAction;
 }
 
-const emptyForm = (): DepositFormState => ({
-  amount: '',
-  dueDate: '',
-  status: 'pending',
-  paidDate: new Date().toISOString().slice(0, 10),
-  claimedDate: new Date().toISOString().slice(0, 10),
-  description: '',
-});
+const getEmptyForm = (): DepositFormState => {
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    amount: '',
+    dueDate: '',
+    status: 'pending',
+    paidDate: today,
+    claimedDate: today,
+    description: '',
+  };
+};
 
 export function InvoiceDepositsSection({
   invoiceId,
-  invoiceTotal,
   invoiceStatus,
   deposits,
   finalPaymentAmount,
@@ -64,15 +66,33 @@ export function InvoiceDepositsSection({
   const [selectedDeposit, setSelectedDeposit] = useState<InvoiceDeposit | null>(null);
   const [isMutating, setIsMutating] = useState(false);
   const [mutatingDepositId, setMutatingDepositId] = useState<string | null>(null);
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [stateConfirmDeposit, setStateConfirmDeposit] = useState<StateConfirmState | null>(null);
 
   // Form state
-  const [depositForm, setDepositForm] = useState<DepositFormState>(emptyForm());
+  const [depositForm, setDepositForm] = useState<DepositFormState>(() => getEmptyForm());
   const [formError, setFormError] = useState<string>('');
+
+  // Revert error handling (transient banner)
+  const [revertError, setRevertError] = useState<string>('');
+  const revertErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // State confirm modal error
+  const [stateConfirmModalError, setStateConfirmModalError] = useState<string>('');
 
   // Focus management
   const addButtonRef = useRef<HTMLButtonElement>(null);
+
+  const showRevertError = (msg: string) => {
+    if (revertErrorTimerRef.current) clearTimeout(revertErrorTimerRef.current);
+    setRevertError(msg);
+    revertErrorTimerRef.current = setTimeout(() => setRevertError(''), 6000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (revertErrorTimerRef.current) clearTimeout(revertErrorTimerRef.current);
+    };
+  }, []);
 
   const invoiceStatusVariants: BadgeVariantMap = {
     pending: {
@@ -92,7 +112,7 @@ export function InvoiceDepositsSection({
 
   const openAddModal = () => {
     setSelectedDeposit(null);
-    setDepositForm(emptyForm());
+    setDepositForm(getEmptyForm());
     setFormError('');
     setModalMode('add');
   };
@@ -109,28 +129,27 @@ export function InvoiceDepositsSection({
     });
     setFormError('');
     setModalMode('edit');
-    setMenuOpenId(null);
   };
 
   const openDeleteModal = (deposit: InvoiceDeposit) => {
     setSelectedDeposit(deposit);
     setFormError('');
     setModalMode('delete');
-    setMenuOpenId(null);
   };
 
   const openStateConfirm = (deposit: InvoiceDeposit, action: StateConfirmAction) => {
     setStateConfirmDeposit({ deposit, action });
-    setMenuOpenId(null);
+    setStateConfirmModalError('');
   };
 
   const closeModal = () => {
     if (!isMutating) {
       setModalMode(null);
       setSelectedDeposit(null);
-      setDepositForm(emptyForm());
+      setDepositForm(getEmptyForm());
       setFormError('');
       setStateConfirmDeposit(null);
+      setStateConfirmModalError('');
     }
   };
 
@@ -254,7 +273,11 @@ export function InvoiceDepositsSection({
       await updateDeposit(invoiceId, deposit.id, { status: 'pending' });
       onDepositMutated();
     } catch (err) {
-      // Silently fail and just clear the opacity
+      if (err instanceof ApiClientError) {
+        showRevertError(translateApiError(err.error.code, tErrors));
+      } else {
+        showRevertError(t('budget:invoiceDetail.deposits.errors.revertNetworkError'));
+      }
     } finally {
       setMutatingDepositId(null);
     }
@@ -266,7 +289,11 @@ export function InvoiceDepositsSection({
       await updateDeposit(invoiceId, deposit.id, { status: 'paid' });
       onDepositMutated();
     } catch (err) {
-      // Silently fail and just clear the opacity
+      if (err instanceof ApiClientError) {
+        showRevertError(translateApiError(err.error.code, tErrors));
+      } else {
+        showRevertError(t('budget:invoiceDetail.deposits.errors.revertNetworkError'));
+      }
     } finally {
       setMutatingDepositId(null);
     }
@@ -294,7 +321,13 @@ export function InvoiceDepositsSection({
       setStateConfirmDeposit(null);
       onDepositMutated();
     } catch (err) {
-      // Could show error, but for now just fail silently
+      let msg: string;
+      if (err instanceof ApiClientError) {
+        msg = translateApiError(err.error.code, tErrors);
+      } else {
+        msg = t('budget:invoiceDetail.deposits.errors.stateConfirmNetworkError');
+      }
+      setStateConfirmModalError(msg);
     } finally {
       setMutatingDepositId(null);
     }
@@ -342,6 +375,8 @@ export function InvoiceDepositsSection({
 
       {deposits.length > 0 && (
         <>
+          {revertError && <FormError message={revertError} />}
+
           {/* Desktop/tablet table (hidden on mobile) */}
           <div className={styles.tableWrapper}>
             <table className={styles.table}>
@@ -367,9 +402,7 @@ export function InvoiceDepositsSection({
                   <DepositRow
                     key={deposit.id}
                     deposit={deposit}
-                    menuOpenId={menuOpenId}
                     mutatingDepositId={mutatingDepositId}
-                    onMenuToggle={setMenuOpenId}
                     onEdit={openEditModal}
                     onDelete={openDeleteModal}
                     onMarkPaid={() => openStateConfirm(deposit, 'mark-paid')}
@@ -391,9 +424,7 @@ export function InvoiceDepositsSection({
               <DepositCard
                 key={deposit.id}
                 deposit={deposit}
-                menuOpenId={menuOpenId}
                 mutatingDepositId={mutatingDepositId}
-                onMenuToggle={setMenuOpenId}
                 onEdit={openEditModal}
                 onDelete={openDeleteModal}
                 onMarkPaid={() => openStateConfirm(deposit, 'mark-paid')}
@@ -437,7 +468,6 @@ export function InvoiceDepositsSection({
           error={formError}
           isMutating={isMutating}
           t={t}
-          formatCurrency={formatCurrency}
         />
       )}
 
@@ -459,8 +489,12 @@ export function InvoiceDepositsSection({
           deposit={stateConfirmDeposit.deposit}
           action={stateConfirmDeposit.action}
           onConfirm={handleStateConfirm}
-          onClose={() => setStateConfirmDeposit(null)}
+          onClose={() => {
+            setStateConfirmDeposit(null);
+            setStateConfirmModalError('');
+          }}
           isMutating={mutatingDepositId === stateConfirmDeposit.deposit.id}
+          error={stateConfirmModalError}
           t={t}
         />
       )}
@@ -474,9 +508,7 @@ export function InvoiceDepositsSection({
 
 interface DepositRowProps {
   deposit: InvoiceDeposit;
-  menuOpenId: string | null;
   mutatingDepositId: string | null;
-  onMenuToggle: (id: string | null) => void;
   onEdit: (deposit: InvoiceDeposit) => void;
   onDelete: (deposit: InvoiceDeposit) => void;
   onMarkPaid: () => void;
@@ -490,9 +522,7 @@ interface DepositRowProps {
 
 function DepositRow({
   deposit,
-  menuOpenId,
   mutatingDepositId,
-  onMenuToggle,
   onEdit,
   onDelete,
   onMarkPaid,
@@ -503,10 +533,6 @@ function DepositRow({
   formatCurrency,
   formatDate,
 }: DepositRowProps) {
-  const isMenuOpen = menuOpenId === deposit.id;
-  const menuTriggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
   const statusVariants: BadgeVariantMap = {
     pending: {
       label: t('invoiceDetail.statusLabels.pending')!,
@@ -519,73 +545,66 @@ function DepositRow({
     },
   };
 
-  const handleMenuKeyDown = (e: React.KeyboardEvent) => {
-    const menuItems = menuRef.current?.querySelectorAll('[role="menuitem"]');
-    if (!menuItems || menuItems.length === 0) return;
+  // Build menu items based on deposit status
+  const menuItems: OverflowMenuItem[] = [];
 
-    const currentIndex = Array.from(menuItems).findIndex((item) => item === document.activeElement);
-
-    switch (e.key) {
-      case 'ArrowDown': {
-        e.preventDefault();
-        const nextIndex = currentIndex === menuItems.length - 1 ? 0 : currentIndex + 1;
-        (menuItems[nextIndex] as HTMLButtonElement).focus();
-        break;
-      }
-      case 'ArrowUp': {
-        e.preventDefault();
-        const prevIndex = currentIndex === 0 ? menuItems.length - 1 : currentIndex - 1;
-        (menuItems[prevIndex] as HTMLButtonElement).focus();
-        break;
-      }
-      case 'Home': {
-        e.preventDefault();
-        (menuItems[0] as HTMLButtonElement).focus();
-        break;
-      }
-      case 'End': {
-        e.preventDefault();
-        (menuItems[menuItems.length - 1] as HTMLButtonElement).focus();
-        break;
-      }
-      case 'Escape': {
-        e.preventDefault();
-        onMenuToggle(null);
-        menuTriggerRef.current?.focus();
-        break;
-      }
-    }
-  };
-
-  const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown' && !isMenuOpen) {
-      e.preventDefault();
-      onMenuToggle(deposit.id);
-      setTimeout(() => {
-        const firstMenuItem = menuRef.current?.querySelector(
-          '[role="menuitem"]',
-        ) as HTMLButtonElement;
-        firstMenuItem?.focus();
-      }, 0);
-    }
-  };
-
-  useEffect(() => {
-    if (isMenuOpen) {
-      const firstMenuItem = menuRef.current?.querySelector(
-        '[role="menuitem"]',
-      ) as HTMLButtonElement;
-      firstMenuItem?.focus();
-    }
-  }, [isMenuOpen]);
+  if (deposit.status === 'pending') {
+    menuItems.push(
+      {
+        label: t('budget:invoiceDetail.deposits.menu.markPaid'),
+        onClick: onMarkPaid,
+      },
+      {
+        label: t('budget:invoiceDetail.deposits.menu.edit'),
+        onClick: () => onEdit(deposit),
+      },
+      {
+        label: t('budget:invoiceDetail.deposits.menu.delete'),
+        onClick: () => onDelete(deposit),
+        variant: 'destructive',
+      },
+    );
+  } else if (deposit.status === 'paid') {
+    menuItems.push(
+      {
+        label: t('budget:invoiceDetail.deposits.menu.markClaimed'),
+        onClick: onMarkClaimed,
+      },
+      {
+        label: t('budget:invoiceDetail.deposits.menu.revertToPending'),
+        onClick: () => onRevertToPending(deposit),
+      },
+      {
+        label: t('budget:invoiceDetail.deposits.menu.edit'),
+        onClick: () => onEdit(deposit),
+      },
+      {
+        label: t('budget:invoiceDetail.deposits.menu.delete'),
+        onClick: () => onDelete(deposit),
+        variant: 'destructive',
+      },
+    );
+  } else if (deposit.status === 'claimed') {
+    menuItems.push(
+      {
+        label: t('budget:invoiceDetail.deposits.menu.revertToPaid'),
+        onClick: () => onRevertToPaid(deposit),
+      },
+      {
+        label: t('budget:invoiceDetail.deposits.menu.edit'),
+        onClick: () => onEdit(deposit),
+      },
+      {
+        label: t('budget:invoiceDetail.deposits.menu.delete'),
+        onClick: () => onDelete(deposit),
+        variant: 'destructive',
+      },
+    );
+  }
 
   return (
     <tr
-      className={styles.tableRow}
-      style={{
-        opacity: mutatingDepositId === deposit.id ? 0.6 : 1,
-        transition: `opacity var(--transition-fast)`,
-      }}
+      className={`${styles.tableRow} ${mutatingDepositId === deposit.id ? styles.tableRowMutating : ''}`}
     >
       <td>{formatDate(deposit.dueDate)}</td>
       <td>{formatCurrency(deposit.amount)}</td>
@@ -599,146 +618,13 @@ function DepositRow({
       <td className={styles.tdDescription}>{deposit.description ?? '—'}</td>
       <td className={styles.tdActions}>
         <div className={styles.actionCell}>
-          <button
-            ref={menuTriggerRef}
-            type="button"
-            className={styles.menuButton}
-            onClick={() => onMenuToggle(isMenuOpen ? null : deposit.id)}
-            onKeyDown={handleTriggerKeyDown}
-            aria-haspopup="true"
-            aria-expanded={isMenuOpen}
-            aria-label={t('budget:invoiceDetail.deposits.menu.ariaLabel', {
+          <OverflowMenu
+            items={menuItems}
+            triggerAriaLabel={t('budget:invoiceDetail.deposits.menu.ariaLabel', {
               description: deposit.description ?? 'deposit',
             })}
-          >
-            ⋮
-          </button>
-          {isMenuOpen && (
-            <div ref={menuRef} className={styles.menu} role="menu" onKeyDown={handleMenuKeyDown}>
-              {deposit.status === 'pending' && (
-                <>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={styles.menuItem}
-                    onClick={() => {
-                      onMenuToggle(null);
-                      onMarkPaid();
-                    }}
-                  >
-                    {t('budget:invoiceDetail.deposits.menu.markPaid')}
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={styles.menuItem}
-                    onClick={() => {
-                      onMenuToggle(null);
-                      onEdit(deposit);
-                    }}
-                  >
-                    {t('budget:invoiceDetail.deposits.menu.edit')}
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                    onClick={() => {
-                      onMenuToggle(null);
-                      onDelete(deposit);
-                    }}
-                  >
-                    {t('budget:invoiceDetail.deposits.menu.delete')}
-                  </button>
-                </>
-              )}
-              {deposit.status === 'paid' && (
-                <>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={styles.menuItem}
-                    onClick={() => {
-                      onMenuToggle(null);
-                      onMarkClaimed();
-                    }}
-                  >
-                    {t('budget:invoiceDetail.deposits.menu.markClaimed')}
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={styles.menuItem}
-                    onClick={() => {
-                      onMenuToggle(null);
-                      onRevertToPending(deposit);
-                    }}
-                  >
-                    {t('budget:invoiceDetail.deposits.menu.revertToPending')}
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={styles.menuItem}
-                    onClick={() => {
-                      onMenuToggle(null);
-                      onEdit(deposit);
-                    }}
-                  >
-                    {t('budget:invoiceDetail.deposits.menu.edit')}
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                    onClick={() => {
-                      onMenuToggle(null);
-                      onDelete(deposit);
-                    }}
-                  >
-                    {t('budget:invoiceDetail.deposits.menu.delete')}
-                  </button>
-                </>
-              )}
-              {deposit.status === 'claimed' && (
-                <>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={styles.menuItem}
-                    onClick={() => {
-                      onMenuToggle(null);
-                      onRevertToPaid(deposit);
-                    }}
-                  >
-                    {t('budget:invoiceDetail.deposits.menu.revertToPaid')}
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={styles.menuItem}
-                    onClick={() => {
-                      onMenuToggle(null);
-                      onEdit(deposit);
-                    }}
-                  >
-                    {t('budget:invoiceDetail.deposits.menu.edit')}
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                    onClick={() => {
-                      onMenuToggle(null);
-                      onDelete(deposit);
-                    }}
-                  >
-                    {t('budget:invoiceDetail.deposits.menu.delete')}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
+            placement="bottom-end"
+          />
         </div>
       </td>
     </tr>
@@ -749,20 +635,10 @@ function DepositRow({
 // Sub-component: DepositCard (mobile)
 // ============================================================================
 
-interface DepositCardProps extends Omit<
-  DepositRowProps,
-  'menuOpenId' | 'mutatingDepositId' | 'onMenuToggle'
-> {
-  menuOpenId: string | null;
-  mutatingDepositId: string | null;
-  onMenuToggle: (id: string | null) => void;
-}
+type DepositCardProps = DepositRowProps;
 
 function DepositCard({
   deposit,
-  menuOpenId,
-  mutatingDepositId,
-  onMenuToggle,
   onEdit,
   onDelete,
   onMarkPaid,
@@ -773,10 +649,6 @@ function DepositCard({
   formatCurrency,
   formatDate,
 }: DepositCardProps) {
-  const isMenuOpen = menuOpenId === deposit.id;
-  const menuTriggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
   const statusVariants: BadgeVariantMap = {
     pending: {
       label: t('invoiceDetail.statusLabels.pending')!,
@@ -789,65 +661,62 @@ function DepositCard({
     },
   };
 
-  const handleMenuKeyDown = (e: React.KeyboardEvent) => {
-    const menuItems = menuRef.current?.querySelectorAll('[role="menuitem"]');
-    if (!menuItems || menuItems.length === 0) return;
+  // Build menu items based on deposit status
+  const menuItems: OverflowMenuItem[] = [];
 
-    const currentIndex = Array.from(menuItems).findIndex((item) => item === document.activeElement);
-
-    switch (e.key) {
-      case 'ArrowDown': {
-        e.preventDefault();
-        const nextIndex = currentIndex === menuItems.length - 1 ? 0 : currentIndex + 1;
-        (menuItems[nextIndex] as HTMLButtonElement).focus();
-        break;
-      }
-      case 'ArrowUp': {
-        e.preventDefault();
-        const prevIndex = currentIndex === 0 ? menuItems.length - 1 : currentIndex - 1;
-        (menuItems[prevIndex] as HTMLButtonElement).focus();
-        break;
-      }
-      case 'Home': {
-        e.preventDefault();
-        (menuItems[0] as HTMLButtonElement).focus();
-        break;
-      }
-      case 'End': {
-        e.preventDefault();
-        (menuItems[menuItems.length - 1] as HTMLButtonElement).focus();
-        break;
-      }
-      case 'Escape': {
-        e.preventDefault();
-        onMenuToggle(null);
-        menuTriggerRef.current?.focus();
-        break;
-      }
-    }
-  };
-
-  const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown' && !isMenuOpen) {
-      e.preventDefault();
-      onMenuToggle(deposit.id);
-      setTimeout(() => {
-        const firstMenuItem = menuRef.current?.querySelector(
-          '[role="menuitem"]',
-        ) as HTMLButtonElement;
-        firstMenuItem?.focus();
-      }, 0);
-    }
-  };
-
-  useEffect(() => {
-    if (isMenuOpen) {
-      const firstMenuItem = menuRef.current?.querySelector(
-        '[role="menuitem"]',
-      ) as HTMLButtonElement;
-      firstMenuItem?.focus();
-    }
-  }, [isMenuOpen]);
+  if (deposit.status === 'pending') {
+    menuItems.push(
+      {
+        label: t('budget:invoiceDetail.deposits.menu.markPaid'),
+        onClick: onMarkPaid,
+      },
+      {
+        label: t('budget:invoiceDetail.deposits.menu.edit'),
+        onClick: () => onEdit(deposit),
+      },
+      {
+        label: t('budget:invoiceDetail.deposits.menu.delete'),
+        onClick: () => onDelete(deposit),
+        variant: 'destructive',
+      },
+    );
+  } else if (deposit.status === 'paid') {
+    menuItems.push(
+      {
+        label: t('budget:invoiceDetail.deposits.menu.markClaimed'),
+        onClick: onMarkClaimed,
+      },
+      {
+        label: t('budget:invoiceDetail.deposits.menu.revertToPending'),
+        onClick: () => onRevertToPending(deposit),
+      },
+      {
+        label: t('budget:invoiceDetail.deposits.menu.edit'),
+        onClick: () => onEdit(deposit),
+      },
+      {
+        label: t('budget:invoiceDetail.deposits.menu.delete'),
+        onClick: () => onDelete(deposit),
+        variant: 'destructive',
+      },
+    );
+  } else if (deposit.status === 'claimed') {
+    menuItems.push(
+      {
+        label: t('budget:invoiceDetail.deposits.menu.revertToPaid'),
+        onClick: () => onRevertToPaid(deposit),
+      },
+      {
+        label: t('budget:invoiceDetail.deposits.menu.edit'),
+        onClick: () => onEdit(deposit),
+      },
+      {
+        label: t('budget:invoiceDetail.deposits.menu.delete'),
+        onClick: () => onDelete(deposit),
+        variant: 'destructive',
+      },
+    );
+  }
 
   return (
     <div className={styles.mobileCard}>
@@ -882,146 +751,13 @@ function DepositCard({
       </dl>
 
       <div className={styles.cardActions}>
-        <button
-          ref={menuTriggerRef}
-          type="button"
-          className={styles.menuButton}
-          onClick={() => onMenuToggle(isMenuOpen ? null : deposit.id)}
-          onKeyDown={handleTriggerKeyDown}
-          aria-haspopup="true"
-          aria-expanded={isMenuOpen}
-          aria-label={t('budget:invoiceDetail.deposits.menu.ariaLabel', {
+        <OverflowMenu
+          items={menuItems}
+          triggerAriaLabel={t('budget:invoiceDetail.deposits.menu.ariaLabel', {
             description: deposit.description ?? 'deposit',
           })}
-        >
-          ⋮
-        </button>
-        {isMenuOpen && (
-          <div ref={menuRef} className={styles.menu} role="menu" onKeyDown={handleMenuKeyDown}>
-            {deposit.status === 'pending' && (
-              <>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={styles.menuItem}
-                  onClick={() => {
-                    onMenuToggle(null);
-                    onMarkPaid();
-                  }}
-                >
-                  {t('budget:invoiceDetail.deposits.menu.markPaid')}
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={styles.menuItem}
-                  onClick={() => {
-                    onMenuToggle(null);
-                    onEdit(deposit);
-                  }}
-                >
-                  {t('budget:invoiceDetail.deposits.menu.edit')}
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                  onClick={() => {
-                    onMenuToggle(null);
-                    onDelete(deposit);
-                  }}
-                >
-                  {t('budget:invoiceDetail.deposits.menu.delete')}
-                </button>
-              </>
-            )}
-            {deposit.status === 'paid' && (
-              <>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={styles.menuItem}
-                  onClick={() => {
-                    onMenuToggle(null);
-                    onMarkClaimed();
-                  }}
-                >
-                  {t('budget:invoiceDetail.deposits.menu.markClaimed')}
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={styles.menuItem}
-                  onClick={() => {
-                    onMenuToggle(null);
-                    onRevertToPending(deposit);
-                  }}
-                >
-                  {t('budget:invoiceDetail.deposits.menu.revertToPending')}
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={styles.menuItem}
-                  onClick={() => {
-                    onMenuToggle(null);
-                    onEdit(deposit);
-                  }}
-                >
-                  {t('budget:invoiceDetail.deposits.menu.edit')}
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                  onClick={() => {
-                    onMenuToggle(null);
-                    onDelete(deposit);
-                  }}
-                >
-                  {t('budget:invoiceDetail.deposits.menu.delete')}
-                </button>
-              </>
-            )}
-            {deposit.status === 'claimed' && (
-              <>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={styles.menuItem}
-                  onClick={() => {
-                    onMenuToggle(null);
-                    onRevertToPaid(deposit);
-                  }}
-                >
-                  {t('budget:invoiceDetail.deposits.menu.revertToPaid')}
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={styles.menuItem}
-                  onClick={() => {
-                    onMenuToggle(null);
-                    onEdit(deposit);
-                  }}
-                >
-                  {t('budget:invoiceDetail.deposits.menu.edit')}
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={`${styles.menuItem} ${styles.menuItemDanger}`}
-                  onClick={() => {
-                    onMenuToggle(null);
-                    onDelete(deposit);
-                  }}
-                >
-                  {t('budget:invoiceDetail.deposits.menu.delete')}
-                </button>
-              </>
-            )}
-          </div>
-        )}
+          placement="top-end"
+        />
       </div>
     </div>
   );
@@ -1040,7 +776,6 @@ interface AddEditDepositModalProps {
   error: string;
   isMutating: boolean;
   t: (key: string, opts?: Record<string, unknown>) => string;
-  formatCurrency: (amount: number) => string;
 }
 
 function AddEditDepositModal({
@@ -1052,7 +787,6 @@ function AddEditDepositModal({
   error,
   isMutating,
   t,
-  formatCurrency,
 }: AddEditDepositModalProps) {
   const isEdit = mode === 'edit';
 
@@ -1313,18 +1047,19 @@ interface StateConfirmModalProps {
   onConfirm: (date: string) => void;
   onClose: () => void;
   isMutating: boolean;
+  error?: string;
   t: (key: string, opts?: Record<string, unknown>) => string;
 }
 
 function StateConfirmModal({
-  deposit,
   action,
   onConfirm,
   onClose,
   isMutating,
+  error,
   t,
 }: StateConfirmModalProps) {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   const isMarkPaid = action === 'mark-paid';
   const title = isMarkPaid
@@ -1362,6 +1097,7 @@ function StateConfirmModal({
         </div>
       }
     >
+      {error && <FormError message={error} />}
       <div className={styles.formField}>
         <label htmlFor="state-confirm-date" className={styles.label}>
           {dateLabel}

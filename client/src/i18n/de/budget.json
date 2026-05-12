@@ -547,7 +547,9 @@
         "loadError": "Abschlagszahlungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
         "saveError": "Abschlagszahlung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Abschlagszahlung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "revertError": "Status der Abschlagszahlung konnte nicht zurückgesetzt werden. Bitte versuchen Sie es erneut."
+        "revertError": "Status der Abschlagszahlung konnte nicht zurückgesetzt werden. Bitte versuchen Sie es erneut.",
+        "revertNetworkError": "Netzwerkfehler – Status der Abschlagszahlung konnte nicht zurückgesetzt werden. Bitte versuchen Sie es erneut.",
+        "stateConfirmNetworkError": "Netzwerkfehler – Status der Abschlagszahlung konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
       },
       "stateConfirm": {
         "paidDateLabel": "Bezahlt am",

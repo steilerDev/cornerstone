@@ -24,6 +24,102 @@ export interface DepositAwareRow {
 }
 
 /**
+ * Result of splitting an invoice by its deposits (proportional and residual portions).
+ * Used internally by deposit-aware aggregate functions to avoid repeated grouping/dedup logic.
+ */
+export interface InvoiceDepositSplit {
+  invoiceStatus: string;
+  invoiceAmount: number;
+  residualFraction: number;
+  depositFractions: Array<{ depositStatus: string; fraction: number }>;
+}
+
+/**
+ * Extract invoice-level splits by depositing the entire amount into fractional buckets.
+ *
+ * For each unique invoice in the input rows:
+ *   1. Deduplicate deposits by depositId
+ *   2. Compute residual fraction: max(0, invoiceAmount - Σ depositAmounts) / safeInvoiceAmount
+ *   3. Compute per-deposit fractions: depositAmount / safeInvoiceAmount
+ *   4. Return a map from invoiceId to split details
+ *
+ * safeInvoiceAmount avoids division by zero: use invoiceAmount if > 0, else 1.
+ *
+ * @param rows Rows from (invoices LEFT JOIN invoice_deposits), keyed by invoice_id
+ * @returns Map<invoiceId, split>
+ */
+export function splitByDeposits(
+  rows: Array<{
+    invoice_id: string;
+    invoice_amount: number;
+    invoice_status: string;
+    deposit_id: string | null;
+    deposit_amount: number | null;
+    deposit_status: string | null;
+  }>,
+): Map<string, InvoiceDepositSplit> {
+  const invoiceMap = new Map<string, { invoiceAmount: number; invoiceStatus: string }>();
+  const depositsByInvoice = new Map<
+    string,
+    Array<{ depositId: string; depositAmount: number; depositStatus: string }>
+  >();
+
+  // Group rows by invoice and deduplicate deposits by depositId
+  for (const row of rows) {
+    if (!invoiceMap.has(row.invoice_id)) {
+      invoiceMap.set(row.invoice_id, {
+        invoiceAmount: row.invoice_amount,
+        invoiceStatus: row.invoice_status,
+      });
+    }
+    if (row.deposit_id !== null && row.deposit_amount !== null && row.deposit_status !== null) {
+      const deps = depositsByInvoice.get(row.invoice_id) ?? [];
+      if (!deps.some((d) => d.depositId === row.deposit_id)) {
+        deps.push({
+          depositId: row.deposit_id,
+          depositAmount: row.deposit_amount,
+          depositStatus: row.deposit_status,
+        });
+        depositsByInvoice.set(row.invoice_id, deps);
+      }
+    }
+  }
+
+  // Compute splits for each invoice
+  const result = new Map<string, InvoiceDepositSplit>();
+  for (const [invoiceId, inv] of invoiceMap) {
+    const deposits = depositsByInvoice.get(invoiceId) ?? [];
+    const safeInvoiceAmount = inv.invoiceAmount > 0 ? inv.invoiceAmount : 1;
+
+    if (deposits.length === 0) {
+      // No deposits: entire invoice contributes under its own status
+      result.set(invoiceId, {
+        invoiceStatus: inv.invoiceStatus,
+        invoiceAmount: inv.invoiceAmount,
+        residualFraction: 1,
+        depositFractions: [],
+      });
+    } else {
+      const totalDepositAmount = deposits.reduce((s, d) => s + d.depositAmount, 0);
+      const residualFraction = Math.max(0, safeInvoiceAmount - totalDepositAmount) / safeInvoiceAmount;
+      const depositFractions = deposits.map((d) => ({
+        depositStatus: d.depositStatus,
+        fraction: d.depositAmount / safeInvoiceAmount,
+      }));
+
+      result.set(invoiceId, {
+        invoiceStatus: inv.invoiceStatus,
+        invoiceAmount: inv.invoiceAmount,
+        residualFraction,
+        depositFractions,
+      });
+    }
+  }
+
+  return result;
+}
+
+/**
  * Computes actualCost, actualCostPaid, and invoiceCount from a set of
  * (invoice_budget_lines JOIN invoices LEFT JOIN invoice_deposits) rows.
  *
@@ -48,19 +144,14 @@ export function computeDepositAwareAggregates(rows: DepositAwareRow[]): {
     return { actualCost: 0, actualCostPaid: 0, actualCostClaimed: 0, invoiceCount: 0 };
   }
 
-  // Group rows by ibl_id to deduplicate and collect deposits per invoice
+  // Group rows by ibl_id to deduplicate
   const iblMap = new Map<
     string,
     {
       itemizedAmount: number;
       invoiceId: string;
-      invoiceAmount: number;
       invoiceStatus: string;
     }
-  >();
-  const depositsByInvoice = new Map<
-    string,
-    Array<{ depositId: string; depositAmount: number; depositStatus: string }>
   >();
 
   for (const row of rows) {
@@ -68,23 +159,13 @@ export function computeDepositAwareAggregates(rows: DepositAwareRow[]): {
       iblMap.set(row.ibl_id, {
         itemizedAmount: row.itemized_amount,
         invoiceId: row.invoice_id,
-        invoiceAmount: row.invoice_amount,
         invoiceStatus: row.invoice_status,
       });
     }
-    if (row.deposit_id !== null && row.deposit_amount !== null && row.deposit_status !== null) {
-      const deps = depositsByInvoice.get(row.invoice_id) ?? [];
-      // Avoid duplicates (same deposit appears once per ibl row for this invoice)
-      if (!deps.find((d) => d.depositId === row.deposit_id)) {
-        deps.push({
-          depositId: row.deposit_id,
-          depositAmount: row.deposit_amount,
-          depositStatus: row.deposit_status,
-        });
-        depositsByInvoice.set(row.invoice_id, deps);
-      }
-    }
   }
+
+  // Split each invoice by its deposits
+  const splitsByInvoiceId = splitByDeposits(rows);
 
   const invoiceIds = new Set<string>();
   let actualCost = 0;
@@ -98,40 +179,25 @@ export function computeDepositAwareAggregates(rows: DepositAwareRow[]): {
 
     actualCost += ibl.itemizedAmount;
 
-    const deposits = depositsByInvoice.get(ibl.invoiceId) ?? [];
-    if (deposits.length === 0) {
-      // No deposits: entire ibl contributes under parent invoice status
-      if (ibl.invoiceStatus === 'paid' || ibl.invoiceStatus === 'claimed') {
-        actualCostPaid += ibl.itemizedAmount;
-      }
-      if (ibl.invoiceStatus === 'claimed') {
-        actualCostClaimed += ibl.itemizedAmount;
-      }
-    } else {
-      const totalDepositAmount = deposits.reduce((s, d) => s + d.depositAmount, 0);
-      const safeInvoiceAmount = ibl.invoiceAmount > 0 ? ibl.invoiceAmount : 1;
+    const split = splitsByInvoiceId.get(ibl.invoiceId)!;
 
-      // Residual contribution under parent invoice status
-      const residualFraction =
-        Math.max(0, safeInvoiceAmount - totalDepositAmount) / safeInvoiceAmount;
-      const residualAmount = ibl.itemizedAmount * residualFraction;
-      if (ibl.invoiceStatus === 'paid' || ibl.invoiceStatus === 'claimed') {
-        actualCostPaid += residualAmount;
-      }
-      if (ibl.invoiceStatus === 'claimed') {
-        actualCostClaimed += residualAmount;
-      }
+    // Residual contribution under parent invoice status
+    const residualAmount = ibl.itemizedAmount * split.residualFraction;
+    if (split.invoiceStatus === 'paid' || split.invoiceStatus === 'claimed') {
+      actualCostPaid += residualAmount;
+    }
+    if (split.invoiceStatus === 'claimed') {
+      actualCostClaimed += residualAmount;
+    }
 
-      // Per-deposit contributions
-      for (const deposit of deposits) {
-        const depositFraction = deposit.depositAmount / safeInvoiceAmount;
-        const depositContribution = ibl.itemizedAmount * depositFraction;
-        if (deposit.depositStatus === 'paid' || deposit.depositStatus === 'claimed') {
-          actualCostPaid += depositContribution;
-        }
-        if (deposit.depositStatus === 'claimed') {
-          actualCostClaimed += depositContribution;
-        }
+    // Per-deposit contributions
+    for (const df of split.depositFractions) {
+      const depositContribution = ibl.itemizedAmount * df.fraction;
+      if (df.depositStatus === 'paid' || df.depositStatus === 'claimed') {
+        actualCostPaid += depositContribution;
+      }
+      if (df.depositStatus === 'claimed') {
+        actualCostClaimed += depositContribution;
       }
     }
   }
@@ -168,19 +234,13 @@ export function computeStatusContribution(
     return 0;
   }
 
-  // Group rows by ibl_id to deduplicate and collect deposits per invoice
+  // Group rows by ibl_id to deduplicate
   const iblMap = new Map<
     string,
     {
       itemizedAmount: number;
       invoiceId: string;
-      invoiceAmount: number;
-      invoiceStatus: string;
     }
-  >();
-  const depositsByInvoice = new Map<
-    string,
-    Array<{ depositId: string; depositAmount: number; depositStatus: string }>
   >();
 
   for (const row of rows) {
@@ -188,51 +248,29 @@ export function computeStatusContribution(
       iblMap.set(row.ibl_id, {
         itemizedAmount: row.itemized_amount,
         invoiceId: row.invoice_id,
-        invoiceAmount: row.invoice_amount,
-        invoiceStatus: row.invoice_status,
       });
     }
-    if (row.deposit_id !== null && row.deposit_amount !== null && row.deposit_status !== null) {
-      const deps = depositsByInvoice.get(row.invoice_id) ?? [];
-      if (!deps.find((d) => d.depositId === row.deposit_id)) {
-        deps.push({
-          depositId: row.deposit_id,
-          depositAmount: row.deposit_amount,
-          depositStatus: row.deposit_status,
-        });
-        depositsByInvoice.set(row.invoice_id, deps);
-      }
-    }
   }
+
+  // Split each invoice by its deposits
+  const splitsByInvoiceId = splitByDeposits(rows);
 
   let total = 0;
 
   for (const [_iblId, ibl] of iblMap) {
-    const deposits = depositsByInvoice.get(ibl.invoiceId) ?? [];
-    if (deposits.length === 0) {
-      // No deposits: entire ibl contributes under parent invoice status
-      if (ibl.invoiceStatus === targetStatus) {
-        total += ibl.itemizedAmount;
-      }
-    } else {
-      const totalDepositAmount = deposits.reduce((s, d) => s + d.depositAmount, 0);
-      const safeInvoiceAmount = ibl.invoiceAmount > 0 ? ibl.invoiceAmount : 1;
+    const split = splitsByInvoiceId.get(ibl.invoiceId)!;
 
-      // Residual contribution under parent invoice status
-      const residualFraction =
-        Math.max(0, safeInvoiceAmount - totalDepositAmount) / safeInvoiceAmount;
-      const residualAmount = ibl.itemizedAmount * residualFraction;
-      if (ibl.invoiceStatus === targetStatus) {
-        total += residualAmount;
-      }
+    // Residual contribution under parent invoice status
+    const residualAmount = ibl.itemizedAmount * split.residualFraction;
+    if (split.invoiceStatus === targetStatus) {
+      total += residualAmount;
+    }
 
-      // Per-deposit contributions
-      for (const deposit of deposits) {
-        if (deposit.depositStatus === targetStatus) {
-          const depositFraction = deposit.depositAmount / safeInvoiceAmount;
-          const depositContribution = ibl.itemizedAmount * depositFraction;
-          total += depositContribution;
-        }
+    // Per-deposit contributions
+    for (const df of split.depositFractions) {
+      if (df.depositStatus === targetStatus) {
+        const depositContribution = ibl.itemizedAmount * df.fraction;
+        total += depositContribution;
       }
     }
   }
@@ -270,53 +308,28 @@ export function aggregateInvoiceStatusBreakdown(
 ): Record<string, { count: number; totalAmount: number }> {
   if (rows.length === 0) return {};
 
-  const invoiceMap = new Map<string, { invoiceAmount: number; invoiceStatus: string }>();
-  const depositsByInvoice = new Map<
-    string,
-    Array<{ depositId: string; depositAmount: number; depositStatus: string }>
-  >();
-
-  for (const row of rows) {
-    if (!invoiceMap.has(row.invoice_id)) {
-      invoiceMap.set(row.invoice_id, {
-        invoiceAmount: row.invoice_amount,
-        invoiceStatus: row.invoice_status,
-      });
-    }
-    if (row.deposit_id !== null && row.deposit_amount !== null && row.deposit_status !== null) {
-      const deps = depositsByInvoice.get(row.invoice_id) ?? [];
-      if (!deps.some((d) => d.depositId === row.deposit_id)) {
-        deps.push({
-          depositId: row.deposit_id,
-          depositAmount: row.deposit_amount,
-          depositStatus: row.deposit_status,
-        });
-        depositsByInvoice.set(row.invoice_id, deps);
-      }
-    }
-  }
+  // Split each invoice by its deposits
+  const splitsByInvoiceId = splitByDeposits(rows);
 
   const result: Record<string, { count: number; totalAmount: number }> = {};
   const ensure = (status: string) => {
     if (!result[status]) result[status] = { count: 0, totalAmount: 0 };
   };
 
-  for (const [invoiceId, inv] of invoiceMap) {
-    const S = inv.invoiceStatus;
+  for (const [_invoiceId, split] of splitsByInvoiceId) {
+    const S = split.invoiceStatus;
     ensure(S);
     result[S]!.count += 1;
 
-    const deposits = depositsByInvoice.get(invoiceId) ?? [];
-    if (deposits.length === 0) {
-      result[S]!.totalAmount += inv.invoiceAmount;
-    } else {
-      const depositSum = deposits.reduce((s, d) => s + d.depositAmount, 0);
-      const residual = Math.max(0, inv.invoiceAmount - depositSum);
-      result[S]!.totalAmount += residual;
-      for (const deposit of deposits) {
-        ensure(deposit.depositStatus);
-        result[deposit.depositStatus]!.totalAmount += deposit.depositAmount;
-      }
+    // Residual contribution under parent invoice status
+    const residualAmount = split.invoiceAmount * split.residualFraction;
+    result[S]!.totalAmount += residualAmount;
+
+    // Per-deposit contributions
+    for (const df of split.depositFractions) {
+      ensure(df.depositStatus);
+      const depositAmount = split.invoiceAmount * df.fraction;
+      result[df.depositStatus]!.totalAmount += depositAmount;
     }
   }
 
