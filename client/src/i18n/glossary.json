@@ -2,7 +2,7 @@
   "_meta": {
     "description": "Single source of truth for domain terminology translations. The translator agent enforces these.",
     "locales": ["de"],
-    "lastUpdated": "2026-05-10"
+    "lastUpdated": "2026-05-12"
   },
   "terms": {
     "Work Item": { "de": { "singular": "Arbeitspaket", "plural": "Arbeitspakete" } },
