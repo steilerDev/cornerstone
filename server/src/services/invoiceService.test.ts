@@ -980,6 +980,153 @@ describe('Invoice Service', () => {
     });
   });
 
+  // ─── listAllInvoices() deposit-aware summary (#1411) ────────────────────────
+
+  describe('listAllInvoices() deposit-aware summary (#1411)', () => {
+    /**
+     * Insert a deposit directly into the DB (bypassing service validation).
+     * Scoped to this describe block; mirrors the helper in the #1403 block.
+     */
+    function insertRawDeposit(
+      invoiceId: string,
+      amount: number,
+      status: 'pending' | 'paid' | 'claimed' = 'pending',
+    ): string {
+      const id = `dep-summary-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      const ts = new Date(Date.now() + timestampOffset++).toISOString();
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id,
+          invoiceId,
+          amount,
+          dueDate: '2026-03-01',
+          paidDate: status === 'paid' || status === 'claimed' ? '2026-02-15' : null,
+          claimedDate: status === 'claimed' ? '2026-02-20' : null,
+          description: null,
+          status,
+          createdBy: null,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return id;
+    }
+
+    // ─── AC-1: quotation invoice with pending deposit ──────────────────────
+
+    it('AC-1: quotation invoice (1000) with pending deposit (200) — residual 800 under quotation, 200 under pending', () => {
+      const vendorId = createTestVendor('AC1 Vendor');
+      const invoiceId = insertRawInvoice(vendorId, {
+        // insertRawInvoice only types 'pending'|'paid'|'claimed' but the DB accepts 'quotation'
+        status: 'pending' as 'pending',
+        amount: 1000,
+      });
+      // Override status to 'quotation' via underlying better-sqlite3 (Drizzle type doesn't include it)
+      sqlite.prepare(`UPDATE invoices SET status = 'quotation' WHERE id = ?`).run(invoiceId);
+      insertRawDeposit(invoiceId, 200, 'pending');
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.quotation.totalAmount).toBe(800);
+      expect(result.summary.pending.totalAmount).toBe(200);
+      expect(result.summary.quotation.count).toBe(1);
+      expect(result.summary.pending.count).toBe(0);
+    });
+
+    // ─── AC-2: invoice with no deposits unchanged ──────────────────────────
+
+    it('AC-2 regression: invoice with no deposits has its full amount in the summary', () => {
+      const vendorId = createTestVendor('AC2 Vendor');
+      insertRawInvoice(vendorId, { status: 'pending', amount: 1000 });
+      // no deposits — behavior must be unchanged from pre-deposit era
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.pending.totalAmount).toBe(1000);
+      expect(result.summary.pending.count).toBe(1);
+    });
+
+    // ─── AC-3: count reflects invoices not deposits ────────────────────────
+
+    it('AC-3: one invoice with two deposits — summary count = 1, not 3', () => {
+      const vendorId = createTestVendor('AC3 Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { status: 'pending', amount: 1000 });
+      insertRawDeposit(invoiceId, 300, 'pending');
+      insertRawDeposit(invoiceId, 400, 'paid');
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      // The invoice itself is pending, so count must be 1 (not 2 deposits + 1 invoice = 3)
+      expect(result.summary.pending.count).toBe(1);
+    });
+
+    // ─── Sum invariant integration ─────────────────────────────────────────
+
+    it('sum invariant: all status totals sum to the invoice amount', () => {
+      const invoiceAmount = 1000;
+      const vendorId = createTestVendor('Sum Invariant Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { status: 'pending', amount: invoiceAmount });
+      insertRawDeposit(invoiceId, 300, 'pending');
+      insertRawDeposit(invoiceId, 400, 'paid');
+      // residual = 1000 - 300 - 400 = 300 under pending
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      const totalAcrossStatuses =
+        result.summary.pending.totalAmount +
+        result.summary.paid.totalAmount +
+        result.summary.claimed.totalAmount +
+        result.summary.quotation.totalAmount;
+      expect(totalAcrossStatuses).toBe(invoiceAmount);
+    });
+
+    // ─── Multi-status deposits (residual + per-status accrual) ────────────
+
+    it('multi-status deposits: residual under parent status + per-deposit status accrual', () => {
+      const vendorId = createTestVendor('Multi Deposit Status Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { status: 'pending', amount: 1200 });
+      insertRawDeposit(invoiceId, 300, 'pending');
+      insertRawDeposit(invoiceId, 400, 'paid');
+      // residual = 1200 - 300 - 400 = 500 under pending (invoice status)
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      // pending.totalAmount = residual (500) + pending deposit (300) = 800
+      expect(result.summary.pending.totalAmount).toBe(800);
+      expect(result.summary.paid.totalAmount).toBe(400);
+      expect(result.summary.pending.count).toBe(1); // only the invoice, not deposits
+      expect(result.summary.paid.count).toBe(0);
+    });
+
+    // ─── Global behavior preserved ─────────────────────────────────────────
+
+    it('global behavior preserved: summary is not filtered even when status + pageSize filter applied', () => {
+      const vendorId = createTestVendor('Global Behavior Vendor');
+      const pending1Id = insertRawInvoice(vendorId, { status: 'pending', amount: 400 });
+      insertRawInvoice(vendorId, { status: 'pending', amount: 300 });
+      insertRawInvoice(vendorId, { status: 'paid', amount: 500 });
+      // Add a pending deposit to the first pending invoice to exercise deposit-aware path globally
+      insertRawDeposit(pending1Id, 50, 'pending');
+      // pending1 residual = 400 - 50 = 350 under pending; deposit 50 under pending
+      // pending1 total contribution to pending = 350 + 50 = 400 (same as before, just split)
+      // pending2 = 300 under pending; paid = 500 under paid
+
+      // Filter to only paid invoices, page 1 of 1
+      const result = invoiceService.listAllInvoices(db, { status: 'paid', pageSize: 1 });
+
+      // Filtered list: only the paid invoice
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.amount).toBe(500);
+
+      // Summary must be GLOBAL (all 3 invoices, deposit-aware)
+      expect(result.summary.pending.count).toBe(2);
+      // pending total = 350 (residual of pending1) + 50 (deposit from pending1, status pending) + 300 (pending2) = 700
+      expect(result.summary.pending.totalAmount).toBe(700);
+      expect(result.summary.paid.count).toBe(1);
+      expect(result.summary.paid.totalAmount).toBe(500);
+    });
+  });
+
   // ─── getInvoiceById() ───────────────────────────────────────────────────────
 
   describe('getInvoiceById()', () => {

@@ -239,3 +239,86 @@ export function computeStatusContribution(
 
   return total;
 }
+
+/**
+ * Raw row for (invoices LEFT JOIN invoice_deposits) jointures, used by the
+ * InvoiceStatusBreakdown summary computation in invoiceService.listAllInvoices.
+ */
+export interface InvoiceDepositRow {
+  invoice_id: string;
+  invoice_amount: number;
+  invoice_status: string;
+  deposit_id: string | null;
+  deposit_amount: number | null;
+  deposit_status: string | null;
+}
+
+/**
+ * Computes the InvoiceStatusBreakdown summary from (invoices LEFT JOIN invoice_deposits) rows.
+ *
+ * Per-invoice split (same as the budget-line rollup formula but at the invoice level):
+ *   summary[I.status].totalAmount += max(0, I.amount − Σ deposits.amount)
+ *   summary[deposit.status].totalAmount += deposit.amount  (for each deposit)
+ *   summary[I.status].count += 1  (once per invoice, regardless of deposit rows)
+ *
+ * Invariant: Σ summary[s].totalAmount === Σ I.amount across all invoices in the input.
+ *
+ * Returns a sparse map — callers must merge with defaults (e.g. { count: 0, totalAmount: 0 }).
+ */
+export function aggregateInvoiceStatusBreakdown(
+  rows: InvoiceDepositRow[],
+): Record<string, { count: number; totalAmount: number }> {
+  if (rows.length === 0) return {};
+
+  const invoiceMap = new Map<string, { invoiceAmount: number; invoiceStatus: string }>();
+  const depositsByInvoice = new Map<
+    string,
+    Array<{ depositId: string; depositAmount: number; depositStatus: string }>
+  >();
+
+  for (const row of rows) {
+    if (!invoiceMap.has(row.invoice_id)) {
+      invoiceMap.set(row.invoice_id, {
+        invoiceAmount: row.invoice_amount,
+        invoiceStatus: row.invoice_status,
+      });
+    }
+    if (row.deposit_id !== null && row.deposit_amount !== null && row.deposit_status !== null) {
+      const deps = depositsByInvoice.get(row.invoice_id) ?? [];
+      if (!deps.some((d) => d.depositId === row.deposit_id)) {
+        deps.push({
+          depositId: row.deposit_id,
+          depositAmount: row.deposit_amount,
+          depositStatus: row.deposit_status,
+        });
+        depositsByInvoice.set(row.invoice_id, deps);
+      }
+    }
+  }
+
+  const result: Record<string, { count: number; totalAmount: number }> = {};
+  const ensure = (status: string) => {
+    if (!result[status]) result[status] = { count: 0, totalAmount: 0 };
+  };
+
+  for (const [invoiceId, inv] of invoiceMap) {
+    const S = inv.invoiceStatus;
+    ensure(S);
+    result[S]!.count += 1;
+
+    const deposits = depositsByInvoice.get(invoiceId) ?? [];
+    if (deposits.length === 0) {
+      result[S]!.totalAmount += inv.invoiceAmount;
+    } else {
+      const depositSum = deposits.reduce((s, d) => s + d.depositAmount, 0);
+      const residual = Math.max(0, inv.invoiceAmount - depositSum);
+      result[S]!.totalAmount += residual;
+      for (const deposit of deposits) {
+        ensure(deposit.depositStatus);
+        result[deposit.depositStatus]!.totalAmount += deposit.depositAmount;
+      }
+    }
+  }
+
+  return result;
+}
