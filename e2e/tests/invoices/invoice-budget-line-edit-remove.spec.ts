@@ -155,13 +155,20 @@ async function openBudgetLineMenu(page: Page, section: ReturnType<typeof page.lo
 
 /**
  * Clicks a visible menu item by text.
+ *
+ * Uses { force: true } because portal-rendered menus are positioned with
+ * CSS `position: fixed` relative to the viewport. When the trigger button is
+ * near the bottom of the page the menu can render below (or at) the viewport
+ * edge — Playwright's actionability check then reports "element is outside of
+ * the viewport" even though it is visible and stable.  force:true bypasses
+ * that check while still requiring the element to exist and be attached.
  */
 async function clickMenuItemByText(page: Page, text: string | RegExp): Promise<void> {
   const item = page
     .locator('[role="menuitem"]')
     .filter({ visible: true })
     .filter({ hasText: text });
-  await item.first().click();
+  await item.first().click({ force: true });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

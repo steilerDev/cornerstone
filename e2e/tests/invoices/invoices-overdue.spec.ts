@@ -75,11 +75,12 @@ test.describe('Invoices overdue card — visible (Scenario 1)', { tag: '@respons
         vendorId = await createVendorViaApi(page, `${testPrefix} Overdue Vendor`);
 
         // Create a pending invoice with dueDate 30 days ago.
-        // Use a far-future date to ensure this invoice sorts to page 1 (sort: date DESC)
-        // even when many other invoices exist in the shared DB across parallel workers.
+        // The API validates dueDate >= date, so both must be in the past.
+        // The overdue card is computed from ALL pending invoices across all pages,
+        // so page-1 sort order does not matter — any overdue invoice triggers the card.
         await createInvoiceViaApi(page, vendorId, {
           amount: 500,
-          date: '2099-12-30',
+          date: daysAgo(60),
           dueDate: daysAgo(30),
           status: 'pending',
         });
@@ -105,10 +106,11 @@ test.describe('Invoices overdue card — visible (Scenario 1)', { tag: '@respons
 
     try {
       vendorId = await createVendorViaApi(page, `${testPrefix} OvGrid Vendor`);
-      // Use a far-future date so this invoice stays on page 1 in a parallel-shared DB.
+      // The API validates dueDate >= date, so both must be in the past.
+      // The overdue card is computed from ALL pending invoices, not just page 1.
       await createInvoiceViaApi(page, vendorId, {
         amount: 300,
-        date: '2099-12-29',
+        date: daysAgo(30),
         dueDate: daysAgo(10),
         status: 'pending',
       });
