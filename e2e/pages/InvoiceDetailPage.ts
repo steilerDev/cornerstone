@@ -222,6 +222,23 @@ export class InvoiceDetailPage {
   /** The budget lines table inside budgetLinesSection */
   readonly budgetLinesTable: Locator;
 
+  // ─── Budget Line OverflowMenu + Edit/Remove Modals (Issue #1425) ─────────────
+  /**
+   * Edit Budget Line modal (Modal component, title="Edit Budget Line").
+   * Locates by role="dialog" + accessible name matching the modal title.
+   */
+  readonly editBudgetLineModal: Locator;
+
+  /**
+   * Amount input inside the Edit Budget Line modal: #budget-line-amount
+   */
+  readonly editBudgetLineAmountInput: Locator;
+
+  /**
+   * Remove Budget Line modal (Modal component, title="Remove Budget Line").
+   */
+  readonly removeBudgetLineModal: Locator;
+
   constructor(page: Page) {
     this.page = page;
 
@@ -391,6 +408,17 @@ export class InvoiceDetailPage {
     // from t('budgetLineForm.cancel').
     this.createFormCancelButton = this.budgetLinePickerModal.locator('[class*="cancelButton"]');
     this.budgetLinesTable = this.budgetLinesSection.locator('table');
+
+    // ─── Budget Line OverflowMenu modals (Issue #1425) ──────────────────────
+    // EditBudgetLineModal renders via the shared Modal component.
+    // The accessible name is the modal title text "Edit Budget Line" (i18n:
+    //   budget:invoiceDetail.budgetLines.modal.editTitle).
+    this.editBudgetLineModal = page.getByRole('dialog', { name: 'Edit Budget Line' });
+    this.editBudgetLineAmountInput = page.locator('#budget-line-amount');
+
+    // DeleteBudgetLineModal renders via the shared Modal component.
+    // Title: "Remove Budget Line" (i18n: budget:invoiceDetail.budgetLines.modal.removeTitle).
+    this.removeBudgetLineModal = page.getByRole('dialog', { name: 'Remove Budget Line' });
   }
 
   /**
@@ -697,6 +725,57 @@ export class InvoiceDetailPage {
   }
 
   // ─── Budget Line Picker helpers (Issue #1401) ────────────────────────────
+
+  // ─── Budget Line OverflowMenu helpers (Issue #1425) ────────────────────────
+
+  /**
+   * Opens the OverflowMenu for a budget line row.
+   *
+   * The OverflowMenu trigger renders as:
+   *   <button type="button" aria-haspopup="true"
+   *           aria-label="Budget line actions for {description}">⋮</button>
+   *
+   * With usePortal=true the menu is appended to document.body — we wait for
+   * any visible role="menu" on the page after clicking.
+   *
+   * If descriptionSubstring is provided, matches the trigger by aria-label
+   * substring; otherwise clicks the first visible trigger in the section.
+   */
+  async openBudgetLineMenu(descriptionSubstring?: string): Promise<void> {
+    let trigger;
+    if (descriptionSubstring !== undefined) {
+      trigger = this.budgetLinesSection
+        .locator(
+          `button[aria-haspopup="true"][aria-label*="${descriptionSubstring.replace(/"/g, '\\"')}"]`,
+        )
+        .filter({ visible: true })
+        .first();
+    } else {
+      trigger = this.budgetLinesSection
+        .locator('button[aria-haspopup="true"]')
+        .filter({ visible: true })
+        .first();
+    }
+    await trigger.click();
+    // Portal renders menu at document.body level
+    await this.page
+      .locator('[role="menu"]')
+      .filter({ visible: true })
+      .first()
+      .waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Clicks a visible menu item by label text within the currently open budget
+   * line OverflowMenu.
+   */
+  async clickBudgetLineMenuItem(label: string | RegExp): Promise<void> {
+    const menuItem = this.page
+      .locator('[role="menuitem"]')
+      .filter({ visible: true })
+      .filter({ hasText: label });
+    await menuItem.first().click();
+  }
 
   /**
    * Open the budget line picker modal by clicking "+ Add Budget Line".

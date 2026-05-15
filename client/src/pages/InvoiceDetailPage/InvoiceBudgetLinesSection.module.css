@@ -363,11 +363,11 @@
 
 .trRemaining_danger .tdRemaining {
   color: var(--color-danger);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .trRemaining_warning .tdRemaining {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .trRemaining_neutral .tdRemaining {
@@ -386,9 +386,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ---- Modal ---- */
+/* ---- Picker Modal (wrapper) ---- */
 
-.modal {
+.pickerModal {
   position: fixed;
   top: 0;
   left: 0;
@@ -775,7 +775,7 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   cursor: pointer;
-  transition: background-color var(--transition-normal);
+  transition: var(--transition-button);
 }
 
 .deleteButton:hover:not(:disabled) {
@@ -910,25 +910,7 @@
   }
 }
 
-/* ---- Modal Styles ---- */
-
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: var(--z-modal);
-}
-
-.modalActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--spacing-3);
-}
+/* ---- Shared Modal Component Styles ---- */
 
 .formField {
   display: flex;

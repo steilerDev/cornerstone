@@ -638,7 +638,37 @@
         "amountInvalid": "Amount must be a non-negative number.",
         "exceedsTotal": "The new amount would exceed the invoice total.",
         "saveFailed": "Failed to update budget line. Please try again."
-      }
+      },
+      "picker": {
+        "title": "Add Budget Line",
+        "step2Title": "Select Budget Line for {{itemTitle}}",
+        "closeAriaLabel": "Close budget line picker",
+        "workItemTab": "Work Item",
+        "householdItemTab": "Household Item",
+        "separator": "or",
+        "loadingLines": "Loading budget lines...",
+        "noUnlinkedLines": "No unlinked budget lines for this item.",
+        "createLine": "Create Budget Line",
+        "unnamedBudgetLine": "Unnamed budget line",
+        "plannedLabel": "Planned: {{amount}}",
+        "itemizedAmountAriaLabel": "Itemized amount for {{description}}",
+        "budgetLineGeneric": "budget line",
+        "remainingToAllocate": "Remaining to allocate:",
+        "addSelectedLines": "Add Selected Lines",
+        "backButton": "← Back",
+        "loadError": "Failed to load budget lines.",
+        "loadFormError": "Failed to load form data.",
+        "error": {
+          "plannedAmountInvalid": "Planned amount must be a valid non-negative number.",
+          "quantityInvalid": "Quantity must be a valid positive number.",
+          "unitPriceInvalid": "Unit price must be a valid non-negative number.",
+          "exceedsTotal": "Linking this budget line would exceed the invoice total.",
+          "alreadyLinked": "This budget line is already linked to another invoice.",
+          "linkFailed": "Failed to link budget line. Please try again.",
+          "createFailed": "Failed to create budget line."
+        }
+      },
+      "remainingAriaLabel": "Remaining amount: {{amount}}"
     },
     "deposits": {
       "sectionTitle": "Deposits",

@@ -216,7 +216,9 @@ export function InvoiceBudgetLinesSection({
       });
     } catch (err) {
       const errorMsg =
-        err instanceof ApiClientError ? err.error.message : 'Failed to load budget lines.';
+        err instanceof ApiClientError
+          ? err.error.message
+          : t('invoiceDetail.budgetLines.picker.loadError');
 
       setPickerState({
         step: 2,
@@ -260,7 +262,9 @@ export function InvoiceBudgetLinesSection({
       }));
     } catch (err) {
       const errorMsg =
-        err instanceof ApiClientError ? err.error.message : 'Failed to load form data.';
+        err instanceof ApiClientError
+          ? err.error.message
+          : t('invoiceDetail.budgetLines.picker.loadFormError');
       setPickerState((prev) => ({
         ...prev,
         error: errorMsg,
@@ -283,7 +287,7 @@ export function InvoiceBudgetLinesSection({
       if (isNaN(plannedAmount) || plannedAmount < 0) {
         setPickerState((prev) => ({
           ...prev,
-          createError: 'Planned amount must be a valid non-negative number.',
+          createError: t('invoiceDetail.budgetLines.picker.error.plannedAmountInvalid'),
         }));
         return;
       }
@@ -295,14 +299,14 @@ export function InvoiceBudgetLinesSection({
       if (isNaN(qty) || qty <= 0) {
         setPickerState((prev) => ({
           ...prev,
-          createError: 'Quantity must be a valid positive number.',
+          createError: t('invoiceDetail.budgetLines.picker.error.quantityInvalid'),
         }));
         return;
       }
       if (isNaN(price) || price < 0) {
         setPickerState((prev) => ({
           ...prev,
-          createError: 'Unit price must be a valid non-negative number.',
+          createError: t('invoiceDetail.budgetLines.picker.error.unitPriceInvalid'),
         }));
         return;
       }
@@ -364,9 +368,9 @@ export function InvoiceBudgetLinesSection({
 
             let errorMsg: string;
             if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
-              errorMsg = 'Linking this budget line would exceed the invoice total.';
+              errorMsg = t('invoiceDetail.budgetLines.picker.error.exceedsTotal');
             } else {
-              errorMsg = 'This budget line is already linked to another invoice.';
+              errorMsg = t('invoiceDetail.budgetLines.picker.error.alreadyLinked');
             }
 
             setPickerState((prev) => ({
@@ -386,7 +390,9 @@ export function InvoiceBudgetLinesSection({
               isCreatingBudgetLine: false,
               createError: null,
               error:
-                err instanceof ApiClientError ? err.error.message : 'Failed to load budget lines.',
+                err instanceof ApiClientError
+                  ? err.error.message
+                  : t('invoiceDetail.budgetLines.picker.loadError'),
             }));
           }
           return;
@@ -401,7 +407,7 @@ export function InvoiceBudgetLinesSection({
         setPickerState((prev) => ({
           ...prev,
           isCreatingBudgetLine: false,
-          createError: 'Failed to create budget line.',
+          createError: t('invoiceDetail.budgetLines.picker.error.createFailed'),
         }));
       }
     }
@@ -438,13 +444,13 @@ export function InvoiceBudgetLinesSection({
         newLineRowRef.current?.focus();
       }, 100);
     } catch (err) {
-      let errorMsg = 'Failed to link budget line. Please try again.';
+      let errorMsg = t('invoiceDetail.budgetLines.picker.error.linkFailed');
 
       if (err instanceof ApiClientError) {
         if (err.error.code === 'BUDGET_LINE_ALREADY_LINKED') {
-          errorMsg = 'This budget line is already linked to another invoice.';
+          errorMsg = t('invoiceDetail.budgetLines.picker.error.alreadyLinked');
         } else if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
-          errorMsg = 'Linking this budget line would exceed the invoice total.';
+          errorMsg = t('invoiceDetail.budgetLines.picker.error.exceedsTotal');
         } else {
           errorMsg = err.error.message;
         }
@@ -691,7 +697,9 @@ export function InvoiceBudgetLinesSection({
                   ref={remainingAmountRef}
                   className={styles.tdRemaining}
                   aria-live="polite"
-                  aria-label={`Remaining amount: ${formatCurrency(remainingAmount)}`}
+                  aria-label={t('invoiceDetail.budgetLines.remainingAriaLabel', {
+                    amount: formatCurrency(remainingAmount),
+                  })}
                 >
                   {formatCurrency(remainingAmount)}
                 </td>
@@ -704,7 +712,7 @@ export function InvoiceBudgetLinesSection({
 
       {/* Add Budget Line picker modal (two-step) */}
       {showPicker && (
-        <div className={styles.modal}>
+        <div className={styles.pickerModal}>
           <div className={styles.modalBackdrop} onClick={closePicker} />
           <div
             ref={pickerModalRef}
@@ -717,14 +725,16 @@ export function InvoiceBudgetLinesSection({
             <div className={styles.modalHeader}>
               <h2 id="picker-title" className={styles.modalTitle}>
                 {pickerState.step === 1
-                  ? 'Add Budget Line'
-                  : `Select Budget Line for ${pickerState.itemTitle}`}
+                  ? t('invoiceDetail.budgetLines.picker.title')
+                  : t('invoiceDetail.budgetLines.picker.step2Title', {
+                      itemTitle: pickerState.itemTitle,
+                    })}
               </h2>
               <button
                 type="button"
                 className={styles.modalClose}
                 onClick={closePicker}
-                aria-label="Close budget line picker"
+                aria-label={t('invoiceDetail.budgetLines.picker.closeAriaLabel')}
               >
                 ×
               </button>
@@ -736,7 +746,7 @@ export function InvoiceBudgetLinesSection({
                 <div className={styles.pickerStep}>
                   <div className={styles.tabsContainer}>
                     <div className={styles.tab}>
-                      <h3 className={styles.tabTitle}>Work Item</h3>
+                      <h3 className={styles.tabTitle}>{t('invoiceDetail.budgetLines.picker.workItemTab')}</h3>
                       <WorkItemPicker
                         value=""
                         onChange={(itemId) => {
@@ -751,10 +761,10 @@ export function InvoiceBudgetLinesSection({
                       />
                     </div>
 
-                    <div className={styles.separator}>or</div>
+                    <div className={styles.separator}>{t('invoiceDetail.budgetLines.picker.separator')}</div>
 
                     <div className={styles.tab}>
-                      <h3 className={styles.tabTitle}>Household Item</h3>
+                      <h3 className={styles.tabTitle}>{t('invoiceDetail.budgetLines.picker.householdItemTab')}</h3>
                       <HouseholdItemPicker
                         value=""
                         onChange={(itemId) => {
@@ -776,7 +786,7 @@ export function InvoiceBudgetLinesSection({
               {pickerState.step === 2 && (
                 <div className={styles.pickerStep}>
                   {pickerState.isLoading && (
-                    <div className={styles.loadingState}>Loading budget lines...</div>
+                    <div className={styles.loadingState}>{t('invoiceDetail.budgetLines.picker.loadingLines')}</div>
                   )}
 
                   {pickerState.error && (
@@ -790,14 +800,14 @@ export function InvoiceBudgetLinesSection({
                     !pickerState.error &&
                     !pickerState.showCreateForm && (
                       <div className={styles.emptyState}>
-                        <p>No unlinked budget lines for this item.</p>
+                        <p>{t('invoiceDetail.budgetLines.picker.noUnlinkedLines')}</p>
                         <button
                           type="button"
                           ref={createBudgetLineButtonRef}
                           className={styles.addButton}
                           onClick={() => void showCreateBudgetLineForm()}
                         >
-                          Create Budget Line
+                          {t('invoiceDetail.budgetLines.picker.createLine')}
                         </button>
                       </div>
                     )}
@@ -859,7 +869,7 @@ export function InvoiceBudgetLinesSection({
                               <div key={line.id} className={styles.pickerBudgetLineRow}>
                                 <div className={styles.budgetLineInfo}>
                                   <div className={styles.budgetLineDesc}>
-                                    {line.description || 'Unnamed budget line'}
+                                    {line.description || t('invoiceDetail.budgetLines.picker.unnamedBudgetLine')}
                                   </div>
                                   <div className={styles.budgetLineDetails}>
                                     {line.budgetCategory && (
@@ -872,7 +882,9 @@ export function InvoiceBudgetLinesSection({
                                       </span>
                                     )}
                                     <span className={styles.budgetLinePlanned}>
-                                      Planned: {formatCurrency(line.plannedAmount)}
+                                      {t('invoiceDetail.budgetLines.picker.plannedLabel', {
+                                        amount: formatCurrency(line.plannedAmount),
+                                      })}
                                     </span>
                                   </div>
                                 </div>
@@ -894,7 +906,9 @@ export function InvoiceBudgetLinesSection({
                                     placeholder="0.00"
                                     min="0"
                                     step="0.01"
-                                    aria-label={`Itemized amount for ${line.description || 'budget line'}`}
+                                    aria-label={t('invoiceDetail.budgetLines.picker.itemizedAmountAriaLabel', {
+                                      description: line.description || t('invoiceDetail.budgetLines.picker.budgetLineGeneric'),
+                                    })}
                                     onWheel={(e) => e.currentTarget.blur()}
                                   />
                                 </div>
@@ -905,7 +919,7 @@ export function InvoiceBudgetLinesSection({
 
                         {/* Remaining to allocate indicator */}
                         <div className={styles.remainingIndicator}>
-                          <span className={styles.remainingLabel}>Remaining to allocate:</span>
+                          <span className={styles.remainingLabel}>{t('invoiceDetail.budgetLines.picker.remainingToAllocate')}</span>
                           <span
                             className={`${styles.remainingAmount} ${
                               pickerState.itemizedAmounts &&
@@ -964,15 +978,15 @@ export function InvoiceBudgetLinesSection({
                                   setBudgetLines(newBudgetLines);
                                   setRemainingAmount(response.remainingAmount);
                                 } catch (err) {
-                                  let errorMsg = 'Failed to link budget line. Please try again.';
+                                  let errorMsg = t('invoiceDetail.budgetLines.picker.error.linkFailed');
 
                                   if (err instanceof ApiClientError) {
                                     if (err.error.code === 'BUDGET_LINE_ALREADY_LINKED') {
                                       errorMsg =
-                                        'This budget line is already linked to another invoice.';
+                                        t('invoiceDetail.budgetLines.picker.error.alreadyLinked');
                                     } else if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
                                       errorMsg =
-                                        'Linking this budget line would exceed the invoice total.';
+                                        t('invoiceDetail.budgetLines.picker.error.exceedsTotal');
                                     } else {
                                       errorMsg = err.error.message;
                                     }
@@ -1002,7 +1016,7 @@ export function InvoiceBudgetLinesSection({
                             ) === 0
                           }
                         >
-                          Add Selected Lines
+                          {t('invoiceDetail.budgetLines.picker.addSelectedLines')}
                         </button>
                         <button
                           type="button"
@@ -1010,7 +1024,7 @@ export function InvoiceBudgetLinesSection({
                           className={styles.addButton}
                           onClick={() => void showCreateBudgetLineForm()}
                         >
-                          Create Budget Line
+                          {t('invoiceDetail.budgetLines.picker.createLine')}
                         </button>
                       </>
                     )}
@@ -1020,7 +1034,7 @@ export function InvoiceBudgetLinesSection({
                     className={styles.backButton}
                     onClick={() => setPickerState({ step: 1, budgetLines: [], isLoading: false })}
                   >
-                    ← Back
+                    {t('invoiceDetail.budgetLines.picker.backButton')}
                   </button>
                 </div>
               )}
@@ -1086,7 +1100,6 @@ function EditBudgetLineModal({
     <Modal
       title={t('invoiceDetail.budgetLines.modal.editTitle')}
       onClose={onClose}
-      className={styles.modal}
       footer={
         <div className={styles.modalActions}>
           <button
@@ -1165,7 +1178,6 @@ function DeleteBudgetLineModal({
     <Modal
       title={t('invoiceDetail.budgetLines.modal.removeTitle')}
       onClose={onClose}
-      className={styles.modal}
       footer={
         <div className={styles.modalActions}>
           <button

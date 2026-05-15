@@ -648,198 +648,6 @@ describe('InvoiceBudgetLinesSection', () => {
     });
   });
 
-  describe('inline edit', () => {
-    beforeEach(async () => {
-      const lines = [makeDetailLine('ibl-001', { itemizedAmount: 500.0 })];
-      mockFetchInvoiceBudgetLines.mockResolvedValue(makeListResponse(lines, 1000.0));
-    });
-
-    it('clicking Edit shows input field with current itemized amount', async () => {
-      renderSection();
-      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
-
-      fireEvent.click(screen.getByRole('button', { name: /Edit budget line/i }));
-      const input = screen.getByRole('spinbutton', { name: /Edit itemized amount/i });
-      expect(input).toBeInTheDocument();
-      expect(input).toHaveValue(500);
-    });
-
-    it('Cancel button restores display without making API call', async () => {
-      renderSection();
-      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
-
-      fireEvent.click(screen.getByRole('button', { name: /Edit budget line/i }));
-      fireEvent.click(screen.getByRole('button', { name: /Cancel/i }));
-
-      expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
-      expect(mockUpdateInvoiceBudgetLine).not.toHaveBeenCalled();
-    });
-
-    it('Save calls updateInvoiceBudgetLine with new amount', async () => {
-      const updatedLine = makeDetailLine('ibl-001', { itemizedAmount: 750.0 });
-      mockUpdateInvoiceBudgetLine.mockResolvedValue(makeCreateResponse(updatedLine, 750.0));
-
-      renderSection();
-      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
-
-      fireEvent.click(screen.getByRole('button', { name: /Edit budget line/i }));
-
-      const input = screen.getByRole('spinbutton', { name: /Edit itemized amount/i });
-      fireEvent.change(input, { target: { value: '750' } });
-
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /Save/i }));
-      });
-
-      expect(mockUpdateInvoiceBudgetLine).toHaveBeenCalledWith(INVOICE_ID, 'ibl-001', {
-        itemizedAmount: 750,
-      });
-    });
-
-    it('Save hides the input field on success', async () => {
-      const updatedLine = makeDetailLine('ibl-001', { itemizedAmount: 750.0 });
-      mockUpdateInvoiceBudgetLine.mockResolvedValue(makeCreateResponse(updatedLine, 750.0));
-
-      renderSection();
-      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
-
-      fireEvent.click(screen.getByRole('button', { name: /Edit budget line/i }));
-      const input = screen.getByRole('spinbutton', { name: /Edit itemized amount/i });
-      fireEvent.change(input, { target: { value: '750' } });
-
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /Save/i }));
-      });
-
-      await waitFor(() => expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument());
-    });
-
-    it('shows validation error for negative amount', async () => {
-      renderSection();
-      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
-
-      fireEvent.click(screen.getByRole('button', { name: /Edit budget line/i }));
-
-      const input = screen.getByRole('spinbutton', { name: /Edit itemized amount/i });
-      fireEvent.change(input, { target: { value: '-100' } });
-
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /Save/i }));
-      });
-
-      await waitFor(() =>
-        expect(screen.getByText('Amount must be a non-negative number.')).toBeInTheDocument(),
-      );
-      expect(mockUpdateInvoiceBudgetLine).not.toHaveBeenCalled();
-    });
-
-    it('shows API error message when updateInvoiceBudgetLine rejects with ITEMIZED_SUM_EXCEEDS_INVOICE', async () => {
-      mockUpdateInvoiceBudgetLine.mockRejectedValue(
-        new MockApiClientError(400, {
-          code: 'ITEMIZED_SUM_EXCEEDS_INVOICE',
-          message: 'The new amount would exceed the invoice total.',
-        }),
-      );
-
-      renderSection();
-      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
-
-      fireEvent.click(screen.getByRole('button', { name: /Edit budget line/i }));
-      const input = screen.getByRole('spinbutton', { name: /Edit itemized amount/i });
-      fireEvent.change(input, { target: { value: '9999' } });
-
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /Save/i }));
-      });
-
-      await waitFor(() =>
-        expect(
-          screen.getByText('The new amount would exceed the invoice total.'),
-        ).toBeInTheDocument(),
-      );
-    });
-  });
-
-  describe('remove budget line', () => {
-    beforeEach(async () => {
-      const lines = [makeDetailLine('ibl-001')];
-      mockFetchInvoiceBudgetLines.mockResolvedValue(makeListResponse(lines, 1000.0));
-    });
-
-    it('clicking Remove shows the delete confirmation modal', async () => {
-      renderSection();
-      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
-
-      fireEvent.click(screen.getByRole('button', { name: /Remove budget line/i }));
-
-      expect(screen.getByRole('dialog', { name: /Remove Budget Line/i })).toBeInTheDocument();
-    });
-
-    it('clicking Cancel in confirmation modal dismisses it without calling delete', async () => {
-      renderSection();
-      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
-
-      fireEvent.click(screen.getByRole('button', { name: /Remove budget line/i }));
-      expect(screen.getByRole('dialog', { name: /Remove Budget Line/i })).toBeInTheDocument();
-
-      fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      expect(mockDeleteInvoiceBudgetLine).not.toHaveBeenCalled();
-    });
-
-    it('clicking Remove in confirmation calls deleteInvoiceBudgetLine', async () => {
-      mockDeleteInvoiceBudgetLine.mockResolvedValue(undefined);
-      // After delete, reload returns empty list
-      mockFetchInvoiceBudgetLines
-        .mockResolvedValueOnce(makeListResponse([makeDetailLine('ibl-001')], 1000.0))
-        .mockResolvedValueOnce(makeListResponse([], INVOICE_TOTAL));
-
-      renderSection();
-      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
-
-      fireEvent.click(screen.getByRole('button', { name: /Remove budget line/i }));
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Remove$/i }));
-      });
-
-      expect(mockDeleteInvoiceBudgetLine).toHaveBeenCalledWith(INVOICE_ID, 'ibl-001');
-    });
-
-    it('refreshes budget lines list after successful removal', async () => {
-      mockDeleteInvoiceBudgetLine.mockResolvedValue(undefined);
-      mockFetchInvoiceBudgetLines
-        .mockResolvedValueOnce(makeListResponse([makeDetailLine('ibl-001')], 1000.0))
-        .mockResolvedValueOnce(makeListResponse([], INVOICE_TOTAL));
-
-      renderSection();
-      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
-
-      fireEvent.click(screen.getByRole('button', { name: /Remove budget line/i }));
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Remove$/i }));
-      });
-
-      await waitFor(() => expect(screen.getByText('No budget lines linked')).toBeInTheDocument());
-    });
-
-    it('shows error banner when deleteInvoiceBudgetLine rejects', async () => {
-      mockDeleteInvoiceBudgetLine.mockRejectedValue(
-        new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Delete failed' }),
-      );
-
-      renderSection();
-      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
-
-      fireEvent.click(screen.getByRole('button', { name: /Remove budget line/i }));
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /^Remove$/i }));
-      });
-
-      await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
-      expect(screen.getByText('Delete failed')).toBeInTheDocument();
-    });
-  });
-
   describe('create budget line form — BudgetLineForm integration', () => {
     /**
      * Helper: opens the picker, selects a work item (triggering step 2 with
@@ -1339,34 +1147,257 @@ describe('InvoiceBudgetLinesSection', () => {
     });
   });
 
-  describe('remaining amount updates', () => {
-    it('remaining amount updates after a successful inline save', async () => {
-      // Use distinct amounts so planned vs remaining are unambiguous
-      const line = makeDetailLine('ibl-001', { itemizedAmount: 500.0, plannedAmount: 800.0 });
-      mockFetchInvoiceBudgetLines.mockResolvedValue(makeListResponse([line], 1000.0));
+  // ─── Bug #1425: kebab menu + modal flow ────────────────────────────────────────
 
-      const updatedLine = makeDetailLine('ibl-001', {
-        itemizedAmount: 1200.0,
-        plannedAmount: 800.0,
-      });
-      mockUpdateInvoiceBudgetLine.mockResolvedValue(makeCreateResponse(updatedLine, 300.0));
+  describe('budget line kebab menu + modal flow (#1425)', () => {
+    const lineWithDesc = makeDetailLine('ibl-001', {
+      budgetLineDescription: 'Foundation work',
+      itemizedAmount: 500.0,
+      plannedAmount: 1000.0,
+    });
+
+    beforeEach(() => {
+      mockFetchInvoiceBudgetLines.mockResolvedValue(makeListResponse([lineWithDesc], 1000.0));
+    });
+
+    it('each budget line row renders an OverflowMenu trigger (⋮) with data-testid', async () => {
+      renderSection();
+      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
+
+      // The OverflowMenu trigger is rendered with data-testid="budget-line-menu-{line.id}"
+      const trigger = screen.getByTestId('budget-line-menu-ibl-001');
+      expect(trigger).toBeInTheDocument();
+      expect(trigger.tagName.toLowerCase()).toBe('button');
+    });
+
+    it('clicking ⋮ trigger opens the overflow menu with Edit and Remove items', async () => {
+      renderSection();
+      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
+
+      const trigger = screen.getByTestId('budget-line-menu-ibl-001');
+      fireEvent.click(trigger);
+
+      const menuItems = screen.getAllByRole('menuitem');
+      const labels = menuItems.map((m) => m.textContent?.toLowerCase() ?? '');
+      expect(labels.some((l) => l.includes('edit'))).toBe(true);
+      expect(labels.some((l) => l.includes('remove'))).toBe(true);
+    });
+
+    it('clicking "Edit" opens a modal with title "Edit Budget Line"', async () => {
+      renderSection();
+      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
+
+      const trigger = screen.getByTestId('budget-line-menu-ibl-001');
+      fireEvent.click(trigger);
+
+      const editItem = screen.getAllByRole('menuitem').find((m) =>
+        m.textContent?.toLowerCase().includes('edit'),
+      )!;
+      fireEvent.click(editItem);
+
+      // Modal should be visible — the real Modal renders a dialog with aria-label
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+
+      // The dialog has an accessible name containing "Edit Budget Line"
+      expect(screen.getByRole('dialog', { name: /edit budget line/i })).toBeInTheDocument();
+    });
+
+    it('Edit modal pre-populates amount input with current itemizedAmount', async () => {
+      renderSection();
+      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
+
+      const trigger = screen.getByTestId('budget-line-menu-ibl-001');
+      fireEvent.click(trigger);
+
+      const editItem = screen.getAllByRole('menuitem').find((m) =>
+        m.textContent?.toLowerCase().includes('edit'),
+      )!;
+      fireEvent.click(editItem);
+
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+
+      // The amount input should be pre-populated with the current itemizedAmount (500)
+      const amountInput = screen.getByLabelText(/itemized amount/i) as HTMLInputElement;
+      expect(amountInput.value).toBe('500');
+    });
+
+    it('changing amount and submitting calls updateInvoiceBudgetLine with new value', async () => {
+      const updatedLine = makeDetailLine('ibl-001', { itemizedAmount: 750.0 });
+      mockUpdateInvoiceBudgetLine.mockResolvedValue(makeCreateResponse(updatedLine, 750.0));
 
       renderSection();
-      await waitFor(() => expect(screen.getByText('Remaining')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
 
-      // Initial remaining amount should be $1000.00 (in the Remaining row)
-      expect(screen.getByText('$1000.00')).toBeInTheDocument();
+      const trigger = screen.getByTestId('budget-line-menu-ibl-001');
+      fireEvent.click(trigger);
 
-      fireEvent.click(screen.getByRole('button', { name: /Edit budget line/i }));
-      const input = screen.getByRole('spinbutton', { name: /Edit itemized amount/i });
-      fireEvent.change(input, { target: { value: '1200' } });
+      const editItem = screen.getAllByRole('menuitem').find((m) =>
+        m.textContent?.toLowerCase().includes('edit'),
+      )!;
+      fireEvent.click(editItem);
 
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+
+      const amountInput = screen.getByLabelText(/itemized amount/i);
+      fireEvent.change(amountInput, { target: { value: '750' } });
+
+      const form = screen.getByRole('dialog').querySelector('form')!;
       await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /Save/i }));
+        fireEvent.submit(form);
       });
 
-      // After save, remaining should be $300.00
-      await waitFor(() => expect(screen.getByText('$300.00')).toBeInTheDocument());
+      await waitFor(() => {
+        expect(mockUpdateInvoiceBudgetLine).toHaveBeenCalledWith(INVOICE_ID, 'ibl-001', {
+          itemizedAmount: 750,
+        });
+      });
+    });
+
+    it('successful edit closes the modal', async () => {
+      const updatedLine = makeDetailLine('ibl-001', { itemizedAmount: 750.0 });
+      mockUpdateInvoiceBudgetLine.mockResolvedValue(makeCreateResponse(updatedLine, 750.0));
+
+      renderSection();
+      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
+
+      const trigger = screen.getByTestId('budget-line-menu-ibl-001');
+      fireEvent.click(trigger);
+      const editItem = screen.getAllByRole('menuitem').find((m) =>
+        m.textContent?.toLowerCase().includes('edit'),
+      )!;
+      fireEvent.click(editItem);
+
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+
+      const amountInput = screen.getByLabelText(/itemized amount/i);
+      fireEvent.change(amountInput, { target: { value: '750' } });
+
+      const form = screen.getByRole('dialog').querySelector('form')!;
+      await act(async () => {
+        fireEvent.submit(form);
+      });
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    });
+
+    it('ITEMIZED_SUM_EXCEEDS_INVOICE error shows error in modal and modal stays open', async () => {
+      mockUpdateInvoiceBudgetLine.mockRejectedValue(
+        new MockApiClientError(400, {
+          code: 'ITEMIZED_SUM_EXCEEDS_INVOICE',
+          message: 'The new amount would exceed the invoice total.',
+        }),
+      );
+
+      renderSection();
+      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
+
+      const trigger = screen.getByTestId('budget-line-menu-ibl-001');
+      fireEvent.click(trigger);
+      const editItem = screen.getAllByRole('menuitem').find((m) =>
+        m.textContent?.toLowerCase().includes('edit'),
+      )!;
+      fireEvent.click(editItem);
+
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+
+      const amountInput = screen.getByLabelText(/itemized amount/i);
+      fireEvent.change(amountInput, { target: { value: '9999' } });
+
+      const form = screen.getByRole('dialog').querySelector('form')!;
+      await act(async () => {
+        fireEvent.submit(form);
+      });
+
+      // Modal stays open
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+
+      // Error message appears inside the modal (FormError renders role="alert")
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(screen.getByText('The new amount would exceed the invoice total.')).toBeInTheDocument();
+    });
+
+    it('clicking "Remove" opens the delete confirmation modal', async () => {
+      renderSection();
+      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
+
+      const trigger = screen.getByTestId('budget-line-menu-ibl-001');
+      fireEvent.click(trigger);
+
+      const removeItem = screen.getAllByRole('menuitem').find((m) =>
+        m.textContent?.toLowerCase().includes('remove'),
+      )!;
+      fireEvent.click(removeItem);
+
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+      expect(screen.getByRole('dialog', { name: /remove budget line/i })).toBeInTheDocument();
+    });
+
+    it('confirming removal calls deleteInvoiceBudgetLine and removes the row', async () => {
+      mockDeleteInvoiceBudgetLine.mockResolvedValue(undefined);
+      // After delete, reload returns empty list
+      mockFetchInvoiceBudgetLines
+        .mockResolvedValueOnce(makeListResponse([lineWithDesc], 1000.0))
+        .mockResolvedValueOnce(makeListResponse([], INVOICE_TOTAL));
+
+      renderSection();
+      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
+
+      const trigger = screen.getByTestId('budget-line-menu-ibl-001');
+      fireEvent.click(trigger);
+      const removeItem = screen.getAllByRole('menuitem').find((m) =>
+        m.textContent?.toLowerCase().includes('remove'),
+      )!;
+      fireEvent.click(removeItem);
+
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+
+      // Find the confirm button in the modal footer (Remove button in delete modal)
+      const confirmBtn = screen
+        .getByRole('dialog')
+        .closest('[class*="backdrop"]')
+        ? screen.getByRole('dialog')
+        : screen.getByRole('dialog');
+
+      // Click the remove/confirm button — it's not role="button" named "Cancel"
+      const footerBtns = screen.getByRole('dialog').querySelectorAll('button');
+      const removeConfirmBtn = Array.from(footerBtns).find(
+        (b) => !b.textContent?.toLowerCase().includes('cancel'),
+      )!;
+
+      await act(async () => {
+        fireEvent.click(removeConfirmBtn);
+      });
+
+      await waitFor(() => {
+        expect(mockDeleteInvoiceBudgetLine).toHaveBeenCalledWith(INVOICE_ID, 'ibl-001');
+      });
+
+      // After deletion, empty state is shown
+      await waitFor(() => expect(screen.getByText('No budget lines linked')).toBeInTheDocument());
+    });
+
+    it('cancel in delete modal closes without calling delete', async () => {
+      renderSection();
+      await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
+
+      const trigger = screen.getByTestId('budget-line-menu-ibl-001');
+      fireEvent.click(trigger);
+      const removeItem = screen.getAllByRole('menuitem').find((m) =>
+        m.textContent?.toLowerCase().includes('remove'),
+      )!;
+      fireEvent.click(removeItem);
+
+      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+
+      // Find cancel button in the dialog
+      const cancelBtn = Array.from(screen.getByRole('dialog').querySelectorAll('button')).find((b) =>
+        b.textContent?.toLowerCase().includes('cancel'),
+      )!;
+      fireEvent.click(cancelBtn);
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(mockDeleteInvoiceBudgetLine).not.toHaveBeenCalled();
     });
   });
+
 });

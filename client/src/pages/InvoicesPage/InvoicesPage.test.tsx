@@ -711,6 +711,179 @@ describe('InvoicesPage', () => {
     });
   });
 
+  // ─── Overdue summary card (#1421) ────────────────────────────────────────────
+
+  describe('overdue summary card (#1421)', () => {
+    // Today's date for comparison — matches component logic
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+
+    it('renders overdue card when at least one pending invoice has dueDate < today', async () => {
+      const overdueInvoice: Invoice = {
+        ...sampleInvoice1,
+        status: 'pending',
+        dueDate: yesterday,
+      };
+      mockFetchAllInvoices.mockResolvedValueOnce({
+        ...populatedResponse,
+        invoices: [overdueInvoice],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('summary-card-overdue')).toBeInTheDocument();
+      });
+    });
+
+    it('does NOT render overdue card when the pending invoice has dueDate = today (not past due)', async () => {
+      const dueTodayInvoice: Invoice = {
+        ...sampleInvoice1,
+        status: 'pending',
+        dueDate: today,
+      };
+      mockFetchAllInvoices.mockResolvedValueOnce({
+        ...populatedResponse,
+        invoices: [dueTodayInvoice],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('summary-card-overdue')).not.toBeInTheDocument();
+    });
+
+    it('does NOT render overdue card when all pending invoices have dueDate >= today', async () => {
+      const futureDueInvoice: Invoice = {
+        ...sampleInvoice1,
+        status: 'pending',
+        dueDate: tomorrow,
+      };
+      mockFetchAllInvoices.mockResolvedValueOnce({
+        ...populatedResponse,
+        invoices: [futureDueInvoice],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('summary-card-overdue')).not.toBeInTheDocument();
+    });
+
+    it('does NOT render overdue card when past-due invoice is paid (not pending)', async () => {
+      const paidOverdue: Invoice = {
+        ...sampleInvoice1,
+        status: 'paid',
+        dueDate: yesterday,
+      };
+      mockFetchAllInvoices.mockResolvedValueOnce({
+        ...populatedResponse,
+        invoices: [paidOverdue],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('summary-card-overdue')).not.toBeInTheDocument();
+    });
+
+    it('does NOT render overdue card when past-due invoice is claimed', async () => {
+      const claimedOverdue: Invoice = {
+        ...sampleInvoice1,
+        status: 'claimed',
+        dueDate: yesterday,
+      };
+      mockFetchAllInvoices.mockResolvedValueOnce({
+        ...populatedResponse,
+        invoices: [claimedOverdue],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('summary-card-overdue')).not.toBeInTheDocument();
+    });
+
+    it('does NOT render overdue card when pending invoice has null dueDate', async () => {
+      const noDueDate: Invoice = {
+        ...sampleInvoice1,
+        status: 'pending',
+        dueDate: null,
+      };
+      mockFetchAllInvoices.mockResolvedValueOnce({
+        ...populatedResponse,
+        invoices: [noDueDate],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('summary-card-overdue')).not.toBeInTheDocument();
+    });
+
+    it('does NOT render overdue card when invoices list is empty', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(emptyResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('summary-card-overdue')).not.toBeInTheDocument();
+    });
+
+    it('renders overdue card when SOME invoices are overdue and some are not', async () => {
+      const overdueInvoice: Invoice = {
+        ...sampleInvoice1,
+        id: 'inv-overdue',
+        status: 'pending',
+        dueDate: yesterday,
+      };
+      const futureInvoice: Invoice = {
+        ...sampleInvoice2,
+        id: 'inv-future',
+        status: 'pending',
+        dueDate: tomorrow,
+      };
+      mockFetchAllInvoices.mockResolvedValueOnce({
+        ...populatedResponse,
+        invoices: [overdueInvoice, futureInvoice],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('summary-card-overdue')).toBeInTheDocument();
+      });
+    });
+
+    it('summaryGrid container exists in the DOM', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(emptyResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+
+      // The summaryGrid className is applied to the grid container div
+      // identity-obj-proxy returns 'summaryGrid' as the class name
+      const grid = document.querySelector('[class*="summaryGrid"]');
+      expect(grid).toBeInTheDocument();
+    });
+  });
+
   // ─── getAttributionLabel utility (tested via rendering) ────────────────────
 
   describe('attribution column', () => {

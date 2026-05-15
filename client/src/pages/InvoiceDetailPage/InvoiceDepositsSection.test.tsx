@@ -981,9 +981,119 @@ describe('InvoiceDepositsSection', () => {
     });
   });
 
-  // ─── Scenario 16: count chip ──────────────────────────────────────────────
+  // ─── Scenario 16 (i18n key fix #1424): common:button.* keys ─────────────────
 
-  describe('Scenario 16: count chip', () => {
+  describe('Scenario 16: i18n key fix — common:button.* (#1424)', () => {
+    it('Add modal cancel button shows "Cancel" (not raw key "buttons.cancel")', () => {
+      renderSection([]);
+      // Open add modal via the section header button
+      const addBtn = screen
+        .getAllByRole('button')
+        .find((b) => b.getAttribute('aria-label')?.toLowerCase().includes('deposit'))!;
+      fireEvent.click(addBtn);
+
+      // The cancel button is rendered by the modal footer
+      const cancelBtn = screen.getByTestId('deposit-modal-cancel');
+      expect(cancelBtn.textContent).toBe('Cancel');
+      // Must NOT show a raw key (keys contain dots)
+      expect(cancelBtn.textContent).not.toContain('button.cancel');
+      expect(cancelBtn.textContent).not.toContain('buttons.cancel');
+    });
+
+    it('Add modal save button shows "Save" (not raw key "buttons.save")', () => {
+      renderSection([]);
+      const addBtn = screen
+        .getAllByRole('button')
+        .find((b) => b.getAttribute('aria-label')?.toLowerCase().includes('deposit'))!;
+      fireEvent.click(addBtn);
+
+      const saveBtn = screen.getByTestId('deposit-modal-save');
+      expect(saveBtn.textContent).toBe('Save');
+      expect(saveBtn.textContent).not.toContain('button.save');
+      expect(saveBtn.textContent).not.toContain('buttons.save');
+    });
+
+    it('Delete modal cancel button shows "Cancel" (not raw key)', () => {
+      const deposit = makeDeposit('dep-1', { status: 'pending' });
+      renderSection([deposit]);
+
+      // Open delete modal
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
+      fireEvent.click(menuBtn);
+      const deleteItem = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('delete'))!;
+      fireEvent.click(deleteItem);
+
+      const cancelBtn = screen.getByTestId('deposit-delete-cancel');
+      expect(cancelBtn.textContent).toBe('Cancel');
+      expect(cancelBtn.textContent).not.toContain('button.cancel');
+      expect(cancelBtn.textContent).not.toContain('buttons.cancel');
+    });
+
+    it('State confirm modal cancel button shows "Cancel"', () => {
+      const deposit = makeDeposit('dep-1', { status: 'pending' });
+      renderSection([deposit]);
+
+      // Open state-confirm modal (Mark paid)
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
+      fireEvent.click(menuBtn);
+      const markPaidItem = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('paid'))!;
+      fireEvent.click(markPaidItem);
+
+      const cancelBtn = screen.getByTestId('state-confirm-cancel');
+      expect(cancelBtn.textContent).toBe('Cancel');
+      expect(cancelBtn.textContent).not.toContain('button.cancel');
+      expect(cancelBtn.textContent).not.toContain('buttons.cancel');
+    });
+
+    it('State confirm modal confirm button shows "Confirm"', () => {
+      const deposit = makeDeposit('dep-1', { status: 'pending' });
+      renderSection([deposit]);
+
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
+      fireEvent.click(menuBtn);
+      const markPaidItem = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('paid'))!;
+      fireEvent.click(markPaidItem);
+
+      const confirmBtn = screen.getByTestId('state-confirm-button');
+      expect(confirmBtn.textContent).toBe('Confirm');
+      expect(confirmBtn.textContent).not.toContain('button.confirm');
+      expect(confirmBtn.textContent).not.toContain('buttons.confirm');
+    });
+
+    it('OverflowMenu trigger buttons use usePortal (menu appears in document.body)', () => {
+      const deposit = makeDeposit('dep-1', { status: 'pending' });
+      renderSection([deposit]);
+
+      // Find and click the kebab trigger (⋮)
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
+      menuBtn.getBoundingClientRect = jest.fn(() => ({
+        top: 100,
+        bottom: 120,
+        left: 200,
+        right: 300,
+        width: 100,
+        height: 20,
+        x: 200,
+        y: 100,
+        toJSON: () => ({}),
+      }));
+      fireEvent.click(menuBtn);
+
+      const menu = screen.getAllByRole('menu')[0]!;
+      // When usePortal=true, the menu is portalled to document.body
+      expect(document.body.contains(menu)).toBe(true);
+    });
+  });
+
+  // ─── Scenario 17: count chip ──────────────────────────────────────────────
+
+  describe('Scenario 17: count chip', () => {
     it('shows count chip with deposit count when deposits.length > 0', () => {
       const deposits = [makeDeposit('dep-1'), makeDeposit('dep-2')];
       renderSection(deposits);

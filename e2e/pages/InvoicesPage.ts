@@ -62,6 +62,12 @@ export class InvoicesPage {
   readonly pendingSummary: Locator;
   readonly paidSummary: Locator;
   readonly quotationSummary: Locator;
+  /**
+   * Conditional 5th summary card — only rendered when at least one PENDING
+   * invoice has dueDate < today (Issue #1421).
+   * data-testid="summary-card-overdue"
+   */
+  readonly overdueCard: Locator;
 
   // Search
   readonly searchInput: Locator;
@@ -117,6 +123,8 @@ export class InvoicesPage {
     this.quotationSummary = this.summaryGrid
       .locator('[class*="summaryCard"]')
       .filter({ hasText: /Quotation/i });
+    // Overdue card (conditional) — rendered only when hasOverdue===true (Issue #1421)
+    this.overdueCard = page.getByTestId('summary-card-overdue');
 
     // DataTable search — aria-label="Search items" (generic DataTable search label)
     this.searchInput = page.getByLabel('Search items');
