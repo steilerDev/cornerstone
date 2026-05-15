@@ -602,6 +602,9 @@
       "sectionTitle": "Budget Lines",
       "addButton": "Add Budget Line",
       "loading": "Loading budget lines…",
+      "loadError": "Failed to load budget lines. Please try again.",
+      "dismissError": "Dismiss",
+      "dismissErrorAriaLabel": "Dismiss error",
       "empty": {
         "message": "No budget lines linked",
         "description": "Link budget lines to allocate portions of this invoice to specific work items or household items."

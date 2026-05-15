@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type * as InvoiceBudgetLinesApiTypes from '../../lib/invoiceBudgetLinesApi.js';
 import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
@@ -403,7 +403,7 @@ describe('InvoiceBudgetLinesSection', () => {
     it('renders "Loading budget lines..." while fetch is pending', () => {
       mockFetchInvoiceBudgetLines.mockImplementation(() => new Promise(() => {}));
       renderSection();
-      expect(screen.getByText('Loading budget lines...')).toBeInTheDocument();
+      expect(screen.getByText(/Loading budget lines/i)).toBeInTheDocument();
     });
 
     it('"Add Budget Line" button is disabled while loading', () => {
@@ -1351,18 +1351,9 @@ describe('InvoiceBudgetLinesSection', () => {
 
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
 
-      // Find the confirm button in the modal footer (Remove button in delete modal)
-      const confirmBtn = screen
-        .getByRole('dialog')
-        .closest('[class*="backdrop"]')
-        ? screen.getByRole('dialog')
-        : screen.getByRole('dialog');
-
-      // Click the remove/confirm button — it's not role="button" named "Cancel"
-      const footerBtns = screen.getByRole('dialog').querySelectorAll('button');
-      const removeConfirmBtn = Array.from(footerBtns).find(
-        (b) => !b.textContent?.toLowerCase().includes('cancel'),
-      )!;
+      // Use an exact-match selector so we get the "Remove" confirm button, not the × close button
+      const dialog = screen.getByRole('dialog');
+      const removeConfirmBtn = within(dialog).getByRole('button', { name: /^Remove$/i });
 
       await act(async () => {
         fireEvent.click(removeConfirmBtn);

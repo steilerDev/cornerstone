@@ -555,7 +555,10 @@
           "createFailed": "Budgetposition konnte nicht erstellt werden."
         }
       },
-      "remainingAriaLabel": "Verbleibender Betrag: {{amount}}"
+      "remainingAriaLabel": "Verbleibender Betrag: {{amount}}",
+      "loadError": "Budgetpositionen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "dismissError": "Schließen",
+      "dismissErrorAriaLabel": "Fehler schließen"
     },
     "deposits": {
       "sectionTitle": "Abschlagszahlungen",

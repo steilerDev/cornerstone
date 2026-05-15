@@ -98,7 +98,6 @@ async function createAndLinkBudgetLine(
   // 2. Link it to the invoice
   const linkResp = await page.request.post(`/api/invoices/${opts.invoiceId}/budget-lines`, {
     data: {
-      invoiceId: opts.invoiceId,
       workItemBudgetId: budgetBody.budget.id,
       itemizedAmount: opts.itemizedAmount,
     },

@@ -126,7 +126,7 @@ export function InvoiceBudgetLinesSection({
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError(t('invoiceDetail.budgetLines.loading'));
+        setError(t('invoiceDetail.budgetLines.loadError'));
       }
     } finally {
       setIsLoading(false);
@@ -591,13 +591,23 @@ export function InvoiceBudgetLinesSection({
             setError(null);
           }}
         >
-          {t('invoiceDetail.budgetLines.addButton')}
+          + {t('invoiceDetail.budgetLines.addButton')}
         </button>
       </div>
 
       {/* Error banner */}
       {error && (
-        <FormError message={error} />
+        <div className={styles.errorBanner} role="alert">
+          {error}
+          <button
+            type="button"
+            className={styles.dismissButton}
+            onClick={() => setError(null)}
+            aria-label={t('invoiceDetail.budgetLines.dismissErrorAriaLabel')}
+          >
+            {t('invoiceDetail.budgetLines.dismissError')}
+          </button>
+        </div>
       )}
 
       {/* Loading state */}
