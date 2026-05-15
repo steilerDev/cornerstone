@@ -25,6 +25,7 @@ import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import type { BudgetSource } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { BudgetLineForm } from '../../components/budget/BudgetLineForm.js';
@@ -33,6 +34,10 @@ import { CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
 import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
 import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
+import { OverflowMenu, type OverflowMenuItem } from '../../components/OverflowMenu/index.js';
+import { Modal } from '../../components/Modal/Modal.js';
+import { FormError } from '../../components/FormError/FormError.js';
+import sharedStyles from '../../styles/shared.module.css';
 import styles from './InvoiceBudgetLinesSection.module.css';
 
 interface InvoiceBudgetLinesSectionProps {
@@ -44,6 +49,11 @@ interface InvoiceBudgetLinesSectionProps {
  * Budget line type discriminator for the two-step picker.
  */
 type BudgetLineType = 'work_item' | 'household_item';
+
+/**
+ * Budget line modal modes.
+ */
+type BudgetLineModalMode = 'edit' | 'remove' | null;
 
 interface PickerState {
   step: 1 | 2;
@@ -71,6 +81,7 @@ export function InvoiceBudgetLinesSection({
   const { formatCurrency } = useFormatters();
   const { t: tSettings } = useTranslation('settings');
   const { t } = useTranslation('budget');
+  const { t: tErrors } = useTranslation('errors');
   const [budgetLines, setBudgetLines] = useState<InvoiceBudgetLineDetailResponse[]>([]);
   const [remainingAmount, setRemainingAmount] = useState(invoiceTotal);
   const [isLoading, setIsLoading] = useState(true);
@@ -84,14 +95,13 @@ export function InvoiceBudgetLinesSection({
     isLoading: false,
   });
 
-  // Inline edit state
-  const [editingLineId, setEditingLineId] = useState<string | null>(null);
-  const [editAmount, setEditAmount] = useState('');
-  const [editError, setEditError] = useState<string | null>(null);
-
-  // Delete confirmation state
-  const [deletingLineId, setDeletingLineId] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  // Budget line modal state
+  const [budgetLineModalMode, setBudgetLineModalMode] = useState<BudgetLineModalMode>(null);
+  const [selectedBudgetLine, setSelectedBudgetLine] =
+    useState<InvoiceBudgetLineDetailResponse | null>(null);
+  const [budgetLineFormAmount, setBudgetLineFormAmount] = useState('');
+  const [budgetLineFormError, setBudgetLineFormError] = useState('');
+  const [isBudgetLineMutating, setIsBudgetLineMutating] = useState(false);
 
   // Focus management
   const addButtonRef = useRef<HTMLButtonElement>(null);
@@ -116,11 +126,33 @@ export function InvoiceBudgetLinesSection({
       if (err instanceof ApiClientError) {
         setError(err.error.message);
       } else {
-        setError('Failed to load budget lines. Please try again.');
+        setError(t('invoiceDetail.budgetLines.loading'));
       }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const closeBudgetLineModal = () => {
+    if (!isBudgetLineMutating) {
+      setBudgetLineModalMode(null);
+      setSelectedBudgetLine(null);
+      setBudgetLineFormAmount('');
+      setBudgetLineFormError('');
+    }
+  };
+
+  const openEditBudgetLineModal = (line: InvoiceBudgetLineDetailResponse) => {
+    setSelectedBudgetLine(line);
+    setBudgetLineFormAmount(line.itemizedAmount.toString());
+    setBudgetLineFormError('');
+    setBudgetLineModalMode('edit');
+  };
+
+  const openRemoveBudgetLineModal = (line: InvoiceBudgetLineDetailResponse) => {
+    setSelectedBudgetLine(line);
+    setBudgetLineFormError('');
+    setBudgetLineModalMode('remove');
   };
 
   // Focus into picker modal when it opens
@@ -426,100 +458,69 @@ export function InvoiceBudgetLinesSection({
   };
 
   /**
-   * Start editing an itemized amount.
+   * Handle edit budget line submit.
    */
-  const startEditLine = (line: InvoiceBudgetLineDetailResponse) => {
-    setEditingLineId(line.id);
-    setEditAmount(line.itemizedAmount.toString());
-    setEditError(null);
-  };
+  const handleBudgetLineEditSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedBudgetLine) return;
 
-  /**
-   * Save an edited itemized amount.
-   */
-  const saveEditLine = async () => {
-    if (!editingLineId) return;
-
-    const newAmount = parseFloat(editAmount);
+    const newAmount = parseFloat(budgetLineFormAmount);
     if (isNaN(newAmount) || newAmount < 0) {
-      setEditError('Amount must be a non-negative number.');
+      setBudgetLineFormError(t('invoiceDetail.budgetLines.editError.amountInvalid'));
       return;
     }
 
+    setIsBudgetLineMutating(true);
+    setBudgetLineFormError('');
+
     try {
-      const response = await updateInvoiceBudgetLine(invoiceId, editingLineId, {
+      const response = await updateInvoiceBudgetLine(invoiceId, selectedBudgetLine.id, {
         itemizedAmount: newAmount,
       });
 
-      // Update the line and remaining amount
-      setBudgetLines(
-        budgetLines.map((line) => (line.id === editingLineId ? response.budgetLine : line)),
+      setBudgetLines((prev) =>
+        prev.map((line) =>
+          line.id === selectedBudgetLine.id ? response.budgetLine : line,
+        ),
       );
       setRemainingAmount(response.remainingAmount);
-      setEditingLineId(null);
-      setEditAmount('');
-      setEditError(null);
+      closeBudgetLineModal();
     } catch (err) {
-      let errorMsg = 'Failed to update budget line. Please try again.';
-
       if (err instanceof ApiClientError) {
         if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
-          errorMsg = 'The new amount would exceed the invoice total.';
+          setBudgetLineFormError(t('invoiceDetail.budgetLines.editError.exceedsTotal'));
         } else {
-          errorMsg = err.error.message;
+          setBudgetLineFormError(translateApiError(err.error.code, tErrors));
         }
+      } else {
+        setBudgetLineFormError(t('invoiceDetail.budgetLines.editError.saveFailed'));
       }
-
-      setEditError(errorMsg);
+    } finally {
+      setIsBudgetLineMutating(false);
     }
   };
 
   /**
-   * Cancel editing.
+   * Handle delete budget line confirm.
    */
-  const cancelEditLine = () => {
-    setEditingLineId(null);
-    setEditAmount('');
-    setEditError(null);
-  };
+  const handleBudgetLineDeleteConfirm = async () => {
+    if (!selectedBudgetLine) return;
 
-  /**
-   * Delete a budget line.
-   */
-  const handleDeleteLine = async (lineId: string) => {
-    setIsDeleting(true);
-    const deletedIndex = budgetLines.findIndex((line) => line.id === lineId);
+    setIsBudgetLineMutating(true);
+    setBudgetLineFormError('');
 
     try {
-      await deleteInvoiceBudgetLine(invoiceId, lineId);
-
-      // Re-fetch budget lines to get updated remaining amount
+      await deleteInvoiceBudgetLine(invoiceId, selectedBudgetLine.id);
       await loadBudgetLines();
-      setDeletingLineId(null);
-
-      // Focus management: move focus to the next row or the Add button
-      setTimeout(() => {
-        // If there are remaining lines, focus the next one; otherwise focus the Add button
-        if (budgetLines.length > 1) {
-          // Focus the next row if available, or the previous one
-          const focusIndex =
-            deletedIndex < budgetLines.length - 1 ? deletedIndex : deletedIndex - 1;
-          const rows = document.querySelectorAll('[data-row-id]');
-          if (rows[focusIndex]) {
-            (rows[focusIndex] as HTMLElement).focus();
-          }
-        } else {
-          addButtonRef.current?.focus();
-        }
-      }, 50);
+      closeBudgetLineModal();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setBudgetLineFormError(translateApiError(err.error.code, tErrors));
       } else {
-        setError('Failed to delete budget line. Please try again.');
+        setBudgetLineFormError(t('invoiceDetail.budgetLines.editError.saveFailed'));
       }
     } finally {
-      setIsDeleting(false);
+      setIsBudgetLineMutating(false);
     }
   };
 
@@ -562,11 +563,13 @@ export function InvoiceBudgetLinesSection({
     <section aria-labelledby="budget-lines-title" className={styles.section}>
       <div className={styles.sectionHeader}>
         <h2 id="budget-lines-title" className={styles.sectionTitle}>
-          Budget Lines
+          {t('invoiceDetail.budgetLines.sectionTitle')}
           {!isLoading && budgetLines.length > 0 && (
             <span
               className={styles.countBadge}
-              aria-label={`${budgetLines.length} budget lines linked`}
+              aria-label={t('invoiceDetail.budgetLines.countLabel_other', {
+                count: budgetLines.length,
+              })}
             >
               {budgetLines.length}
             </span>
@@ -575,43 +578,32 @@ export function InvoiceBudgetLinesSection({
         <button
           type="button"
           ref={addButtonRef}
-          className={styles.addButton}
+          className={sharedStyles.btnPrimary}
           disabled={isLoading}
           onClick={() => {
             setShowPicker(true);
             setError(null);
           }}
         >
-          + Add Budget Line
+          {t('invoiceDetail.budgetLines.addButton')}
         </button>
       </div>
 
       {/* Error banner */}
       {error && (
-        <div className={styles.errorBanner} role="alert">
-          <span>{error}</span>
-          <button
-            type="button"
-            className={styles.dismissButton}
-            onClick={() => setError(null)}
-            aria-label="Dismiss error"
-          >
-            Dismiss
-          </button>
-        </div>
+        <FormError message={error} />
       )}
 
       {/* Loading state */}
-      {isLoading && <div className={styles.loadingState}>Loading budget lines...</div>}
+      {isLoading && <div className={styles.loadingState}>{t('invoiceDetail.budgetLines.loading')}</div>}
 
       {/* Empty state */}
       {!isLoading && budgetLines.length === 0 && !error && (
         <div className={styles.emptyState}>
           <span className={styles.emptyIcon}>📊</span>
-          <p className={styles.emptyTitle}>No budget lines linked</p>
+          <p className={styles.emptyTitle}>{t('invoiceDetail.budgetLines.empty.message')}</p>
           <p className={styles.emptyBody}>
-            Link budget lines to allocate portions of this invoice to specific work items or
-            household items.
+            {t('invoiceDetail.budgetLines.empty.description')}
           </p>
         </div>
       )}
@@ -622,12 +614,12 @@ export function InvoiceBudgetLinesSection({
           <table className={styles.table}>
             <thead>
               <tr>
-                <th className={styles.thDescription}>Description</th>
-                <th className={styles.thCategory}>Category</th>
-                <th className={styles.thPlanned}>Planned</th>
-                <th className={styles.thItemized}>Itemized</th>
-                <th className={styles.thLinkedItem}>Linked Item</th>
-                <th className={styles.thActions}>Actions</th>
+                <th className={styles.thDescription}>{t('invoiceDetail.budgetLines.columns.description')}</th>
+                <th className={styles.thCategory}>{t('invoiceDetail.budgetLines.columns.category')}</th>
+                <th className={styles.thPlanned}>{t('invoiceDetail.budgetLines.columns.planned')}</th>
+                <th className={styles.thItemized}>{t('invoiceDetail.budgetLines.columns.itemized')}</th>
+                <th className={styles.thLinkedItem}>{t('invoiceDetail.budgetLines.columns.linkedItem')}</th>
+                <th className={styles.thActions}>{t('invoiceDetail.budgetLines.columns.actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -651,42 +643,7 @@ export function InvoiceBudgetLinesSection({
                   </td>
                   <td className={styles.tdPlanned}>{formatCurrency(line.plannedAmount)}</td>
                   <td className={styles.tdItemized}>
-                    {editingLineId === line.id ? (
-                      <div className={styles.editContainer}>
-                        <input
-                          type="number"
-                          value={editAmount}
-                          onChange={(e) => setEditAmount(e.target.value)}
-                          className={styles.editInput}
-                          placeholder="0.00"
-                          min="0"
-                          step="0.01"
-                          aria-label={`Edit itemized amount for budget line`}
-                          onWheel={(e) => e.currentTarget.blur()}
-                        />
-                        {editError && <div className={styles.editErrorMsg}>{editError}</div>}
-                        <div className={styles.editActions}>
-                          <button
-                            type="button"
-                            className={styles.editSaveButton}
-                            onClick={() => void saveEditLine()}
-                            aria-label="Save"
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.editCancelButton}
-                            onClick={cancelEditLine}
-                            aria-label="Cancel"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <span>{formatCurrency(line.itemizedAmount)}</span>
-                    )}
+                    <span>{formatCurrency(line.itemizedAmount)}</span>
                   </td>
                   <td className={styles.tdLinkedItem}>
                     <Link
@@ -700,28 +657,25 @@ export function InvoiceBudgetLinesSection({
                     )}
                   </td>
                   <td className={styles.tdActions}>
-                    {editingLineId !== line.id && (
-                      <div className={styles.actionButtons}>
-                        <button
-                          type="button"
-                          className={styles.editButton}
-                          onClick={() => startEditLine(line)}
-                          title="Edit itemized amount"
-                          aria-label={`Edit budget line for ${line.budgetLineDescription || 'budget line'}`}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.removeButton}
-                          onClick={() => setDeletingLineId(line.id)}
-                          title="Remove this budget line"
-                          aria-label={`Remove budget line for ${line.budgetLineDescription || 'budget line'}`}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    )}
+                    <OverflowMenu
+                      items={[
+                        {
+                          label: t('invoiceDetail.budgetLines.menu.edit'),
+                          onClick: () => openEditBudgetLineModal(line),
+                        },
+                        {
+                          label: t('invoiceDetail.budgetLines.menu.remove'),
+                          onClick: () => openRemoveBudgetLineModal(line),
+                          variant: 'destructive',
+                        },
+                      ]}
+                      triggerAriaLabel={t('invoiceDetail.budgetLines.menu.ariaLabel', {
+                        description: line.budgetLineDescription || 'budget line',
+                      })}
+                      placement="bottom-end"
+                      usePortal
+                      data-testid={`budget-line-menu-${line.id}`}
+                    />
                   </td>
                 </tr>
               ))}
@@ -731,7 +685,7 @@ export function InvoiceBudgetLinesSection({
                 className={`${styles.tr} ${styles.trRemaining} ${styles[`trRemaining_${getRemainingColor()}`]}`}
               >
                 <td colSpan={4} className={styles.tdRemainingLabel}>
-                  Remaining
+                  {t('invoiceDetail.budgetLines.columns.remaining')}
                 </td>
                 <td
                   ref={remainingAmountRef}
@@ -1075,44 +1029,169 @@ export function InvoiceBudgetLinesSection({
         </div>
       )}
 
-      {/* Delete confirmation modal */}
-      {deletingLineId && (
-        <div className={styles.modal}>
-          <div className={styles.modalBackdrop} onClick={() => setDeletingLineId(null)} />
-          <div
-            className={styles.modalContent}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-title"
-          >
-            <h2 id="delete-title" className={styles.modalTitle}>
-              Remove Budget Line?
-            </h2>
-            <p className={styles.modalText}>
-              This budget line will be unlinked from the invoice. The budget line itself will remain
-              in the work item or household item.
-            </p>
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.cancelButton}
-                onClick={() => setDeletingLineId(null)}
-                disabled={isDeleting}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={styles.deleteButton}
-                onClick={() => void handleDeleteLine(deletingLineId)}
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Removing...' : 'Remove'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Edit budget line modal */}
+      {budgetLineModalMode === 'edit' && selectedBudgetLine && (
+        <EditBudgetLineModal
+          line={selectedBudgetLine}
+          formAmount={budgetLineFormAmount}
+          onFormAmountChange={setBudgetLineFormAmount}
+          onSubmit={handleBudgetLineEditSubmit}
+          onClose={closeBudgetLineModal}
+          error={budgetLineFormError}
+          isMutating={isBudgetLineMutating}
+          t={t}
+        />
+      )}
+
+      {/* Delete budget line modal */}
+      {budgetLineModalMode === 'remove' && selectedBudgetLine && (
+        <DeleteBudgetLineModal
+          line={selectedBudgetLine}
+          onConfirm={handleBudgetLineDeleteConfirm}
+          onClose={closeBudgetLineModal}
+          error={budgetLineFormError}
+          isMutating={isBudgetLineMutating}
+          t={t}
+        />
       )}
     </section>
+  );
+}
+
+// ============================================================================
+// Sub-component: EditBudgetLineModal
+// ============================================================================
+
+interface EditBudgetLineModalProps {
+  line: InvoiceBudgetLineDetailResponse;
+  formAmount: string;
+  onFormAmountChange: (amount: string) => void;
+  onSubmit: (e: FormEvent) => void;
+  onClose: () => void;
+  error: string;
+  isMutating: boolean;
+  t: (key: string, opts?: Record<string, unknown>) => string;
+}
+
+function EditBudgetLineModal({
+  formAmount,
+  onFormAmountChange,
+  onSubmit,
+  onClose,
+  error,
+  isMutating,
+  t,
+}: EditBudgetLineModalProps) {
+  return (
+    <Modal
+      title={t('invoiceDetail.budgetLines.modal.editTitle')}
+      onClose={onClose}
+      className={styles.modal}
+      footer={
+        <div className={styles.modalActions}>
+          <button
+            type="button"
+            className={sharedStyles.btnSecondary}
+            onClick={onClose}
+            disabled={isMutating}
+          >
+            {t('common:button.cancel')}
+          </button>
+          <button
+            type="submit"
+            className={sharedStyles.btnPrimary}
+            form="budget-line-edit-form"
+            disabled={isMutating || !formAmount}
+          >
+            {isMutating ? t('invoiceDetail.budgetLines.form.saving') : t('common:button.save')}
+          </button>
+        </div>
+      }
+    >
+      <form id="budget-line-edit-form" onSubmit={onSubmit} noValidate>
+        {error && <FormError message={error} />}
+
+        <p className={styles.editModalHint}>
+          {t('invoiceDetail.budgetLines.form.itemizedAmount')}
+        </p>
+
+        <div className={styles.formField}>
+          <label htmlFor="budget-line-amount" className={styles.label}>
+            {t('invoiceDetail.budgetLines.form.itemizedAmount')}
+            <span className={styles.required}>
+              {t('invoiceDetail.budgetLines.form.required')}
+            </span>
+          </label>
+          <input
+            type="number"
+            id="budget-line-amount"
+            value={formAmount}
+            onChange={(e) => onFormAmountChange(e.target.value)}
+            className={sharedStyles.input}
+            placeholder="0.00"
+            min="0"
+            step="0.01"
+            required
+            disabled={isMutating}
+            onWheel={(e) => e.currentTarget.blur()}
+          />
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// ============================================================================
+// Sub-component: DeleteBudgetLineModal
+// ============================================================================
+
+interface DeleteBudgetLineModalProps {
+  line: InvoiceBudgetLineDetailResponse;
+  onConfirm: () => void;
+  onClose: () => void;
+  error: string;
+  isMutating: boolean;
+  t: (key: string, opts?: Record<string, unknown>) => string;
+}
+
+function DeleteBudgetLineModal({
+  onConfirm,
+  onClose,
+  error,
+  isMutating,
+  t,
+}: DeleteBudgetLineModalProps) {
+  return (
+    <Modal
+      title={t('invoiceDetail.budgetLines.modal.removeTitle')}
+      onClose={onClose}
+      className={styles.modal}
+      footer={
+        <div className={styles.modalActions}>
+          <button
+            type="button"
+            className={sharedStyles.btnSecondary}
+            onClick={onClose}
+            disabled={isMutating}
+          >
+            {t('common:button.cancel')}
+          </button>
+          <button
+            type="button"
+            className={sharedStyles.btnConfirmDelete}
+            onClick={onConfirm}
+            disabled={isMutating}
+          >
+            {isMutating ? t('invoiceDetail.budgetLines.modal.removing') : t('invoiceDetail.budgetLines.modal.removeConfirmButton')}
+          </button>
+        </div>
+      }
+    >
+      {error && <FormError message={error} />}
+
+      <p className={styles.deleteConfirmText}>
+        {t('invoiceDetail.budgetLines.modal.removeConfirm')}
+      </p>
+    </Modal>
   );
 }

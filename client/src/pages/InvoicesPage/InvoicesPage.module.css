@@ -22,8 +22,9 @@
 
 .summaryGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: var(--spacing-4);
+  margin-bottom: var(--spacing-6);
 }
 
 @media (max-width: 767px) {
@@ -63,6 +64,21 @@
 
 .summaryAmountPaid {
   color: var(--color-success-badge-text);
+}
+
+.summaryCardOverdue {
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning);
+}
+
+.summaryLabelOverdue {
+  color: var(--color-warning-text-on-light);
+}
+
+.summaryCountOverdue {
+  color: var(--color-warning-text-on-light);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
 }
 
 /* ---- Amount cell (right-aligned) ---- */

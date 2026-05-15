@@ -53,6 +53,10 @@
   overflow: hidden;
 }
 
+.menuFixed {
+  position: fixed;
+}
+
 .menuBottom {
   top: 100%;
   right: 0;

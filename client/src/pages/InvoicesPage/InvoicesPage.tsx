@@ -75,6 +75,7 @@ export function InvoicesPage() {
   const [error, setError] = useState<string>('');
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [hasOverdue, setHasOverdue] = useState(false);
 
   // Table state management with URL sync
   const { tableState, toApiParams } = useTableState({
@@ -150,6 +151,13 @@ export function InvoicesPage() {
       setFilterMeta(response.filterMeta ?? {});
       setTotalPages(response.pagination.totalPages);
       setTotalItems(response.pagination.totalItems);
+
+      // Compute overdue status
+      const today = new Date().toISOString().slice(0, 10);
+      const hasOverdueInvoices = response.invoices.some(
+        (inv) => inv.status === 'pending' && inv.dueDate !== null && inv.dueDate < today,
+      );
+      setHasOverdue(hasOverdueInvoices);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
@@ -454,6 +462,19 @@ export function InvoicesPage() {
           {formatCurrency(summary.quotation.totalAmount)}
         </span>
       </div>
+      {hasOverdue && (
+        <div
+          className={`${styles.summaryCard} ${styles.summaryCardOverdue}`}
+          data-testid="summary-card-overdue"
+        >
+          <span className={`${styles.summaryLabel} ${styles.summaryLabelOverdue}`}>
+            {t('invoices.summaryOverdue')}
+          </span>
+          <span className={`${styles.summaryCount} ${styles.summaryCountOverdue}`}>
+            {t('invoices.summaryOverdueWarning')}
+          </span>
+        </div>
+      )}
     </div>
   );
 
