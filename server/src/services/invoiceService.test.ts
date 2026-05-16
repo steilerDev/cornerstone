@@ -1001,8 +1001,14 @@ describe('Invoice Service', () => {
 
     it('S3: one pending invoice with dueDate === today — count 0 (strict less-than, today is not overdue)', () => {
       const vendorId = createTestVendor('Overdue S3 Vendor');
-      const today = new Date().toISOString().slice(0, 10);
-      insertRawInvoice(vendorId, { status: 'pending', amount: 750, dueDate: today });
+      // Use SQLite's own date() function so "today" matches the date() comparison
+      // the production query performs (date('now', 'localtime')). Avoids UTC vs
+      // local-time drift and midnight-boundary flakes when the test runner clock
+      // and the SQLite engine disagree on what "today" is.
+      const todayRow = sqlite.prepare("SELECT date('now', 'localtime') AS today").get() as {
+        today: string;
+      };
+      insertRawInvoice(vendorId, { status: 'pending', amount: 750, dueDate: todayRow.today });
 
       const result = invoiceService.listAllInvoices(db, {});
 
