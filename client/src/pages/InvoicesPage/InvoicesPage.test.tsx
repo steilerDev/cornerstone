@@ -135,6 +135,7 @@ const emptySummary = {
   paid: { count: 0, totalAmount: 0 },
   claimed: { count: 0, totalAmount: 0 },
   quotation: { count: 0, totalAmount: 0 },
+  overdue: { count: 0, totalAmount: 0 },
 };
 
 const populatedSummary = {
@@ -142,6 +143,7 @@ const populatedSummary = {
   paid: { count: 1, totalAmount: 3500 },
   claimed: { count: 0, totalAmount: 0 },
   quotation: { count: 0, totalAmount: 0 },
+  overdue: { count: 0, totalAmount: 0 },
 };
 
 const emptyResponse: InvoiceListPaginatedResponse = {
@@ -643,6 +645,7 @@ describe('InvoicesPage', () => {
           paid: { count: 0, totalAmount: 0 },
           claimed: { count: 3, totalAmount: 900 },
           quotation: { count: 0, totalAmount: 0 },
+          overdue: { count: 0, totalAmount: 0 },
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithClaimed);
@@ -666,6 +669,7 @@ describe('InvoicesPage', () => {
           paid: { count: 0, totalAmount: 0 },
           claimed: { count: 0, totalAmount: 0 },
           quotation: { count: 0, totalAmount: 0 },
+          overdue: { count: 0, totalAmount: 0 },
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithZeroClaimed);
@@ -687,6 +691,7 @@ describe('InvoicesPage', () => {
           paid: { count: 2, totalAmount: 5000 },
           claimed: { count: 3, totalAmount: 900 },
           quotation: { count: 0, totalAmount: 0 },
+          overdue: { count: 0, totalAmount: 0 },
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithSeparateData);
@@ -714,20 +719,10 @@ describe('InvoicesPage', () => {
   // ─── Overdue summary card (#1421) ────────────────────────────────────────────
 
   describe('overdue summary card (#1421)', () => {
-    // Today's date for comparison — matches component logic
-    const today = new Date().toISOString().slice(0, 10);
-    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-    const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
-
-    it('renders overdue card when at least one pending invoice has dueDate < today', async () => {
-      const overdueInvoice: Invoice = {
-        ...sampleInvoice1,
-        status: 'pending',
-        dueDate: yesterday,
-      };
+    it('T1: renders overdue card when summary.overdue.count is 2', async () => {
       mockFetchAllInvoices.mockResolvedValueOnce({
-        ...populatedResponse,
-        invoices: [overdueInvoice],
+        ...emptyResponse,
+        summary: { ...emptySummary, overdue: { count: 2, totalAmount: 3000 } },
       });
 
       renderPage();
@@ -735,104 +730,27 @@ describe('InvoicesPage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('summary-card-overdue')).toBeInTheDocument();
       });
+      // The count "2" must appear inside the overdue card
+      const card = screen.getByTestId('summary-card-overdue');
+      expect(card).toHaveTextContent('2');
     });
 
-    it('does NOT render overdue card when the pending invoice has dueDate = today (not past due)', async () => {
-      const dueTodayInvoice: Invoice = {
-        ...sampleInvoice1,
-        status: 'pending',
-        dueDate: today,
-      };
+    it('T2: does NOT render overdue card when summary.overdue.count is 0', async () => {
       mockFetchAllInvoices.mockResolvedValueOnce({
-        ...populatedResponse,
-        invoices: [dueTodayInvoice],
+        ...emptyResponse,
+        summary: { ...emptySummary, overdue: { count: 0, totalAmount: 0 } },
       });
 
       renderPage();
 
       await waitFor(() => {
+        // Wait for the loading state to clear
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
       });
       expect(screen.queryByTestId('summary-card-overdue')).not.toBeInTheDocument();
     });
 
-    it('does NOT render overdue card when all pending invoices have dueDate >= today', async () => {
-      const futureDueInvoice: Invoice = {
-        ...sampleInvoice1,
-        status: 'pending',
-        dueDate: tomorrow,
-      };
-      mockFetchAllInvoices.mockResolvedValueOnce({
-        ...populatedResponse,
-        invoices: [futureDueInvoice],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
-      });
-      expect(screen.queryByTestId('summary-card-overdue')).not.toBeInTheDocument();
-    });
-
-    it('does NOT render overdue card when past-due invoice is paid (not pending)', async () => {
-      const paidOverdue: Invoice = {
-        ...sampleInvoice1,
-        status: 'paid',
-        dueDate: yesterday,
-      };
-      mockFetchAllInvoices.mockResolvedValueOnce({
-        ...populatedResponse,
-        invoices: [paidOverdue],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
-      });
-      expect(screen.queryByTestId('summary-card-overdue')).not.toBeInTheDocument();
-    });
-
-    it('does NOT render overdue card when past-due invoice is claimed', async () => {
-      const claimedOverdue: Invoice = {
-        ...sampleInvoice1,
-        status: 'claimed',
-        dueDate: yesterday,
-      };
-      mockFetchAllInvoices.mockResolvedValueOnce({
-        ...populatedResponse,
-        invoices: [claimedOverdue],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
-      });
-      expect(screen.queryByTestId('summary-card-overdue')).not.toBeInTheDocument();
-    });
-
-    it('does NOT render overdue card when pending invoice has null dueDate', async () => {
-      const noDueDate: Invoice = {
-        ...sampleInvoice1,
-        status: 'pending',
-        dueDate: null,
-      };
-      mockFetchAllInvoices.mockResolvedValueOnce({
-        ...populatedResponse,
-        invoices: [noDueDate],
-      });
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
-      });
-      expect(screen.queryByTestId('summary-card-overdue')).not.toBeInTheDocument();
-    });
-
-    it('does NOT render overdue card when invoices list is empty', async () => {
+    it('T3: empty response (no invoices, overdue 0) — card is NOT in document', async () => {
       mockFetchAllInvoices.mockResolvedValueOnce(emptyResponse);
 
       renderPage();
@@ -843,22 +761,10 @@ describe('InvoicesPage', () => {
       expect(screen.queryByTestId('summary-card-overdue')).not.toBeInTheDocument();
     });
 
-    it('renders overdue card when SOME invoices are overdue and some are not', async () => {
-      const overdueInvoice: Invoice = {
-        ...sampleInvoice1,
-        id: 'inv-overdue',
-        status: 'pending',
-        dueDate: yesterday,
-      };
-      const futureInvoice: Invoice = {
-        ...sampleInvoice2,
-        id: 'inv-future',
-        status: 'pending',
-        dueDate: tomorrow,
-      };
+    it('T4: renders overdue count "3" inside the card when summary.overdue.count is 3', async () => {
       mockFetchAllInvoices.mockResolvedValueOnce({
-        ...populatedResponse,
-        invoices: [overdueInvoice, futureInvoice],
+        ...emptyResponse,
+        summary: { ...emptySummary, overdue: { count: 3, totalAmount: 7500 } },
       });
 
       renderPage();
@@ -866,6 +772,8 @@ describe('InvoicesPage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('summary-card-overdue')).toBeInTheDocument();
       });
+      const card = screen.getByTestId('summary-card-overdue');
+      expect(card).toHaveTextContent('3');
     });
 
     it('summaryGrid container exists in the DOM', async () => {

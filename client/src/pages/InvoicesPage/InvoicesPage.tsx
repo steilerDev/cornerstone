@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { Invoice, CreateInvoiceRequest, InvoiceStatus, FilterMeta } from '@cornerstone/shared';
+import type { Invoice, CreateInvoiceRequest, InvoiceStatus, FilterMeta, InvoiceStatusBreakdown } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { Modal } from '../../components/Modal/Modal.js';
@@ -64,11 +64,12 @@ export function InvoicesPage() {
 
   // Data state
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [summary, setSummary] = useState({
+  const [summary, setSummary] = useState<InvoiceStatusBreakdown>({
     pending: { count: 0, totalAmount: 0 },
     paid: { count: 0, totalAmount: 0 },
     claimed: { count: 0, totalAmount: 0 },
     quotation: { count: 0, totalAmount: 0 },
+    overdue: { count: 0, totalAmount: 0 },
   });
   const [filterMeta, setFilterMeta] = useState<FilterMeta>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -151,13 +152,7 @@ export function InvoicesPage() {
       setFilterMeta(response.filterMeta ?? {});
       setTotalPages(response.pagination.totalPages);
       setTotalItems(response.pagination.totalItems);
-
-      // Compute overdue status
-      const today = new Date().toISOString().slice(0, 10);
-      const hasOverdueInvoices = response.invoices.some(
-        (inv) => inv.status === 'pending' && inv.dueDate !== null && inv.dueDate < today,
-      );
-      setHasOverdue(hasOverdueInvoices);
+      setHasOverdue(response.summary.overdue.count > 0);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
@@ -471,7 +466,10 @@ export function InvoicesPage() {
             {t('invoices.summaryOverdue')}
           </span>
           <span className={`${styles.summaryCount} ${styles.summaryCountOverdue}`}>
-            {t('invoices.summaryOverdueWarning')}
+            {summary.overdue.count}
+          </span>
+          <span className={`${styles.summaryAmount} ${styles.summaryCountOverdue}`}>
+            {t('invoices.summaryOverdueWarning', { count: summary.overdue.count })}
           </span>
         </div>
       )}

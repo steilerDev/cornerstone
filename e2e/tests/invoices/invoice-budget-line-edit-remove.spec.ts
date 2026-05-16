@@ -140,16 +140,20 @@ async function createAndLinkBudgetLine(
  * we wait for a visible role="menu" anywhere on the page.
  */
 async function openBudgetLineMenu(page: Page, section: ReturnType<typeof page.locator>): Promise<void> {
-  // Click the first visible OverflowMenu trigger inside the budget lines section.
-  // The trigger has aria-haspopup="true" on a <button> element.
   const trigger = section
     .locator('button[aria-haspopup="true"]')
     .filter({ visible: true })
     .first();
+
+  // Pre-scroll the trigger into the center of the viewport before clicking.
+  // This prevents the OverflowMenu's scroll-close listener from firing during
+  // Playwright's own actionability scroll, which would dismiss the menu before
+  // the click event is processed.
+  await trigger.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+
   await trigger.click();
 
   // The menu renders via portal so it's attached to document.body.
-  // Wait for any visible role="menu" on the page.
   await page.locator('[role="menu"]').filter({ visible: true }).first().waitFor({ state: 'visible' });
 }
 

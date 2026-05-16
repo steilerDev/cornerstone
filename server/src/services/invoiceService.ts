@@ -291,12 +291,32 @@ export function listAllInvoices(
 
   const aggregated = aggregateInvoiceStatusBreakdown(summaryRawRows);
 
+  // Compute overdue count + total: pending invoices with due_date < today (global, unfiltered)
+  const overdueRow = db
+    .select({
+      count: sql<number>`COUNT(*)`,
+      totalAmount: sql<number>`COALESCE(SUM(${invoices.amount}), 0)`,
+    })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.status, 'pending'),
+        sql`${invoices.dueDate} IS NOT NULL`,
+        sql`${invoices.dueDate} < date('now', 'localtime')`,
+      ),
+    )
+    .get();
+
   const defaultSummary: InvoiceStatusSummary = { count: 0, totalAmount: 0 };
   const summary: InvoiceStatusBreakdown = {
     pending: aggregated['pending'] ?? { ...defaultSummary },
     paid: aggregated['paid'] ?? { ...defaultSummary },
     claimed: aggregated['claimed'] ?? { ...defaultSummary },
     quotation: aggregated['quotation'] ?? { ...defaultSummary },
+    overdue: {
+      count: overdueRow?.count ?? 0,
+      totalAmount: overdueRow?.totalAmount ?? 0,
+    },
   };
 
   // Map rows directly (not using toInvoice()) to avoid fetching full deposits in list.
