@@ -68,6 +68,7 @@ export default function DiaryEntryCreatePage() {
 
   const [step, setStep] = useState<Step>('type-selector');
   const draftCreatingRef = useRef(false);
+  const skipOnFirstChangeRef = useRef(true);
 
   // Type selector step
   const [selectedType, setSelectedType] = useState<ManualDiaryEntryType | null>(null);
@@ -103,6 +104,32 @@ export default function DiaryEntryCreatePage() {
   const [issueResolutionStatus, setIssueResolutionStatus] = useState<DiaryIssueResolution | null>(
     null,
   );
+
+  // Auto-draft on first meaningful metadata state change (#1426)
+  // Metadata onChange handlers set state; this effect fires AFTER React commits the update,
+  // so createDraft() reads fresh state values instead of stale closures.
+  useEffect(() => {
+    if (!selectedType) return;
+    if (skipOnFirstChangeRef.current) {
+      skipOnFirstChangeRef.current = false;
+      return;
+    }
+    if (draftCreatingRef.current) return;
+    void createDraft();
+  }, [
+    dailyLogWeather,
+    dailyLogTemperature,
+    dailyLogWorkers,
+    dailyLogSignatures,
+    siteVisitInspectorName,
+    siteVisitOutcome,
+    siteVisitSignatures,
+    deliveryVendor,
+    deliveryMaterials,
+    issueSeverity,
+    issueResolutionStatus,
+    // NOT body/title/entryDate — those fire on blur via onFieldBlur
+  ]);
 
   const handleTypeSelect = (type: ManualDiaryEntryType) => {
     setSelectedType(type);
@@ -311,63 +338,30 @@ export default function DiaryEntryCreatePage() {
           validationErrors={validationErrors}
           // daily_log
           dailyLogWeather={dailyLogWeather}
-          onDailyLogWeatherChange={(val) => {
-            setDailyLogWeather(val);
-            void createDraft();
-          }}
+          onDailyLogWeatherChange={setDailyLogWeather}
           dailyLogTemperature={dailyLogTemperature}
-          onDailyLogTemperatureChange={(val) => {
-            setDailyLogTemperature(val);
-            void createDraft();
-          }}
+          onDailyLogTemperatureChange={setDailyLogTemperature}
           dailyLogWorkers={dailyLogWorkers}
-          onDailyLogWorkersChange={(val) => {
-            setDailyLogWorkers(val);
-            void createDraft();
-          }}
+          onDailyLogWorkersChange={setDailyLogWorkers}
           dailyLogSignatures={dailyLogSignatures}
-          onDailyLogSignaturesChange={(val) => {
-            setDailyLogSignatures(val);
-            void createDraft();
-          }}
+          onDailyLogSignaturesChange={setDailyLogSignatures}
           // site_visit
           siteVisitInspectorName={siteVisitInspectorName}
-          onSiteVisitInspectorNameChange={(val) => {
-            setSiteVisitInspectorName(val);
-            void createDraft();
-          }}
+          onSiteVisitInspectorNameChange={setSiteVisitInspectorName}
           siteVisitOutcome={siteVisitOutcome}
-          onSiteVisitOutcomeChange={(val) => {
-            setSiteVisitOutcome(val);
-            void createDraft();
-          }}
+          onSiteVisitOutcomeChange={setSiteVisitOutcome}
           siteVisitSignatures={siteVisitSignatures}
-          onSiteVisitSignaturesChange={(val) => {
-            setSiteVisitSignatures(val);
-            void createDraft();
-          }}
+          onSiteVisitSignaturesChange={setSiteVisitSignatures}
           // delivery
           deliveryVendor={deliveryVendor}
-          onDeliveryVendorChange={(val) => {
-            setDeliveryVendor(val);
-            void createDraft();
-          }}
+          onDeliveryVendorChange={setDeliveryVendor}
           deliveryMaterials={deliveryMaterials}
-          onDeliveryMaterialsChange={(val) => {
-            setDeliveryMaterials(val);
-            void createDraft();
-          }}
+          onDeliveryMaterialsChange={setDeliveryMaterials}
           // issue
           issueSeverity={issueSeverity}
-          onIssueSeverityChange={(val) => {
-            setIssueSeverity(val);
-            void createDraft();
-          }}
+          onIssueSeverityChange={setIssueSeverity}
           issueResolutionStatus={issueResolutionStatus}
-          onIssueResolutionStatusChange={(val) => {
-            setIssueResolutionStatus(val);
-            void createDraft();
-          }}
+          onIssueResolutionStatusChange={setIssueResolutionStatus}
           // signature enhancements
           currentUserName={user?.displayName}
           vendors={vendorOptions}

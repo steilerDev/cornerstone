@@ -39,6 +39,7 @@ export function PhotoUpload({
   const [photoQueue, setPhotoQueue] = useState<PhotoEntry[]>([]);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const uploadingCountRef = useRef(0);
+  const processingRef = useRef(false);
 
   useEffect(() => {
     setIsTouchDevice(() => {
@@ -134,15 +135,23 @@ export function PhotoUpload({
   );
 
   const processQueue = useCallback(async () => {
-    const queued = photoQueue.filter((p) => p.state === 'queued');
-    const currentlyUploading = photoQueue.filter((p) => p.state === 'uploading').length;
+    // Prevent re-entrant calls: if already processing, bail out
+    if (processingRef.current) return;
+    processingRef.current = true;
 
-    const slotsAvailable = Math.max(0, MAX_CONCURRENT - currentlyUploading);
-    const toUpload = queued.slice(0, slotsAvailable);
+    try {
+      const queued = photoQueue.filter((p) => p.state === 'queued');
+      const currentlyUploading = photoQueue.filter((p) => p.state === 'uploading').length;
 
-    for (const entry of toUpload) {
-      // eslint-disable-next-line no-await-in-loop
-      await uploadSinglePhoto(entry);
+      const slotsAvailable = Math.max(0, MAX_CONCURRENT - currentlyUploading);
+      const toUpload = queued.slice(0, slotsAvailable);
+
+      for (const entry of toUpload) {
+        // eslint-disable-next-line no-await-in-loop
+        await uploadSinglePhoto(entry);
+      }
+    } finally {
+      processingRef.current = false;
     }
   }, [photoQueue, uploadSinglePhoto]);
 
