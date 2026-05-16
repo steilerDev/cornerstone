@@ -3,6 +3,14 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`
 
+## Known Beta Flakes & Regressions (triaged 2026-05-16)
+
+- `dashboard.spec.ts:566` "Customize button appears when card dismissed" — persistent flake since 3+ beta runs. Fails 30-40% first attempts due to test isolation (prior test leaves dismissed-card prefs state). Issue #1431.
+- `invoice-budget-line-create-and-link.spec.ts:210` "Create Budget Line button below existing lines" — timing flake. `+ Add Budget Line` button disappears briefly during section re-render after first line created. Issue #1430.
+- `invoice-deposits-ux.spec.ts:259` "Portal clipping — last row kebab" — HARD FAIL since PR #1427. `createInvoiceViaApi` uses `status: 'quotation'`; backend rejects deposits on quotation invoices with 400. Test bug. Issue #1432.
+- `invoice-deposits.spec.ts:665 [mobile]` "Mark paid flow on mobile" — HARD FAIL since PR #1427. Portal-rendered menu (usePortal=true) clipped behind `cardActions_b45Ao` div on mobile viewport. Production CSS bug. Issue #1433.
+- All 4 are PRE-EXISTING on beta (not caused by PR #1428). Issues #1427 introduced the two hard failures.
+
 ## Diary Draft E2E (Fix #1426, 2026-05-16)
 
 - Draft badge on edit page: `data-testid="draft-status-badge"`. On list card: `data-testid="draft-badge-{id}"`.
