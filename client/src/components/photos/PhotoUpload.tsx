@@ -103,9 +103,6 @@ export function PhotoUpload({
     async (entry: PhotoEntry) => {
       try {
         uploadingCountRef.current += 1;
-        setPhotoQueue((prev) =>
-          prev.map((p) => (p.file === entry.file ? { ...p, state: 'uploading' } : p)),
-        );
 
         const photo = await uploadPhoto(entityType, entityId, entry.file);
         onUpload(photo);
@@ -134,32 +131,37 @@ export function PhotoUpload({
     [entityType, entityId, onUpload, onError, t],
   );
 
-  const processQueue = useCallback(async () => {
+  const processQueue = useCallback(() => {
     // Prevent re-entrant calls: if already processing, bail out
     if (processingRef.current) return;
     processingRef.current = true;
 
-    try {
-      const queued = photoQueue.filter((p) => p.state === 'queued');
-      const currentlyUploading = photoQueue.filter((p) => p.state === 'uploading').length;
+    let picked: PhotoEntry[] = [];
 
-      const slotsAvailable = Math.max(0, MAX_CONCURRENT - currentlyUploading);
-      const toUpload = queued.slice(0, slotsAvailable);
+    // Atomically pick up to N entries and flip them to 'uploading'
+    setPhotoQueue((prev) => {
+      const queued = prev.filter((p) => p.state === 'queued');
+      const uploading = prev.filter((p) => p.state === 'uploading').length;
+      const slots = Math.max(0, MAX_CONCURRENT - uploading);
+      picked = queued.slice(0, slots);
+      return prev.map((p) =>
+        picked.some((x) => x.file === p.file) ? { ...p, state: 'uploading' as const } : p,
+      );
+    });
 
-      for (const entry of toUpload) {
-        // eslint-disable-next-line no-await-in-loop
-        await uploadSinglePhoto(entry);
-      }
-    } finally {
-      processingRef.current = false;
+    // Kick off all picked uploads in parallel (no await)
+    for (const entry of picked) {
+      void uploadSinglePhoto(entry);
     }
-  }, [photoQueue, uploadSinglePhoto]);
+
+    processingRef.current = false;
+  }, [uploadSinglePhoto]);
 
   // Process queue whenever it changes
   useEffect(() => {
     const queued = photoQueue.filter((p) => p.state === 'queued');
     if (queued.length > 0) {
-      void processQueue();
+      processQueue();
     }
   }, [photoQueue, processQueue]);
 
