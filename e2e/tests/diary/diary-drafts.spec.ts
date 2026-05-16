@@ -937,9 +937,12 @@ test.describe('Dashboard excludes drafts (Scenario 15)', () => {
       // Wait for all concurrent dashboard API calls to settle before asserting.
       await page.waitForLoadState('networkidle');
 
-      // The Recent Diary card should NOT contain our draft entry
-      // data-testid="recent-diary-{id}" is set by RecentDiaryCard for each entry
-      await expect(page.getByTestId(`recent-diary-${draftId}`)).not.toBeVisible();
+      // The Recent Diary card should NOT contain our draft entry.
+      // data-testid="recent-diary-{id}" is set by RecentDiaryCard for each entry.
+      // DashboardPage renders two layouts simultaneously (desktop grid + mobile
+      // sections), so the same testId can appear twice when the entry IS present.
+      // Use .first() to avoid strict-mode violations regardless of match count.
+      await expect(page.getByTestId(`recent-diary-${draftId}`).first()).not.toBeVisible();
 
       // Now promote the draft to saved
       await editPage.goto(draftId);
@@ -974,7 +977,9 @@ test.describe('Dashboard excludes drafts (Scenario 15)', () => {
       // The promoted entry should now appear in Recent Diary.
       // Use a slightly longer timeout (compared to the 7s default) to account for CI latency
       // in processing the full dashboard data load.
-      await expect(page.getByTestId(`recent-diary-${draftId}`)).toBeVisible();
+      // DashboardPage renders both desktop and mobile layouts simultaneously, so
+      // the same testId can appear twice. Use .first() to avoid strict-mode violations.
+      await expect(page.getByTestId(`recent-diary-${draftId}`).first()).toBeVisible();
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
     }

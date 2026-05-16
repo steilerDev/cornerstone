@@ -431,9 +431,15 @@ describe('DiaryEntryCreatePage', () => {
       mockCreateDiaryEntry.mockResolvedValueOnce(draftEntry);
       await advanceToFormStep('daily_log');
 
-      // Find the weather select and change it
+      // Find the weather select and change it.
+      // The metadata useEffect has `skipOnFirstChangeRef` initialized to true:
+      // the very first metadata change after type selection is skipped to avoid
+      // spurious draft creation during initial render. A second change fires the
+      // actual createDraft() call. We change to 'sunny' first (skipped), then to
+      // 'cloudy' (triggers the effect and calls createDiaryEntry).
       const weatherSelect = screen.getByLabelText(/weather/i);
       fireEvent.change(weatherSelect, { target: { value: 'sunny' } });
+      fireEvent.change(weatherSelect, { target: { value: 'cloudy' } });
 
       await waitFor(() => {
         expect(mockCreateDiaryEntry).toHaveBeenCalledWith(

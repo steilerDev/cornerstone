@@ -418,6 +418,13 @@ describe('PhotoUpload', () => {
   });
 
   it('handles file drop onto the upload zone', async () => {
+    // Make the upload hang so the queue entry stays in 'uploading' state
+    // long enough for the assertion to run (same pattern as Scenario 51-53).
+    // Without this, the upload completes (or is removed from queue) before
+    // the assertion fires, causing "Unable to find element: dropped.jpg".
+    mockUploadPhoto.mockReturnValue(new Promise(() => undefined));
+    // The XHR mock (local env) never fires any events — same hang effect.
+
     renderUpload();
     const zone = screen.getByTestId('photo-upload-zone');
 
@@ -427,7 +434,7 @@ describe('PhotoUpload', () => {
       });
     });
 
-    // File was added to queue
+    // File was added to queue and stays in uploading state due to hanging mock
     await waitFor(() => {
       expect(screen.getByText('dropped.jpg')).toBeInTheDocument();
     });
@@ -463,7 +470,14 @@ describe('PhotoUpload', () => {
   // ─── Remove photo button ────────────────────────────────────────────────────
 
   it('remove button removes the photo from the queue', async () => {
-    // Make upload hang so the item stays in the queue long enough to remove
+    // Make the upload hang so the item stays in 'uploading' state
+    // long enough for the test to find the Remove button.
+    // Without this, the upload completes before the assertion runs (same root
+    // cause as the drop test). The Remove button is always rendered regardless
+    // of queue state, so 'uploading' state is sufficient.
+    mockUploadPhoto.mockReturnValue(new Promise(() => undefined));
+    // The XHR mock (local env) never fires any events — same hang effect.
+
     renderUpload();
 
     const fileInput = screen.getByTestId('photo-file-input');
@@ -471,11 +485,7 @@ describe('PhotoUpload', () => {
       fireEvent.change(fileInput, { target: { files: [makeFile('to-remove.jpg')] } });
     });
 
-    // Trigger XHR failure so item shows in failed state (with Remove button)
-    await act(async () => {
-      xhrInstances[0]?._handlers['error']?.();
-    });
-
+    // Wait for the item to appear in the queue (uploading state — upload is hanging)
     await waitFor(() => {
       expect(screen.getByText('to-remove.jpg')).toBeInTheDocument();
     });
