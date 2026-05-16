@@ -26,7 +26,17 @@
     "filterModeAutomatic": "Automatisch",
     "entryTypes": "Eintragstypen",
     "clearAll": "Alles löschen",
-    "noTypeOptions": "Keine Typen verfügbar"
+    "noTypeOptions": "Keine Typen verfügbar",
+    "searchLabel": "Suchen",
+    "searchPlaceholder": "Einträge durchsuchen...",
+    "fromLabel": "Von",
+    "toLabel": "Bis",
+    "entryTypesLabel": "Eintragstypen",
+    "clearAllButton": "Alles löschen",
+    "statusFilterLabel": "Status",
+    "statusAll": "Alle",
+    "statusDraft": "Nur Entwürfe",
+    "statusSaved": "Nur gespeicherte"
   },
   "entryTypes": {
     "daily_log": "Tägliches Protokoll",
@@ -105,7 +115,10 @@
   },
   "entryCard": {
     "viewButton": "Ansicht",
-    "editButton": "Bearbeiten"
+    "editButton": "Bearbeiten",
+    "by": "von",
+    "signed": "✓ Signiert",
+    "goToRelatedItem": "Zu verwandtem Element gehen"
   },
   "dateGroup": {
     "groupLabel": "Einträge am {{date}}"
@@ -170,14 +183,17 @@
     "createdAt": "Erstellt",
     "updatedAt": "Aktualisiert",
     "weather": "Wetter",
-    "temperature": "Temperatur",
+    "temperature": "Temperatur:",
     "workers": "Arbeiter",
     "inspector": "Inspektor",
     "outcome": "Ergebnis",
     "vendor": "Auftragnehmer",
     "materials": "Materialien",
     "severity": "Schweregrad",
-    "resolutionStatus": "Lösungsstatus"
+    "resolutionStatus": "Lösungsstatus",
+    "resolutionStatusOpen": "🔴 Offen",
+    "resolutionStatusInProgress": "🟡 In Bearbeitung",
+    "resolutionStatusResolved": "✅ Gelöst"
   },
   "typeBadge": {
     "dailyLog": "Tägliches Protokoll",
@@ -300,22 +316,6 @@
     "uploadBlockerLeave": "Trotzdem verlassen",
     "uploadBlockerStay": "Auf Seite bleiben"
   },
-  "filterBar": {
-    "filterMode": "Filtermodus",
-    "filterModeAll": "Alle",
-    "filterModeManual": "Manuell",
-    "filterModeAutomatic": "Automatisch",
-    "searchLabel": "Suchen",
-    "searchPlaceholder": "Einträge durchsuchen...",
-    "fromLabel": "Von",
-    "toLabel": "Bis",
-    "entryTypesLabel": "Eintragstypen",
-    "clearAllButton": "Alles löschen",
-    "statusFilterLabel": "Status",
-    "statusAll": "Alle",
-    "statusDraft": "Nur Entwürfe",
-    "statusSaved": "Nur gespeicherte"
-  },
   "entryForm": {
     "entryDate": "Einzugsdatum",
     "required": "*",
@@ -338,18 +338,6 @@
     "resolutionStatusInProgress": "In Bearbeitung",
     "resolutionStatusResolved": "Gelöst"
   },
-  "metadata": {
-    "temperature": "Temperatur:",
-    "workers": "Arbeiter",
-    "resolutionStatusOpen": "🔴 Offen",
-    "resolutionStatusInProgress": "🟡 In Bearbeitung",
-    "resolutionStatusResolved": "✅ Gelöst"
-  },
-  "entryCard": {
-    "by": "von",
-    "signed": "✓ Signiert",
-    "goToRelatedItem": "Zu verwandtem Element gehen"
-  },
   "signature": {
     "signedBy": "Unterzeichnet von",
     "signaturesLabel": "Unterschriften",
@@ -359,7 +347,7 @@
     "signerTypeVendor": "Auftragnehmer",
     "signerNameLabel": "Name des Unterzeichners",
     "vendorLabel": "Auftragnehmer",
-    "selectVendor": "\u2014 Auftragnehmer wählen \u2014",
+    "selectVendor": "— Auftragnehmer wählen —",
     "otherVendor": "Andere...",
     "vendorNamePlaceholder": "Auftragnehmernamen eingeben",
     "signatoryNameLabel": "Name des Bevollmächtigten",
@@ -382,7 +370,7 @@
     "uploading": "Wird hochgeladen...",
     "uploadProgressAriaLabel": "{{fileName}} Upload-Fortschritt",
     "stateQueued": "In Warteschlange",
-    "stateUploading": "Wird hochgeladen ...",
+    "stateUploading": "Wird hochgeladen...",
     "stateSucceeded": "Hochgeladen",
     "stateFailed": "Fehlgeschlagen",
     "retryButton": "Erneut versuchen",

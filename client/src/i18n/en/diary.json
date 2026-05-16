@@ -26,7 +26,17 @@
     "filterModeAutomatic": "Automatic",
     "entryTypes": "Entry Types",
     "clearAll": "Clear All",
-    "noTypeOptions": "No types available"
+    "noTypeOptions": "No types available",
+    "searchLabel": "Search",
+    "searchPlaceholder": "Search entries...",
+    "fromLabel": "From",
+    "toLabel": "To",
+    "entryTypesLabel": "Entry Types",
+    "clearAllButton": "Clear all",
+    "statusFilterLabel": "Status",
+    "statusAll": "All",
+    "statusDraft": "Drafts only",
+    "statusSaved": "Saved only"
   },
   "entryTypes": {
     "daily_log": "Daily Log",
@@ -105,7 +115,10 @@
   },
   "entryCard": {
     "viewButton": "View",
-    "editButton": "Edit"
+    "editButton": "Edit",
+    "by": "by",
+    "signed": "✓ Signed",
+    "goToRelatedItem": "Go to related item"
   },
   "dateGroup": {
     "groupLabel": "Entries on {{date}}"
@@ -170,14 +183,17 @@
     "createdAt": "Created",
     "updatedAt": "Updated",
     "weather": "Weather",
-    "temperature": "Temperature",
-    "workers": "Workers",
+    "temperature": "Temperature:",
+    "workers": "workers",
     "inspector": "Inspector",
     "outcome": "Outcome",
     "vendor": "Vendor",
     "materials": "Materials",
     "severity": "Severity",
-    "resolutionStatus": "Resolution Status"
+    "resolutionStatus": "Resolution Status",
+    "resolutionStatusOpen": "🔴 Open",
+    "resolutionStatusInProgress": "🟡 In Progress",
+    "resolutionStatusResolved": "✅ Resolved"
   },
   "typeBadge": {
     "dailyLog": "Daily Log",
@@ -227,7 +243,10 @@
     "issueValidationRequired": {
       "severity": "Severity is required",
       "resolutionStatus": "Resolution status is required"
-    }
+    },
+    "draftCreateError": "Failed to create draft. Please try again.",
+    "photosSelectAfterDraftNote": "Your photos will be available to upload after the draft is created on the next screen.",
+    "autoSaveHelper": "Your changes are saved automatically as a draft when you tab to a new field, change a selection, or attach a photo."
   },
   "detailPage": {
     "backLink": "← Back to Diary",
@@ -280,19 +299,22 @@
     "deleteMessage": "Are you sure you want to delete this diary entry? This action cannot be undone.",
     "deleteCancel": "Cancel",
     "deleteConfirm": "Delete Entry",
-    "deleting": "Deleting..."
-  },
-  "filterBar": {
-    "filterMode": "Filter Mode",
-    "filterModeAll": "All",
-    "filterModeManual": "Manual",
-    "filterModeAutomatic": "Automatic",
-    "searchLabel": "Search",
-    "searchPlaceholder": "Search entries...",
-    "fromLabel": "From",
-    "toLabel": "To",
-    "entryTypesLabel": "Entry Types",
-    "clearAllButton": "Clear all"
+    "deleting": "Deleting...",
+    "autoSaveSaving": "Saving...",
+    "autoSaveSaved": "Saved",
+    "autoSaveError": "Save failed — will retry on next change",
+    "discardDraftButton": "Discard Draft",
+    "discardDraftTitle": "Discard Draft",
+    "discardDraftMessage": "Are you sure you want to discard this draft? All entered content and uploaded photos will be permanently deleted.",
+    "discardDraftCancel": "Keep Draft",
+    "discardDraftConfirm": "Discard Draft",
+    "discarding": "Discarding...",
+    "promoteButton": "Save",
+    "promoting": "Saving...",
+    "uploadBlockerTitle": "Uploads in Progress",
+    "uploadBlockerMessage": "Photos are still uploading. Are you sure you want to leave? Uploading photos may be lost.",
+    "uploadBlockerLeave": "Leave Anyway",
+    "uploadBlockerStay": "Stay"
   },
   "entryForm": {
     "entryDate": "Entry Date",
@@ -316,18 +338,6 @@
     "resolutionStatusInProgress": "In Progress",
     "resolutionStatusResolved": "Resolved"
   },
-  "metadata": {
-    "temperature": "Temperature:",
-    "workers": "workers",
-    "resolutionStatusOpen": "🔴 Open",
-    "resolutionStatusInProgress": "🟡 In Progress",
-    "resolutionStatusResolved": "✅ Resolved"
-  },
-  "entryCard": {
-    "by": "by",
-    "signed": "✓ Signed",
-    "goToRelatedItem": "Go to related item"
-  },
   "signature": {
     "signedBy": "Signed by",
     "signaturesLabel": "Signatures",
@@ -337,7 +347,7 @@
     "signerTypeVendor": "Vendor",
     "signerNameLabel": "Signer Name",
     "vendorLabel": "Vendor",
-    "selectVendor": "\u2014 Select Vendor \u2014",
+    "selectVendor": "— Select Vendor —",
     "otherVendor": "Other...",
     "vendorNamePlaceholder": "Enter vendor name",
     "signatoryNameLabel": "Signatory Name",
@@ -373,33 +383,5 @@
   "draft": {
     "badgeLabel": "Draft",
     "filterChipLabel": "Draft"
-  },
-  "filterBar": {
-    "statusFilterLabel": "Status",
-    "statusAll": "All",
-    "statusDraft": "Drafts only",
-    "statusSaved": "Saved only"
-  },
-  "createPage": {
-    "draftCreateError": "Failed to create draft. Please try again.",
-    "photosSelectAfterDraftNote": "Your photos will be available to upload after the draft is created on the next screen.",
-    "autoSaveHelper": "Your changes are saved automatically as a draft when you tab to a new field, change a selection, or attach a photo."
-  },
-  "editPage": {
-    "autoSaveSaving": "Saving...",
-    "autoSaveSaved": "Saved",
-    "autoSaveError": "Save failed — will retry on next change",
-    "discardDraftButton": "Discard Draft",
-    "discardDraftTitle": "Discard Draft",
-    "discardDraftMessage": "Are you sure you want to discard this draft? All entered content and uploaded photos will be permanently deleted.",
-    "discardDraftCancel": "Keep Draft",
-    "discardDraftConfirm": "Discard Draft",
-    "discarding": "Discarding...",
-    "promoteButton": "Save",
-    "promoting": "Saving...",
-    "uploadBlockerTitle": "Uploads in Progress",
-    "uploadBlockerMessage": "Photos are still uploading. Are you sure you want to leave? Uploading photos may be lost.",
-    "uploadBlockerLeave": "Leave Anyway",
-    "uploadBlockerStay": "Stay"
   }
 }
