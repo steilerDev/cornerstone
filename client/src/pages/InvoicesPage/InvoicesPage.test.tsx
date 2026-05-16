@@ -69,6 +69,22 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
   };
 });
 
+// ── LocaleContext mock — InvoicesPage uses useFormatters() → useLocale() ─────
+// Defensive layer to ensure useLocale never reaches the real LocaleContext
+// implementation (which throws if no LocaleProvider wraps the tree). Pattern
+// matches CalendarView.test.tsx.
+
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // ── Location helper ───────────────────────────────────────────────────────────
 
 function LocationDisplay() {
