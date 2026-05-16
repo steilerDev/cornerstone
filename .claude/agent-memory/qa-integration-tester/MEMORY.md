@@ -3,6 +3,18 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1426 — Diary Draft Tests (2026-05-16)
+
+**AppConfig mock type**: Any test file with a `makeConfig()` factory that constructs the full `AppConfig` object must be updated when new fields are added to `AppConfig`. Pattern: when a new config field causes `TS2322` on a makeConfig factory, add the field with its default value. Affected files in this story: `backupService.test.ts` (added `diaryDraftRetentionDays: 30`).
+
+**Jest mock type strict checking**: `jest.fn<() => T>()` types the mock as zero-argument. If you assert `toHaveBeenCalledWith(arg1, arg2)`, TypeScript gives `TS2554: Expected 0 arguments`. Fix: use `jest.fn<(...args: any[]) => T>()` with eslint-disable comment. Do NOT use `jest.fn<(a: X, b: Y) => T>()` — it fails for service mocks because the actual function may have extra overloads.
+
+**DiaryEntrySummary now has required `status: DiaryEntryStatus` field**: All fixture objects in test files need `status: 'saved'` added. Pattern: search all test files for `DiaryEntrySummary` fixtures lacking status field. Also applies to `baseSummary` in `diaryApi.test.ts`, `makeSummary()` in `DiaryPage.test.tsx`, etc.
+
+**`draftCleanupService.test.ts` dynamic import pattern**: After mocking `node-cron` and `./diaryService.js` with `jest.unstable_mockModule`, import service functions dynamically inside `beforeEach`: `const mod = await import('./draftCleanupService.js')`. Use `jest.resetModules()` in `afterEach` to clear module-level `cronTask` state between tests.
+
+**Route test for draft promotion**: `insertDiaryEntry({ status: 'draft', entryType: 'general_note', body: 'content', entryDate: '2026-03-14' })` works because `insertDiaryEntry` accepts `Partial<typeof diaryEntries.$inferInsert>`. The `PATCH /:id/promote` route is registered BEFORE `GET /:id` to avoid route ambiguity — both routes coexist correctly.
+
 ## Systemic jest.unstable_mockModule Issue in This Worktree (2026-04-29)
 
 ALL client tests using `jest.unstable_mockModule('../../lib/formatters.js', ...)` fail locally in this worktree with `useLocale must be used within a LocaleProvider`. This is a pre-existing environment issue — tests pass in CI. **Do not attempt to fix by changing mocks or adding LocaleProvider** — the tests are structurally correct and the mock works in CI. Just commit and let CI validate. The issue is specific to this worktree's Jest module resolution environment.

@@ -3,6 +3,23 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`
 
+## Diary Draft E2E (Fix #1426, 2026-05-16)
+
+- Draft badge on edit page: `data-testid="draft-status-badge"`. On list card: `data-testid="draft-badge-{id}"`.
+- Auto-save indicator: `data-testid="autosave-status"` — only rendered when `saveStatus !== 'idle'`.
+- Discard Draft button text: `"Discard Draft"` (exact). Discard modal: `aria-labelledby="discard-modal-title"`. Confirm: `"Discard Draft"`. Cancel: `"Keep Draft"`.
+- Delete modal: `aria-labelledby="delete-modal-title"` (distinct from discard). Use specific `aria-labelledby` selectors to disambiguate the two modals.
+- Promote endpoint: `POST /api/diary-entries/:id/promote` (NOT PATCH). Edit page submit button: "Save" for drafts, "Save Changes" for saved entries.
+- Status filter chips: plain `<button>` elements in `role="group"` container. Text: "All" / "Drafts only" / "Saved only" (i18n keys `filterBar.statusAll/statusDraft/statusSaved`).
+- Draft card in list links to `/diary/:id/edit`; saved card links to `/diary/:id`. Confirmed in DiaryEntryCard source.
+- Dashboard (`/project/overview`) fetches diary entries with `status: 'saved'` — drafts are excluded automatically.
+- `createDraftDiaryEntryViaApi(page, { entryType })` — POST with `status: 'draft'`, no body required.
+- Photo upload: `data-testid="photo-file-input"` (hidden); `data-testid="photo-upload-zone"` (drop zone). Retry button aria-label: `"Retry {filename}"`.
+- PhotoUpload queue container: `aria-label` from `t('photoUpload.queueAriaLabel')` — use `page.locator('[aria-label]').filter({has: locator('[class*="queueItem"]')})` to scope.
+- Concurrency test pattern: use `page.route()` to hold uploads, then `page.waitForRequest()` to confirm first upload started before asserting count.
+- `createDiaryEntryViaApi` updated to accept optional `status` field.
+- Test file: `e2e/tests/diary/diary-drafts.spec.ts` (18 scenarios; smoke tags on scenarios 1, 9, 12).
+
 ## InvoiceBudgetLinesSection Picker (Issue #1401, 2026-05-10)
 
 - Picker modal: `role="dialog"`, `aria-labelledby="picker-title"` — same modal for BOTH the invoice edit modal and the picker.

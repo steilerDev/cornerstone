@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -15,7 +15,6 @@ import type {
   DiarySignatureEntry,
 } from '@cornerstone/shared';
 import { createDiaryEntry } from '../../lib/diaryApi.js';
-import { uploadPhoto } from '../../lib/photoApi.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
@@ -68,18 +67,19 @@ export default function DiaryEntryCreatePage() {
   }, []);
 
   const [step, setStep] = useState<Step>('type-selector');
+  const draftCreatingRef = useRef(false);
 
   // Type selector step
   const [selectedType, setSelectedType] = useState<ManualDiaryEntryType | null>(null);
 
   // Form step
+  const [entryId, setEntryId] = useState<string | null>(null);
   const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]!);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   // daily_log metadata
   const [dailyLogWeather, setDailyLogWeather] = useState<DiaryWeather | null>(null);
@@ -107,6 +107,27 @@ export default function DiaryEntryCreatePage() {
   const handleTypeSelect = (type: ManualDiaryEntryType) => {
     setSelectedType(type);
     setStep('form');
+  };
+
+  const createDraft = async () => {
+    if (draftCreatingRef.current || !selectedType) {
+      return;
+    }
+
+    draftCreatingRef.current = true;
+
+    try {
+      const draft = await createDiaryEntry({
+        entryType: selectedType,
+        status: 'draft',
+      });
+      setEntryId(draft.id);
+      navigate(`/diary/${draft.id}/edit`, { replace: true });
+    } catch (err) {
+      showToast('error', t('createPage.draftCreateError'));
+      console.error('Failed to create draft:', err);
+      draftCreatingRef.current = false;
+    }
   };
 
   const validateForm = (): boolean => {
@@ -180,55 +201,15 @@ export default function DiaryEntryCreatePage() {
     return null;
   };
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    setPendingFiles((prev) => [...prev, ...files]);
+    if (files.length > 0) {
+      // Call createDraft to initialize if not already created
+      await createDraft();
+      showToast('info', t('createPage.photosSelectAfterDraftNote'));
+    }
     // Reset input so the same file can be selected again
     event.target.value = '';
-  };
-
-  const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    setError(null);
-
-    if (!validateForm()) {
-      return;
-    }
-
-    if (!selectedType) {
-      setError(t('createPage.selectTypeError'));
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const metadata = buildMetadata();
-      const entry = await createDiaryEntry({
-        entryType: selectedType,
-        entryDate,
-        title: title.trim() || null,
-        body: body.trim(),
-        metadata,
-      });
-
-      // Upload pending files
-      if (pendingFiles.length > 0) {
-        try {
-          await Promise.all(pendingFiles.map((file) => uploadPhoto('diary_entry', entry.id, file)));
-        } catch (uploadErr) {
-          console.error('Failed to upload photos:', uploadErr);
-          showToast('error', t('create.photoUploadError'));
-        }
-      }
-
-      showToast('success', t('create.successMessage'));
-      navigate(`/diary/${entry.id}`);
-    } catch (err) {
-      setError(t('create.errorMessage'));
-      console.error('Failed to create diary entry:', err);
-      setIsSubmitting(false);
-    }
   };
 
   if (step === 'type-selector') {
@@ -301,7 +282,6 @@ export default function DiaryEntryCreatePage() {
           type="button"
           className={styles.backButton}
           onClick={() => setStep('type-selector')}
-          disabled={isSubmitting}
         >
           {t('createPage.backButtonForm')}
         </button>
@@ -310,7 +290,9 @@ export default function DiaryEntryCreatePage() {
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
-      <form className={styles.form} onSubmit={handleSubmit}>
+      <div className={styles.form}>
+        <p className={styles.helper}>{t('createPage.autoSaveHelper')}</p>
+
         <DiaryEntryForm
           entryType={selectedType}
           entryDate={entryDate}
@@ -319,34 +301,68 @@ export default function DiaryEntryCreatePage() {
           onEntryDateChange={setEntryDate}
           onTitleChange={setTitle}
           onBodyChange={setBody}
-          disabled={isSubmitting}
+          onFieldBlur={createDraft}
+          disabled={false}
           validationErrors={validationErrors}
           // daily_log
           dailyLogWeather={dailyLogWeather}
-          onDailyLogWeatherChange={setDailyLogWeather}
+          onDailyLogWeatherChange={(val) => {
+            setDailyLogWeather(val);
+            void createDraft();
+          }}
           dailyLogTemperature={dailyLogTemperature}
-          onDailyLogTemperatureChange={setDailyLogTemperature}
+          onDailyLogTemperatureChange={(val) => {
+            setDailyLogTemperature(val);
+            void createDraft();
+          }}
           dailyLogWorkers={dailyLogWorkers}
-          onDailyLogWorkersChange={setDailyLogWorkers}
+          onDailyLogWorkersChange={(val) => {
+            setDailyLogWorkers(val);
+            void createDraft();
+          }}
           dailyLogSignatures={dailyLogSignatures}
-          onDailyLogSignaturesChange={setDailyLogSignatures}
+          onDailyLogSignaturesChange={(val) => {
+            setDailyLogSignatures(val);
+            void createDraft();
+          }}
           // site_visit
           siteVisitInspectorName={siteVisitInspectorName}
-          onSiteVisitInspectorNameChange={setSiteVisitInspectorName}
+          onSiteVisitInspectorNameChange={(val) => {
+            setSiteVisitInspectorName(val);
+            void createDraft();
+          }}
           siteVisitOutcome={siteVisitOutcome}
-          onSiteVisitOutcomeChange={setSiteVisitOutcome}
+          onSiteVisitOutcomeChange={(val) => {
+            setSiteVisitOutcome(val);
+            void createDraft();
+          }}
           siteVisitSignatures={siteVisitSignatures}
-          onSiteVisitSignaturesChange={setSiteVisitSignatures}
+          onSiteVisitSignaturesChange={(val) => {
+            setSiteVisitSignatures(val);
+            void createDraft();
+          }}
           // delivery
           deliveryVendor={deliveryVendor}
-          onDeliveryVendorChange={setDeliveryVendor}
+          onDeliveryVendorChange={(val) => {
+            setDeliveryVendor(val);
+            void createDraft();
+          }}
           deliveryMaterials={deliveryMaterials}
-          onDeliveryMaterialsChange={setDeliveryMaterials}
+          onDeliveryMaterialsChange={(val) => {
+            setDeliveryMaterials(val);
+            void createDraft();
+          }}
           // issue
           issueSeverity={issueSeverity}
-          onIssueSeverityChange={setIssueSeverity}
+          onIssueSeverityChange={(val) => {
+            setIssueSeverity(val);
+            void createDraft();
+          }}
           issueResolutionStatus={issueResolutionStatus}
-          onIssueResolutionStatusChange={setIssueResolutionStatus}
+          onIssueResolutionStatusChange={(val) => {
+            setIssueResolutionStatus(val);
+            void createDraft();
+          }}
           // signature enhancements
           currentUserName={user?.displayName}
           vendors={vendorOptions}
@@ -362,14 +378,8 @@ export default function DiaryEntryCreatePage() {
             capture="environment"
             onChange={handleFileSelect}
             data-testid="create-photo-input"
-            disabled={isSubmitting}
             className={styles.photoQueueInput}
           />
-          {pendingFiles.length > 0 && (
-            <p className={styles.photoQueueCount} data-testid="pending-photo-count">
-              {t('createPage.photosQueued', { count: pendingFiles.length })}
-            </p>
-          )}
         </div>
 
         <div className={styles.formActions}>
@@ -377,15 +387,11 @@ export default function DiaryEntryCreatePage() {
             type="button"
             className={shared.btnSecondary}
             onClick={() => setStep('type-selector')}
-            disabled={isSubmitting}
           >
             {t('create.cancelButton')}
           </button>
-          <button type="submit" className={shared.btnPrimary} disabled={isSubmitting}>
-            {isSubmitting ? t('create.submittingButton') : t('create.submitButton')}
-          </button>
         </div>
-      </form>
+      </div>
     </div>
   );
 }

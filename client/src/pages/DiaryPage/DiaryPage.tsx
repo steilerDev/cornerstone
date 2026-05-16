@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { DiaryEntryType, DiaryEntrySummary } from '@cornerstone/shared';
+import type { DiaryEntryType, DiaryEntrySummary, DiaryEntryStatus } from '@cornerstone/shared';
 import { listDiaryEntries } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { DiaryFilterBar } from '../../components/diary/DiaryFilterBar/DiaryFilterBar.js';
@@ -45,6 +45,7 @@ export default function DiaryPage() {
   const activeTypes: DiaryEntryType[] = typeFilterStr
     ? (typeFilterStr.split(',') as DiaryEntryType[])
     : [];
+  const statusFilter = (searchParams.get('status') as DiaryEntryStatus | null) || null;
   const urlPage = parseInt(searchParams.get('page') || '1', 10);
 
   const [searchInput, setSearchInput] = useState(searchQuery);
@@ -75,7 +76,7 @@ export default function DiaryPage() {
   useEffect(() => {
     void loadEntries();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, dateFrom, dateTo, filterMode, typeFilterStr, currentPage]);
+  }, [searchQuery, dateFrom, dateTo, filterMode, typeFilterStr, statusFilter, currentPage]);
 
   const loadEntries = async () => {
     setIsLoading(true);
@@ -110,6 +111,7 @@ export default function DiaryPage() {
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
         type: queriableTypes.length > 0 ? queriableTypes.join(',') : undefined,
+        status: statusFilter || undefined,
       });
 
       setEntries(response.items);
@@ -188,6 +190,17 @@ export default function DiaryPage() {
     setSearchParams(newParams);
   };
 
+  const handleStatusFilterChange = (status: DiaryEntryStatus | null) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (status) {
+      newParams.set('status', status);
+    } else {
+      newParams.delete('status');
+    }
+    newParams.set('page', '1');
+    setSearchParams(newParams);
+  };
+
   const handleClearAll = () => {
     setSearchInput('');
     const newParams = new URLSearchParams();
@@ -240,6 +253,31 @@ export default function DiaryPage() {
         filterMode={filterMode}
         onFilterModeChange={handleFilterModeChange}
       />
+
+      {/* Status filter chips */}
+      <div className={styles.statusFilterChips} role="group" aria-label={t('filterBar.statusFilterLabel')}>
+        <button
+          type="button"
+          className={`${styles.filterChip} ${!statusFilter ? styles.filterChipActive : ''}`}
+          onClick={() => handleStatusFilterChange(null)}
+        >
+          {t('filterBar.statusAll')}
+        </button>
+        <button
+          type="button"
+          className={`${styles.filterChip} ${statusFilter === 'draft' ? styles.filterChipActive : ''}`}
+          onClick={() => handleStatusFilterChange('draft')}
+        >
+          {t('filterBar.statusDraft')}
+        </button>
+        <button
+          type="button"
+          className={`${styles.filterChip} ${statusFilter === 'saved' ? styles.filterChipActive : ''}`}
+          onClick={() => handleStatusFilterChange('saved')}
+        >
+          {t('filterBar.statusSaved')}
+        </button>
+      </div>
 
       {isLoading && <div className={shared.loading}>{t('loading')}</div>}
 

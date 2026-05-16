@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useBlocker } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   DiaryEntryDetail,
@@ -14,13 +14,19 @@ import type {
   DiaryIssueResolution,
   DiarySignatureEntry,
 } from '@cornerstone/shared';
-import { getDiaryEntry, updateDiaryEntry, deleteDiaryEntry } from '../../lib/diaryApi.js';
+import {
+  getDiaryEntry,
+  updateDiaryEntry,
+  deleteDiaryEntry,
+  promoteDiaryEntry,
+} from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import type { VendorOption } from '../../components/diary/SignatureCapture/SignatureCapture.js';
 import { usePhotos } from '../../hooks/usePhotos.js';
+import { Badge } from '../../components/Badge/Badge.js';
 import shared from '../../styles/shared.module.css';
 import { DiaryEntryTypeBadge } from '../../components/diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
 import { DiaryEntryForm } from '../../components/diary/DiaryEntryForm/DiaryEntryForm.js';
@@ -28,6 +34,8 @@ import { PhotoUpload } from '../../components/photos/PhotoUpload.js';
 import { PhotoGrid } from '../../components/photos/PhotoGrid.js';
 import { PhotoViewer } from '../../components/photos/PhotoViewer.js';
 import styles from './DiaryEntryEditPage.module.css';
+
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export default function DiaryEntryEditPage() {
   const navigate = useNavigate();
@@ -60,9 +68,25 @@ export default function DiaryEntryEditPage() {
   const [deleteError, setDeleteError] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
 
+  // Discard draft modal
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const discardModalRef = useRef<HTMLDivElement>(null);
+
+  // Auto-save state
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const autoSaveAbortRef = useRef<AbortController | null>(null);
+  const autoSaveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [uploadingCount, setUploadingCount] = useState(0);
+
   // Photo state
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const photosResult = usePhotos(entry ? 'diary_entry' : '', entry?.id || '');
+
+  // Navigation blocker for uploads in progress
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      uploadingCount > 0 && currentLocation.pathname !== nextLocation.pathname,
+  );
 
   // Form fields
   const [entryDate, setEntryDate] = useState('');
@@ -126,6 +150,29 @@ export default function DiaryEntryEditPage() {
     void loadEntry();
   }, [id, navigate, showToast, t]);
 
+  // Auto-save cleanup and beforeunload guard
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (uploadingCount > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Cleanup auto-save state
+      if (autoSaveAbortRef.current) {
+        autoSaveAbortRef.current.abort();
+      }
+      if (autoSaveDebounceRef.current) {
+        clearTimeout(autoSaveDebounceRef.current);
+      }
+    };
+  }, [uploadingCount]);
+
   // Delete modal: focus trap and Escape key handler
   useEffect(() => {
     if (!showDeleteModal) return;
@@ -158,6 +205,39 @@ export default function DiaryEntryEditPage() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [showDeleteModal, isDeleting, deleteError]);
+
+  // Discard draft modal: focus trap and Escape key handler
+  useEffect(() => {
+    if (!showDiscardModal) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setShowDiscardModal(false);
+        return;
+      }
+      if (e.key === 'Tab' && discardModalRef.current) {
+        const focusable = discardModalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        const focusableArray = Array.from(focusable);
+        if (focusableArray.length === 0) return;
+        const firstEl = focusableArray[0]!;
+        const lastEl = focusableArray[focusableArray.length - 1]!;
+        if (e.shiftKey) {
+          if (document.activeElement === firstEl) {
+            e.preventDefault();
+            lastEl.focus();
+          }
+        } else {
+          if (document.activeElement === lastEl) {
+            e.preventDefault();
+            firstEl.focus();
+          }
+        }
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showDiscardModal]);
 
   const populateForm = (data: DiaryEntryDetail) => {
     setEntryDate(data.entryDate);
@@ -258,11 +338,59 @@ export default function DiaryEntryEditPage() {
     return null;
   };
 
-  const handleSubmit = async (event: FormEvent) => {
+  const triggerAutoSave = (immediate = false) => {
+    if (!entry || entry.status !== 'draft') {
+      return;
+    }
+
+    const doSave = async () => {
+      if (autoSaveAbortRef.current) {
+        autoSaveAbortRef.current.abort();
+      }
+
+      const controller = new AbortController();
+      autoSaveAbortRef.current = controller;
+
+      setSaveStatus('saving');
+
+      try {
+        const metadata = buildMetadata();
+        await updateDiaryEntry(entry.id, {
+          entryDate: entryDate || undefined,
+          title: title.trim() || null,
+          body: body || undefined,
+          metadata,
+        });
+
+        if (!controller.signal.aborted) {
+          setSaveStatus('saved');
+          setTimeout(() => setSaveStatus('idle'), 3000);
+        }
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setSaveStatus('error');
+          console.error('Failed to auto-save:', err);
+        }
+      }
+    };
+
+    if (immediate) {
+      void doSave();
+    } else {
+      if (autoSaveDebounceRef.current) {
+        clearTimeout(autoSaveDebounceRef.current);
+      }
+      autoSaveDebounceRef.current = setTimeout(() => {
+        void doSave();
+      }, 1000);
+    }
+  };
+
+  const handlePromote = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
 
-    if (!validateForm() || !entry) {
+    if (!validateForm() || !entry || entry.status !== 'draft') {
       return;
     }
 
@@ -270,19 +398,67 @@ export default function DiaryEntryEditPage() {
 
     try {
       const metadata = buildMetadata();
-      await updateDiaryEntry(entry.id, {
+      const promoted = await promoteDiaryEntry(entry.id, {
         entryDate,
         title: title.trim() || null,
         body: body.trim(),
         metadata,
       });
 
+      setEntry(promoted);
       showToast('success', t('editPage.updateSuccess'));
-      navigate(`/diary/${entry.id}`);
+      navigate(`/diary/${promoted.id}`);
     } catch (err) {
-      setError(t('editPage.updateError'));
-      console.error('Failed to update diary entry:', err);
+      if (err instanceof ApiClientError && err.error.code === 'VALIDATION_ERROR') {
+        // Handle validation errors from promote
+        const errors: Record<string, string> = {};
+        if (err.error.details && typeof err.error.details === 'object' && 'fieldErrors' in err.error.details) {
+          const fieldErrors = err.error.details.fieldErrors as Record<string, string>;
+          Object.assign(errors, fieldErrors);
+        }
+        setValidationErrors(errors);
+      } else {
+        setError(t('editPage.updateError'));
+        console.error('Failed to promote diary entry:', err);
+      }
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError(null);
+
+    if (!entry) {
+      return;
+    }
+
+    // If draft, promote. If saved, update normally.
+    if (entry.status === 'draft') {
+      await handlePromote(event);
+    } else {
+      if (!validateForm()) {
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      try {
+        const metadata = buildMetadata();
+        await updateDiaryEntry(entry.id, {
+          entryDate,
+          title: title.trim() || null,
+          body: body.trim(),
+          metadata,
+        });
+
+        showToast('success', t('editPage.updateSuccess'));
+        navigate(`/diary/${entry.id}`);
+      } catch (err) {
+        setError(t('editPage.updateError'));
+        console.error('Failed to update diary entry:', err);
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -303,6 +479,21 @@ export default function DiaryEntryEditPage() {
     } catch (err) {
       setDeleteError(t('editPage.deleteError'));
       console.error('Failed to delete diary entry:', err);
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDiscard = async () => {
+    if (!entry || entry.status !== 'draft') return;
+    setIsDeleting(true);
+
+    try {
+      await deleteDiaryEntry(entry.id);
+      showToast('success', t('editPage.deleteSuccess'));
+      navigate('/diary');
+    } catch (err) {
+      setDeleteError(t('editPage.deleteError'));
+      console.error('Failed to discard draft:', err);
       setIsDeleting(false);
     }
   };
@@ -345,7 +536,7 @@ export default function DiaryEntryEditPage() {
         <button
           type="button"
           className={styles.backButton}
-          onClick={() => navigate(`/diary/${entry.id}`)}
+          onClick={() => (entry.status === 'draft' ? navigate('/diary') : navigate(`/diary/${entry.id}`))}
           disabled={isSubmitting}
         >
           {t('editPage.backLink')}
@@ -353,7 +544,21 @@ export default function DiaryEntryEditPage() {
         <div className={styles.titleRow}>
           <h1 className={styles.title}>{t('editPage.title')}</h1>
           <DiaryEntryTypeBadge entryType={entry.entryType} size="sm" />
+          {entry.status === 'draft' && (
+            <Badge
+              variants={{ draft: { label: t('draft.badgeLabel'), className: 'draft' } }}
+              value="draft"
+              testId="draft-status-badge"
+            />
+          )}
         </div>
+        {entry.status === 'draft' && saveStatus !== 'idle' && (
+          <div className={styles.autoSaveStatus} data-testid="autosave-status">
+            {saveStatus === 'saving' && t('editPage.autoSaveSaving')}
+            {saveStatus === 'saved' && t('editPage.autoSaveSaved')}
+            {saveStatus === 'error' && t('editPage.autoSaveError')}
+          </div>
+        )}
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
@@ -367,61 +572,123 @@ export default function DiaryEntryEditPage() {
           onEntryDateChange={setEntryDate}
           onTitleChange={setTitle}
           onBodyChange={setBody}
+          onFieldBlur={entry.status === 'draft' ? () => triggerAutoSave(false) : undefined}
           disabled={isSubmitting || isDeleting}
           validationErrors={validationErrors}
           // daily_log
           dailyLogWeather={dailyLogWeather}
-          onDailyLogWeatherChange={setDailyLogWeather}
+          onDailyLogWeatherChange={(val) => {
+            setDailyLogWeather(val);
+            if (entry.status === 'draft') triggerAutoSave(true);
+          }}
           dailyLogTemperature={dailyLogTemperature}
-          onDailyLogTemperatureChange={setDailyLogTemperature}
+          onDailyLogTemperatureChange={(val) => {
+            setDailyLogTemperature(val);
+            if (entry.status === 'draft') triggerAutoSave(true);
+          }}
           dailyLogWorkers={dailyLogWorkers}
-          onDailyLogWorkersChange={setDailyLogWorkers}
+          onDailyLogWorkersChange={(val) => {
+            setDailyLogWorkers(val);
+            if (entry.status === 'draft') triggerAutoSave(true);
+          }}
           dailyLogSignatures={dailyLogSignatures}
-          onDailyLogSignaturesChange={setDailyLogSignatures}
+          onDailyLogSignaturesChange={(val) => {
+            setDailyLogSignatures(val);
+            if (entry.status === 'draft') triggerAutoSave(true);
+          }}
           // site_visit
           siteVisitInspectorName={siteVisitInspectorName}
-          onSiteVisitInspectorNameChange={setSiteVisitInspectorName}
+          onSiteVisitInspectorNameChange={(val) => {
+            setSiteVisitInspectorName(val);
+            if (entry.status === 'draft') triggerAutoSave(true);
+          }}
           siteVisitOutcome={siteVisitOutcome}
-          onSiteVisitOutcomeChange={setSiteVisitOutcome}
+          onSiteVisitOutcomeChange={(val) => {
+            setSiteVisitOutcome(val);
+            if (entry.status === 'draft') triggerAutoSave(true);
+          }}
           siteVisitSignatures={siteVisitSignatures}
-          onSiteVisitSignaturesChange={setSiteVisitSignatures}
+          onSiteVisitSignaturesChange={(val) => {
+            setSiteVisitSignatures(val);
+            if (entry.status === 'draft') triggerAutoSave(true);
+          }}
           // delivery
           deliveryVendor={deliveryVendor}
-          onDeliveryVendorChange={setDeliveryVendor}
+          onDeliveryVendorChange={(val) => {
+            setDeliveryVendor(val);
+            if (entry.status === 'draft') triggerAutoSave(true);
+          }}
           deliveryMaterials={deliveryMaterials}
-          onDeliveryMaterialsChange={setDeliveryMaterials}
+          onDeliveryMaterialsChange={(val) => {
+            setDeliveryMaterials(val);
+            if (entry.status === 'draft') triggerAutoSave(true);
+          }}
           // issue
           issueSeverity={issueSeverity}
-          onIssueSeverityChange={setIssueSeverity}
+          onIssueSeverityChange={(val) => {
+            setIssueSeverity(val);
+            if (entry.status === 'draft') triggerAutoSave(true);
+          }}
           issueResolutionStatus={issueResolutionStatus}
-          onIssueResolutionStatusChange={setIssueResolutionStatus}
+          onIssueResolutionStatusChange={(val) => {
+            setIssueResolutionStatus(val);
+            if (entry.status === 'draft') triggerAutoSave(true);
+          }}
           // signature enhancements
           currentUserName={user?.displayName}
           vendors={vendorOptions}
         />
 
         <div className={styles.formActions}>
-          <button
-            type="button"
-            className={shared.btnDanger}
-            onClick={() => setShowDeleteModal(true)}
-            disabled={isSubmitting || isDeleting}
-          >
-            {t('editPage.deleteButton')}
-          </button>
-          <div className={styles.actionGroup}>
-            <button
-              type="button"
-              className={shared.btnSecondary}
-              onClick={() => navigate(`/diary/${entry.id}`)}
-              disabled={isSubmitting}
-            >
-              {t('editPage.cancel')}
-            </button>
-            <button type="submit" className={shared.btnPrimary} disabled={isSubmitting}>
-              {isSubmitting ? t('editPage.saving') : t('editPage.saveChanges')}
-            </button>
-          </div>
+          {entry.status === 'draft' ? (
+            <>
+              <button
+                type="button"
+                className={shared.btnDanger}
+                onClick={() => setShowDiscardModal(true)}
+                disabled={isSubmitting || isDeleting}
+              >
+                {t('editPage.discardDraftButton')}
+              </button>
+              <div className={styles.actionGroup}>
+                <button
+                  type="button"
+                  className={shared.btnSecondary}
+                  onClick={() => navigate('/diary')}
+                  disabled={isSubmitting}
+                >
+                  {t('editPage.cancel')}
+                </button>
+                <button type="submit" className={shared.btnPrimary} disabled={isSubmitting}>
+                  {isSubmitting ? t('editPage.promoting') : t('editPage.promoteButton')}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={shared.btnDanger}
+                onClick={() => setShowDeleteModal(true)}
+                disabled={isSubmitting || isDeleting}
+              >
+                {t('editPage.deleteButton')}
+              </button>
+              <div className={styles.actionGroup}>
+                <button
+                  type="button"
+                  className={shared.btnSecondary}
+                  onClick={() => navigate(`/diary/${entry.id}`)}
+                  disabled={isSubmitting}
+                >
+                  {t('editPage.cancel')}
+                </button>
+                <button type="submit" className={shared.btnPrimary} disabled={isSubmitting}>
+                  {isSubmitting ? t('editPage.saving') : t('editPage.saveChanges')}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </form>
 
@@ -441,6 +708,7 @@ export default function DiaryEntryEditPage() {
             onError={(error) => {
               showToast('error', error);
             }}
+            onUploadingCountChange={setUploadingCount}
           />
 
           {photosResult.photos.length > 0 && (
@@ -510,6 +778,76 @@ export default function DiaryEntryEditPage() {
                   {isDeleting ? t('editPage.deleting') : t('editPage.deleteConfirm')}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Discard draft confirmation modal */}
+      {showDiscardModal && entry.status === 'draft' && (
+        <div
+          className={styles.modal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="discard-modal-title"
+        >
+          <div className={styles.modalBackdrop} onClick={() => setShowDiscardModal(false)} />
+          <div className={styles.modalContent} ref={discardModalRef}>
+            <h2 id="discard-modal-title" className={styles.modalTitle}>
+              {t('editPage.discardDraftTitle')}
+            </h2>
+            <p className={styles.modalText}>{t('editPage.discardDraftMessage')}</p>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={shared.btnSecondary}
+                onClick={() => setShowDiscardModal(false)}
+                disabled={isDeleting}
+              >
+                {t('editPage.discardDraftCancel')}
+              </button>
+              <button
+                type="button"
+                className={shared.btnConfirmDelete}
+                onClick={() => void handleDiscard()}
+                disabled={isDeleting}
+              >
+                {isDeleting ? t('editPage.discarding') : t('editPage.discardDraftConfirm')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload blocker modal */}
+      {blocker.state === 'blocked' && uploadingCount > 0 && (
+        <div
+          className={styles.modal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="upload-blocker-title"
+        >
+          <div className={styles.modalBackdrop} />
+          <div className={styles.modalContent}>
+            <h2 id="upload-blocker-title" className={styles.modalTitle}>
+              {t('editPage.uploadBlockerTitle')}
+            </h2>
+            <p className={styles.modalText}>{t('editPage.uploadBlockerMessage')}</p>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={shared.btnSecondary}
+                onClick={() => blocker.proceed?.()}
+              >
+                {t('editPage.uploadBlockerLeave')}
+              </button>
+              <button
+                type="button"
+                className={shared.btnPrimary}
+                onClick={() => blocker.reset?.()}
+              >
+                {t('editPage.uploadBlockerStay')}
+              </button>
             </div>
           </div>
         </div>

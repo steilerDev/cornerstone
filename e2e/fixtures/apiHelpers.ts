@@ -163,10 +163,31 @@ export async function createDiaryEntryViaApi(
     body: string;
     title?: string | null;
     metadata?: Record<string, unknown> | null;
+    status?: 'draft' | 'saved';
   },
 ): Promise<string> {
   const response = await page.request.post(API.diaryEntries, { data });
   expect(response.ok()).toBeTruthy();
+  const body = (await response.json()) as { id: string };
+  return body.id;
+}
+
+/**
+ * Create a draft diary entry via the API.
+ * POST /api/diary-entries with { entryType, status: 'draft' }
+ * Draft creation uses relaxed validation — body/title/metadata are not required.
+ * Returns the new entry's id.
+ */
+export async function createDraftDiaryEntryViaApi(
+  page: Page,
+  data: {
+    entryType: 'daily_log' | 'site_visit' | 'delivery' | 'issue' | 'general_note';
+  },
+): Promise<string> {
+  const response = await page.request.post(API.diaryEntries, {
+    data: { ...data, status: 'draft' },
+  });
+  expect(response.ok(), `POST draft diary entry (${data.entryType})`).toBeTruthy();
   const body = (await response.json()) as { id: string };
   return body.id;
 }

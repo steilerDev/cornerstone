@@ -358,9 +358,48 @@
     "buttonTakePhoto": "Take Photo",
     "buttonUploadPhotos": "Upload Photos",
     "uploading": "Uploading...",
-    "uploadProgressAriaLabel": "{{fileName}} upload progress"
+    "uploadProgressAriaLabel": "{{fileName}} upload progress",
+    "stateQueued": "Queued",
+    "stateUploading": "Uploading...",
+    "stateSucceeded": "Uploaded",
+    "stateFailed": "Failed",
+    "retryButton": "Retry",
+    "queueAriaLabel": "Photo upload queue",
+    "unknownError": "Unknown upload error"
   },
   "typeSwitcher": {
     "ariaLabel": "Filter entries by type"
+  },
+  "draft": {
+    "badgeLabel": "Draft",
+    "filterChipLabel": "Draft"
+  },
+  "filterBar": {
+    "statusFilterLabel": "Status",
+    "statusAll": "All",
+    "statusDraft": "Drafts only",
+    "statusSaved": "Saved only"
+  },
+  "createPage": {
+    "draftCreateError": "Failed to create draft. Please try again.",
+    "photosSelectAfterDraftNote": "Your photos will be available to upload after the draft is created on the next screen.",
+    "autoSaveHelper": "Your changes are saved automatically as a draft when you tab to a new field, change a selection, or attach a photo."
+  },
+  "editPage": {
+    "autoSaveSaving": "Saving...",
+    "autoSaveSaved": "Saved",
+    "autoSaveError": "Save failed — will retry on next change",
+    "discardDraftButton": "Discard Draft",
+    "discardDraftTitle": "Discard Draft",
+    "discardDraftMessage": "Are you sure you want to discard this draft? All entered content and uploaded photos will be permanently deleted.",
+    "discardDraftCancel": "Keep Draft",
+    "discardDraftConfirm": "Discard Draft",
+    "discarding": "Discarding...",
+    "promoteButton": "Save",
+    "promoting": "Saving...",
+    "uploadBlockerTitle": "Uploads in Progress",
+    "uploadBlockerMessage": "Photos are still uploading. Are you sure you want to leave? Uploading photos may be lost.",
+    "uploadBlockerLeave": "Leave Anyway",
+    "uploadBlockerStay": "Stay"
   }
 }

@@ -227,7 +227,10 @@
     "issueValidationRequired": {
       "severity": "Problemschweregrad ist erforderlich",
       "resolutionStatus": "Lösungsstatus ist erforderlich"
-    }
+    },
+    "draftCreateError": "Entwurf konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "photosSelectAfterDraftNote": "Ihre Fotos können im nächsten Schritt hochgeladen werden, nachdem der Entwurf erstellt wurde.",
+    "autoSaveHelper": "Ihre Änderungen werden automatisch als Entwurf gespeichert, wenn Sie in ein neues Feld wechseln, eine Auswahl ändern oder ein Foto hinzufügen."
   },
   "detailPage": {
     "backLink": "← Zurück zum Tagebuch",
@@ -280,7 +283,22 @@
     "deleteMessage": "Möchten Sie diesen Tagebucheintrag wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
     "deleteCancel": "Abbrechen",
     "deleteConfirm": "Eintrag löschen",
-    "deleting": "Wird gelöscht..."
+    "deleting": "Wird gelöscht...",
+    "autoSaveSaving": "Wird gespeichert...",
+    "autoSaveSaved": "Gespeichert",
+    "autoSaveError": "Speichern fehlgeschlagen – wird beim nächsten Ändern erneut versucht",
+    "discardDraftButton": "Entwurf verwerfen",
+    "discardDraftTitle": "Entwurf verwerfen",
+    "discardDraftMessage": "Möchten Sie diesen Entwurf wirklich verwerfen? Alle eingegebenen Inhalte und hochgeladenen Fotos werden dauerhaft gelöscht.",
+    "discardDraftCancel": "Entwurf behalten",
+    "discardDraftConfirm": "Entwurf verwerfen",
+    "discarding": "Wird verworfen...",
+    "promoteButton": "Speichern",
+    "promoting": "Wird gespeichert...",
+    "uploadBlockerTitle": "Uploads laufen noch",
+    "uploadBlockerMessage": "Fotos werden noch hochgeladen. Möchten Sie die Seite trotzdem verlassen? Laufende Uploads können verloren gehen.",
+    "uploadBlockerLeave": "Trotzdem verlassen",
+    "uploadBlockerStay": "Auf Seite bleiben"
   },
   "filterBar": {
     "filterMode": "Filtermodus",
@@ -292,7 +310,11 @@
     "fromLabel": "Von",
     "toLabel": "Bis",
     "entryTypesLabel": "Eintragstypen",
-    "clearAllButton": "Alles löschen"
+    "clearAllButton": "Alles löschen",
+    "statusFilterLabel": "Status",
+    "statusAll": "Alle",
+    "statusDraft": "Nur Entwürfe",
+    "statusSaved": "Nur gespeicherte"
   },
   "entryForm": {
     "entryDate": "Einzugsdatum",
@@ -358,9 +380,20 @@
     "buttonTakePhoto": "Foto aufnehmen",
     "buttonUploadPhotos": "Fotos hochladen",
     "uploading": "Wird hochgeladen...",
-    "uploadProgressAriaLabel": "{{fileName}} Upload-Fortschritt"
+    "uploadProgressAriaLabel": "{{fileName}} Upload-Fortschritt",
+    "stateQueued": "In Warteschlange",
+    "stateUploading": "Wird hochgeladen ...",
+    "stateSucceeded": "Hochgeladen",
+    "stateFailed": "Fehlgeschlagen",
+    "retryButton": "Erneut versuchen",
+    "queueAriaLabel": "Foto-Upload-Warteschlange",
+    "unknownError": "Unbekannter Upload-Fehler"
   },
   "typeSwitcher": {
     "ariaLabel": "Einträge nach Typ filtern"
+  },
+  "draft": {
+    "badgeLabel": "Entwurf",
+    "filterChipLabel": "Entwurf"
   }
 }
