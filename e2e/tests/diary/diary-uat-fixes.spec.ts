@@ -14,7 +14,9 @@
  * 3.  [smoke] Dashboard "Recent Diary" card is visible
  * 4.  Source entity title displayed in diary card source link
  * 5.  Automatic events are in a flat "Automated Events" section (UAT R2 #868: changed from collapsible) per date group
- * 6.  Creating an entry navigates to /diary/:id (detail page) — UAT R2 #867 changed from /edit
+ * 6.  [smoke] Creating an entry navigates to /diary/:id (detail page) — two-step draft flow:
+ *     blur → POST draft → /diary/:id/edit → promote → /diary/:id
+ *     Note: #1426 replaced the single-step submit flow with auto-draft on blur
  * 7.  Dashboard "Recent Diary" card "View All" link navigates to /diary
  * 8.  Diary detail page has no print button
  */
@@ -23,6 +25,7 @@ import { test, expect } from '../../fixtures/auth.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import { DiaryEntryCreatePage } from '../../pages/DiaryEntryCreatePage.js';
+import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
 import { DashboardPage } from '../../pages/DashboardPage.js';
 import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/apiHelpers.js';
 
@@ -249,7 +252,7 @@ test.describe('Automatic events interleaved (Scenario 5)', { tag: '@responsive' 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 6: Creating an entry navigates to /diary/:id/edit
+// Scenario 6: Creating an entry navigates through the two-step draft flow to /diary/:id
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Create navigates to detail page (Scenario 6)', { tag: '@responsive' }, () => {
   test(
@@ -257,32 +260,57 @@ test.describe('Create navigates to detail page (Scenario 6)', { tag: '@responsiv
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       const createPage = new DiaryEntryCreatePage(page);
+      const editPage = new DiaryEntryEditPage(page);
       let createdId: string | null = null;
 
       try {
         await createPage.goto();
         await createPage.selectType('general_note');
 
-        await createPage.titleInput.waitFor({ state: 'visible' });
-        await createPage.titleInput.fill(`${testPrefix} UAT Create Nav Test`);
         await createPage.bodyTextarea.fill(`${testPrefix} create nav to detail body`);
 
-        // Register response listener BEFORE submit
-        const responsePromise = page.waitForResponse(
+        // Register the POST listener BEFORE blurring to capture the auto-draft response
+        // #1426: blurring the body field triggers createDraft() → POST with status: 'draft'
+        const draftResponsePromise = page.waitForResponse(
           (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
         );
 
-        await createPage.submit();
-        const response = await responsePromise;
-        expect(response.ok()).toBeTruthy();
+        // Press Tab then blur explicitly to trigger onFieldBlur → createDraft() with status: 'draft'
+        // Also call .blur() explicitly for reliable React synthetic blur event across browsers
+        await createPage.bodyTextarea.press('Tab');
+        await createPage.bodyTextarea.blur();
+        const draftResponse = await draftResponsePromise;
+        expect(draftResponse.ok(), 'Draft creation should succeed').toBeTruthy();
 
-        const responseBody = (await response.json()) as { id: string };
+        const responseBody = (await draftResponse.json()) as { id: string };
         createdId = responseBody.id;
 
-        // UAT R2 fix #867: navigates to detail page (not edit page) after creation
-        // Photo upload is now done during creation itself (on create form), so the
-        // edit page redirect is no longer needed.
-        await page.waitForURL(`**/diary/${createdId}`);
+        // #1426 flow: after auto-draft creation, navigate to /diary/:id/edit (replace history)
+        await page.waitForURL(new RegExp(`/diary/${createdId}/edit$`));
+        expect(page.url()).toMatch(new RegExp(`/diary/${createdId}/edit$`));
+
+        // Draft badge should be visible on the edit page
+        await expect(editPage.draftBadge).toBeVisible();
+
+        // Fill the title before promoting
+        await editPage.titleInput.waitFor({ state: 'visible' });
+        await editPage.titleInput.fill(`${testPrefix} UAT Create Nav Test`);
+
+        // Register the promote POST listener BEFORE clicking Save
+        const promoteResponsePromise = page.waitForResponse(
+          (resp) =>
+            resp.url().includes(`/api/diary-entries/${createdId}/promote`) &&
+            resp.request().method() === 'POST',
+        );
+
+        // Click "Save" — promotes the draft to saved status
+        await editPage.submitButton.scrollIntoViewIfNeeded();
+        await editPage.submitButton.click();
+        const promoteResponse = await promoteResponsePromise;
+        expect(promoteResponse.ok(), 'Promote should succeed').toBeTruthy();
+
+        // After promote: navigate to /diary/:id (detail page)
+        await page.waitForURL(new RegExp(`/diary/${createdId}$`));
         expect(page.url()).toMatch(new RegExp(`/diary/${createdId}$`));
 
         // Detail page back button should be visible (confirms we're on detail page)

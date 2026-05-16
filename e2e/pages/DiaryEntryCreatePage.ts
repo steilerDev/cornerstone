@@ -33,15 +33,18 @@
  *   - #severity (select, required for issue)
  *   - #resolution-status (select, required for issue)
  * - Cancel button ("Cancel") — returns to type selector
- * - Submit button ("Create Entry" / "Creating...") — type="submit"
- * - Error banner (class styles.errorBanner) for server errors
- * - Validation error text (role="alert") per field
+ * - NO submit button (#1426): the "Create Entry" button was removed; auto-save on blur
+ *   creates the draft and navigates to /diary/:id/edit. Promote from the edit page.
+ * - Error banner (class styles.errorBanner) for server errors during draft creation
+ * - Validation error text (role="alert") per field (rendered after blur-triggered draft)
  *
  * Key DOM observations from source code:
  * - Type card buttons: data-testid="type-card-{type}"
  * - Clicking a type card immediately transitions to step 2 (handleTypeSelect)
  * - The "Cancel" button in step 2 goes back to the type selector, not /diary
- * - On success, navigates to /diary/:id (detail page) — UAT R2 fix #867 changed from /edit to detail
+ * - #1426 (auto-draft flow): blurring a field triggers createDraft() → POST with status:'draft'
+ *   → navigate to /diary/:id/edit (replace history). User then promotes from edit page.
+ * - UAT R2 #867 (pre-#1426): after submit → POST → /diary/:id (detail). Now superseded by #1426.
  * - The material input uses name="material-input" (not an id)
  * - The "Add" button for materials is type="submit" inside a nested <form>
  */
@@ -94,7 +97,8 @@ export class DiaryEntryCreatePage {
   readonly resolutionStatusSelect: Locator;
 
   // Form actions
-  readonly submitButton: Locator;
+  // Note: submitButton was removed in #1426 — the create page no longer has a submit button.
+  // Validation now fires at promote-time on the edit page (diary-drafts.spec.ts Scenario 10).
   readonly cancelButton: Locator;
 
   // Error display
@@ -137,9 +141,8 @@ export class DiaryEntryCreatePage {
     this.resolutionStatusSelect = page.locator('#resolution-status');
 
     // Form actions
-    // Submit button text is "Create Entry" / "Creating..." while submitting
-    this.submitButton = page.getByRole('button', { name: /Create Entry|Creating\.\.\./i });
     // Cancel button in the form step (returns to type selector)
+    // Note: #1426 removed the "Create Entry" submit button — the form now auto-saves on blur.
     this.cancelButton = page.getByRole('button', { name: 'Cancel', exact: true });
 
     // Error banner for server-side errors
@@ -182,15 +185,6 @@ export class DiaryEntryCreatePage {
     await this.typeCard(type).click();
     // Wait for the form step — body textarea is always rendered
     await this.bodyTextarea.waitFor({ state: 'visible' });
-  }
-
-  /**
-   * Submit the "Create Entry" form.
-   * Does NOT wait for navigation — callers should await the URL change
-   * or API response themselves.
-   */
-  async submit(): Promise<void> {
-    await this.submitButton.click();
   }
 
   /**

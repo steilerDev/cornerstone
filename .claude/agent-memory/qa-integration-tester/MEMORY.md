@@ -3,6 +3,18 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## XHR-Based Component Tests (2026-05-16)
+
+**Dual-layer mock pattern for XHR-using components**: When a component calls `uploadPhoto` (which uses XHR internally), `jest.unstable_mockModule` may not intercept in the local worktree environment. Mitigation: mock `globalThis.XMLHttpRequest` as well, capturing instances in an array. Each test can then fire `_handlers['load']()` or `_handlers['error']()` to control outcomes. Keep the `jest.unstable_mockModule` mock for CI compatibility. Both layers coexist safely — in CI the module mock intercepts first; locally the XHR mock controls behavior.
+
+**CSS Module class attribute selectors in identity-obj-proxy**: With identity-obj-proxy, `styles['state-uploading']` returns `'state-uploading'` literally. Use `document.body.querySelectorAll('[class*="state-uploading"]')` to count items by state without text collisions.
+
+**"Uploading..." text collision**: Both the upload button (when `isProcessing`) and queue item state labels use the same `t('photoUpload.stateUploading')` translation key. `getAllByText(/^Uploading\.\.\./)` counts the button too. Use CSS class selectors instead.
+
+**Filename in aria-label causes regex matches on Remove button**: `aria-label="Remove retry-photo.jpg"` matches `/retry/i` because "retry" is in the filename. Use exact anchor regex `{ name: /^Retry filename\.jpg$/i }` to target only the Retry button.
+
+**XHR mock instance timing**: When XHR mock is set up in `beforeEach`, instances accumulate across the test. For retry tests: `xhrInstances[0]` = first upload attempt, `xhrInstances[1]` = retry attempt. Fire `_handlers['error']()` on instance 0, then after retry click, fire `_handlers['load']()` on instance 1 with `status=201` and `responseText=JSON.stringify({ photo })`.
+
 ## Story #1426 — Diary Draft Tests (2026-05-16)
 
 **AppConfig mock type**: Any test file with a `makeConfig()` factory that constructs the full `AppConfig` object must be updated when new fields are added to `AppConfig`. Pattern: when a new config field causes `TS2322` on a makeConfig factory, add the field with its default value. Affected files in this story: `backupService.test.ts` (added `diaryDraftRetentionDays: 30`).

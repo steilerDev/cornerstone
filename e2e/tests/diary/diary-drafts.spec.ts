@@ -77,13 +77,17 @@ test.describe('Auto-draft creation on body blur (Scenario 1)', { tag: '@responsi
         const bodyText = `${testPrefix} auto-draft body text`;
         await createPage.bodyTextarea.fill(bodyText);
 
-        // Register the POST response listener BEFORE blurring — createDraft fires on blur
+        // Register the POST response listener BEFORE blurring — createDraft fires on blur.
+        // Register before both the Tab press and explicit blur to avoid any race condition.
         const draftResponsePromise = page.waitForResponse(
           (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
         );
 
-        // Tab away to trigger onFieldBlur → createDraft()
+        // Tab away to move focus off the textarea, triggering the onFieldBlur handler.
+        // Also call .blur() explicitly to ensure the React synthetic blur event fires
+        // reliably across all browser contexts (Chromium, Firefox, WebKit).
         await createPage.bodyTextarea.press('Tab');
+        await createPage.bodyTextarea.blur();
         const draftResponse = await draftResponsePromise;
         expect(draftResponse.ok(), 'Draft creation response should be OK').toBeTruthy();
 
@@ -126,6 +130,7 @@ test.describe('Draft persists on reload (Scenario 2)', () => {
         (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
       );
       await createPage.bodyTextarea.press('Tab');
+      await createPage.bodyTextarea.blur();
       const draftResponse = await draftResponsePromise;
       expect(draftResponse.ok()).toBeTruthy();
 
@@ -184,6 +189,7 @@ test.describe('Auto-draft URL is replace history (Scenario 3)', () => {
         (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
       );
       await createPage.bodyTextarea.press('Tab');
+      await createPage.bodyTextarea.blur();
       const draftResponse = await draftResponsePromise;
       expect(draftResponse.ok()).toBeTruthy();
 
