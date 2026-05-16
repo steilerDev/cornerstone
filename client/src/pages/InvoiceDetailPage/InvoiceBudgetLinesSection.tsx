@@ -485,9 +485,7 @@ export function InvoiceBudgetLinesSection({
       });
 
       setBudgetLines((prev) =>
-        prev.map((line) =>
-          line.id === selectedBudgetLine.id ? response.budgetLine : line,
-        ),
+        prev.map((line) => (line.id === selectedBudgetLine.id ? response.budgetLine : line)),
       );
       setRemainingAmount(response.remainingAmount);
       closeBudgetLineModal();
@@ -611,16 +609,16 @@ export function InvoiceBudgetLinesSection({
       )}
 
       {/* Loading state */}
-      {isLoading && <div className={styles.loadingState}>{t('invoiceDetail.budgetLines.loading')}</div>}
+      {isLoading && (
+        <div className={styles.loadingState}>{t('invoiceDetail.budgetLines.loading')}</div>
+      )}
 
       {/* Empty state */}
       {!isLoading && budgetLines.length === 0 && !error && (
         <div className={styles.emptyState}>
           <span className={styles.emptyIcon}>📊</span>
           <p className={styles.emptyTitle}>{t('invoiceDetail.budgetLines.empty.message')}</p>
-          <p className={styles.emptyBody}>
-            {t('invoiceDetail.budgetLines.empty.description')}
-          </p>
+          <p className={styles.emptyBody}>{t('invoiceDetail.budgetLines.empty.description')}</p>
         </div>
       )}
 
@@ -630,12 +628,24 @@ export function InvoiceBudgetLinesSection({
           <table className={styles.table}>
             <thead>
               <tr>
-                <th className={styles.thDescription}>{t('invoiceDetail.budgetLines.columns.description')}</th>
-                <th className={styles.thCategory}>{t('invoiceDetail.budgetLines.columns.category')}</th>
-                <th className={styles.thPlanned}>{t('invoiceDetail.budgetLines.columns.planned')}</th>
-                <th className={styles.thItemized}>{t('invoiceDetail.budgetLines.columns.itemized')}</th>
-                <th className={styles.thLinkedItem}>{t('invoiceDetail.budgetLines.columns.linkedItem')}</th>
-                <th className={styles.thActions}>{t('invoiceDetail.budgetLines.columns.actions')}</th>
+                <th className={styles.thDescription}>
+                  {t('invoiceDetail.budgetLines.columns.description')}
+                </th>
+                <th className={styles.thCategory}>
+                  {t('invoiceDetail.budgetLines.columns.category')}
+                </th>
+                <th className={styles.thPlanned}>
+                  {t('invoiceDetail.budgetLines.columns.planned')}
+                </th>
+                <th className={styles.thItemized}>
+                  {t('invoiceDetail.budgetLines.columns.itemized')}
+                </th>
+                <th className={styles.thLinkedItem}>
+                  {t('invoiceDetail.budgetLines.columns.linkedItem')}
+                </th>
+                <th className={styles.thActions}>
+                  {t('invoiceDetail.budgetLines.columns.actions')}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -756,7 +766,9 @@ export function InvoiceBudgetLinesSection({
                 <div className={styles.pickerStep}>
                   <div className={styles.tabsContainer}>
                     <div className={styles.tab}>
-                      <h3 className={styles.tabTitle}>{t('invoiceDetail.budgetLines.picker.workItemTab')}</h3>
+                      <h3 className={styles.tabTitle}>
+                        {t('invoiceDetail.budgetLines.picker.workItemTab')}
+                      </h3>
                       <WorkItemPicker
                         value=""
                         onChange={(itemId) => {
@@ -771,10 +783,14 @@ export function InvoiceBudgetLinesSection({
                       />
                     </div>
 
-                    <div className={styles.separator}>{t('invoiceDetail.budgetLines.picker.separator')}</div>
+                    <div className={styles.separator}>
+                      {t('invoiceDetail.budgetLines.picker.separator')}
+                    </div>
 
                     <div className={styles.tab}>
-                      <h3 className={styles.tabTitle}>{t('invoiceDetail.budgetLines.picker.householdItemTab')}</h3>
+                      <h3 className={styles.tabTitle}>
+                        {t('invoiceDetail.budgetLines.picker.householdItemTab')}
+                      </h3>
                       <HouseholdItemPicker
                         value=""
                         onChange={(itemId) => {
@@ -796,7 +812,9 @@ export function InvoiceBudgetLinesSection({
               {pickerState.step === 2 && (
                 <div className={styles.pickerStep}>
                   {pickerState.isLoading && (
-                    <div className={styles.loadingState}>{t('invoiceDetail.budgetLines.picker.loadingLines')}</div>
+                    <div className={styles.loadingState}>
+                      {t('invoiceDetail.budgetLines.picker.loadingLines')}
+                    </div>
                   )}
 
                   {pickerState.error && (
@@ -879,7 +897,8 @@ export function InvoiceBudgetLinesSection({
                               <div key={line.id} className={styles.pickerBudgetLineRow}>
                                 <div className={styles.budgetLineInfo}>
                                   <div className={styles.budgetLineDesc}>
-                                    {line.description || t('invoiceDetail.budgetLines.picker.unnamedBudgetLine')}
+                                    {line.description ||
+                                      t('invoiceDetail.budgetLines.picker.unnamedBudgetLine')}
                                   </div>
                                   <div className={styles.budgetLineDetails}>
                                     {line.budgetCategory && (
@@ -916,9 +935,14 @@ export function InvoiceBudgetLinesSection({
                                     placeholder="0.00"
                                     min="0"
                                     step="0.01"
-                                    aria-label={t('invoiceDetail.budgetLines.picker.itemizedAmountAriaLabel', {
-                                      description: line.description || t('invoiceDetail.budgetLines.picker.budgetLineGeneric'),
-                                    })}
+                                    aria-label={t(
+                                      'invoiceDetail.budgetLines.picker.itemizedAmountAriaLabel',
+                                      {
+                                        description:
+                                          line.description ||
+                                          t('invoiceDetail.budgetLines.picker.budgetLineGeneric'),
+                                      },
+                                    )}
                                     onWheel={(e) => e.currentTarget.blur()}
                                   />
                                 </div>
@@ -929,7 +953,9 @@ export function InvoiceBudgetLinesSection({
 
                         {/* Remaining to allocate indicator */}
                         <div className={styles.remainingIndicator}>
-                          <span className={styles.remainingLabel}>{t('invoiceDetail.budgetLines.picker.remainingToAllocate')}</span>
+                          <span className={styles.remainingLabel}>
+                            {t('invoiceDetail.budgetLines.picker.remainingToAllocate')}
+                          </span>
                           <span
                             className={`${styles.remainingAmount} ${
                               pickerState.itemizedAmounts &&
@@ -988,15 +1014,19 @@ export function InvoiceBudgetLinesSection({
                                   setBudgetLines(newBudgetLines);
                                   setRemainingAmount(response.remainingAmount);
                                 } catch (err) {
-                                  let errorMsg = t('invoiceDetail.budgetLines.picker.error.linkFailed');
+                                  let errorMsg = t(
+                                    'invoiceDetail.budgetLines.picker.error.linkFailed',
+                                  );
 
                                   if (err instanceof ApiClientError) {
                                     if (err.error.code === 'BUDGET_LINE_ALREADY_LINKED') {
-                                      errorMsg =
-                                        t('invoiceDetail.budgetLines.picker.error.alreadyLinked');
+                                      errorMsg = t(
+                                        'invoiceDetail.budgetLines.picker.error.alreadyLinked',
+                                      );
                                     } else if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
-                                      errorMsg =
-                                        t('invoiceDetail.budgetLines.picker.error.exceedsTotal');
+                                      errorMsg = t(
+                                        'invoiceDetail.budgetLines.picker.error.exceedsTotal',
+                                      );
                                     } else {
                                       errorMsg = err.error.message;
                                     }
@@ -1134,16 +1164,12 @@ function EditBudgetLineModal({
       <form id="budget-line-edit-form" onSubmit={onSubmit} noValidate>
         {error && <FormError message={error} />}
 
-        <p className={styles.editModalHint}>
-          {t('invoiceDetail.budgetLines.form.itemizedAmount')}
-        </p>
+        <p className={styles.editModalHint}>{t('invoiceDetail.budgetLines.form.itemizedAmount')}</p>
 
         <div className={styles.formField}>
           <label htmlFor="budget-line-amount" className={styles.label}>
             {t('invoiceDetail.budgetLines.form.itemizedAmount')}
-            <span className={styles.required}>
-              {t('invoiceDetail.budgetLines.form.required')}
-            </span>
+            <span className={styles.required}>{t('invoiceDetail.budgetLines.form.required')}</span>
           </label>
           <input
             type="number"
@@ -1204,7 +1230,9 @@ function DeleteBudgetLineModal({
             onClick={onConfirm}
             disabled={isMutating}
           >
-            {isMutating ? t('invoiceDetail.budgetLines.modal.removing') : t('invoiceDetail.budgetLines.modal.removeConfirmButton')}
+            {isMutating
+              ? t('invoiceDetail.budgetLines.modal.removing')
+              : t('invoiceDetail.budgetLines.modal.removeConfirmButton')}
           </button>
         </div>
       }

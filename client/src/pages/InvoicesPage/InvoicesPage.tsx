@@ -1,7 +1,13 @@
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { Invoice, CreateInvoiceRequest, InvoiceStatus, FilterMeta, InvoiceStatusBreakdown } from '@cornerstone/shared';
+import type {
+  Invoice,
+  CreateInvoiceRequest,
+  InvoiceStatus,
+  FilterMeta,
+  InvoiceStatusBreakdown,
+} from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { Modal } from '../../components/Modal/Modal.js';

@@ -324,8 +324,14 @@ test.describe('Deposit OverflowMenu portal — not clipped (#1423)', () => {
       // Menu must be fully within the viewport on all sides
       expect(menuBox!.x, 'Menu left edge must be >= 0').toBeGreaterThanOrEqual(0);
       expect(menuBox!.y, 'Menu top edge must be >= 0').toBeGreaterThanOrEqual(0);
-      expect(menuBox!.x + menuBox!.width, 'Menu right edge must be within viewport width').toBeLessThanOrEqual(vw);
-      expect(menuBox!.y + menuBox!.height, 'Menu bottom edge must be within viewport height').toBeLessThanOrEqual(vh);
+      expect(
+        menuBox!.x + menuBox!.width,
+        'Menu right edge must be within viewport width',
+      ).toBeLessThanOrEqual(vw);
+      expect(
+        menuBox!.y + menuBox!.height,
+        'Menu bottom edge must be within viewport height',
+      ).toBeLessThanOrEqual(vh);
 
       // Dismiss menu by pressing Escape
       await page.keyboard.press('Escape');

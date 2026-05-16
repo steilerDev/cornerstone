@@ -1190,9 +1190,9 @@ describe('InvoiceBudgetLinesSection', () => {
       const trigger = screen.getByTestId('budget-line-menu-ibl-001');
       fireEvent.click(trigger);
 
-      const editItem = screen.getAllByRole('menuitem').find((m) =>
-        m.textContent?.toLowerCase().includes('edit'),
-      )!;
+      const editItem = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('edit'))!;
       fireEvent.click(editItem);
 
       // Modal should be visible — the real Modal renders a dialog with aria-label
@@ -1209,9 +1209,9 @@ describe('InvoiceBudgetLinesSection', () => {
       const trigger = screen.getByTestId('budget-line-menu-ibl-001');
       fireEvent.click(trigger);
 
-      const editItem = screen.getAllByRole('menuitem').find((m) =>
-        m.textContent?.toLowerCase().includes('edit'),
-      )!;
+      const editItem = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('edit'))!;
       fireEvent.click(editItem);
 
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
@@ -1231,9 +1231,9 @@ describe('InvoiceBudgetLinesSection', () => {
       const trigger = screen.getByTestId('budget-line-menu-ibl-001');
       fireEvent.click(trigger);
 
-      const editItem = screen.getAllByRole('menuitem').find((m) =>
-        m.textContent?.toLowerCase().includes('edit'),
-      )!;
+      const editItem = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('edit'))!;
       fireEvent.click(editItem);
 
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
@@ -1262,9 +1262,9 @@ describe('InvoiceBudgetLinesSection', () => {
 
       const trigger = screen.getByTestId('budget-line-menu-ibl-001');
       fireEvent.click(trigger);
-      const editItem = screen.getAllByRole('menuitem').find((m) =>
-        m.textContent?.toLowerCase().includes('edit'),
-      )!;
+      const editItem = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('edit'))!;
       fireEvent.click(editItem);
 
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
@@ -1293,9 +1293,9 @@ describe('InvoiceBudgetLinesSection', () => {
 
       const trigger = screen.getByTestId('budget-line-menu-ibl-001');
       fireEvent.click(trigger);
-      const editItem = screen.getAllByRole('menuitem').find((m) =>
-        m.textContent?.toLowerCase().includes('edit'),
-      )!;
+      const editItem = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('edit'))!;
       fireEvent.click(editItem);
 
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
@@ -1313,7 +1313,9 @@ describe('InvoiceBudgetLinesSection', () => {
 
       // Error message appears inside the modal (FormError renders role="alert")
       expect(screen.getByRole('alert')).toBeInTheDocument();
-      expect(screen.getByText('The new amount would exceed the invoice total.')).toBeInTheDocument();
+      expect(
+        screen.getByText('The new amount would exceed the invoice total.'),
+      ).toBeInTheDocument();
     });
 
     it('clicking "Remove" opens the delete confirmation modal', async () => {
@@ -1323,9 +1325,9 @@ describe('InvoiceBudgetLinesSection', () => {
       const trigger = screen.getByTestId('budget-line-menu-ibl-001');
       fireEvent.click(trigger);
 
-      const removeItem = screen.getAllByRole('menuitem').find((m) =>
-        m.textContent?.toLowerCase().includes('remove'),
-      )!;
+      const removeItem = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('remove'))!;
       fireEvent.click(removeItem);
 
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
@@ -1344,9 +1346,9 @@ describe('InvoiceBudgetLinesSection', () => {
 
       const trigger = screen.getByTestId('budget-line-menu-ibl-001');
       fireEvent.click(trigger);
-      const removeItem = screen.getAllByRole('menuitem').find((m) =>
-        m.textContent?.toLowerCase().includes('remove'),
-      )!;
+      const removeItem = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('remove'))!;
       fireEvent.click(removeItem);
 
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
@@ -1373,16 +1375,16 @@ describe('InvoiceBudgetLinesSection', () => {
 
       const trigger = screen.getByTestId('budget-line-menu-ibl-001');
       fireEvent.click(trigger);
-      const removeItem = screen.getAllByRole('menuitem').find((m) =>
-        m.textContent?.toLowerCase().includes('remove'),
-      )!;
+      const removeItem = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('remove'))!;
       fireEvent.click(removeItem);
 
       await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
 
       // Find cancel button in the dialog
-      const cancelBtn = Array.from(screen.getByRole('dialog').querySelectorAll('button')).find((b) =>
-        b.textContent?.toLowerCase().includes('cancel'),
+      const cancelBtn = Array.from(screen.getByRole('dialog').querySelectorAll('button')).find(
+        (b) => b.textContent?.toLowerCase().includes('cancel'),
       )!;
       fireEvent.click(cancelBtn);
 
@@ -1390,5 +1392,4 @@ describe('InvoiceBudgetLinesSection', () => {
       expect(mockDeleteInvoiceBudgetLine).not.toHaveBeenCalled();
     });
   });
-
 });

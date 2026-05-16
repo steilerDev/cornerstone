@@ -58,11 +58,7 @@ async function createInvoiceViaApi(
   return body.invoice.id;
 }
 
-async function deleteInvoiceViaApi(
-  page: Page,
-  vendorId: string,
-  invoiceId: string,
-): Promise<void> {
+async function deleteInvoiceViaApi(page: Page, vendorId: string, invoiceId: string): Promise<void> {
   await page.request.delete(`${API.vendors}/${vendorId}/invoices/${invoiceId}`);
 }
 
@@ -139,11 +135,11 @@ async function createAndLinkBudgetLine(
  * With usePortal=true the menu is appended to document.body outside the section —
  * we wait for a visible role="menu" anywhere on the page.
  */
-async function openBudgetLineMenu(page: Page, section: ReturnType<typeof page.locator>): Promise<void> {
-  const trigger = section
-    .locator('button[aria-haspopup="true"]')
-    .filter({ visible: true })
-    .first();
+async function openBudgetLineMenu(
+  page: Page,
+  section: ReturnType<typeof page.locator>,
+): Promise<void> {
+  const trigger = section.locator('button[aria-haspopup="true"]').filter({ visible: true }).first();
 
   // Pre-scroll the trigger into the center of the viewport before clicking.
   // This prevents the OverflowMenu's scroll-close listener from firing during
@@ -154,7 +150,11 @@ async function openBudgetLineMenu(page: Page, section: ReturnType<typeof page.lo
   await trigger.click();
 
   // The menu renders via portal so it's attached to document.body.
-  await page.locator('[role="menu"]').filter({ visible: true }).first().waitFor({ state: 'visible' });
+  await page
+    .locator('[role="menu"]')
+    .filter({ visible: true })
+    .first()
+    .waitFor({ state: 'visible' });
 }
 
 /**
@@ -356,7 +356,10 @@ test.describe('Budget line remove modal (Scenario 2)', { tag: '@responsive' }, (
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Budget line edit modal — cancel (Scenario 3)', () => {
-  test('Cancelling the Edit modal leaves the row amount unchanged', async ({ page, testPrefix }) => {
+  test('Cancelling the Edit modal leaves the row amount unchanged', async ({
+    page,
+    testPrefix,
+  }) => {
     const viewportWidth = page.viewportSize()?.width ?? 1440;
     if (viewportWidth < 1024) {
       test.skip(true, 'Cancel test — desktop only');
