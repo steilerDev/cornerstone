@@ -19,6 +19,7 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   listDiaryEntries: jest.fn(),
   updateDiaryEntry: jest.fn(),
   deleteDiaryEntry: jest.fn(),
+  promoteDiaryEntry: jest.fn(),
 }));
 
 jest.unstable_mockModule('../../lib/photoApi.js', () => ({
@@ -86,6 +87,7 @@ const createdEntry = {
   metadata: null,
   isAutomatic: false,
   isSigned: false,
+  status: 'saved' as const,
   sourceEntityType: null,
   sourceEntityId: null,
   sourceEntityArea: null,
@@ -94,6 +96,13 @@ const createdEntry = {
   createdBy: { id: 'user-1', displayName: 'Alice' },
   createdAt: '2026-03-14T09:00:00.000Z',
   updatedAt: '2026-03-14T09:00:00.000Z',
+};
+
+const draftEntry = {
+  ...createdEntry,
+  id: 'draft-new',
+  status: 'draft' as const,
+  body: '',
 };
 
 describe('DiaryEntryCreatePage', () => {
@@ -118,6 +127,7 @@ describe('DiaryEntryCreatePage', () => {
       <MemoryRouter initialEntries={['/diary/new']}>
         <Routes>
           <Route path="/diary/new" element={<DiaryEntryCreatePage />} />
+          <Route path="/diary/:id/edit" element={<div data-testid="edit-page">Edit Page</div>} />
           <Route path="/diary/:id" element={<div data-testid="detail-page">Detail Page</div>} />
           <Route path="/diary" element={<div data-testid="diary-list">Diary List</div>} />
         </Routes>
@@ -490,6 +500,67 @@ describe('DiaryEntryCreatePage', () => {
       });
 
       expect(screen.getByTestId('location')).toHaveTextContent('/diary/new');
+    });
+  });
+
+  // ─── Draft creation on blur (Story #1426) ────────────────────────────────────
+
+  describe('draft creation on field blur (Story #1426)', () => {
+    async function advanceToFormStep(type = 'general_note') {
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(screen.getByTestId(`type-card-${type}`));
+      await waitFor(() => {
+        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument();
+      });
+      return user;
+    }
+
+    it('Scenario 40: blurring body textarea → calls createDiaryEntry({status:"draft"}) and navigates to /diary/:id/edit', async () => {
+      mockCreateDiaryEntry.mockResolvedValueOnce(draftEntry);
+      const user = await advanceToFormStep('general_note');
+
+      const textarea = screen.getByRole('textbox', { name: /^entry/i });
+      await user.type(textarea, 'Some content');
+      fireEvent.blur(textarea);
+
+      await waitFor(() => {
+        expect(mockCreateDiaryEntry).toHaveBeenCalledWith(
+          expect.objectContaining({
+            entryType: 'general_note',
+            status: 'draft',
+          }),
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location')).toHaveTextContent('/diary/draft-new/edit');
+      });
+    });
+
+    it('Scenario 41: reaching form step without any interaction → createDiaryEntry is NOT called', async () => {
+      await advanceToFormStep('general_note');
+
+      // No blur, no interaction with inputs
+      expect(mockCreateDiaryEntry).not.toHaveBeenCalled();
+    });
+
+    it('Scenario 42: selecting weather metadata → triggers draft creation', async () => {
+      mockCreateDiaryEntry.mockResolvedValueOnce(draftEntry);
+      await advanceToFormStep('daily_log');
+
+      // Find the weather select and change it
+      const weatherSelect = screen.getByLabelText(/weather/i);
+      fireEvent.change(weatherSelect, { target: { value: 'sunny' } });
+
+      await waitFor(() => {
+        expect(mockCreateDiaryEntry).toHaveBeenCalledWith(
+          expect.objectContaining({
+            entryType: 'daily_log',
+            status: 'draft',
+          }),
+        );
+      });
     });
   });
 });

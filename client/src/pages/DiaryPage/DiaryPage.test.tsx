@@ -19,6 +19,7 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   createDiaryEntry: jest.fn(),
   updateDiaryEntry: jest.fn(),
   deleteDiaryEntry: jest.fn(),
+  promoteDiaryEntry: jest.fn(),
 }));
 
 // ─── Mock: formatters — DiaryDateGroup and DiaryEntryCard use useFormatters() ──
@@ -67,6 +68,7 @@ function makeSummary(id: string, overrides: Partial<DiaryEntrySummary> = {}): Di
     metadata: null,
     isAutomatic: false,
     isSigned: false,
+    status: 'saved',
     sourceEntityType: null,
     sourceEntityId: null,
     sourceEntityArea: null,
@@ -313,5 +315,83 @@ describe('DiaryPage', () => {
     expect(screen.queryByRole('button', { name: /export/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /pdf/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /export/i })).not.toBeInTheDocument();
+  });
+
+  // ─── Status filter chips (Story #1426) ───────────────────────────────────────
+
+  describe('status filter chips (Story #1426)', () => {
+    it('Scenario 56: clicking "Drafts only" chip → calls listDiaryEntries with status=draft', async () => {
+      const user = userEvent.setup();
+      // Initial load
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      // After clicking Drafts filter
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage();
+
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
+      });
+
+      // Find and click the Drafts only chip
+      const draftsChip = screen.getByRole('button', { name: /draft/i });
+      await user.click(draftsChip);
+
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledWith(
+          expect.objectContaining({ status: 'draft' }),
+        );
+      });
+    });
+
+    it('clicking "Saved only" chip → calls listDiaryEntries with status=saved', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage();
+
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
+      });
+
+      const savedChip = screen.getByRole('button', { name: /saved/i });
+      await user.click(savedChip);
+
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledWith(
+          expect.objectContaining({ status: 'saved' }),
+        );
+      });
+    });
+
+    it('clicking "All" chip after filtering → calls listDiaryEntries without status param', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage();
+
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
+      });
+
+      // First click Drafts
+      const draftsChip = screen.getByRole('button', { name: /draft/i });
+      await user.click(draftsChip);
+
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledWith(
+          expect.objectContaining({ status: 'draft' }),
+        );
+      });
+
+      // Then click All
+      const allChip = screen.getByRole('button', { name: /^all$/i });
+      await user.click(allChip);
+
+      await waitFor(() => {
+        const lastCall = mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
+        expect(lastCall?.[0]).not.toHaveProperty('status');
+      });
+    });
   });
 });
