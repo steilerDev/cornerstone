@@ -388,23 +388,27 @@ test.describe('Photo attach — concurrency (Scenario 7)', () => {
       await page.route('**/api/photos', async (route) => {
         if (route.request().method() === 'POST') {
           uploadCount++;
+          const countAtCapture = uploadCount;
           // Hold the upload — resolve when test says to proceed
           await new Promise<void>((resolve) => {
             uploadHolds.push(resolve);
           });
+          // uploadPhoto() expects { photo: { ... } } (wrapped in a "photo" key)
           await route.fulfill({
             status: 201,
             contentType: 'application/json',
             body: JSON.stringify({
-              id: `mock-photo-${uploadCount}`,
-              entityType: 'diary_entry',
-              entityId: draftId,
-              filename: `test-${uploadCount}.jpg`,
-              mimeType: 'image/jpeg',
-              fileSize: 1024,
-              url: `/photos/mock-${uploadCount}.jpg`,
-              thumbnailUrl: `/photos/mock-${uploadCount}-thumb.jpg`,
-              createdAt: new Date().toISOString(),
+              photo: {
+                id: `mock-photo-${countAtCapture}`,
+                entityType: 'diary_entry',
+                entityId: draftId,
+                filename: `test-${countAtCapture}.jpg`,
+                mimeType: 'image/jpeg',
+                fileSize: 1024,
+                url: `/photos/mock-${countAtCapture}.jpg`,
+                thumbnailUrl: `/photos/mock-${countAtCapture}-thumb.jpg`,
+                createdAt: new Date().toISOString(),
+              },
             }),
           });
         } else {
@@ -436,19 +440,28 @@ test.describe('Photo attach — concurrency (Scenario 7)', () => {
         makeMinimalJpeg(4),
       ]);
 
-      // Wait for at least the first upload to begin (confirms queue is processing)
+      // Wait for at least the first upload to begin (confirms queue is processing).
       await firstUploadStarted;
+
+      // Give the event loop a tick so the route handler's synchronous uploadCount++ and
+      // uploadHolds.push(resolve) have executed before we read uploadCount.
+      // (page.waitForRequest resolves on the 'request' event, which fires before the route
+      // handler body runs — a micro-task gap may exist on slow CI runners.)
+      await page.waitForTimeout(50);
 
       // At most 3 should be uploading simultaneously; the queue state text shows this.
       // The queue container may show "Uploading" for up to 3 items and "Queued" for 1.
       // Verify uploadCount does not exceed 3 (concurrent limit)
       expect(uploadCount).toBeLessThanOrEqual(3);
 
-      // Release all held uploads to allow cleanup
+      // Release all held uploads BEFORE unrouting to avoid leaving route handlers in a
+      // dangling await state (Playwright aborts stuck handlers when unroute is called,
+      // which can produce unhandled rejections that fail the test).
       for (const release of uploadHolds) {
         release();
       }
     } finally {
+      // Unroute AFTER releases to prevent aborting still-pending handlers.
       await page.unroute('**/api/photos');
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
     }
@@ -487,19 +500,22 @@ test.describe('Photo upload failure and retry (Scenario 8)', () => {
               }),
             });
           } else {
+            // uploadPhoto() expects { photo: { ... } } (wrapped in a "photo" key)
             await route.fulfill({
               status: 201,
               contentType: 'application/json',
               body: JSON.stringify({
-                id: `mock-photo-retry-${testPrefix}`,
-                entityType: 'diary_entry',
-                entityId: draftId,
-                filename: `retry-test-${testPrefix}.jpg`,
-                mimeType: 'image/jpeg',
-                fileSize: 1024,
-                url: `/photos/mock-retry.jpg`,
-                thumbnailUrl: `/photos/mock-retry-thumb.jpg`,
-                createdAt: new Date().toISOString(),
+                photo: {
+                  id: `mock-photo-retry-${testPrefix}`,
+                  entityType: 'diary_entry',
+                  entityId: draftId,
+                  filename: `retry-test-${testPrefix}.jpg`,
+                  mimeType: 'image/jpeg',
+                  fileSize: 1024,
+                  url: `/photos/mock-retry.jpg`,
+                  thumbnailUrl: `/photos/mock-retry-thumb.jpg`,
+                  createdAt: new Date().toISOString(),
+                },
               }),
             });
           }
@@ -634,9 +650,11 @@ test.describe('Promote draft — validation error (Scenario 10)', () => {
       await editPage.submitButton.scrollIntoViewIfNeeded();
       await editPage.submitButton.click();
 
-      // Validation errors render synchronously (React state update); wait for them to appear.
-      // Then check URL — if a validation error is shown, no navigation should have occurred.
-      await page.locator('[role="alert"]').first().waitFor({ state: 'visible' });
+      // Validation errors render as role="alert" elements after a React state update.
+      // Use the specific body-error element ID (rendered by DiaryEntryForm when validationErrors.body
+      // is set) to avoid ambiguity with other role="alert" elements (e.g. Toast notifications).
+      // DiaryEntryForm renders: <div id="body-error" role="alert">{validationErrors.body}</div>
+      await page.locator('#body-error').waitFor({ state: 'visible' });
       expect(page.url()).toContain(`/diary/${draftId}/edit`);
 
       // Draft badge should still be visible
@@ -880,8 +898,19 @@ test.describe('Dashboard excludes drafts (Scenario 15)', () => {
     try {
       draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-      // Navigate to dashboard
+      // Navigate to dashboard — register diary entries API listener BEFORE goto() to avoid
+      // race where the response arrives before the listener is attached.
+      // DashboardPage fetches GET /api/diary-entries?pageSize=5&status=saved — drafts excluded.
+      // Filter for the specific dashboard query (status=saved and pageSize param) to avoid matching
+      // other diary-entry responses (e.g. individual entry fetches from edit page navigation).
+      let diaryApiPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/diary-entries') &&
+          resp.url().includes('status=saved') &&
+          resp.status() === 200,
+      );
       await dashboardPage.goto();
+      await diaryApiPromise;
       await dashboardPage.waitForCardsLoaded();
 
       // The Recent Diary card should NOT contain our draft entry
@@ -902,8 +931,16 @@ test.describe('Dashboard excludes drafts (Scenario 15)', () => {
       await editPage.submitButton.click();
       await promotePromise;
 
-      // Navigate back to dashboard and reload to pick up the newly saved entry
+      // Navigate back to dashboard and reload to pick up the newly saved entry.
+      // Register the diary entries listener BEFORE goto() to avoid a race.
+      diaryApiPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/diary-entries') &&
+          resp.url().includes('status=saved') &&
+          resp.status() === 200,
+      );
       await dashboardPage.goto();
+      await diaryApiPromise;
       await dashboardPage.waitForCardsLoaded();
 
       // The promoted entry should now appear in Recent Diary

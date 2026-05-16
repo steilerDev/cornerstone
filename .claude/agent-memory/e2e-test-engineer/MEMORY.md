@@ -9,15 +9,16 @@
 - Auto-save indicator: `data-testid="autosave-status"` — only rendered when `saveStatus !== 'idle'`.
 - Discard Draft button text: `"Discard Draft"` (exact). Discard modal: `aria-labelledby="discard-modal-title"`. Confirm: `"Discard Draft"`. Cancel: `"Keep Draft"`.
 - Delete modal: `aria-labelledby="delete-modal-title"` (distinct from discard). Use specific `aria-labelledby` selectors to disambiguate the two modals.
-- Promote endpoint: `POST /api/diary-entries/:id/promote` (NOT PATCH). Edit page submit button: "Save" for drafts, "Save Changes" for saved entries.
-- Status filter chips: plain `<button>` elements in `role="group"` container. Text: "All" / "Drafts only" / "Saved only" (i18n keys `filterBar.statusAll/statusDraft/statusSaved`).
+- Promote endpoint: `PATCH /api/diary-entries/:id/promote`. Edit page submit button: "Save" for drafts, "Save Changes" for saved entries.
+- Status filter chips: plain `<button>` elements in `role="group"` container with `aria-label="Status"`. CRITICAL: DiaryFilterBar also renders `role="group"` elements with "All" button text — MUST scope to `getByRole('group', { name: 'Status' })` or strict-mode violation occurs.
+- Validation error for body field: `<div id="body-error" role="alert">` — use `#body-error` locator, NOT generic `[role="alert"].first()` (Toast also uses role="alert").
 - Draft card in list links to `/diary/:id/edit`; saved card links to `/diary/:id`. Confirmed in DiaryEntryCard source.
-- Dashboard (`/project/overview`) fetches diary entries with `status: 'saved'` — drafts are excluded automatically.
-- `createDraftDiaryEntryViaApi(page, { entryType })` — POST with `status: 'draft'`, no body required.
-- Photo upload: `data-testid="photo-file-input"` (hidden); `data-testid="photo-upload-zone"` (drop zone). Retry button aria-label: `"Retry {filename}"`.
-- PhotoUpload queue container: `aria-label` from `t('photoUpload.queueAriaLabel')` — use `page.locator('[aria-label]').filter({has: locator('[class*="queueItem"]')})` to scope.
-- Concurrency test pattern: use `page.route()` to hold uploads, then `page.waitForRequest()` to confirm first upload started before asserting count.
-- `createDiaryEntryViaApi` updated to accept optional `status` field.
+- Dashboard (`/project/overview`) fetches diary entries with `status=saved` — use `url.includes('status=saved')` in waitForResponse predicate to match this specific call.
+- `createDraftDiaryEntryViaApi(page, { entryType })` — POST with `status: 'draft'`, no body required. Server sets entryDate=today, body=''.
+- Photo upload API: `uploadPhoto()` uses XHR to `${getBaseUrl()}/photos`. Response shape: `{ photo: { id, entityType, ... } }` (wrapped in "photo" key).
+- Photo route mock MUST wrap response in `{ photo: { ... } }` — not the photo object directly.
+- Photo concurrency: after `page.waitForRequest`, add `page.waitForTimeout(50)` before reading `uploadCount` (route handler runs after request event, micro-task gap).
+- Release all `uploadHolds` BEFORE calling `page.unroute()` — unrouting with pending handlers causes unhandled rejections.
 - Test file: `e2e/tests/diary/diary-drafts.spec.ts` (18 scenarios; smoke tags on scenarios 1, 9, 12).
 
 ## InvoiceBudgetLinesSection Picker (Issue #1401, 2026-05-10)

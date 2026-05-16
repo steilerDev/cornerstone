@@ -69,6 +69,23 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   deleteVendor: jest.fn(),
 }));
 
+// Mock authApi so the real AuthProvider (used as fallback when the module mock does not
+// intercept in this environment) resolves immediately without making network requests.
+jest.unstable_mockModule('../../lib/authApi.js', () => ({
+  getAuthMe: jest.fn<() => Promise<any>>().mockResolvedValue({
+    user: {
+      id: 'user-1',
+      displayName: 'Alice Builder',
+      email: 'alice@example.com',
+      role: 'admin',
+      authProvider: 'local',
+      createdAt: '2026-01-01T00:00:00Z',
+    },
+    oidcEnabled: false,
+  }),
+  logout: jest.fn<() => Promise<any>>().mockResolvedValue(undefined),
+}));
+
 // ── Location helper ───────────────────────────────────────────────────────────
 
 function LocationDisplay() {
@@ -107,12 +124,23 @@ const draftEntry = {
 
 describe('DiaryEntryCreatePage', () => {
   let DiaryEntryCreatePage: React.ComponentType;
+  // Providers are imported dynamically so they share the same module instance as the page
+  // component (whether mocked or real), avoiding a dual-React-context mismatch.
+  // When jest.unstable_mockModule intercepts (CI), ToastProvider and AuthProvider are
+  // passthrough wrappers. Locally, the real providers are used with authApi mocked so
+  // AuthProvider resolves immediately without network requests.
+  let ToastProvider: React.ComponentType<{ children: React.ReactNode }>;
+  let AuthProvider: React.ComponentType<{ children: React.ReactNode }>;
 
   beforeEach(async () => {
     localStorage.setItem('theme', 'light');
     if (!DiaryEntryCreatePage) {
       const mod = await import('./DiaryEntryCreatePage.js');
       DiaryEntryCreatePage = mod.default;
+      const toastMod = await import('../../components/Toast/ToastContext.js');
+      ToastProvider = toastMod.ToastProvider;
+      const authMod = await import('../../contexts/AuthContext.js');
+      AuthProvider = authMod.AuthProvider;
     }
     mockCreateDiaryEntry.mockReset();
     mockUploadPhoto.mockReset();
@@ -124,15 +152,25 @@ describe('DiaryEntryCreatePage', () => {
 
   const renderPage = () =>
     render(
-      <MemoryRouter initialEntries={['/diary/new']}>
-        <Routes>
-          <Route path="/diary/new" element={<DiaryEntryCreatePage />} />
-          <Route path="/diary/:id/edit" element={<div data-testid="edit-page">Edit Page</div>} />
-          <Route path="/diary/:id" element={<div data-testid="detail-page">Detail Page</div>} />
-          <Route path="/diary" element={<div data-testid="diary-list">Diary List</div>} />
-        </Routes>
-        <LocationDisplay />
-      </MemoryRouter>,
+      <ToastProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={['/diary/new']}>
+            <Routes>
+              <Route path="/diary/new" element={<DiaryEntryCreatePage />} />
+              <Route
+                path="/diary/:id/edit"
+                element={<div data-testid="edit-page">Edit Page</div>}
+              />
+              <Route
+                path="/diary/:id"
+                element={<div data-testid="detail-page">Detail Page</div>}
+              />
+              <Route path="/diary" element={<div data-testid="diary-list">Diary List</div>} />
+            </Routes>
+            <LocationDisplay />
+          </MemoryRouter>
+        </AuthProvider>
+      </ToastProvider>,
     );
 
   // ─── Type selector step ──────────────────────────────────────────────────────

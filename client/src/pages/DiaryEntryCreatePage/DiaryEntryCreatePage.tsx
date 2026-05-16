@@ -117,9 +117,14 @@ export default function DiaryEntryCreatePage() {
     draftCreatingRef.current = true;
 
     try {
+      const metadata = buildMetadata();
       const draft = await createDiaryEntry({
         entryType: selectedType,
         status: 'draft',
+        entryDate: entryDate || undefined,
+        title: title.trim() || null,
+        body: body || undefined,
+        metadata: metadata || undefined,
       });
       setEntryId(draft.id);
       navigate(`/diary/${draft.id}/edit`, { replace: true });

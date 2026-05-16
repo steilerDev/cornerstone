@@ -15,6 +15,10 @@
 
 **XHR mock instance timing**: When XHR mock is set up in `beforeEach`, instances accumulate across the test. For retry tests: `xhrInstances[0]` = first upload attempt, `xhrInstances[1]` = retry attempt. Fire `_handlers['error']()` on instance 0, then after retry click, fire `_handlers['load']()` on instance 1 with `status=201` and `responseText=JSON.stringify({ photo })`.
 
+## ToastProvider + AuthProvider Dynamic Import Pattern (Story #1426, 2026-05-16)
+
+When `jest.unstable_mockModule` for `ToastContext.js` or `AuthContext.js` fails to intercept (CI AND/OR locally), tests fail with `useToast must be used within a ToastProvider` / `useAuth must be used within an AuthProvider`. **Fix**: import both providers dynamically alongside the page component in `beforeEach`, and wrap `renderPage`/`renderEditPage` with `<ToastProvider><AuthProvider>`. Also add `jest.unstable_mockModule('../../lib/authApi.js', ...)` returning mock user so the real `AuthProvider` doesn't make network calls when it intercepts. This pattern is now applied to `DiaryEntryEditPage.test.tsx` and `DiaryEntryCreatePage.test.tsx`. In CI where `jest.unstable_mockModule` works, `ToastProvider` is the mock passthrough `({ children }) => children` — the wrapper is redundant but harmless. In broken env, real providers supply context.
+
 ## Story #1426 — Diary Draft Tests (2026-05-16)
 
 **AppConfig mock type**: Any test file with a `makeConfig()` factory that constructs the full `AppConfig` object must be updated when new fields are added to `AppConfig`. Pattern: when a new config field causes `TS2322` on a makeConfig factory, add the field with its default value. Affected files in this story: `backupService.test.ts` (added `diaryDraftRetentionDays: 30`).

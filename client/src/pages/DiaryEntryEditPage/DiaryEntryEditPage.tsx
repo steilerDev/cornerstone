@@ -111,6 +111,7 @@ export default function DiaryEntryEditPage() {
   );
 
   // Load entry on mount
+  const skipAutoSaveOnMountRef = useRef(true);
   useEffect(() => {
     if (!id) {
       setNotFound(true);
@@ -143,6 +144,30 @@ export default function DiaryEntryEditPage() {
 
     void loadEntry();
   }, [id, navigate, showToast, t]);
+
+  // Auto-save on metadata field changes for drafts
+  useEffect(() => {
+    if (skipAutoSaveOnMountRef.current) {
+      skipAutoSaveOnMountRef.current = false;
+      return;
+    }
+    if (entry?.status !== 'draft') return;
+    // Immediate auto-save when any metadata field changes
+    triggerAutoSave(true);
+  }, [
+    dailyLogWeather,
+    dailyLogTemperature,
+    dailyLogWorkers,
+    dailyLogSignatures,
+    siteVisitInspectorName,
+    siteVisitOutcome,
+    siteVisitSignatures,
+    deliveryVendor,
+    deliveryMaterials,
+    issueSeverity,
+    issueResolutionStatus,
+    entry?.status,
+  ]);
 
   // Auto-save cleanup and beforeunload guard
   useEffect(() => {
@@ -571,63 +596,30 @@ export default function DiaryEntryEditPage() {
           validationErrors={validationErrors}
           // daily_log
           dailyLogWeather={dailyLogWeather}
-          onDailyLogWeatherChange={(val) => {
-            setDailyLogWeather(val);
-            if (entry.status === 'draft') triggerAutoSave(true);
-          }}
+          onDailyLogWeatherChange={setDailyLogWeather}
           dailyLogTemperature={dailyLogTemperature}
-          onDailyLogTemperatureChange={(val) => {
-            setDailyLogTemperature(val);
-            if (entry.status === 'draft') triggerAutoSave(true);
-          }}
+          onDailyLogTemperatureChange={setDailyLogTemperature}
           dailyLogWorkers={dailyLogWorkers}
-          onDailyLogWorkersChange={(val) => {
-            setDailyLogWorkers(val);
-            if (entry.status === 'draft') triggerAutoSave(true);
-          }}
+          onDailyLogWorkersChange={setDailyLogWorkers}
           dailyLogSignatures={dailyLogSignatures}
-          onDailyLogSignaturesChange={(val) => {
-            setDailyLogSignatures(val);
-            if (entry.status === 'draft') triggerAutoSave(true);
-          }}
+          onDailyLogSignaturesChange={setDailyLogSignatures}
           // site_visit
           siteVisitInspectorName={siteVisitInspectorName}
-          onSiteVisitInspectorNameChange={(val) => {
-            setSiteVisitInspectorName(val);
-            if (entry.status === 'draft') triggerAutoSave(true);
-          }}
+          onSiteVisitInspectorNameChange={setSiteVisitInspectorName}
           siteVisitOutcome={siteVisitOutcome}
-          onSiteVisitOutcomeChange={(val) => {
-            setSiteVisitOutcome(val);
-            if (entry.status === 'draft') triggerAutoSave(true);
-          }}
+          onSiteVisitOutcomeChange={setSiteVisitOutcome}
           siteVisitSignatures={siteVisitSignatures}
-          onSiteVisitSignaturesChange={(val) => {
-            setSiteVisitSignatures(val);
-            if (entry.status === 'draft') triggerAutoSave(true);
-          }}
+          onSiteVisitSignaturesChange={setSiteVisitSignatures}
           // delivery
           deliveryVendor={deliveryVendor}
-          onDeliveryVendorChange={(val) => {
-            setDeliveryVendor(val);
-            if (entry.status === 'draft') triggerAutoSave(true);
-          }}
+          onDeliveryVendorChange={setDeliveryVendor}
           deliveryMaterials={deliveryMaterials}
-          onDeliveryMaterialsChange={(val) => {
-            setDeliveryMaterials(val);
-            if (entry.status === 'draft') triggerAutoSave(true);
-          }}
+          onDeliveryMaterialsChange={setDeliveryMaterials}
           // issue
           issueSeverity={issueSeverity}
-          onIssueSeverityChange={(val) => {
-            setIssueSeverity(val);
-            if (entry.status === 'draft') triggerAutoSave(true);
-          }}
+          onIssueSeverityChange={setIssueSeverity}
           issueResolutionStatus={issueResolutionStatus}
-          onIssueResolutionStatusChange={(val) => {
-            setIssueResolutionStatus(val);
-            if (entry.status === 'draft') triggerAutoSave(true);
-          }}
+          onIssueResolutionStatusChange={setIssueResolutionStatus}
           // signature enhancements
           currentUserName={user?.displayName}
           vendors={vendorOptions}
