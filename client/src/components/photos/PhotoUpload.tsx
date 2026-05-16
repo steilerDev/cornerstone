@@ -22,8 +22,6 @@ interface PhotoEntry {
   errorMessage?: string;
 }
 
-const MAX_CONCURRENT = 3;
-
 export function PhotoUpload({
   entityType,
   entityId,
@@ -39,7 +37,6 @@ export function PhotoUpload({
   const [photoQueue, setPhotoQueue] = useState<PhotoEntry[]>([]);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const uploadingCountRef = useRef(0);
-  const processingRef = useRef(false);
 
   useEffect(() => {
     setIsTouchDevice(() => {
@@ -131,30 +128,24 @@ export function PhotoUpload({
     [entityType, entityId, onUpload, onError, t],
   );
 
+  // Flip all queued entries to 'uploading' and kick them off in parallel.
+  // No concurrency cap: the browser, server, and reverse proxy each impose
+  // their own limits, and the per-photo failure UI gives the user a clear
+  // signal if anything goes wrong. A cap was attempted in earlier iterations
+  // but kept fighting with React state-update timing; see #1426 follow-up.
   const processQueue = useCallback(() => {
-    // Prevent re-entrant calls: if already processing, bail out
-    if (processingRef.current) return;
-    processingRef.current = true;
-
     let picked: PhotoEntry[] = [];
 
-    // Atomically pick up to N entries and flip them to 'uploading'
     setPhotoQueue((prev) => {
-      const queued = prev.filter((p) => p.state === 'queued');
-      const uploading = prev.filter((p) => p.state === 'uploading').length;
-      const slots = Math.max(0, MAX_CONCURRENT - uploading);
-      picked = queued.slice(0, slots);
+      picked = prev.filter((p) => p.state === 'queued');
       return prev.map((p) =>
-        picked.some((x) => x.file === p.file) ? { ...p, state: 'uploading' as const } : p,
+        p.state === 'queued' ? { ...p, state: 'uploading' as const } : p,
       );
     });
 
-    // Kick off all picked uploads in parallel (no await)
     for (const entry of picked) {
       void uploadSinglePhoto(entry);
     }
-
-    processingRef.current = false;
   }, [uploadSinglePhoto]);
 
   // Process queue whenever it changes

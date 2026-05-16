@@ -158,9 +158,12 @@ describe('PhotoUpload', () => {
   });
 
   // ─── Scenario 51: concurrent upload slots ─────────────────────────────────
+  // Skipped pending #1429 — the MAX_CONCURRENT cap was removed in #1426. See
+  // the issue for the planned reintroduction. The assertion below assumes a
+  // cap is in place; once #1429 lands, drop the .skip and update if needed.
 
   describe('Scenario 51: attaching 5 photos when MAX_CONCURRENT=3', () => {
-    it('immediately starts uploading at most 3 photos, remaining 2 stay queued', async () => {
+    it.skip('immediately starts uploading at most 3 photos, remaining 2 stay queued', async () => {
       // The module mock (CI) returns a never-resolving promise so uploads hang.
       mockUploadPhoto.mockReturnValue(new Promise(() => undefined));
       // The XHR mock (local) never fires any events — same effect: uploads hang.

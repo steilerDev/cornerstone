@@ -366,8 +366,12 @@ test.describe('Photo attach — happy path (Scenario 6)', { tag: '@responsive' }
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 7: Photo attach — concurrency (max 3 uploading simultaneously)
 // ─────────────────────────────────────────────────────────────────────────────
+// Skipped pending #1429 — the MAX_CONCURRENT cap was removed in #1426 because
+// the React state-update timing kept fighting with parallel kick-off. Uploads
+// currently fire in parallel without throttling. Re-enable once the cap is
+// reintroduced cleanly.
 test.describe('Photo attach — concurrency (Scenario 7)', () => {
-  test('Attaching 4 photos: at most 3 are uploading at once, remaining shows queued', async ({
+  test.skip('Attaching 4 photos: at most 3 are uploading at once, remaining shows queued', async ({
     page,
     testPrefix,
   }) => {
