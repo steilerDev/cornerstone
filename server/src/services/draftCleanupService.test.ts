@@ -14,7 +14,6 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
-import { diaryEntries, users } from '../db/schema.js';
 import type { AppConfig } from '../plugins/config.js';
 
 // ─── Mock node-cron ──────────────────────────────────────────────────────────
@@ -34,8 +33,10 @@ jest.unstable_mockModule('node-cron', () => ({
 
 // ─── Mock diaryService (findOrphanDraftIds + deleteDiaryEntry) ───────────────
 
-const mockFindOrphanDraftIds = jest.fn<() => string[]>();
-const mockDeleteDiaryEntry = jest.fn<() => Promise<void>>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockFindOrphanDraftIds = jest.fn<(...args: any[]) => string[]>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockDeleteDiaryEntry = jest.fn<(...args: any[]) => Promise<void>>();
 
 jest.unstable_mockModule('./diaryService.js', () => ({
   findOrphanDraftIds: mockFindOrphanDraftIds,
