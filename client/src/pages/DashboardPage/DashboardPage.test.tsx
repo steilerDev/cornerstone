@@ -161,6 +161,7 @@ const emptyInvoicesResponse: InvoiceListPaginatedResponse = {
     paid: { count: 0, totalAmount: 0 },
     claimed: { count: 0, totalAmount: 0 },
     quotation: { count: 0, totalAmount: 0 },
+    overdue: { count: 0, totalAmount: 0 },
   },
 };
 
