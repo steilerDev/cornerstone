@@ -739,12 +739,15 @@ describe('Diary Routes', () => {
   });
 
   describe('PATCH /api/diary-entries/:id additionalProperties (Story #1426)', () => {
-    it('Scenario 27: PATCH /:id with status field in body → 400 (stripped by additionalProperties:false, body becomes empty → minProperties fails)', async () => {
+    it('Scenario 27: PATCH /:id with only status field in body → 200 (status silently stripped, entry unchanged — status only changes via promote)', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
       const id = insertDiaryEntry({ status: 'saved', body: 'Saved content' });
 
       // Fastify strips unknown props (removeAdditional:true), so sending only
-      // status leaves an empty body which fails minProperties:1
+      // { status: 'saved' } leaves an empty body {}. Ajv 8 with removeAdditional:true
+      // does NOT re-evaluate minProperties against the stripped object — validation passes.
+      // The service receives {} (all fields undefined) and performs a no-op update.
+      // Status is never written by updateDiaryEntry — it only changes via promote.
       const response = await app.inject({
         method: 'PATCH',
         url: `/api/diary-entries/${id}`,
@@ -752,10 +755,11 @@ describe('Diary Routes', () => {
         payload: { status: 'saved' },
       });
 
-      // The body only contains 'status' which is an additional property and gets
-      // stripped, leaving empty body — minProperties:1 on updateDiaryEntrySchema
-      // then rejects with 400
-      expect(response.statusCode).toBe(400);
+      expect(response.statusCode).toBe(200);
+      const result = response.json<{ status: string; body: string }>();
+      // Entry is unchanged — status and body are unmodified
+      expect(result.status).toBe('saved');
+      expect(result.body).toBe('Saved content');
     });
 
     it('Scenario 28: PATCH /:id/promote route does not conflict with PATCH /:id', async () => {

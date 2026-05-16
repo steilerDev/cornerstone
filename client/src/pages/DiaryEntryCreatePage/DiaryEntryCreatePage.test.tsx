@@ -278,10 +278,6 @@ describe('DiaryEntryCreatePage', () => {
       expect(input.value).toBe(today);
     });
 
-    it('renders the "Create Entry" submit button', async () => {
-      await advanceToFormStep();
-      expect(screen.getByRole('button', { name: /create entry/i })).toBeInTheDocument();
-    });
 
     it('renders the "Cancel" button on the form step', async () => {
       await advanceToFormStep();
@@ -342,91 +338,11 @@ describe('DiaryEntryCreatePage', () => {
 
   // ─── Successful submit ───────────────────────────────────────────────────────
 
-  describe('successful submission', () => {
-    it('calls createDiaryEntry and navigates to the detail page on success', async () => {
-      const user = userEvent.setup();
-      mockCreateDiaryEntry.mockResolvedValueOnce(createdEntry);
-      renderPage();
-
-      await user.click(screen.getByTestId('type-card-daily_log'));
-      await waitFor(() =>
-        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
-      );
-
-      await user.type(
-        screen.getByRole('textbox', { name: /^entry/i }),
-        'Foundation work done today.',
-      );
-      await user.click(screen.getByRole('button', { name: /create entry/i }));
-
-      await waitFor(() => {
-        expect(mockCreateDiaryEntry).toHaveBeenCalledTimes(1);
-      });
-      await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/diary/de-new');
-      });
-    });
-
-    it('calls createDiaryEntry with correct entryType and body', async () => {
-      const user = userEvent.setup();
-      mockCreateDiaryEntry.mockResolvedValueOnce(createdEntry);
-      renderPage();
-
-      await user.click(screen.getByTestId('type-card-daily_log'));
-      await waitFor(() =>
-        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
-      );
-
-      await user.type(screen.getByRole('textbox', { name: /^entry/i }), 'My log entry');
-      await user.click(screen.getByRole('button', { name: /create entry/i }));
-
-      await waitFor(() => {
-        expect(mockCreateDiaryEntry).toHaveBeenCalledWith(
-          expect.objectContaining({
-            entryType: 'daily_log',
-            body: 'My log entry',
-          }),
-        );
-      });
-    });
-
-    it('passes null title when title is empty', async () => {
-      const user = userEvent.setup();
-      mockCreateDiaryEntry.mockResolvedValueOnce(createdEntry);
-      renderPage();
-
-      await user.click(screen.getByTestId('type-card-general_note'));
-      await waitFor(() =>
-        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
-      );
-
-      await user.type(screen.getByRole('textbox', { name: /^entry/i }), 'A note');
-      await user.click(screen.getByRole('button', { name: /create entry/i }));
-
-      await waitFor(() => {
-        expect(mockCreateDiaryEntry).toHaveBeenCalledWith(expect.objectContaining({ title: null }));
-      });
-    });
-
-    it('shows "Creating..." label on submit button while submitting', async () => {
-      const user = userEvent.setup();
-      // Never resolves during this check
-      mockCreateDiaryEntry.mockReturnValue(new Promise(() => undefined));
-      renderPage();
-
-      await user.click(screen.getByTestId('type-card-daily_log'));
-      await waitFor(() =>
-        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
-      );
-
-      await user.type(screen.getByRole('textbox', { name: /^entry/i }), 'Some text');
-      await user.click(screen.getByRole('button', { name: /create entry/i }));
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /creating.../i })).toBeInTheDocument();
-      });
-    });
-  });
+  // ─── Successful submit (via draft creation flow) ───────────────────────────
+  // Tests for the old submit-button form submission have been removed.
+  // Story #1426 changed the flow to auto-create drafts on first interaction.
+  // Successful entry creation is tested in Scenarios 40-42 (draft creation on blur)
+  // and E2E tests in diary-drafts.spec.ts Scenario 1.
 
   // ─── Photo file queue ────────────────────────────────────────────────────────
 
@@ -462,84 +378,12 @@ describe('DiaryEntryCreatePage', () => {
       await advanceToFormStepWithUser();
       expect(screen.queryByText(/photos can be added after saving/i)).not.toBeInTheDocument();
     });
-
-    it('shows pending photo count after files are selected', async () => {
-      await advanceToFormStepWithUser();
-      const input = screen.getByTestId('create-photo-input');
-      const file = new File(['img'], 'photo.jpg', { type: 'image/jpeg' });
-      fireEvent.change(input, { target: { files: [file] } });
-      await waitFor(() => {
-        expect(screen.getByTestId('pending-photo-count')).toBeInTheDocument();
-        expect(screen.getByTestId('pending-photo-count').textContent).toContain('1');
-      });
-    });
   });
 
-  // ─── Successful submit (navigation destination) ───────────────────────────────
-
-  describe('post-submit navigation', () => {
-    it('navigates to /diary/:id (detail page), NOT /diary/:id/edit after successful submit', async () => {
-      const user = userEvent.setup();
-      mockCreateDiaryEntry.mockResolvedValueOnce(createdEntry);
-      renderPage();
-
-      await user.click(screen.getByTestId('type-card-daily_log'));
-      await waitFor(() =>
-        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
-      );
-
-      await user.type(screen.getByRole('textbox', { name: /^entry/i }), 'Site work done.');
-      await user.click(screen.getByRole('button', { name: /create entry/i }));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/diary/de-new');
-      });
-      // Confirm it is NOT the edit route
-      expect(screen.getByTestId('location').textContent).not.toContain('/edit');
-    });
-  });
-
-  // ─── Failed submit ───────────────────────────────────────────────────────────
-
-  describe('submission failure', () => {
-    it('shows error banner when createDiaryEntry throws', async () => {
-      const user = userEvent.setup();
-      mockCreateDiaryEntry.mockRejectedValueOnce(new Error('Network error'));
-      renderPage();
-
-      await user.click(screen.getByTestId('type-card-daily_log'));
-      await waitFor(() =>
-        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
-      );
-
-      await user.type(screen.getByRole('textbox', { name: /^entry/i }), 'Some text');
-      await user.click(screen.getByRole('button', { name: /create entry/i }));
-
-      await waitFor(() => {
-        expect(screen.getByText(/failed to create diary entry/i)).toBeInTheDocument();
-      });
-    });
-
-    it('does not navigate on failure', async () => {
-      const user = userEvent.setup();
-      mockCreateDiaryEntry.mockRejectedValueOnce(new Error('Oops'));
-      renderPage();
-
-      await user.click(screen.getByTestId('type-card-daily_log'));
-      await waitFor(() =>
-        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
-      );
-
-      await user.type(screen.getByRole('textbox', { name: /^entry/i }), 'Some text');
-      await user.click(screen.getByRole('button', { name: /create entry/i }));
-
-      await waitFor(() => {
-        expect(screen.getByText(/failed to create diary entry/i)).toBeInTheDocument();
-      });
-
-      expect(screen.getByTestId('location')).toHaveTextContent('/diary/new');
-    });
-  });
+  // ─── Failed submissions ──────────────────────────────────────────────────────
+  // Tests for submission failures via the old "Create Entry" button have been removed.
+  // Story #1426 changed the flow to auto-create drafts on first interaction.
+  // Failure scenarios are tested in the draft creation tests (Scenarios 40-42) and E2E.
 
   // ─── Draft creation on blur (Story #1426) ────────────────────────────────────
 

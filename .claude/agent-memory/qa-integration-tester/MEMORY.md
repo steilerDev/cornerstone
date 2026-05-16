@@ -97,6 +97,8 @@ Props changed again: `selectedSourceIds` → `deselectedSourceIds`, `onClearSour
 
 **Critical pattern**: Fastify's `@fastify/ajv-compiler` defaults to `removeAdditional: true`. This means `additionalProperties: false` in body/querystring schemas does NOT reject unknown properties with 400 — it strips them and lets the request proceed. Tests that expect 400 for unknown fields are wrong. The correct test is to assert the request succeeds (201/200) with extra fields silently removed. See `server/src/routes/auth.test.ts` comment for reference.
 
+**Ajv 8 + removeAdditional + minProperties interaction (2026-05-16)**: When `removeAdditional: true` is set, Ajv 8 does NOT re-evaluate `minProperties` against the stripped object. Verified empirically: `{ status: 'saved' }` sent to a schema with `additionalProperties: false, minProperties: 1, properties: { entryDate, title, body, metadata }` — Ajv strips `status`, leaving `{}`, but still returns `valid: true`. Therefore PATCH with only unknown fields is a silent no-op (returns 200), not a 400.
+
 **Affected test files fixed (2026-03-26)**: `invoiceBudgetLines.test.ts` (POST + PATCH), `standaloneInvoices.test.ts` (GET querystring).
 
 **Correct test pattern** (from `invoices.test.ts`):

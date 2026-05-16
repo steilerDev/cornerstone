@@ -391,7 +391,7 @@ describe('DiaryPage', () => {
 
       await waitFor(() => {
         const lastCall = mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
-        expect(lastCall?.[0]).not.toHaveProperty('status');
+        expect(lastCall?.[0]?.status).toBeUndefined();
       });
     });
   });

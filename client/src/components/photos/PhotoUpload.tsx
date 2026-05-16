@@ -133,28 +133,24 @@ export function PhotoUpload({
   // their own limits, and the per-photo failure UI gives the user a clear
   // signal if anything goes wrong. A cap was attempted in earlier iterations
   // but kept fighting with React state-update timing; see #1426 follow-up.
-  const processQueue = useCallback(() => {
-    let picked: PhotoEntry[] = [];
-
-    setPhotoQueue((prev) => {
-      picked = prev.filter((p) => p.state === 'queued');
-      return prev.map((p) =>
-        p.state === 'queued' ? { ...p, state: 'uploading' as const } : p,
-      );
-    });
-
-    for (const entry of picked) {
-      void uploadSinglePhoto(entry);
-    }
-  }, [uploadSinglePhoto]);
-
-  // Process queue whenever it changes
+  //
+  // Drive the work from a useEffect that observes the queue and atomically
+  // transitions queued → uploading + kicks off uploads. Both reads and updates
+  // happen after React has committed state, eliminating the race.
   useEffect(() => {
     const queued = photoQueue.filter((p) => p.state === 'queued');
-    if (queued.length > 0) {
-      processQueue();
+    if (queued.length === 0) return;
+
+    // Atomically flip queued → uploading
+    setPhotoQueue((prev) =>
+      prev.map((p) => (p.state === 'queued' ? { ...p, state: 'uploading' as const } : p)),
+    );
+
+    // Kick off uploads in parallel; they update state on completion
+    for (const entry of queued) {
+      void uploadSinglePhoto(entry);
     }
-  }, [photoQueue, processQueue]);
+  }, [photoQueue, uploadSinglePhoto]);
 
   const handleFiles = (files: File[]) => {
     setPhotoQueue((prev) => [
