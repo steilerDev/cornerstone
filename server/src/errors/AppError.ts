@@ -194,6 +194,13 @@ export class InvalidEntryTypeError extends AppError {
   }
 }
 
+export class AlreadySavedError extends AppError {
+  constructor(message = 'Cannot promote an entry that is already saved') {
+    super('ALREADY_SAVED', 400, message);
+    this.name = 'AlreadySavedError';
+  }
+}
+
 export class AreaInUseError extends AppError {
   constructor(
     message = 'Area is in use and cannot be deleted',

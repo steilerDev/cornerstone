@@ -13,6 +13,7 @@ import * as diaryService from '../services/diaryService.js';
 import type {
   CreateDiaryEntryRequest,
   UpdateDiaryEntryRequest,
+  PromoteDiaryEntryRequest,
   DiaryEntryListQuery,
 } from '@cornerstone/shared';
 
@@ -29,6 +30,7 @@ const listDiaryEntriesSchema = {
       dateFrom: { type: 'string' },
       dateTo: { type: 'string' },
       automatic: { type: 'boolean' },
+      status: { type: 'string', enum: ['draft', 'saved'] },
       q: { type: 'string' },
     },
     additionalProperties: false,
@@ -39,15 +41,16 @@ const listDiaryEntriesSchema = {
 const createDiaryEntrySchema = {
   body: {
     type: 'object',
-    required: ['entryType', 'entryDate', 'body'],
+    required: ['entryType'],
     properties: {
       entryType: {
         type: 'string',
         enum: ['daily_log', 'site_visit', 'delivery', 'issue', 'general_note'],
       },
+      status: { type: 'string', enum: ['draft', 'saved'] },
       entryDate: { type: 'string' },
       title: { type: ['string', 'null'] },
-      body: { type: 'string', minLength: 1, maxLength: 10000 },
+      body: { type: 'string', maxLength: 10000 },
       metadata: { type: ['object', 'null'] },
     },
     additionalProperties: false,
@@ -73,7 +76,28 @@ const updateDiaryEntrySchema = {
     properties: {
       entryDate: { type: 'string' },
       title: { type: ['string', 'null'] },
-      body: { type: 'string', minLength: 1, maxLength: 10000 },
+      body: { type: 'string', maxLength: 10000 },
+      metadata: { type: ['object', 'null'] },
+    },
+    additionalProperties: false,
+  },
+  params: {
+    type: 'object',
+    required: ['id'],
+    properties: {
+      id: { type: 'string' },
+    },
+  },
+};
+
+/** JSON schema for PATCH /api/diary-entries/:id/promote (promote draft to saved) */
+const promoteDiaryEntrySchema = {
+  body: {
+    type: 'object',
+    properties: {
+      entryDate: { type: 'string' },
+      title: { type: ['string', 'null'] },
+      body: { type: 'string', maxLength: 10000 },
       metadata: { type: ['object', 'null'] },
     },
     additionalProperties: false,
@@ -132,6 +156,25 @@ export default async function diaryRoutes(fastify: FastifyInstance) {
 
       const entry = diaryService.createDiaryEntry(fastify.db, request.user.id, request.body);
       return reply.status(201).send(entry);
+    },
+  );
+
+  /**
+   * PATCH /api/diary-entries/:id/promote
+   * Promote a draft diary entry to saved status.
+   * Auth required: Yes (both admin and member)
+   * Note: Must be registered before GET /:id to avoid route ambiguity.
+   */
+  fastify.patch<{ Params: { id: string }; Body: PromoteDiaryEntryRequest }>(
+    '/:id/promote',
+    { schema: promoteDiaryEntrySchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+
+      const entry = diaryService.promoteDiaryEntry(fastify.db, request.params.id, request.body);
+      return reply.status(200).send(entry);
     },
   );
 

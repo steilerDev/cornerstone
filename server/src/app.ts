@@ -57,6 +57,7 @@ import davTokenRoutes from './routes/davTokens.js';
 import davRoutes from './routes/dav.js';
 import backupRoutes from './routes/backups.js';
 import * as backupService from './services/backupService.js';
+import * as draftCleanupService from './services/draftCleanupService.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -251,9 +252,13 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Initialize automatic backup scheduler (if configured)
   backupService.initScheduler(app.db, app.config, app.log);
 
-  // Stop backup scheduler on shutdown
+  // Initialize draft cleanup scheduler (if configured)
+  draftCleanupService.initScheduler(app.db, app.config, app.log);
+
+  // Stop schedulers on shutdown
   app.addHook('onClose', () => {
     backupService.stopScheduler();
+    draftCleanupService.stopScheduler();
   });
 
   // Well-known redirects for CalDAV/CardDAV discovery
