@@ -2,7 +2,7 @@ import styles from './Badge.module.css';
 
 export interface BadgeVariant {
   label: string;
-  className: string;
+  className?: string;
 }
 
 export type BadgeVariantMap = Record<string, BadgeVariant>;
