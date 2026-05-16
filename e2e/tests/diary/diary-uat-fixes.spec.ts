@@ -296,11 +296,11 @@ test.describe('Create navigates to detail page (Scenario 6)', { tag: '@responsiv
         await editPage.titleInput.waitFor({ state: 'visible' });
         await editPage.titleInput.fill(`${testPrefix} UAT Create Nav Test`);
 
-        // Register the promote POST listener BEFORE clicking Save
+        // Register the promote PATCH listener BEFORE clicking Save
         const promoteResponsePromise = page.waitForResponse(
           (resp) =>
             resp.url().includes(`/api/diary-entries/${createdId}/promote`) &&
-            resp.request().method() === 'POST',
+            resp.request().method() === 'PATCH',
         );
 
         // Click "Save" — promotes the draft to saved status

@@ -118,11 +118,11 @@ test.describe('Create general_note — happy path (Scenario 2)', { tag: '@respon
         await editPage.titleInput.waitFor({ state: 'visible' });
         await editPage.titleInput.fill(title);
 
-        // Register the promote POST listener BEFORE clicking Save
+        // Register the promote PATCH listener BEFORE clicking Save
         const promoteResponsePromise = page.waitForResponse(
           (resp) =>
             resp.url().includes(`/api/diary-entries/${createdId}/promote`) &&
-            resp.request().method() === 'POST',
+            resp.request().method() === 'PATCH',
         );
 
         // Click "Save" — promotes the draft to saved status
@@ -192,11 +192,11 @@ test.describe('Create daily_log with metadata (Scenario 3)', () => {
       await expect(editPage.draftBadge).toBeVisible();
       await expect(editPage.heading).toBeVisible();
 
-      // Register the promote listener BEFORE clicking Save
+      // Register the promote PATCH listener BEFORE clicking Save
       const promoteResponsePromise = page.waitForResponse(
         (resp) =>
           resp.url().includes(`/api/diary-entries/${createdId}/promote`) &&
-          resp.request().method() === 'POST',
+          resp.request().method() === 'PATCH',
       );
 
       // Click "Save" to promote the draft to saved status
@@ -271,11 +271,11 @@ test.describe('Create site_visit with metadata (Scenario 4)', () => {
       await expect(editPage.draftBadge).toBeVisible();
       await expect(editPage.heading).toBeVisible();
 
-      // Register the promote listener BEFORE clicking Save
+      // Register the promote PATCH listener BEFORE clicking Save
       const promoteResponsePromise = page.waitForResponse(
         (resp) =>
           resp.url().includes(`/api/diary-entries/${createdId}/promote`) &&
-          resp.request().method() === 'POST',
+          resp.request().method() === 'PATCH',
       );
 
       // Click "Save" to promote the draft to saved status

@@ -577,11 +577,11 @@ test.describe('Promote draft — happy path (Scenario 9)', { tag: '@responsive' 
         // The submit button for draft is "Save" (promoteButton)
         await editPage.submitButton.scrollIntoViewIfNeeded();
 
-        // Register the promote POST listener before clicking
+        // Register the promote PATCH listener before clicking
         const promoteResponsePromise = page.waitForResponse(
           (resp) =>
             resp.url().includes(`/api/diary-entries/${draftId}/promote`) &&
-            resp.request().method() === 'POST',
+            resp.request().method() === 'PATCH',
         );
 
         await editPage.submitButton.click();
@@ -897,7 +897,7 @@ test.describe('Dashboard excludes drafts (Scenario 15)', () => {
       const promotePromise = page.waitForResponse(
         (resp) =>
           resp.url().includes(`/api/diary-entries/${draftId}/promote`) &&
-          resp.request().method() === 'POST',
+          resp.request().method() === 'PATCH',
       );
       await editPage.submitButton.click();
       await promotePromise;

@@ -310,11 +310,7 @@
     "discardDraftConfirm": "Entwurf verwerfen",
     "discarding": "Wird verworfen...",
     "promoteButton": "Speichern",
-    "promoting": "Wird gespeichert...",
-    "uploadBlockerTitle": "Uploads laufen noch",
-    "uploadBlockerMessage": "Fotos werden noch hochgeladen. Möchten Sie die Seite trotzdem verlassen? Laufende Uploads können verloren gehen.",
-    "uploadBlockerLeave": "Trotzdem verlassen",
-    "uploadBlockerStay": "Auf Seite bleiben"
+    "promoting": "Wird gespeichert..."
   },
   "entryForm": {
     "entryDate": "Einzugsdatum",

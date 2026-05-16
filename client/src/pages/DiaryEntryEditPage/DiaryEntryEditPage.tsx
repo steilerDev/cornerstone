@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
-import { useNavigate, useParams, useBlocker } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   DiaryEntryDetail,
@@ -81,12 +81,6 @@ export default function DiaryEntryEditPage() {
   // Photo state
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const photosResult = usePhotos(entry ? 'diary_entry' : '', entry?.id || '');
-
-  // Navigation blocker for uploads in progress
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      uploadingCount > 0 && currentLocation.pathname !== nextLocation.pathname,
-  );
 
   // Form fields
   const [entryDate, setEntryDate] = useState('');
@@ -813,40 +807,6 @@ export default function DiaryEntryEditPage() {
                 disabled={isDeleting}
               >
                 {isDeleting ? t('editPage.discarding') : t('editPage.discardDraftConfirm')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Upload blocker modal */}
-      {blocker.state === 'blocked' && uploadingCount > 0 && (
-        <div
-          className={styles.modal}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="upload-blocker-title"
-        >
-          <div className={styles.modalBackdrop} />
-          <div className={styles.modalContent}>
-            <h2 id="upload-blocker-title" className={styles.modalTitle}>
-              {t('editPage.uploadBlockerTitle')}
-            </h2>
-            <p className={styles.modalText}>{t('editPage.uploadBlockerMessage')}</p>
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={shared.btnSecondary}
-                onClick={() => blocker.proceed?.()}
-              >
-                {t('editPage.uploadBlockerLeave')}
-              </button>
-              <button
-                type="button"
-                className={shared.btnPrimary}
-                onClick={() => blocker.reset?.()}
-              >
-                {t('editPage.uploadBlockerStay')}
               </button>
             </div>
           </div>

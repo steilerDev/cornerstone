@@ -310,11 +310,7 @@
     "discardDraftConfirm": "Discard Draft",
     "discarding": "Discarding...",
     "promoteButton": "Save",
-    "promoting": "Saving...",
-    "uploadBlockerTitle": "Uploads in Progress",
-    "uploadBlockerMessage": "Photos are still uploading. Are you sure you want to leave? Uploading photos may be lost.",
-    "uploadBlockerLeave": "Leave Anyway",
-    "uploadBlockerStay": "Stay"
+    "promoting": "Saving..."
   },
   "entryForm": {
     "entryDate": "Entry Date",
