@@ -147,6 +147,7 @@ export interface InvoiceStatusBreakdown {
   paid: InvoiceStatusSummary;
   claimed: InvoiceStatusSummary;
   quotation: InvoiceStatusSummary;
+  overdue: InvoiceStatusSummary;
 }
 
 /**

@@ -624,6 +624,7 @@ function DepositRow({
               description: deposit.description ?? 'deposit',
             })}
             placement="bottom-end"
+            usePortal
           />
         </div>
       </td>
@@ -757,6 +758,7 @@ function DepositCard({
             description: deposit.description ?? 'deposit',
           })}
           placement="top-end"
+          usePortal
         />
       </div>
     </div>
@@ -808,7 +810,7 @@ function AddEditDepositModal({
             disabled={isMutating}
             data-testid="deposit-modal-cancel"
           >
-            {t('common:buttons.cancel')}
+            {t('common:button.cancel')}
           </button>
           <button
             type="submit"
@@ -823,7 +825,7 @@ function AddEditDepositModal({
             }
             data-testid="deposit-modal-save"
           >
-            {isMutating ? t('budget:invoiceDetail.deposits.form.saving') : t('common:buttons.save')}
+            {isMutating ? t('budget:invoiceDetail.deposits.form.saving') : t('common:button.save')}
           </button>
         </div>
       }
@@ -1006,7 +1008,7 @@ function DeleteDepositModal({
             disabled={isMutating}
             data-testid="deposit-delete-cancel"
           >
-            {t('common:buttons.cancel')}
+            {t('common:button.cancel')}
           </button>
           <button
             type="button"
@@ -1083,7 +1085,7 @@ function StateConfirmModal({
             disabled={isMutating}
             data-testid="state-confirm-cancel"
           >
-            {t('common:buttons.cancel')}
+            {t('common:button.cancel')}
           </button>
           <button
             type="button"
@@ -1092,7 +1094,7 @@ function StateConfirmModal({
             disabled={isMutating}
             data-testid="state-confirm-button"
           >
-            {t('common:buttons.confirm')}
+            {t('common:button.confirm')}
           </button>
         </div>
       }

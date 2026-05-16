@@ -438,6 +438,9 @@
     "summaryPaid": "Paid",
     "summaryClaimed": "Claimed",
     "summaryQuotation": "Quotation",
+    "summaryOverdue": "Overdue",
+    "summaryOverdueWarning_one": "{{count}} pending invoice past due",
+    "summaryOverdueWarning_other": "{{count}} pending invoices past due",
     "filterByStatus": "Filter by status",
     "filterByVendor": "Filter by vendor",
     "allStatuses": "All Statuses",
@@ -596,7 +599,80 @@
     },
     "budgetLines": {
       "createFormLegend": "Create new budget line",
-      "autoLinkedSuccess": "Budget line created and added for {{amount}}"
+      "autoLinkedSuccess": "Budget line created and added for {{amount}}",
+      "sectionTitle": "Budget Lines",
+      "addButton": "Add Budget Line",
+      "loading": "Loading budget lines…",
+      "loadError": "Failed to load budget lines. Please try again.",
+      "dismissError": "Dismiss",
+      "dismissErrorAriaLabel": "Dismiss error",
+      "empty": {
+        "message": "No budget lines linked",
+        "description": "Link budget lines to allocate portions of this invoice to specific work items or household items."
+      },
+      "countLabel_one": "{{count}} budget line linked",
+      "countLabel_other": "{{count}} budget lines linked",
+      "columns": {
+        "description": "Description",
+        "category": "Category",
+        "planned": "Planned",
+        "itemized": "Itemized",
+        "linkedItem": "Linked Item",
+        "actions": "Actions",
+        "remaining": "Remaining"
+      },
+      "menu": {
+        "edit": "Edit",
+        "remove": "Remove",
+        "ariaLabel": "Budget line actions for {{description}}"
+      },
+      "modal": {
+        "editTitle": "Edit Budget Line",
+        "removeTitle": "Remove Budget Line",
+        "removeConfirm": "This budget line will be unlinked from the invoice. The budget line itself will remain in the work item or household item.",
+        "removeConfirmButton": "Remove",
+        "removing": "Removing…"
+      },
+      "form": {
+        "itemizedAmount": "Itemized Amount",
+        "saving": "Saving…",
+        "required": "*"
+      },
+      "editError": {
+        "amountInvalid": "Amount must be a non-negative number.",
+        "exceedsTotal": "The new amount would exceed the invoice total.",
+        "saveFailed": "Failed to update budget line. Please try again."
+      },
+      "picker": {
+        "title": "Add Budget Line",
+        "step2Title": "Select Budget Line for {{itemTitle}}",
+        "closeAriaLabel": "Close budget line picker",
+        "workItemTab": "Work Item",
+        "householdItemTab": "Household Item",
+        "separator": "or",
+        "loadingLines": "Loading budget lines...",
+        "noUnlinkedLines": "No unlinked budget lines for this item.",
+        "createLine": "Create Budget Line",
+        "unnamedBudgetLine": "Unnamed budget line",
+        "plannedLabel": "Planned: {{amount}}",
+        "itemizedAmountAriaLabel": "Itemized amount for {{description}}",
+        "budgetLineGeneric": "budget line",
+        "remainingToAllocate": "Remaining to allocate:",
+        "addSelectedLines": "Add Selected Lines",
+        "backButton": "← Back",
+        "loadError": "Failed to load budget lines.",
+        "loadFormError": "Failed to load form data.",
+        "error": {
+          "plannedAmountInvalid": "Planned amount must be a valid non-negative number.",
+          "quantityInvalid": "Quantity must be a valid positive number.",
+          "unitPriceInvalid": "Unit price must be a valid non-negative number.",
+          "exceedsTotal": "Linking this budget line would exceed the invoice total.",
+          "alreadyLinked": "This budget line is already linked to another invoice.",
+          "linkFailed": "Failed to link budget line. Please try again.",
+          "createFailed": "Failed to create budget line."
+        }
+      },
+      "remainingAriaLabel": "Remaining amount: {{amount}}"
     },
     "deposits": {
       "sectionTitle": "Deposits",

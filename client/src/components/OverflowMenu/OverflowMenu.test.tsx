@@ -463,4 +463,115 @@ describe('OverflowMenu', () => {
       expect(iconSpan).toBeNull();
     });
   });
+
+  // ─── Scenario 16: usePortal=true — portal rendering (#1423) ──────────────────
+
+  describe('Scenario 16: usePortal=true renders menu in document.body (#1423)', () => {
+    function mockRect(trigger: HTMLElement) {
+      trigger.getBoundingClientRect = jest.fn(() => ({
+        top: 100,
+        bottom: 120,
+        left: 200,
+        right: 300,
+        width: 100,
+        height: 20,
+        x: 200,
+        y: 100,
+        toJSON: () => ({}),
+      }));
+    }
+
+    it('menu appears as a child of document.body when usePortal=true', () => {
+      renderMenu({ usePortal: true });
+      const trigger = screen.getByRole('button', { name: 'Open menu' });
+      mockRect(trigger);
+
+      fireEvent.click(trigger);
+
+      const menu = screen.getByRole('menu');
+      expect(menu).toBeInTheDocument();
+
+      // The menu must be inside document.body (portalled out)
+      expect(document.body.contains(menu)).toBe(true);
+
+      // Walk up from menu — it should NOT be inside the wrapper div
+      const wrapper = trigger.closest('div');
+      expect(wrapper?.contains(menu)).toBe(false);
+    });
+
+    it('menu IS inside the wrapper div when usePortal=false', () => {
+      renderMenu({ usePortal: false });
+      const trigger = screen.getByRole('button', { name: 'Open menu' });
+      fireEvent.click(trigger);
+
+      const menu = screen.getByRole('menu');
+      const wrapper = trigger.closest('div');
+      expect(wrapper?.contains(menu)).toBe(true);
+    });
+
+    it('scroll event on document closes the menu when usePortal=true', () => {
+      renderMenu({ usePortal: true });
+      const trigger = screen.getByRole('button', { name: 'Open menu' });
+      mockRect(trigger);
+
+      fireEvent.click(trigger);
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+
+      act(() => {
+        document.dispatchEvent(new Event('scroll', { bubbles: true }));
+      });
+
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+
+    it('resize event on window closes the menu when usePortal=true', () => {
+      renderMenu({ usePortal: true });
+      const trigger = screen.getByRole('button', { name: 'Open menu' });
+      mockRect(trigger);
+
+      fireEvent.click(trigger);
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+
+      act(() => {
+        window.dispatchEvent(new Event('resize'));
+      });
+
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+
+    it('scroll event does NOT close the menu when usePortal=false', () => {
+      renderMenu({ usePortal: false });
+      const trigger = screen.getByRole('button', { name: 'Open menu' });
+      fireEvent.click(trigger);
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+
+      act(() => {
+        document.dispatchEvent(new Event('scroll', { bubbles: true }));
+      });
+
+      // Menu should remain open — scroll listener only added when usePortal=true
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+    });
+
+    it('menuFixed CSS class applied to menu when usePortal=true', () => {
+      renderMenu({ usePortal: true });
+      const trigger = screen.getByRole('button', { name: 'Open menu' });
+      mockRect(trigger);
+
+      fireEvent.click(trigger);
+
+      const menu = screen.getByRole('menu');
+      // identity-obj-proxy returns 'menuFixed' for styles.menuFixed
+      expect(menu.className).toContain('menuFixed');
+    });
+
+    it('menuFixed CSS class NOT applied to menu when usePortal=false', () => {
+      renderMenu({ usePortal: false });
+      const trigger = screen.getByRole('button', { name: 'Open menu' });
+      fireEvent.click(trigger);
+
+      const menu = screen.getByRole('menu');
+      expect(menu.className).not.toContain('menuFixed');
+    });
+  });
 });

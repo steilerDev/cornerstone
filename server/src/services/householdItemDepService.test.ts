@@ -177,7 +177,7 @@ describe('householdItemDepService', () => {
       const wiId = insertWorkItem(db, userId, {
         title: 'Pour Foundation',
         status: 'in_progress',
-        endDate: '2026-05-15',
+        endDate: '2027-06-15',
       });
 
       // Insert dependency directly into the DB
@@ -199,7 +199,7 @@ describe('householdItemDepService', () => {
       expect(dep.predecessor.id).toBe(wiId);
       expect(dep.predecessor.title).toBe('Pour Foundation');
       expect(dep.predecessor.status).toBe('in_progress');
-      expect(dep.predecessor.endDate).toBe('2026-05-15');
+      expect(dep.predecessor.endDate).toBe('2027-06-15');
     });
 
     it('returns deps with predecessor details for milestone type', () => {
@@ -267,7 +267,7 @@ describe('householdItemDepService', () => {
     it('creates a work_item dependency with default FS type and 0 lag', () => {
       const userId = insertUser(db);
       const hiId = insertHouseholdItem(db);
-      const wiId = insertWorkItem(db, userId, { title: 'Foundation Work', endDate: '2026-05-15' });
+      const wiId = insertWorkItem(db, userId, { title: 'Foundation Work', endDate: '2027-06-15' });
 
       const result = householdItemDepService.createDep(db, hiId, {
         predecessorType: 'work_item',
@@ -279,7 +279,7 @@ describe('householdItemDepService', () => {
       expect(result.predecessorId).toBe(wiId);
       expect(result.predecessor.id).toBe(wiId);
       expect(result.predecessor.title).toBe('Foundation Work');
-      expect(result.predecessor.endDate).toBe('2026-05-15');
+      expect(result.predecessor.endDate).toBe('2027-06-15');
     });
 
     it('creates a milestone dependency with default FS type and 0 lag', () => {
@@ -397,7 +397,7 @@ describe('householdItemDepService', () => {
     it('calls autoReschedule after creating dep — delivery dates updated in DB', () => {
       const userId = insertUser(db);
       const hiId = insertHouseholdItem(db, { status: 'planned' });
-      const wiId = insertWorkItem(db, userId, { endDate: '2026-05-15' });
+      const wiId = insertWorkItem(db, userId, { endDate: '2027-06-15' });
 
       // Before creating dep, earliest_delivery_date should be null
       const _before = db

@@ -980,6 +980,108 @@ describe('Invoice Service', () => {
     });
   });
 
+  // ─── listAllInvoices() overdue aggregation (#1421) ──────────────────────────
+
+  describe('listAllInvoices() overdue aggregation (#1421)', () => {
+    it('S1: no invoices — summary.overdue is zero count and zero totalAmount', () => {
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.overdue).toEqual({ count: 0, totalAmount: 0 });
+    });
+
+    it('S2: one pending invoice with dueDate in the past — count 1, totalAmount equals invoice amount', () => {
+      const vendorId = createTestVendor('Overdue S2 Vendor');
+      insertRawInvoice(vendorId, { status: 'pending', amount: 500, dueDate: '2020-01-01' });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.overdue.count).toBe(1);
+      expect(result.summary.overdue.totalAmount).toBe(500);
+    });
+
+    it('S3: one pending invoice with dueDate === today — count 0 (strict less-than, today is not overdue)', () => {
+      const vendorId = createTestVendor('Overdue S3 Vendor');
+      // Use SQLite's own date() function so "today" matches the date() comparison
+      // the production query performs (date('now', 'localtime')). Avoids UTC vs
+      // local-time drift and midnight-boundary flakes when the test runner clock
+      // and the SQLite engine disagree on what "today" is.
+      const todayRow = sqlite.prepare("SELECT date('now', 'localtime') AS today").get() as {
+        today: string;
+      };
+      insertRawInvoice(vendorId, { status: 'pending', amount: 750, dueDate: todayRow.today });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.overdue.count).toBe(0);
+      expect(result.summary.overdue.totalAmount).toBe(0);
+    });
+
+    it('S4: one pending invoice with dueDate in the future — count 0', () => {
+      const vendorId = createTestVendor('Overdue S4 Vendor');
+      insertRawInvoice(vendorId, { status: 'pending', amount: 300, dueDate: '2099-12-30' });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.overdue.count).toBe(0);
+      expect(result.summary.overdue.totalAmount).toBe(0);
+    });
+
+    it('S5: one pending invoice with dueDate null — count 0 (null dueDate is excluded)', () => {
+      const vendorId = createTestVendor('Overdue S5 Vendor');
+      insertRawInvoice(vendorId, { status: 'pending', amount: 200, dueDate: null });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.overdue.count).toBe(0);
+      expect(result.summary.overdue.totalAmount).toBe(0);
+    });
+
+    it('S6: one paid invoice with dueDate in the past — count 0 (only pending qualifies)', () => {
+      const vendorId = createTestVendor('Overdue S6 Vendor');
+      insertRawInvoice(vendorId, { status: 'paid', amount: 1000, dueDate: '2020-01-01' });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.overdue.count).toBe(0);
+      expect(result.summary.overdue.totalAmount).toBe(0);
+    });
+
+    it('S7: one claimed invoice with dueDate in the past — count 0 (only pending qualifies)', () => {
+      const vendorId = createTestVendor('Overdue S7 Vendor');
+      insertRawInvoice(vendorId, { status: 'claimed', amount: 800, dueDate: '2020-01-01' });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.overdue.count).toBe(0);
+      expect(result.summary.overdue.totalAmount).toBe(0);
+    });
+
+    it('S8: 3 pending invoices (2 past dueDate, 1 future) — count 2, totalAmount is sum of the 2 overdue', () => {
+      const vendorId = createTestVendor('Overdue S8 Vendor');
+      insertRawInvoice(vendorId, { status: 'pending', amount: 400, dueDate: '2020-01-01' });
+      insertRawInvoice(vendorId, { status: 'pending', amount: 600, dueDate: '2020-06-15' });
+      insertRawInvoice(vendorId, { status: 'pending', amount: 200, dueDate: '2099-12-30' });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.overdue.count).toBe(2);
+      expect(result.summary.overdue.totalAmount).toBe(1000);
+    });
+
+    it('S9: overdue is global — 2 overdue invoices exist but status filter returns 0 results, summary.overdue.count is still 2', () => {
+      const vendorId = createTestVendor('Overdue S9 Vendor');
+      insertRawInvoice(vendorId, { status: 'pending', amount: 300, dueDate: '2020-01-01' });
+      insertRawInvoice(vendorId, { status: 'pending', amount: 700, dueDate: '2020-03-01' });
+
+      // Filter by 'paid' — page returns 0 invoices, but summary must still reflect global overdue
+      const result = invoiceService.listAllInvoices(db, { status: 'paid' });
+
+      expect(result.invoices).toHaveLength(0);
+      expect(result.summary.overdue.count).toBe(2);
+      expect(result.summary.overdue.totalAmount).toBe(1000);
+    });
+  });
+
   // ─── listAllInvoices() deposit-aware summary (#1411) ────────────────────────
 
   describe('listAllInvoices() deposit-aware summary (#1411)', () => {
