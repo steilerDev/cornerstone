@@ -260,6 +260,7 @@ export default function DiaryPage() {
           type="button"
           className={`${styles.filterChip} ${!statusFilter ? styles.filterChipActive : ''}`}
           onClick={() => handleStatusFilterChange(null)}
+          aria-pressed={!statusFilter}
         >
           {t('filterBar.statusAll')}
         </button>
@@ -267,6 +268,7 @@ export default function DiaryPage() {
           type="button"
           className={`${styles.filterChip} ${statusFilter === 'draft' ? styles.filterChipActive : ''}`}
           onClick={() => handleStatusFilterChange('draft')}
+          aria-pressed={statusFilter === 'draft'}
         >
           {t('filterBar.statusDraft')}
         </button>
@@ -274,6 +276,7 @@ export default function DiaryPage() {
           type="button"
           className={`${styles.filterChip} ${statusFilter === 'saved' ? styles.filterChipActive : ''}`}
           onClick={() => handleStatusFilterChange('saved')}
+          aria-pressed={statusFilter === 'saved'}
         >
           {t('filterBar.statusSaved')}
         </button>

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
 import { useFormatters } from '../../../lib/formatters.js';
 import { Badge } from '../../Badge/Badge.js';
+import badgeStyles from '../../Badge/Badge.module.css';
 import { DiaryEntryTypeBadge } from '../DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
 import { DiaryMetadataSummary } from '../DiaryMetadataSummary/DiaryMetadataSummary.js';
 import styles from './DiaryEntryCard.module.css';
@@ -68,7 +69,7 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
         <DiaryEntryTypeBadge entryType={entry.entryType} />
         {entry.status === 'draft' && (
           <Badge
-            variants={{ draft: { label: t('draft.badgeLabel'), className: 'draft' } }}
+            variants={{ draft: { label: t('draft.badgeLabel'), className: badgeStyles.draft } }}
             value="draft"
             testId={`draft-badge-${entry.id}`}
           />

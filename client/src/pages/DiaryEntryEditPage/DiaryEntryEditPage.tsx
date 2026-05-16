@@ -27,6 +27,7 @@ import { fetchVendors } from '../../lib/vendorsApi.js';
 import type { VendorOption } from '../../components/diary/SignatureCapture/SignatureCapture.js';
 import { usePhotos } from '../../hooks/usePhotos.js';
 import { Badge } from '../../components/Badge/Badge.js';
+import badgeStyles from '../../components/Badge/Badge.module.css';
 import shared from '../../styles/shared.module.css';
 import { DiaryEntryTypeBadge } from '../../components/diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
 import { DiaryEntryForm } from '../../components/diary/DiaryEntryForm/DiaryEntryForm.js';
@@ -565,7 +566,7 @@ export default function DiaryEntryEditPage() {
           <DiaryEntryTypeBadge entryType={entry.entryType} size="sm" />
           {entry.status === 'draft' && (
             <Badge
-              variants={{ draft: { label: t('draft.badgeLabel'), className: 'draft' } }}
+              variants={{ draft: { label: t('draft.badgeLabel'), className: badgeStyles.draft } }}
               value="draft"
               testId="draft-status-badge"
             />

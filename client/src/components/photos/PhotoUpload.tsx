@@ -132,7 +132,7 @@ export function PhotoUpload({
   // No concurrency cap: the browser, server, and reverse proxy each impose
   // their own limits, and the per-photo failure UI gives the user a clear
   // signal if anything goes wrong. A cap was attempted in earlier iterations
-  // but kept fighting with React state-update timing; see #1426 follow-up.
+  // but kept fighting with React state-update timing; see #1429.
   //
   // Drive the work from a useEffect that observes the queue and atomically
   // transitions queued → uploading + kicks off uploads. Both reads and updates
