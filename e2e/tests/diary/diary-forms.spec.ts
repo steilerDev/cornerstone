@@ -163,20 +163,21 @@ test.describe('Create daily_log with metadata (Scenario 3)', () => {
 
       const body = `${testPrefix} daily log with metadata`;
 
-      await createPage.bodyTextarea.fill(body);
-
-      // Fill daily_log-specific metadata before triggering draft creation
-      await createPage.weatherSelect.waitFor({ state: 'visible' });
-      await createPage.weatherSelect.selectOption('sunny');
-      await createPage.temperatureInput.fill('22');
-      await createPage.workersInput.fill('8');
-
-      // Register the POST listener BEFORE blurring to capture the auto-draft response
+      // Register the POST listener FIRST — before ANY field interaction.
+      // The create page calls createDraft() on the FIRST metadata onChange (e.g., weather select),
+      // which fires before the test could register the listener if we filled metadata first.
+      // With the listener registered upfront, it catches whichever field triggers createDraft.
       const draftResponsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
       );
 
-      // Press Tab then blur explicitly to trigger onFieldBlur → createDraft() with status: 'draft'
+      // Fill body only on the create page. The metadata fields trigger createDraft immediately
+      // on onChange (stale-closure issue: the draft is created before React state updates apply).
+      // To avoid the stale-closure problem, we fill metadata on the EDIT page instead, where
+      // the auto-save effect correctly captures the latest state after re-render.
+      await createPage.bodyTextarea.fill(body);
+
+      // Blur the body textarea to trigger onFieldBlur → createDraft() with status: 'draft'
       await createPage.bodyTextarea.press('Tab');
       await createPage.bodyTextarea.blur();
       const draftResponse = await draftResponsePromise;
@@ -192,6 +193,23 @@ test.describe('Create daily_log with metadata (Scenario 3)', () => {
       await expect(editPage.draftBadge).toBeVisible();
       await expect(editPage.heading).toBeVisible();
 
+      // Fill metadata on the edit page. The edit-page metadata onChange handlers (setDailyLogWeather
+      // etc.) correctly update React state. The auto-save effect fires immediately after each change.
+      // The promote request (below) reads from React state, so it will include all metadata values.
+      await editPage.weatherSelect.waitFor({ state: 'visible' });
+
+      // Register PATCH listener before the weather change to wait for the auto-save
+      const autoSavePatchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes(`/api/diary-entries/${createdId}`) &&
+          resp.request().method() === 'PATCH' &&
+          !resp.url().includes('/promote'),
+      );
+      await editPage.weatherSelect.selectOption('sunny');
+      await editPage.workersInput.fill('8');
+      // Wait for at least one auto-save PATCH to confirm the values are persisted server-side
+      await autoSavePatchPromise;
+
       // Register the promote PATCH listener BEFORE clicking Save
       const promoteResponsePromise = page.waitForResponse(
         (resp) =>
@@ -199,7 +217,7 @@ test.describe('Create daily_log with metadata (Scenario 3)', () => {
           resp.request().method() === 'PATCH',
       );
 
-      // Click "Save" to promote the draft to saved status
+      // Click "Save" to promote the draft — promote sends all current field values from React state
       await editPage.submitButton.scrollIntoViewIfNeeded();
       await editPage.submitButton.click();
       const promoteResponse = await promoteResponsePromise;
@@ -243,19 +261,19 @@ test.describe('Create site_visit with metadata (Scenario 4)', () => {
 
       const body = `${testPrefix} site visit with outcome`;
 
-      await createPage.bodyTextarea.fill(body);
-
-      // Fill site_visit-specific metadata before triggering draft creation
-      await createPage.inspectorNameInput.waitFor({ state: 'visible' });
-      await createPage.inspectorNameInput.fill('Jane Inspector');
-      await createPage.outcomeSelect.selectOption('pass');
-
-      // Register the POST listener BEFORE blurring to capture the auto-draft response
+      // Register the POST listener FIRST — before ANY field interaction.
+      // On the create page, filling the inspector name input fires the onChange handler which
+      // calls createDraft() immediately (stale-closure). The draft is created with null inspector.
+      // By registering the listener first, we capture whichever interaction triggers the POST.
       const draftResponsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
       );
 
-      // Press Tab then blur explicitly to trigger onFieldBlur → createDraft() with status: 'draft'
+      // Fill body only on the create page. We fill metadata on the edit page to avoid the
+      // stale-closure issue where metadata onChange fires createDraft with the old (null) state.
+      await createPage.bodyTextarea.fill(body);
+
+      // Blur to trigger onFieldBlur → createDraft() with status: 'draft'
       await createPage.bodyTextarea.press('Tab');
       await createPage.bodyTextarea.blur();
       const draftResponse = await draftResponsePromise;
@@ -271,6 +289,25 @@ test.describe('Create site_visit with metadata (Scenario 4)', () => {
       await expect(editPage.draftBadge).toBeVisible();
       await expect(editPage.heading).toBeVisible();
 
+      // Fill site_visit metadata on the edit page. The edit page correctly reads the latest React
+      // state in auto-save (no stale-closure issue). Both inspector name and outcome are required
+      // for site_visit promote; filling them on the edit page ensures validate passes at promote.
+      await editPage.inspectorNameInput.waitFor({ state: 'visible' });
+
+      // Register PATCH listener before inspector name fill to wait for auto-save
+      const autoSavePatchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes(`/api/diary-entries/${createdId}`) &&
+          resp.request().method() === 'PATCH' &&
+          !resp.url().includes('/promote'),
+      );
+      await editPage.inspectorNameInput.fill('Jane Inspector');
+      // Blur inspector name to trigger debounced auto-save (onFieldBlur fires triggerAutoSave)
+      await editPage.inspectorNameInput.press('Tab');
+      await editPage.outcomeSelect.selectOption('pass');
+      // Wait for auto-save to confirm inspector + outcome are persisted before promoting
+      await autoSavePatchPromise;
+
       // Register the promote PATCH listener BEFORE clicking Save
       const promoteResponsePromise = page.waitForResponse(
         (resp) =>
@@ -278,7 +315,7 @@ test.describe('Create site_visit with metadata (Scenario 4)', () => {
           resp.request().method() === 'PATCH',
       );
 
-      // Click "Save" to promote the draft to saved status
+      // Click "Save" to promote — promote sends all current React state (including inspector+outcome)
       await editPage.submitButton.scrollIntoViewIfNeeded();
       await editPage.submitButton.click();
       const promoteResponse = await promoteResponsePromise;

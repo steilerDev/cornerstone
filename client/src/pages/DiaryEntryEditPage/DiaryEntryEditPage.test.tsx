@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
@@ -809,12 +809,15 @@ describe('DiaryEntryEditPage', () => {
 
       await userEvent.setup().click(screen.getByRole('button', { name: /discard draft/i }));
 
-      // Modal should appear
+      // Modal should appear — use the dialog role to scope to the modal
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /yes.*discard/i })).toBeInTheDocument();
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
 
-      await userEvent.setup().click(screen.getByRole('button', { name: /yes.*discard/i }));
+      // Confirm button inside the modal is also labelled "Discard Draft" — use within(dialog) to
+      // avoid matching the trigger button that remains rendered outside the modal.
+      const discardDialog = screen.getByRole('dialog');
+      await userEvent.setup().click(within(discardDialog).getByRole('button', { name: /^discard draft$/i }));
 
       await waitFor(() => {
         expect(mockDeleteDiaryEntry).toHaveBeenCalledWith('draft-1');

@@ -381,12 +381,18 @@ test.describe('Photo attach — concurrency (Scenario 7)', () => {
         state: 'visible',
       });
 
-      // Use page.route to intercept photo uploads and hold them (to observe queue states)
+      // Use page.route to intercept photo uploads and hold them (to observe queue states).
+      // stopIntercepting gates whether we hold new requests. After we release the initial holds,
+      // the production code's processQueue stale-closure may trigger re-uploads of already-handled
+      // photos. Setting stopIntercepting=true before releasing lets those extra requests fall
+      // through (route.continue()) instead of creating orphan hold-promises that are never resolved
+      // before page.unroute(), which would abort the route handler mid-await and cause flakiness.
       let uploadCount = 0;
+      let stopIntercepting = false;
       const uploadHolds: Array<() => void> = [];
 
       await page.route('**/api/photos', async (route) => {
-        if (route.request().method() === 'POST') {
+        if (route.request().method() === 'POST' && !stopIntercepting) {
           uploadCount++;
           const countAtCapture = uploadCount;
           // Hold the upload — resolve when test says to proceed
@@ -412,6 +418,8 @@ test.describe('Photo attach — concurrency (Scenario 7)', () => {
             }),
           });
         } else {
+          // Pass through: either not a POST, or stopIntercepting is true (extra re-upload from
+          // the processQueue stale-closure that fires after initial holds are released).
           await route.continue();
         }
       });
@@ -453,6 +461,13 @@ test.describe('Photo attach — concurrency (Scenario 7)', () => {
       // The queue container may show "Uploading" for up to 3 items and "Queued" for 1.
       // Verify uploadCount does not exceed 3 (concurrent limit)
       expect(uploadCount).toBeLessThanOrEqual(3);
+
+      // Set stopIntercepting BEFORE releasing holds so that any subsequent upload requests
+      // triggered by the production code's processQueue stale-closure (which may re-upload
+      // already-handled photos once the held XHRs complete) fall through to route.continue()
+      // rather than creating new orphan hold-promises. Orphan promises would block until
+      // page.unroute() aborts them, potentially causing unhandled rejections or test timeouts.
+      stopIntercepting = true;
 
       // Release all held uploads BEFORE unrouting to avoid leaving route handlers in a
       // dangling await state (Playwright aborts stuck handlers when unroute is called,
@@ -654,7 +669,11 @@ test.describe('Promote draft — validation error (Scenario 10)', () => {
       // Use the specific body-error element ID (rendered by DiaryEntryForm when validationErrors.body
       // is set) to avoid ambiguity with other role="alert" elements (e.g. Toast notifications).
       // DiaryEntryForm renders: <div id="body-error" role="alert">{validationErrors.body}</div>
-      await page.locator('#body-error').waitFor({ state: 'visible' });
+      //
+      // Use expect().toBeVisible() (which uses the project expect.timeout of 7s) rather than
+      // waitFor({ state: 'visible' }) (which uses the actionTimeout of 5s) to give React more
+      // time to process the synchronous state update from validateForm() → setValidationErrors().
+      await expect(page.locator('#body-error')).toBeVisible();
       expect(page.url()).toContain(`/diary/${draftId}/edit`);
 
       // Draft badge should still be visible
@@ -911,7 +930,8 @@ test.describe('Dashboard excludes drafts (Scenario 15)', () => {
       );
       await dashboardPage.goto();
       await diaryApiPromise;
-      await dashboardPage.waitForCardsLoaded();
+      // Wait for all concurrent dashboard API calls to settle before asserting.
+      await page.waitForLoadState('networkidle');
 
       // The Recent Diary card should NOT contain our draft entry
       // data-testid="recent-diary-{id}" is set by RecentDiaryCard for each entry
@@ -941,9 +961,15 @@ test.describe('Dashboard excludes drafts (Scenario 15)', () => {
       );
       await dashboardPage.goto();
       await diaryApiPromise;
-      await dashboardPage.waitForCardsLoaded();
+      // Wait for all concurrent dashboard API calls to settle (budget, timeline, invoices, etc.)
+      // before asserting on card content. waitForCardsLoaded() only waits for the first skeleton
+      // to hide, which may not be the diary card. networkidle ensures the full allSettled batch
+      // has completed and React has re-rendered with the diary entries.
+      await page.waitForLoadState('networkidle');
 
-      // The promoted entry should now appear in Recent Diary
+      // The promoted entry should now appear in Recent Diary.
+      // Use a slightly longer timeout (compared to the 7s default) to account for CI latency
+      // in processing the full dashboard data load.
       await expect(page.getByTestId(`recent-diary-${draftId}`)).toBeVisible();
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);

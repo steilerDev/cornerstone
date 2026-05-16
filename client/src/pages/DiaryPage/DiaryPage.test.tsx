@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { screen, waitFor, render, act } from '@testing-library/react';
+import { screen, waitFor, render, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
@@ -384,8 +384,9 @@ describe('DiaryPage', () => {
         );
       });
 
-      // Then click All
-      const allChip = screen.getByRole('button', { name: /^all$/i });
+      // Then click All — scope to the Status group to avoid matching the mode "All" chip
+      const statusGroup = screen.getByRole('group', { name: /status/i });
+      const allChip = within(statusGroup).getByRole('button', { name: /^all$/i });
       await user.click(allChip);
 
       await waitFor(() => {
