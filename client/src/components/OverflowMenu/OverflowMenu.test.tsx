@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
-import { OverflowMenu, type OverflowMenuItem } from './OverflowMenu.js';
+import { OverflowMenu, SCROLL_CLOSE_THRESHOLD_PX, type OverflowMenuItem } from './OverflowMenu.js';
 
 // ─── CSS Module note ──────────────────────────────────────────────────────────
 // identity-obj-proxy returns the class key itself as the class name.
@@ -481,6 +481,19 @@ describe('OverflowMenu', () => {
       }));
     }
 
+    afterEach(() => {
+      Object.defineProperty(window, 'scrollY', {
+        value: 0,
+        writable: true,
+        configurable: true,
+      });
+      Object.defineProperty(window, 'scrollX', {
+        value: 0,
+        writable: true,
+        configurable: true,
+      });
+    });
+
     it('menu appears as a child of document.body when usePortal=true', () => {
       renderMenu({ usePortal: true });
       const trigger = screen.getByRole('button', { name: 'Open menu' });
@@ -509,7 +522,7 @@ describe('OverflowMenu', () => {
       expect(wrapper?.contains(menu)).toBe(true);
     });
 
-    it('scroll event on document closes the menu when usePortal=true', () => {
+    it('large scroll (> threshold) closes the menu when usePortal=true', () => {
       renderMenu({ usePortal: true });
       const trigger = screen.getByRole('button', { name: 'Open menu' });
       mockRect(trigger);
@@ -517,11 +530,36 @@ describe('OverflowMenu', () => {
       fireEvent.click(trigger);
       expect(screen.getByRole('menu')).toBeInTheDocument();
 
+      Object.defineProperty(window, 'scrollY', {
+        value: SCROLL_CLOSE_THRESHOLD_PX * 6,
+        writable: true,
+        configurable: true,
+      });
       act(() => {
         document.dispatchEvent(new Event('scroll', { bubbles: true }));
       });
 
       expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+
+    it('tiny incidental scroll (≤ threshold) does NOT close the menu when usePortal=true', () => {
+      renderMenu({ usePortal: true });
+      const trigger = screen.getByRole('button', { name: 'Open menu' });
+      mockRect(trigger);
+
+      fireEvent.click(trigger);
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+
+      Object.defineProperty(window, 'scrollY', {
+        value: SCROLL_CLOSE_THRESHOLD_PX - 4,
+        writable: true,
+        configurable: true,
+      });
+      act(() => {
+        document.dispatchEvent(new Event('scroll', { bubbles: true }));
+      });
+
+      expect(screen.getByRole('menu')).toBeInTheDocument();
     });
 
     it('resize event on window closes the menu when usePortal=true', () => {
