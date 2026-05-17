@@ -158,60 +158,6 @@ describe('PhotoUpload', () => {
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
   });
 
-  // ─── Scenario 51: concurrent upload slots ─────────────────────────────────
-  // Skipped pending #1429 — the MAX_CONCURRENT cap was removed in #1426. See
-  // the issue for the planned reintroduction. The assertion below assumes a
-  // cap is in place; once #1429 lands, drop the .skip and update if needed.
-
-  describe('Scenario 51: attaching 5 photos when MAX_CONCURRENT=3', () => {
-    it.skip('immediately starts uploading at most 3 photos, remaining 2 stay queued', async () => {
-      // The module mock (CI) returns a never-resolving promise so uploads hang.
-      mockUploadPhoto.mockReturnValue(new Promise(() => undefined));
-      // The XHR mock (local) never fires any events — same effect: uploads hang.
-      // xhrInstances are collected but no load/error events are dispatched.
-
-      const files = [
-        makeFile('photo1.jpg'),
-        makeFile('photo2.jpg'),
-        makeFile('photo3.jpg'),
-        makeFile('photo4.jpg'),
-        makeFile('photo5.jpg'),
-      ];
-
-      renderUpload();
-
-      const fileInput = screen.getByTestId('photo-file-input');
-      await act(async () => {
-        fireEvent.change(fileInput, { target: { files } });
-      });
-
-      // All 5 items appear in the queue
-      await waitFor(() => {
-        const items = screen.getAllByText(/photo[1-5]\.jpg/);
-        expect(items.length).toBeGreaterThanOrEqual(5);
-      });
-
-      // Exactly 3 items should be in "Uploading..." state and 2 in "Queued".
-      // The component's processQueue respects MAX_CONCURRENT=3 via the
-      // useEffect/re-render cycle: each state transition triggers another
-      // processQueue call which checks currentlyUploading < MAX_CONCURRENT.
-      //
-      // We check DOM elements with class "state-uploading" / "state-queued" rather
-      // than text content, because the upload button also shows "Uploading..." text
-      // (same translation key) which would inflate the text-match count.
-      await waitFor(
-        () => {
-          const uploadingItems = document.body.querySelectorAll('[class*="state-uploading"]');
-          const queuedItems = document.body.querySelectorAll('[class*="state-queued"]');
-          // Exactly 3 in uploading state, exactly 2 in queued state
-          expect(uploadingItems.length).toBe(3);
-          expect(queuedItems.length).toBe(2);
-        },
-        { timeout: 3000 },
-      );
-    });
-  });
-
   // ─── Scenario 52: failed upload shows error state ─────────────────────────
 
   describe('Scenario 52: failed upload → entry shows failed state with error and retry button', () => {
