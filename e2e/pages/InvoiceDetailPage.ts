@@ -782,6 +782,10 @@ export class InvoiceDetailPage {
    * Waits for the modal to become visible.
    */
   async openBudgetLinePicker(): Promise<void> {
+    // The button may briefly detach during section re-renders (e.g. after the first budget line
+    // is created, the section transitions from empty-state to non-empty-state and the DOM
+    // is rebuilt). Wait for stable visibility before clicking to avoid a stale-element race.
+    await this.pickerAddBudgetLineButton.waitFor({ state: 'visible' });
     await this.pickerAddBudgetLineButton.click();
     await this.budgetLinePickerModal.waitFor({ state: 'visible' });
   }
