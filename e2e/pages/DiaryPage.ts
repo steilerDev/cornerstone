@@ -5,6 +5,12 @@
  * - A page header with h1 "Construction Diary" and a subtitle with the total entry count
  * - A DiaryFilterBar with search input (data-testid="diary-search-input"), date range pickers,
  *   entry type chip filters, and a "Clear all" button
+ * - Status filter chips (role="group", aria-label="Status"): "All" / "Drafts only" / "Saved only"
+ *   - Clicking sets ?status=draft or ?status=saved URL param; "All" removes the param
+ *   - Chips are plain <button> elements, NOT data-testid'd; identify by button text
+ *   - DiaryFilterBar also has role="group" containers ("Filter by entry mode" and "Filter by entry
+ *     type"), and "All" button text is shared between the mode filter and status filter — always
+ *     scope to the aria-label="Status" group to avoid strict-mode violations
  * - A "New Entry" link button navigating to /diary/new
  * - A timeline of DiaryDateGroup sections (data-testid="date-group-{date}"), each containing
  *   DiaryEntryCard links (data-testid="diary-card-{id}")
@@ -22,6 +28,8 @@
  * - Type chips: data-testid="type-filter-{type}"
  * - Clear filters: data-testid="clear-filters-button"
  * - Pagination buttons: data-testid="prev-page-button" / data-testid="next-page-button"
+ * - Draft badge on entry card: data-testid="draft-badge-{id}"
+ * - Draft entries link to /diary/:id/edit (not /diary/:id)
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -59,6 +67,12 @@ export class DiaryPage {
   readonly prevPageButton: Locator;
   readonly nextPageButton: Locator;
 
+  // Status filter chips — plain <button> elements in a role="group" container
+  // Text from i18n keys: filterBar.statusAll / filterBar.statusDraft / filterBar.statusSaved
+  readonly statusFilterAll: Locator;
+  readonly statusFilterDraft: Locator;
+  readonly statusFilterSaved: Locator;
+
   // Mobile filter toggle button (visible only on mobile, aria-label="Toggle filters")
   readonly mobileFilterToggle: Locator;
 
@@ -74,6 +88,21 @@ export class DiaryPage {
     this.dateFromInput = page.getByTestId('diary-date-from');
     this.dateToInput = page.getByTestId('diary-date-to');
     this.clearFiltersButton = page.getByTestId('clear-filters-button');
+
+    // Status filter chips — text matches i18n keys filterBar.statusAll/statusDraft/statusSaved
+    // Scoped inside the role="group" container with aria-label="Status" (t('filterBar.statusFilterLabel'))
+    // to avoid matching the DiaryFilterBar's two other role="group" containers
+    // (aria-label="Filter by entry mode" and aria-label="Filter by entry type").
+    const statusFilterGroup = page.getByRole('group', { name: 'Status' });
+    this.statusFilterAll = statusFilterGroup.getByRole('button', { name: 'All', exact: true });
+    this.statusFilterDraft = statusFilterGroup.getByRole('button', {
+      name: 'Drafts only',
+      exact: true,
+    });
+    this.statusFilterSaved = statusFilterGroup.getByRole('button', {
+      name: 'Saved only',
+      exact: true,
+    });
 
     this.mobileFilterToggle = page.getByRole('button', { name: 'Toggle filters' });
 
@@ -147,6 +176,14 @@ export class DiaryPage {
    */
   photoCountBadge(entryId: string): Locator {
     return this.page.getByTestId(`photo-count-${entryId}`);
+  }
+
+  /**
+   * Get the Draft badge on a specific entry card.
+   * data-testid="draft-badge-{id}" — rendered by DiaryEntryCard when entry.status === 'draft'.
+   */
+  getDraftBadge(entryId: string): Locator {
+    return this.page.getByTestId(`draft-badge-${entryId}`);
   }
 
   /**

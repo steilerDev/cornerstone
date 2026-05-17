@@ -29,6 +29,7 @@
 | Quotation      | Angebot           | Angebote         |
 | Area           | Bereich           | Bereiche         |
 | Trade          | Gewerk            | Gewerke          |
+| Draft          | Entwurf           | Entwürfe         |
 
 ## Button/Action Label Convention
 
@@ -151,3 +152,18 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - `sourceRow.deselectedAriaLabel` → "{{name}}, abgewählt – zum Auswählen klicken"
 - `availableFunds.activeFilterCaption` → "({{selected}} von {{total}} ausgewählt)"
 - Aria label click-instruction pattern: "– zum [Verb] klicken" (en-dash, infinitive with "zu")
+
+## Draft / Auto-Save Terminology — Issue #1426 (2026-05-16)
+
+- "Draft" → "Entwurf" (singular), "Entwürfe" (plural) — added to glossary
+- "Discard Draft" → "Entwurf verwerfen"
+- "Keep Draft" → "Entwurf behalten"
+- "Discard" (progressive) → "Wird verworfen..."
+- Auto-save status bar labels: "Gespeichert" (saved), "Wird gespeichert..." (saving), error uses em-dash: "Speichern fehlgeschlagen – wird beim nächsten Ändern erneut versucht"
+- "Promote" (draft → saved entry, button) → "Speichern" — matches the entry of the existing `saveChanges` pattern
+- Upload-blocker dialog: "Uploads laufen noch" (title); "Trotzdem verlassen" / "Auf Seite bleiben" (buttons)
+- Status filter chips: "Nur Entwürfe" / "Nur gespeicherte" (using "Nur" prefix, consistent with filter chip patterns)
+- Photo upload queue states: `stateQueued` → "In Warteschlange", `stateUploading` → "Wird hochgeladen ...", `stateSucceeded` → "Hochgeladen", `stateFailed` → "Fehlgeschlagen"
+- `queueAriaLabel` → "Foto-Upload-Warteschlange" (compound noun, no space)
+- `unknownError` → "Unbekannter Upload-Fehler"
+- **Duplicate key issue in en/diary.json**: The English file has duplicate top-level keys (`filterBar`, `createPage`, `editPage`). In JSON the last occurrence wins. The de/ file must be kept as a single flat object — never duplicate keys. New keys from the second English occurrence are appended to the existing de/ section.

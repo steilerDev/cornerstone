@@ -27,6 +27,7 @@ export interface DiaryEntryFormProps {
   onBodyChange: (body: string) => void;
   disabled?: boolean;
   validationErrors: Record<string, string>;
+  onFieldBlur?: () => void;
   /** daily_log metadata */
   dailyLogWeather?: DiaryWeather | null;
   onDailyLogWeatherChange?: (weather: DiaryWeather | null) => void;
@@ -129,6 +130,7 @@ export function DiaryEntryForm({
   onBodyChange,
   disabled = false,
   validationErrors,
+  onFieldBlur,
   // daily_log
   dailyLogWeather,
   onDailyLogWeatherChange,
@@ -200,6 +202,7 @@ export function DiaryEntryForm({
           className={`${styles.input} ${styles.dateInput} ${validationErrors.entryDate ? styles.inputError : ''}`}
           value={entryDate}
           onChange={(e) => onEntryDateChange(e.target.value)}
+          onBlur={onFieldBlur}
           disabled={disabled}
           required
           aria-invalid={!!validationErrors.entryDate}
@@ -222,6 +225,7 @@ export function DiaryEntryForm({
           className={styles.input}
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
+          onBlur={onFieldBlur}
           disabled={disabled}
           placeholder={t('entryForm.titlePlaceholder')}
           maxLength={200}
@@ -237,6 +241,7 @@ export function DiaryEntryForm({
           className={`${styles.textarea} ${validationErrors.body ? styles.textareaError : ''}`}
           value={body}
           onChange={(e) => onBodyChange(e.target.value)}
+          onBlur={onFieldBlur}
           disabled={disabled}
           placeholder={t('form.bodyDescription')}
           maxLength={10000}

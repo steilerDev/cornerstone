@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
@@ -14,6 +14,7 @@ import type React from 'react';
 const mockGetDiaryEntry = jest.fn<typeof DiaryApiTypes.getDiaryEntry>();
 const mockUpdateDiaryEntry = jest.fn<typeof DiaryApiTypes.updateDiaryEntry>();
 const mockDeleteDiaryEntry = jest.fn<typeof DiaryApiTypes.deleteDiaryEntry>();
+const mockPromoteDiaryEntry = jest.fn<typeof DiaryApiTypes.promoteDiaryEntry>();
 
 jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   getDiaryEntry: mockGetDiaryEntry,
@@ -21,6 +22,7 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   createDiaryEntry: jest.fn(),
   updateDiaryEntry: mockUpdateDiaryEntry,
   deleteDiaryEntry: mockDeleteDiaryEntry,
+  promoteDiaryEntry: mockPromoteDiaryEntry,
 }));
 
 // Stable mock references — hoisted so useToast() returns the same function identity
@@ -66,6 +68,23 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   deleteVendor: jest.fn(),
 }));
 
+// Mock authApi so the real AuthProvider (used as fallback when the module mock does not
+// intercept in this environment) resolves immediately without making network requests.
+jest.unstable_mockModule('../../lib/authApi.js', () => ({
+  getAuthMe: jest.fn<() => Promise<any>>().mockResolvedValue({
+    user: {
+      id: 'user-1',
+      displayName: 'Alice Builder',
+      email: 'alice@example.com',
+      role: 'admin',
+      authProvider: 'local',
+      createdAt: '2026-01-01T00:00:00Z',
+    },
+    oidcEnabled: false,
+  }),
+  logout: jest.fn<() => Promise<any>>().mockResolvedValue(undefined),
+}));
+
 // ── Location helper ───────────────────────────────────────────────────────────
 
 function LocationDisplay() {
@@ -84,6 +103,7 @@ const baseDailyLogEntry: DiaryEntryDetail = {
   metadata: { weather: 'sunny', workersOnSite: 5 },
   isAutomatic: false,
   isSigned: false,
+  status: 'saved',
   sourceEntityType: null,
   sourceEntityId: null,
   sourceEntityArea: null,
@@ -92,6 +112,16 @@ const baseDailyLogEntry: DiaryEntryDetail = {
   createdBy: { id: 'user-1', displayName: 'Alice Builder' },
   createdAt: '2026-03-14T09:00:00.000Z',
   updatedAt: '2026-03-14T09:00:00.000Z',
+};
+
+const draftGeneralNoteEntry: DiaryEntryDetail = {
+  ...baseDailyLogEntry,
+  id: 'draft-1',
+  entryType: 'general_note',
+  status: 'draft',
+  title: 'Draft note',
+  body: 'Draft content',
+  metadata: null,
 };
 
 const siteVisitEntry: DiaryEntryDetail = {
@@ -135,16 +165,28 @@ const generalNoteEntry: DiaryEntryDetail = {
 
 describe('DiaryEntryEditPage', () => {
   let DiaryEntryEditPage: React.ComponentType;
+  // Providers are imported dynamically so they share the same module instance as the page
+  // component (whether mocked or real), avoiding a dual-React-context mismatch.
+  // When jest.unstable_mockModule intercepts (CI), ToastProvider and AuthProvider are
+  // passthrough wrappers. Locally, the real providers are used with authApi mocked so
+  // AuthProvider resolves immediately without network requests.
+  let ToastProvider: React.ComponentType<{ children: React.ReactNode }>;
+  let AuthProvider: React.ComponentType<{ children: React.ReactNode }>;
 
   beforeEach(async () => {
     localStorage.setItem('theme', 'light');
     if (!DiaryEntryEditPage) {
       const mod = await import('./DiaryEntryEditPage.js');
       DiaryEntryEditPage = mod.default;
+      const toastMod = await import('../../components/Toast/ToastContext.js');
+      ToastProvider = toastMod.ToastProvider;
+      const authMod = await import('../../contexts/AuthContext.js');
+      AuthProvider = authMod.AuthProvider;
     }
     mockGetDiaryEntry.mockReset();
     mockUpdateDiaryEntry.mockReset();
     mockDeleteDiaryEntry.mockReset();
+    mockPromoteDiaryEntry.mockReset();
   });
 
   afterEach(() => {
@@ -153,14 +195,21 @@ describe('DiaryEntryEditPage', () => {
 
   const renderEditPage = (id = 'de-1') =>
     render(
-      <MemoryRouter initialEntries={[`/diary/${id}/edit`]}>
-        <Routes>
-          <Route path="/diary/:id/edit" element={<DiaryEntryEditPage />} />
-          <Route path="/diary/:id" element={<div data-testid="detail-page">Detail Page</div>} />
-          <Route path="/diary" element={<div data-testid="diary-list">Diary List</div>} />
-        </Routes>
-        <LocationDisplay />
-      </MemoryRouter>,
+      <ToastProvider>
+        <AuthProvider>
+          <MemoryRouter initialEntries={[`/diary/${id}/edit`]}>
+            <Routes>
+              <Route path="/diary/:id/edit" element={<DiaryEntryEditPage />} />
+              <Route
+                path="/diary/:id"
+                element={<div data-testid="detail-page">Detail Page</div>}
+              />
+              <Route path="/diary" element={<div data-testid="diary-list">Diary List</div>} />
+            </Routes>
+            <LocationDisplay />
+          </MemoryRouter>
+        </AuthProvider>
+      </ToastProvider>,
     );
 
   // ─── Loading state ──────────────────────────────────────────────────────────
@@ -603,6 +652,192 @@ describe('DiaryEntryEditPage', () => {
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /back to diary/i })).toBeInTheDocument();
       });
+    });
+  });
+
+  // ─── Draft lifecycle (Story #1426) ───────────────────────────────────────────
+
+  describe('Draft lifecycle (Story #1426)', () => {
+    it('Scenario 43: draft entry shows Draft badge', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(draftGeneralNoteEntry);
+      renderEditPage('draft-1');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('draft-status-badge')).toBeInTheDocument();
+      });
+    });
+
+    it('Scenario 43: draft entry shows "Save" (promote) button', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(draftGeneralNoteEntry);
+      renderEditPage('draft-1');
+
+      await waitFor(() => {
+        // The promote button label comes from t('editPage.promoteButton') = "Save"
+        const saveBtn = screen.getAllByRole('button').find((btn) =>
+          /^save$/i.test(btn.textContent ?? ''),
+        );
+        expect(saveBtn).toBeDefined();
+      });
+    });
+
+    it('Scenario 43: draft entry shows "Discard Draft" button', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(draftGeneralNoteEntry);
+      renderEditPage('draft-1');
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /discard draft/i })).toBeInTheDocument();
+      });
+    });
+
+    it('Scenario 44: blurring body textarea on draft → triggers updateDiaryEntry (auto-save) after debounce', async () => {
+      jest.useFakeTimers();
+      mockGetDiaryEntry.mockResolvedValueOnce(draftGeneralNoteEntry);
+      mockUpdateDiaryEntry.mockResolvedValue({ ...draftGeneralNoteEntry, body: 'updated' });
+      renderEditPage('draft-1');
+
+      await waitFor(() => {
+        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument();
+      });
+
+      const textarea = screen.getByRole('textbox', { name: /^entry/i });
+      fireEvent.change(textarea, { target: { value: 'updated body' } });
+      fireEvent.blur(textarea);
+
+      // Advance past 1000ms debounce
+      await jest.advanceTimersByTimeAsync(1100);
+
+      await waitFor(() => {
+        expect(mockUpdateDiaryEntry).toHaveBeenCalledWith(
+          'draft-1',
+          expect.objectContaining({ body: 'updated body' }),
+        );
+      });
+
+      jest.useRealTimers();
+    });
+
+    it('Scenario 46: weather select change on draft → triggers immediate auto-save', async () => {
+      jest.useFakeTimers();
+      const draftDailyLogEntry: DiaryEntryDetail = {
+        ...baseDailyLogEntry,
+        id: 'draft-dl',
+        status: 'draft',
+        metadata: null,
+      };
+      mockGetDiaryEntry.mockResolvedValueOnce(draftDailyLogEntry);
+      mockUpdateDiaryEntry.mockResolvedValue({ ...draftDailyLogEntry });
+      renderEditPage('draft-dl');
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/weather/i)).toBeInTheDocument();
+      });
+
+      const weatherSelect = screen.getByLabelText(/weather/i);
+      fireEvent.change(weatherSelect, { target: { value: 'sunny' } });
+
+      // Immediate save (triggerAutoSave(true)) — no debounce wait needed
+      await jest.advanceTimersByTimeAsync(50);
+
+      await waitFor(() => {
+        expect(mockUpdateDiaryEntry).toHaveBeenCalledWith(
+          'draft-dl',
+          expect.any(Object),
+        );
+      });
+
+      jest.useRealTimers();
+    });
+
+    it('Scenario 47: Save button on draft → calls promoteDiaryEntry, navigates to /diary/:id', async () => {
+      const savedEntry: DiaryEntryDetail = { ...draftGeneralNoteEntry, status: 'saved' };
+      mockGetDiaryEntry.mockResolvedValueOnce(draftGeneralNoteEntry);
+      mockPromoteDiaryEntry.mockResolvedValueOnce(savedEntry);
+      renderEditPage('draft-1');
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument();
+      });
+
+      // Click the Save (promote) button
+      const saveBtn = screen.getAllByRole('button').find((btn) =>
+        /^save$/i.test(btn.textContent ?? ''),
+      )!;
+
+      await userEvent.setup().click(saveBtn);
+
+      await waitFor(() => {
+        expect(mockPromoteDiaryEntry).toHaveBeenCalledWith('draft-1', expect.any(Object));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location')).toHaveTextContent('/diary/draft-1');
+      });
+    });
+
+    it('Scenario 48: Save with validation error (missing body) → shows error, stays on edit page', async () => {
+      const draftNoBody: DiaryEntryDetail = {
+        ...draftGeneralNoteEntry,
+        body: '',
+      };
+      mockGetDiaryEntry.mockResolvedValueOnce(draftNoBody);
+      renderEditPage('draft-1');
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument();
+      });
+
+      const saveBtn = screen.getAllByRole('button').find((btn) =>
+        /^save$/i.test(btn.textContent ?? ''),
+      )!;
+
+      await userEvent.setup().click(saveBtn);
+
+      // Validation fires client-side, promoteDiaryEntry should NOT be called
+      expect(mockPromoteDiaryEntry).not.toHaveBeenCalled();
+      // Still on edit page
+      expect(screen.getByTestId('location')).toHaveTextContent('/diary/draft-1/edit');
+    });
+
+    it('Scenario 49: Discard Draft → shows modal → confirm → deleteDiaryEntry → navigate to /diary', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(draftGeneralNoteEntry);
+      mockDeleteDiaryEntry.mockResolvedValueOnce(undefined);
+      renderEditPage('draft-1');
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /discard draft/i })).toBeInTheDocument();
+      });
+
+      await userEvent.setup().click(screen.getByRole('button', { name: /discard draft/i }));
+
+      // Modal should appear — use the dialog role to scope to the modal
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // Confirm button inside the modal is also labelled "Discard Draft" — use within(dialog) to
+      // avoid matching the trigger button that remains rendered outside the modal.
+      const discardDialog = screen.getByRole('dialog');
+      await userEvent.setup().click(within(discardDialog).getByRole('button', { name: /^discard draft$/i }));
+
+      await waitFor(() => {
+        expect(mockDeleteDiaryEntry).toHaveBeenCalledWith('draft-1');
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location')).toHaveTextContent('/diary');
+      });
+    });
+
+    it('Scenario 50: saved entry shows "Save Changes" button, no "Discard Draft" button', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(baseDailyLogEntry);
+      renderEditPage('de-1');
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('button', { name: /discard draft/i })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('draft-status-badge')).not.toBeInTheDocument();
     });
   });
 });

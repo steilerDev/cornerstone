@@ -6,6 +6,7 @@ import type {
   DiaryEntryListQuery,
   CreateDiaryEntryRequest,
   UpdateDiaryEntryRequest,
+  PromoteDiaryEntryRequest,
 } from '@cornerstone/shared';
 
 /**
@@ -31,6 +32,9 @@ export function listDiaryEntries(params?: DiaryEntryListQuery): Promise<DiaryEnt
   }
   if (params?.automatic !== undefined) {
     queryParams.set('automatic', params.automatic.toString());
+  }
+  if (params?.status) {
+    queryParams.set('status', params.status);
   }
   if (params?.q) {
     queryParams.set('q', params.q);
@@ -71,4 +75,14 @@ export function updateDiaryEntry(
  */
 export function deleteDiaryEntry(id: string): Promise<void> {
   return del<void>(`/diary-entries/${id}`);
+}
+
+/**
+ * Promotes a draft diary entry to a saved entry with validation.
+ */
+export function promoteDiaryEntry(
+  id: string,
+  data: PromoteDiaryEntryRequest,
+): Promise<DiaryEntryDetail> {
+  return patch<DiaryEntryDetail>(`/diary-entries/${id}/promote`, data);
 }

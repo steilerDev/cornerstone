@@ -24,6 +24,7 @@ export interface AppConfig {
   photoStoragePath: string;
   photoMaxFileSizeMb: number;
   diaryAutoEvents: boolean;
+  diaryDraftRetentionDays: number; // 0 = cleanup disabled
   currency: string;
   backupDir: string;
   backupCadence?: string;
@@ -182,6 +183,15 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   }
   const diaryAutoEvents = diaryAutoEventsStr === 'true';
 
+  // Parse and validate DIARY_DRAFT_RETENTION_DAYS
+  const diaryDraftRetentionDaysStr = getValue('DIARY_DRAFT_RETENTION_DAYS') ?? '30';
+  const diaryDraftRetentionDays = parseInt(diaryDraftRetentionDaysStr, 10);
+  if (isNaN(diaryDraftRetentionDays) || diaryDraftRetentionDays < 0) {
+    errors.push(
+      `DIARY_DRAFT_RETENTION_DAYS must be a non-negative integer, got: ${diaryDraftRetentionDaysStr}`,
+    );
+  }
+
   // EXTERNAL_URL — public-facing base URL (optional, for reverse-proxy setups)
   const externalUrlRaw = getValue('EXTERNAL_URL');
   let externalUrl: string | undefined = undefined;
@@ -268,6 +278,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     photoStoragePath,
     photoMaxFileSizeMb,
     diaryAutoEvents,
+    diaryDraftRetentionDays,
     currency,
     backupDir,
     backupCadence,
@@ -301,6 +312,7 @@ export default fp(
         photoStoragePath: config.photoStoragePath,
         photoMaxFileSizeMb: config.photoMaxFileSizeMb,
         diaryAutoEvents: config.diaryAutoEvents,
+        diaryDraftRetentionDays: config.diaryDraftRetentionDays,
         currency: config.currency,
         backupEnabled: config.backupEnabled,
         backupDir: config.backupDir,

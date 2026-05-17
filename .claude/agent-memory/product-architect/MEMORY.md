@@ -44,6 +44,7 @@
 - ADR-015: Paperless-ngx integration (proxy + polymorphic links)
 - ADR-016: Household items (separate entity with parallel structure)
 - ADR-018: Invoice-budget-line junction table (M:N with XOR CHECK, ON DELETE CASCADE)
+- ADR-022: Diary drafts via status column on diary_entries (issue #1426). See [[diary-drafts-pattern]]
 - ADR-028: Areas & Trades (structured dimensions replacing tags)
 
 ## EPIC Status
@@ -119,6 +120,7 @@ See `epic04-household-items.md` for full details.
 - `epic05-budget.md` -- EPIC-05 budget management details
 - `epic04-household-items.md` -- EPIC-04 household items architecture
 - `epic18-areas-trades.md` -- EPIC-18 areas & trades structured dimensions
+- `diary-drafts-pattern.md` -- ADR-022 draft entity lifecycle pattern (status column on parent table, applicable beyond diary)
 
 ## EPIC-04 Review Summary (see story-reviews.md for details)
 

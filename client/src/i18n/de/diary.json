@@ -26,7 +26,17 @@
     "filterModeAutomatic": "Automatisch",
     "entryTypes": "Eintragstypen",
     "clearAll": "Alles löschen",
-    "noTypeOptions": "Keine Typen verfügbar"
+    "noTypeOptions": "Keine Typen verfügbar",
+    "searchLabel": "Suchen",
+    "searchPlaceholder": "Einträge durchsuchen...",
+    "fromLabel": "Von",
+    "toLabel": "Bis",
+    "entryTypesLabel": "Eintragstypen",
+    "clearAllButton": "Alles löschen",
+    "statusFilterLabel": "Status",
+    "statusAll": "Alle",
+    "statusDraft": "Nur Entwürfe",
+    "statusSaved": "Nur gespeicherte"
   },
   "entryTypes": {
     "daily_log": "Tägliches Protokoll",
@@ -105,7 +115,10 @@
   },
   "entryCard": {
     "viewButton": "Ansicht",
-    "editButton": "Bearbeiten"
+    "editButton": "Bearbeiten",
+    "by": "von",
+    "signed": "✓ Signiert",
+    "goToRelatedItem": "Zu verwandtem Element gehen"
   },
   "dateGroup": {
     "groupLabel": "Einträge am {{date}}"
@@ -170,14 +183,17 @@
     "createdAt": "Erstellt",
     "updatedAt": "Aktualisiert",
     "weather": "Wetter",
-    "temperature": "Temperatur",
+    "temperature": "Temperatur:",
     "workers": "Arbeiter",
     "inspector": "Inspektor",
     "outcome": "Ergebnis",
     "vendor": "Auftragnehmer",
     "materials": "Materialien",
     "severity": "Schweregrad",
-    "resolutionStatus": "Lösungsstatus"
+    "resolutionStatus": "Lösungsstatus",
+    "resolutionStatusOpen": "🔴 Offen",
+    "resolutionStatusInProgress": "🟡 In Bearbeitung",
+    "resolutionStatusResolved": "✅ Gelöst"
   },
   "typeBadge": {
     "dailyLog": "Tägliches Protokoll",
@@ -227,7 +243,10 @@
     "issueValidationRequired": {
       "severity": "Problemschweregrad ist erforderlich",
       "resolutionStatus": "Lösungsstatus ist erforderlich"
-    }
+    },
+    "draftCreateError": "Entwurf konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "photosSelectAfterDraftNote": "Ihre Fotos können im nächsten Schritt hochgeladen werden, nachdem der Entwurf erstellt wurde.",
+    "autoSaveHelper": "Ihre Änderungen werden automatisch als Entwurf gespeichert, wenn Sie in ein neues Feld wechseln, eine Auswahl ändern oder ein Foto hinzufügen."
   },
   "detailPage": {
     "backLink": "← Zurück zum Tagebuch",
@@ -280,19 +299,18 @@
     "deleteMessage": "Möchten Sie diesen Tagebucheintrag wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
     "deleteCancel": "Abbrechen",
     "deleteConfirm": "Eintrag löschen",
-    "deleting": "Wird gelöscht..."
-  },
-  "filterBar": {
-    "filterMode": "Filtermodus",
-    "filterModeAll": "Alle",
-    "filterModeManual": "Manuell",
-    "filterModeAutomatic": "Automatisch",
-    "searchLabel": "Suchen",
-    "searchPlaceholder": "Einträge durchsuchen...",
-    "fromLabel": "Von",
-    "toLabel": "Bis",
-    "entryTypesLabel": "Eintragstypen",
-    "clearAllButton": "Alles löschen"
+    "deleting": "Wird gelöscht...",
+    "autoSaveSaving": "Wird gespeichert...",
+    "autoSaveSaved": "Gespeichert",
+    "autoSaveError": "Speichern fehlgeschlagen – wird beim nächsten Ändern erneut versucht",
+    "discardDraftButton": "Entwurf verwerfen",
+    "discardDraftTitle": "Entwurf verwerfen",
+    "discardDraftMessage": "Möchten Sie diesen Entwurf wirklich verwerfen? Alle eingegebenen Inhalte und hochgeladenen Fotos werden dauerhaft gelöscht.",
+    "discardDraftCancel": "Entwurf behalten",
+    "discardDraftConfirm": "Entwurf verwerfen",
+    "discarding": "Wird verworfen...",
+    "promoteButton": "Speichern",
+    "promoting": "Wird gespeichert..."
   },
   "entryForm": {
     "entryDate": "Einzugsdatum",
@@ -316,18 +334,6 @@
     "resolutionStatusInProgress": "In Bearbeitung",
     "resolutionStatusResolved": "Gelöst"
   },
-  "metadata": {
-    "temperature": "Temperatur:",
-    "workers": "Arbeiter",
-    "resolutionStatusOpen": "🔴 Offen",
-    "resolutionStatusInProgress": "🟡 In Bearbeitung",
-    "resolutionStatusResolved": "✅ Gelöst"
-  },
-  "entryCard": {
-    "by": "von",
-    "signed": "✓ Signiert",
-    "goToRelatedItem": "Zu verwandtem Element gehen"
-  },
   "signature": {
     "signedBy": "Unterzeichnet von",
     "signaturesLabel": "Unterschriften",
@@ -337,7 +343,7 @@
     "signerTypeVendor": "Auftragnehmer",
     "signerNameLabel": "Name des Unterzeichners",
     "vendorLabel": "Auftragnehmer",
-    "selectVendor": "\u2014 Auftragnehmer wählen \u2014",
+    "selectVendor": "— Auftragnehmer wählen —",
     "otherVendor": "Andere...",
     "vendorNamePlaceholder": "Auftragnehmernamen eingeben",
     "signatoryNameLabel": "Name des Bevollmächtigten",
@@ -358,9 +364,20 @@
     "buttonTakePhoto": "Foto aufnehmen",
     "buttonUploadPhotos": "Fotos hochladen",
     "uploading": "Wird hochgeladen...",
-    "uploadProgressAriaLabel": "{{fileName}} Upload-Fortschritt"
+    "uploadProgressAriaLabel": "{{fileName}} Upload-Fortschritt",
+    "stateQueued": "In Warteschlange",
+    "stateUploading": "Wird hochgeladen...",
+    "stateSucceeded": "Hochgeladen",
+    "stateFailed": "Fehlgeschlagen",
+    "retryButton": "Erneut versuchen",
+    "queueAriaLabel": "Foto-Upload-Warteschlange",
+    "unknownError": "Unbekannter Upload-Fehler"
   },
   "typeSwitcher": {
     "ariaLabel": "Einträge nach Typ filtern"
+  },
+  "draft": {
+    "badgeLabel": "Entwurf",
+    "filterChipLabel": "Entwurf"
   }
 }

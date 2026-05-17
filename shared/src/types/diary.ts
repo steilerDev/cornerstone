@@ -126,6 +126,24 @@ export type DiarySourceEntityType =
   | 'budget_source'
   | 'subsidy_program';
 
+// ─── Status ───────────────────────────────────────────────────────────────────
+
+/**
+ * Lifecycle status of a diary entry.
+ *
+ * - `draft`: work-in-progress, auto-created on first interaction in the create
+ *   flow. Server-side validation is relaxed (body and entryDate may be missing
+ *   or empty; type-specific required metadata is not enforced). Drafts are
+ *   excluded from dashboard aggregations and any export/report paths by
+ *   default. Auto-pruned by a cron job after a configurable retention window.
+ * - `saved`: finalized entry. Full validation enforced. This is the default
+ *   for backwards compatibility — all rows created before migration 0033
+ *   default to `'saved'`.
+ *
+ * See ADR-022 (Diary Drafts).
+ */
+export type DiaryEntryStatus = 'draft' | 'saved';
+
 // ─── Response Shapes ──────────────────────────────────────────────────────────
 
 /** User summary for diary entry responses. */
@@ -138,6 +156,11 @@ export interface DiaryUserSummary {
 export interface DiaryEntrySummary {
   id: string;
   entryType: DiaryEntryType;
+  /**
+   * Lifecycle status. `'saved'` for backwards-compatible default; `'draft'`
+   * for in-progress entries created by the auto-draft flow.
+   */
+  status: DiaryEntryStatus;
   entryDate: string;
   title: string | null;
   body: string;
@@ -161,17 +184,67 @@ export interface DiaryEntryDetail extends DiaryEntrySummary {
 
 // ─── Request Shapes ───────────────────────────────────────────────────────────
 
-/** Request body for creating a manual diary entry. */
+/**
+ * Request body for creating a manual diary entry.
+ *
+ * When `status` is omitted or `'saved'`, the server enforces full validation:
+ * `body` must be a non-empty string, `entryDate` must be an ISO date, and
+ * type-specific required metadata fields must be present.
+ *
+ * When `status === 'draft'`, validation is relaxed (see ADR-022):
+ * - `body` may be omitted or empty
+ * - `entryDate` may be omitted (server defaults to today)
+ * - Type-specific required fields are not enforced
+ * - Metadata shape validation (enum values, types) is still enforced
+ *
+ * `entryType` is always required and immutable after creation.
+ */
 export interface CreateDiaryEntryRequest {
   entryType: ManualDiaryEntryType;
-  entryDate: string;
+  /**
+   * Lifecycle status. Defaults to `'saved'` (backwards-compatible). Pass
+   * `'draft'` to create an in-progress entry with relaxed validation.
+   */
+  status?: DiaryEntryStatus;
+  /** Required when `status === 'saved'`. Optional for drafts (defaults to today). */
+  entryDate?: string;
   title?: string | null;
-  body: string;
+  /** Required when `status === 'saved'`. Optional/empty for drafts. */
+  body?: string;
   metadata?: DiaryEntryMetadata | null;
 }
 
-/** Request body for updating a diary entry. */
+/**
+ * Request body for updating a diary entry.
+ *
+ * Validation rules mirror create:
+ * - If the entry is currently `status === 'draft'`, validation is relaxed.
+ * - If the entry is `status === 'saved'`, full validation applies and the
+ *   entry cannot be reverted to a draft (no `status` field accepted here).
+ *
+ * Use `PATCH /api/diary-entries/:id/promote` to transition draft → saved.
+ * `entryType` is immutable and cannot be changed via this endpoint.
+ */
 export interface UpdateDiaryEntryRequest {
+  entryDate?: string;
+  title?: string | null;
+  body?: string;
+  metadata?: DiaryEntryMetadata | null;
+}
+
+/**
+ * Request body for promoting a draft to a saved entry.
+ *
+ * Optional final field overrides — if any of these are provided, they are
+ * applied to the draft before the promotion validation runs (so the client
+ * can save and promote in one call). All fields are optional; the draft's
+ * current values are used otherwise.
+ *
+ * After promotion, the entry's `status` is `'saved'` and the full
+ * saved-entry validation has passed. A failed promotion returns
+ * `400 VALIDATION_ERROR` and leaves the entry as a draft.
+ */
+export interface PromoteDiaryEntryRequest {
   entryDate?: string;
   title?: string | null;
   body?: string;
@@ -188,6 +261,14 @@ export interface DiaryEntryListQuery {
   dateFrom?: string;
   dateTo?: string;
   automatic?: boolean;
+  /**
+   * Filter by lifecycle status. When omitted, both drafts and saved entries
+   * are returned (the timeline view's default — drafts are part of the user's
+   * "inbox"). Callers that surface diary entries outside the timeline
+   * (dashboard tile, exports, reports) MUST pass `status=saved` explicitly.
+   * See ADR-022 for the read-path checklist.
+   */
+  status?: DiaryEntryStatus;
   q?: string;
 }
 

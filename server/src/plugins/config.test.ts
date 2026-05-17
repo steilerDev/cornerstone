@@ -33,6 +33,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         photoStoragePath: '/app/data/photos',
         photoMaxFileSizeMb: 20,
         diaryAutoEvents: true,
+        diaryDraftRetentionDays: 30,
         currency: 'EUR',
         backupDir: '/backups',
         backupCadence: undefined,
@@ -72,6 +73,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         photoStoragePath: '/app/data/photos',
         photoMaxFileSizeMb: 20,
         diaryAutoEvents: true,
+        diaryDraftRetentionDays: 30,
         currency: 'EUR',
         backupDir: '/backups',
         backupCadence: undefined,
@@ -113,6 +115,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         photoStoragePath: '/custom/path/photos',
         photoMaxFileSizeMb: 20,
         diaryAutoEvents: true,
+        diaryDraftRetentionDays: 30,
         currency: 'EUR',
         backupDir: '/backups',
         backupCadence: undefined,
@@ -149,6 +152,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         photoStoragePath: '/app/data/photos',
         photoMaxFileSizeMb: 20,
         diaryAutoEvents: true,
+        diaryDraftRetentionDays: 30,
         currency: 'EUR',
         backupDir: '/backups',
         backupCadence: undefined,
@@ -604,6 +608,37 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
 
     it('error message includes the invalid value that was provided', () => {
       expect(() => loadConfig({ CURRENCY: 'TOOLONG' })).toThrow('got: TOOLONG');
+    });
+  });
+
+  // ─── Story #1426: DIARY_DRAFT_RETENTION_DAYS ─────────────────────────────
+
+  describe('DIARY_DRAFT_RETENTION_DAYS Configuration (Story #1426)', () => {
+    it('Scenario 35: DIARY_DRAFT_RETENTION_DAYS=0 → valid, diaryDraftRetentionDays equals 0 (cleanup disabled)', () => {
+      const config = loadConfig({ DIARY_DRAFT_RETENTION_DAYS: '0' });
+      expect(config.diaryDraftRetentionDays).toBe(0);
+    });
+
+    it('Scenario 36: DIARY_DRAFT_RETENTION_DAYS=30 → valid, diaryDraftRetentionDays equals 30', () => {
+      const config = loadConfig({ DIARY_DRAFT_RETENTION_DAYS: '30' });
+      expect(config.diaryDraftRetentionDays).toBe(30);
+    });
+
+    it('Scenario 37: DIARY_DRAFT_RETENTION_DAYS=-1 → throws configuration validation error', () => {
+      expect(() => loadConfig({ DIARY_DRAFT_RETENTION_DAYS: '-1' })).toThrow(
+        'DIARY_DRAFT_RETENTION_DAYS must be a non-negative integer',
+      );
+    });
+
+    it('Scenario 38: DIARY_DRAFT_RETENTION_DAYS=abc → throws configuration validation error', () => {
+      expect(() => loadConfig({ DIARY_DRAFT_RETENTION_DAYS: 'abc' })).toThrow(
+        'DIARY_DRAFT_RETENTION_DAYS must be a non-negative integer',
+      );
+    });
+
+    it('Scenario 39: DIARY_DRAFT_RETENTION_DAYS unset → defaults to 30', () => {
+      const config = loadConfig({});
+      expect(config.diaryDraftRetentionDays).toBe(30);
     });
   });
 });

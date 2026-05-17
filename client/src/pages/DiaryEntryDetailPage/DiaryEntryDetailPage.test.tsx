@@ -120,6 +120,7 @@ const baseDetail: DiaryEntryDetail = {
   metadata: null,
   isAutomatic: false,
   isSigned: false,
+  status: 'saved' as const,
   sourceEntityType: null,
   sourceEntityId: null,
   sourceEntityArea: null,

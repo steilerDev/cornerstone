@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
 import { useFormatters } from '../../../lib/formatters.js';
+import { Badge } from '../../Badge/Badge.js';
+import badgeStyles from '../../Badge/Badge.module.css';
 import { DiaryEntryTypeBadge } from '../DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
 import { DiaryMetadataSummary } from '../DiaryMetadataSummary/DiaryMetadataSummary.js';
 import styles from './DiaryEntryCard.module.css';
@@ -54,15 +56,24 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
     .filter(Boolean)
     .join(' ');
 
+  const cardLink = entry.status === 'draft' ? `/diary/${entry.id}/edit` : `/diary/${entry.id}`;
+
   return (
     <Link
-      to={`/diary/${entry.id}`}
+      to={cardLink}
       className={cardClassName}
       aria-label={`${entry.title || 'Diary entry'} on ${formatDate(entry.entryDate)}`}
       data-testid={`diary-card-${entry.id}`}
     >
       <div className={styles.header}>
         <DiaryEntryTypeBadge entryType={entry.entryType} />
+        {entry.status === 'draft' && (
+          <Badge
+            variants={{ draft: { label: t('draft.badgeLabel'), className: badgeStyles.draft } }}
+            value="draft"
+            testId={`draft-badge-${entry.id}`}
+          />
+        )}
         <div className={styles.headerText}>
           {entry.title && <div className={styles.title}>{entry.title}</div>}
           {!entry.isAutomatic && (

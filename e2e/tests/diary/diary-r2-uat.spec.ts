@@ -46,6 +46,7 @@ function makeMockEntry(overrides: Partial<Record<string, unknown>> = {}): Record
     metadata: null,
     isAutomatic: false,
     isSigned: false,
+    status: 'saved',
     sourceEntityType: null,
     sourceEntityId: null,
     sourceEntityTitle: null,

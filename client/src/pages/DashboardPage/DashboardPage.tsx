@@ -215,7 +215,7 @@ export function DashboardPage() {
       fetchSubsidyPrograms(),
       getTimeline(),
       fetchAllInvoices({ pageSize: 10 }),
-      listDiaryEntries({ pageSize: 5 }),
+      listDiaryEntries({ pageSize: 5, status: 'saved' }),
     ]);
 
     const [

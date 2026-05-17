@@ -138,6 +138,13 @@
   margin-bottom: var(--spacing-6);
 }
 
+.helper {
+  margin: 0 0 var(--spacing-4) 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
 .photoNote {
   padding: var(--spacing-4);
   margin-bottom: var(--spacing-6);

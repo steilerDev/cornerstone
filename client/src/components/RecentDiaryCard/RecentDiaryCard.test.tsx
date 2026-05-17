@@ -64,6 +64,7 @@ function makeEntry(id: string, overrides: Partial<DiaryEntrySummary> = {}): Diar
     metadata: null,
     isAutomatic: false,
     isSigned: false,
+    status: 'saved' as const,
     sourceEntityType: null,
     sourceEntityId: null,
     sourceEntityArea: null,

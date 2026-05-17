@@ -3,6 +3,34 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## XHR-Based Component Tests (2026-05-16)
+
+**Dual-layer mock pattern for XHR-using components**: When a component calls `uploadPhoto` (which uses XHR internally), `jest.unstable_mockModule` may not intercept in the local worktree environment. Mitigation: mock `globalThis.XMLHttpRequest` as well, capturing instances in an array. Each test can then fire `_handlers['load']()` or `_handlers['error']()` to control outcomes. Keep the `jest.unstable_mockModule` mock for CI compatibility. Both layers coexist safely — in CI the module mock intercepts first; locally the XHR mock controls behavior.
+
+**CSS Module class attribute selectors in identity-obj-proxy**: With identity-obj-proxy, `styles['state-uploading']` returns `'state-uploading'` literally. Use `document.body.querySelectorAll('[class*="state-uploading"]')` to count items by state without text collisions.
+
+**"Uploading..." text collision**: Both the upload button (when `isProcessing`) and queue item state labels use the same `t('photoUpload.stateUploading')` translation key. `getAllByText(/^Uploading\.\.\./)` counts the button too. Use CSS class selectors instead.
+
+**Filename in aria-label causes regex matches on Remove button**: `aria-label="Remove retry-photo.jpg"` matches `/retry/i` because "retry" is in the filename. Use exact anchor regex `{ name: /^Retry filename\.jpg$/i }` to target only the Retry button.
+
+**XHR mock instance timing**: When XHR mock is set up in `beforeEach`, instances accumulate across the test. For retry tests: `xhrInstances[0]` = first upload attempt, `xhrInstances[1]` = retry attempt. Fire `_handlers['error']()` on instance 0, then after retry click, fire `_handlers['load']()` on instance 1 with `status=201` and `responseText=JSON.stringify({ photo })`.
+
+## ToastProvider + AuthProvider Dynamic Import Pattern (Story #1426, 2026-05-16)
+
+When `jest.unstable_mockModule` for `ToastContext.js` or `AuthContext.js` fails to intercept (CI AND/OR locally), tests fail with `useToast must be used within a ToastProvider` / `useAuth must be used within an AuthProvider`. **Fix**: import both providers dynamically alongside the page component in `beforeEach`, and wrap `renderPage`/`renderEditPage` with `<ToastProvider><AuthProvider>`. Also add `jest.unstable_mockModule('../../lib/authApi.js', ...)` returning mock user so the real `AuthProvider` doesn't make network calls when it intercepts. This pattern is now applied to `DiaryEntryEditPage.test.tsx` and `DiaryEntryCreatePage.test.tsx`. In CI where `jest.unstable_mockModule` works, `ToastProvider` is the mock passthrough `({ children }) => children` — the wrapper is redundant but harmless. In broken env, real providers supply context.
+
+## Story #1426 — Diary Draft Tests (2026-05-16)
+
+**AppConfig mock type**: Any test file with a `makeConfig()` factory that constructs the full `AppConfig` object must be updated when new fields are added to `AppConfig`. Pattern: when a new config field causes `TS2322` on a makeConfig factory, add the field with its default value. Affected files in this story: `backupService.test.ts` (added `diaryDraftRetentionDays: 30`).
+
+**Jest mock type strict checking**: `jest.fn<() => T>()` types the mock as zero-argument. If you assert `toHaveBeenCalledWith(arg1, arg2)`, TypeScript gives `TS2554: Expected 0 arguments`. Fix: use `jest.fn<(...args: any[]) => T>()` with eslint-disable comment. Do NOT use `jest.fn<(a: X, b: Y) => T>()` — it fails for service mocks because the actual function may have extra overloads.
+
+**DiaryEntrySummary now has required `status: DiaryEntryStatus` field**: All fixture objects in test files need `status: 'saved'` added. Pattern: search all test files for `DiaryEntrySummary` fixtures lacking status field. Also applies to `baseSummary` in `diaryApi.test.ts`, `makeSummary()` in `DiaryPage.test.tsx`, etc.
+
+**`draftCleanupService.test.ts` dynamic import pattern**: After mocking `node-cron` and `./diaryService.js` with `jest.unstable_mockModule`, import service functions dynamically inside `beforeEach`: `const mod = await import('./draftCleanupService.js')`. Use `jest.resetModules()` in `afterEach` to clear module-level `cronTask` state between tests.
+
+**Route test for draft promotion**: `insertDiaryEntry({ status: 'draft', entryType: 'general_note', body: 'content', entryDate: '2026-03-14' })` works because `insertDiaryEntry` accepts `Partial<typeof diaryEntries.$inferInsert>`. The `PATCH /:id/promote` route is registered BEFORE `GET /:id` to avoid route ambiguity — both routes coexist correctly.
+
 ## Systemic jest.unstable_mockModule Issue in This Worktree (2026-04-29)
 
 ALL client tests using `jest.unstable_mockModule('../../lib/formatters.js', ...)` fail locally in this worktree with `useLocale must be used within a LocaleProvider`. This is a pre-existing environment issue — tests pass in CI. **Do not attempt to fix by changing mocks or adding LocaleProvider** — the tests are structurally correct and the mock works in CI. Just commit and let CI validate. The issue is specific to this worktree's Jest module resolution environment.
@@ -68,6 +96,8 @@ Props changed again: `selectedSourceIds` → `deselectedSourceIds`, `onClearSour
 ## Fastify AJV Default: removeAdditional=true (2026-03-26)
 
 **Critical pattern**: Fastify's `@fastify/ajv-compiler` defaults to `removeAdditional: true`. This means `additionalProperties: false` in body/querystring schemas does NOT reject unknown properties with 400 — it strips them and lets the request proceed. Tests that expect 400 for unknown fields are wrong. The correct test is to assert the request succeeds (201/200) with extra fields silently removed. See `server/src/routes/auth.test.ts` comment for reference.
+
+**Ajv 8 + removeAdditional + minProperties interaction (2026-05-16)**: When `removeAdditional: true` is set, Ajv 8 does NOT re-evaluate `minProperties` against the stripped object. Verified empirically: `{ status: 'saved' }` sent to a schema with `additionalProperties: false, minProperties: 1, properties: { entryDate, title, body, metadata }` — Ajv strips `status`, leaving `{}`, but still returns `valid: true`. Therefore PATCH with only unknown fields is a silent no-op (returns 200), not a 400.
 
 **Affected test files fixed (2026-03-26)**: `invoiceBudgetLines.test.ts` (POST + PATCH), `standaloneInvoices.test.ts` (GET querystring).
 

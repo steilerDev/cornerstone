@@ -5,6 +5,7 @@ import {
   createDiaryEntry,
   updateDiaryEntry,
   deleteDiaryEntry,
+  promoteDiaryEntry,
 } from './diaryApi.js';
 import type { DiaryEntryListResponse, DiaryEntryDetail } from '@cornerstone/shared';
 
@@ -20,6 +21,7 @@ describe('diaryApi', () => {
     metadata: null,
     isAutomatic: false,
     isSigned: false,
+    status: 'saved' as const,
     sourceEntityType: null,
     sourceEntityId: null,
     sourceEntityArea: null,
@@ -391,6 +393,126 @@ describe('diaryApi', () => {
       } as Response);
 
       await expect(deleteDiaryEntry('de-1')).rejects.toThrow();
+    });
+  });
+
+  // ─── promoteDiaryEntry (Story #1426) ──────────────────────────────────────
+
+  describe('promoteDiaryEntry', () => {
+    it('Scenario 58: sends PATCH to /api/diary-entries/:id/promote with provided data', async () => {
+      const savedEntry: DiaryEntryDetail = { ...mockDetail, status: 'saved' };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => savedEntry,
+      } as Response);
+
+      await promoteDiaryEntry('draft-entry-1', { body: 'Final content', entryDate: '2026-05-01' });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/diary-entries/draft-entry-1/promote',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ body: 'Final content', entryDate: '2026-05-01' }),
+        }),
+      );
+    });
+
+    it('sends PATCH with empty body when no overrides provided', async () => {
+      const savedEntry: DiaryEntryDetail = { ...mockDetail, status: 'saved' };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => savedEntry,
+      } as Response);
+
+      await promoteDiaryEntry('draft-1', {});
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/diary-entries/draft-1/promote',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({}),
+        }),
+      );
+    });
+
+    it('returns the promoted DiaryEntryDetail with status=saved', async () => {
+      const savedEntry: DiaryEntryDetail = { ...mockDetail, status: 'saved' };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => savedEntry,
+      } as Response);
+
+      const result = await promoteDiaryEntry('draft-1', {});
+
+      expect(result.status).toBe('saved');
+    });
+
+    it('throws on 400 ALREADY_SAVED when entry is already saved', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ error: { code: 'ALREADY_SAVED', message: 'Entry is already saved' } }),
+      } as Response);
+
+      await expect(promoteDiaryEntry('saved-1', {})).rejects.toThrow();
+    });
+
+    it('throws on 404 when entry not found', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: { code: 'NOT_FOUND', message: 'Not found' } }),
+      } as Response);
+
+      await expect(promoteDiaryEntry('nonexistent', {})).rejects.toThrow();
+    });
+  });
+
+  // ─── listDiaryEntries status param (Story #1426) ──────────────────────────
+
+  describe('listDiaryEntries status param (Story #1426)', () => {
+    const emptyListResponse: DiaryEntryListResponse = {
+      items: [],
+      pagination: { page: 1, pageSize: 25, totalPages: 0, totalItems: 0 },
+    };
+
+    it('Scenario 59: passes status=draft as query param when status is "draft"', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => emptyListResponse,
+      } as Response);
+
+      await listDiaryEntries({ status: 'draft' });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/diary-entries?status=draft',
+        expect.any(Object),
+      );
+    });
+
+    it('passes status=saved as query param when status is "saved"', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => emptyListResponse,
+      } as Response);
+
+      await listDiaryEntries({ status: 'saved' });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/diary-entries?status=saved',
+        expect.any(Object),
+      );
+    });
+
+    it('omits status param when status is not provided', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => emptyListResponse,
+      } as Response);
+
+      await listDiaryEntries({});
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/diary-entries', expect.any(Object));
     });
   });
 });
