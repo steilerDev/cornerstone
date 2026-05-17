@@ -76,7 +76,11 @@ describe('Invoice Deposit Routes', () => {
     return id;
   }
 
-  function createTestInvoice(vendorId: string, amount = 1000): string {
+  function createTestInvoice(
+    vendorId: string,
+    amount = 1000,
+    status: 'pending' | 'paid' | 'claimed' | 'quotation' = 'pending',
+  ): string {
     const id = `invoice-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const ts = new Date(Date.now() + tsOffset++).toISOString();
     app.db
@@ -88,7 +92,7 @@ describe('Invoice Deposit Routes', () => {
         amount,
         date: '2026-01-15',
         dueDate: null,
-        status: 'pending',
+        status,
         notes: null,
         createdBy: null,
         createdAt: ts,
@@ -217,6 +221,24 @@ describe('Invoice Deposit Routes', () => {
       expect(response.statusCode).toBe(400);
       const body = response.json<ApiErrorResponse>();
       expect(body.error.code).toBe('DEPOSITS_EXCEED_INVOICE_TOTAL');
+    });
+
+    it('scenario QQ: 201 creates deposit on quotation invoice', async () => {
+      const { cookie } = await createUserWithSession('userQQ@test.com', 'Test User', 'password123');
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 2000, 'quotation');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+        payload: { amount: 100, dueDate: '2026-02-01', description: 'First deposit on quotation' },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<{ deposit: { amount: number; status: string } }>();
+      expect(body.deposit.amount).toBe(100);
+      expect(body.deposit.status).toBe('pending');
     });
   });
 
