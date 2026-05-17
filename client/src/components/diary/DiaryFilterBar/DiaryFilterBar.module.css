@@ -112,13 +112,14 @@
 
 /* Drafts chip — same shape as mode chips, active state uses muted secondary tokens */
 .draftsChip.modeChipActive {
-  background-color: var(--color-bg-secondary);
-  border-color: var(--color-border-strong);
-  color: var(--color-text-secondary);
+  background-color: var(--color-bg-tertiary);
+  border-color: var(--color-border-focus);
+  color: var(--color-text-primary);
 }
 
 .draftsChip.modeChipActive:hover {
   background-color: var(--color-bg-hover);
+  border-color: var(--color-border-focus);
   color: var(--color-text-primary);
 }
 
