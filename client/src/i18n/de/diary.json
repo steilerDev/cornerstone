@@ -33,10 +33,7 @@
     "toLabel": "Bis",
     "entryTypesLabel": "Eintragstypen",
     "clearAllButton": "Alles löschen",
-    "statusFilterLabel": "Status",
-    "statusAll": "Alle",
-    "statusDraft": "Nur Entwürfe",
-    "statusSaved": "Nur gespeicherte"
+    "hideDrafts": "Entwürfe ausblenden"
   },
   "entryTypes": {
     "daily_log": "Tägliches Protokoll",
@@ -234,19 +231,7 @@
     "typeCardIssueDesc": "Problem oder Anliegen auf der Website melden",
     "typeCardGeneralNote": "Allgemeine Notiz",
     "typeCardGeneralNoteDesc": "Fügen Sie weitere relevante Informationen hinzu",
-    "backButtonForm": "← Zurück",
-    "attachPhotosLabel": "Fotos hinzufügen (optional)",
-    "attachPhotosHint": "Fotos werden nach dem Erstellen des Eintrags hochgeladen.",
-    "photosQueued": "{{count}} Foto(s) in der Warteschlange",
-    "selectTypeError": "Bitte wählen Sie einen Eintragstyp",
-    "siteVisitInspectorNameRequired": "Name des Inspektors ist erforderlich",
-    "issueValidationRequired": {
-      "severity": "Problemschweregrad ist erforderlich",
-      "resolutionStatus": "Lösungsstatus ist erforderlich"
-    },
-    "draftCreateError": "Entwurf konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
-    "photosSelectAfterDraftNote": "Ihre Fotos können im nächsten Schritt hochgeladen werden, nachdem der Entwurf erstellt wurde.",
-    "autoSaveHelper": "Ihre Änderungen werden automatisch als Entwurf gespeichert, wenn Sie in ein neues Feld wechseln, eine Auswahl ändern oder ein Foto hinzufügen."
+    "draftCreateError": "Entwurf konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
   },
   "detailPage": {
     "backLink": "← Zurück zum Tagebuch",

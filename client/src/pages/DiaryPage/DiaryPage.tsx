@@ -190,10 +190,12 @@ export default function DiaryPage() {
     setSearchParams(newParams);
   };
 
-  const handleStatusFilterChange = (status: DiaryEntryStatus | null) => {
+  const hideDrafts = statusFilter === 'saved';
+
+  const handleHideDraftsChange = (hide: boolean) => {
     const newParams = new URLSearchParams(searchParams);
-    if (status) {
-      newParams.set('status', status);
+    if (hide) {
+      newParams.set('status', 'saved');
     } else {
       newParams.delete('status');
     }
@@ -252,39 +254,9 @@ export default function DiaryPage() {
         onClearAll={handleClearAll}
         filterMode={filterMode}
         onFilterModeChange={handleFilterModeChange}
+        hideDrafts={hideDrafts}
+        onHideDraftsChange={handleHideDraftsChange}
       />
-
-      {/* Status filter chips */}
-      <div
-        className={styles.statusFilterChips}
-        role="group"
-        aria-label={t('filterBar.statusFilterLabel')}
-      >
-        <button
-          type="button"
-          className={`${styles.filterChip} ${!statusFilter ? styles.filterChipActive : ''}`}
-          onClick={() => handleStatusFilterChange(null)}
-          aria-pressed={!statusFilter}
-        >
-          {t('filterBar.statusAll')}
-        </button>
-        <button
-          type="button"
-          className={`${styles.filterChip} ${statusFilter === 'draft' ? styles.filterChipActive : ''}`}
-          onClick={() => handleStatusFilterChange('draft')}
-          aria-pressed={statusFilter === 'draft'}
-        >
-          {t('filterBar.statusDraft')}
-        </button>
-        <button
-          type="button"
-          className={`${styles.filterChip} ${statusFilter === 'saved' ? styles.filterChipActive : ''}`}
-          onClick={() => handleStatusFilterChange('saved')}
-          aria-pressed={statusFilter === 'saved'}
-        >
-          {t('filterBar.statusSaved')}
-        </button>
-      </div>
 
       {isLoading && <div className={shared.loading}>{t('loading')}</div>}
 

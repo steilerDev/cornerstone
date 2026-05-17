@@ -352,4 +352,68 @@ describe('DiaryFilterBar', () => {
     expect(activeChip.getAttribute('class') ?? '').toContain('typeChipActive');
     expect(inactiveChip.getAttribute('class') ?? '').not.toContain('typeChipActive');
   });
+
+  // ─── Hide drafts checkbox (Story #1435) ────────────────────────────────────
+
+  describe('hideDrafts checkbox (Story #1435)', () => {
+    it('Scenario 12: checkbox not rendered when hideDrafts/onHideDraftsChange props are absent', () => {
+      renderFilterBar();
+      expect(screen.queryByTestId('hide-drafts-checkbox')).not.toBeInTheDocument();
+    });
+
+    it('Scenario 13: checkbox is rendered and unchecked when hideDrafts=false', () => {
+      renderFilterBar({
+        hideDrafts: false,
+        onHideDraftsChange: jest.fn<(v: boolean) => void>(),
+      } as any);
+      const checkbox = screen.getByTestId('hide-drafts-checkbox') as HTMLInputElement;
+      expect(checkbox).toBeInTheDocument();
+      expect(checkbox.checked).toBe(false);
+    });
+
+    it('Scenario 14: checkbox is checked when hideDrafts=true', () => {
+      renderFilterBar({
+        hideDrafts: true,
+        onHideDraftsChange: jest.fn<(v: boolean) => void>(),
+      } as any);
+      const checkbox = screen.getByTestId('hide-drafts-checkbox') as HTMLInputElement;
+      expect(checkbox.checked).toBe(true);
+    });
+
+    it('Scenario 15: checking unchecked checkbox calls onHideDraftsChange(true)', async () => {
+      const user = userEvent.setup();
+      const onHideDraftsChange = jest.fn<(v: boolean) => void>();
+      renderFilterBar({
+        hideDrafts: false,
+        onHideDraftsChange,
+      } as any);
+
+      await user.click(screen.getByTestId('hide-drafts-checkbox'));
+
+      expect(onHideDraftsChange).toHaveBeenCalledWith(true);
+    });
+
+    it('Scenario 16: unchecking checked checkbox calls onHideDraftsChange(false)', async () => {
+      const user = userEvent.setup();
+      const onHideDraftsChange = jest.fn<(v: boolean) => void>();
+      renderFilterBar({
+        hideDrafts: true,
+        onHideDraftsChange,
+      } as any);
+
+      await user.click(screen.getByTestId('hide-drafts-checkbox'));
+
+      expect(onHideDraftsChange).toHaveBeenCalledWith(false);
+    });
+
+    it('Scenario 17: checkbox has an accessible label matching "Hide drafts"', () => {
+      renderFilterBar({
+        hideDrafts: false,
+        onHideDraftsChange: jest.fn<(v: boolean) => void>(),
+      } as any);
+      const checkbox = screen.getByLabelText(/hide drafts/i);
+      expect(checkbox).toBeInTheDocument();
+      expect((checkbox as HTMLInputElement).type).toBe('checkbox');
+    });
+  });
 });

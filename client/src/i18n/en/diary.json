@@ -33,10 +33,7 @@
     "toLabel": "To",
     "entryTypesLabel": "Entry Types",
     "clearAllButton": "Clear all",
-    "statusFilterLabel": "Status",
-    "statusAll": "All",
-    "statusDraft": "Drafts only",
-    "statusSaved": "Saved only"
+    "hideDrafts": "Hide drafts"
   },
   "entryTypes": {
     "daily_log": "Daily Log",
@@ -234,19 +231,7 @@
     "typeCardIssueDesc": "Report a problem or concern on the site",
     "typeCardGeneralNote": "General Note",
     "typeCardGeneralNoteDesc": "Add any other relevant information",
-    "backButtonForm": "← Back",
-    "attachPhotosLabel": "Attach Photos (optional)",
-    "attachPhotosHint": "Photos will be uploaded after the entry is created.",
-    "photosQueued": "{{count}} photo(s) queued",
-    "selectTypeError": "Please select an entry type",
-    "siteVisitInspectorNameRequired": "Inspector name is required",
-    "issueValidationRequired": {
-      "severity": "Severity is required",
-      "resolutionStatus": "Resolution status is required"
-    },
-    "draftCreateError": "Failed to create draft. Please try again.",
-    "photosSelectAfterDraftNote": "Your photos will be available to upload after the draft is created on the next screen.",
-    "autoSaveHelper": "Your changes are saved automatically as a draft when you tab to a new field, change a selection, or attach a photo."
+    "draftCreateError": "Failed to create draft. Please try again."
   },
   "detailPage": {
     "backLink": "← Back to Diary",

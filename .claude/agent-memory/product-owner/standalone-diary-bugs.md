@@ -13,7 +13,8 @@ EPIC-13 (#446, Construction Diary / Bautagebuch) closed and released. New diary 
 
 ## Items
 
-- **#1426** — BUG: Diary photos lost on upload failure; replace local-stage flow with auto-draft + immediate upload (Todo, 2026-05-15). Critical bug. Spec includes 24 ACs across auto-draft, immediate upload, auto-save, list visibility, promote, delete, resilience. 10 architect-decision questions including status-column vs separate-table, orphan cleanup, and auto-save debounce. Will likely need to be planned as a multi-story mini-epic, not a single PR. The **edit** page already does the right thing (immediate upload to existing entry id) — only the **create** page is affected.
+- **#1426** — BUG: Diary photos lost on upload failure; replace local-stage flow with auto-draft + immediate upload (Closed, shipped). Multi-story mini-epic, all stories merged. Introduced auto-draft on first interaction + immediate photo upload + status column on diary_entries. Surfaced three follow-on UX rough edges (see #1435).
+- **#1435** — BUG: Diary UX rough edges after #1426 (Todo, 2026-05-17). Three client-only fixes batched in one issue: (a) auto-draft on type-card click instead of intermediate `step === 'form'` state on DiaryEntryCreatePage; (b) photo grid refresh on PhotoUpload.onUpload (current `onUpload={() => {}}` no-op comment hides the bug — usePhotos.refresh() exists and is the simplest fix); (c) replace standalone three-chip status row on DiaryPage with a "Hide drafts" toggle inside DiaryFilterBar. All client-only, no API/schema work. Likely batchable in a single PR.
 
 ## Key code references for diary draft work
 

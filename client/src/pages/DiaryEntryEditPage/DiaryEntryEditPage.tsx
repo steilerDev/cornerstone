@@ -695,9 +695,7 @@ export default function DiaryEntryEditPage() {
           <PhotoUpload
             entityType="diary_entry"
             entityId={entry.id}
-            onUpload={() => {
-              /* Photo is automatically added to state by usePhotos */
-            }}
+            onUpload={() => photosResult.refresh()}
             onError={(error) => {
               showToast('error', error);
             }}

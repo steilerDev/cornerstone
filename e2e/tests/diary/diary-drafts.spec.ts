@@ -2,22 +2,23 @@
  * E2E tests for Diary Draft Lifecycle
  *
  * Bug Fix #1426: Diary photos lost on upload failure
- * Also covers the full draft auto-save flow introduced alongside that fix.
+ * UX Polish #1435: Type-card click fires POST immediately; removes form step from create page.
  *
  * Scenarios covered:
- * 1.  [smoke] Auto-draft creation on body blur: type text → tab → URL changes to /diary/:id/edit, Draft badge visible
- * 2.  Draft persists on reload
+ * 1.  [smoke] Auto-draft creation on type-card click: click type card → POST fires → URL changes to /diary/:id/edit, Draft badge visible
+ * 2.  Draft persists on reload (triggered via type-card click)
  * 3.  URL is replace history (browser back → /diary, not /diary/new)
- * 4.  No draft created without interaction
+ * 4.  No draft without interaction (navigate away without clicking any card)
  * 5.  Auto-save on metadata change (daily_log weather select)
  * 6.  Photo attach — happy path (attach 2 photos, per-photo state, photos in grid)
+ *     Photo immediate appearance sub-test: upload → photo appears in PhotoGrid without reload
  * 7.  Photo attach — concurrency (4 photos, max 3 uploading simultaneously)
  * 8.  Photo upload failure → retry (page.route() intercept)
  * 9.  Promote draft — happy path (fill required fields, Save → detail page, no Draft badge)
  * 10. Promote draft — validation error (empty body, Save → error, still on edit, still draft)
  * 11. Discard draft (Discard Draft → confirm modal → /diary, entry gone)
  * 12. [smoke] Draft badge in list (create via API → /diary → Draft badge visible)
- * 13. Status filter — drafts only / saved only / all
+ * 13. Hide drafts checkbox (check → drafts hidden, saved visible; uncheck → drafts visible)
  * 14. Clicking draft in list navigates to /diary/:id/edit
  * 15. Dashboard excludes drafts; shows entry after promote
  * 16. [responsive] Draft edit page on mobile (badge, auto-save indicator, discard button visible, no scroll)
@@ -58,36 +59,27 @@ function waitForDiaryListResponse(page: import('@playwright/test').Page) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: Auto-draft creation on body blur
+// Scenario 1: Auto-draft creation on type-card click
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Auto-draft creation on body blur (Scenario 1)', { tag: '@responsive' }, () => {
+test.describe('Auto-draft creation on type-card click (Scenario 1)', { tag: '@responsive' }, () => {
   test(
-    '[smoke] Typing text and tabbing away auto-creates a draft and navigates to /diary/:id/edit',
+    '[smoke] Clicking a type card auto-creates a draft and navigates to /diary/:id/edit',
     { tag: '@smoke' },
-    async ({ page, testPrefix }) => {
+    async ({ page }) => {
       const createPage = new DiaryEntryCreatePage(page);
       const editPage = new DiaryEntryEditPage(page);
       let draftId: string | null = null;
 
       try {
         await createPage.goto();
-        await createPage.selectType('general_note');
 
-        // Fill the body textarea
-        const bodyText = `${testPrefix} auto-draft body text`;
-        await createPage.bodyTextarea.fill(bodyText);
-
-        // Register the POST response listener BEFORE blurring — createDraft fires on blur.
-        // Register before both the Tab press and explicit blur to avoid any race condition.
+        // Register the POST response listener BEFORE clicking — type-card click fires
+        // POST /api/diary-entries immediately (status: 'draft').
         const draftResponsePromise = page.waitForResponse(
           (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
         );
 
-        // Tab away to move focus off the textarea, triggering the onFieldBlur handler.
-        // Also call .blur() explicitly to ensure the React synthetic blur event fires
-        // reliably across all browser contexts (Chromium, Firefox, WebKit).
-        await createPage.bodyTextarea.press('Tab');
-        await createPage.bodyTextarea.blur();
+        await createPage.typeCard('general_note').click();
         const draftResponse = await draftResponsePromise;
         expect(draftResponse.ok(), 'Draft creation response should be OK').toBeTruthy();
 
@@ -95,7 +87,7 @@ test.describe('Auto-draft creation on body blur (Scenario 1)', { tag: '@responsi
         draftId = responseBody.id;
 
         // URL should change to /diary/:id/edit (replace navigation)
-        await page.waitForURL(new RegExp(`/diary/${draftId}/edit$`));
+        await page.waitForURL(/diary\/.+\/edit$/);
         expect(page.url()).toMatch(new RegExp(`/diary/${draftId}/edit$`));
 
         // Draft badge must be visible
@@ -114,44 +106,37 @@ test.describe('Auto-draft creation on body blur (Scenario 1)', { tag: '@responsi
 // Scenario 2: Draft persists on reload
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Draft persists on reload (Scenario 2)', () => {
-  test('Draft content is still visible after a full page reload', async ({ page, testPrefix }) => {
+  test('Draft entry created via type-card click is still visible after a full page reload', async ({
+    page,
+  }) => {
     const createPage = new DiaryEntryCreatePage(page);
     const editPage = new DiaryEntryEditPage(page);
     let draftId: string | null = null;
 
     try {
       await createPage.goto();
-      await createPage.selectType('general_note');
 
-      const bodyText = `${testPrefix} draft persist reload body`;
-      await createPage.bodyTextarea.fill(bodyText);
-
+      // Register the POST listener BEFORE clicking the type card
       const draftResponsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
       );
-      await createPage.bodyTextarea.press('Tab');
-      await createPage.bodyTextarea.blur();
+
+      await createPage.typeCard('general_note').click();
       const draftResponse = await draftResponsePromise;
       expect(draftResponse.ok()).toBeTruthy();
 
       const responseBody = (await draftResponse.json()) as { id: string };
       draftId = responseBody.id;
 
-      await page.waitForURL(new RegExp(`/diary/${draftId}/edit$`));
+      await page.waitForURL(/diary\/.+\/edit$/);
       await expect(editPage.draftBadge).toBeVisible();
 
-      // Reload the page
+      // Reload the page — the draft should persist (served from server)
       await page.reload();
       await editPage.heading.waitFor({ state: 'visible' });
 
       // Draft badge should still be visible after reload
       await expect(editPage.draftBadge).toBeVisible();
-
-      // Body content should be preserved (it was created with body text in a prior PATCH)
-      // Note: auto-save on blur fires the PATCH; the reload fetches from server.
-      // The body value may be the initial draft's empty body since body is sent on blur from
-      // the FORM component, not the create call. What we confirm is that the draft itself
-      // (badge, heading) still loads correctly — body persistence is server-side tested.
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
     }
@@ -162,9 +147,8 @@ test.describe('Draft persists on reload (Scenario 2)', () => {
 // Scenario 3: URL is replace history (browser back → /diary)
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Auto-draft URL is replace history (Scenario 3)', () => {
-  test('Browser back after auto-draft navigates to /diary, not /diary/new', async ({
+  test('Browser back after type-card-click draft navigates to /diary, not /diary/new', async ({
     page,
-    testPrefix,
   }) => {
     const createPage = new DiaryEntryCreatePage(page);
     let draftId: string | null = null;
@@ -179,17 +163,13 @@ test.describe('Auto-draft URL is replace history (Scenario 3)', () => {
       // Now navigate to /diary/new
       await page.goto(DIARY_CREATE_ROUTE);
       await createPage.heading.waitFor({ state: 'visible' });
-      await createPage.selectType('general_note');
 
-      // Trigger draft creation
-      const bodyText = `${testPrefix} replace history test`;
-      await createPage.bodyTextarea.fill(bodyText);
-
+      // Register POST listener BEFORE clicking the type card
       const draftResponsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
       );
-      await createPage.bodyTextarea.press('Tab');
-      await createPage.bodyTextarea.blur();
+
+      await createPage.typeCard('general_note').click();
       const draftResponse = await draftResponsePromise;
       expect(draftResponse.ok()).toBeTruthy();
 
@@ -197,7 +177,7 @@ test.describe('Auto-draft URL is replace history (Scenario 3)', () => {
       draftId = responseBody.id;
 
       // Wait for navigation to /diary/:id/edit
-      await page.waitForURL(new RegExp(`/diary/${draftId}/edit$`));
+      await page.waitForURL(/diary\/.+\/edit$/);
 
       // Press browser back — should navigate to /diary (the entry before /diary/new in history)
       // because navigate({ replace: true }) was used when creating the draft
@@ -214,31 +194,31 @@ test.describe('Auto-draft URL is replace history (Scenario 3)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: No draft created without interaction
+// Scenario 4: No draft without interaction
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('No draft created without interaction (Scenario 4)', () => {
-  test('Navigating away from /diary/new without filling any field creates no draft', async ({
+  test('Navigating away from /diary/new without clicking any type card creates no draft', async ({
     page,
     testPrefix,
   }) => {
     const createPage = new DiaryEntryCreatePage(page);
     const diaryPage = new DiaryPage(page);
 
+    // Navigate to /diary/new — type selector is visible, but do NOT click any card
     await createPage.goto();
-    await createPage.selectType('general_note');
 
-    // Do NOT interact with any field — navigate directly to /diary
+    // Navigate directly to /diary without clicking a type card
     await page.goto(DIARY_ROUTE);
     await diaryPage.heading.waitFor({ state: 'visible' });
 
-    // Activate "Drafts only" filter to see if any draft was created
+    // Navigate to drafts-only view to check no spurious draft was created
     const statusResponsePromise = page.waitForResponse(
       (resp) =>
         resp.url().includes('/api/diary-entries') &&
         resp.url().includes('status=draft') &&
         resp.status() === 200,
     );
-    await diaryPage.statusFilterDraft.click();
+    await diaryPage.filterDraftsOnly();
     const statusResponse = await statusResponsePromise;
 
     const body = (await statusResponse.json()) as {
@@ -357,6 +337,58 @@ test.describe('Photo attach — happy path (Scenario 6)', { tag: '@responsive' }
       // At least one item should transition to succeeded (shown briefly then removed from queue)
       // Verify the upload zone is still visible (photo section rendered)
       await expect(page.getByTestId('photo-upload-zone')).toBeVisible();
+    } finally {
+      if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+    }
+  });
+
+  // ── Photo immediate appearance sub-test (#1435) ──────────────────────────
+  test('Photo appears in PhotoGrid immediately after upload (without page reload)', async ({
+    page,
+    testPrefix,
+  }) => {
+    let draftId: string | null = null;
+
+    try {
+      draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+
+      await page.goto(`/diary/${draftId}/edit`);
+      await page.getByRole('heading', { level: 1, name: 'Edit Diary Entry' }).waitFor({
+        state: 'visible',
+      });
+
+      // A minimal valid JPEG to satisfy the server's content-type check
+      const minimalFile = {
+        name: `immediate-photo-${testPrefix}.jpg`,
+        mimeType: 'image/jpeg' as const,
+        buffer: Buffer.from(
+          '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFgABAQEAAAAAAAAAAAAAAAAABgUEA/8QAHxAAAQQCAwEAAAAAAAAAAAAAAQACAxESITFBUf/aAAgBAQAA/wBZkNBrSHb3L2oqXQgqUSRhqX',
+          'base64',
+        ),
+      };
+
+      // Register the POST /api/photos listener BEFORE triggering the upload
+      const uploadResponsePromise = page.waitForResponse(
+        (resp) => resp.url().includes('/api/photos') && resp.request().method() === 'POST',
+      );
+
+      const fileInput = page.getByTestId('photo-file-input');
+      await fileInput.setInputFiles([minimalFile]);
+
+      // Wait for the server response to complete
+      const uploadResponse = await uploadResponsePromise;
+      expect(uploadResponse.ok(), 'Photo upload should succeed').toBeTruthy();
+
+      // Extract the photo id from the response body
+      // The upload endpoint returns { photo: { id, ... } } (PhotoCard uses data-testid="photo-card-{id}")
+      const uploadBody = (await uploadResponse.json()) as { photo: { id: string } };
+      const photoId = uploadBody.photo.id;
+
+      // The photo should appear in the PhotoGrid without a page reload.
+      // DiaryEntryEditPage passes onUpload={() => photosResult.refresh()} to the upload zone,
+      // which triggers a GET /api/diary-entries/:id/photos refetch on success.
+      // PhotoCard renders data-testid="photo-card-{id}" (from PhotoCard.tsx).
+      await expect(page.getByTestId(`photo-card-${photoId}`)).toBeVisible();
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
     }
@@ -796,12 +828,9 @@ test.describe('Draft badge in list view (Scenario 12)', { tag: '@responsive' }, 
       try {
         draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-        // Navigate to /diary with status=draft filter to see the draft
-        await diaryPage.goto();
-
-        // Apply "Drafts only" filter
+        // Navigate to /diary?status=draft to see draft entries
         const filterResponsePromise = waitForDiaryListResponse(page);
-        await diaryPage.statusFilterDraft.click();
+        await diaryPage.filterDraftsOnly();
         await filterResponsePromise;
 
         // The draft card should be visible
@@ -817,65 +846,64 @@ test.describe('Draft badge in list view (Scenario 12)', { tag: '@responsive' }, 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 13: Status filter chips
+// Scenario 13: Hide drafts checkbox (#1435)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Status filter chips (Scenario 13)', () => {
-  test('"Drafts only" filter shows only draft entries; "Saved only" shows saved; "All" shows both', async ({
-    page,
-    testPrefix,
-  }) => {
-    const diaryPage = new DiaryPage(page);
-    let draftId: string | null = null;
-    let savedId: string | null = null;
+test.describe('Hide drafts checkbox (Scenario 13)', () => {
+  test(
+    'Checking "Hide drafts" hides drafts; unchecking restores them; default is unchecked',
+    async ({ page, testPrefix }) => {
+      const diaryPage = new DiaryPage(page);
+      let draftId: string | null = null;
+      let savedId: string | null = null;
 
-    try {
-      // Create one draft and one saved entry
-      draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
-      savedId = await createDiaryEntryViaApi(page, {
-        entryType: 'general_note',
-        entryDate: '2026-05-16',
-        body: `${testPrefix} saved entry for status filter test`,
-      });
+      try {
+        // Create one draft and one saved entry
+        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+        savedId = await createDiaryEntryViaApi(page, {
+          entryType: 'general_note',
+          entryDate: '2026-05-16',
+          body: `${testPrefix} saved entry for hide-drafts test`,
+        });
 
-      await diaryPage.goto();
-      await waitForDiaryListLoaded(diaryPage);
+        await diaryPage.goto();
+        await waitForDiaryListLoaded(diaryPage);
 
-      // ── "Drafts only" ──
-      const draftFilterResponse = waitForDiaryListResponse(page);
-      await diaryPage.statusFilterDraft.click();
-      await draftFilterResponse;
-      await waitForDiaryListLoaded(diaryPage);
+        // ── Default: checkbox is unchecked, both entries visible ──
+        await expect(diaryPage.hideDraftsCheckbox).not.toBeChecked();
+        await expect(diaryPage.entryCard(draftId)).toBeVisible();
+        await expect(diaryPage.entryCard(savedId)).toBeVisible();
 
-      // Our draft card should be visible
-      await expect(diaryPage.entryCard(draftId)).toBeVisible();
-      // Our saved card should NOT be visible
-      await expect(diaryPage.entryCard(savedId)).not.toBeVisible();
+        // ── Check "Hide drafts" → drafts hidden, saved visible; URL gets ?status=saved ──
+        const savedFilterResponse = waitForDiaryListResponse(page);
+        await diaryPage.hideDraftsCheckbox.check();
+        await savedFilterResponse;
+        await waitForDiaryListLoaded(diaryPage);
 
-      // ── "Saved only" ──
-      const savedFilterResponse = waitForDiaryListResponse(page);
-      await diaryPage.statusFilterSaved.click();
-      await savedFilterResponse;
-      await waitForDiaryListLoaded(diaryPage);
+        // URL should contain status=saved
+        expect(page.url()).toContain('status=saved');
 
-      // Our saved card should be visible
-      await expect(diaryPage.entryCard(savedId)).toBeVisible();
-      // Our draft card should NOT be visible
-      await expect(diaryPage.entryCard(draftId)).not.toBeVisible();
+        // Draft card should NOT be visible; saved card should be visible
+        await expect(diaryPage.entryCard(draftId)).not.toBeVisible();
+        await expect(diaryPage.entryCard(savedId)).toBeVisible();
 
-      // ── "All" ──
-      const allFilterResponse = waitForDiaryListResponse(page);
-      await diaryPage.statusFilterAll.click();
-      await allFilterResponse;
-      await waitForDiaryListLoaded(diaryPage);
+        // ── Uncheck "Hide drafts" → drafts visible again; status param removed ──
+        const allFilterResponse = waitForDiaryListResponse(page);
+        await diaryPage.hideDraftsCheckbox.uncheck();
+        await allFilterResponse;
+        await waitForDiaryListLoaded(diaryPage);
 
-      // Both should be visible
-      await expect(diaryPage.entryCard(draftId)).toBeVisible();
-      await expect(diaryPage.entryCard(savedId)).toBeVisible();
-    } finally {
-      if (draftId) await deleteDiaryEntryViaApi(page, draftId);
-      if (savedId) await deleteDiaryEntryViaApi(page, savedId);
-    }
-  });
+        // URL should NOT contain status=saved
+        expect(page.url()).not.toContain('status=saved');
+
+        // Both cards should be visible again
+        await expect(diaryPage.entryCard(draftId)).toBeVisible();
+        await expect(diaryPage.entryCard(savedId)).toBeVisible();
+      } finally {
+        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+        if (savedId) await deleteDiaryEntryViaApi(page, savedId);
+      }
+    },
+  );
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -892,11 +920,9 @@ test.describe('Draft card click navigates to edit page (Scenario 14)', () => {
     try {
       draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-      await diaryPage.goto();
-
-      // Apply "Drafts only" filter to ensure our card is visible
+      // Navigate to /diary?status=draft to ensure our draft card is visible
       const filterResponse = waitForDiaryListResponse(page);
-      await diaryPage.statusFilterDraft.click();
+      await diaryPage.filterDraftsOnly();
       await filterResponse;
       await waitForDiaryListLoaded(diaryPage);
 

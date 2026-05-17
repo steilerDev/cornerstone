@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
@@ -11,7 +11,7 @@ import type React from 'react';
 // ── API mocks ─────────────────────────────────────────────────────────────────
 
 const mockCreateDiaryEntry = jest.fn<typeof DiaryApiTypes.createDiaryEntry>();
-const mockUploadPhoto = jest.fn<() => Promise<unknown>>();
+const mockShowToast = jest.fn();
 
 jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   createDiaryEntry: mockCreateDiaryEntry,
@@ -22,20 +22,11 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   promoteDiaryEntry: jest.fn(),
 }));
 
-jest.unstable_mockModule('../../lib/photoApi.js', () => ({
-  uploadPhoto: mockUploadPhoto,
-  getPhotosForEntity: jest.fn(),
-  updatePhoto: jest.fn(),
-  deletePhoto: jest.fn(),
-  getPhotoFileUrl: jest.fn(),
-  getPhotoThumbnailUrl: jest.fn(),
-}));
-
 // Mock ToastContext so useToast() works without a real ToastProvider.
 // This avoids the dual-React instance issue caused by statically importing ToastProvider
 // while the page component is dynamically imported (which loads its own React instance).
 jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
-  useToast: () => ({ toasts: [], showToast: jest.fn(), dismissToast: jest.fn() }),
+  useToast: () => ({ toasts: [], showToast: mockShowToast, dismissToast: jest.fn() }),
   ToastProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
@@ -95,16 +86,16 @@ function LocationDisplay() {
 
 // ── Fixture ───────────────────────────────────────────────────────────────────
 
-const createdEntry = {
-  id: 'de-new',
-  entryType: 'daily_log' as const,
+const draftEntry = {
+  id: 'draft-new',
+  entryType: 'general_note' as const,
   entryDate: '2026-03-14',
   title: null,
-  body: 'Some body text',
+  body: '',
   metadata: null,
   isAutomatic: false,
   isSigned: false,
-  status: 'saved' as const,
+  status: 'draft' as const,
   sourceEntityType: null,
   sourceEntityId: null,
   sourceEntityArea: null,
@@ -113,13 +104,6 @@ const createdEntry = {
   createdBy: { id: 'user-1', displayName: 'Alice' },
   createdAt: '2026-03-14T09:00:00.000Z',
   updatedAt: '2026-03-14T09:00:00.000Z',
-};
-
-const draftEntry = {
-  ...createdEntry,
-  id: 'draft-new',
-  status: 'draft' as const,
-  body: '',
 };
 
 describe('DiaryEntryCreatePage', () => {
@@ -143,7 +127,7 @@ describe('DiaryEntryCreatePage', () => {
       AuthProvider = authMod.AuthProvider;
     }
     mockCreateDiaryEntry.mockReset();
-    mockUploadPhoto.mockReset();
+    mockShowToast.mockReset();
   });
 
   afterEach(() => {
@@ -210,28 +194,6 @@ describe('DiaryEntryCreatePage', () => {
       expect(screen.getByTestId('type-card-general_note')).toBeInTheDocument();
     });
 
-    it('renders exactly 5 type cards', () => {
-      renderPage();
-      const cards = [
-        screen.getByTestId('type-card-daily_log'),
-        screen.getByTestId('type-card-site_visit'),
-        screen.getByTestId('type-card-delivery'),
-        screen.getByTestId('type-card-issue'),
-        screen.getByTestId('type-card-general_note'),
-      ];
-      expect(cards).toHaveLength(5);
-    });
-
-    it('clicking a type card advances to the form step', async () => {
-      const user = userEvent.setup();
-      renderPage();
-      await user.click(screen.getByTestId('type-card-daily_log'));
-      // Form step shows body textarea (part of DiaryEntryForm)
-      await waitFor(() => {
-        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument();
-      });
-    });
-
     it('clicking the "Back to Diary" button navigates to /diary', async () => {
       const user = userEvent.setup();
       renderPage();
@@ -242,165 +204,15 @@ describe('DiaryEntryCreatePage', () => {
     });
   });
 
-  // ─── Form step ──────────────────────────────────────────────────────────────
+  // ─── Type card click creates draft immediately (Story #1435) ─────────────────
 
-  describe('form step (after type selection)', () => {
-    async function advanceToFormStep(type = 'daily_log') {
+  describe('type card click creates draft immediately', () => {
+    it('Scenario 1: clicking general_note card calls createDiaryEntry and navigates to /diary/:id/edit', async () => {
       const user = userEvent.setup();
+      mockCreateDiaryEntry.mockResolvedValueOnce({ ...draftEntry, entryType: 'general_note' });
       renderPage();
-      await user.click(screen.getByTestId(`type-card-${type}`));
-      await waitFor(() => {
-        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument();
-      });
-      return user;
-    }
 
-    it('renders the "← Back" button on the form step', async () => {
-      await advanceToFormStep();
-      expect(screen.getByRole('button', { name: /← back/i })).toBeInTheDocument();
-    });
-
-    it('"← Back" button returns to type selector', async () => {
-      const user = await advanceToFormStep();
-      await user.click(screen.getByRole('button', { name: /← back/i }));
-      await waitFor(() => {
-        expect(screen.getByTestId('type-card-daily_log')).toBeInTheDocument();
-      });
-    });
-
-    it('entry date defaults to today', async () => {
-      await advanceToFormStep();
-      const today = new Date().toISOString().split('T')[0];
-      const input = screen.getByLabelText(/entry date/i) as HTMLInputElement;
-      expect(input.value).toBe(today);
-    });
-
-    it('renders the "Cancel" button on the form step', async () => {
-      await advanceToFormStep();
-      expect(screen.getByRole('button', { name: /^cancel$/i })).toBeInTheDocument();
-    });
-
-    it('"Cancel" button returns to type selector', async () => {
-      const user = await advanceToFormStep();
-      await user.click(screen.getByRole('button', { name: /^cancel$/i }));
-      await waitFor(() => {
-        expect(screen.getByTestId('type-card-daily_log')).toBeInTheDocument();
-      });
-    });
-
-    it('shows daily_log metadata section after selecting daily_log', async () => {
-      await advanceToFormStep('daily_log');
-      // Section heading is the first field label rendered as <h3> (Weather for daily_log)
-      expect(screen.getByRole('heading', { level: 3, name: 'Weather' })).toBeInTheDocument();
-    });
-
-    it('shows site_visit metadata section after selecting site_visit', async () => {
-      await advanceToFormStep('site_visit');
-      // Section heading is the first field label rendered as <h3> (Inspector Name for site_visit)
-      expect(screen.getByRole('heading', { level: 3, name: 'Inspector Name' })).toBeInTheDocument();
-    });
-
-    it('shows delivery metadata section after selecting delivery', async () => {
-      await advanceToFormStep('delivery');
-      // Section heading is the first field label rendered as <h3> (Vendor for delivery)
-      expect(screen.getByRole('heading', { level: 3, name: 'Vendor' })).toBeInTheDocument();
-    });
-
-    it('shows issue metadata section after selecting issue', async () => {
-      await advanceToFormStep('issue');
-      // Section heading is the first field label rendered as <h3> (Issue Severity for issue)
-      expect(screen.getByRole('heading', { level: 3, name: 'Issue Severity' })).toBeInTheDocument();
-    });
-
-    it('does not show any metadata section for general_note', async () => {
-      await advanceToFormStep('general_note');
-      // No type-specific <h3> headings for general_note
-      expect(screen.queryByRole('heading', { level: 3, name: 'Weather' })).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole('heading', { level: 3, name: 'Inspector Name' }),
-      ).not.toBeInTheDocument();
-      expect(screen.queryByRole('heading', { level: 3, name: 'Vendor' })).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole('heading', { level: 3, name: 'Issue Severity' }),
-      ).not.toBeInTheDocument();
-    });
-  });
-
-  // ─── Validation ──────────────────────────────────────────────────────────────
-
-  // Note: Form validation is tested in DiaryEntryForm.test.tsx.
-  // Page-level validation tests are skipped due to ESM dynamic import
-  // limitations with form submit event handling in Jest.
-
-  // ─── Successful submit ───────────────────────────────────────────────────────
-
-  // ─── Successful submit (via draft creation flow) ───────────────────────────
-  // Tests for the old submit-button form submission have been removed.
-  // Story #1426 changed the flow to auto-create drafts on first interaction.
-  // Successful entry creation is tested in Scenarios 40-42 (draft creation on blur)
-  // and E2E tests in diary-drafts.spec.ts Scenario 1.
-
-  // ─── Photo file queue ────────────────────────────────────────────────────────
-
-  describe('photo file queue', () => {
-    async function advanceToFormStepWithUser(type = 'daily_log') {
-      const user = userEvent.setup();
-      renderPage();
-      await user.click(screen.getByTestId(`type-card-${type}`));
-      await waitFor(() =>
-        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
-      );
-      return user;
-    }
-
-    it('renders the photo file input on the form step', async () => {
-      await advanceToFormStepWithUser();
-      expect(screen.getByTestId('create-photo-input')).toBeInTheDocument();
-    });
-
-    it('photo input is a file input that accepts images', async () => {
-      await advanceToFormStepWithUser();
-      const input = screen.getByTestId('create-photo-input') as HTMLInputElement;
-      expect(input.type).toBe('file');
-      expect(input.accept).toBe('image/*');
-    });
-
-    it('does not show pending photo count when no files are queued', async () => {
-      await advanceToFormStepWithUser();
-      expect(screen.queryByTestId('pending-photo-count')).not.toBeInTheDocument();
-    });
-
-    it('does not render the old "Photos can be added after saving" hint text', async () => {
-      await advanceToFormStepWithUser();
-      expect(screen.queryByText(/photos can be added after saving/i)).not.toBeInTheDocument();
-    });
-  });
-
-  // ─── Failed submissions ──────────────────────────────────────────────────────
-  // Tests for submission failures via the old "Create Entry" button have been removed.
-  // Story #1426 changed the flow to auto-create drafts on first interaction.
-  // Failure scenarios are tested in the draft creation tests (Scenarios 40-42) and E2E.
-
-  // ─── Draft creation on blur (Story #1426) ────────────────────────────────────
-
-  describe('draft creation on field blur (Story #1426)', () => {
-    async function advanceToFormStep(type = 'general_note') {
-      const user = userEvent.setup();
-      renderPage();
-      await user.click(screen.getByTestId(`type-card-${type}`));
-      await waitFor(() => {
-        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument();
-      });
-      return user;
-    }
-
-    it('Scenario 40: blurring body textarea → calls createDiaryEntry({status:"draft"}) and navigates to /diary/:id/edit', async () => {
-      mockCreateDiaryEntry.mockResolvedValueOnce(draftEntry);
-      const user = await advanceToFormStep('general_note');
-
-      const textarea = screen.getByRole('textbox', { name: /^entry/i });
-      await user.type(textarea, 'Some content');
-      fireEvent.blur(textarea);
+      await user.click(screen.getByTestId('type-card-general_note'));
 
       await waitFor(() => {
         expect(mockCreateDiaryEntry).toHaveBeenCalledWith(
@@ -416,34 +228,118 @@ describe('DiaryEntryCreatePage', () => {
       });
     });
 
-    it('Scenario 41: reaching form step without any interaction → createDiaryEntry is NOT called', async () => {
-      await advanceToFormStep('general_note');
+    it('Scenario 2: clicking daily_log card calls createDiaryEntry with entryType=daily_log', async () => {
+      const user = userEvent.setup();
+      mockCreateDiaryEntry.mockResolvedValueOnce({ ...draftEntry, entryType: 'daily_log' });
+      renderPage();
 
-      // No blur, no interaction with inputs
-      expect(mockCreateDiaryEntry).not.toHaveBeenCalled();
-    });
-
-    it('Scenario 42: selecting weather metadata → triggers draft creation', async () => {
-      mockCreateDiaryEntry.mockResolvedValueOnce(draftEntry);
-      await advanceToFormStep('daily_log');
-
-      // Find the weather select and change it.
-      // The metadata useEffect has `skipOnFirstChangeRef` initialized to true:
-      // the very first metadata change after type selection is skipped to avoid
-      // spurious draft creation during initial render. A second change fires the
-      // actual createDraft() call. We change to 'sunny' first (skipped), then to
-      // 'cloudy' (triggers the effect and calls createDiaryEntry).
-      const weatherSelect = screen.getByLabelText(/weather/i);
-      fireEvent.change(weatherSelect, { target: { value: 'sunny' } });
-      fireEvent.change(weatherSelect, { target: { value: 'cloudy' } });
+      await user.click(screen.getByTestId('type-card-daily_log'));
 
       await waitFor(() => {
         expect(mockCreateDiaryEntry).toHaveBeenCalledWith(
-          expect.objectContaining({
-            entryType: 'daily_log',
-            status: 'draft',
-          }),
+          expect.objectContaining({ entryType: 'daily_log', status: 'draft' }),
         );
+      });
+    });
+
+    it('Scenario 2: clicking site_visit card calls createDiaryEntry with entryType=site_visit', async () => {
+      const user = userEvent.setup();
+      mockCreateDiaryEntry.mockResolvedValueOnce({ ...draftEntry, entryType: 'site_visit' });
+      renderPage();
+
+      await user.click(screen.getByTestId('type-card-site_visit'));
+
+      await waitFor(() => {
+        expect(mockCreateDiaryEntry).toHaveBeenCalledWith(
+          expect.objectContaining({ entryType: 'site_visit', status: 'draft' }),
+        );
+      });
+    });
+
+    it('Scenario 2: clicking delivery card calls createDiaryEntry with entryType=delivery', async () => {
+      const user = userEvent.setup();
+      mockCreateDiaryEntry.mockResolvedValueOnce({ ...draftEntry, entryType: 'delivery' });
+      renderPage();
+
+      await user.click(screen.getByTestId('type-card-delivery'));
+
+      await waitFor(() => {
+        expect(mockCreateDiaryEntry).toHaveBeenCalledWith(
+          expect.objectContaining({ entryType: 'delivery', status: 'draft' }),
+        );
+      });
+    });
+
+    it('Scenario 2: clicking issue card calls createDiaryEntry with entryType=issue', async () => {
+      const user = userEvent.setup();
+      mockCreateDiaryEntry.mockResolvedValueOnce({ ...draftEntry, entryType: 'issue' });
+      renderPage();
+
+      await user.click(screen.getByTestId('type-card-issue'));
+
+      await waitFor(() => {
+        expect(mockCreateDiaryEntry).toHaveBeenCalledWith(
+          expect.objectContaining({ entryType: 'issue', status: 'draft' }),
+        );
+      });
+    });
+
+    it('Scenario 3: API error shows toast and does not navigate away from /diary/new', async () => {
+      const user = userEvent.setup();
+      mockCreateDiaryEntry.mockRejectedValueOnce(new Error('Server error'));
+      renderPage();
+
+      await user.click(screen.getByTestId('type-card-general_note'));
+
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith('error', expect.any(String));
+      });
+
+      // Still on the create page — not navigated away
+      expect(screen.getByTestId('location')).toHaveTextContent('/diary/new');
+    });
+
+    it('Scenario 4: double-click guard — createDiaryEntry called exactly once even if type card clicked twice', async () => {
+      const user = userEvent.setup();
+      // Never-resolving promise to keep the in-flight state active during both clicks
+      mockCreateDiaryEntry.mockReturnValue(new Promise(() => undefined));
+      renderPage();
+
+      const typeCard = screen.getByTestId('type-card-general_note');
+      await user.click(typeCard);
+      await user.click(typeCard);
+
+      expect(mockCreateDiaryEntry).toHaveBeenCalledTimes(1);
+    });
+
+    it('Scenario 5: no form step rendered after type card click — navigates to edit route stub', async () => {
+      const user = userEvent.setup();
+      mockCreateDiaryEntry.mockResolvedValueOnce(draftEntry);
+      renderPage();
+
+      await user.click(screen.getByTestId('type-card-general_note'));
+
+      // After navigation to /diary/:id/edit the edit-page stub is shown, not a form
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-page')).toBeInTheDocument();
+      });
+
+      // No body textarea from form step should be present
+      expect(screen.queryByRole('textbox', { name: /^entry/i })).not.toBeInTheDocument();
+    });
+
+    it('Scenario 6: other type cards are disabled while API call is in-flight', async () => {
+      const user = userEvent.setup();
+      // Never resolves — keeps the in-flight pending state
+      mockCreateDiaryEntry.mockReturnValue(new Promise(() => undefined));
+      renderPage();
+
+      // Click daily_log to start the API call
+      await user.click(screen.getByTestId('type-card-daily_log'));
+
+      // While in-flight, the issue card should be disabled
+      await waitFor(() => {
+        expect(screen.getByTestId('type-card-issue')).toBeDisabled();
       });
     });
   });

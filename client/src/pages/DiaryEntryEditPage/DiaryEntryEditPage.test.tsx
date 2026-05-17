@@ -25,6 +25,45 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   promoteDiaryEntry: mockPromoteDiaryEntry,
 }));
 
+// ── usePhotos mock ────────────────────────────────────────────────────────────
+// Expose a mutable container so the spy inside it can be replaced per-test.
+// The factory closes over `photosState` (an object), so reassigning
+// `photosState.refresh` in beforeEach updates what usePhotos() returns at
+// render time without re-running the factory.
+const photosState = { refresh: jest.fn() };
+
+jest.unstable_mockModule('../../hooks/usePhotos.js', () => ({
+  usePhotos: () => ({
+    photos: [],
+    loading: false,
+    refresh: (...args: any[]) => photosState.refresh(...args),
+    upload: jest.fn(),
+    deletePhoto: jest.fn(),
+    reorderPhotos: jest.fn(),
+    updateCaption: jest.fn(),
+  }),
+}));
+
+// Mock PhotoUpload to capture its onUpload prop so tests can invoke it directly.
+// The real PhotoUpload uses XHR/FormData which are not available in jsdom.
+let capturedOnUpload: ((photo: any) => void) | null = null;
+
+jest.unstable_mockModule('../../components/photos/PhotoUpload.js', () => ({
+  PhotoUpload: ({ onUpload }: { onUpload: (photo: any) => void }) => {
+    capturedOnUpload = onUpload;
+    return <div data-testid="photo-upload-mock" />;
+  },
+}));
+
+// Mock PhotoGrid and PhotoViewer — not under test here, avoid real rendering.
+jest.unstable_mockModule('../../components/photos/PhotoGrid.js', () => ({
+  PhotoGrid: () => <div data-testid="photo-grid-mock" />,
+}));
+
+jest.unstable_mockModule('../../components/photos/PhotoViewer.js', () => ({
+  PhotoViewer: () => <div data-testid="photo-viewer-mock" />,
+}));
+
 // Stable mock references — hoisted so useToast() returns the same function identity
 // on every render, preventing infinite re-render loops in useEffect dependency arrays.
 const mockShowToast = jest.fn();
@@ -187,6 +226,8 @@ describe('DiaryEntryEditPage', () => {
     mockUpdateDiaryEntry.mockReset();
     mockDeleteDiaryEntry.mockReset();
     mockPromoteDiaryEntry.mockReset();
+    photosState.refresh = jest.fn();
+    capturedOnUpload = null;
   });
 
   afterEach(() => {
@@ -834,6 +875,28 @@ describe('DiaryEntryEditPage', () => {
 
       expect(screen.queryByRole('button', { name: /discard draft/i })).not.toBeInTheDocument();
       expect(screen.queryByTestId('draft-status-badge')).not.toBeInTheDocument();
+    });
+  });
+
+  // ─── Photo upload refresh (Story #1435) ──────────────────────────────────────
+
+  describe('photo upload refresh (Story #1435)', () => {
+    it('Scenario 7: onUpload callback calls photosResult.refresh()', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(generalNoteEntry);
+      renderEditPage('de-gn');
+
+      // Wait for the page to load so PhotoUpload is rendered and onUpload is captured
+      await waitFor(() => {
+        expect(screen.getByTestId('photo-upload-mock')).toBeInTheDocument();
+      });
+
+      // capturedOnUpload is set when PhotoUpload mock renders with the onUpload prop
+      expect(capturedOnUpload).not.toBeNull();
+
+      // Invoke the onUpload callback (simulates a successful photo upload)
+      capturedOnUpload!({ id: 'photo-1', url: 'https://example.com/photo.jpg' });
+
+      expect(photosState.refresh).toHaveBeenCalledTimes(1);
     });
   });
 });

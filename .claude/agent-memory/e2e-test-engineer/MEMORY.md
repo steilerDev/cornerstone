@@ -11,23 +11,23 @@
 - `invoice-deposits.spec.ts:665 [mobile]` "Mark paid flow on mobile" — HARD FAIL since PR #1427. Portal-rendered menu (usePortal=true) clipped behind `cardActions_b45Ao` div on mobile viewport. Production CSS bug. Issue #1433.
 - All 4 are PRE-EXISTING on beta (not caused by PR #1428). Issues #1427 introduced the two hard failures.
 
-## Diary Draft E2E (Fix #1426, 2026-05-16)
+## Diary Draft E2E (Fix #1426, UX #1435, 2026-05-17)
 
+- **#1435 BREAKING CHANGE**: DiaryEntryCreatePage no longer has a form step. Type-card click fires POST immediately and navigates to /diary/:id/edit. Removed from POM: bodyTextarea, entryDateInput, titleInput, weatherSelect, temperatureInput, workersInput, inspectorNameInput, outcomeSelect, vendorInput, deliveryConfirmedCheckbox, materialInput, addMaterialButton, severitySelect, resolutionStatusSelect, cancelButton, backToTypeButton.
+- **#1435**: Status filter chips (statusFilterAll/statusFilterDraft/statusFilterSaved) removed from DiaryPage POM. Replaced by `hideDraftsCheckbox` (data-testid="hide-drafts-checkbox"). Use `filterDraftsOnly()` helper for direct URL navigation to ?status=draft.
+- PhotoCard selector: `data-testid="photo-card-{id}"` (not `photo-grid-item`). PhotoGrid wraps them in `role="list" aria-label="Photos"`.
 - Draft badge on edit page: `data-testid="draft-status-badge"`. On list card: `data-testid="draft-badge-{id}"`.
 - Auto-save indicator: `data-testid="autosave-status"` — only rendered when `saveStatus !== 'idle'`.
 - Discard Draft button text: `"Discard Draft"` (exact). Discard modal: `aria-labelledby="discard-modal-title"`. Confirm: `"Discard Draft"`. Cancel: `"Keep Draft"`.
 - Delete modal: `aria-labelledby="delete-modal-title"` (distinct from discard). Use specific `aria-labelledby` selectors to disambiguate the two modals.
 - Promote endpoint: `PATCH /api/diary-entries/:id/promote`. Edit page submit button: "Save" for drafts, "Save Changes" for saved entries.
-- Status filter chips: plain `<button>` elements in `role="group"` container with `aria-label="Status"`. CRITICAL: DiaryFilterBar also renders `role="group"` elements with "All" button text — MUST scope to `getByRole('group', { name: 'Status' })` or strict-mode violation occurs.
-- Validation error for body field: `<div id="body-error" role="alert">` — use `#body-error` locator, NOT generic `[role="alert"].first()` (Toast also uses role="alert").
 - Draft card in list links to `/diary/:id/edit`; saved card links to `/diary/:id`. Confirmed in DiaryEntryCard source.
 - Dashboard (`/project/overview`) fetches diary entries with `status=saved` — use `url.includes('status=saved')` in waitForResponse predicate to match this specific call.
 - `createDraftDiaryEntryViaApi(page, { entryType })` — POST with `status: 'draft'`, no body required. Server sets entryDate=today, body=''.
 - Photo upload API: `uploadPhoto()` uses XHR to `${getBaseUrl()}/photos`. Response shape: `{ photo: { id, entityType, ... } }` (wrapped in "photo" key).
 - Photo route mock MUST wrap response in `{ photo: { ... } }` — not the photo object directly.
-- Photo concurrency: after `page.waitForRequest`, add `page.waitForTimeout(50)` before reading `uploadCount` (route handler runs after request event, micro-task gap).
 - Release all `uploadHolds` BEFORE calling `page.unroute()` — unrouting with pending handlers causes unhandled rejections.
-- Test file: `e2e/tests/diary/diary-drafts.spec.ts` (18 scenarios; smoke tags on scenarios 1, 9, 12).
+- Test file: `e2e/tests/diary/diary-drafts.spec.ts` (18 scenarios + 1 sub-test in Scenario 6; smoke tags on scenarios 1, 9, 12).
 
 ## InvoiceBudgetLinesSection Picker (Issue #1401, 2026-05-10)
 
