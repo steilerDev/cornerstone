@@ -681,6 +681,7 @@ describe('Photo Routes', () => {
         photoStoragePath,
         'photo-id-123',
         'original',
+        true, // preferAnnotated=true when no variant specified
       );
     });
   });
@@ -1154,23 +1155,24 @@ describe('Photo Routes', () => {
         expect.any(Buffer),
       );
       // Verify the buffer content matches what was sent
-      const calledWith = mockSaveAnnotatedImage.mock.calls[0];
+      const calledWith = mockSaveAnnotatedImage.mock.calls[0]!;
       const bufArg = calledWith[3] as Buffer;
       expect(bufArg.equals(pngContent)).toBe(true);
     });
 
     it('returns 400 when file exceeds photoMaxFileSizeMb', async () => {
       const { cookie } = await createUserWithSession('annbig@example.com', 'AnnBig', 'password');
-      // Set limit to 1 byte for this test via env (already 20MB, so use a tiny file > max)
-      // Instead, override PHOTO_MAX_FILE_SIZE_MB to 0 for this test
-      process.env.PHOTO_MAX_FILE_SIZE_MB = '0';
+      // Set limit to 1 MB; config validator rejects 0, so use 1 and send a file > 1 MB.
+      process.env.PHOTO_MAX_FILE_SIZE_MB = '1';
       await app.close();
       app = await buildApp();
 
+      // Send a buffer slightly larger than 1 MB (1,048,577 bytes > 1 * 1024 * 1024)
+      const oversizedBuffer = Buffer.alloc(1024 * 1024 + 1, 0x89);
       const { body, contentType } = buildMultipartBody([
         {
           name: 'file',
-          value: Buffer.from('any-data'),
+          value: oversizedBuffer,
           filename: 'annotated.png',
           contentType: 'image/png',
         },

@@ -24,6 +24,7 @@ const makePhoto = (overrides: Partial<Photo> = {}): Photo => ({
   caption: null,
   sortOrder: 0,
   createdBy: null,
+  annotatedAt: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   fileUrl: '/api/photos/photo-1/file',

@@ -22,7 +22,7 @@
  */
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import React from 'react';
 import type { Photo } from '@cornerstone/shared';
 
@@ -292,8 +292,9 @@ describe('PhotoViewer', () => {
 
     fireEvent.click(screen.getByTestId('photo-viewer-clear-annotations'));
 
-    // Find and click the confirm button (which has the clearConfirmAction label)
-    const confirmBtn = screen.getByRole('button', { name: /Remove annotations/i });
+    // Scope the query to within the modal to avoid collision with the toolbar button
+    const modal = screen.getByTestId('mock-modal');
+    const confirmBtn = within(modal).getByRole('button', { name: /Clear annotations/i });
 
     await act(async () => {
       fireEvent.click(confirmBtn);
@@ -310,7 +311,8 @@ describe('PhotoViewer', () => {
     renderViewer([photo]);
 
     fireEvent.click(screen.getByTestId('photo-viewer-clear-annotations'));
-    const confirmBtn = screen.getByRole('button', { name: /Remove annotations/i });
+    const modal = screen.getByTestId('mock-modal');
+    const confirmBtn = within(modal).getByRole('button', { name: /Clear annotations/i });
 
     await act(async () => {
       fireEvent.click(confirmBtn);
@@ -329,7 +331,8 @@ describe('PhotoViewer', () => {
     renderViewer([photo]);
 
     fireEvent.click(screen.getByTestId('photo-viewer-clear-annotations'));
-    const confirmBtn = screen.getByRole('button', { name: /Remove annotations/i });
+    const modal = screen.getByTestId('mock-modal');
+    const confirmBtn = within(modal).getByRole('button', { name: /Clear annotations/i });
 
     await act(async () => {
       fireEvent.click(confirmBtn);
