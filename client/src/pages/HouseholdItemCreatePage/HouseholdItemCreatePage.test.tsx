@@ -463,11 +463,6 @@ describe('HouseholdItemCreatePage', () => {
   });
 
   describe('data loading failure', () => {
-    // Tags were removed in migration 0028 (areas_trades_rework) — tagsApi no longer called
-    it.skip('shows error banner when tags fail to load', () => {
-      // Test removed: tagsApi.ts has been deleted; tags table was dropped in migration 0028
-    });
-
     it('shows error banner when vendors fail to load', async () => {
       mockFetchVendors.mockRejectedValue(new Error('Network error'));
 

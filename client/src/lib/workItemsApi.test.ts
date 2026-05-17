@@ -110,8 +110,7 @@ describe('workItemsApi', () => {
       );
     });
 
-    // areaId filter not yet in listWorkItems signature (Story 3 TODO)
-    it.skip('includes areaId filter query param when provided', async () => {
+    it('includes areaId filter query param when provided', async () => {
       const mockResponse: WorkItemListResponse = {
         items: [],
         pagination: { page: 1, pageSize: 25, totalPages: 0, totalItems: 0 },

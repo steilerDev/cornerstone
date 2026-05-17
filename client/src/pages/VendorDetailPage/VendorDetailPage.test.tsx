@@ -253,16 +253,16 @@ describe('VendorDetailPage', () => {
       });
     });
 
-    // Trade display not yet implemented in the component (Story 3 TODO) — skipped
-    it.skip('renders vendor specialty', async () => {
+    it('renders vendor trade', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
 
       renderPage();
 
       await waitFor(() => {
-        // Specialty appears both in the page subtitle and in the info list — use getAllByText
-        const specialtyElements = screen.getAllByText('Plumbing');
-        expect(specialtyElements.length).toBeGreaterThan(0);
+        // Trade name appears in the info list; getCategoryDisplayName falls back to
+        // vendor.trade.name when translationKey is null
+        const tradeElements = screen.getAllByText('Plumbing');
+        expect(tradeElements.length).toBeGreaterThan(0);
       });
     });
 
