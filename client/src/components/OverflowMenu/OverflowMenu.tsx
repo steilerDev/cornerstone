@@ -2,6 +2,8 @@ import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './OverflowMenu.module.css';
 
+export const SCROLL_CLOSE_THRESHOLD_PX = 8;
+
 export interface OverflowMenuItem {
   id?: string;
   label: string;
@@ -57,7 +59,16 @@ export function OverflowMenu({
   useEffect(() => {
     if (!isOpen || !usePortal) return;
 
-    const handleScroll = () => setIsOpen(false);
+    const initialScrollX = window.scrollX;
+    const initialScrollY = window.scrollY;
+
+    const handleScroll = () => {
+      const deltaX = Math.abs(window.scrollX - initialScrollX);
+      const deltaY = Math.abs(window.scrollY - initialScrollY);
+      if (deltaX > SCROLL_CLOSE_THRESHOLD_PX || deltaY > SCROLL_CLOSE_THRESHOLD_PX) {
+        setIsOpen(false);
+      }
+    };
     const handleResize = () => setIsOpen(false);
 
     document.addEventListener('scroll', handleScroll, { capture: true });
