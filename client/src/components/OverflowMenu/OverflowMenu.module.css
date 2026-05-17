@@ -55,6 +55,7 @@
 
 .menuFixed {
   position: fixed;
+  z-index: var(--z-overlay);
 }
 
 .menuBottom {
