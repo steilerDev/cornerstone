@@ -11,6 +11,7 @@
  *   - NotFoundError is thrown for unknown household items or budget IDs
  */
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -664,4 +665,105 @@ describe('householdItemBudgetService', () => {
       expect(result.confidenceMargin).toBe(0);
     });
   });
+
+  // ─── #1441: invoiceLink.vendorId and invoiceLink.vendorName fields ────────────
+
+  describe('invoiceLink vendor fields (#1441)', () => {
+    function insertVendorForInvoice(name: string) {
+      const id = `v-hi-${++idCounter}`;
+      const now = new Date(Date.now() + idCounter).toISOString();
+      db.insert(schema.vendors)
+        .values({ id, name, createdAt: now, updatedAt: now })
+        .run();
+      return id;
+    }
+
+    function insertInvoiceLinkedToHIBudget(
+      householdItemBudgetId: string,
+      vendorId: string | null,
+      opts: { amount?: number; status?: 'pending' | 'paid' | 'claimed' | 'quotation' } = {},
+    ) {
+      const invoiceId = `inv-hi-${++idCounter}`;
+      const iblId = `ibl-hi-${++idCounter}`;
+      const amount = opts.amount ?? 100;
+      const now = new Date(Date.now() + idCounter).toISOString();
+      db.insert(schema.invoices)
+        .values({
+          id: invoiceId,
+          vendorId,
+          amount,
+          date: '2025-06-01',
+          status: opts.status ?? 'pending',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: iblId,
+          invoiceId,
+          householdItemBudgetId,
+          itemizedAmount: amount,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      return { invoiceId, iblId };
+    }
+
+    it('invoiceLink.vendorId and invoiceLink.vendorName are populated when invoice has a vendor', () => {
+      const hiId = insertHouseholdItem();
+      const budget = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 800,
+      });
+      const vendorId = insertVendorForInvoice('IKEA HI Vendor');
+      insertInvoiceLinkedToHIBudget(budget.id, vendorId, { amount: 800, status: 'paid' });
+
+      const result = listHouseholdItemBudgets(db, hiId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]!.invoiceLink).not.toBeNull();
+      expect(result[0]!.invoiceLink?.vendorId).toBe(vendorId);
+      expect(result[0]!.invoiceLink?.vendorName).toBe('IKEA HI Vendor');
+    });
+
+    it('invoiceLink.vendorId and invoiceLink.vendorName are null when invoice has no vendor', () => {
+      const hiId = insertHouseholdItem();
+      const budget = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 300,
+      });
+      insertInvoiceLinkedToHIBudget(budget.id, null, { amount: 300, status: 'pending' });
+
+      const result = listHouseholdItemBudgets(db, hiId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]!.invoiceLink).not.toBeNull();
+      expect(result[0]!.invoiceLink?.vendorId).toBeNull();
+      expect(result[0]!.invoiceLink?.vendorName).toBeNull();
+    });
+
+    it('actualCost includes quotation invoice (ADR-029)', () => {
+      const hiId = insertHouseholdItem();
+      const budget = createHouseholdItemBudget(db, hiId, 'user-001', {
+        budgetSourceId: defaultSourceId,
+        plannedAmount: 1200,
+      });
+      const vendorId = insertVendorForInvoice('Quotation HI Vendor');
+      insertInvoiceLinkedToHIBudget(budget.id, vendorId, { amount: 1200, status: 'quotation' });
+
+      const result = listHouseholdItemBudgets(db, hiId);
+
+      expect(result).toHaveLength(1);
+      // ADR-029: quotation now counts toward actualCost
+      expect(result[0]!.actualCost).toBe(1200);
+      // quotation is not paid
+      expect(result[0]!.actualCostPaid).toBe(0);
+      expect(result[0]!.invoiceLink?.vendorId).toBe(vendorId);
+      expect(result[0]!.invoiceLink?.vendorName).toBe('Quotation HI Vendor');
+    });
+  });
+
+  // ─── #1441: workItemBudgetService — invoiceLink vendor fields ────────────────
 });

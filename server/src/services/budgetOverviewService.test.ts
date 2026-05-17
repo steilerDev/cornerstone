@@ -426,6 +426,124 @@ describe('getBudgetOverview', () => {
       expect(result.actualCostPaid).toBe(8000); // only paid
     });
 
+    it('quotation invoice contributes to actualCost but not actualCostPaid (ADR-029)', () => {
+      // Insert a budget line with a quotation invoice using raw DB inserts
+      const now = new Date().toISOString();
+      const workItemId = `wi-quotation-${idCounter++}`;
+      db.insert(schema.workItems)
+        .values({
+          id: workItemId,
+          title: 'Quotation WI',
+          status: 'not_started',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const budgetId = `bud-quotation-${idCounter++}`;
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: budgetId,
+          workItemId,
+          plannedAmount: 5000,
+          confidence: 'own_estimate',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const vendorId = `v-quotation-${idCounter++}`;
+      db.insert(schema.vendors)
+        .values({ id: vendorId, name: 'Quotation Vendor', createdAt: now, updatedAt: now })
+        .run();
+      const quotationInvoiceId = `inv-quotation-${idCounter++}`;
+      db.insert(schema.invoices)
+        .values({
+          id: quotationInvoiceId,
+          vendorId,
+          amount: 3000,
+          date: '2026-03-01',
+          status: 'quotation',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: quotationInvoiceId,
+          workItemBudgetId: budgetId,
+          itemizedAmount: 3000,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const result = getBudgetOverview(db);
+
+      // quotation invoice now counted in actualCost (ADR-029)
+      expect(result.actualCost).toBe(3000);
+      // quotation is not paid → actualCostPaid stays 0
+      expect(result.actualCostPaid).toBe(0);
+    });
+
+    it('mixed quotation + paid invoices: actualCost sums both, actualCostPaid counts only paid (ADR-029)', () => {
+      // paid invoice via helper
+      insertWorkItem({ plannedAmount: 8000, actualCost: 5000 }); // paid 5000
+      // quotation invoice via raw inserts
+      const now = new Date().toISOString();
+      const workItemId2 = `wi-qmix-${idCounter++}`;
+      db.insert(schema.workItems)
+        .values({
+          id: workItemId2,
+          title: 'Quotation WI 2',
+          status: 'not_started',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const budgetId2 = `bud-qmix-${idCounter++}`;
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: budgetId2,
+          workItemId: workItemId2,
+          plannedAmount: 4000,
+          confidence: 'own_estimate',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const vendorId2 = `v-qmix-${idCounter++}`;
+      db.insert(schema.vendors)
+        .values({ id: vendorId2, name: 'Mix Vendor', createdAt: now, updatedAt: now })
+        .run();
+      const qInvId = `inv-qmix-${idCounter++}`;
+      db.insert(schema.invoices)
+        .values({
+          id: qInvId,
+          vendorId: vendorId2,
+          amount: 4000,
+          date: '2026-03-01',
+          status: 'quotation',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: qInvId,
+          workItemBudgetId: budgetId2,
+          itemizedAmount: 4000,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const result = getBudgetOverview(db);
+
+      expect(result.actualCost).toBe(9000); // 5000 paid + 4000 quotation
+      expect(result.actualCostPaid).toBe(5000); // only the paid invoice
+    });
+
     it('returns zero actualCost when no invoices are linked to budget lines', () => {
       insertWorkItem({ plannedAmount: 10000 });
 

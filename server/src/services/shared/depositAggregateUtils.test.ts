@@ -78,13 +78,13 @@ describe('computeDepositAwareAggregates', () => {
       expect(result.actualCostClaimed).toBe(400);
     });
 
-    it('quotation invoice: excluded from actualCost', () => {
+    it('quotation invoice: included in actualCost (ADR-029) but excluded from actualCostPaid', () => {
       const rows = [makeRow('ibl-1', 250, 'inv-1', 250, 'quotation')];
       const result = computeDepositAwareAggregates(rows);
-      expect(result.actualCost).toBe(0);
-      expect(result.actualCostPaid).toBe(0);
+      expect(result.actualCost).toBe(250); // quotation now counts toward actualCost (ADR-029)
+      expect(result.actualCostPaid).toBe(0); // quotation is not paid
       expect(result.actualCostClaimed).toBe(0);
-      expect(result.invoiceCount).toBe(1); // invoiceCount still counts the invoice
+      expect(result.invoiceCount).toBe(1);
     });
 
     it('multiple zero-deposit invoices across multiple ibls', () => {
@@ -208,7 +208,8 @@ describe('computeDepositAwareAggregates', () => {
   // ─── Scenario 5: quotation invoice with deposits ───────────────────────────
 
   describe('quotation invoice with deposits', () => {
-    it('excludes quotation invoice from actualCost even when deposits present', () => {
+    it('quotation invoice contributes to actualCost but deposit fraction counted in actualCostPaid (ADR-029)', () => {
+      // invoice 200 quotation, deposit 100 paid → actualCost=200 (ADR-029), actualCostPaid=100 (deposit is paid)
       const rows = [
         makeRow('ibl-1', 200, 'inv-1', 200, 'quotation', {
           id: 'd-1',
@@ -217,9 +218,51 @@ describe('computeDepositAwareAggregates', () => {
         }),
       ];
       const result = computeDepositAwareAggregates(rows);
-      expect(result.actualCost).toBe(0);
+      expect(result.actualCost).toBe(200); // quotation contributes to actualCost (ADR-029)
+      // deposit fraction: 100/200 = 0.5, ibl contribution = 200*0.5 = 100 (paid deposit)
+      // residual fraction: 100/200 = 0.5, ibl contribution = 200*0.5 = 100 under 'quotation' → not paid
+      expect(result.actualCostPaid).toBeCloseTo(100);
+      expect(result.actualCostClaimed).toBe(0);
+    });
+
+    it('quotation invoice with no deposits: actualCost=ibl amount, actualCostPaid=0', () => {
+      const rows = [makeRow('ibl-1', 300, 'inv-1', 300, 'quotation')];
+      const result = computeDepositAwareAggregates(rows);
+      expect(result.actualCost).toBe(300);
       expect(result.actualCostPaid).toBe(0);
       expect(result.actualCostClaimed).toBe(0);
+      expect(result.invoiceCount).toBe(1);
+    });
+  });
+
+  // ─── Scenario 5b: mixed quotation + paid invoices (ADR-029 regression) ───────
+
+  describe('mixed quotation + paid invoices (ADR-029)', () => {
+    it('actualCost sums both quotation and paid; actualCostPaid only counts paid', () => {
+      // ibl-1: quotation invoice 400 → actualCost+=400, actualCostPaid+=0
+      // ibl-2: paid invoice 600 → actualCost+=600, actualCostPaid+=600
+      const rows = [
+        makeRow('ibl-1', 400, 'inv-1', 400, 'quotation'),
+        makeRow('ibl-2', 600, 'inv-2', 600, 'paid'),
+      ];
+      const result = computeDepositAwareAggregates(rows);
+      expect(result.actualCost).toBe(1000); // 400 + 600
+      expect(result.actualCostPaid).toBe(600); // only paid
+      expect(result.actualCostClaimed).toBe(0);
+      expect(result.invoiceCount).toBe(2);
+    });
+
+    it('mixed: quotation + pending + claimed — actualCost sums all three', () => {
+      const rows = [
+        makeRow('ibl-1', 200, 'inv-1', 200, 'quotation'),
+        makeRow('ibl-2', 300, 'inv-2', 300, 'pending'),
+        makeRow('ibl-3', 500, 'inv-3', 500, 'claimed'),
+      ];
+      const result = computeDepositAwareAggregates(rows);
+      expect(result.actualCost).toBe(1000); // 200 + 300 + 500
+      expect(result.actualCostPaid).toBe(500); // only claimed counts
+      expect(result.actualCostClaimed).toBe(500); // claimed
+      expect(result.invoiceCount).toBe(3);
     });
   });
 
