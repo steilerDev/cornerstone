@@ -115,9 +115,7 @@ export function PhotoUpload({
         }
 
         setPhotoQueue((prev) =>
-          prev.map((p) =>
-            p.file === entry.file ? { ...p, state: 'failed', errorMessage } : p,
-          ),
+          prev.map((p) => (p.file === entry.file ? { ...p, state: 'failed', errorMessage } : p)),
         );
 
         onError?.(`${entry.file.name}: ${errorMessage}`);
@@ -161,7 +159,9 @@ export function PhotoUpload({
 
   const handleRetry = (entry: PhotoEntry) => {
     setPhotoQueue((prev) =>
-      prev.map((p) => (p.file === entry.file ? { ...p, state: 'queued', errorMessage: undefined } : p)),
+      prev.map((p) =>
+        p.file === entry.file ? { ...p, state: 'queued', errorMessage: undefined } : p,
+      ),
     );
   };
 

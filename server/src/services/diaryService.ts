@@ -636,7 +636,8 @@ export function createDiaryEntry(
   }
 
   // Determine entry date: required for saved, defaults to today for drafts
-  const entryDate = data.entryDate ?? (isDraft ? new Date().toISOString().split('T')[0] : undefined);
+  const entryDate =
+    data.entryDate ?? (isDraft ? new Date().toISOString().split('T')[0] : undefined);
   if (!isDraft && !entryDate) {
     throw new ValidationError('Entry date is required');
   }
@@ -912,9 +913,7 @@ export function promoteDiaryEntry(
   if (entryType === 'site_visit') {
     const svm = finalMetadata as SiteVisitMetadata | null;
     if (!svm || !svm.inspectorName || svm.inspectorName.trim().length === 0) {
-      throw new ValidationError(
-        'site_visit entries require non-empty inspectorName in metadata',
-      );
+      throw new ValidationError('site_visit entries require non-empty inspectorName in metadata');
     }
     if (!svm.outcome || !['pass', 'fail', 'conditional'].includes(svm.outcome)) {
       throw new ValidationError('site_visit entries require outcome in metadata');

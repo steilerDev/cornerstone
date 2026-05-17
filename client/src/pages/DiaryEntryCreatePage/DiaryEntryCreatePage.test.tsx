@@ -161,10 +161,7 @@ describe('DiaryEntryCreatePage', () => {
                 path="/diary/:id/edit"
                 element={<div data-testid="edit-page">Edit Page</div>}
               />
-              <Route
-                path="/diary/:id"
-                element={<div data-testid="detail-page">Detail Page</div>}
-              />
+              <Route path="/diary/:id" element={<div data-testid="detail-page">Detail Page</div>} />
               <Route path="/diary" element={<div data-testid="diary-list">Diary List</div>} />
             </Routes>
             <LocationDisplay />
@@ -277,7 +274,6 @@ describe('DiaryEntryCreatePage', () => {
       const input = screen.getByLabelText(/entry date/i) as HTMLInputElement;
       expect(input.value).toBe(today);
     });
-
 
     it('renders the "Cancel" button on the form step', async () => {
       await advanceToFormStep();

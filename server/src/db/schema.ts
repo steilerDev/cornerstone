@@ -909,7 +909,9 @@ export const diaryEntries = sqliteTable(
     title: text('title'),
     body: text('body').notNull(),
     metadata: text('metadata'),
-    status: text('status', { enum: ['draft', 'saved'] }).notNull().default('saved'),
+    status: text('status', { enum: ['draft', 'saved'] })
+      .notNull()
+      .default('saved'),
     isAutomatic: integer('is_automatic', { mode: 'boolean' }).notNull().default(false),
     sourceEntityType: text('source_entity_type'),
     sourceEntityId: text('source_entity_id'),

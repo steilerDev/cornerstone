@@ -43,7 +43,9 @@ let PhotoUpload: typeof PhotoUploadType;
 interface MockXhrInstance {
   open: jest.MockedFunction<(method: string, url: string) => void>;
   send: jest.MockedFunction<(body?: FormData) => void>;
-  upload: { addEventListener: jest.MockedFunction<(e: string, h: (ev: ProgressEvent) => void) => void> };
+  upload: {
+    addEventListener: jest.MockedFunction<(e: string, h: (ev: ProgressEvent) => void) => void>;
+  };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addEventListener: jest.MockedFunction<(event: string, handler: (...args: any[]) => void) => void>;
   status: number;
@@ -59,7 +61,6 @@ function setupXhrMock() {
   xhrInstances = [];
   savedXMLHttpRequest = globalThis.XMLHttpRequest;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   globalThis.XMLHttpRequest = jest.fn().mockImplementation(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handlers: Record<string, (...args: any[]) => void> = {};
@@ -313,7 +314,9 @@ describe('PhotoUpload', () => {
 
       // Wait for failure state + retry button
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /retry.*retry-photo\.jpg/i })).toBeInTheDocument();
+        expect(
+          screen.getByRole('button', { name: /retry.*retry-photo\.jpg/i }),
+        ).toBeInTheDocument();
       });
 
       // Click retry
@@ -327,19 +330,14 @@ describe('PhotoUpload', () => {
       await waitFor(() => {
         // Either the module mock was called twice (CI) or two XHR instances were
         // created (local). At least one of these is true in any environment.
-        const uploadAttempts = Math.max(
-          mockUploadPhoto.mock.calls.length,
-          xhrInstances.length,
-        );
+        const uploadAttempts = Math.max(mockUploadPhoto.mock.calls.length, xhrInstances.length);
         expect(uploadAttempts).toBeGreaterThanOrEqual(2);
       });
     });
 
     it('retry results in onUpload called after successful second attempt', async () => {
       const photo = makePhoto({ originalFilename: 'retry-success.jpg' });
-      mockUploadPhoto
-        .mockRejectedValueOnce(new Error('Try again'))
-        .mockResolvedValueOnce(photo);
+      mockUploadPhoto.mockRejectedValueOnce(new Error('Try again')).mockResolvedValueOnce(photo);
 
       const onUpload = jest.fn();
       renderUpload({ onUpload });
@@ -357,7 +355,9 @@ describe('PhotoUpload', () => {
       // Use the specific retry button aria-label to avoid matching the filename
       // "retry-success.jpg" inside the Remove button's aria-label.
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^Retry retry-success\.jpg$/i })).toBeInTheDocument();
+        expect(
+          screen.getByRole('button', { name: /^Retry retry-success\.jpg$/i }),
+        ).toBeInTheDocument();
       });
 
       const retryBtn = screen.getByRole('button', { name: /^Retry retry-success\.jpg$/i });
@@ -524,7 +524,7 @@ describe('PhotoUpload', () => {
 
   it('shows "Failed" state when upload throws a non-standard rejection', async () => {
     // Module mock (CI): reject with a non-Error value
-    // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+
     mockUploadPhoto.mockRejectedValueOnce('raw string error');
     renderUpload();
 

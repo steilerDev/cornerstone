@@ -705,7 +705,12 @@ describe('Diary Routes', () => {
   describe('GET /api/diary-entries status filter (Story #1426)', () => {
     it('Scenario 25: GET /?status=draft → only returns draft entries', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
-      insertDiaryEntry({ status: 'draft', entryType: 'general_note', body: 'draft content', entryDate: '2026-03-14' });
+      insertDiaryEntry({
+        status: 'draft',
+        entryType: 'general_note',
+        body: 'draft content',
+        entryDate: '2026-03-14',
+      });
       insertDiaryEntry({ status: 'saved', body: 'Saved content' });
 
       const response = await app.inject({
@@ -722,7 +727,12 @@ describe('Diary Routes', () => {
 
     it('Scenario 26: GET /?status=saved → only returns saved entries', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
-      insertDiaryEntry({ status: 'draft', entryType: 'general_note', body: 'draft content', entryDate: '2026-03-14' });
+      insertDiaryEntry({
+        status: 'draft',
+        entryType: 'general_note',
+        body: 'draft content',
+        entryDate: '2026-03-14',
+      });
       insertDiaryEntry({ status: 'saved', body: 'Saved content' });
 
       const response = await app.inject({

@@ -255,7 +255,11 @@ export default function DiaryPage() {
       />
 
       {/* Status filter chips */}
-      <div className={styles.statusFilterChips} role="group" aria-label={t('filterBar.statusFilterLabel')}>
+      <div
+        className={styles.statusFilterChips}
+        role="group"
+        aria-label={t('filterBar.statusFilterLabel')}
+      >
         <button
           type="button"
           className={`${styles.filterChip} ${!statusFilter ? styles.filterChipActive : ''}`}

@@ -390,7 +390,8 @@ describe('DiaryPage', () => {
       await user.click(allChip);
 
       await waitFor(() => {
-        const lastCall = mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
+        const lastCall =
+          mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
         expect(lastCall?.[0]?.status).toBeUndefined();
       });
     });

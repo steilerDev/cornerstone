@@ -10,12 +10,14 @@ metadata:
 For "in-progress entity that becomes a real entity once validated" flows (issue #1426: diary photos lost on create-form submit failure), the chosen pattern is a `status TEXT NOT NULL DEFAULT 'saved' CHECK(status IN ('draft','saved'))` column on the parent table, **not** a separate `*_drafts` table.
 
 **Why:**
+
 - Preserves single id across draft → saved, so any polymorphic FK that already references the entity (`photos.entity_id`, `document_links.entity_id`, source-entity backlinks) keeps working unchanged.
 - Default `'saved'` is backward-compatible — pre-existing rows need no data migration.
 - One CRUD surface, not two. Validation branches on `status` inside the existing handlers.
 - Cascade-delete on draft discard reuses the existing entity-delete path.
 
 **How to apply:**
+
 - Add the status column with `DEFAULT 'saved'` so the ALTER is non-breaking.
 - Add a **partial index** on `(status, updated_at) WHERE status = 'draft'` for the orphan-cleanup query (don't index the much larger saved set).
 - Relax validation for draft writes **inline** in the existing endpoint, gated by `status` (don't duplicate the endpoint).

@@ -681,7 +681,7 @@ test.describe('Promote draft — validation error (Scenario 10)', () => {
 
       // Now verify the specific body-error element exists and is visible
       // (it may not appear immediately if React batches the state update differently in CI)
-      if (await page.locator('#body-error').count() > 0) {
+      if ((await page.locator('#body-error').count()) > 0) {
         await expect(page.locator('#body-error')).toBeVisible();
       } else {
         // If body-error is not found, check that getValidationErrors() reports at least one error
@@ -999,70 +999,78 @@ test.describe('Dashboard excludes drafts (Scenario 15)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 16: Responsive — draft edit page on mobile
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Responsive — draft edit page on mobile (Scenario 16)', { tag: '@responsive' }, () => {
-  test(
-    'Draft badge, Discard Draft button visible without horizontal scroll on current viewport',
-    { tag: '@responsive' },
-    async ({ page }) => {
-      const editPage = new DiaryEntryEditPage(page);
-      let draftId: string | null = null;
+test.describe(
+  'Responsive — draft edit page on mobile (Scenario 16)',
+  { tag: '@responsive' },
+  () => {
+    test(
+      'Draft badge, Discard Draft button visible without horizontal scroll on current viewport',
+      { tag: '@responsive' },
+      async ({ page }) => {
+        const editPage = new DiaryEntryEditPage(page);
+        let draftId: string | null = null;
 
-      try {
-        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+        try {
+          draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-        await editPage.goto(draftId);
-        await expect(editPage.draftBadge).toBeVisible();
+          await editPage.goto(draftId);
+          await expect(editPage.draftBadge).toBeVisible();
 
-        // Scroll into view and verify discard button is visible
-        await editPage.discardDraftButton.scrollIntoViewIfNeeded();
-        await expect(editPage.discardDraftButton).toBeVisible();
+          // Scroll into view and verify discard button is visible
+          await editPage.discardDraftButton.scrollIntoViewIfNeeded();
+          await expect(editPage.discardDraftButton).toBeVisible();
 
-        // No horizontal scroll
-        const hasHorizontalScroll = await page.evaluate(() => {
-          return document.documentElement.scrollWidth > window.innerWidth;
-        });
-        expect(hasHorizontalScroll).toBe(false);
-      } finally {
-        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
-      }
-    },
-  );
-});
+          // No horizontal scroll
+          const hasHorizontalScroll = await page.evaluate(() => {
+            return document.documentElement.scrollWidth > window.innerWidth;
+          });
+          expect(hasHorizontalScroll).toBe(false);
+        } finally {
+          if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+        }
+      },
+    );
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 17: Responsive — photo upload queue on tablet
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Responsive — photo upload queue on tablet (Scenario 17)', { tag: '@responsive' }, () => {
-  test(
-    'Photo upload zone and queue container are visible on current viewport',
-    { tag: '@responsive' },
-    async ({ page }) => {
-      let draftId: string | null = null;
+test.describe(
+  'Responsive — photo upload queue on tablet (Scenario 17)',
+  { tag: '@responsive' },
+  () => {
+    test(
+      'Photo upload zone and queue container are visible on current viewport',
+      { tag: '@responsive' },
+      async ({ page }) => {
+        let draftId: string | null = null;
 
-      try {
-        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+        try {
+          draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-        await page.goto(`/diary/${draftId}/edit`);
-        await page.getByRole('heading', { level: 1, name: 'Edit Diary Entry' }).waitFor({
-          state: 'visible',
-        });
+          await page.goto(`/diary/${draftId}/edit`);
+          await page.getByRole('heading', { level: 1, name: 'Edit Diary Entry' }).waitFor({
+            state: 'visible',
+          });
 
-        // Photo upload zone should be visible (not hidden behind scroll)
-        const photoUploadZone = page.getByTestId('photo-upload-zone');
-        await photoUploadZone.scrollIntoViewIfNeeded();
-        await expect(photoUploadZone).toBeVisible();
+          // Photo upload zone should be visible (not hidden behind scroll)
+          const photoUploadZone = page.getByTestId('photo-upload-zone');
+          await photoUploadZone.scrollIntoViewIfNeeded();
+          await expect(photoUploadZone).toBeVisible();
 
-        // No horizontal scroll
-        const hasHorizontalScroll = await page.evaluate(() => {
-          return document.documentElement.scrollWidth > window.innerWidth;
-        });
-        expect(hasHorizontalScroll).toBe(false);
-      } finally {
-        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
-      }
-    },
-  );
-});
+          // No horizontal scroll
+          const hasHorizontalScroll = await page.evaluate(() => {
+            return document.documentElement.scrollWidth > window.innerWidth;
+          });
+          expect(hasHorizontalScroll).toBe(false);
+        } finally {
+          if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+        }
+      },
+    );
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 18: Editing a saved entry unchanged
@@ -1093,9 +1101,7 @@ test.describe('Editing a saved entry (Scenario 18)', { tag: '@responsive' }, () 
       await expect(editPage.discardDraftButton).not.toBeVisible();
 
       // The submit button should say "Save Changes" (not "Save" as in draft mode)
-      await expect(
-        page.getByRole('button', { name: 'Save Changes', exact: true }),
-      ).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Save Changes', exact: true })).toBeVisible();
 
       // Edit and save
       const updatedBody = `${testPrefix} saved-mode updated body`;

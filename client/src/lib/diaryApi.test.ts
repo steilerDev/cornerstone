@@ -484,10 +484,7 @@ describe('diaryApi', () => {
 
       await listDiaryEntries({ status: 'draft' });
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/diary-entries?status=draft',
-        expect.any(Object),
-      );
+      expect(mockFetch).toHaveBeenCalledWith('/api/diary-entries?status=draft', expect.any(Object));
     });
 
     it('passes status=saved as query param when status is "saved"', async () => {
@@ -498,10 +495,7 @@ describe('diaryApi', () => {
 
       await listDiaryEntries({ status: 'saved' });
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/diary-entries?status=saved',
-        expect.any(Object),
-      );
+      expect(mockFetch).toHaveBeenCalledWith('/api/diary-entries?status=saved', expect.any(Object));
     });
 
     it('omits status param when status is not provided', async () => {

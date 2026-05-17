@@ -912,9 +912,7 @@ describe('DashboardPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(mockListDiaryEntries).toHaveBeenCalledWith(
-          expect.objectContaining({ pageSize: 5 }),
-        );
+        expect(mockListDiaryEntries).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 5 }));
       });
     });
 

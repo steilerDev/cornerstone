@@ -63,11 +63,7 @@ export async function runOrphanCleanup(
  * Initialize the draft cleanup scheduler.
  * Schedules a daily cleanup job at 3 AM UTC if retention is enabled (> 0 days).
  */
-export function initScheduler(
-  db: DbType,
-  config: AppConfig,
-  logger: FastifyInstance['log'],
-): void {
+export function initScheduler(db: DbType, config: AppConfig, logger: FastifyInstance['log']): void {
   if (config.diaryDraftRetentionDays === 0) {
     logger.info('Draft cleanup disabled (DIARY_DRAFT_RETENTION_DAYS=0)');
     return;

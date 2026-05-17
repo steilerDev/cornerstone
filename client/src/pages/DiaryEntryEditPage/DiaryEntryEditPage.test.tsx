@@ -200,10 +200,7 @@ describe('DiaryEntryEditPage', () => {
           <MemoryRouter initialEntries={[`/diary/${id}/edit`]}>
             <Routes>
               <Route path="/diary/:id/edit" element={<DiaryEntryEditPage />} />
-              <Route
-                path="/diary/:id"
-                element={<div data-testid="detail-page">Detail Page</div>}
-              />
+              <Route path="/diary/:id" element={<div data-testid="detail-page">Detail Page</div>} />
               <Route path="/diary" element={<div data-testid="diary-list">Diary List</div>} />
             </Routes>
             <LocationDisplay />
@@ -673,9 +670,9 @@ describe('DiaryEntryEditPage', () => {
 
       await waitFor(() => {
         // The promote button label comes from t('editPage.promoteButton') = "Save"
-        const saveBtn = screen.getAllByRole('button').find((btn) =>
-          /^save$/i.test(btn.textContent ?? ''),
-        );
+        const saveBtn = screen
+          .getAllByRole('button')
+          .find((btn) => /^save$/i.test(btn.textContent ?? ''));
         expect(saveBtn).toBeDefined();
       });
     });
@@ -739,10 +736,7 @@ describe('DiaryEntryEditPage', () => {
       await jest.advanceTimersByTimeAsync(50);
 
       await waitFor(() => {
-        expect(mockUpdateDiaryEntry).toHaveBeenCalledWith(
-          'draft-dl',
-          expect.any(Object),
-        );
+        expect(mockUpdateDiaryEntry).toHaveBeenCalledWith('draft-dl', expect.any(Object));
       });
 
       jest.useRealTimers();
@@ -759,9 +753,9 @@ describe('DiaryEntryEditPage', () => {
       });
 
       // Click the Save (promote) button
-      const saveBtn = screen.getAllByRole('button').find((btn) =>
-        /^save$/i.test(btn.textContent ?? ''),
-      )!;
+      const saveBtn = screen
+        .getAllByRole('button')
+        .find((btn) => /^save$/i.test(btn.textContent ?? ''))!;
 
       await userEvent.setup().click(saveBtn);
 
@@ -786,9 +780,9 @@ describe('DiaryEntryEditPage', () => {
         expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument();
       });
 
-      const saveBtn = screen.getAllByRole('button').find((btn) =>
-        /^save$/i.test(btn.textContent ?? ''),
-      )!;
+      const saveBtn = screen
+        .getAllByRole('button')
+        .find((btn) => /^save$/i.test(btn.textContent ?? ''))!;
 
       await userEvent.setup().click(saveBtn);
 
@@ -817,7 +811,9 @@ describe('DiaryEntryEditPage', () => {
       // Confirm button inside the modal is also labelled "Discard Draft" — use within(dialog) to
       // avoid matching the trigger button that remains rendered outside the modal.
       const discardDialog = screen.getByRole('dialog');
-      await userEvent.setup().click(within(discardDialog).getByRole('button', { name: /^discard draft$/i }));
+      await userEvent
+        .setup()
+        .click(within(discardDialog).getByRole('button', { name: /^discard draft$/i }));
 
       await waitFor(() => {
         expect(mockDeleteDiaryEntry).toHaveBeenCalledWith('draft-1');

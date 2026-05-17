@@ -432,7 +432,11 @@ export default function DiaryEntryEditPage() {
       if (err instanceof ApiClientError && err.error.code === 'VALIDATION_ERROR') {
         // Handle validation errors from promote
         const errors: Record<string, string> = {};
-        if (err.error.details && typeof err.error.details === 'object' && 'fieldErrors' in err.error.details) {
+        if (
+          err.error.details &&
+          typeof err.error.details === 'object' &&
+          'fieldErrors' in err.error.details
+        ) {
           const fieldErrors = err.error.details.fieldErrors as Record<string, string>;
           Object.assign(errors, fieldErrors);
         }
@@ -556,7 +560,9 @@ export default function DiaryEntryEditPage() {
         <button
           type="button"
           className={styles.backButton}
-          onClick={() => (entry.status === 'draft' ? navigate('/diary') : navigate(`/diary/${entry.id}`))}
+          onClick={() =>
+            entry.status === 'draft' ? navigate('/diary') : navigate(`/diary/${entry.id}`)
+          }
           disabled={isSubmitting}
         >
           {t('editPage.backLink')}
