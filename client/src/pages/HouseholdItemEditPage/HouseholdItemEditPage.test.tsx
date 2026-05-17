@@ -566,7 +566,6 @@ describe('HouseholdItemEditPage', () => {
         expect(screen.getByText('Failed to load form data. Please try again.')).toBeInTheDocument();
       });
     });
-
   });
 
   describe('Accessibility - Form input ARIA attributes', () => {
