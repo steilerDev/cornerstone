@@ -30,6 +30,8 @@
  * this workaround once the viewer already shows an annotated photo.
  */
 
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
 import type { Page, Route, Request } from '@playwright/test';
 import { test, expect } from '../fixtures/auth.js';
 import { PhotoViewerPage } from '../pages/PhotoViewerPage.js';
@@ -41,12 +43,14 @@ import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../fixtures/apiH
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Minimal 1×1 pixel black PNG (base64-encoded).
- * Sufficient for the annotator (needs photo.width + photo.height to be non-null).
+ * 100×100 pixel light-grey PNG fixture.
+ * Must be ≥ 10×10 so that RectangleTool's 2×2 image-coordinate minimum-size
+ * guard is satisfied: a drag spanning 20–60% of the SVG maps to ≥ 40 image
+ * pixels in each axis, well above the 2px threshold.
  */
-const TINY_PNG_B64 =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-const TINY_PNG = Buffer.from(TINY_PNG_B64, 'base64');
+const TEST_PHOTO_PNG = readFileSync(
+  fileURLToPath(new URL('../fixtures/test-photo-100x100.png', import.meta.url)),
+);
 
 /**
  * Upload a real (tiny) PNG to a diary entry via the REST API.
@@ -64,7 +68,7 @@ async function uploadTestPhotoViaApi(
       file: {
         name: 'test-photo.png',
         mimeType: 'image/png',
-        buffer: TINY_PNG,
+        buffer: TEST_PHOTO_PNG,
       },
       entityType: 'diary_entry',
       entityId: diaryEntryId,
@@ -263,9 +267,9 @@ test(
                   entityId: entryId,
                   originalFilename: 'test-photo.png',
                   mimeType: 'image/png',
-                  fileSize: TINY_PNG.length,
-                  width: 1,
-                  height: 1,
+                  fileSize: TEST_PHOTO_PNG.length,
+                  width: 100,
+                  height: 100,
                   takenAt: null,
                   caption: null,
                   sortOrder: 0,
