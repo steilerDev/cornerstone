@@ -216,6 +216,13 @@ describe('App', () => {
     if (!App) {
       const appModule = await import('./App.js');
       App = appModule.App;
+
+      // Pre-resolve lazy-loaded route components so the redirect test does not race
+      // their dynamic import under CPU pressure (#1438).
+      // The root path / redirects to /project which redirects to /project/overview,
+      // which renders DashboardPage (lazy). Pre-importing here warms the module cache
+      // before any test rendering starts, making the 5s waitFor timeout safe to keep.
+      await import('./pages/DashboardPage/DashboardPage.js');
     }
 
     // Reset mocks
