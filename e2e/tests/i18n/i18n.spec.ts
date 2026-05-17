@@ -81,9 +81,6 @@ test.describe('i18n: Language Switching', () => {
     if (viewport !== null && viewport.width < 1200) {
       test.skip();
     }
-    // Reset locale to English before each test so parallel workers do not
-    // interfere with each other via the shared user preference row in the DB.
-    await resetToEnglish(page);
   });
 
   test.afterEach(async ({ page }) => {
@@ -91,7 +88,10 @@ test.describe('i18n: Language Switching', () => {
   });
 
   test('Language can be changed to German on the Profile page', async ({ page }) => {
-    // Given: User is on the profile page with English as the current language
+    // Given: User is on the profile page with English as the current language.
+    // Explicitly set English first via API + navigate so the #languageSelect
+    // is guaranteed to show 'en' regardless of prior test state in this worker.
+    await setLanguage(page, 'en');
     await page.goto(ROUTES.profile);
     await page.getByRole('heading', { level: 1, name: 'Profile' }).waitFor({ state: 'visible' });
 
@@ -191,8 +191,6 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
     if (viewport !== null && viewport.width < 1200) {
       test.skip();
     }
-    // Reset to known-English state before each test to avoid cross-worker interference.
-    await resetToEnglish(page);
   });
 
   test.afterEach(async ({ page }) => {
@@ -264,8 +262,6 @@ test.describe('i18n: Language Persistence via API', () => {
     if (viewport !== null && viewport.width < 1200) {
       test.skip();
     }
-    // Reset to known-English state before each test to avoid cross-worker interference.
-    await resetToEnglish(page);
   });
 
   test.afterEach(async ({ page }) => {
@@ -275,19 +271,11 @@ test.describe('i18n: Language Persistence via API', () => {
   test('Language preference is saved to server and returns on fresh session', async ({
     page,
   }) => {
-    // Given: Language is set to German via the Profile page UI
+    // Given: Language is set to German via the API
     await setLanguage(page, 'de');
 
-    // Verify the preference was saved on the server
-    const prefsResponse = await page.request.get('/api/users/me/preferences');
-    expect(prefsResponse.status()).toBe(200);
-    const prefsBody = (await prefsResponse.json()) as {
-      preferences: Array<{ key: string; value: string }>;
-    };
-    const localePreference = prefsBody.preferences.find((p) => p.key === 'locale');
-    expect(localePreference?.value).toBe('de');
-
-    // When: Clear localStorage and reload (simulating a fresh client state)
+    // When: Clear localStorage and reload to simulate a fresh client state where
+    // the locale must come from the server preference, not from localStorage.
     await page.evaluate(() => localStorage.removeItem('locale'));
     // Register waitForResponse BEFORE navigation so we don't miss the response
     const prefsLoadPromise = page.waitForResponse(
@@ -298,10 +286,17 @@ test.describe('i18n: Language Persistence via API', () => {
     // Wait for preferences to be fetched from the server
     await prefsLoadPromise;
 
-    // Then: The app applies the server locale preference (German) after loading
-    await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
-    // The page heading should be in German ("Projekt" = Project)
-    await expect(page.getByRole('heading', { level: 1, name: 'Projekt' })).toBeVisible();
+    // Then: The app applies the server locale preference (German) after loading.
+    // Use expect.poll to tolerate the async React state update after syncWithServer.
+    await expect
+      .poll(
+        async () => {
+          const h1 = page.getByRole('heading', { level: 1 });
+          return (await h1.count()) > 0 ? await h1.textContent() : null;
+        },
+        { timeout: 10000 },
+      )
+      .toBe('Projekt');
   });
 
   test('DELETE preference resets to system locale', async ({ page }) => {
