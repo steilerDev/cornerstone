@@ -408,11 +408,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
       if (!request.user) throw new UnauthorizedError();
       const { id } = request.params as { id: string };
 
-      await photoAnnotationService.clearAnnotation(
-        fastify.db,
-        fastify.config.photoStoragePath,
-        id,
-      );
+      await photoAnnotationService.clearAnnotation(fastify.db, fastify.config.photoStoragePath, id);
 
       return reply.status(204).send();
     },

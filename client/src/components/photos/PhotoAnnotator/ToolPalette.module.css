@@ -54,7 +54,7 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .toolButton:hover:not([aria-pressed="true"]) {
+  .toolButton:hover:not([aria-pressed='true']) {
     background: var(--color-bg-tertiary);
   }
 }
@@ -105,7 +105,7 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .strokeButton:hover:not([aria-checked="true"]) {
+  .strokeButton:hover:not([aria-checked='true']) {
     background: var(--color-bg-tertiary);
   }
 }
@@ -120,7 +120,9 @@
     transition: background-color var(--transition-normal);
   }
   .swatchButton {
-    transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+    transition:
+      transform var(--transition-normal),
+      box-shadow var(--transition-normal);
   }
   .swatchButton:hover {
     transform: scale(1.15);

@@ -2,7 +2,8 @@ import { useReducer, useCallback } from 'react';
 import { useUndoStack } from './useUndoStack.js';
 import type { AnnotationShape, RectangleShape, HighlightShape } from './useUndoStack.js';
 import type { UseUndoStackResult } from './useUndoStack.js';
-import { DEFAULT_COLOR, DEFAULT_STROKE_WIDTH, ANNOTATION_STROKE_WIDTHS } from './annotationConstants.js';
+import type { ANNOTATION_STROKE_WIDTHS } from './annotationConstants.js';
+import { DEFAULT_COLOR, DEFAULT_STROKE_WIDTH } from './annotationConstants.js';
 
 export type ToolName = 'select' | 'rectangle' | 'highlight';
 
@@ -41,7 +42,15 @@ export type AnnotatorAction =
   | { type: 'UPDATE_SHAPE'; shape: AnnotationShape }
   | { type: 'DELETE_SELECTED' }
   | { type: 'REPLACE_SHAPES'; shapes: AnnotationShape[] }
-  | { type: 'START_DRAG'; mode: DragMode; shapeId: string | null; handle: string | null; imageX: number; imageY: number; shape: AnnotationShape | null }
+  | {
+      type: 'START_DRAG';
+      mode: DragMode;
+      shapeId: string | null;
+      handle: string | null;
+      imageX: number;
+      imageY: number;
+      shape: AnnotationShape | null;
+    }
   | { type: 'END_DRAG' };
 
 export function annotatorReducer(
@@ -77,9 +86,7 @@ export function annotatorReducer(
       return { ...state, selectedShapeId: action.id };
 
     case 'UPDATE_SHAPE':
-      const updatedShapes = state.shapes.map((s) =>
-        s.id === action.shape.id ? action.shape : s,
-      );
+      const updatedShapes = state.shapes.map((s) => (s.id === action.shape.id ? action.shape : s));
       return { ...state, shapes: updatedShapes };
 
     case 'DELETE_SELECTED':

@@ -24,7 +24,6 @@ export interface ToolHandler {
   cursor: string;
 }
 
-
 export const SelectTool: ToolHandler = {
   onPointerDown: (state: AnnotatorState, ctx: PointerContext): AnnotatorAction[] => {
     const { imageX, imageY, imageWidth, imageHeight } = ctx;
@@ -75,10 +74,7 @@ export const SelectTool: ToolHandler = {
     }
 
     // No hit: deselect and end any drag
-    return [
-      { type: 'SELECT_SHAPE', id: null },
-      { type: 'END_DRAG' },
-    ];
+    return [{ type: 'SELECT_SHAPE', id: null }, { type: 'END_DRAG' }];
   },
 
   onPointerMove: (state: AnnotatorState, ctx: PointerContext): AnnotatorAction[] => {

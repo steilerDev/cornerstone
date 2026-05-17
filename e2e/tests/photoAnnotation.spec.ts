@@ -359,150 +359,153 @@ test(
 // Scenario 2: Cancel annotation discards changes without saving
 // ─────────────────────────────────────────────────────────────────────────────
 
-test(
-  'Cancel annotation discards without saving',
-  async ({ page, testPrefix }: { page: Page; testPrefix: string }) => {
-    let entryId: string | null = null;
-    let photoId: string | null = null;
+test('Cancel annotation discards without saving', async ({
+  page,
+  testPrefix,
+}: {
+  page: Page;
+  testPrefix: string;
+}) => {
+  let entryId: string | null = null;
+  let photoId: string | null = null;
 
-    test.setTimeout(20_000);
+  test.setTimeout(20_000);
 
-    try {
-      entryId = await createDiaryEntryViaApi(page, {
-        entryType: 'general_note',
-        entryDate: '2026-05-17',
-        body: `${testPrefix} cancel annotation test`,
-      });
+  try {
+    entryId = await createDiaryEntryViaApi(page, {
+      entryType: 'general_note',
+      entryDate: '2026-05-17',
+      body: `${testPrefix} cancel annotation test`,
+    });
 
-      const photo = await uploadTestPhotoViaApi(page, entryId);
-      photoId = photo.id;
+    const photo = await uploadTestPhotoViaApi(page, entryId);
+    photoId = photo.id;
 
-      const detailPage = new DiaryEntryDetailPage(page);
-      const viewer = new PhotoViewerPage(page);
+    const detailPage = new DiaryEntryDetailPage(page);
+    const viewer = new PhotoViewerPage(page);
 
-      await detailPage.goto(entryId);
-      await expect(detailPage.backButton).toBeVisible();
-      await openPhotoViewer(page, photoId, viewer);
+    await detailPage.goto(entryId);
+    await expect(detailPage.backButton).toBeVisible();
+    await openPhotoViewer(page, photoId, viewer);
 
-      // Open annotator
-      await viewer.annotateButton.click();
-      await expect(viewer.toolPalette).toBeVisible();
+    // Open annotator
+    await viewer.annotateButton.click();
+    await expect(viewer.toolPalette).toBeVisible();
 
-      // Switch to Rectangle and draw a shape
-      await viewer.rectangleToolButton.click();
-      await drawRectangleOnOverlay(page, viewer.svgOverlay);
+    // Switch to Rectangle and draw a shape
+    await viewer.rectangleToolButton.click();
+    await drawRectangleOnOverlay(page, viewer.svgOverlay);
 
-      // Track whether any PUT fires
-      let putFired = false;
-      page.on('request', (req: Request) => {
-        if (
-          req.url().includes(`/api/photos/${photoId}/annotation`) &&
-          req.method() === 'PUT'
-        ) {
-          putFired = true;
-        }
-      });
+    // Track whether any PUT fires
+    let putFired = false;
+    page.on('request', (req: Request) => {
+      if (req.url().includes(`/api/photos/${photoId}/annotation`) && req.method() === 'PUT') {
+        putFired = true;
+      }
+    });
 
-      // Click Cancel
-      await viewer.cancelButton.click();
+    // Click Cancel
+    await viewer.cancelButton.click();
 
-      // Annotator must be gone; viewer in normal mode
-      await expect(viewer.toolPalette).not.toBeVisible();
-      await expect(viewer.annotateButton).toBeVisible();
+    // Annotator must be gone; viewer in normal mode
+    await expect(viewer.toolPalette).not.toBeVisible();
+    await expect(viewer.annotateButton).toBeVisible();
 
-      // No PUT should have fired
-      expect(putFired).toBe(false);
+    // No PUT should have fired
+    expect(putFired).toBe(false);
 
-      // View Original and Clear hidden (annotatedAt is still null)
-      await expect(viewer.viewOriginalButton).not.toBeVisible();
-      await expect(viewer.clearAnnotationsButton).not.toBeVisible();
-    } finally {
-      if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
-      if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
-    }
-  },
-);
+    // View Original and Clear hidden (annotatedAt is still null)
+    await expect(viewer.viewOriginalButton).not.toBeVisible();
+    await expect(viewer.clearAnnotationsButton).not.toBeVisible();
+  } finally {
+    if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
+    if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
+  }
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 3: Save failure shows error banner and keeps annotator open
 // ─────────────────────────────────────────────────────────────────────────────
 
-test(
-  'Save failure shows error banner and keeps annotator open',
-  async ({ page, testPrefix }: { page: Page; testPrefix: string }) => {
-    let entryId: string | null = null;
-    let photoId: string | null = null;
+test('Save failure shows error banner and keeps annotator open', async ({
+  page,
+  testPrefix,
+}: {
+  page: Page;
+  testPrefix: string;
+}) => {
+  let entryId: string | null = null;
+  let photoId: string | null = null;
 
-    test.setTimeout(20_000);
+  test.setTimeout(20_000);
 
-    try {
-      entryId = await createDiaryEntryViaApi(page, {
-        entryType: 'general_note',
-        entryDate: '2026-05-17',
-        body: `${testPrefix} save error test`,
-      });
+  try {
+    entryId = await createDiaryEntryViaApi(page, {
+      entryType: 'general_note',
+      entryDate: '2026-05-17',
+      body: `${testPrefix} save error test`,
+    });
 
-      const photo = await uploadTestPhotoViaApi(page, entryId);
-      photoId = photo.id;
+    const photo = await uploadTestPhotoViaApi(page, entryId);
+    photoId = photo.id;
 
-      const detailPage = new DiaryEntryDetailPage(page);
-      const viewer = new PhotoViewerPage(page);
+    const detailPage = new DiaryEntryDetailPage(page);
+    const viewer = new PhotoViewerPage(page);
 
-      await detailPage.goto(entryId);
-      await expect(detailPage.backButton).toBeVisible();
+    await detailPage.goto(entryId);
+    await expect(detailPage.backButton).toBeVisible();
 
-      // Intercept PUT /annotation to return 500 before opening the annotator
-      const annotationGlob = `**/api/photos/${photoId}/annotation`;
-      await page.route(annotationGlob, async (route: Route) => {
-        if (route.request().method() === 'PUT') {
-          await route.fulfill({
-            status: 500,
-            contentType: 'application/json',
-            body: JSON.stringify({
-              error: { code: 'INTERNAL_ERROR', message: 'Simulated server error' },
-            }),
-          });
-        } else {
-          await route.continue();
-        }
-      });
-
-      await openPhotoViewer(page, photoId, viewer);
-
-      // Open annotator and draw a rectangle
-      await viewer.annotateButton.click();
-      await expect(viewer.toolPalette).toBeVisible();
-
-      await viewer.rectangleToolButton.click();
-      await drawRectangleOnOverlay(page, viewer.svgOverlay);
-
-      // Click Save — the mocked PUT returns 500
-      const [putResponse] = await Promise.all([
-        page.waitForResponse(
-          (resp) =>
-            resp.url().includes(`/api/photos/${photoId}/annotation`) &&
-            resp.request().method() === 'PUT',
-        ),
-        viewer.saveButton.click(),
-      ]);
-
-      expect(putResponse.status()).toBe(500);
-
-      // Annotator must still be open
-      await expect(viewer.toolPalette).toBeVisible();
-
-      // Error banner (FormError variant="banner" renders role="alert")
-      await expect(page.getByRole('alert')).toBeVisible();
-
-      // Save button still accessible
-      await expect(viewer.saveButton).toBeVisible();
-    } finally {
-      // Unroute the 500 mock before cleanup so DELETE photo can go through
-      if (photoId) {
-        await page.unroute(`**/api/photos/${photoId}/annotation`).catch(() => {});
+    // Intercept PUT /annotation to return 500 before opening the annotator
+    const annotationGlob = `**/api/photos/${photoId}/annotation`;
+    await page.route(annotationGlob, async (route: Route) => {
+      if (route.request().method() === 'PUT') {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            error: { code: 'INTERNAL_ERROR', message: 'Simulated server error' },
+          }),
+        });
+      } else {
+        await route.continue();
       }
-      if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
-      if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
+    });
+
+    await openPhotoViewer(page, photoId, viewer);
+
+    // Open annotator and draw a rectangle
+    await viewer.annotateButton.click();
+    await expect(viewer.toolPalette).toBeVisible();
+
+    await viewer.rectangleToolButton.click();
+    await drawRectangleOnOverlay(page, viewer.svgOverlay);
+
+    // Click Save — the mocked PUT returns 500
+    const [putResponse] = await Promise.all([
+      page.waitForResponse(
+        (resp) =>
+          resp.url().includes(`/api/photos/${photoId}/annotation`) &&
+          resp.request().method() === 'PUT',
+      ),
+      viewer.saveButton.click(),
+    ]);
+
+    expect(putResponse.status()).toBe(500);
+
+    // Annotator must still be open
+    await expect(viewer.toolPalette).toBeVisible();
+
+    // Error banner (FormError variant="banner" renders role="alert")
+    await expect(page.getByRole('alert')).toBeVisible();
+
+    // Save button still accessible
+    await expect(viewer.saveButton).toBeVisible();
+  } finally {
+    // Unroute the 500 mock before cleanup so DELETE photo can go through
+    if (photoId) {
+      await page.unroute(`**/api/photos/${photoId}/annotation`).catch(() => {});
     }
-  },
-);
+    if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
+    if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
+  }
+});

@@ -174,7 +174,9 @@ describe('Photo Routes', () => {
     mockReorderPhotos.mockReturnValue(undefined);
     mockDeletePhoto.mockResolvedValue(undefined);
     mockGetPhotoFilePath.mockResolvedValue(null);
-    mockSaveAnnotatedImage.mockResolvedValue(makePhoto({ annotatedAt: '2026-01-01T00:00:00.000Z' }));
+    mockSaveAnnotatedImage.mockResolvedValue(
+      makePhoto({ annotatedAt: '2026-01-01T00:00:00.000Z' }),
+    );
     mockClearAnnotation.mockResolvedValue(undefined);
   });
 
@@ -1130,7 +1132,9 @@ describe('Photo Routes', () => {
     it('calls saveAnnotatedImage with correct buffer', async () => {
       const { cookie } = await createUserWithSession('ann2@example.com', 'Ann2', 'password');
       const pngContent = Buffer.from('real-png-content-bytes');
-      mockSaveAnnotatedImage.mockResolvedValue(makePhoto({ annotatedAt: '2026-05-17T10:00:00.000Z' }));
+      mockSaveAnnotatedImage.mockResolvedValue(
+        makePhoto({ annotatedAt: '2026-05-17T10:00:00.000Z' }),
+      );
 
       const { body, contentType } = buildMultipartBody([
         {
@@ -1178,7 +1182,11 @@ describe('Photo Routes', () => {
         },
       ]);
 
-      const { cookie: cookie2 } = await createUserWithSession('annbig2@example.com', 'AnnBig2', 'password');
+      const { cookie: cookie2 } = await createUserWithSession(
+        'annbig2@example.com',
+        'AnnBig2',
+        'password',
+      );
       const response = await app.inject({
         method: 'PUT',
         url: '/api/photos/photo-id-123/annotation',
@@ -1256,7 +1264,11 @@ describe('Photo Routes', () => {
     });
 
     it('returns 404 when service throws NotFoundError', async () => {
-      const { cookie } = await createUserWithSession('del-ann404@example.com', 'DelAnn404', 'password');
+      const { cookie } = await createUserWithSession(
+        'del-ann404@example.com',
+        'DelAnn404',
+        'password',
+      );
       const { NotFoundError } = await import('../errors/AppError.js');
       mockClearAnnotation.mockRejectedValue(new NotFoundError('Photo not found'));
 
@@ -1274,7 +1286,11 @@ describe('Photo Routes', () => {
 
   describe('GET /api/photos/:id/file — variant param', () => {
     it('calls getPhotoFilePath with preferAnnotated=true when no variant param', async () => {
-      const { cookie } = await createUserWithSession('file-no-variant@example.com', 'NoVariant', 'password');
+      const { cookie } = await createUserWithSession(
+        'file-no-variant@example.com',
+        'NoVariant',
+        'password',
+      );
       const photo = makePhoto({ id: 'my-photo' });
       mockGetPhoto.mockReturnValue(photo);
       // Create a real file to serve
@@ -1300,7 +1316,11 @@ describe('Photo Routes', () => {
     });
 
     it('calls getPhotoFilePath with preferAnnotated=false when ?variant=original', async () => {
-      const { cookie } = await createUserWithSession('file-orig@example.com', 'FileOrig', 'password');
+      const { cookie } = await createUserWithSession(
+        'file-orig@example.com',
+        'FileOrig',
+        'password',
+      );
       const photo = makePhoto({ id: 'my-photo-2' });
       mockGetPhoto.mockReturnValue(photo);
       const photoDir = join(photoStoragePath, 'my-photo-2');

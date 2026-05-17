@@ -224,7 +224,9 @@ export function PhotoViewer({ photos, initialIndex, onClose, onPhotoAnnotated }:
               <button
                 type="button"
                 aria-pressed={showingOriginal}
-                aria-label={showingOriginal ? t('photoViewer:viewAnnotated') : t('photoViewer:viewOriginal')}
+                aria-label={
+                  showingOriginal ? t('photoViewer:viewAnnotated') : t('photoViewer:viewOriginal')
+                }
                 data-testid="photo-viewer-view-original"
                 className={`${styles.iconButton} ${showingOriginal ? styles.iconButtonActive : ''}`}
                 onClick={() => setShowingOriginal((v) => !v)}
@@ -296,13 +298,7 @@ export function PhotoViewer({ photos, initialIndex, onClose, onPhotoAnnotated }:
 
 function PencilIcon() {
   return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M3 17.25V21h3.75L17.81 9.94M21 7L19 5l-2 2M6 18l1 1"
         stroke="currentColor"
@@ -316,13 +312,7 @@ function PencilIcon() {
 
 function EyeIcon() {
   return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
         stroke="currentColor"
@@ -335,13 +325,7 @@ function EyeIcon() {
 
 function EyeSlashIcon() {
   return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M1 1l22 22M9.88 9.88A3 3 0 1012.32 15.32M9.379 5.407A10.863 10.863 0 0112 5c7 0 11 8 11 8a13.986 13.986 0 01-1.811 2.834m-2.409 1.879A10 10 0 0023.07 12s-4-8-11-8-9.2 3.6-10.6 5.6"
         stroke="currentColor"
@@ -355,13 +339,7 @@ function EyeSlashIcon() {
 
 function TrashIcon() {
   return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7M10 11v6M14 11v6M3 7h18M8 7V4a1 1 0 011-1h6a1 1 0 011 1v3"
         stroke="currentColor"

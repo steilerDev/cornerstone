@@ -62,7 +62,10 @@ const mockGetPhotoFilePath = jest.fn() as AnyMock;
 // We need getPhoto to work against our real in-memory DB.
 // photoAnnotationService imports { getPhoto, getPhotoFilePath } from './photoService.js'
 // We partially mock: getPhotoFilePath is our mock, getPhoto delegates to real module.
-let realPhotoServiceGetPhoto: (db: BetterSQLite3Database<typeof schema>, id: string) => Photo | undefined;
+let realPhotoServiceGetPhoto: (
+  db: BetterSQLite3Database<typeof schema>,
+  id: string,
+) => Photo | undefined;
 
 jest.unstable_mockModule('./photoService.js', () => ({
   getPhoto: (db: BetterSQLite3Database<typeof schema>, id: string) =>
@@ -109,11 +112,7 @@ function createTestUser(db: BetterSQLite3Database<typeof schema>): string {
   return userId;
 }
 
-function insertPhoto(
-  db: BetterSQLite3Database<typeof schema>,
-  id: string,
-  userId: string,
-): void {
+function insertPhoto(db: BetterSQLite3Database<typeof schema>, id: string, userId: string): void {
   const now = new Date().toISOString();
   db.insert(schema.photos)
     .values({
@@ -175,11 +174,7 @@ describe('photoAnnotationService', () => {
       // we get the mock module but the mock's getPhoto delegates to this fn.
       // We need the actual DB-reading logic, which we replicate minimally here:
       realPhotoServiceGetPhoto = (innerDb, id) => {
-        const row = innerDb
-          .select()
-          .from(schema.photos)
-          .where(eq(schema.photos.id, id))
-          .get();
+        const row = innerDb.select().from(schema.photos).where(eq(schema.photos.id, id)).get();
         if (!row) return undefined;
         const createdByUser = row.createdBy
           ? innerDb
@@ -374,10 +369,7 @@ describe('photoAnnotationService', () => {
     it('sets annotated_at to null in the database', async () => {
       // First set annotated_at to a value
       const now = new Date().toISOString();
-      db.update(schema.photos)
-        .set({ annotatedAt: now })
-        .where(eq(schema.photos.id, photoId))
-        .run();
+      db.update(schema.photos).set({ annotatedAt: now }).where(eq(schema.photos.id, photoId)).run();
 
       // Verify it was set
       const before = db.select().from(schema.photos).where(eq(schema.photos.id, photoId)).get();
@@ -410,10 +402,7 @@ describe('photoAnnotationService', () => {
     it('still nulls annotated_at even when original file is missing', async () => {
       mockGetPhotoFilePath.mockResolvedValue(null);
       const now = new Date().toISOString();
-      db.update(schema.photos)
-        .set({ annotatedAt: now })
-        .where(eq(schema.photos.id, photoId))
-        .run();
+      db.update(schema.photos).set({ annotatedAt: now }).where(eq(schema.photos.id, photoId)).run();
 
       await photoAnnotationService.clearAnnotation(db, tempStoragePath, photoId);
 

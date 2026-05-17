@@ -93,7 +93,13 @@ describe('imageToScreen()', () => {
       imageWidth,
       imageHeight,
     );
-    const backToScreen = imageToScreen(imageCoords.x, imageCoords.y, svgRect, imageWidth, imageHeight);
+    const backToScreen = imageToScreen(
+      imageCoords.x,
+      imageCoords.y,
+      svgRect,
+      imageWidth,
+      imageHeight,
+    );
 
     expect(backToScreen.x).toBeCloseTo(originalScreen.x);
     expect(backToScreen.y).toBeCloseTo(originalScreen.y);

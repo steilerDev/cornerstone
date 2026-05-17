@@ -121,10 +121,7 @@ describe('HighlightTool', () => {
       const downActions = HighlightTool.onPointerDown(state, makeCtx(50, 60));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = HighlightTool.onPointerMove(
-        makeState({ draftShape }),
-        makeCtx(150, 160),
-      );
+      const moveActions = HighlightTool.onPointerMove(makeState({ draftShape }), makeCtx(150, 160));
 
       expect(moveActions).toHaveLength(1);
       expect(moveActions[0]!.type).toBe('SET_DRAFT');
@@ -135,10 +132,7 @@ describe('HighlightTool', () => {
       const downActions = HighlightTool.onPointerDown(state, makeCtx(50, 60));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = HighlightTool.onPointerMove(
-        makeState({ draftShape }),
-        makeCtx(100, 110),
-      );
+      const moveActions = HighlightTool.onPointerMove(makeState({ draftShape }), makeCtx(100, 110));
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
@@ -153,10 +147,7 @@ describe('HighlightTool', () => {
       const downActions = HighlightTool.onPointerDown(state, makeCtx(100, 100));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = HighlightTool.onPointerMove(
-        makeState({ draftShape }),
-        makeCtx(50, 60),
-      );
+      const moveActions = HighlightTool.onPointerMove(makeState({ draftShape }), makeCtx(50, 60));
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
@@ -181,10 +172,7 @@ describe('HighlightTool', () => {
       const downActions = HighlightTool.onPointerDown(state, makeCtx(50, 60));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = HighlightTool.onPointerMove(
-        makeState({ draftShape }),
-        makeCtx(150, 160),
-      );
+      const moveActions = HighlightTool.onPointerMove(makeState({ draftShape }), makeCtx(150, 160));
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');

@@ -222,10 +222,7 @@ describe('SelectTool', () => {
 
     it('returns empty array when not dragging (no active drag state)', () => {
       // No pointer down first — state has idle drag state
-      const actions = SelectTool.onPointerMove(
-        makeState({ shapes: [] }),
-        makeCtx(100, 100),
-      );
+      const actions = SelectTool.onPointerMove(makeState({ shapes: [] }), makeCtx(100, 100));
 
       expect(actions).toHaveLength(0);
     });
@@ -316,10 +313,7 @@ describe('SelectTool', () => {
     });
 
     it('returns END_DRAG when not dragging', () => {
-      const upActions = SelectTool.onPointerUp(
-        makeState({ shapes: [] }),
-        makeCtx(100, 100),
-      );
+      const upActions = SelectTool.onPointerUp(makeState({ shapes: [] }), makeCtx(100, 100));
       expect(upActions).toHaveLength(1);
       expect(upActions[0]!.type).toBe('END_DRAG');
     });

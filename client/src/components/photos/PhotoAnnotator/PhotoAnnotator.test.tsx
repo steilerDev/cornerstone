@@ -58,10 +58,8 @@ jest.unstable_mockModule('../../../lib/apiClient.js', () => ({
 // ─── Mock FormError component ─────────────────────────────────────────────────
 
 jest.unstable_mockModule('../../FormError/FormError.js', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  FormError: ({ message }: { message: string; variant?: string }) => (
-    React.createElement('div', { 'data-testid': 'form-error' }, message)
-  ),
+  FormError: ({ message }: { message: string; variant?: string }) =>
+    React.createElement('div', { 'data-testid': 'form-error' }, message),
 }));
 
 // ─── Mock geometry to make screenToImage pass-through (clientX→imageX) ────────
@@ -75,8 +73,10 @@ jest.unstable_mockModule('./geometry.js', () => ({
   distance: (x1: number, y1: number, x2: number, y2: number) => Math.hypot(x2 - x1, y2 - y1),
   clamp: (val: number, min: number, max: number) => Math.min(max, Math.max(min, val)),
   normalizeRect: (x1: number, y1: number, x2: number, y2: number) => ({
-    x: Math.min(x1, x2), y: Math.min(y1, y2),
-    w: Math.abs(x2 - x1), h: Math.abs(y2 - y1),
+    x: Math.min(x1, x2),
+    y: Math.min(y1, y2),
+    w: Math.abs(x2 - x1),
+    h: Math.abs(y2 - y1),
   }),
   hitTestRectangle: () => false,
   hitTestHighlight: () => false,
@@ -145,7 +145,6 @@ describe('PhotoAnnotator', () => {
       }),
     );
   }
-
 
   // ─── Rendering ─────────────────────────────────────────────────────────────
 

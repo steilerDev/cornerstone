@@ -58,8 +58,19 @@ jest.unstable_mockModule('./PhotoAnnotator/PhotoAnnotator.js', () => ({
     React.createElement(
       'div',
       { 'data-testid': 'mock-photo-annotator' },
-      React.createElement('button', { 'data-testid': 'annotator-save-mock', onClick: () => onSave({ id: 'annotated' } as unknown as Photo) }, 'Save'),
-      React.createElement('button', { 'data-testid': 'annotator-cancel-mock', onClick: onCancel }, 'Cancel'),
+      React.createElement(
+        'button',
+        {
+          'data-testid': 'annotator-save-mock',
+          onClick: () => onSave({ id: 'annotated' } as unknown as Photo),
+        },
+        'Save',
+      ),
+      React.createElement(
+        'button',
+        { 'data-testid': 'annotator-cancel-mock', onClick: onCancel },
+        'Cancel',
+      ),
     ),
 }));
 
@@ -223,7 +234,10 @@ describe('PhotoViewer', () => {
 
     fireEvent.click(screen.getByTestId('photo-viewer-view-original'));
 
-    expect(screen.getByTestId('photo-viewer-view-original')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('photo-viewer-view-original')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 
   it('clicking view original again toggles back to false', () => {
@@ -232,7 +246,10 @@ describe('PhotoViewer', () => {
     fireEvent.click(screen.getByTestId('photo-viewer-view-original'));
     fireEvent.click(screen.getByTestId('photo-viewer-view-original'));
 
-    expect(screen.getByTestId('photo-viewer-view-original')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('photo-viewer-view-original')).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
   });
 
   it('img src includes ?variant=original when viewing original', () => {

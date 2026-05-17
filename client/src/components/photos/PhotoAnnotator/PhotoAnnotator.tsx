@@ -55,7 +55,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       }
 
       // Redo
-      if (isMod && (e.shiftKey && e.key === 'z' || e.key === 'y')) {
+      if (isMod && ((e.shiftKey && e.key === 'z') || e.key === 'y')) {
         e.preventDefault();
         undoStack.redo();
         return;
@@ -130,7 +130,13 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         photo.height!,
       );
 
-      const ctx: PointerContext = { imageX, imageY, imageWidth: photo.width!, imageHeight: photo.height!, event: e };
+      const ctx: PointerContext = {
+        imageX,
+        imageY,
+        imageWidth: photo.width!,
+        imageHeight: photo.height!,
+        event: e,
+      };
 
       const toolHandlers = {
         select: SelectTool,
@@ -161,7 +167,13 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         photo.height!,
       );
 
-      const ctx: PointerContext = { imageX, imageY, imageWidth: photo.width!, imageHeight: photo.height!, event: e };
+      const ctx: PointerContext = {
+        imageX,
+        imageY,
+        imageWidth: photo.width!,
+        imageHeight: photo.height!,
+        event: e,
+      };
 
       const toolHandlers = {
         select: SelectTool,
@@ -192,7 +204,13 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         photo.height!,
       );
 
-      const ctx: PointerContext = { imageX, imageY, imageWidth: photo.width!, imageHeight: photo.height!, event: e };
+      const ctx: PointerContext = {
+        imageX,
+        imageY,
+        imageWidth: photo.width!,
+        imageHeight: photo.height!,
+        event: e,
+      };
 
       const toolHandlers = {
         select: SelectTool,
@@ -255,7 +273,10 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
       // Export PNG blob
       const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Canvas toBlob failed'))), 'image/png');
+        canvas.toBlob(
+          (b) => (b ? resolve(b) : reject(new Error('Canvas toBlob failed'))),
+          'image/png',
+        );
       });
 
       // Upload
@@ -319,23 +340,15 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
           {/* Committed shapes */}
           {undoStack.shapes.map((shape) => {
             const { tagName, attributes } = renderShapeSvgProps(shape, false);
-            return (
-              <rect
-                key={shape.id}
-                {...(attributes as any)}
-              />
-            );
+            return <rect key={shape.id} {...(attributes as any)} />;
           })}
 
           {/* Draft shape */}
-          {state.draftShape && (() => {
-            const { tagName, attributes } = renderShapeSvgProps(state.draftShape, true);
-            return (
-              <rect
-                {...(attributes as any)}
-              />
-            );
-          })()}
+          {state.draftShape &&
+            (() => {
+              const { tagName, attributes } = renderShapeSvgProps(state.draftShape, true);
+              return <rect {...(attributes as any)} />;
+            })()}
 
           {/* Selection overlay */}
           {selectedShape && (
