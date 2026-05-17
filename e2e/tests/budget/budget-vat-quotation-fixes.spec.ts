@@ -287,7 +287,7 @@ test.describe('Budget regression — quotation invoice shows quoted amount + ven
         // Before fixes #1440/#1441 the display was "€0.00 – €0.00"; before #1449 it was
         // "€475.00 – €525.00". Both broken forms contain " – ". Assert its absence to pin
         // against any regression back to either range format.
-        await expect(detailPage.budgetSection).not.toContainText(' – ');
+        await expect(invoiceGroup).not.toContainText(' – ');
       } finally {
         // Tear down in reverse dependency order.
         // Deleting the vendor cascades the invoice; deleting the work item cascades budget lines.
