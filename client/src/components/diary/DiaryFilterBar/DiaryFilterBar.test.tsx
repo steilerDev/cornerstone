@@ -353,67 +353,85 @@ describe('DiaryFilterBar', () => {
     expect(inactiveChip.getAttribute('class') ?? '').not.toContain('typeChipActive');
   });
 
-  // ─── Hide drafts checkbox (Story #1435) ────────────────────────────────────
+  // ─── Drafts chip (Story #1446) ────────────────────────────────────────────
 
-  describe('hideDrafts checkbox (Story #1435)', () => {
-    it('Scenario 12: checkbox not rendered when hideDrafts/onHideDraftsChange props are absent', () => {
+  describe('drafts chip (Story #1446)', () => {
+    it('Scenario 12: chip absent when onDraftsVisibleChange prop is not provided', () => {
       renderFilterBar();
-      expect(screen.queryByTestId('hide-drafts-checkbox')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('status-filter-drafts')).not.toBeInTheDocument();
     });
 
-    it('Scenario 13: checkbox is rendered and unchecked when hideDrafts=false', () => {
+    it('Scenario 13: chip is present and aria-pressed=true when draftsVisible=true', () => {
       renderFilterBar({
-        hideDrafts: false,
-        onHideDraftsChange: jest.fn<(v: boolean) => void>(),
+        draftsVisible: true,
+        onDraftsVisibleChange: jest.fn<(v: boolean) => void>(),
       } as any);
-      const checkbox = screen.getByTestId('hide-drafts-checkbox') as HTMLInputElement;
-      expect(checkbox).toBeInTheDocument();
-      expect(checkbox.checked).toBe(false);
+      const chip = screen.getByTestId('status-filter-drafts');
+      expect(chip).toBeInTheDocument();
+      expect(chip).toHaveAttribute('aria-pressed', 'true');
     });
 
-    it('Scenario 14: checkbox is checked when hideDrafts=true', () => {
+    it('Scenario 14: chip is present and aria-pressed=false when draftsVisible=false', () => {
       renderFilterBar({
-        hideDrafts: true,
-        onHideDraftsChange: jest.fn<(v: boolean) => void>(),
+        draftsVisible: false,
+        onDraftsVisibleChange: jest.fn<(v: boolean) => void>(),
       } as any);
-      const checkbox = screen.getByTestId('hide-drafts-checkbox') as HTMLInputElement;
-      expect(checkbox.checked).toBe(true);
+      const chip = screen.getByTestId('status-filter-drafts');
+      expect(chip).toBeInTheDocument();
+      expect(chip).toHaveAttribute('aria-pressed', 'false');
     });
 
-    it('Scenario 15: checking unchecked checkbox calls onHideDraftsChange(true)', async () => {
+    it('Scenario 15: clicking pressed chip calls onDraftsVisibleChange(false)', async () => {
       const user = userEvent.setup();
-      const onHideDraftsChange = jest.fn<(v: boolean) => void>();
+      const onDraftsVisibleChange = jest.fn<(v: boolean) => void>();
       renderFilterBar({
-        hideDrafts: false,
-        onHideDraftsChange,
+        draftsVisible: true,
+        onDraftsVisibleChange,
       } as any);
 
-      await user.click(screen.getByTestId('hide-drafts-checkbox'));
+      await user.click(screen.getByTestId('status-filter-drafts'));
 
-      expect(onHideDraftsChange).toHaveBeenCalledWith(true);
+      expect(onDraftsVisibleChange).toHaveBeenCalledWith(false);
     });
 
-    it('Scenario 16: unchecking checked checkbox calls onHideDraftsChange(false)', async () => {
+    it('Scenario 16: clicking unpressed chip calls onDraftsVisibleChange(true)', async () => {
       const user = userEvent.setup();
-      const onHideDraftsChange = jest.fn<(v: boolean) => void>();
+      const onDraftsVisibleChange = jest.fn<(v: boolean) => void>();
       renderFilterBar({
-        hideDrafts: true,
-        onHideDraftsChange,
+        draftsVisible: false,
+        onDraftsVisibleChange,
       } as any);
 
-      await user.click(screen.getByTestId('hide-drafts-checkbox'));
+      await user.click(screen.getByTestId('status-filter-drafts'));
 
-      expect(onHideDraftsChange).toHaveBeenCalledWith(false);
+      expect(onDraftsVisibleChange).toHaveBeenCalledWith(true);
     });
 
-    it('Scenario 17: checkbox has an accessible label matching "Hide drafts"', () => {
+    it('Scenario 17: drafts chip is independent from mode chips and has its own group', async () => {
+      const user = userEvent.setup();
+      const onFilterModeChange = jest.fn<(mode: 'all' | 'manual' | 'automatic') => void>();
+      const onDraftsVisibleChange = jest.fn<(v: boolean) => void>();
       renderFilterBar({
-        hideDrafts: false,
-        onHideDraftsChange: jest.fn<(v: boolean) => void>(),
+        filterMode: 'all',
+        onFilterModeChange,
+        draftsVisible: false,
+        onDraftsVisibleChange,
       } as any);
-      const checkbox = screen.getByLabelText(/hide drafts/i);
-      expect(checkbox).toBeInTheDocument();
-      expect((checkbox as HTMLInputElement).type).toBe('checkbox');
+
+      // Drafts chip group exists as a distinct accessible group
+      expect(screen.getByRole('group', { name: /filter by draft status/i })).toBeInTheDocument();
+
+      // Mode chip click calls onFilterModeChange, not onDraftsVisibleChange
+      await user.click(screen.getByTestId('mode-filter-manual'));
+      expect(onFilterModeChange).toHaveBeenCalledWith('manual');
+      expect(onDraftsVisibleChange).not.toHaveBeenCalled();
+
+      jest.clearAllMocks();
+
+      // Drafts chip click calls onDraftsVisibleChange, not onFilterModeChange
+      await user.click(screen.getByTestId('status-filter-drafts'));
+      expect(onDraftsVisibleChange).toHaveBeenCalledWith(true);
+      expect(onFilterModeChange).not.toHaveBeenCalled();
     });
   });
 });

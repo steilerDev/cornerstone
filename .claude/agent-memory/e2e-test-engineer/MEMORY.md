@@ -3,18 +3,21 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`
 
-## Known Beta Flakes & Regressions (triaged 2026-05-16)
+## Known Beta Flakes & Regressions (triaged 2026-05-17)
 
 - `dashboard.spec.ts:566` "Customize button appears when card dismissed" — persistent flake since 3+ beta runs. Fails 30-40% first attempts due to test isolation (prior test leaves dismissed-card prefs state). Issue #1431.
 - `invoice-budget-line-create-and-link.spec.ts:210` "Create Budget Line button below existing lines" — timing flake. `+ Add Budget Line` button disappears briefly during section re-render after first line created. Issue #1430.
 - `invoice-deposits-ux.spec.ts:259` "Portal clipping — last row kebab" — HARD FAIL since PR #1427. `createInvoiceViaApi` uses `status: 'quotation'`; backend rejects deposits on quotation invoices with 400. Test bug. Issue #1432.
 - `invoice-deposits.spec.ts:665 [mobile]` "Mark paid flow on mobile" — HARD FAIL since PR #1427. Portal-rendered menu (usePortal=true) clipped behind `cardActions_b45Ao` div on mobile viewport. Production CSS bug. Issue #1433.
-- All 4 are PRE-EXISTING on beta (not caused by PR #1428). Issues #1427 introduced the two hard failures.
+- `i18n/i18n.spec.ts` "German text does not overflow navigation sidebar on desktop" — HARD FAIL on 3 consecutive beta runs (Shard 4, main-targeted runs 25960897054/25985031080/25986721880). `waitForLoaded` times out on `getByRole('heading', { name: 'Projekt', level: 1 })` — locale init race. Pre-existing; not related to diary or invoice work.
+- `invoices/invoice-deposits-ux.spec.ts` "Clicking the kebab on the LAST deposit row shows a menu fully within the viewport" — HARD FAIL (same runs). Same root cause as Issue #1432 (quotation invoice rejects deposits).
+- All pre-existing on beta. Three most recent failed main-targeted runs are all blocked by same two tests in Shard 4.
 
 ## Diary Draft E2E (Fix #1426, UX #1435, 2026-05-17)
 
 - **#1435 BREAKING CHANGE**: DiaryEntryCreatePage no longer has a form step. Type-card click fires POST immediately and navigates to /diary/:id/edit. Removed from POM: bodyTextarea, entryDateInput, titleInput, weatherSelect, temperatureInput, workersInput, inspectorNameInput, outcomeSelect, vendorInput, deliveryConfirmedCheckbox, materialInput, addMaterialButton, severitySelect, resolutionStatusSelect, cancelButton, backToTypeButton.
 - **#1435**: Status filter chips (statusFilterAll/statusFilterDraft/statusFilterSaved) removed from DiaryPage POM. Replaced by `hideDraftsCheckbox` (data-testid="hide-drafts-checkbox"). Use `filterDraftsOnly()` helper for direct URL navigation to ?status=draft.
+- **#1446**: `hideDraftsCheckbox` replaced by `draftsChip` (data-testid="status-filter-drafts", aria-pressed button). Default aria-pressed="true" (all entries shown). Click → aria-pressed="false" (?status=saved). Use `.toHaveAttribute('aria-pressed', 'true'/'false')` and `.click()` (never `.check()/.uncheck()`). `draftsChipPressed()` helper reads aria-pressed value.
 - PhotoCard selector: `data-testid="photo-card-{id}"` (not `photo-grid-item`). PhotoGrid wraps them in `role="list" aria-label="Photos"`.
 - Draft badge on edit page: `data-testid="draft-status-badge"`. On list card: `data-testid="draft-badge-{id}"`.
 - Auto-save indicator: `data-testid="autosave-status"` — only rendered when `saveStatus !== 'idle'`.
