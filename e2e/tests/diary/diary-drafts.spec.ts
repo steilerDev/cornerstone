@@ -18,7 +18,7 @@
  * 10. Promote draft — validation error (empty body, Save → error, still on edit, still draft)
  * 11. Discard draft (Discard Draft → confirm modal → /diary, entry gone)
  * 12. [smoke] Draft badge in list (create via API → /diary → Draft badge visible)
- * 13. Hide drafts checkbox (check → drafts hidden, saved visible; uncheck → drafts visible)
+ * 13. Drafts chip (default pressed; click → hides drafts, saved visible; click again → drafts restored)
  * 14. Clicking draft in list navigates to /diary/:id/edit
  * 15. Dashboard excludes drafts; shows entry after promote
  * 16. [responsive] Draft edit page on mobile (badge, auto-save indicator, discard button visible, no scroll)
@@ -749,10 +749,10 @@ test.describe('Draft badge in list view (Scenario 12)', { tag: '@responsive' }, 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 13: Hide drafts checkbox (#1435)
+// Scenario 13: Drafts chip (#1446)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Hide drafts checkbox (Scenario 13)', () => {
-  test('Checking "Hide drafts" hides drafts; unchecking restores them; default is unchecked', async ({
+test.describe('Drafts chip (Scenario 13)', () => {
+  test('Drafts chip — default pressed; click hides drafts; click again restores them', async ({
     page,
     testPrefix,
   }) => {
@@ -766,43 +766,45 @@ test.describe('Hide drafts checkbox (Scenario 13)', () => {
       savedId = await createDiaryEntryViaApi(page, {
         entryType: 'general_note',
         entryDate: '2026-05-16',
-        body: `${testPrefix} saved entry for hide-drafts test`,
+        body: `${testPrefix} saved entry for drafts-chip test`,
       });
 
       await diaryPage.goto();
       await waitForDiaryListLoaded(diaryPage);
       // The filter panel is collapsed by default on mobile — expand it so
-      // the "Hide drafts" checkbox is interactable across all viewports.
+      // the Drafts chip is interactable across all viewports.
       await diaryPage.openFiltersIfCollapsed();
 
-      // ── Default: checkbox is unchecked, both entries visible ──
-      await expect(diaryPage.hideDraftsCheckbox).not.toBeChecked();
+      // ── Default: chip is pressed (aria-pressed="true"), both entries visible ──
+      await expect(diaryPage.draftsChip).toHaveAttribute('aria-pressed', 'true');
       await expect(diaryPage.entryCard(draftId)).toBeVisible();
       await expect(diaryPage.entryCard(savedId)).toBeVisible();
 
-      // ── Check "Hide drafts" → drafts hidden, saved visible; URL gets ?status=saved ──
+      // ── Click chip → hide drafts; URL gets ?status=saved ──
       const savedFilterResponse = waitForDiaryListResponse(page);
-      await diaryPage.hideDraftsCheckbox.scrollIntoViewIfNeeded();
-      await diaryPage.hideDraftsCheckbox.check();
+      await diaryPage.draftsChip.scrollIntoViewIfNeeded();
+      await diaryPage.draftsChip.click();
       await savedFilterResponse;
       await waitForDiaryListLoaded(diaryPage);
 
+      // Chip should now be un-pressed
+      await expect(diaryPage.draftsChip).toHaveAttribute('aria-pressed', 'false');
       // URL should contain status=saved
       expect(page.url()).toContain('status=saved');
-
       // Draft card should NOT be visible; saved card should be visible
       await expect(diaryPage.entryCard(draftId)).not.toBeVisible();
       await expect(diaryPage.entryCard(savedId)).toBeVisible();
 
-      // ── Uncheck "Hide drafts" → drafts visible again; status param removed ──
+      // ── Click chip again → restore drafts; status param removed ──
       const allFilterResponse = waitForDiaryListResponse(page);
-      await diaryPage.hideDraftsCheckbox.uncheck();
+      await diaryPage.draftsChip.click();
       await allFilterResponse;
       await waitForDiaryListLoaded(diaryPage);
 
+      // Chip should be pressed again
+      await expect(diaryPage.draftsChip).toHaveAttribute('aria-pressed', 'true');
       // URL should NOT contain status=saved
       expect(page.url()).not.toContain('status=saved');
-
       // Both cards should be visible again
       await expect(diaryPage.entryCard(draftId)).toBeVisible();
       await expect(diaryPage.entryCard(savedId)).toBeVisible();

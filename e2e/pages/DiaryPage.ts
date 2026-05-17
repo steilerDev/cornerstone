@@ -4,7 +4,7 @@
  * The page renders:
  * - A page header with h1 "Construction Diary" and a subtitle with the total entry count
  * - A DiaryFilterBar with search input (data-testid="diary-search-input"), date range pickers,
- *   entry type chip filters, a "Hide drafts" checkbox (data-testid="hide-drafts-checkbox"),
+ *   entry type chip filters, a "Drafts" toggle chip (data-testid="status-filter-drafts"),
  *   and a "Clear all" button
  * - A "New Entry" link button navigating to /diary/new
  * - A timeline of DiaryDateGroup sections (data-testid="date-group-{date}"), each containing
@@ -25,7 +25,8 @@
  * - Pagination buttons: data-testid="prev-page-button" / data-testid="next-page-button"
  * - Draft badge on entry card: data-testid="draft-badge-{id}"
  * - Draft entries link to /diary/:id/edit (not /diary/:id)
- * - Hide drafts checkbox: data-testid="hide-drafts-checkbox" (checked = ?status=saved in URL)
+ * - Drafts chip: data-testid="status-filter-drafts" with aria-pressed="true" (default, shows all)
+ *   or aria-pressed="false" (hides drafts, adds ?status=saved to URL)
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -63,9 +64,10 @@ export class DiaryPage {
   readonly prevPageButton: Locator;
   readonly nextPageButton: Locator;
 
-  // "Hide drafts" checkbox — data-testid="hide-drafts-checkbox" (added in #1435)
-  // Checking it adds ?status=saved to the URL; unchecking removes the param.
-  readonly hideDraftsCheckbox: Locator;
+  // "Drafts" toggle chip — data-testid="status-filter-drafts" (added in #1446)
+  // aria-pressed="true"  → all entries shown (default)
+  // aria-pressed="false" → only saved entries shown (?status=saved in URL)
+  readonly draftsChip: Locator;
 
   // Mobile filter toggle button (visible only on mobile, aria-label="Toggle filters")
   readonly mobileFilterToggle: Locator;
@@ -83,9 +85,10 @@ export class DiaryPage {
     this.dateToInput = page.getByTestId('diary-date-to');
     this.clearFiltersButton = page.getByTestId('clear-filters-button');
 
-    // Hide drafts checkbox — added in #1435; replaces the previous status filter chip row.
-    // Checking it adds ?status=saved; unchecking removes the param (shows all entries).
-    this.hideDraftsCheckbox = page.getByTestId('hide-drafts-checkbox');
+    // Drafts chip — added in #1446; replaces the previous hide-drafts-checkbox.
+    // aria-pressed="true" (default) shows all entries; click toggles to aria-pressed="false"
+    // which adds ?status=saved and hides draft entries.
+    this.draftsChip = page.getByTestId('status-filter-drafts');
 
     this.mobileFilterToggle = page.getByRole('button', { name: 'Toggle filters' });
 
@@ -198,6 +201,15 @@ export class DiaryPage {
         await this.searchInput.waitFor({ state: 'visible' });
       }
     }
+  }
+
+  /**
+   * Returns true if the Drafts chip is currently pressed (aria-pressed="true").
+   * Requires openFiltersIfCollapsed() to have been called first on mobile.
+   */
+  async draftsChipPressed(): Promise<boolean> {
+    const value = await this.draftsChip.getAttribute('aria-pressed');
+    return value === 'true';
   }
 
   /**

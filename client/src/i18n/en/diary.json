@@ -24,6 +24,8 @@
     "filterModeAll": "All",
     "filterModeManual": "Manual",
     "filterModeAutomatic": "Automatic",
+    "filterModeDrafts": "Drafts",
+    "draftsChipGroupLabel": "Filter by draft status",
     "entryTypes": "Entry Types",
     "clearAll": "Clear All",
     "noTypeOptions": "No types available",
@@ -32,8 +34,7 @@
     "fromLabel": "From",
     "toLabel": "To",
     "entryTypesLabel": "Entry Types",
-    "clearAllButton": "Clear all",
-    "hideDrafts": "Hide drafts"
+    "clearAllButton": "Clear all"
   },
   "entryTypes": {
     "daily_log": "Daily Log",

@@ -24,6 +24,8 @@
     "filterModeAll": "Alle",
     "filterModeManual": "Manuell",
     "filterModeAutomatic": "Automatisch",
+    "filterModeDrafts": "Entwürfe",
+    "draftsChipGroupLabel": "Nach Entwurfsstatus filtern",
     "entryTypes": "Eintragstypen",
     "clearAll": "Alles löschen",
     "noTypeOptions": "Keine Typen verfügbar",
@@ -32,8 +34,7 @@
     "fromLabel": "Von",
     "toLabel": "Bis",
     "entryTypesLabel": "Eintragstypen",
-    "clearAllButton": "Alles löschen",
-    "hideDrafts": "Entwürfe ausblenden"
+    "clearAllButton": "Alles löschen"
   },
   "entryTypes": {
     "daily_log": "Tägliches Protokoll",

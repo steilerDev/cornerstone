@@ -110,6 +110,19 @@
   background-color: var(--color-primary-hover);
 }
 
+/* Drafts chip — same shape as mode chips, active state uses muted secondary tokens */
+.draftsChip.modeChipActive {
+  background-color: var(--color-bg-tertiary);
+  border-color: var(--color-border-focus);
+  color: var(--color-text-primary);
+}
+
+.draftsChip.modeChipActive:hover {
+  background-color: var(--color-bg-hover);
+  border-color: var(--color-border-focus);
+  color: var(--color-text-primary);
+}
+
 .typeChips {
   display: flex;
   flex-wrap: wrap;
@@ -150,24 +163,6 @@
   background-color: var(--color-primary-hover);
 }
 
-.hideDraftsRow {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  grid-column: 1 / -1;
-}
-
-.hideDraftsLabel {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-
-.hideDraftsToggle:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
 
 .clearButton {
   padding: var(--spacing-2) var(--spacing-3);
@@ -234,6 +229,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .mobileToggle,
+  .modeChip,
   .typeChip,
   .clearButton {
     transition: none;

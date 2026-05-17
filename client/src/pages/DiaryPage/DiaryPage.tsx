@@ -190,14 +190,14 @@ export default function DiaryPage() {
     setSearchParams(newParams);
   };
 
-  const hideDrafts = statusFilter === 'saved';
+  const draftsVisible = statusFilter !== 'saved';
 
-  const handleHideDraftsChange = (hide: boolean) => {
+  const handleDraftsVisibleChange = (visible: boolean) => {
     const newParams = new URLSearchParams(searchParams);
-    if (hide) {
-      newParams.set('status', 'saved');
-    } else {
+    if (visible) {
       newParams.delete('status');
+    } else {
+      newParams.set('status', 'saved');
     }
     newParams.set('page', '1');
     setSearchParams(newParams);
@@ -254,8 +254,8 @@ export default function DiaryPage() {
         onClearAll={handleClearAll}
         filterMode={filterMode}
         onFilterModeChange={handleFilterModeChange}
-        hideDrafts={hideDrafts}
-        onHideDraftsChange={handleHideDraftsChange}
+        draftsVisible={draftsVisible}
+        onDraftsVisibleChange={handleDraftsVisibleChange}
       />
 
       {isLoading && <div className={shared.loading}>{t('loading')}</div>}

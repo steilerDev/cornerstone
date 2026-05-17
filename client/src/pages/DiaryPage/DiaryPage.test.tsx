@@ -323,35 +323,47 @@ describe('DiaryPage', () => {
     it('Scenario 8: no status chip group rendered', async () => {
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
       renderPage();
-      // The status chip group with "All / Draft / Saved" buttons no longer exists
-      expect(screen.queryByRole('group', { name: /status/i })).not.toBeInTheDocument();
+      // The OLD status chip row had three buttons: "All", "Drafts only", "Saved only".
+      // It was removed in Story #1435. Assert by button text so this doesn't collide
+      // with the new drafts chip group (aria-label "Filter by draft status", Story #1446).
+      expect(screen.queryByRole('button', { name: /^Drafts only$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Saved only$/i })).not.toBeInTheDocument();
     });
   });
 
-  // ─── hideDrafts checkbox via DiaryFilterBar (Story #1435) ────────────────────
+  // ─── Drafts chip integration via DiaryFilterBar (Story #1446) ───────────────
 
-  describe('hideDrafts checkbox integration (Story #1435)', () => {
-    it('Scenario 9: DiaryFilterBar receives hideDrafts=true when URL has ?status=saved', async () => {
+  describe('drafts chip integration (Story #1446)', () => {
+    it('Scenario 9: chip has aria-pressed=true when URL has no status param (drafts visible)', async () => {
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      renderPage(['/diary?status=saved']);
+      renderPage(['/diary']);
       await waitFor(() => {
-        const checkbox = screen.getByTestId('hide-drafts-checkbox') as HTMLInputElement;
-        expect(checkbox.checked).toBe(true);
+        const chip = screen.getByTestId('status-filter-drafts');
+        expect(chip).toHaveAttribute('aria-pressed', 'true');
       });
     });
 
-    it('Scenario 10: checking "Hide drafts" calls listDiaryEntries with status=saved', async () => {
+    it('Scenario 10: chip has aria-pressed=false when URL has ?status=saved (drafts hidden)', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage(['/diary?status=saved']);
+      await waitFor(() => {
+        const chip = screen.getByTestId('status-filter-drafts');
+        expect(chip).toHaveAttribute('aria-pressed', 'false');
+      });
+    });
+
+    it('Scenario 11: clicking pressed chip sets status=saved and calls listDiaryEntries with status="saved"', async () => {
       const user = userEvent.setup();
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      renderPage();
+      renderPage(['/diary']);
 
       await waitFor(() => {
         expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
       });
 
-      const checkbox = screen.getByTestId('hide-drafts-checkbox');
-      await user.click(checkbox);
+      const chip = screen.getByTestId('status-filter-drafts');
+      await user.click(chip);
 
       await waitFor(() => {
         expect(mockListDiaryEntries).toHaveBeenCalledWith(
@@ -360,7 +372,7 @@ describe('DiaryPage', () => {
       });
     });
 
-    it('Scenario 11: unchecking "Hide drafts" calls listDiaryEntries without status param', async () => {
+    it('Scenario 11b: clicking unpressed chip removes status param and calls listDiaryEntries without status', async () => {
       const user = userEvent.setup();
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
@@ -370,8 +382,8 @@ describe('DiaryPage', () => {
         expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
       });
 
-      const checkbox = screen.getByTestId('hide-drafts-checkbox');
-      await user.click(checkbox);
+      const chip = screen.getByTestId('status-filter-drafts');
+      await user.click(chip);
 
       await waitFor(() => {
         const lastCall =
