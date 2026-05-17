@@ -81,6 +81,9 @@ test.describe('i18n: Language Switching', () => {
     if (viewport !== null && viewport.width < 1200) {
       test.skip();
     }
+    // Reset locale to English before each test so parallel workers do not
+    // interfere with each other via the shared user preference row in the DB.
+    await resetToEnglish(page);
   });
 
   test.afterEach(async ({ page }) => {
@@ -188,6 +191,8 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
     if (viewport !== null && viewport.width < 1200) {
       test.skip();
     }
+    // Reset to known-English state before each test to avoid cross-worker interference.
+    await resetToEnglish(page);
   });
 
   test.afterEach(async ({ page }) => {
@@ -259,6 +264,8 @@ test.describe('i18n: Language Persistence via API', () => {
     if (viewport !== null && viewport.width < 1200) {
       test.skip();
     }
+    // Reset to known-English state before each test to avoid cross-worker interference.
+    await resetToEnglish(page);
   });
 
   test.afterEach(async ({ page }) => {
@@ -309,11 +316,16 @@ test.describe('i18n: Language Persistence via API', () => {
     await page.evaluate(() => localStorage.removeItem('locale'));
 
     // Then: App falls back to system locale (English in CI)
-    // Register waitForResponse BEFORE navigation so we don't miss the response
+    // page.goto() triggers a client-side (React Router) navigation so LocaleContext
+    // state (still 'de' in memory) persists.  page.reload() forces a full page load
+    // which re-initialises LocaleContext: localStorage is empty → server has no
+    // preference → fallback to system locale (English in CI).
+    // Register waitForResponse BEFORE the reload so we don't miss the prefs GET.
     const resetPrefsPromise = page.waitForResponse(
       (resp) => resp.url().includes('/api/users/me/preferences') && resp.status() === 200,
     );
     await page.goto(ROUTES.profile);
+    await page.reload();
     await resetPrefsPromise;
     // After no locale preference, system default (English) applies
     await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();

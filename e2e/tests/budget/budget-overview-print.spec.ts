@@ -479,7 +479,7 @@ test.describe('Budget Overview — print behaviour', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ entries: [], total: 0, page: 1, pageSize: 20 }),
+          body: JSON.stringify({ items: [], pagination: { totalItems: 0, totalPages: 1, page: 1, pageSize: 20 } }),
         });
       } else {
         await route.continue();
