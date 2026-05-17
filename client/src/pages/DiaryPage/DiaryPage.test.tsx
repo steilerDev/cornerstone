@@ -323,8 +323,11 @@ describe('DiaryPage', () => {
     it('Scenario 8: no status chip group rendered', async () => {
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
       renderPage();
-      // The status chip group with "All / Draft / Saved" buttons no longer exists
-      expect(screen.queryByRole('group', { name: /status/i })).not.toBeInTheDocument();
+      // The OLD status chip row had three buttons: "All", "Drafts only", "Saved only".
+      // It was removed in Story #1435. Assert by button text so this doesn't collide
+      // with the new drafts chip group (aria-label "Filter by draft status", Story #1446).
+      expect(screen.queryByRole('button', { name: /^Drafts only$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Saved only$/i })).not.toBeInTheDocument();
     });
   });
 
