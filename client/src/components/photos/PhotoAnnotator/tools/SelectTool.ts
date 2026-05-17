@@ -24,36 +24,10 @@ export interface ToolHandler {
   cursor: string;
 }
 
-// State for tracking drag operations (stored as a closure variable, not in React state)
-let dragState: {
-  mode: 'move' | 'resize' | null;
-  shapeId: string | null;
-  handle: HandlePosition | null;
-  startImageX: number;
-  startImageY: number;
-  startShape: AnnotationShape | null;
-} = {
-  mode: null,
-  shapeId: null,
-  handle: null,
-  startImageX: 0,
-  startImageY: 0,
-  startShape: null,
-};
 
 export const SelectTool: ToolHandler = {
   onPointerDown: (state: AnnotatorState, ctx: PointerContext): AnnotatorAction[] => {
     const { imageX, imageY, imageWidth, imageHeight } = ctx;
-
-    // Reset drag state
-    dragState = {
-      mode: null,
-      shapeId: null,
-      handle: null,
-      startImageX: imageX,
-      startImageY: imageY,
-      startShape: null,
-    };
 
     // Hit-test shapes in reverse order (top to bottom)
     for (let i = state.shapes.length - 1; i >= 0; i--) {
@@ -62,15 +36,18 @@ export const SelectTool: ToolHandler = {
       // Check for handle hit first
       const handleHit = hitTestHandles(imageX, imageY, shape, 8);
       if (handleHit) {
-        dragState = {
-          mode: 'resize',
-          shapeId: shape.id,
-          handle: handleHit,
-          startImageX: imageX,
-          startImageY: imageY,
-          startShape: shape,
-        };
-        return [{ type: 'SELECT_SHAPE', id: shape.id }];
+        return [
+          { type: 'SELECT_SHAPE', id: shape.id },
+          {
+            type: 'START_DRAG',
+            mode: 'resize',
+            shapeId: shape.id,
+            handle: handleHit,
+            imageX,
+            imageY,
+            shape,
+          },
+        ];
       }
 
       // Then check for body hit
@@ -82,47 +59,55 @@ export const SelectTool: ToolHandler = {
       }
 
       if (bodyHit) {
-        dragState = {
-          mode: 'move',
-          shapeId: shape.id,
-          handle: null,
-          startImageX: imageX,
-          startImageY: imageY,
-          startShape: shape,
-        };
-        return [{ type: 'SELECT_SHAPE', id: shape.id }];
+        return [
+          { type: 'SELECT_SHAPE', id: shape.id },
+          {
+            type: 'START_DRAG',
+            mode: 'move',
+            shapeId: shape.id,
+            handle: null,
+            imageX,
+            imageY,
+            shape,
+          },
+        ];
       }
     }
 
-    // No hit: deselect
-    return [{ type: 'SELECT_SHAPE', id: null }];
+    // No hit: deselect and end any drag
+    return [
+      { type: 'SELECT_SHAPE', id: null },
+      { type: 'END_DRAG' },
+    ];
   },
 
   onPointerMove: (state: AnnotatorState, ctx: PointerContext): AnnotatorAction[] => {
-    if (!dragState.mode || !dragState.shapeId || !dragState.startShape) {
+    const { selectDragState } = state;
+
+    if (!selectDragState.mode || !selectDragState.shapeId || !selectDragState.startShape) {
       return [];
     }
 
     const { imageX, imageY, imageWidth, imageHeight } = ctx;
-    const dx = imageX - dragState.startImageX;
-    const dy = imageY - dragState.startImageY;
+    const dx = imageX - selectDragState.startImageX;
+    const dy = imageY - selectDragState.startImageY;
 
     let updatedShape: AnnotationShape;
 
-    if (dragState.mode === 'move') {
-      const moved = translateShape(dragState.startShape, dx, dy, imageWidth, imageHeight);
-      updatedShape = { ...dragState.startShape, ...moved };
+    if (selectDragState.mode === 'move') {
+      const moved = translateShape(selectDragState.startShape, dx, dy, imageWidth, imageHeight);
+      updatedShape = { ...selectDragState.startShape, ...moved };
     } else {
       // resize
       const resized = resizeShape(
-        dragState.startShape,
-        dragState.handle!,
+        selectDragState.startShape,
+        selectDragState.handle as HandlePosition,
         dx,
         dy,
         imageWidth,
         imageHeight,
       );
-      updatedShape = { ...dragState.startShape, ...resized };
+      updatedShape = { ...selectDragState.startShape, ...resized };
     }
 
     // Use 'replace' to avoid adding undo step during drag
@@ -130,41 +115,19 @@ export const SelectTool: ToolHandler = {
   },
 
   onPointerUp: (state: AnnotatorState, ctx: PointerContext): AnnotatorAction[] => {
-    if (!dragState.mode || !dragState.shapeId) {
-      dragState = {
-        mode: null,
-        shapeId: null,
-        handle: null,
-        startImageX: 0,
-        startImageY: 0,
-        startShape: null,
-      };
-      return [];
+    const { selectDragState } = state;
+
+    if (!selectDragState.mode || !selectDragState.shapeId) {
+      return [{ type: 'END_DRAG' }];
     }
 
     // Commit final position to undo stack
-    const selectedShape = state.shapes.find((s) => s.id === dragState.shapeId);
+    const selectedShape = state.shapes.find((s) => s.id === selectDragState.shapeId);
     if (selectedShape) {
-      dragState = {
-        mode: null,
-        shapeId: null,
-        handle: null,
-        startImageX: 0,
-        startImageY: 0,
-        startShape: null,
-      };
-      return []; // Update_SHAPE already did the move; commit via undoStack in PhotoAnnotator
+      return [{ type: 'END_DRAG' }]; // UPDATE_SHAPE already did the move; commit via undoStack in PhotoAnnotator
     }
 
-    dragState = {
-      mode: null,
-      shapeId: null,
-      handle: null,
-      startImageX: 0,
-      startImageY: 0,
-      startShape: null,
-    };
-    return [];
+    return [{ type: 'END_DRAG' }];
   },
 
   cursor: 'default',

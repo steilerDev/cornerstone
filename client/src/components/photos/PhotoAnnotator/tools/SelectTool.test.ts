@@ -52,6 +52,14 @@ function makeState(overrides: Partial<AnnotatorState> = {}): AnnotatorState {
     selectedTool: 'select',
     activeColor: '#dc2626',
     activeStrokeWidthKey: 'medium',
+    selectDragState: {
+      mode: null,
+      shapeId: null,
+      handle: null,
+      startImageX: 0,
+      startImageY: 0,
+      startShape: null,
+    },
     ...overrides,
   };
 }
@@ -66,11 +74,9 @@ function makeCtx(imageX: number, imageY: number): PointerContext {
   };
 }
 
-// Reset SelectTool module-level dragState between tests
+// No-op: dragState is now part of the reducer state, not module-level
 function resetDragState(): void {
-  // Simulate a pointer down on empty area + pointer up to clear drag state
-  SelectTool.onPointerDown(makeState({ shapes: [] }), makeCtx(0, 0));
-  SelectTool.onPointerUp(makeState({ shapes: [] }), makeCtx(0, 0));
+  // Nothing to reset — state is managed by the reducer
 }
 
 // ─── Test suite ───────────────────────────────────────────────────────────────
@@ -81,56 +87,66 @@ describe('SelectTool', () => {
   });
 
   describe('onPointerDown() — empty area', () => {
-    it('returns SELECT_SHAPE(null) when clicking empty area', () => {
+    it('returns SELECT_SHAPE(null) + END_DRAG when clicking empty area', () => {
       const state = makeState({ shapes: [] });
       const actions = SelectTool.onPointerDown(state, makeCtx(200, 200));
 
-      expect(actions).toHaveLength(1);
-      const action = actions[0]!;
-      if (action.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
-      expect(action.id).toBeNull();
+      expect(actions).toHaveLength(2);
+      expect(actions[0]!.type).toBe('SELECT_SHAPE');
+      if (actions[0]!.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+      expect(actions[0]!.id).toBeNull();
+      expect(actions[1]!.type).toBe('END_DRAG');
     });
 
-    it('returns SELECT_SHAPE(null) when clicking outside all shapes', () => {
+    it('returns SELECT_SHAPE(null) + END_DRAG when clicking outside all shapes', () => {
       const shape = makeRectShape({ x: 50, y: 50, w: 100, h: 80 });
       const state = makeState({ shapes: [shape] });
 
       // Click far away from the shape
       const actions = SelectTool.onPointerDown(state, makeCtx(500, 500));
 
-      expect(actions).toHaveLength(1);
-      const action = actions[0]!;
-      if (action.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
-      expect(action.id).toBeNull();
+      expect(actions).toHaveLength(2);
+      expect(actions[0]!.type).toBe('SELECT_SHAPE');
+      if (actions[0]!.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+      expect(actions[0]!.id).toBeNull();
+      expect(actions[1]!.type).toBe('END_DRAG');
     });
   });
 
   describe('onPointerDown() — shape body hit', () => {
-    it('returns SELECT_SHAPE with the shape id when clicking inside a rectangle', () => {
+    it('returns SELECT_SHAPE + START_DRAG when clicking inside a rectangle', () => {
       const shape = makeRectShape({ id: 'rect-hit', x: 50, y: 50, w: 100, h: 80 });
       const state = makeState({ shapes: [shape] });
 
-      // Click the center of the shape (inside the stroke area of a rectangle)
-      // Rectangle is 50->150 x, 50->130 y. Center stroke area: ~52, 52
-      const actions = SelectTool.onPointerDown(state, makeCtx(52, 52));
+      // Click the center of the shape body (away from corners to avoid handles)
+      // Rectangle is 50->150 x, 50->130 y. Safe center: 100, 90
+      const actions = SelectTool.onPointerDown(state, makeCtx(100, 90));
 
-      expect(actions).toHaveLength(1);
-      const action = actions[0]!;
-      if (action.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
-      expect(action.id).toBe('rect-hit');
+      expect(actions).toHaveLength(2);
+      const selectAction = actions[0]!;
+      if (selectAction.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+      expect(selectAction.id).toBe('rect-hit');
+      const dragAction = actions[1]!;
+      expect(dragAction.type).toBe('START_DRAG');
+      if (dragAction.type !== 'START_DRAG') throw new Error('expected START_DRAG');
+      expect(dragAction.mode).toBe('move');
     });
 
-    it('returns SELECT_SHAPE with the shape id when clicking inside a highlight', () => {
+    it('returns SELECT_SHAPE + START_DRAG when clicking inside a highlight', () => {
       const shape = makeHighlightShape({ id: 'hl-hit', x: 20, y: 20, w: 60, h: 40 });
       const state = makeState({ shapes: [shape] });
 
       // Click center of highlight
       const actions = SelectTool.onPointerDown(state, makeCtx(50, 40));
 
-      expect(actions).toHaveLength(1);
-      const action = actions[0]!;
-      if (action.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
-      expect(action.id).toBe('hl-hit');
+      expect(actions).toHaveLength(2);
+      const selectAction = actions[0]!;
+      if (selectAction.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+      expect(selectAction.id).toBe('hl-hit');
+      const dragAction = actions[1]!;
+      expect(dragAction.type).toBe('START_DRAG');
+      if (dragAction.type !== 'START_DRAG') throw new Error('expected START_DRAG');
+      expect(dragAction.mode).toBe('move');
     });
 
     it('selects top-most shape when shapes overlap (reverse order)', () => {
@@ -141,14 +157,17 @@ describe('SelectTool', () => {
       // Click where both shapes overlap — top (higher index) wins
       const actions = SelectTool.onPointerDown(state, makeCtx(25, 25));
 
-      const action = actions[0]!;
-      if (action.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
-      expect(action.id).toBe('top');
+      expect(actions).toHaveLength(2);
+      const selectAction = actions[0]!;
+      if (selectAction.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+      expect(selectAction.id).toBe('top');
+      const dragAction = actions[1]!;
+      expect(dragAction.type).toBe('START_DRAG');
     });
   });
 
   describe('onPointerDown() — handle hit', () => {
-    it('returns SELECT_SHAPE with shape id when clicking a resize handle', () => {
+    it('returns SELECT_SHAPE + START_DRAG(resize) when clicking a resize handle', () => {
       // Shape at x=50, y=50, w=100, h=80 — nw handle at (50, 50)
       const shape = makeRectShape({ id: 'resizable', x: 50, y: 50, w: 100, h: 80 });
       const state = makeState({ shapes: [shape] });
@@ -156,10 +175,14 @@ describe('SelectTool', () => {
       // Click exactly on the nw handle (50, 50) — within handleSize=8, so dist=0
       const actions = SelectTool.onPointerDown(state, makeCtx(50, 50));
 
-      expect(actions).toHaveLength(1);
-      const action = actions[0]!;
-      if (action.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
-      expect(action.id).toBe('resizable');
+      expect(actions).toHaveLength(2);
+      const selectAction = actions[0]!;
+      if (selectAction.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+      expect(selectAction.id).toBe('resizable');
+      const dragAction = actions[1]!;
+      expect(dragAction.type).toBe('START_DRAG');
+      if (dragAction.type !== 'START_DRAG') throw new Error('expected START_DRAG');
+      expect(dragAction.mode).toBe('resize');
     });
   });
 
@@ -174,23 +197,31 @@ describe('SelectTool', () => {
       });
       const state = makeState({ shapes: [shape] });
 
-      // Down in the body
+      // Down in the body — this sets the drag state via START_DRAG action
       SelectTool.onPointerDown(state, makeCtx(50, 40));
 
+      // Now simulate the state after START_DRAG was processed by the reducer
+      const stateAfterDragStart = makeState({
+        shapes: [shape],
+        selectDragState: {
+          mode: 'move',
+          shapeId: 'drag-me',
+          handle: null,
+          startImageX: 50,
+          startImageY: 40,
+          startShape: shape,
+        },
+      });
+
       // Move 30px right, 20px down
-      const moveActions = SelectTool.onPointerMove(
-        makeState({ shapes: [shape] }),
-        makeCtx(80, 60),
-      );
+      const moveActions = SelectTool.onPointerMove(stateAfterDragStart, makeCtx(80, 60));
 
       expect(moveActions).toHaveLength(1);
       expect(moveActions[0]!.type).toBe('UPDATE_SHAPE');
     });
 
     it('returns empty array when not dragging (no active drag state)', () => {
-      // No pointer down first
-      resetDragState();
-
+      // No pointer down first — state has idle drag state
       const actions = SelectTool.onPointerMove(
         makeState({ shapes: [] }),
         makeCtx(100, 100),
@@ -207,16 +238,22 @@ describe('SelectTool', () => {
         w: 60,
         h: 40,
       });
-      const state = makeState({ shapes: [shape] });
 
-      // Click inside the highlight to select and start move
-      SelectTool.onPointerDown(state, makeCtx(50, 40));
+      // Simulate the state after START_DRAG was processed
+      const stateAfterDragStart = makeState({
+        shapes: [shape],
+        selectDragState: {
+          mode: 'move',
+          shapeId: 'movable',
+          handle: null,
+          startImageX: 50,
+          startImageY: 40,
+          startShape: shape,
+        },
+      });
 
       // Move 10px right, 10px down
-      const moveActions = SelectTool.onPointerMove(
-        makeState({ shapes: [shape] }),
-        makeCtx(60, 50),
-      );
+      const moveActions = SelectTool.onPointerMove(stateAfterDragStart, makeCtx(60, 50));
 
       const action = moveActions[0]!;
       if (action.type !== 'UPDATE_SHAPE') throw new Error('expected UPDATE_SHAPE');
@@ -231,16 +268,22 @@ describe('SelectTool', () => {
     it('returns UPDATE_SHAPE during resize drag (handle hit sets resize mode)', () => {
       // Shape at (50,50) 100x80 — nw handle is at (50,50)
       const shape = makeRectShape({ id: 'resizable-move', x: 50, y: 50, w: 100, h: 80 });
-      const state = makeState({ shapes: [shape] });
 
-      // Click the nw handle to enter resize mode
-      SelectTool.onPointerDown(state, makeCtx(50, 50));
+      // Simulate the state after START_DRAG(resize) was processed
+      const stateAfterDragStart = makeState({
+        shapes: [shape],
+        selectDragState: {
+          mode: 'resize',
+          shapeId: 'resizable-move',
+          handle: 'nw', // HandlePosition
+          startImageX: 50,
+          startImageY: 50,
+          startShape: shape,
+        },
+      });
 
       // Drag handle 10px right, 10px down
-      const moveActions = SelectTool.onPointerMove(
-        makeState({ shapes: [shape] }),
-        makeCtx(60, 60),
-      );
+      const moveActions = SelectTool.onPointerMove(stateAfterDragStart, makeCtx(60, 60));
 
       expect(moveActions).toHaveLength(1);
       expect(moveActions[0]!.type).toBe('UPDATE_SHAPE');
@@ -248,44 +291,58 @@ describe('SelectTool', () => {
   });
 
   describe('onPointerUp()', () => {
-    it('returns empty array after a normal drag (position already committed via UPDATE_SHAPE)', () => {
+    it('returns END_DRAG after a normal drag (position already committed via UPDATE_SHAPE)', () => {
       const shape = makeHighlightShape({ id: 'up-shape', x: 20, y: 20, w: 60, h: 40 });
-      const state = makeState({ shapes: [shape] });
 
-      SelectTool.onPointerDown(state, makeCtx(50, 40));
-      SelectTool.onPointerMove(makeState({ shapes: [shape] }), makeCtx(60, 50));
+      // Simulate active drag state
+      const stateWithActiveDrag = makeState({
+        shapes: [shape],
+        selectedShapeId: 'up-shape',
+        selectDragState: {
+          mode: 'move',
+          shapeId: 'up-shape',
+          handle: null,
+          startImageX: 50,
+          startImageY: 40,
+          startShape: shape,
+        },
+      });
 
-      const upActions = SelectTool.onPointerUp(
-        makeState({ shapes: [shape], selectedShapeId: 'up-shape' }),
-        makeCtx(60, 50),
-      );
+      const upActions = SelectTool.onPointerUp(stateWithActiveDrag, makeCtx(60, 50));
 
-      // SelectTool.onPointerUp always returns [] (moves are committed by PhotoAnnotator on pointerup)
-      expect(upActions).toHaveLength(0);
+      // SelectTool.onPointerUp returns END_DRAG (moves are committed by PhotoAnnotator on pointerup)
+      expect(upActions).toHaveLength(1);
+      expect(upActions[0]!.type).toBe('END_DRAG');
     });
 
-    it('returns empty array when not dragging', () => {
+    it('returns END_DRAG when not dragging', () => {
       const upActions = SelectTool.onPointerUp(
         makeState({ shapes: [] }),
         makeCtx(100, 100),
       );
-      expect(upActions).toHaveLength(0);
+      expect(upActions).toHaveLength(1);
+      expect(upActions[0]!.type).toBe('END_DRAG');
     });
 
-    it('returns empty array when shape is not found in state on pointer up (fallthrough reset)', () => {
-      const shape = makeHighlightShape({ id: 'gone-shape', x: 20, y: 20, w: 60, h: 40 });
-      const state = makeState({ shapes: [shape] });
-
-      // Start drag in the body
-      SelectTool.onPointerDown(state, makeCtx(50, 40));
+    it('returns END_DRAG when shape is not found in state on pointer up', () => {
+      // Simulate active drag state for a shape that's been removed
+      const stateWithActiveDragButNoShape = makeState({
+        shapes: [],
+        selectDragState: {
+          mode: 'move',
+          shapeId: 'gone-shape',
+          handle: null,
+          startImageX: 50,
+          startImageY: 40,
+          startShape: makeHighlightShape({ id: 'gone-shape' }),
+        },
+      });
 
       // Call onPointerUp with empty shapes (shape was removed from state)
-      const upActions = SelectTool.onPointerUp(
-        makeState({ shapes: [] }),
-        makeCtx(60, 50),
-      );
+      const upActions = SelectTool.onPointerUp(stateWithActiveDragButNoShape, makeCtx(60, 50));
 
-      expect(upActions).toHaveLength(0);
+      expect(upActions).toHaveLength(1);
+      expect(upActions[0]!.type).toBe('END_DRAG');
     });
   });
 

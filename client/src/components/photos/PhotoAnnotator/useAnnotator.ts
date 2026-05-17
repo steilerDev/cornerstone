@@ -10,6 +10,17 @@ export type StrokeWidthKey = keyof typeof ANNOTATION_STROKE_WIDTHS;
 
 export type { AnnotationShape, RectangleShape, HighlightShape } from './useUndoStack.js';
 
+export type DragMode = 'move' | 'resize' | null;
+
+export interface SelectDragState {
+  mode: DragMode;
+  shapeId: string | null;
+  handle: string | null; // HandlePosition serialized as string
+  startImageX: number;
+  startImageY: number;
+  startShape: AnnotationShape | null;
+}
+
 export interface AnnotatorState {
   shapes: AnnotationShape[];
   draftShape: AnnotationShape | null;
@@ -17,6 +28,7 @@ export interface AnnotatorState {
   selectedTool: ToolName;
   activeColor: string;
   activeStrokeWidthKey: StrokeWidthKey;
+  selectDragState: SelectDragState;
 }
 
 export type AnnotatorAction =
@@ -28,7 +40,9 @@ export type AnnotatorAction =
   | { type: 'SELECT_SHAPE'; id: string | null }
   | { type: 'UPDATE_SHAPE'; shape: AnnotationShape }
   | { type: 'DELETE_SELECTED' }
-  | { type: 'REPLACE_SHAPES'; shapes: AnnotationShape[] };
+  | { type: 'REPLACE_SHAPES'; shapes: AnnotationShape[] }
+  | { type: 'START_DRAG'; mode: DragMode; shapeId: string | null; handle: string | null; imageX: number; imageY: number; shape: AnnotationShape | null }
+  | { type: 'END_DRAG' };
 
 export function annotatorReducer(
   state: AnnotatorState,
@@ -81,6 +95,32 @@ export function annotatorReducer(
     case 'REPLACE_SHAPES':
       return { ...state, shapes: action.shapes };
 
+    case 'START_DRAG':
+      return {
+        ...state,
+        selectDragState: {
+          mode: action.mode,
+          shapeId: action.shapeId,
+          handle: action.handle,
+          startImageX: action.imageX,
+          startImageY: action.imageY,
+          startShape: action.shape,
+        },
+      };
+
+    case 'END_DRAG':
+      return {
+        ...state,
+        selectDragState: {
+          mode: null,
+          shapeId: null,
+          handle: null,
+          startImageX: 0,
+          startImageY: 0,
+          startShape: null,
+        },
+      };
+
     default:
       return state;
   }
@@ -100,6 +140,14 @@ export function useAnnotator(initialShapes?: AnnotationShape[]): {
     selectedTool: 'select',
     activeColor: DEFAULT_COLOR,
     activeStrokeWidthKey: DEFAULT_STROKE_WIDTH,
+    selectDragState: {
+      mode: null,
+      shapeId: null,
+      handle: null,
+      startImageX: 0,
+      startImageY: 0,
+      startShape: null,
+    },
   };
 
   const [state, dispatchBase] = useReducer(

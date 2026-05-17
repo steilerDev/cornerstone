@@ -40,7 +40,6 @@ export function ToolPalette({
       <div className={styles.toolGroup}>
         <button
           type="button"
-          role="button"
           aria-pressed={selectedTool === 'select'}
           data-testid="tool-select"
           aria-label={t('toolSelect')}
@@ -54,7 +53,6 @@ export function ToolPalette({
 
         <button
           type="button"
-          role="button"
           aria-pressed={selectedTool === 'rectangle'}
           data-testid="tool-rectangle"
           aria-label={t('toolRectangle')}
@@ -68,7 +66,6 @@ export function ToolPalette({
 
         <button
           type="button"
-          role="button"
           aria-pressed={selectedTool === 'highlight'}
           data-testid="tool-highlight"
           aria-label={t('toolHighlight')}
@@ -155,9 +152,8 @@ export function ToolPalette({
           disabled={!canUndo}
           aria-label={t('undo')}
           data-testid="annotator-undo"
-          className={styles.toolButton}
+          className={`${styles.toolButton} ${!canUndo ? styles.toolButtonDisabled : ''}`}
           onClick={onUndo}
-          style={{ opacity: canUndo ? 1 : 0.4, cursor: canUndo ? 'pointer' : 'not-allowed' }}
         >
           <UndoIcon />
         </button>
@@ -166,9 +162,8 @@ export function ToolPalette({
           disabled={!canRedo}
           aria-label={t('redo')}
           data-testid="annotator-redo"
-          className={styles.toolButton}
+          className={`${styles.toolButton} ${!canRedo ? styles.toolButtonDisabled : ''}`}
           onClick={onRedo}
-          style={{ opacity: canRedo ? 1 : 0.4, cursor: canRedo ? 'pointer' : 'not-allowed' }}
         >
           <RedoIcon />
         </button>

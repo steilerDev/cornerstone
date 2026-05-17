@@ -36,7 +36,8 @@ const getPhotoFileSchema = {
   querystring: {
     type: 'object',
     properties: {
-      variant: { type: 'string', enum: ['original', 'annotated'] },
+      variant: { type: 'string', enum: ['original'] },
+      v: { type: 'string' },
     },
     additionalProperties: false,
   },
@@ -89,6 +90,23 @@ const getPhotoSchema = {
     properties: {
       id: { type: 'string' },
     },
+  },
+};
+
+const getPhotoThumbnailSchema = {
+  params: {
+    type: 'object',
+    required: ['id'],
+    properties: {
+      id: { type: 'string' },
+    },
+  },
+  querystring: {
+    type: 'object',
+    properties: {
+      v: { type: 'string' },
+    },
+    additionalProperties: false,
   },
 };
 
@@ -254,11 +272,14 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    * GET /:id/thumbnail
    * Serve the photo thumbnail (WebP format).
    *
+   * Query params:
+   *   - v (optional): cache-buster timestamp
+   *
    * Returns: 200 with thumbnail stream (WebP, Cache-Control headers set)
    */
   fastify.get(
     '/:id/thumbnail',
-    { schema: getPhotoSchema },
+    { schema: getPhotoThumbnailSchema },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!request.user) throw new UnauthorizedError();
 

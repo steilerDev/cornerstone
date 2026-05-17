@@ -53,6 +53,12 @@
   border-color: var(--color-primary);
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .toolButton:hover:not([aria-pressed="true"]) {
+    background: var(--color-bg-tertiary);
+  }
+}
+
 .swatchButton {
   width: 24px;
   height: 24px;
@@ -96,6 +102,17 @@
   background: var(--color-primary-bg);
   color: var(--color-primary);
   border-color: var(--color-primary);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .strokeButton:hover:not([aria-checked="true"]) {
+    background: var(--color-bg-tertiary);
+  }
+}
+
+.toolButtonDisabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 @media (prefers-reduced-motion: no-preference) {
