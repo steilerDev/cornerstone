@@ -111,7 +111,7 @@ describe('HighlightTool', () => {
     it('returns SET_DRAFT with normalized rect when drawState is active', () => {
       const state = makeState();
       const downActions = HighlightTool.onPointerDown(state, makeCtx(50, 60));
-      const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0].shape : null;
+      const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
       const moveActions = HighlightTool.onPointerMove(
         makeState({ draftShape }),
@@ -125,7 +125,7 @@ describe('HighlightTool', () => {
     it('normalizes rect dimensions correctly during move', () => {
       const state = makeState();
       const downActions = HighlightTool.onPointerDown(state, makeCtx(50, 60));
-      const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0].shape : null;
+      const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
       const moveActions = HighlightTool.onPointerMove(
         makeState({ draftShape }),
@@ -143,7 +143,7 @@ describe('HighlightTool', () => {
     it('handles reversed drag direction (normalizes correctly)', () => {
       const state = makeState();
       const downActions = HighlightTool.onPointerDown(state, makeCtx(100, 100));
-      const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0].shape : null;
+      const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
       const moveActions = HighlightTool.onPointerMove(
         makeState({ draftShape }),
@@ -171,7 +171,7 @@ describe('HighlightTool', () => {
     it('preserves highlight type in updated draft', () => {
       const state = makeState();
       const downActions = HighlightTool.onPointerDown(state, makeCtx(50, 60));
-      const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0].shape : null;
+      const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
       const moveActions = HighlightTool.onPointerMove(
         makeState({ draftShape }),
@@ -188,13 +188,13 @@ describe('HighlightTool', () => {
     it('returns COMMIT_DRAFT when draft area is >= 2x2', () => {
       const state = makeState();
       const downActions = HighlightTool.onPointerDown(state, makeCtx(50, 60));
-      const draftShape0 = downActions[0]!.type === 'SET_DRAFT' ? downActions[0].shape : null;
+      const draftShape0 = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
       const moveActions = HighlightTool.onPointerMove(
         makeState({ draftShape: draftShape0 }),
         makeCtx(100, 110),
       );
-      const largeDraft = moveActions[0]!.type === 'SET_DRAFT' ? moveActions[0].shape : null;
+      const largeDraft = moveActions[0]!.type === 'SET_DRAFT' ? moveActions[0]!.shape : null;
 
       const upActions = HighlightTool.onPointerUp(
         makeState({ draftShape: largeDraft }),

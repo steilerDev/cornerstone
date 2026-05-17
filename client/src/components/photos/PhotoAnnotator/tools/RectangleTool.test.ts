@@ -154,7 +154,7 @@ describe('RectangleTool', () => {
 
       // Start a draw operation
       const downActions = RectangleTool.onPointerDown(state, downCtx);
-      const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0].shape : null;
+      const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
       const moveActions = RectangleTool.onPointerMove(
         makeState({ draftShape }),
@@ -168,7 +168,7 @@ describe('RectangleTool', () => {
     it('normalizes rect dimensions correctly during move', () => {
       const state = makeState();
       const downActions = RectangleTool.onPointerDown(state, makeCtx(50, 60));
-      const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0].shape : null;
+      const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
       const moveActions = RectangleTool.onPointerMove(
         makeState({ draftShape }),
@@ -187,7 +187,7 @@ describe('RectangleTool', () => {
       const state = makeState();
       // Start draw at (100, 100)
       const downActions = RectangleTool.onPointerDown(state, makeCtx(100, 100));
-      const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0].shape : null;
+      const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
       // Move to a point above and to the left of start
       const moveActions = RectangleTool.onPointerMove(
@@ -220,14 +220,14 @@ describe('RectangleTool', () => {
       const state = makeState();
       // Start drawing at (50, 60)
       const downActions = RectangleTool.onPointerDown(state, makeCtx(50, 60));
-      const draftShape0 = downActions[0]!.type === 'SET_DRAFT' ? downActions[0].shape : null;
+      const draftShape0 = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
       // Move to create a 50x50 shape
       const moveActions = RectangleTool.onPointerMove(
         makeState({ draftShape: draftShape0 }),
         makeCtx(100, 110),
       );
-      const largeDraft = moveActions[0]!.type === 'SET_DRAFT' ? moveActions[0].shape : null;
+      const largeDraft = moveActions[0]!.type === 'SET_DRAFT' ? moveActions[0]!.shape : null;
 
       const upActions = RectangleTool.onPointerUp(
         makeState({ draftShape: largeDraft }),
