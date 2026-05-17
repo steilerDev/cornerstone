@@ -672,9 +672,7 @@ describe('householdItemBudgetService', () => {
     function insertVendorForInvoice(name: string) {
       const id = `v-hi-${++idCounter}`;
       const now = new Date(Date.now() + idCounter).toISOString();
-      db.insert(schema.vendors)
-        .values({ id, name, createdAt: now, updatedAt: now })
-        .run();
+      db.insert(schema.vendors).values({ id, name, createdAt: now, updatedAt: now }).run();
       return id;
     }
 

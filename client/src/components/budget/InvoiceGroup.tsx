@@ -95,9 +95,7 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
             >
               {invoiceNumber ? `#${invoiceNumber}` : 'Invoice'}
             </Link>
-            {vendorName && (
-              <span className={styles.vendorName}>{vendorName}</span>
-            )}
+            {vendorName && <span className={styles.vendorName}>{vendorName}</span>}
             <span className={statusBadgeClass}>{invoiceStatus}</span>
           </div>
           <div className={styles.amounts}>

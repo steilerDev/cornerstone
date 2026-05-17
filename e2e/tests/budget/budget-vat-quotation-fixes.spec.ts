@@ -97,10 +97,7 @@ async function linkBudgetLineToInvoiceViaApi(
   const response = await page.request.post(`/api/invoices/${invoiceId}/budget-lines`, {
     data,
   });
-  expect(
-    response.ok(),
-    `POST invoice budget line failed: ${response.status()}`,
-  ).toBeTruthy();
+  expect(response.ok(), `POST invoice budget line failed: ${response.status()}`).toBeTruthy();
   const body = (await response.json()) as { budgetLine: { id: string } };
   return body.budgetLine.id;
 }

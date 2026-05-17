@@ -13,10 +13,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
-import {
-  listWorkItemBudgets,
-  createWorkItemBudget,
-} from './workItemBudgetService.js';
+import { listWorkItemBudgets, createWorkItemBudget } from './workItemBudgetService.js';
 
 describe('workItemBudgetService — invoiceLink vendor fields (#1441)', () => {
   let sqlite: Database.Database;
@@ -83,9 +80,7 @@ describe('workItemBudgetService — invoiceLink vendor fields (#1441)', () => {
   function insertVendor(name: string) {
     const id = `v-${++idCounter}`;
     const now = new Date(Date.now() + idCounter).toISOString();
-    db.insert(schema.vendors)
-      .values({ id, name, createdAt: now, updatedAt: now })
-      .run();
+    db.insert(schema.vendors).values({ id, name, createdAt: now, updatedAt: now }).run();
     return id;
   }
 
