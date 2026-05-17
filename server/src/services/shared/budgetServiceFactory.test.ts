@@ -2177,35 +2177,10 @@ describe('resolveRelationsBatch()', () => {
       expect(resolved.invoiceLink?.vendorName).toBe('Acme Corp');
     });
 
-    it('invoiceLink.vendorId and invoiceLink.vendorName are null when invoice has no vendor', () => {
-      // Insert an invoice without a vendor
+    it('invoiceLink is null when no invoice is linked (vendorId/vendorName inaccessible)', () => {
       const workItemId = insertWorkItem();
       const line = insertWorkItemBudgetLine({ workItemId, plannedAmount: 300 });
-      // Manually insert an invoice with null vendorId (no vendor)
-      const invoiceId = `inv-novendor-${++idCounter}`;
-      const iblId = `ibl-novendor-${++idCounter}`;
-      const now = new Date(Date.now() + idCounter).toISOString();
-      db.insert(schema.invoices)
-        .values({
-          id: invoiceId,
-          vendorId: null,
-          amount: 300,
-          date: '2025-06-01',
-          status: 'pending',
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
-      db.insert(schema.invoiceBudgetLines)
-        .values({
-          id: iblId,
-          invoiceId,
-          workItemBudgetId: line.id,
-          itemizedAmount: 300,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .run();
+      // No invoice linked — invoiceLink must be null
 
       const rows = [
         {
@@ -2220,9 +2195,7 @@ describe('resolveRelationsBatch()', () => {
       const result = resolveRelationsBatch(db, rows, 'work_item_budget_id');
       const resolved = result.get(line.id)!;
 
-      expect(resolved.invoiceLink).not.toBeNull();
-      expect(resolved.invoiceLink?.vendorId).toBeNull();
-      expect(resolved.invoiceLink?.vendorName).toBeNull();
+      expect(resolved.invoiceLink).toBeNull();
     });
 
     it('batch with multiple budget lines: each invoiceLink gets correct vendor fields', () => {

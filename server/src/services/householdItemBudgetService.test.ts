@@ -680,7 +680,7 @@ describe('householdItemBudgetService', () => {
 
     function insertInvoiceLinkedToHIBudget(
       householdItemBudgetId: string,
-      vendorId: string | null,
+      vendorId: string,
       opts: { amount?: number; status?: 'pending' | 'paid' | 'claimed' | 'quotation' } = {},
     ) {
       const invoiceId = `inv-hi-${++idCounter}`;
@@ -728,20 +728,18 @@ describe('householdItemBudgetService', () => {
       expect(result[0]!.invoiceLink?.vendorName).toBe('IKEA HI Vendor');
     });
 
-    it('invoiceLink.vendorId and invoiceLink.vendorName are null when invoice has no vendor', () => {
+    it('invoiceLink is null when no invoice is linked (vendorId/vendorName inaccessible)', () => {
       const hiId = insertHouseholdItem();
-      const budget = createHouseholdItemBudget(db, hiId, 'user-001', {
+      createHouseholdItemBudget(db, hiId, 'user-001', {
         budgetSourceId: defaultSourceId,
         plannedAmount: 300,
       });
-      insertInvoiceLinkedToHIBudget(budget.id, null, { amount: 300, status: 'pending' });
+      // No invoice linked — invoiceLink must be null
 
       const result = listHouseholdItemBudgets(db, hiId);
 
       expect(result).toHaveLength(1);
-      expect(result[0]!.invoiceLink).not.toBeNull();
-      expect(result[0]!.invoiceLink?.vendorId).toBeNull();
-      expect(result[0]!.invoiceLink?.vendorName).toBeNull();
+      expect(result[0]!.invoiceLink).toBeNull();
     });
 
     it('actualCost includes quotation invoice (ADR-029)', () => {
@@ -764,6 +762,4 @@ describe('householdItemBudgetService', () => {
       expect(result[0]!.invoiceLink?.vendorName).toBe('Quotation HI Vendor');
     });
   });
-
-  // ─── #1441: workItemBudgetService — invoiceLink vendor fields ────────────────
 });

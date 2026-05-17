@@ -91,7 +91,7 @@ describe('workItemBudgetService — invoiceLink vendor fields (#1441)', () => {
 
   function insertInvoiceLinkedToWorkItemBudget(
     workItemBudgetId: string,
-    vendorId: string | null,
+    vendorId: string,
     opts: { amount?: number; status?: 'pending' | 'paid' | 'claimed' | 'quotation' } = {},
   ) {
     const invoiceId = `inv-wi-${++idCounter}`;
@@ -154,21 +154,19 @@ describe('workItemBudgetService — invoiceLink vendor fields (#1441)', () => {
     expect(result[0]!.invoiceLink?.vendorName).toBe('Concrete Corp');
   });
 
-  it('invoiceLink.vendorId and invoiceLink.vendorName are null when invoice has no vendor', () => {
+  it('invoiceLink is null when no invoice is linked (vendorId/vendorName inaccessible)', () => {
     const wiId = insertWorkItem();
     const sourceId = insertBudgetSource();
-    const budget = createWorkItemBudget(db, wiId, 'user-001', {
+    createWorkItemBudget(db, wiId, 'user-001', {
       plannedAmount: 500,
       budgetSourceId: sourceId,
     });
-    insertInvoiceLinkedToWorkItemBudget(budget.id, null, { amount: 500, status: 'pending' });
+    // No invoice linked — invoiceLink must be null
 
     const result = listWorkItemBudgets(db, wiId);
 
     expect(result).toHaveLength(1);
-    expect(result[0]!.invoiceLink).not.toBeNull();
-    expect(result[0]!.invoiceLink?.vendorId).toBeNull();
-    expect(result[0]!.invoiceLink?.vendorName).toBeNull();
+    expect(result[0]!.invoiceLink).toBeNull();
   });
 
   it('two budget lines: each invoiceLink gets correct vendor fields independently', () => {
