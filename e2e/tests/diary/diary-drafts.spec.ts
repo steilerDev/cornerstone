@@ -890,6 +890,9 @@ test.describe('Hide drafts checkbox (Scenario 13)', () => {
 
         await diaryPage.goto();
         await waitForDiaryListLoaded(diaryPage);
+        // The filter panel is collapsed by default on mobile — expand it so
+        // the "Hide drafts" checkbox is interactable across all viewports.
+        await diaryPage.openFiltersIfCollapsed();
 
         // ── Default: checkbox is unchecked, both entries visible ──
         await expect(diaryPage.hideDraftsCheckbox).not.toBeChecked();
@@ -898,6 +901,7 @@ test.describe('Hide drafts checkbox (Scenario 13)', () => {
 
         // ── Check "Hide drafts" → drafts hidden, saved visible; URL gets ?status=saved ──
         const savedFilterResponse = waitForDiaryListResponse(page);
+        await diaryPage.hideDraftsCheckbox.scrollIntoViewIfNeeded();
         await diaryPage.hideDraftsCheckbox.check();
         await savedFilterResponse;
         await waitForDiaryListLoaded(diaryPage);
