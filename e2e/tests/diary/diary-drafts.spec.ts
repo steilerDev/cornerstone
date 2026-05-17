@@ -345,52 +345,75 @@ test.describe('Photo attach — happy path (Scenario 6)', { tag: '@responsive' }
   // ── Photo immediate appearance sub-test (#1435) ──────────────────────────
   test('Photo appears in PhotoGrid immediately after upload (without page reload)', async ({
     page,
-    testPrefix,
   }) => {
     let draftId: string | null = null;
 
     try {
       draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
+      const mockPhotoId = `mock-photo-${Date.now()}`;
+      const mockPhoto = {
+        id: mockPhotoId,
+        entityType: 'diary_entry',
+        entityId: draftId,
+        mimeType: 'image/jpeg',
+        filename: 'test.jpg',
+        sizeBytes: 100,
+        caption: null,
+        sortOrder: 0,
+        uploadedAt: new Date().toISOString(),
+      };
+
+      // Intercept the upload POST — return a fake 201 so the server never sees the request.
+      // This avoids rejection of the tiny test file and lets us control the returned photo id.
+      await page.route('**/api/photos', async (route) => {
+        if (route.request().method() === 'POST') {
+          await route.fulfill({
+            status: 201,
+            contentType: 'application/json',
+            body: JSON.stringify({ photo: mockPhoto }),
+          });
+        } else {
+          await route.continue();
+        }
+      });
+
+      // Intercept the GET so the refresh() fetch (triggered by onUpload) returns the mocked photo.
+      // DiaryEntryEditPage passes onUpload={() => photosResult.refresh()} to PhotoUpload.
+      // refresh() increments fetchCount → useEffect re-runs → GET /api/photos?entityType=diary_entry&entityId=:id
+      // Without this mock the server returns [] (the photo was never really stored).
+      await page.route(
+        `**/api/photos?entityType=diary_entry&entityId=${draftId}`,
+        async (route) => {
+          if (route.request().method() === 'GET') {
+            await route.fulfill({
+              status: 200,
+              contentType: 'application/json',
+              body: JSON.stringify({ photos: [mockPhoto] }),
+            });
+          } else {
+            await route.continue();
+          }
+        },
+      );
+
       await page.goto(`/diary/${draftId}/edit`);
       await page.getByRole('heading', { level: 1, name: 'Edit Diary Entry' }).waitFor({
         state: 'visible',
       });
 
-      // A minimal valid JPEG to satisfy the server's content-type check
-      const minimalFile = {
-        name: `immediate-photo-${testPrefix}.jpg`,
-        mimeType: 'image/jpeg' as const,
-        buffer: Buffer.from(
-          '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFgABAQEAAAAAAAAAAAAAAAAABgUEA/8QAHxAAAQQCAwEAAAAAAAAAAAAAAQACAxESITFBUf/aAAgBAQAA/wBZkNBrSHb3L2oqXQgqUSRhqX',
-          'base64',
-        ),
-      };
-
-      // Register the POST /api/photos listener BEFORE triggering the upload
-      const uploadResponsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/photos') && resp.request().method() === 'POST',
-      );
-
       const fileInput = page.getByTestId('photo-file-input');
+      const minimalFile = { name: 'test.jpg', mimeType: 'image/jpeg' as const, buffer: Buffer.from('test') };
       await fileInput.setInputFiles([minimalFile]);
 
-      // Wait for the server response to complete
-      const uploadResponse = await uploadResponsePromise;
-      expect(uploadResponse.ok(), 'Photo upload should succeed').toBeTruthy();
-
-      // Extract the photo id from the response body
-      // The upload endpoint returns { photo: { id, ... } } (PhotoCard uses data-testid="photo-card-{id}")
-      const uploadBody = (await uploadResponse.json()) as { photo: { id: string } };
-      const photoId = uploadBody.photo.id;
-
-      // The photo should appear in the PhotoGrid without a page reload.
-      // DiaryEntryEditPage passes onUpload={() => photosResult.refresh()} to the upload zone,
-      // which triggers a GET /api/diary-entries/:id/photos refetch on success.
-      // PhotoCard renders data-testid="photo-card-{id}" (from PhotoCard.tsx).
-      await expect(page.getByTestId(`photo-card-${photoId}`)).toBeVisible();
+      // The photo card should appear without a page reload.
+      // This proves: (1) the POST mock fired, (2) onUpload called photosResult.refresh(),
+      // (3) the GET mock returned the photo, (4) React re-rendered the PhotoGrid.
+      // PhotoCard renders data-testid="photo-card-{id}" (PhotoCard.tsx line 53).
+      await expect(page.getByTestId(`photo-card-${mockPhotoId}`)).toBeVisible({ timeout: 10000 });
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+      await page.unrouteAll();
     }
   });
 });

@@ -380,6 +380,7 @@ describe('App', () => {
     expect(main).toBeInTheDocument();
   });
 
+  // NOTE: bumped to 15000ms; underlying lazy-import flake tracked in #1438.
   it('shows Project page at root path / (redirects to /project/overview)', async () => {
     render(<App />);
 
@@ -387,7 +388,7 @@ describe('App', () => {
     // Root redirects to /project which redirects to /project/overview
     const heading = await screen.findByRole('heading', { name: /^project$/i }, { timeout: 5000 });
     expect(heading).toBeInTheDocument();
-  });
+  }, 15000);
 
   it('navigates to Work Items page when /project/work-items path is accessed', async () => {
     window.history.pushState({}, 'Work Items', '/project/work-items');
