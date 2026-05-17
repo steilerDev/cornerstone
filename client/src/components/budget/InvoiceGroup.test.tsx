@@ -186,7 +186,11 @@ describe('InvoiceGroup', () => {
       import('../../contexts/LocaleContext.js'),
     ]);
     InvoiceGroup = invoiceModule.InvoiceGroup;
-    LocaleProvider = localeModule.LocaleProvider as ({ children }: { children: React.ReactNode }) => React.ReactNode;
+    LocaleProvider = localeModule.LocaleProvider as ({
+      children,
+    }: {
+      children: React.ReactNode;
+    }) => React.ReactNode;
   });
 
   it('defaults to collapsed — lines not visible', () => {
@@ -395,9 +399,7 @@ describe('InvoiceGroup', () => {
 
   it('quotation status: shows single formatted amount (no range)', () => {
     renderGroup(
-      <InvoiceGroup
-        {...buildProps({ invoiceStatus: 'quotation', itemizedTotal: 500 })}
-      />,
+      <InvoiceGroup {...buildProps({ invoiceStatus: 'quotation', itemizedTotal: 500 })} />,
     );
 
     // Single amount shown
@@ -410,9 +412,7 @@ describe('InvoiceGroup', () => {
 
   it('quotation status: no en-dash separator in the amount span', () => {
     const { container } = renderGroup(
-      <InvoiceGroup
-        {...buildProps({ invoiceStatus: 'quotation', itemizedTotal: 500 })}
-      />,
+      <InvoiceGroup {...buildProps({ invoiceStatus: 'quotation', itemizedTotal: 500 })} />,
     );
 
     // The amountValue span should contain only the formatted number — no en-dash (–)
@@ -454,9 +454,7 @@ describe('InvoiceGroup', () => {
   });
 
   it('null vendor: invoiceIdentity contains only the invoice link, no vendorName child', () => {
-    const { container } = renderGroup(
-      <InvoiceGroup {...buildProps({ vendorName: null })} />,
-    );
+    const { container } = renderGroup(<InvoiceGroup {...buildProps({ vendorName: null })} />);
 
     const identity = container.querySelector('[class*="invoiceIdentity"]');
     expect(identity).not.toBeNull();
@@ -472,9 +470,7 @@ describe('InvoiceGroup', () => {
 
   it('quotation status: amountValue span has amountValueQuoted class', () => {
     const { container } = renderGroup(
-      <InvoiceGroup
-        {...buildProps({ invoiceStatus: 'quotation', itemizedTotal: 500 })}
-      />,
+      <InvoiceGroup {...buildProps({ invoiceStatus: 'quotation', itemizedTotal: 500 })} />,
     );
 
     const quotedSpan = container.querySelector('[class*="amountValueQuoted"]');
@@ -483,9 +479,7 @@ describe('InvoiceGroup', () => {
 
   it('non-quotation status: amountValueQuoted class NOT applied', () => {
     const { container } = renderGroup(
-      <InvoiceGroup
-        {...buildProps({ invoiceStatus: 'pending', itemizedTotal: 500 })}
-      />,
+      <InvoiceGroup {...buildProps({ invoiceStatus: 'pending', itemizedTotal: 500 })} />,
     );
 
     const quotedSpan = container.querySelector('[class*="amountValueQuoted"]');

@@ -90,9 +90,7 @@ let LocaleProvider: ({ children }: { children: React.ReactNode }) => React.React
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-function buildInvoiceLink(
-  overrides?: Partial<BudgetLineInvoiceLink>,
-): BudgetLineInvoiceLink {
+function buildInvoiceLink(overrides?: Partial<BudgetLineInvoiceLink>): BudgetLineInvoiceLink {
   return {
     invoiceBudgetLineId: 'ibl-1',
     invoiceId: 'inv-1',
@@ -172,7 +170,11 @@ describe('BudgetLineCard', () => {
       import('../../contexts/LocaleContext.js'),
     ]);
     BudgetLineCard = cardMod.BudgetLineCard;
-    LocaleProvider = localeMod.LocaleProvider as ({ children }: { children: React.ReactNode }) => React.ReactNode;
+    LocaleProvider = localeMod.LocaleProvider as ({
+      children,
+    }: {
+      children: React.ReactNode;
+    }) => React.ReactNode;
   });
 
   // ─── Scenario 1: non-quotation invoice renders actualCost as single value ──

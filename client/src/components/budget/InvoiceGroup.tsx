@@ -71,7 +71,10 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
     return t('vendorDetail.invoiceStatusLabels.paid'); // Default to "Invoiced" equivalent
   };
 
-  const amountLabel = invoiceStatus === 'quotation' ? t('vendorDetail.quotedAmount') : t('vendorDetail.invoicedAmount');
+  const amountLabel =
+    invoiceStatus === 'quotation'
+      ? t('vendorDetail.quotedAmount')
+      : t('vendorDetail.invoicedAmount');
   const ariaLabel = `Invoice ${invoiceNumber || 'unknown'}${vendorName ? ` from ${vendorName}` : ''}: ${lines.length} budget lines, ${formatCurrency(itemizedTotal)} ${amountLabel}`;
 
   return (
