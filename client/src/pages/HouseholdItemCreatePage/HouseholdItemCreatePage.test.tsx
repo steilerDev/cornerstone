@@ -42,13 +42,17 @@ jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
 }));
 
 // Mock useToast so HouseholdItemCreatePage can render without a ToastProvider wrapper.
-jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
-  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
-  useToast: () => ({
+function mockUseToast() {
+  return {
     toasts: [],
     showToast: jest.fn(),
     dismissToast: jest.fn(),
-  }),
+  };
+}
+
+jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
+  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
+  useToast: mockUseToast,
 }));
 
 // Helper to capture current location

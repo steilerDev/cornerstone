@@ -3,51 +3,50 @@
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
+import type React from 'react';
 import type { BaseBudgetLine, BudgetLineInvoiceLink } from '@cornerstone/shared';
 import type { UseBudgetSectionReturn } from '../../hooks/useBudgetSection.js';
-import type { BudgetSectionProps } from './BudgetSection.js';
+import type { BudgetSectionProps, BudgetSection as BudgetSectionType } from './BudgetSection.js';
 
 // ─── Stub heavy child components ─────────────────────────────────────────────
 
-jest.unstable_mockModule('./BudgetLineCard.js', () => ({
-  BudgetLineCard: ({ line, children }: { line: BaseBudgetLine; children?: React.ReactNode }) => (
+function MockBudgetLineCard({ line, children }: { line: BaseBudgetLine; children?: React.ReactNode }) {
+  return (
     <div data-testid={`budget-line-card-${line.id}`}>
       <span>{line.description ?? 'no-description'}</span>
       {children}
     </div>
-  ),
-}));
+  );
+}
 
-jest.unstable_mockModule('./BudgetLineForm.js', () => ({
-  BudgetLineForm: ({ children }: { children?: React.ReactNode }) => (
-    <div data-testid="budget-line-form">{children}</div>
-  ),
-}));
+function MockBudgetLineForm({ children }: { children?: React.ReactNode }) {
+  return <div data-testid="budget-line-form">{children}</div>;
+}
 
-jest.unstable_mockModule('./SubsidyLinkSection.js', () => ({
-  SubsidyLinkSection: () => <div data-testid="subsidy-link-section" />,
-}));
+function MockSubsidyLinkSection() {
+  return <div data-testid="subsidy-link-section" />;
+}
 
-jest.unstable_mockModule('./BudgetCostOverview.js', () => ({
-  BudgetCostOverview: () => <div data-testid="budget-cost-overview" />,
-}));
+function MockBudgetCostOverview() {
+  return <div data-testid="budget-cost-overview" />;
+}
 
-jest.unstable_mockModule('./InvoiceGroup.js', () => ({
-  InvoiceGroup: ({
-    invoiceId,
-    invoiceNumber,
-    invoiceStatus,
-    lines,
-    onUnlink,
-    vendorName,
-  }: {
-    invoiceId: string;
-    invoiceNumber: string | null;
-    invoiceStatus: string;
-    lines: BaseBudgetLine[];
-    onUnlink: (lineId: string, invoiceBudgetLineId: string) => void;
-    vendorName: string | null;
-  }) => (
+function MockInvoiceGroup({
+  invoiceId,
+  invoiceNumber,
+  invoiceStatus,
+  lines,
+  onUnlink,
+  vendorName,
+}: {
+  invoiceId: string;
+  invoiceNumber: string | null;
+  invoiceStatus: string;
+  lines: BaseBudgetLine[];
+  onUnlink: (lineId: string, invoiceBudgetLineId: string) => void;
+  vendorName: string | null;
+}) {
+  return (
     <div data-testid={`invoice-group-${invoiceId}`}>
       <span>{invoiceNumber ?? 'Invoice'}</span>
       <span>{invoiceStatus}</span>
@@ -66,12 +65,18 @@ jest.unstable_mockModule('./InvoiceGroup.js', () => ({
         </div>
       ))}
     </div>
-  ),
-}));
+  );
+}
+
+jest.unstable_mockModule('./BudgetLineCard.js', () => ({ BudgetLineCard: MockBudgetLineCard }));
+jest.unstable_mockModule('./BudgetLineForm.js', () => ({ BudgetLineForm: MockBudgetLineForm }));
+jest.unstable_mockModule('./SubsidyLinkSection.js', () => ({ SubsidyLinkSection: MockSubsidyLinkSection }));
+jest.unstable_mockModule('./BudgetCostOverview.js', () => ({ BudgetCostOverview: MockBudgetCostOverview }));
+jest.unstable_mockModule('./InvoiceGroup.js', () => ({ InvoiceGroup: MockInvoiceGroup }));
 
 // ─── Import component under test after mocks ──────────────────────────────────
 
-let BudgetSection: (typeof import('./BudgetSection.js'))['BudgetSection'];
+let BudgetSection: typeof BudgetSectionType;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

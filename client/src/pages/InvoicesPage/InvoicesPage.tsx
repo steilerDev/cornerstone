@@ -128,7 +128,7 @@ export function InvoicesPage() {
   // Load invoices when table state changes
   useEffect(() => {
     void loadInvoices();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [
     tableState.search,
     tableState.sortBy,

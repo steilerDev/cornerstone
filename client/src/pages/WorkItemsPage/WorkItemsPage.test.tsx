@@ -32,13 +32,13 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 
 // ─── preferencesApi mock — DataTable calls useColumnPreferences -> listPreferences ──
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockListPreferences = jest.fn<any>().mockResolvedValue([]);
 jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
   listPreferences: mockListPreferences,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   upsertPreference: jest.fn<any>().mockResolvedValue({ key: '', value: '', updatedAt: '' }),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   deletePreference: jest.fn<any>().mockResolvedValue(undefined),
 }));
 

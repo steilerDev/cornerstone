@@ -9,21 +9,25 @@ import type React from 'react';
 
 // ── Mock SignatureCapture (has canvas dependencies) ───────────────────────────
 
-jest.unstable_mockModule('../SignatureCapture/SignatureCapture.js', () => ({
-  SignatureCapture: ({
-    signature,
-    disabled,
-  }: {
-    signature: DiarySignatureEntry;
-    onSignatureChange: (updated: DiarySignatureEntry | null) => void;
-    disabled?: boolean;
-  }) => (
+function MockSignatureCapture({
+  signature,
+  disabled,
+}: {
+  signature: DiarySignatureEntry;
+  onSignatureChange: (updated: DiarySignatureEntry | null) => void;
+  disabled?: boolean;
+}) {
+  return (
     <div
       data-testid="signature-capture"
       data-signer-name={signature.signerName}
       data-disabled={disabled ? 'true' : 'false'}
     />
-  ),
+  );
+}
+
+jest.unstable_mockModule('../SignatureCapture/SignatureCapture.js', () => ({
+  SignatureCapture: MockSignatureCapture,
 }));
 
 // ── Module under test (dynamic import after mock registration) ────────────────

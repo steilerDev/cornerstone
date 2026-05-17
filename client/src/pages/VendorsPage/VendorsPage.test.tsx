@@ -25,13 +25,13 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
 }));
 
 // Mock preferencesApi — DataTable calls useColumnPreferences -> usePreferences -> listPreferences
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockListPreferencesVendors = jest.fn<any>().mockResolvedValue([]);
 jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
   listPreferences: mockListPreferencesVendors,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   upsertPreference: jest.fn<any>().mockResolvedValue({ key: '', value: '', updatedAt: '' }),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   deletePreference: jest.fn<any>().mockResolvedValue(undefined),
 }));
 
@@ -54,17 +54,17 @@ jest.unstable_mockModule('../../hooks/useTrades.js', () => ({
 }));
 
 // Mock TradePicker — avoid rendering the complex picker in page tests
-jest.unstable_mockModule('../../components/TradePicker/TradePicker.js', () => ({
-  TradePicker: ({
-    value,
-    onChange,
-    disabled,
-  }: {
-    value: string;
-    onChange: (v: string | null) => void;
-    disabled?: boolean;
-    placeholder?: string;
-  }) => (
+function MockTradePicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string | null) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  return (
     <select
       data-testid="trade-picker"
       value={value}
@@ -74,15 +74,19 @@ jest.unstable_mockModule('../../components/TradePicker/TradePicker.js', () => ({
       <option value="">No trade</option>
       <option value="trade-1">Electrician</option>
     </select>
-  ),
+  );
+}
+
+jest.unstable_mockModule('../../components/TradePicker/TradePicker.js', () => ({
+  TradePicker: MockTradePicker,
 }));
 
 // Mock useTableState — provide stable defaults
 // IMPORTANT: stableFilters must be defined outside the factory to keep the same Map reference
 // across renders, preventing infinite useEffect loops in components that depend on tableState.filters.
 const stableFiltersVendors = new Map();
-jest.unstable_mockModule('../../hooks/useTableState.js', () => ({
-  useTableState: () => ({
+function mockUseTableState() {
+  return {
     tableState: {
       search: '',
       filters: stableFiltersVendors,
@@ -95,16 +99,24 @@ jest.unstable_mockModule('../../hooks/useTableState.js', () => ({
     setSearch: jest.fn(),
     toApiParams: jest.fn(() => ({})),
     setFilter: jest.fn(),
-  }),
+  };
+}
+
+jest.unstable_mockModule('../../hooks/useTableState.js', () => ({
+  useTableState: mockUseTableState,
 }));
 
 // Mock formatters
-jest.unstable_mockModule('../../lib/formatters.js', () => ({
-  useFormatters: () => ({
+function mockUseFormatters() {
+  return {
     formatDate: (d: string | null | undefined) => (d ? '01/01/2026' : '—'),
     formatCurrency: (n: number) => `€${n.toFixed(2)}`,
     formatPercent: (n: number) => `${n}%`,
-  }),
+  };
+}
+
+jest.unstable_mockModule('../../lib/formatters.js', () => ({
+    useFormatters: mockUseFormatters,
   formatDate: (d: string | null | undefined) => (d ? '01/01/2026' : '—'),
   formatCurrency: (n: number) => `€${n.toFixed(2)}`,
   formatPercent: (n: number) => `${n}%`,
@@ -146,7 +158,7 @@ const defaultFetchResponse = (vendors: Vendor[] = []) => ({
 
 // ─── Component import (must be after mocks) ──────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 let VendorsPage: any;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

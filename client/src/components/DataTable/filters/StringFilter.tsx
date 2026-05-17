@@ -1,5 +1,4 @@
-import { useState, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useCallback } from 'react';
 import styles from './Filter.module.css';
 
 export interface StringFilterProps {
@@ -13,7 +12,6 @@ export interface StringFilterProps {
  * Auto-applies on input change
  */
 export function StringFilter({ value, onChange, placeholder = 'Filter...' }: StringFilterProps) {
-  const { t } = useTranslation('common');
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {

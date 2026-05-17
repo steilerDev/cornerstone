@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TimelineWorkItem } from '@cornerstone/shared';
@@ -12,6 +13,13 @@ interface CriticalPathCardProps {
 export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardProps) {
   const { t } = useTranslation('dashboard');
   const { formatDate } = useFormatters();
+
+  // Compute days remaining (lazily initialize today to avoid purity issues) — must be before early returns
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
 
   // Filter work items to those on the critical path
   const criticalItems = workItems.filter((item) => criticalPath.includes(item.id));
@@ -39,10 +47,6 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
 
   const nextItem = incompleteCritical[0]!; // guarded by length check at line 32
   const deadline = nextItem.endDate;
-
-  // Compute days remaining
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
   let daysRemaining = 0;
   if (deadline) {

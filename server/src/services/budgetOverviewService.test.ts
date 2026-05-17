@@ -1614,7 +1614,7 @@ describe('getBudgetOverview', () => {
     it('quotation invoice with deposits: included in actualCost, paid deposits in actualCostPaid (ADR-029)', () => {
       // ADR-029: Quotation invoices now count toward actualCost
       // Deposits on a quotation invoice contribute proportionally to actualCostPaid
-      const { workItemId, budgetLineId } = insertWorkItem({ plannedAmount: 500 });
+      const { budgetLineId } = insertWorkItem({ plannedAmount: 500 });
       if (budgetLineId) {
         const now = new Date().toISOString();
         const vendorId = `dep-quot-v-${idCounter++}`;

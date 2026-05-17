@@ -40,6 +40,12 @@ jest.unstable_mockModule('../i18n/index.js', () => ({
 let LocaleProvider: typeof LocaleContextModule.LocaleProvider;
 let useLocale: typeof LocaleContextModule.useLocale;
 
+// Module-scope test components (must be at top level to satisfy @eslint-react/component-hook-factories)
+function BadLocaleComponent() {
+  useLocale();
+  return null;
+}
+
 beforeEach(async () => {
   if (!LocaleProvider) {
     const mod = await import('./LocaleContext.js');
@@ -479,13 +485,8 @@ describe('LocaleProvider', () => {
     it('throws when used outside LocaleProvider', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
 
-      function BadComponent() {
-        useLocale();
-        return null;
-      }
-
       expect(() => {
-        render(<BadComponent />);
+        render(<BadLocaleComponent />);
       }).toThrow('useLocale must be used within a LocaleProvider');
 
       consoleSpy.mockRestore();

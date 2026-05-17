@@ -84,7 +84,7 @@ function ChevronRightIcon() {
   );
 }
 
-export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: DateRangePickerProps) {
+export function DateRangePicker({ startDate, endDate, onChange, ariaLabel: _ariaLabel }: DateRangePickerProps) {
   const { t } = useTranslation('common');
   const { locale } = useLocale();
 
@@ -127,12 +127,17 @@ export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: Dat
   }, [focusedDate]);
 
   // Sync phase and pendingStartDate with external prop changes
+   
   useEffect(() => {
     if (startDate === '' && endDate === '') {
+      // eslint-disable-next-line @eslint-react/set-state-in-effect
       setPhase('selecting-start');
+      // eslint-disable-next-line @eslint-react/set-state-in-effect
       setPendingStartDate('');
     } else if (startDate !== '' && endDate === '') {
+      // eslint-disable-next-line @eslint-react/set-state-in-effect
       setPhase('selecting-end');
+      // eslint-disable-next-line @eslint-react/set-state-in-effect
       setPendingStartDate(startDate);
     }
   }, [startDate, endDate]);
@@ -308,6 +313,7 @@ export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: Dat
         }
       }
     },
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
     [focusedDate, viewYear, viewMonth, handleDayClick, phase, pendingStartDate, endDate, onChange],
   );
 
@@ -375,8 +381,8 @@ export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: Dat
           ))}
         </div>
 
-        {weeks.map((week, weekIndex) => (
-          <div key={weekIndex} className={styles.weekRow} role="row">
+        {weeks.map((week) => (
+          <div key={`week-${week[0]?.dateStr}`} className={styles.weekRow} role="row">
             {week.map((day) => {
               const isSelected = day.dateStr === startDate || day.dateStr === endDate;
               const inRange = isInRange(day.dateStr);

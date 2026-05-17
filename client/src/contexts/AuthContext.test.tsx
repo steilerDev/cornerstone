@@ -31,26 +31,52 @@ beforeEach(async () => {
   mockLogout.mockReset();
 });
 
-describe('AuthContext', () => {
-  function TestComponent() {
-    const { user, oidcEnabled, isLoading, error, logout } = useAuth();
-    return (
-      <div>
-        <div data-testid="loading">{isLoading ? 'Loading' : 'Loaded'}</div>
-        <div data-testid="user">{user ? user.email : 'No user'}</div>
-        <div data-testid="oidc">{oidcEnabled ? 'OIDC Enabled' : 'OIDC Disabled'}</div>
-        {error && <div data-testid="error">{error}</div>}
-        <button
-          onClick={() => {
-            void logout();
-          }}
-        >
-          Logout
-        </button>
-      </div>
-    );
-  }
+function TestComponent() {
+  const { user, oidcEnabled, isLoading, error, logout } = useAuth();
+  return (
+    <div>
+      <div data-testid="loading">{isLoading ? 'Loading' : 'Loaded'}</div>
+      <div data-testid="user">{user ? user.email : 'No user'}</div>
+      <div data-testid="oidc">{oidcEnabled ? 'OIDC Enabled' : 'OIDC Disabled'}</div>
+      {error && <div data-testid="error">{error}</div>}
+      <button
+        onClick={() => {
+          void logout();
+        }}
+      >
+        Logout
+      </button>
+    </div>
+  );
+}
 
+function TestRefreshComponent() {
+  const { user, refreshAuth } = useAuth();
+  return (
+    <div>
+      <div data-testid="user">{user ? user.email : 'No user'}</div>
+      <button
+        onClick={() => {
+          void refreshAuth();
+        }}
+      >
+        Refresh
+      </button>
+    </div>
+  );
+}
+
+function TestComponentWithoutProvider() {
+  // eslint-disable-next-line @eslint-react/error-boundaries -- Testing hook error outside provider
+  try {
+    useAuth();
+    return <div>Should not reach here</div>;
+  } catch (error) {
+    return <div>{error instanceof Error ? error.message : 'Error'}</div>;
+  }
+}
+
+describe('AuthContext', () => {
   function renderWithProvider(children: ReactNode = <TestComponent />) {
     return render(<AuthProvider>{children}</AuthProvider>);
   }
@@ -137,22 +163,6 @@ describe('AuthContext', () => {
       oidcEnabled: false,
     });
 
-    function TestRefreshComponent() {
-      const { user, refreshAuth } = useAuth();
-      return (
-        <div>
-          <div data-testid="user">{user ? user.email : 'No user'}</div>
-          <button
-            onClick={() => {
-              void refreshAuth();
-            }}
-          >
-            Refresh
-          </button>
-        </div>
-      );
-    }
-
     renderWithProvider(<TestRefreshComponent />);
 
     await waitFor(() => {
@@ -185,15 +195,6 @@ describe('AuthContext', () => {
   });
 
   it('throws error when useAuth is called outside AuthProvider', async () => {
-    function TestComponentWithoutProvider() {
-      try {
-        useAuth();
-        return <div>Should not reach here</div>;
-      } catch (error) {
-        return <div>{error instanceof Error ? error.message : 'Error'}</div>;
-      }
-    }
-
     render(<TestComponentWithoutProvider />);
 
     expect(screen.getByText(/useAuth must be used within an AuthProvider/i)).toBeInTheDocument();

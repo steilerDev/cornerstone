@@ -1,6 +1,7 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type React from 'react';
 
 interface TestEntity {
   id: string;
@@ -10,27 +11,25 @@ interface TestEntity {
 // Mock SearchPicker to avoid async complexity — just render a simple input
 const mockSearchPickerOnChange = jest.fn<(id: string) => void>();
 
+const MockSearchPicker: React.FC<{
+  value: string;
+  onChange: (id: string) => void;
+  placeholder?: string;
+}> = ({ value, onChange, placeholder }) => {
+  // Keep a ref to onChange so tests can trigger it
+  mockSearchPickerOnChange.mockImplementation(onChange);
+  return (
+    <input
+      data-testid="mock-search-picker"
+      defaultValue={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+};
+
 jest.unstable_mockModule('../../SearchPicker/SearchPicker.js', () => ({
-  SearchPicker: ({
-    value,
-    onChange,
-    placeholder,
-  }: {
-    value: string;
-    onChange: (id: string) => void;
-    placeholder?: string;
-  }) => {
-    // Keep a ref to onChange so tests can trigger it
-    mockSearchPickerOnChange.mockImplementation(onChange);
-    return (
-      <input
-        data-testid="mock-search-picker"
-        defaultValue={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    );
-  },
+  SearchPicker: MockSearchPicker,
 }));
 
 import type * as EntityFilterModule from './EntityFilter.js';

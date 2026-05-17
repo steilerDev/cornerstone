@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, asc, desc, sql, or, and } from 'drizzle-orm';
+import { eq, asc, desc, sql, and } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { vendors, invoices, workItemBudgets, users, trades } from '../db/schema.js';
@@ -148,6 +148,7 @@ export function listVendors(
   const totalPages = Math.ceil(totalItems / pageSize);
 
   // Build ORDER BY
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let orderByClause: any;
   if (sortBy === 'trade') {
     // Sort by trade name via subquery

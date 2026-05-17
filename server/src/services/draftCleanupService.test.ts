@@ -22,7 +22,8 @@ const mockCronTask = {
   stop: jest.fn(),
 };
 
-const mockCronSchedule = jest.fn<typeof import('node-cron').schedule>();
+
+const mockCronSchedule = jest.fn<any>();
 
 jest.unstable_mockModule('node-cron', () => ({
   default: {
@@ -33,9 +34,9 @@ jest.unstable_mockModule('node-cron', () => ({
 
 // ─── Mock diaryService (findOrphanDraftIds + deleteDiaryEntry) ───────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFindOrphanDraftIds = jest.fn<(...args: any[]) => string[]>();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockDeleteDiaryEntry = jest.fn<(...args: any[]) => Promise<void>>();
 
 jest.unstable_mockModule('./diaryService.js', () => ({
@@ -51,7 +52,8 @@ jest.unstable_mockModule('./diaryService.js', () => ({
 
 // ─── Config factory ──────────────────────────────────────────────────────────
 
-const makeConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
+// Note: AppConfig is declared above via type import
+const makeConfig = (overrides: Record<string, unknown> = {}): AppConfig => ({
   port: 3000,
   host: '0.0.0.0',
   databaseUrl: '/app/data/cornerstone.db',
@@ -87,9 +89,9 @@ const mockLogger = {
 } as any;
 
 describe('draftCleanupService', () => {
-  let runOrphanCleanup: typeof import('./draftCleanupService.js').runOrphanCleanup;
-  let initScheduler: typeof import('./draftCleanupService.js').initScheduler;
-  let stopScheduler: typeof import('./draftCleanupService.js').stopScheduler;
+  let runOrphanCleanup: (db: any, config: AppConfig, logger: any) => Promise<void>;
+  let initScheduler: (db: BetterSQLite3Database<typeof schema>, config: AppConfig, logger: any) => void;
+  let stopScheduler: () => void;
 
   let db: BetterSQLite3Database<typeof schema>;
   let sqlite: ReturnType<typeof Database>;

@@ -167,9 +167,9 @@ describe('User Routes', () => {
       expect(response.statusCode).toBe(200);
       const user = JSON.parse(response.body);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((user as any).passwordHash).toBeUndefined();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((user as any).oidcSubject).toBeUndefined();
     });
 
@@ -756,9 +756,9 @@ describe('User Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
       body.users.forEach((user: UserResponse) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         expect((user as any).passwordHash).toBeUndefined();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         expect((user as any).oidcSubject).toBeUndefined();
       });
     });
@@ -1307,7 +1307,7 @@ describe('User Routes', () => {
       expect(body.user.role).toBe('member');
 
       // And: No sensitive fields in response
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((body.user as any).passwordHash).toBeUndefined();
     });
 

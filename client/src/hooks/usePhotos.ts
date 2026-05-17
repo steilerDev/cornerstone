@@ -28,7 +28,7 @@ export function usePhotos(entityType: string, entityId: string): UsePhotosResult
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchCount, setFetchCount] = useState(0);
-  const [uploadProgress, setUploadProgress] = useState<Map<string, number>>(new Map());
+  const [uploadProgress, setUploadProgress] = useState<Map<string, number>>(() => new Map());
 
   // Fetch photos on mount and when refresh is called
   useEffect(() => {

@@ -197,10 +197,6 @@ HI Gantt: amber circle marker (r=7px). Add Dep modal: 36rem wide.
 `role="listbox"` requires arrow-key nav — use `role="list"` + `role="button"` items instead.
 `--color-primary-text` on `--color-primary-bg` chip = contrast failure; use `var(--color-primary)` for text.
 
-## Issue #1449 — `--color-text-quoted` Token
-
-Light: `var(--color-gray-500)` (#6b7280), 4.6:1 on white. Dark: `var(--color-slate-200)` (#94a3b8), 5.8:1 on slate-800. Same palette value as `--color-text-muted` but distinct semantic: "quoted, not yet final." Used in `.amountQuoted` and `.quotedLabel` in BudgetLineCard; `.amountValueQuoted` in InvoiceGroup. No `[data-theme="dark"]` overrides needed in CSS modules once token is defined. Vendor name second line uses `--font-size-xs` + `--color-text-secondary` (not `--color-text-quoted`).
-
 ## DataTable Core (Issue #1099)
 
 See `datatable-spec.md` for full token map. Key decisions:

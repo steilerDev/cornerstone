@@ -18,7 +18,7 @@ interface PasswordFormErrors {
 
 export function ProfilePage() {
   const { t } = useTranslation('settings');
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+  const { formatDate } = useFormatters();
   const { user, isLoading, error: loadError, refreshAuth } = useAuth();
   const { locale, setLocale } = useLocale();
 
@@ -57,6 +57,7 @@ export function ProfilePage() {
 
   useEffect(() => {
     if (user) {
+  // eslint-disable-next-line @eslint-react/set-state-in-effect
       setDisplayName(user.displayName);
     }
   }, [user]);

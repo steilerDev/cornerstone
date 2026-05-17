@@ -68,6 +68,7 @@ export default function WorkItemCreatePage() {
   // Dependency state
   const [pendingDependencies, setPendingDependencies] = useState<PendingDependency[]>([]);
   const [users, setUsers] = useState<UserResponse[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [vendors, setVendors] = useState<any[]>([]);
 
   const [isLoadingData, setIsLoadingData] = useState(true);

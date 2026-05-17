@@ -17,6 +17,7 @@
  */
 
 import { test, expect } from '../../fixtures/auth.js';
+import type { Page } from '@playwright/test';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import {
   createWorkItemViaApi,
@@ -31,7 +32,7 @@ import { API } from '../../fixtures/testData.js';
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function patchWorkItemStatus(
-  page: import('@playwright/test').Page,
+  page: Page,
   workItemId: string,
   status: string,
 ): Promise<void> {
@@ -46,7 +47,7 @@ async function patchWorkItemStatus(
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function findAutoDiaryEntryId(
-  page: import('@playwright/test').Page,
+  page: Page,
   workItemId: string,
 ): Promise<string> {
   // GET /api/diary-entries uses "type" query param (not "entryType") for filtering

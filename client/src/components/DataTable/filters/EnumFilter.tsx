@@ -36,9 +36,10 @@ export function EnumFilter({
   const { t } = useTranslation('common');
 
   const parseValue = (v: string) => new Set(v ? v.split(',') : []);
-  const [selected, setSelected] = useState(parseValue(value));
+  const [selected, setSelected] = useState(() => parseValue(value));
 
   // Build childrenOf map from hierarchy for arbitrary depth support
+  // eslint-disable-next-line @eslint-react/exhaustive-deps
   const childrenOf = new Map<string | null, string[]>();
   if (hierarchy) {
     for (const item of hierarchy) {
@@ -151,7 +152,7 @@ export function EnumFilter({
   };
 
   // Set indeterminate state on parent checkboxes
-  const parentCheckboxRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+  const parentCheckboxRefsRef = useRef<Map<string, HTMLInputElement>>(new Map());
 
   return (
     <div className={styles.filterContent}>
@@ -192,10 +193,10 @@ export function EnumFilter({
               <input
                 ref={(el) => {
                   if (el && isParent) {
-                    parentCheckboxRefs.current.set(option.value, el);
+                    parentCheckboxRefsRef.current.set(option.value, el);
                     el.indeterminate = isIndeterminate(option.value);
                   } else if (isParent) {
-                    parentCheckboxRefs.current.delete(option.value);
+                    parentCheckboxRefsRef.current.delete(option.value);
                   }
                 }}
                 type="checkbox"

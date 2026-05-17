@@ -54,37 +54,41 @@ const EMPTY_TIMELINE: TimelineResponse = {
 };
 
 // ---------------------------------------------------------------------------
+// Test component
+// ---------------------------------------------------------------------------
+
+let useTimelineHook: () => {
+  data: TimelineResponse | null;
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+};
+
+function TestComponent() {
+  const { isLoading, error, refetch } = useTimelineHook();
+  return (
+    <div>
+      <span data-testid="loading">{isLoading ? 'loading' : 'done'}</span>
+      <span data-testid="error">{error ?? 'null'}</span>
+      <button data-testid="refetch" onClick={refetch}>
+        Refetch
+      </button>
+    </div>
+  ) as React.ReactElement;
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
 describe('useTimeline', () => {
-  let useTimeline: () => {
-    data: TimelineResponse | null;
-    isLoading: boolean;
-    error: string | null;
-    refetch: () => void;
-  };
-
   beforeEach(async () => {
-    if (!useTimeline) {
+    if (!useTimelineHook) {
       const module = await import('./useTimeline.js');
-      useTimeline = module.useTimeline;
+      useTimelineHook = module.useTimeline;
     }
     mockGetTimeline.mockReset();
   });
-
-  function TestComponent() {
-    const { isLoading, error, refetch } = useTimeline();
-    return (
-      <div>
-        <span data-testid="loading">{isLoading ? 'loading' : 'done'}</span>
-        <span data-testid="error">{error ?? 'null'}</span>
-        <button data-testid="refetch" onClick={refetch}>
-          Refetch
-        </button>
-      </div>
-    ) as React.ReactElement;
-  }
 
   // ── Initial state ──────────────────────────────────────────────────────────
 

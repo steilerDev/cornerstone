@@ -74,7 +74,7 @@ function resolveDetail(
   row: typeof invoiceBudgetLines.$inferSelect,
   areaMap: Map<string, AreaMapEntry>,
 ): InvoiceBudgetLineDetailResponse {
-  const budgetLineId = row.workItemBudgetId || row.householdItemBudgetId;
+  const _budgetLineId = row.workItemBudgetId || row.householdItemBudgetId;
   const budgetLineType = row.workItemBudgetId ? 'work_item' : 'household_item';
 
   let budgetLineDescription: string | null = null;

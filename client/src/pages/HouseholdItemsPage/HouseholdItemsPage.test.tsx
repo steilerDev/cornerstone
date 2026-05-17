@@ -18,13 +18,13 @@ import { ApiClientError } from '../../lib/apiClient.js';
 // ─── Mock modules BEFORE importing component ────────────────────────────────
 
 // Mock preferencesApi — DataTable calls useColumnPreferences -> usePreferences -> listPreferences
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockListPreferencesHI = jest.fn<any>().mockResolvedValue([]);
 jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
   listPreferences: mockListPreferencesHI,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   upsertPreference: jest.fn<any>().mockResolvedValue({ key: '', value: '', updatedAt: '' }),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   deletePreference: jest.fn<any>().mockResolvedValue(undefined),
 }));
 
@@ -67,8 +67,8 @@ jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
 
 // Mock useTableState — use a stable Map reference to prevent infinite useEffect re-renders.
 const stableFiltersHI = new Map();
-jest.unstable_mockModule('../../hooks/useTableState.js', () => ({
-  useTableState: () => ({
+function mockUseTableState() {
+  return {
     tableState: {
       search: '',
       filters: stableFiltersHI,
@@ -81,16 +81,24 @@ jest.unstable_mockModule('../../hooks/useTableState.js', () => ({
     setSearch: jest.fn(),
     toApiParams: jest.fn(() => ({})),
     setFilter: jest.fn(),
-  }),
+  };
+}
+
+jest.unstable_mockModule('../../hooks/useTableState.js', () => ({
+  useTableState: mockUseTableState,
 }));
 
 // Mock formatters
-jest.unstable_mockModule('../../lib/formatters.js', () => ({
-  useFormatters: () => ({
+function mockUseFormatters() {
+  return {
     formatDate: (d: string | null | undefined) => (d ? '01/01/2026' : '—'),
     formatCurrency: (n: number) => `€${n.toFixed(2)}`,
     formatPercent: (n: number) => `${n}%`,
-  }),
+  };
+}
+
+jest.unstable_mockModule('../../lib/formatters.js', () => ({
+    useFormatters: mockUseFormatters,
   formatDate: (d: string | null | undefined) => (d ? '01/01/2026' : '—'),
   formatCurrency: (n: number) => `€${n.toFixed(2)}`,
   formatPercent: (n: number) => `${n}%`,
@@ -151,7 +159,7 @@ const defaultListResponse = (items: HouseholdItemSummary[] = []) => ({
 
 // ─── Component import (must be after mocks) ──────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 let HouseholdItemsPage: any;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

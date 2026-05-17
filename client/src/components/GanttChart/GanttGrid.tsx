@@ -69,9 +69,9 @@ export const GanttGrid = memo(function GanttGrid({
       ))}
 
       {/* Vertical grid lines */}
-      {gridLines.map((line, idx) => (
+      {gridLines.map((line) => (
         <line
-          key={`vline-${idx}`}
+          key={`vline-${line.x}`}
           x1={line.x}
           y1={0}
           x2={line.x}

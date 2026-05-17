@@ -66,6 +66,7 @@ function buildInsertValues(
   workItemId: string,
   userId: string,
   data: CreateWorkItemBudgetRequest,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Record<string, any> {
   return {
     workItemId,

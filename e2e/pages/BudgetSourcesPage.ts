@@ -328,7 +328,7 @@ export class BudgetSourcesPage {
    * The row must be visible and not in edit mode.
    * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */
-  getSourceRowByName(name: string): import('@playwright/test').Locator {
+  getSourceRowByName(name: string): Locator {
     return this.page.locator('[class*="sourceRow_"]').filter({ hasText: name });
   }
 
@@ -336,14 +336,14 @@ export class BudgetSourcesPage {
    * Get the "System" badge within the named source row.
    * Returns null if the source is not found or has no system badge.
    */
-  getSystemBadge(sourceName: string): import('@playwright/test').Locator {
+  getSystemBadge(sourceName: string): Locator {
     return this.getSourceRowByName(sourceName).locator('[class*="systemBadge"]');
   }
 
   /**
    * Get the inline edit type select for the source currently being edited (by source id).
    */
-  getEditTypeSelect(sourceId: string): import('@playwright/test').Locator {
+  getEditTypeSelect(sourceId: string): Locator {
     return this.page.locator(`#edit-type-${sourceId}`);
   }
 
@@ -354,7 +354,7 @@ export class BudgetSourcesPage {
    *
    * @deprecated `barLegendLabel` no longer exists after PR #1319. Use `getSummaryLabels()` instead.
    */
-  getAmountLabelsInRow(sourceName: string): import('@playwright/test').Locator {
+  getAmountLabelsInRow(sourceName: string): Locator {
     return this.getSummaryLabels(sourceName);
   }
 
@@ -363,7 +363,7 @@ export class BudgetSourcesPage {
    * Renders as: <span class="totalBadge">Total: €100,000.00</span>
    * (class name contains "totalBadge" after CSS Modules transformation)
    */
-  getTotalBadge(sourceName: string): import('@playwright/test').Locator {
+  getTotalBadge(sourceName: string): Locator {
     return this.getSourceRowByName(sourceName).locator('[class*="totalBadge"]');
   }
 
@@ -372,7 +372,7 @@ export class BudgetSourcesPage {
    * Three labels render in order: Projected, Paid, Claimed.
    * Each label is a <span class="summaryLabel"> inside the summary table.
    */
-  getSummaryLabels(sourceName: string): import('@playwright/test').Locator {
+  getSummaryLabels(sourceName: string): Locator {
     return this.getSourceRowByName(sourceName).locator(
       '[class*="summaryLabel"]:not([class*="summaryLabelDot"])',
     );
@@ -383,7 +383,7 @@ export class BudgetSourcesPage {
    * Renders as: <p class="sourceInterestRate">Rate X.X%</p>
    * Only present when the source has a non-null interestRate.
    */
-  getInterestRateSubtitle(sourceName: string): import('@playwright/test').Locator {
+  getInterestRateSubtitle(sourceName: string): Locator {
     return this.getSourceRowByName(sourceName).locator('[class*="sourceInterestRate"]');
   }
 
@@ -394,7 +394,7 @@ export class BudgetSourcesPage {
    * The button has aria-label "Expand budget lines for <name>" or
    * "Collapse budget lines for <name>".
    */
-  getExpandToggle(sourceName: string): import('@playwright/test').Locator {
+  getExpandToggle(sourceName: string): Locator {
     return this.getSourceRowByName(sourceName).getByRole('button', {
       name: new RegExp(
         `(Expand|Collapse) budget lines for ${sourceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
@@ -407,7 +407,7 @@ export class BudgetSourcesPage {
    * Get the lines panel region for a specific source by its ID.
    * The panel renders as: <div id="source-lines-{sourceId}" role="region">
    */
-  getLinesPanelById(sourceId: string): import('@playwright/test').Locator {
+  getLinesPanelById(sourceId: string): Locator {
     return this.page.locator(`[id="source-lines-${sourceId}"]`);
   }
 
@@ -440,7 +440,7 @@ export class BudgetSourcesPage {
    * @param sourceId    The numeric source ID used to scope to the correct panel.
    * @param lineDescription  The line's description text (used in the aria-label).
    */
-  getLineCheckbox(sourceId: string, lineDescription: string): import('@playwright/test').Locator {
+  getLineCheckbox(sourceId: string, lineDescription: string): Locator {
     return this.getLinesPanelById(sourceId).getByRole('checkbox', {
       name: `Select ${lineDescription}`,
     });
@@ -456,7 +456,7 @@ export class BudgetSourcesPage {
    * @param sourceId  The numeric source ID used to scope to the correct panel.
    * @param areaName  The area name displayed in the group header.
    */
-  getAreaNameSelector(sourceId: string, areaName: string): import('@playwright/test').Locator {
+  getAreaNameSelector(sourceId: string, areaName: string): Locator {
     return this.getLinesPanelById(sourceId).getByRole('checkbox', {
       name: `Select all in ${areaName}`,
     });
@@ -466,7 +466,7 @@ export class BudgetSourcesPage {
    * @deprecated Use getAreaNameSelector instead.
    * Kept as an alias so existing callers continue to compile during the transition.
    */
-  getAreaGroupCheckbox(sourceId: string, areaName: string): import('@playwright/test').Locator {
+  getAreaGroupCheckbox(sourceId: string, areaName: string): Locator {
     return this.getAreaNameSelector(sourceId, areaName);
   }
 
@@ -477,7 +477,7 @@ export class BudgetSourcesPage {
    * @param sourceId    The numeric source ID used to scope to the correct panel.
    * @param parentName  The parent work/household item name.
    */
-  getParentItemCard(sourceId: string, parentName: string): import('@playwright/test').Locator {
+  getParentItemCard(sourceId: string, parentName: string): Locator {
     return this.getLinesPanelById(sourceId).getByRole('checkbox', {
       name: `Select all under ${parentName}`,
     });
@@ -491,7 +491,7 @@ export class BudgetSourcesPage {
    * @param sourceId    The numeric source ID used to scope to the correct panel.
    * @param parentName  The parent work/household item name.
    */
-  getParentItemNavIcon(sourceId: string, parentName: string): import('@playwright/test').Locator {
+  getParentItemNavIcon(sourceId: string, parentName: string): Locator {
     return this.getLinesPanelById(sourceId).getByRole('link', {
       name: `Open ${parentName}`,
     });
@@ -505,7 +505,7 @@ export class BudgetSourcesPage {
    * The selector excludes `.actionBarCount` and `.actionBarButton` children which also
    * contain "actionBar" in their CSS module class names, avoiding a strict-mode violation.
    */
-  getActionBar(sourceId: string): import('@playwright/test').Locator {
+  getActionBar(sourceId: string): Locator {
     return this.getLinesPanelById(sourceId).locator(
       '[class*="actionBar"]:not([class*="actionBarCount"]):not([class*="actionBarButton"])',
     );
@@ -514,7 +514,7 @@ export class BudgetSourcesPage {
   /**
    * Get the "Move to another source…" button inside the action bar.
    */
-  getMoveButton(sourceId: string): import('@playwright/test').Locator {
+  getMoveButton(sourceId: string): Locator {
     return this.getActionBar(sourceId).getByRole('button', {
       name: 'Move to another source\u2026',
     });
@@ -526,7 +526,7 @@ export class BudgetSourcesPage {
    * The mass-move modal dialog. Title: "Move lines to another source".
    * Uses Modal component which sets role="dialog" + aria-labelledby on the h2 title.
    */
-  get moveModal(): import('@playwright/test').Locator {
+  get moveModal(): Locator {
     return this.page.getByRole('dialog', { name: 'Move lines to another source' });
   }
 
@@ -534,21 +534,21 @@ export class BudgetSourcesPage {
    * The SearchPicker input inside the move modal.
    * The input has id="target-source".
    */
-  get moveModalSearchInput(): import('@playwright/test').Locator {
+  get moveModalSearchInput(): Locator {
     return this.moveModal.locator('#target-source');
   }
 
   /**
    * The "Move lines" confirm button inside the move modal footer.
    */
-  get moveModalConfirmButton(): import('@playwright/test').Locator {
+  get moveModalConfirmButton(): Locator {
     return this.moveModal.getByRole('button', { name: /Move lines|Loading/i });
   }
 
   /**
    * The Cancel button inside the move modal footer.
    */
-  get moveModalCancelButton(): import('@playwright/test').Locator {
+  get moveModalCancelButton(): Locator {
     return this.moveModal.getByRole('button', { name: 'Cancel', exact: true });
   }
 
@@ -556,14 +556,14 @@ export class BudgetSourcesPage {
    * The claimed invoice warning block inside the move modal.
    * Renders as role="alert" only when claimedCount > 0.
    */
-  get moveModalWarningBlock(): import('@playwright/test').Locator {
+  get moveModalWarningBlock(): Locator {
     return this.moveModal.locator('[role="alert"]');
   }
 
   /**
    * The "I understand" checkbox inside the claimed warning block.
    */
-  get moveModalUnderstoodCheckbox(): import('@playwright/test').Locator {
+  get moveModalUnderstoodCheckbox(): Locator {
     return this.moveModal.getByRole('checkbox', {
       name: 'I understand this will reassign lines with a claimed invoice',
     });
@@ -574,7 +574,7 @@ export class BudgetSourcesPage {
    * FormError renders a div with the CSS module class "banner" and role="alert".
    * Differentiated from the claimed-invoice warning block via the CSS class name.
    */
-  get moveModalFormError(): import('@playwright/test').Locator {
+  get moveModalFormError(): Locator {
     // FormError uses its own CSS module: styles.banner → [class*="banner"]
     // The warning block uses MassMoveModal's styles.warningBlock → [class*="warningBlock"]
     // These are distinct CSS module classes so the selector is unambiguous.

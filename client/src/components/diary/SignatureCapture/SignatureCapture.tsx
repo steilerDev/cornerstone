@@ -47,6 +47,7 @@ export function SignatureCapture({
     if (signerType === 'self' && currentUserName && !signature) {
       onSignerNameChange?.(currentUserName);
     }
+  // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [signerType, currentUserName, signature]);
 
   // Initialize canvas on mount and on resize
@@ -95,12 +96,14 @@ export function SignatureCapture({
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
     return () => window.removeEventListener('resize', resizeCanvas);
+  // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [signature, t]);
 
   // Load existing signature image if provided
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !signature) {
+  // eslint-disable-next-line @eslint-react/set-state-in-effect
       setHasStrokes(false);
       return;
     }
@@ -396,7 +399,7 @@ export function SignatureCapture({
     );
   }
 
-  const showVendorFreeform =
+  const _showVendorFreeform =
     signerType === 'vendor' &&
     (!vendors || vendors.length === 0 || selectedVendorId === '__other__');
 

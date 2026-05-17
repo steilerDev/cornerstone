@@ -34,7 +34,7 @@ import { CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
 import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
 import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
-import { OverflowMenu, type OverflowMenuItem } from '../../components/OverflowMenu/index.js';
+import { OverflowMenu } from '../../components/OverflowMenu/index.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import sharedStyles from '../../styles/shared.module.css';
@@ -113,6 +113,7 @@ export function InvoiceBudgetLinesSection({
   // Load budget lines on mount
   useEffect(() => {
     void loadBudgetLines();
+  // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [invoiceId]);
 
   const loadBudgetLines = async () => {
@@ -158,6 +159,7 @@ export function InvoiceBudgetLinesSection({
   // Focus into picker modal when it opens
   useEffect(() => {
     if (showPicker && pickerModalRef.current) {
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-timeout
       setTimeout(() => {
         pickerModalRef.current?.focus();
       }, 0);
@@ -417,7 +419,7 @@ export function InvoiceBudgetLinesSection({
    * Step 2: User selects a budget line from the filtered list.
    * Create the invoice budget line link.
    */
-  const handleSelectBudgetLine = async (
+  const _handleSelectBudgetLine = async (
     budgetLine: WorkItemBudgetLine | HouseholdItemBudgetLine,
   ) => {
     if (!pickerState.itemId || !pickerState.type) return;
@@ -557,6 +559,7 @@ export function InvoiceBudgetLinesSection({
    */
   useEffect(() => {
     if (pickerState.showCreateForm) {
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-timeout
       setTimeout(() => {
         document.getElementById('budget-description')?.focus();
       }, 0);

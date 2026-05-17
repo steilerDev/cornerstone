@@ -98,6 +98,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.addContentTypeParser(
     ['application/xml', 'text/xml'],
     { parseAs: 'string' },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async (_req: any, body: string) => body,
   );
 

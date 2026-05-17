@@ -3,19 +3,13 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   DiaryEntryDetail,
-  DailyLogMetadata,
-  SiteVisitMetadata,
   DiarySignatureEntry,
 } from '@cornerstone/shared';
 import { getDiaryEntry, deleteDiaryEntry } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
-import { useAuth } from '../../contexts/AuthContext.js';
-import { fetchVendors } from '../../lib/vendorsApi.js';
-import type { VendorOption } from '../../components/diary/SignatureCapture/SignatureCapture.js';
 import { usePhotos } from '../../hooks/usePhotos.js';
 import { useFormatters } from '../../lib/formatters.js';
-import { DiaryEntryTypeBadge } from '../../components/diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
 import { DiaryMetadataSummary } from '../../components/diary/DiaryMetadataSummary/DiaryMetadataSummary.js';
 import { SignatureDisplay } from '../../components/diary/SignatureDisplay/SignatureDisplay.js';
 import { PhotoGrid } from '../../components/photos/PhotoGrid.js';
@@ -25,23 +19,11 @@ import shared from '../../styles/shared.module.css';
 import styles from './DiaryEntryDetailPage.module.css';
 
 export default function DiaryEntryDetailPage() {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+  const { formatDate } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('diary');
   const { showToast } = useToast();
-  const { user } = useAuth();
-  const [vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
-
-  useEffect(() => {
-    void fetchVendors({ pageSize: 100 })
-      .then((res) => {
-        setVendorOptions(res.vendors.map((v) => ({ id: v.id, name: v.name })));
-      })
-      .catch(() => {
-        // Vendors are optional — gracefully degrade
-      });
-  }, []);
 
   const [entry, setEntry] = useState<DiaryEntryDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,9 +37,12 @@ export default function DiaryEntryDetailPage() {
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const photosResult = usePhotos(id ? 'diary_entry' : '', id || '');
 
+   
   useEffect(() => {
     if (!id) {
+      // eslint-disable-next-line @eslint-react/set-state-in-effect
       setError(t('detailPage.invalidEntryId'));
+      // eslint-disable-next-line @eslint-react/set-state-in-effect
       setIsLoading(false);
       return;
     }
@@ -237,7 +222,8 @@ export default function DiaryEntryDetailPage() {
             entry.entryType === 'issue') &&
           Array.isArray((entry.metadata as { signatures?: DiarySignatureEntry[] }).signatures) &&
           (entry.metadata as { signatures: DiarySignatureEntry[] }).signatures.map((sig, i) => (
-            <div key={i} className={styles.signatureSection}>
+            // eslint-disable-next-line @eslint-react/no-array-index-key
+            <div key={`signature-${sig.signerName}-${i}`} className={styles.signatureSection}>
               <SignatureDisplay
                 signatureDataUrl={sig.signatureDataUrl}
                 signerName={sig.signerName}
@@ -393,6 +379,7 @@ function SourceEntityLink({ sourceType, sourceId, sourceTitle }: SourceEntityLin
   const getDefaultLabel = (): string => {
     try {
       const key = `detailPage.sourceType.${sourceType}`;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const label = t(key as any);
       // If translation key not found, it returns the key itself, so fallback to sourceType
       return label === key ? sourceType : label;

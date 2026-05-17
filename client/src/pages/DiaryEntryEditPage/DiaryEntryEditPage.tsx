@@ -115,7 +115,10 @@ export default function DiaryEntryEditPage() {
   const skipAutoSaveOnMountRef = useRef(true);
   useEffect(() => {
     if (!id) {
+   
+  // eslint-disable-next-line @eslint-react/set-state-in-effect
       setNotFound(true);
+      // eslint-disable-next-line @eslint-react/set-state-in-effect
       setIsLoading(false);
       return;
     }
@@ -155,6 +158,7 @@ export default function DiaryEntryEditPage() {
     if (entry?.status !== 'draft') return;
     // Immediate auto-save when any metadata field changes
     triggerAutoSave(true);
+  // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [
     dailyLogWeather,
     dailyLogTemperature,
@@ -591,6 +595,7 @@ export default function DiaryEntryEditPage() {
 
       <form className={styles.form} onSubmit={handleSubmit}>
         <DiaryEntryForm
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           entryType={entry.entryType as any}
           entryDate={entryDate}
           title={title}

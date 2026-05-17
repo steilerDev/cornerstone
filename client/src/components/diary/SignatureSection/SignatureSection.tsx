@@ -58,7 +58,8 @@ export function SignatureSection({
       {(signatures?.length ?? 0) > 0 && (
         <div className={styles.signaturesList}>
           {signatures!.map((sig, index) => (
-            <div key={index} className={styles.signatureItem}>
+            // eslint-disable-next-line @eslint-react/no-array-index-key
+            <div key={`signature-${sig.signerName}-${index}`} className={styles.signatureItem}>
               <SignatureCapture
                 signature={sig.signatureDataUrl ? sig : null}
                 onSignatureChange={(updated) => {

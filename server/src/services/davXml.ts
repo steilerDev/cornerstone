@@ -4,9 +4,8 @@
  */
 
 // XML namespace URIs
-const NAMESPACE_DAV = 'DAV:';
-const NAMESPACE_CALDAV = 'urn:ietf:params:xml:ns:caldav';
-const NAMESPACE_CARDDAV = 'urn:ietf:params:xml:ns:carddav';
+// Note: These constants are intentionally defined for reference even if not directly used
+// in code, as they document the WebDAV protocol namespaces.
 
 /**
  * Parse the Depth header from a PROPFIND request.

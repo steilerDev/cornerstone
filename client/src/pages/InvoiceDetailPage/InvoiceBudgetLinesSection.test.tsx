@@ -96,16 +96,16 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 // ─── Mock: BudgetLineForm ─────────────────────────────────────────────────────
 // Mocked at the module boundary so tests don't need to render its full internals.
 
-jest.unstable_mockModule('../../components/budget/BudgetLineForm.js', () => ({
-  BudgetLineForm: (props: {
-    form: { description?: string; plannedAmount?: string; pricingMode?: string };
-    onSubmit: (e: { preventDefault: () => void }) => void;
-    onFormChange: (updates: Record<string, unknown>) => void;
-    onCancel: () => void;
-    error: string | null;
-    isSaving: boolean;
-    budgetCategories?: unknown[];
-  }) => (
+function MockBudgetLineForm(props: {
+  form: { description?: string; plannedAmount?: string; pricingMode?: string };
+  onSubmit: (e: { preventDefault: () => void }) => void;
+  onFormChange: (updates: Record<string, unknown>) => void;
+  onCancel: () => void;
+  error: string | null;
+  isSaving: boolean;
+  budgetCategories?: unknown[];
+}) {
+  return (
     <form data-testid="budget-line-form" onSubmit={props.onSubmit}>
       <input
         data-testid="form-description"
@@ -127,30 +127,42 @@ jest.unstable_mockModule('../../components/budget/BudgetLineForm.js', () => ({
       </button>
       {props.budgetCategories !== undefined && <div data-testid="has-categories" />}
     </form>
-  ),
+  );
+}
+
+jest.unstable_mockModule('../../components/budget/BudgetLineForm.js', () => ({
+  BudgetLineForm: MockBudgetLineForm,
 }));
 
 // ─── Mock: WorkItemPicker ──────────────────────────────────────────────────────
 
-jest.unstable_mockModule('../../components/WorkItemPicker/WorkItemPicker.js', () => ({
-  WorkItemPicker: (props: {
-    onChange?: (id: string) => void;
-    onSelectItem?: (item: { id: string }) => void;
-  }) => (
+function MockWorkItemPicker(props: {
+  onChange?: (id: string) => void;
+  onSelectItem?: (item: { id: string }) => void;
+}) {
+  return (
     <button data-testid="work-item-picker" onClick={() => props.onSelectItem?.({ id: 'wi-001' })}>
       Work Item Picker
     </button>
-  ),
+  );
+}
+
+jest.unstable_mockModule('../../components/WorkItemPicker/WorkItemPicker.js', () => ({
+  WorkItemPicker: MockWorkItemPicker,
 }));
 
 // ─── Mock: HouseholdItemPicker ─────────────────────────────────────────────────
 
-jest.unstable_mockModule('../../components/HouseholdItemPicker/HouseholdItemPicker.js', () => ({
-  HouseholdItemPicker: (props: { onChange?: (id: string) => void }) => (
+function MockHouseholdItemPicker(props: { onChange?: (id: string) => void }) {
+  return (
     <button data-testid="household-item-picker" onClick={() => props.onChange?.('hi-001')}>
       Household Item Picker
     </button>
-  ),
+  );
+}
+
+jest.unstable_mockModule('../../components/HouseholdItemPicker/HouseholdItemPicker.js', () => ({
+  HouseholdItemPicker: MockHouseholdItemPicker,
 }));
 
 // ─── Mock: apiClient ───────────────────────────────────────────────────────────
@@ -180,6 +192,16 @@ jest.unstable_mockModule('../../lib/apiClient.js', () => ({
 
 // ─── Mock: formatters ─────────────────────────────────────────────────────────
 
+function mockUseFormatters() {
+  return {
+    formatCurrency: (n: number) => `$${n.toFixed(2)}`,
+    formatDate: (d: string | null | undefined) => d ?? '—',
+    formatTime: (d: string | null | undefined) => d ?? '—',
+    formatDateTime: (d: string | null | undefined) => d ?? '—',
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+  };
+}
+
 jest.unstable_mockModule('../../lib/formatters.js', () => ({
   formatDate: (d: string) => d ?? '—',
   formatCurrency: (n: number) => `$${n.toFixed(2)}`,
@@ -188,13 +210,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
   formatRelativeTime: (d: string) => d,
   formatPercent: (n: number) => `${n.toFixed(2)}%`,
   computeActualDuration: () => null,
-  useFormatters: () => ({
-    formatCurrency: (n: number) => `$${n.toFixed(2)}`,
-    formatDate: (d: string | null | undefined) => d ?? '—',
-    formatTime: (d: string | null | undefined) => d ?? '—',
-    formatDateTime: (d: string | null | undefined) => d ?? '—',
-    formatPercent: (n: number) => `${n.toFixed(2)}%`,
-  }),
+    useFormatters: mockUseFormatters,
 }));
 
 // ─── Type import for deferred module load ─────────────────────────────────────

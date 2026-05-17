@@ -33,7 +33,8 @@ export function Skeleton({ lines = 3, widths, loadingLabel, className }: Skeleto
       aria-label={resolvedLabel}
     >
       {lineArray.map((width, i) => (
-        <div key={i} className={styles.line} style={{ width }} aria-hidden="true" />
+        // eslint-disable-next-line @eslint-react/no-array-index-key
+        <div key={`line-${i}`} className={styles.line} style={{ width }} aria-hidden="true" />
       ))}
     </div>
   );

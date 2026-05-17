@@ -3,20 +3,15 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`
 
-## Budget Print + i18n Stale Skip Re-enable (PR #1447, 2026-05-17) — See print-and-i18n.md
-
 ## Known Beta Flakes & Regressions (triaged 2026-05-17)
 
-- `dashboard.spec.ts:566` "Customize button appears when card dismissed" — RESOLVED in PR #1445 (expect.poll for preference state). Was Issue #1431.
-- `invoice-budget-line-create-and-link.spec.ts:210` "Create Budget Line button below existing lines" — RESOLVED in PR #1445 (waitFor visible before click). Was Issue #1430.
-- `invoice-deposits-ux.spec.ts:259` "Portal clipping — last row kebab" — RESOLVED in PR #1444 (backend supports quotation deposits; regression-guard test added). Was Issue #1432.
-- `invoice-deposits.spec.ts:665 [mobile]` "Mark paid flow on mobile" — RESOLVED in PR #1444 (OverflowMenu portal z-index elevated). Was Issue #1433.
-- `App.test.tsx:383` redirect lazy-import timeout — RESOLVED in PR #1445 (pre-resolve DashboardPage). Was Issue #1438.
-- `i18n/i18n.spec.ts` "German text does not overflow navigation sidebar on desktop" — pre-existing locale init race; needs separate investigation.
-- `budget-overview-print.spec.ts` "Dark mode: print resets CSS variables" — HARD FAIL: `:global(@media print)` in CSS Module dropped by bundler; variable reset not in compiled CSS. Production bug #1451.
-- `budget-overview-print.spec.ts` "On-screen expansion state restored after afterprint" — HARD FAIL: usePrintExpansion hook closure bug loses snapshot on effect re-run. Production bug #1450.
-- `i18n.spec.ts` "Key page headings render in German" — intermittent flake ~10-20%: concurrent worker afterEach(resetToEnglish) races with test's setLanguage('de'). Pre-existing.
-- `budget-overview-print.spec.ts` "Print forces full expansion" — FIXED in PR #1447 (selector bug: was locator('span') for work-item row; should be locator('a')). Now passes.
+- `dashboard.spec.ts:566` "Customize button appears when card dismissed" — persistent flake since 3+ beta runs. Fails 30-40% first attempts due to test isolation (prior test leaves dismissed-card prefs state). Issue #1431.
+- `invoice-budget-line-create-and-link.spec.ts:210` "Create Budget Line button below existing lines" — timing flake. `+ Add Budget Line` button disappears briefly during section re-render after first line created. Issue #1430.
+- `invoice-deposits-ux.spec.ts:259` "Portal clipping — last row kebab" — HARD FAIL since PR #1427. `createInvoiceViaApi` uses `status: 'quotation'`; backend rejects deposits on quotation invoices with 400. Test bug. Issue #1432.
+- `invoice-deposits.spec.ts:665 [mobile]` "Mark paid flow on mobile" — HARD FAIL since PR #1427. Portal-rendered menu (usePortal=true) clipped behind `cardActions_b45Ao` div on mobile viewport. Production CSS bug. Issue #1433.
+- `i18n/i18n.spec.ts` "German text does not overflow navigation sidebar on desktop" — HARD FAIL on 3 consecutive beta runs (Shard 4, main-targeted runs 25960897054/25985031080/25986721880). `waitForLoaded` times out on `getByRole('heading', { name: 'Projekt', level: 1 })` — locale init race. Pre-existing; not related to diary or invoice work.
+- `invoices/invoice-deposits-ux.spec.ts` "Clicking the kebab on the LAST deposit row shows a menu fully within the viewport" — HARD FAIL (same runs). Same root cause as Issue #1432 (quotation invoice rejects deposits).
+- All pre-existing on beta. Three most recent failed main-targeted runs are all blocked by same two tests in Shard 4.
 
 ## Diary Draft E2E (Fix #1426, UX #1435, 2026-05-17)
 

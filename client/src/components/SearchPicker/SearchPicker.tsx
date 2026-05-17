@@ -97,13 +97,18 @@ export function SearchPicker<T>({
   }, [isOpen]);
 
   // Reset when value is cleared externally (e.g. after form submission)
+   
   useEffect(() => {
     if (value === '') {
+      // eslint-disable-next-line @eslint-react/set-state-in-effect
       setSelectedItem(null);
+      // eslint-disable-next-line @eslint-react/set-state-in-effect
       setSearchTerm('');
+      // eslint-disable-next-line @eslint-react/set-state-in-effect
       setInitialTitleCleared(false);
     } else {
       if (specialOptions?.some((opt) => opt.id === value)) {
+        // eslint-disable-next-line @eslint-react/set-state-in-effect
         setSpecialSelected(true);
       }
     }

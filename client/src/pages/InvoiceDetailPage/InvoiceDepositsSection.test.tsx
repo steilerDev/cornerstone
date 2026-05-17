@@ -50,6 +50,16 @@ jest.unstable_mockModule('../../lib/apiClient.js', () => ({
 
 // ─── Mock: formatters ─────────────────────────────────────────────────────────
 
+function mockUseFormatters() {
+  return {
+    formatCurrency: (n: number) => `$${n.toFixed(2)}`,
+    formatDate: (d: string | null | undefined) => d ?? '—',
+    formatTime: (d: string | null | undefined) => d ?? '—',
+    formatDateTime: (d: string | null | undefined) => d ?? '—',
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+  };
+}
+
 jest.unstable_mockModule('../../lib/formatters.js', () => ({
   formatDate: (d: string | null | undefined) => d ?? '—',
   formatCurrency: (n: number) => `$${n.toFixed(2)}`,
@@ -58,13 +68,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
   formatRelativeTime: (d: string) => d,
   formatPercent: (n: number) => `${n.toFixed(2)}%`,
   computeActualDuration: () => null,
-  useFormatters: () => ({
-    formatCurrency: (n: number) => `$${n.toFixed(2)}`,
-    formatDate: (d: string | null | undefined) => d ?? '—',
-    formatTime: (d: string | null | undefined) => d ?? '—',
-    formatDateTime: (d: string | null | undefined) => d ?? '—',
-    formatPercent: (n: number) => `${n.toFixed(2)}%`,
-  }),
+    useFormatters: mockUseFormatters,
 }));
 
 // ─── Mock: errorTranslation ───────────────────────────────────────────────────
@@ -76,18 +80,18 @@ jest.unstable_mockModule('../../lib/errorTranslation.js', () => ({
 // ─── Mock: Modal ───────────────────────────────────────────────────────────────
 // Renders children and title inline so we can inspect them in tests
 
-jest.unstable_mockModule('../../components/Modal/Modal.js', () => ({
-  Modal: ({
-    title,
-    children,
-    footer,
-    onClose,
-  }: {
-    title: string;
-    children: React.ReactNode;
-    footer?: React.ReactNode;
-    onClose: () => void;
-  }) => (
+function MockModal({
+  title,
+  children,
+  footer,
+  onClose,
+}: {
+  title: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+  onClose: () => void;
+}) {
+  return (
     <div role="dialog" aria-label={title}>
       <div data-testid="modal-title">{title}</div>
       <div data-testid="modal-body">{children}</div>
@@ -96,22 +100,26 @@ jest.unstable_mockModule('../../components/Modal/Modal.js', () => ({
         Close
       </button>
     </div>
-  ),
+  );
+}
+
+jest.unstable_mockModule('../../components/Modal/Modal.js', () => ({
+  Modal: MockModal,
 }));
 
 // ─── Mock: EmptyState ─────────────────────────────────────────────────────────
 
-jest.unstable_mockModule('../../components/EmptyState/EmptyState.js', () => ({
-  EmptyState: ({
-    message,
-    description,
-    action,
-  }: {
-    icon?: string;
-    message: string;
-    description?: string;
-    action?: { label: string; onClick: () => void };
-  }) => (
+function MockEmptyState({
+  message,
+  description,
+  action,
+}: {
+  icon?: string;
+  message: string;
+  description?: string;
+  action?: { label: string; onClick: () => void };
+}) {
+  return (
     <div data-testid="empty-state">
       <span data-testid="empty-state-message">{message}</span>
       {description && <span data-testid="empty-state-description">{description}</span>}
@@ -121,32 +129,42 @@ jest.unstable_mockModule('../../components/EmptyState/EmptyState.js', () => ({
         </button>
       )}
     </div>
-  ),
+  );
+}
+
+jest.unstable_mockModule('../../components/EmptyState/EmptyState.js', () => ({
+  EmptyState: MockEmptyState,
 }));
 
 // ─── Mock: FormError ──────────────────────────────────────────────────────────
 
-jest.unstable_mockModule('../../components/FormError/FormError.js', () => ({
-  FormError: ({ message }: { message: string }) => (
+function MockFormError({ message }: { message: string }) {
+  return (
     <div data-testid="form-error" role="alert">
       {message}
     </div>
-  ),
+  );
+}
+
+jest.unstable_mockModule('../../components/FormError/FormError.js', () => ({
+  FormError: MockFormError,
 }));
 
 // ─── Mock: Badge ──────────────────────────────────────────────────────────────
 
+function MockBadge({
+  variants,
+  value,
+}: {
+  variants: Record<string, { label: string; className?: string }>;
+  value: string;
+}) {
+  const variant = variants[value];
+  return <span data-testid={`badge-${value}`}>{variant?.label ?? value}</span>;
+}
+
 jest.unstable_mockModule('../../components/Badge/Badge.js', () => ({
-  Badge: ({
-    variants,
-    value,
-  }: {
-    variants: Record<string, { label: string; className?: string }>;
-    value: string;
-  }) => {
-    const variant = variants[value];
-    return <span data-testid={`badge-${value}`}>{variant?.label ?? value}</span>;
-  },
+  Badge: MockBadge,
 }));
 
 // ─── Deferred import ─────────────────────────────────────────────────────────

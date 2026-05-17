@@ -68,6 +68,7 @@ export function BackupsPage() {
   const [restoreInitiated, setRestoreInitiated] = useState(false);
   const [restoreError, setRestoreError] = useState<string>('');
 
+
   // Load backups on mount
   useEffect(() => {
     const loadBackupsData = async () => {
@@ -94,7 +95,7 @@ export function BackupsPage() {
     };
 
     void loadBackupsData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [t]);
 
   const handleCreateBackup = async () => {
@@ -309,6 +310,7 @@ export function BackupsPage() {
             </div>
           )}
           <p>
+            {/* eslint-disable-next-line @eslint-react/unsupported-syntax -- Necessary for i18n message splitting */}
             {(() => {
               const parts = t('backups.deleteModal.message', {
                 filename: '\u0000',

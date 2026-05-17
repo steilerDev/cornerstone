@@ -32,8 +32,8 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
 // render time without re-running the factory.
 const photosState = { refresh: jest.fn() };
 
-jest.unstable_mockModule('../../hooks/usePhotos.js', () => ({
-  usePhotos: () => ({
+function mockUsePhotos() {
+  return {
     photos: [],
     loading: false,
     refresh: (...args: any[]) => photosState.refresh(...args),
@@ -41,27 +41,41 @@ jest.unstable_mockModule('../../hooks/usePhotos.js', () => ({
     deletePhoto: jest.fn(),
     reorderPhotos: jest.fn(),
     updateCaption: jest.fn(),
-  }),
+  };
+}
+
+jest.unstable_mockModule('../../hooks/usePhotos.js', () => ({
+  usePhotos: mockUsePhotos,
 }));
 
 // Mock PhotoUpload to capture its onUpload prop so tests can invoke it directly.
 // The real PhotoUpload uses XHR/FormData which are not available in jsdom.
 let capturedOnUpload: ((photo: any) => void) | null = null;
 
+function MockPhotoUpload({ onUpload }: { onUpload: (photo: any) => void }) {
+  capturedOnUpload = onUpload;
+  return <div data-testid="photo-upload-mock" />;
+}
+
 jest.unstable_mockModule('../../components/photos/PhotoUpload.js', () => ({
-  PhotoUpload: ({ onUpload }: { onUpload: (photo: any) => void }) => {
-    capturedOnUpload = onUpload;
-    return <div data-testid="photo-upload-mock" />;
-  },
+  PhotoUpload: MockPhotoUpload,
 }));
 
 // Mock PhotoGrid and PhotoViewer — not under test here, avoid real rendering.
+function MockPhotoGrid() {
+  return <div data-testid="photo-grid-mock" />;
+}
+
+function MockPhotoViewer() {
+  return <div data-testid="photo-viewer-mock" />;
+}
+
 jest.unstable_mockModule('../../components/photos/PhotoGrid.js', () => ({
-  PhotoGrid: () => <div data-testid="photo-grid-mock" />,
+  PhotoGrid: MockPhotoGrid,
 }));
 
 jest.unstable_mockModule('../../components/photos/PhotoViewer.js', () => ({
-  PhotoViewer: () => <div data-testid="photo-viewer-mock" />,
+  PhotoViewer: MockPhotoViewer,
 }));
 
 // Stable mock references — hoisted so useToast() returns the same function identity
@@ -72,13 +86,17 @@ const mockDismissToast = jest.fn();
 // Mock ToastContext so useToast() works without a real ToastProvider.
 // This avoids the dual-React instance issue caused by statically importing ToastProvider
 // while the page component is dynamically imported (which loads its own React instance).
+function mockUseToast() {
+  return { toasts: [], showToast: mockShowToast, dismissToast: mockDismissToast };
+}
+
 jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
-  useToast: () => ({ toasts: [], showToast: mockShowToast, dismissToast: mockDismissToast }),
+  useToast: mockUseToast,
   ToastProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
-  useAuth: () => ({
+function mockUseAuth() {
+  return {
     user: {
       id: 'user-1',
       displayName: 'Alice Builder',
@@ -92,7 +110,11 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
     error: null,
     refreshAuth: jest.fn(),
     logout: jest.fn(),
-  }),
+  };
+}
+
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: mockUseAuth,
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 

@@ -136,6 +136,33 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
     }
   };
 
+  const renderTodayMarker = (): React.ReactNode => {
+    const todayLocal = new Date();
+    const todayNoon = new Date(
+      todayLocal.getFullYear(),
+      todayLocal.getMonth(),
+      todayLocal.getDate(),
+      12,
+      0,
+      0,
+      0,
+    );
+    const x = dateToX(todayNoon, windowStart);
+    if (x < 0 || x > CHART_WIDTH) return null;
+    return (
+      <line
+        key="today-marker"
+        x1={x}
+        y1={HEADER_HEIGHT}
+        x2={x}
+        y2={svgHeight}
+        stroke={colors.todayMarker}
+        strokeWidth="2"
+        opacity="0.8"
+      />
+    );
+  };
+
   // If no work items in the window, show empty state
   if (filteredWorkItems.length === 0) {
     return (
@@ -194,7 +221,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
           const dayLabel = labelDate.toLocaleDateString('en-US', { weekday: 'short' });
           return (
             <text
-              key={`header-${i}`}
+              key={`header-${labelDate.toISOString()}`}
               x={x + 4}
               y={HEADER_HEIGHT - 8}
               fontSize="14"
@@ -212,7 +239,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
           const x = dateToX(lineDate, windowStart);
           return (
             <line
-              key={`grid-${i}`}
+              key={`grid-${lineDate.toISOString()}`}
               x1={x}
               y1={HEADER_HEIGHT}
               x2={x}
@@ -225,32 +252,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
         })}
 
         {/* Today marker line */}
-        {(() => {
-          const todayLocal = new Date();
-          const todayNoon = new Date(
-            todayLocal.getFullYear(),
-            todayLocal.getMonth(),
-            todayLocal.getDate(),
-            12,
-            0,
-            0,
-            0,
-          );
-          const x = dateToX(todayNoon, windowStart);
-          if (x < 0 || x > CHART_WIDTH) return null;
-          return (
-            <line
-              key="today-marker"
-              x1={x}
-              y1={HEADER_HEIGHT}
-              x2={x}
-              y2={svgHeight}
-              stroke={colors.todayMarker}
-              strokeWidth="2"
-              opacity="0.8"
-            />
-          );
-        })()}
+        {renderTodayMarker()}
 
         {/* Work item bars rendered by row */}
         {filteredWorkItems.map((item, rowIndex) => {

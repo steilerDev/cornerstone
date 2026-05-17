@@ -234,7 +234,6 @@ test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive
 
   test('Create form resets after successful creation', async ({ page, testPrefix }) => {
     const categoriesPage = new BudgetCategoriesPage(page);
-    let createdId: string | null = null;
     const categoryName = `${testPrefix} Create Reset Test`;
 
     try {
@@ -259,8 +258,7 @@ test.describe('Create category — happy path (Scenario 3)', { tag: '@responsive
       const body = (await response.json()) as { categories: Array<{ id: string; name: string }> };
       const found = body.categories.find((c) => c.name === categoryName);
       if (found) {
-        createdId = found.id;
-        await deleteCategoryViaApi(page, createdId);
+        await deleteCategoryViaApi(page, found.id);
       }
     }
   });

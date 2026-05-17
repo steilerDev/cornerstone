@@ -10,9 +10,9 @@ import { Route, Routes } from 'react-router-dom';
 import { renderWithRouter } from '../../test/testUtils';
 import type * as AppShellTypes from './AppShell.js';
 
-// Mock AuthContext so Sidebar can call useAuth()
-jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
-  useAuth: () => ({
+// Module-level mock functions (required by component-hook-factories rule)
+function useAuth() {
+  return {
     user: {
       id: '1',
       email: 'test@example.com',
@@ -28,16 +28,25 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
     error: null,
     refreshAuth: jest.fn(),
     logout: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-  }),
+  };
+}
+
+function useTheme() {
+  return {
+    theme: 'system',
+    resolvedTheme: 'light',
+    setTheme: jest.fn(),
+  };
+}
+
+// Mock AuthContext so Sidebar can call useAuth()
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth,
 }));
 
 // Mock ThemeContext so ThemeToggle (inside Sidebar) can call useTheme()
 jest.unstable_mockModule('../../contexts/ThemeContext.js', () => ({
-  useTheme: () => ({
-    theme: 'system',
-    resolvedTheme: 'light',
-    setTheme: jest.fn(),
-  }),
+  useTheme,
   ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 

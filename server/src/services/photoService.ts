@@ -14,14 +14,13 @@
 
 import { randomUUID } from 'node:crypto';
 import { mkdir, rm, readdir, stat, writeFile } from 'node:fs/promises';
-import { createReadStream } from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
-import { eq, and, asc, inArray, desc } from 'drizzle-orm';
+import { eq, and, asc } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { photos, users } from '../db/schema.js';
-import { NotFoundError, ValidationError } from '../errors/AppError.js';
+import { ValidationError } from '../errors/AppError.js';
 import type { Photo, PhotoEntityType } from '@cornerstone/shared';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;

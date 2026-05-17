@@ -249,9 +249,9 @@ export function useBudgetSection<T extends BaseBudgetLine>(
       setDeletingBudgetId(null);
       const apiErr = err as { statusCode?: number; message?: string };
       if (apiErr.statusCode === 409) {
-        throw new Error(apiErr.message || 'Budget line cannot be deleted because it is in use');
+        throw new Error(apiErr.message || 'Budget line cannot be deleted because it is in use', { cause: err });
       } else {
-        throw new Error('Failed to delete budget line');
+        throw new Error('Failed to delete budget line', { cause: err });
       }
     }
   };

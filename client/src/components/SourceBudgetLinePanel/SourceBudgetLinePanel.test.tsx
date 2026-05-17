@@ -10,14 +10,25 @@ import type { BudgetSourceBudgetLine, BudgetSourceBudgetLinesResponse } from '@c
 
 // ─── Mock: formatters ──────────────────────────────────────────────────────────
 
+function mockUseFormatters() {
+  return {
+      formatCurrency: fmtCurrency,
+      formatDate: (d: string | null | undefined, fallback = '—') => d ?? fallback,
+      formatTime: () => '—',
+      formatDateTime: () => '—',
+      formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    };
+}
+
+const fmtCurrency = (n: number) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
+
 jest.unstable_mockModule('../../lib/formatters.js', () => {
-  const fmtCurrency = (n: number) =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n);
   return {
     formatCurrency: fmtCurrency,
     formatDate: (d: string | null | undefined, fallback = '—') => d ?? fallback,
@@ -25,13 +36,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
     formatDateTime: () => '—',
     formatPercent: (n: number) => `${n.toFixed(2)}%`,
     computeActualDuration: () => null,
-    useFormatters: () => ({
-      formatCurrency: fmtCurrency,
-      formatDate: (d: string | null | undefined, fallback = '—') => d ?? fallback,
-      formatTime: () => '—',
-      formatDateTime: () => '—',
-      formatPercent: (n: number) => `${n.toFixed(2)}%`,
-    }),
+    useFormatters: mockUseFormatters,
   };
 });
 

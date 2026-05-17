@@ -25,19 +25,22 @@ export function AreaBreadcrumb({ area, variant = 'default' }: AreaBreadcrumbProp
   }
 
   const listItems: ReactNode[] = [];
-  segments.forEach((name, index) => {
-    if (index > 0) {
+  const pathPrefix: string[] = [];
+  segments.forEach((name) => {
+    const currentPath = [...pathPrefix, name].join('/');
+    if (pathPrefix.length > 0) {
       listItems.push(
-        <li key={`sep-${index}`} className={styles.separator} aria-hidden="true">
+        <li key={`sep-${currentPath}`} className={styles.separator} aria-hidden="true">
           {SEPARATOR}
         </li>,
       );
     }
     listItems.push(
-      <li key={`seg-${index}`} className={styles.segment}>
+      <li key={`segment-${currentPath}`} className={styles.segment}>
         {name}
       </li>,
     );
+    pathPrefix.push(name);
   });
 
   return (

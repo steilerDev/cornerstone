@@ -66,6 +66,7 @@ function buildInsertValues(
   householdItemId: string,
   userId: string,
   data: CreateHouseholdItemBudgetRequest,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Record<string, any> {
   return {
     householdItemId,

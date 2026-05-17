@@ -345,7 +345,7 @@ describe('Milestone Service', () => {
       expect(() =>
         milestoneService.createMilestone(
           db,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           { title: 'Milestone' } as any,
           userId,
         ),
@@ -353,7 +353,7 @@ describe('Milestone Service', () => {
       expect(() =>
         milestoneService.createMilestone(
           db,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+           
           { title: 'Milestone' } as any,
           userId,
         ),

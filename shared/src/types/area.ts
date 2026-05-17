@@ -4,7 +4,7 @@
  * Areas can have parent-child relationships (e.g., Kitchen > Kitchen Cabinets).
  */
 
-import type { PaginatedResponse } from './pagination.js';
+// Note: PaginatedResponse type imported for potential future use in area list responses
 
 /**
  * A single ancestor entry in the area parent chain.

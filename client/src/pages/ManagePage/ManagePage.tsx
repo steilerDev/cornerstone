@@ -67,7 +67,6 @@ function AreasTab() {
     createArea,
     updateArea,
     deleteArea,
-    refetch,
   } = useAreas();
 
   // Create form state
@@ -588,7 +587,6 @@ function TradesTab() {
     createTrade,
     updateTrade,
     deleteTrade,
-    refetch,
   } = useTrades();
 
   // Create form state
@@ -1084,6 +1082,7 @@ function BudgetCategoriesTab() {
 
   useEffect(() => {
     void loadCategories();
+  // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, []);
 
   const loadCategories = async () => {
@@ -1640,6 +1639,7 @@ function HouseholdItemCategoriesTab() {
 
   useEffect(() => {
     void loadCategories();
+  // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, []);
 
   const loadCategories = async () => {

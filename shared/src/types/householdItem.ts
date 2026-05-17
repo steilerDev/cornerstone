@@ -6,12 +6,12 @@
  * EPIC-04: Household Items & Furniture Management
  */
 
-import type { PaginatedResponse, PaginationMeta } from './pagination.js';
+import type { PaginationMeta } from './pagination.js';
 import type { SubsidyApplicationStatus } from './subsidyProgram.js';
-import type { UserSummary, VendorSummary } from './workItem.js';
+import type { UserSummary } from './workItem.js';
 import type { AreaSummary } from './area.js';
-import type { TradeSummary } from './trade.js';
 import type { FilterMeta } from './filterMeta.js';
+import type { TradeSummary } from './trade.js';
 
 /**
  * Budget aggregates for a household item.

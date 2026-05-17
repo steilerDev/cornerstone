@@ -1,4 +1,4 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ColumnDef, TableState } from './DataTable.js';
@@ -218,7 +218,7 @@ describe('DataTableHeader', () => {
 
     it('filter button toggles filter popover visibility on click', async () => {
       const user = userEvent.setup();
-      const { container } = renderHeader();
+      const { container: _container } = renderHeader();
       const filterBtn = screen.getByRole('button', { name: /filter by title/i });
 
       // Before click: no dialog
@@ -256,7 +256,7 @@ describe('DataTableHeader', () => {
 
   describe('actions column translation (#1137)', () => {
     it('renders an "Actions" column header when hasActions is true', () => {
-      const { container } = renderHeader({ columns: DEFAULT_COLUMNS });
+      const { container: _container } = renderHeader({ columns: DEFAULT_COLUMNS });
       // Re-render with hasActions
       const { container: c } = render(
         <table>

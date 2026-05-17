@@ -43,10 +43,12 @@ export function usePaperless(): UsePaperlessResult {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  // eslint-disable-next-line @eslint-react/use-state
   const [selectedTags, setSelectedTagsState] = useState<number[]>([]);
+  // eslint-disable-next-line @eslint-react/use-state
   const [page, setPageState] = useState(1);
   const [fetchCount, setFetchCount] = useState(0);
-  const [tagCountMap, setTagCountMap] = useState<Map<number, number>>(new Map());
+  const [tagCountMap, setTagCountMap] = useState<Map<number, number>>(() => new Map());
 
   // Phase 1: fetch status on mount
   useEffect(() => {
@@ -80,7 +82,10 @@ export function usePaperless(): UsePaperlessResult {
     if (status === null) return;
 
     if (!status.configured || !status.reachable) {
+
+  // eslint-disable-next-line @eslint-react/set-state-in-effect
       setIsLoading(false);
+      // eslint-disable-next-line @eslint-react/set-state-in-effect
       setTagCountMap(new Map());
       return;
     }

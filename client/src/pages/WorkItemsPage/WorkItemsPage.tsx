@@ -89,7 +89,7 @@ export function WorkItemsPage() {
   // Load work items when table state changes
   useEffect(() => {
     void loadWorkItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [
     tableState.search,
     tableState.sortBy,
@@ -418,6 +418,7 @@ export function WorkItemsPage() {
         description: t('list.shortcuts.closeOrCancel')!,
       },
     ],
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
     [navigate, showShortcutsHelp, deletingItem, activeMenuId, t],
   );
 

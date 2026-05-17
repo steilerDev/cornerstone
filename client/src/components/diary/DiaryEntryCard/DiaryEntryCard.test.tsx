@@ -9,63 +9,67 @@ import type { DiaryEntryCard as DiaryEntryCardType } from './DiaryEntryCard.js';
 
 // ─── Mock: formatters — provides useFormatters() hook used by this component ──
 
-jest.unstable_mockModule('../../../lib/formatters.js', () => {
-  const fmtDate = (d: string | null | undefined, fallback = '—') => {
-    if (!d) return fallback;
-    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
-    if (!year || !month || !day) return fallback;
-    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+const _fmtDate = (d: string | null | undefined, fallback = '—') => {
+  if (!d) return fallback;
+  const [year, month, day] = d.slice(0, 10).split('-').map(Number);
+  if (!year || !month || !day) return fallback;
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+};
+const _fmtCurrency = (n: number) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
+const _fmtTime = (ts: string | null | undefined, fallback = '—') => {
+  if (!ts) return fallback;
+  try {
+    return new Date(ts).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
     });
-  };
-  const fmtCurrency = (n: number) =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n);
-  const fmtTime = (ts: string | null | undefined, fallback = '—') => {
-    if (!ts) return fallback;
-    try {
-      return new Date(ts).toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      });
-    } catch {
-      return fallback;
-    }
-  };
-  const fmtDateTime = (ts: string | null | undefined, fallback = '—') => {
-    if (!ts) return fallback;
-    try {
-      const d = new Date(ts);
-      return (
-        d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) +
-        ' at ' +
-        d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-      );
-    } catch {
-      return fallback;
-    }
-  };
+  } catch {
+    return fallback;
+  }
+};
+const _fmtDateTime = (ts: string | null | undefined, fallback = '—') => {
+  if (!ts) return fallback;
+  try {
+    const d = new Date(ts);
+    return (
+      d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) +
+      ' at ' +
+      d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    );
+  } catch {
+    return fallback;
+  }
+};
+function mockUseFormatters() {
   return {
-    formatCurrency: fmtCurrency,
-    formatDate: fmtDate,
-    formatTime: fmtTime,
-    formatDateTime: fmtDateTime,
+    formatCurrency: _fmtCurrency,
+    formatDate: _fmtDate,
+    formatTime: _fmtTime,
+    formatDateTime: _fmtDateTime,
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+  };
+}
+
+jest.unstable_mockModule('../../../lib/formatters.js', () => {
+  return {
+    formatCurrency: _fmtCurrency,
+    formatDate: _fmtDate,
+    formatTime: _fmtTime,
+    formatDateTime: _fmtDateTime,
     formatPercent: (n: number) => `${n.toFixed(2)}%`,
     computeActualDuration: () => null,
-    useFormatters: () => ({
-      formatCurrency: fmtCurrency,
-      formatDate: fmtDate,
-      formatTime: fmtTime,
-      formatDateTime: fmtDateTime,
-      formatPercent: (n: number) => `${n.toFixed(2)}%`,
-    }),
+    useFormatters: mockUseFormatters,
   };
 });
 

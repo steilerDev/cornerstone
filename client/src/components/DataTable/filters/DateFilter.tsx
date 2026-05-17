@@ -20,12 +20,15 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
   const to = value.match(/to:(\d{4}-\d{2}-\d{2})/)?.[1] ?? '';
 
   // Track intermediate dates locally so DateRangePicker sees updates immediately
-  const [localFrom, setLocalFrom] = useState('');
-  const [localTo, setLocalTo] = useState('');
+  const [localFrom, setLocalFrom] = useState(from);
+  const [localTo, setLocalTo] = useState(to);
 
   // Sync local state when the parent value prop changes (e.g., clear filters)
+   
   useEffect(() => {
+    // eslint-disable-next-line @eslint-react/set-state-in-effect
     setLocalFrom(from);
+    // eslint-disable-next-line @eslint-react/set-state-in-effect
     setLocalTo(to);
   }, [from, to]);
 

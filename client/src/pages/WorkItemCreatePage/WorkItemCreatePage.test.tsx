@@ -32,7 +32,7 @@ jest.unstable_mockModule('../../lib/dependenciesApi.js', () => ({
 }));
 
 // WorkItemCreatePage now uses fetchVendors to populate AssignmentPicker
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchVendors = jest.fn<any>();
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
@@ -60,38 +60,41 @@ jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
 // requiring SearchPicker interaction (which involves complex async dropdown logic).
 // The mock renders a <select> that calls onChange on change.
 let capturedAreaPickerOnChange: ((id: string) => void) | null = null;
+
+function MockAreaPicker({
+  areas,
+  value,
+  onChange,
+  disabled,
+  nullable,
+}: {
+  areas: Array<{ id: string; name: string }>;
+  value: string;
+  onChange: (id: string) => void;
+  disabled?: boolean;
+  nullable?: boolean;
+}) {
+  capturedAreaPickerOnChange = onChange;
+  return (
+    <select
+      data-testid="area-picker-mock"
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label="Area picker"
+    >
+      {nullable && <option value="">— None —</option>}
+      {areas.map((a) => (
+        <option key={a.id} value={a.id}>
+          {a.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 jest.unstable_mockModule('../../components/AreaPicker/AreaPicker.js', () => ({
-  AreaPicker: ({
-    areas,
-    value,
-    onChange,
-    disabled,
-    nullable,
-  }: {
-    areas: Array<{ id: string; name: string }>;
-    value: string;
-    onChange: (id: string) => void;
-    disabled?: boolean;
-    nullable?: boolean;
-  }) => {
-    capturedAreaPickerOnChange = onChange;
-    return (
-      <select
-        data-testid="area-picker-mock"
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label="Area picker"
-      >
-        {nullable && <option value="">— None —</option>}
-        {areas.map((a) => (
-          <option key={a.id} value={a.id}>
-            {a.name}
-          </option>
-        ))}
-      </select>
-    );
-  },
+  AreaPicker: MockAreaPicker,
 }));
 
 // Helper to capture current location

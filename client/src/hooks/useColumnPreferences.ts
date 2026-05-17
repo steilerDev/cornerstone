@@ -49,22 +49,31 @@ export function useColumnPreferences<T>(
 
         // Handle backwards compatibility: if saved value is an array, treat as visible list
         if (Array.isArray(saved)) {
+   
+  // eslint-disable-next-line @eslint-react/set-state-in-effect
           setVisibleColumns(new Set(saved));
+          // eslint-disable-next-line @eslint-react/set-state-in-effect
           setColumnOrder(defaultColumnOrder);
         } else if (saved && typeof saved === 'object') {
+   
           // New format: { visible: string[], order: string[] }
           if (Array.isArray(saved.visible)) {
+  // eslint-disable-next-line @eslint-react/set-state-in-effect
             setVisibleColumns(new Set(saved.visible));
           }
           if (Array.isArray(saved.order)) {
+            // eslint-disable-next-line @eslint-react/set-state-in-effect
             setColumnOrder(saved.order);
           }
         }
+   
       } catch {
         // If JSON parse fails, use defaults
       }
     }
+    // eslint-disable-next-line @eslint-react/set-state-in-effect
     setIsLoaded(true);
+  // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [preferences, preferenceKey]);
 
   const savePreferences = useCallback(

@@ -39,7 +39,10 @@ export function useVendorContacts(vendorId: string): UseVendorContactsResult {
   // Load contacts on mount and when refresh is triggered
   useEffect(() => {
     if (!vendorId) {
+   
+  // eslint-disable-next-line @eslint-react/set-state-in-effect
       setContacts([]);
+      // eslint-disable-next-line @eslint-react/set-state-in-effect
       setIsLoading(false);
       return;
     }

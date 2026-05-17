@@ -164,7 +164,7 @@ export function DataTable<T>({
   const { t } = useTranslation('common');
 
   // Client-side filter state for columns without server-side support
-  const [clientFilters, setClientFilters] = useState<Map<string, { value: string }>>(new Map());
+  const [clientFilters, setClientFilters] = useState<Map<string, { value: string }>>(() => new Map());
 
   // Load column visibility and ordering preferences
   const { visibleColumns, columnOrder, toggleColumn, moveColumn, resetToDefaults } =

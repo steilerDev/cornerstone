@@ -175,7 +175,7 @@ export function MilestonePanel({
       }
     }
     // Only run on mount or when milestones finish loading
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [initialMilestoneId, milestones]);
 
   // Form submit state
@@ -224,8 +224,13 @@ export function MilestonePanel({
   }, []);
 
   function handleEditClick(milestone: MilestoneSummary) {
+   
+   
+  // eslint-disable-next-line @eslint-react/set-state-in-effect
     setEditingMilestone(milestone);
+    // eslint-disable-next-line @eslint-react/set-state-in-effect
     setSubmitError(null);
+    // eslint-disable-next-line @eslint-react/set-state-in-effect
     setView('edit');
     void loadDetail(milestone.id);
   }

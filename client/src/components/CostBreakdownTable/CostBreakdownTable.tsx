@@ -1,4 +1,4 @@
-import { useState, useRef, createContext, useContext, useMemo, useCallback } from 'react';
+import { useState, useRef, createContext, use, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -19,14 +19,13 @@ import { Badge } from '../Badge/Badge.js';
 import badgeStyles from '../Badge/Badge.module.css';
 import { EmptyState } from '../EmptyState/EmptyState.js';
 import { getSourceColorIndex, getSourceBadgeStyleKey } from '../../lib/budgetSourceColors.js';
-import sharedStyles from '../../styles/shared.module.css';
 import styles from './CostBreakdownTable.module.css';
 
 // Context to pass formatCurrency down to sub-components that aren't React components (can't use hooks)
 const FormatterContext = createContext<((amount: number) => string) | null>(null);
 
 function useFormatterContext() {
-  const formatter = useContext(FormatterContext);
+  const formatter = use(FormatterContext);
   if (!formatter) {
     throw new Error('useFormatterContext must be used within CostBreakdownTable');
   }
@@ -41,7 +40,7 @@ interface BreakdownContextValue {
 const BreakdownContext = createContext<BreakdownContextValue | null>(null);
 
 function useBreakdownContext() {
-  const context = useContext(BreakdownContext);
+  const context = use(BreakdownContext);
   if (!context) {
     throw new Error('useBreakdownContext must be used within CostBreakdownTable');
   }
@@ -69,24 +68,6 @@ function resolveProjected(
   if (perspective === 'min') return projectedMin;
   if (perspective === 'max') return projectedMax;
   return (projectedMin + projectedMax) / 2;
-}
-
-/**
- * Resolves the perspective-dependent cost for a single budget line.
- * Mirrors the cost logic in BudgetLineRow (Level 3) and used throughout
- * aggregate computation to ensure a single source of truth.
- */
-function resolveLineCost(line: BreakdownBudgetLine, perspective: CostPerspective): number {
-  if (line.hasInvoice && !line.isQuotation) return line.actualCost;
-  if (line.isQuotation) {
-    return resolveProjected(line.actualCost * 0.95, line.actualCost * 1.05, perspective);
-  }
-  const margin = CONFIDENCE_MARGINS[line.confidence];
-  return resolveProjected(
-    line.plannedAmount * (1 - margin),
-    line.plannedAmount * (1 + margin),
-    perspective,
-  );
 }
 
 /**
@@ -689,7 +670,7 @@ export function CostBreakdownTable({
 }: CostBreakdownTableProps) {
   const { t } = useTranslation('budget');
   const { formatCurrency } = useFormatters();
-  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
   const [perspective, setPerspective] = useState<CostPerspective>('avg');
   const budgetSources: BudgetSourceSummaryBreakdown[] = breakdown.budgetSources ?? [];
 
@@ -791,11 +772,6 @@ export function CostBreakdownTable({
     .filter((s) => !deselectedSourceIds.has(s.id))
     .reduce((sum: number, s) => sum + s.totalAmount, 0);
 
-  /**
-   * Sum = filteredAvailableFunds - totalRawProjected + adjustedTotalPayback.
-   */
-  const sum = filteredAvailableFunds - totalRawProjected + adjustedTotalPayback;
-
   // Empty state: only show early-return empty state if there are NO sources configured AND no items.
   // If sources are configured (even if all deselected, which prunes items), render the full table
   // so users can re-enable sources.
@@ -821,8 +797,8 @@ export function CostBreakdownTable({
   const availFundsExpanded = expandedKeys.has(availFundsKey);
 
   return (
-    <FormatterContext.Provider value={formatCurrency}>
-      <BreakdownContext.Provider
+    <FormatterContext value={formatCurrency}>
+      <BreakdownContext
         value={{
           budgetSources,
         }}
@@ -1017,6 +993,7 @@ export function CostBreakdownTable({
 
               {/* ===== SUBSIDY ADJUSTMENTS SECTION ===== */}
               {subsidyAdjustments.length > 0 &&
+                // eslint-disable-next-line @eslint-react/unsupported-syntax
                 (() => {
                   const adjSectionKey = 'adj-section';
                   const adjSectionExpanded = expandedKeys.has(adjSectionKey);
@@ -1143,6 +1120,7 @@ export function CostBreakdownTable({
 
                 {/* Source detail rows as toggle buttons */}
                 {availFundsExpanded &&
+                  // eslint-disable-next-line @eslint-react/unsupported-syntax
                   (() => {
                     const sourceRows: React.ReactNode[] = [];
 
@@ -1298,8 +1276,8 @@ export function CostBreakdownTable({
               : t('overview.costBreakdown.sourceFilter.allSourcesAnnouncement')}
           </div>
         </section>
-      </BreakdownContext.Provider>
-    </FormatterContext.Provider>
+      </BreakdownContext>
+    </FormatterContext>
   );
 }
 

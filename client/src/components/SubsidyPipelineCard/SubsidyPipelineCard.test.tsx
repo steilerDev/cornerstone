@@ -11,14 +11,25 @@ import type { SubsidyProgram } from '@cornerstone/shared';
 
 // ─── Mock: formatters — provides useFormatters() hook used by this component ──
 
+function mockUseFormatters() {
+  return {
+      formatCurrency: fmtCurrency,
+      formatDate: (d: string | null | undefined) => d ?? '—',
+      formatTime: (d: string | null | undefined) => d ?? '—',
+      formatDateTime: (d: string | null | undefined) => d ?? '—',
+      formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    };
+}
+
+const fmtCurrency = (n: number) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
+
 jest.unstable_mockModule('../../lib/formatters.js', () => {
-  const fmtCurrency = (n: number) =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n);
   return {
     formatDate: (d: string | null | undefined) => d ?? '—',
     formatCurrency: fmtCurrency,
@@ -26,13 +37,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
     formatDateTime: (d: string | null | undefined) => d ?? '—',
     formatPercent: (n: number) => `${n.toFixed(2)}%`,
     computeActualDuration: () => null,
-    useFormatters: () => ({
-      formatCurrency: fmtCurrency,
-      formatDate: (d: string | null | undefined) => d ?? '—',
-      formatTime: (d: string | null | undefined) => d ?? '—',
-      formatDateTime: (d: string | null | undefined) => d ?? '—',
-      formatPercent: (n: number) => `${n.toFixed(2)}%`,
-    }),
+    useFormatters: mockUseFormatters,
   };
 });
 

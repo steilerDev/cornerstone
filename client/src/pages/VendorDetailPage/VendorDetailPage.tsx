@@ -80,7 +80,7 @@ export function VendorDetailPage() {
   useEffect(() => {
     if (!id) return;
     void loadVendor();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [id]);
 
   const loadVendor = async () => {

@@ -4,7 +4,7 @@ import { jest } from '@jest/globals';
 // ─── Hoisted mocks (must precede dynamic import) ───────────────────────────────
 
 const mockGetPhotosForEntity = jest.fn<() => Promise<unknown>>();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockUploadPhotoApi = jest.fn<(...args: any[]) => Promise<unknown>>();
 const mockUpdatePhotoApi = jest.fn<() => Promise<unknown>>();
 const mockDeletePhotoApi = jest.fn<() => Promise<void>>();
@@ -311,7 +311,7 @@ describe('usePhotos', () => {
 
     it('updates uploadProgress during upload via the progress wrapper', async () => {
       let capturedProgressCallback: ((percent: number) => void) | undefined;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       let resolveUpload: (value: any) => void;
       const photo = makePhoto('photo-progress');
 
@@ -395,7 +395,7 @@ describe('usePhotos', () => {
     });
 
     it('clears uploadProgress entry on upload failure', async () => {
-      let capturedProgressCallback: ((percent: number) => void) | undefined;
+      let _capturedProgressCallback: ((percent: number) => void) | undefined;
 
       mockUploadPhotoApi.mockImplementationOnce(
         (_entityType, _entityId, _file, _caption, onProgress) => {

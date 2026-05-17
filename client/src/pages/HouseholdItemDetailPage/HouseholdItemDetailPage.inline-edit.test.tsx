@@ -195,7 +195,7 @@ jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js',
 }));
 
 // Mock householdItemCategoriesApi — HouseholdItemDetailPage loads categories to display badges
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchHICCategories = jest.fn<any>().mockResolvedValue({ categories: [] });
 jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
   fetchHouseholdItemCategories: mockFetchHICCategories,

@@ -340,7 +340,7 @@ describe('Authentication Routes', () => {
 
       // And: passwordHash is not in response
       expect(body.user).not.toHaveProperty('passwordHash');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((body.user as any).passwordHash).toBeUndefined();
     });
 
@@ -362,7 +362,7 @@ describe('Authentication Routes', () => {
 
       // And: oidcSubject is not in response
       expect(body.user).not.toHaveProperty('oidcSubject');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((body.user as any).oidcSubject).toBeUndefined();
     });
 
@@ -586,7 +586,7 @@ describe('Authentication Routes', () => {
 
       // And: passwordHash is not in response
       expect(body.user).not.toHaveProperty('passwordHash');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((body.user as any).passwordHash).toBeUndefined();
     });
 
@@ -609,7 +609,7 @@ describe('Authentication Routes', () => {
 
       // And: oidcSubject is not in response
       expect(body.user).not.toHaveProperty('oidcSubject');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((body.user as any).oidcSubject).toBeUndefined();
     });
 

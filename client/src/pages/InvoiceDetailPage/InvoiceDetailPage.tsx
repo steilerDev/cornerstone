@@ -22,7 +22,7 @@ interface InvoiceFormState {
 }
 
 export function InvoiceDetailPage() {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+  const { formatCurrency, formatDate } = useFormatters();
   const { t } = useTranslation('budget');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -52,7 +52,7 @@ export function InvoiceDetailPage() {
   useEffect(() => {
     if (!id) return;
     void loadInvoice();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [id]);
 
   const loadInvoice = async () => {

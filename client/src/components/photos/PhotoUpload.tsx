@@ -39,6 +39,7 @@ export function PhotoUpload({
   const uploadingCountRef = useRef(0);
 
   useEffect(() => {
+  // eslint-disable-next-line @eslint-react/set-state-in-effect
     setIsTouchDevice(() => {
       if (typeof window === 'undefined') return false;
       return window.matchMedia('(hover: none)').matches;
@@ -139,7 +140,9 @@ export function PhotoUpload({
     const queued = photoQueue.filter((p) => p.state === 'queued');
     if (queued.length === 0) return;
 
+   
     // Atomically flip queued → uploading
+    // eslint-disable-next-line @eslint-react/set-state-in-effect
     setPhotoQueue((prev) =>
       prev.map((p) => (p.state === 'queued' ? { ...p, state: 'uploading' as const } : p)),
     );
@@ -220,7 +223,8 @@ export function PhotoUpload({
       {photoQueue.length > 0 && (
         <div className={styles.queueContainer} aria-label={t('photoUpload.queueAriaLabel')}>
           {photoQueue.map((entry, index) => (
-            <div key={index} className={`${styles.queueItem} ${styles[`state-${entry.state}`]}`}>
+            // eslint-disable-next-line @eslint-react/no-array-index-key
+            <div key={`queue-${entry.file.name}-${index}`} className={`${styles.queueItem} ${styles[`state-${entry.state}`]}`}>
               <div className={styles.queueItemHeader}>
                 <span className={styles.queueItemName}>{entry.file.name}</span>
                 <span className={styles.queueItemState}>

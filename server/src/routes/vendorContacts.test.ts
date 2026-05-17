@@ -7,7 +7,7 @@ import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import { vendors } from '../db/schema.js';
 import type { FastifyInstance } from 'fastify';
-import type { VendorContact, VendorDetail, ApiErrorResponse } from '@cornerstone/shared';
+import type { VendorContact, VendorDetail } from '@cornerstone/shared';
 
 describe('Vendor Contact Routes', () => {
   let app: FastifyInstance;

@@ -33,7 +33,7 @@ export function InvoiceLinkModal({
   onSuccess,
   onClose,
 }: InvoiceLinkModalProps) {
-  const { formatCurrency, formatDate } = useFormatters();
+  const { formatCurrency } = useFormatters();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [searchInput, setSearchInput] = useState<string>('');
@@ -67,7 +67,7 @@ export function InvoiceLinkModal({
           setSelectedInvoice(firstInvoice);
           await loadRemainingAmount(firstInvoice.id);
         }
-      } catch (err) {
+      } catch {
         setError({
           message: 'Failed to load invoices. Please try again.',
         });
@@ -91,6 +91,25 @@ export function InvoiceLinkModal({
     } finally {
       setIsLoadingRemaining(false);
     }
+  };
+
+  // Render amount indicator based on remaining amount
+  const renderAmountIndicator = (): React.ReactNode => {
+    const amount = parseFloat(itemizedAmount);
+    if (isNaN(amount)) {
+      return null;
+    }
+    const available = remainingAmount - amount;
+    const isOverLimit = available < 0;
+    return (
+      <div
+        className={`${styles.amountIndicator} ${isOverLimit ? styles.amountIndicatorWarning : ''}`}
+      >
+        {isOverLimit
+          ? `${formatCurrency(Math.abs(available))} over available`
+          : `${formatCurrency(available)} will remain`}
+      </div>
+    );
   };
 
   // Handle invoice search input
@@ -327,23 +346,7 @@ export function InvoiceLinkModal({
                 required
                 onWheel={(e) => e.currentTarget.blur()}
               />
-              {(() => {
-                const amount = parseFloat(itemizedAmount);
-                if (isNaN(amount)) {
-                  return null;
-                }
-                const available = remainingAmount - amount;
-                const isOverLimit = available < 0;
-                return (
-                  <div
-                    className={`${styles.amountIndicator} ${isOverLimit ? styles.amountIndicatorWarning : ''}`}
-                  >
-                    {isOverLimit
-                      ? `${formatCurrency(Math.abs(available))} over available`
-                      : `${formatCurrency(available)} will remain`}
-                  </div>
-                );
-              })()}
+              {renderAmountIndicator()}
             </div>
           )}
           {!selectedInvoice && (

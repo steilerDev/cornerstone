@@ -29,7 +29,7 @@ import type { Photo, ApiErrorResponse } from '@cornerstone/shared';
 
 // ─── Mock photoService BEFORE importing app ────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 type AnyMock = jest.MockedFunction<(...args: any[]) => any>;
 
 const mockUploadPhoto = jest.fn() as AnyMock;
@@ -55,13 +55,18 @@ jest.unstable_mockModule('../services/photoService.js', () => ({
 
 // ─── Dynamic imports (after mocks) ───────────────────────────────────────────
 
-let buildApp: typeof import('../app.js').buildApp;
-let userService: typeof import('../services/userService.js');
-let sessionService: typeof import('../services/sessionService.js');
+// Note: Dynamic imports must be resolved at runtime via dynamic await import()
+ 
+let buildApp: any;
+ 
+let userService: any;
+ 
+let sessionService: any;
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
 
-function makePhoto(overrides: Partial<Photo> = {}): Photo {
+ 
+function makePhoto(overrides: any = {}): any {
   return {
     id: 'photo-id-123',
     entityType: 'test',

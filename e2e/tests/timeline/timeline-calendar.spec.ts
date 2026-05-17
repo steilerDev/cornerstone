@@ -16,7 +16,7 @@
  */
 
 import { test, expect } from '../../fixtures/auth.js';
-import { TimelinePage, TIMELINE_ROUTE } from '../../pages/TimelinePage.js';
+import { TimelinePage } from '../../pages/TimelinePage.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers

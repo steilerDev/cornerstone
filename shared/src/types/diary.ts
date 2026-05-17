@@ -178,9 +178,7 @@ export interface DiaryEntrySummary {
 }
 
 /** Diary entry detail (used in single-item responses). */
-export interface DiaryEntryDetail extends DiaryEntrySummary {
-  // Detail includes all summary fields; extend if detail-only fields are added later.
-}
+export type DiaryEntryDetail = DiaryEntrySummary;
 
 // ─── Request Shapes ───────────────────────────────────────────────────────────
 

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'react-i18next';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
 import { useFormatters } from '../../../lib/formatters.js';
 import { Badge } from '../../Badge/Badge.js';
@@ -13,7 +14,6 @@ interface DiaryEntryCardProps {
 }
 
 function getSourceEntityRoute(entry: DiaryEntrySummary): string | null {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   if (!entry.sourceEntityType || !entry.sourceEntityId) {
     return null;
   }
@@ -34,10 +34,10 @@ function getSourceEntityRoute(entry: DiaryEntrySummary): string | null {
   }
 }
 
-function getSourceEntityLabel(sourceType: string, t: any): string {
+function getSourceEntityLabel(sourceType: string, t: TFunction): string {
   const key = `detailPage.sourceType.${sourceType}`;
   try {
-    const label = t(key as any);
+    const label = t(key);
     // If translation key not found, it returns the key itself
     return label === key ? sourceType : label;
   } catch {

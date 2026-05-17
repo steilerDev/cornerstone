@@ -26,9 +26,9 @@ const mockFetchMilestoneLinkedHouseholdItems =
   jest.fn<typeof MilestonesApiTypes.fetchMilestoneLinkedHouseholdItems>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
 const mockListHouseholdItems = jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockCreateHouseholdItemDep = jest.fn<any>();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockDeleteHouseholdItemDep = jest.fn<any>();
 
 jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
@@ -81,7 +81,7 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
     setLocale: jest.fn(),
     syncWithServer: jest.fn(),
   })),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   LocaleProvider: ({ children }: { children: any }) => children,
 }));
 

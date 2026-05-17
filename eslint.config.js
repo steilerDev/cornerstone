@@ -33,6 +33,22 @@ export default tseslint.config(
     },
   },
 
+  // Node.js scripts (ESM .mjs files in scripts/)
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        structuredClone: 'readonly',
+      },
+    },
+    rules: {
+      // Scripts intentionally use console for output — allow warn/error per global rule
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+    },
+  },
+
   // React rules for client files
   {
     files: ['client/src/**/*.{ts,tsx}'],
@@ -57,6 +73,22 @@ export default tseslint.config(
     files: ['e2e/**/*.ts'],
     rules: {
       'no-console': 'off',
+    },
+  },
+
+  // Test files (unit + integration) - relax React-Compiler-focused rules
+  // that don't apply to mocks and test scaffolding. These rules optimize
+  // production rendering; test code never ships.
+  {
+    files: ['**/*.test.{ts,tsx}'],
+    rules: {
+      '@eslint-react/component-hook-factories': 'off',
+      '@eslint-react/no-unnecessary-use-prefix': 'off',
+      '@eslint-react/no-array-index-key': 'off',
+      '@eslint-react/use-state': 'off',
+      '@eslint-react/exhaustive-deps': 'off',
+      '@eslint-react/set-state-in-effect': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
 

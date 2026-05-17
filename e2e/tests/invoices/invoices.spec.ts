@@ -77,10 +77,6 @@ async function createInvoiceViaApi(
   return body.invoice;
 }
 
-async function deleteInvoiceViaApi(page: Page, vendorId: string, invoiceId: string): Promise<void> {
-  await page.request.delete(`${API.vendors}/${vendorId}/invoices/${invoiceId}`);
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1 & 12: Empty state and list page load
 // ─────────────────────────────────────────────────────────────────────────────

@@ -11,8 +11,8 @@ import type * as SidebarTypes from './Sidebar.js';
 // Mock the AuthContext BEFORE importing Sidebar
 const mockLogout = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
 
-jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
-  useAuth: () => ({
+function mockUseAuth() {
+  return {
     user: {
       id: '1',
       email: 'test@example.com',
@@ -28,18 +28,26 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
     error: null,
     refreshAuth: jest.fn(),
     logout: mockLogout,
-  }),
+  };
+}
+
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: mockUseAuth,
 }));
 
 // Mock ThemeContext so Sidebar tests don't need a ThemeProvider
 const mockSetTheme = jest.fn<(theme: string) => void>();
 
-jest.unstable_mockModule('../../contexts/ThemeContext.js', () => ({
-  useTheme: () => ({
+function mockUseTheme() {
+  return {
     theme: 'system',
     resolvedTheme: 'light',
     setTheme: mockSetTheme,
-  }),
+  };
+}
+
+jest.unstable_mockModule('../../contexts/ThemeContext.js', () => ({
+  useTheme: mockUseTheme,
   ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 

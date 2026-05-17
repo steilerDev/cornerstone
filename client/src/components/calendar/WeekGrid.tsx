@@ -29,9 +29,7 @@ import {
   isItemEnd,
   allocateLanes,
   getItemColor,
-  getContrastTextColor,
   getDayName,
-  DAY_NAMES,
   getMonthName,
   formatDateForAria,
 } from './calendarUtils.js';

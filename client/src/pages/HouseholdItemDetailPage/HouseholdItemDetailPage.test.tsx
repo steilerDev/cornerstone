@@ -31,19 +31,19 @@ const mockCreateHouseholdItemDep =
   jest.fn<typeof HouseholdItemDepsApiTypes.createHouseholdItemDep>();
 const mockDeleteHouseholdItemDep =
   jest.fn<typeof HouseholdItemDepsApiTypes.deleteHouseholdItemDep>();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchHouseholdItemBudgets = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchBudgetCategories = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchBudgetSources = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchVendors = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchSubsidyPrograms = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchHouseholdItemSubsidies = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchHouseholdItemSubsidyPayback = jest.fn() as any;
 
 // Mock ApiClientError for error scenarios
@@ -176,7 +176,7 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
 }));
 
 // Mock householdItemCategoriesApi — HouseholdItemDetailPage loads categories to display badges
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchHouseholdItemCategories = jest.fn() as any;
 jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
   fetchHouseholdItemCategories: mockFetchHouseholdItemCategories,

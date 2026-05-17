@@ -215,7 +215,7 @@ function buildAreaTree(lines: BudgetSourceBudgetLine[]): AreaNode[] {
 }
 
 // Flatten area tree to AreaGroup[] for rendering
-function flattenAreaTree(nodes: AreaNode[]): AreaGroup[] {
+function _flattenAreaTree(nodes: AreaNode[]): AreaGroup[] {
   const result: AreaGroup[] = [];
 
   const traverse = (node: AreaNode) => {
@@ -306,8 +306,10 @@ export function SourceBudgetLinePanel({
   const { formatCurrency } = useFormatters();
   const isSelectable = selectedLineIds !== undefined && onSelectionChange !== undefined;
 
+  // eslint-disable-next-line @eslint-react/exhaustive-deps
   const workItemLines = data?.workItemLines ?? [];
 
+  // eslint-disable-next-line @eslint-react/exhaustive-deps
   const householdItemLines = data?.householdItemLines ?? [];
 
   const isEmpty = workItemLines.length === 0 && householdItemLines.length === 0;

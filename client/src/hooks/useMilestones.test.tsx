@@ -51,32 +51,47 @@ const MILESTONE_2: MilestoneSummary = {
 };
 
 // ---------------------------------------------------------------------------
+// Module-level test component helper (required by component-hook-factories rule)
+// ---------------------------------------------------------------------------
+
+let useMilestonesHook: () => {
+  milestones: MilestoneSummary[];
+  isLoading: boolean;
+  error: string | null;
+  refetch: () => void;
+  createMilestone: (data: { title: string; targetDate: string }) => Promise<MilestoneSummary | null>;
+  updateMilestone: (id: number, data: { title?: string }) => Promise<MilestoneSummary | null>;
+  deleteMilestone: (id: number) => Promise<boolean>;
+  linkWorkItem: (milestoneId: number, workItemId: string) => Promise<boolean>;
+  unlinkWorkItem: (milestoneId: number, workItemId: string) => Promise<boolean>;
+};
+
+function TestComponent() {
+  const { isLoading, error, milestones, refetch } = useMilestonesHook();
+  return (
+    <div>
+      <span data-testid="loading">{isLoading ? 'loading' : 'done'}</span>
+      <span data-testid="error">{error ?? 'null'}</span>
+      <span data-testid="count">{milestones.length}</span>
+      <button data-testid="refetch" onClick={refetch}>
+        Refetch
+      </button>
+    </div>
+  ) as React.ReactElement;
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
 describe('useMilestones', () => {
   // Module is cached — import once via lazy init
-  let useMilestones: () => {
-    milestones: MilestoneSummary[];
-    isLoading: boolean;
-    error: string | null;
-    refetch: () => void;
-    createMilestone: (data: {
-      title: string;
-      targetDate: string;
-    }) => Promise<MilestoneSummary | null>;
-    updateMilestone: (id: number, data: { title?: string }) => Promise<MilestoneSummary | null>;
-    deleteMilestone: (id: number) => Promise<boolean>;
-    linkWorkItem: (milestoneId: number, workItemId: string) => Promise<boolean>;
-    unlinkWorkItem: (milestoneId: number, workItemId: string) => Promise<boolean>;
-  };
-
   let mockFetch: jest.MockedFunction<typeof fetch>;
 
   beforeEach(async () => {
-    if (!useMilestones) {
+    if (!useMilestonesHook) {
       const module = await import('./useMilestones.js');
-      useMilestones = module.useMilestones;
+      useMilestonesHook = module.useMilestones;
     }
     // Each test gets a fresh fetch mock
     mockFetch = jest.fn<typeof fetch>();
@@ -87,24 +102,6 @@ describe('useMilestones', () => {
     // Restore native fetch after each test
     global.fetch = undefined as unknown as typeof fetch;
   });
-
-  // ---------------------------------------------------------------------------
-  // Test component helper for state-observation tests
-  // ---------------------------------------------------------------------------
-
-  function TestComponent() {
-    const { isLoading, error, milestones, refetch } = useMilestones();
-    return (
-      <div>
-        <span data-testid="loading">{isLoading ? 'loading' : 'done'}</span>
-        <span data-testid="error">{error ?? 'null'}</span>
-        <span data-testid="count">{milestones.length}</span>
-        <button data-testid="refetch" onClick={refetch}>
-          Refetch
-        </button>
-      </div>
-    ) as React.ReactElement;
-  }
 
   /** Helper: configure fetch to return a list response that never resolves */
   function setupFetchNeverResolves() {

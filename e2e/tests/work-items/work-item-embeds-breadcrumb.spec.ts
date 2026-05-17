@@ -19,6 +19,7 @@
  */
 
 import { test, expect } from '../../fixtures/auth.js';
+import type { Page } from '@playwright/test';
 import { MilestoneDetailPage } from '../../pages/MilestoneDetailPage.js';
 import { TimelinePage } from '../../pages/TimelinePage.js';
 import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
@@ -36,7 +37,7 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function linkWorkItemToMilestone(
-  page: import('@playwright/test').Page,
+  page: Page,
   milestoneId: number,
   workItemId: string,
 ): Promise<void> {

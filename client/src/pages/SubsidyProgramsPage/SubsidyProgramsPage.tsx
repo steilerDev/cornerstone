@@ -99,7 +99,7 @@ export function SubsidyProgramsPage() {
   const { t: tSettings } = useTranslation('settings');
   const { formatCurrency, formatDate } = useFormatters();
   const [programs, setPrograms] = useState<SubsidyProgram[]>([]);
-  const [oversubscribedIds, setOversubscribedIds] = useState<Set<string>>(new Set());
+  const [oversubscribedIds, setOversubscribedIds] = useState<Set<string>>(() => new Set());
   const [allCategories, setAllCategories] = useState<BudgetCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -133,6 +133,7 @@ export function SubsidyProgramsPage() {
 
   useEffect(() => {
     void loadData();
+  // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, []);
 
   const loadData = async () => {

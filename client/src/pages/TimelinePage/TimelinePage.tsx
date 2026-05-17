@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTimeline } from '../../hooks/useTimeline.js';
@@ -200,6 +200,7 @@ export function TimelinePage() {
   useEffect(() => {
     const el = chartAreaRef.current;
     const areaWidth = el ? el.clientWidth - SIDEBAR_WIDTH : 0; // sidebar width from ganttUtils
+  // eslint-disable-next-line @eslint-react/set-state-in-effect
     setColumnWidth(computeDefaultColumnWidth(zoom, areaWidth));
   }, [zoom]);
 
@@ -217,7 +218,7 @@ export function TimelinePage() {
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [zoom]);
 
   // Close New dropdown on outside click

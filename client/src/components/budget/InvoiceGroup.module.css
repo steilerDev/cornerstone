@@ -3,7 +3,7 @@
 .group {
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: 0.375rem;
   overflow: hidden;
 }
 
@@ -11,7 +11,7 @@
 
 .toggleBtn {
   width: 100%;
-  padding: var(--spacing-3) var(--spacing-4);
+  padding: 0.75rem 1rem;
   background: var(--color-bg-primary);
   border: none;
   border-bottom: 1px solid var(--color-border);
@@ -19,9 +19,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: var(--spacing-3);
+  gap: 0.75rem;
   transition: var(--transition-button);
-  font-size: var(--font-size-base);
+  font-size: 0.9375rem;
   font-weight: 500;
   color: var(--color-text-primary);
 }
@@ -46,21 +46,15 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: var(--spacing-4);
+  gap: 1rem;
   min-width: 0;
 }
 
 .invoiceInfo {
   display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-2);
+  align-items: center;
+  gap: 0.5rem;
   flex: 0 1 auto;
-}
-
-.invoiceIdentity {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-0-5);
 }
 
 .invoiceNumber {
@@ -86,7 +80,7 @@
 }
 
 .vendorName {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -96,9 +90,9 @@
 
 .statusBadge {
   display: inline-block;
-  padding: var(--spacing-1) var(--spacing-2);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-xs);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
   font-weight: 500;
   text-transform: capitalize;
   white-space: nowrap;
@@ -150,7 +144,7 @@
 
 .amounts {
   display: flex;
-  gap: var(--spacing-6);
+  gap: 1.5rem;
   flex: 0 1 auto;
 }
 
@@ -158,28 +152,24 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: var(--spacing-0-5);
+  gap: 0.125rem;
 }
 
 .amountValue {
   font-weight: 600;
   color: var(--color-text-primary);
-  font-size: var(--font-size-base);
-}
-
-.amountValueQuoted {
-  color: var(--color-text-quoted);
+  font-size: 0.9375rem;
 }
 
 .amountValueMuted {
   font-weight: 600;
   color: var(--color-text-muted);
-  font-size: var(--font-size-base);
+  font-size: 0.9375rem;
   text-decoration: line-through;
 }
 
 .amountLabel {
-  font-size: var(--font-size-xs);
+  font-size: 0.75rem;
   color: var(--color-text-muted);
   font-weight: 400;
 }
@@ -195,11 +185,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--spacing-6);
-  height: var(--spacing-6);
+  width: 1.5rem;
+  height: 1.5rem;
   color: var(--color-text-muted);
-  transition: transform var(--transition-normal);
-  font-size: var(--font-size-xs);
+  transition: transform 0.2s ease-out;
+  font-size: 0.75rem;
 }
 
 .chevronOpen {
@@ -211,8 +201,8 @@
 .lines {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-2);
-  padding: var(--spacing-3);
+  gap: 0.5rem;
+  padding: 0.75rem;
   background: var(--color-bg-secondary);
   outline: none;
 }
@@ -227,18 +217,18 @@
 .unlinkSection {
   display: flex;
   justify-content: flex-end;
-  margin-top: var(--spacing-2);
-  padding-top: var(--spacing-2);
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
   border-top: 1px solid var(--color-border);
 }
 
 .unlinkBtn {
-  padding: var(--spacing-1-5) var(--spacing-3);
+  padding: 0.375rem 0.75rem;
   background: var(--color-bg-tertiary);
   color: var(--color-text-secondary);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-sm);
+  border-radius: 0.25rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
   transition: var(--transition-button);
@@ -268,33 +258,33 @@
   }
 
   .amounts {
-    gap: var(--spacing-4);
+    gap: 1rem;
   }
 
   .amountValue {
-    font-size: var(--font-size-sm);
+    font-size: 0.875rem;
   }
 
   .amountLabel {
-    font-size: var(--font-size-xs);
+    font-size: 0.7rem;
   }
 }
 
 @media (max-width: 767px) {
   .toggleBtn {
-    padding: var(--spacing-2-5) var(--spacing-3-5);
+    padding: 0.625rem 0.875rem;
     min-height: 44px;
   }
 
   .headerContent {
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--spacing-2);
+    gap: 0.5rem;
   }
 
   .amounts {
     width: 100%;
-    gap: var(--spacing-8);
+    gap: 2rem;
     justify-content: space-between;
   }
 
@@ -303,11 +293,11 @@
   }
 
   .lines {
-    padding: var(--spacing-2);
+    padding: 0.5rem;
   }
 
   .unlinkBtn {
     min-height: 44px;
-    padding: var(--spacing-2) var(--spacing-4);
+    padding: 0.5rem 1rem;
   }
 }

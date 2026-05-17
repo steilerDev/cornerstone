@@ -45,7 +45,7 @@ export function BudgetOverviewPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Budget sources state
-  const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
+  const [_budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
 
   // Add dropdown state
   const [addOpen, setAddOpen] = useState(false);
@@ -125,6 +125,7 @@ export function BudgetOverviewPage() {
     if (isLoading) return;
 
     // 3. Schedule new fetch after debounce window
+  // eslint-disable-next-line @eslint-react/set-state-in-effect
     setIsBreakdownRefetching(true);
     debounceRef.current = setTimeout(() => {
       const controller = new AbortController();
@@ -162,6 +163,7 @@ export function BudgetOverviewPage() {
 
   useEffect(() => {
     void loadOverview();
+  // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, []);
 
   const loadOverview = async () => {

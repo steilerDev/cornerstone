@@ -299,7 +299,7 @@ describe('GanttSidebar', () => {
   });
 
   afterAll(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     delete (window.HTMLElement.prototype as any).scrollIntoView;
   });
 

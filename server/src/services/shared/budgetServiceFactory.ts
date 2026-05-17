@@ -163,6 +163,7 @@ export function resolveRelationsBatch(
   const userIds = new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[]);
 
   // Bulk-fetch lookup tables
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const categoryMap = new Map<string, any>();
   if (categoryIds.size > 0) {
     const categories = db
@@ -173,6 +174,7 @@ export function resolveRelationsBatch(
     categories.forEach((cat) => categoryMap.set(cat.id, cat));
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sourceMap = new Map<string, any>();
   if (sourceIds.size > 0) {
     const sources = db
@@ -183,6 +185,7 @@ export function resolveRelationsBatch(
     sources.forEach((src) => sourceMap.set(src.id, src));
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const vendorMap = new Map<string, any>();
   if (vendorIds.size > 0) {
     const vendorList = db
@@ -193,6 +196,7 @@ export function resolveRelationsBatch(
     vendorList.forEach((v) => vendorMap.set(v.id, v));
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const userMap = new Map<string, any>();
   if (userIds.size > 0) {
     const userList = db
@@ -351,12 +355,15 @@ export interface BudgetServiceFactoryConfig<
     budgetIdColumn: string;
     blockDeleteOnInvoices: boolean;
   };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   toLine: (db: DbType, row: any, relations: ResolvedBudgetRelations) => BudgetLine;
   buildInsertValues: (
     db: DbType,
     entityId: string,
     userId: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ) => Record<string, any>;
   assertEntityExists: (db: DbType, entityId: string) => void;
 }
@@ -424,9 +431,12 @@ export function getLinkedInvoices(db: DbType, budgetId: string, invoiceBudgetIdC
 export function createBudgetService<
   EntityRow,
   BudgetLine,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   CreateRequest extends Record<string, any>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   UpdateRequest extends Record<string, any>,
 >(config: BudgetServiceFactoryConfig<EntityRow, BudgetLine, CreateRequest, UpdateRequest>) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const table = config.budgetTable as any;
   const findBudgetLine = (db: DbType, entityId: string, budgetId: string) =>
     db
@@ -434,7 +444,9 @@ export function createBudgetService<
       .from(config.budgetTable)
       .where(and(eq(table.id, budgetId), eq(table[config.budgetEntityIdColumn], entityId)))
       .get();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const toResult = (db: DbType, row: any): BudgetLine =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     config.toLine(db, row, resolveRelations(db, row as any, config.invoiceHandler?.budgetIdColumn));
 
   return {
@@ -448,9 +460,11 @@ export function createBudgetService<
         .all();
       const relationsMap = resolveRelationsBatch(
         db,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         rows as any,
         config.invoiceHandler?.budgetIdColumn,
       );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return rows.map((row: any) => config.toLine(db, row, relationsMap.get(row.id)!));
     },
 
@@ -500,6 +514,7 @@ export function createBudgetService<
         throw new NotFoundError('Budget line not found');
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const updates: Partial<any> = {};
 
       if ('description' in data) {

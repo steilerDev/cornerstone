@@ -8,7 +8,7 @@
  * for work_item budget lines, and is absent for household_item budget lines.
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type * as InvoiceBudgetLinesApiTypes from '../../lib/invoiceBudgetLinesApi.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
@@ -75,14 +75,20 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   deleteVendor: jest.fn(),
 }));
 
+function MockWorkItemPicker() {
+  return <button data-testid="work-item-picker">Work Item Picker</button>;
+}
+
+function MockHouseholdItemPicker() {
+  return <button data-testid="household-item-picker">Household Item Picker</button>;
+}
+
 jest.unstable_mockModule('../../components/WorkItemPicker/WorkItemPicker.js', () => ({
-  WorkItemPicker: () => <button data-testid="work-item-picker">Work Item Picker</button>,
+  WorkItemPicker: MockWorkItemPicker,
 }));
 
 jest.unstable_mockModule('../../components/HouseholdItemPicker/HouseholdItemPicker.js', () => ({
-  HouseholdItemPicker: () => (
-    <button data-testid="household-item-picker">Household Item Picker</button>
-  ),
+  HouseholdItemPicker: MockHouseholdItemPicker,
 }));
 
 jest.unstable_mockModule('../../lib/apiClient.js', () => ({
@@ -105,6 +111,16 @@ jest.unstable_mockModule('../../lib/apiClient.js', () => ({
   },
 }));
 
+function mockUseFormatters() {
+  return {
+    formatCurrency: (n: number) => `$${n.toFixed(2)}`,
+    formatDate: (d: string | null | undefined) => d ?? '—',
+    formatTime: (d: string | null | undefined) => d ?? '—',
+    formatDateTime: (d: string | null | undefined) => d ?? '—',
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+  };
+}
+
 jest.unstable_mockModule('../../lib/formatters.js', () => ({
   formatDate: (d: string | null | undefined) => d ?? '—',
   formatCurrency: (n: number) => `$${n.toFixed(2)}`,
@@ -112,13 +128,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
   formatDateTime: (d: string | null | undefined) => d ?? '—',
   formatPercent: (n: number) => `${n.toFixed(2)}%`,
   computeActualDuration: () => null,
-  useFormatters: () => ({
-    formatCurrency: (n: number) => `$${n.toFixed(2)}`,
-    formatDate: (d: string | null | undefined) => d ?? '—',
-    formatTime: (d: string | null | undefined) => d ?? '—',
-    formatDateTime: (d: string | null | undefined) => d ?? '—',
-    formatPercent: (n: number) => `${n.toFixed(2)}%`,
-  }),
+    useFormatters: mockUseFormatters,
 }));
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────

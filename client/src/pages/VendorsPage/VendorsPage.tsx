@@ -52,7 +52,7 @@ export function VendorsPage() {
   const [totalPages, setTotalPages] = useState(1);
 
   // Table state management with URL sync
-  const { tableState, searchInput, setSearch, toApiParams, setFilter } = useTableState({
+  const { tableState, searchInput: _searchInput, setSearch: _setSearch, toApiParams, setFilter: _setFilter } = useTableState({
     defaultPageSize: 25,
   });
   const [searchParams, setSearchParams] = useSearchParams();
@@ -84,7 +84,7 @@ export function VendorsPage() {
   // Load vendors when table state changes
   useEffect(() => {
     void loadVendors();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [
     tableState.search,
     tableState.sortBy,
@@ -324,6 +324,7 @@ export function VendorsPage() {
         render: (v) => formatDate(v.updatedAt ?? v.createdAt),
       },
     ],
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
     [t, formatDate, trades],
   );
 

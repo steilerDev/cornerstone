@@ -194,6 +194,34 @@ function WorkItemTooltipContent({
     return `${days} ${t('gantt.tooltip.duration.days')}`;
   }
 
+  function renderVarianceRow(): React.ReactNode {
+    const variance = data.actualDurationDays! - data.plannedDurationDays!;
+    if (variance === 0) {
+      return (
+        <div className={styles.detailRow}>
+          <span className={styles.detailLabel}>{t('gantt.tooltip.duration.variance')}</span>
+          <span className={styles.detailValue}>{t('gantt.tooltip.duration.onPlan')}</span>
+        </div>
+      );
+    }
+    const absVariance = Math.abs(variance);
+    const label = variance > 0 ? `+${absVariance}` : `-${absVariance}`;
+    const dayWord =
+      absVariance === 1
+        ? t('gantt.tooltip.duration.day')
+        : t('gantt.tooltip.duration.days');
+    const varianceClass =
+      variance > 0 ? styles.detailValueOverPlan : styles.detailValueUnderPlan;
+    return (
+      <div className={styles.detailRow}>
+        <span className={styles.detailLabel}>{t('gantt.tooltip.duration.variance')}</span>
+        <span className={`${styles.detailValue} ${varianceClass}`}>
+          {label} {dayWord}
+        </span>
+      </div>
+    );
+  }
+
   const dependencies = data.dependencies ?? [];
   const shownDeps = dependencies.slice(0, MAX_DEPS_SHOWN);
   const depsOverflowCount = dependencies.length - shownDeps.length;
@@ -247,33 +275,7 @@ function WorkItemTooltipContent({
               {formatDuration(data.actualDurationDays ?? null)}
             </span>
           </div>
-          {(() => {
-            const variance = data.actualDurationDays! - data.plannedDurationDays!;
-            if (variance === 0) {
-              return (
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>{t('gantt.tooltip.duration.variance')}</span>
-                  <span className={styles.detailValue}>{t('gantt.tooltip.duration.onPlan')}</span>
-                </div>
-              );
-            }
-            const absVariance = Math.abs(variance);
-            const label = variance > 0 ? `+${absVariance}` : `-${absVariance}`;
-            const dayWord =
-              absVariance === 1
-                ? t('gantt.tooltip.duration.day')
-                : t('gantt.tooltip.duration.days');
-            const varianceClass =
-              variance > 0 ? styles.detailValueOverPlan : styles.detailValueUnderPlan;
-            return (
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>{t('gantt.tooltip.duration.variance')}</span>
-                <span className={`${styles.detailValue} ${varianceClass}`}>
-                  {label} {dayWord}
-                </span>
-              </div>
-            );
-          })()}
+          {renderVarianceRow()}
         </>
       ) : data.plannedDurationDays != null ? (
         <div className={styles.detailRow}>
@@ -325,8 +327,8 @@ function WorkItemTooltipContent({
               className={styles.linkedItemsList}
               aria-label={t('gantt.tooltip.workItem.dependencies')}
             >
-              {shownDeps.map((dep, idx) => (
-                <li key={`${dep.relatedTitle}-${idx}`} className={styles.linkedItem}>
+              {shownDeps.map((dep) => (
+                <li key={`${dep.relatedId}-${dep.dependencyType}`} className={styles.linkedItem}>
                   <span className={styles.depTypeLabel}>
                     {dependencyTypeLabels[dep.dependencyType]}
                   </span>{' '}

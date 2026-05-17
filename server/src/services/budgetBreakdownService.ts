@@ -349,7 +349,7 @@ export function getBudgetBreakdown(
   }
 
   // ── Build hierarchical area breakdown ──────────────────────────────────────
-  interface EntityData<TItem> {
+  interface _EntityData<TItem> {
     items: TItem[];
     projectedMin: number;
     projectedMax: number;

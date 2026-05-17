@@ -156,7 +156,7 @@ describe('Schedule Routes', () => {
         method: 'POST',
         url: '/api/schedule',
         headers: { cookie },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         payload: {} as any,
       });
 
@@ -174,7 +174,7 @@ describe('Schedule Routes', () => {
         method: 'POST',
         url: '/api/schedule',
         headers: { cookie },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         payload: { mode: 'invalid_mode' } as any,
       });
 
@@ -230,7 +230,7 @@ describe('Schedule Routes', () => {
         method: 'POST',
         url: '/api/schedule',
         headers: { cookie },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
         payload: { mode: 'full', unknownField: 'value' } as any,
       });
 

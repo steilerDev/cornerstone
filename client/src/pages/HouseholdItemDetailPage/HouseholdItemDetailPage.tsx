@@ -10,9 +10,7 @@ import type {
   Vendor,
   HouseholdItemSubsidyPaybackResponse,
   WorkItemSummary,
-  Invoice,
   HouseholdItemDepDetail,
-  HouseholdItemDepPredecessorType,
   MilestoneSummary,
   HouseholdItemCategoryEntity,
 } from '@cornerstone/shared';
@@ -48,10 +46,8 @@ import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
 import { listWorkItems } from '../../lib/workItemsApi.js';
 import { listMilestones } from '../../lib/milestonesApi.js';
-import { fetchInvoices } from '../../lib/invoicesApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import {
-  createInvoiceBudgetLine,
   deleteInvoiceBudgetLine,
 } from '../../lib/invoiceBudgetLinesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -75,8 +71,22 @@ const HI_STATUS_VARIANTS = {
   arrived: { label: 'Arrived', className: badgeStyles.arrived! },
 };
 
+function MilestoneIconSvg() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 10 10"
+      width="10"
+      height="10"
+      aria-hidden="true"
+    >
+      <polygon points="5,0 10,5 5,10 0,5" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function HouseholdItemDetailPage() {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+  const { formatDate } = useFormatters();
   const { t } = useTranslation('householdItems');
   const { t: tSettings } = useTranslation('settings');
   const { id } = useParams<{ id: string }>();
@@ -156,7 +166,7 @@ export function HouseholdItemDetailPage() {
   const [autosaveActualDelivery, setAutosaveActualDelivery] = useState<AutosaveState>('idle');
   const [autosaveEarliestDelivery, setAutosaveEarliestDelivery] = useState<AutosaveState>('idle');
   const [autosaveLatestDelivery, setAutosaveLatestDelivery] = useState<AutosaveState>('idle');
-  const autosaveResetRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const autosaveResetRefsRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Shared reload functions for budget-related data
   const reloadBudgetLines = async () => {
@@ -231,17 +241,24 @@ export function HouseholdItemDetailPage() {
   useEffect(() => {
     if (!id) return;
     void loadItem();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
     if (item) {
+   
+   
+   
+  // eslint-disable-next-line @eslint-react/set-state-in-effect
       setLocalOrderDate(item.orderDate || '');
+      // eslint-disable-next-line @eslint-react/set-state-in-effect
       setLocalActualDeliveryDate(item.actualDeliveryDate || '');
+      // eslint-disable-next-line @eslint-react/set-state-in-effect
       setLocalEarliestDeliveryDate(item.earliestDeliveryDate || '');
+      // eslint-disable-next-line @eslint-react/set-state-in-effect
       setLocalLatestDeliveryDate(item.latestDeliveryDate || '');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [item?.id]);
 
   useEffect(() => {
@@ -274,7 +291,7 @@ export function HouseholdItemDetailPage() {
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [showDeleteModal, isDeleting, deleteError]);
 
   // Add Dependency modal: focus trap and Escape key handler
@@ -295,6 +312,7 @@ export function HouseholdItemDetailPage() {
       }
     };
     void loadPredecessors();
+  // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, []);
 
   // Handle click outside the dependency dropdown
@@ -514,8 +532,8 @@ export function HouseholdItemDetailPage() {
   };
 
   function triggerAutosaveReset(setter: (v: AutosaveState) => void, key: string) {
-    if (autosaveResetRefs.current[key]) clearTimeout(autosaveResetRefs.current[key]);
-    autosaveResetRefs.current[key] = setTimeout(() => setter('idle'), 2000);
+    if (autosaveResetRefsRef.current[key]) clearTimeout(autosaveResetRefsRef.current[key]);
+    autosaveResetRefsRef.current[key] = setTimeout(() => setter('idle'), 2000);
   }
 
   const handleOrderDateBlur = async () => {
@@ -646,20 +664,6 @@ export function HouseholdItemDetailPage() {
     }
   };
 
-  function MilestoneIconSvg() {
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 10 10"
-        width="10"
-        height="10"
-        aria-hidden="true"
-      >
-        <polygon points="5,0 10,5 5,10 0,5" fill="currentColor" />
-      </svg>
-    );
-  }
-
   if (isLoading) {
     return (
       <div className={styles.container}>
@@ -765,6 +769,7 @@ export function HouseholdItemDetailPage() {
             <h1 className={styles.pageTitle}>{item.name}</h1>
             <div className={styles.headerBadges}>
               <span className={styles.categoryBadge}>
+                {/* eslint-disable-next-line @eslint-react/unsupported-syntax -- Necessary for category lookup */}
                 {(() => {
                   const category = categories.find((c) => c.id === item.category);
                   if (!category) return item.category;

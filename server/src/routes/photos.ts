@@ -10,8 +10,6 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
-import path from 'node:path';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../errors/AppError.js';
 import * as photoService from '../services/photoService.js';
 import type {

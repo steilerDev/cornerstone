@@ -5,7 +5,7 @@
  * Tests all 5 diary endpoints: GET list, POST create, GET by ID, PATCH update, DELETE.
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

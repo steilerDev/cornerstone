@@ -25,13 +25,17 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
 // Mock ToastContext so useToast() works without a real ToastProvider.
 // This avoids the dual-React instance issue caused by statically importing ToastProvider
 // while the page component is dynamically imported (which loads its own React instance).
+function mockUseToast() {
+  return { toasts: [], showToast: mockShowToast, dismissToast: jest.fn() };
+}
+
 jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
-  useToast: () => ({ toasts: [], showToast: mockShowToast, dismissToast: jest.fn() }),
+  useToast: mockUseToast,
   ToastProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
-  useAuth: () => ({
+function mockUseAuth() {
+  return {
     user: {
       id: 'user-1',
       displayName: 'Alice Builder',
@@ -45,7 +49,11 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
     error: null,
     refreshAuth: jest.fn(),
     logout: jest.fn(),
-  }),
+  };
+}
+
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: mockUseAuth,
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 

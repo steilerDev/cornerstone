@@ -10,8 +10,8 @@ interface InvoicePipelineCardProps {
 }
 
 export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardProps) {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
-  const { t } = useTranslation('dashboard');
+  const { formatCurrency, formatDate } = useFormatters();
+  const { t: _t } = useTranslation('dashboard');
 
   // Filter to pending invoices, sort by date ascending (oldest first), take first 5
   const pendingInvoices = invoices

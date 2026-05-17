@@ -40,6 +40,17 @@ export function BudgetLineForm({
   const { t } = useTranslation('budget');
   const { t: tSettings } = useTranslation('settings');
 
+  const computeTotal = (): string => {
+    const qty = parseFloat(form.quantity);
+    const price = parseFloat(form.unitPrice);
+    if (!isNaN(qty) && !isNaN(price)) {
+      const multiplier = form.includesVat ? 1 : 1.19;
+      const total = Math.round(qty * price * multiplier * 100) / 100;
+      return total.toFixed(2);
+    }
+    return '0.00';
+  };
+
   return (
     <div className={styles.container}>
       <form onSubmit={onSubmit} className={styles.form}>
@@ -176,19 +187,7 @@ export function BudgetLineForm({
               <div className={styles.computedTotal}>
                 <label className={styles.label}>{t('budgetLineForm.totalLabel')}</label>
                 <div className={styles.computedValue}>
-                  €
-                  {form.quantity && form.unitPrice
-                    ? (() => {
-                        const qty = parseFloat(form.quantity);
-                        const price = parseFloat(form.unitPrice);
-                        if (!isNaN(qty) && !isNaN(price)) {
-                          const multiplier = form.includesVat ? 1 : 1.19;
-                          const total = Math.round(qty * price * multiplier * 100) / 100;
-                          return total.toFixed(2);
-                        }
-                        return '0.00';
-                      })()
-                    : '0.00'}
+                  €{form.quantity && form.unitPrice ? computeTotal() : '0.00'}
                 </div>
               </div>
             </div>

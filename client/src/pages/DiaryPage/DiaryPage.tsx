@@ -53,6 +53,7 @@ export default function DiaryPage() {
   const announcementRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+  // eslint-disable-next-line @eslint-react/set-state-in-effect
     if (urlPage !== currentPage) setCurrentPage(urlPage);
   }, [urlPage, currentPage]);
 
@@ -75,7 +76,7 @@ export default function DiaryPage() {
 
   useEffect(() => {
     void loadEntries();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [searchQuery, dateFrom, dateTo, filterMode, typeFilterStr, statusFilter, currentPage]);
 
   const loadEntries = async () => {
@@ -87,11 +88,13 @@ export default function DiaryPage() {
       if (filterMode === 'manual') {
         queriableTypes =
           activeTypes.length > 0
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ? activeTypes.filter((t) => MANUAL_TYPES.has(t as any))
             : (Array.from(MANUAL_TYPES) as DiaryEntryType[]);
       } else if (filterMode === 'automatic') {
         queriableTypes =
           activeTypes.length > 0
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             ? activeTypes.filter((t) => !MANUAL_TYPES.has(t as any))
             : ([
                 'work_item_status',

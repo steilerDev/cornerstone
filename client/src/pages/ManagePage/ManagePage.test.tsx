@@ -63,21 +63,25 @@ jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
 }));
 
 // Mock AreaPicker — pure display component, no need for full rendering
-jest.unstable_mockModule('../../components/AreaPicker/AreaPicker.js', () => ({
-  AreaPicker: ({
-    value,
-    onChange,
-  }: {
-    value: string;
-    onChange: (val: string) => void;
-    nullable?: boolean;
-    disabled?: boolean;
-    areas: AreaResponse[];
-  }) => (
+function MockAreaPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  nullable?: boolean;
+  disabled?: boolean;
+  areas: AreaResponse[];
+}) {
+  return (
     <select data-testid="area-picker" value={value} onChange={(e) => onChange(e.target.value)}>
       <option value="">No parent</option>
     </select>
-  ),
+  );
+}
+
+jest.unstable_mockModule('../../components/AreaPicker/AreaPicker.js', () => ({
+  AreaPicker: MockAreaPicker,
 }));
 
 // ─── Sample test data ──────────────────────────────────────────────────────────

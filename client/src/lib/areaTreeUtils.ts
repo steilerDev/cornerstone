@@ -10,7 +10,7 @@ export interface TreeNode {
  * Areas are ordered by depth, then by sortOrder, then by name.
  */
 export function buildTree(areas: AreaResponse[]): TreeNode[] {
-  const areaMap = new Map(areas.map((a) => [a.id, a]));
+  const _areaMap = new Map(areas.map((a) => [a.id, a]));
   const visited = new Set<string>();
   const result: TreeNode[] = [];
 

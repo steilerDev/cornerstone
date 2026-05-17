@@ -115,7 +115,7 @@ describe('Work Item Subsidy Routes', () => {
     return { id, name };
   }
 
-  function createTestWorkItemBudgetLine(
+  function _createTestWorkItemBudgetLine(
     workItemId: string,
     plannedAmount: number,
     budgetCategoryId: string | null = null,

@@ -29,11 +29,8 @@ import {
   isItemEnd,
   allocateLanes,
   getItemColor,
-  getContrastTextColor,
   getDayName,
   getDayNameNarrow,
-  DAY_NAMES,
-  DAY_NAMES_NARROW,
   formatDateForAria,
 } from './calendarUtils.js';
 import styles from './MonthGrid.module.css';
@@ -136,7 +133,7 @@ export function MonthGrid({
         const containerHeight = maxLane >= 0 ? (maxLane + 1) * LANE_HEIGHT_COMPACT : undefined;
 
         return (
-          <div key={weekIdx} className={styles.weekRow} role="row">
+          <div key={`week-${week[0]?.dateStr}`} className={styles.weekRow} role="row">
             {week.map((day) => {
               const dayItems = getItemsForDay(day.dateStr, workItems);
               const dayMilestones = getMilestonesForDay(day.dateStr, milestones);

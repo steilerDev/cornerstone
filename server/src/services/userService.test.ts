@@ -97,7 +97,7 @@ describe('User Service', () => {
 
       // Then: passwordHash is not in response
       expect(response).not.toHaveProperty('passwordHash');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((response as any).passwordHash).toBeUndefined();
     });
 
@@ -124,7 +124,7 @@ describe('User Service', () => {
 
       // Then: oidcSubject is not in response
       expect(response).not.toHaveProperty('oidcSubject');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       expect((response as any).oidcSubject).toBeUndefined();
     });
 

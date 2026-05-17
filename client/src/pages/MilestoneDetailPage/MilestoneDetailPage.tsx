@@ -26,7 +26,7 @@ import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import styles from './MilestoneDetailPage.module.css';
 
 export function MilestoneDetailPage() {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+  const { formatDate } = useFormatters();
   const { t } = useTranslation('schedule');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -134,7 +134,7 @@ export function MilestoneDetailPage() {
     };
 
     loadMilestone();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [milestoneId, t]);
 
   // Load available work items and household items, and linked household items
@@ -170,6 +170,7 @@ export function MilestoneDetailPage() {
     };
 
     loadItems();
+  // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [milestone]);
 
   const handleQuickLinkWorkItem = async (workItemId: string) => {

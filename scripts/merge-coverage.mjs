@@ -158,11 +158,11 @@ writeFileSync(join(outputDir, 'coverage-summary.json'), JSON.stringify(summary, 
 
 const pad = (s, n) => String(s).padStart(n);
 
-console.log(`\nCoverage Report (${files.length} shards merged, ${Object.keys(merged).length} files)\n`);
-console.log('Category     | Coverage | Covered / Total');
-console.log('-------------|----------|----------------');
-console.log(`Statements   | ${pad(summary.total.statements.pct.toFixed(2), 7)}% | ${coveredS} / ${totalS}`);
-console.log(`Branches     | ${pad(summary.total.branches.pct.toFixed(2), 7)}% | ${coveredB} / ${totalB}`);
-console.log(`Functions    | ${pad(summary.total.functions.pct.toFixed(2), 7)}% | ${coveredF} / ${totalF}`);
-console.log(`Lines        | ${pad(summary.total.lines.pct.toFixed(2), 7)}% | ${coveredL} / ${totalL}`);
-console.log('');
+console.warn(`\nCoverage Report (${files.length} shards merged, ${Object.keys(merged).length} files)\n`);
+console.warn('Category     | Coverage | Covered / Total');
+console.warn('-------------|----------|----------------');
+console.warn(`Statements   | ${pad(summary.total.statements.pct.toFixed(2), 7)}% | ${coveredS} / ${totalS}`);
+console.warn(`Branches     | ${pad(summary.total.branches.pct.toFixed(2), 7)}% | ${coveredB} / ${totalB}`);
+console.warn(`Functions    | ${pad(summary.total.functions.pct.toFixed(2), 7)}% | ${coveredF} / ${totalF}`);
+console.warn(`Lines        | ${pad(summary.total.lines.pct.toFixed(2), 7)}% | ${coveredL} / ${totalL}`);
+console.warn('');

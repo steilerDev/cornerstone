@@ -94,7 +94,7 @@ describe('getCategoryDisplayName', () => {
         opts?: { defaultValue: string },
       ) => string;
 
-      const result = getCategoryDisplayName(t, 'Plumbing', 'trades.plumbing');
+      const _result = getCategoryDisplayName(t, 'Plumbing', 'trades.plumbing');
 
       // t() is called with the key — returns the key string here
       // The caller receives whatever t() returns (the key, not the raw name)

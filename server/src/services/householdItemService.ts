@@ -23,13 +23,11 @@ import {
   subsidyPrograms,
   invoices,
   invoiceBudgetLines,
-  trades,
 } from '../db/schema.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { listDeps } from './householdItemDepService.js';
 import { autoReschedule } from './schedulingEngine.js';
 import {
-  getDescendantIds,
   loadAreaMap,
   resolveAreaAncestors,
   resolveAreaFilter,

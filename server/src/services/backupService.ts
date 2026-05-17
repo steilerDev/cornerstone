@@ -28,6 +28,7 @@ import {
  * Extract the underlying better-sqlite3 Database instance from a Drizzle ORM wrapper.
  * The Drizzle wrapper augments the Database instance with a $client property.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getClient(db: BetterSQLite3Database<any>): Database.Database {
   return (db as unknown as { $client: Database.Database }).$client;
 }
@@ -134,6 +135,7 @@ export async function listBackups(backupDir: string): Promise<BackupMeta[]> {
  * Enforces retention policy by deleting oldest archives if count exceeds the limit.
  */
 export async function createBackup(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   db: BetterSQLite3Database<any>,
   config: AppConfig,
 ): Promise<BackupMeta> {
@@ -243,6 +245,7 @@ export async function deleteBackup(backupDir: string, filename: string): Promise
  * Closes the DB connection, extracts the archive to replace app data directory, then exits.
  */
 export async function restoreBackup(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   db: BetterSQLite3Database<any>,
   config: AppConfig,
   filename: string,
@@ -317,6 +320,7 @@ export async function restoreBackup(
  * Initialize the automatic backup scheduler if BACKUP_CADENCE is configured.
  */
 export function initScheduler(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   db: BetterSQLite3Database<any>,
   config: AppConfig,
   logger: FastifyInstance['log'],

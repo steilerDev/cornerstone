@@ -33,21 +33,21 @@ const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
 const mockListMilestones = jest.fn<typeof MilestonesApiTypes.listMilestones>();
 const mockFetchInvoices = jest.fn<typeof InvoicesApiTypes.fetchInvoices>();
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchHouseholdItemBudgets = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchBudgetCategories = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchBudgetSources = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchVendors = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchSubsidyPrograms = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchHouseholdItemSubsidies = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchHouseholdItemSubsidyPayback = jest.fn() as any;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockFetchHouseholdItemCategories = jest.fn() as any;
 
 class MockApiClientError extends Error {

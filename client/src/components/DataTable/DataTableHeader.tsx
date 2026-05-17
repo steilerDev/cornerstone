@@ -29,7 +29,7 @@ export function DataTableHeader<T>({
 }: DataTableHeaderProps<T>) {
   const { t } = useTranslation('common');
   const [activeFilterColumn, setActiveFilterColumn] = useState<string | null>(null);
-  const filterTriggerRefs = useRef<Record<string, HTMLButtonElement>>({});
+  const filterTriggerRefsRef = useRef<Record<string, HTMLButtonElement>>({});
 
   // Close filter popover on outside click or Escape
   useEffect(() => {
@@ -92,7 +92,7 @@ export function DataTableHeader<T>({
               {col.filterable && col.filterType && (col.filterParamKey || col.getValue) && (
                 <button
                   ref={(el) => {
-                    if (el) filterTriggerRefs.current[col.key] = el;
+                    if (el) filterTriggerRefsRef.current[col.key] = el;
                   }}
                   type="button"
                   className={`${styles.tableHeaderFilterButton} ${
@@ -125,7 +125,7 @@ export function DataTableHeader<T>({
               col.filterable &&
               col.filterType &&
               (col.filterParamKey || col.getValue) &&
-              filterTriggerRefs.current[col.key] && (
+              filterTriggerRefsRef.current[col.key] && (
                 <DataTableFilterPopover
                   column={col}
                   value={tableState.filters.get(col.filterParamKey || col.key)?.value || ''}
@@ -133,8 +133,8 @@ export function DataTableHeader<T>({
                   onApply={(value) => {
                     onFilter(col.filterParamKey || col.key, value || null);
                   }}
-                  // filterTriggerRefs.current[col.key] is guarded by the && condition above
-                  triggerRect={filterTriggerRefs.current[col.key]!.getBoundingClientRect()}
+                  // filterTriggerRefsRef.current[col.key] is guarded by the && condition above
+                  triggerRect={filterTriggerRefsRef.current[col.key]!.getBoundingClientRect()}
                 />
               )}
           </th>

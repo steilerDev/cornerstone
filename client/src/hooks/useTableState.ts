@@ -79,6 +79,7 @@ export function useTableState(options: UseTableStateOptions = {}): UseTableState
       }
     }
 
+  // eslint-disable-next-line @eslint-react/set-state-in-effect
     setTableState(newState);
   }, [searchParams, defaultPageSize]);
 

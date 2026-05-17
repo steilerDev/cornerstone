@@ -50,56 +50,54 @@ jest.unstable_mockModule('../../lib/apiClient.js', () => ({
 
 // ─── Mock: child components (to avoid transitive dependency issues) ───────────
 
-jest.unstable_mockModule('./DocumentBrowser.js', () => ({
-  DocumentBrowser: function MockDocumentBrowser(props: {
-    onSelect?: (doc: PaperlessDocumentSearchResult) => void;
-    mode?: string;
-  }) {
-    const mockDoc: PaperlessDocumentSearchResult = {
-      id: 99,
-      title: 'Test Doc',
-      content: null,
-      tags: [],
-      created: '2026-01-15',
-      added: null,
-      modified: null,
-      correspondent: null,
-      documentType: null,
-      archiveSerialNumber: null,
-      originalFileName: null,
-      pageCount: null,
-      searchHit: null,
-    };
-    return <div data-testid="document-browser" onClick={() => props.onSelect?.(mockDoc)} />;
-  },
-}));
+const _mockDoc: PaperlessDocumentSearchResult = {
+  id: 99,
+  title: 'Test Doc',
+  content: null,
+  tags: [],
+  created: '2026-01-15',
+  added: null,
+  modified: null,
+  correspondent: null,
+  documentType: null,
+  archiveSerialNumber: null,
+  originalFileName: null,
+  pageCount: null,
+  searchHit: null,
+};
 
-jest.unstable_mockModule('./DocumentDetailPanel.js', () => ({
-  DocumentDetailPanel: function MockDocumentDetailPanel(props: { onClose?: () => void }) {
-    return <div data-testid="document-detail-panel" onClick={props.onClose} />;
-  },
-}));
+function MockDocumentBrowser(props: {
+  onSelect?: (doc: PaperlessDocumentSearchResult) => void;
+  mode?: string;
+}) {
+  return <div data-testid="document-browser" onClick={() => props.onSelect?.(_mockDoc)} />;
+}
 
-jest.unstable_mockModule('./DocumentSkeleton.js', () => ({
-  DocumentSkeleton: function MockDocumentSkeleton() {
-    return <div data-testid="document-skeleton" />;
-  },
-}));
+function MockDocumentDetailPanel(props: { onClose?: () => void }) {
+  return <div data-testid="document-detail-panel" onClick={props.onClose} />;
+}
 
-jest.unstable_mockModule('./LinkedDocumentCard.js', () => ({
-  LinkedDocumentCard: function MockLinkedDocumentCard(props: {
-    link: DocumentLinkWithMetadata;
-    onView?: (link: DocumentLinkWithMetadata) => void;
-    onUnlink?: (link: DocumentLinkWithMetadata) => void;
-  }) {
-    return (
-      <div data-testid={`linked-card-${props.link.id}`}>
-        <button onClick={() => props.onView?.(props.link)}>View {props.link.id}</button>
-        <button onClick={() => props.onUnlink?.(props.link)}>Unlink {props.link.id}</button>
-      </div>
-    );
-  },
-}));
+function MockDocumentSkeleton() {
+  return <div data-testid="document-skeleton" />;
+}
+
+function MockLinkedDocumentCard(props: {
+  link: DocumentLinkWithMetadata;
+  onView?: (link: DocumentLinkWithMetadata) => void;
+  onUnlink?: (link: DocumentLinkWithMetadata) => void;
+}) {
+  return (
+    <div data-testid={`linked-card-${props.link.id}`}>
+      <button onClick={() => props.onView?.(props.link)}>View {props.link.id}</button>
+      <button onClick={() => props.onUnlink?.(props.link)}>Unlink {props.link.id}</button>
+    </div>
+  );
+}
+
+jest.unstable_mockModule('./DocumentBrowser.js', () => ({ DocumentBrowser: MockDocumentBrowser }));
+jest.unstable_mockModule('./DocumentDetailPanel.js', () => ({ DocumentDetailPanel: MockDocumentDetailPanel }));
+jest.unstable_mockModule('./DocumentSkeleton.js', () => ({ DocumentSkeleton: MockDocumentSkeleton }));
+jest.unstable_mockModule('./LinkedDocumentCard.js', () => ({ LinkedDocumentCard: MockLinkedDocumentCard }));
 
 // ─── Type imports ─────────────────────────────────────────────────────────────
 

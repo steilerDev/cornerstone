@@ -1,11 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type {
   DiaryEntryType,
-  DiaryEntrySummary,
-  DailyLogMetadata,
-  SiteVisitMetadata,
-  DeliveryMetadata,
-  IssueMetadata,
 } from '@cornerstone/shared';
 import { Badge } from '../../Badge/Badge.js';
 import badgeStyles from '../../Badge/Badge.module.css';
@@ -94,8 +89,8 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
           <div className={styles.deliveryItem}>
             <span className={styles.deliveryLabel}>{t('entryForm.materialsLabel')}</span>
             <div className={styles.materialsList}>
-              {m.materials.map((material, idx) => (
-                <span key={idx} className={styles.materialTag}>
+              {m.materials.map((material) => (
+                <span key={`material-${material}`} className={styles.materialTag}>
                   {material}
                 </span>
               ))}

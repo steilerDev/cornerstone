@@ -101,18 +101,20 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
   // Focus into picker modal when it opens
   useEffect(() => {
     if (showPicker && pickerModalRef.current) {
-      setTimeout(() => {
+      const id = setTimeout(() => {
         pickerModalRef.current?.focus();
       }, 0);
+      return () => clearTimeout(id);
     }
   }, [showPicker]);
 
   // Focus Cancel button when unlink confirmation opens
   useEffect(() => {
     if (unlinkTarget && cancelButtonRef.current) {
-      setTimeout(() => {
+      const id = setTimeout(() => {
         cancelButtonRef.current?.focus();
       }, 0);
+      return () => clearTimeout(id);
     }
   }, [unlinkTarget]);
 

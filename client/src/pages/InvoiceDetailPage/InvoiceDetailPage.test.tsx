@@ -28,26 +28,34 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
 // ─── Mock: InvoiceBudgetLinesSection stub ─────────────────────────────────────
 // Stub out the section to avoid cascading dependencies in InvoiceDetailPage tests
 
-jest.unstable_mockModule('./InvoiceBudgetLinesSection.js', () => ({
-  InvoiceBudgetLinesSection: (props: { invoiceId: string; invoiceTotal: number }) => (
+function MockInvoiceBudgetLinesSection(props: { invoiceId: string; invoiceTotal: number }) {
+  return (
     <div
       data-testid="invoice-budget-lines-section"
       data-invoice-id={props.invoiceId}
       data-invoice-total={props.invoiceTotal}
     />
-  ),
+  );
+}
+
+jest.unstable_mockModule('./InvoiceBudgetLinesSection.js', () => ({
+  InvoiceBudgetLinesSection: MockInvoiceBudgetLinesSection,
 }));
 
 // ─── Mock: LinkedDocumentsSection stub ────────────────────────────────────────
 
-jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
-  LinkedDocumentsSection: (props: { entityType: string; entityId: string }) => (
+function MockLinkedDocumentsSection(props: { entityType: string; entityId: string }) {
+  return (
     <div
       data-testid="linked-documents-section"
       data-entity-type={props.entityType}
       data-entity-id={props.entityId}
     />
-  ),
+  );
+}
+
+jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
+  LinkedDocumentsSection: MockLinkedDocumentsSection,
 }));
 
 // ─── Mock: apiClient (required by transitively imported modules) ───────────────
@@ -76,6 +84,16 @@ jest.unstable_mockModule('../../lib/apiClient.js', () => ({
 
 // ─── Mock: formatters (pure utility — avoids Intl issues in jsdom) ────────────
 
+function mockUseFormatters() {
+  return {
+    formatCurrency: (n: number) => `$${n.toFixed(2)}`,
+    formatDate: (d: string | null | undefined) => d ?? '—',
+    formatTime: (d: string | null | undefined) => d ?? '—',
+    formatDateTime: (d: string | null | undefined) => d ?? '—',
+    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+  };
+}
+
 jest.unstable_mockModule('../../lib/formatters.js', () => ({
   formatDate: (d: string) => d ?? '—',
   formatCurrency: (n: number) => `$${n.toFixed(2)}`,
@@ -84,13 +102,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
   formatRelativeTime: (d: string) => d,
   formatPercent: (n: number) => `${n.toFixed(2)}%`,
   computeActualDuration: () => null,
-  useFormatters: () => ({
-    formatCurrency: (n: number) => `$${n.toFixed(2)}`,
-    formatDate: (d: string | null | undefined) => d ?? '—',
-    formatTime: (d: string | null | undefined) => d ?? '—',
-    formatDateTime: (d: string | null | undefined) => d ?? '—',
-    formatPercent: (n: number) => `${n.toFixed(2)}%`,
-  }),
+    useFormatters: mockUseFormatters,
 }));
 
 // ─── Type import for deferred module load ─────────────────────────────────────

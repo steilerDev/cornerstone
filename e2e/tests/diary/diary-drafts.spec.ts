@@ -27,6 +27,7 @@
  */
 
 import { test, expect } from '../../fixtures/auth.js';
+import type { Page } from '@playwright/test';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
 import { DiaryEntryCreatePage, DIARY_CREATE_ROUTE } from '../../pages/DiaryEntryCreatePage.js';
 import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
@@ -52,7 +53,7 @@ async function waitForDiaryListLoaded(diaryPage: DiaryPage): Promise<void> {
 }
 
 /** Wait for an API response matching the diary entries endpoint. */
-function waitForDiaryListResponse(page: import('@playwright/test').Page) {
+function waitForDiaryListResponse(page: Page) {
   return page.waitForResponse(
     (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
   );
@@ -242,7 +243,6 @@ test.describe('No draft created without interaction (Scenario 4)', () => {
 test.describe('Auto-save on metadata change (Scenario 5)', () => {
   test('Changing weather select on a draft triggers auto-save; value persists on reload', async ({
     page,
-    testPrefix,
   }) => {
     const editPage = new DiaryEntryEditPage(page);
     let draftId: string | null = null;
@@ -328,11 +328,6 @@ test.describe('Photo attach — happy path (Scenario 6)', { tag: '@responsive' }
 
       // Wait for first upload to complete
       await upload1Promise;
-
-      // The queue container should appear with at least one item
-      const queueContainer = page.locator('[aria-label]').filter({
-        has: page.locator('[class*="queueItem"]'),
-      });
 
       // At least one item should transition to succeeded (shown briefly then removed from queue)
       // Verify the upload zone is still visible (photo section rendered)
@@ -568,8 +563,7 @@ test.describe('Promote draft — happy path (Scenario 9)', { tag: '@responsive' 
         // in the badge region. The entry is now saved, so no draft indicator.
         await expect(page.getByTestId('draft-status-badge')).not.toBeVisible();
 
-        // Mark as promoted so we can clean up
-        draftId = draftId; // still use same id to delete the now-promoted entry
+        // draftId still holds the same id — used in finally to delete the now-promoted entry
       } finally {
         if (draftId) await deleteDiaryEntryViaApi(page, draftId);
       }

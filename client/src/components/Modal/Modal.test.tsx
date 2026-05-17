@@ -11,7 +11,6 @@ describe('Modal', () => {
   const defaultProps = {
     title: 'Test Modal Title',
     onClose: jest.fn<() => void>(),
-    children: <p>Modal body content</p>,
   };
 
   beforeEach(() => {
@@ -21,7 +20,11 @@ describe('Modal', () => {
   // ── Rendering ─────────────────────────────────────────────────────────────
 
   it('renders the title text', () => {
-    render(<Modal {...defaultProps} />);
+    render(
+      <Modal {...defaultProps}>
+        <p>Modal body content</p>
+      </Modal>,
+    );
 
     expect(screen.getByRole('heading', { name: 'Test Modal Title' })).toBeInTheDocument();
   });
@@ -55,7 +58,11 @@ describe('Modal', () => {
   });
 
   it('does not render footer section when footer prop is omitted', () => {
-    render(<Modal {...defaultProps} />);
+    render(
+      <Modal {...defaultProps}>
+        <p>Modal body content</p>
+      </Modal>,
+    );
 
     // Only the close button should be present — no footer action buttons
     const buttons = screen.getAllByRole('button');
@@ -67,7 +74,11 @@ describe('Modal', () => {
 
   it('close button calls onClose when clicked', () => {
     const onClose = jest.fn<() => void>();
-    render(<Modal {...defaultProps} onClose={onClose} />);
+    render(
+      <Modal {...defaultProps} onClose={onClose}>
+        <p>Modal body content</p>
+      </Modal>,
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
 
@@ -78,7 +89,11 @@ describe('Modal', () => {
     const onClose = jest.fn<() => void>();
     // Modal uses createPortal into document.body, so content lives in baseElement (body)
     // not in the render container. Use document.querySelector to find the backdrop.
-    render(<Modal {...defaultProps} onClose={onClose} />);
+    render(
+      <Modal {...defaultProps} onClose={onClose}>
+        <p>Modal body content</p>
+      </Modal>,
+    );
 
     // The backdrop div uses the shared CSS module class "modalBackdrop"
     // identity-obj-proxy returns class names as-is, so the class is "modalBackdrop"
@@ -92,7 +107,11 @@ describe('Modal', () => {
 
   it('Escape key calls onClose', () => {
     const onClose = jest.fn<() => void>();
-    render(<Modal {...defaultProps} onClose={onClose} />);
+    render(
+      <Modal {...defaultProps} onClose={onClose}>
+        <p>Modal body content</p>
+      </Modal>,
+    );
 
     fireEvent.keyDown(document, { key: 'Escape' });
 
@@ -101,7 +120,11 @@ describe('Modal', () => {
 
   it('Escape key does NOT call onClose after unmount (handler cleaned up)', () => {
     const onClose = jest.fn<() => void>();
-    const { unmount } = render(<Modal {...defaultProps} onClose={onClose} />);
+    const { unmount } = render(
+      <Modal {...defaultProps} onClose={onClose}>
+        <p>Modal body content</p>
+      </Modal>,
+    );
 
     unmount();
 
@@ -112,7 +135,11 @@ describe('Modal', () => {
 
   it('non-Escape key does not call onClose', () => {
     const onClose = jest.fn<() => void>();
-    render(<Modal {...defaultProps} onClose={onClose} />);
+    render(
+      <Modal {...defaultProps} onClose={onClose}>
+        <p>Modal body content</p>
+      </Modal>,
+    );
 
     fireEvent.keyDown(document, { key: 'Enter' });
     fireEvent.keyDown(document, { key: 'Tab' });
@@ -124,19 +151,31 @@ describe('Modal', () => {
   // ── ARIA attributes ───────────────────────────────────────────────────────
 
   it('dialog container has role="dialog"', () => {
-    render(<Modal {...defaultProps} />);
+    render(
+      <Modal {...defaultProps}>
+        <p>Modal body content</p>
+      </Modal>,
+    );
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
   it('dialog has aria-modal="true"', () => {
-    render(<Modal {...defaultProps} />);
+    render(
+      <Modal {...defaultProps}>
+        <p>Modal body content</p>
+      </Modal>,
+    );
 
     expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true');
   });
 
   it('dialog has aria-labelledby referencing the title element id', () => {
-    render(<Modal {...defaultProps} />);
+    render(
+      <Modal {...defaultProps}>
+        <p>Modal body content</p>
+      </Modal>,
+    );
 
     const dialog = screen.getByRole('dialog');
     const labelledBy = dialog.getAttribute('aria-labelledby');
@@ -152,7 +191,11 @@ describe('Modal', () => {
 
   it('forwards className to the content panel', () => {
     // Modal uses createPortal; content lives in document.body, not the render container
-    render(<Modal {...defaultProps} className="myCustomClass" />);
+    render(
+      <Modal {...defaultProps} className="myCustomClass">
+        <p>Modal body content</p>
+      </Modal>,
+    );
 
     // The content div is the one that gets the extra className alongside the
     // shared modalContent and local content class names

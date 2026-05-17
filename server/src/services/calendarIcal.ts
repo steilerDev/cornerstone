@@ -110,8 +110,8 @@ export function buildCalendar(
 
   // Add household items as delivery events
   for (const hi of timeline.householdItems) {
-    let startDate: string | null = null;
-    let endDate: string | null = null;
+    let startDate: string | null;
+    let endDate: string | null;
 
     // Prefer actual delivery date if set
     if (hi.actualDeliveryDate) {

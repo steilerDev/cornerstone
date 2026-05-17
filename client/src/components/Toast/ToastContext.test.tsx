@@ -339,17 +339,33 @@ describe('ToastProvider', () => {
 // useToast hook — error when called outside provider
 // ---------------------------------------------------------------------------
 
+function ComponentWithoutProvider() {
+  // eslint-disable-next-line @eslint-react/error-boundaries -- Testing hook error outside provider
+  try {
+    useToast();
+    return <div>No error</div>;
+  } catch (err) {
+    return <div data-testid="error">{err instanceof Error ? err.message : 'Error'}</div>;
+  }
+}
+
+function ConsumerToastsArray() {
+  const { toasts } = useToast();
+  return <div data-testid="count">{toasts.length}</div>;
+}
+
+function ConsumerShowToast() {
+  const { showToast } = useToast();
+  return <div data-testid="has-fn">{typeof showToast === 'function' ? 'yes' : 'no'}</div>;
+}
+
+function ConsumerDismissToast() {
+  const { dismissToast } = useToast();
+  return <div data-testid="has-fn">{typeof dismissToast === 'function' ? 'yes' : 'no'}</div>;
+}
+
 describe('useToast', () => {
   it('throws an error when used outside ToastProvider', () => {
-    function ComponentWithoutProvider() {
-      try {
-        useToast();
-        return <div>No error</div>;
-      } catch (err) {
-        return <div data-testid="error">{err instanceof Error ? err.message : 'Error'}</div>;
-      }
-    }
-
     render(<ComponentWithoutProvider />);
     expect(screen.getByTestId('error')).toHaveTextContent(
       'useToast must be used within a ToastProvider',
@@ -357,14 +373,9 @@ describe('useToast', () => {
   });
 
   it('returns toasts array from context', () => {
-    function Consumer() {
-      const { toasts } = useToast();
-      return <div data-testid="count">{toasts.length}</div>;
-    }
-
     render(
       <ToastProvider>
-        <Consumer />
+        <ConsumerToastsArray />
       </ToastProvider>,
     );
 
@@ -372,14 +383,9 @@ describe('useToast', () => {
   });
 
   it('returns showToast function from context', () => {
-    function Consumer() {
-      const { showToast } = useToast();
-      return <div data-testid="has-fn">{typeof showToast === 'function' ? 'yes' : 'no'}</div>;
-    }
-
     render(
       <ToastProvider>
-        <Consumer />
+        <ConsumerShowToast />
       </ToastProvider>,
     );
 
@@ -387,14 +393,9 @@ describe('useToast', () => {
   });
 
   it('returns dismissToast function from context', () => {
-    function Consumer() {
-      const { dismissToast } = useToast();
-      return <div data-testid="has-fn">{typeof dismissToast === 'function' ? 'yes' : 'no'}</div>;
-    }
-
     render(
       <ToastProvider>
-        <Consumer />
+        <ConsumerDismissToast />
       </ToastProvider>,
     );
 
@@ -405,6 +406,45 @@ describe('useToast', () => {
 // ---------------------------------------------------------------------------
 // showToast with all variant types (TypeScript contract)
 // ---------------------------------------------------------------------------
+
+function VariantConsumer({ variant }: { variant: ToastVariant }) {
+  const { toasts, showToast } = useToast();
+  return (
+    <div>
+      <div data-testid="count">{toasts.length}</div>
+      <button
+        data-testid={`show-${variant}`}
+        onClick={() => showToast(variant, `${variant} toast`)}
+      >
+        Show
+      </button>
+    </div>
+  );
+}
+
+function OuterConsumer() {
+  const { toasts, showToast } = useToast();
+  return (
+    <div>
+      <div data-testid="outer-count">{toasts.length}</div>
+      <button data-testid="show-outer" onClick={() => showToast('success', 'Outer toast')}>
+        Show Outer
+      </button>
+    </div>
+  );
+}
+
+function InnerConsumer() {
+  const { toasts, showToast } = useToast();
+  return (
+    <div>
+      <div data-testid="inner-count">{toasts.length}</div>
+      <button data-testid="show-inner" onClick={() => showToast('info', 'Inner toast')}>
+        Show Inner
+      </button>
+    </div>
+  );
+}
 
 describe('ToastVariant coverage', () => {
   beforeEach(() => {
@@ -420,24 +460,9 @@ describe('ToastVariant coverage', () => {
 
   variants.forEach((variant) => {
     it(`accepts variant "${variant}" without error`, () => {
-      function VariantConsumer() {
-        const { toasts, showToast } = useToast();
-        return (
-          <div>
-            <div data-testid="count">{toasts.length}</div>
-            <button
-              data-testid={`show-${variant}`}
-              onClick={() => showToast(variant, `${variant} toast`)}
-            >
-              Show
-            </button>
-          </div>
-        );
-      }
-
       render(
         <ToastProvider>
-          <VariantConsumer />
+          <VariantConsumer variant={variant} />
         </ToastProvider>,
       );
 
@@ -465,30 +490,6 @@ describe('nested ToastProvider isolation', () => {
   });
 
   it('inner provider toasts do not affect outer provider toasts', () => {
-    function OuterConsumer() {
-      const { toasts, showToast } = useToast();
-      return (
-        <div>
-          <div data-testid="outer-count">{toasts.length}</div>
-          <button data-testid="show-outer" onClick={() => showToast('success', 'Outer toast')}>
-            Show Outer
-          </button>
-        </div>
-      );
-    }
-
-    function InnerConsumer() {
-      const { toasts, showToast } = useToast();
-      return (
-        <div>
-          <div data-testid="inner-count">{toasts.length}</div>
-          <button data-testid="show-inner" onClick={() => showToast('info', 'Inner toast')}>
-            Show Inner
-          </button>
-        </div>
-      );
-    }
-
     render(
       <ToastProvider>
         <OuterConsumer />

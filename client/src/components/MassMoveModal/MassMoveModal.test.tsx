@@ -26,6 +26,66 @@ const mockMoveBudgetLinesBetweenSources = jest.fn<
 let capturedSearchPickerOnChange: ((id: string) => void) | null = null;
 let capturedSearchPickerOnSelectItem: ((item: { id: string; label: string }) => void) | null = null;
 
+// ─── Module-level mock components (required by component-hook-factories rule) ─
+
+function MockSearchPicker({
+  onChange,
+  onSelectItem,
+  placeholder,
+  id,
+  disabled,
+}: {
+  value: string;
+  onChange: (id: string) => void;
+  onSelectItem?: (item: { id: string; label: string }) => void;
+  placeholder?: string;
+  id?: string;
+  disabled?: boolean;
+}) {
+  capturedSearchPickerOnChange = onChange;
+  capturedSearchPickerOnSelectItem = onSelectItem ?? null;
+  return (
+    <input
+      id={id}
+      data-testid="mock-search-picker"
+      placeholder={placeholder}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}
+
+function MockModal({
+  title,
+  children,
+  footer,
+  onClose,
+}: {
+  title: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+  onClose: () => void;
+}) {
+  return (
+    <div data-testid="mock-modal">
+      <h2>{title}</h2>
+      <button type="button" aria-label="close" onClick={onClose}>
+        Close
+      </button>
+      <div>{children}</div>
+      <div data-testid="modal-footer">{footer}</div>
+    </div>
+  );
+}
+
+function MockFormError({ message }: { message: string; variant?: string }) {
+  return (
+    <div role="alert" data-testid="form-error">
+      {message}
+    </div>
+  );
+}
+
 // ─── Mock: budgetSourcesApi ───────────────────────────────────────────────────
 
 jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
@@ -44,70 +104,22 @@ jest.unstable_mockModule('../../lib/errorTranslation.js', () => ({
   translateApiError: (_code: string, _t: unknown) => 'Translated error',
 }));
 
-// ─── Mock: SearchPicker — simple input that stores callbacks ─────────────────
+// ─── Mock: SearchPicker ──────────────────────────────────────────────────────
 
 jest.unstable_mockModule('../SearchPicker/SearchPicker.js', () => ({
-  SearchPicker: ({
-    onChange,
-    onSelectItem,
-    placeholder,
-    id,
-    disabled,
-  }: {
-    value: string;
-    onChange: (id: string) => void;
-    onSelectItem?: (item: { id: string; label: string }) => void;
-    placeholder?: string;
-    id?: string;
-    disabled?: boolean;
-  }) => {
-    capturedSearchPickerOnChange = onChange;
-    capturedSearchPickerOnSelectItem = onSelectItem ?? null;
-    return (
-      <input
-        id={id}
-        data-testid="mock-search-picker"
-        placeholder={placeholder}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    );
-  },
+  SearchPicker: MockSearchPicker,
 }));
 
-// ─── Mock: Modal — renders title + children + footer ─────────────────────────
+// ─── Mock: Modal ──────────────────────────────────────────────────────────────
 
 jest.unstable_mockModule('../Modal/Modal.js', () => ({
-  Modal: ({
-    title,
-    children,
-    footer,
-    onClose,
-  }: {
-    title: string;
-    children: React.ReactNode;
-    footer?: React.ReactNode;
-    onClose: () => void;
-  }) => (
-    <div data-testid="mock-modal">
-      <h2>{title}</h2>
-      <button type="button" aria-label="close" onClick={onClose}>
-        Close
-      </button>
-      <div>{children}</div>
-      <div data-testid="modal-footer">{footer}</div>
-    </div>
-  ),
+  Modal: MockModal,
 }));
 
-// ─── Mock: FormError — renders a banner with role="alert" ────────────────────
+// ─── Mock: FormError ──────────────────────────────────────────────────────────
 
 jest.unstable_mockModule('../FormError/FormError.js', () => ({
-  FormError: ({ message }: { message: string; variant?: string }) => (
-    <div role="alert" data-testid="form-error">
-      {message}
-    </div>
-  ),
+  FormError: MockFormError,
 }));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -159,6 +171,7 @@ function buildProps(overrides: Partial<MassMoveModalProps> = {}): MassMoveModalP
 
 // ─── Component import (after mocks) ──────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 let MassMoveModal: (typeof import('./MassMoveModal.js'))['MassMoveModal'];
 
 // ─── Tests ────────────────────────────────────────────────────────────────────

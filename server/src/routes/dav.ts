@@ -14,6 +14,7 @@ import { vendors, vendorContacts, workItems, milestones, householdItems } from '
 /**
  * DAV preHandler: validate Basic Auth using DAV token.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function davAuth(request: any): Promise<void> {
   const authHeader = request.headers.authorization;
   if (!authHeader) {
@@ -45,6 +46,7 @@ async function davAuth(request: any): Promise<void> {
   }
 
   // Attach to request for later use
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (request as any).davUser = validated;
 }
 
@@ -54,6 +56,7 @@ const DAV_PREFIX = '/dav';
  * Build a DescriptionMap from the database for CalDAV DESCRIPTION fields.
  * Queries work_items.description, milestones.description, and household_items.description.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function buildDescriptionMap(db: any): DescriptionMap {
   const map: DescriptionMap = new Map();
 
@@ -91,6 +94,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
   // ─── WWW-Authenticate on 401 (RFC 7235 — required for iOS) ──────────────
 
   fastify.addHook('onError', async (_request, reply, error) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if ((error as any).statusCode === 401) {
       reply.header('WWW-Authenticate', 'Basic realm="Cornerstone DAV"');
     }
@@ -117,6 +121,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
    * Root collection: lists calendars and addressbooks.
    */
   fastify.propfind<{ Body: string }>('/', { preHandler: davAuth }, async (request, reply) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const depth = davXml.parseDepth(request.headers as any);
 
     const rootProps = `<D:resourcetype><D:collection/></D:resourcetype>
@@ -184,8 +189,10 @@ export default async function davRoutes(fastify: FastifyInstance) {
     { preHandler: davAuth },
     async (request, reply) => {
       const href = `${DAV_PREFIX}/principals/default/`;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const davUserEmail = (request as any).davUser.email;
       const props = `<D:resourcetype><D:principal/></D:resourcetype>
-<D:displayname>${(request as any).davUser.email}</D:displayname>
+<D:displayname>${davUserEmail}</D:displayname>
 <D:principal-URL><D:href>${href}</D:href></D:principal-URL>
 <C:calendar-home-set><D:href>${DAV_PREFIX}/calendars/</D:href></C:calendar-home-set>
 <A:addressbook-home-set><D:href>${DAV_PREFIX}/addressbooks/</D:href></A:addressbook-home-set>`;
@@ -209,6 +216,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
     '/calendars/',
     { preHandler: davAuth },
     async (request, reply) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const depth = davXml.parseDepth(request.headers as any);
       const responses: string[] = [];
 
@@ -253,6 +261,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
     '/calendars/default/',
     { preHandler: davAuth },
     async (request, reply) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const depth = davXml.parseDepth(request.headers as any);
       const etag = calendarIcal.computeCalendarETag(fastify.db);
 
@@ -273,6 +282,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
 
       if (depth !== 0) {
         // depth 1: list all event hrefs
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         for (const wi of timeline.workItems as any[]) {
           if (!wi.startDate || !wi.endDate) continue;
           const href = `${DAV_PREFIX}/calendars/default/wi-${wi.id}.ics`;
@@ -282,6 +292,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
           responses.push(davXml.response(href, davXml.propstat(props)));
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         for (const milestone of timeline.milestones as any[]) {
           if (!milestone.targetDate && !milestone.completedAt) continue;
           const href = `${DAV_PREFIX}/calendars/default/milestone-${milestone.id}.ics`;
@@ -291,6 +302,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
           responses.push(davXml.response(href, davXml.propstat(props)));
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         for (const hi of timeline.householdItems as any[]) {
           if (!hi.targetDeliveryDate && !hi.actualDeliveryDate) continue;
           const href = `${DAV_PREFIX}/calendars/default/hi-${hi.id}.ics`;
@@ -329,13 +341,17 @@ export default async function davRoutes(fastify: FastifyInstance) {
       ensureDailyReschedule(fastify.db);
       const timeline = getTimeline(fastify.db);
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let event: any = null;
 
       if (type === 'wi') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         event = timeline.workItems.find((wi: any) => wi.id === id);
       } else if (type === 'milestone') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         event = timeline.milestones.find((m: any) => String(m.id) === id);
       } else if (type === 'hi') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         event = timeline.householdItems.find((hi: any) => hi.id === id);
       }
 
@@ -371,6 +387,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
   function buildCalendarEventResponse(
     href: string,
     type: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     event: any,
     etag: string,
     descMap?: DescriptionMap,
@@ -416,18 +433,21 @@ export default async function davRoutes(fastify: FastifyInstance) {
 
       if (reportType === 'query') {
         // calendar-query: return all events (read-only calendar, no filtering needed)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         for (const wi of timeline.workItems as any[]) {
           if (!wi.startDate || !wi.endDate) continue;
           const href = `${DAV_PREFIX}/calendars/default/wi-${wi.id}.ics`;
           responses.push(buildCalendarEventResponse(href, 'wi', wi, etag, descMap));
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         for (const milestone of timeline.milestones as any[]) {
           if (!milestone.targetDate && !milestone.completedAt) continue;
           const href = `${DAV_PREFIX}/calendars/default/milestone-${milestone.id}.ics`;
           responses.push(buildCalendarEventResponse(href, 'milestone', milestone, etag, descMap));
         }
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         for (const hi of timeline.householdItems as any[]) {
           if (!hi.targetDeliveryDate && !hi.actualDeliveryDate) continue;
           const href = `${DAV_PREFIX}/calendars/default/hi-${hi.id}.ics`;
@@ -447,13 +467,17 @@ export default async function davRoutes(fastify: FastifyInstance) {
 
           const [, type, id] = typeMatch;
           // type is defined: typeMatch has 3 capture groups and matched the pattern
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           let event: any = null;
 
           if (type === 'wi') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             event = (timeline.workItems as any[]).find((wi: any) => wi.id === id);
           } else if (type === 'milestone') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             event = (timeline.milestones as any[]).find((m: any) => String(m.id) === id);
           } else if (type === 'hi') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             event = (timeline.householdItems as any[]).find((hi: any) => hi.id === id);
           }
 
@@ -485,6 +509,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
     '/addressbooks/',
     { preHandler: davAuth },
     async (request, reply) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const depth = davXml.parseDepth(request.headers as any);
       const responses: string[] = [];
 
@@ -529,6 +554,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
     '/addressbooks/default/',
     { preHandler: davAuth },
     async (request, reply) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const depth = davXml.parseDepth(request.headers as any);
       const etag = vendorVcard.computeAddressBookETag(fastify.db);
 
@@ -548,6 +574,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
         // depth 1: list all vendor + contact hrefs
         const allVendors = fastify.db.select().from(vendors).all();
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         for (const vendor of allVendors as any[]) {
           const href = `${DAV_PREFIX}/addressbooks/default/vendor-${vendor.id}.vcf`;
           const props = `<D:getetag>"vendor-${etag}"</D:getetag>
@@ -558,8 +585,9 @@ export default async function davRoutes(fastify: FastifyInstance) {
 
         // Also list all contacts
         const allContacts = fastify.db.select().from(vendorContacts).all();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         for (const contact of allContacts as any[]) {
-          const vendor = (allVendors as any[]).find((v: any) => v.id === contact.vendorId);
+          // Note: vendor lookup available but not used in contact list display
           const href = `${DAV_PREFIX}/addressbooks/default/contact-${contact.id}.vcf`;
           const props = `<D:getetag>"contact-${etag}"</D:getetag>
 <D:resourcetype/>
@@ -679,6 +707,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
         // addressbook-query: return all contacts (read-only address book)
         const allVendors = fastify.db.select().from(vendors).all();
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         for (const vendor of allVendors as any[]) {
           const href = `${DAV_PREFIX}/addressbooks/default/vendor-${vendor.id}.vcf`;
           const vcf = vendorVcard.buildVendorVcard(vendor, baseUrl);
@@ -686,7 +715,9 @@ export default async function davRoutes(fastify: FastifyInstance) {
         }
 
         const allContacts = fastify.db.select().from(vendorContacts).all();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         for (const contact of allContacts as any[]) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const vendor = (allVendors as any[]).find((v: any) => v.id === contact.vendorId);
           if (!vendor) continue;
           const href = `${DAV_PREFIX}/addressbooks/default/contact-${contact.id}.vcf`;

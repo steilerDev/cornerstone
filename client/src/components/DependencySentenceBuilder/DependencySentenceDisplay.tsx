@@ -33,7 +33,7 @@ export function DependencySentenceDisplay({
   thisItemLabel = 'this',
   onDelete,
 }: DependencySentenceDisplayProps) {
-  const { t } = useTranslation('workItems');
+  const { t: _t } = useTranslation('workItems');
   const predecessorGroups = groupByType(predecessors);
   const successorGroups = groupByType(successors);
 

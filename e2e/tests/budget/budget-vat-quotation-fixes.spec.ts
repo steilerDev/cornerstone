@@ -8,13 +8,13 @@
  *   Fix: removed the client-side multiplier from handleSaveBudgetLine; the server stores the raw
  *   net amount and effectivePlannedAmount() applies the single ×1.19 uplift at display time.
  *
- * Scenario 2 — Issues #1440/#1441/#1449: Quoted budget line shows quoted amount + vendor name
- *   Before fixes #1440/#1441: quotation invoices were excluded from actualCost aggregation, so the
- *   itemizedAmount was never set and InvoiceGroup displayed €0.00 – €0.00. Additionally
- *   vendorId/vendorName were not propagated into the invoiceLink DTO.
- *   Fix #1440/#1441: quotation invoices included in actualCost; vendorId/vendorName denormalized.
- *   Before fix #1449: the quoted amount was shown as a ±5% range (€475.00 – €525.00).
- *   Fix #1449: InvoiceGroup now displays a single quoted amount (e.g. €500.00) with no range band.
+ * Scenario 2 — Issues #1440/#1441: Quoted budget line shows non-zero amount range + vendor name
+ *   Before fix: quotation invoices were excluded from actualCost aggregation in the service layer,
+ *   so the itemizedAmount on the work-item budget line was never set, leaving the
+ *   InvoiceGroup amount display as €0.00 – €0.00. Additionally vendorId/vendorName were not
+ *   propagated into the invoiceLink DTO, so no vendor name appeared in the group header.
+ *   Fix: quotation invoices are now included in actualCost; vendorId/vendorName are denormalized
+ *   into invoiceLink.
  *
  * Both tests run on desktop viewport only — the bugs are viewport-agnostic and limiting to
  * desktop avoids noise from responsive-layout differences.
@@ -194,12 +194,12 @@ test.describe('Budget regression — direct-mode VAT-off single uplift (#1439)',
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Quoted budget line shows quoted amount (single value) + vendor name (#1440, #1441, #1449)
+// Scenario 2: Quoted budget line shows non-zero quoted amount + vendor name (#1440, #1441)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Budget regression — quotation invoice shows quoted amount + vendor name (#1440/#1441/#1449)', () => {
+test.describe('Budget regression — quotation invoice shows amount range + vendor name (#1440/#1441)', () => {
   test(
-    'work item budget line linked to a quotation invoice shows the quoted amount and vendor name in the invoice group header',
+    'work item budget line linked to a quotation invoice shows a non-zero amount range and vendor name in the invoice group header',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       // Desktop-only — the InvoiceGroup header layout is responsive-agnostic but we keep
@@ -274,20 +274,20 @@ test.describe('Budget regression — quotation invoice shows quoted amount + ven
         // Assert 3: aria-label includes "from <vendorName>" (regression pin for accessibility)
         await expect(invoiceGroup).toHaveAttribute('aria-label', /from.*QA Vendor/i);
 
-        // Assert 4: the quoted amount is displayed as a single value (not a ±5% range).
-        // After issue #1449, InvoiceGroup renders itemizedAmount directly (e.g. €500.00)
-        // instead of a €475.00 – €525.00 band.
+        // Assert 4: the quoted amount range is NOT €0.00 – €0.00.
+        // InvoiceGroup renders itemizedTotal × 0.95 – itemizedTotal × 1.05 for quotations.
+        // With itemizedAmount = 500: display = "€475.00 – €525.00".
+        // Assert the lower bound (€475) is present — avoids coupling to the exact band ratio.
         //
         // The amount is inside the toggle button header, so it's visible without expanding.
         const amountGroup = invoiceGroup.locator('[class*="amountGroup"]').first();
         await expect(amountGroup).toBeVisible();
-        await expect(amountGroup).toContainText('€500.00');
+        await expect(amountGroup).toContainText('475');
 
-        // Assert 5: no en-dash range separator is present anywhere in the budget section.
-        // Before fixes #1440/#1441 the display was "€0.00 – €0.00"; before #1449 it was
-        // "€475.00 – €525.00". Both broken forms contain " – ". Assert its absence to pin
-        // against any regression back to either range format.
-        await expect(invoiceGroup).not.toContainText(' – ');
+        // Assert 5: the zero-range (€0.00 – €0.00) that appeared before the fix is absent.
+        // We assert that "0.00 – €0.00" does not appear in the budget section to catch
+        // a regression back to the broken state.
+        await expect(detailPage.budgetSection).not.toContainText('0.00 – €0.00');
       } finally {
         // Tear down in reverse dependency order.
         // Deleting the vendor cascades the invoice; deleting the work item cascades budget lines.

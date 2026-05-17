@@ -84,7 +84,7 @@ describe('Migration 0010: Household Items', () => {
    * Insert a minimal tag row required by FK constraints.
    * Note: tags table has no updated_at column (see migration 0002).
    */
-  function insertTag(db: Database.Database, id: string) {
+  function _insertTag(db: Database.Database, id: string) {
     const now = new Date().toISOString();
     db.prepare(`INSERT INTO tags (id, name, created_at) VALUES (?, ?, ?)`).run(
       id,

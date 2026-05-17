@@ -83,14 +83,14 @@ export function UserManagementPage() {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   // Table state
-  const [tableState, setTableState] = useState<TableState>({
+  const [tableState, setTableState] = useState<TableState>(() => ({
     search: '',
     filters: new Map(),
     sortBy: null,
     sortDir: null,
     page: 1,
     pageSize: 100,
-  });
+  }));
 
   // Load users on mount
   useEffect(() => {
@@ -113,7 +113,7 @@ export function UserManagementPage() {
     };
 
     void loadUsersData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [t]);
 
   const reloadUsers = async () => {
@@ -616,6 +616,7 @@ export function UserManagementPage() {
             </div>
           )}
           <p>
+            {/* eslint-disable-next-line @eslint-react/unsupported-syntax -- Necessary for i18n message splitting */}
             {(() => {
               const parts = t('userManagement.deactivateModal.message', {
                 name: '\u0000',

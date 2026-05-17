@@ -30,6 +30,7 @@ import { eq } from 'drizzle-orm';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import { ValidationError } from '../errors/AppError.js';
+import type { Photo } from '@cornerstone/shared';
 
 // ─── Mock sharp BEFORE any module import that uses it ─────────────────────────
 
@@ -38,7 +39,7 @@ const FAKE_PROCESSED_BUFFER = Buffer.from('processed-image-data');
 const FAKE_THUMBNAIL_BUFFER = Buffer.from('thumbnail-image-data');
 
 // Type helper — allows us to call mock methods without fighting TypeScript's inference
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 type AnyMock = jest.MockedFunction<(...args: any[]) => any>;
 
 // Build a chainable mock sharp instance
@@ -72,7 +73,8 @@ jest.unstable_mockModule('sharp', () => ({
 
 // ─── Dynamic imports (must come AFTER jest.unstable_mockModule) ─────────────
 
-let photoService: typeof import('./photoService.js');
+ 
+let photoService: any;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -588,8 +590,8 @@ describe('photoService', () => {
 
       const result = photoService.getPhotosForEntity(db, 'test', 'entity-list');
       expect(result).toHaveLength(2);
-      expect(result.every((p) => p.entityType === 'test')).toBe(true);
-      expect(result.every((p) => p.entityId === 'entity-list')).toBe(true);
+      expect(result.every((p: Photo) => p.entityType === 'test')).toBe(true);
+      expect(result.every((p: Photo) => p.entityId === 'entity-list')).toBe(true);
     });
 
     it('does not return photos for a different entity', async () => {

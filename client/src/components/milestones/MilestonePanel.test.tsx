@@ -113,9 +113,9 @@ const MILESTONE_DETAIL: MilestoneDetail = {
 // ---------------------------------------------------------------------------
 
 /** Helper: create a jest.Mock that resolves with the given value. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function mockResolved(value: any): jest.Mock {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   return jest.fn<() => Promise<any>>().mockResolvedValue(value) as unknown as jest.Mock;
 }
 

@@ -14,7 +14,7 @@ interface RecentDiaryCardProps {
 }
 
 export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardProps) {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+  const { formatDate, formatTime } = useFormatters();
   const { t } = useTranslation('dashboard');
 
   if (isLoading) {

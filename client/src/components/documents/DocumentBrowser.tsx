@@ -38,7 +38,7 @@ export function DocumentBrowser({
     return () => {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [searchInput]);
 
   const handleCardSelect = (doc: PaperlessDocumentSearchResult) => {

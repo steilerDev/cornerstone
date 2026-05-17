@@ -16,14 +16,18 @@ import type * as MonthGridTypes from './MonthGrid.js';
 
 // Mock LocaleContext so the component can call useLocale() without a provider.
 // The resolved locale is 'en' so day names render in English via Intl.DateTimeFormat('en-US').
-jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
-  useLocale: () => ({
+function mockUseLocale() {
+  return {
     resolvedLocale: 'en',
     locale: 'en',
     currency: 'EUR',
     setLocale: jest.fn(),
     syncWithServer: jest.fn(),
-  }),
+  };
+}
+
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: mockUseLocale,
 }));
 
 // ---------------------------------------------------------------------------

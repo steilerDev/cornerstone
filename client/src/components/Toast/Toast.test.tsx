@@ -33,6 +33,24 @@ function TestApp() {
   );
 }
 
+function SingleApp({ variant, onTrigger }: { variant: ToastVariant; onTrigger: () => void }) {
+  const { showToast } = useToast();
+  return (
+    <div>
+      <ToastList />
+      <button
+        data-testid="trigger"
+        onClick={() => {
+          showToast(variant, `${variant} message`);
+          onTrigger();
+        }}
+      >
+        Trigger
+      </button>
+    </div>
+  );
+}
+
 function renderApp() {
   return render(
     <ToastProvider>
@@ -340,24 +358,9 @@ describe('ToastList', () => {
 
     variants.forEach((variant) => {
       it(`toast-${variant} data-testid is set on the correct variant`, () => {
-        function SingleApp() {
-          const { showToast } = useToast();
-          return (
-            <div>
-              <ToastList />
-              <button
-                data-testid="trigger"
-                onClick={() => showToast(variant, `${variant} message`)}
-              >
-                Trigger
-              </button>
-            </div>
-          );
-        }
-
         render(
           <ToastProvider>
-            <SingleApp />
+            <SingleApp variant={variant} onTrigger={() => {}} />
           </ToastProvider>,
         );
 

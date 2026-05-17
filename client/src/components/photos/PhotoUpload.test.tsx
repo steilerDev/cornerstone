@@ -46,11 +46,11 @@ interface MockXhrInstance {
   upload: {
     addEventListener: jest.MockedFunction<(e: string, h: (ev: ProgressEvent) => void) => void>;
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   addEventListener: jest.MockedFunction<(event: string, handler: (...args: any[]) => void) => void>;
   status: number;
   responseText: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   _handlers: Record<string, (...args: any[]) => void>;
 }
 
@@ -62,13 +62,13 @@ function setupXhrMock() {
   savedXMLHttpRequest = globalThis.XMLHttpRequest;
 
   globalThis.XMLHttpRequest = jest.fn().mockImplementation(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const handlers: Record<string, (...args: any[]) => void> = {};
     const instance: MockXhrInstance = {
       open: jest.fn(),
       send: jest.fn(),
       upload: { addEventListener: jest.fn() },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       addEventListener: jest.fn((event: string, handler: (...args: any[]) => void) => {
         handlers[event] = handler;
       }),

@@ -22,6 +22,12 @@ jest.unstable_mockModule('../lib/preferencesApi.js', () => ({
 let ThemeProvider: typeof ThemeContextModule.ThemeProvider;
 let useTheme: typeof ThemeContextModule.useTheme;
 
+// Module-scope test components (must be at top level to satisfy @eslint-react/component-hook-factories)
+function BadThemeComponent() {
+  useTheme();
+  return null;
+}
+
 beforeEach(async () => {
   if (!ThemeProvider) {
     const mod = await import('./ThemeContext.js');
@@ -384,13 +390,8 @@ describe('ThemeProvider', () => {
       // Suppress React's error boundary output
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
 
-      function BadComponent() {
-        useTheme();
-        return null;
-      }
-
       expect(() => {
-        render(<BadComponent />);
+        render(<BadThemeComponent />);
       }).toThrow('useTheme must be used within a ThemeProvider');
 
       consoleSpy.mockRestore();

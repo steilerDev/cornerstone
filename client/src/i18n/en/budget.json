@@ -396,7 +396,6 @@
     },
     "quotedLabel": "Quoted",
     "quotedAmount": "Quoted Amount",
-    "invoicedAmount": "Invoiced Amount",
     "invoiceTable": {
       "invoiceNumber": "Invoice #",
       "amount": "Amount",
