@@ -396,6 +396,7 @@
     },
     "quotedLabel": "Angebot",
     "quotedAmount": "Angebotsbetrag",
+    "invoicedAmount": "Rechnungsbetrag",
     "invoiceTable": {
       "invoiceNumber": "Rechnung #",
       "amount": "Betrag",

@@ -46,12 +46,10 @@ export function BudgetLineCard({
                   isQuotation ? styles.amountQuoted : styles.amountInvoiced
                 }`}
               >
-                {isQuotation
-                  ? `${formatCurrency(line.actualCost * 0.95)} – ${formatCurrency(line.actualCost * 1.05)}`
-                  : formatCurrency(line.actualCost)}
+                {formatCurrency(line.actualCost)}
               </span>
               <span className={isQuotation ? styles.quotedLabel : styles.invoicedLabel}>
-                {isQuotation ? t('vendorDetail.quotedAmount') : 'Invoiced Amount'}
+                {isQuotation ? t('vendorDetail.quotedAmount') : t('vendorDetail.invoicedAmount')}
               </span>
               <span className={styles.plannedSecondary}>
                 (planned: {formatCurrency(effectivePlannedAmount(line))})

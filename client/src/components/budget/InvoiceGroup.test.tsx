@@ -44,6 +44,32 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
   };
 });
 
+// ─── Mock: LocaleContext ──────────────────────────────────────────────────────
+// In CI, jest.unstable_mockModule intercepts and the LocaleProvider wrapper in
+// renderGroup is a harmless passthrough. Locally (systemic issue), the real
+// LocaleProvider is used and needs configApi/preferencesApi mocked to avoid
+// network calls.
+
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+jest.unstable_mockModule('../../lib/configApi.js', () => ({
+  fetchConfig: jest.fn(() => Promise.resolve({ currency: 'EUR' })),
+}));
+
+jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
+  listPreferences: jest.fn(() => Promise.resolve([])),
+  upsertPreference: jest.fn(() => Promise.resolve()),
+}));
+
 // ─── Stub BudgetLineCard to avoid deep rendering ────────────────────────────
 jest.unstable_mockModule('./BudgetLineCard.js', () => ({
   BudgetLineCard: ({
@@ -65,6 +91,7 @@ jest.unstable_mockModule('./BudgetLineCard.js', () => ({
 
 // ─── Import component under test after mocks ────────────────────────────────
 let InvoiceGroup: (typeof import('./InvoiceGroup.js'))['InvoiceGroup'];
+let LocaleProvider: ({ children }: { children: React.ReactNode }) => React.ReactNode;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -140,7 +167,13 @@ function buildProps(
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function renderGroup(ui: React.ReactElement) {
-  return render(<MemoryRouter initialEntries={['/budget/invoices']}>{ui}</MemoryRouter>);
+  // Wrap in LocaleProvider so the real useFormatters → useLocale works locally
+  // when jest.unstable_mockModule doesn't intercept LocaleContext.
+  return render(
+    <LocaleProvider>
+      <MemoryRouter initialEntries={['/budget/invoices']}>{ui}</MemoryRouter>
+    </LocaleProvider>,
+  );
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
@@ -148,8 +181,12 @@ function renderGroup(ui: React.ReactElement) {
 describe('InvoiceGroup', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
-    const module = await import('./InvoiceGroup.js');
-    InvoiceGroup = module.InvoiceGroup;
+    const [invoiceModule, localeModule] = await Promise.all([
+      import('./InvoiceGroup.js'),
+      import('../../contexts/LocaleContext.js'),
+    ]);
+    InvoiceGroup = invoiceModule.InvoiceGroup;
+    LocaleProvider = localeModule.LocaleProvider as ({ children }: { children: React.ReactNode }) => React.ReactNode;
   });
 
   it('defaults to collapsed — lines not visible', () => {
@@ -352,5 +389,106 @@ describe('InvoiceGroup', () => {
     const group = screen.getByRole('group');
     const ariaLabel = group.getAttribute('aria-label') ?? '';
     expect(ariaLabel).not.toContain('from');
+  });
+
+  // ─── #1449: quoted-amount rework tests ────────────────────────────────────
+
+  it('quotation status: shows single formatted amount (no range)', () => {
+    renderGroup(
+      <InvoiceGroup
+        {...buildProps({ invoiceStatus: 'quotation', itemizedTotal: 500 })}
+      />,
+    );
+
+    // Single amount shown
+    expect(screen.getByText('€500.00')).toBeTruthy();
+
+    // Old ±5% range values must NOT appear
+    expect(screen.queryByText('€475.00')).toBeNull();
+    expect(screen.queryByText('€525.00')).toBeNull();
+  });
+
+  it('quotation status: no en-dash separator in the amount span', () => {
+    const { container } = renderGroup(
+      <InvoiceGroup
+        {...buildProps({ invoiceStatus: 'quotation', itemizedTotal: 500 })}
+      />,
+    );
+
+    // The amountValue span should contain only the formatted number — no en-dash (–)
+    const amountSpan = container.querySelector('[class*="amountValue"]');
+    expect(amountSpan).not.toBeNull();
+    expect(amountSpan?.textContent).not.toContain('–');
+    expect(amountSpan?.textContent).not.toContain('–');
+  });
+
+  it('vendor name renders inside invoiceIdentity wrapper', () => {
+    const { container } = renderGroup(
+      <InvoiceGroup {...buildProps({ vendorName: 'Acme Corp' })} />,
+    );
+
+    const identity = container.querySelector('[class*="invoiceIdentity"]');
+    expect(identity).not.toBeNull();
+
+    // The vendor span must be a descendant of the invoiceIdentity div
+    const vendorSpan = identity?.querySelector('[class*="vendorName"]');
+    expect(vendorSpan).not.toBeNull();
+    expect(vendorSpan?.textContent).toBe('Acme Corp');
+  });
+
+  it('status badge is sibling of invoiceIdentity, not inside it', () => {
+    const { container } = renderGroup(
+      <InvoiceGroup {...buildProps({ invoiceStatus: 'paid', vendorName: 'Acme Corp' })} />,
+    );
+
+    const identity = container.querySelector('[class*="invoiceIdentity"]');
+    expect(identity).not.toBeNull();
+
+    // The status badge must NOT be inside invoiceIdentity
+    const badgeInsideIdentity = identity?.querySelector('[class*="statusBadge"]');
+    expect(badgeInsideIdentity).toBeNull();
+
+    // But the badge must still exist in the document
+    const badge = container.querySelector('[class*="statusBadge"]');
+    expect(badge).not.toBeNull();
+  });
+
+  it('null vendor: invoiceIdentity contains only the invoice link, no vendorName child', () => {
+    const { container } = renderGroup(
+      <InvoiceGroup {...buildProps({ vendorName: null })} />,
+    );
+
+    const identity = container.querySelector('[class*="invoiceIdentity"]');
+    expect(identity).not.toBeNull();
+
+    // invoiceIdentity has the invoice link
+    const link = identity?.querySelector('[class*="invoiceLink"]');
+    expect(link).not.toBeNull();
+
+    // No vendorName child inside invoiceIdentity
+    const vendorSpan = identity?.querySelector('[class*="vendorName"]');
+    expect(vendorSpan).toBeNull();
+  });
+
+  it('quotation status: amountValue span has amountValueQuoted class', () => {
+    const { container } = renderGroup(
+      <InvoiceGroup
+        {...buildProps({ invoiceStatus: 'quotation', itemizedTotal: 500 })}
+      />,
+    );
+
+    const quotedSpan = container.querySelector('[class*="amountValueQuoted"]');
+    expect(quotedSpan).not.toBeNull();
+  });
+
+  it('non-quotation status: amountValueQuoted class NOT applied', () => {
+    const { container } = renderGroup(
+      <InvoiceGroup
+        {...buildProps({ invoiceStatus: 'pending', itemizedTotal: 500 })}
+      />,
+    );
+
+    const quotedSpan = container.querySelector('[class*="amountValueQuoted"]');
+    expect(quotedSpan).toBeNull();
   });
 });
