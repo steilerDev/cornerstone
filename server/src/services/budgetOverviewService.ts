@@ -290,9 +290,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     totalMaxPlanned += maxPlanned;
   }
 
-  // ── 8. Actual costs from invoices linked to budget lines (deposit-aware) ──
+  // ── 8. Actual costs from invoices linked to budget lines (deposit-aware, all statuses including quotation per ADR-029) ──
   // Include both work item and household item invoices
-  // Exclude quotation invoices from actual cost aggregates
   // Includes deposits split proportionally by amount
   const overviewRows = db.all<DepositAwareRow>(
     sql`SELECT
@@ -306,8 +305,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       d.status            AS deposit_status
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
-    LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
-    WHERE i.status != 'quotation'`,
+    LEFT JOIN invoice_deposits d ON d.invoice_id = i.id`,
   );
 
   const { actualCost, actualCostPaid, actualCostClaimed } =

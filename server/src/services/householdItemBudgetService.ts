@@ -40,6 +40,8 @@ function toHouseholdItemBudgetLine(
           invoiceDate: rel.invoiceLink.invoiceDate,
           invoiceStatus: rel.invoiceLink.invoiceStatus as InvoiceStatus,
           itemizedAmount: rel.invoiceLink.itemizedAmount,
+          vendorId: rel.invoiceLink.vendorId,
+          vendorName: rel.invoiceLink.vendorName,
         }
       : null,
     quantity: row.quantity ?? null,

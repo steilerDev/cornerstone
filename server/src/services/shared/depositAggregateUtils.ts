@@ -132,7 +132,7 @@ export function splitByDeposits(
  * When an invoice has no deposits, the entire ibl.itemized_amount contributes under
  * the parent invoice's status (identical to pre-deposit behaviour).
  *
- * actualCost excludes quotation invoices (matching existing behaviour).
+ * actualCost includes all invoice statuses including quotation (ADR-029).
  * actualCostPaid = sum of contributions where status is 'paid' or 'claimed'.
  */
 export function computeDepositAwareAggregates(rows: DepositAwareRow[]): {
@@ -175,9 +175,6 @@ export function computeDepositAwareAggregates(rows: DepositAwareRow[]): {
 
   for (const [_iblId, ibl] of iblMap) {
     invoiceIds.add(ibl.invoiceId);
-    // Skip quotations from actualCost (matches existing behavior)
-    if (ibl.invoiceStatus === 'quotation') continue;
-
     actualCost += ibl.itemizedAmount;
 
     const split = splitsByInvoiceId.get(ibl.invoiceId)!;

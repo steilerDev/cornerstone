@@ -775,10 +775,14 @@ function getWorkItemLineInvoiceLink(db: DbType, lineId: string): BudgetLineInvoi
     date: string;
     status: string;
     itemized_amount: number;
+    vendor_id: string | null;
+    vendor_name: string | null;
   }>(
-    sql`SELECT ibl.id AS ibl_id, i.id AS invoice_id, i.invoice_number, i.date, i.status, ibl.itemized_amount
+    sql`SELECT ibl.id AS ibl_id, i.id AS invoice_id, i.invoice_number, i.date, i.status, ibl.itemized_amount,
+      i.vendor_id, v.name AS vendor_name
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
+    LEFT JOIN vendors v ON v.id = i.vendor_id
     WHERE ibl.work_item_budget_id = ${lineId}
     LIMIT 1`,
   );
@@ -791,6 +795,8 @@ function getWorkItemLineInvoiceLink(db: DbType, lineId: string): BudgetLineInvoi
     invoiceDate: row.date,
     invoiceStatus: row.status,
     itemizedAmount: row.itemized_amount,
+    vendorId: row.vendor_id,
+    vendorName: row.vendor_name,
   };
 }
 
@@ -806,10 +812,14 @@ function getHouseholdItemLineInvoiceLink(db: DbType, lineId: string): BudgetLine
     date: string;
     status: string;
     itemized_amount: number;
+    vendor_id: string | null;
+    vendor_name: string | null;
   }>(
-    sql`SELECT ibl.id AS ibl_id, i.id AS invoice_id, i.invoice_number, i.date, i.status, ibl.itemized_amount
+    sql`SELECT ibl.id AS ibl_id, i.id AS invoice_id, i.invoice_number, i.date, i.status, ibl.itemized_amount,
+      i.vendor_id, v.name AS vendor_name
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
+    LEFT JOIN vendors v ON v.id = i.vendor_id
     WHERE ibl.household_item_budget_id = ${lineId}
     LIMIT 1`,
   );
@@ -822,6 +832,8 @@ function getHouseholdItemLineInvoiceLink(db: DbType, lineId: string): BudgetLine
     invoiceDate: row.date,
     invoiceStatus: row.status,
     itemizedAmount: row.itemized_amount,
+    vendorId: row.vendor_id,
+    vendorName: row.vendor_name,
   };
 }
 

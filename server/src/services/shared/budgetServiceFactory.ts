@@ -35,6 +35,8 @@ export function getInvoiceLink(
   invoiceDate: string;
   invoiceStatus: string;
   itemizedAmount: number;
+  vendorId: string | null;
+  vendorName: string | null;
 } | null {
   const row = db.get<{
     ibl_id: string;
@@ -43,10 +45,14 @@ export function getInvoiceLink(
     date: string;
     status: string;
     itemized_amount: number;
+    vendor_id: string | null;
+    vendor_name: string | null;
   }>(
-    sql`SELECT ibl.id AS ibl_id, ibl.invoice_id, i.invoice_number, i.date, i.status, ibl.itemized_amount
+    sql`SELECT ibl.id AS ibl_id, ibl.invoice_id, i.invoice_number, i.date, i.status, ibl.itemized_amount,
+      i.vendor_id, v.name AS vendor_name
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
+    LEFT JOIN vendors v ON v.id = i.vendor_id
     WHERE ibl.${sql.raw(invoiceBudgetIdColumn)} = ${budgetId}
     LIMIT 1`,
   );
@@ -58,6 +64,8 @@ export function getInvoiceLink(
     invoiceDate: row.date,
     invoiceStatus: row.status,
     itemizedAmount: row.itemized_amount,
+    vendorId: row.vendor_id,
+    vendorName: row.vendor_name,
   };
 }
 
@@ -77,6 +85,8 @@ export interface ResolvedBudgetRelations {
     invoiceDate: string;
     invoiceStatus: string;
     itemizedAmount: number;
+    vendorId: string | null;
+    vendorName: string | null;
   } | null;
   createdBy: ReturnType<typeof toUserSummary>;
 }
@@ -247,6 +257,8 @@ export function resolveRelationsBatch(
       invoiceDate: string;
       invoiceStatus: string;
       itemizedAmount: number;
+      vendorId: string | null;
+      vendorName: string | null;
     }
   >();
   if (invoiceBudgetIdColumn) {
@@ -260,6 +272,8 @@ export function resolveRelationsBatch(
       date: string;
       status: string;
       itemized_amount: number;
+      vendor_id: string | null;
+      vendor_name: string | null;
     }>(
       sql`SELECT
         ibl.${sql.raw(invoiceBudgetIdColumn)} AS budget_id,
@@ -268,9 +282,12 @@ export function resolveRelationsBatch(
         i.invoice_number,
         i.date,
         i.status,
-        ibl.itemized_amount
+        ibl.itemized_amount,
+        i.vendor_id,
+        v.name AS vendor_name
       FROM invoice_budget_lines ibl
       INNER JOIN invoices i ON i.id = ibl.invoice_id
+      LEFT JOIN vendors v ON v.id = i.vendor_id
       WHERE ibl.${sql.raw(invoiceBudgetIdColumn)} IN (${sql.join(idItems, sql`, `)})
       ORDER BY ibl.${sql.raw(invoiceBudgetIdColumn)}`,
     );
@@ -284,6 +301,8 @@ export function resolveRelationsBatch(
           invoiceDate: row.date,
           invoiceStatus: row.status,
           itemizedAmount: row.itemized_amount,
+          vendorId: row.vendor_id,
+          vendorName: row.vendor_name,
         });
       }
     });
