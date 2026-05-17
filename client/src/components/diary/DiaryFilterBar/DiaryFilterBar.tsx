@@ -251,6 +251,7 @@ export function DiaryFilterBar({
             <input
               type="checkbox"
               id="hide-drafts-toggle"
+              className={styles.hideDraftsToggle}
               checked={hideDrafts}
               onChange={(e) => onHideDraftsChange(e.target.checked)}
               data-testid="hide-drafts-checkbox"

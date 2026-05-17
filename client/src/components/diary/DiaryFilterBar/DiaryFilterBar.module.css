@@ -164,7 +164,7 @@
   cursor: pointer;
 }
 
-#hide-drafts-toggle:focus-visible {
+.hideDraftsToggle:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
 }

@@ -301,7 +301,7 @@ export default function DiaryEntryEditPage() {
 
     if (entry?.entryType === 'site_visit') {
       if (!siteVisitInspectorName?.trim()) {
-        errors.siteVisitInspectorName = t('createPage.siteVisitInspectorNameRequired');
+        errors.siteVisitInspectorName = t('edit.siteVisitInspectorNameRequired');
       }
       if (!siteVisitOutcome) {
         errors.siteVisitOutcome = t('edit.inspectionOutcomeRequired');
@@ -310,10 +310,10 @@ export default function DiaryEntryEditPage() {
 
     if (entry?.entryType === 'issue') {
       if (!issueSeverity) {
-        errors.issueSeverity = t('createPage.issueValidationRequired.severity');
+        errors.issueSeverity = t('edit.issueSeverityRequired');
       }
       if (!issueResolutionStatus) {
-        errors.issueResolutionStatus = t('createPage.issueValidationRequired.resolutionStatus');
+        errors.issueResolutionStatus = t('edit.issueResolutionStatusRequired');
       }
     }
 
