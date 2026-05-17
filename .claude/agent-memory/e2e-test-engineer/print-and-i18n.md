@@ -8,6 +8,7 @@ metadata:
 ## CostBreakdownTable DOM structure: area vs work-item rows
 
 Area rows render names in `<span>` (via `<span>{areaName}</span>`). Work-item rows render names inside `<Link>` → `<a>` (NOT span). When writing row filters:
+
 - Area row: `filter({ has: page.locator('span', { hasText: /^AreaName$/ }) })` — works
 - Work-item row: MUST use `filter({ has: page.locator('a', { hasText: /^ItemName$/ }) })` or simply `filter({ hasText: 'ItemName' })` if the name is unique enough
 - `breakdownAreaRow(name)` POM helper uses `filter({ hasText: name })` — safe for unambiguous names, breaks for "Keller" vs "Kellerbau"
@@ -37,6 +38,7 @@ Area rows render names in `<span>` (via `<span>{areaName}</span>`). Work-item ro
 24 concurrent workers (8 workers × 3 viewport projects) all use the same admin user. The locale preference is a single SQLite row. Any PATCH from any worker overwrites all others' PATCH.
 
 **Working strategy:**
+
 - `afterEach(resetToEnglish)` is FINE — cleanup after each test
 - `beforeEach(resetToEnglish)` DOUBLES concurrent PATCH frequency and breaks OTHER tests (e.g. "Key page headings") that rely on the locale being stable during execution. DO NOT add beforeEach resets.
 - For tests that need a known English baseline at START, call `setLanguage(page, 'en')` inside the test body, immediately before the navigation that requires it.
@@ -47,6 +49,7 @@ Area rows render names in `<span>` (via `<span>{areaName}</span>`). Work-item ro
 `setLanguage(page, 'de')` calls `page.goto('/')` + sets localStorage. A SUBSEQUENT `page.goto(ROUTES.home)` is a React Router client-side navigation and does NOT re-initialize `LocaleContext`. To see the German text, call `page.reload()` after `page.goto()`. This is the SAME URL — React Router recognizes the same route and skips remount.
 
 Pattern:
+
 ```typescript
 await setLanguage(page, 'de');
 await page.goto(ROUTES.home);

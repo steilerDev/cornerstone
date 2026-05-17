@@ -181,7 +181,9 @@ test.describe('i18n: Language Switching', () => {
     const languageSelect = page.locator('#languageSelect');
     await expect(languageSelect.locator('option[value="en"]')).toHaveText('English');
     await expect(languageSelect.locator('option[value="de"]')).toHaveText('Deutsch');
-    await expect(languageSelect.locator('option[value="system"]')).toHaveText('System (auto-detect)');
+    await expect(languageSelect.locator('option[value="system"]')).toHaveText(
+      'System (auto-detect)',
+    );
   });
 });
 
@@ -268,9 +270,7 @@ test.describe('i18n: Language Persistence via API', () => {
     await resetToEnglish(page);
   });
 
-  test('Language preference is saved to server and returns on fresh session', async ({
-    page,
-  }) => {
+  test('Language preference is saved to server and returns on fresh session', async ({ page }) => {
     // Given: Language is set to German via the API
     await setLanguage(page, 'de');
 
