@@ -1611,8 +1611,9 @@ describe('getBudgetOverview', () => {
       expect(result.actualCostClaimed).toBeGreaterThanOrEqual(300);
     });
 
-    it('quotation invoice with deposits: excluded from actualCost (parity check)', () => {
-      // Quotation invoices should still be excluded regardless of deposits
+    it('quotation invoice with deposits: included in actualCost, paid deposits in actualCostPaid (ADR-029)', () => {
+      // ADR-029: Quotation invoices now count toward actualCost
+      // Deposits on a quotation invoice contribute proportionally to actualCostPaid
       const { workItemId, budgetLineId } = insertWorkItem({ plannedAmount: 500 });
       if (budgetLineId) {
         const now = new Date().toISOString();
@@ -1652,9 +1653,10 @@ describe('getBudgetOverview', () => {
 
       const result = getBudgetOverview(db);
 
-      // Quotation excluded: actualCost should remain 0 for this work item
-      expect(result.actualCost).toBe(0);
-      expect(result.actualCostPaid).toBe(0);
+      // ADR-029: quotation included in actualCost
+      expect(result.actualCost).toBe(500);
+      // Paid deposit of 200 on invoice of 500 → fraction 0.4 → actualCostPaid = 0.4 * 500 = 200
+      expect(result.actualCostPaid).toBe(200);
     });
   });
 });
