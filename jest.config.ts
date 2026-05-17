@@ -70,6 +70,7 @@ const config: Config = {
       moduleNameMapper: {
         ...baseConfig.moduleNameMapper,
         '^@cornerstone/shared$': '<rootDir>/shared/src/index.ts',
+        '^nanoid$': '<rootDir>/client/src/test/nanoidMock.cjs',
       },
       setupFilesAfterEnv: ['<rootDir>/client/src/test/setupTests.ts'],
       transformIgnorePatterns: ['node_modules/(?!@testing-library)'],

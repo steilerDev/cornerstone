@@ -1,0 +1,10 @@
+{
+  "annotate": "Foto annotieren",
+  "viewOriginal": "Originalfoto anzeigen",
+  "viewAnnotated": "Annotiertes Foto anzeigen",
+  "clearAnnotations": "Annotationen entfernen",
+  "clearConfirmTitle": "Annotationen entfernen?",
+  "clearConfirmBody": "Dadurch wird die annotierte Version dauerhaft entfernt. Das Originalfoto wird wiederhergestellt.",
+  "clearConfirmAction": "Entfernen",
+  "annotateDisabledMissingDimensions": "Abmessungen unbekannt — dieses Foto kann nicht annotiert werden"
+}

@@ -19,6 +19,7 @@ export interface UsePhotosResult {
   ) => Promise<Photo>;
   deletePhoto: (id: string) => Promise<void>;
   updatePhoto: (id: string, data: { caption?: string | null; sortOrder?: number }) => Promise<void>;
+  updatePhotoAnnotation: (updatedPhoto: Photo) => void;
   refresh: () => void;
   uploadProgress: Map<string, number>; // filename -> percent
 }
@@ -122,6 +123,10 @@ export function usePhotos(entityType: string, entityId: string): UsePhotosResult
     [],
   );
 
+  const updatePhotoAnnotation = useCallback((updatedPhoto: Photo) => {
+    setPhotos((prev) => prev.map((p) => (p.id === updatedPhoto.id ? updatedPhoto : p)));
+  }, []);
+
   const refresh = useCallback(() => {
     setFetchCount((c) => c + 1);
   }, []);
@@ -133,6 +138,7 @@ export function usePhotos(entityType: string, entityId: string): UsePhotosResult
     uploadPhoto,
     deletePhoto,
     updatePhoto,
+    updatePhotoAnnotation,
     refresh,
     uploadProgress,
   };

@@ -42,6 +42,16 @@ const mockGetPhotoFilePath = jest.fn() as AnyMock;
 
 const mockDeletePhotosForEntity = jest.fn() as AnyMock;
 
+// ─── Mock photoAnnotationService BEFORE importing app ─────────────────────────
+
+const mockSaveAnnotatedImage = jest.fn() as AnyMock;
+const mockClearAnnotation = jest.fn() as AnyMock;
+
+jest.unstable_mockModule('../services/photoAnnotationService.js', () => ({
+  saveAnnotatedImage: mockSaveAnnotatedImage,
+  clearAnnotation: mockClearAnnotation,
+}));
+
 jest.unstable_mockModule('../services/photoService.js', () => ({
   uploadPhoto: mockUploadPhoto,
   getPhoto: mockGetPhoto,
@@ -77,6 +87,7 @@ function makePhoto(overrides: Partial<Photo> = {}): Photo {
     createdBy: { id: 'user-id', displayName: 'Test User' },
     createdAt: '2026-03-01T12:00:00.000Z',
     updatedAt: '2026-03-01T12:00:00.000Z',
+    annotatedAt: null,
     fileUrl: '/api/photos/photo-id-123/file',
     thumbnailUrl: '/api/photos/photo-id-123/thumbnail',
     ...overrides,
@@ -163,6 +174,8 @@ describe('Photo Routes', () => {
     mockReorderPhotos.mockReturnValue(undefined);
     mockDeletePhoto.mockResolvedValue(undefined);
     mockGetPhotoFilePath.mockResolvedValue(null);
+    mockSaveAnnotatedImage.mockResolvedValue(makePhoto({ annotatedAt: '2026-01-01T00:00:00.000Z' }));
+    mockClearAnnotation.mockResolvedValue(undefined);
   });
 
   afterEach(async () => {
@@ -1061,6 +1074,273 @@ describe('Photo Routes', () => {
         photoStoragePath,
         'photo-to-delete',
       );
+    });
+  });
+
+  // ─── PUT /api/photos/:id/annotation ────────────────────────────────────────
+
+  describe('PUT /api/photos/:id/annotation', () => {
+    it('returns 401 without authentication', async () => {
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-png-data'),
+          filename: 'annotated.png',
+          contentType: 'image/png',
+        },
+      ]);
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/photos/photo-id-123/annotation',
+        headers: { 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(401);
+    });
+
+    it('returns 200 with { photo } on success', async () => {
+      const { cookie } = await createUserWithSession('ann@example.com', 'Ann', 'password');
+      const annotatedPhoto = makePhoto({ annotatedAt: '2026-05-17T10:00:00.000Z' });
+      mockSaveAnnotatedImage.mockResolvedValue(annotatedPhoto);
+
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-png-data'),
+          filename: 'annotated.png',
+          contentType: 'image/png',
+        },
+      ]);
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/photos/photo-id-123/annotation',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(200);
+      const responseBody = JSON.parse(response.body) as { photo: Photo };
+      expect(responseBody.photo.annotatedAt).toBe('2026-05-17T10:00:00.000Z');
+    });
+
+    it('calls saveAnnotatedImage with correct buffer', async () => {
+      const { cookie } = await createUserWithSession('ann2@example.com', 'Ann2', 'password');
+      const pngContent = Buffer.from('real-png-content-bytes');
+      mockSaveAnnotatedImage.mockResolvedValue(makePhoto({ annotatedAt: '2026-05-17T10:00:00.000Z' }));
+
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: pngContent,
+          filename: 'annotated.png',
+          contentType: 'image/png',
+        },
+      ]);
+
+      await app.inject({
+        method: 'PUT',
+        url: '/api/photos/photo-id-123/annotation',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(mockSaveAnnotatedImage).toHaveBeenCalledWith(
+        expect.anything(), // db
+        photoStoragePath,
+        'photo-id-123',
+        expect.any(Buffer),
+      );
+      // Verify the buffer content matches what was sent
+      const calledWith = mockSaveAnnotatedImage.mock.calls[0];
+      const bufArg = calledWith[3] as Buffer;
+      expect(bufArg.equals(pngContent)).toBe(true);
+    });
+
+    it('returns 400 when file exceeds photoMaxFileSizeMb', async () => {
+      const { cookie } = await createUserWithSession('annbig@example.com', 'AnnBig', 'password');
+      // Set limit to 1 byte for this test via env (already 20MB, so use a tiny file > max)
+      // Instead, override PHOTO_MAX_FILE_SIZE_MB to 0 for this test
+      process.env.PHOTO_MAX_FILE_SIZE_MB = '0';
+      await app.close();
+      app = await buildApp();
+
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('any-data'),
+          filename: 'annotated.png',
+          contentType: 'image/png',
+        },
+      ]);
+
+      const { cookie: cookie2 } = await createUserWithSession('annbig2@example.com', 'AnnBig2', 'password');
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/photos/photo-id-123/annotation',
+        headers: { cookie: cookie2, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('returns 404 when service throws NotFoundError', async () => {
+      const { cookie } = await createUserWithSession('ann404@example.com', 'Ann404', 'password');
+      const { NotFoundError } = await import('../errors/AppError.js');
+      mockSaveAnnotatedImage.mockRejectedValue(new NotFoundError('Photo not found'));
+
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-png'),
+          filename: 'annotated.png',
+          contentType: 'image/png',
+        },
+      ]);
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/photos/no-such-photo/annotation',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(404);
+    });
+  });
+
+  // ─── DELETE /api/photos/:id/annotation ────────────────────────────────────
+
+  describe('DELETE /api/photos/:id/annotation', () => {
+    it('returns 401 without authentication', async () => {
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/photos/photo-id-123/annotation',
+      });
+
+      expect(response.statusCode).toBe(401);
+    });
+
+    it('returns 204 on success', async () => {
+      const { cookie } = await createUserWithSession('del-ann@example.com', 'DelAnn', 'password');
+      mockClearAnnotation.mockResolvedValue(undefined);
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/photos/photo-id-123/annotation',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(204);
+    });
+
+    it('calls clearAnnotation with correct id and storagePath', async () => {
+      const { cookie } = await createUserWithSession('del-ann2@example.com', 'DelAnn2', 'password');
+
+      await app.inject({
+        method: 'DELETE',
+        url: '/api/photos/my-photo-id/annotation',
+        headers: { cookie },
+      });
+
+      expect(mockClearAnnotation).toHaveBeenCalledWith(
+        expect.anything(), // db
+        photoStoragePath,
+        'my-photo-id',
+      );
+    });
+
+    it('returns 404 when service throws NotFoundError', async () => {
+      const { cookie } = await createUserWithSession('del-ann404@example.com', 'DelAnn404', 'password');
+      const { NotFoundError } = await import('../errors/AppError.js');
+      mockClearAnnotation.mockRejectedValue(new NotFoundError('Photo not found'));
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/photos/no-such-photo/annotation',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(404);
+    });
+  });
+
+  // ─── GET /api/photos/:id/file?variant=original ─────────────────────────────
+
+  describe('GET /api/photos/:id/file — variant param', () => {
+    it('calls getPhotoFilePath with preferAnnotated=true when no variant param', async () => {
+      const { cookie } = await createUserWithSession('file-no-variant@example.com', 'NoVariant', 'password');
+      const photo = makePhoto({ id: 'my-photo' });
+      mockGetPhoto.mockReturnValue(photo);
+      // Create a real file to serve
+      const photoDir = join(photoStoragePath, 'my-photo');
+      mkdirSync(photoDir, { recursive: true });
+      const filePath = join(photoDir, 'annotated.png');
+      writeFileSync(filePath, Buffer.from('annotated-image-data'));
+      mockGetPhotoFilePath.mockResolvedValue(filePath);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/photos/my-photo/file',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(mockGetPhotoFilePath).toHaveBeenCalledWith(
+        photoStoragePath,
+        'my-photo',
+        'original',
+        true, // preferAnnotated=true when no variant specified
+      );
+    });
+
+    it('calls getPhotoFilePath with preferAnnotated=false when ?variant=original', async () => {
+      const { cookie } = await createUserWithSession('file-orig@example.com', 'FileOrig', 'password');
+      const photo = makePhoto({ id: 'my-photo-2' });
+      mockGetPhoto.mockReturnValue(photo);
+      const photoDir = join(photoStoragePath, 'my-photo-2');
+      mkdirSync(photoDir, { recursive: true });
+      const filePath = join(photoDir, 'original.jpg');
+      writeFileSync(filePath, Buffer.from('original-image-data'));
+      mockGetPhotoFilePath.mockResolvedValue(filePath);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/photos/my-photo-2/file?variant=original',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(mockGetPhotoFilePath).toHaveBeenCalledWith(
+        photoStoragePath,
+        'my-photo-2',
+        'original',
+        false, // preferAnnotated=false when variant=original
+      );
+    });
+
+    it('returns Content-Type image/png when serving annotated.png', async () => {
+      const { cookie } = await createUserWithSession('file-ct@example.com', 'FileCt', 'password');
+      const photo = makePhoto({ id: 'my-photo-3', mimeType: 'image/jpeg' });
+      mockGetPhoto.mockReturnValue(photo);
+      const photoDir = join(photoStoragePath, 'my-photo-3');
+      mkdirSync(photoDir, { recursive: true });
+      const filePath = join(photoDir, 'annotated.png');
+      writeFileSync(filePath, Buffer.from('annotated-png-data'));
+      mockGetPhotoFilePath.mockResolvedValue(filePath);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/photos/my-photo-3/file',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      // Even though photo.mimeType is image/jpeg, annotated.png gets image/png
+      expect(response.headers['content-type']).toMatch(/image\/png/);
     });
   });
 });

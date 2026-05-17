@@ -73,6 +73,7 @@ function toPhoto(
     createdBy: user ? { id: user.id, displayName: user.displayName } : null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    annotatedAt: row.annotatedAt ?? null,
     fileUrl: `/api/photos/${row.id}/file`,
     thumbnailUrl: `/api/photos/${row.id}/thumbnail`,
   };
@@ -359,15 +360,18 @@ export async function deletePhotosForEntity(
  * Get the file path for a photo variant.
  *
  * For 'original', reads the directory to find the actual file (since extension varies).
+ * When preferAnnotated is true and annotated.png exists, returns it instead.
  * For 'thumbnail', returns the thumbnail.webp path.
  *
  * @param variant 'original' or 'thumbnail'
+ * @param preferAnnotated When variant is 'original', prefer annotated.png if it exists (default: true)
  * @returns Full file path or null if not found
  */
 export async function getPhotoFilePath(
   photoStoragePath: string,
   id: string,
   variant: 'original' | 'thumbnail',
+  preferAnnotated: boolean = true,
 ): Promise<string | null> {
   const photoDir = path.join(photoStoragePath, id);
 
@@ -377,6 +381,16 @@ export async function getPhotoFilePath(
       await stat(thumbnailPath);
       return thumbnailPath;
     } else {
+      // original: prefer annotated.png if requested and exists
+      if (preferAnnotated) {
+        const annotatedPath = path.join(photoDir, 'annotated.png');
+        try {
+          await stat(annotatedPath);
+          return annotatedPath;
+        } catch {
+          // annotated.png doesn't exist; fall through to original
+        }
+      }
       // original: find the file starting with "original."
       const files = await readdir(photoDir);
       const originalFile = files.find((f) => f.startsWith('original.'));

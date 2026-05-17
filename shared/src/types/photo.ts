@@ -25,6 +25,7 @@ export interface Photo {
   createdBy: { id: string; displayName: string } | null;
   createdAt: string;
   updatedAt: string;
+  annotatedAt: string | null;
   fileUrl: string;
   thumbnailUrl: string;
 }
