@@ -14,6 +14,7 @@ import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { NotFoundError, UnauthorizedError, ValidationError } from '../errors/AppError.js';
 import * as photoService from '../services/photoService.js';
+import * as photoAnnotationService from '../services/photoAnnotationService.js';
 import type {
   UpdatePhotoRequest,
   ReorderPhotosRequest,
@@ -23,6 +24,24 @@ import type {
 // ─── JSON schemas ─────────────────────────────────────────────────────────────
 
 // No JSON schema for upload — multipart body parsed via request.file()
+
+const getPhotoFileSchema = {
+  params: {
+    type: 'object',
+    required: ['id'],
+    properties: {
+      id: { type: 'string' },
+    },
+  },
+  querystring: {
+    type: 'object',
+    properties: {
+      variant: { type: 'string', enum: ['original'] },
+      v: { type: 'string' },
+    },
+    additionalProperties: false,
+  },
+};
 
 const listPhotosSchema = {
   querystring: {
@@ -71,6 +90,23 @@ const getPhotoSchema = {
     properties: {
       id: { type: 'string' },
     },
+  },
+};
+
+const getPhotoThumbnailSchema = {
+  params: {
+    type: 'object',
+    required: ['id'],
+    properties: {
+      id: { type: 'string' },
+    },
+  },
+  querystring: {
+    type: 'object',
+    properties: {
+      v: { type: 'string' },
+    },
+    additionalProperties: false,
   },
 };
 
@@ -188,17 +224,22 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
 
   /**
    * GET /:id/file
-   * Serve the original photo file as a stream.
+   * Serve the photo file as a stream.
+   *
+   * Query params:
+   *   - variant (optional): 'original' to force original, 'annotated' or omitted to prefer annotated if present
    *
    * Returns: 200 with file stream (Content-Type and Cache-Control headers set)
    */
   fastify.get(
     '/:id/file',
-    { schema: getPhotoSchema },
+    { schema: getPhotoFileSchema },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!request.user) throw new UnauthorizedError();
 
       const { id } = request.params as { id: string };
+      const { variant } = request.query as { variant?: string };
+      const preferAnnotated = variant !== 'original';
 
       const photo = photoService.getPhoto(fastify.db, id);
       if (!photo) {
@@ -209,17 +250,21 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
         fastify.config.photoStoragePath,
         id,
         'original',
+        preferAnnotated,
       );
       if (!filePath) {
         throw new NotFoundError('Photo file not found');
       }
 
+      // Determine MIME type: annotated.png is always image/png
+      const mimeType = filePath.endsWith('.png') ? 'image/png' : photo.mimeType;
+
       // Set cache headers (immutable, 1 year)
       reply.header('Cache-Control', 'public, max-age=31536000, immutable');
-      reply.header('Content-Type', photo.mimeType);
+      reply.header('Content-Type', mimeType);
 
       const stream = createReadStream(filePath);
-      return reply.type(photo.mimeType).send(stream);
+      return reply.type(mimeType).send(stream);
     },
   );
 
@@ -227,11 +272,14 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    * GET /:id/thumbnail
    * Serve the photo thumbnail (WebP format).
    *
+   * Query params:
+   *   - v (optional): cache-buster timestamp
+   *
    * Returns: 200 with thumbnail stream (WebP, Cache-Control headers set)
    */
   fastify.get(
     '/:id/thumbnail',
-    { schema: getPhotoSchema },
+    { schema: getPhotoThumbnailSchema },
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!request.user) throw new UnauthorizedError();
 
@@ -303,6 +351,68 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
       const { entityType, entityId, photoIds } = request.body as ReorderPhotosRequest;
 
       photoService.reorderPhotos(fastify.db, entityType, entityId, photoIds);
+
+      return reply.status(204).send();
+    },
+  );
+
+  /**
+   * PUT /:id/annotation
+   * Save an annotated (baked overlay) PNG for a photo.
+   *
+   * Form field:
+   *   - file: the annotated PNG blob
+   *
+   * Returns: 200 with { photo } or 400/404
+   */
+  fastify.put(
+    '/:id/annotation',
+    { schema: { params: getPhotoSchema.params } },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      if (!request.user) throw new UnauthorizedError();
+      const { id } = request.params as { id: string };
+
+      const file = await request.file();
+      if (!file) throw new ValidationError('No file uploaded');
+
+      const pngBuffer = await file.toBuffer();
+
+      const maxFileSizeBytes = fastify.config.photoMaxFileSizeMb * 1024 * 1024;
+      if (pngBuffer.length > maxFileSizeBytes) {
+        throw new ValidationError(
+          `File size exceeds maximum of ${fastify.config.photoMaxFileSizeMb}MB`,
+        );
+      }
+
+      const photo = await photoAnnotationService.saveAnnotatedImage(
+        fastify.db,
+        fastify.config.photoStoragePath,
+        id,
+        pngBuffer,
+      );
+
+      return reply.status(200).send({ photo });
+    },
+  );
+
+  /**
+   * DELETE /:id/annotation
+   * Clear the annotated image for a photo.
+   *
+   * Returns: 204 No Content or 404
+   */
+  fastify.delete(
+    '/:id/annotation',
+    { schema: { params: getPhotoSchema.params } },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      if (!request.user) throw new UnauthorizedError();
+      const { id } = request.params as { id: string };
+
+      await photoAnnotationService.clearAnnotation(
+        fastify.db,
+        fastify.config.photoStoragePath,
+        id,
+      );
 
       return reply.status(204).send();
     },

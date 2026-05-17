@@ -1,0 +1,10 @@
+{
+  "annotate": "Annotate photo",
+  "annotateDisabledMissingDimensions": "Cannot annotate: photo dimensions are missing",
+  "viewOriginal": "View original",
+  "viewAnnotated": "View annotated",
+  "clearAnnotations": "Clear annotations",
+  "clearConfirmTitle": "Clear annotations?",
+  "clearConfirmBody": "This will remove all annotations from this photo. This action cannot be undone.",
+  "clearConfirmAction": "Clear annotations"
+}

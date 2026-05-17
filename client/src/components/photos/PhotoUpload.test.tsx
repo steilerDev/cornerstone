@@ -120,6 +120,7 @@ describe('PhotoUpload', () => {
       caption: null,
       sortOrder: 0,
       createdBy: null,
+      annotatedAt: null,
       fileUrl: '/api/photos/photo-1/file',
       thumbnailUrl: '/api/photos/photo-1/thumbnail',
       createdAt: '2026-05-01T00:00:00.000Z',

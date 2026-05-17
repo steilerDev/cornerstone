@@ -871,6 +871,7 @@ export const photos = sqliteTable(
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
+    annotatedAt: text('annotated_at'),
   },
   (table) => ({
     entityIdx: index('idx_photos_entity').on(table.entityType, table.entityId),

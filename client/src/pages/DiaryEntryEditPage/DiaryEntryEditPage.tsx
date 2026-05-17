@@ -728,6 +728,7 @@ export default function DiaryEntryEditPage() {
           photos={photosResult.photos}
           initialIndex={selectedPhotoIndex}
           onClose={() => setSelectedPhotoIndex(null)}
+          onPhotoAnnotated={photosResult.updatePhotoAnnotation}
         />
       )}
 

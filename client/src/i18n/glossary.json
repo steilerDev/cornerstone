@@ -2,7 +2,7 @@
   "_meta": {
     "description": "Single source of truth for domain terminology translations. The translator agent enforces these.",
     "locales": ["de"],
-    "lastUpdated": "2026-05-16"
+    "lastUpdated": "2026-05-17"
   },
   "terms": {
     "Work Item": { "de": { "singular": "Arbeitspaket", "plural": "Arbeitspakete" } },
@@ -26,6 +26,7 @@
     "Unassigned": { "de": { "singular": "Nicht zugewiesen" } },
     "Deposit": { "de": { "singular": "Abschlagszahlung", "plural": "Abschlagszahlungen" } },
     "Final payment": { "de": { "singular": "Schlusszahlung" } },
-    "Draft": { "de": { "singular": "Entwurf", "plural": "Entwürfe" } }
+    "Draft": { "de": { "singular": "Entwurf", "plural": "Entwürfe" } },
+    "Annotation": { "de": { "singular": "Annotation", "plural": "Annotationen" } }
   }
 }
