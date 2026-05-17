@@ -3,6 +3,18 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1435 — Diary UX Polish Tests (2026-05-17)
+
+**DiaryEntryCreatePage (new flow)**: Type-card click now immediately calls `createDiaryEntry({ entryType, status: 'draft' })` and navigates to `/diary/:id/edit`. No form step. `draftCreatingRef` guards double-click; `isCreating` state disables all cards while in-flight. Tests for old form-step, draft-on-blur, photo-queue blocks all removed.
+
+**DiaryEntryEditPage — PhotoUpload onUpload spy pattern**: Use `photosState = { refresh: jest.fn() }` container (not a bare `let` variable) so the factory closure captures the object reference. In `beforeEach`, reassign `photosState.refresh = jest.fn()` to give each test a fresh spy. Mock `PhotoUpload` to capture `onUpload` into module-scope `let capturedOnUpload`. In Scenario 7, wait for `photo-upload-mock` testid, then call `capturedOnUpload!(...)` and assert `photosState.refresh` was called.
+
+**PhotoUpload/PhotoGrid/PhotoViewer mock requirement**: If `DiaryEntryEditPage.test.tsx` didn't previously mock these components, adding `jest.unstable_mockModule` for them does NOT increase failures locally (pre-existing systemic mock issue means they fail anyway). In CI these mocks will intercept and prevent real network/XHR calls.
+
+**DiaryPage status chips removed, hideDrafts checkbox added**: Tests for `role="group" aria-label="Status"` and the three chip buttons removed. Scenarios 8-11 test the new `hideDrafts` checkbox passed via `DiaryFilterBar`. Scenarios 10-11 wait for `mockListDiaryEntries.toHaveBeenCalledTimes(1)` before interacting — these fail locally but pass in CI (same systemic issue).
+
+**DiaryFilterBar hideDrafts prop**: `renderFilterBar()` helper uses `Partial<typeof defaultProps>` which doesn't include `hideDrafts`. Cast extra props with `as any` in the call: `renderFilterBar({ hideDrafts: false, onHideDraftsChange: jest.fn() } as any)`.
+
 ## XHR-Based Component Tests (2026-05-16)
 
 **Dual-layer mock pattern for XHR-using components**: When a component calls `uploadPhoto` (which uses XHR internally), `jest.unstable_mockModule` may not intercept in the local worktree environment. Mitigation: mock `globalThis.XMLHttpRequest` as well, capturing instances in an array. Each test can then fire `_handlers['load']()` or `_handlers['error']()` to control outcomes. Keep the `jest.unstable_mockModule` mock for CI compatibility. Both layers coexist safely — in CI the module mock intercepts first; locally the XHR mock controls behavior.

@@ -150,6 +150,25 @@
   background-color: var(--color-primary-hover);
 }
 
+.hideDraftsRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  grid-column: 1 / -1;
+}
+
+.hideDraftsLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.hideDraftsToggle:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
 .clearButton {
   padding: var(--spacing-2) var(--spacing-3);
   background-color: transparent;

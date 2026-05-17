@@ -19,6 +19,8 @@ interface DiaryFilterBarProps {
   filterMode?: FilterMode;
   onFilterModeChange?: (mode: FilterMode) => void;
   isCollapsed?: boolean;
+  hideDrafts?: boolean;
+  onHideDraftsChange?: (hide: boolean) => void;
 }
 
 const MANUAL_ENTRY_TYPES: DiaryEntryType[] = [
@@ -77,6 +79,8 @@ export function DiaryFilterBar({
   filterMode = 'all',
   onFilterModeChange,
   isCollapsed = false,
+  hideDrafts = false,
+  onHideDraftsChange,
 }: DiaryFilterBarProps) {
   const { t } = useTranslation('diary');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -237,6 +241,23 @@ export function DiaryFilterBar({
             ))}
           </div>
         </div>
+
+        {/* Hide drafts checkbox */}
+        {onHideDraftsChange && (
+          <div className={styles.hideDraftsRow}>
+            <label className={styles.hideDraftsLabel} htmlFor="hide-drafts-toggle">
+              {t('filterBar.hideDrafts')}
+            </label>
+            <input
+              type="checkbox"
+              id="hide-drafts-toggle"
+              className={styles.hideDraftsToggle}
+              checked={hideDrafts}
+              onChange={(e) => onHideDraftsChange(e.target.checked)}
+              data-testid="hide-drafts-checkbox"
+            />
+          </div>
+        )}
 
         {/* Clear all button */}
         {filterCount > 0 && (

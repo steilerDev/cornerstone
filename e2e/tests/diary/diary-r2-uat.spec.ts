@@ -24,6 +24,7 @@
 import { test, expect } from '../../fixtures/auth.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
 import { DiaryEntryCreatePage } from '../../pages/DiaryEntryCreatePage.js';
+import { deleteDiaryEntryViaApi } from '../../fixtures/apiHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Local mock helpers
@@ -474,28 +475,55 @@ test.describe('Signed badge on entry cards (Scenario 7)', { tag: '@responsive' }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 8: Photo file input on create form
+// Scenario 8: Photo file input on edit page (reached via type-card click)
+//
+// AC1 of #1435 removed the intermediate create form entirely: clicking a type
+// card now fires POST /api/diary-entries immediately and navigates to
+// /diary/:id/edit. The old create-form photo input (data-testid="create-photo-input")
+// no longer exists. This test was migrated to verify the photo file input on
+// the edit page, which is the correct place for photo uploads post-#1435.
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Photo upload input on create form (Scenario 8)', { tag: '@responsive' }, () => {
-  test('Create form includes a photo file input before submission', async ({ page }) => {
-    const createPage = new DiaryEntryCreatePage(page);
+test.describe('Photo upload input on edit page (Scenario 8)', { tag: '@responsive' }, () => {
+  test(
+    'Edit page (reached via type-card click) includes a photo file input',
+    async ({ page }) => {
+      const createPage = new DiaryEntryCreatePage(page);
+      let draftId: string | null = null;
 
-    await createPage.goto();
-    await createPage.selectType('general_note');
+      try {
+        await createPage.goto();
 
-    // The photo file input must be present
-    // data-testid="create-photo-input" (file input in the create form)
-    const photoInput = page.getByTestId('create-photo-input');
-    await expect(photoInput).toBeAttached();
+        // Register the POST response listener BEFORE clicking the type card
+        const draftResponsePromise = page.waitForResponse(
+          (resp) =>
+            resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
+        );
 
-    // Verify it accepts image files (accept="image/*")
-    const acceptAttr = await photoInput.getAttribute('accept');
-    expect(acceptAttr).toContain('image/');
+        await createPage.selectType('general_note');
 
-    // Verify it supports multiple files
-    const multipleAttr = await photoInput.getAttribute('multiple');
-    expect(multipleAttr).not.toBeNull();
-  });
+        // Wait for the auto-draft POST to complete and navigate to /diary/:id/edit
+        await draftResponsePromise;
+        await page.waitForURL(/diary\/.+\/edit$/);
+
+        // Extract the draft ID from the URL for cleanup
+        const match = page.url().match(/diary\/([^/]+)\/edit$/);
+        draftId = match?.[1] ?? null;
+
+        // The photo file input must be present on the edit page.
+        // data-testid="photo-file-input" (PhotoUpload.tsx)
+        const photoInput = page.getByTestId('photo-file-input');
+        await expect(photoInput).toBeAttached();
+
+        // Verify it accepts image files (accept="image/*")
+        await expect(photoInput).toHaveAttribute('accept', /image\/\*/i);
+
+        // Verify it supports multiple files (boolean attribute — present as empty string)
+        await expect(photoInput).toHaveAttribute('multiple', '');
+      } finally {
+        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+      }
+    },
+  );
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

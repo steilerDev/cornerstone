@@ -265,34 +265,29 @@ test.describe('Create navigates to detail page (Scenario 6)', { tag: '@responsiv
 
       try {
         await createPage.goto();
-        await createPage.selectType('general_note');
 
-        await createPage.bodyTextarea.fill(`${testPrefix} create nav to detail body`);
-
-        // Register the POST listener BEFORE blurring to capture the auto-draft response
-        // #1426: blurring the body field triggers createDraft() → POST with status: 'draft'
+        // #1435 flow: clicking the type card fires POST /api/diary-entries immediately.
+        // Register the POST listener BEFORE clicking.
         const draftResponsePromise = page.waitForResponse(
           (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
         );
 
-        // Press Tab then blur explicitly to trigger onFieldBlur → createDraft() with status: 'draft'
-        // Also call .blur() explicitly for reliable React synthetic blur event across browsers
-        await createPage.bodyTextarea.press('Tab');
-        await createPage.bodyTextarea.blur();
+        await createPage.typeCard('general_note').click();
         const draftResponse = await draftResponsePromise;
         expect(draftResponse.ok(), 'Draft creation should succeed').toBeTruthy();
 
         const responseBody = (await draftResponse.json()) as { id: string };
         createdId = responseBody.id;
 
-        // #1426 flow: after auto-draft creation, navigate to /diary/:id/edit (replace history)
+        // #1435 flow: after type-card-click draft creation, navigate to /diary/:id/edit (replace history)
         await page.waitForURL(new RegExp(`/diary/${createdId}/edit$`));
         expect(page.url()).toMatch(new RegExp(`/diary/${createdId}/edit$`));
 
         // Draft badge should be visible on the edit page
         await expect(editPage.draftBadge).toBeVisible();
 
-        // Fill the title before promoting
+        // Fill body and title on the edit page before promoting
+        await editPage.bodyTextarea.fill(`${testPrefix} create nav to detail body`);
         await editPage.titleInput.waitFor({ state: 'visible' });
         await editPage.titleInput.fill(`${testPrefix} UAT Create Nav Test`);
 

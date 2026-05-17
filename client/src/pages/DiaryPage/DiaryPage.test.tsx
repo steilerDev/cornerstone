@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { screen, waitFor, render, act, within } from '@testing-library/react';
+import { screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
@@ -317,33 +317,30 @@ describe('DiaryPage', () => {
     expect(screen.queryByRole('link', { name: /export/i })).not.toBeInTheDocument();
   });
 
-  // ─── Status filter chips (Story #1426) ───────────────────────────────────────
+  // ─── Status chip row removed (Story #1435) ────────────────────────────────────
 
-  describe('status filter chips (Story #1426)', () => {
-    it('Scenario 56: clicking "Drafts only" chip → calls listDiaryEntries with status=draft', async () => {
-      const user = userEvent.setup();
-      // Initial load
-      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      // After clicking Drafts filter
+  describe('status chip row removed (Story #1435)', () => {
+    it('Scenario 8: no status chip group rendered', async () => {
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
       renderPage();
+      // The status chip group with "All / Draft / Saved" buttons no longer exists
+      expect(screen.queryByRole('group', { name: /status/i })).not.toBeInTheDocument();
+    });
+  });
 
+  // ─── hideDrafts checkbox via DiaryFilterBar (Story #1435) ────────────────────
+
+  describe('hideDrafts checkbox integration (Story #1435)', () => {
+    it('Scenario 9: DiaryFilterBar receives hideDrafts=true when URL has ?status=saved', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage(['/diary?status=saved']);
       await waitFor(() => {
-        expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
-      });
-
-      // Find and click the Drafts only chip
-      const draftsChip = screen.getByRole('button', { name: /draft/i });
-      await user.click(draftsChip);
-
-      await waitFor(() => {
-        expect(mockListDiaryEntries).toHaveBeenCalledWith(
-          expect.objectContaining({ status: 'draft' }),
-        );
+        const checkbox = screen.getByTestId('hide-drafts-checkbox') as HTMLInputElement;
+        expect(checkbox.checked).toBe(true);
       });
     });
 
-    it('clicking "Saved only" chip → calls listDiaryEntries with status=saved', async () => {
+    it('Scenario 10: checking "Hide drafts" calls listDiaryEntries with status=saved', async () => {
       const user = userEvent.setup();
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
@@ -353,8 +350,8 @@ describe('DiaryPage', () => {
         expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
       });
 
-      const savedChip = screen.getByRole('button', { name: /saved/i });
-      await user.click(savedChip);
+      const checkbox = screen.getByTestId('hide-drafts-checkbox');
+      await user.click(checkbox);
 
       await waitFor(() => {
         expect(mockListDiaryEntries).toHaveBeenCalledWith(
@@ -363,31 +360,18 @@ describe('DiaryPage', () => {
       });
     });
 
-    it('clicking "All" chip after filtering → calls listDiaryEntries without status param', async () => {
+    it('Scenario 11: unchecking "Hide drafts" calls listDiaryEntries without status param', async () => {
       const user = userEvent.setup();
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      renderPage();
+      renderPage(['/diary?status=saved']);
 
       await waitFor(() => {
         expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
       });
 
-      // First click Drafts
-      const draftsChip = screen.getByRole('button', { name: /draft/i });
-      await user.click(draftsChip);
-
-      await waitFor(() => {
-        expect(mockListDiaryEntries).toHaveBeenCalledWith(
-          expect.objectContaining({ status: 'draft' }),
-        );
-      });
-
-      // Then click All — scope to the Status group to avoid matching the mode "All" chip
-      const statusGroup = screen.getByRole('group', { name: /status/i });
-      const allChip = within(statusGroup).getByRole('button', { name: /^all$/i });
-      await user.click(allChip);
+      const checkbox = screen.getByTestId('hide-drafts-checkbox');
+      await user.click(checkbox);
 
       await waitFor(() => {
         const lastCall =

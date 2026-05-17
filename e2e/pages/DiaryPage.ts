@@ -4,13 +4,8 @@
  * The page renders:
  * - A page header with h1 "Construction Diary" and a subtitle with the total entry count
  * - A DiaryFilterBar with search input (data-testid="diary-search-input"), date range pickers,
- *   entry type chip filters, and a "Clear all" button
- * - Status filter chips (role="group", aria-label="Status"): "All" / "Drafts only" / "Saved only"
- *   - Clicking sets ?status=draft or ?status=saved URL param; "All" removes the param
- *   - Chips are plain <button> elements, NOT data-testid'd; identify by button text
- *   - DiaryFilterBar also has role="group" containers ("Filter by entry mode" and "Filter by entry
- *     type"), and "All" button text is shared between the mode filter and status filter — always
- *     scope to the aria-label="Status" group to avoid strict-mode violations
+ *   entry type chip filters, a "Hide drafts" checkbox (data-testid="hide-drafts-checkbox"),
+ *   and a "Clear all" button
  * - A "New Entry" link button navigating to /diary/new
  * - A timeline of DiaryDateGroup sections (data-testid="date-group-{date}"), each containing
  *   DiaryEntryCard links (data-testid="diary-card-{id}")
@@ -30,6 +25,7 @@
  * - Pagination buttons: data-testid="prev-page-button" / data-testid="next-page-button"
  * - Draft badge on entry card: data-testid="draft-badge-{id}"
  * - Draft entries link to /diary/:id/edit (not /diary/:id)
+ * - Hide drafts checkbox: data-testid="hide-drafts-checkbox" (checked = ?status=saved in URL)
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -67,11 +63,9 @@ export class DiaryPage {
   readonly prevPageButton: Locator;
   readonly nextPageButton: Locator;
 
-  // Status filter chips — plain <button> elements in a role="group" container
-  // Text from i18n keys: filterBar.statusAll / filterBar.statusDraft / filterBar.statusSaved
-  readonly statusFilterAll: Locator;
-  readonly statusFilterDraft: Locator;
-  readonly statusFilterSaved: Locator;
+  // "Hide drafts" checkbox — data-testid="hide-drafts-checkbox" (added in #1435)
+  // Checking it adds ?status=saved to the URL; unchecking removes the param.
+  readonly hideDraftsCheckbox: Locator;
 
   // Mobile filter toggle button (visible only on mobile, aria-label="Toggle filters")
   readonly mobileFilterToggle: Locator;
@@ -89,20 +83,9 @@ export class DiaryPage {
     this.dateToInput = page.getByTestId('diary-date-to');
     this.clearFiltersButton = page.getByTestId('clear-filters-button');
 
-    // Status filter chips — text matches i18n keys filterBar.statusAll/statusDraft/statusSaved
-    // Scoped inside the role="group" container with aria-label="Status" (t('filterBar.statusFilterLabel'))
-    // to avoid matching the DiaryFilterBar's two other role="group" containers
-    // (aria-label="Filter by entry mode" and aria-label="Filter by entry type").
-    const statusFilterGroup = page.getByRole('group', { name: 'Status' });
-    this.statusFilterAll = statusFilterGroup.getByRole('button', { name: 'All', exact: true });
-    this.statusFilterDraft = statusFilterGroup.getByRole('button', {
-      name: 'Drafts only',
-      exact: true,
-    });
-    this.statusFilterSaved = statusFilterGroup.getByRole('button', {
-      name: 'Saved only',
-      exact: true,
-    });
+    // Hide drafts checkbox — added in #1435; replaces the previous status filter chip row.
+    // Checking it adds ?status=saved; unchecking removes the param (shows all entries).
+    this.hideDraftsCheckbox = page.getByTestId('hide-drafts-checkbox');
 
     this.mobileFilterToggle = page.getByRole('button', { name: 'Toggle filters' });
 
@@ -126,6 +109,17 @@ export class DiaryPage {
    */
   async goto(): Promise<void> {
     await this.page.goto(DIARY_ROUTE);
+    await this.heading.waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Navigate directly to /diary?status=draft (drafts-only filter) and wait for the
+   * heading to be visible. Use this instead of clicking the old status filter chip
+   * (removed in #1435) to assert on draft-only visibility.
+   * No explicit timeout — uses project-level actionTimeout.
+   */
+  async filterDraftsOnly(): Promise<void> {
+    await this.page.goto(`${DIARY_ROUTE}?status=draft`);
     await this.heading.waitFor({ state: 'visible' });
   }
 
