@@ -275,10 +275,11 @@ test.describe('Budget Overview — print behaviour', () => {
       await expect(noAreaRow).toBeVisible();
 
       // Deeply nested rows visible — Kellerbau is a work item inside Keller inside Rohbau.
-      // Use exact span text matching to avoid strict-mode conflicts with "Keller" vs "Kellerbau".
+      // Work-item rows render the title inside a <Link> (<a>), not a <span>.
+      // Use a link locator to avoid strict-mode conflicts with "Keller" vs "Kellerbau".
       const kellerbauRow = overviewPage.costBreakdownCard
         .getByRole('row')
-        .filter({ has: page.locator('span', { hasText: /^Kellerbau$/ }) });
+        .filter({ has: page.locator('a', { hasText: /^Kellerbau$/ }) });
       await expect(kellerbauRow).toBeVisible();
 
       // Keller area row: scope to span with exact text "Keller" to avoid matching "Kellerbau"
@@ -384,24 +385,21 @@ test.describe('Budget Overview — print behaviour', () => {
 
       // The :global(@media print) rule in BudgetOverviewPage.module.css resets
       // --color-bg-primary to #ffffff regardless of data-theme.
-      // To avoid brittle string comparisons (some browsers return '#ffffff', others
-      // 'rgb(255, 255, 255)', etc.) we create a throwaway element, apply the CSS
-      // variable as its background-color, and read the computed rgb() value which
-      // browsers always normalise to 'rgb(R, G, B)' format.
-      const printBgNormalised = await page.evaluate(() => {
-        const el = document.createElement('div');
-        el.style.backgroundColor = 'var(--color-bg-primary)';
-        document.body.appendChild(el);
-        const computed = getComputedStyle(el).backgroundColor;
-        document.body.removeChild(el);
-        return computed;
-      });
-      // White in all normalised forms: 'rgb(255, 255, 255)' (with or without spaces)
+      // Read the CSS variable directly from documentElement — the throwaway-element
+      // technique does not work in print mode because print.css includes
+      // '* { background-color: transparent !important }' which overrides the
+      // applied background-color on the throwaway element before getComputedStyle
+      // can read it. Reading the variable from documentElement is not affected by
+      // that rule since we only read the custom property value, not a computed style.
+      const printBgVar = await page.evaluate(() =>
+        getComputedStyle(document.documentElement).getPropertyValue('--color-bg-primary').trim(),
+      );
+      // Chromium may return '#ffffff' (lowercase or uppercase) when reading a CSS
+      // variable that contains a hex literal.
       const isWhite =
-        printBgNormalised === 'rgb(255, 255, 255)' ||
-        printBgNormalised === 'rgb(255,255,255)' ||
-        printBgNormalised === 'rgba(255, 255, 255, 1)' ||
-        printBgNormalised === 'rgba(255,255,255,1)';
+        printBgVar.toLowerCase() === '#ffffff' ||
+        printBgVar === 'rgb(255, 255, 255)' ||
+        printBgVar === 'rgb(255,255,255)';
       expect(isWhite).toBe(true);
     } finally {
       await overviewPage.endPrint();
