@@ -28,6 +28,14 @@ function makeState(overrides: Partial<AnnotatorState> = {}): AnnotatorState {
     selectedTool: 'highlight',
     activeColor: '#facc15',
     activeStrokeWidthKey: 'medium',
+    selectDragState: {
+      mode: null,
+      shapeId: null,
+      handle: null,
+      startImageX: 0,
+      startImageY: 0,
+      startShape: null,
+    },
     ...overrides,
   };
 }
