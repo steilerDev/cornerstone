@@ -22,7 +22,12 @@
 
 import { test, expect } from '../../fixtures/auth.js';
 import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
-import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
+import {
+  createWorkItemViaApi,
+  deleteWorkItemViaApi,
+  createBudgetSourceViaApi,
+  deleteBudgetSourceViaApi,
+} from '../../fixtures/apiHelpers.js';
 import { API } from '../../fixtures/testData.js';
 import type { Page } from '@playwright/test';
 
@@ -59,13 +64,14 @@ async function deleteInvoiceViaApi(page: Page, vendorId: string, invoiceId: stri
 }
 
 /**
- * Create a work item budget line (planned amount, no source required for these tests).
+ * Create a work item budget line.
+ * `budgetSourceId` is required by the backend service layer.
  * Returns the budget line id.
  */
 async function createWorkItemBudgetViaApi(
   page: Page,
   workItemId: string,
-  data: { plannedAmount: number; description?: string },
+  data: { plannedAmount: number; budgetSourceId: string; description?: string },
 ): Promise<string> {
   const response = await page.request.post(`${API.workItems}/${workItemId}/budgets`, {
     data: { confidence: 'own_estimate', ...data },
@@ -211,9 +217,10 @@ test.describe('Budget regression — quotation invoice shows amount range + vend
       let workItemId: string | null = null;
       let vendorId: string | null = null;
       let invoiceId: string | null = null;
+      let budgetSourceId: string | null = null;
 
       try {
-        // Setup: work item + vendor + quotation invoice + linked budget line
+        // Setup: work item + vendor + quotation invoice + budget source + linked budget line
         workItemId = await createWorkItemViaApi(page, {
           title: `${testPrefix} Quotation Vendor Name Test`,
         });
@@ -227,9 +234,16 @@ test.describe('Budget regression — quotation invoice shows amount range + vend
           status: 'quotation',
         });
 
+        // Create a budget source — required by the backend service layer for WI budget lines
+        budgetSourceId = await createBudgetSourceViaApi(page, {
+          name: `${testPrefix} Source`,
+          totalAmount: 50000,
+        });
+
         // Create a budget line on the work item (planned €600.00, VAT included)
         const budgetLineId = await createWorkItemBudgetViaApi(page, workItemId, {
           plannedAmount: 600,
+          budgetSourceId,
           description: `${testPrefix} regression budget line`,
         });
 
@@ -280,9 +294,11 @@ test.describe('Budget regression — quotation invoice shows amount range + vend
       } finally {
         // Tear down in reverse dependency order.
         // Deleting the vendor cascades the invoice; deleting the work item cascades budget lines.
+        // Budget source must be deleted after the work item (budget lines reference it).
         if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
         if (vendorId) await deleteVendorViaApi(page, vendorId);
         if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+        if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
       }
     },
   );
