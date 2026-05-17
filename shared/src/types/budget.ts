@@ -36,6 +36,10 @@ export interface BudgetSourceSummary {
 /**
  * Summary of a single invoice linked to a budget line.
  * Returned as part of BaseBudgetLine.invoiceLink when present.
+ *
+ * `vendorId` and `vendorName` are denormalized from the linked invoice's vendor
+ * so the work-item view can render the vendor without an extra fetch.
+ * `vendorName` may be null only if the underlying vendor row has no name.
  */
 export interface BudgetLineInvoiceLink {
   invoiceBudgetLineId: string;
@@ -44,6 +48,8 @@ export interface BudgetLineInvoiceLink {
   invoiceDate: string;
   invoiceStatus: string;
   itemizedAmount: number;
+  vendorId: string | null;
+  vendorName: string | null;
 }
 
 /**
@@ -75,10 +81,22 @@ export interface BaseBudgetLine {
   budgetCategory: BudgetCategory | null;
   budgetSource: BudgetSourceSummary | null;
   vendor: VendorSummary | null;
-  /** Computed: sum of all linked invoices (any status) */
+  /**
+   * Computed: sum of itemized amounts from all linked invoices regardless of
+   * status — `draft`, `received`, `paid`, `claimed`, AND `quotation` are all
+   * included. Represents the "committed/expected spend" against this line.
+   *
+   * Note: quotation-status invoices contribute their itemized amount as a point
+   * estimate. Consumers that want to express the ±5% quotation uncertainty
+   * should multiply by `CONFIDENCE_MARGINS.quote` (0.05) when
+   * `invoiceLink.invoiceStatus === 'quotation'`.
+   *
+   * For "money actually out the door" semantics, use `actualCostPaid` instead.
+   */
   actualCost: number;
   /** Computed: sum of paid+claimed contributions, including paid+claimed deposits within
-   *  partially-paid invoices (proportional split by deposit amount / invoice amount). */
+   *  partially-paid invoices (proportional split by deposit amount / invoice amount).
+   *  Excludes quotations (a quotation is never paid). */
   actualCostPaid: number;
   /** Computed: count of linked invoices */
   invoiceCount: number;

@@ -422,6 +422,8 @@ describe('SourceBudgetLinePanel', () => {
           invoiceDate: '2026-01-01',
           invoiceStatus: 'paid',
           itemizedAmount: 100,
+          vendorId: null,
+          vendorName: null,
         },
       });
       renderPanel({ data: makeResponse([line], []) });
@@ -438,6 +440,8 @@ describe('SourceBudgetLinePanel', () => {
           invoiceDate: '2026-01-01',
           invoiceStatus: 'claimed',
           itemizedAmount: 100,
+          vendorId: null,
+          vendorName: null,
         },
       });
       renderPanel({ data: makeResponse([line], []) });
@@ -603,6 +607,8 @@ describe('SourceBudgetLinePanel', () => {
           invoiceDate: '2026-01-01',
           invoiceStatus: 'paid',
           itemizedAmount: 100,
+          vendorId: null,
+          vendorName: null,
         },
       });
       renderPanel({ data: makeResponse([line], []) });

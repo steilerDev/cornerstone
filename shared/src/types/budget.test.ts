@@ -697,6 +697,8 @@ describe('WorkItemBudgetLine interface (extends BaseBudgetLine)', () => {
         invoiceDate: '2025-06-01',
         invoiceStatus: 'paid',
         itemizedAmount: 1600,
+        vendorId: 'v-001',
+        vendorName: 'Acme Builders',
       },
     };
 

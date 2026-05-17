@@ -21,6 +21,7 @@ export interface InvoiceGroupProps<T extends BaseBudgetLine> {
   onUnlink: (lineId: string, invoiceBudgetLineId: string) => void;
   isUnlinking: Record<string, boolean>;
   confidenceLabels: Record<string, string>;
+  vendorName: string | null;
 }
 
 export function InvoiceGroup<T extends BaseBudgetLine>({
@@ -38,6 +39,7 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
   onUnlink,
   isUnlinking,
   confidenceLabels,
+  vendorName,
 }: InvoiceGroupProps<T>) {
   const { formatCurrency } = useFormatters();
   const { t } = useTranslation('budget');
@@ -70,7 +72,7 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
   };
 
   const amountLabel = invoiceStatus === 'quotation' ? t('vendorDetail.quotedAmount') : 'Invoiced';
-  const ariaLabel = `Invoice ${invoiceNumber || 'unknown'}: ${lines.length} budget lines, ${formatCurrency(itemizedTotal)} ${amountLabel}`;
+  const ariaLabel = `Invoice ${invoiceNumber || 'unknown'}${vendorName ? ` from ${vendorName}` : ''}: ${lines.length} budget lines, ${formatCurrency(itemizedTotal)} ${amountLabel}`;
 
   return (
     <div className={styles.group} role="group" aria-label={ariaLabel}>
@@ -93,6 +95,9 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
             >
               {invoiceNumber ? `#${invoiceNumber}` : 'Invoice'}
             </Link>
+            {vendorName && (
+              <span className={styles.vendorName}>{vendorName}</span>
+            )}
             <span className={statusBadgeClass}>{invoiceStatus}</span>
           </div>
           <div className={styles.amounts}>

@@ -76,6 +76,8 @@ function buildInvoiceLink(overrides?: Partial<BudgetLineInvoiceLink>): BudgetLin
     invoiceDate: '2025-01-15',
     invoiceStatus: 'pending',
     itemizedAmount: 500,
+    vendorId: null,
+    vendorName: null,
     ...overrides,
   };
 }
@@ -130,6 +132,7 @@ function buildProps(
       quote: 'Quote',
       invoice: 'Invoice',
     },
+    vendorName: null,
     ...overrides,
   };
 }
@@ -301,5 +304,53 @@ describe('InvoiceGroup', () => {
 
     expect(screen.getByTestId('budget-line-card-line-1')).toBeTruthy();
     expect(screen.getByTestId('budget-line-card-line-2')).toBeTruthy();
+  });
+
+  // ─── #1441: vendorName prop tests ─────────────────────────────────────────
+
+  it('vendorName rendered when non-null', () => {
+    renderGroup(<InvoiceGroup {...buildProps({ vendorName: 'Acme Corp' })} />);
+
+    expect(screen.getByText('Acme Corp')).toBeTruthy();
+  });
+
+  it('vendorName null: no "null" text rendered in DOM', () => {
+    renderGroup(<InvoiceGroup {...buildProps({ vendorName: null })} />);
+
+    // The word "null" must not appear anywhere in the document
+    expect(screen.queryByText('null')).toBeNull();
+  });
+
+  it('vendorName null: vendor span not rendered', () => {
+    const { container } = renderGroup(<InvoiceGroup {...buildProps({ vendorName: null })} />);
+
+    // No element with the vendorName CSS class should be present
+    // (identity-obj-proxy returns class name literally so we match on it)
+    const vendorSpan = container.querySelector('[class*="vendorName"]');
+    expect(vendorSpan).toBeNull();
+  });
+
+  it('aria-label includes vendor name when present', () => {
+    renderGroup(
+      <InvoiceGroup
+        {...buildProps({ vendorName: 'Acme Corp', invoiceNumber: 'INV-007', itemizedTotal: 100 })}
+      />,
+    );
+
+    const group = screen.getByRole('group');
+    const ariaLabel = group.getAttribute('aria-label') ?? '';
+    expect(ariaLabel).toContain('from Acme Corp');
+  });
+
+  it('aria-label omits vendor segment when vendorName is null', () => {
+    renderGroup(
+      <InvoiceGroup
+        {...buildProps({ vendorName: null, invoiceNumber: 'INV-007', itemizedTotal: 100 })}
+      />,
+    );
+
+    const group = screen.getByRole('group');
+    const ariaLabel = group.getAttribute('aria-label') ?? '';
+    expect(ariaLabel).not.toContain('from');
   });
 });

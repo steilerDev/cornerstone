@@ -2144,4 +2144,142 @@ describe('resolveRelationsBatch()', () => {
       expect(resolvedB.actualCostPaid).toBe(400);
     });
   });
+
+  // ─── #1439/#1441: vendorId and vendorName on invoiceLink (ADR-029) ────────────
+
+  describe('invoiceLink vendor fields (#1441)', () => {
+    it('invoiceLink.vendorId and invoiceLink.vendorName are populated when invoice has a vendor', () => {
+      const workItemId = insertWorkItem();
+      const vendorId = insertVendor('Acme Corp');
+      const line = insertWorkItemBudgetLine({ workItemId, plannedAmount: 500 });
+      const { invoiceId: _invId, iblId } = insertInvoiceLinkedToWorkItemBudget(line.id, vendorId, {
+        amount: 500,
+        status: 'pending',
+        invoiceNumber: 'INV-VENDOR',
+      });
+
+      const rows = [
+        {
+          id: line.id,
+          confidence: line.confidence,
+          budgetCategoryId: line.budgetCategoryId,
+          budgetSourceId: line.budgetSourceId,
+          vendorId: line.vendorId,
+          createdBy: line.createdBy,
+        },
+      ];
+      const result = resolveRelationsBatch(db, rows, 'work_item_budget_id');
+      const resolved = result.get(line.id)!;
+
+      expect(resolved.invoiceLink).not.toBeNull();
+      expect(resolved.invoiceLink?.invoiceBudgetLineId).toBe(iblId);
+      expect(resolved.invoiceLink?.vendorId).toBe(vendorId);
+      expect(resolved.invoiceLink?.vendorName).toBe('Acme Corp');
+    });
+
+    it('invoiceLink is null when no invoice is linked (vendorId/vendorName inaccessible)', () => {
+      const workItemId = insertWorkItem();
+      const line = insertWorkItemBudgetLine({ workItemId, plannedAmount: 300 });
+      // No invoice linked — invoiceLink must be null
+
+      const rows = [
+        {
+          id: line.id,
+          confidence: line.confidence,
+          budgetCategoryId: line.budgetCategoryId,
+          budgetSourceId: line.budgetSourceId,
+          vendorId: line.vendorId,
+          createdBy: line.createdBy,
+        },
+      ];
+      const result = resolveRelationsBatch(db, rows, 'work_item_budget_id');
+      const resolved = result.get(line.id)!;
+
+      expect(resolved.invoiceLink).toBeNull();
+    });
+
+    it('batch with multiple budget lines: each invoiceLink gets correct vendor fields', () => {
+      const workItemId = insertWorkItem();
+      const vendorA = insertVendor('Vendor Alpha');
+      const vendorB = insertVendor('Vendor Beta');
+
+      const lineA = insertWorkItemBudgetLine({ workItemId, plannedAmount: 400 });
+      const lineB = insertWorkItemBudgetLine({ workItemId, plannedAmount: 600 });
+
+      insertInvoiceLinkedToWorkItemBudget(lineA.id, vendorA, { amount: 400, status: 'paid' });
+      insertInvoiceLinkedToWorkItemBudget(lineB.id, vendorB, { amount: 600, status: 'pending' });
+
+      const rows = [lineA, lineB].map((l) => ({
+        id: l.id,
+        confidence: l.confidence,
+        budgetCategoryId: l.budgetCategoryId,
+        budgetSourceId: l.budgetSourceId,
+        vendorId: l.vendorId,
+        createdBy: l.createdBy,
+      }));
+      const result = resolveRelationsBatch(db, rows, 'work_item_budget_id');
+
+      const resolvedA = result.get(lineA.id)!;
+      expect(resolvedA.invoiceLink?.vendorId).toBe(vendorA);
+      expect(resolvedA.invoiceLink?.vendorName).toBe('Vendor Alpha');
+
+      const resolvedB = result.get(lineB.id)!;
+      expect(resolvedB.invoiceLink?.vendorId).toBe(vendorB);
+      expect(resolvedB.invoiceLink?.vendorName).toBe('Vendor Beta');
+    });
+
+    it('quotation invoice is included in actualCost via resolveRelationsBatch (ADR-029)', () => {
+      // Budget line linked to a quotation invoice → actualCost should be populated
+      const workItemId = insertWorkItem();
+      const vendorId = insertVendor('Quotation Co');
+      const line = insertWorkItemBudgetLine({ workItemId, plannedAmount: 800 });
+
+      // Insert quotation invoice manually (insertInvoiceLinkedToWorkItemBudget only accepts pending/paid/claimed)
+      const invoiceId = `inv-quot-${++idCounter}`;
+      const iblId = `ibl-quot-${++idCounter}`;
+      const now = new Date(Date.now() + idCounter).toISOString();
+      db.insert(schema.invoices)
+        .values({
+          id: invoiceId,
+          vendorId,
+          amount: 800,
+          date: '2025-06-01',
+          status: 'quotation',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: iblId,
+          invoiceId,
+          workItemBudgetId: line.id,
+          itemizedAmount: 800,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const rows = [
+        {
+          id: line.id,
+          confidence: line.confidence,
+          budgetCategoryId: line.budgetCategoryId,
+          budgetSourceId: line.budgetSourceId,
+          vendorId: line.vendorId,
+          createdBy: line.createdBy,
+        },
+      ];
+      const result = resolveRelationsBatch(db, rows, 'work_item_budget_id');
+      const resolved = result.get(line.id)!;
+
+      // ADR-029: quotation invoice contributes to actualCost
+      expect(resolved.actualCost).toBe(800);
+      expect(resolved.actualCostPaid).toBe(0); // quotation is not paid
+      expect(resolved.invoiceCount).toBe(1);
+      // invoiceLink vendor fields populated
+      expect(resolved.invoiceLink?.vendorId).toBe(vendorId);
+      expect(resolved.invoiceLink?.vendorName).toBe('Quotation Co');
+    });
+  });
 });

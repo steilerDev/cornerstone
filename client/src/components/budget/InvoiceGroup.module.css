@@ -79,6 +79,15 @@
   border-radius: 2px;
 }
 
+.vendorName {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 12rem;
+}
+
 .statusBadge {
   display: inline-block;
   padding: 0.25rem 0.5rem;

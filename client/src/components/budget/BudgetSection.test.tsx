@@ -39,16 +39,19 @@ jest.unstable_mockModule('./InvoiceGroup.js', () => ({
     invoiceStatus,
     lines,
     onUnlink,
+    vendorName,
   }: {
     invoiceId: string;
     invoiceNumber: string | null;
     invoiceStatus: string;
     lines: BaseBudgetLine[];
     onUnlink: (lineId: string, invoiceBudgetLineId: string) => void;
+    vendorName: string | null;
   }) => (
     <div data-testid={`invoice-group-${invoiceId}`}>
       <span>{invoiceNumber ?? 'Invoice'}</span>
       <span>{invoiceStatus}</span>
+      {vendorName && <span data-testid={`invoice-group-vendor-${invoiceId}`}>{vendorName}</span>}
       {lines.map((line) => (
         <div key={line.id} data-testid={`grouped-line-${line.id}`}>
           <span>{line.description}</span>
@@ -75,6 +78,7 @@ let BudgetSection: (typeof import('./BudgetSection.js'))['BudgetSection'];
 function buildInvoiceLink(
   invoiceId: string,
   invoiceBudgetLineId: string = 'ibl-1',
+  overrides?: Partial<BudgetLineInvoiceLink>,
 ): BudgetLineInvoiceLink {
   return {
     invoiceBudgetLineId,
@@ -83,6 +87,9 @@ function buildInvoiceLink(
     invoiceDate: '2025-01-15',
     invoiceStatus: 'pending',
     itemizedAmount: 500,
+    vendorId: null,
+    vendorName: null,
+    ...overrides,
   };
 }
 
@@ -316,5 +323,41 @@ describe('BudgetSection', () => {
     );
 
     expect(screen.queryByRole('button', { name: /link to invoice/i })).toBeNull();
+  });
+
+  // ─── #1441: vendorName derived from first line's invoiceLink ──────────────
+
+  it('vendorName derived from first line invoiceLink.vendorName is passed to InvoiceGroup', () => {
+    const link = buildInvoiceLink('inv-vendor', 'ibl-v', { vendorName: 'Acme' });
+    const line = buildLine('line-v', link);
+
+    render(<BudgetSection {...buildProps([line])} />);
+
+    // The mock renders a span with data-testid={`invoice-group-vendor-${invoiceId}`} when vendorName is set
+    expect(screen.getByTestId('invoice-group-vendor-inv-vendor')).toHaveTextContent('Acme');
+  });
+
+  it('null vendorName from first line: InvoiceGroup receives vendorName=null (no vendor span)', () => {
+    const link = buildInvoiceLink('inv-novendor', 'ibl-nv', { vendorName: null });
+    const line = buildLine('line-nv', link);
+
+    render(<BudgetSection {...buildProps([line])} />);
+
+    // No vendor span should be rendered by the mock when vendorName is null
+    expect(screen.queryByTestId('invoice-group-vendor-inv-novendor')).toBeNull();
+  });
+
+  it('defensive: first line null vendorName, rest have vendor — derives from first', () => {
+    // All lines in a group share the same invoice (per spec), so first-line derivation is correct.
+    // This test verifies BudgetSection uses the first line: groupLines[0]?.invoiceLink?.vendorName
+    const link1 = buildInvoiceLink('inv-mix', 'ibl-1', { vendorName: null });
+    const link2 = buildInvoiceLink('inv-mix', 'ibl-2', { vendorName: 'Beta Corp' });
+    const line1 = buildLine('line-m1', link1);
+    const line2 = buildLine('line-m2', link2);
+
+    render(<BudgetSection {...buildProps([line1, line2])} />);
+
+    // First line has null vendor → InvoiceGroup receives null → no vendor span
+    expect(screen.queryByTestId('invoice-group-vendor-inv-mix')).toBeNull();
   });
 });
