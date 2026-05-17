@@ -118,6 +118,7 @@
   --color-text-inverse: var(--color-white);
   --color-text-placeholder: var(--color-gray-400);
   --color-text-disabled: var(--color-gray-400);
+  --color-text-quoted: var(--color-gray-500);
 
   /* --- Borders --- */
   --color-border: var(--color-gray-200);
@@ -623,6 +624,7 @@
   --color-text-inverse: var(--color-gray-900);
   --color-text-placeholder: var(--color-slate-400);
   --color-text-disabled: var(--color-slate-400);
+  --color-text-quoted: var(--color-slate-200);
 
   /* --- Borders --- */
   --color-border: var(--color-slate-500);

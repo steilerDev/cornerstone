@@ -71,7 +71,7 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
     return t('vendorDetail.invoiceStatusLabels.paid'); // Default to "Invoiced" equivalent
   };
 
-  const amountLabel = invoiceStatus === 'quotation' ? t('vendorDetail.quotedAmount') : 'Invoiced';
+  const amountLabel = invoiceStatus === 'quotation' ? t('vendorDetail.quotedAmount') : t('vendorDetail.invoicedAmount');
   const ariaLabel = `Invoice ${invoiceNumber || 'unknown'}${vendorName ? ` from ${vendorName}` : ''}: ${lines.length} budget lines, ${formatCurrency(itemizedTotal)} ${amountLabel}`;
 
   return (
@@ -88,22 +88,24 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
       >
         <div className={styles.headerContent}>
           <div className={styles.invoiceInfo}>
-            <Link
-              to={`/budget/invoices/${invoiceId}`}
-              className={styles.invoiceLink}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {invoiceNumber ? `#${invoiceNumber}` : 'Invoice'}
-            </Link>
-            {vendorName && <span className={styles.vendorName}>{vendorName}</span>}
+            <div className={styles.invoiceIdentity}>
+              <Link
+                to={`/budget/invoices/${invoiceId}`}
+                className={styles.invoiceLink}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {invoiceNumber ? `#${invoiceNumber}` : 'Invoice'}
+              </Link>
+              {vendorName && <span className={styles.vendorName}>{vendorName}</span>}
+            </div>
             <span className={statusBadgeClass}>{invoiceStatus}</span>
           </div>
           <div className={styles.amounts}>
             <div className={styles.amountGroup}>
-              <span className={styles.amountValue}>
-                {invoiceStatus === 'quotation'
-                  ? `${formatCurrency(itemizedTotal * 0.95)} – ${formatCurrency(itemizedTotal * 1.05)}`
-                  : formatCurrency(itemizedTotal)}
+              <span
+                className={`${styles.amountValue}${invoiceStatus === 'quotation' ? ` ${styles.amountValueQuoted}` : ''}`}
+              >
+                {formatCurrency(itemizedTotal)}
               </span>
               <span className={styles.amountLabel}>{amountLabel}</span>
             </div>
