@@ -403,7 +403,11 @@ test.describe('Photo attach — happy path (Scenario 6)', { tag: '@responsive' }
       });
 
       const fileInput = page.getByTestId('photo-file-input');
-      const minimalFile = { name: 'test.jpg', mimeType: 'image/jpeg' as const, buffer: Buffer.from('test') };
+      const minimalFile = {
+        name: 'test.jpg',
+        mimeType: 'image/jpeg' as const,
+        buffer: Buffer.from('test'),
+      };
       await fileInput.setInputFiles([minimalFile]);
 
       // The photo card should appear without a page reload.
@@ -872,65 +876,65 @@ test.describe('Draft badge in list view (Scenario 12)', { tag: '@responsive' }, 
 // Scenario 13: Hide drafts checkbox (#1435)
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Hide drafts checkbox (Scenario 13)', () => {
-  test(
-    'Checking "Hide drafts" hides drafts; unchecking restores them; default is unchecked',
-    async ({ page, testPrefix }) => {
-      const diaryPage = new DiaryPage(page);
-      let draftId: string | null = null;
-      let savedId: string | null = null;
+  test('Checking "Hide drafts" hides drafts; unchecking restores them; default is unchecked', async ({
+    page,
+    testPrefix,
+  }) => {
+    const diaryPage = new DiaryPage(page);
+    let draftId: string | null = null;
+    let savedId: string | null = null;
 
-      try {
-        // Create one draft and one saved entry
-        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
-        savedId = await createDiaryEntryViaApi(page, {
-          entryType: 'general_note',
-          entryDate: '2026-05-16',
-          body: `${testPrefix} saved entry for hide-drafts test`,
-        });
+    try {
+      // Create one draft and one saved entry
+      draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+      savedId = await createDiaryEntryViaApi(page, {
+        entryType: 'general_note',
+        entryDate: '2026-05-16',
+        body: `${testPrefix} saved entry for hide-drafts test`,
+      });
 
-        await diaryPage.goto();
-        await waitForDiaryListLoaded(diaryPage);
-        // The filter panel is collapsed by default on mobile — expand it so
-        // the "Hide drafts" checkbox is interactable across all viewports.
-        await diaryPage.openFiltersIfCollapsed();
+      await diaryPage.goto();
+      await waitForDiaryListLoaded(diaryPage);
+      // The filter panel is collapsed by default on mobile — expand it so
+      // the "Hide drafts" checkbox is interactable across all viewports.
+      await diaryPage.openFiltersIfCollapsed();
 
-        // ── Default: checkbox is unchecked, both entries visible ──
-        await expect(diaryPage.hideDraftsCheckbox).not.toBeChecked();
-        await expect(diaryPage.entryCard(draftId)).toBeVisible();
-        await expect(diaryPage.entryCard(savedId)).toBeVisible();
+      // ── Default: checkbox is unchecked, both entries visible ──
+      await expect(diaryPage.hideDraftsCheckbox).not.toBeChecked();
+      await expect(diaryPage.entryCard(draftId)).toBeVisible();
+      await expect(diaryPage.entryCard(savedId)).toBeVisible();
 
-        // ── Check "Hide drafts" → drafts hidden, saved visible; URL gets ?status=saved ──
-        const savedFilterResponse = waitForDiaryListResponse(page);
-        await diaryPage.hideDraftsCheckbox.scrollIntoViewIfNeeded();
-        await diaryPage.hideDraftsCheckbox.check();
-        await savedFilterResponse;
-        await waitForDiaryListLoaded(diaryPage);
+      // ── Check "Hide drafts" → drafts hidden, saved visible; URL gets ?status=saved ──
+      const savedFilterResponse = waitForDiaryListResponse(page);
+      await diaryPage.hideDraftsCheckbox.scrollIntoViewIfNeeded();
+      await diaryPage.hideDraftsCheckbox.check();
+      await savedFilterResponse;
+      await waitForDiaryListLoaded(diaryPage);
 
-        // URL should contain status=saved
-        expect(page.url()).toContain('status=saved');
+      // URL should contain status=saved
+      expect(page.url()).toContain('status=saved');
 
-        // Draft card should NOT be visible; saved card should be visible
-        await expect(diaryPage.entryCard(draftId)).not.toBeVisible();
-        await expect(diaryPage.entryCard(savedId)).toBeVisible();
+      // Draft card should NOT be visible; saved card should be visible
+      await expect(diaryPage.entryCard(draftId)).not.toBeVisible();
+      await expect(diaryPage.entryCard(savedId)).toBeVisible();
 
-        // ── Uncheck "Hide drafts" → drafts visible again; status param removed ──
-        const allFilterResponse = waitForDiaryListResponse(page);
-        await diaryPage.hideDraftsCheckbox.uncheck();
-        await allFilterResponse;
-        await waitForDiaryListLoaded(diaryPage);
+      // ── Uncheck "Hide drafts" → drafts visible again; status param removed ──
+      const allFilterResponse = waitForDiaryListResponse(page);
+      await diaryPage.hideDraftsCheckbox.uncheck();
+      await allFilterResponse;
+      await waitForDiaryListLoaded(diaryPage);
 
-        // URL should NOT contain status=saved
-        expect(page.url()).not.toContain('status=saved');
+      // URL should NOT contain status=saved
+      expect(page.url()).not.toContain('status=saved');
 
-        // Both cards should be visible again
-        await expect(diaryPage.entryCard(draftId)).toBeVisible();
-        await expect(diaryPage.entryCard(savedId)).toBeVisible();
-      } finally {
-        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
-        if (savedId) await deleteDiaryEntryViaApi(page, savedId);
-      }
-    },
-  );
+      // Both cards should be visible again
+      await expect(diaryPage.entryCard(draftId)).toBeVisible();
+      await expect(diaryPage.entryCard(savedId)).toBeVisible();
+    } finally {
+      if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+      if (savedId) await deleteDiaryEntryViaApi(page, savedId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

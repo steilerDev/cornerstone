@@ -29,7 +29,7 @@
 - Release all `uploadHolds` BEFORE calling `page.unroute()` — unrouting with pending handlers causes unhandled rejections.
 - Test file: `e2e/tests/diary/diary-drafts.spec.ts` (18 scenarios + 1 sub-test in Scenario 6; smoke tags on scenarios 1, 9, 12).
 - **Photo immediate appearance test (Scenario 6 sub-test)**: must mock BOTH `POST /api/photos` (201 + `{ photo: mockPhoto }`) AND `GET **/api/photos?entityType=diary_entry&entityId={id}` (200 + `{ photos: [mockPhoto] }`). The GET mock is required because `onUpload={() => photosResult.refresh()}` triggers a refetch that the server can't satisfy (real photo was never stored). Use `page.unrouteAll()` in finally.
-- **Scenario 8 in diary-r2-uat.spec.ts**: Migrated from `create-photo-input` on create form to `photo-file-input` on edit page (post-#1435 flow). Now tests: goto /diary/new → selectType → waitForURL(/diary\/.+\/edit$/) → assert photo-file-input present, has accept=image/*, has multiple=''. Uses `deleteDiaryEntryViaApi` for cleanup — import added to file.
+- **Scenario 8 in diary-r2-uat.spec.ts**: Migrated from `create-photo-input` on create form to `photo-file-input` on edit page (post-#1435 flow). Now tests: goto /diary/new → selectType → waitForURL(/diary\/.+\/edit$/) → assert photo-file-input present, has accept=image/\*, has multiple=''. Uses `deleteDiaryEntryViaApi` for cleanup — import added to file.
 - **`create-photo-input` testId is GONE** post-#1435. Only `photo-file-input` (on edit page) exists.
 
 ## InvoiceBudgetLinesSection Picker (Issue #1401, 2026-05-10)

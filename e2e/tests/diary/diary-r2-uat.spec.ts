@@ -484,46 +484,42 @@ test.describe('Signed badge on entry cards (Scenario 7)', { tag: '@responsive' }
 // the edit page, which is the correct place for photo uploads post-#1435.
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Photo upload input on edit page (Scenario 8)', { tag: '@responsive' }, () => {
-  test(
-    'Edit page (reached via type-card click) includes a photo file input',
-    async ({ page }) => {
-      const createPage = new DiaryEntryCreatePage(page);
-      let draftId: string | null = null;
+  test('Edit page (reached via type-card click) includes a photo file input', async ({ page }) => {
+    const createPage = new DiaryEntryCreatePage(page);
+    let draftId: string | null = null;
 
-      try {
-        await createPage.goto();
+    try {
+      await createPage.goto();
 
-        // Register the POST response listener BEFORE clicking the type card
-        const draftResponsePromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
-        );
+      // Register the POST response listener BEFORE clicking the type card
+      const draftResponsePromise = page.waitForResponse(
+        (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
+      );
 
-        await createPage.selectType('general_note');
+      await createPage.selectType('general_note');
 
-        // Wait for the auto-draft POST to complete and navigate to /diary/:id/edit
-        await draftResponsePromise;
-        await page.waitForURL(/diary\/.+\/edit$/);
+      // Wait for the auto-draft POST to complete and navigate to /diary/:id/edit
+      await draftResponsePromise;
+      await page.waitForURL(/diary\/.+\/edit$/);
 
-        // Extract the draft ID from the URL for cleanup
-        const match = page.url().match(/diary\/([^/]+)\/edit$/);
-        draftId = match?.[1] ?? null;
+      // Extract the draft ID from the URL for cleanup
+      const match = page.url().match(/diary\/([^/]+)\/edit$/);
+      draftId = match?.[1] ?? null;
 
-        // The photo file input must be present on the edit page.
-        // data-testid="photo-file-input" (PhotoUpload.tsx)
-        const photoInput = page.getByTestId('photo-file-input');
-        await expect(photoInput).toBeAttached();
+      // The photo file input must be present on the edit page.
+      // data-testid="photo-file-input" (PhotoUpload.tsx)
+      const photoInput = page.getByTestId('photo-file-input');
+      await expect(photoInput).toBeAttached();
 
-        // Verify it accepts image files (accept="image/*")
-        await expect(photoInput).toHaveAttribute('accept', /image\/\*/i);
+      // Verify it accepts image files (accept="image/*")
+      await expect(photoInput).toHaveAttribute('accept', /image\/\*/i);
 
-        // Verify it supports multiple files (boolean attribute — present as empty string)
-        await expect(photoInput).toHaveAttribute('multiple', '');
-      } finally {
-        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
-      }
-    },
-  );
+      // Verify it supports multiple files (boolean attribute — present as empty string)
+      await expect(photoInput).toHaveAttribute('multiple', '');
+    } finally {
+      if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
