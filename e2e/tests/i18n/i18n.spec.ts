@@ -87,11 +87,7 @@ test.describe('i18n: Language Switching', () => {
     await resetToEnglish(page);
   });
 
-  // Skip: ProfilePage does not have a language selector UI (#languageSelect).
-  // The locale preference is managed via the API only. A language selector UI on
-  // the Profile page is tracked as a pending feature (see GitHub Issue filed from
-  // E2E failure triage). This test should be re-enabled once the UI is added.
-  test.skip('Language can be changed to German on the Profile page', async ({ page }) => {
+  test('Language can be changed to German on the Profile page', async ({ page }) => {
     // Given: User is on the profile page with English as the current language
     await page.goto(ROUTES.profile);
     await page.getByRole('heading', { level: 1, name: 'Profile' }).waitFor({ state: 'visible' });
@@ -168,10 +164,7 @@ test.describe('i18n: Language Switching', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();
   });
 
-  // Skip: ProfilePage does not have a language selector UI (#languageSelect or Preferences section).
-  // The locale preference is managed via the API only. This test should be re-enabled
-  // once the language selector UI is added to the Profile page.
-  test.skip('Profile preferences section shows language options in current language', async ({
+  test('Profile preferences section shows language options in current language', async ({
     page,
   }) => {
     // Given: User is on the Profile page in English
@@ -185,7 +178,7 @@ test.describe('i18n: Language Switching', () => {
     const languageSelect = page.locator('#languageSelect');
     await expect(languageSelect.locator('option[value="en"]')).toHaveText('English');
     await expect(languageSelect.locator('option[value="de"]')).toHaveText('Deutsch');
-    await expect(languageSelect.locator('option[value="system"]')).toHaveText('System');
+    await expect(languageSelect.locator('option[value="system"]')).toHaveText('System (auto-detect)');
   });
 });
 
@@ -205,14 +198,15 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
     // Given: Language is set to German
     await setLanguage(page, 'de');
 
-    // When: User navigates to dashboard with a fresh full page load
+    // When: User navigates to dashboard with a fresh full page load.
     // setLanguage navigates to '/' (which redirects to /project/overview) and writes
-    // localStorage. A second goto to the same URL may not trigger a full reload, so
-    // we navigate with waitUntil: 'commit' and then wait for the German heading to
-    // confirm i18next has initialised with the correct locale.
-    await page.goto(ROUTES.home, { waitUntil: 'commit' });
+    // localStorage. A second goto to the same URL reuses the cached SPA state and
+    // LocaleContext does not re-read localStorage, so a reload() is required to
+    // force i18next to initialise with the new locale.
+    await page.goto(ROUTES.home);
+    await page.reload();
     // Wait for German page heading to confirm locale switch took effect
-    await page.getByRole('heading', { level: 1, name: 'Projekt' }).waitFor({ state: 'visible' });
+    await expect(page.getByRole('heading', { level: 1, name: 'Projekt' })).toBeVisible();
 
     // Then: All navigation links are visible and not overflowing
     const sidebar = page.locator('aside');
@@ -271,8 +265,7 @@ test.describe('i18n: Language Persistence via API', () => {
     await resetToEnglish(page);
   });
 
-  // Skip: API timing-dependent — waitForResponse times out in CI. Covered by unit tests.
-  test.skip('Language preference is saved to server and returns on fresh session', async ({
+  test('Language preference is saved to server and returns on fresh session', async ({
     page,
   }) => {
     // Given: Language is set to German via the Profile page UI
@@ -304,8 +297,7 @@ test.describe('i18n: Language Persistence via API', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Projekt' })).toBeVisible();
   });
 
-  // Skip: API timing-dependent — waitForResponse times out in CI. Covered by unit tests.
-  test.skip('DELETE preference resets to system locale', async ({ page }) => {
+  test('DELETE preference resets to system locale', async ({ page }) => {
     // Given: Language is set to German
     await setLanguage(page, 'de');
 
