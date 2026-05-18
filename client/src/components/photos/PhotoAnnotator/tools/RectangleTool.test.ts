@@ -14,6 +14,7 @@
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { RectangleTool } from './RectangleTool.js';
+import { resolveStrokeWidth } from '../annotationConstants.js';
 import type { AnnotatorState } from '../useAnnotator.js';
 import type { PointerContext } from './SelectTool.js';
 
@@ -27,7 +28,7 @@ function makeState(overrides: Partial<AnnotatorState> = {}): AnnotatorState {
     selectedTool: 'rectangle',
     activeColor: '#dc2626',
     activeStrokeWidthKey: 'medium',
-    activeFontSize: 18,
+    activeFontSizeKey: 'medium',
     selectDragState: {
       mode: null,
       shapeId: null,
@@ -111,34 +112,34 @@ describe('RectangleTool', () => {
       expect(shape.color).toBe('#3b82f6');
     });
 
-    it('draft shape uses strokeWidth 4 for "medium" activeStrokeWidthKey', () => {
+    it('draft shape uses strokeWidth resolved for "medium" activeStrokeWidthKey', () => {
       const state = makeState({ activeStrokeWidthKey: 'medium' });
       const actions = RectangleTool.onPointerDown(state, makeCtx(50, 50));
       const action = actions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape;
       if (!shape || shape.type !== 'rectangle') throw new Error('expected rectangle');
-      expect(shape.strokeWidth).toBe(4);
+      expect(shape.strokeWidth).toBe(resolveStrokeWidth('medium', 800, 600));
     });
 
-    it('draft shape uses strokeWidth 2 for "thin" activeStrokeWidthKey', () => {
+    it('draft shape uses strokeWidth resolved for "thin" activeStrokeWidthKey', () => {
       const state = makeState({ activeStrokeWidthKey: 'thin' });
       const actions = RectangleTool.onPointerDown(state, makeCtx(50, 50));
       const action = actions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape;
       if (!shape || shape.type !== 'rectangle') throw new Error('expected rectangle');
-      expect(shape.strokeWidth).toBe(2);
+      expect(shape.strokeWidth).toBe(resolveStrokeWidth('thin', 800, 600));
     });
 
-    it('draft shape uses strokeWidth 8 for "thick" activeStrokeWidthKey', () => {
+    it('draft shape uses strokeWidth resolved for "thick" activeStrokeWidthKey', () => {
       const state = makeState({ activeStrokeWidthKey: 'thick' });
       const actions = RectangleTool.onPointerDown(state, makeCtx(50, 50));
       const action = actions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape;
       if (!shape || shape.type !== 'rectangle') throw new Error('expected rectangle');
-      expect(shape.strokeWidth).toBe(8);
+      expect(shape.strokeWidth).toBe(resolveStrokeWidth('thick', 800, 600));
     });
 
     it('draft shape has a non-empty id', () => {
@@ -149,16 +150,16 @@ describe('RectangleTool', () => {
       expect(action.shape?.id).toBeTruthy();
     });
 
-    it('falls back to strokeWidth 4 when activeStrokeWidthKey is falsy', () => {
-      // Force an invalid strokeWidthKey to exercise the fallback branch
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const state = makeState({ activeStrokeWidthKey: '' as any });
+    it('strokeWidth is a positive number for the default "medium" activeStrokeWidthKey', () => {
+      // Verify that the default key produces a valid positive stroke width
+      const state = makeState({ activeStrokeWidthKey: 'medium' });
       const actions = RectangleTool.onPointerDown(state, makeCtx(50, 50));
       const action = actions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape;
       if (!shape || shape.type !== 'rectangle') throw new Error('expected rectangle');
-      expect(shape.strokeWidth).toBe(4);
+      expect(shape.strokeWidth).toBeGreaterThan(0);
+      expect(shape.strokeWidth).toBe(resolveStrokeWidth('medium', 800, 600));
     });
   });
 

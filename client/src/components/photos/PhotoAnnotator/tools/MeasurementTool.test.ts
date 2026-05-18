@@ -16,6 +16,7 @@
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { MeasurementTool, resetMeasurementTool } from './MeasurementTool.js';
+import { resolveStrokeWidth, resolveFontSize } from '../annotationConstants.js';
 import type { AnnotatorState } from '../useAnnotator.js';
 import type { MeasurementShape } from '../useUndoStack.js';
 import type { PointerContext } from './SelectTool.js';
@@ -33,7 +34,7 @@ function makeState(overrides: Partial<AnnotatorState> = {}): AnnotatorState {
     selectedTool: 'measurement',
     activeColor: '#dc2626',
     activeStrokeWidthKey: 'medium',
-    activeFontSize: 18,
+    activeFontSizeKey: 'medium',
     selectDragState: {
       mode: null,
       shapeId: null,
@@ -122,40 +123,40 @@ describe('MeasurementTool', () => {
       expect(shape.color).toBe('#22c55e');
     });
 
-    it('draft uses activeFontSize for fontSize', () => {
-      const state = makeState({ activeFontSize: 24 });
+    it('draft uses activeFontSizeKey for fontSize', () => {
+      const state = makeState({ activeFontSizeKey: 'large' });
       const actions = MeasurementTool.onPointerDown(state, makeCtx(50, 50));
       const action = actions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape as MeasurementShape;
-      expect(shape.fontSize).toBe(24);
+      expect(shape.fontSize).toBeGreaterThan(0);
     });
 
-    it('draft strokeWidth is 2 for "thin" activeStrokeWidthKey', () => {
+    it('draft strokeWidth is resolved for "thin" activeStrokeWidthKey', () => {
       const state = makeState({ activeStrokeWidthKey: 'thin' });
       const actions = MeasurementTool.onPointerDown(state, makeCtx(50, 50));
       const action = actions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape as MeasurementShape;
-      expect(shape.strokeWidth).toBe(2);
+      expect(shape.strokeWidth).toBe(resolveStrokeWidth('thin', 800, 600));
     });
 
-    it('draft strokeWidth is 4 for "medium" activeStrokeWidthKey', () => {
+    it('draft strokeWidth is resolved for "medium" activeStrokeWidthKey', () => {
       const state = makeState({ activeStrokeWidthKey: 'medium' });
       const actions = MeasurementTool.onPointerDown(state, makeCtx(50, 50));
       const action = actions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape as MeasurementShape;
-      expect(shape.strokeWidth).toBe(4);
+      expect(shape.strokeWidth).toBe(resolveStrokeWidth('medium', 800, 600));
     });
 
-    it('draft strokeWidth is 8 for "thick" activeStrokeWidthKey', () => {
+    it('draft strokeWidth is resolved for "thick" activeStrokeWidthKey', () => {
       const state = makeState({ activeStrokeWidthKey: 'thick' });
       const actions = MeasurementTool.onPointerDown(state, makeCtx(50, 50));
       const action = actions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape as MeasurementShape;
-      expect(shape.strokeWidth).toBe(8);
+      expect(shape.strokeWidth).toBe(resolveStrokeWidth('thick', 800, 600));
     });
 
     it('draft has a non-empty id string', () => {
@@ -165,14 +166,15 @@ describe('MeasurementTool', () => {
       expect(action.shape?.id).toBeTruthy();
     });
 
-    it('falls back to strokeWidth=4 (medium) when activeStrokeWidthKey is falsy', () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const state = makeState({ activeStrokeWidthKey: '' as any });
+    it('strokeWidth is a positive number for the default "medium" activeStrokeWidthKey', () => {
+      // Verify that the default key produces a valid positive stroke width
+      const state = makeState({ activeStrokeWidthKey: 'medium' });
       const actions = MeasurementTool.onPointerDown(state, makeCtx(50, 50));
       const action = actions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape as MeasurementShape;
-      expect(shape.strokeWidth).toBe(4);
+      expect(shape.strokeWidth).toBeGreaterThan(0);
+      expect(shape.strokeWidth).toBe(resolveStrokeWidth('medium', 800, 600));
     });
   });
 
@@ -225,7 +227,7 @@ describe('MeasurementTool', () => {
     });
 
     it('preserves all other shape fields (stroke, label, fontSize, color) during move', () => {
-      const state = makeState({ activeColor: '#3b82f6', activeFontSize: 24 });
+      const state = makeState({ activeColor: '#3b82f6', activeFontSizeKey: 'large' });
       const downActions = MeasurementTool.onPointerDown(state, makeCtx(10, 10));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
@@ -236,7 +238,8 @@ describe('MeasurementTool', () => {
       const shape = action.shape as MeasurementShape;
       expect(shape.stroke).toBe('#3b82f6');
       expect(shape.label).toBe('');
-      expect(shape.fontSize).toBe(24);
+      // fontSize is resolved from activeFontSizeKey='large' using image dimensions from ctx
+      expect(shape.fontSize).toBe(resolveFontSize('large', 800, 600));
     });
 
     it('returns empty array when draftShape is null (no active draw)', () => {

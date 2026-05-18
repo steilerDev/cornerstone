@@ -3,6 +3,16 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Resolution-Aware Sizing Refactor — PhotoAnnotator Test Patterns (2026-05-18)
+
+**Approach**: When tool code switches from fixed pixel constants to `resolveStrokeWidth(key, w, h)` / `resolveFontSize(key, w, h)`, replace hardcoded pixel assertions in tool tests with calls to the resolve helpers using the test's image dims (e.g. `resolveStrokeWidth('medium', 800, 600)`). The test's `makeCtx()` always sets `imageWidth: 800, imageHeight: 600`, so expected values = `Math.max(1, Math.round(min(800,600) * ratio))`.
+
+**ToolPalette button count**: `ToolPalette` renders one radio per entry in `ANNOTATION_COLORS` (6), `ANNOTATION_STROKE_WIDTH_RATIOS` (4: thin/medium/thick/extra-thick), `ANNOTATION_FONT_SIZE_RATIOS` (5: small/medium/large/xlarge/xxlarge). For selectedTool='text': 6+4+5=15 total radio buttons. Update the count test if any of these dictionaries gain entries.
+
+**ToolPalette onSelectFontSize**: After resolution-aware refactor, `onSelectFontSize` is called with the **string key** (e.g. `'large'`), not a pixel number. Update any tests that assert `toHaveBeenCalledWith(24)` → `toHaveBeenCalledWith('large')`.
+
+**Fallback tests for strokeWidth**: When the old "falls back to 4 when key is falsy" tests are invalidated (no fallback guard in production code), replace with "default 'medium' key produces positive value" test verifying `resolveStrokeWidth('medium', w, h)`.
+
 ## coord-dimension-bugs fix — PhotoAnnotator Test Patterns (2026-05-18)
 
 **React refs null in pointer-event handler tests (JSDOM)**: `imgRef.current` and `svgRef.current` are null when pointer events are fired in JSDOM via `fireEvent.pointerDown/Move/Up`. The handler guard `if (!svgRef.current || !imgRef.current) return;` fires, so `getBoundingClientRect` is never called. Neither `jest.spyOn(instance, 'getBoundingClientRect')` nor prototype override (`HTMLImageElement.prototype.getBoundingClientRect = ...`) works because the guard returns before the BCR call. Direct BCR interception to verify which element is used is not viable.

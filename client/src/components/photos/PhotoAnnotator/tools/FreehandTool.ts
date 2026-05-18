@@ -2,7 +2,7 @@ import { nanoid } from 'nanoid';
 import type { AnnotatorState, AnnotatorAction } from '../useAnnotator.js';
 import type { FreehandShape } from '../useUndoStack.js';
 import { simplifyPolyline } from '../simplify.js';
-import { ANNOTATION_STROKE_WIDTHS } from '../annotationConstants.js';
+import { resolveStrokeWidth } from '../annotationConstants.js';
 import type { PointerContext, ToolHandler } from './SelectTool.js';
 
 // All captured points from the current gesture (never throttled — always updated)
@@ -13,14 +13,16 @@ let currentDraftId: string | null = null;
 
 export const FreehandTool: ToolHandler = {
   onPointerDown: (state: AnnotatorState, ctx: PointerContext): AnnotatorAction[] => {
-    const { imageX, imageY } = ctx;
+    const { imageX, imageY, imageWidth, imageHeight } = ctx;
 
     capturedPoints = [[imageX, imageY]];
     currentDraftId = nanoid();
 
-    const strokeWidth = state.activeStrokeWidthKey
-      ? ANNOTATION_STROKE_WIDTHS[state.activeStrokeWidthKey]
-      : ANNOTATION_STROKE_WIDTHS.medium;
+    const strokeWidth = resolveStrokeWidth(
+      state.activeStrokeWidthKey,
+      imageWidth,
+      imageHeight,
+    );
 
     const newShape: FreehandShape = {
       type: 'freehand',
