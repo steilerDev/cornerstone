@@ -81,8 +81,16 @@ jest.unstable_mockModule('./geometry.js', () => ({
   hitTestRectangle: () => false,
   hitTestHighlight: () => false,
   hitTestHandles: () => null,
+  hitTestLine: () => false,
+  hitTestEndpointHandles: () => null,
+  hitTestEllipse: () => false,
+  hitTestCardinalHandles: () => null,
   translateShape: (shape: unknown, dx: number, dy: number) => ({ ...(shape as object), dx, dy }),
   resizeShape: (shape: unknown) => shape,
+  translateArrowLine: (shape: unknown) => shape,
+  resizeArrowLine: (shape: unknown) => shape,
+  translateEllipse: (shape: unknown) => shape,
+  resizeEllipse: (shape: unknown) => shape,
 }));
 
 // ─── Dynamic imports ──────────────────────────────────────────────────────────
