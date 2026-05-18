@@ -303,8 +303,8 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
         throw new NotFoundError('Photo file not found');
       }
 
-      // Determine MIME type: annotated.png is always image/png
-      const mimeType = filePath.endsWith('.png') ? 'image/png' : photo.mimeType;
+      // Determine MIME type: annotated.webp is always image/webp
+      const mimeType = filePath.endsWith('.webp') ? 'image/webp' : photo.mimeType;
 
       // Set cache headers (immutable, 1 year)
       reply.header('Cache-Control', 'public, max-age=31536000, immutable');
@@ -405,10 +405,10 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
 
   /**
    * PUT /:id/annotation
-   * Save an annotated (baked overlay) PNG for a photo.
+   * Save an annotated (baked overlay) WebP image for a photo.
    *
    * Form field:
-   *   - file: the annotated PNG blob
+   *   - file: the annotated WebP blob
    *
    * Returns: 200 with { photo } or 400/404/409
    */
@@ -436,14 +436,14 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
       if (!file) throw new ValidationError('No file uploaded');
 
       // Validate MIME type before reading the buffer
-      if (file.mimetype !== 'image/png') {
-        throw new ValidationError('Annotation must be a PNG image');
+      if (file.mimetype !== 'image/webp') {
+        throw new ValidationError('Annotation must be a WebP image');
       }
 
-      const pngBuffer = await file.toBuffer();
+      const webpBuffer = await file.toBuffer();
 
       const maxFileSizeBytes = fastify.config.photoMaxFileSizeMb * 1024 * 1024;
-      if (pngBuffer.length > maxFileSizeBytes) {
+      if (webpBuffer.length > maxFileSizeBytes) {
         throw new PayloadTooLargeError(
           `File size exceeds maximum of ${fastify.config.photoMaxFileSizeMb}MB`,
         );
@@ -453,7 +453,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
         fastify.db,
         fastify.config.photoStoragePath,
         id,
-        pngBuffer,
+        webpBuffer,
       );
 
       return reply.status(200).send({ photo: updatedPhoto });

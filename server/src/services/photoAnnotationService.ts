@@ -6,8 +6,8 @@
  * File structure on disk:
  *   {photoStoragePath}/{photoId}/
  *     original.{ext}    - Never modified
- *     annotated.png     - Baked overlay (full-resolution PNG); managed by this service
- *     thumbnail.webp    - Regenerated from annotated.png (if present) or original
+ *     annotated.webp    - Baked overlay (full-resolution WebP); managed by this service
+ *     thumbnail.webp    - Regenerated from annotated.webp (if present) or original
  */
 
 import { writeFile, rm } from 'node:fs/promises';
@@ -24,9 +24,9 @@ import type { Photo } from '@cornerstone/shared';
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 /**
- * Save a baked annotated PNG for a photo.
+ * Save a baked annotated WebP image for a photo.
  *
- * Writes annotated.png, regenerates thumbnail.webp from it, sets annotated_at.
+ * Writes annotated.webp, regenerates thumbnail.webp from it, sets annotated_at.
  *
  * @throws NotFoundError if photo does not exist
  */
@@ -34,23 +34,23 @@ export async function saveAnnotatedImage(
   db: DbType,
   photoStoragePath: string,
   id: string,
-  pngBuffer: Buffer,
+  webpBuffer: Buffer,
 ): Promise<Photo> {
   const existing = getPhoto(db, id);
   if (!existing) throw new NotFoundError('Photo not found');
 
   const photoDir = path.join(photoStoragePath, id);
-  const annotatedPath = path.join(photoDir, 'annotated.png');
+  const annotatedPath = path.join(photoDir, 'annotated.webp');
   const thumbnailPath = path.join(photoDir, 'thumbnail.webp');
 
   // Generate thumbnail first — sharp validates the buffer before any file writes
-  const thumbnailBuffer = await sharp(pngBuffer)
+  const thumbnailBuffer = await sharp(webpBuffer)
     .resize(300, 300, { fit: 'inside', withoutEnlargement: true })
     .webp()
     .toBuffer();
 
-  // Only write to disk after sharp has successfully decoded the PNG buffer
-  await writeFile(annotatedPath, pngBuffer);
+  // Only write to disk after sharp has successfully decoded the WebP buffer
+  await writeFile(annotatedPath, webpBuffer);
   await writeFile(thumbnailPath, thumbnailBuffer);
 
   // Update DB record
@@ -65,7 +65,7 @@ export async function saveAnnotatedImage(
 /**
  * Clear the annotated image for a photo.
  *
- * Removes annotated.png, regenerates thumbnail.webp from original, nulls annotated_at.
+ * Removes annotated.webp, regenerates thumbnail.webp from original, nulls annotated_at.
  *
  * @throws NotFoundError if photo does not exist
  */
@@ -78,10 +78,10 @@ export async function clearAnnotation(
   if (!existing) throw new NotFoundError('Photo not found');
 
   const photoDir = path.join(photoStoragePath, id);
-  const annotatedPath = path.join(photoDir, 'annotated.png');
+  const annotatedPath = path.join(photoDir, 'annotated.webp');
   const thumbnailPath = path.join(photoDir, 'thumbnail.webp');
 
-  // Remove annotated.png (ignore if not present)
+  // Remove annotated.webp (ignore if not present)
   try {
     await rm(annotatedPath, { force: true });
   } catch {

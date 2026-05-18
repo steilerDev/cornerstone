@@ -1121,9 +1121,9 @@ describe('Photo Routes', () => {
       const { body, contentType } = buildMultipartBody([
         {
           name: 'file',
-          value: Buffer.from('fake-png-data'),
-          filename: 'annotated.png',
-          contentType: 'image/png',
+          value: Buffer.from('fake-webp-data'),
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
         },
       ]);
 
@@ -1152,9 +1152,9 @@ describe('Photo Routes', () => {
       const { body, contentType } = buildMultipartBody([
         {
           name: 'file',
-          value: Buffer.from('fake-png-data'),
-          filename: 'annotated.png',
-          contentType: 'image/png',
+          value: Buffer.from('fake-webp-data'),
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
         },
       ]);
 
@@ -1179,7 +1179,7 @@ describe('Photo Routes', () => {
           entityId: 'work-item-1',
         }),
       );
-      const pngContent = Buffer.from('real-png-content-bytes');
+      const webpContent = Buffer.from('real-webp-content-bytes');
       mockSaveAnnotatedImage.mockResolvedValue(
         makePhoto({ annotatedAt: '2026-05-17T10:00:00.000Z' }),
       );
@@ -1187,9 +1187,9 @@ describe('Photo Routes', () => {
       const { body, contentType } = buildMultipartBody([
         {
           name: 'file',
-          value: pngContent,
-          filename: 'annotated.png',
-          contentType: 'image/png',
+          value: webpContent,
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
         },
       ]);
 
@@ -1209,7 +1209,7 @@ describe('Photo Routes', () => {
       // Verify the buffer content matches what was sent
       const calledWith = mockSaveAnnotatedImage.mock.calls[0]!;
       const bufArg = calledWith[3] as Buffer;
-      expect(bufArg.equals(pngContent)).toBe(true);
+      expect(bufArg.equals(webpContent)).toBe(true);
     });
 
     it('returns 413 when file exceeds photoMaxFileSizeMb', async () => {
@@ -1225,8 +1225,8 @@ describe('Photo Routes', () => {
         {
           name: 'file',
           value: oversizedBuffer,
-          filename: 'annotated.png',
-          contentType: 'image/png',
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
         },
       ]);
 
@@ -1261,9 +1261,9 @@ describe('Photo Routes', () => {
       const { body, contentType } = buildMultipartBody([
         {
           name: 'file',
-          value: Buffer.from('fake-png'),
-          filename: 'annotated.png',
-          contentType: 'image/png',
+          value: Buffer.from('fake-webp'),
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
         },
       ]);
 
@@ -1299,9 +1299,9 @@ describe('Photo Routes', () => {
       const { body, contentType } = buildMultipartBody([
         {
           name: 'file',
-          value: Buffer.from('fake-png-data'),
-          filename: 'annotated.png',
-          contentType: 'image/png',
+          value: Buffer.from('fake-webp-data'),
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
         },
       ]);
 
@@ -1346,9 +1346,9 @@ describe('Photo Routes', () => {
       const { body, contentType } = buildMultipartBody([
         {
           name: 'file',
-          value: Buffer.from('fake-png-data'),
-          filename: 'annotated.png',
-          contentType: 'image/png',
+          value: Buffer.from('fake-webp-data'),
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
         },
       ]);
 
@@ -1386,9 +1386,9 @@ describe('Photo Routes', () => {
       const { body, contentType } = buildMultipartBody([
         {
           name: 'file',
-          value: Buffer.from('fake-png-data'),
-          filename: 'annotated.png',
-          contentType: 'image/png',
+          value: Buffer.from('fake-webp-data'),
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
         },
       ]);
 
@@ -1568,13 +1568,13 @@ describe('Photo Routes', () => {
   // Concern 3: Sharp validates the buffer; no file should be written on decode error.
 
   describe('PUT /api/photos/:id/annotation — security validations', () => {
-    it('returns 400 when file MIME type is not image/png (e.g. image/jpeg)', async () => {
+    it('returns 400 when file MIME type is not image/webp (e.g. image/jpeg)', async () => {
       const { cookie } = await createUserWithSession('ann-mime@example.com', 'AnnMime', 'password');
-      // Send a JPEG-typed body — even if the bytes look like PNG, the MIME must be rejected
+      // Send a JPEG-typed body — even if the bytes look like WebP, the MIME must be rejected
       const { body, contentType } = buildMultipartBody([
         {
           name: 'file',
-          value: Buffer.from('\x89PNG\r\n\x1a\nfake-png-bytes'),
+          value: Buffer.from('\x52\x49\x46\x46fake-webp-bytes'),
           filename: 'annotated.jpg',
           contentType: 'image/jpeg',
         },
@@ -1595,7 +1595,7 @@ describe('Photo Routes', () => {
 
       expect(response.statusCode).toBe(400);
       const errBody = JSON.parse(response.body) as ApiErrorResponse;
-      expect(errBody.error.message).toMatch(/png/i);
+      expect(errBody.error.message).toMatch(/webp/i);
     });
 
     it('does not call saveAnnotatedImage when MIME type is rejected (no service invocation)', async () => {
@@ -1624,11 +1624,11 @@ describe('Photo Routes', () => {
         payload: body,
       });
 
-      // Service must NOT be called when MIME type is invalid
+      // Service must NOT be called when MIME type is invalid (not image/webp)
       expect(mockSaveAnnotatedImage).not.toHaveBeenCalled();
     });
 
-    it('returns 413 when annotation PNG exceeds PHOTO_MAX_FILE_SIZE_MB', async () => {
+    it('returns 413 when annotation WebP exceeds PHOTO_MAX_FILE_SIZE_MB', async () => {
       const { cookie } = await createUserWithSession('ann-sz@example.com', 'AnnSz', 'password');
       process.env.PHOTO_MAX_FILE_SIZE_MB = '1';
       await app.close();
@@ -1639,8 +1639,8 @@ describe('Photo Routes', () => {
         {
           name: 'file',
           value: oversizedBuffer,
-          filename: 'annotated.png',
-          contentType: 'image/png',
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
         },
       ]);
 
@@ -1728,9 +1728,9 @@ describe('Photo Routes', () => {
       const { body: reqBody, contentType } = buildMultipartBody([
         {
           name: 'file',
-          value: Buffer.from('fake-png'),
-          filename: 'annotated.png',
-          contentType: 'image/png',
+          value: Buffer.from('fake-webp'),
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
         },
       ]);
 
@@ -1809,14 +1809,14 @@ describe('Photo Routes', () => {
       );
     });
 
-    it('returns Content-Type image/png when serving annotated.png', async () => {
+    it('returns Content-Type image/webp when serving annotated.webp', async () => {
       const { cookie } = await createUserWithSession('file-ct@example.com', 'FileCt', 'password');
       const photo = makePhoto({ id: 'my-photo-3', mimeType: 'image/jpeg' });
       mockGetPhoto.mockReturnValue(photo);
       const photoDir = join(photoStoragePath, 'my-photo-3');
       mkdirSync(photoDir, { recursive: true });
-      const filePath = join(photoDir, 'annotated.png');
-      writeFileSync(filePath, Buffer.from('annotated-png-data'));
+      const filePath = join(photoDir, 'annotated.webp');
+      writeFileSync(filePath, Buffer.from('annotated-webp-data'));
       mockGetPhotoFilePath.mockResolvedValue(filePath);
 
       const response = await app.inject({
@@ -1826,8 +1826,8 @@ describe('Photo Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      // Even though photo.mimeType is image/jpeg, annotated.png gets image/png
-      expect(response.headers['content-type']).toMatch(/image\/png/);
+      // Even though photo.mimeType is image/jpeg, annotated.webp gets image/webp
+      expect(response.headers['content-type']).toMatch(/image\/webp/);
     });
   });
 });

@@ -361,11 +361,11 @@ export async function deletePhotosForEntity(
  * Get the file path for a photo variant.
  *
  * For 'original', reads the directory to find the actual file (since extension varies).
- * When preferAnnotated is true and annotated.png exists, returns it instead.
+ * When preferAnnotated is true and annotated.webp exists, returns it instead.
  * For 'thumbnail', returns the thumbnail.webp path.
  *
  * @param variant 'original' or 'thumbnail'
- * @param preferAnnotated When variant is 'original', prefer annotated.png if it exists (default: true)
+ * @param preferAnnotated When variant is 'original', prefer annotated.webp if it exists (default: true)
  * @returns Full file path or null if not found
  */
 export async function getPhotoFilePath(
@@ -382,14 +382,14 @@ export async function getPhotoFilePath(
       await stat(thumbnailPath);
       return thumbnailPath;
     } else {
-      // original: prefer annotated.png if requested and exists
+      // original: prefer annotated.webp if requested and exists
       if (preferAnnotated) {
-        const annotatedPath = path.join(photoDir, 'annotated.png');
+        const annotatedPath = path.join(photoDir, 'annotated.webp');
         try {
           await stat(annotatedPath);
           return annotatedPath;
         } catch {
-          // annotated.png doesn't exist; fall through to original
+          // annotated.webp doesn't exist; fall through to original
         }
       }
       // original: find the file starting with "original."

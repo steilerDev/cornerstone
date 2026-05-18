@@ -330,7 +330,7 @@ describe('PhotoAnnotator', () => {
       }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       toBlob: jest.fn().mockImplementation((callback: any) => {
-        callback(new Blob(['png-data'], { type: 'image/png' }));
+        callback(new Blob(['webp-data'], { type: 'image/webp' }));
       }),
     };
 
@@ -715,7 +715,7 @@ describe('PhotoAnnotator', () => {
       }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       toBlob: jest.fn().mockImplementation((cb: any) => {
-        cb(new Blob(['png'], { type: 'image/png' }));
+        cb(new Blob(['webp'], { type: 'image/webp' }));
       }),
     };
 

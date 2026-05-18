@@ -93,12 +93,12 @@ export function getPhotoThumbnailUrl(id: string): string {
 }
 
 /**
- * Upload a baked annotated PNG for a photo.
+ * Upload a baked annotated WebP for a photo.
  * Uses fetch (no XHR) — no progress tracking needed.
  */
 export async function uploadAnnotation(id: string, blob: Blob): Promise<Photo> {
   const formData = new FormData();
-  formData.append('file', blob, 'annotated.png');
+  formData.append('file', blob, 'annotated.webp');
 
   const response = await fetch(`${getBaseUrl()}/photos/${id}/annotation`, {
     method: 'PUT',
