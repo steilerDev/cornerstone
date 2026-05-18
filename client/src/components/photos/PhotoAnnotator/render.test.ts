@@ -416,13 +416,32 @@ describe('renderShapeSvgProps() — Arrow', () => {
     expect(result.tagName).toBe('line');
   });
 
-  it('includes correct x1/y1/x2/y2 attributes', () => {
-    const shape = makeArrow({ x1: 10, y1: 20, x2: 100, y2: 80 });
+  it('includes correct x1/y1 attributes (unchanged) and x2/y2 shortened to the arrowhead base', () => {
+    // The SVG line element stops at the base of the arrowhead marker, not at shape.x2/y2.
+    // Shortening = 8 * strokeWidth along the direction vector, so the marker tip lands exactly
+    // at (shape.x2, shape.y2) without the line body poking through.
+    const shape = makeArrow({ x1: 10, y1: 20, x2: 100, y2: 80, strokeWidth: 4 });
+    const dx = shape.x2 - shape.x1; // 90
+    const dy = shape.y2 - shape.y1; // 60
+    const len = Math.sqrt(dx * dx + dy * dy);
+    const shortenDist = 8 * shape.strokeWidth; // 32
+    const expectedX2 = shape.x2 - (dx / len) * shortenDist;
+    const expectedY2 = shape.y2 - (dy / len) * shortenDist;
+
     const result = renderShapeSvgProps(shape, false);
     expect(getAttributes(result).x1).toBe(10);
     expect(getAttributes(result).y1).toBe(20);
-    expect(getAttributes(result).x2).toBe(100);
-    expect(getAttributes(result).y2).toBe(80);
+    expect(getAttributes(result).x2).toBeCloseTo(expectedX2, 5);
+    expect(getAttributes(result).y2).toBeCloseTo(expectedY2, 5);
+  });
+
+  it('line endpoint is shortened by 8 * strokeWidth so it lands at the arrowhead base (horizontal case)', () => {
+    // Clean horizontal example makes the math easy to reason about:
+    // Arrow from (0,0) to (100,0) with strokeWidth=4 → shortenDist=32 → shortenedX2=68, shortenedY2=0.
+    const shape = makeArrow({ x1: 0, y1: 0, x2: 100, y2: 0, strokeWidth: 4 });
+    const result = renderShapeSvgProps(shape, false);
+    expect(getAttributes(result).x2).toBe(68);
+    expect(getAttributes(result).y2).toBe(0);
   });
 
   it('committed arrow has marker-end: "url(#arrowhead)"', () => {
@@ -643,10 +662,19 @@ describe('drawShapeOnCanvas() — Arrow', () => {
     expect(ctx.moveTo).toHaveBeenCalledWith(10, 20);
   });
 
-  it('calls lineTo with x2/y2 (line end)', () => {
-    const shape = makeArrow({ x1: 10, y1: 20, x2: 100, y2: 80 });
+  it('calls lineTo with shortened endpoint (line stops at arrowhead base, not at shape.x2/y2)', () => {
+    // Line body is shortened by 8 * strokeWidth along the direction vector.
+    // The canvas arrowhead triangle is drawn separately at the original (shape.x2, shape.y2).
+    const shape = makeArrow({ x1: 10, y1: 20, x2: 100, y2: 80, strokeWidth: 4 });
+    const dx = shape.x2 - shape.x1; // 90
+    const dy = shape.y2 - shape.y1; // 60
+    const len = Math.sqrt(dx * dx + dy * dy);
+    const shortenDist = 8 * shape.strokeWidth; // 32
+    const expectedX2 = shape.x2 - (dx / len) * shortenDist;
+    const expectedY2 = shape.y2 - (dy / len) * shortenDist;
     drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
-    expect(ctx.lineTo).toHaveBeenCalledWith(100, 80);
+    // First lineTo call is the shortened line body endpoint
+    expect(ctx.lineTo).toHaveBeenNthCalledWith(1, expectedX2, expectedY2);
   });
 
   it('sets strokeStyle to shape.stroke', () => {
