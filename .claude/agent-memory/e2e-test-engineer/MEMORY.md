@@ -1,7 +1,18 @@
 # E2E Test Engineer — Agent Memory (Index)
 
 > Detailed notes live in topic files. This index links to them.
-> See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`
+> See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
+
+## Photo Annotator E2E (Story #1478, 2026-05-18) — See photo-annotator-e2e.md
+
+- 23 scenarios total (3 from Story #1473 + 20 new). All tools covered: select, rect, highlight, arrow, line, ellipse, text, callout, measurement, freehand.
+- Bug #1482 workaround: DiaryEntryDetailPage has stale photos after Save; mock GET /api/photos and re-navigate to inject annotatedAt.
+- SVG locators: `rect[data-shapeid]`, `line[data-shapeid]`, `ellipse[data-shapeid]`, `text[data-shapeid]`, `g[data-shapeid]`, `polyline[data-shapeid]`. Confirmed: attribute IS `data-shapeid` (camelCase, no hyphen).
+- **TIMING**: Shape assertions after drawing MUST use `waitFor({ state: 'visible', timeout: 15_000 })` or `expect(locator).toBeVisible()`. `waitFor` without explicit timeout uses `actionTimeout: 5s` which is too short on 2-vCPU CI shards — shape commits go through two async React renders (useReducer + undoStack useState). `expect(...)` uses `expect.timeout: 7s`. Both work; prefer 15s explicit timeout for safety. See photo-annotator-e2e.md.
+- **SELECT TOOL MOVE**: After drag-to-move, use `expect.poll(() => parseFloat(el.getAttribute('x')))` to wait for the updated attribute value rather than reading it immediately after mouse.up().
+- **COLOR PALETTE** strict mode: ToolPalette renders up to 3 radiogroups (color, stroke width, and font size for text tools). Use `getByRole('radiogroup', { name: 'Annotation color' })` — aria-label comes from i18n key `colorPalette` = `"Annotation color"`. Never use unscoped `getByRole('radiogroup')`.
+- **CALLOUT** multi-phase: `drawCallout` has 3 interaction phases (drag box, click tail, type+Enter). Always follow `drawCallout()` with `calloutGroup.waitFor({ state: 'visible', timeout: 15_000 })` because the shape is only committed after the text input is committed in the 3rd phase.
+- Inline input testid: `annotator-inline-input`. Tool buttons: `tool-{name}`. Action bar: `annotator-save`, `annotator-cancel`, `annotator-undo`, `annotator-redo`.
 
 ## Budget Print + i18n Stale Skip Re-enable (PR #1447, 2026-05-17) — See print-and-i18n.md
 

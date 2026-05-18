@@ -219,6 +219,13 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     }
   }, [undoStack.shapes]);
 
+  // Announce shape selection
+  useEffect(() => {
+    if (state.selectedShapeId && liveRegionRef.current) {
+      liveRegionRef.current.textContent = t('shapeSelected');
+    }
+  }, [state.selectedShapeId, t]);
+
   // Focus management
   useEffect(() => {
     const firstToolButton = document.querySelector('[data-testid="tool-select"]') as HTMLElement;
@@ -239,6 +246,9 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       if (isMod && !e.shiftKey && e.key === 'z') {
         e.preventDefault();
         undoStack.undo();
+        if (liveRegionRef.current) {
+          liveRegionRef.current.textContent = t('undoPerformed');
+        }
         return;
       }
 
@@ -246,14 +256,9 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       if (isMod && ((e.shiftKey && e.key === 'z') || e.key === 'y')) {
         e.preventDefault();
         undoStack.redo();
-        return;
-      }
-
-      // Escape
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        e.stopPropagation();
-        handleCancel();
+        if (liveRegionRef.current) {
+          liveRegionRef.current.textContent = t('redoPerformed');
+        }
         return;
       }
 
@@ -261,8 +266,15 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       if (state.selectedShapeId && (e.key === 'Delete' || e.key === 'Backspace')) {
         e.preventDefault();
         dispatch({ type: 'DELETE_SELECTED' });
+        if (liveRegionRef.current) {
+          liveRegionRef.current.textContent = t('shapeDeleted');
+        }
         return;
       }
+
+      // Note: Escape key is handled by PhotoViewer (parent) to avoid double-firing.
+      // The inline input's Escape handler (with stopPropagation) still works independently.
+      // This window-level Escape handler was removed per M3 audit finding.
 
       // Arrow nudge (1px, or 10px with Shift)
       if (state.selectedShapeId && e.key.startsWith('Arrow')) {
@@ -531,25 +543,24 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         liveRegionRef.current.textContent = t('calloutTailPositioning');
       }
 
-      // Cancel callout tail phase ONLY if user clicked outside box during Phase 2
-      // (i.e., phase was already tail before this pointerup and tool didn't open inline input).
-      // If Phase 2 completed successfully, CalloutTool.onPointerUp calls onOpenInlineInput,
-      // so we skip the reset.
-      if (
-        state.selectedTool === 'callout' &&
-        phaseBeforeHandler === 'tail' &&
-        !inlineInput.isOpen
-      ) {
-        // User clicked outside during tail positioning — discard draft
-        resetCalloutTool();
-        dispatch({ type: 'SET_DRAFT', shape: null });
-      }
-
-      // Announce freehand shape added
-      if (state.selectedTool === 'freehand') {
-        const hasFreehandCommit = actions.some((a) => a.type === 'COMMIT_DRAFT');
-        if (hasFreehandCommit && liveRegionRef.current) {
-          liveRegionRef.current.textContent = t('shapeAddedFreehand');
+      // Announce shape additions
+      const hasCommit = actions.some((a) => a.type === 'COMMIT_DRAFT');
+      if (hasCommit && liveRegionRef.current) {
+        const shapeAnnouncements: Record<ToolName, string> = {
+          rectangle: t('shapeAddedRectangle'),
+          highlight: t('shapeAddedHighlight'),
+          arrow: t('shapeAddedArrow'),
+          line: t('shapeAddedLine'),
+          ellipse: t('shapeAddedEllipse'),
+          text: t('shapeAddedText'),
+          callout: t('shapeAddedCallout'),
+          measurement: t('shapeAddedMeasurement'),
+          freehand: t('shapeAddedFreehand'),
+          select: '', // select tool doesn't create shapes
+        };
+        const announcement = shapeAnnouncements[state.selectedTool];
+        if (announcement) {
+          liveRegionRef.current.textContent = announcement;
         }
       }
     },

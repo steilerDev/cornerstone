@@ -12,7 +12,12 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
-import { NotFoundError, UnauthorizedError, ValidationError } from '../errors/AppError.js';
+import {
+  NotFoundError,
+  UnauthorizedError,
+  ValidationError,
+  PayloadTooLargeError,
+} from '../errors/AppError.js';
 import * as photoService from '../services/photoService.js';
 import * as photoAnnotationService from '../services/photoAnnotationService.js';
 import type {
@@ -88,7 +93,12 @@ const getPhotoSchema = {
     type: 'object',
     required: ['id'],
     properties: {
-      id: { type: 'string' },
+      id: {
+        type: 'string',
+        minLength: 36,
+        maxLength: 36,
+        pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+      },
     },
   },
 };
@@ -154,7 +164,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
     // Validate file size against config limit
     const maxFileSizeBytes = fastify.config.photoMaxFileSizeMb * 1024 * 1024;
     if (fileBuffer.length > maxFileSizeBytes) {
-      throw new ValidationError(
+      throw new PayloadTooLargeError(
         `File size exceeds maximum of ${fastify.config.photoMaxFileSizeMb}MB`,
       );
     }
@@ -375,11 +385,16 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
       const file = await request.file();
       if (!file) throw new ValidationError('No file uploaded');
 
+      // Validate MIME type before reading the buffer
+      if (file.mimetype !== 'image/png') {
+        throw new ValidationError('Annotation must be a PNG image');
+      }
+
       const pngBuffer = await file.toBuffer();
 
       const maxFileSizeBytes = fastify.config.photoMaxFileSizeMb * 1024 * 1024;
       if (pngBuffer.length > maxFileSizeBytes) {
-        throw new ValidationError(
+        throw new PayloadTooLargeError(
           `File size exceeds maximum of ${fastify.config.photoMaxFileSizeMb}MB`,
         );
       }

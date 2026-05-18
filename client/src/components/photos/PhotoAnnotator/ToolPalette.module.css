@@ -6,7 +6,7 @@
   padding: var(--spacing-2) var(--spacing-3);
   background: var(--color-bg-primary);
   border-bottom: 1px solid var(--color-border);
-  height: 56px;
+  min-height: 56px;
   box-sizing: border-box;
 }
 
@@ -51,7 +51,8 @@
 .toolButtonActive {
   background: var(--color-primary-bg);
   color: var(--color-primary);
-  border-color: var(--color-primary);
+  border-color: var(--color-primary-active);
+  border-width: 2px;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -66,7 +67,8 @@
   border-radius: var(--radius-circle);
   border: 2px solid var(--color-border);
   cursor: pointer;
-  padding: 0;
+  padding: 10px;
+  box-sizing: content-box;
   background: none;
 }
 
@@ -102,7 +104,8 @@
 .strokeButtonActive {
   background: var(--color-primary-bg);
   color: var(--color-primary);
-  border-color: var(--color-primary);
+  border-color: var(--color-primary-active);
+  border-width: 2px;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -135,7 +138,8 @@
 .fontSizeButtonActive {
   background: var(--color-primary-bg);
   color: var(--color-primary);
-  border-color: var(--color-primary);
+  border-color: var(--color-primary-active);
+  border-width: 2px;
 }
 
 .toolButtonDisabled {
