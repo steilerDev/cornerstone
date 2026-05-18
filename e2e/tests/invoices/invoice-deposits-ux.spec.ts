@@ -283,7 +283,7 @@ test.describe('Deposit OverflowMenu portal — not clipped (#1423)', () => {
       for (let i = 0; i < descriptions.length; i++) {
         await createDepositViaApi(page, invoiceId, {
           amount: 100,
-          dueDate: `2026-0${i + 7}-01`,
+          dueDate: `2026-${String(i + 7).padStart(2, '0')}-01`,
           description: `${testPrefix} ${descriptions[i]} deposit`,
         });
       }
