@@ -80,6 +80,28 @@ export interface CalloutShape {
   color: string; // text color
 }
 
+export interface MeasurementShape {
+  type: 'measurement';
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  label: string;
+  stroke: string;
+  strokeWidth: number;
+  fontSize: number;
+  color: string;
+}
+
+export interface FreehandShape {
+  type: 'freehand';
+  id: string;
+  points: [number, number][];
+  stroke: string;
+  strokeWidth: number;
+}
+
 export type AnnotationShape =
   | RectangleShape
   | HighlightShape
@@ -87,7 +109,9 @@ export type AnnotationShape =
   | LineShape
   | EllipseShape
   | TextShape
-  | CalloutShape;
+  | CalloutShape
+  | MeasurementShape
+  | FreehandShape;
 
 export interface UndoStack {
   past: AnnotationShape[][];

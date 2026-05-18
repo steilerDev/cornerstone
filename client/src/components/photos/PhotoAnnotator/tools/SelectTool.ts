@@ -5,6 +5,7 @@ import {
   hitTestHighlight,
   hitTestHandles,
   hitTestLine,
+  hitTestPolyline,
   hitTestEllipse,
   hitTestEndpointHandles,
   hitTestCardinalHandles,
@@ -21,6 +22,8 @@ import {
   translateText,
   translateCallout,
   translateTailAnchor,
+  translateMeasurement,
+  translateFreehand,
 } from '../geometry.js';
 
 export interface PointerContext {
@@ -61,6 +64,18 @@ export const SelectTool: ToolHandler = {
         }
       }
 
+      if (ctx.event.detail === 2 && shape.type === 'measurement') {
+        // Re-open inline input at midpoint pre-filled with existing label
+        // Only if the double-click actually hit the measurement line body
+        const hit = hitTestLine(imageX, imageY, shape.x1, shape.y1, shape.x2, shape.y2, 4 + shape.strokeWidth / 2) !== null;
+        if (hit) {
+          const midX = (shape.x1 + shape.x2) / 2;
+          const midY = (shape.y1 + shape.y2) / 2;
+          ctx.onOpenInlineInput?.(midX, midY, shape.id);
+          return [{ type: 'SELECT_SHAPE', id: shape.id }];
+        }
+      }
+
       // Check for handle hit first (only for rect/highlight and arrow/line/ellipse/callout)
       let handleHit: string | null = null;
 
@@ -88,6 +103,16 @@ export const SelectTool: ToolHandler = {
         );
       } else if (shape.type === 'callout') {
         handleHit = hitTestTailHandle(imageX, imageY, shape.tailX, shape.tailY, 8) ? 'tail' : null;
+      } else if (shape.type === 'measurement') {
+        handleHit = hitTestEndpointHandles(
+          imageX,
+          imageY,
+          shape.x1,
+          shape.y1,
+          shape.x2,
+          shape.y2,
+          8,
+        );
       }
 
       if (handleHit) {
@@ -129,6 +154,12 @@ export const SelectTool: ToolHandler = {
         bodyHit = hitTestText(imageX, imageY, shape, 4);
       } else if (shape.type === 'callout') {
         bodyHit = handleHit ? false : hitTestCallout(imageX, imageY, shape);
+      } else if (shape.type === 'measurement') {
+        bodyHit =
+          hitTestLine(imageX, imageY, shape.x1, shape.y1, shape.x2, shape.y2, 4 + shape.strokeWidth / 2) !== null;
+      } else if (shape.type === 'freehand') {
+        bodyHit =
+          hitTestPolyline(imageX, imageY, shape.points, 4 + shape.strokeWidth / 2) !== null;
       }
 
       if (bodyHit) {
@@ -199,6 +230,27 @@ export const SelectTool: ToolHandler = {
       } else if (startShape.type === 'callout') {
         const moved = translateCallout(startShape, dx, dy, imageWidth, imageHeight);
         updatedShape = { ...startShape, ...moved };
+      } else if (startShape.type === 'measurement') {
+        const moved = translateMeasurement(
+          startShape.x1,
+          startShape.y1,
+          startShape.x2,
+          startShape.y2,
+          dx,
+          dy,
+          imageWidth,
+          imageHeight,
+        );
+        updatedShape = { ...startShape, ...moved };
+      } else if (startShape.type === 'freehand') {
+        const movedPoints = translateFreehand(
+          startShape.points,
+          dx,
+          dy,
+          imageWidth,
+          imageHeight,
+        );
+        updatedShape = { ...startShape, points: movedPoints };
       } else {
         updatedShape = startShape;
       }
@@ -249,6 +301,19 @@ export const SelectTool: ToolHandler = {
           imageHeight,
         );
         updatedShape = { ...startShape, ...newTail };
+      } else if (startShape.type === 'measurement') {
+        const resized = resizeArrowLine(
+          startShape.x1,
+          startShape.y1,
+          startShape.x2,
+          startShape.y2,
+          selectDragState.handle as 'start' | 'end',
+          dx,
+          dy,
+          imageWidth,
+          imageHeight,
+        );
+        updatedShape = { ...startShape, ...resized };
       } else {
         updatedShape = startShape;
       }

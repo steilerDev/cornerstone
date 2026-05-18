@@ -13,15 +13,7 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { renderShapeSvgProps, drawShapeOnCanvas, ANNOTATION_FONT_FAMILY } from './render.js';
 import type { SvgRenderResult } from './render.js';
-import type {
-  RectangleShape,
-  HighlightShape,
-  ArrowShape,
-  LineShape,
-  EllipseShape,
-  TextShape,
-  CalloutShape,
-} from './useUndoStack.js';
+import type { RectangleShape, HighlightShape, ArrowShape, LineShape, EllipseShape, TextShape, CalloutShape, MeasurementShape, FreehandShape } from './useUndoStack.js';
 
 // ─── Type-narrowing helpers ───────────────────────────────────────────────────
 
@@ -1073,5 +1065,407 @@ describe('drawShapeOnCanvas() — Callout', () => {
   it('sets lineWidth to 2 for callout box', () => {
     drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, makeCallout());
     expect(ctx.lineWidth).toBe(2);
+  });
+});
+
+// ─── Helpers for new shape types ──────────────────────────────────────────────
+
+function makeMeasurement(overrides: Partial<MeasurementShape> = {}): MeasurementShape {
+  return {
+    type: 'measurement',
+    id: 'measurement-1',
+    x1: 10,
+    y1: 50,
+    x2: 110,
+    y2: 50,
+    label: '5m',
+    stroke: '#dc2626',
+    strokeWidth: 4,
+    fontSize: 18,
+    color: '#dc2626',
+    ...overrides,
+  };
+}
+
+function makeFreehand(overrides: Partial<FreehandShape> = {}): FreehandShape {
+  return {
+    type: 'freehand',
+    id: 'freehand-1',
+    points: [[10, 10], [30, 40], [50, 20], [70, 50], [90, 10]],
+    stroke: '#3b82f6',
+    strokeWidth: 4,
+    ...overrides,
+  };
+}
+
+/**
+ * Asserts the result is a measurement composite.
+ */
+function getMeasurementParts(result: SvgRenderResult): {
+  lineAttrs: Record<string, string | number>;
+  tick1Attrs: Record<string, string | number>;
+  tick2Attrs: Record<string, string | number>;
+  labelAttrs: Record<string, string | number>;
+  children: string;
+} {
+  if (result.tagName === 'measurement') return result;
+  throw new Error(`Expected measurement SvgRenderResult but got tagName '${result.tagName}'`);
+}
+
+// ─── renderShapeSvgProps — Measurement ───────────────────────────────────────
+
+describe('renderShapeSvgProps() — Measurement', () => {
+  it('returns tagName: "measurement" for a measurement shape', () => {
+    const result = renderShapeSvgProps(makeMeasurement(), false);
+    expect(result.tagName).toBe('measurement');
+  });
+
+  it('lineAttrs include x1/y1/x2/y2 matching shape endpoints', () => {
+    const shape = makeMeasurement({ x1: 10, y1: 50, x2: 110, y2: 50 });
+    const { lineAttrs } = getMeasurementParts(renderShapeSvgProps(shape, false));
+    expect(lineAttrs.x1).toBe(10);
+    expect(lineAttrs.y1).toBe(50);
+    expect(lineAttrs.x2).toBe(110);
+    expect(lineAttrs.y2).toBe(50);
+  });
+
+  it('lineAttrs include stroke from shape.stroke', () => {
+    const shape = makeMeasurement({ stroke: '#ff0000' });
+    const { lineAttrs } = getMeasurementParts(renderShapeSvgProps(shape, false));
+    expect(lineAttrs.stroke).toBe('#ff0000');
+  });
+
+  it('lineAttrs include stroke-width from shape.strokeWidth', () => {
+    const shape = makeMeasurement({ strokeWidth: 8 });
+    const { lineAttrs } = getMeasurementParts(renderShapeSvgProps(shape, false));
+    expect(lineAttrs['stroke-width']).toBe(8);
+  });
+
+  it('committed measurement lineAttrs has stroke-dasharray: "none"', () => {
+    const { lineAttrs } = getMeasurementParts(renderShapeSvgProps(makeMeasurement(), false));
+    expect(lineAttrs['stroke-dasharray']).toBe('none');
+  });
+
+  it('draft measurement lineAttrs has stroke-dasharray: "6 4"', () => {
+    const { lineAttrs } = getMeasurementParts(renderShapeSvgProps(makeMeasurement(), true));
+    expect(lineAttrs['stroke-dasharray']).toBe('6 4');
+  });
+
+  it('committed measurement lineAttrs has opacity: 1', () => {
+    const { lineAttrs } = getMeasurementParts(renderShapeSvgProps(makeMeasurement(), false));
+    expect(lineAttrs.opacity).toBe(1);
+  });
+
+  it('draft measurement lineAttrs has opacity: 0.8', () => {
+    const { lineAttrs } = getMeasurementParts(renderShapeSvgProps(makeMeasurement(), true));
+    expect(lineAttrs.opacity).toBe(0.8);
+  });
+
+  it('committed measurement lineAttrs has pointer-events: "stroke"', () => {
+    const { lineAttrs } = getMeasurementParts(renderShapeSvgProps(makeMeasurement(), false));
+    expect(lineAttrs['pointer-events']).toBe('stroke');
+  });
+
+  it('draft measurement lineAttrs has pointer-events: "none"', () => {
+    const { lineAttrs } = getMeasurementParts(renderShapeSvgProps(makeMeasurement(), true));
+    expect(lineAttrs['pointer-events']).toBe('none');
+  });
+
+  it('tick1Attrs have pointer-events: "none"', () => {
+    const { tick1Attrs } = getMeasurementParts(renderShapeSvgProps(makeMeasurement(), false));
+    expect(tick1Attrs['pointer-events']).toBe('none');
+  });
+
+  it('tick2Attrs have pointer-events: "none"', () => {
+    const { tick2Attrs } = getMeasurementParts(renderShapeSvgProps(makeMeasurement(), false));
+    expect(tick2Attrs['pointer-events']).toBe('none');
+  });
+
+  it('tick1Attrs x1/x2/y1/y2 span the start endpoint perpendicularly', () => {
+    // Horizontal line from (10,50) to (110,50) — perpendicular is vertical
+    // unit normal (nx, ny) = (0, 1); TICK = strokeWidth*4 = 4*4 = 16
+    const shape = makeMeasurement({ x1: 10, y1: 50, x2: 110, y2: 50, strokeWidth: 4 });
+    const { tick1Attrs } = getMeasurementParts(renderShapeSvgProps(shape, false));
+    // tick1: x1=10+0*16=10, y1=50+1*16=66, x2=10-0*16=10, y2=50-1*16=34
+    expect(tick1Attrs.x1).toBeCloseTo(10);
+    expect(tick1Attrs.y1).toBeCloseTo(66);
+    expect(tick1Attrs.x2).toBeCloseTo(10);
+    expect(tick1Attrs.y2).toBeCloseTo(34);
+  });
+
+  it('tick2Attrs span the end endpoint perpendicularly', () => {
+    const shape = makeMeasurement({ x1: 10, y1: 50, x2: 110, y2: 50, strokeWidth: 4 });
+    const { tick2Attrs } = getMeasurementParts(renderShapeSvgProps(shape, false));
+    // TICK=16; tick at end: x1=110, y1=66, x2=110, y2=34
+    expect(tick2Attrs.x1).toBeCloseTo(110);
+    expect(tick2Attrs.y1).toBeCloseTo(66);
+    expect(tick2Attrs.x2).toBeCloseTo(110);
+    expect(tick2Attrs.y2).toBeCloseTo(34);
+  });
+
+  it('children equals shape.label', () => {
+    const shape = makeMeasurement({ label: '3.5m' });
+    const { children } = getMeasurementParts(renderShapeSvgProps(shape, false));
+    expect(children).toBe('3.5m');
+  });
+
+  it('labelAttrs include display:"none" when label is empty string', () => {
+    const shape = makeMeasurement({ label: '' });
+    const { labelAttrs } = getMeasurementParts(renderShapeSvgProps(shape, false));
+    expect(labelAttrs.display).toBe('none');
+  });
+
+  it('labelAttrs include font-size when label is non-empty', () => {
+    const shape = makeMeasurement({ label: '5m', fontSize: 24 });
+    const { labelAttrs } = getMeasurementParts(renderShapeSvgProps(shape, false));
+    expect(labelAttrs['font-size']).toBe(24);
+  });
+
+  it('labelAttrs include font-family === ANNOTATION_FONT_FAMILY when label is non-empty', () => {
+    const shape = makeMeasurement({ label: '5m' });
+    const { labelAttrs } = getMeasurementParts(renderShapeSvgProps(shape, false));
+    expect(labelAttrs['font-family']).toBe(ANNOTATION_FONT_FAMILY);
+  });
+
+  it('labelAttrs include text-anchor: "middle" when label is non-empty', () => {
+    const { labelAttrs } = getMeasurementParts(renderShapeSvgProps(makeMeasurement({ label: '5m' }), false));
+    expect(labelAttrs['text-anchor']).toBe('middle');
+  });
+
+  it('labelAttrs include fill from shape.color when label is non-empty', () => {
+    const shape = makeMeasurement({ label: '5m', color: '#22c55e' });
+    const { labelAttrs } = getMeasurementParts(renderShapeSvgProps(shape, false));
+    expect(labelAttrs.fill).toBe('#22c55e');
+  });
+
+  it('tick1Attrs include stroke from shape.stroke', () => {
+    const shape = makeMeasurement({ stroke: '#3b82f6' });
+    const { tick1Attrs } = getMeasurementParts(renderShapeSvgProps(shape, false));
+    expect(tick1Attrs.stroke).toBe('#3b82f6');
+  });
+});
+
+// ─── drawShapeOnCanvas — Measurement ─────────────────────────────────────────
+
+describe('drawShapeOnCanvas() — Measurement', () => {
+  let ctx: MockCtx & { textAlign: string; textBaseline: string; lineJoin: CanvasLineJoin };
+
+  beforeEach(() => {
+    ctx = {
+      ...makeCanvasContext(),
+      textAlign: 'start',
+      textBaseline: 'alphabetic',
+      lineJoin: 'miter',
+    };
+  });
+
+  it('calls beginPath at least 3 times (main line + 2 ticks)', () => {
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, makeMeasurement());
+    expect(ctx.beginPath).toHaveBeenCalledTimes(3);
+  });
+
+  it('calls stroke at least 3 times (main line + 2 ticks, possibly more for label)', () => {
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, makeMeasurement());
+    expect(ctx.stroke).toHaveBeenCalledTimes(3);
+  });
+
+  it('calls moveTo with x1/y1 (start of main line)', () => {
+    const shape = makeMeasurement({ x1: 10, y1: 50 });
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
+    expect(ctx.moveTo).toHaveBeenCalledWith(10, 50);
+  });
+
+  it('calls lineTo with x2/y2 (end of main line)', () => {
+    const shape = makeMeasurement({ x1: 10, y1: 50, x2: 110, y2: 50 });
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
+    expect(ctx.lineTo).toHaveBeenCalledWith(110, 50);
+  });
+
+  it('sets strokeStyle to shape.stroke', () => {
+    const shape = makeMeasurement({ stroke: '#22c55e' });
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
+    expect(ctx.strokeStyle).toBe('#22c55e');
+  });
+
+  it('sets lineWidth to shape.strokeWidth', () => {
+    const shape = makeMeasurement({ strokeWidth: 8 });
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
+    expect(ctx.lineWidth).toBe(8);
+  });
+
+  it('sets lineCap to "round"', () => {
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, makeMeasurement());
+    expect(ctx.lineCap).toBe('round');
+  });
+
+  it('calls fillText with shape.label when label is non-empty', () => {
+    const shape = makeMeasurement({ label: '5m' });
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
+    expect(ctx.fillText).toHaveBeenCalledWith('5m', expect.any(Number), expect.any(Number));
+  });
+
+  it('does NOT call fillText when label is empty', () => {
+    const shape = makeMeasurement({ label: '' });
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
+    expect(ctx.fillText).not.toHaveBeenCalled();
+  });
+
+  it('sets ctx.font to include shape.fontSize when label is non-empty', () => {
+    const shape = makeMeasurement({ label: '5m', fontSize: 24 });
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
+    expect(ctx.font).toContain('24px');
+    expect(ctx.font).toContain(ANNOTATION_FONT_FAMILY);
+  });
+});
+
+// ─── renderShapeSvgProps — Freehand (polyline) ───────────────────────────────
+
+describe('renderShapeSvgProps() — Freehand', () => {
+  it('returns tagName: "polyline" for a freehand shape', () => {
+    const result = renderShapeSvgProps(makeFreehand(), false);
+    expect(result.tagName).toBe('polyline');
+  });
+
+  it('attributes include points as space-separated "x,y" pairs', () => {
+    const shape = makeFreehand({ points: [[10, 20], [30, 40], [50, 60]] });
+    const result = renderShapeSvgProps(shape, false);
+    if (result.tagName !== 'polyline') throw new Error('expected polyline');
+    expect(result.attributes.points).toBe('10,20 30,40 50,60');
+  });
+
+  it('attributes include stroke from shape.stroke', () => {
+    const shape = makeFreehand({ stroke: '#22c55e' });
+    const result = renderShapeSvgProps(shape, false);
+    if (result.tagName !== 'polyline') throw new Error('expected polyline');
+    expect(result.attributes.stroke).toBe('#22c55e');
+  });
+
+  it('attributes include stroke-width from shape.strokeWidth', () => {
+    const shape = makeFreehand({ strokeWidth: 8 });
+    const result = renderShapeSvgProps(shape, false);
+    if (result.tagName !== 'polyline') throw new Error('expected polyline');
+    expect(result.attributes['stroke-width']).toBe(8);
+  });
+
+  it('committed freehand has stroke-dasharray: "none"', () => {
+    const result = renderShapeSvgProps(makeFreehand(), false);
+    if (result.tagName !== 'polyline') throw new Error('expected polyline');
+    expect(result.attributes['stroke-dasharray']).toBe('none');
+  });
+
+  it('draft freehand has stroke-dasharray: "6 4"', () => {
+    const result = renderShapeSvgProps(makeFreehand(), true);
+    if (result.tagName !== 'polyline') throw new Error('expected polyline');
+    expect(result.attributes['stroke-dasharray']).toBe('6 4');
+  });
+
+  it('committed freehand has opacity: 1', () => {
+    const result = renderShapeSvgProps(makeFreehand(), false);
+    if (result.tagName !== 'polyline') throw new Error('expected polyline');
+    expect(result.attributes.opacity).toBe(1);
+  });
+
+  it('draft freehand has opacity: 0.8', () => {
+    const result = renderShapeSvgProps(makeFreehand(), true);
+    if (result.tagName !== 'polyline') throw new Error('expected polyline');
+    expect(result.attributes.opacity).toBe(0.8);
+  });
+
+  it('has fill: "none"', () => {
+    const result = renderShapeSvgProps(makeFreehand(), false);
+    if (result.tagName !== 'polyline') throw new Error('expected polyline');
+    expect(result.attributes.fill).toBe('none');
+  });
+
+  it('has stroke-linecap: "round"', () => {
+    const result = renderShapeSvgProps(makeFreehand(), false);
+    if (result.tagName !== 'polyline') throw new Error('expected polyline');
+    expect(result.attributes['stroke-linecap']).toBe('round');
+  });
+
+  it('has stroke-linejoin: "round"', () => {
+    const result = renderShapeSvgProps(makeFreehand(), false);
+    if (result.tagName !== 'polyline') throw new Error('expected polyline');
+    expect(result.attributes['stroke-linejoin']).toBe('round');
+  });
+
+  it('committed freehand has pointer-events: "stroke"', () => {
+    const result = renderShapeSvgProps(makeFreehand(), false);
+    if (result.tagName !== 'polyline') throw new Error('expected polyline');
+    expect(result.attributes['pointer-events']).toBe('stroke');
+  });
+
+  it('draft freehand has pointer-events: "none"', () => {
+    const result = renderShapeSvgProps(makeFreehand(), true);
+    if (result.tagName !== 'polyline') throw new Error('expected polyline');
+    expect(result.attributes['pointer-events']).toBe('none');
+  });
+});
+
+// ─── drawShapeOnCanvas — Freehand ─────────────────────────────────────────────
+
+describe('drawShapeOnCanvas() — Freehand', () => {
+  let ctx: MockCtx & { lineJoin: CanvasLineJoin };
+
+  beforeEach(() => {
+    ctx = { ...makeCanvasContext(), lineJoin: 'miter' };
+  });
+
+  it('calls beginPath once', () => {
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, makeFreehand());
+    expect(ctx.beginPath).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls moveTo with the first point', () => {
+    const shape = makeFreehand({ points: [[10, 20], [50, 60], [90, 30]] });
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
+    expect(ctx.moveTo).toHaveBeenCalledWith(10, 20);
+  });
+
+  it('calls lineTo for each subsequent point', () => {
+    const shape = makeFreehand({ points: [[10, 20], [50, 60], [90, 30]] });
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
+    expect(ctx.lineTo).toHaveBeenCalledWith(50, 60);
+    expect(ctx.lineTo).toHaveBeenCalledWith(90, 30);
+    expect(ctx.lineTo).toHaveBeenCalledTimes(2); // N-1 calls
+  });
+
+  it('calls stroke', () => {
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, makeFreehand());
+    expect(ctx.stroke).toHaveBeenCalled();
+  });
+
+  it('does NOT call fill', () => {
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, makeFreehand());
+    expect(ctx.fill).not.toHaveBeenCalled();
+  });
+
+  it('sets strokeStyle to shape.stroke', () => {
+    const shape = makeFreehand({ stroke: '#22c55e' });
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
+    expect(ctx.strokeStyle).toBe('#22c55e');
+  });
+
+  it('sets lineWidth to shape.strokeWidth', () => {
+    const shape = makeFreehand({ strokeWidth: 8 });
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
+    expect(ctx.lineWidth).toBe(8);
+  });
+
+  it('sets lineCap to "round"', () => {
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, makeFreehand());
+    expect(ctx.lineCap).toBe('round');
+  });
+
+  it('does nothing (no beginPath) for freehand with fewer than 2 points', () => {
+    const shape = makeFreehand({ points: [[50, 50]] });
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
+    expect(ctx.beginPath).not.toHaveBeenCalled();
+  });
+
+  it('does nothing for freehand with 0 points', () => {
+    const shape = makeFreehand({ points: [] });
+    drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
+    expect(ctx.beginPath).not.toHaveBeenCalled();
   });
 });

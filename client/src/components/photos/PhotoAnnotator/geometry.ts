@@ -571,3 +571,57 @@ export function translateTailAnchor(
     tailY: clamp(newTailY, 0, imageHeight),
   };
 }
+
+/**
+ * Hit-test a polyline (freehand stroke) for pointer proximity.
+ * Tests each segment of the polyline against the given tolerance.
+ * Returns 'body' if any segment is hit, null otherwise.
+ */
+export function hitTestPolyline(
+  px: number,
+  py: number,
+  points: [number, number][],
+  tolerance: number,
+): 'body' | null {
+  for (let i = 0; i < points.length - 1; i++) {
+    const [x1, y1] = points[i]!;
+    const [x2, y2] = points[i + 1]!;
+    if (hitTestLine(px, py, x1, y1, x2, y2, tolerance) !== null) {
+      return 'body';
+    }
+  }
+  return null;
+}
+
+/**
+ * Translate a measurement shape (two endpoints) by dx, dy, clamped to image bounds.
+ * Delegates to translateArrowLine since measurement shares the same geometry.
+ */
+export function translateMeasurement(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  dx: number,
+  dy: number,
+  imageWidth: number,
+  imageHeight: number,
+): { x1: number; y1: number; x2: number; y2: number } {
+  return translateArrowLine(x1, y1, x2, y2, dx, dy, imageWidth, imageHeight);
+}
+
+/**
+ * Translate a freehand shape's points by dx, dy (clamped to image bounds).
+ */
+export function translateFreehand(
+  points: [number, number][],
+  dx: number,
+  dy: number,
+  imageWidth: number,
+  imageHeight: number,
+): [number, number][] {
+  return points.map(([x, y]) => [
+    clamp(x + dx, 0, imageWidth),
+    clamp(y + dy, 0, imageHeight),
+  ]) as [number, number][];
+}

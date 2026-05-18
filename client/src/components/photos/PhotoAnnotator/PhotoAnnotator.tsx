@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { nanoid } from 'nanoid';
 import type { Photo } from '@cornerstone/shared';
 import { useAnnotator, type ToolName } from './useAnnotator.js';
-import type { TextShape, CalloutShape } from './useUndoStack.js';
+import type { TextShape, CalloutShape, MeasurementShape } from './useUndoStack.js';
 import { ToolPalette } from './ToolPalette.js';
 import { RectangleTool } from './tools/RectangleTool.js';
 import { HighlightTool } from './tools/HighlightTool.js';
@@ -12,6 +12,8 @@ import { LineTool } from './tools/LineTool.js';
 import { EllipseTool } from './tools/EllipseTool.js';
 import { TextTool } from './tools/TextTool.js';
 import { CalloutTool, resetCalloutTool, getCalloutPhase } from './tools/CalloutTool.js';
+import { MeasurementTool, resetMeasurementTool } from './tools/MeasurementTool.js';
+import { FreehandTool } from './tools/FreehandTool.js';
 import { SelectTool } from './tools/SelectTool.js';
 import type { PointerContext } from './tools/SelectTool.js';
 import { screenToImage, imageToScreen, clamp } from './geometry.js';
@@ -75,10 +77,12 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       const existingShape = editingShapeId
         ? state.shapes.find((s) => s.id === editingShapeId)
         : null;
-      const originalText =
-        existingShape && (existingShape.type === 'text' || existingShape.type === 'callout')
-          ? existingShape.text
-          : '';
+      const originalText = (() => {
+        if (!existingShape) return '';
+        if (existingShape.type === 'text' || existingShape.type === 'callout') return existingShape.text;
+        if (existingShape.type === 'measurement') return existingShape.label;
+        return '';
+      })();
       setInlineInput({
         isOpen: true,
         anchorImageX,
@@ -107,10 +111,12 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     if (text === '') {
       // Empty — if editing existing, no-op (preserve original). If new, discard.
       if (inlineInput.editingShapeId === null) {
-        // Discard draft if it was a callout phase 2
-        dispatch({ type: 'SET_DRAFT', shape: null });
+        // Discard draft if it was a callout phase 2 (but NOT measurement — measurement commits with empty label)
+        if (state.selectedTool !== 'measurement') {
+          dispatch({ type: 'SET_DRAFT', shape: null });
+        }
       }
-      return;
+      // For measurement with empty text, fall through to commit with empty label
     }
 
     const fontSize = getActiveFontSize();
@@ -120,6 +126,10 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       const shape = state.shapes.find((s) => s.id === inlineInput.editingShapeId);
       if (shape && (shape.type === 'text' || shape.type === 'callout')) {
         const updated = { ...shape, text };
+        dispatch({ type: 'UPDATE_SHAPE', shape: updated });
+        undoStack.commit(state.shapes.map((s) => (s.id === updated.id ? updated : s)));
+      } else if (shape && shape.type === 'measurement') {
+        const updated: MeasurementShape = { ...shape, label: text };
         dispatch({ type: 'UPDATE_SHAPE', shape: updated });
         undoStack.commit(state.shapes.map((s) => (s.id === updated.id ? updated : s)));
       }
@@ -143,28 +153,42 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       dispatch({ type: 'SET_DRAFT', shape: null });
       undoStack.commit(newShapes);
       dispatch({ type: 'SELECT_SHAPE', id: committed.id });
+    } else if (state.selectedTool === 'measurement' && state.draftShape?.type === 'measurement') {
+      // Commit the measurement draft with the user's label (may be empty)
+      const committed: MeasurementShape = {
+        ...(state.draftShape as MeasurementShape),
+        label: text,  // text may be '' — that is valid; line is drawn, no label
+      };
+      const newShapes = [...undoStack.shapes, committed];
+      dispatch({ type: 'SET_DRAFT', shape: null });
+      undoStack.commit(newShapes);
+      dispatch({ type: 'SELECT_SHAPE', id: committed.id });
+      if (liveRegionRef.current) {
+        liveRegionRef.current.textContent = t('shapeAddedMeasurement');
+      }
     }
-  }, [
-    inlineInput,
-    state.shapes,
-    state.draftShape,
-    state.selectedTool,
-    state.activeColor,
-    undoStack,
-    dispatch,
-  ]);
+  }, [inlineInput, state.shapes, state.draftShape, state.selectedTool, state.activeColor, undoStack, dispatch, t]);
 
   // Callback to cancel the inline input
   const cancelInlineInput = useCallback(() => {
     if (!inlineInput.isOpen) return;
+
+    // For measurement: Escape commits with whatever is in the input (may be empty)
+    // This preserves the drawn line even if no label is typed.
+    if (state.selectedTool === 'measurement') {
+      commitInlineInput();
+      return;
+    }
+
     setInlineInput((prev) => ({ ...prev, isOpen: false }));
     if (inlineInput.editingShapeId === null) {
       // Abort new shape — discard draft if any
       dispatch({ type: 'SET_DRAFT', shape: null });
       resetCalloutTool();
+      resetMeasurementTool();
     }
     // For existing shapes: no change, original text preserved
-  }, [inlineInput, dispatch]);
+  }, [inlineInput, state.selectedTool, dispatch, commitInlineInput]);
 
   // Measure text bbox for DOM-accurate selection overlay
   useEffect(() => {
@@ -305,6 +329,28 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                 y: clamp(selectedShape.y + dy, 0, photo.height! - selectedShape.h),
               },
             });
+          } else if (selectedShape.type === 'measurement') {
+            dispatch({
+              type: 'UPDATE_SHAPE',
+              shape: {
+                ...selectedShape,
+                x1: clamp(selectedShape.x1 + dx, 0, photo.width!),
+                y1: clamp(selectedShape.y1 + dy, 0, photo.height!),
+                x2: clamp(selectedShape.x2 + dx, 0, photo.width!),
+                y2: clamp(selectedShape.y2 + dy, 0, photo.height!),
+              },
+            });
+          } else if (selectedShape.type === 'freehand') {
+            dispatch({
+              type: 'UPDATE_SHAPE',
+              shape: {
+                ...selectedShape,
+                points: selectedShape.points.map(([x, y]) => [
+                  clamp(x + dx, 0, photo.width!),
+                  clamp(y + dy, 0, photo.height!),
+                ]) as [number, number][],
+              },
+            });
           }
         }
       }
@@ -354,6 +400,8 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         ellipse: EllipseTool,
         text: TextTool,
         callout: CalloutTool,
+        measurement: MeasurementTool,
+        freehand: FreehandTool,
       };
 
       const handler = toolHandlers[state.selectedTool];
@@ -397,6 +445,8 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         ellipse: EllipseTool,
         text: TextTool,
         callout: CalloutTool,
+        measurement: MeasurementTool,
+        freehand: FreehandTool,
       };
 
       const handler = toolHandlers[state.selectedTool];
@@ -440,6 +490,8 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         ellipse: EllipseTool,
         text: TextTool,
         callout: CalloutTool,
+        measurement: MeasurementTool,
+        freehand: FreehandTool,
       };
 
       // Capture callout phase BEFORE tool handler executes.
@@ -482,8 +534,16 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         resetCalloutTool();
         dispatch({ type: 'SET_DRAFT', shape: null });
       }
+
+      // Announce freehand shape added
+      if (state.selectedTool === 'freehand') {
+        const hasFreehandCommit = actions.some((a) => a.type === 'COMMIT_DRAFT');
+        if (hasFreehandCommit && liveRegionRef.current) {
+          liveRegionRef.current.textContent = t('shapeAddedFreehand');
+        }
+      }
     },
-    [state, photo.width, photo.height, dispatch, undoStack, openInlineInput, inlineInput.isOpen],
+    [state, photo.width, photo.height, dispatch, undoStack, openInlineInput, inlineInput.isOpen, t],
   );
 
   // Floating input positioning
@@ -628,11 +688,26 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
             const result = renderShapeSvgProps(shape, false);
             if (result.tagName === 'callout') {
               return (
-                <g key={shape.id}>
+                <g key={shape.id} data-shapeid={shape.id}>
                   <rect {...(result.boxAttrs as Record<string, unknown>)} />
                   <line {...(result.tailAttrs as Record<string, unknown>)} />
                   <text {...(result.textAttrs as Record<string, unknown>)}>{result.children}</text>
                 </g>
+              );
+            } else if (result.tagName === 'measurement') {
+              return (
+                <g key={shape.id} data-shapeid={shape.id}>
+                  <line {...(result.lineAttrs as Record<string, unknown>)} />
+                  <line {...(result.tick1Attrs as Record<string, unknown>)} />
+                  <line {...(result.tick2Attrs as Record<string, unknown>)} />
+                  {result.children && (
+                    <text {...(result.labelAttrs as Record<string, unknown>)}>{result.children}</text>
+                  )}
+                </g>
+              );
+            } else if (result.tagName === 'polyline') {
+              return (
+                <polyline key={shape.id} data-shapeid={shape.id} {...(result.attributes as Record<string, unknown>)} />
               );
             } else if (result.tagName === 'text') {
               return (
@@ -646,7 +721,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
               );
             } else {
               const Tag = result.tagName as any;
-              return <Tag key={shape.id} {...(result.attributes as Record<string, unknown>)} />;
+              return <Tag key={shape.id} data-shapeid={shape.id} {...(result.attributes as Record<string, unknown>)} />;
             }
           })}
 
@@ -663,6 +738,21 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                       {result.children}
                     </text>
                   </g>
+                );
+              } else if (result.tagName === 'measurement') {
+                return (
+                  <g>
+                    <line {...(result.lineAttrs as Record<string, unknown>)} />
+                    <line {...(result.tick1Attrs as Record<string, unknown>)} />
+                    <line {...(result.tick2Attrs as Record<string, unknown>)} />
+                    {result.children && (
+                      <text {...(result.labelAttrs as Record<string, unknown>)}>{result.children}</text>
+                    )}
+                  </g>
+                );
+              } else if (result.tagName === 'polyline') {
+                return (
+                  <polyline {...(result.attributes as Record<string, unknown>)} />
                 );
               } else if (result.tagName === 'text') {
                 return (
@@ -930,6 +1020,62 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                   />
                 </>
               )}
+
+              {selectedShape.type === 'measurement' && (
+                <>
+                  <line
+                    x1={selectedShape.x1}
+                    y1={selectedShape.y1}
+                    x2={selectedShape.x2}
+                    y2={selectedShape.y2}
+                    stroke="var(--color-primary)"
+                    strokeWidth="1"
+                    strokeDasharray="4 2"
+                    pointerEvents="none"
+                  />
+                  {/* Endpoint handles (start and end) — same as arrow/line */}
+                  {[
+                    { pos: 'start', x: selectedShape.x1, y: selectedShape.y1 },
+                    { pos: 'end', x: selectedShape.x2, y: selectedShape.y2 },
+                  ].map(({ pos, x, y }) => (
+                    <rect
+                      key={pos}
+                      x={x - 4}
+                      y={y - 4}
+                      width={8}
+                      height={8}
+                      fill="var(--color-bg-primary)"
+                      stroke="var(--color-primary)"
+                      strokeWidth="1.5"
+                      style={{ cursor: 'move' }}
+                    />
+                  ))}
+                </>
+              )}
+
+              {selectedShape.type === 'freehand' && (() => {
+                // Freehand has no handles — show dashed bounding box as selection indicator
+                if (selectedShape.points.length < 2) return null;
+                const xs = selectedShape.points.map(([x]) => x);
+                const ys = selectedShape.points.map(([, y]) => y);
+                const minX = Math.min(...xs);
+                const minY = Math.min(...ys);
+                const maxX = Math.max(...xs);
+                const maxY = Math.max(...ys);
+                return (
+                  <rect
+                    x={minX - 4}
+                    y={minY - 4}
+                    width={maxX - minX + 8}
+                    height={maxY - minY + 8}
+                    stroke="var(--color-primary)"
+                    strokeWidth="1"
+                    strokeDasharray="4 2"
+                    fill="none"
+                    pointerEvents="none"
+                  />
+                );
+              })()}
             </>
           )}
         </svg>
@@ -940,7 +1086,16 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
             type="text"
             className={styles.inlineTextInput}
             style={inlineInputStyle}
-            aria-label={t(state.selectedTool === 'callout' ? 'editCallout' : 'editText')}
+            aria-label={
+              state.selectedTool === 'callout'
+                ? t('editCallout')
+                : state.selectedTool === 'measurement'
+                  ? t('editMeasurement')
+                  : t('editText')
+            }
+            placeholder={
+              state.selectedTool === 'measurement' ? t('measurementPlaceholder') : undefined
+            }
             data-testid="annotator-inline-input"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {

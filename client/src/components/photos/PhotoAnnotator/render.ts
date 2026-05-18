@@ -8,12 +8,18 @@ export const ANNOTATION_FONT_FAMILY = 'system-ui, -apple-system, sans-serif';
 export type SvgRenderResult =
   | { tagName: 'rect' | 'line' | 'ellipse'; attributes: Record<string, string | number> }
   | { tagName: 'text'; attributes: Record<string, string | number>; children: string }
+  | { tagName: 'callout'; boxAttrs: Record<string, string | number>; tailAttrs: Record<string, string | number>; textAttrs: Record<string, string | number>; children: string }
   | {
-      tagName: 'callout';
-      boxAttrs: Record<string, string | number>;
-      tailAttrs: Record<string, string | number>;
-      textAttrs: Record<string, string | number>;
+      tagName: 'measurement';
+      lineAttrs: Record<string, string | number>;
+      tick1Attrs: Record<string, string | number>;
+      tick2Attrs: Record<string, string | number>;
+      labelAttrs: Record<string, string | number>;
       children: string;
+    }
+  | {
+      tagName: 'polyline';
+      attributes: Record<string, string | number>;
     };
 
 /**
@@ -167,6 +173,89 @@ export function renderShapeSvgProps(shape: AnnotationShape, isDraft: boolean): S
       },
       children: calloutShape.text,
     };
+  } else if (shape.type === 'measurement') {
+    // Compute perpendicular tick mark direction
+    const dx = shape.x2 - shape.x1;
+    const dy = shape.y2 - shape.y1;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx = -dy / len;  // unit normal
+    const ny = dx / len;
+    const TICK = shape.strokeWidth * 4;  // tick half-length in image-space pixels
+
+    const midX = (shape.x1 + shape.x2) / 2;
+    const midY = (shape.y1 + shape.y2) / 2;
+    // Label sits above the midpoint (perpendicular offset = fontSize * 0.6)
+    const labelOffsetX = -nx * shape.fontSize * 0.6;
+    const labelOffsetY = -ny * shape.fontSize * 0.6;
+
+    return {
+      tagName: 'measurement',
+      lineAttrs: {
+        x1: shape.x1,
+        y1: shape.y1,
+        x2: shape.x2,
+        y2: shape.y2,
+        stroke: shape.stroke,
+        'stroke-width': shape.strokeWidth,
+        'stroke-linecap': 'round',
+        'stroke-dasharray': isDraft ? '6 4' : 'none',
+        opacity: isDraft ? 0.8 : 1,
+        'pointer-events': isDraft ? 'none' : 'stroke',
+      },
+      tick1Attrs: {
+        x1: shape.x1 + nx * TICK,
+        y1: shape.y1 + ny * TICK,
+        x2: shape.x1 - nx * TICK,
+        y2: shape.y1 - ny * TICK,
+        stroke: shape.stroke,
+        'stroke-width': shape.strokeWidth,
+        'stroke-linecap': 'round',
+        opacity: isDraft ? 0.8 : 1,
+        'pointer-events': 'none',
+      },
+      tick2Attrs: {
+        x1: shape.x2 + nx * TICK,
+        y1: shape.y2 + ny * TICK,
+        x2: shape.x2 - nx * TICK,
+        y2: shape.y2 - ny * TICK,
+        stroke: shape.stroke,
+        'stroke-width': shape.strokeWidth,
+        'stroke-linecap': 'round',
+        opacity: isDraft ? 0.8 : 1,
+        'pointer-events': 'none',
+      },
+      labelAttrs: shape.label
+        ? {
+            x: midX + labelOffsetX,
+            y: midY + labelOffsetY,
+            fill: shape.color,
+            'font-size': shape.fontSize,
+            'font-family': ANNOTATION_FONT_FAMILY,
+            'text-anchor': 'middle',
+            'dominant-baseline': 'middle',
+            opacity: isDraft ? 0.8 : 1,
+            'pointer-events': 'none',
+            'user-select': 'none',
+          }
+        : { display: 'none' },  // hidden when label is empty
+      children: shape.label,
+    };
+  } else if (shape.type === 'freehand') {
+    const pointsStr = shape.points.map(([x, y]) => `${x},${y}`).join(' ');
+    return {
+      tagName: 'polyline',
+      attributes: {
+        points: pointsStr,
+        stroke: shape.stroke,
+        'stroke-width': shape.strokeWidth,
+        'stroke-linecap': 'round',
+        'stroke-linejoin': 'round',
+        fill: 'none',
+        'stroke-dasharray': isDraft ? '6 4' : 'none',
+        opacity: isDraft ? 0.8 : 1,
+        'pointer-events': isDraft ? 'none' : 'stroke',
+      },
+    };
   }
 
   // Fallback for unknown shape type
@@ -262,5 +351,63 @@ export function drawShapeOnCanvas(ctx: CanvasRenderingContext2D, shape: Annotati
     ctx.fillStyle = calloutShape.color;
     ctx.font = `${calloutShape.fontSize}px ${ANNOTATION_FONT_FAMILY}`;
     ctx.fillText(calloutShape.text, calloutShape.x + 6, calloutShape.y + calloutShape.fontSize + 4);
+  } else if (shape.type === 'measurement') {
+    const dx = shape.x2 - shape.x1;
+    const dy = shape.y2 - shape.y1;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const TICK = shape.strokeWidth * 4;
+
+    ctx.strokeStyle = shape.stroke;
+    ctx.lineWidth = shape.strokeWidth;
+    ctx.lineCap = 'round';
+
+    // Main line
+    ctx.beginPath();
+    ctx.moveTo(shape.x1, shape.y1);
+    ctx.lineTo(shape.x2, shape.y2);
+    ctx.stroke();
+
+    // Tick at start
+    ctx.beginPath();
+    ctx.moveTo(shape.x1 + nx * TICK, shape.y1 + ny * TICK);
+    ctx.lineTo(shape.x1 - nx * TICK, shape.y1 - ny * TICK);
+    ctx.stroke();
+
+    // Tick at end
+    ctx.beginPath();
+    ctx.moveTo(shape.x2 + nx * TICK, shape.y2 + ny * TICK);
+    ctx.lineTo(shape.x2 - nx * TICK, shape.y2 - ny * TICK);
+    ctx.stroke();
+
+    // Label
+    if (shape.label) {
+      const midX = (shape.x1 + shape.x2) / 2;
+      const midY = (shape.y1 + shape.y2) / 2;
+      const labelOffsetX = -nx * shape.fontSize * 0.6;
+      const labelOffsetY = -ny * shape.fontSize * 0.6;
+      ctx.fillStyle = shape.color;
+      ctx.font = `${shape.fontSize}px ${ANNOTATION_FONT_FAMILY}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(shape.label, midX + labelOffsetX, midY + labelOffsetY);
+      ctx.textAlign = 'start';       // reset to default
+      ctx.textBaseline = 'alphabetic';
+    }
+  } else if (shape.type === 'freehand') {
+    if (shape.points.length < 2) return;
+    ctx.strokeStyle = shape.stroke;
+    ctx.lineWidth = shape.strokeWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    const [fx, fy] = shape.points[0]!;
+    ctx.moveTo(fx, fy);
+    for (let i = 1; i < shape.points.length; i++) {
+      const [px, py] = shape.points[i]!;
+      ctx.lineTo(px, py);
+    }
+    ctx.stroke();
   }
 }

@@ -145,6 +145,32 @@ export function ToolPalette({
         >
           <CalloutIcon />
         </button>
+
+        <button
+          type="button"
+          aria-pressed={selectedTool === 'measurement'}
+          data-testid="tool-measurement"
+          aria-label={t('toolMeasurement')}
+          className={`${styles.toolButton} ${
+            selectedTool === 'measurement' ? styles.toolButtonActive : ''
+          }`}
+          onClick={() => onSelectTool('measurement')}
+        >
+          <MeasurementIcon />
+        </button>
+
+        <button
+          type="button"
+          aria-pressed={selectedTool === 'freehand'}
+          data-testid="tool-freehand"
+          aria-label={t('toolFreehand')}
+          className={`${styles.toolButton} ${
+            selectedTool === 'freehand' ? styles.toolButtonActive : ''
+          }`}
+          onClick={() => onSelectTool('freehand')}
+        >
+          <FreehandIcon />
+        </button>
       </div>
 
       <div className={styles.divider} aria-hidden="true" />
@@ -204,7 +230,7 @@ export function ToolPalette({
         ))}
       </div>
 
-      {(selectedTool === 'text' || selectedTool === 'callout') && (
+      {(selectedTool === 'text' || selectedTool === 'callout' || selectedTool === 'measurement') && (
         <>
           <div className={styles.divider} aria-hidden="true" />
           <div role="radiogroup" aria-label={t('fontSize')} className={styles.fontSizeGroup}>
@@ -379,6 +405,33 @@ function CalloutIcon() {
         fill="none"
       />
       <path d="M9 15 L6 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function MeasurementIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Horizontal measurement line */}
+      <line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      {/* Left tick */}
+      <line x1="4" y1="8" x2="4" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      {/* Right tick */}
+      <line x1="20" y1="8" x2="20" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function FreehandIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M4 18 C6 14, 8 10, 10 12 C12 14, 14 8, 16 10 C18 12, 20 8, 21 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

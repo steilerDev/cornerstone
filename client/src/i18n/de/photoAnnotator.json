@@ -9,6 +9,8 @@
   "toolEllipse": "Ellipsen-Werkzeug",
   "toolText": "Text-Werkzeug",
   "toolCallout": "Sprechblasen-Werkzeug",
+  "toolMeasurement": "Maß-Werkzeug",
+  "toolFreehand": "Freihand-Werkzeug",
   "colorRed": "Rot",
   "colorYellow": "Gelb",
   "colorGreen": "Grün",
@@ -32,6 +34,8 @@
   "shapeAddedEllipse": "Ellipse hinzugefügt",
   "shapeAddedText": "Text hinzugefügt",
   "shapeAddedCallout": "Sprechblase hinzugefügt",
+  "shapeAddedMeasurement": "Maß hinzugefügt",
+  "shapeAddedFreehand": "Freihandlinie hinzugefügt",
   "shapeDeleted": "Form gelöscht",
   "undoPerformed": "Rückgängig gemacht",
   "redoPerformed": "Wiederholt",
@@ -46,5 +50,7 @@
   "fontSizeXlarge": "Sehr groß",
   "editText": "Text bearbeiten",
   "editCallout": "Sprechblasentext bearbeiten",
+  "editMeasurement": "Maßbeschriftung bearbeiten",
+  "measurementPlaceholder": "Maß eingeben",
   "calloutTailPositioning": "Zeiger der Sprechblase positionieren"
 }
