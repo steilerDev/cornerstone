@@ -855,7 +855,14 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                 <g key={shape.id} data-shapeid={shape.id}>
                   <rect {...(result.boxAttrs as Record<string, unknown>)} />
                   <line {...(result.tailAttrs as Record<string, unknown>)} />
-                  <text {...(result.textAttrs as Record<string, unknown>)}>{result.children}</text>
+                  <foreignObject {...(result.foreignObjectAttrs as Record<string, unknown>)}>
+                    <div
+                      style={result.textDivStyle as React.CSSProperties}
+                      // xmlns is implicit in XHTML context inside foreignObject
+                    >
+                      {result.children}
+                    </div>
+                  </foreignObject>
                 </g>
               );
             } else if (result.tagName === 'measurement') {
@@ -917,9 +924,14 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                   <g>
                     <rect {...(result.boxAttrs as Record<string, unknown>)} />
                     <line {...(result.tailAttrs as Record<string, unknown>)} />
-                    <text {...(result.textAttrs as Record<string, unknown>)}>
-                      {result.children}
-                    </text>
+                    <foreignObject {...(result.foreignObjectAttrs as Record<string, unknown>)}>
+                      <div
+                        style={result.textDivStyle as React.CSSProperties}
+                        // xmlns is implicit in XHTML context inside foreignObject
+                      >
+                        {result.children}
+                      </div>
+                    </foreignObject>
                   </g>
                 );
               } else if (result.tagName === 'measurement') {

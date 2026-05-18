@@ -1149,10 +1149,10 @@ test(
         throw e;
       }
 
-      // The text content should be "Defect found"
-      const calloutText = calloutGroup.locator('text').first();
+      // The text now renders inside foreignObject > div (for auto-flow + padding)
+      const calloutText = calloutGroup.locator('foreignObject div').first();
       await expect(calloutText).toBeVisible();
-      expect(await calloutText.textContent()).toBe('Defect found');
+      expect((await calloutText.textContent())?.trim()).toBe('Defect found');
 
       // Save and verify
       const [putResponse] = await Promise.all([

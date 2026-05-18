@@ -11,7 +11,13 @@
  */
 
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { renderShapeSvgProps, drawShapeOnCanvas, ANNOTATION_FONT_FAMILY } from './render.js';
+import {
+  renderShapeSvgProps,
+  drawShapeOnCanvas,
+  ANNOTATION_FONT_FAMILY,
+  calculateCalloutEffectiveFontSize,
+  wrapTextForCanvas,
+} from './render.js';
 import type { SvgRenderResult } from './render.js';
 import type {
   RectangleShape,
@@ -48,12 +54,14 @@ function getArrowParts(result: SvgRenderResult): {
 }
 
 /**
- * Asserts the result is a callout composite (boxAttrs / tailAttrs / textAttrs).
+ * Asserts the result is a callout composite (boxAttrs / tailAttrs / textAttrs / foreignObjectAttrs / textDivStyle).
  */
 function getCalloutParts(result: SvgRenderResult): {
   boxAttrs: Record<string, string | number>;
   tailAttrs: Record<string, string | number>;
   textAttrs: Record<string, string | number>;
+  foreignObjectAttrs: Record<string, string | number>;
+  textDivStyle: Record<string, string | number>;
   children: string;
 } {
   if (result.tagName === 'callout') return result;
@@ -173,6 +181,8 @@ interface MockCtx {
   fillStyle: string;
   globalAlpha: number;
   font: string;
+  textAlign: CanvasTextAlign;
+  textBaseline: CanvasTextBaseline;
   strokeRect: AnyMock;
   fillRect: AnyMock;
   beginPath: AnyMock;
@@ -183,6 +193,7 @@ interface MockCtx {
   closePath: AnyMock;
   ellipse: AnyMock;
   fillText: AnyMock;
+  measureText: AnyMock;
 }
 
 function makeCanvasContext(): MockCtx {
@@ -193,6 +204,8 @@ function makeCanvasContext(): MockCtx {
     fillStyle: '',
     globalAlpha: 1,
     font: '',
+    textAlign: 'start',
+    textBaseline: 'alphabetic',
     strokeRect: jest.fn() as AnyMock,
     fillRect: jest.fn() as AnyMock,
     beginPath: jest.fn() as AnyMock,
@@ -203,6 +216,7 @@ function makeCanvasContext(): MockCtx {
     closePath: jest.fn() as AnyMock,
     ellipse: jest.fn() as AnyMock,
     fillText: jest.fn() as AnyMock,
+    measureText: jest.fn().mockReturnValue({ width: 100 }) as AnyMock,
   };
 }
 
@@ -991,6 +1005,34 @@ describe('renderShapeSvgProps() — Callout', () => {
     const { boxAttrs } = getCalloutParts(renderShapeSvgProps(makeCallout(), true));
     expect(boxAttrs['pointer-events']).toBe('none');
   });
+
+  it('includes foreignObjectAttrs with inset position and reduced dimensions', () => {
+    const shape = makeCallout({ x: 10, y: 20, w: 100, h: 80 });
+    const { foreignObjectAttrs } = getCalloutParts(renderShapeSvgProps(shape, false));
+    expect(foreignObjectAttrs.x).toBe(16); // 10 + 6 inset
+    expect(foreignObjectAttrs.y).toBe(26); // 20 + 6 inset
+    expect(foreignObjectAttrs.width).toBe(88); // 100 - 2*6
+    expect(foreignObjectAttrs.height).toBe(68); // 80 - 2*6
+  });
+
+  it('includes textDivStyle with font properties', () => {
+    const shape = makeCallout({ fontSize: 18, color: '#ff0000' });
+    const { textDivStyle } = getCalloutParts(renderShapeSvgProps(shape, false));
+    expect(textDivStyle.fontFamily).toBe(ANNOTATION_FONT_FAMILY);
+    expect(textDivStyle.color).toBe('#ff0000');
+    expect(textDivStyle.lineHeight).toBe(1.2);
+    expect(textDivStyle.wordWrap).toBe('break-word');
+  });
+
+  it('textDivStyle fontSize shrinks when text overflows available space', () => {
+    const longText = 'x'.repeat(200);
+    const shape = makeCallout({ text: longText, fontSize: 24, w: 60, h: 60 });
+    const { textDivStyle } = getCalloutParts(renderShapeSvgProps(shape, false));
+    // With small box and long text, fontSize should be scaled down
+    const fontSizeStr = textDivStyle.fontSize as string;
+    const fontSizeNum = parseFloat(fontSizeStr);
+    expect(fontSizeNum).toBeLessThan(24);
+  });
 });
 
 // ─── ANNOTATION_FONT_FAMILY consistency ──────────────────────────────────────
@@ -1111,10 +1153,16 @@ describe('drawShapeOnCanvas() — Callout', () => {
     expect(ctx.beginPath).toHaveBeenCalled();
   });
 
-  it('calls fillText with shape.text for the label', () => {
+  it('calls fillText with wrapped text lines for the label', () => {
     const shape = makeCallout({ text: 'My Note' });
     drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
-    expect(ctx.fillText).toHaveBeenCalledWith('My Note', expect.any(Number), expect.any(Number));
+    // Text is wrapped into lines and drawn separately, so we should have at least one fillText call
+    expect(ctx.fillText).toHaveBeenCalled();
+    // Check that each call matches a word from the text
+    const calls = (ctx.fillText as AnyMock).mock.calls;
+    const drawnText = calls.map((c: any) => c[0]).join(' ');
+    expect(drawnText).toContain('My');
+    expect(drawnText).toContain('Note');
   });
 
   it('sets ctx.font to include shape.fontSize and ANNOTATION_FONT_FAMILY', () => {
@@ -1561,5 +1609,98 @@ describe('drawShapeOnCanvas() — Freehand', () => {
     const shape = makeFreehand({ points: [] });
     drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
     expect(ctx.beginPath).not.toHaveBeenCalled();
+  });
+});
+
+// ─── calculateCalloutEffectiveFontSize ────────────────────────────────────────
+
+describe('calculateCalloutEffectiveFontSize()', () => {
+  it('returns fontSize unchanged when text fits in available space', () => {
+    const result = calculateCalloutEffectiveFontSize('Hi', 18, 200, 100);
+    // Short text, ample space → no scaling needed
+    expect(result).toBe(18);
+  });
+
+  it('returns fontSize unchanged for empty text', () => {
+    const result = calculateCalloutEffectiveFontSize('', 18, 50, 50);
+    expect(result).toBe(18);
+  });
+
+  it('shrinks font when text overflows vertically', () => {
+    // Very long text in a small box
+    const longText = 'This is a very long text that will not fit in a small box';
+    const result = calculateCalloutEffectiveFontSize(longText, 24, 50, 30);
+    // Text should be scaled down to fit
+    expect(result).toBeLessThan(24);
+    expect(result).toBeGreaterThanOrEqual(8); // minimum is 8px
+  });
+
+  it('clamps minimum font size to 8px', () => {
+    // Extremely constrained space
+    const longText = 'x'.repeat(1000);
+    const result = calculateCalloutEffectiveFontSize(longText, 24, 10, 10);
+    expect(result).toBe(8); // clamped to minimum
+  });
+
+  it('scales proportionally when text exceeds lines available', () => {
+    // Medium text in constrained box
+    const text = 'This is some text';
+    const fontSize = 20;
+    const availW = 100;
+    const availH = 40;
+
+    const result = calculateCalloutEffectiveFontSize(text, fontSize, availW, availH);
+    // Should be between the original and minimum
+    expect(result).toBeGreaterThanOrEqual(8);
+    expect(result).toBeLessThanOrEqual(fontSize);
+  });
+});
+
+// ─── wrapTextForCanvas ────────────────────────────────────────────────────────
+
+describe('wrapTextForCanvas()', () => {
+  let ctx: MockCtx;
+
+  beforeEach(() => {
+    ctx = makeCanvasContext();
+    // Mock measureText to return fixed width per character
+    ctx.measureText = jest.fn().mockImplementation((text) => ({
+      width: (text as string).length * 10, // 10px per character
+    })) as AnyMock;
+  });
+
+  it('returns empty array for empty text', () => {
+    const result = wrapTextForCanvas('', 100, ctx as unknown as CanvasRenderingContext2D);
+    expect(result).toEqual([]);
+  });
+
+  it('returns single line when text fits within maxWidth', () => {
+    const result = wrapTextForCanvas('Hi', 100, ctx as unknown as CanvasRenderingContext2D);
+    expect(result).toEqual(['Hi']);
+  });
+
+  it('wraps text into multiple lines when it exceeds maxWidth', () => {
+    // "Hi" = 20px, "there" = 50px, "folks" = 50px
+    // max 60px → "Hi" (20) fits, "Hi there" (80) doesn't → split into "Hi" and "there folks"
+    const result = wrapTextForCanvas('Hi there folks', 60, ctx as unknown as CanvasRenderingContext2D);
+    expect(result.length).toBeGreaterThan(1);
+    // Each line should be <= 60px
+    for (const line of result) {
+      expect(ctx.measureText(line).width).toBeLessThanOrEqual(60);
+    }
+  });
+
+  it('preserves word boundaries (no mid-word breaks)', () => {
+    const result = wrapTextForCanvas('Hello world', 50, ctx as unknown as CanvasRenderingContext2D);
+    // Should be ["Hello", "world"] not ["Hell", "o wor", "ld"]
+    for (const line of result) {
+      expect(line).toMatch(/^\w+$/); // word-only, no partial words
+    }
+  });
+
+  it('handles single long word by putting it on its own line', () => {
+    // Single word wider than maxWidth still goes on a line
+    const result = wrapTextForCanvas('Supercalifragilisticexpialidocious', 60, ctx as unknown as CanvasRenderingContext2D);
+    expect(result[0]).toBe('Supercalifragilisticexpialidocious');
   });
 });
