@@ -12,7 +12,14 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { SelectTool } from './SelectTool.js';
 import type { AnnotatorState } from '../useAnnotator.js';
-import type { AnnotationShape, ArrowShape, LineShape, EllipseShape, TextShape, CalloutShape } from '../useUndoStack.js';
+import type {
+  AnnotationShape,
+  ArrowShape,
+  LineShape,
+  EllipseShape,
+  TextShape,
+  CalloutShape,
+} from '../useUndoStack.js';
 import type { PointerContext } from './SelectTool.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

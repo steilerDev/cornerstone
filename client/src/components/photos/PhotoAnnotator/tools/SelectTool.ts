@@ -51,9 +51,10 @@ export const SelectTool: ToolHandler = {
 
       // Double-click: edit text and callout shapes
       if (ctx.event.detail === 2 && (shape.type === 'text' || shape.type === 'callout')) {
-        const bodyHit = shape.type === 'text'
-          ? hitTestText(imageX, imageY, shape, 4)
-          : hitTestCallout(imageX, imageY, shape);
+        const bodyHit =
+          shape.type === 'text'
+            ? hitTestText(imageX, imageY, shape, 4)
+            : hitTestCallout(imageX, imageY, shape);
         if (bodyHit) {
           ctx.onOpenInlineInput?.(shape.x, shape.y, shape.id);
           return [{ type: 'SELECT_SHAPE', id: shape.id }];

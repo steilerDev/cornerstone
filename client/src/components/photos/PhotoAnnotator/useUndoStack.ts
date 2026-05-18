@@ -57,8 +57,8 @@ export interface EllipseShape {
 export interface TextShape {
   type: 'text';
   id: string;
-  x: number;       // image-space anchor — baseline left
-  y: number;       // image-space anchor — baseline top (top of cap-height)
+  x: number; // image-space anchor — baseline left
+  y: number; // image-space anchor — baseline top (top of cap-height)
   text: string;
   fontSize: number; // image-space pixels
   color: string;
@@ -67,17 +67,17 @@ export interface TextShape {
 export interface CalloutShape {
   type: 'callout';
   id: string;
-  x: number;       // image-space — top-left of box
+  x: number; // image-space — top-left of box
   y: number;
   w: number;
   h: number;
   text: string;
-  tailX: number;   // image-space — tail anchor point
+  tailX: number; // image-space — tail anchor point
   tailY: number;
   stroke: string;
-  fill: string;    // semi-transparent fill for the box
+  fill: string; // semi-transparent fill for the box
   fontSize: number;
-  color: string;   // text color
+  color: string; // text color
 }
 
 export type AnnotationShape =

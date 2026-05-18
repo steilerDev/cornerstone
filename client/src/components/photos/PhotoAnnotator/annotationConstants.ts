@@ -26,7 +26,7 @@ export const DEFAULT_STROKE_WIDTH: StrokeWidthKey = 'medium';
 /** Font sizes in image-space pixels (matching font-size attribute in SVG) */
 export const ANNOTATION_FONT_SIZES = {
   small: 12,
-  medium: 18,  // default
+  medium: 18, // default
   large: 24,
   xlarge: 32,
 } as const;

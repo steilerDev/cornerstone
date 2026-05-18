@@ -145,7 +145,9 @@ describe('ToolPalette', () => {
       const radiogroups = screen.queryAllByRole('radiogroup');
       // Should only have colorPalette and strokeWidth groups — NOT fontSize
       const hasFontSize = radiogroups.some(
-        (el) => el.getAttribute('aria-label') === 'fontSize' || el.getAttribute('aria-label') === 'Font size',
+        (el) =>
+          el.getAttribute('aria-label') === 'fontSize' ||
+          el.getAttribute('aria-label') === 'Font size',
       );
       expect(hasFontSize).toBe(false);
     });
@@ -154,7 +156,9 @@ describe('ToolPalette', () => {
       renderPalette({ selectedTool: 'rectangle' });
       const radiogroups = screen.queryAllByRole('radiogroup');
       const hasFontSize = radiogroups.some(
-        (el) => el.getAttribute('aria-label') === 'fontSize' || el.getAttribute('aria-label') === 'Font size',
+        (el) =>
+          el.getAttribute('aria-label') === 'fontSize' ||
+          el.getAttribute('aria-label') === 'Font size',
       );
       expect(hasFontSize).toBe(false);
     });
@@ -163,7 +167,9 @@ describe('ToolPalette', () => {
       renderPalette({ selectedTool: 'arrow' });
       const radiogroups = screen.queryAllByRole('radiogroup');
       const hasFontSize = radiogroups.some(
-        (el) => el.getAttribute('aria-label') === 'fontSize' || el.getAttribute('aria-label') === 'Font size',
+        (el) =>
+          el.getAttribute('aria-label') === 'fontSize' ||
+          el.getAttribute('aria-label') === 'Font size',
       );
       expect(hasFontSize).toBe(false);
     });

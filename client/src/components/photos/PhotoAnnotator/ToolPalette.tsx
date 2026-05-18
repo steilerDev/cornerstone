@@ -1,6 +1,10 @@
 import { useTranslation } from 'react-i18next';
 import type { ToolName, StrokeWidthKey } from './useAnnotator.js';
-import { ANNOTATION_COLORS, ANNOTATION_STROKE_WIDTHS, ANNOTATION_FONT_SIZES } from './annotationConstants.js';
+import {
+  ANNOTATION_COLORS,
+  ANNOTATION_STROKE_WIDTHS,
+  ANNOTATION_FONT_SIZES,
+} from './annotationConstants.js';
 import styles from './ToolPalette.module.css';
 
 interface ToolPaletteProps {
@@ -364,7 +368,16 @@ function TextIcon() {
 function CalloutIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="3" y="4" width="16" height="11" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
+      <rect
+        x="3"
+        y="4"
+        width="16"
+        height="11"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="2"
+        fill="none"
+      />
       <path d="M9 15 L6 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );

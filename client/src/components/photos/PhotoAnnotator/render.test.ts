@@ -13,7 +13,15 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { renderShapeSvgProps, drawShapeOnCanvas, ANNOTATION_FONT_FAMILY } from './render.js';
 import type { SvgRenderResult } from './render.js';
-import type { RectangleShape, HighlightShape, ArrowShape, LineShape, EllipseShape, TextShape, CalloutShape } from './useUndoStack.js';
+import type {
+  RectangleShape,
+  HighlightShape,
+  ArrowShape,
+  LineShape,
+  EllipseShape,
+  TextShape,
+  CalloutShape,
+} from './useUndoStack.js';
 
 // ─── Type-narrowing helpers ───────────────────────────────────────────────────
 
@@ -1046,11 +1054,7 @@ describe('drawShapeOnCanvas() — Callout', () => {
   it('calls fillText with shape.text for the label', () => {
     const shape = makeCallout({ text: 'My Note' });
     drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
-    expect(ctx.fillText).toHaveBeenCalledWith(
-      'My Note',
-      expect.any(Number),
-      expect.any(Number),
-    );
+    expect(ctx.fillText).toHaveBeenCalledWith('My Note', expect.any(Number), expect.any(Number));
   });
 
   it('sets ctx.font to include shape.fontSize and ANNOTATION_FONT_FAMILY', () => {

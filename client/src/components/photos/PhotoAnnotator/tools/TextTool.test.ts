@@ -65,10 +65,7 @@ describe('TextTool', () => {
 
     it('calls onOpenInlineInput with the image-space coordinates', () => {
       const onOpenInlineInput = jest.fn() as jest.MockedFunction<(x: number, y: number) => void>;
-      const actions = TextTool.onPointerDown(
-        makeState(),
-        makeCtx(200, 300, { onOpenInlineInput }),
-      );
+      const actions = TextTool.onPointerDown(makeState(), makeCtx(200, 300, { onOpenInlineInput }));
       expect(onOpenInlineInput).toHaveBeenCalledTimes(1);
       expect(onOpenInlineInput).toHaveBeenCalledWith(200, 300);
       // Still returns no actions

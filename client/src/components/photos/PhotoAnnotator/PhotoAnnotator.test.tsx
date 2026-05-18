@@ -97,7 +97,10 @@ jest.unstable_mockModule('./geometry.js', () => ({
   resizeEllipse: (shape: unknown) => shape,
   translateText: (shape: unknown) => shape,
   translateCallout: (shape: unknown) => shape,
-  translateTailAnchor: (newTailX: number, newTailY: number) => ({ tailX: newTailX, tailY: newTailY }),
+  translateTailAnchor: (newTailX: number, newTailY: number) => ({
+    tailX: newTailX,
+    tailY: newTailY,
+  }),
 }));
 
 // ─── Dynamic imports ──────────────────────────────────────────────────────────

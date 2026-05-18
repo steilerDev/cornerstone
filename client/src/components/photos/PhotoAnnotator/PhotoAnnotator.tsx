@@ -144,7 +144,15 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       undoStack.commit(newShapes);
       dispatch({ type: 'SELECT_SHAPE', id: committed.id });
     }
-  }, [inlineInput, state.shapes, state.draftShape, state.selectedTool, state.activeColor, undoStack, dispatch]);
+  }, [
+    inlineInput,
+    state.shapes,
+    state.draftShape,
+    state.selectedTool,
+    state.activeColor,
+    undoStack,
+    dispatch,
+  ]);
 
   // Callback to cancel the inline input
   const cancelInlineInput = useCallback(() => {
@@ -163,7 +171,9 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     if (!svgRef.current) return;
     for (const shape of undoStack.shapes) {
       if (shape.type === 'text') {
-        const el = svgRef.current.querySelector(`[data-shapeid="${shape.id}"]`) as SVGTextElement | null;
+        const el = svgRef.current.querySelector(
+          `[data-shapeid="${shape.id}"]`,
+        ) as SVGTextElement | null;
         if (el) {
           try {
             textBBoxMap.current.set(shape.id, el.getBBox() as unknown as DOMRect);
@@ -302,7 +312,15 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [inlineInput.isOpen, state.selectedShapeId, state.shapes, undoStack, dispatch, photo.width, photo.height]);
+  }, [
+    inlineInput.isOpen,
+    state.selectedShapeId,
+    state.shapes,
+    undoStack,
+    dispatch,
+    photo.width,
+    photo.height,
+  ]);
 
   // Pointer event handlers for drawing/editing
   const handlePointerDown = useCallback(
@@ -618,7 +636,11 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
               );
             } else if (result.tagName === 'text') {
               return (
-                <text key={shape.id} data-shapeid={shape.id} {...(result.attributes as Record<string, unknown>)}>
+                <text
+                  key={shape.id}
+                  data-shapeid={shape.id}
+                  {...(result.attributes as Record<string, unknown>)}
+                >
                   {result.children}
                 </text>
               );
@@ -637,12 +659,17 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                   <g>
                     <rect {...(result.boxAttrs as Record<string, unknown>)} />
                     <line {...(result.tailAttrs as Record<string, unknown>)} />
-                    <text {...(result.textAttrs as Record<string, unknown>)}>{result.children}</text>
+                    <text {...(result.textAttrs as Record<string, unknown>)}>
+                      {result.children}
+                    </text>
                   </g>
                 );
               } else if (result.tagName === 'text') {
                 return (
-                  <text data-shapeid={state.draftShape.id} {...(result.attributes as Record<string, unknown>)}>
+                  <text
+                    data-shapeid={state.draftShape.id}
+                    {...(result.attributes as Record<string, unknown>)}
+                  >
                     {result.children}
                   </text>
                 );
@@ -789,44 +816,45 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                 </>
               )}
 
-              {selectedShape.type === 'text' && (() => {
-                const bbox = textBBoxMap.current.get(selectedShape.id);
-                if (!bbox) return null;
-                return (
-                  <>
-                    <rect
-                      x={bbox.x}
-                      y={bbox.y}
-                      width={bbox.width}
-                      height={bbox.height}
-                      stroke="var(--color-primary)"
-                      strokeWidth="1"
-                      strokeDasharray="4 2"
-                      fill="none"
-                      pointerEvents="none"
-                    />
-                    {/* 4 corner handles — move only */}
-                    {[
-                      { pos: 'nw', x: bbox.x, y: bbox.y },
-                      { pos: 'ne', x: bbox.x + bbox.width, y: bbox.y },
-                      { pos: 'sw', x: bbox.x, y: bbox.y + bbox.height },
-                      { pos: 'se', x: bbox.x + bbox.width, y: bbox.y + bbox.height },
-                    ].map(({ pos, x, y }) => (
+              {selectedShape.type === 'text' &&
+                (() => {
+                  const bbox = textBBoxMap.current.get(selectedShape.id);
+                  if (!bbox) return null;
+                  return (
+                    <>
                       <rect
-                        key={pos}
-                        x={x - 4}
-                        y={y - 4}
-                        width={8}
-                        height={8}
-                        fill="var(--color-bg-primary)"
+                        x={bbox.x}
+                        y={bbox.y}
+                        width={bbox.width}
+                        height={bbox.height}
                         stroke="var(--color-primary)"
-                        strokeWidth="1.5"
-                        style={{ cursor: 'move' }}
+                        strokeWidth="1"
+                        strokeDasharray="4 2"
+                        fill="none"
+                        pointerEvents="none"
                       />
-                    ))}
-                  </>
-                );
-              })()}
+                      {/* 4 corner handles — move only */}
+                      {[
+                        { pos: 'nw', x: bbox.x, y: bbox.y },
+                        { pos: 'ne', x: bbox.x + bbox.width, y: bbox.y },
+                        { pos: 'sw', x: bbox.x, y: bbox.y + bbox.height },
+                        { pos: 'se', x: bbox.x + bbox.width, y: bbox.y + bbox.height },
+                      ].map(({ pos, x, y }) => (
+                        <rect
+                          key={pos}
+                          x={x - 4}
+                          y={y - 4}
+                          width={8}
+                          height={8}
+                          fill="var(--color-bg-primary)"
+                          stroke="var(--color-primary)"
+                          strokeWidth="1.5"
+                          style={{ cursor: 'move' }}
+                        />
+                      ))}
+                    </>
+                  );
+                })()}
 
               {selectedShape.type === 'callout' && (
                 <>

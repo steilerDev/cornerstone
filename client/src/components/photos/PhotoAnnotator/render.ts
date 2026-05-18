@@ -8,16 +8,19 @@ export const ANNOTATION_FONT_FAMILY = 'system-ui, -apple-system, sans-serif';
 export type SvgRenderResult =
   | { tagName: 'rect' | 'line' | 'ellipse'; attributes: Record<string, string | number> }
   | { tagName: 'text'; attributes: Record<string, string | number>; children: string }
-  | { tagName: 'callout'; boxAttrs: Record<string, string | number>; tailAttrs: Record<string, string | number>; textAttrs: Record<string, string | number>; children: string };
+  | {
+      tagName: 'callout';
+      boxAttrs: Record<string, string | number>;
+      tailAttrs: Record<string, string | number>;
+      textAttrs: Record<string, string | number>;
+      children: string;
+    };
 
 /**
  * Renders a shape as SVG attributes object.
  * Returns the SVG element type and all required attributes.
  */
-export function renderShapeSvgProps(
-  shape: AnnotationShape,
-  isDraft: boolean,
-): SvgRenderResult {
+export function renderShapeSvgProps(shape: AnnotationShape, isDraft: boolean): SvgRenderResult {
   if (shape.type === 'rectangle') {
     const baseAttrs: Record<string, string | number> = {
       x: shape.x,
@@ -122,7 +125,11 @@ export function renderShapeSvgProps(
     };
   } else if (shape.type === 'callout') {
     const calloutShape = shape as CalloutShape;
-    const { x: anchorX, y: anchorY } = nearestBoxEdgePoint(calloutShape, calloutShape.tailX, calloutShape.tailY);
+    const { x: anchorX, y: anchorY } = nearestBoxEdgePoint(
+      calloutShape,
+      calloutShape.tailX,
+      calloutShape.tailY,
+    );
     return {
       tagName: 'callout',
       boxAttrs: {
@@ -240,7 +247,11 @@ export function drawShapeOnCanvas(ctx: CanvasRenderingContext2D, shape: Annotati
     ctx.strokeRect(calloutShape.x, calloutShape.y, calloutShape.w, calloutShape.h);
 
     // 2. Tail
-    const { x: ax, y: ay } = nearestBoxEdgePoint(calloutShape, calloutShape.tailX, calloutShape.tailY);
+    const { x: ax, y: ay } = nearestBoxEdgePoint(
+      calloutShape,
+      calloutShape.tailX,
+      calloutShape.tailY,
+    );
     ctx.beginPath();
     ctx.moveTo(ax, ay);
     ctx.lineTo(calloutShape.tailX, calloutShape.tailY);

@@ -227,7 +227,10 @@ describe('CalloutTool', () => {
       CalloutTool.onPointerDown(makeState(), makeCtx(50, 50));
 
       const tinyDraft = makeCalloutDraft({ x: 50, y: 50, w: 5, h: 5 });
-      const upActions = CalloutTool.onPointerUp(makeState({ draftShape: tinyDraft }), makeCtx(55, 55));
+      const upActions = CalloutTool.onPointerUp(
+        makeState({ draftShape: tinyDraft }),
+        makeCtx(55, 55),
+      );
 
       expect(upActions).toHaveLength(1);
       const action = upActions[0]!;
@@ -245,7 +248,10 @@ describe('CalloutTool', () => {
     it('aborts when h < 16 (height threshold)', () => {
       CalloutTool.onPointerDown(makeState(), makeCtx(50, 50));
       const shortDraft = makeCalloutDraft({ x: 50, y: 50, w: 100, h: 10 });
-      const upActions = CalloutTool.onPointerUp(makeState({ draftShape: shortDraft }), makeCtx(150, 60));
+      const upActions = CalloutTool.onPointerUp(
+        makeState({ draftShape: shortDraft }),
+        makeCtx(150, 60),
+      );
       const action = upActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       expect(action.shape).toBeNull();
@@ -263,7 +269,10 @@ describe('CalloutTool', () => {
     it('returns SET_DRAFT action with tailX/tailY set', () => {
       CalloutTool.onPointerDown(makeState(), makeCtx(50, 50));
       const largeDraft = makeCalloutDraft({ x: 50, y: 50, w: 100, h: 80 });
-      const upActions = CalloutTool.onPointerUp(makeState({ draftShape: largeDraft }), makeCtx(150, 130));
+      const upActions = CalloutTool.onPointerUp(
+        makeState({ draftShape: largeDraft }),
+        makeCtx(150, 130),
+      );
 
       expect(upActions).toHaveLength(1);
       const action = upActions[0]!;
@@ -322,7 +331,10 @@ describe('CalloutTool', () => {
       // Drive to tail phase
       CalloutTool.onPointerDown(makeState(), makeCtx(50, 50));
       const largeDraft = makeCalloutDraft({ x: 50, y: 50, w: 100, h: 80 });
-      const upActions = CalloutTool.onPointerUp(makeState({ draftShape: largeDraft }), makeCtx(150, 130));
+      const upActions = CalloutTool.onPointerUp(
+        makeState({ draftShape: largeDraft }),
+        makeCtx(150, 130),
+      );
       const setDraftAction = upActions[0]!;
       if (setDraftAction.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       return setDraftAction.shape as CalloutShape;
@@ -361,7 +373,10 @@ describe('CalloutTool', () => {
     function setupTailPhase() {
       CalloutTool.onPointerDown(makeState(), makeCtx(50, 50));
       const largeDraft = makeCalloutDraft({ x: 50, y: 50, w: 100, h: 80 });
-      const upActions = CalloutTool.onPointerUp(makeState({ draftShape: largeDraft }), makeCtx(150, 130));
+      const upActions = CalloutTool.onPointerUp(
+        makeState({ draftShape: largeDraft }),
+        makeCtx(150, 130),
+      );
       const setDraftAction = upActions[0]!;
       if (setDraftAction.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       return setDraftAction.shape as CalloutShape;
@@ -402,7 +417,10 @@ describe('CalloutTool', () => {
     function setupTailPhase(): CalloutShape {
       CalloutTool.onPointerDown(makeState(), makeCtx(50, 50));
       const largeDraft = makeCalloutDraft({ x: 50, y: 50, w: 100, h: 80 });
-      const upActions = CalloutTool.onPointerUp(makeState({ draftShape: largeDraft }), makeCtx(150, 130));
+      const upActions = CalloutTool.onPointerUp(
+        makeState({ draftShape: largeDraft }),
+        makeCtx(150, 130),
+      );
       const setDraftAction = upActions[0]!;
       if (setDraftAction.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       return setDraftAction.shape as CalloutShape;
