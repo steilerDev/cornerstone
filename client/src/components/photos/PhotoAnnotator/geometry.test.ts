@@ -18,6 +18,14 @@ import {
   hitTestHandles,
   translateShape,
   resizeShape,
+  hitTestLine,
+  hitTestEllipse,
+  hitTestEndpointHandles,
+  hitTestCardinalHandles,
+  translateArrowLine,
+  translateEllipse,
+  resizeArrowLine,
+  resizeEllipse,
 } from './geometry.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -437,5 +445,384 @@ describe('resizeShape()', () => {
   it('clamps to image bounds (y >= 0)', () => {
     const result = resizeShape(shape, 'nw', 0, -100, imageWidth, imageHeight);
     expect(result.y).toBeGreaterThanOrEqual(0);
+  });
+});
+
+// ─── hitTestLine ──────────────────────────────────────────────────────────────
+
+describe('hitTestLine()', () => {
+  const tolerance = 5;
+  // Line segment from (10, 10) to (100, 10) — horizontal
+  const x1 = 10;
+  const y1 = 10;
+  const x2 = 100;
+  const y2 = 10;
+
+  it('returns "body" for a point on the segment (within tolerance)', () => {
+    // Midpoint of segment, exactly on it
+    const result = hitTestLine(55, 10, x1, y1, x2, y2, tolerance);
+    expect(result).toBe('body');
+  });
+
+  it('returns "body" for a point within tolerance of the segment', () => {
+    // Just above the horizontal line, distance = 4 < tolerance=5
+    const result = hitTestLine(55, 6, x1, y1, x2, y2, tolerance);
+    expect(result).toBe('body');
+  });
+
+  it('returns null for a point far from the segment', () => {
+    // 50px above the line
+    const result = hitTestLine(55, 60, x1, y1, x2, y2, tolerance);
+    expect(result).toBeNull();
+  });
+
+  it('returns null for a point beyond the endpoint (clamped projection)', () => {
+    // To the right of x2=100 by 20px, but above by 20px
+    // The closest point on segment would be (100, 10), distance = sqrt(0+400)=20 > tolerance=5
+    const result = hitTestLine(120, 30, x1, y1, x2, y2, tolerance);
+    expect(result).toBeNull();
+  });
+
+  it('handles a zero-length segment (start===end) — hit at the point', () => {
+    // Zero-length: both ends at (50, 50)
+    const result = hitTestLine(52, 50, 50, 50, 50, 50, tolerance);
+    expect(result).toBe('body'); // distance(52,50, 50,50)=2 <= 5
+  });
+
+  it('handles a zero-length segment (start===end) — miss far from the point', () => {
+    const result = hitTestLine(100, 100, 50, 50, 50, 50, tolerance);
+    expect(result).toBeNull();
+  });
+});
+
+// ─── hitTestEllipse ───────────────────────────────────────────────────────────
+
+describe('hitTestEllipse()', () => {
+  // Ellipse centered at (100, 100), rx=50, ry=30
+  const cx = 100;
+  const cy = 100;
+  const rx = 50;
+  const ry = 30;
+  const strokeWidth = 4;
+  const tolerance = 2;
+
+  it('returns "body" for a point on the ellipse perimeter (rightmost point)', () => {
+    // (150, 100) is exactly on the ellipse at east
+    const result = hitTestEllipse(150, 100, cx, cy, rx, ry, strokeWidth, tolerance);
+    expect(result).toBe('body');
+  });
+
+  it('returns "body" for a point near the stroke (within strokeWidth/2 + tolerance)', () => {
+    // (148, 100) is 2px inside the rightmost point — within (strokeWidth/2=2) + tolerance=2 = 4
+    const result = hitTestEllipse(148, 100, cx, cy, rx, ry, strokeWidth, tolerance);
+    expect(result).toBe('body');
+  });
+
+  it('returns null for a point deep inside (far from perimeter)', () => {
+    // Dead center (100, 100) — r = sqrt(0+0) = 0, distToPerimeter = min(50,30) = 30 >> tolerance
+    const result = hitTestEllipse(100, 100, cx, cy, rx, ry, strokeWidth, tolerance);
+    expect(result).toBeNull();
+  });
+
+  it('returns null for a point clearly outside the ellipse', () => {
+    // (200, 100) is 50px beyond the rightmost edge
+    const result = hitTestEllipse(200, 100, cx, cy, rx, ry, strokeWidth, tolerance);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when rx===0 (degenerate ellipse)', () => {
+    const result = hitTestEllipse(100, 100, 100, 100, 0, 30, strokeWidth, tolerance);
+    expect(result).toBeNull();
+  });
+
+  it('returns null when ry===0 (degenerate ellipse)', () => {
+    const result = hitTestEllipse(100, 100, 100, 100, 50, 0, strokeWidth, tolerance);
+    expect(result).toBeNull();
+  });
+});
+
+// ─── hitTestEndpointHandles ───────────────────────────────────────────────────
+
+describe('hitTestEndpointHandles()', () => {
+  // Line from (10, 20) to (100, 80); handleSize=8 → hit radius=4
+  const x1 = 10;
+  const y1 = 20;
+  const x2 = 100;
+  const y2 = 80;
+  const handleSize = 8;
+
+  it('returns "start" when clicking the start endpoint', () => {
+    // Exactly on (10, 20) — distance=0 <= 4
+    const result = hitTestEndpointHandles(10, 20, x1, y1, x2, y2, handleSize);
+    expect(result).toBe('start');
+  });
+
+  it('returns "end" when clicking the end endpoint', () => {
+    // Exactly on (100, 80) — distance=0 <= 4
+    const result = hitTestEndpointHandles(100, 80, x1, y1, x2, y2, handleSize);
+    expect(result).toBe('end');
+  });
+
+  it('returns "start" when within hit radius of start', () => {
+    // 3px from start — distance=3 <= 4
+    const result = hitTestEndpointHandles(13, 20, x1, y1, x2, y2, handleSize);
+    expect(result).toBe('start');
+  });
+
+  it('returns "end" when within hit radius of end', () => {
+    // 3px from end
+    const result = hitTestEndpointHandles(97, 80, x1, y1, x2, y2, handleSize);
+    expect(result).toBe('end');
+  });
+
+  it('returns null when not near either endpoint', () => {
+    // Midpoint of the line — far from both endpoints
+    const result = hitTestEndpointHandles(55, 50, x1, y1, x2, y2, handleSize);
+    expect(result).toBeNull();
+  });
+});
+
+// ─── hitTestCardinalHandles ───────────────────────────────────────────────────
+
+describe('hitTestCardinalHandles()', () => {
+  // Ellipse centered at (100, 100), rx=50, ry=30; handleSize=8 → hit radius=4
+  const cx = 100;
+  const cy = 100;
+  const rx = 50;
+  const ry = 30;
+  const handleSize = 8;
+
+  it('returns "north" when clicking the top handle (cx, cy-ry)', () => {
+    // North handle at (100, 70)
+    const result = hitTestCardinalHandles(100, 70, cx, cy, rx, ry, handleSize);
+    expect(result).toBe('north');
+  });
+
+  it('returns "south" when clicking the bottom handle (cx, cy+ry)', () => {
+    // South handle at (100, 130)
+    const result = hitTestCardinalHandles(100, 130, cx, cy, rx, ry, handleSize);
+    expect(result).toBe('south');
+  });
+
+  it('returns "east" when clicking the right handle (cx+rx, cy)', () => {
+    // East handle at (150, 100)
+    const result = hitTestCardinalHandles(150, 100, cx, cy, rx, ry, handleSize);
+    expect(result).toBe('east');
+  });
+
+  it('returns "west" when clicking the left handle (cx-rx, cy)', () => {
+    // West handle at (50, 100)
+    const result = hitTestCardinalHandles(50, 100, cx, cy, rx, ry, handleSize);
+    expect(result).toBe('west');
+  });
+
+  it('returns null when not near any cardinal handle', () => {
+    // Center of ellipse — far from all handles
+    const result = hitTestCardinalHandles(100, 100, cx, cy, rx, ry, handleSize);
+    expect(result).toBeNull();
+  });
+});
+
+// ─── translateArrowLine ───────────────────────────────────────────────────────
+
+describe('translateArrowLine()', () => {
+  const imageWidth = 500;
+  const imageHeight = 400;
+
+  it('translates both endpoints by dx/dy', () => {
+    const result = translateArrowLine(10, 20, 100, 80, 15, 25, imageWidth, imageHeight);
+    expect(result.x1).toBe(25);
+    expect(result.y1).toBe(45);
+    expect(result.x2).toBe(115);
+    expect(result.y2).toBe(105);
+  });
+
+  it('translates by negative delta', () => {
+    const result = translateArrowLine(50, 60, 100, 90, -20, -10, imageWidth, imageHeight);
+    expect(result.x1).toBe(30);
+    expect(result.y1).toBe(50);
+    expect(result.x2).toBe(80);
+    expect(result.y2).toBe(80);
+  });
+
+  it('clamps x1 to image left boundary (0)', () => {
+    const result = translateArrowLine(5, 20, 100, 80, -20, 0, imageWidth, imageHeight);
+    expect(result.x1).toBe(0); // clamped from -15 to 0
+    expect(result.x2).toBe(80); // 100-20 = 80 (unclamped)
+  });
+
+  it('clamps y1 to image top boundary (0)', () => {
+    const result = translateArrowLine(10, 5, 100, 80, 0, -20, imageWidth, imageHeight);
+    expect(result.y1).toBe(0); // clamped from -15 to 0
+    expect(result.y2).toBe(60); // 80-20 = 60
+  });
+
+  it('clamps x2 to image right boundary (imageWidth)', () => {
+    const result = translateArrowLine(10, 20, 490, 80, 20, 0, imageWidth, imageHeight);
+    expect(result.x2).toBe(imageWidth); // clamped from 510 to 500
+    expect(result.x1).toBe(30); // 10+20 = 30 (unclamped)
+  });
+
+  it('clamps y2 to image bottom boundary (imageHeight)', () => {
+    const result = translateArrowLine(10, 20, 100, 390, 0, 20, imageWidth, imageHeight);
+    expect(result.y2).toBe(imageHeight); // clamped from 410 to 400
+    expect(result.y1).toBe(40); // 20+20 = 40
+  });
+});
+
+// ─── translateEllipse ─────────────────────────────────────────────────────────
+
+describe('translateEllipse()', () => {
+  const imageWidth = 500;
+  const imageHeight = 400;
+
+  it('translates ellipse center by dx/dy', () => {
+    const result = translateEllipse(100, 100, 30, 20, 15, 25, imageWidth, imageHeight);
+    expect(result.cx).toBe(115);
+    expect(result.cy).toBe(125);
+    expect(result.rx).toBe(30);
+    expect(result.ry).toBe(20);
+  });
+
+  it('preserves rx/ry during translation', () => {
+    const result = translateEllipse(200, 150, 40, 25, 10, 5, imageWidth, imageHeight);
+    expect(result.rx).toBe(40);
+    expect(result.ry).toBe(25);
+  });
+
+  it('clamps center so ellipse stays within left boundary', () => {
+    // cx=10, rx=30 → clamped cx >= rx=30
+    const result = translateEllipse(10, 100, 30, 20, -20, 0, imageWidth, imageHeight);
+    expect(result.cx).toBeGreaterThanOrEqual(30);
+  });
+
+  it('clamps center so ellipse stays within right boundary', () => {
+    // cx=490, rx=30 → clamped cx <= imageWidth-rx=470
+    const result = translateEllipse(490, 100, 30, 20, 20, 0, imageWidth, imageHeight);
+    expect(result.cx).toBeLessThanOrEqual(imageWidth - 30);
+  });
+
+  it('clamps center so ellipse stays within top boundary', () => {
+    // cy=5, ry=20 → clamped cy >= ry=20
+    const result = translateEllipse(100, 5, 30, 20, 0, -20, imageWidth, imageHeight);
+    expect(result.cy).toBeGreaterThanOrEqual(20);
+  });
+
+  it('clamps center so ellipse stays within bottom boundary', () => {
+    // cy=395, ry=20 → clamped cy <= imageHeight-ry=380
+    const result = translateEllipse(100, 395, 30, 20, 0, 20, imageWidth, imageHeight);
+    expect(result.cy).toBeLessThanOrEqual(imageHeight - 20);
+  });
+});
+
+// ─── resizeArrowLine ──────────────────────────────────────────────────────────
+
+describe('resizeArrowLine()', () => {
+  const imageWidth = 500;
+  const imageHeight = 400;
+  const x1 = 50;
+  const y1 = 60;
+  const x2 = 200;
+  const y2 = 150;
+
+  it('moves x1/y1 when handle is "start"', () => {
+    const result = resizeArrowLine(x1, y1, x2, y2, 'start', 10, 15, imageWidth, imageHeight);
+    expect(result.x1).toBe(60);
+    expect(result.y1).toBe(75);
+    // x2/y2 unchanged
+    expect(result.x2).toBe(x2);
+    expect(result.y2).toBe(y2);
+  });
+
+  it('moves x2/y2 when handle is "end"', () => {
+    const result = resizeArrowLine(x1, y1, x2, y2, 'end', 10, 15, imageWidth, imageHeight);
+    expect(result.x2).toBe(210);
+    expect(result.y2).toBe(165);
+    // x1/y1 unchanged
+    expect(result.x1).toBe(x1);
+    expect(result.y1).toBe(y1);
+  });
+
+  it('clamps x1 to image bounds when handle is "start"', () => {
+    // x1=5, dx=-20 → x1 would be -15, clamped to 0
+    const result = resizeArrowLine(5, y1, x2, y2, 'start', -20, 0, imageWidth, imageHeight);
+    expect(result.x1).toBe(0);
+  });
+
+  it('clamps x2 to image bounds when handle is "end"', () => {
+    // x2=490, dx=20 → x2 would be 510, clamped to imageWidth=500
+    const result = resizeArrowLine(x1, y1, 490, y2, 'end', 20, 0, imageWidth, imageHeight);
+    expect(result.x2).toBe(imageWidth);
+  });
+
+  it('clamps y1 to image bounds when handle is "start"', () => {
+    const result = resizeArrowLine(x1, 5, x2, y2, 'start', 0, -20, imageWidth, imageHeight);
+    expect(result.y1).toBe(0);
+  });
+
+  it('clamps y2 to image bounds when handle is "end"', () => {
+    const result = resizeArrowLine(x1, y1, x2, 390, 'end', 0, 20, imageWidth, imageHeight);
+    expect(result.y2).toBe(imageHeight);
+  });
+});
+
+// ─── resizeEllipse ────────────────────────────────────────────────────────────
+
+describe('resizeEllipse()', () => {
+  const imageWidth = 500;
+  const imageHeight = 400;
+  const cx = 100;
+  const cy = 100;
+  const rx = 50;
+  const ry = 30;
+
+  it('east handle increases rx by dx', () => {
+    const result = resizeEllipse(cx, cy, rx, ry, 'east', 20, 0, imageWidth, imageHeight);
+    expect(result.rx).toBe(70);
+    expect(result.ry).toBe(ry); // unchanged
+  });
+
+  it('west handle increases rx by -dx (dragging left grows it)', () => {
+    const result = resizeEllipse(cx, cy, rx, ry, 'west', -20, 0, imageWidth, imageHeight);
+    expect(result.rx).toBe(70); // rx - (-20) = rx + 20
+    expect(result.ry).toBe(ry);
+  });
+
+  it('south handle increases ry by dy', () => {
+    const result = resizeEllipse(cx, cy, rx, ry, 'south', 0, 10, imageWidth, imageHeight);
+    expect(result.ry).toBe(40);
+    expect(result.rx).toBe(rx); // unchanged
+  });
+
+  it('north handle increases ry by -dy (dragging up grows it)', () => {
+    const result = resizeEllipse(cx, cy, rx, ry, 'north', 0, -10, imageWidth, imageHeight);
+    expect(result.ry).toBe(40); // ry - (-10) = ry + 10
+    expect(result.rx).toBe(rx);
+  });
+
+  it('enforces minimum rx of 1 (east handle drag left past zero)', () => {
+    const result = resizeEllipse(cx, cy, rx, ry, 'east', -200, 0, imageWidth, imageHeight);
+    expect(result.rx).toBeGreaterThanOrEqual(1);
+  });
+
+  it('enforces minimum ry of 1 (south handle drag up past zero)', () => {
+    const result = resizeEllipse(cx, cy, rx, ry, 'south', 0, -200, imageWidth, imageHeight);
+    expect(result.ry).toBeGreaterThanOrEqual(1);
+  });
+
+  it('clamps center when new rx grows moderately (east, within bounds)', () => {
+    // cx=100, new rx=80 → cx must be in [80, 500-80=420]
+    const result = resizeEllipse(cx, cy, rx, ry, 'east', 30, 0, imageWidth, imageHeight);
+    expect(result.rx).toBe(80);
+    expect(result.cx).toBeGreaterThanOrEqual(result.rx);
+    expect(result.cx).toBeLessThanOrEqual(imageWidth - result.rx);
+  });
+
+  it('clamps center when new ry grows moderately (south, within bounds)', () => {
+    // cy=100, new ry=50 → cy must be in [50, 400-50=350]
+    const result = resizeEllipse(cx, cy, rx, ry, 'south', 0, 20, imageWidth, imageHeight);
+    expect(result.ry).toBe(50);
+    expect(result.cy).toBeGreaterThanOrEqual(result.ry);
+    expect(result.cy).toBeLessThanOrEqual(imageHeight - result.ry);
   });
 });
