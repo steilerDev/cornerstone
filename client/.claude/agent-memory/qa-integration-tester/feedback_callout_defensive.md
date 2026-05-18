@@ -14,6 +14,7 @@ in the normal lifecycle.
 `'box'` or `'tail'`. The defensive returns are dead code present for TypeScript exhaustiveness.
 
 **How to apply:**
+
 - Do not spend time trying to engineer test scenarios to hit these lines.
 - Accept 96.55% as the ceiling for `CalloutTool.ts` (statements: 96.55%, branches: 92.85%).
 - Document in test file comments that these lines are intentionally unreachable.

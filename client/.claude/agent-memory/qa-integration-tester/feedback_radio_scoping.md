@@ -12,13 +12,13 @@ key `fontSizeMedium` also → "Medium". Same collision for "Large" (strokeThick 
 happen to map to identical English strings for some size names.
 
 **How to apply:**
+
 ```typescript
 function getFontSizeGroup() {
   const groups = screen.getAllByRole('radiogroup');
   const fsGroup = groups.find(
     (el) =>
-      el.getAttribute('aria-label') === 'Font size' ||
-      el.getAttribute('aria-label') === 'fontSize',
+      el.getAttribute('aria-label') === 'Font size' || el.getAttribute('aria-label') === 'fontSize',
   );
   if (!fsGroup) throw new Error('Font-size radiogroup not found');
   return fsGroup;

@@ -12,6 +12,7 @@ the real module in the local ESM worktree setup. Tests see real EN translation s
 with module resolution in the local worktree environment. This works correctly in CI.
 
 **How to apply:**
+
 - Never write assertions that match on raw translation keys (e.g., `t('fontSizeMedium')` → `'fontSizeMedium'`)
 - Always use the real EN locale strings: "Font size", "Small", "Medium", "Large", "Extra large", "Stroke width", etc.
 - When querying by accessible name that could collide across multiple components (e.g., "Medium" for both stroke and font-size), use `within()` to scope queries to the specific radiogroup.
