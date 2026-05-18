@@ -274,6 +274,10 @@ export default function DiaryEntryDetailPage() {
                     const index = photosResult.photos.findIndex((p) => p.id === photo.id);
                     setSelectedPhotoIndex(index);
                   }}
+                  onEdit={(photo) => {
+                    const index = photosResult.photos.findIndex((p) => p.id === photo.id);
+                    setSelectedPhotoIndex(index);
+                  }}
                   loading={photosResult.loading}
                 />
               </>

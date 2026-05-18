@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Photo } from '@cornerstone/shared';
 import styles from './PhotoCard.module.css';
 
@@ -6,9 +7,11 @@ export interface PhotoCardProps {
   photo: Photo;
   onClick: () => void;
   onDelete?: () => void;
+  onEdit?: () => void;
 }
 
-export function PhotoCard({ photo, onClick, onDelete }: PhotoCardProps) {
+export function PhotoCard({ photo, onClick, onDelete, onEdit }: PhotoCardProps) {
+  const { t } = useTranslation('photoViewer');
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -75,21 +78,53 @@ export function PhotoCard({ photo, onClick, onDelete }: PhotoCardProps) {
         aria-label={`View photo: ${photo.caption || photo.originalFilename}`}
       />
 
-      {/* Delete button (shown on hover/focus) */}
-      {onDelete && (isHovered || isFocused) && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className={styles.deleteButton}
-          aria-label={`Delete photo: ${photo.caption || photo.originalFilename}`}
-          title="Delete photo (or press Delete key)"
-        >
-          ×
-        </button>
+      {/* Edit and Delete buttons (shown on hover/focus) */}
+      {(isHovered || isFocused) && (
+        <div className={styles.actionButtons}>
+          {onEdit && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              className={styles.editButton}
+              aria-label={`${t('annotate')}: ${photo.caption || photo.originalFilename}`}
+              title={t('annotate')}
+            >
+              <PencilIcon />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className={styles.deleteButton}
+              aria-label={`Delete photo: ${photo.caption || photo.originalFilename}`}
+              title="Delete photo (or press Delete key)"
+            >
+              ×
+            </button>
+          )}
+        </div>
       )}
     </div>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M17 3L21 7M3 21H7L20 8L16 4L3 17V21Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
