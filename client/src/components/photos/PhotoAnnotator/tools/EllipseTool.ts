@@ -1,7 +1,6 @@
 import { nanoid } from 'nanoid';
 import type { AnnotatorState, AnnotatorAction } from '../useAnnotator.js';
-import type { RectangleShape } from '../useUndoStack.js';
-import { normalizeRect } from '../geometry.js';
+import type { EllipseShape } from '../useUndoStack.js';
 import type { PointerContext, ToolHandler } from './SelectTool.js';
 
 let drawState: {
@@ -9,20 +8,20 @@ let drawState: {
   startY: number;
 } | null = null;
 
-export const RectangleTool: ToolHandler = {
+export const EllipseTool: ToolHandler = {
   onPointerDown: (state: AnnotatorState, ctx: PointerContext): AnnotatorAction[] => {
     const { imageX, imageY } = ctx;
 
     drawState = { startX: imageX, startY: imageY };
 
-    const newShape: RectangleShape = {
-      type: 'rectangle',
+    const newShape: EllipseShape = {
+      type: 'ellipse',
       id: nanoid(),
-      x: imageX,
-      y: imageY,
-      w: 0,
-      h: 0,
-      color: state.activeColor,
+      cx: imageX,
+      cy: imageY,
+      rx: 0,
+      ry: 0,
+      stroke: state.activeColor,
       strokeWidth: state.activeStrokeWidthKey
         ? (
             {
@@ -42,12 +41,35 @@ export const RectangleTool: ToolHandler = {
       return [];
     }
 
-    const { imageX, imageY } = ctx;
-    const normalized = normalizeRect(drawState.startX, drawState.startY, imageX, imageY);
+    const { imageX, imageY, event } = ctx;
+    const shape = state.draftShape as EllipseShape;
 
-    const updatedDraft: RectangleShape = {
-      ...(state.draftShape as RectangleShape),
-      ...normalized,
+    const dxRaw = imageX - drawState.startX;
+    const dyRaw = imageY - drawState.startY;
+
+    let rx = Math.abs(dxRaw) / 2;
+    let ry = Math.abs(dyRaw) / 2;
+    let cx = drawState.startX + dxRaw / 2;
+    let cy = drawState.startY + dyRaw / 2;
+
+    // Shift-constrain to circle (equal radii)
+    if (event.shiftKey) {
+      const r = Math.max(rx, ry);
+      rx = r;
+      ry = r;
+      // Re-anchor center: keep start point on the bounding square, extend in the drag direction
+      const signX = dxRaw >= 0 ? 1 : -1;
+      const signY = dyRaw >= 0 ? 1 : -1;
+      cx = drawState.startX + signX * r;
+      cy = drawState.startY + signY * r;
+    }
+
+    const updatedDraft: EllipseShape = {
+      ...shape,
+      cx,
+      cy,
+      rx,
+      ry,
     };
 
     return [{ type: 'SET_DRAFT', shape: updatedDraft }];
@@ -60,10 +82,10 @@ export const RectangleTool: ToolHandler = {
       return [];
     }
 
-    const shape = state.draftShape as RectangleShape;
+    const shape = state.draftShape as EllipseShape;
 
-    // Only commit if the shape has non-zero dimensions (at least 2×2 pixels)
-    if (shape.w >= 2 && shape.h >= 2) {
+    // Only commit if both rx and ry are >= 1
+    if (shape.rx >= 1 && shape.ry >= 1) {
       return [{ type: 'COMMIT_DRAFT' }];
     }
 

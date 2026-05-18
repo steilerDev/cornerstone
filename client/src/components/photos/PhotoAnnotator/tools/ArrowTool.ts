@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid';
 import type { AnnotatorState, AnnotatorAction } from '../useAnnotator.js';
-import type { RectangleShape } from '../useUndoStack.js';
-import { normalizeRect } from '../geometry.js';
+import type { ArrowShape } from '../useUndoStack.js';
+import { distance } from '../geometry.js';
 import type { PointerContext, ToolHandler } from './SelectTool.js';
 
 let drawState: {
@@ -9,20 +9,20 @@ let drawState: {
   startY: number;
 } | null = null;
 
-export const RectangleTool: ToolHandler = {
+export const ArrowTool: ToolHandler = {
   onPointerDown: (state: AnnotatorState, ctx: PointerContext): AnnotatorAction[] => {
     const { imageX, imageY } = ctx;
 
     drawState = { startX: imageX, startY: imageY };
 
-    const newShape: RectangleShape = {
-      type: 'rectangle',
+    const newShape: ArrowShape = {
+      type: 'arrow',
       id: nanoid(),
-      x: imageX,
-      y: imageY,
-      w: 0,
-      h: 0,
-      color: state.activeColor,
+      x1: imageX,
+      y1: imageY,
+      x2: imageX,
+      y2: imageY,
+      stroke: state.activeColor,
       strokeWidth: state.activeStrokeWidthKey
         ? (
             {
@@ -43,11 +43,11 @@ export const RectangleTool: ToolHandler = {
     }
 
     const { imageX, imageY } = ctx;
-    const normalized = normalizeRect(drawState.startX, drawState.startY, imageX, imageY);
 
-    const updatedDraft: RectangleShape = {
-      ...(state.draftShape as RectangleShape),
-      ...normalized,
+    const updatedDraft: ArrowShape = {
+      ...(state.draftShape as ArrowShape),
+      x2: imageX,
+      y2: imageY,
     };
 
     return [{ type: 'SET_DRAFT', shape: updatedDraft }];
@@ -60,10 +60,10 @@ export const RectangleTool: ToolHandler = {
       return [];
     }
 
-    const shape = state.draftShape as RectangleShape;
+    const shape = state.draftShape as ArrowShape;
 
-    // Only commit if the shape has non-zero dimensions (at least 2×2 pixels)
-    if (shape.w >= 2 && shape.h >= 2) {
+    // Only commit if the total length is >= 2px
+    if (distance(shape.x1, shape.y1, shape.x2, shape.y2) >= 2) {
       return [{ type: 'COMMIT_DRAFT' }];
     }
 

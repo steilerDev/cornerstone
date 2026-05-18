@@ -12,7 +12,7 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { SelectTool } from './SelectTool.js';
 import type { AnnotatorState } from '../useAnnotator.js';
-import type { AnnotationShape } from '../useUndoStack.js';
+import type { AnnotationShape, ArrowShape, LineShape, EllipseShape } from '../useUndoStack.js';
 import type { PointerContext } from './SelectTool.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -255,9 +255,11 @@ describe('SelectTool', () => {
       const action = moveActions[0]!;
       if (action.type !== 'UPDATE_SHAPE') throw new Error('expected UPDATE_SHAPE');
       // New position should be 20+10=30, 20+10=30 (startX=50, dx=10, newX=20+10=30)
-      expect(action.shape.x).toBe(30);
-      expect(action.shape.y).toBe(30);
-      expect(action.shape.id).toBe('movable');
+      const updatedShape = action.shape;
+      if (updatedShape.type !== 'highlight') throw new Error('expected highlight shape');
+      expect(updatedShape.x).toBe(30);
+      expect(updatedShape.y).toBe(30);
+      expect(updatedShape.id).toBe('movable');
     });
   });
 
@@ -343,6 +345,307 @@ describe('SelectTool', () => {
   describe('cursor', () => {
     it('has cursor "default"', () => {
       expect(SelectTool.cursor).toBe('default');
+    });
+  });
+
+  // ─── Arrow / Line hit-test and move ─────────────────────────────────────────
+
+  describe('onPointerDown() — arrow body hit', () => {
+    it('returns SELECT_SHAPE + START_DRAG(move) when clicking on an arrow body', () => {
+      // Arrow from (50, 50) to (200, 50) — horizontal
+      const shape: ArrowShape = {
+        type: 'arrow',
+        id: 'arrow-hit',
+        x1: 50,
+        y1: 50,
+        x2: 200,
+        y2: 50,
+        stroke: '#dc2626',
+        strokeWidth: 4,
+      };
+      const state = makeState({ shapes: [shape] });
+
+      // Click midpoint of the arrow body — within tolerance=4
+      const actions = SelectTool.onPointerDown(state, makeCtx(125, 50));
+
+      expect(actions).toHaveLength(2);
+      const selectAction = actions[0]!;
+      if (selectAction.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+      expect(selectAction.id).toBe('arrow-hit');
+      const dragAction = actions[1]!;
+      expect(dragAction.type).toBe('START_DRAG');
+      if (dragAction.type !== 'START_DRAG') throw new Error('expected START_DRAG');
+      expect(dragAction.mode).toBe('move');
+    });
+
+    it('returns SELECT_SHAPE + START_DRAG(resize) when clicking the start endpoint handle', () => {
+      // Arrow from (50, 50) to (200, 50)
+      const shape: ArrowShape = {
+        type: 'arrow',
+        id: 'arrow-resize',
+        x1: 50,
+        y1: 50,
+        x2: 200,
+        y2: 50,
+        stroke: '#dc2626',
+        strokeWidth: 4,
+      };
+      const state = makeState({ shapes: [shape] });
+
+      // Click exactly on the start endpoint (50, 50)
+      const actions = SelectTool.onPointerDown(state, makeCtx(50, 50));
+
+      expect(actions).toHaveLength(2);
+      const dragAction = actions[1]!;
+      if (dragAction.type !== 'START_DRAG') throw new Error('expected START_DRAG');
+      expect(dragAction.mode).toBe('resize');
+    });
+  });
+
+  describe('onPointerDown() — line body hit', () => {
+    it('returns SELECT_SHAPE + START_DRAG(move) when clicking on a line body', () => {
+      // Line from (50, 100) to (200, 100) — horizontal
+      const shape: LineShape = {
+        type: 'line',
+        id: 'line-hit',
+        x1: 50,
+        y1: 100,
+        x2: 200,
+        y2: 100,
+        stroke: '#3b82f6',
+        strokeWidth: 4,
+      };
+      const state = makeState({ shapes: [shape] });
+
+      // Click midpoint — within tolerance=4
+      const actions = SelectTool.onPointerDown(state, makeCtx(125, 100));
+
+      expect(actions).toHaveLength(2);
+      const selectAction = actions[0]!;
+      if (selectAction.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+      expect(selectAction.id).toBe('line-hit');
+      const dragAction = actions[1]!;
+      if (dragAction.type !== 'START_DRAG') throw new Error('expected START_DRAG');
+      expect(dragAction.mode).toBe('move');
+    });
+  });
+
+  describe('onPointerDown() — ellipse body hit', () => {
+    it('returns SELECT_SHAPE + START_DRAG(move) when clicking inside an ellipse body', () => {
+      // Ellipse at cx=150, cy=150, rx=60, ry=40
+      const shape: EllipseShape = {
+        type: 'ellipse',
+        id: 'ellipse-hit',
+        cx: 150,
+        cy: 150,
+        rx: 60,
+        ry: 40,
+        stroke: '#16a34a',
+        strokeWidth: 4,
+      };
+      const state = makeState({ shapes: [shape] });
+
+      // Click on the ellipse perimeter at ~45° — NOT on a cardinal handle.
+      // Cardinal handles are at the four axis extremes (east/west/north/south),
+      // and hitTestCardinalHandles runs before body hit-test.
+      // (192, 178) ≈ (cx + rx*cos45°, cy + ry*sin45°): on the stroke, clear of all handles.
+      // distToPerimeter ≈ 0.4 which is within strokeWidth/2=2, so hitTestEllipse returns 'body'.
+      const actions = SelectTool.onPointerDown(state, makeCtx(192, 178));
+
+      expect(actions).toHaveLength(2);
+      const selectAction = actions[0]!;
+      if (selectAction.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+      expect(selectAction.id).toBe('ellipse-hit');
+      const dragAction = actions[1]!;
+      if (dragAction.type !== 'START_DRAG') throw new Error('expected START_DRAG');
+      expect(dragAction.mode).toBe('move');
+    });
+
+    it('returns SELECT_SHAPE + START_DRAG(resize) when clicking a cardinal handle of an ellipse', () => {
+      // Ellipse at cx=150, cy=150, rx=60, ry=40
+      // East handle at (210, 150)
+      const shape: EllipseShape = {
+        type: 'ellipse',
+        id: 'ellipse-resize',
+        cx: 150,
+        cy: 150,
+        rx: 60,
+        ry: 40,
+        stroke: '#16a34a',
+        strokeWidth: 4,
+      };
+      const state = makeState({ shapes: [shape] });
+
+      // The handle hit check runs before body hit — click east handle at (210, 150)
+      // hitTestCardinalHandles is exact match (distance=0), so handle wins
+      const actions = SelectTool.onPointerDown(state, makeCtx(210, 150));
+
+      // When handle is hit first, mode=resize
+      expect(actions).toHaveLength(2);
+      const dragAction = actions[1]!;
+      if (dragAction.type !== 'START_DRAG') throw new Error('expected START_DRAG');
+      // East handle at (210,150) hits resize
+      expect(dragAction.mode).toBe('resize');
+    });
+  });
+
+  describe('onPointerMove() — move arrow', () => {
+    it('returns UPDATE_SHAPE with translated arrow during body drag', () => {
+      const shape: ArrowShape = {
+        type: 'arrow',
+        id: 'arrow-move',
+        x1: 50,
+        y1: 50,
+        x2: 200,
+        y2: 50,
+        stroke: '#dc2626',
+        strokeWidth: 4,
+      };
+
+      const stateAfterDragStart = makeState({
+        shapes: [shape],
+        selectDragState: {
+          mode: 'move',
+          shapeId: 'arrow-move',
+          handle: null,
+          startImageX: 125,
+          startImageY: 50,
+          startShape: shape,
+        },
+      });
+
+      // Move 30px right, 20px down
+      const moveActions = SelectTool.onPointerMove(stateAfterDragStart, makeCtx(155, 70));
+
+      expect(moveActions).toHaveLength(1);
+      expect(moveActions[0]!.type).toBe('UPDATE_SHAPE');
+      const action = moveActions[0]!;
+      if (action.type !== 'UPDATE_SHAPE') throw new Error('expected UPDATE_SHAPE');
+      const updatedShape = action.shape;
+      if (updatedShape.type !== 'arrow') throw new Error('expected arrow');
+      // Both endpoints move by the same delta
+      expect(updatedShape.x1).toBe(80); // 50+30
+      expect(updatedShape.y1).toBe(70); // 50+20
+      expect(updatedShape.x2).toBe(230); // 200+30
+      expect(updatedShape.y2).toBe(70); // 50+20
+    });
+  });
+
+  describe('onPointerMove() — resize arrow (start handle)', () => {
+    it('returns UPDATE_SHAPE with new x1/y1 when dragging the start endpoint', () => {
+      const shape: ArrowShape = {
+        type: 'arrow',
+        id: 'arrow-resize',
+        x1: 50,
+        y1: 50,
+        x2: 200,
+        y2: 50,
+        stroke: '#dc2626',
+        strokeWidth: 4,
+      };
+
+      const stateAfterDragStart = makeState({
+        shapes: [shape],
+        selectDragState: {
+          mode: 'resize',
+          shapeId: 'arrow-resize',
+          handle: 'start',
+          startImageX: 50,
+          startImageY: 50,
+          startShape: shape,
+        },
+      });
+
+      // Drag start point 20px right, 10px down
+      const moveActions = SelectTool.onPointerMove(stateAfterDragStart, makeCtx(70, 60));
+
+      expect(moveActions).toHaveLength(1);
+      const action = moveActions[0]!;
+      if (action.type !== 'UPDATE_SHAPE') throw new Error('expected UPDATE_SHAPE');
+      const updatedShape = action.shape;
+      if (updatedShape.type !== 'arrow') throw new Error('expected arrow');
+      expect(updatedShape.x1).toBe(70); // 50+20
+      expect(updatedShape.y1).toBe(60); // 50+10
+      expect(updatedShape.x2).toBe(200); // unchanged
+      expect(updatedShape.y2).toBe(50); // unchanged
+    });
+  });
+
+  describe('onPointerMove() — move ellipse', () => {
+    it('returns UPDATE_SHAPE with translated ellipse center during body drag', () => {
+      const shape: EllipseShape = {
+        type: 'ellipse',
+        id: 'ellipse-move',
+        cx: 150,
+        cy: 150,
+        rx: 60,
+        ry: 40,
+        stroke: '#16a34a',
+        strokeWidth: 4,
+      };
+
+      const stateAfterDragStart = makeState({
+        shapes: [shape],
+        selectDragState: {
+          mode: 'move',
+          shapeId: 'ellipse-move',
+          handle: null,
+          startImageX: 150,
+          startImageY: 150,
+          startShape: shape,
+        },
+      });
+
+      // Move 20px right, 15px down
+      const moveActions = SelectTool.onPointerMove(stateAfterDragStart, makeCtx(170, 165));
+
+      expect(moveActions).toHaveLength(1);
+      const action = moveActions[0]!;
+      if (action.type !== 'UPDATE_SHAPE') throw new Error('expected UPDATE_SHAPE');
+      const updatedShape = action.shape;
+      if (updatedShape.type !== 'ellipse') throw new Error('expected ellipse');
+      expect(updatedShape.cx).toBe(170); // 150+20
+      expect(updatedShape.cy).toBe(165); // 150+15
+      expect(updatedShape.rx).toBe(60); // unchanged
+      expect(updatedShape.ry).toBe(40); // unchanged
+    });
+  });
+
+  describe('onPointerMove() — resize ellipse (east handle)', () => {
+    it('returns UPDATE_SHAPE with updated rx when dragging the east handle', () => {
+      const shape: EllipseShape = {
+        type: 'ellipse',
+        id: 'ellipse-resize',
+        cx: 150,
+        cy: 150,
+        rx: 60,
+        ry: 40,
+        stroke: '#16a34a',
+        strokeWidth: 4,
+      };
+
+      const stateAfterDragStart = makeState({
+        shapes: [shape],
+        selectDragState: {
+          mode: 'resize',
+          shapeId: 'ellipse-resize',
+          handle: 'east',
+          startImageX: 210,
+          startImageY: 150,
+          startShape: shape,
+        },
+      });
+
+      // Drag east handle 20px to the right
+      const moveActions = SelectTool.onPointerMove(stateAfterDragStart, makeCtx(230, 150));
+
+      expect(moveActions).toHaveLength(1);
+      const action = moveActions[0]!;
+      if (action.type !== 'UPDATE_SHAPE') throw new Error('expected UPDATE_SHAPE');
+      const updatedShape = action.shape;
+      if (updatedShape.type !== 'ellipse') throw new Error('expected ellipse');
+      expect(updatedShape.rx).toBe(80); // 60+20
+      expect(updatedShape.ry).toBe(40); // unchanged
     });
   });
 });

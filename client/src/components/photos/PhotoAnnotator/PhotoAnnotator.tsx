@@ -5,9 +5,12 @@ import { useAnnotator } from './useAnnotator.js';
 import { ToolPalette } from './ToolPalette.js';
 import { RectangleTool } from './tools/RectangleTool.js';
 import { HighlightTool } from './tools/HighlightTool.js';
+import { ArrowTool } from './tools/ArrowTool.js';
+import { LineTool } from './tools/LineTool.js';
+import { EllipseTool } from './tools/EllipseTool.js';
 import { SelectTool } from './tools/SelectTool.js';
 import type { PointerContext } from './tools/SelectTool.js';
-import { screenToImage } from './geometry.js';
+import { screenToImage, clamp } from './geometry.js';
 import { renderShapeSvgProps, drawShapeOnCanvas } from './render.js';
 import { FormError } from '../../FormError/FormError.js';
 import { getBaseUrl } from '../../../lib/apiClient.js';
@@ -100,14 +103,36 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
         const selectedShape = state.shapes.find((s) => s.id === state.selectedShapeId);
         if (selectedShape) {
-          dispatch({
-            type: 'UPDATE_SHAPE',
-            shape: {
-              ...selectedShape,
-              x: Math.max(0, Math.min(selectedShape.x + dx, photo.width! - selectedShape.w)),
-              y: Math.max(0, Math.min(selectedShape.y + dy, photo.height! - selectedShape.h)),
-            },
-          });
+          if (selectedShape.type === 'rectangle' || selectedShape.type === 'highlight') {
+            dispatch({
+              type: 'UPDATE_SHAPE',
+              shape: {
+                ...selectedShape,
+                x: clamp(selectedShape.x + dx, 0, photo.width! - selectedShape.w),
+                y: clamp(selectedShape.y + dy, 0, photo.height! - selectedShape.h),
+              },
+            });
+          } else if (selectedShape.type === 'arrow' || selectedShape.type === 'line') {
+            dispatch({
+              type: 'UPDATE_SHAPE',
+              shape: {
+                ...selectedShape,
+                x1: clamp(selectedShape.x1 + dx, 0, photo.width!),
+                y1: clamp(selectedShape.y1 + dy, 0, photo.height!),
+                x2: clamp(selectedShape.x2 + dx, 0, photo.width!),
+                y2: clamp(selectedShape.y2 + dy, 0, photo.height!),
+              },
+            });
+          } else if (selectedShape.type === 'ellipse') {
+            dispatch({
+              type: 'UPDATE_SHAPE',
+              shape: {
+                ...selectedShape,
+                cx: clamp(selectedShape.cx + dx, selectedShape.rx, photo.width! - selectedShape.rx),
+                cy: clamp(selectedShape.cy + dy, selectedShape.ry, photo.height! - selectedShape.ry),
+              },
+            });
+          }
         }
       }
     };
@@ -142,6 +167,9 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         select: SelectTool,
         rectangle: RectangleTool,
         highlight: HighlightTool,
+        arrow: ArrowTool,
+        line: LineTool,
+        ellipse: EllipseTool,
       };
 
       const handler = toolHandlers[state.selectedTool];
@@ -179,6 +207,9 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         select: SelectTool,
         rectangle: RectangleTool,
         highlight: HighlightTool,
+        arrow: ArrowTool,
+        line: LineTool,
+        ellipse: EllipseTool,
       };
 
       const handler = toolHandlers[state.selectedTool];
@@ -216,6 +247,9 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         select: SelectTool,
         rectangle: RectangleTool,
         highlight: HighlightTool,
+        arrow: ArrowTool,
+        line: LineTool,
+        ellipse: EllipseTool,
       };
 
       const handler = toolHandlers[state.selectedTool];
@@ -337,82 +371,169 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
           onPointerUp={handlePointerUp}
           preserveAspectRatio="xMinYMin meet"
         >
+          {/* SVG arrowhead marker */}
+          <defs>
+            <marker
+              id="arrowhead"
+              markerWidth="8"
+              markerHeight="6"
+              refX="8"
+              refY="3"
+              orient="auto"
+            >
+              <polygon points="0 0, 8 3, 0 6" fill="context-stroke" />
+            </marker>
+          </defs>
+
           {/* Committed shapes */}
           {undoStack.shapes.map((shape) => {
             const { tagName, attributes } = renderShapeSvgProps(shape, false);
-            return <rect key={shape.id} {...(attributes as any)} />;
+            const Tag = tagName as any;
+            return <Tag key={shape.id} {...(attributes as Record<string, unknown>)} />;
           })}
 
           {/* Draft shape */}
           {state.draftShape &&
             (() => {
               const { tagName, attributes } = renderShapeSvgProps(state.draftShape, true);
-              return <rect {...(attributes as any)} />;
+              const Tag = tagName as any;
+              return <Tag {...(attributes as Record<string, unknown>)} />;
             })()}
 
           {/* Selection overlay */}
           {selectedShape && (
             <>
-              <rect
-                x={selectedShape.x}
-                y={selectedShape.y}
-                width={selectedShape.w}
-                height={selectedShape.h}
-                stroke="var(--color-primary)"
-                strokeWidth="1"
-                strokeDasharray="4 2"
-                fill="none"
-                pointerEvents="none"
-              />
-              {/* 8 resize handles */}
-              {['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'].map((pos) => {
-                let cx = 0,
-                  cy = 0;
-                const { x, y, w, h } = selectedShape;
-
-                if (pos === 'nw') {
-                  [cx, cy] = [x, y];
-                } else if (pos === 'n') {
-                  [cx, cy] = [x + w / 2, y];
-                } else if (pos === 'ne') {
-                  [cx, cy] = [x + w, y];
-                } else if (pos === 'w') {
-                  [cx, cy] = [x, y + h / 2];
-                } else if (pos === 'e') {
-                  [cx, cy] = [x + w, y + h / 2];
-                } else if (pos === 'sw') {
-                  [cx, cy] = [x, y + h];
-                } else if (pos === 's') {
-                  [cx, cy] = [x + w / 2, y + h];
-                } else if (pos === 'se') {
-                  [cx, cy] = [x + w, y + h];
-                }
-
-                const cursors: { [key: string]: string } = {
-                  nw: 'nwse-resize',
-                  n: 'ns-resize',
-                  ne: 'nesw-resize',
-                  w: 'ew-resize',
-                  e: 'ew-resize',
-                  sw: 'nesw-resize',
-                  s: 'ns-resize',
-                  se: 'nwse-resize',
-                };
-
-                return (
+              {(selectedShape.type === 'rectangle' || selectedShape.type === 'highlight') && (
+                <>
                   <rect
-                    key={pos}
-                    x={cx - 4}
-                    y={cy - 4}
-                    width={8}
-                    height={8}
-                    fill="var(--color-bg-primary)"
+                    x={selectedShape.x}
+                    y={selectedShape.y}
+                    width={selectedShape.w}
+                    height={selectedShape.h}
                     stroke="var(--color-primary)"
-                    strokeWidth="1.5"
-                    style={{ cursor: cursors[pos] }}
+                    strokeWidth="1"
+                    strokeDasharray="4 2"
+                    fill="none"
+                    pointerEvents="none"
                   />
-                );
-              })}
+                  {/* 8 resize handles for rect/highlight */}
+                  {['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'].map((pos) => {
+                    let cx = 0,
+                      cy = 0;
+                    const { x, y, w, h } = selectedShape;
+
+                    if (pos === 'nw') {
+                      [cx, cy] = [x, y];
+                    } else if (pos === 'n') {
+                      [cx, cy] = [x + w / 2, y];
+                    } else if (pos === 'ne') {
+                      [cx, cy] = [x + w, y];
+                    } else if (pos === 'w') {
+                      [cx, cy] = [x, y + h / 2];
+                    } else if (pos === 'e') {
+                      [cx, cy] = [x + w, y + h / 2];
+                    } else if (pos === 'sw') {
+                      [cx, cy] = [x, y + h];
+                    } else if (pos === 's') {
+                      [cx, cy] = [x + w / 2, y + h];
+                    } else if (pos === 'se') {
+                      [cx, cy] = [x + w, y + h];
+                    }
+
+                    const cursors: { [key: string]: string } = {
+                      nw: 'nwse-resize',
+                      n: 'ns-resize',
+                      ne: 'nesw-resize',
+                      w: 'ew-resize',
+                      e: 'ew-resize',
+                      sw: 'nesw-resize',
+                      s: 'ns-resize',
+                      se: 'nwse-resize',
+                    };
+
+                    return (
+                      <rect
+                        key={pos}
+                        x={cx - 4}
+                        y={cy - 4}
+                        width={8}
+                        height={8}
+                        fill="var(--color-bg-primary)"
+                        stroke="var(--color-primary)"
+                        strokeWidth="1.5"
+                        style={{ cursor: cursors[pos] }}
+                      />
+                    );
+                  })}
+                </>
+              )}
+
+              {(selectedShape.type === 'arrow' || selectedShape.type === 'line') && (
+                <>
+                  <line
+                    x1={selectedShape.x1}
+                    y1={selectedShape.y1}
+                    x2={selectedShape.x2}
+                    y2={selectedShape.y2}
+                    stroke="var(--color-primary)"
+                    strokeWidth="1"
+                    strokeDasharray="4 2"
+                    pointerEvents="none"
+                  />
+                  {/* Start and end handles */}
+                  {[
+                    { pos: 'start', x: selectedShape.x1, y: selectedShape.y1 },
+                    { pos: 'end', x: selectedShape.x2, y: selectedShape.y2 },
+                  ].map(({ pos, x, y }) => (
+                    <rect
+                      key={pos}
+                      x={x - 4}
+                      y={y - 4}
+                      width={8}
+                      height={8}
+                      fill="var(--color-bg-primary)"
+                      stroke="var(--color-primary)"
+                      strokeWidth="1.5"
+                      style={{ cursor: 'move' }}
+                    />
+                  ))}
+                </>
+              )}
+
+              {selectedShape.type === 'ellipse' && (
+                <>
+                  <ellipse
+                    cx={selectedShape.cx}
+                    cy={selectedShape.cy}
+                    rx={selectedShape.rx}
+                    ry={selectedShape.ry}
+                    stroke="var(--color-primary)"
+                    strokeWidth="1"
+                    strokeDasharray="4 2"
+                    fill="none"
+                    pointerEvents="none"
+                  />
+                  {/* Cardinal handles for ellipse */}
+                  {[
+                    { pos: 'north', x: selectedShape.cx, y: selectedShape.cy - selectedShape.ry },
+                    { pos: 'south', x: selectedShape.cx, y: selectedShape.cy + selectedShape.ry },
+                    { pos: 'east', x: selectedShape.cx + selectedShape.rx, y: selectedShape.cy },
+                    { pos: 'west', x: selectedShape.cx - selectedShape.rx, y: selectedShape.cy },
+                  ].map(({ pos, x, y }) => (
+                    <rect
+                      key={pos}
+                      x={x - 4}
+                      y={y - 4}
+                      width={8}
+                      height={8}
+                      fill="var(--color-bg-primary)"
+                      stroke="var(--color-primary)"
+                      strokeWidth="1.5"
+                      style={{ cursor: pos === 'north' || pos === 'south' ? 'ns-resize' : 'ew-resize' }}
+                    />
+                  ))}
+                </>
+              )}
             </>
           )}
         </svg>

@@ -114,7 +114,7 @@ export function hitTestHighlight(
  * Returns one of 8 resize handle positions for a bounding box,
  * or null if the point is not on any handle.
  */
-export type HandlePosition = 'nw' | 'n' | 'ne' | 'w' | 'e' | 'sw' | 's' | 'se';
+export type HandlePosition = 'nw' | 'n' | 'ne' | 'w' | 'e' | 'sw' | 's' | 'se' | 'start' | 'end' | 'north' | 'south' | 'east' | 'west';
 
 export function hitTestHandles(
   px: number,
@@ -198,4 +198,229 @@ export function resizeShape(
   y = clamp(y, 0, imageHeight - h);
 
   return { x, y, w, h };
+}
+
+/**
+ * Hit-test whether a point is near a line segment.
+ * Returns 'body' if the point is within tolerance of the line, null otherwise.
+ */
+export function hitTestLine(
+  px: number,
+  py: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  tolerance: number,
+): 'body' | null {
+  // Distance from point to line segment
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lengthSq = dx * dx + dy * dy;
+
+  if (lengthSq === 0) {
+    // Start and end are the same point
+    return distance(px, py, x1, y1) <= tolerance ? 'body' : null;
+  }
+
+  // Project point onto line segment
+  let t = ((px - x1) * dx + (py - y1) * dy) / lengthSq;
+  t = clamp(t, 0, 1);
+
+  const projX = x1 + t * dx;
+  const projY = y1 + t * dy;
+
+  const dist = distance(px, py, projX, projY);
+  return dist <= tolerance ? 'body' : null;
+}
+
+/**
+ * Hit-test the two endpoint handles of a line or arrow.
+ */
+export function hitTestEndpointHandles(
+  px: number,
+  py: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  handleSize: number,
+): 'start' | 'end' | null {
+  if (distance(px, py, x1, y1) <= handleSize / 2) {
+    return 'start';
+  }
+  if (distance(px, py, x2, y2) <= handleSize / 2) {
+    return 'end';
+  }
+  return null;
+}
+
+/**
+ * Hit-test whether a point is on an ellipse's stroke.
+ */
+export function hitTestEllipse(
+  px: number,
+  py: number,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  strokeWidth: number,
+  tolerance: number,
+): 'body' | null {
+  // Parametric distance from point to ellipse perimeter
+  const dx = Math.abs(px - cx);
+  const dy = Math.abs(py - cy);
+
+  if (rx === 0 || ry === 0) {
+    return null;
+  }
+
+  // Approximate distance using a simple heuristic:
+  // normalize coordinates by radii and measure distance from unit circle
+  const tx = dx / rx;
+  const ty = dy / ry;
+  const r = Math.sqrt(tx * tx + ty * ty);
+
+  // Distance to ellipse perimeter (rough approximation)
+  const distToPerimeter = Math.abs(r - 1) * Math.min(rx, ry);
+
+  return distToPerimeter <= strokeWidth / 2 + tolerance ? 'body' : null;
+}
+
+/**
+ * Hit-test the four cardinal handles (north, south, east, west) of an ellipse.
+ */
+export function hitTestCardinalHandles(
+  px: number,
+  py: number,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  handleSize: number,
+): 'north' | 'south' | 'east' | 'west' | null {
+  const handles: Array<['north' | 'south' | 'east' | 'west', number, number]> = [
+    ['north', cx, cy - ry],
+    ['south', cx, cy + ry],
+    ['east', cx + rx, cy],
+    ['west', cx - rx, cy],
+  ];
+
+  for (const [pos, hx, hy] of handles) {
+    if (distance(px, py, hx, hy) <= handleSize / 2) {
+      return pos;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Translate an arrow or line by dx, dy (for both endpoints, clamped to image bounds).
+ */
+export function translateArrowLine(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  dx: number,
+  dy: number,
+  imageWidth: number,
+  imageHeight: number,
+): { x1: number; y1: number; x2: number; y2: number } {
+  let newX1 = clamp(x1 + dx, 0, imageWidth);
+  let newY1 = clamp(y1 + dy, 0, imageHeight);
+  let newX2 = clamp(x2 + dx, 0, imageWidth);
+  let newY2 = clamp(y2 + dy, 0, imageHeight);
+
+  return { x1: newX1, y1: newY1, x2: newX2, y2: newY2 };
+}
+
+/**
+ * Resize an arrow or line by dragging a given endpoint handle.
+ */
+export function resizeArrowLine(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  handle: 'start' | 'end',
+  dx: number,
+  dy: number,
+  imageWidth: number,
+  imageHeight: number,
+): { x1: number; y1: number; x2: number; y2: number } {
+  if (handle === 'start') {
+    return {
+      x1: clamp(x1 + dx, 0, imageWidth),
+      y1: clamp(y1 + dy, 0, imageHeight),
+      x2,
+      y2,
+    };
+  } else {
+    return {
+      x1,
+      y1,
+      x2: clamp(x2 + dx, 0, imageWidth),
+      y2: clamp(y2 + dy, 0, imageHeight),
+    };
+  }
+}
+
+/**
+ * Translate an ellipse's center by dx, dy (clamped to image bounds).
+ */
+export function translateEllipse(
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  dx: number,
+  dy: number,
+  imageWidth: number,
+  imageHeight: number,
+): { cx: number; cy: number; rx: number; ry: number } {
+  let newCx = cx + dx;
+  let newCy = cy + dy;
+
+  // Clamp center to keep ellipse within bounds
+  newCx = clamp(newCx, rx, imageWidth - rx);
+  newCy = clamp(newCy, ry, imageHeight - ry);
+
+  return { cx: newCx, cy: newCy, rx, ry };
+}
+
+/**
+ * Resize an ellipse by dragging a cardinal handle.
+ */
+export function resizeEllipse(
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  handle: 'north' | 'south' | 'east' | 'west',
+  dx: number,
+  dy: number,
+  imageWidth: number,
+  imageHeight: number,
+): { cx: number; cy: number; rx: number; ry: number } {
+  let newRx = rx;
+  let newRy = ry;
+
+  if (handle === 'east') {
+    newRx = Math.max(1, rx + dx);
+  } else if (handle === 'west') {
+    newRx = Math.max(1, rx - dx);
+  } else if (handle === 'south') {
+    newRy = Math.max(1, ry + dy);
+  } else if (handle === 'north') {
+    newRy = Math.max(1, ry - dy);
+  }
+
+  // Clamp center to keep ellipse within bounds
+  const clampedCx = clamp(cx, newRx, imageWidth - newRx);
+  const clampedCy = clamp(cy, newRy, imageHeight - newRy);
+
+  return { cx: clampedCx, cy: clampedCy, rx: newRx, ry: newRy };
 }

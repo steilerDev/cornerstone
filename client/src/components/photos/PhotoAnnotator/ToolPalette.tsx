@@ -72,6 +72,45 @@ export function ToolPalette({
         >
           <HighlightIcon />
         </button>
+
+        <button
+          type="button"
+          aria-pressed={selectedTool === 'arrow'}
+          data-testid="tool-arrow"
+          aria-label={t('toolArrow')}
+          className={`${styles.toolButton} ${
+            selectedTool === 'arrow' ? styles.toolButtonActive : ''
+          }`}
+          onClick={() => onSelectTool('arrow')}
+        >
+          <ArrowIcon />
+        </button>
+
+        <button
+          type="button"
+          aria-pressed={selectedTool === 'line'}
+          data-testid="tool-line"
+          aria-label={t('toolLine')}
+          className={`${styles.toolButton} ${
+            selectedTool === 'line' ? styles.toolButtonActive : ''
+          }`}
+          onClick={() => onSelectTool('line')}
+        >
+          <LineIcon />
+        </button>
+
+        <button
+          type="button"
+          aria-pressed={selectedTool === 'ellipse'}
+          data-testid="tool-ellipse"
+          aria-label={t('toolEllipse')}
+          className={`${styles.toolButton} ${
+            selectedTool === 'ellipse' ? styles.toolButtonActive : ''
+          }`}
+          onClick={() => onSelectTool('ellipse')}
+        >
+          <EllipseIcon />
+        </button>
       </div>
 
       <div className={styles.divider} aria-hidden="true" />
@@ -208,6 +247,31 @@ function RedoIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function ArrowIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <line x1="5" y1="19" x2="19" y2="5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M12 2L19 5L16 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function LineIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <line x1="4" y1="20" x2="20" y2="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function EllipseIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="12" cy="12" rx="8" ry="5" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 }

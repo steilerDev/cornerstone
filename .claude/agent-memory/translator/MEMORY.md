@@ -10,7 +10,7 @@
 
 - Formal register: use "Sie" form in German
 - Translation files: `client/src/i18n/{locale}/{namespace}.json`
-- Namespaces: areas, auth, budget, common, dashboard, diary, documents, errors, householdItems, schedule, settings, workItems
+- Namespaces: areas, auth, budget, common, dashboard, diary, documents, errors, householdItems, photoAnnotator, schedule, settings, workItems
 - Preserve `{{variable}}` interpolation placeholders exactly
 - Preserve `_one` / `_other` pluralization suffixes
 
@@ -167,3 +167,12 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - `queueAriaLabel` → "Foto-Upload-Warteschlange" (compound noun, no space)
 - `unknownError` → "Unbekannter Upload-Fehler"
 - **Duplicate key issue in en/diary.json**: The English file has duplicate top-level keys (`filterBar`, `createPage`, `editPage`). In JSON the last occurrence wins. The de/ file must be kept as a single flat object — never duplicate keys. New keys from the second English occurrence are appended to the existing de/ section.
+
+## photoAnnotator Namespace Patterns (Issue #1475, 2026-05-18)
+
+- Namespace `photoAnnotator` added in Story #1483 (foundation); geometric tools added in Issue #1475
+- Tool aria-label pattern: `{Noun}-Werkzeug` (hyphenated compound) — e.g. "Pfeil-Werkzeug", "Linien-Werkzeug", "Ellipsen-Werkzeug"
+  - Note: "Linien-" and "Ellipsen-" use genitive/compound form; "Pfeil-" is the bare stem (standard German compounding)
+- Live-region announcement pattern: `{Noun} hinzugefügt` — e.g. "Pfeil hinzugefügt", "Linie hinzugefügt", "Ellipse hinzugefügt"
+- Geometric terms (not in glossary — use standard German): Pfeil (Arrow), Linie (Line), Ellipse (Ellipse), Rechteck (Rectangle)
+- Highlight → "Markierung" (not "Hervorhebung") — this is established in Story #1483 translations

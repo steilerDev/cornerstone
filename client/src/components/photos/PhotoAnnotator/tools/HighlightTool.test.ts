@@ -79,16 +79,20 @@ describe('HighlightTool', () => {
       const actions = HighlightTool.onPointerDown(makeState(), makeCtx(100, 150));
       const action = actions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
-      expect(action.shape?.x).toBe(100);
-      expect(action.shape?.y).toBe(150);
+      const shape = action.shape;
+      if (!shape || shape.type !== 'highlight') throw new Error('expected highlight');
+      expect(shape.x).toBe(100);
+      expect(shape.y).toBe(150);
     });
 
     it('draft shape starts with zero dimensions', () => {
       const actions = HighlightTool.onPointerDown(makeState(), makeCtx(100, 150));
       const action = actions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
-      expect(action.shape?.w).toBe(0);
-      expect(action.shape?.h).toBe(0);
+      const shape = action.shape;
+      if (!shape || shape.type !== 'highlight') throw new Error('expected highlight');
+      expect(shape.w).toBe(0);
+      expect(shape.h).toBe(0);
     });
 
     it('draft shape uses the active color', () => {
@@ -96,7 +100,9 @@ describe('HighlightTool', () => {
       const actions = HighlightTool.onPointerDown(state, makeCtx(50, 50));
       const action = actions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
-      expect(action.shape?.color).toBe('#22c55e');
+      const shape = action.shape;
+      if (!shape || shape.type !== 'highlight') throw new Error('expected highlight');
+      expect(shape.color).toBe('#22c55e');
     });
 
     it('draft shape does NOT have a strokeWidth property', () => {
@@ -136,10 +142,12 @@ describe('HighlightTool', () => {
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
-      expect(action.shape?.x).toBe(50);
-      expect(action.shape?.y).toBe(60);
-      expect(action.shape?.w).toBe(50);
-      expect(action.shape?.h).toBe(50);
+      const shape = action.shape;
+      if (!shape || shape.type !== 'highlight') throw new Error('expected highlight');
+      expect(shape.x).toBe(50);
+      expect(shape.y).toBe(60);
+      expect(shape.w).toBe(50);
+      expect(shape.h).toBe(50);
     });
 
     it('handles reversed drag direction (normalizes correctly)', () => {
@@ -151,10 +159,12 @@ describe('HighlightTool', () => {
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
-      expect(action.shape?.x).toBe(50);
-      expect(action.shape?.y).toBe(60);
-      expect(action.shape?.w).toBe(50);
-      expect(action.shape?.h).toBe(40);
+      const shape = action.shape;
+      if (!shape || shape.type !== 'highlight') throw new Error('expected highlight');
+      expect(shape.x).toBe(50);
+      expect(shape.y).toBe(60);
+      expect(shape.w).toBe(50);
+      expect(shape.h).toBe(40);
     });
 
     it('returns empty array when draftShape is null (no active draw)', () => {
