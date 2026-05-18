@@ -37,6 +37,20 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // SVG overlay position and size (matched to image layout within container)
+  interface SvgPosition {
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  }
+  const [svgPosition, setSvgPosition] = useState<SvgPosition>({
+    top: 0,
+    left: 0,
+    width: 0,
+    height: 0,
+  });
+
   // Inline edit state
   interface InlineInputState {
     isOpen: boolean;
@@ -66,6 +80,39 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
   // Calculate canonical URL
   const canonicalUrl = `${getBaseUrl()}/photos/${photo.id}/file`;
+
+  // Track SVG overlay position to match image layout within container
+  // This prevents pointer events in letterbox/pillarbox padding from creating out-of-bounds shapes
+  useEffect(() => {
+    if (!imgRef.current || !imgRef.current.parentElement) return;
+
+    const updateSvgPosition = () => {
+      const imgRect = imgRef.current!.getBoundingClientRect();
+      const containerRect = imgRef.current!.parentElement!.getBoundingClientRect();
+
+      setSvgPosition({
+        top: imgRect.top - containerRect.top,
+        left: imgRect.left - containerRect.left,
+        width: imgRect.width,
+        height: imgRect.height,
+      });
+    };
+
+    // Update on mount and whenever image dimensions change
+    updateSvgPosition();
+
+    // Use ResizeObserver to track changes to the image's rendered size
+    const resizeObserver = new ResizeObserver(updateSvgPosition);
+    resizeObserver.observe(imgRef.current);
+
+    // Also listen to window resize
+    window.addEventListener('resize', updateSvgPosition);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateSvgPosition);
+    };
+  }, []);
 
   // Helper to get the active font size key for the current tool
   function getActiveFontSizeKey(): FontSizeKey {
@@ -410,13 +457,17 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       if (!svgRef.current || !imgRef.current) return;
 
       const imgRect = imgRef.current.getBoundingClientRect();
-      const { x: imageX, y: imageY } = screenToImage(
+      let { x: imageX, y: imageY } = screenToImage(
         e.clientX,
         e.clientY,
         imgRect,
         photo.width!,
         photo.height!,
       );
+
+      // Clamp to image bounds (defense against letterbox/pillarbox clicks)
+      imageX = clamp(imageX, 0, photo.width!);
+      imageY = clamp(imageY, 0, photo.height!);
 
       const ctx: PointerContext = {
         imageX,
@@ -455,13 +506,17 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       if (!svgRef.current || !imgRef.current) return;
 
       const imgRect = imgRef.current.getBoundingClientRect();
-      const { x: imageX, y: imageY } = screenToImage(
+      let { x: imageX, y: imageY } = screenToImage(
         e.clientX,
         e.clientY,
         imgRect,
         photo.width!,
         photo.height!,
       );
+
+      // Clamp to image bounds (defense against letterbox/pillarbox movement)
+      imageX = clamp(imageX, 0, photo.width!);
+      imageY = clamp(imageY, 0, photo.height!);
 
       const ctx: PointerContext = {
         imageX,
@@ -500,13 +555,17 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       if (!svgRef.current || !imgRef.current) return;
 
       const imgRect = imgRef.current.getBoundingClientRect();
-      const { x: imageX, y: imageY } = screenToImage(
+      let { x: imageX, y: imageY } = screenToImage(
         e.clientX,
         e.clientY,
         imgRect,
         photo.width!,
         photo.height!,
       );
+
+      // Clamp to image bounds (defense against letterbox/pillarbox release)
+      imageX = clamp(imageX, 0, photo.width!);
+      imageY = clamp(imageY, 0, photo.height!);
 
       const ctx: PointerContext = {
         imageX,
@@ -711,6 +770,14 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           preserveAspectRatio="xMinYMin meet"
+          style={{
+            position: 'absolute',
+            top: `${svgPosition.top}px`,
+            left: `${svgPosition.left}px`,
+            width: `${svgPosition.width}px`,
+            height: `${svgPosition.height}px`,
+            touchAction: 'none',
+          }}
         >
           {/* SVG arrowhead marker */}
           <defs>
