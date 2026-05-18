@@ -296,7 +296,10 @@ export function ToolPalette({
 
 function SelectIcon() {
   return (
-    <span aria-hidden="true" style={{ fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <span
+      aria-hidden="true"
+      style={{ fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
       ↖
     </span>
   );
@@ -320,7 +323,10 @@ function HighlightIcon() {
 
 function UndoIcon() {
   return (
-    <span aria-hidden="true" style={{ fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <span
+      aria-hidden="true"
+      style={{ fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
       ↶
     </span>
   );
@@ -328,7 +334,10 @@ function UndoIcon() {
 
 function RedoIcon() {
   return (
-    <span aria-hidden="true" style={{ fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <span
+      aria-hidden="true"
+      style={{ fontSize: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    >
       ↷
     </span>
   );
