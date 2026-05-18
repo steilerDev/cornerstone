@@ -33,6 +33,9 @@ import {
   translateText,
   translateCallout,
   translateTailAnchor,
+  hitTestPolyline,
+  translateMeasurement,
+  translateFreehand,
 } from './geometry.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1122,5 +1125,204 @@ describe('translateTailAnchor()', () => {
     const result = translateTailAnchor(0, 0, imageWidth, imageHeight);
     expect(result.tailX).toBe(0);
     expect(result.tailY).toBe(0);
+  });
+});
+
+// ─── hitTestPolyline ──────────────────────────────────────────────────────────
+
+describe('hitTestPolyline()', () => {
+  const tolerance = 5;
+
+  it('returns "body" when clicking near the first segment of a polyline', () => {
+    // Polyline: (0,0) → (100,0) → (100,100); click at (50,2) — near first segment
+    const points: [number, number][] = [[0, 0], [100, 0], [100, 100]];
+    const result = hitTestPolyline(50, 2, points, tolerance);
+    expect(result).toBe('body');
+  });
+
+  it('returns "body" when clicking near the second segment of a polyline', () => {
+    // Click at (97, 50) — near the second segment (100,0)→(100,100)
+    const points: [number, number][] = [[0, 0], [100, 0], [100, 100]];
+    const result = hitTestPolyline(97, 50, points, tolerance);
+    expect(result).toBe('body');
+  });
+
+  it('returns null when clicking far from all segments', () => {
+    // Click at (50, 50) — far from (0,0)→(100,0) and (100,0)→(100,100)
+    const points: [number, number][] = [[0, 0], [100, 0], [100, 100]];
+    const result = hitTestPolyline(50, 50, points, tolerance);
+    expect(result).toBeNull();
+  });
+
+  it('returns null for a polyline with a single point (no segments)', () => {
+    // A single-point "polyline" has no segments — nothing to hit-test
+    const points: [number, number][] = [[50, 50]];
+    const result = hitTestPolyline(50, 50, points, tolerance);
+    expect(result).toBeNull();
+  });
+
+  it('returns null for an empty polyline', () => {
+    const result = hitTestPolyline(50, 50, [], tolerance);
+    expect(result).toBeNull();
+  });
+
+  it('returns "body" for a two-point polyline near the single segment', () => {
+    const points: [number, number][] = [[10, 10], [90, 10]];
+    const result = hitTestPolyline(50, 12, points, tolerance);
+    expect(result).toBe('body');
+  });
+
+  it('returns null when point is beyond the polyline endpoint (clamped projection)', () => {
+    const points: [number, number][] = [[10, 10], [90, 10]];
+    // Beyond the endpoint at (90,10) — perpendicular distance is large
+    const result = hitTestPolyline(120, 30, points, tolerance);
+    expect(result).toBeNull();
+  });
+
+  it('returns "body" for a hit on any one of many segments', () => {
+    // Zigzag polyline — click on third segment
+    const points: [number, number][] = [
+      [0, 0], [20, 20], [40, 0], [60, 20], [80, 0],
+    ];
+    // Click near segment (40,0)→(60,20), specifically at (50,10) which is on the segment
+    const result = hitTestPolyline(50, 10, points, tolerance);
+    expect(result).toBe('body');
+  });
+
+  it('returns null for point far from a diagonal polyline', () => {
+    const points: [number, number][] = [[0, 0], [100, 100]];
+    // Click at (100, 0) — 70px from the line y=x
+    const result = hitTestPolyline(100, 0, points, tolerance);
+    expect(result).toBeNull();
+  });
+});
+
+// ─── translateMeasurement ─────────────────────────────────────────────────────
+
+describe('translateMeasurement()', () => {
+  const imageWidth = 500;
+  const imageHeight = 400;
+
+  it('translates both endpoints by dx/dy', () => {
+    const result = translateMeasurement(10, 20, 100, 80, 15, 25, imageWidth, imageHeight);
+    expect(result.x1).toBe(25);
+    expect(result.y1).toBe(45);
+    expect(result.x2).toBe(115);
+    expect(result.y2).toBe(105);
+  });
+
+  it('translates by negative delta', () => {
+    const result = translateMeasurement(50, 60, 100, 90, -20, -10, imageWidth, imageHeight);
+    expect(result.x1).toBe(30);
+    expect(result.y1).toBe(50);
+    expect(result.x2).toBe(80);
+    expect(result.y2).toBe(80);
+  });
+
+  it('clamps x1 to image left boundary (0)', () => {
+    const result = translateMeasurement(5, 20, 100, 80, -20, 0, imageWidth, imageHeight);
+    expect(result.x1).toBe(0); // clamped from -15 to 0
+    expect(result.x2).toBe(80); // 100-20 = 80
+  });
+
+  it('clamps y1 to image top boundary (0)', () => {
+    const result = translateMeasurement(10, 5, 100, 80, 0, -20, imageWidth, imageHeight);
+    expect(result.y1).toBe(0); // clamped from -15 to 0
+    expect(result.y2).toBe(60); // 80-20 = 60
+  });
+
+  it('clamps x2 to image right boundary (imageWidth)', () => {
+    const result = translateMeasurement(10, 20, 490, 80, 20, 0, imageWidth, imageHeight);
+    expect(result.x2).toBe(imageWidth); // clamped from 510 to 500
+    expect(result.x1).toBe(30); // 10+20 = 30
+  });
+
+  it('clamps y2 to image bottom boundary (imageHeight)', () => {
+    const result = translateMeasurement(10, 20, 100, 390, 0, 20, imageWidth, imageHeight);
+    expect(result.y2).toBe(imageHeight); // clamped from 410 to 400
+    expect(result.y1).toBe(40); // 20+20 = 40
+  });
+
+  it('delegates to translateArrowLine (returns same result as translateArrowLine)', () => {
+    const x1 = 30, y1 = 40, x2 = 130, y2 = 140;
+    const dx = 10, dy = 5;
+    const result = translateMeasurement(x1, y1, x2, y2, dx, dy, imageWidth, imageHeight);
+    // Both x1+dx and x2+dx are within bounds — no clamping needed
+    expect(result).toEqual({
+      x1: x1 + dx,
+      y1: y1 + dy,
+      x2: x2 + dx,
+      y2: y2 + dy,
+    });
+  });
+});
+
+// ─── translateFreehand ────────────────────────────────────────────────────────
+
+describe('translateFreehand()', () => {
+  const imageWidth = 500;
+  const imageHeight = 400;
+
+  it('translates all points by dx/dy', () => {
+    const points: [number, number][] = [[10, 20], [50, 60], [100, 80]];
+    const result = translateFreehand(points, 15, 10, imageWidth, imageHeight);
+    expect(result).toEqual([[25, 30], [65, 70], [115, 90]]);
+  });
+
+  it('translates by negative delta', () => {
+    const points: [number, number][] = [[100, 100], [200, 150]];
+    const result = translateFreehand(points, -30, -20, imageWidth, imageHeight);
+    expect(result).toEqual([[70, 80], [170, 130]]);
+  });
+
+  it('clamps x to 0 (left boundary)', () => {
+    const points: [number, number][] = [[5, 50]];
+    const result = translateFreehand(points, -20, 0, imageWidth, imageHeight);
+    expect(result[0]![0]).toBe(0); // clamped from -15 to 0
+  });
+
+  it('clamps y to 0 (top boundary)', () => {
+    const points: [number, number][] = [[100, 5]];
+    const result = translateFreehand(points, 0, -20, imageWidth, imageHeight);
+    expect(result[0]![1]).toBe(0); // clamped from -15 to 0
+  });
+
+  it('clamps x to imageWidth (right boundary)', () => {
+    const points: [number, number][] = [[490, 100]];
+    const result = translateFreehand(points, 30, 0, imageWidth, imageHeight);
+    expect(result[0]![0]).toBe(imageWidth); // clamped from 520 to 500
+  });
+
+  it('clamps y to imageHeight (bottom boundary)', () => {
+    const points: [number, number][] = [[100, 390]];
+    const result = translateFreehand(points, 0, 30, imageWidth, imageHeight);
+    expect(result[0]![1]).toBe(imageHeight); // clamped from 420 to 400
+  });
+
+  it('returns empty array for empty input', () => {
+    const result = translateFreehand([], 10, 10, imageWidth, imageHeight);
+    expect(result).toEqual([]);
+  });
+
+  it('translates each point independently (mixed clamping)', () => {
+    // First point near left edge, second well within bounds
+    const points: [number, number][] = [[3, 50], [200, 200]];
+    const result = translateFreehand(points, -10, 0, imageWidth, imageHeight);
+    // First point: x=3-10=-7 → clamped to 0; second: x=200-10=190
+    expect(result[0]![0]).toBe(0);
+    expect(result[1]![0]).toBe(190);
+  });
+
+  it('does not mutate the input array', () => {
+    const points: [number, number][] = [[10, 20], [30, 40]];
+    const copy = points.map((p) => [...p] as [number, number]);
+    translateFreehand(points, 5, 5, imageWidth, imageHeight);
+    expect(points).toEqual(copy);
+  });
+
+  it('returns a new array (not the same reference)', () => {
+    const points: [number, number][] = [[10, 20]];
+    const result = translateFreehand(points, 0, 0, imageWidth, imageHeight);
+    expect(result).not.toBe(points);
   });
 });

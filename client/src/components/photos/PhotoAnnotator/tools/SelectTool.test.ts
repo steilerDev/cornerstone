@@ -12,14 +12,7 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { SelectTool } from './SelectTool.js';
 import type { AnnotatorState } from '../useAnnotator.js';
-import type {
-  AnnotationShape,
-  ArrowShape,
-  LineShape,
-  EllipseShape,
-  TextShape,
-  CalloutShape,
-} from '../useUndoStack.js';
+import type { AnnotationShape, ArrowShape, LineShape, EllipseShape, TextShape, CalloutShape, MeasurementShape, FreehandShape } from '../useUndoStack.js';
 import type { PointerContext } from './SelectTool.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -996,5 +989,318 @@ describe('onPointerMove() — resize callout tail anchor', () => {
     expect(updatedShape.y).toBe(50);
     expect(updatedShape.w).toBe(100);
     expect(updatedShape.h).toBe(80);
+  });
+});
+
+// ─── Measurement shape hit-testing and interaction ─────────────────────────────
+
+describe('onPointerDown() — measurement shape', () => {
+  function makeMeasurementShape(overrides: Partial<MeasurementShape> = {}): MeasurementShape {
+    return {
+      type: 'measurement',
+      id: 'measurement-hit',
+      x1: 50, y1: 100,
+      x2: 250, y2: 100,  // horizontal measurement line
+      label: '5m',
+      stroke: '#dc2626',
+      strokeWidth: 4,
+      fontSize: 18,
+      color: '#dc2626',
+      ...overrides,
+    };
+  }
+
+  it('returns SELECT_SHAPE + START_DRAG(move) when clicking the measurement body', () => {
+    // Measurement is horizontal from (50,100) to (250,100); click midpoint (150,100)
+    const shape = makeMeasurementShape();
+    const state = makeState({ shapes: [shape] });
+
+    const actions = SelectTool.onPointerDown(state, makeCtx(150, 100));
+
+    expect(actions).toHaveLength(2);
+    const selectAction = actions[0]!;
+    if (selectAction.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+    expect(selectAction.id).toBe('measurement-hit');
+    const dragAction = actions[1]!;
+    if (dragAction.type !== 'START_DRAG') throw new Error('expected START_DRAG');
+    expect(dragAction.mode).toBe('move');
+  });
+
+  it('returns SELECT_SHAPE + START_DRAG(resize) when clicking the start endpoint handle', () => {
+    // Start endpoint at (50,100); click exactly on it
+    const shape = makeMeasurementShape();
+    const state = makeState({ shapes: [shape] });
+
+    const actions = SelectTool.onPointerDown(state, makeCtx(50, 100));
+
+    expect(actions).toHaveLength(2);
+    const dragAction = actions[1]!;
+    if (dragAction.type !== 'START_DRAG') throw new Error('expected START_DRAG');
+    expect(dragAction.mode).toBe('resize');
+    expect(dragAction.handle).toBe('start');
+  });
+
+  it('returns SELECT_SHAPE + START_DRAG(resize) when clicking the end endpoint handle', () => {
+    // End endpoint at (250,100); click exactly on it
+    const shape = makeMeasurementShape();
+    const state = makeState({ shapes: [shape] });
+
+    const actions = SelectTool.onPointerDown(state, makeCtx(250, 100));
+
+    expect(actions).toHaveLength(2);
+    const dragAction = actions[1]!;
+    if (dragAction.type !== 'START_DRAG') throw new Error('expected START_DRAG');
+    expect(dragAction.mode).toBe('resize');
+    expect(dragAction.handle).toBe('end');
+  });
+
+  it('double-click on measurement body calls onOpenInlineInput at midpoint', () => {
+    const shape = makeMeasurementShape({ x1: 50, y1: 100, x2: 250, y2: 100 });
+    const state = makeState({ shapes: [shape] });
+    const onOpenInlineInput = jest.fn() as jest.MockedFunction<
+      (x: number, y: number, shapeId?: string) => void
+    >;
+
+    const ctx: PointerContext = {
+      imageX: 150,
+      imageY: 100,
+      imageWidth: 800,
+      imageHeight: 600,
+      event: { detail: 2 } as React.PointerEvent<SVGSVGElement>,
+      onOpenInlineInput,
+    };
+
+    const actions = SelectTool.onPointerDown(state, ctx);
+
+    // Midpoint of (50,100)→(250,100) is (150, 100)
+    expect(onOpenInlineInput).toHaveBeenCalledTimes(1);
+    expect(onOpenInlineInput).toHaveBeenCalledWith(150, 100, shape.id);
+    const selectAction = actions.find((a) => a.type === 'SELECT_SHAPE');
+    if (selectAction?.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+    expect(selectAction.id).toBe('measurement-hit');
+  });
+
+  it('double-click on measurement passes shape.id as third argument to onOpenInlineInput', () => {
+    const shape = makeMeasurementShape({ id: 'meas-dblclick-id' });
+    const state = makeState({ shapes: [shape] });
+    const onOpenInlineInput = jest.fn() as jest.MockedFunction<
+      (x: number, y: number, shapeId?: string) => void
+    >;
+
+    const ctx: PointerContext = {
+      imageX: 150,
+      imageY: 100,
+      imageWidth: 800,
+      imageHeight: 600,
+      event: { detail: 2 } as React.PointerEvent<SVGSVGElement>,
+      onOpenInlineInput,
+    };
+
+    SelectTool.onPointerDown(state, ctx);
+
+    expect(onOpenInlineInput).toHaveBeenCalledWith(
+      expect.any(Number),
+      expect.any(Number),
+      'meas-dblclick-id',
+    );
+  });
+
+  it('double-click far from measurement body does NOT call onOpenInlineInput', () => {
+    const shape = makeMeasurementShape({ x1: 50, y1: 100, x2: 250, y2: 100 });
+    const state = makeState({ shapes: [shape] });
+    const onOpenInlineInput = jest.fn() as jest.MockedFunction<
+      (x: number, y: number, shapeId?: string) => void
+    >;
+
+    // Double-click 500px away from the measurement line
+    const ctx: PointerContext = {
+      imageX: 600,
+      imageY: 100,
+      imageWidth: 800,
+      imageHeight: 600,
+      event: { detail: 2 } as React.PointerEvent<SVGSVGElement>,
+      onOpenInlineInput,
+    };
+
+    const actions = SelectTool.onPointerDown(state, ctx);
+
+    // Should not call onOpenInlineInput since the double-click missed the line
+    expect(onOpenInlineInput).not.toHaveBeenCalled();
+    // Should deselect and end drag (no hit on any shape)
+    expect(actions).toHaveLength(2);
+    const selectAction = actions[0]!;
+    if (selectAction.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+    expect(selectAction.id).toBeNull();
+  });
+});
+
+// ─── onPointerMove() — move measurement ──────────────────────────────────────
+
+describe('onPointerMove() — move measurement shape', () => {
+  it('returns UPDATE_SHAPE with translated endpoints', () => {
+    const shape: MeasurementShape = {
+      type: 'measurement',
+      id: 'meas-move',
+      x1: 50, y1: 100,
+      x2: 150, y2: 100,
+      label: '5m',
+      stroke: '#dc2626',
+      strokeWidth: 4,
+      fontSize: 18,
+      color: '#dc2626',
+    };
+
+    const stateAfterDragStart = makeState({
+      shapes: [shape],
+      selectDragState: {
+        mode: 'move',
+        shapeId: 'meas-move',
+        handle: null,
+        startImageX: 100,
+        startImageY: 100,
+        startShape: shape,
+      },
+    });
+
+    // Move 20px right, 10px down
+    const moveActions = SelectTool.onPointerMove(stateAfterDragStart, makeCtx(120, 110));
+
+    expect(moveActions).toHaveLength(1);
+    const action = moveActions[0]!;
+    if (action.type !== 'UPDATE_SHAPE') throw new Error('expected UPDATE_SHAPE');
+    const updatedShape = action.shape;
+    if (updatedShape.type !== 'measurement') throw new Error('expected measurement shape');
+    expect(updatedShape.x1).toBe(70); // 50+20
+    expect(updatedShape.y1).toBe(110); // 100+10
+    expect(updatedShape.x2).toBe(170); // 150+20
+    expect(updatedShape.y2).toBe(110); // 100+10
+  });
+});
+
+// ─── onPointerMove() — resize measurement (end handle) ───────────────────────
+
+describe('onPointerMove() — resize measurement endpoint', () => {
+  it('returns UPDATE_SHAPE with new x2/y2 when dragging the end endpoint', () => {
+    const shape: MeasurementShape = {
+      type: 'measurement',
+      id: 'meas-resize',
+      x1: 50, y1: 100,
+      x2: 150, y2: 100,
+      label: '',
+      stroke: '#dc2626',
+      strokeWidth: 4,
+      fontSize: 18,
+      color: '#dc2626',
+    };
+
+    const stateAfterDragStart = makeState({
+      shapes: [shape],
+      selectDragState: {
+        mode: 'resize',
+        shapeId: 'meas-resize',
+        handle: 'end',
+        startImageX: 150,
+        startImageY: 100,
+        startShape: shape,
+      },
+    });
+
+    // Drag end point 30px right, 20px up
+    const moveActions = SelectTool.onPointerMove(stateAfterDragStart, makeCtx(180, 80));
+
+    expect(moveActions).toHaveLength(1);
+    const action = moveActions[0]!;
+    if (action.type !== 'UPDATE_SHAPE') throw new Error('expected UPDATE_SHAPE');
+    const updatedShape = action.shape;
+    if (updatedShape.type !== 'measurement') throw new Error('expected measurement shape');
+    expect(updatedShape.x2).toBe(180); // 150+30
+    expect(updatedShape.y2).toBe(80);  // 100-20
+    // x1/y1 unchanged
+    expect(updatedShape.x1).toBe(50);
+    expect(updatedShape.y1).toBe(100);
+  });
+});
+
+// ─── Freehand shape hit-testing and interaction ───────────────────────────────
+
+describe('onPointerDown() — freehand shape', () => {
+  function makeFreehandShape(overrides: Partial<FreehandShape> = {}): FreehandShape {
+    return {
+      type: 'freehand',
+      id: 'freehand-hit',
+      // Horizontal polyline from (50,100) to (150,100)
+      points: [[50, 100], [100, 100], [150, 100]],
+      stroke: '#3b82f6',
+      strokeWidth: 4,
+      ...overrides,
+    };
+  }
+
+  it('returns SELECT_SHAPE + START_DRAG(move) when clicking near the freehand body', () => {
+    // Freehand along y=100; click at (100, 102) — 2px from the line, within tolerance
+    const shape = makeFreehandShape();
+    const state = makeState({ shapes: [shape] });
+
+    const actions = SelectTool.onPointerDown(state, makeCtx(100, 102));
+
+    expect(actions).toHaveLength(2);
+    const selectAction = actions[0]!;
+    if (selectAction.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+    expect(selectAction.id).toBe('freehand-hit');
+    const dragAction = actions[1]!;
+    if (dragAction.type !== 'START_DRAG') throw new Error('expected START_DRAG');
+    expect(dragAction.mode).toBe('move');
+  });
+
+  it('returns SELECT_SHAPE(null) + END_DRAG when clicking far from the freehand body', () => {
+    // Click at (100, 150) — 50px from the horizontal polyline
+    const shape = makeFreehandShape();
+    const state = makeState({ shapes: [shape] });
+
+    const actions = SelectTool.onPointerDown(state, makeCtx(100, 150));
+
+    expect(actions).toHaveLength(2);
+    const selectAction = actions[0]!;
+    if (selectAction.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+    expect(selectAction.id).toBeNull();
+  });
+});
+
+// ─── onPointerMove() — move freehand ─────────────────────────────────────────
+
+describe('onPointerMove() — move freehand shape', () => {
+  it('returns UPDATE_SHAPE with all translated points', () => {
+    const shape: FreehandShape = {
+      type: 'freehand',
+      id: 'freehand-move',
+      points: [[50, 100], [100, 100], [150, 100]],
+      stroke: '#3b82f6',
+      strokeWidth: 4,
+    };
+
+    const stateAfterDragStart = makeState({
+      shapes: [shape],
+      selectDragState: {
+        mode: 'move',
+        shapeId: 'freehand-move',
+        handle: null,
+        startImageX: 100,
+        startImageY: 100,
+        startShape: shape,
+      },
+    });
+
+    // Move 10px right, 5px down
+    const moveActions = SelectTool.onPointerMove(stateAfterDragStart, makeCtx(110, 105));
+
+    expect(moveActions).toHaveLength(1);
+    const action = moveActions[0]!;
+    if (action.type !== 'UPDATE_SHAPE') throw new Error('expected UPDATE_SHAPE');
+    const updatedShape = action.shape;
+    if (updatedShape.type !== 'freehand') throw new Error('expected freehand shape');
+    // Each point translated by (10, 5)
+    expect(updatedShape.points[0]).toEqual([60, 105]);
+    expect(updatedShape.points[1]).toEqual([110, 105]);
+    expect(updatedShape.points[2]).toEqual([160, 105]);
   });
 });

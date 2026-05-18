@@ -337,4 +337,105 @@ describe('ToolPalette', () => {
       expect(screen.getByTestId('tool-ellipse')).toBeInTheDocument();
     });
   });
+
+  // ─── Measurement tool button ──────────────────────────────────────────────
+
+  describe('Measurement tool button', () => {
+    it('renders measurement tool button with data-testid="tool-measurement"', () => {
+      renderPalette();
+      expect(screen.getByTestId('tool-measurement')).toBeInTheDocument();
+    });
+
+    it('measurement tool button is not active by default (selectedTool=select)', () => {
+      renderPalette({ selectedTool: 'select' });
+      expect(screen.getByTestId('tool-measurement')).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('measurement tool button is active when selectedTool="measurement"', () => {
+      renderPalette({ selectedTool: 'measurement' });
+      expect(screen.getByTestId('tool-measurement')).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('clicking measurement tool button calls onSelectTool with "measurement"', () => {
+      const onSelectTool = jest.fn() as AnyMock;
+      renderPalette({ onSelectTool });
+      fireEvent.click(screen.getByTestId('tool-measurement'));
+      expect(onSelectTool).toHaveBeenCalledWith('measurement');
+    });
+  });
+
+  // ─── Freehand tool button ─────────────────────────────────────────────────
+
+  describe('Freehand tool button', () => {
+    it('renders freehand tool button with data-testid="tool-freehand"', () => {
+      renderPalette();
+      expect(screen.getByTestId('tool-freehand')).toBeInTheDocument();
+    });
+
+    it('freehand tool button is not active by default (selectedTool=select)', () => {
+      renderPalette({ selectedTool: 'select' });
+      expect(screen.getByTestId('tool-freehand')).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('freehand tool button is active when selectedTool="freehand"', () => {
+      renderPalette({ selectedTool: 'freehand' });
+      expect(screen.getByTestId('tool-freehand')).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('clicking freehand tool button calls onSelectTool with "freehand"', () => {
+      const onSelectTool = jest.fn() as AnyMock;
+      renderPalette({ onSelectTool });
+      fireEvent.click(screen.getByTestId('tool-freehand'));
+      expect(onSelectTool).toHaveBeenCalledWith('freehand');
+    });
+  });
+
+  // ─── Font-size selector visibility: measurement extends existing tools ────
+
+  describe('Font-size selector visibility — measurement tool', () => {
+    it('font-size selector IS visible when selectedTool is "measurement"', () => {
+      const { unmount } = renderPalette({ selectedTool: 'select' });
+      const groupsWithSelect = screen.queryAllByRole('radiogroup').length;
+      unmount();
+
+      renderPalette({ selectedTool: 'measurement' });
+      const groupsWithMeasurement = screen.queryAllByRole('radiogroup').length;
+
+      // measurement was added to the font-size selector gate — should show it
+      expect(groupsWithMeasurement).toBeGreaterThan(groupsWithSelect);
+    });
+
+    it('font-size selector is NOT visible when selectedTool is "freehand"', () => {
+      renderPalette({ selectedTool: 'freehand' });
+      const radiogroups = screen.queryAllByRole('radiogroup');
+      const hasFontSize = radiogroups.some(
+        (el) =>
+          el.getAttribute('aria-label') === 'fontSize' ||
+          el.getAttribute('aria-label') === 'Font size',
+      );
+      expect(hasFontSize).toBe(false);
+    });
+
+    it('font-size selector remains visible for text tool (not regressed)', () => {
+      const { unmount } = renderPalette({ selectedTool: 'select' });
+      const groupsWithSelect = screen.queryAllByRole('radiogroup').length;
+      unmount();
+
+      renderPalette({ selectedTool: 'text' });
+      const groupsWithText = screen.queryAllByRole('radiogroup').length;
+
+      expect(groupsWithText).toBeGreaterThan(groupsWithSelect);
+    });
+
+    it('font-size selector remains visible for callout tool (not regressed)', () => {
+      const { unmount } = renderPalette({ selectedTool: 'select' });
+      const groupsWithSelect = screen.queryAllByRole('radiogroup').length;
+      unmount();
+
+      renderPalette({ selectedTool: 'callout' });
+      const groupsWithCallout = screen.queryAllByRole('radiogroup').length;
+
+      expect(groupsWithCallout).toBeGreaterThan(groupsWithSelect);
+    });
+  });
 });

@@ -9,6 +9,8 @@
   "toolEllipse": "Ellipse tool",
   "toolText": "Text tool",
   "toolCallout": "Callout tool",
+  "toolMeasurement": "Measurement tool",
+  "toolFreehand": "Freehand tool",
   "colorRed": "Red",
   "colorYellow": "Yellow",
   "colorGreen": "Green",
@@ -32,6 +34,8 @@
   "shapeAddedEllipse": "Ellipse added",
   "shapeAddedText": "Text added",
   "shapeAddedCallout": "Callout added",
+  "shapeAddedMeasurement": "Measurement added",
+  "shapeAddedFreehand": "Freehand path added",
   "shapeDeleted": "Shape deleted",
   "undoPerformed": "Undo performed",
   "redoPerformed": "Redo performed",
@@ -46,5 +50,7 @@
   "fontSizeXlarge": "Extra large",
   "editText": "Edit text",
   "editCallout": "Edit callout text",
+  "editMeasurement": "Edit measurement label",
+  "measurementPlaceholder": "Enter distance",
   "calloutTailPositioning": "Drag to position callout tail"
 }
