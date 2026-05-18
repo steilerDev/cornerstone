@@ -175,7 +175,8 @@ export const SelectTool: ToolHandler = {
             12 + shape.strokeWidth / 2,
           ) !== null;
       } else if (shape.type === 'freehand') {
-        bodyHit = hitTestPolyline(imageX, imageY, shape.points, 12 + shape.strokeWidth / 2) !== null;
+        bodyHit =
+          hitTestPolyline(imageX, imageY, shape.points, 12 + shape.strokeWidth / 2) !== null;
       }
 
       if (bodyHit) {
