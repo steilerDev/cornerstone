@@ -6,5 +6,6 @@
   "clearConfirmTitle": "Annotationen entfernen?",
   "clearConfirmBody": "Dadurch wird die annotierte Version dauerhaft entfernt. Das Originalfoto wird wiederhergestellt.",
   "clearConfirmAction": "Entfernen",
-  "annotateDisabledMissingDimensions": "Abmessungen unbekannt — dieses Foto kann nicht annotiert werden"
+  "annotateDisabledMissingDimensions": "Abmessungen unbekannt — dieses Foto kann nicht annotiert werden",
+  "annotateDisabledSigned": "Signierte Einträge können nicht annotiert werden"
 }

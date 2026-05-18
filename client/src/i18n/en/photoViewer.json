@@ -1,6 +1,7 @@
 {
   "annotate": "Annotate photo",
   "annotateDisabledMissingDimensions": "Cannot annotate: photo dimensions are missing",
+  "annotateDisabledSigned": "Signed entries cannot be annotated",
   "viewOriginal": "View original",
   "viewAnnotated": "View annotated",
   "clearAnnotations": "Clear annotations",
