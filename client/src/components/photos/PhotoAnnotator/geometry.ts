@@ -620,8 +620,8 @@ export function translateFreehand(
   imageWidth: number,
   imageHeight: number,
 ): [number, number][] {
-  return points.map(([x, y]) => [
-    clamp(x + dx, 0, imageWidth),
-    clamp(y + dy, 0, imageHeight),
-  ]) as [number, number][];
+  return points.map(([x, y]) => [clamp(x + dx, 0, imageWidth), clamp(y + dy, 0, imageHeight)]) as [
+    number,
+    number,
+  ][];
 }

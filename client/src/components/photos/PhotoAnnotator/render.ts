@@ -8,7 +8,13 @@ export const ANNOTATION_FONT_FAMILY = 'system-ui, -apple-system, sans-serif';
 export type SvgRenderResult =
   | { tagName: 'rect' | 'line' | 'ellipse'; attributes: Record<string, string | number> }
   | { tagName: 'text'; attributes: Record<string, string | number>; children: string }
-  | { tagName: 'callout'; boxAttrs: Record<string, string | number>; tailAttrs: Record<string, string | number>; textAttrs: Record<string, string | number>; children: string }
+  | {
+      tagName: 'callout';
+      boxAttrs: Record<string, string | number>;
+      tailAttrs: Record<string, string | number>;
+      textAttrs: Record<string, string | number>;
+      children: string;
+    }
   | {
       tagName: 'measurement';
       lineAttrs: Record<string, string | number>;
@@ -178,9 +184,9 @@ export function renderShapeSvgProps(shape: AnnotationShape, isDraft: boolean): S
     const dx = shape.x2 - shape.x1;
     const dy = shape.y2 - shape.y1;
     const len = Math.sqrt(dx * dx + dy * dy) || 1;
-    const nx = -dy / len;  // unit normal
+    const nx = -dy / len; // unit normal
     const ny = dx / len;
-    const TICK = shape.strokeWidth * 4;  // tick half-length in image-space pixels
+    const TICK = shape.strokeWidth * 4; // tick half-length in image-space pixels
 
     const midX = (shape.x1 + shape.x2) / 2;
     const midY = (shape.y1 + shape.y2) / 2;
@@ -237,7 +243,7 @@ export function renderShapeSvgProps(shape: AnnotationShape, isDraft: boolean): S
             'pointer-events': 'none',
             'user-select': 'none',
           }
-        : { display: 'none' },  // hidden when label is empty
+        : { display: 'none' }, // hidden when label is empty
       children: shape.label,
     };
   } else if (shape.type === 'freehand') {
@@ -392,7 +398,7 @@ export function drawShapeOnCanvas(ctx: CanvasRenderingContext2D, shape: Annotati
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(shape.label, midX + labelOffsetX, midY + labelOffsetY);
-      ctx.textAlign = 'start';       // reset to default
+      ctx.textAlign = 'start'; // reset to default
       ctx.textBaseline = 'alphabetic';
     }
   } else if (shape.type === 'freehand') {

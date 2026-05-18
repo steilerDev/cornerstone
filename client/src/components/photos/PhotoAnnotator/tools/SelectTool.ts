@@ -67,7 +67,16 @@ export const SelectTool: ToolHandler = {
       if (ctx.event.detail === 2 && shape.type === 'measurement') {
         // Re-open inline input at midpoint pre-filled with existing label
         // Only if the double-click actually hit the measurement line body
-        const hit = hitTestLine(imageX, imageY, shape.x1, shape.y1, shape.x2, shape.y2, 4 + shape.strokeWidth / 2) !== null;
+        const hit =
+          hitTestLine(
+            imageX,
+            imageY,
+            shape.x1,
+            shape.y1,
+            shape.x2,
+            shape.y2,
+            4 + shape.strokeWidth / 2,
+          ) !== null;
         if (hit) {
           const midX = (shape.x1 + shape.x2) / 2;
           const midY = (shape.y1 + shape.y2) / 2;
@@ -156,10 +165,17 @@ export const SelectTool: ToolHandler = {
         bodyHit = handleHit ? false : hitTestCallout(imageX, imageY, shape);
       } else if (shape.type === 'measurement') {
         bodyHit =
-          hitTestLine(imageX, imageY, shape.x1, shape.y1, shape.x2, shape.y2, 4 + shape.strokeWidth / 2) !== null;
+          hitTestLine(
+            imageX,
+            imageY,
+            shape.x1,
+            shape.y1,
+            shape.x2,
+            shape.y2,
+            4 + shape.strokeWidth / 2,
+          ) !== null;
       } else if (shape.type === 'freehand') {
-        bodyHit =
-          hitTestPolyline(imageX, imageY, shape.points, 4 + shape.strokeWidth / 2) !== null;
+        bodyHit = hitTestPolyline(imageX, imageY, shape.points, 4 + shape.strokeWidth / 2) !== null;
       }
 
       if (bodyHit) {
@@ -243,13 +259,7 @@ export const SelectTool: ToolHandler = {
         );
         updatedShape = { ...startShape, ...moved };
       } else if (startShape.type === 'freehand') {
-        const movedPoints = translateFreehand(
-          startShape.points,
-          dx,
-          dy,
-          imageWidth,
-          imageHeight,
-        );
+        const movedPoints = translateFreehand(startShape.points, dx, dy, imageWidth, imageHeight);
         updatedShape = { ...startShape, points: movedPoints };
       } else {
         updatedShape = startShape;

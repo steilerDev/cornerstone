@@ -13,7 +13,17 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { renderShapeSvgProps, drawShapeOnCanvas, ANNOTATION_FONT_FAMILY } from './render.js';
 import type { SvgRenderResult } from './render.js';
-import type { RectangleShape, HighlightShape, ArrowShape, LineShape, EllipseShape, TextShape, CalloutShape, MeasurementShape, FreehandShape } from './useUndoStack.js';
+import type {
+  RectangleShape,
+  HighlightShape,
+  ArrowShape,
+  LineShape,
+  EllipseShape,
+  TextShape,
+  CalloutShape,
+  MeasurementShape,
+  FreehandShape,
+} from './useUndoStack.js';
 
 // ─── Type-narrowing helpers ───────────────────────────────────────────────────
 
@@ -1091,7 +1101,13 @@ function makeFreehand(overrides: Partial<FreehandShape> = {}): FreehandShape {
   return {
     type: 'freehand',
     id: 'freehand-1',
-    points: [[10, 10], [30, 40], [50, 20], [70, 50], [90, 10]],
+    points: [
+      [10, 10],
+      [30, 40],
+      [50, 20],
+      [70, 50],
+      [90, 10],
+    ],
     stroke: '#3b82f6',
     strokeWidth: 4,
     ...overrides,
@@ -1228,7 +1244,9 @@ describe('renderShapeSvgProps() — Measurement', () => {
   });
 
   it('labelAttrs include text-anchor: "middle" when label is non-empty', () => {
-    const { labelAttrs } = getMeasurementParts(renderShapeSvgProps(makeMeasurement({ label: '5m' }), false));
+    const { labelAttrs } = getMeasurementParts(
+      renderShapeSvgProps(makeMeasurement({ label: '5m' }), false),
+    );
     expect(labelAttrs['text-anchor']).toBe('middle');
   });
 
@@ -1327,7 +1345,13 @@ describe('renderShapeSvgProps() — Freehand', () => {
   });
 
   it('attributes include points as space-separated "x,y" pairs', () => {
-    const shape = makeFreehand({ points: [[10, 20], [30, 40], [50, 60]] });
+    const shape = makeFreehand({
+      points: [
+        [10, 20],
+        [30, 40],
+        [50, 60],
+      ],
+    });
     const result = renderShapeSvgProps(shape, false);
     if (result.tagName !== 'polyline') throw new Error('expected polyline');
     expect(result.attributes.points).toBe('10,20 30,40 50,60');
@@ -1417,13 +1441,25 @@ describe('drawShapeOnCanvas() — Freehand', () => {
   });
 
   it('calls moveTo with the first point', () => {
-    const shape = makeFreehand({ points: [[10, 20], [50, 60], [90, 30]] });
+    const shape = makeFreehand({
+      points: [
+        [10, 20],
+        [50, 60],
+        [90, 30],
+      ],
+    });
     drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
     expect(ctx.moveTo).toHaveBeenCalledWith(10, 20);
   });
 
   it('calls lineTo for each subsequent point', () => {
-    const shape = makeFreehand({ points: [[10, 20], [50, 60], [90, 30]] });
+    const shape = makeFreehand({
+      points: [
+        [10, 20],
+        [50, 60],
+        [90, 30],
+      ],
+    });
     drawShapeOnCanvas(ctx as unknown as CanvasRenderingContext2D, shape);
     expect(ctx.lineTo).toHaveBeenCalledWith(50, 60);
     expect(ctx.lineTo).toHaveBeenCalledWith(90, 30);

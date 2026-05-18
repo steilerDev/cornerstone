@@ -152,8 +152,11 @@ describe('FreehandTool', () => {
       // First stroke
       FreehandTool.onPointerDown(makeState(), makeCtx(0, 0));
       const draftAfterFirstDown: FreehandShape = {
-        type: 'freehand', id: 'stroke-1',
-        points: [[0, 0]], stroke: '#dc2626', strokeWidth: 4,
+        type: 'freehand',
+        id: 'stroke-1',
+        points: [[0, 0]],
+        stroke: '#dc2626',
+        strokeWidth: 4,
       };
       FreehandTool.onPointerMove(makeState({ draftShape: draftAfterFirstDown }), makeCtx(50, 50));
 
@@ -200,7 +203,12 @@ describe('FreehandTool', () => {
       const downActions = FreehandTool.onPointerDown(makeState(), makeCtx(0, 0));
       let draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const positions: [number, number][] = [[10, 5], [20, 15], [30, 25], [40, 10]];
+      const positions: [number, number][] = [
+        [10, 5],
+        [20, 15],
+        [30, 25],
+        [40, 10],
+      ];
       for (const [x, y] of positions) {
         const moveActions = FreehandTool.onPointerMove(makeState({ draftShape }), makeCtx(x, y));
         draftShape = moveActions[0]!.type === 'SET_DRAFT' ? moveActions[0]!.shape : draftShape;
@@ -218,7 +226,10 @@ describe('FreehandTool', () => {
       let draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
       for (let i = 1; i <= 5; i++) {
-        const moveActions = FreehandTool.onPointerMove(makeState({ draftShape }), makeCtx(i * 10, i * 5));
+        const moveActions = FreehandTool.onPointerMove(
+          makeState({ draftShape }),
+          makeCtx(i * 10, i * 5),
+        );
         expect(moveActions).toHaveLength(1);
         expect(moveActions[0]!.type).toBe('SET_DRAFT');
         draftShape = moveActions[0]!.type === 'SET_DRAFT' ? moveActions[0]!.shape : draftShape;
@@ -228,7 +239,10 @@ describe('FreehandTool', () => {
     it('returns empty array when no active draw state (currentDraftId is null)', () => {
       // No pointerDown first
       resetFreehandTool();
-      const actions = FreehandTool.onPointerMove(makeState({ draftShape: null }), makeCtx(100, 100));
+      const actions = FreehandTool.onPointerMove(
+        makeState({ draftShape: null }),
+        makeCtx(100, 100),
+      );
       expect(actions).toHaveLength(0);
     });
 
@@ -274,7 +288,10 @@ describe('FreehandTool', () => {
           ...draft,
           points: sinePoints.slice(0, i + 1),
         };
-        FreehandTool.onPointerMove(makeState({ draftShape: draftSoFar }), makeCtx(sinePoints[i]![0], sinePoints[i]![1]));
+        FreehandTool.onPointerMove(
+          makeState({ draftShape: draftSoFar }),
+          makeCtx(sinePoints[i]![0], sinePoints[i]![1]),
+        );
       }
 
       const actions = FreehandTool.onPointerUp(makeState({ draftShape: draft }), makeCtx(0, 0));
@@ -318,14 +335,18 @@ describe('FreehandTool', () => {
       // Actually with 2 points, simplifyPolyline returns both unchanged.
       // The edge: captured 3+ nearly identical points that simplify to 1.
       const nearbyPoints: [number, number][] = [
-        [50, 50], [50.1, 50.1], [50.2, 50.2],
+        [50, 50],
+        [50.1, 50.1],
+        [50.2, 50.2],
       ];
 
       FreehandTool.onPointerDown(makeState(), makeCtx(nearbyPoints[0]![0], nearbyPoints[0]![1]));
       const draftSoFar: FreehandShape = {
-        type: 'freehand', id: 'nearby',
+        type: 'freehand',
+        id: 'nearby',
         points: [[nearbyPoints[0]![0], nearbyPoints[0]![1]]],
-        stroke: '#dc2626', strokeWidth: 4,
+        stroke: '#dc2626',
+        strokeWidth: 4,
       };
       for (let i = 1; i < nearbyPoints.length; i++) {
         FreehandTool.onPointerMove(
@@ -342,7 +363,10 @@ describe('FreehandTool', () => {
         strokeWidth: 4,
       };
 
-      const actions = FreehandTool.onPointerUp(makeState({ draftShape: draft }), makeCtx(50.2, 50.2));
+      const actions = FreehandTool.onPointerUp(
+        makeState({ draftShape: draft }),
+        makeCtx(50.2, 50.2),
+      );
 
       // These 3 nearly collinear points → after RDP simplify → 2 points (endpoints only)
       // 2 >= 2 threshold so it commits
@@ -359,9 +383,11 @@ describe('FreehandTool', () => {
 
       FreehandTool.onPointerDown(makeState(), makeCtx(sinePoints[0]![0], sinePoints[0]![1]));
       let currentDraft: FreehandShape = {
-        type: 'freehand', id: 'sine',
+        type: 'freehand',
+        id: 'sine',
         points: [[sinePoints[0]![0], sinePoints[0]![1]]],
-        stroke: '#dc2626', strokeWidth: 4,
+        stroke: '#dc2626',
+        strokeWidth: 4,
       };
       for (let i = 1; i < sinePoints.length; i++) {
         const moveActions = FreehandTool.onPointerMove(
@@ -407,8 +433,11 @@ describe('FreehandTool', () => {
       // Simulate captured points
       FreehandTool.onPointerDown(makeState(), makeCtx(0, 0));
       const draftAfterDown: FreehandShape = {
-        type: 'freehand', id: 'reset-test',
-        points: [[0, 0]], stroke: '#dc2626', strokeWidth: 4,
+        type: 'freehand',
+        id: 'reset-test',
+        points: [[0, 0]],
+        stroke: '#dc2626',
+        strokeWidth: 4,
       };
       FreehandTool.onPointerMove(makeState({ draftShape: draftAfterDown }), makeCtx(50, 50));
       FreehandTool.onPointerMove(makeState({ draftShape: draftAfterDown }), makeCtx(100, 0));
@@ -420,7 +449,11 @@ describe('FreehandTool', () => {
       const draft: FreehandShape = {
         type: 'freehand',
         id: 'reset-test',
-        points: [[0, 0], [50, 50], [100, 0]], // state.draftShape has points but capturedPoints is empty
+        points: [
+          [0, 0],
+          [50, 50],
+          [100, 0],
+        ], // state.draftShape has points but capturedPoints is empty
         stroke: '#dc2626',
         strokeWidth: 4,
       };

@@ -16,10 +16,9 @@ export const MeasurementTool: ToolHandler = {
 
     drawState = { startX: imageX, startY: imageY };
 
-    const strokeWidth =
-      state.activeStrokeWidthKey
-        ? ANNOTATION_STROKE_WIDTHS[state.activeStrokeWidthKey]
-        : ANNOTATION_STROKE_WIDTHS.medium;
+    const strokeWidth = state.activeStrokeWidthKey
+      ? ANNOTATION_STROKE_WIDTHS[state.activeStrokeWidthKey]
+      : ANNOTATION_STROKE_WIDTHS.medium;
 
     const newShape: MeasurementShape = {
       type: 'measurement',

@@ -12,7 +12,16 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { SelectTool } from './SelectTool.js';
 import type { AnnotatorState } from '../useAnnotator.js';
-import type { AnnotationShape, ArrowShape, LineShape, EllipseShape, TextShape, CalloutShape, MeasurementShape, FreehandShape } from '../useUndoStack.js';
+import type {
+  AnnotationShape,
+  ArrowShape,
+  LineShape,
+  EllipseShape,
+  TextShape,
+  CalloutShape,
+  MeasurementShape,
+  FreehandShape,
+} from '../useUndoStack.js';
 import type { PointerContext } from './SelectTool.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -999,8 +1008,10 @@ describe('onPointerDown() — measurement shape', () => {
     return {
       type: 'measurement',
       id: 'measurement-hit',
-      x1: 50, y1: 100,
-      x2: 250, y2: 100,  // horizontal measurement line
+      x1: 50,
+      y1: 100,
+      x2: 250,
+      y2: 100, // horizontal measurement line
       label: '5m',
       stroke: '#dc2626',
       strokeWidth: 4,
@@ -1141,8 +1152,10 @@ describe('onPointerMove() — move measurement shape', () => {
     const shape: MeasurementShape = {
       type: 'measurement',
       id: 'meas-move',
-      x1: 50, y1: 100,
-      x2: 150, y2: 100,
+      x1: 50,
+      y1: 100,
+      x2: 150,
+      y2: 100,
       label: '5m',
       stroke: '#dc2626',
       strokeWidth: 4,
@@ -1184,8 +1197,10 @@ describe('onPointerMove() — resize measurement endpoint', () => {
     const shape: MeasurementShape = {
       type: 'measurement',
       id: 'meas-resize',
-      x1: 50, y1: 100,
-      x2: 150, y2: 100,
+      x1: 50,
+      y1: 100,
+      x2: 150,
+      y2: 100,
       label: '',
       stroke: '#dc2626',
       strokeWidth: 4,
@@ -1214,7 +1229,7 @@ describe('onPointerMove() — resize measurement endpoint', () => {
     const updatedShape = action.shape;
     if (updatedShape.type !== 'measurement') throw new Error('expected measurement shape');
     expect(updatedShape.x2).toBe(180); // 150+30
-    expect(updatedShape.y2).toBe(80);  // 100-20
+    expect(updatedShape.y2).toBe(80); // 100-20
     // x1/y1 unchanged
     expect(updatedShape.x1).toBe(50);
     expect(updatedShape.y1).toBe(100);
@@ -1229,7 +1244,11 @@ describe('onPointerDown() — freehand shape', () => {
       type: 'freehand',
       id: 'freehand-hit',
       // Horizontal polyline from (50,100) to (150,100)
-      points: [[50, 100], [100, 100], [150, 100]],
+      points: [
+        [50, 100],
+        [100, 100],
+        [150, 100],
+      ],
       stroke: '#3b82f6',
       strokeWidth: 4,
       ...overrides,
@@ -1273,7 +1292,11 @@ describe('onPointerMove() — move freehand shape', () => {
     const shape: FreehandShape = {
       type: 'freehand',
       id: 'freehand-move',
-      points: [[50, 100], [100, 100], [150, 100]],
+      points: [
+        [50, 100],
+        [100, 100],
+        [150, 100],
+      ],
       stroke: '#3b82f6',
       strokeWidth: 4,
     };

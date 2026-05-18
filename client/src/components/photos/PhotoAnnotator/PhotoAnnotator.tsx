@@ -79,7 +79,8 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         : null;
       const originalText = (() => {
         if (!existingShape) return '';
-        if (existingShape.type === 'text' || existingShape.type === 'callout') return existingShape.text;
+        if (existingShape.type === 'text' || existingShape.type === 'callout')
+          return existingShape.text;
         if (existingShape.type === 'measurement') return existingShape.label;
         return '';
       })();
@@ -157,7 +158,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       // Commit the measurement draft with the user's label (may be empty)
       const committed: MeasurementShape = {
         ...(state.draftShape as MeasurementShape),
-        label: text,  // text may be '' — that is valid; line is drawn, no label
+        label: text, // text may be '' — that is valid; line is drawn, no label
       };
       const newShapes = [...undoStack.shapes, committed];
       dispatch({ type: 'SET_DRAFT', shape: null });
@@ -167,7 +168,16 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         liveRegionRef.current.textContent = t('shapeAddedMeasurement');
       }
     }
-  }, [inlineInput, state.shapes, state.draftShape, state.selectedTool, state.activeColor, undoStack, dispatch, t]);
+  }, [
+    inlineInput,
+    state.shapes,
+    state.draftShape,
+    state.selectedTool,
+    state.activeColor,
+    undoStack,
+    dispatch,
+    t,
+  ]);
 
   // Callback to cancel the inline input
   const cancelInlineInput = useCallback(() => {
@@ -701,13 +711,19 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                   <line {...(result.tick1Attrs as Record<string, unknown>)} />
                   <line {...(result.tick2Attrs as Record<string, unknown>)} />
                   {result.children && (
-                    <text {...(result.labelAttrs as Record<string, unknown>)}>{result.children}</text>
+                    <text {...(result.labelAttrs as Record<string, unknown>)}>
+                      {result.children}
+                    </text>
                   )}
                 </g>
               );
             } else if (result.tagName === 'polyline') {
               return (
-                <polyline key={shape.id} data-shapeid={shape.id} {...(result.attributes as Record<string, unknown>)} />
+                <polyline
+                  key={shape.id}
+                  data-shapeid={shape.id}
+                  {...(result.attributes as Record<string, unknown>)}
+                />
               );
             } else if (result.tagName === 'text') {
               return (
@@ -721,7 +737,13 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
               );
             } else {
               const Tag = result.tagName as any;
-              return <Tag key={shape.id} data-shapeid={shape.id} {...(result.attributes as Record<string, unknown>)} />;
+              return (
+                <Tag
+                  key={shape.id}
+                  data-shapeid={shape.id}
+                  {...(result.attributes as Record<string, unknown>)}
+                />
+              );
             }
           })}
 
@@ -746,14 +768,14 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                     <line {...(result.tick1Attrs as Record<string, unknown>)} />
                     <line {...(result.tick2Attrs as Record<string, unknown>)} />
                     {result.children && (
-                      <text {...(result.labelAttrs as Record<string, unknown>)}>{result.children}</text>
+                      <text {...(result.labelAttrs as Record<string, unknown>)}>
+                        {result.children}
+                      </text>
                     )}
                   </g>
                 );
               } else if (result.tagName === 'polyline') {
-                return (
-                  <polyline {...(result.attributes as Record<string, unknown>)} />
-                );
+                return <polyline {...(result.attributes as Record<string, unknown>)} />;
               } else if (result.tagName === 'text') {
                 return (
                   <text
@@ -1053,29 +1075,30 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                 </>
               )}
 
-              {selectedShape.type === 'freehand' && (() => {
-                // Freehand has no handles — show dashed bounding box as selection indicator
-                if (selectedShape.points.length < 2) return null;
-                const xs = selectedShape.points.map(([x]) => x);
-                const ys = selectedShape.points.map(([, y]) => y);
-                const minX = Math.min(...xs);
-                const minY = Math.min(...ys);
-                const maxX = Math.max(...xs);
-                const maxY = Math.max(...ys);
-                return (
-                  <rect
-                    x={minX - 4}
-                    y={minY - 4}
-                    width={maxX - minX + 8}
-                    height={maxY - minY + 8}
-                    stroke="var(--color-primary)"
-                    strokeWidth="1"
-                    strokeDasharray="4 2"
-                    fill="none"
-                    pointerEvents="none"
-                  />
-                );
-              })()}
+              {selectedShape.type === 'freehand' &&
+                (() => {
+                  // Freehand has no handles — show dashed bounding box as selection indicator
+                  if (selectedShape.points.length < 2) return null;
+                  const xs = selectedShape.points.map(([x]) => x);
+                  const ys = selectedShape.points.map(([, y]) => y);
+                  const minX = Math.min(...xs);
+                  const minY = Math.min(...ys);
+                  const maxX = Math.max(...xs);
+                  const maxY = Math.max(...ys);
+                  return (
+                    <rect
+                      x={minX - 4}
+                      y={minY - 4}
+                      width={maxX - minX + 8}
+                      height={maxY - minY + 8}
+                      stroke="var(--color-primary)"
+                      strokeWidth="1"
+                      strokeDasharray="4 2"
+                      fill="none"
+                      pointerEvents="none"
+                    />
+                  );
+                })()}
             </>
           )}
         </svg>

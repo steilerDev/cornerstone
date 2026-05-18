@@ -1135,21 +1135,33 @@ describe('hitTestPolyline()', () => {
 
   it('returns "body" when clicking near the first segment of a polyline', () => {
     // Polyline: (0,0) → (100,0) → (100,100); click at (50,2) — near first segment
-    const points: [number, number][] = [[0, 0], [100, 0], [100, 100]];
+    const points: [number, number][] = [
+      [0, 0],
+      [100, 0],
+      [100, 100],
+    ];
     const result = hitTestPolyline(50, 2, points, tolerance);
     expect(result).toBe('body');
   });
 
   it('returns "body" when clicking near the second segment of a polyline', () => {
     // Click at (97, 50) — near the second segment (100,0)→(100,100)
-    const points: [number, number][] = [[0, 0], [100, 0], [100, 100]];
+    const points: [number, number][] = [
+      [0, 0],
+      [100, 0],
+      [100, 100],
+    ];
     const result = hitTestPolyline(97, 50, points, tolerance);
     expect(result).toBe('body');
   });
 
   it('returns null when clicking far from all segments', () => {
     // Click at (50, 50) — far from (0,0)→(100,0) and (100,0)→(100,100)
-    const points: [number, number][] = [[0, 0], [100, 0], [100, 100]];
+    const points: [number, number][] = [
+      [0, 0],
+      [100, 0],
+      [100, 100],
+    ];
     const result = hitTestPolyline(50, 50, points, tolerance);
     expect(result).toBeNull();
   });
@@ -1167,13 +1179,19 @@ describe('hitTestPolyline()', () => {
   });
 
   it('returns "body" for a two-point polyline near the single segment', () => {
-    const points: [number, number][] = [[10, 10], [90, 10]];
+    const points: [number, number][] = [
+      [10, 10],
+      [90, 10],
+    ];
     const result = hitTestPolyline(50, 12, points, tolerance);
     expect(result).toBe('body');
   });
 
   it('returns null when point is beyond the polyline endpoint (clamped projection)', () => {
-    const points: [number, number][] = [[10, 10], [90, 10]];
+    const points: [number, number][] = [
+      [10, 10],
+      [90, 10],
+    ];
     // Beyond the endpoint at (90,10) — perpendicular distance is large
     const result = hitTestPolyline(120, 30, points, tolerance);
     expect(result).toBeNull();
@@ -1182,7 +1200,11 @@ describe('hitTestPolyline()', () => {
   it('returns "body" for a hit on any one of many segments', () => {
     // Zigzag polyline — click on third segment
     const points: [number, number][] = [
-      [0, 0], [20, 20], [40, 0], [60, 20], [80, 0],
+      [0, 0],
+      [20, 20],
+      [40, 0],
+      [60, 20],
+      [80, 0],
     ];
     // Click near segment (40,0)→(60,20), specifically at (50,10) which is on the segment
     const result = hitTestPolyline(50, 10, points, tolerance);
@@ -1190,7 +1212,10 @@ describe('hitTestPolyline()', () => {
   });
 
   it('returns null for point far from a diagonal polyline', () => {
-    const points: [number, number][] = [[0, 0], [100, 100]];
+    const points: [number, number][] = [
+      [0, 0],
+      [100, 100],
+    ];
     // Click at (100, 0) — 70px from the line y=x
     const result = hitTestPolyline(100, 0, points, tolerance);
     expect(result).toBeNull();
@@ -1244,8 +1269,12 @@ describe('translateMeasurement()', () => {
   });
 
   it('delegates to translateArrowLine (returns same result as translateArrowLine)', () => {
-    const x1 = 30, y1 = 40, x2 = 130, y2 = 140;
-    const dx = 10, dy = 5;
+    const x1 = 30,
+      y1 = 40,
+      x2 = 130,
+      y2 = 140;
+    const dx = 10,
+      dy = 5;
     const result = translateMeasurement(x1, y1, x2, y2, dx, dy, imageWidth, imageHeight);
     // Both x1+dx and x2+dx are within bounds — no clamping needed
     expect(result).toEqual({
@@ -1264,15 +1293,29 @@ describe('translateFreehand()', () => {
   const imageHeight = 400;
 
   it('translates all points by dx/dy', () => {
-    const points: [number, number][] = [[10, 20], [50, 60], [100, 80]];
+    const points: [number, number][] = [
+      [10, 20],
+      [50, 60],
+      [100, 80],
+    ];
     const result = translateFreehand(points, 15, 10, imageWidth, imageHeight);
-    expect(result).toEqual([[25, 30], [65, 70], [115, 90]]);
+    expect(result).toEqual([
+      [25, 30],
+      [65, 70],
+      [115, 90],
+    ]);
   });
 
   it('translates by negative delta', () => {
-    const points: [number, number][] = [[100, 100], [200, 150]];
+    const points: [number, number][] = [
+      [100, 100],
+      [200, 150],
+    ];
     const result = translateFreehand(points, -30, -20, imageWidth, imageHeight);
-    expect(result).toEqual([[70, 80], [170, 130]]);
+    expect(result).toEqual([
+      [70, 80],
+      [170, 130],
+    ]);
   });
 
   it('clamps x to 0 (left boundary)', () => {
@@ -1306,7 +1349,10 @@ describe('translateFreehand()', () => {
 
   it('translates each point independently (mixed clamping)', () => {
     // First point near left edge, second well within bounds
-    const points: [number, number][] = [[3, 50], [200, 200]];
+    const points: [number, number][] = [
+      [3, 50],
+      [200, 200],
+    ];
     const result = translateFreehand(points, -10, 0, imageWidth, imageHeight);
     // First point: x=3-10=-7 → clamped to 0; second: x=200-10=190
     expect(result[0]![0]).toBe(0);
@@ -1314,7 +1360,10 @@ describe('translateFreehand()', () => {
   });
 
   it('does not mutate the input array', () => {
-    const points: [number, number][] = [[10, 20], [30, 40]];
+    const points: [number, number][] = [
+      [10, 20],
+      [30, 40],
+    ];
     const copy = points.map((p) => [...p] as [number, number]);
     translateFreehand(points, 5, 5, imageWidth, imageHeight);
     expect(points).toEqual(copy);

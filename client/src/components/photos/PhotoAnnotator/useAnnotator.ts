@@ -11,7 +11,17 @@ import type { UseUndoStackResult } from './useUndoStack.js';
 import type { ANNOTATION_STROKE_WIDTHS } from './annotationConstants.js';
 import { DEFAULT_COLOR, DEFAULT_STROKE_WIDTH, DEFAULT_FONT_SIZE } from './annotationConstants.js';
 
-export type ToolName = 'select' | 'rectangle' | 'highlight' | 'arrow' | 'line' | 'ellipse' | 'text' | 'callout' | 'measurement' | 'freehand';
+export type ToolName =
+  | 'select'
+  | 'rectangle'
+  | 'highlight'
+  | 'arrow'
+  | 'line'
+  | 'ellipse'
+  | 'text'
+  | 'callout'
+  | 'measurement'
+  | 'freehand';
 
 export type StrokeWidthKey = keyof typeof ANNOTATION_STROKE_WIDTHS;
 

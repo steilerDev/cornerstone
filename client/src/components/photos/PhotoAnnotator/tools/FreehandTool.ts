@@ -18,10 +18,9 @@ export const FreehandTool: ToolHandler = {
     capturedPoints = [[imageX, imageY]];
     currentDraftId = nanoid();
 
-    const strokeWidth =
-      state.activeStrokeWidthKey
-        ? ANNOTATION_STROKE_WIDTHS[state.activeStrokeWidthKey]
-        : ANNOTATION_STROKE_WIDTHS.medium;
+    const strokeWidth = state.activeStrokeWidthKey
+      ? ANNOTATION_STROKE_WIDTHS[state.activeStrokeWidthKey]
+      : ANNOTATION_STROKE_WIDTHS.medium;
 
     const newShape: FreehandShape = {
       type: 'freehand',
@@ -69,10 +68,7 @@ export const FreehandTool: ToolHandler = {
 
     // Update draft with simplified points and commit
     const finalShape: FreehandShape = { ...shape, points: simplified };
-    return [
-      { type: 'SET_DRAFT', shape: finalShape },
-      { type: 'COMMIT_DRAFT' },
-    ];
+    return [{ type: 'SET_DRAFT', shape: finalShape }, { type: 'COMMIT_DRAFT' }];
   },
 
   cursor: 'crosshair',

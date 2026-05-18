@@ -183,7 +183,10 @@ describe('MeasurementTool', () => {
       const downActions = MeasurementTool.onPointerDown(makeState(), makeCtx(50, 60));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = MeasurementTool.onPointerMove(makeState({ draftShape }), makeCtx(150, 160));
+      const moveActions = MeasurementTool.onPointerMove(
+        makeState({ draftShape }),
+        makeCtx(150, 160),
+      );
 
       expect(moveActions).toHaveLength(1);
       expect(moveActions[0]!.type).toBe('SET_DRAFT');
@@ -193,7 +196,10 @@ describe('MeasurementTool', () => {
       const downActions = MeasurementTool.onPointerDown(makeState(), makeCtx(50, 60));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = MeasurementTool.onPointerMove(makeState({ draftShape }), makeCtx(200, 180));
+      const moveActions = MeasurementTool.onPointerMove(
+        makeState({ draftShape }),
+        makeCtx(200, 180),
+      );
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
@@ -206,7 +212,10 @@ describe('MeasurementTool', () => {
       const downActions = MeasurementTool.onPointerDown(makeState(), makeCtx(50, 60));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = MeasurementTool.onPointerMove(makeState({ draftShape }), makeCtx(200, 180));
+      const moveActions = MeasurementTool.onPointerMove(
+        makeState({ draftShape }),
+        makeCtx(200, 180),
+      );
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
@@ -232,7 +241,10 @@ describe('MeasurementTool', () => {
 
     it('returns empty array when draftShape is null (no active draw)', () => {
       resetMeasurementTool();
-      const actions = MeasurementTool.onPointerMove(makeState({ draftShape: null }), makeCtx(100, 100));
+      const actions = MeasurementTool.onPointerMove(
+        makeState({ draftShape: null }),
+        makeCtx(100, 100),
+      );
       expect(actions).toHaveLength(0);
     });
   });
@@ -244,7 +256,10 @@ describe('MeasurementTool', () => {
       // Create draft: from (10, 10) to (110, 10) — horizontal 100px line
       const downActions = MeasurementTool.onPointerDown(makeState(), makeCtx(10, 10));
       const draftShape0 = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
-      const moveActions = MeasurementTool.onPointerMove(makeState({ draftShape: draftShape0 }), makeCtx(110, 10));
+      const moveActions = MeasurementTool.onPointerMove(
+        makeState({ draftShape: draftShape0 }),
+        makeCtx(110, 10),
+      );
       const longDraft = moveActions[0]!.type === 'SET_DRAFT' ? moveActions[0]!.shape : null;
 
       const onOpenInlineInput = jest.fn() as AnyMock;
@@ -262,7 +277,10 @@ describe('MeasurementTool', () => {
       // The host component commits after label entry — pointerUp just opens the inline input
       const downActions = MeasurementTool.onPointerDown(makeState(), makeCtx(10, 10));
       const draftShape0 = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
-      const moveActions = MeasurementTool.onPointerMove(makeState({ draftShape: draftShape0 }), makeCtx(110, 10));
+      const moveActions = MeasurementTool.onPointerMove(
+        makeState({ draftShape: draftShape0 }),
+        makeCtx(110, 10),
+      );
       const longDraft = moveActions[0]!.type === 'SET_DRAFT' ? moveActions[0]!.shape : null;
 
       const onOpenInlineInput = jest.fn() as AnyMock;
@@ -280,7 +298,10 @@ describe('MeasurementTool', () => {
       const draft: MeasurementShape = {
         type: 'measurement',
         id: 'diag-1',
-        x1: 0, y1: 0, x2: 200, y2: 200,
+        x1: 0,
+        y1: 0,
+        x2: 200,
+        y2: 200,
         label: '',
         stroke: '#dc2626',
         strokeWidth: 4,
@@ -302,7 +323,10 @@ describe('MeasurementTool', () => {
       const shortDraft: MeasurementShape = {
         type: 'measurement',
         id: 'short-1',
-        x1: 50, y1: 60, x2: 51, y2: 60,  // distance = 1 < 2
+        x1: 50,
+        y1: 60,
+        x2: 51,
+        y2: 60, // distance = 1 < 2
         label: '',
         stroke: '#dc2626',
         strokeWidth: 4,
@@ -326,7 +350,10 @@ describe('MeasurementTool', () => {
       const tapDraft: MeasurementShape = {
         type: 'measurement',
         id: 'tap-1',
-        x1: 100, y1: 100, x2: 100, y2: 100,  // distance = 0 < 2
+        x1: 100,
+        y1: 100,
+        x2: 100,
+        y2: 100, // distance = 0 < 2
         label: '',
         stroke: '#dc2626',
         strokeWidth: 4,
@@ -350,7 +377,10 @@ describe('MeasurementTool', () => {
       const atThreshold: MeasurementShape = {
         type: 'measurement',
         id: 'threshold-1',
-        x1: 50, y1: 60, x2: 52, y2: 60,  // distance = 2 — AT threshold
+        x1: 50,
+        y1: 60,
+        x2: 52,
+        y2: 60, // distance = 2 — AT threshold
         label: '',
         stroke: '#dc2626',
         strokeWidth: 4,
@@ -385,7 +415,10 @@ describe('MeasurementTool', () => {
       const draft: MeasurementShape = {
         type: 'measurement',
         id: 'no-cb-1',
-        x1: 0, y1: 0, x2: 100, y2: 0,
+        x1: 0,
+        y1: 0,
+        x2: 100,
+        y2: 0,
         label: '',
         stroke: '#dc2626',
         strokeWidth: 4,
