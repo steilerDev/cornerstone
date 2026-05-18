@@ -13,6 +13,7 @@ export interface PhotoViewerProps {
   onClose: () => void;
   onPhotoAnnotated?: (photo: Photo) => void;
   editable?: boolean;
+  startInAnnotator?: boolean;
 }
 
 export function PhotoViewer({
@@ -21,10 +22,11 @@ export function PhotoViewer({
   onClose,
   onPhotoAnnotated,
   editable = true,
+  startInAnnotator = false,
 }: PhotoViewerProps) {
   const { t } = useTranslation(['photoViewer', 'common']);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [isAnnotating, setIsAnnotating] = useState(false);
+  const [isAnnotating, setIsAnnotating] = useState(startInAnnotator && editable);
   const [showingOriginal, setShowingOriginal] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isClearingAnnotation, setIsClearingAnnotation] = useState(false);
