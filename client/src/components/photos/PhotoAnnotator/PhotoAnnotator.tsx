@@ -647,10 +647,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         const wasActualDrag = clickDist > CLICK_THRESHOLD;
 
         // If this is the same shape and pointer didn't move much, try to open inline input
-        if (
-          prevClickInfo.shapeId === state.selectedShapeId &&
-          !wasActualDrag
-        ) {
+        if (prevClickInfo.shapeId === state.selectedShapeId && !wasActualDrag) {
           const shape = state.shapes.find((s) => s.id === state.selectedShapeId);
           if (shape && (shape.type === 'text' || shape.type === 'callout')) {
             openInlineInput(shape.x, shape.y, shape.id);
