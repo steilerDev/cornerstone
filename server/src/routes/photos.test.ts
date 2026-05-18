@@ -26,6 +26,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import type { Photo, ApiErrorResponse } from '@cornerstone/shared';
+import { diaryEntries } from '../db/schema.js';
 
 // ─── Mock photoService BEFORE importing app ────────────────────────────────────
 
@@ -47,10 +48,6 @@ const mockDeletePhotosForEntity = jest.fn() as AnyMock;
 const mockSaveAnnotatedImage = jest.fn() as AnyMock;
 const mockClearAnnotation = jest.fn() as AnyMock;
 
-// ─── Mock diaryService BEFORE importing app ────────────────────────────────────
-
-const mockGetDiaryEntry = jest.fn() as AnyMock;
-
 jest.unstable_mockModule('../services/photoAnnotationService.js', () => ({
   saveAnnotatedImage: mockSaveAnnotatedImage,
   clearAnnotation: mockClearAnnotation,
@@ -65,10 +62,6 @@ jest.unstable_mockModule('../services/photoService.js', () => ({
   deletePhoto: mockDeletePhoto,
   deletePhotosForEntity: mockDeletePhotosForEntity,
   getPhotoFilePath: mockGetPhotoFilePath,
-}));
-
-jest.unstable_mockModule('../services/diaryService.js', () => ({
-  getDiaryEntry: mockGetDiaryEntry,
 }));
 
 // ─── Dynamic imports (after mocks) ───────────────────────────────────────────
@@ -201,6 +194,38 @@ describe('Photo Routes', () => {
   });
 
   // ─── Helpers ────────────────────────────────────────────────────────────
+
+  /**
+   * Insert a diary entry directly into the test database.
+   * photos.ts uses a direct DB query (not diaryService) to check signatures,
+   * so tests that exercise the signed-entry 409 path must seed the DB.
+   */
+  let diaryEntryCounter = 0;
+  function insertDiaryEntry(overrides: Partial<typeof diaryEntries.$inferInsert> = {}): string {
+    diaryEntryCounter += 1;
+    const id = `diary-photos-test-${Date.now()}-${diaryEntryCounter}`;
+    const now = new Date().toISOString();
+    app.db
+      .insert(diaryEntries)
+      .values({
+        id,
+        entryType: 'daily_log',
+        entryDate: '2026-03-14',
+        title: 'Test Entry',
+        body: 'Test body content',
+        metadata: null,
+        status: 'saved',
+        isAutomatic: false,
+        sourceEntityType: null,
+        sourceEntityId: null,
+        createdBy: null,
+        createdAt: now,
+        updatedAt: now,
+        ...overrides,
+      })
+      .run();
+    return id;
+  }
 
   async function createUserWithSession(
     email: string,
@@ -1233,17 +1258,18 @@ describe('Photo Routes', () => {
 
     it('returns 409 when photo is on a signed diary entry', async () => {
       const { cookie } = await createUserWithSession('ann-signed@example.com', 'AnnSigned', 'password');
+
+      // Seed a diary entry with a non-empty signatures array in metadata.
+      // photos.ts uses isDiaryEntrySigned() which queries diaryEntries directly (not diaryService).
+      const signedEntryId = insertDiaryEntry({
+        metadata: JSON.stringify({ signatures: [{ timestamp: '2026-05-18T10:00:00Z' }] }),
+      });
+
       const photoWithDiaryEntity = makePhoto({
         entityType: 'diary_entry',
-        entityId: 'entry-123',
+        entityId: signedEntryId,
       });
       mockGetPhoto.mockReturnValue(photoWithDiaryEntity);
-
-      // Mock the diary entry as signed (has non-empty signatures in metadata)
-      mockGetDiaryEntry.mockReturnValue({
-        id: 'entry-123',
-        metadata: { signatures: [{ timestamp: '2026-05-18T10:00:00Z' }] },
-      });
 
       const { body, contentType } = buildMultipartBody([
         {
@@ -1269,21 +1295,21 @@ describe('Photo Routes', () => {
 
     it('returns 200 when photo is on an unsigned diary entry', async () => {
       const { cookie } = await createUserWithSession('ann-unsigned@example.com', 'AnnUnsigned', 'password');
+
+      // Seed a diary entry with empty signatures — isDiaryEntrySigned() must return false.
+      const unsignedEntryId = insertDiaryEntry({
+        metadata: JSON.stringify({ signatures: [] }),
+      });
+
       const photoWithDiaryEntity = makePhoto({
         entityType: 'diary_entry',
-        entityId: 'entry-456',
+        entityId: unsignedEntryId,
       });
       mockGetPhoto.mockReturnValue(photoWithDiaryEntity);
 
-      // Mock the diary entry as unsigned (empty or missing signatures)
-      mockGetDiaryEntry.mockReturnValue({
-        id: 'entry-456',
-        metadata: { signatures: [] },
-      });
-
       const annotatedPhoto = makePhoto({
         entityType: 'diary_entry',
-        entityId: 'entry-456',
+        entityId: unsignedEntryId,
         annotatedAt: '2026-05-18T10:00:00.000Z',
       });
       mockSaveAnnotatedImage.mockResolvedValue(annotatedPhoto);
@@ -1407,17 +1433,17 @@ describe('Photo Routes', () => {
 
     it('returns 409 when photo is on a signed diary entry', async () => {
       const { cookie } = await createUserWithSession('del-ann-signed@example.com', 'DelAnnSigned', 'password');
+
+      // Seed a signed diary entry — photos.ts uses isDiaryEntrySigned() which reads the DB directly.
+      const signedEntryId = insertDiaryEntry({
+        metadata: JSON.stringify({ signatures: [{ timestamp: '2026-05-18T10:00:00Z' }] }),
+      });
+
       const photoWithDiaryEntity = makePhoto({
         entityType: 'diary_entry',
-        entityId: 'entry-789',
+        entityId: signedEntryId,
       });
       mockGetPhoto.mockReturnValue(photoWithDiaryEntity);
-
-      // Mock the diary entry as signed (has non-empty signatures in metadata)
-      mockGetDiaryEntry.mockReturnValue({
-        id: 'entry-789',
-        metadata: { signatures: [{ timestamp: '2026-05-18T10:00:00Z' }] },
-      });
 
       const response = await app.inject({
         method: 'DELETE',
@@ -1433,17 +1459,17 @@ describe('Photo Routes', () => {
 
     it('returns 204 when photo is on an unsigned diary entry', async () => {
       const { cookie } = await createUserWithSession('del-ann-unsigned@example.com', 'DelAnnUnsigned', 'password');
+
+      // Seed an unsigned diary entry — isDiaryEntrySigned() must return false.
+      const unsignedEntryId = insertDiaryEntry({
+        metadata: JSON.stringify({ signatures: [] }),
+      });
+
       const photoWithDiaryEntity = makePhoto({
         entityType: 'diary_entry',
-        entityId: 'entry-999',
+        entityId: unsignedEntryId,
       });
       mockGetPhoto.mockReturnValue(photoWithDiaryEntity);
-
-      // Mock the diary entry as unsigned (empty signatures)
-      mockGetDiaryEntry.mockReturnValue({
-        id: 'entry-999',
-        metadata: { signatures: [] },
-      });
 
       mockClearAnnotation.mockResolvedValue(undefined);
 
