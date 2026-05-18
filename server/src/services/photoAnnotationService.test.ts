@@ -230,21 +230,21 @@ describe('photoAnnotationService', () => {
   // ─── saveAnnotatedImage ───────────────────────────────────────────────────
 
   describe('saveAnnotatedImage()', () => {
-    it('writes annotated.png to the photo directory', async () => {
+    it('writes annotated.webp to the photo directory', async () => {
       const pngBuffer = Buffer.from('fake-png-data');
 
       await photoAnnotationService.saveAnnotatedImage(db, tempStoragePath, photoId, pngBuffer);
 
-      const annotatedPath = join(photoDir, 'annotated.png');
+      const annotatedPath = join(photoDir, 'annotated.webp');
       expect(existsSync(annotatedPath)).toBe(true);
     });
 
-    it('writes the exact buffer content to annotated.png', async () => {
+    it('writes the exact buffer content to annotated.webp', async () => {
       const pngBuffer = Buffer.from('exact-png-content-12345');
 
       await photoAnnotationService.saveAnnotatedImage(db, tempStoragePath, photoId, pngBuffer);
 
-      const written = readFileSync(join(photoDir, 'annotated.png'));
+      const written = readFileSync(join(photoDir, 'annotated.webp'));
       expect(written.equals(pngBuffer)).toBe(true);
     });
 
@@ -322,9 +322,9 @@ describe('photoAnnotationService', () => {
   // ─── clearAnnotation ──────────────────────────────────────────────────────
 
   describe('clearAnnotation()', () => {
-    it('removes annotated.png when it exists', async () => {
+    it('removes annotated.webp when it exists', async () => {
       // First create an annotated file
-      const annotatedPath = join(photoDir, 'annotated.png');
+      const annotatedPath = join(photoDir, 'annotated.webp');
       writeFileSync(annotatedPath, Buffer.from('annotated-data'));
       expect(existsSync(annotatedPath)).toBe(true);
 
@@ -333,9 +333,9 @@ describe('photoAnnotationService', () => {
       expect(existsSync(annotatedPath)).toBe(false);
     });
 
-    it('does not throw when annotated.png does not exist (idempotent)', async () => {
-      // No annotated.png present
-      expect(existsSync(join(photoDir, 'annotated.png'))).toBe(false);
+    it('does not throw when annotated.webp does not exist (idempotent)', async () => {
+      // No annotated.webp present
+      expect(existsSync(join(photoDir, 'annotated.webp'))).toBe(false);
 
       await expect(
         photoAnnotationService.clearAnnotation(db, tempStoragePath, photoId),
