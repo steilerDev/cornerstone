@@ -413,6 +413,13 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   // Pointer event handlers for drawing/editing
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<SVGSVGElement>) => {
+      // While the inline input is open, swallow pointer events so they don't
+      // disturb the draft shape. The input's onBlur handler will commit the
+      // pending measurement/callout/text.
+      if (inlineInput.isOpen) {
+        return;
+      }
+
       if (!svgRef.current) return;
 
       let { x: imageX, y: imageY } = screenToImage(e.clientX, e.clientY, svgRef.current);
@@ -457,11 +464,18 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         dispatch(action);
       }
     },
-    [state, photo.width, photo.height, dispatch, openInlineInput],
+    [state, photo.width, photo.height, dispatch, openInlineInput, inlineInput.isOpen],
   );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<SVGSVGElement>) => {
+      // While the inline input is open, swallow pointer events so they don't
+      // disturb the draft shape. The input's onBlur handler will commit the
+      // pending measurement/callout/text.
+      if (inlineInput.isOpen) {
+        return;
+      }
+
       if (!svgRef.current) return;
 
       let { x: imageX, y: imageY } = screenToImage(e.clientX, e.clientY, svgRef.current);
@@ -499,11 +513,18 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         dispatch(action);
       }
     },
-    [state, photo.width, photo.height, dispatch, openInlineInput],
+    [state, photo.width, photo.height, dispatch, openInlineInput, inlineInput.isOpen],
   );
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent<SVGSVGElement>) => {
+      // While the inline input is open, swallow pointer events so they don't
+      // disturb the draft shape. The input's onBlur handler will commit the
+      // pending measurement/callout/text.
+      if (inlineInput.isOpen) {
+        return;
+      }
+
       if (!svgRef.current) return;
 
       let { x: imageX, y: imageY } = screenToImage(e.clientX, e.clientY, svgRef.current);
