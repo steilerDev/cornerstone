@@ -1292,11 +1292,7 @@ describe('Photo Routes', () => {
 
   describe('PUT /api/photos/:id/annotation — security validations', () => {
     it('returns 400 when file MIME type is not image/png (e.g. image/jpeg)', async () => {
-      const { cookie } = await createUserWithSession(
-        'ann-mime@example.com',
-        'AnnMime',
-        'password',
-      );
+      const { cookie } = await createUserWithSession('ann-mime@example.com', 'AnnMime', 'password');
       // Send a JPEG-typed body — even if the bytes look like PNG, the MIME must be rejected
       const { body, contentType } = buildMultipartBody([
         {
@@ -1349,11 +1345,7 @@ describe('Photo Routes', () => {
     });
 
     it('returns 413 when annotation PNG exceeds PHOTO_MAX_FILE_SIZE_MB', async () => {
-      const { cookie } = await createUserWithSession(
-        'ann-sz@example.com',
-        'AnnSz',
-        'password',
-      );
+      const { cookie } = await createUserWithSession('ann-sz@example.com', 'AnnSz', 'password');
       process.env.PHOTO_MAX_FILE_SIZE_MB = '1';
       await app.close();
       app = await buildApp();
@@ -1394,11 +1386,7 @@ describe('Photo Routes', () => {
 
   describe('UUID param validation — GET/PATCH/DELETE with malformed :id', () => {
     it('GET /api/photos/:id returns 400 for malformed UUID (not matching pattern)', async () => {
-      const { cookie } = await createUserWithSession(
-        'uuid-get@example.com',
-        'UuidGet',
-        'password',
-      );
+      const { cookie } = await createUserWithSession('uuid-get@example.com', 'UuidGet', 'password');
 
       const response = await app.inject({
         method: 'GET',
@@ -1449,11 +1437,7 @@ describe('Photo Routes', () => {
     });
 
     it('PUT /api/photos/:id/annotation returns 400 for malformed UUID', async () => {
-      const { cookie } = await createUserWithSession(
-        'uuid-put@example.com',
-        'UuidPut',
-        'password',
-      );
+      const { cookie } = await createUserWithSession('uuid-put@example.com', 'UuidPut', 'password');
       const { body: reqBody, contentType } = buildMultipartBody([
         {
           name: 'file',

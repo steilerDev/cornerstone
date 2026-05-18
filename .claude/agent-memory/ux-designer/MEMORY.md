@@ -27,6 +27,7 @@
 ## Story #1478 — Photo Annotator A11y Audit
 
 See `annotator-a11y-audit.md` for full findings. Key items:
+
 - Active button border must use `var(--color-primary-active)` + `border-width: 2px` (contrast 6.67:1 vs 2.25:1 with `--color-primary`)
 - ToolPalette must use `min-height: 56px` not `height: 56px` (prevents font-size group from clipping)
 - Color swatches need `padding: 10px; box-sizing: content-box` for 44px touch target

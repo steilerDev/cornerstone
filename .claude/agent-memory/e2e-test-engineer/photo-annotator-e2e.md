@@ -10,6 +10,7 @@ metadata:
 ## POM: PhotoViewerPage.ts
 
 Extended in Story #1478 to cover all 10 tools. New locators:
+
 - `arrowToolButton` → `data-testid="tool-arrow"`
 - `lineToolButton` → `data-testid="tool-line"`
 - `ellipseToolButton` → `data-testid="tool-ellipse"`
@@ -23,23 +24,24 @@ New POM helper methods: `activateTool(name)`, `drawRectangle()`, `drawLine()`, `
 
 ## SVG Element Types per Tool
 
-| Tool        | SVG element in committed state          |
-|-------------|----------------------------------------|
-| rectangle   | `<rect data-shapeid>`                   |
-| highlight   | `<rect data-shapeid>` (fill, opacity)   |
-| arrow       | `<line data-shapeid>` + marker-end      |
-| line        | `<line data-shapeid>` no marker-end     |
-| ellipse     | `<ellipse data-shapeid>`                |
-| text        | `<text data-shapeid>`                   |
-| callout     | `<g data-shapeid>` with rect+line+text  |
-| measurement | `<g data-shapeid>` with lines + text    |
-| freehand    | `<polyline data-shapeid>`               |
+| Tool        | SVG element in committed state         |
+| ----------- | -------------------------------------- |
+| rectangle   | `<rect data-shapeid>`                  |
+| highlight   | `<rect data-shapeid>` (fill, opacity)  |
+| arrow       | `<line data-shapeid>` + marker-end     |
+| line        | `<line data-shapeid>` no marker-end    |
+| ellipse     | `<ellipse data-shapeid>`               |
+| text        | `<text data-shapeid>`                  |
+| callout     | `<g data-shapeid>` with rect+line+text |
+| measurement | `<g data-shapeid>` with lines + text   |
+| freehand    | `<polyline data-shapeid>`              |
 
 ## Known Bug #1482 Workaround
 
 DiaryEntryDetailPage does NOT pass `onPhotoAnnotated` to PhotoViewer. After Save,
 the parent's photo list is stale (annotatedAt still null). To test View Original /
 Clear Annotations, we:
+
 1. Intercept `GET /api/photos?entityType=diary_entry&entityId={id}` with a mock that
    includes `annotatedAt: savedAnnotatedAt`
 2. Re-navigate to the diary entry detail page to force fresh photo load
@@ -75,27 +77,28 @@ green, blue, black, white. Check `aria-checked="true"` on active swatch, and
 
 ## CRITICAL: waitFor vs expect.toBeVisible timeout difference
 
-`locator.waitFor({ state: 'visible' })` uses `actionTimeout` (5 s globally). 
+`locator.waitFor({ state: 'visible' })` uses `actionTimeout` (5 s globally).
 `expect(locator).toBeVisible()` uses `expect.timeout` (7 s on desktop project).
 
-On a 2-vCPU CI shard running testcontainers, shape commits via `undoStack.commit()` 
-(a useState setter called inside a useReducer) require TWO async React renders before 
+On a 2-vCPU CI shard running testcontainers, shape commits via `undoStack.commit()`
+(a useState setter called inside a useReducer) require TWO async React renders before
 the shape appears in the DOM. This takes > 5 s on loaded shards.
 
 **Rule**: All shape appearance assertions after drawing MUST use either:
-- `expect(locator).toBeVisible()` (uses expect.timeout: 7 s), OR  
+
+- `expect(locator).toBeVisible()` (uses expect.timeout: 7 s), OR
 - `waitFor({ state: 'visible', timeout: 15_000 })` with try/catch diagnostic logging
 
-**Arrow test passes, line test fails** because arrow uses `expect(...)` and line used 
-bare `waitFor({state:'visible'})`. Selector correctness is not the issue — the shape 
+**Arrow test passes, line test fails** because arrow uses `expect(...)` and line used
+bare `waitFor({state:'visible'})`. Selector correctness is not the issue — the shape
 DOES appear, just after the 5s actionTimeout fires.
 
-**Fixed in PR #1491**: Added explicit `timeout: 15_000` to all `waitFor({ state: 'visible' })` 
-calls in photoAnnotation.spec.ts that assert shape appearance after drawing. Added 
-try/catch + SVG innerHTML logging to the 3 CI-failing tests (line draw, line shift-snap, 
+**Fixed in PR #1491**: Added explicit `timeout: 15_000` to all `waitFor({ state: 'visible' })`
+calls in photoAnnotation.spec.ts that assert shape appearance after drawing. Added
+try/catch + SVG innerHTML logging to the 3 CI-failing tests (line draw, line shift-snap,
 callout smoke) for future diagnosis if failures recur.
 
-**DO NOT** record `waitFor({ state: 'visible' })` without explicit timeout for shape 
+**DO NOT** record `waitFor({ state: 'visible' })` without explicit timeout for shape
 appearance in SVG — always use `{ timeout: 15_000 }` for annotator shape commits.
 
 ## Test Count (Story #1478 addition)

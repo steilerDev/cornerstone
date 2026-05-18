@@ -8,18 +8,21 @@ metadata:
 ## HIGH Findings (Story #1478 Audit)
 
 **H1 — Active button border contrast fails WCAG 1.4.11**
+
 - `border-color: var(--color-primary)` (#3b82f6) on `--color-primary-bg` (#dbeafe) = 2.25:1 — fails 3:1 minimum
 - Fix: `border-color: var(--color-primary-active)` (#1d4ed8, 6.67:1 on white) + `border-width: 2px`
 - Applies to `.toolButtonActive`, `.strokeButtonActive`, `.fontSizeButtonActive`
 - Dark mode passes (blue-400 on transparent over slate-800 ≈ 4.5:1)
 
 **H2 — 7 of 9 shape types missing live-region announcement**
+
 - Keys exist in i18n (`shapeAddedRectangle` etc.) but never wired to `liveRegionRef.current.textContent`
 - Only `shapeAddedMeasurement` (line 167) and `shapeAddedFreehand` (line 542) are announced
 - Also missing: `shapeDeleted`, `undoPerformed`, `redoPerformed` — keys exist, never used
 - Fix: hook COMMIT_DRAFT dispatch in `handlePointerUp` (same pattern as freehand); announce after text/callout inline input commit; announce delete and undo/redo
 
 **H3 — Color swatches 24×24px fail WCAG 2.5.5 (44px minimum)**
+
 - Fix: `padding: 10px; box-sizing: content-box` on `.swatchButton` — 24px visual + 20px padding each side = 44px tap area
 
 ## MEDIUM Findings

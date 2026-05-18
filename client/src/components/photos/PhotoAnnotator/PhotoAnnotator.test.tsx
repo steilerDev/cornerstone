@@ -446,9 +446,9 @@ describe('PhotoAnnotator', () => {
 
   function getLiveRegion(): HTMLElement {
     const liveRegions = document.querySelectorAll('[aria-live="polite"]');
-    const el = Array.from(liveRegions).find(
-      (e) => e.getAttribute('aria-atomic') === 'true',
-    ) as HTMLElement | undefined;
+    const el = Array.from(liveRegions).find((e) => e.getAttribute('aria-atomic') === 'true') as
+      | HTMLElement
+      | undefined;
     if (!el) throw new Error('Live region not found');
     return el;
   }

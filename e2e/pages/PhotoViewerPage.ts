@@ -448,11 +448,9 @@ export class PhotoViewerPage {
     await this.page.mouse.down();
 
     for (const [xPct, yPct] of waypoints) {
-      await this.page.mouse.move(
-        svgBox.x + svgBox.width * xPct,
-        svgBox.y + svgBox.height * yPct,
-        { steps: 3 },
-      );
+      await this.page.mouse.move(svgBox.x + svgBox.width * xPct, svgBox.y + svgBox.height * yPct, {
+        steps: 3,
+      });
     }
 
     await this.page.mouse.up();
@@ -484,11 +482,9 @@ export class PhotoViewerPage {
     await this.page.mouse.down();
 
     for (const [xPct, yPct] of waypoints) {
-      await this.page.mouse.move(
-        svgBox.x + svgBox.width * xPct,
-        svgBox.y + svgBox.height * yPct,
-        { steps: 3 },
-      );
+      await this.page.mouse.move(svgBox.x + svgBox.width * xPct, svgBox.y + svgBox.height * yPct, {
+        steps: 3,
+      });
     }
 
     await this.page.mouse.up();

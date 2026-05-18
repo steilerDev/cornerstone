@@ -822,7 +822,10 @@ test('Line tool — Shift-snap constrains angle to 45° increments', async ({
       const svgHtml = await page
         .evaluate(() => document.querySelector('[role="application"]')?.innerHTML ?? '(not found)')
         .catch(() => '(eval failed)');
-      console.error('[DEBUG] Shift-snap: line shape not visible after Shift+drag. SVG innerHTML:', svgHtml);
+      console.error(
+        '[DEBUG] Shift-snap: line shape not visible after Shift+drag. SVG innerHTML:',
+        svgHtml,
+      );
       throw e;
     }
 
@@ -998,10 +1001,7 @@ test('Text tool — tap to place, type text, Enter commits shape', async ({
     // Click the SVG to open the inline input
     const svgBox = await viewer.svgOverlay.boundingBox();
     expect(svgBox).not.toBeNull();
-    await page.mouse.click(
-      svgBox!.x + svgBox!.width * 0.3,
-      svgBox!.y + svgBox!.height * 0.3,
-    );
+    await page.mouse.click(svgBox!.x + svgBox!.width * 0.3, svgBox!.y + svgBox!.height * 0.3);
 
     // Inline input should open
     await expect(viewer.inlineInput).toBeVisible();
@@ -1073,10 +1073,7 @@ test('Text tool — Escape discards the draft without adding a shape', async ({
     // Click to open inline input
     const svgBox = await viewer.svgOverlay.boundingBox();
     expect(svgBox).not.toBeNull();
-    await page.mouse.click(
-      svgBox!.x + svgBox!.width * 0.4,
-      svgBox!.y + svgBox!.height * 0.4,
-    );
+    await page.mouse.click(svgBox!.x + svgBox!.width * 0.4, svgBox!.y + svgBox!.height * 0.4);
 
     await expect(viewer.inlineInput).toBeVisible();
 
@@ -1141,9 +1138,14 @@ test(
         await calloutGroup.waitFor({ state: 'visible', timeout: 15_000 });
       } catch (e) {
         const svgHtml = await page
-          .evaluate(() => document.querySelector('[role="application"]')?.innerHTML ?? '(not found)')
+          .evaluate(
+            () => document.querySelector('[role="application"]')?.innerHTML ?? '(not found)',
+          )
           .catch(() => '(eval failed)');
-        console.error('[DEBUG] Callout group not visible after drawCallout. SVG innerHTML:', svgHtml);
+        console.error(
+          '[DEBUG] Callout group not visible after drawCallout. SVG innerHTML:',
+          svgHtml,
+        );
         throw e;
       }
 
@@ -1626,10 +1628,12 @@ test('Select tool — drag moves a committed rectangle', async ({
 
     // Poll until the x attribute changes from originalX to account for the
     // async React state propagation after handlePointerUp fires COMMIT_DRAFT.
-    await expect.poll(async () => {
-      const xStr = await rectEl.getAttribute('x');
-      return parseFloat(xStr ?? '0');
-    }).toBeGreaterThan(originalX);
+    await expect
+      .poll(async () => {
+        const xStr = await rectEl.getAttribute('x');
+        return parseFloat(xStr ?? '0');
+      })
+      .toBeGreaterThan(originalX);
   } finally {
     if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
     if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
@@ -1681,10 +1685,7 @@ test('Select tool — Delete key removes the selected shape', async ({
     expect(svgBox).not.toBeNull();
 
     // Click the center of the drawn rectangle
-    await page.mouse.click(
-      svgBox!.x + svgBox!.width * 0.45,
-      svgBox!.y + svgBox!.height * 0.45,
-    );
+    await page.mouse.click(svgBox!.x + svgBox!.width * 0.45, svgBox!.y + svgBox!.height * 0.45);
 
     // Press Delete key
     await page.keyboard.press('Delete');
