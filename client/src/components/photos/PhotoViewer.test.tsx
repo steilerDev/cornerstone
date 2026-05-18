@@ -146,7 +146,7 @@ describe('PhotoViewer', () => {
     jest.clearAllMocks();
   });
 
-  function renderViewer(photos: Photo[], initialIndex = 0, editable = true) {
+  function renderViewer(photos: Photo[], initialIndex = 0, editable = true, startInAnnotator = false) {
     return render(
       React.createElement(PhotoViewer, {
         photos,
@@ -154,6 +154,7 @@ describe('PhotoViewer', () => {
         onClose: mockOnClose,
         onPhotoAnnotated: mockOnPhotoAnnotated,
         editable,
+        startInAnnotator,
       }),
     );
   }
@@ -392,5 +393,27 @@ describe('PhotoViewer', () => {
     renderViewer([makePhoto()]);
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  // ─── startInAnnotator prop ─────────────────────────────────────────────────
+
+  it('starts in view mode when startInAnnotator=false (default)', () => {
+    renderViewer([makePhoto({ width: 800, height: 600 })], 0, true, false);
+    // Annotate button should be visible (not hidden by annotating)
+    expect(screen.getByTestId('photo-viewer-annotate')).toBeInTheDocument();
+    expect(screen.getByTestId('photo-viewer-annotate')).not.toBeDisabled();
+  });
+
+  it('starts in annotator mode when startInAnnotator=true and editable=true', () => {
+    renderViewer([makePhoto({ width: 800, height: 600 })], 0, true, true);
+    // Navigation arrows should be hidden (annotating=true)
+    expect(screen.queryByTestId('photo-viewer-prev')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('photo-viewer-next')).not.toBeInTheDocument();
+  });
+
+  it('starts in view mode when startInAnnotator=true but editable=false', () => {
+    renderViewer([makePhoto({ width: 800, height: 600 })], 0, false, true);
+    // Should stay in view mode — annotate button disabled, navigation visible
+    expect(screen.getByTestId('photo-viewer-annotate')).toBeDisabled();
   });
 });

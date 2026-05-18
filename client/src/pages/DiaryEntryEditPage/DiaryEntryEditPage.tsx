@@ -81,6 +81,7 @@ export default function DiaryEntryEditPage() {
 
   // Photo state
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
+  const [openAsAnnotator, setOpenAsAnnotator] = useState(false);
   const photosResult = usePhotos(entry ? 'diary_entry' : '', entry?.id || '');
 
   // Form fields
@@ -709,6 +710,7 @@ export default function DiaryEntryEditPage() {
                   photos={photosResult.photos}
                   onPhotoClick={(photo) => {
                     const index = photosResult.photos.findIndex((p) => p.id === photo.id);
+                    setOpenAsAnnotator(false);
                     setSelectedPhotoIndex(index);
                   }}
                   onDelete={(photo) => {
@@ -716,6 +718,7 @@ export default function DiaryEntryEditPage() {
                   }}
                   onEdit={(photo) => {
                     const index = photosResult.photos.findIndex((p) => p.id === photo.id);
+                    setOpenAsAnnotator(true);
                     setSelectedPhotoIndex(index);
                   }}
                   editable={!entry.isSigned}
@@ -732,8 +735,12 @@ export default function DiaryEntryEditPage() {
         <PhotoViewer
           photos={photosResult.photos}
           initialIndex={selectedPhotoIndex}
-          onClose={() => setSelectedPhotoIndex(null)}
+          onClose={() => {
+            setSelectedPhotoIndex(null);
+            setOpenAsAnnotator(false);
+          }}
           onPhotoAnnotated={photosResult.updatePhotoAnnotation}
+          startInAnnotator={openAsAnnotator}
         />
       )}
 
