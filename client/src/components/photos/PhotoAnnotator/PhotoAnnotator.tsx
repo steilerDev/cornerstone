@@ -81,20 +81,43 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   // Calculate canonical URL
   const canonicalUrl = `${getBaseUrl()}/photos/${photo.id}/file`;
 
-  // Track SVG overlay position to match image layout within container
-  // This prevents pointer events in letterbox/pillarbox padding from creating out-of-bounds shapes
-  useEffect(() => {
+  // Callback to recalculate SVG position when image loads
+  // This is critical for portrait images where the initial render may not have the final layout yet
+  const handleImageLoad = useCallback(() => {
     if (!imgRef.current || !imgRef.current.parentElement) return;
-
-    const updateSvgPosition = () => {
-      const imgRect = imgRef.current!.getBoundingClientRect();
-      const containerRect = imgRef.current!.parentElement!.getBoundingClientRect();
+    requestAnimationFrame(() => {
+      if (!imgRef.current || !imgRef.current.parentElement) return;
+      const imgRect = imgRef.current.getBoundingClientRect();
+      const containerRect = imgRef.current.parentElement!.getBoundingClientRect();
 
       setSvgPosition({
         top: imgRect.top - containerRect.top,
         left: imgRect.left - containerRect.left,
         width: imgRect.width,
         height: imgRect.height,
+      });
+    });
+  }, []);
+
+  // Track SVG overlay position to match image layout within container
+  // This prevents pointer events in letterbox/pillarbox padding from creating out-of-bounds shapes
+  useEffect(() => {
+    if (!imgRef.current || !imgRef.current.parentElement) return;
+
+    const updateSvgPosition = () => {
+      // Defer to post-layout to ensure measurements are accurate
+      // (especially important for portrait images where flexbox centering may not be complete)
+      requestAnimationFrame(() => {
+        if (!imgRef.current || !imgRef.current.parentElement) return;
+        const imgRect = imgRef.current.getBoundingClientRect();
+        const containerRect = imgRef.current.parentElement!.getBoundingClientRect();
+
+        setSvgPosition({
+          top: imgRect.top - containerRect.top,
+          left: imgRect.left - containerRect.left,
+          width: imgRect.width,
+          height: imgRect.height,
+        });
       });
     };
 
@@ -758,6 +781,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
           src={canonicalUrl}
           alt={photo.caption || photo.originalFilename}
           className={styles.baseImage}
+          onLoad={handleImageLoad}
         />
 
         <svg
