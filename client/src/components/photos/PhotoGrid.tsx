@@ -11,7 +11,14 @@ export interface PhotoGridProps {
   editable?: boolean;
 }
 
-export function PhotoGrid({ photos, onPhotoClick, onDelete, onEdit, loading, editable = true }: PhotoGridProps) {
+export function PhotoGrid({
+  photos,
+  onPhotoClick,
+  onDelete,
+  onEdit,
+  loading,
+  editable = true,
+}: PhotoGridProps) {
   if (loading) {
     return (
       <div className={styles.grid} role="list" aria-label="Loading photos">

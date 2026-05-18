@@ -1139,7 +1139,13 @@ describe('Photo Routes', () => {
 
     it('returns 200 with { photo } on success', async () => {
       const { cookie } = await createUserWithSession('ann@example.com', 'Ann', 'password');
-      mockGetPhoto.mockReturnValue(makePhoto({ id: '33333333-3333-3333-3333-333333333333', entityType: 'work_item', entityId: 'work-item-1' }));
+      mockGetPhoto.mockReturnValue(
+        makePhoto({
+          id: '33333333-3333-3333-3333-333333333333',
+          entityType: 'work_item',
+          entityId: 'work-item-1',
+        }),
+      );
       const annotatedPhoto = makePhoto({ annotatedAt: '2026-05-17T10:00:00.000Z' });
       mockSaveAnnotatedImage.mockResolvedValue(annotatedPhoto);
 
@@ -1166,7 +1172,13 @@ describe('Photo Routes', () => {
 
     it('calls saveAnnotatedImage with correct buffer', async () => {
       const { cookie } = await createUserWithSession('ann2@example.com', 'Ann2', 'password');
-      mockGetPhoto.mockReturnValue(makePhoto({ id: '33333333-3333-3333-3333-333333333333', entityType: 'work_item', entityId: 'work-item-1' }));
+      mockGetPhoto.mockReturnValue(
+        makePhoto({
+          id: '33333333-3333-3333-3333-333333333333',
+          entityType: 'work_item',
+          entityId: 'work-item-1',
+        }),
+      );
       const pngContent = Buffer.from('real-png-content-bytes');
       mockSaveAnnotatedImage.mockResolvedValue(
         makePhoto({ annotatedAt: '2026-05-17T10:00:00.000Z' }),
@@ -1223,7 +1235,13 @@ describe('Photo Routes', () => {
         'AnnBig2',
         'password',
       );
-      mockGetPhoto.mockReturnValue(makePhoto({ id: '33333333-3333-3333-3333-333333333333', entityType: 'work_item', entityId: 'work-item-1' }));
+      mockGetPhoto.mockReturnValue(
+        makePhoto({
+          id: '33333333-3333-3333-3333-333333333333',
+          entityType: 'work_item',
+          entityId: 'work-item-1',
+        }),
+      );
       const response = await app.inject({
         method: 'PUT',
         url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
@@ -1260,7 +1278,11 @@ describe('Photo Routes', () => {
     });
 
     it('returns 409 when photo is on a signed diary entry', async () => {
-      const { cookie } = await createUserWithSession('ann-signed@example.com', 'AnnSigned', 'password');
+      const { cookie } = await createUserWithSession(
+        'ann-signed@example.com',
+        'AnnSigned',
+        'password',
+      );
 
       // Seed a diary entry with a non-empty signatures array in metadata.
       // photos.ts uses isDiaryEntrySigned() which queries diaryEntries directly (not diaryService).
@@ -1297,7 +1319,11 @@ describe('Photo Routes', () => {
     });
 
     it('returns 200 when photo is on an unsigned diary entry', async () => {
-      const { cookie } = await createUserWithSession('ann-unsigned@example.com', 'AnnUnsigned', 'password');
+      const { cookie } = await createUserWithSession(
+        'ann-unsigned@example.com',
+        'AnnUnsigned',
+        'password',
+      );
 
       // Seed a diary entry with empty signatures — isDiaryEntrySigned() must return false.
       const unsignedEntryId = insertDiaryEntry({
@@ -1339,7 +1365,11 @@ describe('Photo Routes', () => {
     });
 
     it('returns 200 when photo is not on a diary entry', async () => {
-      const { cookie } = await createUserWithSession('ann-other@example.com', 'AnnOther', 'password');
+      const { cookie } = await createUserWithSession(
+        'ann-other@example.com',
+        'AnnOther',
+        'password',
+      );
       const photoWithOtherEntity = makePhoto({
         entityType: 'work_item',
         entityId: 'work-item-789',
@@ -1389,7 +1419,13 @@ describe('Photo Routes', () => {
 
     it('returns 204 on success', async () => {
       const { cookie } = await createUserWithSession('del-ann@example.com', 'DelAnn', 'password');
-      mockGetPhoto.mockReturnValue(makePhoto({ id: '33333333-3333-3333-3333-333333333333', entityType: 'work_item', entityId: 'work-item-1' }));
+      mockGetPhoto.mockReturnValue(
+        makePhoto({
+          id: '33333333-3333-3333-3333-333333333333',
+          entityType: 'work_item',
+          entityId: 'work-item-1',
+        }),
+      );
       mockClearAnnotation.mockResolvedValue(undefined);
 
       const response = await app.inject({
@@ -1403,7 +1439,13 @@ describe('Photo Routes', () => {
 
     it('calls clearAnnotation with correct id and storagePath', async () => {
       const { cookie } = await createUserWithSession('del-ann2@example.com', 'DelAnn2', 'password');
-      mockGetPhoto.mockReturnValue(makePhoto({ id: '44444444-4444-4444-4444-444444444444', entityType: 'work_item', entityId: 'work-item-2' }));
+      mockGetPhoto.mockReturnValue(
+        makePhoto({
+          id: '44444444-4444-4444-4444-444444444444',
+          entityType: 'work_item',
+          entityId: 'work-item-2',
+        }),
+      );
 
       await app.inject({
         method: 'DELETE',
@@ -1437,7 +1479,11 @@ describe('Photo Routes', () => {
     });
 
     it('returns 409 when photo is on a signed diary entry', async () => {
-      const { cookie } = await createUserWithSession('del-ann-signed@example.com', 'DelAnnSigned', 'password');
+      const { cookie } = await createUserWithSession(
+        'del-ann-signed@example.com',
+        'DelAnnSigned',
+        'password',
+      );
 
       // Seed a signed diary entry — photos.ts uses isDiaryEntrySigned() which reads the DB directly.
       const signedEntryId = insertDiaryEntry({
@@ -1463,7 +1509,11 @@ describe('Photo Routes', () => {
     });
 
     it('returns 204 when photo is on an unsigned diary entry', async () => {
-      const { cookie } = await createUserWithSession('del-ann-unsigned@example.com', 'DelAnnUnsigned', 'password');
+      const { cookie } = await createUserWithSession(
+        'del-ann-unsigned@example.com',
+        'DelAnnUnsigned',
+        'password',
+      );
 
       // Seed an unsigned diary entry — isDiaryEntrySigned() must return false.
       const unsignedEntryId = insertDiaryEntry({
@@ -1488,7 +1538,11 @@ describe('Photo Routes', () => {
     });
 
     it('returns 204 when photo is not on a diary entry', async () => {
-      const { cookie } = await createUserWithSession('del-ann-other@example.com', 'DelAnnOther', 'password');
+      const { cookie } = await createUserWithSession(
+        'del-ann-other@example.com',
+        'DelAnnOther',
+        'password',
+      );
       const photoWithOtherEntity = makePhoto({
         entityType: 'work_item',
         entityId: 'work-item-999',
@@ -1529,7 +1583,9 @@ describe('Photo Routes', () => {
       // Use a valid UUID so param schema validation passes; mock photo so the new locked-entry
       // check passes before MIME validation.
       const validId = '00000000-0000-0000-0000-000000000001';
-      mockGetPhoto.mockReturnValue(makePhoto({ id: validId, entityType: 'work_item', entityId: 'work-item-1' }));
+      mockGetPhoto.mockReturnValue(
+        makePhoto({ id: validId, entityType: 'work_item', entityId: 'work-item-1' }),
+      );
       const response = await app.inject({
         method: 'PUT',
         url: `/api/photos/${validId}/annotation`,
@@ -1558,7 +1614,9 @@ describe('Photo Routes', () => {
       ]);
 
       const validId = '00000000-0000-0000-0000-000000000002';
-      mockGetPhoto.mockReturnValue(makePhoto({ id: validId, entityType: 'work_item', entityId: 'work-item-1' }));
+      mockGetPhoto.mockReturnValue(
+        makePhoto({ id: validId, entityType: 'work_item', entityId: 'work-item-1' }),
+      );
       await app.inject({
         method: 'PUT',
         url: `/api/photos/${validId}/annotation`,
@@ -1592,7 +1650,9 @@ describe('Photo Routes', () => {
         'password',
       );
       const validId = '00000000-0000-0000-0000-000000000003';
-      mockGetPhoto.mockReturnValue(makePhoto({ id: validId, entityType: 'work_item', entityId: 'work-item-1' }));
+      mockGetPhoto.mockReturnValue(
+        makePhoto({ id: validId, entityType: 'work_item', entityId: 'work-item-1' }),
+      );
       const response = await app.inject({
         method: 'PUT',
         url: `/api/photos/${validId}/annotation`,

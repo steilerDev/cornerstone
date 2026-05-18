@@ -15,7 +15,13 @@ export interface PhotoViewerProps {
   editable?: boolean;
 }
 
-export function PhotoViewer({ photos, initialIndex, onClose, onPhotoAnnotated, editable = true }: PhotoViewerProps) {
+export function PhotoViewer({
+  photos,
+  initialIndex,
+  onClose,
+  onPhotoAnnotated,
+  editable = true,
+}: PhotoViewerProps) {
   const { t } = useTranslation(['photoViewer', 'common']);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isAnnotating, setIsAnnotating] = useState(false);
@@ -202,7 +208,9 @@ export function PhotoViewer({ photos, initialIndex, onClose, onPhotoAnnotated, e
               ref={annotateBtnRef}
               type="button"
               className={`${styles.iconButton} ${
-                !editable || !currentPhoto.width || !currentPhoto.height ? styles.iconButtonDisabled : ''
+                !editable || !currentPhoto.width || !currentPhoto.height
+                  ? styles.iconButtonDisabled
+                  : ''
               }`}
               disabled={!editable || !currentPhoto.width || !currentPhoto.height}
               aria-label={t('photoViewer:annotate')}

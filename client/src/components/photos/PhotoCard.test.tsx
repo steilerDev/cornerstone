@@ -50,46 +50,26 @@ const mockPhoto: Photo = {
 
 describe('PhotoCard', () => {
   it('renders the image with caption', () => {
-    render(
-      <PhotoCard
-        photo={mockPhoto}
-        onClick={jest.fn()}
-      />
-    );
+    render(<PhotoCard photo={mockPhoto} onClick={jest.fn()} />);
     const img = screen.getByAltText('Test Caption');
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute('src', '/api/photos/photo-1/thumbnail');
   });
 
   it('renders the caption overlay', () => {
-    render(
-      <PhotoCard
-        photo={mockPhoto}
-        onClick={jest.fn()}
-      />
-    );
+    render(<PhotoCard photo={mockPhoto} onClick={jest.fn()} />);
     expect(screen.getByText('Test Caption')).toBeInTheDocument();
   });
 
   it('renders the click area button', () => {
-    render(
-      <PhotoCard
-        photo={mockPhoto}
-        onClick={jest.fn()}
-      />
-    );
+    render(<PhotoCard photo={mockPhoto} onClick={jest.fn()} />);
     const clickButton = screen.getByRole('button', { name: /View photo/ });
     expect(clickButton).toBeInTheDocument();
   });
 
   it('calls onClick when clicked', () => {
     const mockClick = jest.fn();
-    render(
-      <PhotoCard
-        photo={mockPhoto}
-        onClick={mockClick}
-      />
-    );
+    render(<PhotoCard photo={mockPhoto} onClick={mockClick} />);
     const clickButton = screen.getByRole('button', { name: /View photo/ });
     fireEvent.click(clickButton);
     expect(mockClick).toHaveBeenCalledTimes(1);
@@ -97,14 +77,7 @@ describe('PhotoCard', () => {
 
   it('renders Edit button when onEdit is provided and editable=true', () => {
     const mockEdit = jest.fn();
-    render(
-      <PhotoCard
-        photo={mockPhoto}
-        onClick={jest.fn()}
-        onEdit={mockEdit}
-        editable={true}
-      />
-    );
+    render(<PhotoCard photo={mockPhoto} onClick={jest.fn()} onEdit={mockEdit} editable={true} />);
     // Hover to show action buttons
     const card = screen.getByRole('listitem');
     fireEvent.mouseEnter(card);
@@ -115,14 +88,7 @@ describe('PhotoCard', () => {
 
   it('does NOT render Edit button when editable=false (even if onEdit is provided)', () => {
     const mockEdit = jest.fn();
-    render(
-      <PhotoCard
-        photo={mockPhoto}
-        onClick={jest.fn()}
-        onEdit={mockEdit}
-        editable={false}
-      />
-    );
+    render(<PhotoCard photo={mockPhoto} onClick={jest.fn()} onEdit={mockEdit} editable={false} />);
     // Hover to show action buttons
     const card = screen.getByRole('listitem');
     fireEvent.mouseEnter(card);
@@ -133,14 +99,7 @@ describe('PhotoCard', () => {
 
   it('calls onEdit when Edit button is clicked', () => {
     const mockEdit = jest.fn();
-    render(
-      <PhotoCard
-        photo={mockPhoto}
-        onClick={jest.fn()}
-        onEdit={mockEdit}
-        editable={true}
-      />
-    );
+    render(<PhotoCard photo={mockPhoto} onClick={jest.fn()} onEdit={mockEdit} editable={true} />);
     // Hover to show action buttons
     const card = screen.getByRole('listitem');
     fireEvent.mouseEnter(card);
@@ -152,13 +111,7 @@ describe('PhotoCard', () => {
 
   it('renders Delete button when onDelete is provided', () => {
     const mockDelete = jest.fn();
-    render(
-      <PhotoCard
-        photo={mockPhoto}
-        onClick={jest.fn()}
-        onDelete={mockDelete}
-      />
-    );
+    render(<PhotoCard photo={mockPhoto} onClick={jest.fn()} onDelete={mockDelete} />);
     // Hover to show action buttons
     const card = screen.getByRole('listitem');
     fireEvent.mouseEnter(card);
@@ -169,13 +122,7 @@ describe('PhotoCard', () => {
 
   it('calls onDelete when Delete button is clicked', () => {
     const mockDelete = jest.fn();
-    render(
-      <PhotoCard
-        photo={mockPhoto}
-        onClick={jest.fn()}
-        onDelete={mockDelete}
-      />
-    );
+    render(<PhotoCard photo={mockPhoto} onClick={jest.fn()} onDelete={mockDelete} />);
     // Hover to show action buttons
     const card = screen.getByRole('listitem');
     fireEvent.mouseEnter(card);
@@ -187,12 +134,7 @@ describe('PhotoCard', () => {
 
   it('calls onClick when Enter key is pressed', () => {
     const mockClick = jest.fn();
-    render(
-      <PhotoCard
-        photo={mockPhoto}
-        onClick={mockClick}
-      />
-    );
+    render(<PhotoCard photo={mockPhoto} onClick={mockClick} />);
     const card = screen.getByRole('listitem');
     fireEvent.keyDown(card, { key: 'Enter' });
     expect(mockClick).toHaveBeenCalledTimes(1);
@@ -200,12 +142,7 @@ describe('PhotoCard', () => {
 
   it('calls onClick when Space key is pressed', () => {
     const mockClick = jest.fn();
-    render(
-      <PhotoCard
-        photo={mockPhoto}
-        onClick={mockClick}
-      />
-    );
+    render(<PhotoCard photo={mockPhoto} onClick={mockClick} />);
     const card = screen.getByRole('listitem');
     fireEvent.keyDown(card, { key: ' ' });
     expect(mockClick).toHaveBeenCalledTimes(1);
@@ -213,13 +150,7 @@ describe('PhotoCard', () => {
 
   it('calls onDelete when Delete key is pressed', () => {
     const mockDelete = jest.fn();
-    render(
-      <PhotoCard
-        photo={mockPhoto}
-        onClick={jest.fn()}
-        onDelete={mockDelete}
-      />
-    );
+    render(<PhotoCard photo={mockPhoto} onClick={jest.fn()} onDelete={mockDelete} />);
     const card = screen.getByRole('listitem');
     fireEvent.keyDown(card, { key: 'Delete' });
     expect(mockDelete).toHaveBeenCalledTimes(1);
@@ -227,14 +158,7 @@ describe('PhotoCard', () => {
 
   it('hides action buttons on blur', () => {
     const mockEdit = jest.fn();
-    render(
-      <PhotoCard
-        photo={mockPhoto}
-        onClick={jest.fn()}
-        onEdit={mockEdit}
-        editable={true}
-      />
-    );
+    render(<PhotoCard photo={mockPhoto} onClick={jest.fn()} onEdit={mockEdit} editable={true} />);
     const card = screen.getByRole('listitem');
 
     // Hover to show buttons
@@ -250,13 +174,7 @@ describe('PhotoCard', () => {
 
   it('defaults editable to true when not provided', () => {
     const mockEdit = jest.fn();
-    render(
-      <PhotoCard
-        photo={mockPhoto}
-        onClick={jest.fn()}
-        onEdit={mockEdit}
-      />
-    );
+    render(<PhotoCard photo={mockPhoto} onClick={jest.fn()} onEdit={mockEdit} />);
     // Hover to show action buttons
     const card = screen.getByRole('listitem');
     fireEvent.mouseEnter(card);
