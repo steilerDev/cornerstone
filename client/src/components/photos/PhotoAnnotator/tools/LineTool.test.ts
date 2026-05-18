@@ -39,11 +39,7 @@ function makeState(overrides: Partial<AnnotatorState> = {}): AnnotatorState {
   };
 }
 
-function makeCtx(
-  imageX: number,
-  imageY: number,
-  shiftKey = false,
-): PointerContext {
+function makeCtx(imageX: number, imageY: number, shiftKey = false): PointerContext {
   return {
     imageX,
     imageY,
@@ -167,7 +163,10 @@ describe('LineTool', () => {
       const downActions = LineTool.onPointerDown(makeState(), makeCtx(50, 60));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = LineTool.onPointerMove(makeState({ draftShape }), makeCtx(200, 180, false));
+      const moveActions = LineTool.onPointerMove(
+        makeState({ draftShape }),
+        makeCtx(200, 180, false),
+      );
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
@@ -181,7 +180,10 @@ describe('LineTool', () => {
       const downActions = LineTool.onPointerDown(makeState(), makeCtx(50, 60));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = LineTool.onPointerMove(makeState({ draftShape }), makeCtx(200, 180, false));
+      const moveActions = LineTool.onPointerMove(
+        makeState({ draftShape }),
+        makeCtx(200, 180, false),
+      );
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
@@ -207,7 +209,10 @@ describe('LineTool', () => {
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
       // dx=100, dy=5 — angle ≈ 2.9° → snaps to 0° (horizontal)
-      const moveActions = LineTool.onPointerMove(makeState({ draftShape }), makeCtx(200, 105, true));
+      const moveActions = LineTool.onPointerMove(
+        makeState({ draftShape }),
+        makeCtx(200, 105, true),
+      );
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
@@ -225,7 +230,10 @@ describe('LineTool', () => {
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
       // dx=5, dy=100 — angle ≈ 87° → snaps to 90° (vertical)
-      const moveActions = LineTool.onPointerMove(makeState({ draftShape }), makeCtx(105, 200, true));
+      const moveActions = LineTool.onPointerMove(
+        makeState({ draftShape }),
+        makeCtx(105, 200, true),
+      );
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
@@ -242,7 +250,10 @@ describe('LineTool', () => {
       const downActions = LineTool.onPointerDown(makeState(), makeCtx(100, 100));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = LineTool.onPointerMove(makeState({ draftShape }), makeCtx(200, 200, true));
+      const moveActions = LineTool.onPointerMove(
+        makeState({ draftShape }),
+        makeCtx(200, 200, true),
+      );
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
@@ -258,7 +269,10 @@ describe('LineTool', () => {
       const downActions = LineTool.onPointerDown(makeState(), makeCtx(100, 100));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = LineTool.onPointerMove(makeState({ draftShape }), makeCtx(200, 105, false));
+      const moveActions = LineTool.onPointerMove(
+        makeState({ draftShape }),
+        makeCtx(200, 105, false),
+      );
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
@@ -274,7 +288,10 @@ describe('LineTool', () => {
       const downActions = LineTool.onPointerDown(makeState(), makeCtx(100, 100));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = LineTool.onPointerMove(makeState({ draftShape }), makeCtx(100, 100, true));
+      const moveActions = LineTool.onPointerMove(
+        makeState({ draftShape }),
+        makeCtx(100, 100, true),
+      );
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
@@ -292,10 +309,16 @@ describe('LineTool', () => {
       const draftShape0 = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
       // Move to create a 100px horizontal line
-      const moveActions = LineTool.onPointerMove(makeState({ draftShape: draftShape0 }), makeCtx(150, 60));
+      const moveActions = LineTool.onPointerMove(
+        makeState({ draftShape: draftShape0 }),
+        makeCtx(150, 60),
+      );
       const largeDraft = moveActions[0]!.type === 'SET_DRAFT' ? moveActions[0]!.shape : null;
 
-      const upActions = LineTool.onPointerUp(makeState({ draftShape: largeDraft }), makeCtx(150, 60));
+      const upActions = LineTool.onPointerUp(
+        makeState({ draftShape: largeDraft }),
+        makeCtx(150, 60),
+      );
 
       expect(upActions).toHaveLength(1);
       expect(upActions[0]!.type).toBe('COMMIT_DRAFT');
@@ -337,7 +360,10 @@ describe('LineTool', () => {
         strokeWidth: 4,
       };
 
-      const upActions = LineTool.onPointerUp(makeState({ draftShape: atThreshold }), makeCtx(52, 60));
+      const upActions = LineTool.onPointerUp(
+        makeState({ draftShape: atThreshold }),
+        makeCtx(52, 60),
+      );
 
       expect(upActions[0]!.type).toBe('COMMIT_DRAFT');
     });

@@ -136,8 +136,14 @@ export function drawShapeOnCanvas(ctx: CanvasRenderingContext2D, shape: Annotati
     ctx.fillStyle = shape.stroke;
     ctx.beginPath();
     ctx.moveTo(shape.x2, shape.y2);
-    ctx.lineTo(shape.x2 - headlen * Math.cos(angle - Math.PI / 6), shape.y2 - headlen * Math.sin(angle - Math.PI / 6));
-    ctx.lineTo(shape.x2 - headlen * Math.cos(angle + Math.PI / 6), shape.y2 - headlen * Math.sin(angle + Math.PI / 6));
+    ctx.lineTo(
+      shape.x2 - headlen * Math.cos(angle - Math.PI / 6),
+      shape.y2 - headlen * Math.sin(angle - Math.PI / 6),
+    );
+    ctx.lineTo(
+      shape.x2 - headlen * Math.cos(angle + Math.PI / 6),
+      shape.y2 - headlen * Math.sin(angle + Math.PI / 6),
+    );
     ctx.closePath();
     ctx.fill();
   } else if (shape.type === 'line') {

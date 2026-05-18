@@ -9,7 +9,14 @@ export type ToolName = 'select' | 'rectangle' | 'highlight' | 'arrow' | 'line' |
 
 export type StrokeWidthKey = keyof typeof ANNOTATION_STROKE_WIDTHS;
 
-export type { AnnotationShape, RectangleShape, HighlightShape, ArrowShape, LineShape, EllipseShape } from './useUndoStack.js';
+export type {
+  AnnotationShape,
+  RectangleShape,
+  HighlightShape,
+  ArrowShape,
+  LineShape,
+  EllipseShape,
+} from './useUndoStack.js';
 
 export type DragMode = 'move' | 'resize' | null;
 

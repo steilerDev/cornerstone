@@ -54,7 +54,12 @@ export interface EllipseShape {
   strokeWidth: number;
 }
 
-export type AnnotationShape = RectangleShape | HighlightShape | ArrowShape | LineShape | EllipseShape;
+export type AnnotationShape =
+  | RectangleShape
+  | HighlightShape
+  | ArrowShape
+  | LineShape
+  | EllipseShape;
 
 export interface UndoStack {
   past: AnnotationShape[][];

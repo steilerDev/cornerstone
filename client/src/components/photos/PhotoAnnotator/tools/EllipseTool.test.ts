@@ -39,11 +39,7 @@ function makeState(overrides: Partial<AnnotatorState> = {}): AnnotatorState {
   };
 }
 
-function makeCtx(
-  imageX: number,
-  imageY: number,
-  shiftKey = false,
-): PointerContext {
+function makeCtx(imageX: number, imageY: number, shiftKey = false): PointerContext {
   return {
     imageX,
     imageY,
@@ -147,7 +143,7 @@ describe('EllipseTool', () => {
       const shape = action.shape;
       if (!shape || shape.type !== 'ellipse') throw new Error('expected ellipse');
       // EllipseShape has no fill property — it should not be present
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       expect((shape as unknown as Record<string, unknown>)['fill']).toBeUndefined();
     });
 
@@ -181,7 +177,10 @@ describe('EllipseTool', () => {
       const downActions = EllipseTool.onPointerDown(makeState(), makeCtx(100, 100));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = EllipseTool.onPointerMove(makeState({ draftShape }), makeCtx(200, 160, false));
+      const moveActions = EllipseTool.onPointerMove(
+        makeState({ draftShape }),
+        makeCtx(200, 160, false),
+      );
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
@@ -200,7 +199,10 @@ describe('EllipseTool', () => {
       const downActions = EllipseTool.onPointerDown(makeState(), makeCtx(200, 200));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = EllipseTool.onPointerMove(makeState({ draftShape }), makeCtx(100, 120, false));
+      const moveActions = EllipseTool.onPointerMove(
+        makeState({ draftShape }),
+        makeCtx(100, 120, false),
+      );
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
@@ -227,7 +229,10 @@ describe('EllipseTool', () => {
       const downActions = EllipseTool.onPointerDown(makeState(), makeCtx(100, 100));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = EllipseTool.onPointerMove(makeState({ draftShape }), makeCtx(200, 160, true));
+      const moveActions = EllipseTool.onPointerMove(
+        makeState({ draftShape }),
+        makeCtx(200, 160, true),
+      );
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
@@ -243,7 +248,10 @@ describe('EllipseTool', () => {
       const downActions = EllipseTool.onPointerDown(makeState(), makeCtx(100, 100));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = EllipseTool.onPointerMove(makeState({ draftShape }), makeCtx(200, 160, false));
+      const moveActions = EllipseTool.onPointerMove(
+        makeState({ draftShape }),
+        makeCtx(200, 160, false),
+      );
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
@@ -262,7 +270,10 @@ describe('EllipseTool', () => {
       const downActions = EllipseTool.onPointerDown(makeState(), makeCtx(200, 200));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = EllipseTool.onPointerMove(makeState({ draftShape }), makeCtx(300, 280, true));
+      const moveActions = EllipseTool.onPointerMove(
+        makeState({ draftShape }),
+        makeCtx(300, 280, true),
+      );
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
@@ -284,7 +295,10 @@ describe('EllipseTool', () => {
       const downActions = EllipseTool.onPointerDown(makeState(), makeCtx(200, 200));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
-      const moveActions = EllipseTool.onPointerMove(makeState({ draftShape }), makeCtx(100, 120, true));
+      const moveActions = EllipseTool.onPointerMove(
+        makeState({ draftShape }),
+        makeCtx(100, 120, true),
+      );
 
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
@@ -305,7 +319,10 @@ describe('EllipseTool', () => {
     function getEllipseFromDrag(toX: number, toY: number) {
       const downActions = EllipseTool.onPointerDown(makeState(), makeCtx(200, 200));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
-      const moveActions = EllipseTool.onPointerMove(makeState({ draftShape }), makeCtx(toX, toY, false));
+      const moveActions = EllipseTool.onPointerMove(
+        makeState({ draftShape }),
+        makeCtx(toX, toY, false),
+      );
       const action = moveActions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape;
@@ -373,10 +390,16 @@ describe('EllipseTool', () => {
       const draftShape0 = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
       // Move to create a large ellipse
-      const moveActions = EllipseTool.onPointerMove(makeState({ draftShape: draftShape0 }), makeCtx(200, 200));
+      const moveActions = EllipseTool.onPointerMove(
+        makeState({ draftShape: draftShape0 }),
+        makeCtx(200, 200),
+      );
       const largeDraft = moveActions[0]!.type === 'SET_DRAFT' ? moveActions[0]!.shape : null;
 
-      const upActions = EllipseTool.onPointerUp(makeState({ draftShape: largeDraft }), makeCtx(200, 200));
+      const upActions = EllipseTool.onPointerUp(
+        makeState({ draftShape: largeDraft }),
+        makeCtx(200, 200),
+      );
 
       expect(upActions).toHaveLength(1);
       expect(upActions[0]!.type).toBe('COMMIT_DRAFT');
@@ -396,7 +419,10 @@ describe('EllipseTool', () => {
         strokeWidth: 4,
       };
 
-      const upActions = EllipseTool.onPointerUp(makeState({ draftShape: tinyRx }), makeCtx(100, 100));
+      const upActions = EllipseTool.onPointerUp(
+        makeState({ draftShape: tinyRx }),
+        makeCtx(100, 100),
+      );
 
       expect(upActions).toHaveLength(1);
       const action = upActions[0]!;
@@ -418,7 +444,10 @@ describe('EllipseTool', () => {
         strokeWidth: 4,
       };
 
-      const upActions = EllipseTool.onPointerUp(makeState({ draftShape: tinyRy }), makeCtx(100, 100));
+      const upActions = EllipseTool.onPointerUp(
+        makeState({ draftShape: tinyRy }),
+        makeCtx(100, 100),
+      );
 
       expect(upActions).toHaveLength(1);
       const action = upActions[0]!;
@@ -440,7 +469,10 @@ describe('EllipseTool', () => {
         strokeWidth: 4,
       };
 
-      const upActions = EllipseTool.onPointerUp(makeState({ draftShape: atThreshold }), makeCtx(101, 101));
+      const upActions = EllipseTool.onPointerUp(
+        makeState({ draftShape: atThreshold }),
+        makeCtx(101, 101),
+      );
 
       expect(upActions[0]!.type).toBe('COMMIT_DRAFT');
     });

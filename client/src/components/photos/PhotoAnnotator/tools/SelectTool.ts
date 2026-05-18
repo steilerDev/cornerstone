@@ -46,9 +46,25 @@ export const SelectTool: ToolHandler = {
       if (shape.type === 'rectangle' || shape.type === 'highlight') {
         handleHit = hitTestHandles(imageX, imageY, shape, 8);
       } else if (shape.type === 'arrow' || shape.type === 'line') {
-        handleHit = hitTestEndpointHandles(imageX, imageY, shape.x1, shape.y1, shape.x2, shape.y2, 8);
+        handleHit = hitTestEndpointHandles(
+          imageX,
+          imageY,
+          shape.x1,
+          shape.y1,
+          shape.x2,
+          shape.y2,
+          8,
+        );
       } else if (shape.type === 'ellipse') {
-        handleHit = hitTestCardinalHandles(imageX, imageY, shape.cx, shape.cy, shape.rx, shape.ry, 8);
+        handleHit = hitTestCardinalHandles(
+          imageX,
+          imageY,
+          shape.cx,
+          shape.cy,
+          shape.rx,
+          shape.ry,
+          8,
+        );
       }
 
       if (handleHit) {
@@ -75,7 +91,17 @@ export const SelectTool: ToolHandler = {
       } else if (shape.type === 'arrow' || shape.type === 'line') {
         bodyHit = hitTestLine(imageX, imageY, shape.x1, shape.y1, shape.x2, shape.y2, 4) !== null;
       } else if (shape.type === 'ellipse') {
-        bodyHit = hitTestEllipse(imageX, imageY, shape.cx, shape.cy, shape.rx, shape.ry, shape.strokeWidth, 0) !== null;
+        bodyHit =
+          hitTestEllipse(
+            imageX,
+            imageY,
+            shape.cx,
+            shape.cy,
+            shape.rx,
+            shape.ry,
+            shape.strokeWidth,
+            0,
+          ) !== null;
       }
 
       if (bodyHit) {
@@ -117,10 +143,28 @@ export const SelectTool: ToolHandler = {
         const moved = translateShape(startShape, dx, dy, imageWidth, imageHeight);
         updatedShape = { ...startShape, ...moved };
       } else if (startShape.type === 'arrow' || startShape.type === 'line') {
-        const moved = translateArrowLine(startShape.x1, startShape.y1, startShape.x2, startShape.y2, dx, dy, imageWidth, imageHeight);
+        const moved = translateArrowLine(
+          startShape.x1,
+          startShape.y1,
+          startShape.x2,
+          startShape.y2,
+          dx,
+          dy,
+          imageWidth,
+          imageHeight,
+        );
         updatedShape = { ...startShape, ...moved };
       } else if (startShape.type === 'ellipse') {
-        const moved = translateEllipse(startShape.cx, startShape.cy, startShape.rx, startShape.ry, dx, dy, imageWidth, imageHeight);
+        const moved = translateEllipse(
+          startShape.cx,
+          startShape.cy,
+          startShape.rx,
+          startShape.ry,
+          dx,
+          dy,
+          imageWidth,
+          imageHeight,
+        );
         updatedShape = { ...startShape, ...moved };
       } else {
         updatedShape = startShape;

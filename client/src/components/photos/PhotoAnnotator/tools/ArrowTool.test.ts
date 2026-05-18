@@ -39,11 +39,7 @@ function makeState(overrides: Partial<AnnotatorState> = {}): AnnotatorState {
   };
 }
 
-function makeCtx(
-  imageX: number,
-  imageY: number,
-  shiftKey = false,
-): PointerContext {
+function makeCtx(imageX: number, imageY: number, shiftKey = false): PointerContext {
   return {
     imageX,
     imageY,
@@ -206,10 +202,16 @@ describe('ArrowTool', () => {
       const draftShape0 = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
       // Move to create a 100px horizontal arrow (distance=100 >= 2)
-      const moveActions = ArrowTool.onPointerMove(makeState({ draftShape: draftShape0 }), makeCtx(150, 60));
+      const moveActions = ArrowTool.onPointerMove(
+        makeState({ draftShape: draftShape0 }),
+        makeCtx(150, 60),
+      );
       const largeDraft = moveActions[0]!.type === 'SET_DRAFT' ? moveActions[0]!.shape : null;
 
-      const upActions = ArrowTool.onPointerUp(makeState({ draftShape: largeDraft }), makeCtx(150, 60));
+      const upActions = ArrowTool.onPointerUp(
+        makeState({ draftShape: largeDraft }),
+        makeCtx(150, 60),
+      );
 
       expect(upActions).toHaveLength(1);
       expect(upActions[0]!.type).toBe('COMMIT_DRAFT');
@@ -230,7 +232,10 @@ describe('ArrowTool', () => {
         strokeWidth: 4,
       };
 
-      const upActions = ArrowTool.onPointerUp(makeState({ draftShape: shortArrow }), makeCtx(51, 60));
+      const upActions = ArrowTool.onPointerUp(
+        makeState({ draftShape: shortArrow }),
+        makeCtx(51, 60),
+      );
 
       expect(upActions).toHaveLength(1);
       const action = upActions[0]!;
@@ -252,7 +257,10 @@ describe('ArrowTool', () => {
         strokeWidth: 4,
       };
 
-      const upActions = ArrowTool.onPointerUp(makeState({ draftShape: atThreshold }), makeCtx(52, 60));
+      const upActions = ArrowTool.onPointerUp(
+        makeState({ draftShape: atThreshold }),
+        makeCtx(52, 60),
+      );
 
       expect(upActions[0]!.type).toBe('COMMIT_DRAFT');
     });

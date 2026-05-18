@@ -129,7 +129,11 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
               shape: {
                 ...selectedShape,
                 cx: clamp(selectedShape.cx + dx, selectedShape.rx, photo.width! - selectedShape.rx),
-                cy: clamp(selectedShape.cy + dy, selectedShape.ry, photo.height! - selectedShape.ry),
+                cy: clamp(
+                  selectedShape.cy + dy,
+                  selectedShape.ry,
+                  photo.height! - selectedShape.ry,
+                ),
               },
             });
           }
@@ -373,14 +377,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         >
           {/* SVG arrowhead marker */}
           <defs>
-            <marker
-              id="arrowhead"
-              markerWidth="8"
-              markerHeight="6"
-              refX="8"
-              refY="3"
-              orient="auto"
-            >
+            <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
               <polygon points="0 0, 8 3, 0 6" fill="context-stroke" />
             </marker>
           </defs>
@@ -529,7 +526,9 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                       fill="var(--color-bg-primary)"
                       stroke="var(--color-primary)"
                       strokeWidth="1.5"
-                      style={{ cursor: pos === 'north' || pos === 'south' ? 'ns-resize' : 'ew-resize' }}
+                      style={{
+                        cursor: pos === 'north' || pos === 'south' ? 'ns-resize' : 'ew-resize',
+                      }}
                     />
                   ))}
                 </>

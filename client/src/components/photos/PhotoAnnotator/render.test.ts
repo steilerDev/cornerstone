@@ -12,7 +12,13 @@
 
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { renderShapeSvgProps, drawShapeOnCanvas } from './render.js';
-import type { RectangleShape, HighlightShape, ArrowShape, LineShape, EllipseShape } from './useUndoStack.js';
+import type {
+  RectangleShape,
+  HighlightShape,
+  ArrowShape,
+  LineShape,
+  EllipseShape,
+} from './useUndoStack.js';
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
 

@@ -114,7 +114,21 @@ export function hitTestHighlight(
  * Returns one of 8 resize handle positions for a bounding box,
  * or null if the point is not on any handle.
  */
-export type HandlePosition = 'nw' | 'n' | 'ne' | 'w' | 'e' | 'sw' | 's' | 'se' | 'start' | 'end' | 'north' | 'south' | 'east' | 'west';
+export type HandlePosition =
+  | 'nw'
+  | 'n'
+  | 'ne'
+  | 'w'
+  | 'e'
+  | 'sw'
+  | 's'
+  | 'se'
+  | 'start'
+  | 'end'
+  | 'north'
+  | 'south'
+  | 'east'
+  | 'west';
 
 export function hitTestHandles(
   px: number,
@@ -329,10 +343,10 @@ export function translateArrowLine(
   imageWidth: number,
   imageHeight: number,
 ): { x1: number; y1: number; x2: number; y2: number } {
-  let newX1 = clamp(x1 + dx, 0, imageWidth);
-  let newY1 = clamp(y1 + dy, 0, imageHeight);
-  let newX2 = clamp(x2 + dx, 0, imageWidth);
-  let newY2 = clamp(y2 + dy, 0, imageHeight);
+  const newX1 = clamp(x1 + dx, 0, imageWidth);
+  const newY1 = clamp(y1 + dy, 0, imageHeight);
+  const newX2 = clamp(x2 + dx, 0, imageWidth);
+  const newY2 = clamp(y2 + dy, 0, imageHeight);
 
   return { x1: newX1, y1: newY1, x2: newX2, y2: newY2 };
 }
