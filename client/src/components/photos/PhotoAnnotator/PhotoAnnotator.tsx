@@ -18,7 +18,7 @@ import { FreehandTool } from './tools/FreehandTool.js';
 import { SelectTool } from './tools/SelectTool.js';
 import type { PointerContext } from './tools/SelectTool.js';
 import { screenToImage, imageToScreen, clamp } from './geometry.js';
-import { renderShapeSvgProps, drawShapeOnCanvas } from './render.js';
+import { renderShapeSvgProps, drawShapeOnCanvas, ANNOTATION_FONT_FAMILY } from './render.js';
 import { FormError } from '../../FormError/FormError.js';
 import { getBaseUrl } from '../../../lib/apiClient.js';
 import { uploadAnnotation } from '../../../lib/photoApi.js';
@@ -699,7 +699,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     [state, photo.width, photo.height, dispatch, undoStack, openInlineInput, inlineInput.isOpen, t],
   );
 
-  // Floating input positioning
+  // Floating input positioning and styling
   const inlineInputStyle = useMemo((): React.CSSProperties => {
     if (!inlineInput.isOpen || !imgRef.current) return { display: 'none' };
     const imgRect = imgRef.current.getBoundingClientRect();
@@ -712,13 +712,30 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     );
     // Position is relative to the `.canvasArea` container; subtract its top-left
     const containerRect = imgRef.current.parentElement!.getBoundingClientRect();
+
+    // Determine the text color to use:
+    // - If editing an existing text/callout shape, use its color
+    // - Otherwise, use the currently-selected active color
+    let textColor = state.activeColor;
+    if (inlineInput.editingShapeId) {
+      const editingShape = state.shapes.find((s) => s.id === inlineInput.editingShapeId);
+      if (editingShape && (editingShape.type === 'text' || editingShape.type === 'callout')) {
+        textColor = editingShape.color;
+      }
+    }
+
+    const screenFontSizePx = getActiveFontSizePx() * (imgRect.width / photo.width!);
+
     return {
       position: 'absolute',
       left: screenX - containerRect.left,
       top: screenY - containerRect.top,
-      fontSize: `${getActiveFontSizePx() * (imgRect.width / photo.width!)}px`,
+      fontSize: `${screenFontSizePx}px`,
+      color: textColor,
+      fontFamily: ANNOTATION_FONT_FAMILY,
+      background: 'transparent',
     };
-  }, [inlineInput, photo.width, photo.height, state.activeFontSizeKey]);
+  }, [inlineInput, photo.width, photo.height, state.activeFontSizeKey, state.activeColor, state.shapes]);
 
   const handleCancel = useCallback(() => {
     onCancel();
