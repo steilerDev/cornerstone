@@ -71,13 +71,22 @@ export function renderShapeSvgProps(shape: AnnotationShape, isDraft: boolean): S
       },
     };
   } else if (shape.type === 'arrow') {
+    // Shorten the line endpoint by the arrowhead length so it ends at the marker's base
+    // The marker has markerWidth="8" and refX="8", meaning the arrowhead base is 8 * strokeWidth back from the tip
+    const dx = shape.x2 - shape.x1;
+    const dy = shape.y2 - shape.y1;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const shortenDist = 8 * shape.strokeWidth;
+    const shortenedX2 = shape.x2 - (dx / len) * shortenDist;
+    const shortenedY2 = shape.y2 - (dy / len) * shortenDist;
+
     return {
       tagName: 'line',
       attributes: {
         x1: shape.x1,
         y1: shape.y1,
-        x2: shape.x2,
-        y2: shape.y2,
+        x2: shortenedX2,
+        y2: shortenedY2,
         stroke: shape.stroke,
         'stroke-width': shape.strokeWidth,
         'stroke-linecap': 'round',
@@ -286,15 +295,23 @@ export function drawShapeOnCanvas(ctx: CanvasRenderingContext2D, shape: Annotati
     ctx.fillRect(shape.x, shape.y, shape.w, shape.h);
     ctx.globalAlpha = 1;
   } else if (shape.type === 'arrow') {
+    // Shorten the line endpoint by the arrowhead length so it ends at the arrowhead's base
+    const dx = shape.x2 - shape.x1;
+    const dy = shape.y2 - shape.y1;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const shortenDist = 8 * shape.strokeWidth;
+    const shortenedX2 = shape.x2 - (dx / len) * shortenDist;
+    const shortenedY2 = shape.y2 - (dy / len) * shortenDist;
+
     ctx.strokeStyle = shape.stroke;
     ctx.lineWidth = shape.strokeWidth;
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(shape.x1, shape.y1);
-    ctx.lineTo(shape.x2, shape.y2);
+    ctx.lineTo(shortenedX2, shortenedY2);
     ctx.stroke();
 
-    // Draw arrowhead
+    // Draw arrowhead at the original endpoint (shape.x2, shape.y2)
     const headlen = shape.strokeWidth * 3;
     const angle = Math.atan2(shape.y2 - shape.y1, shape.x2 - shape.x1);
 
