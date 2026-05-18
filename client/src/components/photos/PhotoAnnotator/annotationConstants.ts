@@ -16,10 +16,10 @@ export type AnnotationColor = (typeof ANNOTATION_COLORS)[keyof typeof ANNOTATION
  * These scale stroke widths to match the image resolution.
  */
 export const ANNOTATION_STROKE_WIDTH_RATIOS = {
-  thin: 0.008,
-  medium: 0.014,
-  thick: 0.024,
-  'extra-thick': 0.04,
+  thin: 0.005,
+  medium: 0.009,
+  thick: 0.015,
+  'extra-thick': 0.025,
 } as const;
 
 export type StrokeWidthKey = keyof typeof ANNOTATION_STROKE_WIDTH_RATIOS;
@@ -29,11 +29,11 @@ export type StrokeWidthKey = keyof typeof ANNOTATION_STROKE_WIDTH_RATIOS;
  * These scale font sizes to match the image resolution.
  */
 export const ANNOTATION_FONT_SIZE_RATIOS = {
-  small: 0.024,
-  medium: 0.04,
-  large: 0.056,
-  xlarge: 0.08,
-  xxlarge: 0.12,
+  small: 0.018,
+  medium: 0.028,
+  large: 0.04,
+  xlarge: 0.056,
+  xxlarge: 0.08,
 } as const;
 
 export type FontSizeKey = keyof typeof ANNOTATION_FONT_SIZE_RATIOS;
