@@ -6,6 +6,69 @@ import { resolveStrokeWidth } from './annotationConstants.js';
  *  Must be kept in sync between SVG rendering and canvas 2D rendering. */
 export const ANNOTATION_FONT_FAMILY = 'system-ui, -apple-system, sans-serif';
 
+/**
+ * Calculates the effective font size for a callout, shrinking if needed to fit text.
+ * Uses a heuristic based on character count vs available area.
+ *
+ * @param text - The callout text
+ * @param fontSize - The user-chosen font size
+ * @param availW - Available width inside the box (after padding)
+ * @param availH - Available height inside the box (after padding)
+ * @returns Effective font size (may be smaller than fontSize, never < 8px)
+ */
+export function calculateCalloutEffectiveFontSize(
+  text: string,
+  fontSize: number,
+  availW: number,
+  availH: number,
+): number {
+  if (!text || text.length === 0) return fontSize;
+
+  // Heuristic: assume ~0.55 character widths per font size unit (varies by font)
+  // and ~1.2 line heights per font size unit.
+  const charsPerLine = Math.max(1, Math.floor(availW / (fontSize * 0.55)));
+  const linesAvailable = Math.max(1, Math.floor(availH / (fontSize * 1.2)));
+
+  // Estimate how many lines this text will need
+  const estimatedLines = Math.ceil(text.length / charsPerLine);
+
+  // If it overflows, scale down proportionally
+  const fontScale = estimatedLines > linesAvailable ? linesAvailable / estimatedLines : 1;
+  const effectiveFontSize = Math.max(8, fontSize * fontScale); // minimum 8px
+
+  return effectiveFontSize;
+}
+
+/**
+ * Wraps text into multiple lines given a max width on canvas context.
+ * Uses word-break: greedy word wrapping with the canvas context's current font.
+ *
+ * @param text - The text to wrap
+ * @param maxWidth - Maximum width per line
+ * @param ctx - Canvas context with font already set
+ * @returns Array of line strings
+ */
+export function wrapTextForCanvas(text: string, maxWidth: number, ctx: CanvasRenderingContext2D): string[] {
+  if (!text) return [];
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width <= maxWidth) {
+      currentLine = testLine;
+    } else {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+
+  return lines;
+}
+
 export type SvgRenderResult =
   | { tagName: 'rect' | 'line' | 'ellipse'; attributes: Record<string, string | number> }
   | { tagName: 'text'; attributes: Record<string, string | number>; children: string }
@@ -14,6 +77,8 @@ export type SvgRenderResult =
       boxAttrs: Record<string, string | number>;
       tailAttrs: Record<string, string | number>;
       textAttrs: Record<string, string | number>;
+      foreignObjectAttrs: Record<string, string | number>;
+      textDivStyle: Record<string, string | number>;
       children: string;
     }
   | {
@@ -181,6 +246,20 @@ export function renderShapeSvgProps(shape: AnnotationShape, isDraft: boolean): S
     );
     // Use strokeWidth from shape if available, otherwise default to 2 for backward compat
     const strokeWidth = calloutShape.strokeWidth ?? 2;
+
+    // Padding inset from box border (in image-space pixels)
+    const inset = 6;
+    const availW = Math.max(1, calloutShape.w - 2 * inset);
+    const availH = Math.max(1, calloutShape.h - 2 * inset);
+
+    // Calculate effective font size with auto-scaling for overflow
+    const effectiveFontSize = calculateCalloutEffectiveFontSize(
+      calloutShape.text,
+      calloutShape.fontSize,
+      availW,
+      availH,
+    );
+
     return {
       tagName: 'callout',
       boxAttrs: {
@@ -207,14 +286,34 @@ export function renderShapeSvgProps(shape: AnnotationShape, isDraft: boolean): S
         opacity: isDraft ? 0.8 : 1,
         'pointer-events': 'none',
       },
+      // Keep textAttrs for backward compat (not used in SVG rendering)
       textAttrs: {
-        x: calloutShape.x + 6,
-        y: calloutShape.y + calloutShape.fontSize + 4,
+        x: calloutShape.x + inset,
+        y: calloutShape.y + effectiveFontSize + inset,
         fill: calloutShape.color,
-        'font-size': calloutShape.fontSize,
+        'font-size': effectiveFontSize,
         'font-family': ANNOTATION_FONT_FAMILY,
         'pointer-events': 'none',
         'user-select': 'none',
+      },
+      // foreignObject for text wrapping
+      foreignObjectAttrs: {
+        x: calloutShape.x + inset,
+        y: calloutShape.y + inset,
+        width: availW,
+        height: availH,
+      },
+      // Inline styles for the text div inside foreignObject
+      textDivStyle: {
+        fontFamily: ANNOTATION_FONT_FAMILY,
+        fontSize: `${effectiveFontSize}px`,
+        color: calloutShape.color,
+        lineHeight: 1.2,
+        overflow: 'hidden',
+        wordWrap: 'break-word',
+        whiteSpace: 'pre-wrap',
+        margin: 0,
+        padding: 0,
       },
       children: calloutShape.text,
     };
@@ -407,10 +506,33 @@ export function drawShapeOnCanvas(ctx: CanvasRenderingContext2D, shape: Annotati
     ctx.lineCap = 'round';
     ctx.stroke();
 
-    // 3. Text
+    // 3. Text with wrapping and auto-scaling
+    const inset = 6;
+    const availW = Math.max(1, calloutShape.w - 2 * inset);
+    const availH = Math.max(1, calloutShape.h - 2 * inset);
+
+    const effectiveFontSize = calculateCalloutEffectiveFontSize(
+      calloutShape.text,
+      calloutShape.fontSize,
+      availW,
+      availH,
+    );
+
     ctx.fillStyle = calloutShape.color;
-    ctx.font = `${calloutShape.fontSize}px ${ANNOTATION_FONT_FAMILY}`;
-    ctx.fillText(calloutShape.text, calloutShape.x + 6, calloutShape.y + calloutShape.fontSize + 4);
+    ctx.font = `${effectiveFontSize}px ${ANNOTATION_FONT_FAMILY}`;
+    const lines = wrapTextForCanvas(calloutShape.text, availW, ctx);
+
+    let currentY = calloutShape.y + inset + effectiveFontSize;
+    const lineHeightPx = effectiveFontSize * 1.2;
+
+    for (const line of lines) {
+      if (currentY + effectiveFontSize > calloutShape.y + calloutShape.h - inset) {
+        // Text would overflow vertically; stop rendering
+        break;
+      }
+      ctx.fillText(line, calloutShape.x + inset, currentY);
+      currentY += lineHeightPx;
+    }
   } else if (shape.type === 'measurement') {
     const dx = shape.x2 - shape.x1;
     const dy = shape.y2 - shape.y1;
