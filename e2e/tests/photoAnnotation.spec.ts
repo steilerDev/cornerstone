@@ -724,9 +724,19 @@ test('Line tool — draw line and save', async ({
     await viewer.drawLine(0.2, 0.5, 0.7, 0.5);
 
     // A <line data-shapeid> should appear (no marker-end for plain line).
-    // Use waitFor to allow React state to propagate after the pointer-up event.
+    // Use waitFor with explicit timeout: actionTimeout (5 s) is too tight on a
+    // 2-vCPU CI shard running testcontainers; expect.timeout (7 s) is the floor,
+    // but 15 s gives the shard comfortable headroom.
     const lineEl = viewer.svgOverlay.locator('line[data-shapeid]').first();
-    await lineEl.waitFor({ state: 'visible' });
+    try {
+      await lineEl.waitFor({ state: 'visible', timeout: 15_000 });
+    } catch (e) {
+      const svgHtml = await page
+        .evaluate(() => document.querySelector('[role="application"]')?.innerHTML ?? '(not found)')
+        .catch(() => '(eval failed)');
+      console.error('[DEBUG] Line shape not visible after drawLine. SVG innerHTML:', svgHtml);
+      throw e;
+    }
     // Arrow has marker-end; plain line has marker-end="none" or absent
     const markerEnd = await lineEl.getAttribute('marker-end');
     expect(markerEnd === null || markerEnd === 'none').toBe(true);
@@ -802,9 +812,19 @@ test('Line tool — Shift-snap constrains angle to 45° increments', async ({
     await page.keyboard.up('Shift');
 
     // The committed line should have y1 ≈ y2 (horizontal snap).
-    // Use waitFor to allow React state to propagate after the pointer-up event.
+    // Use waitFor with explicit 15 s timeout: actionTimeout (5 s) is too tight on
+    // a 2-vCPU CI shard; the shape commit goes through two async React state
+    // updates (useReducer → undoStack useState).
     const lineEl = viewer.svgOverlay.locator('line[data-shapeid]').first();
-    await lineEl.waitFor({ state: 'visible' });
+    try {
+      await lineEl.waitFor({ state: 'visible', timeout: 15_000 });
+    } catch (e) {
+      const svgHtml = await page
+        .evaluate(() => document.querySelector('[role="application"]')?.innerHTML ?? '(not found)')
+        .catch(() => '(eval failed)');
+      console.error('[DEBUG] Shift-snap: line shape not visible after Shift+drag. SVG innerHTML:', svgHtml);
+      throw e;
+    }
 
     const y1 = parseFloat((await lineEl.getAttribute('y1')) ?? '0');
     const y2 = parseFloat((await lineEl.getAttribute('y2')) ?? '0');
@@ -1113,9 +1133,19 @@ test(
 
       // A <g data-shapeid> containing <rect>, <line>, <text> should appear.
       // The callout has 3 interaction phases (drag box, click tail, type text + Enter);
-      // use waitFor to give React time to commit the shape after the last phase.
+      // use waitFor with explicit 15 s timeout — the callout commit goes through
+      // undoStack.commit() (a useState setter) and actionTimeout (5 s) is too tight
+      // on a 2-vCPU CI shard running testcontainers.
       const calloutGroup = viewer.svgOverlay.locator('g[data-shapeid]').first();
-      await calloutGroup.waitFor({ state: 'visible' });
+      try {
+        await calloutGroup.waitFor({ state: 'visible', timeout: 15_000 });
+      } catch (e) {
+        const svgHtml = await page
+          .evaluate(() => document.querySelector('[role="application"]')?.innerHTML ?? '(not found)')
+          .catch(() => '(eval failed)');
+        console.error('[DEBUG] Callout group not visible after drawCallout. SVG innerHTML:', svgHtml);
+        throw e;
+      }
 
       // The text content should be "Defect found"
       const calloutText = calloutGroup.locator('text').first();
@@ -1180,9 +1210,10 @@ test('Measurement tool — drag, type label, Enter commits with label text', asy
     await viewer.drawMeasurement(0.1, 0.5, 0.8, 0.5, '3.5m');
 
     // A <g data-shapeid> should appear containing lines + text.
-    // Use waitFor to handle async React state propagation after inline input commit.
+    // Use waitFor with explicit timeout — actionTimeout (5 s) is too tight on CI;
+    // measurement commits via undoStack.commit() which requires an extra re-render.
     const measureGroup = viewer.svgOverlay.locator('g[data-shapeid]').first();
-    await measureGroup.waitFor({ state: 'visible' });
+    await measureGroup.waitFor({ state: 'visible', timeout: 15_000 });
 
     // Text label should be present and contain our label
     const labelText = measureGroup.locator('text').first();
@@ -1259,9 +1290,9 @@ test('Measurement tool — Escape commits line with empty label', async ({
     await expect(viewer.inlineInput).not.toBeVisible();
 
     // The <g data-shapeid> should exist (line committed) ...
-    // Use waitFor to handle async state propagation after Escape-commit.
+    // Use waitFor with explicit timeout — same async commit path as Scenario 13.
     const measureGroup = viewer.svgOverlay.locator('g[data-shapeid]').first();
-    await measureGroup.waitFor({ state: 'visible' });
+    await measureGroup.waitFor({ state: 'visible', timeout: 15_000 });
 
     // ... but should NOT contain a visible <text> child (empty label → display:none)
     // The text element exists in DOM but has display:none when label is empty.
@@ -1392,10 +1423,10 @@ test(
       ]);
 
       // A <polyline data-shapeid> should appear.
-      // Use waitFor with explicit state to handle async React state propagation
-      // after pointer-up — mobile/touch events can be slower to flush.
+      // Use waitFor with explicit timeout — mobile/touch events can be slower to
+      // flush on a 2-vCPU CI shard; freehand uses COMMIT_DRAFT → two async renders.
       const polylineEl = viewer.svgOverlay.locator('polyline[data-shapeid]').first();
-      await polylineEl.waitFor({ state: 'visible' });
+      await polylineEl.waitFor({ state: 'visible', timeout: 15_000 });
 
       // Save and verify
       const [putResponse] = await Promise.all([
@@ -1465,9 +1496,10 @@ test(
       await page.keyboard.press('Enter');
       await expect(viewer.inlineInput).not.toBeVisible();
 
-      // Measurement group committed — use waitFor to handle async state propagation.
+      // Measurement group committed — use waitFor with explicit timeout to handle
+      // async state propagation (same undoStack.commit() path as Scenarios 13/14).
       const measureGroup = viewer.svgOverlay.locator('g[data-shapeid]').first();
-      await measureGroup.waitFor({ state: 'visible' });
+      await measureGroup.waitFor({ state: 'visible', timeout: 15_000 });
     } finally {
       if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
       if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});

@@ -8,10 +8,10 @@
 - 23 scenarios total (3 from Story #1473 + 20 new). All tools covered: select, rect, highlight, arrow, line, ellipse, text, callout, measurement, freehand.
 - Bug #1482 workaround: DiaryEntryDetailPage has stale photos after Save; mock GET /api/photos and re-navigate to inject annotatedAt.
 - SVG locators: `rect[data-shapeid]`, `line[data-shapeid]`, `ellipse[data-shapeid]`, `text[data-shapeid]`, `g[data-shapeid]`, `polyline[data-shapeid]`. Confirmed: attribute IS `data-shapeid` (camelCase, no hyphen).
-- **TIMING**: All shape assertions after drag must use `locator.waitFor({ state: 'visible' })` NOT `expect(locator).toBeVisible()`. React's COMMIT_DRAFT dispatch is async; without waitFor the locator races the state update.
+- **TIMING**: Shape assertions after drawing MUST use `waitFor({ state: 'visible', timeout: 15_000 })` or `expect(locator).toBeVisible()`. `waitFor` without explicit timeout uses `actionTimeout: 5s` which is too short on 2-vCPU CI shards — shape commits go through two async React renders (useReducer + undoStack useState). `expect(...)` uses `expect.timeout: 7s`. Both work; prefer 15s explicit timeout for safety. See photo-annotator-e2e.md.
 - **SELECT TOOL MOVE**: After drag-to-move, use `expect.poll(() => parseFloat(el.getAttribute('x')))` to wait for the updated attribute value rather than reading it immediately after mouse.up().
 - **COLOR PALETTE** strict mode: ToolPalette renders up to 3 radiogroups (color, stroke width, and font size for text tools). Use `getByRole('radiogroup', { name: 'Annotation color' })` — aria-label comes from i18n key `colorPalette` = `"Annotation color"`. Never use unscoped `getByRole('radiogroup')`.
-- **CALLOUT** multi-phase: `drawCallout` has 3 interaction phases (drag box, click tail, type+Enter). Always follow `drawCallout()` with `calloutGroup.waitFor({ state: 'visible' })` because the shape is only committed after the text input is committed in the 3rd phase.
+- **CALLOUT** multi-phase: `drawCallout` has 3 interaction phases (drag box, click tail, type+Enter). Always follow `drawCallout()` with `calloutGroup.waitFor({ state: 'visible', timeout: 15_000 })` because the shape is only committed after the text input is committed in the 3rd phase.
 - Inline input testid: `annotator-inline-input`. Tool buttons: `tool-{name}`. Action bar: `annotator-save`, `annotator-cancel`, `annotator-undo`, `annotator-redo`.
 
 ## Budget Print + i18n Stale Skip Re-enable (PR #1447, 2026-05-17) — See print-and-i18n.md

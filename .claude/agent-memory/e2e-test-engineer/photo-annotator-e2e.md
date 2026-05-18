@@ -73,6 +73,31 @@ green, blue, black, white. Check `aria-checked="true"` on active swatch, and
 - Multi-tool lifecycle with Clear: 60s on @responsive
 - @responsive tests on tablet/mobile: 40s base
 
+## CRITICAL: waitFor vs expect.toBeVisible timeout difference
+
+`locator.waitFor({ state: 'visible' })` uses `actionTimeout` (5 s globally). 
+`expect(locator).toBeVisible()` uses `expect.timeout` (7 s on desktop project).
+
+On a 2-vCPU CI shard running testcontainers, shape commits via `undoStack.commit()` 
+(a useState setter called inside a useReducer) require TWO async React renders before 
+the shape appears in the DOM. This takes > 5 s on loaded shards.
+
+**Rule**: All shape appearance assertions after drawing MUST use either:
+- `expect(locator).toBeVisible()` (uses expect.timeout: 7 s), OR  
+- `waitFor({ state: 'visible', timeout: 15_000 })` with try/catch diagnostic logging
+
+**Arrow test passes, line test fails** because arrow uses `expect(...)` and line used 
+bare `waitFor({state:'visible'})`. Selector correctness is not the issue — the shape 
+DOES appear, just after the 5s actionTimeout fires.
+
+**Fixed in PR #1491**: Added explicit `timeout: 15_000` to all `waitFor({ state: 'visible' })` 
+calls in photoAnnotation.spec.ts that assert shape appearance after drawing. Added 
+try/catch + SVG innerHTML logging to the 3 CI-failing tests (line draw, line shift-snap, 
+callout smoke) for future diagnosis if failures recur.
+
+**DO NOT** record `waitFor({ state: 'visible' })` without explicit timeout for shape 
+appearance in SVG — always use `{ timeout: 15_000 }` for annotator shape commits.
+
 ## Test Count (Story #1478 addition)
 
 - Scenarios 1–3: from Story #1473 (foundation), kept as-is
