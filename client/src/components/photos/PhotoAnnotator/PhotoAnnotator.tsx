@@ -115,7 +115,11 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         // Discard draft if it was a callout phase 2 (but NOT measurement — measurement commits with empty label)
         if (state.selectedTool !== 'measurement') {
           dispatch({ type: 'SET_DRAFT', shape: null });
+          return; // Don't proceed to commit — draft was discarded
         }
+      } else {
+        // Editing existing shape with empty text — no changes
+        return;
       }
       // For measurement with empty text, fall through to commit with empty label
     }
