@@ -146,7 +146,12 @@ describe('PhotoViewer', () => {
     jest.clearAllMocks();
   });
 
-  function renderViewer(photos: Photo[], initialIndex = 0, editable = true, startInAnnotator = false) {
+  function renderViewer(
+    photos: Photo[],
+    initialIndex = 0,
+    editable = true,
+    startInAnnotator = false,
+  ) {
     return render(
       React.createElement(PhotoViewer, {
         photos,
