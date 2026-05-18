@@ -56,7 +56,7 @@ export const SelectTool: ToolHandler = {
       if (ctx.event.detail === 2 && (shape.type === 'text' || shape.type === 'callout')) {
         const bodyHit =
           shape.type === 'text'
-            ? hitTestText(imageX, imageY, shape, 4)
+            ? hitTestText(imageX, imageY, shape, 12)
             : hitTestCallout(imageX, imageY, shape);
         if (bodyHit) {
           ctx.onOpenInlineInput?.(shape.x, shape.y, shape.id);
@@ -75,7 +75,7 @@ export const SelectTool: ToolHandler = {
             shape.y1,
             shape.x2,
             shape.y2,
-            4 + shape.strokeWidth / 2,
+            12 + shape.strokeWidth / 2,
           ) !== null;
         if (hit) {
           const midX = (shape.x1 + shape.x2) / 2;
@@ -139,14 +139,14 @@ export const SelectTool: ToolHandler = {
         ];
       }
 
-      // Then check for body hit
+      // Then check for body hit (with generous tolerance for easier selection)
       let bodyHit = false;
       if (shape.type === 'rectangle') {
-        bodyHit = hitTestRectangle(imageX, imageY, shape, shape.strokeWidth, 0) !== null;
+        bodyHit = hitTestRectangle(imageX, imageY, shape, shape.strokeWidth, 12) !== null;
       } else if (shape.type === 'highlight') {
         bodyHit = hitTestHighlight(imageX, imageY, shape);
       } else if (shape.type === 'arrow' || shape.type === 'line') {
-        bodyHit = hitTestLine(imageX, imageY, shape.x1, shape.y1, shape.x2, shape.y2, 4) !== null;
+        bodyHit = hitTestLine(imageX, imageY, shape.x1, shape.y1, shape.x2, shape.y2, 12) !== null;
       } else if (shape.type === 'ellipse') {
         bodyHit =
           hitTestEllipse(
@@ -157,10 +157,10 @@ export const SelectTool: ToolHandler = {
             shape.rx,
             shape.ry,
             shape.strokeWidth,
-            0,
+            12,
           ) !== null;
       } else if (shape.type === 'text') {
-        bodyHit = hitTestText(imageX, imageY, shape, 4);
+        bodyHit = hitTestText(imageX, imageY, shape, 12);
       } else if (shape.type === 'callout') {
         bodyHit = handleHit ? false : hitTestCallout(imageX, imageY, shape);
       } else if (shape.type === 'measurement') {
@@ -172,10 +172,10 @@ export const SelectTool: ToolHandler = {
             shape.y1,
             shape.x2,
             shape.y2,
-            4 + shape.strokeWidth / 2,
+            12 + shape.strokeWidth / 2,
           ) !== null;
       } else if (shape.type === 'freehand') {
-        bodyHit = hitTestPolyline(imageX, imageY, shape.points, 4 + shape.strokeWidth / 2) !== null;
+        bodyHit = hitTestPolyline(imageX, imageY, shape.points, 12 + shape.strokeWidth / 2) !== null;
       }
 
       if (bodyHit) {

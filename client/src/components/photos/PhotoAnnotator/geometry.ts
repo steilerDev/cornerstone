@@ -1,36 +1,49 @@
 /**
- * Converts screen-space point to image-space coordinates.
- * @param screenX X coordinate relative to SVG element's bounding rect
- * @param screenY Y coordinate relative to SVG element's bounding rect
- * @param svgRect The SVG element's bounding rect (from getBoundingClientRect)
- * @param imageWidth Native image width in pixels
- * @param imageHeight Native image height in pixels
+ * Converts screen-space (viewport) coordinates to image-space coordinates using SVG's native CTM.
+ * This approach avoids staleness issues from tracking SVG position in state — the SVG's CTM
+ * reflects the current layout and `preserveAspectRatio` meet-fit transform in real time.
+ * @param clientX X coordinate in viewport
+ * @param clientY Y coordinate in viewport
+ * @param svg The SVG element
  */
 export function screenToImage(
-  screenX: number,
-  screenY: number,
-  svgRect: DOMRect,
-  imageWidth: number,
-  imageHeight: number,
+  clientX: number,
+  clientY: number,
+  svg: SVGSVGElement,
 ): { x: number; y: number } {
-  const imageX = ((screenX - svgRect.left) / svgRect.width) * imageWidth;
-  const imageY = ((screenY - svgRect.top) / svgRect.height) * imageHeight;
-  return { x: imageX, y: imageY };
+  // Graceful fallback for test environments where getScreenCTM is not available
+  if (!svg || !svg.getScreenCTM) {
+    return { x: clientX, y: clientY };
+  }
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return { x: 0, y: 0 };
+  const point = svg.createSVGPoint();
+  point.x = clientX;
+  point.y = clientY;
+  const local = point.matrixTransform(ctm.inverse());
+  return { x: local.x, y: local.y };
 }
 
 /**
- * Converts image-space coordinates to screen-space. Inverse of screenToImage.
+ * Converts image-space coordinates to screen-space (viewport) coordinates using SVG's native CTM.
+ * Inverse of screenToImage.
  */
 export function imageToScreen(
   imageX: number,
   imageY: number,
-  svgRect: DOMRect,
-  imageWidth: number,
-  imageHeight: number,
+  svg: SVGSVGElement,
 ): { x: number; y: number } {
-  const screenX = (imageX / imageWidth) * svgRect.width + svgRect.left;
-  const screenY = (imageY / imageHeight) * svgRect.height + svgRect.top;
-  return { x: screenX, y: screenY };
+  // Graceful fallback for test environments where getScreenCTM is not available
+  if (!svg || !svg.getScreenCTM) {
+    return { x: imageX, y: imageY };
+  }
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return { x: 0, y: 0 };
+  const point = svg.createSVGPoint();
+  point.x = imageX;
+  point.y = imageY;
+  const screen = point.matrixTransform(ctm);
+  return { x: screen.x, y: screen.y };
 }
 
 /**

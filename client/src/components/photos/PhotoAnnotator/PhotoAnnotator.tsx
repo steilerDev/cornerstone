@@ -37,20 +37,6 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // SVG overlay position and size (matched to image layout within container)
-  interface SvgPosition {
-    top: number;
-    left: number;
-    width: number;
-    height: number;
-  }
-  const [svgPosition, setSvgPosition] = useState<SvgPosition>({
-    top: 0,
-    left: 0,
-    width: 0,
-    height: 0,
-  });
-
   // Inline edit state
   interface InlineInputState {
     isOpen: boolean;
@@ -86,62 +72,6 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
   // Calculate canonical URL
   const canonicalUrl = `${getBaseUrl()}/photos/${photo.id}/file`;
-
-  // Callback to recalculate SVG position when image loads
-  // This is critical for portrait images where the initial render may not have the final layout yet
-  const handleImageLoad = useCallback(() => {
-    if (!imgRef.current || !imgRef.current.parentElement) return;
-    requestAnimationFrame(() => {
-      if (!imgRef.current || !imgRef.current.parentElement) return;
-      const imgRect = imgRef.current.getBoundingClientRect();
-      const containerRect = imgRef.current.parentElement!.getBoundingClientRect();
-
-      setSvgPosition({
-        top: imgRect.top - containerRect.top,
-        left: imgRect.left - containerRect.left,
-        width: imgRect.width,
-        height: imgRect.height,
-      });
-    });
-  }, []);
-
-  // Track SVG overlay position to match image layout within container
-  // This prevents pointer events in letterbox/pillarbox padding from creating out-of-bounds shapes
-  useEffect(() => {
-    if (!imgRef.current || !imgRef.current.parentElement) return;
-
-    const updateSvgPosition = () => {
-      // Defer to post-layout to ensure measurements are accurate
-      // (especially important for portrait images where flexbox centering may not be complete)
-      requestAnimationFrame(() => {
-        if (!imgRef.current || !imgRef.current.parentElement) return;
-        const imgRect = imgRef.current.getBoundingClientRect();
-        const containerRect = imgRef.current.parentElement!.getBoundingClientRect();
-
-        setSvgPosition({
-          top: imgRect.top - containerRect.top,
-          left: imgRect.left - containerRect.left,
-          width: imgRect.width,
-          height: imgRect.height,
-        });
-      });
-    };
-
-    // Update on mount and whenever image dimensions change
-    updateSvgPosition();
-
-    // Use ResizeObserver to track changes to the image's rendered size
-    const resizeObserver = new ResizeObserver(updateSvgPosition);
-    resizeObserver.observe(imgRef.current);
-
-    // Also listen to window resize
-    window.addEventListener('resize', updateSvgPosition);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', updateSvgPosition);
-    };
-  }, []);
 
   // Helper to get the active font size key for the current tool
   function getActiveFontSizeKey(): FontSizeKey {
@@ -483,18 +413,11 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   // Pointer event handlers for drawing/editing
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<SVGSVGElement>) => {
-      if (!svgRef.current || !imgRef.current) return;
+      if (!svgRef.current) return;
 
-      const imgRect = imgRef.current.getBoundingClientRect();
-      let { x: imageX, y: imageY } = screenToImage(
-        e.clientX,
-        e.clientY,
-        imgRect,
-        photo.width!,
-        photo.height!,
-      );
+      let { x: imageX, y: imageY } = screenToImage(e.clientX, e.clientY, svgRef.current);
 
-      // Clamp to image bounds (defense against letterbox/pillarbox clicks)
+      // Clamp to image bounds (defense against out-of-bounds clicks)
       imageX = clamp(imageX, 0, photo.width!);
       imageY = clamp(imageY, 0, photo.height!);
 
@@ -539,18 +462,11 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<SVGSVGElement>) => {
-      if (!svgRef.current || !imgRef.current) return;
+      if (!svgRef.current) return;
 
-      const imgRect = imgRef.current.getBoundingClientRect();
-      let { x: imageX, y: imageY } = screenToImage(
-        e.clientX,
-        e.clientY,
-        imgRect,
-        photo.width!,
-        photo.height!,
-      );
+      let { x: imageX, y: imageY } = screenToImage(e.clientX, e.clientY, svgRef.current);
 
-      // Clamp to image bounds (defense against letterbox/pillarbox movement)
+      // Clamp to image bounds (defense against out-of-bounds movement)
       imageX = clamp(imageX, 0, photo.width!);
       imageY = clamp(imageY, 0, photo.height!);
 
@@ -588,18 +504,11 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent<SVGSVGElement>) => {
-      if (!svgRef.current || !imgRef.current) return;
+      if (!svgRef.current) return;
 
-      const imgRect = imgRef.current.getBoundingClientRect();
-      let { x: imageX, y: imageY } = screenToImage(
-        e.clientX,
-        e.clientY,
-        imgRect,
-        photo.width!,
-        photo.height!,
-      );
+      let { x: imageX, y: imageY } = screenToImage(e.clientX, e.clientY, svgRef.current);
 
-      // Clamp to image bounds (defense against letterbox/pillarbox release)
+      // Clamp to image bounds (defense against out-of-bounds release)
       imageX = clamp(imageX, 0, photo.width!);
       imageY = clamp(imageY, 0, photo.height!);
 
@@ -701,17 +610,14 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
   // Floating input positioning and styling
   const inlineInputStyle = useMemo((): React.CSSProperties => {
-    if (!inlineInput.isOpen || !imgRef.current) return { display: 'none' };
-    const imgRect = imgRef.current.getBoundingClientRect();
+    if (!inlineInput.isOpen || !svgRef.current) return { display: 'none' };
     const { x: screenX, y: screenY } = imageToScreen(
       inlineInput.anchorImageX,
       inlineInput.anchorImageY,
-      imgRect,
-      photo.width!,
-      photo.height!,
+      svgRef.current,
     );
     // Position is relative to the `.canvasArea` container; subtract its top-left
-    const containerRect = imgRef.current.parentElement!.getBoundingClientRect();
+    const containerRect = svgRef.current.parentElement!.getBoundingClientRect();
 
     // Determine the text color to use:
     // - If editing an existing text/callout shape, use its color
@@ -724,7 +630,9 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       }
     }
 
-    const screenFontSizePx = getActiveFontSizePx() * (imgRect.width / photo.width!);
+    // Get SVG bounding rect to calculate scale factor for font size
+    const svgRect = svgRef.current.getBoundingClientRect();
+    const screenFontSizePx = getActiveFontSizePx() * (svgRect.width / photo.width!);
 
     return {
       position: 'absolute',
@@ -738,7 +646,6 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   }, [
     inlineInput,
     photo.width,
-    photo.height,
     state.activeFontSizeKey,
     state.activeColor,
     state.shapes,
@@ -841,7 +748,6 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
           src={canonicalUrl}
           alt={photo.caption || photo.originalFilename}
           className={styles.baseImage}
-          onLoad={handleImageLoad}
         />
 
         <svg
@@ -854,15 +760,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          preserveAspectRatio="xMinYMin meet"
-          style={{
-            position: 'absolute',
-            top: `${svgPosition.top}px`,
-            left: `${svgPosition.left}px`,
-            width: `${svgPosition.width}px`,
-            height: `${svgPosition.height}px`,
-            touchAction: 'none',
-          }}
+          preserveAspectRatio="xMidYMid meet"
         >
           {/* Committed shapes */}
           {undoStack.shapes.map((shape) => {

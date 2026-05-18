@@ -40,108 +40,135 @@ import {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeSvgRect(left: number, top: number, width: number, height: number): DOMRect {
-  return {
-    left,
-    top,
-    width,
-    height,
-    right: left + width,
-    bottom: top + height,
-    x: left,
-    y: top,
-    toJSON: () => ({}),
-  } as DOMRect;
+/**
+ * Create a mock SVG element with getScreenCTM() support.
+ * The CTM represents the transformation from viewBox image-space to screen-space.
+ * For a simple scale+translate (no rotation), the matrix is:
+ *   [a, b, c, d, e, f] where x' = a*x + c*y + e, y' = b*x + d*y + f
+ * For center-fit (xMidYMid meet) with scale uniformly:
+ *   a=d=scale, b=c=0, e=translate_x, f=translate_y
+ * @param imageWidth Image viewBox width
+ * @param imageHeight Image viewBox height
+ * @param screenX Screen left position
+ * @param screenY Screen top position
+ * @param screenWidth Screen rendered width
+ * @param screenHeight Screen rendered height
+ */
+function makeMockSvg(
+  imageWidth: number,
+  imageHeight: number,
+  screenX: number,
+  screenY: number,
+  screenWidth: number,
+  screenHeight: number,
+): SVGSVGElement {
+  // Compute scale (meet fit: uniform scale, smaller ratio to fit both dimensions)
+  const scaleX = screenWidth / imageWidth;
+  const scaleY = screenHeight / imageHeight;
+  const scale = Math.min(scaleX, scaleY);
+
+  // Compute translate for centering
+  const scaledImageWidth = imageWidth * scale;
+  const scaledImageHeight = imageHeight * scale;
+  const tx = screenX + (screenWidth - scaledImageWidth) / 2;
+  const ty = screenY + (screenHeight - scaledImageHeight) / 2;
+
+  // The inverse CTM: converts screen → image space
+  const invScale = 1 / scale;
+  const invTx = -tx * invScale;
+  const invTy = -ty * invScale;
+
+  const mockSvg = {
+    getScreenCTM: () => ({
+      a: scale,
+      b: 0,
+      c: 0,
+      d: scale,
+      e: tx,
+      f: ty,
+      inverse: () => ({
+        a: invScale,
+        b: 0,
+        c: 0,
+        d: invScale,
+        e: invTx,
+        f: invTy,
+      }),
+    }),
+    createSVGPoint: () => ({
+      x: 0,
+      y: 0,
+      matrixTransform(matrix: any) {
+        return {
+          x: matrix.a * this.x + matrix.c * this.y + matrix.e,
+          y: matrix.b * this.x + matrix.d * this.y + matrix.f,
+        };
+      },
+    }),
+  } as unknown as SVGSVGElement;
+
+  return mockSvg;
 }
 
 // ─── screenToImage ────────────────────────────────────────────────────────────
 
 describe('screenToImage()', () => {
   it('converts screen-left to image-left (x=0) for image filling SVG', () => {
-    const svgRect = makeSvgRect(100, 50, 400, 300);
-    const result = screenToImage(100, 50, svgRect, 800, 600);
+    // SVG 400×300 at screen (100, 50), image 800×600
+    // Scale = min(400/800, 300/600) = 0.5
+    // Scaled image is 400×300, centered in 400×300 screen → tx=100, ty=50
+    const svg = makeMockSvg(800, 600, 100, 50, 400, 300);
+    const result = screenToImage(100, 50, svg);
     expect(result.x).toBeCloseTo(0);
     expect(result.y).toBeCloseTo(0);
   });
 
   it('converts screen-right to image-right for image filling SVG', () => {
-    const svgRect = makeSvgRect(100, 50, 400, 300);
-    const result = screenToImage(500, 350, svgRect, 800, 600);
+    // SVG 400×300 at screen (100, 50), image 800×600
+    const svg = makeMockSvg(800, 600, 100, 50, 400, 300);
+    const result = screenToImage(500, 350, svg);
     expect(result.x).toBeCloseTo(800);
     expect(result.y).toBeCloseTo(600);
   });
 
   it('converts screen-center to image-center', () => {
-    const svgRect = makeSvgRect(0, 0, 400, 300);
-    const result = screenToImage(200, 150, svgRect, 800, 600);
+    // SVG 400×300 at screen (0, 0), image 800×600
+    // Scale = 0.5, centered → tx=0, ty=0
+    const svg = makeMockSvg(800, 600, 0, 0, 400, 300);
+    const result = screenToImage(200, 150, svg);
     expect(result.x).toBeCloseTo(400);
     expect(result.y).toBeCloseTo(300);
   });
 
-  it('scales correctly with non-square aspect ratios', () => {
-    // SVG is 200px wide, 100px tall; image is 1000px wide, 500px tall
-    const svgRect = makeSvgRect(0, 0, 200, 100);
-    const result = screenToImage(50, 25, svgRect, 1000, 500);
-    // 50/200 * 1000 = 250; 25/100 * 500 = 125
+  it('scales correctly with non-square aspect ratios (portrait image)', () => {
+    // SVG 200×300 at screen (0, 0), image 1000×500 (wider than tall)
+    // Scale = min(200/1000, 300/500) = min(0.2, 0.6) = 0.2 (limited by width)
+    // Scaled: 200×100. Center vertically: tx=0, ty=(300-100)/2=100
+    const svg = makeMockSvg(1000, 500, 0, 0, 200, 300);
+    // Click at screen (50, 100+50) = (50, 150) → should be image (250, 250)
+    const result = screenToImage(50, 150, svg);
     expect(result.x).toBeCloseTo(250);
-    expect(result.y).toBeCloseTo(125);
+    expect(result.y).toBeCloseTo(250);
   });
 
-  // ── Letterbox (pillarbox) regression — fix for coord-dimension-bugs ────────
-  //
-  // Context: PhotoAnnotator previously passed `svgRef.getBoundingClientRect()` to
-  // screenToImage, but the SVG covers the full container while the image is centred
-  // with `object-fit: contain`, producing letterbox/pillarbox padding.  The fix
-  // changed all four callsites to pass `imgRef.getBoundingClientRect()` instead.
-  //
-  // These tests document the *expected* semantics of screenToImage when the rect
-  // argument represents the image element itself (not the surrounding container).
-  // Because screenToImage is a pure function that treats the rect as its coordinate
-  // origin and scale, passing the image rect yields correct image-space coordinates
-  // regardless of any surrounding letterbox.
+  it('handles letterboxed layout with center-fit', () => {
+    // SVG container 400×450 at screen (0, 0), image 2000×1500
+    // Scale = min(400/2000, 450/1500) = min(0.2, 0.3) = 0.2
+    // Scaled: 400×300. Center vertically: ty = (450-300)/2 = 75
+    const svg = makeMockSvg(2000, 1500, 0, 0, 400, 450);
+    // Click at SVG top-left (0, 0) → in letterbox, above image → negative y
+    const resultTopLeft = screenToImage(0, 0, svg);
+    expect(resultTopLeft.y).toBeLessThan(0); // In letterbox area
 
-  it('regression: click at image top-left in a letterboxed layout maps to (0, 0)', () => {
-    // Scenario: 400×450 container (SVG), but the image is 400×300 centred vertically.
-    // imgRect = { left:0, top:75, width:400, height:300 }  (75px top/bottom letterbox)
-    // A click at screen (0, 75) — the image's top-left corner — must map to image (0, 0).
-    const imgRect = makeSvgRect(0, 75, 400, 300);
-    const result = screenToImage(0, 75, imgRect, 2000, 1500);
-    expect(result.x).toBeCloseTo(0);
-    expect(result.y).toBeCloseTo(0);
-  });
+    // Click at image top-left (0, 75) → image (0, 0)
+    const resultImageTopLeft = screenToImage(0, 75, svg);
+    expect(resultImageTopLeft.x).toBeCloseTo(0);
+    expect(resultImageTopLeft.y).toBeCloseTo(0);
 
-  it('regression: click at image center in a letterboxed layout maps to image center', () => {
-    // Same letterboxed layout: imgRect top=75, height=300.
-    // Image is 2000×1500.  Screen click at image center (200, 225) must map to (1000, 750).
-    const imgRect = makeSvgRect(0, 75, 400, 300);
-    const result = screenToImage(200, 225, imgRect, 2000, 1500);
-    // (200 - 0) / 400 * 2000 = 1000; (225 - 75) / 300 * 1500 = 750
-    expect(result.x).toBeCloseTo(1000);
-    expect(result.y).toBeCloseTo(750);
-  });
-
-  it('regression: using SVG container rect instead of image rect produces wrong coords for letterboxed photo', () => {
-    // This test documents the WRONG behaviour that existed before the fix.
-    // With a letterboxed image (imgRect top=75) a click at screen (200, 150) should be
-    // inside the letterbox — above the image — and NOT inside the image at all.
-    // If the caller mistakenly passes the SVG/container rect (top=0, height=450) instead,
-    // screenToImage would compute (1000, 500) instead of a negative y, masking the bug.
-    // The correct answer when the IMAGE rect is passed: y = (150 - 75) / 300 * 1500 = 375
-    // (inside the image at the top quarter), not 500.
-    const imgRect = makeSvgRect(0, 75, 400, 300); // correct: image rect
-    const containerRect = makeSvgRect(0, 0, 400, 450); // wrong:  SVG/container rect
-    const screenY = 150; // 75px below the container top, but only 75px below the IMAGE top
-
-    const correctResult = screenToImage(200, screenY, imgRect, 2000, 1500);
-    const wrongResult = screenToImage(200, screenY, containerRect, 2000, 1500);
-
-    // Correct: y relative to image top = 150 - 75 = 75px into the 300px-tall img → 375
-    expect(correctResult.y).toBeCloseTo(375);
-    // Wrong: y relative to container top = 150 - 0 = 150px into 450px → 500 (inflated)
-    expect(wrongResult.y).toBeCloseTo(500);
-
-    // The two results must differ — proving that passing the wrong rect changes coordinates.
-    expect(correctResult.y).not.toBeCloseTo(wrongResult.y);
+    // Click at image center (200, 75+150) = (200, 225) → image (1000, 750)
+    const resultCenter = screenToImage(200, 225, svg);
+    expect(resultCenter.x).toBeCloseTo(1000);
+    expect(resultCenter.y).toBeCloseTo(750);
   });
 });
 
@@ -149,40 +176,29 @@ describe('screenToImage()', () => {
 
 describe('imageToScreen()', () => {
   it('converts image-origin to screen-origin (SVG top-left)', () => {
-    const svgRect = makeSvgRect(100, 50, 400, 300);
-    const result = imageToScreen(0, 0, svgRect, 800, 600);
+    // SVG 400×300 at screen (100, 50), image 800×600
+    const svg = makeMockSvg(800, 600, 100, 50, 400, 300);
+    const result = imageToScreen(0, 0, svg);
     expect(result.x).toBeCloseTo(100);
     expect(result.y).toBeCloseTo(50);
   });
 
   it('is the exact inverse of screenToImage', () => {
-    const svgRect = makeSvgRect(100, 50, 400, 300);
-    const imageWidth = 1920;
-    const imageHeight = 1080;
-
+    // SVG 400×300 at screen (100, 50), image 1920×1080
+    const svg = makeMockSvg(1920, 1080, 100, 50, 400, 300);
     const originalScreen = { x: 250, y: 175 };
-    const imageCoords = screenToImage(
-      originalScreen.x,
-      originalScreen.y,
-      svgRect,
-      imageWidth,
-      imageHeight,
-    );
-    const backToScreen = imageToScreen(
-      imageCoords.x,
-      imageCoords.y,
-      svgRect,
-      imageWidth,
-      imageHeight,
-    );
+
+    const imageCoords = screenToImage(originalScreen.x, originalScreen.y, svg);
+    const backToScreen = imageToScreen(imageCoords.x, imageCoords.y, svg);
 
     expect(backToScreen.x).toBeCloseTo(originalScreen.x);
     expect(backToScreen.y).toBeCloseTo(originalScreen.y);
   });
 
   it('converts image-right to screen-right', () => {
-    const svgRect = makeSvgRect(0, 0, 400, 300);
-    const result = imageToScreen(800, 600, svgRect, 800, 600);
+    // SVG 400×300 at screen (0, 0), image 800×600
+    const svg = makeMockSvg(800, 600, 0, 0, 400, 300);
+    const result = imageToScreen(800, 600, svg);
     expect(result.x).toBeCloseTo(400);
     expect(result.y).toBeCloseTo(300);
   });

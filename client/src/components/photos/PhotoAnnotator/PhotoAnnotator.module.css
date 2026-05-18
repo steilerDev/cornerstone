@@ -23,8 +23,10 @@
 }
 
 .svgOverlay {
-  /* Position, width, height, and touch-action are set via inline styles
-     to match the actual image layout and prevent pointer events in letterbox/pillarbox areas */
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  /* SVG fills container with preserveAspectRatio="xMidYMid meet" (center-fit like object-fit: contain) */
 }
 
 .inlineTextInput {
