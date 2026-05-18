@@ -18,11 +18,7 @@ export const FreehandTool: ToolHandler = {
     capturedPoints = [[imageX, imageY]];
     currentDraftId = nanoid();
 
-    const strokeWidth = resolveStrokeWidth(
-      state.activeStrokeWidthKey,
-      imageWidth,
-      imageHeight,
-    );
+    const strokeWidth = resolveStrokeWidth(state.activeStrokeWidthKey, imageWidth, imageHeight);
 
     const newShape: FreehandShape = {
       type: 'freehand',

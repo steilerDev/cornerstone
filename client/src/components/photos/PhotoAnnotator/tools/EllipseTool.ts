@@ -15,11 +15,7 @@ export const EllipseTool: ToolHandler = {
 
     drawState = { startX: imageX, startY: imageY };
 
-    const strokeWidth = resolveStrokeWidth(
-      state.activeStrokeWidthKey,
-      imageWidth,
-      imageHeight,
-    );
+    const strokeWidth = resolveStrokeWidth(state.activeStrokeWidthKey, imageWidth, imageHeight);
 
     const newShape: EllipseShape = {
       type: 'ellipse',

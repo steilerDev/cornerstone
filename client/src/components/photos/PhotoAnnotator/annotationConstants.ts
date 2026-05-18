@@ -65,11 +65,7 @@ export function resolveStrokeWidth(
  * @param imageHeight The image height in pixels
  * @returns The resolved font size in image-space pixels (minimum 8)
  */
-export function resolveFontSize(
-  key: FontSizeKey,
-  imageWidth: number,
-  imageHeight: number,
-): number {
+export function resolveFontSize(key: FontSizeKey, imageWidth: number, imageHeight: number): number {
   const ref = Math.min(imageWidth, imageHeight);
   return Math.max(8, Math.round(ref * ANNOTATION_FONT_SIZE_RATIOS[key]));
 }

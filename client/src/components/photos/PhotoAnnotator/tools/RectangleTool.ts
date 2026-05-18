@@ -16,11 +16,7 @@ export const RectangleTool: ToolHandler = {
 
     drawState = { startX: imageX, startY: imageY };
 
-    const strokeWidth = resolveStrokeWidth(
-      state.activeStrokeWidthKey,
-      imageWidth,
-      imageHeight,
-    );
+    const strokeWidth = resolveStrokeWidth(state.activeStrokeWidthKey, imageWidth, imageHeight);
 
     const newShape: RectangleShape = {
       type: 'rectangle',

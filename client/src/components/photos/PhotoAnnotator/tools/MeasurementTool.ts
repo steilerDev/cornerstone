@@ -16,11 +16,7 @@ export const MeasurementTool: ToolHandler = {
 
     drawState = { startX: imageX, startY: imageY };
 
-    const strokeWidth = resolveStrokeWidth(
-      state.activeStrokeWidthKey,
-      imageWidth,
-      imageHeight,
-    );
+    const strokeWidth = resolveStrokeWidth(state.activeStrokeWidthKey, imageWidth, imageHeight);
     const fontSize = resolveFontSize(state.activeFontSizeKey, imageWidth, imageHeight);
 
     const newShape: MeasurementShape = {
