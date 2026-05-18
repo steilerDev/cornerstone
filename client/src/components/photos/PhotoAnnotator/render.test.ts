@@ -1682,7 +1682,11 @@ describe('wrapTextForCanvas()', () => {
   it('wraps text into multiple lines when it exceeds maxWidth', () => {
     // "Hi" = 20px, "there" = 50px, "folks" = 50px
     // max 60px → "Hi" (20) fits, "Hi there" (80) doesn't → split into "Hi" and "there folks"
-    const result = wrapTextForCanvas('Hi there folks', 60, ctx as unknown as CanvasRenderingContext2D);
+    const result = wrapTextForCanvas(
+      'Hi there folks',
+      60,
+      ctx as unknown as CanvasRenderingContext2D,
+    );
     expect(result.length).toBeGreaterThan(1);
     // Each line should be <= 60px
     for (const line of result) {
@@ -1700,7 +1704,11 @@ describe('wrapTextForCanvas()', () => {
 
   it('handles single long word by putting it on its own line', () => {
     // Single word wider than maxWidth still goes on a line
-    const result = wrapTextForCanvas('Supercalifragilisticexpialidocious', 60, ctx as unknown as CanvasRenderingContext2D);
+    const result = wrapTextForCanvas(
+      'Supercalifragilisticexpialidocious',
+      60,
+      ctx as unknown as CanvasRenderingContext2D,
+    );
     expect(result[0]).toBe('Supercalifragilisticexpialidocious');
   });
 });

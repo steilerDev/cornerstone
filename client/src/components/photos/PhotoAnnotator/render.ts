@@ -48,7 +48,11 @@ export function calculateCalloutEffectiveFontSize(
  * @param ctx - Canvas context with font already set
  * @returns Array of line strings
  */
-export function wrapTextForCanvas(text: string, maxWidth: number, ctx: CanvasRenderingContext2D): string[] {
+export function wrapTextForCanvas(
+  text: string,
+  maxWidth: number,
+  ctx: CanvasRenderingContext2D,
+): string[] {
   if (!text) return [];
   const words = text.split(/\s+/);
   const lines: string[] = [];
