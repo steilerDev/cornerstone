@@ -86,6 +86,63 @@ describe('screenToImage()', () => {
     expect(result.x).toBeCloseTo(250);
     expect(result.y).toBeCloseTo(125);
   });
+
+  // ── Letterbox (pillarbox) regression — fix for coord-dimension-bugs ────────
+  //
+  // Context: PhotoAnnotator previously passed `svgRef.getBoundingClientRect()` to
+  // screenToImage, but the SVG covers the full container while the image is centred
+  // with `object-fit: contain`, producing letterbox/pillarbox padding.  The fix
+  // changed all four callsites to pass `imgRef.getBoundingClientRect()` instead.
+  //
+  // These tests document the *expected* semantics of screenToImage when the rect
+  // argument represents the image element itself (not the surrounding container).
+  // Because screenToImage is a pure function that treats the rect as its coordinate
+  // origin and scale, passing the image rect yields correct image-space coordinates
+  // regardless of any surrounding letterbox.
+
+  it('regression: click at image top-left in a letterboxed layout maps to (0, 0)', () => {
+    // Scenario: 400×450 container (SVG), but the image is 400×300 centred vertically.
+    // imgRect = { left:0, top:75, width:400, height:300 }  (75px top/bottom letterbox)
+    // A click at screen (0, 75) — the image's top-left corner — must map to image (0, 0).
+    const imgRect = makeSvgRect(0, 75, 400, 300);
+    const result = screenToImage(0, 75, imgRect, 2000, 1500);
+    expect(result.x).toBeCloseTo(0);
+    expect(result.y).toBeCloseTo(0);
+  });
+
+  it('regression: click at image center in a letterboxed layout maps to image center', () => {
+    // Same letterboxed layout: imgRect top=75, height=300.
+    // Image is 2000×1500.  Screen click at image center (200, 225) must map to (1000, 750).
+    const imgRect = makeSvgRect(0, 75, 400, 300);
+    const result = screenToImage(200, 225, imgRect, 2000, 1500);
+    // (200 - 0) / 400 * 2000 = 1000; (225 - 75) / 300 * 1500 = 750
+    expect(result.x).toBeCloseTo(1000);
+    expect(result.y).toBeCloseTo(750);
+  });
+
+  it('regression: using SVG container rect instead of image rect produces wrong coords for letterboxed photo', () => {
+    // This test documents the WRONG behaviour that existed before the fix.
+    // With a letterboxed image (imgRect top=75) a click at screen (200, 150) should be
+    // inside the letterbox — above the image — and NOT inside the image at all.
+    // If the caller mistakenly passes the SVG/container rect (top=0, height=450) instead,
+    // screenToImage would compute (1000, 500) instead of a negative y, masking the bug.
+    // The correct answer when the IMAGE rect is passed: y = (150 - 75) / 300 * 1500 = 375
+    // (inside the image at the top quarter), not 500.
+    const imgRect = makeSvgRect(0, 75, 400, 300);   // correct: image rect
+    const containerRect = makeSvgRect(0, 0, 400, 450); // wrong:  SVG/container rect
+    const screenY = 150; // 75px below the container top, but only 75px below the IMAGE top
+
+    const correctResult = screenToImage(200, screenY, imgRect, 2000, 1500);
+    const wrongResult   = screenToImage(200, screenY, containerRect, 2000, 1500);
+
+    // Correct: y relative to image top = 150 - 75 = 75px into the 300px-tall img → 375
+    expect(correctResult.y).toBeCloseTo(375);
+    // Wrong: y relative to container top = 150 - 0 = 150px into 450px → 500 (inflated)
+    expect(wrongResult.y).toBeCloseTo(500);
+
+    // The two results must differ — proving that passing the wrong rect changes coordinates.
+    expect(correctResult.y).not.toBeCloseTo(wrongResult.y);
+  });
 });
 
 // ─── imageToScreen ────────────────────────────────────────────────────────────

@@ -3,6 +3,16 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## coord-dimension-bugs fix — PhotoAnnotator Test Patterns (2026-05-18)
+
+**React refs null in pointer-event handler tests (JSDOM)**: `imgRef.current` and `svgRef.current` are null when pointer events are fired in JSDOM via `fireEvent.pointerDown/Move/Up`. The handler guard `if (!svgRef.current || !imgRef.current) return;` fires, so `getBoundingClientRect` is never called. Neither `jest.spyOn(instance, 'getBoundingClientRect')` nor prototype override (`HTMLImageElement.prototype.getBoundingClientRect = ...`) works because the guard returns before the BCR call. Direct BCR interception to verify which element is used is not viable.
+
+**Workaround for "which element does getBoundingClientRect read"**: Use structural DOM tests instead. Assert `container.querySelector('img.baseImage')!.parentElement === container.querySelector('svg.svgOverlay')!.parentElement` to confirm the architectural precondition (imgRef and svgRef target siblings). Use class selectors `img.baseImage` and `svg.svgOverlay` — `document.querySelector('img')` finds ToolPalette icon images first.
+
+**geometry.test.ts letterbox regression tests**: Added 3 pure-function tests at end of `describe('screenToImage()')` block documenting the coordinate contract for letterboxed images. These tests document the diff between using imgRect vs containerRect.
+
+**Canvas naturalWidth test in JSDOM**: Works by overriding `globalThis.Image` before the save flow runs. Use setters to capture `canvas.width` and `canvas.height` assignments. Wrap in `await act(async () => { ...; await new Promise<void>((r) => setTimeout(r, 10)); })` to let the Image onload timer fire.
+
 ## Story #1478 — PhotoAnnotator Polish Tests (2026-05-18)
 
 **Escape key M3 fix**: `PhotoAnnotator` removed its window-level Escape handler (PhotoViewer now owns Escape). Test updated from `expect(mockOnCancel).toHaveBeenCalledTimes(1)` to `expect(mockOnCancel).not.toHaveBeenCalled()`. Document the architectural reason in a code comment.

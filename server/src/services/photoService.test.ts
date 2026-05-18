@@ -469,6 +469,43 @@ describe('photoService', () => {
       expect(mockSharpInstance.rotate).toHaveBeenCalled();
     });
 
+    it('calls rotate() BEFORE metadata() to capture post-rotation dimensions (Bug Fix #3)', async () => {
+      // This test verifies the fix for portrait photos being saved with swapped width/height.
+      // Sharp.rotate() with no args auto-rotates per EXIF and strips the orientation tag.
+      // We must call rotate() BEFORE metadata() so metadata() returns the post-rotation dimensions.
+      const callOrder: string[] = [];
+
+      mockSharpInstance.rotate.mockImplementation(() => {
+        callOrder.push('rotate');
+        return mockSharpInstance;
+      });
+
+      mockSharpInstance.metadata.mockImplementation(async () => {
+        callOrder.push('metadata');
+        return { width: 100, height: 200 }; // Portrait: height > width after rotation
+      });
+
+      await photoService.uploadPhoto(
+        db,
+        tempStoragePath,
+        Buffer.from('portrait-photo'),
+        'portrait.jpg',
+        'image/jpeg',
+        'test',
+        'entity-portrait-dims',
+        userId,
+      );
+
+      // Verify rotate was called before metadata
+      expect(callOrder).toEqual(['rotate', 'metadata']);
+
+      // Verify the photo was stored with the correct post-rotation dimensions
+      const photo = db.select().from(schema.photos).where(eq(schema.photos.entityType, 'test')).get();
+      expect(photo).not.toBeNull();
+      expect(photo!.width).toBe(100);
+      expect(photo!.height).toBe(200); // Portrait: height > width
+    });
+
     it('generates thumbnail with 300px max dimension', async () => {
       await photoService.uploadPhoto(
         db,
