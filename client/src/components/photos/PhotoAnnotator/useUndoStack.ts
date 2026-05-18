@@ -21,7 +21,40 @@ export interface HighlightShape {
   color: string;
 }
 
-export type AnnotationShape = RectangleShape | HighlightShape;
+export interface ArrowShape {
+  type: 'arrow';
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  stroke: string;
+  strokeWidth: number;
+}
+
+export interface LineShape {
+  type: 'line';
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  stroke: string;
+  strokeWidth: number;
+}
+
+export interface EllipseShape {
+  type: 'ellipse';
+  id: string;
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+  stroke: string;
+  strokeWidth: number;
+}
+
+export type AnnotationShape = RectangleShape | HighlightShape | ArrowShape | LineShape | EllipseShape;
 
 export interface UndoStack {
   past: AnnotationShape[][];

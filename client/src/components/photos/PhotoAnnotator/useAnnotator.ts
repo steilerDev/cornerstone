@@ -5,11 +5,11 @@ import type { UseUndoStackResult } from './useUndoStack.js';
 import type { ANNOTATION_STROKE_WIDTHS } from './annotationConstants.js';
 import { DEFAULT_COLOR, DEFAULT_STROKE_WIDTH } from './annotationConstants.js';
 
-export type ToolName = 'select' | 'rectangle' | 'highlight';
+export type ToolName = 'select' | 'rectangle' | 'highlight' | 'arrow' | 'line' | 'ellipse';
 
 export type StrokeWidthKey = keyof typeof ANNOTATION_STROKE_WIDTHS;
 
-export type { AnnotationShape, RectangleShape, HighlightShape } from './useUndoStack.js';
+export type { AnnotationShape, RectangleShape, HighlightShape, ArrowShape, LineShape, EllipseShape } from './useUndoStack.js';
 
 export type DragMode = 'move' | 'resize' | null;
 

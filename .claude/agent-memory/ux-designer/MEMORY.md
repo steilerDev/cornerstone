@@ -10,6 +10,16 @@
 - Always reference Layer 2 semantic tokens (e.g. `var(--color-bg-primary)`) in CSS Modules
 - Never use hardcoded hex values or Layer 1 palette tokens in `.module.css` files
 
+## PhotoAnnotator Patterns (client/src/components/photos/PhotoAnnotator/)
+
+- Tool palette: `role="toolbar"` wrapper; each button `.toolButton` / `.toolButtonActive`; `min-width/height: 44px`; `aria-pressed`; inline SVG icons (24×24, `stroke="currentColor"`)
+- Annotation colors in `ANNOTATION_COLORS` are intentionally hardcoded hex (not tokens) — marks must be theme-invariant; document this in any spec touching that file
+- Draft shape visual: `stroke-dasharray: 6 4`, `opacity: 0.8`, `pointer-events: none` — use for ALL new shape types
+- Arrow committed: `<line>` + `<marker>` with `fill="context-stroke"` so one defs entry covers all colors; arrowhead on commit only (not during draft)
+- Ellipse selection handles: 4 cardinal points (N/S/E/W) not 8; Arrow/Line: 2 endpoint handles
+- `context-stroke` SVG2 fill on marker = no dark mode override needed for arrowhead
+- Mobile: `.toolGroup` gets `width:100%` + bottom border at `<640px` via existing media query — no new CSS needed for new buttons
+
 ## PR #792 Review Findings — Budget Sources Bar Chart
 
 - `color-mix()` in inline `style` prop bypasses token system — dark mode override in `[data-theme="dark"]` cannot reach it; allocate a named token instead

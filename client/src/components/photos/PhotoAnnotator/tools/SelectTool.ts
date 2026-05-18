@@ -4,9 +4,17 @@ import {
   hitTestRectangle,
   hitTestHighlight,
   hitTestHandles,
+  hitTestLine,
+  hitTestEllipse,
+  hitTestEndpointHandles,
+  hitTestCardinalHandles,
   type HandlePosition,
   translateShape,
   resizeShape,
+  translateArrowLine,
+  resizeArrowLine,
+  translateEllipse,
+  resizeEllipse,
 } from '../geometry.js';
 
 export interface PointerContext {
@@ -32,8 +40,17 @@ export const SelectTool: ToolHandler = {
     for (let i = state.shapes.length - 1; i >= 0; i--) {
       const shape = state.shapes[i]!;
 
-      // Check for handle hit first
-      const handleHit = hitTestHandles(imageX, imageY, shape, 8);
+      // Check for handle hit first (only for rect/highlight and arrow/line/ellipse)
+      let handleHit: string | null = null;
+
+      if (shape.type === 'rectangle' || shape.type === 'highlight') {
+        handleHit = hitTestHandles(imageX, imageY, shape, 8);
+      } else if (shape.type === 'arrow' || shape.type === 'line') {
+        handleHit = hitTestEndpointHandles(imageX, imageY, shape.x1, shape.y1, shape.x2, shape.y2, 8);
+      } else if (shape.type === 'ellipse') {
+        handleHit = hitTestCardinalHandles(imageX, imageY, shape.cx, shape.cy, shape.rx, shape.ry, 8);
+      }
+
       if (handleHit) {
         return [
           { type: 'SELECT_SHAPE', id: shape.id },
@@ -55,6 +72,10 @@ export const SelectTool: ToolHandler = {
         bodyHit = hitTestRectangle(imageX, imageY, shape, shape.strokeWidth, 0) !== null;
       } else if (shape.type === 'highlight') {
         bodyHit = hitTestHighlight(imageX, imageY, shape);
+      } else if (shape.type === 'arrow' || shape.type === 'line') {
+        bodyHit = hitTestLine(imageX, imageY, shape.x1, shape.y1, shape.x2, shape.y2, 4) !== null;
+      } else if (shape.type === 'ellipse') {
+        bodyHit = hitTestEllipse(imageX, imageY, shape.cx, shape.cy, shape.rx, shape.ry, shape.strokeWidth, 0) !== null;
       }
 
       if (bodyHit) {
@@ -89,21 +110,62 @@ export const SelectTool: ToolHandler = {
     const dy = imageY - selectDragState.startImageY;
 
     let updatedShape: AnnotationShape;
+    const startShape = selectDragState.startShape;
 
     if (selectDragState.mode === 'move') {
-      const moved = translateShape(selectDragState.startShape, dx, dy, imageWidth, imageHeight);
-      updatedShape = { ...selectDragState.startShape, ...moved };
+      if (startShape.type === 'rectangle' || startShape.type === 'highlight') {
+        const moved = translateShape(startShape, dx, dy, imageWidth, imageHeight);
+        updatedShape = { ...startShape, ...moved };
+      } else if (startShape.type === 'arrow' || startShape.type === 'line') {
+        const moved = translateArrowLine(startShape.x1, startShape.y1, startShape.x2, startShape.y2, dx, dy, imageWidth, imageHeight);
+        updatedShape = { ...startShape, ...moved };
+      } else if (startShape.type === 'ellipse') {
+        const moved = translateEllipse(startShape.cx, startShape.cy, startShape.rx, startShape.ry, dx, dy, imageWidth, imageHeight);
+        updatedShape = { ...startShape, ...moved };
+      } else {
+        updatedShape = startShape;
+      }
     } else {
       // resize
-      const resized = resizeShape(
-        selectDragState.startShape,
-        selectDragState.handle as HandlePosition,
-        dx,
-        dy,
-        imageWidth,
-        imageHeight,
-      );
-      updatedShape = { ...selectDragState.startShape, ...resized };
+      if (startShape.type === 'rectangle' || startShape.type === 'highlight') {
+        const resized = resizeShape(
+          startShape,
+          selectDragState.handle as HandlePosition,
+          dx,
+          dy,
+          imageWidth,
+          imageHeight,
+        );
+        updatedShape = { ...startShape, ...resized };
+      } else if (startShape.type === 'arrow' || startShape.type === 'line') {
+        const resized = resizeArrowLine(
+          startShape.x1,
+          startShape.y1,
+          startShape.x2,
+          startShape.y2,
+          selectDragState.handle as 'start' | 'end',
+          dx,
+          dy,
+          imageWidth,
+          imageHeight,
+        );
+        updatedShape = { ...startShape, ...resized };
+      } else if (startShape.type === 'ellipse') {
+        const resized = resizeEllipse(
+          startShape.cx,
+          startShape.cy,
+          startShape.rx,
+          startShape.ry,
+          selectDragState.handle as 'north' | 'south' | 'east' | 'west',
+          dx,
+          dy,
+          imageWidth,
+          imageHeight,
+        );
+        updatedShape = { ...startShape, ...resized };
+      } else {
+        updatedShape = startShape;
+      }
     }
 
     // Use 'replace' to avoid adding undo step during drag

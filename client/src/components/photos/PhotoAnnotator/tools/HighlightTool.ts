@@ -51,8 +51,10 @@ export const HighlightTool: ToolHandler = {
       return [];
     }
 
+    const shape = state.draftShape as HighlightShape;
+
     // Only commit if the shape has non-zero dimensions (at least 2×2 pixels)
-    if (state.draftShape.w >= 2 && state.draftShape.h >= 2) {
+    if (shape.w >= 2 && shape.h >= 2) {
       return [{ type: 'COMMIT_DRAFT' }];
     }
 
