@@ -500,7 +500,11 @@ describe('photoService', () => {
       expect(callOrder).toEqual(['rotate', 'metadata']);
 
       // Verify the photo was stored with the correct post-rotation dimensions
-      const photo = db.select().from(schema.photos).where(eq(schema.photos.entityType, 'test')).get();
+      const photo = db
+        .select()
+        .from(schema.photos)
+        .where(eq(schema.photos.entityType, 'test'))
+        .get();
       expect(photo).not.toBeNull();
       expect(photo!.width).toBe(100);
       expect(photo!.height).toBe(200); // Portrait: height > width

@@ -692,10 +692,18 @@ describe('PhotoAnnotator', () => {
 
     const origCreateElement = document.createElement.bind(document);
     const mockCanvas = {
-      get width() { return capturedCanvasWidth ?? 0; },
-      set width(v: number) { capturedCanvasWidth = v; },
-      get height() { return capturedCanvasHeight ?? 0; },
-      set height(v: number) { capturedCanvasHeight = v; },
+      get width() {
+        return capturedCanvasWidth ?? 0;
+      },
+      set width(v: number) {
+        capturedCanvasWidth = v;
+      },
+      get height() {
+        return capturedCanvasHeight ?? 0;
+      },
+      set height(v: number) {
+        capturedCanvasHeight = v;
+      },
       getContext: jest.fn().mockReturnValue({
         drawImage: jest.fn(),
         strokeRect: jest.fn(),

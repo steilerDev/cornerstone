@@ -128,12 +128,12 @@ describe('screenToImage()', () => {
     // screenToImage would compute (1000, 500) instead of a negative y, masking the bug.
     // The correct answer when the IMAGE rect is passed: y = (150 - 75) / 300 * 1500 = 375
     // (inside the image at the top quarter), not 500.
-    const imgRect = makeSvgRect(0, 75, 400, 300);   // correct: image rect
+    const imgRect = makeSvgRect(0, 75, 400, 300); // correct: image rect
     const containerRect = makeSvgRect(0, 0, 400, 450); // wrong:  SVG/container rect
     const screenY = 150; // 75px below the container top, but only 75px below the IMAGE top
 
     const correctResult = screenToImage(200, screenY, imgRect, 2000, 1500);
-    const wrongResult   = screenToImage(200, screenY, containerRect, 2000, 1500);
+    const wrongResult = screenToImage(200, screenY, containerRect, 2000, 1500);
 
     // Correct: y relative to image top = 150 - 75 = 75px into the 300px-tall img → 375
     expect(correctResult.y).toBeCloseTo(375);
