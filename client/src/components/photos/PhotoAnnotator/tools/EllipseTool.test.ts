@@ -175,7 +175,9 @@ describe('EllipseTool', () => {
     });
 
     it('computes correct cx/cy/rx/ry from bounding box (positive drag direction)', () => {
-      // Start at (100, 100), drag to (200, 160) → dx=100, dy=60
+      // Start at (100, 100), drag to (200, 160) → dxRaw=100, dyRaw=60
+      // rx = abs(100)/2 = 50, ry = abs(60)/2 = 30
+      // cx = 100 + 100/2 = 150, cy = 100 + 60/2 = 130
       const downActions = EllipseTool.onPointerDown(makeState(), makeCtx(100, 100));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
@@ -185,16 +187,16 @@ describe('EllipseTool', () => {
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape;
       if (!shape || shape.type !== 'ellipse') throw new Error('expected ellipse');
-      // rx = dx/1 = 100 (the full absolute delta — not half), ry = 60
-      // Actually: rx=dx=100, ry=dy=60, cx = startX + dx/2 = 100+50 = 150, cy = 100+30 = 130
-      expect(shape.rx).toBe(100);
-      expect(shape.ry).toBe(60);
+      expect(shape.rx).toBe(50);
+      expect(shape.ry).toBe(30);
       expect(shape.cx).toBeCloseTo(150, 0);
       expect(shape.cy).toBeCloseTo(130, 0);
     });
 
     it('produces positive rx/ry even when dragging to top-left of start point', () => {
-      // Start at (200, 200), drag to (100, 120) — top-left, dx=100, dy=80 (absolute)
+      // Start at (200, 200), drag to (100, 120) — top-left
+      // dxRaw=-100, dyRaw=-80 → rx=abs(-100)/2=50, ry=abs(-80)/2=40
+      // cx = 200 + (-100)/2 = 150, cy = 200 + (-80)/2 = 160
       const downActions = EllipseTool.onPointerDown(makeState(), makeCtx(200, 200));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
@@ -204,9 +206,10 @@ describe('EllipseTool', () => {
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape;
       if (!shape || shape.type !== 'ellipse') throw new Error('expected ellipse');
-      // Math.abs(100-200)=100, Math.abs(120-200)=80
-      expect(shape.rx).toBe(100);
-      expect(shape.ry).toBe(80);
+      expect(shape.rx).toBe(50);
+      expect(shape.ry).toBe(40);
+      expect(shape.cx).toBeCloseTo(150, 0);
+      expect(shape.cy).toBeCloseTo(160, 0);
     });
 
     it('returns empty array when draftShape is null (no active draw)', () => {
@@ -219,7 +222,8 @@ describe('EllipseTool', () => {
 
   describe('onPointerMove() — with shift (circle constraint)', () => {
     it('produces rx===ry (circle) when shiftKey:true', () => {
-      // Start at (100, 100), drag to (200, 160) — non-square (dx=100, dy=60)
+      // Start at (100, 100), drag to (200, 160) — non-square (dxRaw=100, dyRaw=60)
+      // Without shift: rx=50, ry=30. With shift: r = max(50, 30) = 50
       const downActions = EllipseTool.onPointerDown(makeState(), makeCtx(100, 100));
       const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
 
@@ -229,9 +233,9 @@ describe('EllipseTool', () => {
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape;
       if (!shape || shape.type !== 'ellipse') throw new Error('expected ellipse');
-      // With shift: r = max(dx, dy) = max(100, 60) = 100
-      expect(shape.rx).toBe(100);
-      expect(shape.ry).toBe(100);
+      // r = max(abs(100)/2, abs(60)/2) = max(50, 30) = 50
+      expect(shape.rx).toBe(50);
+      expect(shape.ry).toBe(50);
     });
 
     it('rx !== ry for non-square drags without shift', () => {
@@ -247,6 +251,119 @@ describe('EllipseTool', () => {
       if (!shape || shape.type !== 'ellipse') throw new Error('expected ellipse');
       // Without shift, rx and ry should differ
       expect(shape.rx).not.toBe(shape.ry);
+    });
+
+    it('shift-constrained circle extends past cursor along the smaller axis', () => {
+      // Start at (200, 200), drag to (300, 280) + Shift: dxRaw=100, dyRaw=80
+      // Without shift: rx=50, ry=40. With shift: r=max(50,40)=50
+      // cx = startX + signX * r = 200 + 1*50 = 250 (anchored at start, extends right by max-r)
+      // cy = startY + signY * r = 200 + 1*50 = 250 (extends down by max-r, past cursor's y=280)
+      // The bounding box extends to y=300 (cy+r=300), past the cursor's y=280
+      const downActions = EllipseTool.onPointerDown(makeState(), makeCtx(200, 200));
+      const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
+
+      const moveActions = EllipseTool.onPointerMove(makeState({ draftShape }), makeCtx(300, 280, true));
+
+      const action = moveActions[0]!;
+      if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
+      const shape = action.shape;
+      if (!shape || shape.type !== 'ellipse') throw new Error('expected ellipse');
+      expect(shape.rx).toBe(50);
+      expect(shape.ry).toBe(50);
+      expect(shape.cx).toBe(250);
+      expect(shape.cy).toBe(250);
+      // The bounding box bottom edge (cy+r) is 300, which is past the cursor's y=280
+      expect(shape.cy + shape.ry).toBe(300);
+    });
+
+    it('shift-constrained circle extends past cursor (up-left drag)', () => {
+      // Start at (200, 200), drag to (100, 120) + Shift: dxRaw=-100, dyRaw=-80
+      // Without shift: rx=50, ry=40. With shift: r=max(50,40)=50
+      // cx = 200 + (-1)*50 = 150, cy = 200 + (-1)*50 = 150
+      // Top edge (cy-r=100) is at y=100; cursor was at y=120 — circle extends past cursor
+      const downActions = EllipseTool.onPointerDown(makeState(), makeCtx(200, 200));
+      const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
+
+      const moveActions = EllipseTool.onPointerMove(makeState({ draftShape }), makeCtx(100, 120, true));
+
+      const action = moveActions[0]!;
+      if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
+      const shape = action.shape;
+      if (!shape || shape.type !== 'ellipse') throw new Error('expected ellipse');
+      expect(shape.rx).toBe(50);
+      expect(shape.ry).toBe(50);
+      expect(shape.cx).toBe(150);
+      expect(shape.cy).toBe(150);
+    });
+  });
+
+  describe('onPointerMove() — four-quadrant bounding box coverage', () => {
+    // Verify that the ellipse inscribes the drag bounding box in all four drag directions.
+    // For a drag from (200,200) with |dx|=100, |dy|=80:
+    //   rx=50, ry=40; the ellipse extents match the bounding box on all 4 sides.
+
+    function getEllipseFromDrag(toX: number, toY: number) {
+      const downActions = EllipseTool.onPointerDown(makeState(), makeCtx(200, 200));
+      const draftShape = downActions[0]!.type === 'SET_DRAFT' ? downActions[0]!.shape : null;
+      const moveActions = EllipseTool.onPointerMove(makeState({ draftShape }), makeCtx(toX, toY, false));
+      const action = moveActions[0]!;
+      if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
+      const shape = action.shape;
+      if (!shape || shape.type !== 'ellipse') throw new Error('expected ellipse');
+      return shape;
+    }
+
+    it('down-right drag: ellipse extents match bounding box on all 4 sides', () => {
+      // (200,200) → (300,280): bounding box x:[200,300], y:[200,280]
+      const shape = getEllipseFromDrag(300, 280);
+      expect(shape.rx).toBe(50);
+      expect(shape.ry).toBe(40);
+      expect(shape.cx).toBe(250);
+      expect(shape.cy).toBe(240);
+      // Extents must touch bounding box edges
+      expect(shape.cx - shape.rx).toBe(200); // left edge
+      expect(shape.cx + shape.rx).toBe(300); // right edge
+      expect(shape.cy - shape.ry).toBe(200); // top edge
+      expect(shape.cy + shape.ry).toBe(280); // bottom edge
+    });
+
+    it('down-left drag: ellipse extents match bounding box on all 4 sides', () => {
+      // (200,200) → (100,280): bounding box x:[100,200], y:[200,280]
+      const shape = getEllipseFromDrag(100, 280);
+      expect(shape.rx).toBe(50);
+      expect(shape.ry).toBe(40);
+      expect(shape.cx).toBe(150);
+      expect(shape.cy).toBe(240);
+      expect(shape.cx - shape.rx).toBe(100); // left edge
+      expect(shape.cx + shape.rx).toBe(200); // right edge
+      expect(shape.cy - shape.ry).toBe(200); // top edge
+      expect(shape.cy + shape.ry).toBe(280); // bottom edge
+    });
+
+    it('up-right drag: ellipse extents match bounding box on all 4 sides', () => {
+      // (200,200) → (300,120): bounding box x:[200,300], y:[120,200]
+      const shape = getEllipseFromDrag(300, 120);
+      expect(shape.rx).toBe(50);
+      expect(shape.ry).toBe(40);
+      expect(shape.cx).toBe(250);
+      expect(shape.cy).toBe(160);
+      expect(shape.cx - shape.rx).toBe(200); // left edge
+      expect(shape.cx + shape.rx).toBe(300); // right edge
+      expect(shape.cy - shape.ry).toBe(120); // top edge
+      expect(shape.cy + shape.ry).toBe(200); // bottom edge
+    });
+
+    it('up-left drag: ellipse extents match bounding box on all 4 sides', () => {
+      // (200,200) → (100,120): bounding box x:[100,200], y:[120,200]
+      const shape = getEllipseFromDrag(100, 120);
+      expect(shape.rx).toBe(50);
+      expect(shape.ry).toBe(40);
+      expect(shape.cx).toBe(150);
+      expect(shape.cy).toBe(160);
+      expect(shape.cx - shape.rx).toBe(100); // left edge
+      expect(shape.cx + shape.rx).toBe(200); // right edge
+      expect(shape.cy - shape.ry).toBe(120); // top edge
+      expect(shape.cy + shape.ry).toBe(200); // bottom edge
     });
   });
 

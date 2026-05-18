@@ -44,23 +44,30 @@ export const EllipseTool: ToolHandler = {
     const { imageX, imageY, event } = ctx;
     const shape = state.draftShape as EllipseShape;
 
-    const dx = Math.abs(imageX - drawState.startX);
-    const dy = Math.abs(imageY - drawState.startY);
+    const dxRaw = imageX - drawState.startX;
+    const dyRaw = imageY - drawState.startY;
 
-    let rx = dx;
-    let ry = dy;
+    let rx = Math.abs(dxRaw) / 2;
+    let ry = Math.abs(dyRaw) / 2;
+    let cx = drawState.startX + dxRaw / 2;
+    let cy = drawState.startY + dyRaw / 2;
 
     // Shift-constrain to circle (equal radii)
     if (event.shiftKey) {
-      const r = Math.max(dx, dy);
+      const r = Math.max(rx, ry);
       rx = r;
       ry = r;
+      // Re-anchor center: keep start point on the bounding square, extend in the drag direction
+      const signX = dxRaw >= 0 ? 1 : -1;
+      const signY = dyRaw >= 0 ? 1 : -1;
+      cx = drawState.startX + signX * r;
+      cy = drawState.startY + signY * r;
     }
 
     const updatedDraft: EllipseShape = {
       ...shape,
-      cx: drawState.startX + dx / 2,
-      cy: drawState.startY + dy / 2,
+      cx,
+      cy,
       rx,
       ry,
     };
