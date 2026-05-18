@@ -611,5 +611,35 @@ describe('OverflowMenu', () => {
       const menu = screen.getByRole('menu');
       expect(menu.className).not.toContain('menuFixed');
     });
+
+    it('menu does NOT carry .menuTop class when usePortal=true with placement="top-end"', () => {
+      renderMenu({ usePortal: true, placement: 'top-end' });
+      const trigger = screen.getByRole('button', { name: 'Open menu' });
+      mockRect(trigger);
+
+      fireEvent.click(trigger);
+      const menu = screen.getByRole('menu');
+
+      // .menuTop applies bottom: 100% which conflicts with inline top: <Npx> in fixed
+      // positioning. In portal mode the inline style fully controls positioning, so
+      // .menuTop/.menuBottom must NOT be present.
+      expect(menu.className).not.toMatch(/menuTop/);
+      expect(menu.className).not.toMatch(/menuBottom/);
+
+      // .menuFixed must still be present so position: fixed and z-index apply.
+      expect(menu.className).toMatch(/menuFixed/);
+    });
+
+    it('menu carries .menuTop class when usePortal=false with placement="top-end"', () => {
+      renderMenu({ placement: 'top-end' }); // usePortal omitted = false
+      const trigger = screen.getByRole('button', { name: 'Open menu' });
+      mockRect(trigger);
+
+      fireEvent.click(trigger);
+      const menu = screen.getByRole('menu');
+
+      expect(menu.className).toMatch(/menuTop/);
+      expect(menu.className).not.toMatch(/menuFixed/);
+    });
   });
 });

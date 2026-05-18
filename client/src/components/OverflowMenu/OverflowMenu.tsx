@@ -153,7 +153,7 @@ export function OverflowMenu({
     <div
       ref={menuRef}
       role="menu"
-      className={`${styles.menu} ${usePortal ? styles.menuFixed : ''} ${placement === 'top-end' ? styles.menuTop : styles.menuBottom}`}
+      className={`${styles.menu} ${usePortal ? styles.menuFixed : ''} ${!usePortal ? (placement === 'top-end' ? styles.menuTop : styles.menuBottom) : ''}`}
       onKeyDown={handleMenuKeyDown}
       style={
         usePortal && menuPos
