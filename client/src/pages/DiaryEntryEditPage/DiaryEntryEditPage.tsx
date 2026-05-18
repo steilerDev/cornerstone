@@ -714,6 +714,11 @@ export default function DiaryEntryEditPage() {
                   onDelete={(photo) => {
                     void photosResult.deletePhoto(photo.id);
                   }}
+                  onEdit={(photo) => {
+                    const index = photosResult.photos.findIndex((p) => p.id === photo.id);
+                    setSelectedPhotoIndex(index);
+                  }}
+                  editable={!entry.isSigned}
                   loading={photosResult.loading}
                 />
               </div>

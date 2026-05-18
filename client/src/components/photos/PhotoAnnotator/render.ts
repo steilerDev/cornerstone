@@ -25,6 +25,11 @@ export type SvgRenderResult =
       children: string;
     }
   | {
+      tagName: 'arrow';
+      lineAttrs: Record<string, string | number>;
+      arrowheadAttrs: Record<string, string | number>;
+    }
+  | {
       tagName: 'polyline';
       attributes: Record<string, string | number>;
     };
@@ -72,29 +77,51 @@ export function renderShapeSvgProps(shape: AnnotationShape, isDraft: boolean): S
       },
     };
   } else if (shape.type === 'arrow') {
-    // Shorten the line endpoint by the arrowhead length so it ends at the marker's base
-    // The marker has markerWidth="8" and refX="8", meaning the arrowhead base is 8 * strokeWidth back from the tip
+    // Compute arrowhead base and triangle points
     const dx = shape.x2 - shape.x1;
     const dy = shape.y2 - shape.y1;
     const len = Math.sqrt(dx * dx + dy * dy) || 1;
-    const shortenDist = 8 * shape.strokeWidth;
-    const shortenedX2 = shape.x2 - (dx / len) * shortenDist;
-    const shortenedY2 = shape.y2 - (dy / len) * shortenDist;
+    const unitX = dx / len;
+    const unitY = dy / len;
+
+    // Arrowhead dimensions (proportional to stroke width)
+    const tipLen = 8 * shape.strokeWidth; // length of arrowhead along line direction
+    const tipHalfWidth = 4 * shape.strokeWidth; // half the perpendicular width
+
+    // Base of arrowhead (where line ends)
+    const baseX = shape.x2 - unitX * tipLen;
+    const baseY = shape.y2 - unitY * tipLen;
+
+    // Perpendicular unit vector
+    const perpX = -unitY;
+    const perpY = unitX;
+
+    // Triangle vertices
+    const pt1x = baseX + perpX * tipHalfWidth;
+    const pt1y = baseY + perpY * tipHalfWidth;
+    const pt3x = baseX - perpX * tipHalfWidth;
+    const pt3y = baseY - perpY * tipHalfWidth;
 
     return {
-      tagName: 'line',
-      attributes: {
+      tagName: 'arrow',
+      lineAttrs: {
         x1: shape.x1,
         y1: shape.y1,
-        x2: shortenedX2,
-        y2: shortenedY2,
+        x2: baseX,
+        y2: baseY,
         stroke: shape.stroke,
         'stroke-width': shape.strokeWidth,
         'stroke-linecap': 'round',
         'stroke-dasharray': isDraft ? '6 4' : 'none',
-        'marker-end': isDraft ? 'none' : 'url(#arrowhead)',
         opacity: isDraft ? 0.8 : 1,
         'pointer-events': isDraft ? 'none' : 'stroke',
+      },
+      arrowheadAttrs: {
+        points: `${pt1x},${pt1y} ${shape.x2},${shape.y2} ${pt3x},${pt3y}`,
+        fill: shape.stroke,
+        stroke: 'none',
+        opacity: isDraft ? 0.8 : 1,
+        'pointer-events': 'none',
       },
     };
   } else if (shape.type === 'line') {
@@ -298,37 +325,41 @@ export function drawShapeOnCanvas(ctx: CanvasRenderingContext2D, shape: Annotati
     ctx.fillRect(shape.x, shape.y, shape.w, shape.h);
     ctx.globalAlpha = 1;
   } else if (shape.type === 'arrow') {
-    // Shorten the line endpoint by the arrowhead length so it ends at the arrowhead's base
+    // Draw line from start to arrowhead base
     const dx = shape.x2 - shape.x1;
     const dy = shape.y2 - shape.y1;
     const len = Math.sqrt(dx * dx + dy * dy) || 1;
-    const shortenDist = 8 * shape.strokeWidth;
-    const shortenedX2 = shape.x2 - (dx / len) * shortenDist;
-    const shortenedY2 = shape.y2 - (dy / len) * shortenDist;
+    const unitX = dx / len;
+    const unitY = dy / len;
+
+    const tipLen = 8 * shape.strokeWidth;
+    const tipHalfWidth = 4 * shape.strokeWidth;
+
+    const baseX = shape.x2 - unitX * tipLen;
+    const baseY = shape.y2 - unitY * tipLen;
 
     ctx.strokeStyle = shape.stroke;
     ctx.lineWidth = shape.strokeWidth;
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(shape.x1, shape.y1);
-    ctx.lineTo(shortenedX2, shortenedY2);
+    ctx.lineTo(baseX, baseY);
     ctx.stroke();
 
-    // Draw arrowhead at the original endpoint (shape.x2, shape.y2)
-    const headlen = shape.strokeWidth * 3;
-    const angle = Math.atan2(shape.y2 - shape.y1, shape.x2 - shape.x1);
+    // Draw arrowhead triangle
+    const perpX = -unitY;
+    const perpY = unitX;
+
+    const pt1x = baseX + perpX * tipHalfWidth;
+    const pt1y = baseY + perpY * tipHalfWidth;
+    const pt3x = baseX - perpX * tipHalfWidth;
+    const pt3y = baseY - perpY * tipHalfWidth;
 
     ctx.fillStyle = shape.stroke;
     ctx.beginPath();
-    ctx.moveTo(shape.x2, shape.y2);
-    ctx.lineTo(
-      shape.x2 - headlen * Math.cos(angle - Math.PI / 6),
-      shape.y2 - headlen * Math.sin(angle - Math.PI / 6),
-    );
-    ctx.lineTo(
-      shape.x2 - headlen * Math.cos(angle + Math.PI / 6),
-      shape.y2 - headlen * Math.sin(angle + Math.PI / 6),
-    );
+    ctx.moveTo(pt1x, pt1y);
+    ctx.lineTo(shape.x2, shape.y2);
+    ctx.lineTo(pt3x, pt3y);
     ctx.closePath();
     ctx.fill();
   } else if (shape.type === 'line') {
