@@ -1,4 +1,14 @@
-import type { AnnotationShape } from './useUndoStack.js';
+import type { AnnotationShape, TextShape, CalloutShape } from './useUndoStack.js';
+import { nearestBoxEdgePoint } from './geometry.js';
+
+/** Canonical UI sans-serif font family for all text annotations.
+ *  Must be kept in sync between SVG rendering and canvas 2D rendering. */
+export const ANNOTATION_FONT_FAMILY = 'system-ui, -apple-system, sans-serif';
+
+export type SvgRenderResult =
+  | { tagName: 'rect' | 'line' | 'ellipse'; attributes: Record<string, string | number> }
+  | { tagName: 'text'; attributes: Record<string, string | number>; children: string }
+  | { tagName: 'callout'; boxAttrs: Record<string, string | number>; tailAttrs: Record<string, string | number>; textAttrs: Record<string, string | number>; children: string };
 
 /**
  * Renders a shape as SVG attributes object.
@@ -7,10 +17,7 @@ import type { AnnotationShape } from './useUndoStack.js';
 export function renderShapeSvgProps(
   shape: AnnotationShape,
   isDraft: boolean,
-): {
-  tagName: 'rect' | 'line' | 'ellipse';
-  attributes: Record<string, string | number>;
-} {
+): SvgRenderResult {
   if (shape.type === 'rectangle') {
     const baseAttrs: Record<string, string | number> = {
       x: shape.x,
@@ -97,6 +104,62 @@ export function renderShapeSvgProps(
         'pointer-events': isDraft ? 'none' : 'stroke',
       },
     };
+  } else if (shape.type === 'text') {
+    const textShape = shape as TextShape;
+    return {
+      tagName: 'text',
+      attributes: {
+        x: textShape.x,
+        y: textShape.y,
+        fill: textShape.color,
+        'font-size': textShape.fontSize,
+        'font-family': ANNOTATION_FONT_FAMILY,
+        opacity: isDraft ? 0.8 : 1,
+        'pointer-events': isDraft ? 'none' : 'fill',
+        'user-select': 'none',
+      },
+      children: textShape.text,
+    };
+  } else if (shape.type === 'callout') {
+    const calloutShape = shape as CalloutShape;
+    const { x: anchorX, y: anchorY } = nearestBoxEdgePoint(calloutShape, calloutShape.tailX, calloutShape.tailY);
+    return {
+      tagName: 'callout',
+      boxAttrs: {
+        x: calloutShape.x,
+        y: calloutShape.y,
+        width: calloutShape.w,
+        height: calloutShape.h,
+        stroke: calloutShape.stroke,
+        'stroke-width': 2,
+        'stroke-dasharray': isDraft ? '6 4' : 'none',
+        fill: calloutShape.fill,
+        'fill-opacity': 0.15,
+        opacity: isDraft ? 0.8 : 1,
+        'pointer-events': isDraft ? 'none' : 'fill',
+      },
+      tailAttrs: {
+        x1: anchorX,
+        y1: anchorY,
+        x2: calloutShape.tailX,
+        y2: calloutShape.tailY,
+        stroke: calloutShape.stroke,
+        'stroke-width': 2,
+        'stroke-linecap': 'round',
+        opacity: isDraft ? 0.8 : 1,
+        'pointer-events': 'none',
+      },
+      textAttrs: {
+        x: calloutShape.x + 6,
+        y: calloutShape.y + calloutShape.fontSize + 4,
+        fill: calloutShape.color,
+        'font-size': calloutShape.fontSize,
+        'font-family': ANNOTATION_FONT_FAMILY,
+        'pointer-events': 'none',
+        'user-select': 'none',
+      },
+      children: calloutShape.text,
+    };
   }
 
   // Fallback for unknown shape type
@@ -160,5 +223,33 @@ export function drawShapeOnCanvas(ctx: CanvasRenderingContext2D, shape: Annotati
     ctx.beginPath();
     ctx.ellipse(shape.cx, shape.cy, shape.rx, shape.ry, 0, 0, 2 * Math.PI);
     ctx.stroke();
+  } else if (shape.type === 'text') {
+    const textShape = shape as TextShape;
+    ctx.fillStyle = textShape.color;
+    ctx.font = `${textShape.fontSize}px ${ANNOTATION_FONT_FAMILY}`;
+    ctx.fillText(textShape.text, textShape.x, textShape.y + textShape.fontSize); // baseline offset
+  } else if (shape.type === 'callout') {
+    const calloutShape = shape as CalloutShape;
+    // 1. Box
+    ctx.strokeStyle = calloutShape.stroke;
+    ctx.lineWidth = 2;
+    ctx.fillStyle = calloutShape.fill;
+    ctx.globalAlpha = 0.15;
+    ctx.fillRect(calloutShape.x, calloutShape.y, calloutShape.w, calloutShape.h);
+    ctx.globalAlpha = 1;
+    ctx.strokeRect(calloutShape.x, calloutShape.y, calloutShape.w, calloutShape.h);
+
+    // 2. Tail
+    const { x: ax, y: ay } = nearestBoxEdgePoint(calloutShape, calloutShape.tailX, calloutShape.tailY);
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(calloutShape.tailX, calloutShape.tailY);
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    // 3. Text
+    ctx.fillStyle = calloutShape.color;
+    ctx.font = `${calloutShape.fontSize}px ${ANNOTATION_FONT_FAMILY}`;
+    ctx.fillText(calloutShape.text, calloutShape.x + 6, calloutShape.y + calloutShape.fontSize + 4);
   }
 }

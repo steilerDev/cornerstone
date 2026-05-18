@@ -9,10 +9,10 @@
  *   - onPointerUp: commits drag position
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { SelectTool } from './SelectTool.js';
 import type { AnnotatorState } from '../useAnnotator.js';
-import type { AnnotationShape, ArrowShape, LineShape, EllipseShape } from '../useUndoStack.js';
+import type { AnnotationShape, ArrowShape, LineShape, EllipseShape, TextShape, CalloutShape } from '../useUndoStack.js';
 import type { PointerContext } from './SelectTool.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -52,6 +52,7 @@ function makeState(overrides: Partial<AnnotatorState> = {}): AnnotatorState {
     selectedTool: 'select',
     activeColor: '#dc2626',
     activeStrokeWidthKey: 'medium',
+    activeFontSize: 18,
     selectDragState: {
       mode: null,
       shapeId: null,
@@ -647,5 +648,346 @@ describe('SelectTool', () => {
       expect(updatedShape.rx).toBe(80); // 60+20
       expect(updatedShape.ry).toBe(40); // unchanged
     });
+  });
+});
+
+// ─── Text shape hit-testing and interaction ────────────────────────────────────
+
+describe('onPointerDown() — text shape body hit', () => {
+  function makeTextShape(overrides: Partial<TextShape> = {}): TextShape {
+    return {
+      type: 'text',
+      id: 'text-hit',
+      x: 50,
+      y: 50,
+      text: 'Hello World',
+      fontSize: 18,
+      color: '#dc2626',
+      ...overrides,
+    };
+  }
+
+  it('returns SELECT_SHAPE + START_DRAG(move) when clicking inside text body', () => {
+    // text at (50, 50), text='Hello World' (11 chars), fontSize=18
+    // approxWidth = 11 * 18 * 0.6 = 118.8; approxHeight = 18 * 1.2 = 21.6
+    // Click at (80, 60) — well inside the bounding box
+    const shape = makeTextShape();
+    const state = makeState({ shapes: [shape] });
+
+    const actions = SelectTool.onPointerDown(state, makeCtx(80, 60));
+
+    expect(actions).toHaveLength(2);
+    const selectAction = actions[0]!;
+    if (selectAction.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+    expect(selectAction.id).toBe('text-hit');
+    const dragAction = actions[1]!;
+    if (dragAction.type !== 'START_DRAG') throw new Error('expected START_DRAG');
+    expect(dragAction.mode).toBe('move');
+  });
+
+  it('returns SELECT_SHAPE(null) + END_DRAG when clicking far outside a text shape', () => {
+    const shape = makeTextShape({ x: 50, y: 50 });
+    const state = makeState({ shapes: [shape] });
+
+    // Click at (500, 500) — far from text shape
+    const actions = SelectTool.onPointerDown(state, makeCtx(500, 500));
+
+    expect(actions).toHaveLength(2);
+    const selectAction = actions[0]!;
+    if (selectAction.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+    expect(selectAction.id).toBeNull();
+  });
+
+  it('double-click on text shape calls onOpenInlineInput', () => {
+    const shape = makeTextShape();
+    const state = makeState({ shapes: [shape] });
+    const onOpenInlineInput = jest.fn() as jest.MockedFunction<
+      (x: number, y: number, shapeId?: string) => void
+    >;
+
+    const ctx: PointerContext = {
+      imageX: 80,
+      imageY: 60,
+      imageWidth: 800,
+      imageHeight: 600,
+      // detail=2 signals double-click
+      event: { detail: 2 } as React.PointerEvent<SVGSVGElement>,
+      onOpenInlineInput,
+    };
+
+    const actions = SelectTool.onPointerDown(state, ctx);
+
+    expect(onOpenInlineInput).toHaveBeenCalledTimes(1);
+    expect(onOpenInlineInput).toHaveBeenCalledWith(shape.x, shape.y, shape.id);
+    // Also selects the shape
+    const selectAction = actions.find((a) => a.type === 'SELECT_SHAPE');
+    expect(selectAction).toBeDefined();
+    if (selectAction?.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+    expect(selectAction.id).toBe('text-hit');
+  });
+
+  it('double-click on text shape passes shapeId as third argument to onOpenInlineInput', () => {
+    const shape = makeTextShape({ id: 'text-edit-id' });
+    const state = makeState({ shapes: [shape] });
+    const onOpenInlineInput = jest.fn() as jest.MockedFunction<
+      (x: number, y: number, shapeId?: string) => void
+    >;
+
+    const ctx: PointerContext = {
+      imageX: 80,
+      imageY: 60,
+      imageWidth: 800,
+      imageHeight: 600,
+      event: { detail: 2 } as React.PointerEvent<SVGSVGElement>,
+      onOpenInlineInput,
+    };
+
+    SelectTool.onPointerDown(state, ctx);
+
+    expect(onOpenInlineInput).toHaveBeenCalledTimes(1);
+    expect(onOpenInlineInput).toHaveBeenCalledWith(shape.x, shape.y, 'text-edit-id');
+  });
+});
+
+// ─── Callout shape hit-testing and interaction ─────────────────────────────────
+
+describe('onPointerDown() — callout shape', () => {
+  function makeCalloutShape(overrides: Partial<CalloutShape> = {}): CalloutShape {
+    return {
+      type: 'callout',
+      id: 'callout-hit',
+      x: 50,
+      y: 50,
+      w: 100,
+      h: 80,
+      text: '',
+      tailX: 160,
+      tailY: 200,
+      stroke: '#dc2626',
+      fill: '#dc2626',
+      fontSize: 18,
+      color: '#dc2626',
+      ...overrides,
+    };
+  }
+
+  it('returns SELECT_SHAPE + START_DRAG(move) when clicking inside callout box', () => {
+    // Callout box: x=50,y=50 to x=150,y=130; click at (100, 90) — center of box
+    const shape = makeCalloutShape();
+    const state = makeState({ shapes: [shape] });
+
+    const actions = SelectTool.onPointerDown(state, makeCtx(100, 90));
+
+    expect(actions).toHaveLength(2);
+    const selectAction = actions[0]!;
+    if (selectAction.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+    expect(selectAction.id).toBe('callout-hit');
+    const dragAction = actions[1]!;
+    if (dragAction.type !== 'START_DRAG') throw new Error('expected START_DRAG');
+    expect(dragAction.mode).toBe('move');
+  });
+
+  it('returns SELECT_SHAPE + START_DRAG(resize, handle=tail) when clicking the tail handle', () => {
+    // tailX=160, tailY=200; handleSize=8 → hit radius=4; click exactly at (160,200)
+    const shape = makeCalloutShape({ tailX: 160, tailY: 200 });
+    const state = makeState({ shapes: [shape] });
+
+    const actions = SelectTool.onPointerDown(state, makeCtx(160, 200));
+
+    expect(actions).toHaveLength(2);
+    const selectAction = actions[0]!;
+    if (selectAction.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+    expect(selectAction.id).toBe('callout-hit');
+    const dragAction = actions[1]!;
+    if (dragAction.type !== 'START_DRAG') throw new Error('expected START_DRAG');
+    expect(dragAction.mode).toBe('resize');
+    expect(dragAction.handle).toBe('tail');
+  });
+
+  it('double-click on callout box calls onOpenInlineInput', () => {
+    const shape = makeCalloutShape();
+    const state = makeState({ shapes: [shape] });
+    const onOpenInlineInput = jest.fn() as jest.MockedFunction<
+      (x: number, y: number, shapeId?: string) => void
+    >;
+
+    const ctx: PointerContext = {
+      imageX: 100,
+      imageY: 90,
+      imageWidth: 800,
+      imageHeight: 600,
+      event: { detail: 2 } as React.PointerEvent<SVGSVGElement>,
+      onOpenInlineInput,
+    };
+
+    const actions = SelectTool.onPointerDown(state, ctx);
+
+    expect(onOpenInlineInput).toHaveBeenCalledTimes(1);
+    expect(onOpenInlineInput).toHaveBeenCalledWith(shape.x, shape.y, shape.id);
+    const selectAction = actions.find((a) => a.type === 'SELECT_SHAPE');
+    if (selectAction?.type !== 'SELECT_SHAPE') throw new Error('expected SELECT_SHAPE');
+    expect(selectAction.id).toBe('callout-hit');
+  });
+
+  it('double-click on callout box passes shapeId as third argument to onOpenInlineInput', () => {
+    const shape = makeCalloutShape({ id: 'callout-edit-id' });
+    const state = makeState({ shapes: [shape] });
+    const onOpenInlineInput = jest.fn() as jest.MockedFunction<
+      (x: number, y: number, shapeId?: string) => void
+    >;
+
+    const ctx: PointerContext = {
+      imageX: 100,
+      imageY: 90,
+      imageWidth: 800,
+      imageHeight: 600,
+      event: { detail: 2 } as React.PointerEvent<SVGSVGElement>,
+      onOpenInlineInput,
+    };
+
+    SelectTool.onPointerDown(state, ctx);
+
+    expect(onOpenInlineInput).toHaveBeenCalledTimes(1);
+    expect(onOpenInlineInput).toHaveBeenCalledWith(shape.x, shape.y, 'callout-edit-id');
+  });
+});
+
+// ─── onPointerMove() — move text ──────────────────────────────────────────────
+
+describe('onPointerMove() — move text shape', () => {
+  it('returns UPDATE_SHAPE with translated text position', () => {
+    const shape: TextShape = {
+      type: 'text',
+      id: 'text-move',
+      x: 100,
+      y: 100,
+      text: 'Move me',
+      fontSize: 18,
+      color: '#dc2626',
+    };
+
+    const stateAfterDragStart = makeState({
+      shapes: [shape],
+      selectDragState: {
+        mode: 'move',
+        shapeId: 'text-move',
+        handle: null,
+        startImageX: 100,
+        startImageY: 100,
+        startShape: shape,
+      },
+    });
+
+    // Move 20px right, 15px down
+    const moveActions = SelectTool.onPointerMove(stateAfterDragStart, makeCtx(120, 115));
+
+    expect(moveActions).toHaveLength(1);
+    const action = moveActions[0]!;
+    if (action.type !== 'UPDATE_SHAPE') throw new Error('expected UPDATE_SHAPE');
+    const updatedShape = action.shape;
+    if (updatedShape.type !== 'text') throw new Error('expected text shape');
+    // translateText moves x: clamp(100+20, 0, 800)=120; y: clamp(100+15, 0, 600-18)=115
+    expect(updatedShape.x).toBe(120);
+    expect(updatedShape.y).toBe(115);
+  });
+});
+
+// ─── onPointerMove() — move callout ──────────────────────────────────────────
+
+describe('onPointerMove() — move callout shape', () => {
+  it('returns UPDATE_SHAPE with translated callout box position (tail unchanged)', () => {
+    const shape: CalloutShape = {
+      type: 'callout',
+      id: 'callout-move',
+      x: 50,
+      y: 50,
+      w: 100,
+      h: 80,
+      text: '',
+      tailX: 200,
+      tailY: 200,
+      stroke: '#dc2626',
+      fill: '#dc2626',
+      fontSize: 18,
+      color: '#dc2626',
+    };
+
+    const stateAfterDragStart = makeState({
+      shapes: [shape],
+      selectDragState: {
+        mode: 'move',
+        shapeId: 'callout-move',
+        handle: null,
+        startImageX: 100,
+        startImageY: 90,
+        startShape: shape,
+      },
+    });
+
+    // Move 20px right, 10px down
+    const moveActions = SelectTool.onPointerMove(stateAfterDragStart, makeCtx(120, 100));
+
+    expect(moveActions).toHaveLength(1);
+    const action = moveActions[0]!;
+    if (action.type !== 'UPDATE_SHAPE') throw new Error('expected UPDATE_SHAPE');
+    const updatedShape = action.shape;
+    if (updatedShape.type !== 'callout') throw new Error('expected callout shape');
+    // Box moves by dx=20, dy=10
+    expect(updatedShape.x).toBe(70); // 50+20
+    expect(updatedShape.y).toBe(60); // 50+10
+    // tailX/tailY preserved from startShape (translateCallout only returns x/y)
+    expect(updatedShape.tailX).toBe(200);
+    expect(updatedShape.tailY).toBe(200);
+  });
+});
+
+// ─── onPointerMove() — resize callout tail ────────────────────────────────────
+
+describe('onPointerMove() — resize callout tail anchor', () => {
+  it('returns UPDATE_SHAPE with updated tailX/tailY (box x/y/w/h unchanged)', () => {
+    const shape: CalloutShape = {
+      type: 'callout',
+      id: 'callout-tail-resize',
+      x: 50,
+      y: 50,
+      w: 100,
+      h: 80,
+      text: '',
+      tailX: 200,
+      tailY: 200,
+      stroke: '#dc2626',
+      fill: '#dc2626',
+      fontSize: 18,
+      color: '#dc2626',
+    };
+
+    const stateAfterDragStart = makeState({
+      shapes: [shape],
+      selectDragState: {
+        mode: 'resize',
+        shapeId: 'callout-tail-resize',
+        handle: 'tail',
+        startImageX: 200,
+        startImageY: 200,
+        startShape: shape,
+      },
+    });
+
+    // Drag tail 30px right, 40px down
+    const moveActions = SelectTool.onPointerMove(stateAfterDragStart, makeCtx(230, 240));
+
+    expect(moveActions).toHaveLength(1);
+    const action = moveActions[0]!;
+    if (action.type !== 'UPDATE_SHAPE') throw new Error('expected UPDATE_SHAPE');
+    const updatedShape = action.shape;
+    if (updatedShape.type !== 'callout') throw new Error('expected callout shape');
+    // tail moves: tailX = clamp(200+30, 0, 800) = 230; tailY = clamp(200+40, 0, 600) = 240
+    expect(updatedShape.tailX).toBe(230);
+    expect(updatedShape.tailY).toBe(240);
+    // box stays put
+    expect(updatedShape.x).toBe(50);
+    expect(updatedShape.y).toBe(50);
+    expect(updatedShape.w).toBe(100);
+    expect(updatedShape.h).toBe(80);
   });
 });

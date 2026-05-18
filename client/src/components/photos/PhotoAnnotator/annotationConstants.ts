@@ -22,3 +22,14 @@ export type StrokeWidthKey = keyof typeof ANNOTATION_STROKE_WIDTHS;
 
 export const DEFAULT_COLOR: AnnotationColor = ANNOTATION_COLORS.red;
 export const DEFAULT_STROKE_WIDTH: StrokeWidthKey = 'medium';
+
+/** Font sizes in image-space pixels (matching font-size attribute in SVG) */
+export const ANNOTATION_FONT_SIZES = {
+  small: 12,
+  medium: 18,  // default
+  large: 24,
+  xlarge: 32,
+} as const;
+
+export type FontSizeKey = keyof typeof ANNOTATION_FONT_SIZES;
+export const DEFAULT_FONT_SIZE = ANNOTATION_FONT_SIZES.medium;

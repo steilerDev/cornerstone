@@ -26,6 +26,13 @@ import {
   translateEllipse,
   resizeArrowLine,
   resizeEllipse,
+  hitTestText,
+  hitTestCallout,
+  hitTestTailHandle,
+  nearestBoxEdgePoint,
+  translateText,
+  translateCallout,
+  translateTailAnchor,
 } from './geometry.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -824,5 +831,296 @@ describe('resizeEllipse()', () => {
     expect(result.ry).toBe(50);
     expect(result.cy).toBeGreaterThanOrEqual(result.ry);
     expect(result.cy).toBeLessThanOrEqual(imageHeight - result.ry);
+  });
+});
+
+// ─── hitTestText ──────────────────────────────────────────────────────────────
+
+describe('hitTestText()', () => {
+  // Shape: anchor at (50, 50), text='Hello' (5 chars), fontSize=18
+  // approxWidth = 5 * 18 * 0.6 = 54; approxHeight = 18 * 1.2 = 21.6
+  const shape = { x: 50, y: 50, text: 'Hello', fontSize: 18 };
+  const tolerance = 4;
+
+  it('returns true for a point inside the approximated bounding box', () => {
+    // (60, 60) is inside [46..108, 46..75.6]
+    expect(hitTestText(60, 60, shape, tolerance)).toBe(true);
+  });
+
+  it('returns false for a point far outside the bounding box', () => {
+    expect(hitTestText(200, 200, shape, tolerance)).toBe(false);
+  });
+
+  it('returns true within tolerance beyond the right edge', () => {
+    // Right edge = x + approxWidth = 50 + 54 = 104; click at 104 + 2 = 106 (within tolerance=4)
+    expect(hitTestText(106, 60, shape, tolerance)).toBe(true);
+  });
+
+  it('returns false just beyond the tolerance on the right', () => {
+    // 50 + 54 + 4 + 1 = 109 — just outside tolerance
+    expect(hitTestText(109, 60, shape, tolerance)).toBe(false);
+  });
+
+  it('returns true within tolerance above the top edge (y - tolerance)', () => {
+    // Top = y = 50; tolerance extends up to 50 - 4 = 46
+    expect(hitTestText(60, 47, shape, tolerance)).toBe(true);
+  });
+
+  it('returns false above the tolerance boundary', () => {
+    // y - tolerance - 1 = 45 — just outside
+    expect(hitTestText(60, 45, shape, tolerance)).toBe(false);
+  });
+
+  it('returns true at the anchor point exactly', () => {
+    expect(hitTestText(50, 50, shape, tolerance)).toBe(true);
+  });
+
+  it('handles empty text (approxWidth=0) — point at anchor still hits', () => {
+    const emptyShape = { x: 50, y: 50, text: '', fontSize: 18 };
+    // approxWidth=0, so right edge = 50+0+4 = 54; click at (52, 55) should hit
+    expect(hitTestText(52, 55, emptyShape, tolerance)).toBe(true);
+  });
+});
+
+// ─── hitTestCallout ───────────────────────────────────────────────────────────
+
+describe('hitTestCallout()', () => {
+  const shape = { x: 10, y: 10, w: 100, h: 80 };
+
+  it('returns true for a point inside the callout box', () => {
+    expect(hitTestCallout(60, 50, shape)).toBe(true);
+  });
+
+  it('returns true at the exact top-left corner', () => {
+    expect(hitTestCallout(10, 10, shape)).toBe(true);
+  });
+
+  it('returns true at the exact bottom-right corner', () => {
+    expect(hitTestCallout(110, 90, shape)).toBe(true);
+  });
+
+  it('returns false for a point outside the box (left)', () => {
+    expect(hitTestCallout(5, 50, shape)).toBe(false);
+  });
+
+  it('returns false for a point outside the box (above)', () => {
+    expect(hitTestCallout(60, 5, shape)).toBe(false);
+  });
+
+  it('returns false for a point outside the box (right)', () => {
+    expect(hitTestCallout(115, 50, shape)).toBe(false);
+  });
+
+  it('returns false for a point outside the box (below)', () => {
+    expect(hitTestCallout(60, 95, shape)).toBe(false);
+  });
+});
+
+// ─── hitTestTailHandle ────────────────────────────────────────────────────────
+
+describe('hitTestTailHandle()', () => {
+  // tailX=100, tailY=100; handleSize=8 → hit radius=4
+  const tailX = 100;
+  const tailY = 100;
+  const handleSize = 8;
+
+  it('returns true for a point exactly at the tail anchor', () => {
+    expect(hitTestTailHandle(100, 100, tailX, tailY, handleSize)).toBe(true);
+  });
+
+  it('returns true within handle radius (distance=2 <= 4)', () => {
+    // (102, 100) — distance=2 <= 4
+    expect(hitTestTailHandle(102, 100, tailX, tailY, handleSize)).toBe(true);
+  });
+
+  it('returns false outside handle radius (distance=10 > 4)', () => {
+    // (110, 100) — distance=10 > 4
+    expect(hitTestTailHandle(110, 100, tailX, tailY, handleSize)).toBe(false);
+  });
+
+  it('returns true at the exact edge of the hit radius (distance=4)', () => {
+    // (104, 100) — distance=4 <= 4
+    expect(hitTestTailHandle(104, 100, tailX, tailY, handleSize)).toBe(true);
+  });
+
+  it('returns false just beyond the edge (distance=4.1)', () => {
+    // (104.1, 100) — distance≈4.1 > 4
+    expect(hitTestTailHandle(104.1, 100, tailX, tailY, handleSize)).toBe(false);
+  });
+
+  it('works with diagonal distance calculation', () => {
+    // (103, 103) — distance = sqrt(9+9) ≈ 4.24 > 4
+    expect(hitTestTailHandle(103, 103, tailX, tailY, handleSize)).toBe(false);
+  });
+});
+
+// ─── nearestBoxEdgePoint ──────────────────────────────────────────────────────
+
+describe('nearestBoxEdgePoint()', () => {
+  const box = { x: 0, y: 0, w: 100, h: 100 };
+
+  it('external point to the right returns a right-edge point', () => {
+    // tx=200, ty=50 — nearest edge is right (x=100)
+    const result = nearestBoxEdgePoint(box, 200, 50);
+    expect(result.x).toBe(100);
+    expect(result.y).toBe(50);
+  });
+
+  it('external point to the left returns a left-edge point', () => {
+    // tx=-50, ty=50 — nearest edge is left (x=0)
+    const result = nearestBoxEdgePoint(box, -50, 50);
+    expect(result.x).toBe(0);
+    expect(result.y).toBe(50);
+  });
+
+  it('external point directly below returns a bottom-edge point', () => {
+    // tx=50, ty=200 — nearest edge is bottom (y=100)
+    const result = nearestBoxEdgePoint(box, 50, 200);
+    expect(result.x).toBe(50);
+    expect(result.y).toBe(100);
+  });
+
+  it('external point directly above returns a top-edge point', () => {
+    // tx=50, ty=-100 — nearest edge is top (y=0)
+    const result = nearestBoxEdgePoint(box, 50, -100);
+    expect(result.x).toBe(50);
+    expect(result.y).toBe(0);
+  });
+
+  it('external point below-left returns nearest corner area', () => {
+    // tx=-10, ty=200 — clamped to (0, 100); nearest of (0,100), (100,100), (0,100), (0,100)
+    const result = nearestBoxEdgePoint(box, -10, 200);
+    // Both left (x=0, y=100) and bottom (x=0, y=100) give the same corner point
+    expect(result.x).toBe(0);
+    expect(result.y).toBe(100);
+  });
+
+  it('external point bottom-center returns the bottom-center edge point', () => {
+    // tx=50, ty=200
+    const result = nearestBoxEdgePoint(box, 50, 200);
+    expect(result.x).toBe(50);
+    expect(result.y).toBe(100);
+  });
+});
+
+// ─── translateText ────────────────────────────────────────────────────────────
+
+describe('translateText()', () => {
+  const imageWidth = 800;
+  const imageHeight = 600;
+
+  it('translates anchor by dx/dy', () => {
+    const shape = { x: 100, y: 100, fontSize: 18 };
+    const result = translateText(shape, 30, 20, imageWidth, imageHeight);
+    expect(result.x).toBe(130);
+    expect(result.y).toBe(120);
+  });
+
+  it('clamps x to 0 (left boundary)', () => {
+    const shape = { x: 5, y: 100, fontSize: 18 };
+    const result = translateText(shape, -20, 0, imageWidth, imageHeight);
+    expect(result.x).toBe(0);
+  });
+
+  it('clamps x to imageWidth (right boundary)', () => {
+    const shape = { x: 790, y: 100, fontSize: 18 };
+    const result = translateText(shape, 30, 0, imageWidth, imageHeight);
+    expect(result.x).toBeLessThanOrEqual(imageWidth);
+  });
+
+  it('clamps y to 0 when dy is large and negative', () => {
+    const shape = { x: 100, y: 5, fontSize: 18 };
+    const result = translateText(shape, 0, -100, imageWidth, imageHeight);
+    expect(result.y).toBeGreaterThanOrEqual(0);
+  });
+
+  it('clamps y so text stays above imageHeight - fontSize', () => {
+    // imageHeight - fontSize = 600 - 18 = 582; going beyond should clamp
+    const shape = { x: 100, y: 580, fontSize: 18 };
+    const result = translateText(shape, 0, 50, imageWidth, imageHeight);
+    expect(result.y).toBeLessThanOrEqual(imageHeight - shape.fontSize);
+  });
+});
+
+// ─── translateCallout ─────────────────────────────────────────────────────────
+
+describe('translateCallout()', () => {
+  const imageWidth = 800;
+  const imageHeight = 600;
+
+  it('translates box origin by dx/dy', () => {
+    const shape = { x: 100, y: 100, w: 80, h: 60 };
+    const result = translateCallout(shape, 30, 20, imageWidth, imageHeight);
+    expect(result.x).toBe(130);
+    expect(result.y).toBe(120);
+  });
+
+  it('clamps x so box stays within left boundary (x >= 0)', () => {
+    const shape = { x: 5, y: 100, w: 80, h: 60 };
+    const result = translateCallout(shape, -20, 0, imageWidth, imageHeight);
+    expect(result.x).toBe(0);
+  });
+
+  it('clamps x so box stays within right boundary (x + w <= imageWidth)', () => {
+    const shape = { x: 750, y: 100, w: 80, h: 60 };
+    const result = translateCallout(shape, 50, 0, imageWidth, imageHeight);
+    expect(result.x).toBeLessThanOrEqual(imageWidth - shape.w);
+  });
+
+  it('clamps y so box stays within top boundary (y >= 0)', () => {
+    const shape = { x: 100, y: 5, w: 80, h: 60 };
+    const result = translateCallout(shape, 0, -20, imageWidth, imageHeight);
+    expect(result.y).toBe(0);
+  });
+
+  it('clamps y so box stays within bottom boundary (y + h <= imageHeight)', () => {
+    const shape = { x: 100, y: 560, w: 80, h: 60 };
+    const result = translateCallout(shape, 0, 50, imageWidth, imageHeight);
+    expect(result.y).toBeLessThanOrEqual(imageHeight - shape.h);
+  });
+});
+
+// ─── translateTailAnchor ──────────────────────────────────────────────────────
+
+describe('translateTailAnchor()', () => {
+  const imageWidth = 800;
+  const imageHeight = 600;
+
+  it('passes through coordinates within bounds', () => {
+    const result = translateTailAnchor(300, 400, imageWidth, imageHeight);
+    expect(result.tailX).toBe(300);
+    expect(result.tailY).toBe(400);
+  });
+
+  it('clamps tailX to 0 when newTailX is negative', () => {
+    const result = translateTailAnchor(-10, 100, imageWidth, imageHeight);
+    expect(result.tailX).toBe(0);
+  });
+
+  it('clamps tailX to imageWidth when newTailX exceeds it', () => {
+    const result = translateTailAnchor(900, 100, imageWidth, imageHeight);
+    expect(result.tailX).toBe(imageWidth);
+  });
+
+  it('clamps tailY to 0 when newTailY is negative', () => {
+    const result = translateTailAnchor(100, -50, imageWidth, imageHeight);
+    expect(result.tailY).toBe(0);
+  });
+
+  it('clamps tailY to imageHeight when newTailY exceeds it', () => {
+    const result = translateTailAnchor(100, 700, imageWidth, imageHeight);
+    expect(result.tailY).toBe(imageHeight);
+  });
+
+  it('returns exactly imageWidth/imageHeight at boundaries', () => {
+    const result = translateTailAnchor(imageWidth, imageHeight, imageWidth, imageHeight);
+    expect(result.tailX).toBe(imageWidth);
+    expect(result.tailY).toBe(imageHeight);
+  });
+
+  it('returns 0/0 at exact zero boundaries', () => {
+    const result = translateTailAnchor(0, 0, imageWidth, imageHeight);
+    expect(result.tailX).toBe(0);
+    expect(result.tailY).toBe(0);
   });
 });

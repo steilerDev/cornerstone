@@ -27,6 +27,7 @@
     "Deposit": { "de": { "singular": "Abschlagszahlung", "plural": "Abschlagszahlungen" } },
     "Final payment": { "de": { "singular": "Schlusszahlung" } },
     "Draft": { "de": { "singular": "Entwurf", "plural": "Entwürfe" } },
-    "Annotation": { "de": { "singular": "Annotation", "plural": "Annotationen" } }
+    "Annotation": { "de": { "singular": "Annotation", "plural": "Annotationen" } },
+    "Callout": { "de": { "singular": "Sprechblase", "plural": "Sprechblasen" } }
   }
 }

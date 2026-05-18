@@ -128,7 +128,8 @@ export type HandlePosition =
   | 'north'
   | 'south'
   | 'east'
-  | 'west';
+  | 'west'
+  | 'tail';
 
 export function hitTestHandles(
   px: number,
@@ -437,4 +438,136 @@ export function resizeEllipse(
   const clampedCy = clamp(cy, newRy, imageHeight - newRy);
 
   return { cx: clampedCx, cy: clampedCy, rx: newRx, ry: newRy };
+}
+
+/**
+ * Hit-test a text shape. Uses an approximate bounding box:
+ * width is estimated as fontSize * 0.6 * charCount, height is fontSize * 1.2.
+ * For selection hit-testing we accept this approximation — the selection overlay
+ * uses the DOM-measured bbox when available (see PhotoAnnotator.tsx textBBoxMap).
+ */
+export function hitTestText(
+  px: number,
+  py: number,
+  shape: { x: number; y: number; text: string; fontSize: number },
+  tolerance: number,
+): boolean {
+  const approxWidth = shape.text.length * shape.fontSize * 0.6;
+  const approxHeight = shape.fontSize * 1.2;
+
+  return (
+    px >= shape.x - tolerance &&
+    px <= shape.x + approxWidth + tolerance &&
+    py >= shape.y - tolerance &&
+    py <= shape.y + approxHeight + tolerance
+  );
+}
+
+/**
+ * Hit-test the box area of a callout (filled rectangle).
+ */
+export function hitTestCallout(
+  px: number,
+  py: number,
+  shape: { x: number; y: number; w: number; h: number },
+): boolean {
+  return px >= shape.x && px <= shape.x + shape.w && py >= shape.y && py <= shape.y + shape.h;
+}
+
+/**
+ * Hit-test the tail anchor circle of a callout.
+ * Returns true if the point is within handleSize/2 of (tailX, tailY).
+ */
+export function hitTestTailHandle(
+  px: number,
+  py: number,
+  tailX: number,
+  tailY: number,
+  handleSize: number,
+): boolean {
+  return distance(px, py, tailX, tailY) <= handleSize / 2;
+}
+
+/**
+ * Returns the point on the box perimeter closest to external point (tx, ty).
+ * Used to compute where the callout tail meets the box border.
+ */
+export function nearestBoxEdgePoint(
+  box: { x: number; y: number; w: number; h: number },
+  tx: number,
+  ty: number,
+): { x: number; y: number } {
+  // Clamp tail coords to box bounds to find the nearest edge
+  const clampedTx = clamp(tx, box.x, box.x + box.w);
+  const clampedTy = clamp(ty, box.y, box.y + box.h);
+
+  // Find which edge is nearest
+  const left = { x: box.x, y: clampedTy };
+  const right = { x: box.x + box.w, y: clampedTy };
+  const top = { x: clampedTx, y: box.y };
+  const bottom = { x: clampedTx, y: box.y + box.h };
+
+  // Return the edge point with minimum distance to (tx, ty)
+  const candidates = [left, right, top, bottom];
+  let nearest = candidates[0]!;
+  let minDist = distance(tx, ty, nearest.x, nearest.y);
+
+  for (let i = 1; i < candidates.length; i++) {
+    const candidate = candidates[i]!;
+    const dist = distance(tx, ty, candidate.x, candidate.y);
+    if (dist < minDist) {
+      minDist = dist;
+      nearest = candidate;
+    }
+  }
+
+  return nearest;
+}
+
+/**
+ * Translate a text shape's anchor by dx, dy (clamped to image bounds).
+ * Text has no w/h so clamping uses fontSize as a proxy for height.
+ */
+export function translateText(
+  shape: { x: number; y: number; fontSize: number },
+  dx: number,
+  dy: number,
+  imageWidth: number,
+  imageHeight: number,
+): { x: number; y: number } {
+  return {
+    x: clamp(shape.x + dx, 0, imageWidth),
+    y: clamp(shape.y + dy, 0, imageHeight - shape.fontSize),
+  };
+}
+
+/**
+ * Translate a callout's box position (x, y), keeping w/h and tail fixed.
+ */
+export function translateCallout(
+  shape: { x: number; y: number; w: number; h: number },
+  dx: number,
+  dy: number,
+  imageWidth: number,
+  imageHeight: number,
+): { x: number; y: number } {
+  return {
+    x: clamp(shape.x + dx, 0, imageWidth - shape.w),
+    y: clamp(shape.y + dy, 0, imageHeight - shape.h),
+  };
+}
+
+/**
+ * Translate the callout tail anchor to a new absolute position (clamped to image bounds).
+ */
+export function translateTailAnchor(
+  newTailX: number,
+  newTailY: number,
+  imageWidth: number,
+  imageHeight: number,
+): { tailX: number; tailY: number } {
+  return {
+    tailX: clamp(newTailX, 0, imageWidth),
+    tailY: clamp(newTailY, 0, imageHeight),
+  };
 }

@@ -1,17 +1,19 @@
 import { useTranslation } from 'react-i18next';
 import type { ToolName, StrokeWidthKey } from './useAnnotator.js';
-import { ANNOTATION_COLORS, ANNOTATION_STROKE_WIDTHS } from './annotationConstants.js';
+import { ANNOTATION_COLORS, ANNOTATION_STROKE_WIDTHS, ANNOTATION_FONT_SIZES } from './annotationConstants.js';
 import styles from './ToolPalette.module.css';
 
 interface ToolPaletteProps {
   selectedTool: ToolName;
   activeColor: string;
   activeStrokeWidthKey: StrokeWidthKey;
+  activeFontSize: number;
   canUndo: boolean;
   canRedo: boolean;
   onSelectTool: (tool: ToolName) => void;
   onSelectColor: (color: string) => void;
   onSelectStrokeWidth: (key: StrokeWidthKey) => void;
+  onSelectFontSize: (size: number) => void;
   onUndo: () => void;
   onRedo: () => void;
 }
@@ -20,11 +22,13 @@ export function ToolPalette({
   selectedTool,
   activeColor,
   activeStrokeWidthKey,
+  activeFontSize,
   canUndo,
   canRedo,
   onSelectTool,
   onSelectColor,
   onSelectStrokeWidth,
+  onSelectFontSize,
   onUndo,
   onRedo,
 }: ToolPaletteProps) {
@@ -111,6 +115,32 @@ export function ToolPalette({
         >
           <EllipseIcon />
         </button>
+
+        <button
+          type="button"
+          aria-pressed={selectedTool === 'text'}
+          data-testid="tool-text"
+          aria-label={t('toolText')}
+          className={`${styles.toolButton} ${
+            selectedTool === 'text' ? styles.toolButtonActive : ''
+          }`}
+          onClick={() => onSelectTool('text')}
+        >
+          <TextIcon />
+        </button>
+
+        <button
+          type="button"
+          aria-pressed={selectedTool === 'callout'}
+          data-testid="tool-callout"
+          aria-label={t('toolCallout')}
+          className={`${styles.toolButton} ${
+            selectedTool === 'callout' ? styles.toolButtonActive : ''
+          }`}
+          onClick={() => onSelectTool('callout')}
+        >
+          <CalloutIcon />
+        </button>
       </div>
 
       <div className={styles.divider} aria-hidden="true" />
@@ -169,6 +199,29 @@ export function ToolPalette({
           </button>
         ))}
       </div>
+
+      {(selectedTool === 'text' || selectedTool === 'callout') && (
+        <>
+          <div className={styles.divider} aria-hidden="true" />
+          <div role="radiogroup" aria-label={t('fontSize')} className={styles.fontSizeGroup}>
+            {Object.entries(ANNOTATION_FONT_SIZES).map(([key, size]) => (
+              <button
+                key={key}
+                type="button"
+                role="radio"
+                aria-checked={activeFontSize === size}
+                aria-label={t(`fontSize${key.charAt(0).toUpperCase() + key.slice(1)}`)}
+                className={`${styles.fontSizeButton} ${
+                  activeFontSize === size ? styles.fontSizeButtonActive : ''
+                }`}
+                onClick={() => onSelectFontSize(size)}
+              >
+                <span style={{ fontSize: `${Math.max(10, size * 0.6)}px` }}>A</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       <div className={styles.divider} aria-hidden="true" />
 
@@ -294,6 +347,25 @@ function EllipseIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <ellipse cx="12" cy="12" rx="8" ry="5" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
+function TextIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="4" y="18" fontSize="16" fontWeight="700" fill="currentColor" fontFamily="serif">
+        T
+      </text>
+    </svg>
+  );
+}
+
+function CalloutIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="4" width="16" height="11" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
+      <path d="M9 15 L6 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
