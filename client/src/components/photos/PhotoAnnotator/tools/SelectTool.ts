@@ -8,6 +8,9 @@ import {
   hitTestEllipse,
   hitTestEndpointHandles,
   hitTestCardinalHandles,
+  hitTestText,
+  hitTestCallout,
+  hitTestTailHandle,
   type HandlePosition,
   translateShape,
   resizeShape,
@@ -15,6 +18,9 @@ import {
   resizeArrowLine,
   translateEllipse,
   resizeEllipse,
+  translateText,
+  translateCallout,
+  translateTailAnchor,
 } from '../geometry.js';
 
 export interface PointerContext {
@@ -23,6 +29,9 @@ export interface PointerContext {
   imageWidth: number;
   imageHeight: number;
   event: React.PointerEvent<SVGSVGElement>;
+  // Callbacks for tools that open the inline text editor
+  onOpenInlineInput?: (imageX: number, imageY: number, shapeId?: string) => void;
+  onCommitEdit?: (shapeId: string) => void;
 }
 
 export interface ToolHandler {
@@ -40,7 +49,18 @@ export const SelectTool: ToolHandler = {
     for (let i = state.shapes.length - 1; i >= 0; i--) {
       const shape = state.shapes[i]!;
 
-      // Check for handle hit first (only for rect/highlight and arrow/line/ellipse)
+      // Double-click: edit text and callout shapes
+      if (ctx.event.detail === 2 && (shape.type === 'text' || shape.type === 'callout')) {
+        const bodyHit = shape.type === 'text'
+          ? hitTestText(imageX, imageY, shape, 4)
+          : hitTestCallout(imageX, imageY, shape);
+        if (bodyHit) {
+          ctx.onOpenInlineInput?.(shape.x, shape.y, shape.id);
+          return [{ type: 'SELECT_SHAPE', id: shape.id }];
+        }
+      }
+
+      // Check for handle hit first (only for rect/highlight and arrow/line/ellipse/callout)
       let handleHit: string | null = null;
 
       if (shape.type === 'rectangle' || shape.type === 'highlight') {
@@ -65,6 +85,8 @@ export const SelectTool: ToolHandler = {
           shape.ry,
           8,
         );
+      } else if (shape.type === 'callout') {
+        handleHit = hitTestTailHandle(imageX, imageY, shape.tailX, shape.tailY, 8) ? 'tail' : null;
       }
 
       if (handleHit) {
@@ -102,6 +124,10 @@ export const SelectTool: ToolHandler = {
             shape.strokeWidth,
             0,
           ) !== null;
+      } else if (shape.type === 'text') {
+        bodyHit = hitTestText(imageX, imageY, shape, 4);
+      } else if (shape.type === 'callout') {
+        bodyHit = handleHit ? false : hitTestCallout(imageX, imageY, shape);
       }
 
       if (bodyHit) {
@@ -166,6 +192,12 @@ export const SelectTool: ToolHandler = {
           imageHeight,
         );
         updatedShape = { ...startShape, ...moved };
+      } else if (startShape.type === 'text') {
+        const moved = translateText(startShape, dx, dy, imageWidth, imageHeight);
+        updatedShape = { ...startShape, ...moved };
+      } else if (startShape.type === 'callout') {
+        const moved = translateCallout(startShape, dx, dy, imageWidth, imageHeight);
+        updatedShape = { ...startShape, ...moved };
       } else {
         updatedShape = startShape;
       }
@@ -207,6 +239,15 @@ export const SelectTool: ToolHandler = {
           imageHeight,
         );
         updatedShape = { ...startShape, ...resized };
+      } else if (startShape.type === 'callout' && selectDragState.handle === 'tail') {
+        // Tail-only drag
+        const newTail = translateTailAnchor(
+          startShape.tailX + dx,
+          startShape.tailY + dy,
+          imageWidth,
+          imageHeight,
+        );
+        updatedShape = { ...startShape, ...newTail };
       } else {
         updatedShape = startShape;
       }

@@ -1,11 +1,11 @@
 import { useReducer, useCallback } from 'react';
 import { useUndoStack } from './useUndoStack.js';
-import type { AnnotationShape, RectangleShape, HighlightShape } from './useUndoStack.js';
+import type { AnnotationShape, RectangleShape, HighlightShape, TextShape, CalloutShape } from './useUndoStack.js';
 import type { UseUndoStackResult } from './useUndoStack.js';
 import type { ANNOTATION_STROKE_WIDTHS } from './annotationConstants.js';
-import { DEFAULT_COLOR, DEFAULT_STROKE_WIDTH } from './annotationConstants.js';
+import { DEFAULT_COLOR, DEFAULT_STROKE_WIDTH, DEFAULT_FONT_SIZE } from './annotationConstants.js';
 
-export type ToolName = 'select' | 'rectangle' | 'highlight' | 'arrow' | 'line' | 'ellipse';
+export type ToolName = 'select' | 'rectangle' | 'highlight' | 'arrow' | 'line' | 'ellipse' | 'text' | 'callout';
 
 export type StrokeWidthKey = keyof typeof ANNOTATION_STROKE_WIDTHS;
 
@@ -16,6 +16,8 @@ export type {
   ArrowShape,
   LineShape,
   EllipseShape,
+  TextShape,
+  CalloutShape,
 } from './useUndoStack.js';
 
 export type DragMode = 'move' | 'resize' | null;
@@ -36,6 +38,7 @@ export interface AnnotatorState {
   selectedTool: ToolName;
   activeColor: string;
   activeStrokeWidthKey: StrokeWidthKey;
+  activeFontSize: number;
   selectDragState: SelectDragState;
 }
 
@@ -43,12 +46,15 @@ export type AnnotatorAction =
   | { type: 'SET_TOOL'; tool: ToolName }
   | { type: 'SET_COLOR'; color: string }
   | { type: 'SET_STROKE_WIDTH'; key: StrokeWidthKey }
+  | { type: 'SET_FONT_SIZE'; size: number }
   | { type: 'SET_DRAFT'; shape: AnnotationShape | null }
   | { type: 'COMMIT_DRAFT' }
   | { type: 'SELECT_SHAPE'; id: string | null }
   | { type: 'UPDATE_SHAPE'; shape: AnnotationShape }
   | { type: 'DELETE_SELECTED' }
   | { type: 'REPLACE_SHAPES'; shapes: AnnotationShape[] }
+  | { type: 'OPEN_INLINE_INPUT'; shapeId: string | null }
+  | { type: 'CLOSE_INLINE_INPUT' }
   | {
       type: 'START_DRAG';
       mode: DragMode;
@@ -74,6 +80,9 @@ export function annotatorReducer(
 
     case 'SET_STROKE_WIDTH':
       return { ...state, activeStrokeWidthKey: action.key };
+
+    case 'SET_FONT_SIZE':
+      return { ...state, activeFontSize: action.size };
 
     case 'SET_DRAFT':
       return { ...state, draftShape: action.shape };
@@ -135,6 +144,11 @@ export function annotatorReducer(
         },
       };
 
+    case 'OPEN_INLINE_INPUT':
+    case 'CLOSE_INLINE_INPUT':
+      // These are signals for the host component; reducer returns state as-is
+      return state;
+
     default:
       return state;
   }
@@ -154,6 +168,7 @@ export function useAnnotator(initialShapes?: AnnotationShape[]): {
     selectedTool: 'select',
     activeColor: DEFAULT_COLOR,
     activeStrokeWidthKey: DEFAULT_STROKE_WIDTH,
+    activeFontSize: DEFAULT_FONT_SIZE,
     selectDragState: {
       mode: null,
       shapeId: null,

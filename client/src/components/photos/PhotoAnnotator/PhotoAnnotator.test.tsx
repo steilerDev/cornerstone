@@ -85,12 +85,19 @@ jest.unstable_mockModule('./geometry.js', () => ({
   hitTestEndpointHandles: () => null,
   hitTestEllipse: () => false,
   hitTestCardinalHandles: () => null,
+  hitTestText: () => false,
+  hitTestCallout: () => false,
+  hitTestTailHandle: () => false,
+  nearestBoxEdgePoint: (_box: unknown, tx: number, ty: number) => ({ x: tx, y: ty }),
   translateShape: (shape: unknown, dx: number, dy: number) => ({ ...(shape as object), dx, dy }),
   resizeShape: (shape: unknown) => shape,
   translateArrowLine: (shape: unknown) => shape,
   resizeArrowLine: (shape: unknown) => shape,
   translateEllipse: (shape: unknown) => shape,
   resizeEllipse: (shape: unknown) => shape,
+  translateText: (shape: unknown) => shape,
+  translateCallout: (shape: unknown) => shape,
+  translateTailAnchor: (newTailX: number, newTailY: number) => ({ tailX: newTailX, tailY: newTailY }),
 }));
 
 // ─── Dynamic imports ──────────────────────────────────────────────────────────
@@ -330,5 +337,23 @@ describe('PhotoAnnotator', () => {
 
     // Component should still be in the DOM (no fatal crash)
     expect(screen.getByTestId('annotator-save')).toBeInTheDocument();
+  });
+
+  // ─── Accessibility: Live Region Announcements ──────────────────────────────
+
+  it('has live region element for accessibility announcements', () => {
+    renderAnnotator({ width: 800, height: 600 });
+
+    // Get the live region by querying all divs with aria-live attribute
+    const liveRegions = document.querySelectorAll('[aria-live="polite"]');
+    const srLiveRegion = Array.from(liveRegions).find(
+      (el) => el.getAttribute('aria-atomic') === 'true',
+    ) as HTMLElement | undefined;
+
+    // The test verifies that the live region exists with correct ARIA attributes
+    // (It will be used by PhotoAnnotator to announce events like callout tail phase transition)
+    expect(srLiveRegion).toBeDefined();
+    expect(srLiveRegion).toHaveAttribute('aria-live', 'polite');
+    expect(srLiveRegion).toHaveAttribute('aria-atomic', 'true');
   });
 });

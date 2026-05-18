@@ -13,6 +13,7 @@
 .toolGroup,
 .swatchGroup,
 .strokeGroup,
+.fontSizeGroup,
 .undoRedoGroup {
   display: flex;
   align-items: center;
@@ -110,6 +111,33 @@
   }
 }
 
+.fontSizeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: var(--spacing-1);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.fontSizeButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.fontSizeButtonActive {
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
 .toolButtonDisabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -126,6 +154,12 @@
   }
   .swatchButton:hover {
     transform: scale(1.15);
+  }
+  .fontSizeButton:hover:not([aria-checked='true']) {
+    background: var(--color-bg-tertiary);
+  }
+  .fontSizeButton {
+    transition: background-color var(--transition-normal);
   }
 }
 

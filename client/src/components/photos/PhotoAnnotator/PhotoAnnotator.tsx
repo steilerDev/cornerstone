@@ -1,16 +1,20 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { nanoid } from 'nanoid';
 import type { Photo } from '@cornerstone/shared';
-import { useAnnotator } from './useAnnotator.js';
+import { useAnnotator, type ToolName } from './useAnnotator.js';
+import type { TextShape, CalloutShape } from './useUndoStack.js';
 import { ToolPalette } from './ToolPalette.js';
 import { RectangleTool } from './tools/RectangleTool.js';
 import { HighlightTool } from './tools/HighlightTool.js';
 import { ArrowTool } from './tools/ArrowTool.js';
 import { LineTool } from './tools/LineTool.js';
 import { EllipseTool } from './tools/EllipseTool.js';
+import { TextTool } from './tools/TextTool.js';
+import { CalloutTool, resetCalloutTool, getCalloutPhase } from './tools/CalloutTool.js';
 import { SelectTool } from './tools/SelectTool.js';
 import type { PointerContext } from './tools/SelectTool.js';
-import { screenToImage, clamp } from './geometry.js';
+import { screenToImage, imageToScreen, clamp } from './geometry.js';
 import { renderShapeSvgProps, drawShapeOnCanvas } from './render.js';
 import { FormError } from '../../FormError/FormError.js';
 import { getBaseUrl } from '../../../lib/apiClient.js';
@@ -30,12 +34,146 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Inline edit state
+  interface InlineInputState {
+    isOpen: boolean;
+    // image-space position of the anchor
+    anchorImageX: number;
+    anchorImageY: number;
+    // If editing an existing shape — its id and original text
+    editingShapeId: string | null;
+    originalText: string;
+  }
+  const [inlineInput, setInlineInput] = useState<InlineInputState>({
+    isOpen: false,
+    anchorImageX: 0,
+    anchorImageY: 0,
+    editingShapeId: null,
+    originalText: '',
+  });
+
+  // Per-tool font size (persists across tool switches within session)
+  const fontSizePerTool = useRef<Partial<Record<ToolName, number>>>({});
+
   const imgRef = useRef<HTMLImageElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const inlineInputRef = useRef<HTMLInputElement>(null);
+  const textBBoxMap = useRef<Map<string, DOMRect>>(new Map());
   const liveRegionRef = useRef<HTMLDivElement>(null);
 
   // Calculate canonical URL
   const canonicalUrl = `${getBaseUrl()}/photos/${photo.id}/file`;
+
+  // Helper to get the active font size for the current tool
+  function getActiveFontSize(): number {
+    return fontSizePerTool.current[state.selectedTool] ?? state.activeFontSize;
+  }
+
+  // Callback to open the inline text input
+  const openInlineInput = useCallback(
+    (anchorImageX: number, anchorImageY: number, editingShapeId?: string) => {
+      const existingShape = editingShapeId
+        ? state.shapes.find((s) => s.id === editingShapeId)
+        : null;
+      const originalText =
+        existingShape && (existingShape.type === 'text' || existingShape.type === 'callout')
+          ? existingShape.text
+          : '';
+      setInlineInput({
+        isOpen: true,
+        anchorImageX,
+        anchorImageY,
+        editingShapeId: editingShapeId ?? null,
+        originalText,
+      });
+      // Pre-fill input value on next frame (after mount)
+      requestAnimationFrame(() => {
+        if (inlineInputRef.current) {
+          inlineInputRef.current.value = originalText;
+          inlineInputRef.current.focus();
+          inlineInputRef.current.select();
+        }
+      });
+    },
+    [state.shapes, state.selectedTool],
+  );
+
+  // Callback to commit the inline input
+  const commitInlineInput = useCallback(() => {
+    if (!inlineInput.isOpen) return;
+    const text = inlineInputRef.current?.value.trim() ?? '';
+    setInlineInput((prev) => ({ ...prev, isOpen: false }));
+
+    if (text === '') {
+      // Empty — if editing existing, no-op (preserve original). If new, discard.
+      if (inlineInput.editingShapeId === null) {
+        // Discard draft if it was a callout phase 2
+        dispatch({ type: 'SET_DRAFT', shape: null });
+      }
+      return;
+    }
+
+    const fontSize = getActiveFontSize();
+
+    if (inlineInput.editingShapeId !== null) {
+      // Editing existing shape — UPDATE_SHAPE + commit to undo stack
+      const shape = state.shapes.find((s) => s.id === inlineInput.editingShapeId);
+      if (shape && (shape.type === 'text' || shape.type === 'callout')) {
+        const updated = { ...shape, text };
+        dispatch({ type: 'UPDATE_SHAPE', shape: updated });
+        undoStack.commit(state.shapes.map((s) => (s.id === updated.id ? updated : s)));
+      }
+    } else if (state.selectedTool === 'text') {
+      // New text shape
+      const newShape: TextShape = {
+        type: 'text',
+        id: nanoid(),
+        x: inlineInput.anchorImageX,
+        y: inlineInput.anchorImageY,
+        text,
+        fontSize,
+        color: state.activeColor,
+      };
+      undoStack.commit([...undoStack.shapes, newShape]);
+      dispatch({ type: 'SELECT_SHAPE', id: newShape.id });
+    } else if (state.selectedTool === 'callout' && state.draftShape?.type === 'callout') {
+      // Commit the callout draft with text
+      const committed: CalloutShape = { ...(state.draftShape as CalloutShape), text };
+      const newShapes = [...undoStack.shapes, committed];
+      dispatch({ type: 'SET_DRAFT', shape: null });
+      undoStack.commit(newShapes);
+      dispatch({ type: 'SELECT_SHAPE', id: committed.id });
+    }
+  }, [inlineInput, state.shapes, state.draftShape, state.selectedTool, state.activeColor, undoStack, dispatch]);
+
+  // Callback to cancel the inline input
+  const cancelInlineInput = useCallback(() => {
+    if (!inlineInput.isOpen) return;
+    setInlineInput((prev) => ({ ...prev, isOpen: false }));
+    if (inlineInput.editingShapeId === null) {
+      // Abort new shape — discard draft if any
+      dispatch({ type: 'SET_DRAFT', shape: null });
+      resetCalloutTool();
+    }
+    // For existing shapes: no change, original text preserved
+  }, [inlineInput, dispatch]);
+
+  // Measure text bbox for DOM-accurate selection overlay
+  useEffect(() => {
+    if (!svgRef.current) return;
+    for (const shape of undoStack.shapes) {
+      if (shape.type === 'text') {
+        const el = svgRef.current.querySelector(`[data-shapeid="${shape.id}"]`) as SVGTextElement | null;
+        if (el) {
+          try {
+            textBBoxMap.current.set(shape.id, el.getBBox() as unknown as DOMRect);
+          } catch {
+            // getBBox fails when element is not in the DOM
+          }
+        }
+      }
+    }
+  }, [undoStack.shapes]);
 
   // Focus management
   useEffect(() => {
@@ -48,6 +186,9 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   // Keyboard handler for undo/redo and deletion
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Guard: if inline input is open, let the input handle the key
+      if (inlineInput.isOpen) return;
+
       const isMod = e.metaKey || e.ctrlKey;
 
       // Undo
@@ -136,6 +277,24 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                 ),
               },
             });
+          } else if (selectedShape.type === 'text') {
+            dispatch({
+              type: 'UPDATE_SHAPE',
+              shape: {
+                ...selectedShape,
+                x: clamp(selectedShape.x + dx, 0, photo.width!),
+                y: clamp(selectedShape.y + dy, 0, photo.height!),
+              },
+            });
+          } else if (selectedShape.type === 'callout') {
+            dispatch({
+              type: 'UPDATE_SHAPE',
+              shape: {
+                ...selectedShape,
+                x: clamp(selectedShape.x + dx, 0, photo.width! - selectedShape.w),
+                y: clamp(selectedShape.y + dy, 0, photo.height! - selectedShape.h),
+              },
+            });
           }
         }
       }
@@ -143,7 +302,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state.selectedShapeId, state.shapes, undoStack, dispatch, photo.width, photo.height]);
+  }, [inlineInput.isOpen, state.selectedShapeId, state.shapes, undoStack, dispatch, photo.width, photo.height]);
 
   // Pointer event handlers for drawing/editing
   const handlePointerDown = useCallback(
@@ -165,6 +324,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         imageWidth: photo.width!,
         imageHeight: photo.height!,
         event: e,
+        onOpenInlineInput: (ix, iy, shapeId) => openInlineInput(ix, iy, shapeId),
       };
 
       const toolHandlers = {
@@ -174,6 +334,8 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         arrow: ArrowTool,
         line: LineTool,
         ellipse: EllipseTool,
+        text: TextTool,
+        callout: CalloutTool,
       };
 
       const handler = toolHandlers[state.selectedTool];
@@ -183,7 +345,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         dispatch(action);
       }
     },
-    [state, photo.width, photo.height, dispatch],
+    [state, photo.width, photo.height, dispatch, openInlineInput],
   );
 
   const handlePointerMove = useCallback(
@@ -205,6 +367,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         imageWidth: photo.width!,
         imageHeight: photo.height!,
         event: e,
+        onOpenInlineInput: (ix, iy, shapeId) => openInlineInput(ix, iy, shapeId),
       };
 
       const toolHandlers = {
@@ -214,6 +377,8 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         arrow: ArrowTool,
         line: LineTool,
         ellipse: EllipseTool,
+        text: TextTool,
+        callout: CalloutTool,
       };
 
       const handler = toolHandlers[state.selectedTool];
@@ -223,7 +388,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         dispatch(action);
       }
     },
-    [state, photo.width, photo.height, dispatch],
+    [state, photo.width, photo.height, dispatch, openInlineInput],
   );
 
   const handlePointerUp = useCallback(
@@ -245,6 +410,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         imageWidth: photo.width!,
         imageHeight: photo.height!,
         event: e,
+        onOpenInlineInput: (ix, iy, shapeId) => openInlineInput(ix, iy, shapeId),
       };
 
       const toolHandlers = {
@@ -254,6 +420,8 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         arrow: ArrowTool,
         line: LineTool,
         ellipse: EllipseTool,
+        text: TextTool,
+        callout: CalloutTool,
       };
 
       const handler = toolHandlers[state.selectedTool];
@@ -267,9 +435,43 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       if (state.selectedTool === 'select' && state.selectedShapeId) {
         undoStack.commit(state.shapes);
       }
+
+      // Announce transition to callout tail phase
+      if (state.selectedTool === 'callout' && getCalloutPhase() === 'tail' && liveRegionRef.current) {
+        liveRegionRef.current.textContent = t('calloutTailPositioning');
+      }
+
+      // Cancel callout tail phase if clicked outside during tail positioning
+      if (getCalloutPhase() === 'tail') {
+        resetCalloutTool();
+        dispatch({ type: 'SET_DRAFT', shape: null });
+      }
     },
-    [state, photo.width, photo.height, dispatch, undoStack],
+    [state, photo.width, photo.height, dispatch, undoStack, openInlineInput],
   );
+
+  // Floating input positioning
+  const inlineInputStyle = useMemo((): React.CSSProperties => {
+    if (!inlineInput.isOpen || !svgRef.current) return { display: 'none' };
+    const svgRect = svgRef.current.getBoundingClientRect();
+    const { x: screenX, y: screenY } = imageToScreen(
+      inlineInput.anchorImageX,
+      inlineInput.anchorImageY,
+      svgRect,
+      photo.width!,
+      photo.height!,
+    );
+    // Position is relative to the `.canvasArea` container; subtract its top-left
+    const containerRect = svgRef.current.parentElement!.getBoundingClientRect();
+    return {
+      position: 'absolute',
+      left: screenX - containerRect.left,
+      top: screenY - containerRect.top,
+      fontSize: `${getActiveFontSize() * (svgRect.width / photo.width!)}px`,
+      minWidth: 80,
+      zIndex: 10,
+    };
+  }, [inlineInput, photo.width, photo.height]);
 
   const handleCancel = useCallback(() => {
     onCancel();
@@ -346,11 +548,16 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         selectedTool={state.selectedTool}
         activeColor={state.activeColor}
         activeStrokeWidthKey={state.activeStrokeWidthKey}
+        activeFontSize={state.activeFontSize}
         canUndo={undoStack.canUndo}
         canRedo={undoStack.canRedo}
         onSelectTool={(tool) => dispatch({ type: 'SET_TOOL', tool })}
         onSelectColor={(color) => dispatch({ type: 'SET_COLOR', color })}
         onSelectStrokeWidth={(key) => dispatch({ type: 'SET_STROKE_WIDTH', key })}
+        onSelectFontSize={(size) => {
+          fontSizePerTool.current[state.selectedTool] = size;
+          dispatch({ type: 'SET_FONT_SIZE', size });
+        }}
         onUndo={() => undoStack.undo()}
         onRedo={() => undoStack.redo()}
       />
@@ -384,17 +591,49 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
           {/* Committed shapes */}
           {undoStack.shapes.map((shape) => {
-            const { tagName, attributes } = renderShapeSvgProps(shape, false);
-            const Tag = tagName as any;
-            return <Tag key={shape.id} {...(attributes as Record<string, unknown>)} />;
+            const result = renderShapeSvgProps(shape, false);
+            if (result.tagName === 'callout') {
+              return (
+                <g key={shape.id}>
+                  <rect {...(result.boxAttrs as Record<string, unknown>)} />
+                  <line {...(result.tailAttrs as Record<string, unknown>)} />
+                  <text {...(result.textAttrs as Record<string, unknown>)}>{result.children}</text>
+                </g>
+              );
+            } else if (result.tagName === 'text') {
+              return (
+                <text key={shape.id} data-shapeid={shape.id} {...(result.attributes as Record<string, unknown>)}>
+                  {result.children}
+                </text>
+              );
+            } else {
+              const Tag = result.tagName as any;
+              return <Tag key={shape.id} {...(result.attributes as Record<string, unknown>)} />;
+            }
           })}
 
           {/* Draft shape */}
           {state.draftShape &&
             (() => {
-              const { tagName, attributes } = renderShapeSvgProps(state.draftShape, true);
-              const Tag = tagName as any;
-              return <Tag {...(attributes as Record<string, unknown>)} />;
+              const result = renderShapeSvgProps(state.draftShape, true);
+              if (result.tagName === 'callout') {
+                return (
+                  <g>
+                    <rect {...(result.boxAttrs as Record<string, unknown>)} />
+                    <line {...(result.tailAttrs as Record<string, unknown>)} />
+                    <text {...(result.textAttrs as Record<string, unknown>)}>{result.children}</text>
+                  </g>
+                );
+              } else if (result.tagName === 'text') {
+                return (
+                  <text data-shapeid={state.draftShape.id} {...(result.attributes as Record<string, unknown>)}>
+                    {result.children}
+                  </text>
+                );
+              } else {
+                const Tag = result.tagName as any;
+                return <Tag {...(result.attributes as Record<string, unknown>)} />;
+              }
             })()}
 
           {/* Selection overlay */}
@@ -533,9 +772,149 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                   ))}
                 </>
               )}
+
+              {selectedShape.type === 'text' && (() => {
+                const bbox = textBBoxMap.current.get(selectedShape.id);
+                if (!bbox) return null;
+                return (
+                  <>
+                    <rect
+                      x={bbox.x}
+                      y={bbox.y}
+                      width={bbox.width}
+                      height={bbox.height}
+                      stroke="var(--color-primary)"
+                      strokeWidth="1"
+                      strokeDasharray="4 2"
+                      fill="none"
+                      pointerEvents="none"
+                    />
+                    {/* 4 corner handles — move only */}
+                    {[
+                      { pos: 'nw', x: bbox.x, y: bbox.y },
+                      { pos: 'ne', x: bbox.x + bbox.width, y: bbox.y },
+                      { pos: 'sw', x: bbox.x, y: bbox.y + bbox.height },
+                      { pos: 'se', x: bbox.x + bbox.width, y: bbox.y + bbox.height },
+                    ].map(({ pos, x, y }) => (
+                      <rect
+                        key={pos}
+                        x={x - 4}
+                        y={y - 4}
+                        width={8}
+                        height={8}
+                        fill="var(--color-bg-primary)"
+                        stroke="var(--color-primary)"
+                        strokeWidth="1.5"
+                        style={{ cursor: 'move' }}
+                      />
+                    ))}
+                  </>
+                );
+              })()}
+
+              {selectedShape.type === 'callout' && (
+                <>
+                  <rect
+                    x={selectedShape.x}
+                    y={selectedShape.y}
+                    width={selectedShape.w}
+                    height={selectedShape.h}
+                    stroke="var(--color-primary)"
+                    strokeWidth="1"
+                    strokeDasharray="4 2"
+                    fill="none"
+                    pointerEvents="none"
+                  />
+                  {/* 8 box handles */}
+                  {['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'].map((pos) => {
+                    let cx = 0,
+                      cy = 0;
+                    const { x, y, w, h } = selectedShape;
+
+                    if (pos === 'nw') {
+                      [cx, cy] = [x, y];
+                    } else if (pos === 'n') {
+                      [cx, cy] = [x + w / 2, y];
+                    } else if (pos === 'ne') {
+                      [cx, cy] = [x + w, y];
+                    } else if (pos === 'w') {
+                      [cx, cy] = [x, y + h / 2];
+                    } else if (pos === 'e') {
+                      [cx, cy] = [x + w, y + h / 2];
+                    } else if (pos === 'sw') {
+                      [cx, cy] = [x, y + h];
+                    } else if (pos === 's') {
+                      [cx, cy] = [x + w / 2, y + h];
+                    } else if (pos === 'se') {
+                      [cx, cy] = [x + w, y + h];
+                    }
+
+                    const cursors: { [key: string]: string } = {
+                      nw: 'nwse-resize',
+                      n: 'ns-resize',
+                      ne: 'nesw-resize',
+                      w: 'ew-resize',
+                      e: 'ew-resize',
+                      sw: 'nesw-resize',
+                      s: 'ns-resize',
+                      se: 'nwse-resize',
+                    };
+
+                    return (
+                      <rect
+                        key={pos}
+                        x={cx - 4}
+                        y={cy - 4}
+                        width={8}
+                        height={8}
+                        fill="var(--color-bg-primary)"
+                        stroke="var(--color-primary)"
+                        strokeWidth="1.5"
+                        style={{ cursor: cursors[pos] }}
+                      />
+                    );
+                  })}
+                  {/* Tail anchor handle */}
+                  <circle
+                    cx={selectedShape.tailX}
+                    cy={selectedShape.tailY}
+                    r={5}
+                    fill="var(--color-primary)"
+                    stroke="var(--color-bg-primary)"
+                    strokeWidth="1.5"
+                    style={{ cursor: 'move' }}
+                  />
+                </>
+              )}
             </>
           )}
         </svg>
+
+        {inlineInput.isOpen && (
+          <input
+            ref={inlineInputRef}
+            type="text"
+            className={styles.inlineTextInput}
+            style={inlineInputStyle}
+            aria-label={t(state.selectedTool === 'callout' ? 'editCallout' : 'editText')}
+            data-testid="annotator-inline-input"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                commitInlineInput();
+              }
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                cancelInlineInput();
+              }
+            }}
+            onBlur={() => {
+              // Blur outside annotator area commits; blur to within annotator is fine
+              commitInlineInput();
+            }}
+          />
+        )}
       </div>
 
       {/* Screen reader live region */}
