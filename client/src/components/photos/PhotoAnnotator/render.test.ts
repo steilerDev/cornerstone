@@ -37,6 +37,17 @@ function getAttributes(result: SvgRenderResult): Record<string, string | number>
 }
 
 /**
+ * Asserts the result is an arrow composite (lineAttrs / arrowheadAttrs).
+ */
+function getArrowParts(result: SvgRenderResult): {
+  lineAttrs: Record<string, string | number>;
+  arrowheadAttrs: Record<string, string | number>;
+} {
+  if (result.tagName === 'arrow') return result;
+  throw new Error(`Expected arrow SvgRenderResult but got tagName '${result.tagName}'`);
+}
+
+/**
  * Asserts the result is a callout composite (boxAttrs / tailAttrs / textAttrs).
  */
 function getCalloutParts(result: SvgRenderResult): {
@@ -411,15 +422,14 @@ describe('drawShapeOnCanvas() — Highlight', () => {
 // ─── renderShapeSvgProps — Arrow ─────────────────────────────────────────────
 
 describe('renderShapeSvgProps() — Arrow', () => {
-  it('returns tagName: "line" for arrow', () => {
+  it('returns tagName: "arrow" for arrow', () => {
     const result = renderShapeSvgProps(makeArrow(), false);
-    expect(result.tagName).toBe('line');
+    expect(result.tagName).toBe('arrow');
   });
 
-  it('includes correct x1/y1 attributes (unchanged) and x2/y2 shortened to the arrowhead base', () => {
-    // The SVG line element stops at the base of the arrowhead marker, not at shape.x2/y2.
-    // Shortening = 8 * strokeWidth along the direction vector, so the marker tip lands exactly
-    // at (shape.x2, shape.y2) without the line body poking through.
+  it('has lineAttrs with x1/y1 unchanged and x2/y2 shortened to the arrowhead base', () => {
+    // The line stops at the base of the arrowhead, not at shape.x2/y2.
+    // Shortening = 8 * strokeWidth along the direction vector.
     const shape = makeArrow({ x1: 10, y1: 20, x2: 100, y2: 80, strokeWidth: 4 });
     const dx = shape.x2 - shape.x1; // 90
     const dy = shape.y2 - shape.y1; // 60
@@ -429,10 +439,11 @@ describe('renderShapeSvgProps() — Arrow', () => {
     const expectedY2 = shape.y2 - (dy / len) * shortenDist;
 
     const result = renderShapeSvgProps(shape, false);
-    expect(getAttributes(result).x1).toBe(10);
-    expect(getAttributes(result).y1).toBe(20);
-    expect(getAttributes(result).x2).toBeCloseTo(expectedX2, 5);
-    expect(getAttributes(result).y2).toBeCloseTo(expectedY2, 5);
+    const arrow = getArrowParts(result);
+    expect(arrow.lineAttrs.x1).toBe(10);
+    expect(arrow.lineAttrs.y1).toBe(20);
+    expect(arrow.lineAttrs.x2).toBeCloseTo(expectedX2, 5);
+    expect(arrow.lineAttrs.y2).toBeCloseTo(expectedY2, 5);
   });
 
   it('line endpoint is shortened by 8 * strokeWidth so it lands at the arrowhead base (horizontal case)', () => {
@@ -440,60 +451,79 @@ describe('renderShapeSvgProps() — Arrow', () => {
     // Arrow from (0,0) to (100,0) with strokeWidth=4 → shortenDist=32 → shortenedX2=68, shortenedY2=0.
     const shape = makeArrow({ x1: 0, y1: 0, x2: 100, y2: 0, strokeWidth: 4 });
     const result = renderShapeSvgProps(shape, false);
-    expect(getAttributes(result).x2).toBe(68);
-    expect(getAttributes(result).y2).toBe(0);
+    const arrow = getArrowParts(result);
+    expect(arrow.lineAttrs.x2).toBe(68);
+    expect(arrow.lineAttrs.y2).toBe(0);
   });
 
-  it('committed arrow has marker-end: "url(#arrowhead)"', () => {
-    const result = renderShapeSvgProps(makeArrow(), false);
-    expect(getAttributes(result)['marker-end']).toBe('url(#arrowhead)');
-  });
-
-  it('draft arrow has marker-end: "none"', () => {
-    const result = renderShapeSvgProps(makeArrow(), true);
-    expect(getAttributes(result)['marker-end']).toBe('none');
+  it('arrowhead points triangle has tip at shape.x2/y2 and base at the shortened endpoint', () => {
+    // Simple horizontal case: arrow from (0,0) to (100,0), strokeWidth=4
+    // Base = (68, 0), tip = (100, 0), tipHalfWidth = 16
+    const shape = makeArrow({ x1: 0, y1: 0, x2: 100, y2: 0, strokeWidth: 4 });
+    const result = renderShapeSvgProps(shape, false);
+    const arrow = getArrowParts(result);
+    // Points format: "pt1x,pt1y pt2x,pt2y pt3x,pt3y"
+    const pointsStr = arrow.arrowheadAttrs.points as string;
+    const points = pointsStr.split(' ').map(p => p.split(',').map(Number));
+    // pt2 (middle) should be at the tip (100, 0)
+    expect(points[1]).toBeDefined();
+    expect(points[1]![0]).toBe(100);
+    expect(points[1]![1]).toBe(0);
   });
 
   it('committed arrow has stroke-dasharray: "none"', () => {
     const result = renderShapeSvgProps(makeArrow(), false);
-    expect(getAttributes(result)['stroke-dasharray']).toBe('none');
+    const arrow = getArrowParts(result);
+    expect(arrow.lineAttrs['stroke-dasharray']).toBe('none');
   });
 
   it('draft arrow has stroke-dasharray: "6 4"', () => {
     const result = renderShapeSvgProps(makeArrow(), true);
-    expect(getAttributes(result)['stroke-dasharray']).toBe('6 4');
+    const arrow = getArrowParts(result);
+    expect(arrow.lineAttrs['stroke-dasharray']).toBe('6 4');
   });
 
-  it('committed arrow has opacity: 1', () => {
+  it('committed arrow has opacity: 1 on both line and arrowhead', () => {
     const result = renderShapeSvgProps(makeArrow(), false);
-    expect(getAttributes(result).opacity).toBe(1);
+    const arrow = getArrowParts(result);
+    expect(arrow.lineAttrs.opacity).toBe(1);
+    expect(arrow.arrowheadAttrs.opacity).toBe(1);
   });
 
-  it('draft arrow has opacity: 0.8', () => {
+  it('draft arrow has opacity: 0.8 on both line and arrowhead', () => {
     const result = renderShapeSvgProps(makeArrow(), true);
-    expect(getAttributes(result).opacity).toBe(0.8);
+    const arrow = getArrowParts(result);
+    expect(arrow.lineAttrs.opacity).toBe(0.8);
+    expect(arrow.arrowheadAttrs.opacity).toBe(0.8);
   });
 
-  it('uses shape.stroke for the stroke color', () => {
+  it('uses shape.stroke for both line and arrowhead fill', () => {
     const shape = makeArrow({ stroke: '#ff0000' });
     const result = renderShapeSvgProps(shape, false);
-    expect(getAttributes(result).stroke).toBe('#ff0000');
+    const arrow = getArrowParts(result);
+    expect(arrow.lineAttrs.stroke).toBe('#ff0000');
+    expect(arrow.arrowheadAttrs.fill).toBe('#ff0000');
   });
 
-  it('includes stroke-width attribute', () => {
+  it('includes stroke-width attribute on line', () => {
     const shape = makeArrow({ strokeWidth: 8 });
     const result = renderShapeSvgProps(shape, false);
-    expect(getAttributes(result)['stroke-width']).toBe(8);
+    const arrow = getArrowParts(result);
+    expect(arrow.lineAttrs['stroke-width']).toBe(8);
   });
 
-  it('committed arrow has pointer-events: "stroke"', () => {
+  it('committed arrow has pointer-events: "stroke" on line, "none" on arrowhead', () => {
     const result = renderShapeSvgProps(makeArrow(), false);
-    expect(getAttributes(result)['pointer-events']).toBe('stroke');
+    const arrow = getArrowParts(result);
+    expect(arrow.lineAttrs['pointer-events']).toBe('stroke');
+    expect(arrow.arrowheadAttrs['pointer-events']).toBe('none');
   });
 
-  it('draft arrow has pointer-events: "none"', () => {
+  it('draft arrow has pointer-events: "none" on both line and arrowhead', () => {
     const result = renderShapeSvgProps(makeArrow(), true);
-    expect(getAttributes(result)['pointer-events']).toBe('none');
+    const arrow = getArrowParts(result);
+    expect(arrow.lineAttrs['pointer-events']).toBe('none');
+    expect(arrow.arrowheadAttrs['pointer-events']).toBe('none');
   });
 });
 
