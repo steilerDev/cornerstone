@@ -73,7 +73,7 @@ let sessionService: typeof import('../services/sessionService.js');
 
 function makePhoto(overrides: Partial<Photo> = {}): Photo {
   return {
-    id: 'photo-id-123',
+    id: '33333333-3333-3333-3333-333333333333',
     entityType: 'test',
     entityId: 'entity-id-456',
     originalFilename: 'photo.jpg',
@@ -88,8 +88,8 @@ function makePhoto(overrides: Partial<Photo> = {}): Photo {
     createdAt: '2026-03-01T12:00:00.000Z',
     updatedAt: '2026-03-01T12:00:00.000Z',
     annotatedAt: null,
-    fileUrl: '/api/photos/photo-id-123/file',
-    thumbnailUrl: '/api/photos/photo-id-123/thumbnail',
+    fileUrl: '/api/photos/33333333-3333-3333-3333-333333333333/file',
+    thumbnailUrl: '/api/photos/33333333-3333-3333-3333-333333333333/thumbnail',
     ...overrides,
   };
 }
@@ -557,7 +557,7 @@ describe('Photo Routes', () => {
     it('returns 401 without authentication', async () => {
       const response = await app.inject({
         method: 'GET',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
       });
       expect(response.statusCode).toBe(401);
     });
@@ -572,7 +572,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'GET',
-        url: '/api/photos/non-existent-id',
+        url: '/api/photos/00000000-0000-0000-0000-000000000000',
         headers: { cookie },
       });
 
@@ -587,18 +587,18 @@ describe('Photo Routes', () => {
         'GetPhoto2',
         'password',
       );
-      const photo = makePhoto({ id: 'existing-photo' });
+      const photo = makePhoto({ id: '11111111-1111-1111-1111-111111111111' });
       mockGetPhoto.mockReturnValue(photo);
 
       const response = await app.inject({
         method: 'GET',
-        url: '/api/photos/existing-photo',
+        url: '/api/photos/11111111-1111-1111-1111-111111111111',
         headers: { cookie },
       });
 
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body) as { photo: Photo };
-      expect(body.photo.id).toBe('existing-photo');
+      expect(body.photo.id).toBe('11111111-1111-1111-1111-111111111111');
       expect(body.photo.mimeType).toBe('image/jpeg');
     });
   });
@@ -777,7 +777,7 @@ describe('Photo Routes', () => {
     it('returns 401 without authentication', async () => {
       const response = await app.inject({
         method: 'PATCH',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
         payload: { caption: 'updated' },
       });
       expect(response.statusCode).toBe(401);
@@ -789,7 +789,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'PATCH',
-        url: '/api/photos/no-such-photo',
+        url: '/api/photos/00000000-0000-0000-0000-000000000000',
         headers: { cookie, 'content-type': 'application/json' },
         payload: { caption: 'test' },
       });
@@ -810,7 +810,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'PATCH',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
         headers: { cookie, 'content-type': 'application/json' },
         payload: { caption: 'New Caption' },
       });
@@ -831,7 +831,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'PATCH',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
         headers: { cookie, 'content-type': 'application/json' },
         payload: { sortOrder: 5 },
       });
@@ -852,7 +852,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'PATCH',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
         headers: { cookie, 'content-type': 'application/json' },
         payload: { caption: null },
       });
@@ -869,7 +869,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'PATCH',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
         headers: { cookie, 'content-type': 'application/json' },
         payload: {},
       });
@@ -883,7 +883,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'PATCH',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
         headers: { cookie, 'content-type': 'application/json' },
         payload: { sortOrder: -1 },
       });
@@ -1020,7 +1020,7 @@ describe('Photo Routes', () => {
     it('returns 401 without authentication', async () => {
       const response = await app.inject({
         method: 'DELETE',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
       });
       expect(response.statusCode).toBe(401);
     });
@@ -1035,7 +1035,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'DELETE',
-        url: '/api/photos/no-such-photo',
+        url: '/api/photos/00000000-0000-0000-0000-000000000000',
         headers: { cookie },
       });
 
@@ -1051,7 +1051,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'DELETE',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
         headers: { cookie },
       });
 
@@ -1064,19 +1064,19 @@ describe('Photo Routes', () => {
         'DeleteArgs',
         'password',
       );
-      mockGetPhoto.mockReturnValue(makePhoto({ id: 'photo-to-delete' }));
+      mockGetPhoto.mockReturnValue(makePhoto({ id: '22222222-2222-2222-2222-222222222222' }));
       mockDeletePhoto.mockResolvedValue(undefined);
 
       await app.inject({
         method: 'DELETE',
-        url: '/api/photos/photo-to-delete',
+        url: '/api/photos/22222222-2222-2222-2222-222222222222',
         headers: { cookie },
       });
 
       expect(mockDeletePhoto).toHaveBeenCalledWith(
         expect.anything(),
         photoStoragePath,
-        'photo-to-delete',
+        '22222222-2222-2222-2222-222222222222',
       );
     });
   });
@@ -1096,7 +1096,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: '/api/photos/photo-id-123/annotation',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
         headers: { 'content-type': contentType },
         payload: body,
       });
@@ -1120,7 +1120,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: '/api/photos/photo-id-123/annotation',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
         headers: { cookie, 'content-type': contentType },
         payload: body,
       });
@@ -1148,7 +1148,7 @@ describe('Photo Routes', () => {
 
       await app.inject({
         method: 'PUT',
-        url: '/api/photos/photo-id-123/annotation',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
         headers: { cookie, 'content-type': contentType },
         payload: body,
       });
@@ -1156,7 +1156,7 @@ describe('Photo Routes', () => {
       expect(mockSaveAnnotatedImage).toHaveBeenCalledWith(
         expect.anything(), // db
         photoStoragePath,
-        'photo-id-123',
+        '33333333-3333-3333-3333-333333333333',
         expect.any(Buffer),
       );
       // Verify the buffer content matches what was sent
@@ -1190,7 +1190,7 @@ describe('Photo Routes', () => {
       );
       const response = await app.inject({
         method: 'PUT',
-        url: '/api/photos/photo-id-123/annotation',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
         headers: { cookie: cookie2, 'content-type': contentType },
         payload: body,
       });
@@ -1215,7 +1215,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'PUT',
-        url: '/api/photos/no-such-photo/annotation',
+        url: '/api/photos/00000000-0000-0000-0000-000000000000/annotation',
         headers: { cookie, 'content-type': contentType },
         payload: body,
       });
@@ -1230,7 +1230,7 @@ describe('Photo Routes', () => {
     it('returns 401 without authentication', async () => {
       const response = await app.inject({
         method: 'DELETE',
-        url: '/api/photos/photo-id-123/annotation',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
       });
 
       expect(response.statusCode).toBe(401);
@@ -1242,7 +1242,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'DELETE',
-        url: '/api/photos/photo-id-123/annotation',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
         headers: { cookie },
       });
 
@@ -1254,14 +1254,14 @@ describe('Photo Routes', () => {
 
       await app.inject({
         method: 'DELETE',
-        url: '/api/photos/my-photo-id/annotation',
+        url: '/api/photos/44444444-4444-4444-4444-444444444444/annotation',
         headers: { cookie },
       });
 
       expect(mockClearAnnotation).toHaveBeenCalledWith(
         expect.anything(), // db
         photoStoragePath,
-        'my-photo-id',
+        '44444444-4444-4444-4444-444444444444',
       );
     });
 
@@ -1276,7 +1276,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'DELETE',
-        url: '/api/photos/no-such-photo/annotation',
+        url: '/api/photos/00000000-0000-0000-0000-000000000000/annotation',
         headers: { cookie },
       });
 

@@ -723,9 +723,10 @@ test('Line tool — draw line and save', async ({
 
     await viewer.drawLine(0.2, 0.5, 0.7, 0.5);
 
-    // A <line data-shapeid> should appear (no marker-end for plain line)
+    // A <line data-shapeid> should appear (no marker-end for plain line).
+    // Use waitFor to allow React state to propagate after the pointer-up event.
     const lineEl = viewer.svgOverlay.locator('line[data-shapeid]').first();
-    await expect(lineEl).toBeVisible();
+    await lineEl.waitFor({ state: 'visible' });
     // Arrow has marker-end; plain line has marker-end="none" or absent
     const markerEnd = await lineEl.getAttribute('marker-end');
     expect(markerEnd === null || markerEnd === 'none').toBe(true);
@@ -800,9 +801,10 @@ test('Line tool — Shift-snap constrains angle to 45° increments', async ({
     await page.mouse.up();
     await page.keyboard.up('Shift');
 
-    // The committed line should have y1 ≈ y2 (horizontal snap)
+    // The committed line should have y1 ≈ y2 (horizontal snap).
+    // Use waitFor to allow React state to propagate after the pointer-up event.
     const lineEl = viewer.svgOverlay.locator('line[data-shapeid]').first();
-    await expect(lineEl).toBeVisible();
+    await lineEl.waitFor({ state: 'visible' });
 
     const y1 = parseFloat((await lineEl.getAttribute('y1')) ?? '0');
     const y2 = parseFloat((await lineEl.getAttribute('y2')) ?? '0');
@@ -1109,9 +1111,11 @@ test(
       // Draw callout: box at top-left, tail pointing to center-right
       await viewer.drawCallout(0.05, 0.05, 0.45, 0.35, 0.7, 0.6, 'Defect found');
 
-      // A <g data-shapeid> containing <rect>, <line>, <text> should appear
+      // A <g data-shapeid> containing <rect>, <line>, <text> should appear.
+      // The callout has 3 interaction phases (drag box, click tail, type text + Enter);
+      // use waitFor to give React time to commit the shape after the last phase.
       const calloutGroup = viewer.svgOverlay.locator('g[data-shapeid]').first();
-      await expect(calloutGroup).toBeVisible();
+      await calloutGroup.waitFor({ state: 'visible' });
 
       // The text content should be "Defect found"
       const calloutText = calloutGroup.locator('text').first();
@@ -1175,9 +1179,10 @@ test('Measurement tool — drag, type label, Enter commits with label text', asy
     // Draw measurement and enter label
     await viewer.drawMeasurement(0.1, 0.5, 0.8, 0.5, '3.5m');
 
-    // A <g data-shapeid> should appear containing lines + text
+    // A <g data-shapeid> should appear containing lines + text.
+    // Use waitFor to handle async React state propagation after inline input commit.
     const measureGroup = viewer.svgOverlay.locator('g[data-shapeid]').first();
-    await expect(measureGroup).toBeVisible();
+    await measureGroup.waitFor({ state: 'visible' });
 
     // Text label should be present and contain our label
     const labelText = measureGroup.locator('text').first();
@@ -1254,8 +1259,9 @@ test('Measurement tool — Escape commits line with empty label', async ({
     await expect(viewer.inlineInput).not.toBeVisible();
 
     // The <g data-shapeid> should exist (line committed) ...
+    // Use waitFor to handle async state propagation after Escape-commit.
     const measureGroup = viewer.svgOverlay.locator('g[data-shapeid]').first();
-    await expect(measureGroup).toBeVisible();
+    await measureGroup.waitFor({ state: 'visible' });
 
     // ... but should NOT contain a visible <text> child (empty label → display:none)
     // The text element exists in DOM but has display:none when label is empty.
@@ -1385,8 +1391,11 @@ test(
         [0.7, 0.3],
       ]);
 
-      // A <polyline data-shapeid> should appear
-      await expect(viewer.svgOverlay.locator('polyline[data-shapeid]').first()).toBeVisible();
+      // A <polyline data-shapeid> should appear.
+      // Use waitFor with explicit state to handle async React state propagation
+      // after pointer-up — mobile/touch events can be slower to flush.
+      const polylineEl = viewer.svgOverlay.locator('polyline[data-shapeid]').first();
+      await polylineEl.waitFor({ state: 'visible' });
 
       // Save and verify
       const [putResponse] = await Promise.all([
@@ -1456,8 +1465,9 @@ test(
       await page.keyboard.press('Enter');
       await expect(viewer.inlineInput).not.toBeVisible();
 
-      // Measurement group committed
-      await expect(viewer.svgOverlay.locator('g[data-shapeid]').first()).toBeVisible();
+      // Measurement group committed — use waitFor to handle async state propagation.
+      const measureGroup = viewer.svgOverlay.locator('g[data-shapeid]').first();
+      await measureGroup.waitFor({ state: 'visible' });
     } finally {
       if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
       if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
@@ -1582,9 +1592,12 @@ test('Select tool — drag moves a committed rectangle', async ({
     await page.mouse.move(targetX, targetY, { steps: 5 });
     await page.mouse.up();
 
-    // The x attribute should have increased
-    const newX = parseFloat((await rectEl.getAttribute('x')) ?? '0');
-    expect(newX).toBeGreaterThan(originalX);
+    // Poll until the x attribute changes from originalX to account for the
+    // async React state propagation after handlePointerUp fires COMMIT_DRAFT.
+    await expect.poll(async () => {
+      const xStr = await rectEl.getAttribute('x');
+      return parseFloat(xStr ?? '0');
+    }).toBeGreaterThan(originalX);
   } finally {
     if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
     if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
@@ -1897,8 +1910,10 @@ test('Color palette — selecting a swatch marks it aria-checked and new shapes 
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
-    // Find the color radio group
-    const colorGroup = page.getByRole('radiogroup');
+    // Find the color radio group by its translated aria-label ("Annotation color").
+    // The ToolPalette renders three radiogroups (color, stroke width, font size for
+    // text tools) so we must scope by name to avoid a strict-mode violation.
+    const colorGroup = page.getByRole('radiogroup', { name: 'Annotation color' });
     await expect(colorGroup).toBeVisible();
 
     // The default color is red — find the red swatch (aria-checked="true")
