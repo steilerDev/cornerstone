@@ -63,9 +63,8 @@ jest.unstable_mockModule('../../FormError/FormError.js', () => ({
 }));
 
 // ─── Mock geometry to make screenToImage pass-through (clientX→imageX) ────────
-// JSDOM SVGElement.getBoundingClientRect always returns 0x0 so screenToImage
-// produces NaN. We mock screenToImage to return clientX/clientY directly,
-// making pointer tests independent of bounding rect behavior.
+// The new screenToImage uses SVG.getScreenCTM() which JSDOM doesn't implement.
+// We mock screenToImage/imageToScreen as simple pass-through functions for testing.
 
 jest.unstable_mockModule('./geometry.js', () => ({
   screenToImage: (screenX: number, screenY: number) => ({ x: screenX, y: screenY }),
