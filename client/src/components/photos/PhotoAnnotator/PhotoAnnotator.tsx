@@ -700,11 +700,12 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         drawShapeOnCanvas(ctx, shape);
       }
 
-      // Export PNG blob
+      // Export WebP blob at quality 0.92 (perceptually lossless, ~5-10x smaller than PNG)
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob(
           (b) => (b ? resolve(b) : reject(new Error('Canvas toBlob failed'))),
-          'image/png',
+          'image/webp',
+          0.92,
         );
       });
 
