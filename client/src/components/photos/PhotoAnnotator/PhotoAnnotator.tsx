@@ -735,7 +735,14 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       fontFamily: ANNOTATION_FONT_FAMILY,
       background: 'transparent',
     };
-  }, [inlineInput, photo.width, photo.height, state.activeFontSizeKey, state.activeColor, state.shapes]);
+  }, [
+    inlineInput,
+    photo.width,
+    photo.height,
+    state.activeFontSizeKey,
+    state.activeColor,
+    state.shapes,
+  ]);
 
   const handleCancel = useCallback(() => {
     onCancel();
