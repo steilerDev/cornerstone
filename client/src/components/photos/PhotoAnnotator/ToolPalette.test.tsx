@@ -22,13 +22,13 @@ interface ToolPaletteProps {
   selectedTool: ToolName;
   activeColor: string;
   activeStrokeWidthKey: StrokeWidthKey;
-  activeFontSize: number;
+  activeFontSizeKey: string;
   canUndo: boolean;
   canRedo: boolean;
   onSelectTool: (tool: ToolName) => void;
   onSelectColor: (color: string) => void;
   onSelectStrokeWidth: (key: StrokeWidthKey) => void;
-  onSelectFontSize: (size: number) => void;
+  onSelectFontSize: (key: string) => void;
   onUndo: () => void;
   onRedo: () => void;
 }
@@ -58,7 +58,7 @@ function makeProps(overrides: Partial<ToolPaletteProps> = {}): ToolPaletteProps 
     selectedTool: 'select',
     activeColor: '#dc2626',
     activeStrokeWidthKey: 'medium',
-    activeFontSize: 18,
+    activeFontSizeKey: 'medium',
     canUndo: false,
     canRedo: false,
     onSelectTool: jest.fn() as AnyMock,
@@ -198,12 +198,13 @@ describe('ToolPalette', () => {
       expect(groupsWithCallout).toBeGreaterThan(groupsWithSelect);
     });
 
-    it('font-size radiogroup has exactly 4 font-size radio buttons', () => {
+    it('font-size radiogroup has exactly 5 font-size radio buttons', () => {
       renderPalette({ selectedTool: 'text' });
       const radios = screen.getAllByRole('radio');
-      // 6 color swatches + 3 stroke widths + 4 font sizes = 13 total
-      // Subtract color and stroke to isolate: we check total is 13
-      expect(radios.length).toBe(13);
+      // 6 color swatches + 4 stroke widths (thin/medium/thick/extra-thick) + 5 font sizes
+      // (small/medium/large/xlarge/xxlarge) = 15 total
+      // Subtract color and stroke to isolate: we check total is 15
+      expect(radios.length).toBe(15);
     });
   });
 
@@ -238,31 +239,31 @@ describe('ToolPalette', () => {
     }
 
     it('Medium button has aria-checked=true when activeFontSize=18', () => {
-      renderPalette({ selectedTool: 'text', activeFontSize: 18 });
+      renderPalette({ selectedTool: 'text', activeFontSizeKey: 'medium' });
       const mediumBtn = getFontSizeRadio(getFontSizeGroup(), 'Medium', 'Medium');
       expect(mediumBtn).toHaveAttribute('aria-checked', 'true');
     });
 
     it('Small button has aria-checked=false when activeFontSize=18', () => {
-      renderPalette({ selectedTool: 'text', activeFontSize: 18 });
+      renderPalette({ selectedTool: 'text', activeFontSizeKey: 'medium' });
       const smallBtn = getFontSizeRadio(getFontSizeGroup(), 'Small', 'Small');
       expect(smallBtn).toHaveAttribute('aria-checked', 'false');
     });
 
     it('Large button has aria-checked=true when activeFontSize=24', () => {
-      renderPalette({ selectedTool: 'callout', activeFontSize: 24 });
+      renderPalette({ selectedTool: 'callout', activeFontSizeKey: 'large' });
       const largeBtn = getFontSizeRadio(getFontSizeGroup(), 'Large', 'Large');
       expect(largeBtn).toHaveAttribute('aria-checked', 'true');
     });
 
     it('XLarge button has aria-checked=true when activeFontSize=32', () => {
-      renderPalette({ selectedTool: 'text', activeFontSize: 32 });
+      renderPalette({ selectedTool: 'text', activeFontSizeKey: 'xlarge' });
       const xlargeBtn = getFontSizeRadio(getFontSizeGroup(), 'Xlarge', 'Extra large');
       expect(xlargeBtn).toHaveAttribute('aria-checked', 'true');
     });
 
     it('Small, Large, and XLarge buttons have aria-checked=false when activeFontSize=18', () => {
-      renderPalette({ selectedTool: 'text', activeFontSize: 18 });
+      renderPalette({ selectedTool: 'text', activeFontSizeKey: 'medium' });
       const fsGroup = getFontSizeGroup();
       const smallBtn = getFontSizeRadio(fsGroup, 'Small', 'Small');
       const largeBtn = getFontSizeRadio(fsGroup, 'Large', 'Large');
@@ -293,36 +294,36 @@ describe('ToolPalette', () => {
       throw new Error(`Font-size radio not found: fontSize${keySuffix} / ${enLabel}`);
     }
 
-    it('clicking Large button calls onSelectFontSize(24)', () => {
+    it('clicking Large button calls onSelectFontSize("large")', () => {
       const onSelectFontSize = jest.fn() as AnyMock;
-      renderPalette({ selectedTool: 'text', activeFontSize: 18, onSelectFontSize });
+      renderPalette({ selectedTool: 'text', activeFontSizeKey: 'medium', onSelectFontSize });
       const largeBtn = getFontSizeRadio(getFontSizeGroup(), 'Large', 'Large');
       fireEvent.click(largeBtn);
-      expect(onSelectFontSize).toHaveBeenCalledWith(24);
+      expect(onSelectFontSize).toHaveBeenCalledWith('large');
     });
 
-    it('clicking Small button calls onSelectFontSize(12)', () => {
+    it('clicking Small button calls onSelectFontSize("small")', () => {
       const onSelectFontSize = jest.fn() as AnyMock;
-      renderPalette({ selectedTool: 'callout', activeFontSize: 18, onSelectFontSize });
+      renderPalette({ selectedTool: 'callout', activeFontSizeKey: 'medium', onSelectFontSize });
       const smallBtn = getFontSizeRadio(getFontSizeGroup(), 'Small', 'Small');
       fireEvent.click(smallBtn);
-      expect(onSelectFontSize).toHaveBeenCalledWith(12);
+      expect(onSelectFontSize).toHaveBeenCalledWith('small');
     });
 
-    it('clicking XLarge button calls onSelectFontSize(32)', () => {
+    it('clicking XLarge button calls onSelectFontSize("xlarge")', () => {
       const onSelectFontSize = jest.fn() as AnyMock;
-      renderPalette({ selectedTool: 'text', activeFontSize: 18, onSelectFontSize });
+      renderPalette({ selectedTool: 'text', activeFontSizeKey: 'medium', onSelectFontSize });
       const xlargeBtn = getFontSizeRadio(getFontSizeGroup(), 'Xlarge', 'Extra large');
       fireEvent.click(xlargeBtn);
-      expect(onSelectFontSize).toHaveBeenCalledWith(32);
+      expect(onSelectFontSize).toHaveBeenCalledWith('xlarge');
     });
 
-    it('clicking Medium button calls onSelectFontSize(18)', () => {
+    it('clicking Medium button calls onSelectFontSize("medium")', () => {
       const onSelectFontSize = jest.fn() as AnyMock;
-      renderPalette({ selectedTool: 'text', activeFontSize: 12, onSelectFontSize });
+      renderPalette({ selectedTool: 'text', activeFontSizeKey: 'medium', onSelectFontSize });
       const mediumBtn = getFontSizeRadio(getFontSizeGroup(), 'Medium', 'Medium');
       fireEvent.click(mediumBtn);
-      expect(onSelectFontSize).toHaveBeenCalledWith(18);
+      expect(onSelectFontSize).toHaveBeenCalledWith('medium');
     });
   });
 

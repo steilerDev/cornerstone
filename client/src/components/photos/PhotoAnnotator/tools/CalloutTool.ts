@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 import type { AnnotatorState, AnnotatorAction } from '../useAnnotator.js';
 import type { CalloutShape } from '../useUndoStack.js';
 import { normalizeRect, clamp } from '../geometry.js';
+import { resolveFontSize } from '../annotationConstants.js';
 import type { PointerContext, ToolHandler } from './SelectTool.js';
 
 type CalloutPhase = 'box' | 'tail' | null;
@@ -12,13 +13,15 @@ let pendingId: string | null = null;
 
 export const CalloutTool: ToolHandler = {
   onPointerDown: (state: AnnotatorState, ctx: PointerContext): AnnotatorAction[] => {
-    const { imageX, imageY } = ctx;
+    const { imageX, imageY, imageWidth, imageHeight } = ctx;
 
     if (phase === null) {
       // Phase 1: Start box drag
       phase = 'box';
       drawState = { startX: imageX, startY: imageY };
       pendingId = nanoid();
+
+      const fontSize = resolveFontSize(state.activeFontSizeKey, imageWidth, imageHeight);
 
       const draft: CalloutShape = {
         type: 'callout',
@@ -32,7 +35,7 @@ export const CalloutTool: ToolHandler = {
         tailY: imageY + 40, // initial tail below box
         stroke: state.activeColor,
         fill: state.activeColor,
-        fontSize: state.activeFontSize,
+        fontSize,
         color: state.activeColor,
       };
       return [{ type: 'SET_DRAFT', shape: draft }];

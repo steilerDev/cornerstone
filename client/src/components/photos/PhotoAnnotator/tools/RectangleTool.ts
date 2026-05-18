@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 import type { AnnotatorState, AnnotatorAction } from '../useAnnotator.js';
 import type { RectangleShape } from '../useUndoStack.js';
 import { normalizeRect } from '../geometry.js';
+import { resolveStrokeWidth } from '../annotationConstants.js';
 import type { PointerContext, ToolHandler } from './SelectTool.js';
 
 let drawState: {
@@ -11,9 +12,15 @@ let drawState: {
 
 export const RectangleTool: ToolHandler = {
   onPointerDown: (state: AnnotatorState, ctx: PointerContext): AnnotatorAction[] => {
-    const { imageX, imageY } = ctx;
+    const { imageX, imageY, imageWidth, imageHeight } = ctx;
 
     drawState = { startX: imageX, startY: imageY };
+
+    const strokeWidth = resolveStrokeWidth(
+      state.activeStrokeWidthKey,
+      imageWidth,
+      imageHeight,
+    );
 
     const newShape: RectangleShape = {
       type: 'rectangle',
@@ -23,15 +30,7 @@ export const RectangleTool: ToolHandler = {
       w: 0,
       h: 0,
       color: state.activeColor,
-      strokeWidth: state.activeStrokeWidthKey
-        ? (
-            {
-              thin: 2,
-              medium: 4,
-              thick: 8,
-            } as const
-          )[state.activeStrokeWidthKey]
-        : 4,
+      strokeWidth,
     };
 
     return [{ type: 'SET_DRAFT', shape: newShape }];

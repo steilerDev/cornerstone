@@ -1,9 +1,11 @@
 import { useTranslation } from 'react-i18next';
-import type { ToolName, StrokeWidthKey } from './useAnnotator.js';
+import type { ToolName, StrokeWidthKey, FontSizeKey } from './useAnnotator.js';
 import {
   ANNOTATION_COLORS,
-  ANNOTATION_STROKE_WIDTHS,
-  ANNOTATION_FONT_SIZES,
+  ANNOTATION_STROKE_WIDTH_RATIOS,
+  ANNOTATION_FONT_SIZE_RATIOS,
+  resolveStrokeWidth,
+  resolveFontSize,
 } from './annotationConstants.js';
 import styles from './ToolPalette.module.css';
 
@@ -11,13 +13,13 @@ interface ToolPaletteProps {
   selectedTool: ToolName;
   activeColor: string;
   activeStrokeWidthKey: StrokeWidthKey;
-  activeFontSize: number;
+  activeFontSizeKey: string;
   canUndo: boolean;
   canRedo: boolean;
   onSelectTool: (tool: ToolName) => void;
   onSelectColor: (color: string) => void;
   onSelectStrokeWidth: (key: StrokeWidthKey) => void;
-  onSelectFontSize: (size: number) => void;
+  onSelectFontSize: (key: string) => void;
   onUndo: () => void;
   onRedo: () => void;
 }
@@ -26,7 +28,7 @@ export function ToolPalette({
   selectedTool,
   activeColor,
   activeStrokeWidthKey,
-  activeFontSize,
+  activeFontSizeKey,
   canUndo,
   canRedo,
   onSelectTool,
@@ -197,37 +199,41 @@ export function ToolPalette({
 
       {/* Stroke width picker */}
       <div role="radiogroup" aria-label={t('strokeWidth')} className={styles.strokeGroup}>
-        {Object.entries(ANNOTATION_STROKE_WIDTHS).map(([key, width]) => (
-          <button
-            key={key}
-            type="button"
-            role="radio"
-            aria-checked={activeStrokeWidthKey === key}
-            aria-label={t(`stroke${key.charAt(0).toUpperCase() + key.slice(1)}`)}
-            className={`${styles.strokeButton} ${
-              activeStrokeWidthKey === key ? styles.strokeButtonActive : ''
-            }`}
-            onClick={() => onSelectStrokeWidth(key as StrokeWidthKey)}
-          >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
+        {Object.entries(ANNOTATION_STROKE_WIDTH_RATIOS).map(([key]) => {
+          // Use a reference image dimension of 1000px for consistent button preview
+          const previewWidth = resolveStrokeWidth(key as StrokeWidthKey, 1000, 1000);
+          return (
+            <button
+              key={key}
+              type="button"
+              role="radio"
+              aria-checked={activeStrokeWidthKey === key}
+              aria-label={t(`stroke${key.charAt(0).toUpperCase() + key.slice(1)}`)}
+              className={`${styles.strokeButton} ${
+                activeStrokeWidthKey === key ? styles.strokeButtonActive : ''
+              }`}
+              onClick={() => onSelectStrokeWidth(key as StrokeWidthKey)}
             >
-              <line
-                x1="4"
-                y1="12"
-                x2="20"
-                y2="12"
-                stroke="currentColor"
-                strokeWidth={width}
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-        ))}
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <line
+                  x1="4"
+                  y1="12"
+                  x2="20"
+                  y2="12"
+                  stroke="currentColor"
+                  strokeWidth={Math.max(1, previewWidth * 0.06)}
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          );
+        })}
       </div>
 
       {(selectedTool === 'text' ||
@@ -236,21 +242,25 @@ export function ToolPalette({
         <>
           <div className={styles.divider} aria-hidden="true" />
           <div role="radiogroup" aria-label={t('fontSize')} className={styles.fontSizeGroup}>
-            {Object.entries(ANNOTATION_FONT_SIZES).map(([key, size]) => (
-              <button
-                key={key}
-                type="button"
-                role="radio"
-                aria-checked={activeFontSize === size}
-                aria-label={t(`fontSize${key.charAt(0).toUpperCase() + key.slice(1)}`)}
-                className={`${styles.fontSizeButton} ${
-                  activeFontSize === size ? styles.fontSizeButtonActive : ''
-                }`}
-                onClick={() => onSelectFontSize(size)}
-              >
-                <span style={{ fontSize: `${Math.max(10, size * 0.6)}px` }}>A</span>
-              </button>
-            ))}
+            {Object.entries(ANNOTATION_FONT_SIZE_RATIOS).map(([key]) => {
+              // Use a reference image dimension of 1000px for consistent button preview
+              const previewSize = resolveFontSize(key as FontSizeKey, 1000, 1000);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  aria-checked={activeFontSizeKey === key}
+                  aria-label={t(`fontSize${key.charAt(0).toUpperCase() + key.slice(1)}`)}
+                  className={`${styles.fontSizeButton} ${
+                    activeFontSizeKey === key ? styles.fontSizeButtonActive : ''
+                  }`}
+                  onClick={() => onSelectFontSize(key)}
+                >
+                  <span style={{ fontSize: `${Math.max(10, previewSize * 0.06)}px` }}>A</span>
+                </button>
+              );
+            })}
           </div>
         </>
       )}

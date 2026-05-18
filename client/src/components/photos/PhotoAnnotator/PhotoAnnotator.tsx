@@ -2,8 +2,9 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { nanoid } from 'nanoid';
 import type { Photo } from '@cornerstone/shared';
-import { useAnnotator, type ToolName } from './useAnnotator.js';
+import { useAnnotator, type ToolName, type FontSizeKey } from './useAnnotator.js';
 import type { TextShape, CalloutShape, MeasurementShape } from './useUndoStack.js';
+import { resolveFontSize } from './annotationConstants.js';
 import { ToolPalette } from './ToolPalette.js';
 import { RectangleTool } from './tools/RectangleTool.js';
 import { HighlightTool } from './tools/HighlightTool.js';
@@ -54,8 +55,8 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     originalText: '',
   });
 
-  // Per-tool font size (persists across tool switches within session)
-  const fontSizePerTool = useRef<Partial<Record<ToolName, number>>>({});
+  // Per-tool font size key (persists across tool switches within session)
+  const fontSizePerTool = useRef<Partial<Record<ToolName, FontSizeKey>>>({});
 
   const imgRef = useRef<HTMLImageElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -66,9 +67,18 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   // Calculate canonical URL
   const canonicalUrl = `${getBaseUrl()}/photos/${photo.id}/file`;
 
-  // Helper to get the active font size for the current tool
-  function getActiveFontSize(): number {
-    return fontSizePerTool.current[state.selectedTool] ?? state.activeFontSize;
+  // Helper to get the active font size key for the current tool
+  function getActiveFontSizeKey(): FontSizeKey {
+    return fontSizePerTool.current[state.selectedTool] ?? state.activeFontSizeKey;
+  }
+
+  // Helper to resolve the active font size to pixels
+  function getActiveFontSizePx(): number {
+    const key = getActiveFontSizeKey();
+    // Use 1000x1000 as fallback if dimensions are not available
+    const w = photo.width ?? 1000;
+    const h = photo.height ?? 1000;
+    return resolveFontSize(key, w, h);
   }
 
   // Callback to open the inline text input
@@ -124,7 +134,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       // For measurement with empty text, fall through to commit with empty label
     }
 
-    const fontSize = getActiveFontSize();
+    const fontSize = getActiveFontSizePx();
 
     if (inlineInput.editingShapeId !== null) {
       // Editing existing shape — UPDATE_SHAPE + commit to undo stack
@@ -588,9 +598,9 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       position: 'absolute',
       left: screenX - containerRect.left,
       top: screenY - containerRect.top,
-      fontSize: `${getActiveFontSize() * (imgRect.width / photo.width!)}px`,
+      fontSize: `${getActiveFontSizePx() * (imgRect.width / photo.width!)}px`,
     };
-  }, [inlineInput, photo.width, photo.height]);
+  }, [inlineInput, photo.width, photo.height, state.activeFontSizeKey]);
 
   const handleCancel = useCallback(() => {
     onCancel();
@@ -668,15 +678,15 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         selectedTool={state.selectedTool}
         activeColor={state.activeColor}
         activeStrokeWidthKey={state.activeStrokeWidthKey}
-        activeFontSize={state.activeFontSize}
+        activeFontSizeKey={getActiveFontSizeKey()}
         canUndo={undoStack.canUndo}
         canRedo={undoStack.canRedo}
         onSelectTool={(tool) => dispatch({ type: 'SET_TOOL', tool })}
         onSelectColor={(color) => dispatch({ type: 'SET_COLOR', color })}
         onSelectStrokeWidth={(key) => dispatch({ type: 'SET_STROKE_WIDTH', key })}
-        onSelectFontSize={(size) => {
-          fontSizePerTool.current[state.selectedTool] = size;
-          dispatch({ type: 'SET_FONT_SIZE', size });
+        onSelectFontSize={(key) => {
+          fontSizePerTool.current[state.selectedTool] = key as FontSizeKey;
+          dispatch({ type: 'SET_FONT_SIZE', key: key as FontSizeKey });
         }}
         onUndo={() => undoStack.undo()}
         onRedo={() => undoStack.redo()}

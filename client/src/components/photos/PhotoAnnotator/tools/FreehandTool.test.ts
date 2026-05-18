@@ -16,6 +16,7 @@
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { FreehandTool, resetFreehandTool } from './FreehandTool.js';
+import { resolveStrokeWidth } from '../annotationConstants.js';
 import type { AnnotatorState } from '../useAnnotator.js';
 import type { FreehandShape } from '../useUndoStack.js';
 import type { PointerContext } from './SelectTool.js';
@@ -30,7 +31,7 @@ function makeState(overrides: Partial<AnnotatorState> = {}): AnnotatorState {
     selectedTool: 'freehand',
     activeColor: '#dc2626',
     activeStrokeWidthKey: 'medium',
-    activeFontSize: 18,
+    activeFontSizeKey: 'medium',
     selectDragState: {
       mode: null,
       shapeId: null,
@@ -104,31 +105,31 @@ describe('FreehandTool', () => {
       expect(shape.stroke).toBe('#3b82f6');
     });
 
-    it('draft strokeWidth is 2 for "thin" activeStrokeWidthKey', () => {
+    it('draft strokeWidth is resolved for "thin" activeStrokeWidthKey', () => {
       const state = makeState({ activeStrokeWidthKey: 'thin' });
       const actions = FreehandTool.onPointerDown(state, makeCtx(50, 50));
       const action = actions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape as FreehandShape;
-      expect(shape.strokeWidth).toBe(2);
+      expect(shape.strokeWidth).toBe(resolveStrokeWidth('thin', 800, 600));
     });
 
-    it('draft strokeWidth is 4 for "medium" activeStrokeWidthKey', () => {
+    it('draft strokeWidth is resolved for "medium" activeStrokeWidthKey', () => {
       const state = makeState({ activeStrokeWidthKey: 'medium' });
       const actions = FreehandTool.onPointerDown(state, makeCtx(50, 50));
       const action = actions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape as FreehandShape;
-      expect(shape.strokeWidth).toBe(4);
+      expect(shape.strokeWidth).toBe(resolveStrokeWidth('medium', 800, 600));
     });
 
-    it('draft strokeWidth is 8 for "thick" activeStrokeWidthKey', () => {
+    it('draft strokeWidth is resolved for "thick" activeStrokeWidthKey', () => {
       const state = makeState({ activeStrokeWidthKey: 'thick' });
       const actions = FreehandTool.onPointerDown(state, makeCtx(50, 50));
       const action = actions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape as FreehandShape;
-      expect(shape.strokeWidth).toBe(8);
+      expect(shape.strokeWidth).toBe(resolveStrokeWidth('thick', 800, 600));
     });
 
     it('draft has a non-empty id string', () => {
@@ -138,14 +139,15 @@ describe('FreehandTool', () => {
       expect(action.shape?.id).toBeTruthy();
     });
 
-    it('falls back to strokeWidth=4 (medium) when activeStrokeWidthKey is falsy', () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const state = makeState({ activeStrokeWidthKey: '' as any });
+    it('strokeWidth is a positive number for the default "medium" activeStrokeWidthKey', () => {
+      // Verify that the default key produces a valid positive stroke width
+      const state = makeState({ activeStrokeWidthKey: 'medium' });
       const actions = FreehandTool.onPointerDown(state, makeCtx(50, 50));
       const action = actions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape as FreehandShape;
-      expect(shape.strokeWidth).toBe(4);
+      expect(shape.strokeWidth).toBeGreaterThan(0);
+      expect(shape.strokeWidth).toBe(resolveStrokeWidth('medium', 800, 600));
     });
 
     it('each pointerDown creates a fresh stroke (resets captured points)', () => {
@@ -263,7 +265,7 @@ describe('FreehandTool', () => {
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape as FreehandShape;
       expect(shape.stroke).toBe('#22c55e');
-      expect(shape.strokeWidth).toBe(8);
+      expect(shape.strokeWidth).toBe(resolveStrokeWidth('thick', 800, 600));
     });
   });
 

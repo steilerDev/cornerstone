@@ -2,7 +2,7 @@ import { nanoid } from 'nanoid';
 import type { AnnotatorState, AnnotatorAction } from '../useAnnotator.js';
 import type { MeasurementShape } from '../useUndoStack.js';
 import { distance } from '../geometry.js';
-import { ANNOTATION_STROKE_WIDTHS } from '../annotationConstants.js';
+import { resolveStrokeWidth, resolveFontSize } from '../annotationConstants.js';
 import type { PointerContext, ToolHandler } from './SelectTool.js';
 
 let drawState: {
@@ -12,13 +12,16 @@ let drawState: {
 
 export const MeasurementTool: ToolHandler = {
   onPointerDown: (state: AnnotatorState, ctx: PointerContext): AnnotatorAction[] => {
-    const { imageX, imageY } = ctx;
+    const { imageX, imageY, imageWidth, imageHeight } = ctx;
 
     drawState = { startX: imageX, startY: imageY };
 
-    const strokeWidth = state.activeStrokeWidthKey
-      ? ANNOTATION_STROKE_WIDTHS[state.activeStrokeWidthKey]
-      : ANNOTATION_STROKE_WIDTHS.medium;
+    const strokeWidth = resolveStrokeWidth(
+      state.activeStrokeWidthKey,
+      imageWidth,
+      imageHeight,
+    );
+    const fontSize = resolveFontSize(state.activeFontSizeKey, imageWidth, imageHeight);
 
     const newShape: MeasurementShape = {
       type: 'measurement',
@@ -30,7 +33,7 @@ export const MeasurementTool: ToolHandler = {
       label: '',
       stroke: state.activeColor,
       strokeWidth,
-      fontSize: state.activeFontSize,
+      fontSize,
       color: state.activeColor,
     };
 

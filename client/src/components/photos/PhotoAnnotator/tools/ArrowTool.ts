@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 import type { AnnotatorState, AnnotatorAction } from '../useAnnotator.js';
 import type { ArrowShape } from '../useUndoStack.js';
 import { distance } from '../geometry.js';
+import { resolveStrokeWidth } from '../annotationConstants.js';
 import type { PointerContext, ToolHandler } from './SelectTool.js';
 
 let drawState: {
@@ -11,9 +12,15 @@ let drawState: {
 
 export const ArrowTool: ToolHandler = {
   onPointerDown: (state: AnnotatorState, ctx: PointerContext): AnnotatorAction[] => {
-    const { imageX, imageY } = ctx;
+    const { imageX, imageY, imageWidth, imageHeight } = ctx;
 
     drawState = { startX: imageX, startY: imageY };
+
+    const strokeWidth = resolveStrokeWidth(
+      state.activeStrokeWidthKey,
+      imageWidth,
+      imageHeight,
+    );
 
     const newShape: ArrowShape = {
       type: 'arrow',
@@ -23,15 +30,7 @@ export const ArrowTool: ToolHandler = {
       x2: imageX,
       y2: imageY,
       stroke: state.activeColor,
-      strokeWidth: state.activeStrokeWidthKey
-        ? (
-            {
-              thin: 2,
-              medium: 4,
-              thick: 8,
-            } as const
-          )[state.activeStrokeWidthKey]
-        : 4,
+      strokeWidth,
     };
 
     return [{ type: 'SET_DRAFT', shape: newShape }];

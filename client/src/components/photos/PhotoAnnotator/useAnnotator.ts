@@ -8,8 +8,9 @@ import type {
   CalloutShape,
 } from './useUndoStack.js';
 import type { UseUndoStackResult } from './useUndoStack.js';
-import type { ANNOTATION_STROKE_WIDTHS } from './annotationConstants.js';
+import type { ANNOTATION_STROKE_WIDTH_RATIOS } from './annotationConstants.js';
 import { DEFAULT_COLOR, DEFAULT_STROKE_WIDTH, DEFAULT_FONT_SIZE } from './annotationConstants.js';
+import type { FontSizeKey } from './annotationConstants.js';
 
 export type ToolName =
   | 'select'
@@ -23,7 +24,7 @@ export type ToolName =
   | 'measurement'
   | 'freehand';
 
-export type StrokeWidthKey = keyof typeof ANNOTATION_STROKE_WIDTHS;
+export type StrokeWidthKey = keyof typeof ANNOTATION_STROKE_WIDTH_RATIOS;
 
 export type {
   AnnotationShape,
@@ -37,6 +38,8 @@ export type {
   MeasurementShape,
   FreehandShape,
 } from './useUndoStack.js';
+
+export type { FontSizeKey };
 
 export type DragMode = 'move' | 'resize' | null;
 
@@ -56,7 +59,7 @@ export interface AnnotatorState {
   selectedTool: ToolName;
   activeColor: string;
   activeStrokeWidthKey: StrokeWidthKey;
-  activeFontSize: number;
+  activeFontSizeKey: FontSizeKey;
   selectDragState: SelectDragState;
 }
 
@@ -64,7 +67,7 @@ export type AnnotatorAction =
   | { type: 'SET_TOOL'; tool: ToolName }
   | { type: 'SET_COLOR'; color: string }
   | { type: 'SET_STROKE_WIDTH'; key: StrokeWidthKey }
-  | { type: 'SET_FONT_SIZE'; size: number }
+  | { type: 'SET_FONT_SIZE'; key: FontSizeKey }
   | { type: 'SET_DRAFT'; shape: AnnotationShape | null }
   | { type: 'COMMIT_DRAFT' }
   | { type: 'SELECT_SHAPE'; id: string | null }
@@ -100,7 +103,7 @@ export function annotatorReducer(
       return { ...state, activeStrokeWidthKey: action.key };
 
     case 'SET_FONT_SIZE':
-      return { ...state, activeFontSize: action.size };
+      return { ...state, activeFontSizeKey: action.key };
 
     case 'SET_DRAFT':
       return { ...state, draftShape: action.shape };
@@ -186,7 +189,7 @@ export function useAnnotator(initialShapes?: AnnotationShape[]): {
     selectedTool: 'select',
     activeColor: DEFAULT_COLOR,
     activeStrokeWidthKey: DEFAULT_STROKE_WIDTH,
-    activeFontSize: DEFAULT_FONT_SIZE,
+    activeFontSizeKey: DEFAULT_FONT_SIZE,
     selectDragState: {
       mode: null,
       shapeId: null,

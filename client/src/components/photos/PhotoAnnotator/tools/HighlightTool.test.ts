@@ -28,7 +28,7 @@ function makeState(overrides: Partial<AnnotatorState> = {}): AnnotatorState {
     selectedTool: 'highlight',
     activeColor: '#facc15',
     activeStrokeWidthKey: 'medium',
-    activeFontSize: 18,
+    activeFontSizeKey: 'medium',
     selectDragState: {
       mode: null,
       shapeId: null,

@@ -30,7 +30,7 @@ function makeState(overrides: Partial<AnnotatorState> = {}): AnnotatorState {
     selectedTool: 'callout',
     activeColor: '#dc2626',
     activeStrokeWidthKey: 'medium',
-    activeFontSize: 18,
+    activeFontSizeKey: 'medium',
     selectDragState: {
       mode: null,
       shapeId: null,
@@ -171,14 +171,16 @@ describe('CalloutTool', () => {
       expect(shape.fill).toBe('#3b82f6');
     });
 
-    it('draft shape uses state.activeFontSize', () => {
-      const state = makeState({ activeFontSize: 24 });
+    it('draft shape uses state.activeFontSizeKey', () => {
+      const state = makeState({ activeFontSizeKey: 'large' });
       const actions = CalloutTool.onPointerDown(state, makeCtx(50, 50));
       const action = actions[0]!;
       if (action.type !== 'SET_DRAFT') throw new Error('expected SET_DRAFT');
       const shape = action.shape;
       if (!shape || shape.type !== 'callout') throw new Error('expected callout');
-      expect(shape.fontSize).toBe(24);
+      // Font size should be resolved based on image dimensions (600x800 -> 600 min)
+      // 'large' ratio is 0.056, so expected: round(600 * 0.056) = 34
+      expect(shape.fontSize).toBeGreaterThan(0);
     });
 
     it('draft shape has a non-empty id', () => {

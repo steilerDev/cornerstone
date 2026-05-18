@@ -26,7 +26,7 @@ function makeState(overrides: Partial<AnnotatorState> = {}): AnnotatorState {
     selectedTool: 'text',
     activeColor: '#dc2626',
     activeStrokeWidthKey: 'medium',
-    activeFontSize: 18,
+    activeFontSizeKey: 'medium',
     selectDragState: {
       mode: null,
       shapeId: null,
@@ -84,8 +84,8 @@ describe('TextTool', () => {
       }).not.toThrow();
     });
 
-    it('does not use activeFontSize to produce a draft shape (shape created on commit only)', () => {
-      const state = makeState({ activeFontSize: 32 });
+    it('does not use activeFontSizeKey to produce a draft shape (shape created on commit only)', () => {
+      const state = makeState({ activeFontSizeKey: 'xlarge' });
       const actions = TextTool.onPointerDown(state, makeCtx(50, 50));
       // No SET_DRAFT actions — text tool does not create a draft
       const setDraftActions = actions.filter((a) => a.type === 'SET_DRAFT');

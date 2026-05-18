@@ -11,25 +11,65 @@ export const ANNOTATION_COLORS = {
 
 export type AnnotationColor = (typeof ANNOTATION_COLORS)[keyof typeof ANNOTATION_COLORS];
 
-/** Stroke widths in image-space pixels */
-export const ANNOTATION_STROKE_WIDTHS = {
-  thin: 2,
-  medium: 4,
-  thick: 8,
+/**
+ * Stroke width ratios as fractions of min(imageWidth, imageHeight).
+ * These scale stroke widths to match the image resolution.
+ */
+export const ANNOTATION_STROKE_WIDTH_RATIOS = {
+  thin: 0.008,
+  medium: 0.014,
+  thick: 0.024,
+  'extra-thick': 0.04,
 } as const;
 
-export type StrokeWidthKey = keyof typeof ANNOTATION_STROKE_WIDTHS;
+export type StrokeWidthKey = keyof typeof ANNOTATION_STROKE_WIDTH_RATIOS;
+
+/**
+ * Font size ratios as fractions of min(imageWidth, imageHeight).
+ * These scale font sizes to match the image resolution.
+ */
+export const ANNOTATION_FONT_SIZE_RATIOS = {
+  small: 0.024,
+  medium: 0.04,
+  large: 0.056,
+  xlarge: 0.08,
+  xxlarge: 0.12,
+} as const;
+
+export type FontSizeKey = keyof typeof ANNOTATION_FONT_SIZE_RATIOS;
 
 export const DEFAULT_COLOR: AnnotationColor = ANNOTATION_COLORS.red;
 export const DEFAULT_STROKE_WIDTH: StrokeWidthKey = 'medium';
+export const DEFAULT_FONT_SIZE: FontSizeKey = 'medium';
 
-/** Font sizes in image-space pixels (matching font-size attribute in SVG) */
-export const ANNOTATION_FONT_SIZES = {
-  small: 12,
-  medium: 18, // default
-  large: 24,
-  xlarge: 32,
-} as const;
+/**
+ * Resolve a stroke width key to an actual pixel value based on image dimensions.
+ * @param key The stroke width key (thin/medium/thick/extra-thick)
+ * @param imageWidth The image width in pixels
+ * @param imageHeight The image height in pixels
+ * @returns The resolved stroke width in image-space pixels (minimum 1)
+ */
+export function resolveStrokeWidth(
+  key: StrokeWidthKey,
+  imageWidth: number,
+  imageHeight: number,
+): number {
+  const ref = Math.min(imageWidth, imageHeight);
+  return Math.max(1, Math.round(ref * ANNOTATION_STROKE_WIDTH_RATIOS[key]));
+}
 
-export type FontSizeKey = keyof typeof ANNOTATION_FONT_SIZES;
-export const DEFAULT_FONT_SIZE = ANNOTATION_FONT_SIZES.medium;
+/**
+ * Resolve a font size key to an actual pixel value based on image dimensions.
+ * @param key The font size key (small/medium/large/xlarge/xxlarge)
+ * @param imageWidth The image width in pixels
+ * @param imageHeight The image height in pixels
+ * @returns The resolved font size in image-space pixels (minimum 8)
+ */
+export function resolveFontSize(
+  key: FontSizeKey,
+  imageWidth: number,
+  imageHeight: number,
+): number {
+  const ref = Math.min(imageWidth, imageHeight);
+  return Math.max(8, Math.round(ref * ANNOTATION_FONT_SIZE_RATIOS[key]));
+}
