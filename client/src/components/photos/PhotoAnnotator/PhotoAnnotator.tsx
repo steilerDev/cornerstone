@@ -393,13 +393,13 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   // Pointer event handlers for drawing/editing
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<SVGSVGElement>) => {
-      if (!svgRef.current) return;
+      if (!svgRef.current || !imgRef.current) return;
 
-      const svgRect = svgRef.current.getBoundingClientRect();
+      const imgRect = imgRef.current.getBoundingClientRect();
       const { x: imageX, y: imageY } = screenToImage(
         e.clientX,
         e.clientY,
-        svgRect,
+        imgRect,
         photo.width!,
         photo.height!,
       );
@@ -438,13 +438,13 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<SVGSVGElement>) => {
-      if (!svgRef.current) return;
+      if (!svgRef.current || !imgRef.current) return;
 
-      const svgRect = svgRef.current.getBoundingClientRect();
+      const imgRect = imgRef.current.getBoundingClientRect();
       const { x: imageX, y: imageY } = screenToImage(
         e.clientX,
         e.clientY,
-        svgRect,
+        imgRect,
         photo.width!,
         photo.height!,
       );
@@ -483,13 +483,13 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent<SVGSVGElement>) => {
-      if (!svgRef.current) return;
+      if (!svgRef.current || !imgRef.current) return;
 
-      const svgRect = svgRef.current.getBoundingClientRect();
+      const imgRect = imgRef.current.getBoundingClientRect();
       const { x: imageX, y: imageY } = screenToImage(
         e.clientX,
         e.clientY,
-        svgRect,
+        imgRect,
         photo.width!,
         photo.height!,
       );
@@ -569,22 +569,22 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
   // Floating input positioning
   const inlineInputStyle = useMemo((): React.CSSProperties => {
-    if (!inlineInput.isOpen || !svgRef.current) return { display: 'none' };
-    const svgRect = svgRef.current.getBoundingClientRect();
+    if (!inlineInput.isOpen || !imgRef.current) return { display: 'none' };
+    const imgRect = imgRef.current.getBoundingClientRect();
     const { x: screenX, y: screenY } = imageToScreen(
       inlineInput.anchorImageX,
       inlineInput.anchorImageY,
-      svgRect,
+      imgRect,
       photo.width!,
       photo.height!,
     );
     // Position is relative to the `.canvasArea` container; subtract its top-left
-    const containerRect = svgRef.current.parentElement!.getBoundingClientRect();
+    const containerRect = imgRef.current.parentElement!.getBoundingClientRect();
     return {
       position: 'absolute',
       left: screenX - containerRect.left,
       top: screenY - containerRect.top,
-      fontSize: `${getActiveFontSize() * (svgRect.width / photo.width!)}px`,
+      fontSize: `${getActiveFontSize() * (imgRect.width / photo.width!)}px`,
     };
   }, [inlineInput, photo.width, photo.height]);
 
@@ -612,10 +612,11 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         img.src = canonicalUrl + `?v=${Date.now()}`;
       });
 
-      // Create off-screen canvas at native resolution
+      // Create off-screen canvas at native resolution using actual image dimensions.
+      // Use naturalWidth/naturalHeight to be robust against server-side dimension issues.
       const canvas = document.createElement('canvas');
-      canvas.width = photo.width!;
-      canvas.height = photo.height!;
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
       const ctx = canvas.getContext('2d')!;
 
       // Draw base image

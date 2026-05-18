@@ -131,11 +131,12 @@ export async function uploadPhoto(
     // Process image with sharp
     let processedImage = sharp(fileBuffer);
 
-    // Get image metadata (including EXIF orientation)
-    const metadata = await processedImage.metadata();
-
-    // Auto-rotate based on EXIF orientation (sharp does this by default with rotate())
+    // Auto-rotate based on EXIF orientation FIRST (sharp does this by default with rotate())
+    // Must call rotate() BEFORE metadata() to get post-rotation dimensions
     processedImage = processedImage.rotate();
+
+    // Get image metadata (including dimensions after rotation)
+    const metadata = await processedImage.metadata();
 
     // Extract dimensions after processing
     const width = metadata.width ?? null;
