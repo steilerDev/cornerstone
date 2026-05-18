@@ -43,14 +43,14 @@ export async function saveAnnotatedImage(
   const annotatedPath = path.join(photoDir, 'annotated.png');
   const thumbnailPath = path.join(photoDir, 'thumbnail.webp');
 
-  // Write annotated image
-  await writeFile(annotatedPath, pngBuffer);
-
-  // Regenerate thumbnail from annotated image
+  // Generate thumbnail first — sharp validates the buffer before any file writes
   const thumbnailBuffer = await sharp(pngBuffer)
     .resize(300, 300, { fit: 'inside', withoutEnlargement: true })
     .webp()
     .toBuffer();
+
+  // Only write to disk after sharp has successfully decoded the PNG buffer
+  await writeFile(annotatedPath, pngBuffer);
   await writeFile(thumbnailPath, thumbnailBuffer);
 
   // Update DB record

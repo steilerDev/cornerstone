@@ -308,3 +308,10 @@ export class InvalidDepositDateForStatusError extends AppError {
     this.name = 'InvalidDepositDateForStatusError';
   }
 }
+
+export class PayloadTooLargeError extends AppError {
+  constructor(message = 'Payload too large') {
+    super('PAYLOAD_TOO_LARGE', 413, message);
+    this.name = 'PayloadTooLargeError';
+  }
+}

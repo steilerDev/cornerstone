@@ -360,7 +360,7 @@ describe('Photo Routes', () => {
       expect(response.statusCode).toBe(400);
     });
 
-    it('returns 400 when file size exceeds configured limit', async () => {
+    it('returns 413 when file size exceeds configured limit', async () => {
       const { cookie } = await createUserWithSession('oversize@example.com', 'Big', 'password');
 
       // Set a 1MB limit
@@ -389,7 +389,8 @@ describe('Photo Routes', () => {
         payload: body,
       });
 
-      expect(response.statusCode).toBe(400);
+      // Backend returns 413 (PayloadTooLargeError) for oversized uploads per security Concern 2
+      expect(response.statusCode).toBe(413);
       const errBody = JSON.parse(response.body) as ApiErrorResponse;
       expect(errBody.error.message).toMatch(/exceeds maximum/i);
     });
@@ -1164,7 +1165,7 @@ describe('Photo Routes', () => {
       expect(bufArg.equals(pngContent)).toBe(true);
     });
 
-    it('returns 400 when file exceeds photoMaxFileSizeMb', async () => {
+    it('returns 413 when file exceeds photoMaxFileSizeMb', async () => {
       const { cookie } = await createUserWithSession('annbig@example.com', 'AnnBig', 'password');
       // Set limit to 1 MB; config validator rejects 0, so use 1 and send a file > 1 MB.
       process.env.PHOTO_MAX_FILE_SIZE_MB = '1';
@@ -1194,7 +1195,8 @@ describe('Photo Routes', () => {
         payload: body,
       });
 
-      expect(response.statusCode).toBe(400);
+      // Backend returns 413 (PayloadTooLargeError) for oversized annotation uploads per security Concern 2
+      expect(response.statusCode).toBe(413);
     });
 
     it('returns 404 when service throws NotFoundError', async () => {
@@ -1279,6 +1281,198 @@ describe('Photo Routes', () => {
       });
 
       expect(response.statusCode).toBe(404);
+    });
+  });
+
+  // ─── Security: PUT annotation — MIME type and size validation ─────────────────
+  //
+  // Story #1478 (security Concern 2): Annotation endpoint must reject non-PNG MIME
+  // types before reading the body, and return 413 (not 400) for oversized files.
+  // Concern 3: Sharp validates the buffer; no file should be written on decode error.
+
+  describe('PUT /api/photos/:id/annotation — security validations', () => {
+    it('returns 400 when file MIME type is not image/png (e.g. image/jpeg)', async () => {
+      const { cookie } = await createUserWithSession(
+        'ann-mime@example.com',
+        'AnnMime',
+        'password',
+      );
+      // Send a JPEG-typed body — even if the bytes look like PNG, the MIME must be rejected
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('\x89PNG\r\n\x1a\nfake-png-bytes'),
+          filename: 'annotated.jpg',
+          contentType: 'image/jpeg',
+        },
+      ]);
+
+      // Use a valid UUID so param schema validation passes
+      const validId = '00000000-0000-0000-0000-000000000001';
+      const response = await app.inject({
+        method: 'PUT',
+        url: `/api/photos/${validId}/annotation`,
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(400);
+      const errBody = JSON.parse(response.body) as ApiErrorResponse;
+      expect(errBody.error.message).toMatch(/png/i);
+    });
+
+    it('does not call saveAnnotatedImage when MIME type is rejected (no service invocation)', async () => {
+      const { cookie } = await createUserWithSession(
+        'ann-mime2@example.com',
+        'AnnMime2',
+        'password',
+      );
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-gif-data'),
+          filename: 'annotated.gif',
+          contentType: 'image/gif',
+        },
+      ]);
+
+      const validId = '00000000-0000-0000-0000-000000000002';
+      await app.inject({
+        method: 'PUT',
+        url: `/api/photos/${validId}/annotation`,
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      // Service must NOT be called when MIME type is invalid
+      expect(mockSaveAnnotatedImage).not.toHaveBeenCalled();
+    });
+
+    it('returns 413 when annotation PNG exceeds PHOTO_MAX_FILE_SIZE_MB', async () => {
+      const { cookie } = await createUserWithSession(
+        'ann-sz@example.com',
+        'AnnSz',
+        'password',
+      );
+      process.env.PHOTO_MAX_FILE_SIZE_MB = '1';
+      await app.close();
+      app = await buildApp();
+
+      const oversizedBuffer = Buffer.alloc(1024 * 1024 + 1, 0xff);
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: oversizedBuffer,
+          filename: 'annotated.png',
+          contentType: 'image/png',
+        },
+      ]);
+
+      const { cookie: cookie2 } = await createUserWithSession(
+        'ann-sz2@example.com',
+        'AnnSz2',
+        'password',
+      );
+      const validId = '00000000-0000-0000-0000-000000000003';
+      const response = await app.inject({
+        method: 'PUT',
+        url: `/api/photos/${validId}/annotation`,
+        headers: { cookie: cookie2, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(413);
+    });
+  });
+
+  // ─── Security: UUID param validation ──────────────────────────────────────────
+  //
+  // Story #1478 (security Concern 1): getPhotoSchema.params now enforces a strict
+  // UUID pattern. Authenticated requests with non-UUID :id values must return 400.
+  // Auth preValidation hook fires before schema validation in Fastify's lifecycle,
+  // so unauthenticated requests still return 401 (as tested elsewhere).
+
+  describe('UUID param validation — GET/PATCH/DELETE with malformed :id', () => {
+    it('GET /api/photos/:id returns 400 for malformed UUID (not matching pattern)', async () => {
+      const { cookie } = await createUserWithSession(
+        'uuid-get@example.com',
+        'UuidGet',
+        'password',
+      );
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/photos/not-a-valid-uuid',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body) as ApiErrorResponse;
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('PATCH /api/photos/:id returns 400 for malformed UUID', async () => {
+      const { cookie } = await createUserWithSession(
+        'uuid-patch@example.com',
+        'UuidPatch',
+        'password',
+      );
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/photos/123-bad-id',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({ caption: 'test' }),
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body) as ApiErrorResponse;
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('DELETE /api/photos/:id returns 400 for malformed UUID', async () => {
+      const { cookie } = await createUserWithSession(
+        'uuid-delete@example.com',
+        'UuidDelete',
+        'password',
+      );
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/photos/short',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body) as ApiErrorResponse;
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('PUT /api/photos/:id/annotation returns 400 for malformed UUID', async () => {
+      const { cookie } = await createUserWithSession(
+        'uuid-put@example.com',
+        'UuidPut',
+        'password',
+      );
+      const { body: reqBody, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-png'),
+          filename: 'annotated.png',
+          contentType: 'image/png',
+        },
+      ]);
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/photos/bad-id/annotation',
+        headers: { cookie, 'content-type': contentType },
+        payload: reqBody,
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body) as ApiErrorResponse;
+      expect(body.error.code).toBe('VALIDATION_ERROR');
     });
   });
 

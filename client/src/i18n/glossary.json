@@ -28,6 +28,7 @@
     "Final payment": { "de": { "singular": "Schlusszahlung" } },
     "Draft": { "de": { "singular": "Entwurf", "plural": "Entwürfe" } },
     "Annotation": { "de": { "singular": "Annotation", "plural": "Annotationen" } },
+    "Annotate": { "de": { "verb": "annotieren" } },
     "Callout": { "de": { "singular": "Sprechblase", "plural": "Sprechblasen" } },
     "Freehand": { "de": { "singular": "Freihand" } }
   }

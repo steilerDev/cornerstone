@@ -1,7 +1,14 @@
 # E2E Test Engineer — Agent Memory (Index)
 
 > Detailed notes live in topic files. This index links to them.
-> See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`
+> See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
+
+## Photo Annotator E2E (Story #1478, 2026-05-18) — See photo-annotator-e2e.md
+
+- 23 scenarios total (3 from Story #1473 + 20 new). All tools covered: select, rect, highlight, arrow, line, ellipse, text, callout, measurement, freehand.
+- Bug #1482 workaround: DiaryEntryDetailPage has stale photos after Save; mock GET /api/photos and re-navigate to inject annotatedAt.
+- SVG locators: `rect[data-shapeid]`, `line[data-shapeid]`, `ellipse[data-shapeid]`, `text[data-shapeid]`, `g[data-shapeid]`, `polyline[data-shapeid]`.
+- Inline input testid: `annotator-inline-input`. Tool buttons: `tool-{name}`. Action bar: `annotator-save`, `annotator-cancel`, `annotator-undo`, `annotator-redo`.
 
 ## Budget Print + i18n Stale Skip Re-enable (PR #1447, 2026-05-17) — See print-and-i18n.md
 

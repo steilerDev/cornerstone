@@ -176,3 +176,19 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - Live-region announcement pattern: `{Noun} hinzugefügt` — e.g. "Pfeil hinzugefügt", "Linie hinzugefügt", "Ellipse hinzugefügt"
 - Geometric terms (not in glossary — use standard German): Pfeil (Arrow), Linie (Line), Ellipse (Ellipse), Rechteck (Rectangle)
 - Highlight → "Markierung" (not "Hervorhebung") — this is established in Story #1483 translations
+
+## photoAnnotator Measurement & Freehand Patterns (Issue #1477, 2026-05-18)
+
+- `toolMeasurement` → "Maß-Werkzeug" — stem is "Maß" (dimension/measure, construction context); NOT "Maßband" (physical tape measure object) and NOT "Messen" (verb)
+- `toolFreehand` → "Freihand-Werkzeug" — "Freihand" is the standard German compound stem (as in "Freihandzeichnung")
+- `shapeAddedMeasurement` → "Maß hinzugefügt" — consistent noun stem with toolMeasurement
+- `shapeAddedFreehand` → "Freihandlinie hinzugefügt" — "Linie" chosen over "Strich" or "Pfad" for consistency with existing "Linie hinzugefügt" in the file
+- `measurementPlaceholder` → "Maß eingeben" — placeholder for free-form distance text (e.g., "2.5 m"); "Maß" preferred over "Distanz" in construction context
+- `editMeasurement` → "Maßbeschriftung bearbeiten" — "Beschriftung" (label text) parallels `editCallout` = "Sprechblasentext bearbeiten"
+- "Freehand" added to glossary as `{ "de": { "singular": "Freihand" } }` — compound stem, no plural (it's always used as a modifier in German)
+
+## photoAnnotator Polish — Issue #1478 (2026-05-18)
+
+- Compound rule: "Annotations-" (noun stem) NOT "Annotierungs-" (gerund stem) — three keys fixed: `region`, `canvas`, `actions`
+- "Annotate" verb added to glossary: `{ "de": { "verb": "annotieren" } }` — loanword preferred over "markieren" (used for Highlight) or "anmerken"
+- `photoViewer.json` achieved exact parity (8 EN = 8 DE) with all #1475–#1477 keys present

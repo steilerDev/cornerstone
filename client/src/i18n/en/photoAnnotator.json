@@ -36,6 +36,7 @@
   "shapeAddedCallout": "Callout added",
   "shapeAddedMeasurement": "Measurement added",
   "shapeAddedFreehand": "Freehand path added",
+  "shapeSelected": "Shape selected",
   "shapeDeleted": "Shape deleted",
   "undoPerformed": "Undo performed",
   "redoPerformed": "Redo performed",

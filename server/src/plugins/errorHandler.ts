@@ -43,6 +43,17 @@ export default fp(
         return reply.status(400).send(response);
       }
 
+      // Fastify internal errors with an explicit statusCode (e.g., FST_ERR_CTP_BODY_TOO_LARGE → 413)
+      if ('statusCode' in error && typeof error.statusCode === 'number' && !error.validation) {
+        request.log.warn({ err: error }, 'Fastify request error');
+        return reply.status(error.statusCode).send({
+          error: {
+            code: (error as FastifyError).code ?? 'REQUEST_ERROR',
+            message: error.message,
+          },
+        });
+      }
+
       // Unknown/unexpected errors
       request.log.error({ err: error }, 'Unhandled error');
 

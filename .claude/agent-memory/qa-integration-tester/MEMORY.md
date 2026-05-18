@@ -3,6 +3,20 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1478 — PhotoAnnotator Polish Tests (2026-05-18)
+
+**Escape key M3 fix**: `PhotoAnnotator` removed its window-level Escape handler (PhotoViewer now owns Escape). Test updated from `expect(mockOnCancel).toHaveBeenCalledTimes(1)` to `expect(mockOnCancel).not.toHaveBeenCalled()`. Document the architectural reason in a code comment.
+
+**PayloadTooLargeError → 413**: The POST upload and PUT annotation oversized-file tests both had `expect(response.statusCode).toBe(400)`. The backend changed to throw `PayloadTooLargeError` (status 413). Update both tests to `.toBe(413)` and update test descriptions.
+
+**UUID pattern validation in getPhotoSchema.params**: Added in Story #1478 security fix. Routes `GET /:id`, `PATCH /:id`, `DELETE /:id`, `PUT /:id/annotation` now reject non-UUID `:id` values with 400 VALIDATION_ERROR. Existing tests that use `photo-id-123` as the `:id` for UNAUTHENTICATED requests still get 401 (auth preValidation hook fires before schema validation in Fastify's lifecycle). Authenticated requests with non-UUID `:id` now get 400 first.
+
+**Shape-added a11y announcements — pointer-drag approach fails (stale React closure)**: Tests for `shapeAddedRectangle/Highlight/Arrow/Line/Ellipse` via `fireEvent.pointerDown→Move→Up` always fail regardless of geometry mock. Root cause: `onPointerDown` enqueues `SET_DRAFT` via React setState, but `onPointerMove` is called synchronously in the same `act()` block with a stale `state` closure where `state.draftShape` is still `null`. So the draft shape dimensions are never updated → shape has w=0/h=0 → COMMIT_DRAFT never fires → live region stays empty. Fix applied: **Option B** — deleted the 5 pointer-drag tests and replaced with a single smoke test that verifies the live region + wiring via keyboard undo (which DOES work). The announcement mapping itself is correct and covered by E2E tests. Undo/redo/delete announcements work via keyboard events because they read `state` at handler invocation time, not from a stale closure.
+
+**Server photos test TS1343 issue**: ALL server route tests fail locally with `TS1343: import.meta not allowed` from `server/src/app.ts`. This is the pre-existing systemic worktree issue — CI passes. Do not try to fix; just write structurally correct tests.
+
+**New security tests location**: Added two new describe blocks in `server/src/routes/photos.test.ts`: (1) `PUT annotation — security validations` with MIME rejection, no-service-call, and 413 tests. (2) `UUID param validation — GET/PATCH/DELETE with malformed :id` with 4 tests using real UUID `00000000-0000-0000-0000-000000000001` for valid-UUID tests.
+
 ## Story #1435 — Diary UX Polish Tests (2026-05-17)
 
 **DiaryEntryCreatePage (new flow)**: Type-card click now immediately calls `createDiaryEntry({ entryType, status: 'draft' })` and navigates to `/diary/:id/edit`. No form step. `draftCreatingRef` guards double-click; `isCreating` state disables all cards while in-flight. Tests for old form-step, draft-on-blur, photo-queue blocks all removed.
