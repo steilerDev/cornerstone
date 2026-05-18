@@ -1,5 +1,6 @@
 import type { AnnotationShape, TextShape, CalloutShape } from './useUndoStack.js';
 import { nearestBoxEdgePoint } from './geometry.js';
+import { resolveStrokeWidth } from './annotationConstants.js';
 
 /** Canonical UI sans-serif font family for all text annotations.
  *  Must be kept in sync between SVG rendering and canvas 2D rendering. */
@@ -151,6 +152,8 @@ export function renderShapeSvgProps(shape: AnnotationShape, isDraft: boolean): S
       calloutShape.tailX,
       calloutShape.tailY,
     );
+    // Use strokeWidth from shape if available, otherwise default to 2 for backward compat
+    const strokeWidth = calloutShape.strokeWidth ?? 2;
     return {
       tagName: 'callout',
       boxAttrs: {
@@ -159,7 +162,7 @@ export function renderShapeSvgProps(shape: AnnotationShape, isDraft: boolean): S
         width: calloutShape.w,
         height: calloutShape.h,
         stroke: calloutShape.stroke,
-        'stroke-width': 2,
+        'stroke-width': strokeWidth,
         'stroke-dasharray': isDraft ? '6 4' : 'none',
         fill: calloutShape.fill,
         'fill-opacity': 0.15,
@@ -172,7 +175,7 @@ export function renderShapeSvgProps(shape: AnnotationShape, isDraft: boolean): S
         x2: calloutShape.tailX,
         y2: calloutShape.tailY,
         stroke: calloutShape.stroke,
-        'stroke-width': 2,
+        'stroke-width': strokeWidth,
         'stroke-linecap': 'round',
         opacity: isDraft ? 0.8 : 1,
         'pointer-events': 'none',
@@ -349,9 +352,11 @@ export function drawShapeOnCanvas(ctx: CanvasRenderingContext2D, shape: Annotati
     ctx.fillText(textShape.text, textShape.x, textShape.y + textShape.fontSize); // baseline offset
   } else if (shape.type === 'callout') {
     const calloutShape = shape as CalloutShape;
+    // Use strokeWidth from shape if available, otherwise default to 2 for backward compat
+    const strokeWidth = calloutShape.strokeWidth ?? 2;
     // 1. Box
     ctx.strokeStyle = calloutShape.stroke;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = strokeWidth;
     ctx.fillStyle = calloutShape.fill;
     ctx.globalAlpha = 0.15;
     ctx.fillRect(calloutShape.x, calloutShape.y, calloutShape.w, calloutShape.h);
@@ -367,6 +372,7 @@ export function drawShapeOnCanvas(ctx: CanvasRenderingContext2D, shape: Annotati
     ctx.beginPath();
     ctx.moveTo(ax, ay);
     ctx.lineTo(calloutShape.tailX, calloutShape.tailY);
+    ctx.lineWidth = strokeWidth;
     ctx.lineCap = 'round';
     ctx.stroke();
 

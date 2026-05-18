@@ -78,6 +78,7 @@ export interface CalloutShape {
   fill: string; // semi-transparent fill for the box
   fontSize: number;
   color: string; // text color
+  strokeWidth?: number; // image-space pixels for box/tail stroke (backward compat: defaults to 2 if missing)
 }
 
 export interface MeasurementShape {

@@ -889,13 +889,27 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
             <>
               {(selectedShape.type === 'rectangle' || selectedShape.type === 'highlight') && (
                 <>
+                  {/* Outer dark stroke for visibility on any background */}
+                  <rect
+                    x={selectedShape.x}
+                    y={selectedShape.y}
+                    width={selectedShape.w}
+                    height={selectedShape.h}
+                    stroke="#000000"
+                    strokeWidth="3"
+                    strokeDasharray="4 2"
+                    fill="none"
+                    pointerEvents="none"
+                    opacity="0.4"
+                  />
+                  {/* Inner bright dashed stroke (primary color) */}
                   <rect
                     x={selectedShape.x}
                     y={selectedShape.y}
                     width={selectedShape.w}
                     height={selectedShape.h}
                     stroke="var(--color-primary)"
-                    strokeWidth="1"
+                    strokeWidth="1.5"
                     strokeDasharray="4 2"
                     fill="none"
                     pointerEvents="none"
@@ -938,13 +952,13 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                     return (
                       <rect
                         key={pos}
-                        x={cx - 4}
-                        y={cy - 4}
-                        width={8}
-                        height={8}
+                        x={cx - 5}
+                        y={cy - 5}
+                        width={10}
+                        height={10}
                         fill="var(--color-bg-primary)"
                         stroke="var(--color-primary)"
-                        strokeWidth="1.5"
+                        strokeWidth="2"
                         style={{ cursor: cursors[pos] }}
                       />
                     );
@@ -954,15 +968,30 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
               {(selectedShape.type === 'arrow' || selectedShape.type === 'line') && (
                 <>
+                  {/* Outer dark stroke for visibility */}
+                  <line
+                    x1={selectedShape.x1}
+                    y1={selectedShape.y1}
+                    x2={selectedShape.x2}
+                    y2={selectedShape.y2}
+                    stroke="#000000"
+                    strokeWidth="3"
+                    strokeDasharray="4 2"
+                    pointerEvents="none"
+                    opacity="0.4"
+                    strokeLinecap="round"
+                  />
+                  {/* Inner bright dashed stroke */}
                   <line
                     x1={selectedShape.x1}
                     y1={selectedShape.y1}
                     x2={selectedShape.x2}
                     y2={selectedShape.y2}
                     stroke="var(--color-primary)"
-                    strokeWidth="1"
+                    strokeWidth="1.5"
                     strokeDasharray="4 2"
                     pointerEvents="none"
+                    strokeLinecap="round"
                   />
                   {/* Start and end handles */}
                   {[
@@ -971,13 +1000,13 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                   ].map(({ pos, x, y }) => (
                     <rect
                       key={pos}
-                      x={x - 4}
-                      y={y - 4}
-                      width={8}
-                      height={8}
+                      x={x - 5}
+                      y={y - 5}
+                      width={10}
+                      height={10}
                       fill="var(--color-bg-primary)"
                       stroke="var(--color-primary)"
-                      strokeWidth="1.5"
+                      strokeWidth="2"
                       style={{ cursor: 'move' }}
                     />
                   ))}
@@ -986,13 +1015,27 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
               {selectedShape.type === 'ellipse' && (
                 <>
+                  {/* Outer dark stroke for visibility */}
+                  <ellipse
+                    cx={selectedShape.cx}
+                    cy={selectedShape.cy}
+                    rx={selectedShape.rx}
+                    ry={selectedShape.ry}
+                    stroke="#000000"
+                    strokeWidth="3"
+                    strokeDasharray="4 2"
+                    fill="none"
+                    pointerEvents="none"
+                    opacity="0.4"
+                  />
+                  {/* Inner bright dashed stroke */}
                   <ellipse
                     cx={selectedShape.cx}
                     cy={selectedShape.cy}
                     rx={selectedShape.rx}
                     ry={selectedShape.ry}
                     stroke="var(--color-primary)"
-                    strokeWidth="1"
+                    strokeWidth="1.5"
                     strokeDasharray="4 2"
                     fill="none"
                     pointerEvents="none"
@@ -1006,13 +1049,13 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                   ].map(({ pos, x, y }) => (
                     <rect
                       key={pos}
-                      x={x - 4}
-                      y={y - 4}
-                      width={8}
-                      height={8}
+                      x={x - 5}
+                      y={y - 5}
+                      width={10}
+                      height={10}
                       fill="var(--color-bg-primary)"
                       stroke="var(--color-primary)"
-                      strokeWidth="1.5"
+                      strokeWidth="2"
                       style={{
                         cursor: pos === 'north' || pos === 'south' ? 'ns-resize' : 'ew-resize',
                       }}
@@ -1027,13 +1070,27 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                   if (!bbox) return null;
                   return (
                     <>
+                      {/* Outer dark stroke for visibility */}
+                      <rect
+                        x={bbox.x}
+                        y={bbox.y}
+                        width={bbox.width}
+                        height={bbox.height}
+                        stroke="#000000"
+                        strokeWidth="3"
+                        strokeDasharray="4 2"
+                        fill="none"
+                        pointerEvents="none"
+                        opacity="0.4"
+                      />
+                      {/* Inner bright dashed stroke */}
                       <rect
                         x={bbox.x}
                         y={bbox.y}
                         width={bbox.width}
                         height={bbox.height}
                         stroke="var(--color-primary)"
-                        strokeWidth="1"
+                        strokeWidth="1.5"
                         strokeDasharray="4 2"
                         fill="none"
                         pointerEvents="none"
@@ -1047,13 +1104,13 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                       ].map(({ pos, x, y }) => (
                         <rect
                           key={pos}
-                          x={x - 4}
-                          y={y - 4}
-                          width={8}
-                          height={8}
+                          x={x - 5}
+                          y={y - 5}
+                          width={10}
+                          height={10}
                           fill="var(--color-bg-primary)"
                           stroke="var(--color-primary)"
-                          strokeWidth="1.5"
+                          strokeWidth="2"
                           style={{ cursor: 'move' }}
                         />
                       ))}
@@ -1063,13 +1120,27 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
               {selectedShape.type === 'callout' && (
                 <>
+                  {/* Outer dark stroke for visibility */}
+                  <rect
+                    x={selectedShape.x}
+                    y={selectedShape.y}
+                    width={selectedShape.w}
+                    height={selectedShape.h}
+                    stroke="#000000"
+                    strokeWidth="3"
+                    strokeDasharray="4 2"
+                    fill="none"
+                    pointerEvents="none"
+                    opacity="0.4"
+                  />
+                  {/* Inner bright dashed stroke */}
                   <rect
                     x={selectedShape.x}
                     y={selectedShape.y}
                     width={selectedShape.w}
                     height={selectedShape.h}
                     stroke="var(--color-primary)"
-                    strokeWidth="1"
+                    strokeWidth="1.5"
                     strokeDasharray="4 2"
                     fill="none"
                     pointerEvents="none"
@@ -1112,13 +1183,13 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                     return (
                       <rect
                         key={pos}
-                        x={cx - 4}
-                        y={cy - 4}
-                        width={8}
-                        height={8}
+                        x={cx - 5}
+                        y={cy - 5}
+                        width={10}
+                        height={10}
                         fill="var(--color-bg-primary)"
                         stroke="var(--color-primary)"
-                        strokeWidth="1.5"
+                        strokeWidth="2"
                         style={{ cursor: cursors[pos] }}
                       />
                     );
@@ -1127,10 +1198,10 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                   <circle
                     cx={selectedShape.tailX}
                     cy={selectedShape.tailY}
-                    r={5}
+                    r={6}
                     fill="var(--color-primary)"
                     stroke="var(--color-bg-primary)"
-                    strokeWidth="1.5"
+                    strokeWidth="2"
                     style={{ cursor: 'move' }}
                   />
                 </>
@@ -1138,15 +1209,30 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
               {selectedShape.type === 'measurement' && (
                 <>
+                  {/* Outer dark stroke for visibility */}
+                  <line
+                    x1={selectedShape.x1}
+                    y1={selectedShape.y1}
+                    x2={selectedShape.x2}
+                    y2={selectedShape.y2}
+                    stroke="#000000"
+                    strokeWidth="3"
+                    strokeDasharray="4 2"
+                    pointerEvents="none"
+                    opacity="0.4"
+                    strokeLinecap="round"
+                  />
+                  {/* Inner bright dashed stroke */}
                   <line
                     x1={selectedShape.x1}
                     y1={selectedShape.y1}
                     x2={selectedShape.x2}
                     y2={selectedShape.y2}
                     stroke="var(--color-primary)"
-                    strokeWidth="1"
+                    strokeWidth="1.5"
                     strokeDasharray="4 2"
                     pointerEvents="none"
+                    strokeLinecap="round"
                   />
                   {/* Endpoint handles (start and end) — same as arrow/line */}
                   {[
@@ -1155,13 +1241,13 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                   ].map(({ pos, x, y }) => (
                     <rect
                       key={pos}
-                      x={x - 4}
-                      y={y - 4}
-                      width={8}
-                      height={8}
+                      x={x - 5}
+                      y={y - 5}
+                      width={10}
+                      height={10}
                       fill="var(--color-bg-primary)"
                       stroke="var(--color-primary)"
-                      strokeWidth="1.5"
+                      strokeWidth="2"
                       style={{ cursor: 'move' }}
                     />
                   ))}
@@ -1179,17 +1265,33 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                   const maxX = Math.max(...xs);
                   const maxY = Math.max(...ys);
                   return (
-                    <rect
-                      x={minX - 4}
-                      y={minY - 4}
-                      width={maxX - minX + 8}
-                      height={maxY - minY + 8}
-                      stroke="var(--color-primary)"
-                      strokeWidth="1"
-                      strokeDasharray="4 2"
-                      fill="none"
-                      pointerEvents="none"
-                    />
+                    <>
+                      {/* Outer dark stroke for visibility */}
+                      <rect
+                        x={minX - 4}
+                        y={minY - 4}
+                        width={maxX - minX + 8}
+                        height={maxY - minY + 8}
+                        stroke="#000000"
+                        strokeWidth="3"
+                        strokeDasharray="4 2"
+                        fill="none"
+                        pointerEvents="none"
+                        opacity="0.4"
+                      />
+                      {/* Inner bright dashed stroke */}
+                      <rect
+                        x={minX - 4}
+                        y={minY - 4}
+                        width={maxX - minX + 8}
+                        height={maxY - minY + 8}
+                        stroke="var(--color-primary)"
+                        strokeWidth="1.5"
+                        strokeDasharray="4 2"
+                        fill="none"
+                        pointerEvents="none"
+                      />
+                    </>
                   );
                 })()}
             </>
