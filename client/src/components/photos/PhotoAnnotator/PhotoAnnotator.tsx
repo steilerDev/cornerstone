@@ -533,20 +533,6 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         liveRegionRef.current.textContent = t('calloutTailPositioning');
       }
 
-      // Cancel callout tail phase ONLY if user clicked outside box during Phase 2
-      // (i.e., phase was already tail before this pointerup and tool didn't open inline input).
-      // If Phase 2 completed successfully, CalloutTool.onPointerUp calls onOpenInlineInput,
-      // so we skip the reset.
-      if (
-        state.selectedTool === 'callout' &&
-        phaseBeforeHandler === 'tail' &&
-        !inlineInput.isOpen
-      ) {
-        // User clicked outside during tail positioning — discard draft
-        resetCalloutTool();
-        dispatch({ type: 'SET_DRAFT', shape: null });
-      }
-
       // Announce shape additions
       const hasCommit = actions.some((a) => a.type === 'COMMIT_DRAFT');
       if (hasCommit && liveRegionRef.current) {
