@@ -464,7 +464,7 @@ describe('renderShapeSvgProps() — Arrow', () => {
     const arrow = getArrowParts(result);
     // Points format: "pt1x,pt1y pt2x,pt2y pt3x,pt3y"
     const pointsStr = arrow.arrowheadAttrs.points as string;
-    const points = pointsStr.split(' ').map(p => p.split(',').map(Number));
+    const points = pointsStr.split(' ').map((p) => p.split(',').map(Number));
     // pt2 (middle) should be at the tip (100, 0)
     expect(points[1]).toBeDefined();
     expect(points[1]![0]).toBe(100);
