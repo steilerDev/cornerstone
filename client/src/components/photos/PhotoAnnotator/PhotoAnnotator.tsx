@@ -424,6 +424,10 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         callout: CalloutTool,
       };
 
+      // Capture callout phase BEFORE tool handler executes.
+      // This lets us distinguish "phase just transitioned to tail" from "already in tail".
+      const phaseBeforeHandler = state.selectedTool === 'callout' ? getCalloutPhase() : null;
+
       const handler = toolHandlers[state.selectedTool];
       const actions = handler.onPointerUp(state, ctx);
 
@@ -436,18 +440,32 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         undoStack.commit(state.shapes);
       }
 
-      // Announce transition to callout tail phase
-      if (state.selectedTool === 'callout' && getCalloutPhase() === 'tail' && liveRegionRef.current) {
+      // Handle callout phase transitions:
+      // If phase was null → box (Phase 1) and now tail, announce tail positioning
+      if (
+        state.selectedTool === 'callout' &&
+        phaseBeforeHandler !== 'tail' &&
+        getCalloutPhase() === 'tail' &&
+        liveRegionRef.current
+      ) {
         liveRegionRef.current.textContent = t('calloutTailPositioning');
       }
 
-      // Cancel callout tail phase if clicked outside during tail positioning
-      if (getCalloutPhase() === 'tail') {
+      // Cancel callout tail phase ONLY if user clicked outside box during Phase 2
+      // (i.e., phase was already tail before this pointerup and tool didn't open inline input).
+      // If Phase 2 completed successfully, CalloutTool.onPointerUp calls onOpenInlineInput,
+      // so we skip the reset.
+      if (
+        state.selectedTool === 'callout' &&
+        phaseBeforeHandler === 'tail' &&
+        !inlineInput.isOpen
+      ) {
+        // User clicked outside during tail positioning — discard draft
         resetCalloutTool();
         dispatch({ type: 'SET_DRAFT', shape: null });
       }
     },
-    [state, photo.width, photo.height, dispatch, undoStack, openInlineInput],
+    [state, photo.width, photo.height, dispatch, undoStack, openInlineInput, inlineInput.isOpen],
   );
 
   // Floating input positioning
@@ -468,8 +486,6 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       left: screenX - containerRect.left,
       top: screenY - containerRect.top,
       fontSize: `${getActiveFontSize() * (svgRect.width / photo.width!)}px`,
-      minWidth: 80,
-      zIndex: 10,
     };
   }, [inlineInput, photo.width, photo.height]);
 

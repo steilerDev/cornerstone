@@ -41,7 +41,7 @@
   font-family: system-ui, -apple-system, sans-serif;
   min-width: 80px;
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
-  z-index: 10;
+  z-index: var(--z-dropdown);
 }
 
 .inlineTextInput:focus {
