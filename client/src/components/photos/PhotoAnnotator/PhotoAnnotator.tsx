@@ -77,6 +77,12 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   const inlineInputRef = useRef<HTMLInputElement>(null);
   const textBBoxMap = useRef<Map<string, DOMRect>>(new Map());
   const liveRegionRef = useRef<HTMLDivElement>(null);
+  // Track if we should open inline input on pointer up (click-to-edit)
+  const selectClickInfoRef = useRef<{
+    shapeId: string | null;
+    startImageX: number;
+    startImageY: number;
+  }>({ shapeId: null, startImageX: 0, startImageY: 0 });
 
   // Calculate canonical URL
   const canonicalUrl = `${getBaseUrl()}/photos/${photo.id}/file`;
@@ -492,6 +498,13 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       imageX = clamp(imageX, 0, photo.width!);
       imageY = clamp(imageY, 0, photo.height!);
 
+      // Track the click position for potential click-to-edit
+      selectClickInfoRef.current = {
+        shapeId: state.selectedShapeId,
+        startImageX: imageX,
+        startImageY: imageY,
+      };
+
       const ctx: PointerContext = {
         imageX,
         imageY,
@@ -623,9 +636,35 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         dispatch(action);
       }
 
-      // Commit moves/resizes to undo stack after pointer up
+      // Check for click-to-edit: if the pointer didn't move significantly and we're on the same
+      // text/callout/measurement shape that was previously selected, open inline input for editing.
       if (state.selectedTool === 'select' && state.selectedShapeId) {
-        undoStack.commit(state.shapes);
+        const prevClickInfo = selectClickInfoRef.current;
+        const dx = imageX - prevClickInfo.startImageX;
+        const dy = imageY - prevClickInfo.startImageY;
+        const clickDist = Math.sqrt(dx * dx + dy * dy);
+        const CLICK_THRESHOLD = 3; // Allow 3px of drift before considering it a drag
+        const wasActualDrag = clickDist > CLICK_THRESHOLD;
+
+        // If this is the same shape and pointer didn't move much, try to open inline input
+        if (
+          prevClickInfo.shapeId === state.selectedShapeId &&
+          !wasActualDrag
+        ) {
+          const shape = state.shapes.find((s) => s.id === state.selectedShapeId);
+          if (shape && (shape.type === 'text' || shape.type === 'callout')) {
+            openInlineInput(shape.x, shape.y, shape.id);
+          } else if (shape && shape.type === 'measurement') {
+            const midX = (shape.x1 + shape.x2) / 2;
+            const midY = (shape.y1 + shape.y2) / 2;
+            openInlineInput(midX, midY, shape.id);
+          }
+        }
+
+        // Only commit if there was actual movement (i.e., a drag occurred)
+        if (wasActualDrag) {
+          undoStack.commit(state.shapes);
+        }
       }
 
       // Handle callout phase transitions:
@@ -921,6 +960,19 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
             <>
               {(selectedShape.type === 'rectangle' || selectedShape.type === 'highlight') && (
                 <>
+                  {/* Halo/glow effect for enhanced visibility */}
+                  <rect
+                    x={selectedShape.x - 4}
+                    y={selectedShape.y - 4}
+                    width={selectedShape.w + 8}
+                    height={selectedShape.h + 8}
+                    stroke="var(--color-primary)"
+                    strokeWidth="2"
+                    fill="none"
+                    pointerEvents="none"
+                    opacity="0.3"
+                    rx="1"
+                  />
                   {/* Outer dark stroke for visibility on any background */}
                   <rect
                     x={selectedShape.x}
@@ -999,6 +1051,18 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
               {(selectedShape.type === 'arrow' || selectedShape.type === 'line') && (
                 <>
+                  {/* Halo/glow effect for enhanced visibility */}
+                  <line
+                    x1={selectedShape.x1}
+                    y1={selectedShape.y1}
+                    x2={selectedShape.x2}
+                    y2={selectedShape.y2}
+                    stroke="var(--color-primary)"
+                    strokeWidth="8"
+                    pointerEvents="none"
+                    opacity="0.2"
+                    strokeLinecap="round"
+                  />
                   {/* Outer dark stroke for visibility */}
                   <line
                     x1={selectedShape.x1}
@@ -1045,6 +1109,18 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
               {selectedShape.type === 'ellipse' && (
                 <>
+                  {/* Halo/glow effect for enhanced visibility */}
+                  <ellipse
+                    cx={selectedShape.cx}
+                    cy={selectedShape.cy}
+                    rx={selectedShape.rx + 4}
+                    ry={selectedShape.ry + 4}
+                    stroke="var(--color-primary)"
+                    strokeWidth="2"
+                    fill="none"
+                    pointerEvents="none"
+                    opacity="0.3"
+                  />
                   {/* Outer dark stroke for visibility */}
                   <ellipse
                     cx={selectedShape.cx}
@@ -1099,6 +1175,19 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                   if (!bbox) return null;
                   return (
                     <>
+                      {/* Halo/glow effect for enhanced visibility */}
+                      <rect
+                        x={bbox.x - 3}
+                        y={bbox.y - 3}
+                        width={bbox.width + 6}
+                        height={bbox.height + 6}
+                        stroke="var(--color-primary)"
+                        strokeWidth="2"
+                        fill="none"
+                        pointerEvents="none"
+                        opacity="0.3"
+                        rx="1"
+                      />
                       {/* Outer dark stroke for visibility */}
                       <rect
                         x={bbox.x}
@@ -1148,6 +1237,19 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
               {selectedShape.type === 'callout' && (
                 <>
+                  {/* Halo/glow effect for enhanced visibility */}
+                  <rect
+                    x={selectedShape.x - 4}
+                    y={selectedShape.y - 4}
+                    width={selectedShape.w + 8}
+                    height={selectedShape.h + 8}
+                    stroke="var(--color-primary)"
+                    strokeWidth="2"
+                    fill="none"
+                    pointerEvents="none"
+                    opacity="0.3"
+                    rx="1"
+                  />
                   {/* Outer dark stroke for visibility */}
                   <rect
                     x={selectedShape.x}
@@ -1236,6 +1338,18 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
               {selectedShape.type === 'measurement' && (
                 <>
+                  {/* Halo/glow effect for enhanced visibility */}
+                  <line
+                    x1={selectedShape.x1}
+                    y1={selectedShape.y1}
+                    x2={selectedShape.x2}
+                    y2={selectedShape.y2}
+                    stroke="var(--color-primary)"
+                    strokeWidth="8"
+                    pointerEvents="none"
+                    opacity="0.2"
+                    strokeLinecap="round"
+                  />
                   {/* Outer dark stroke for visibility */}
                   <line
                     x1={selectedShape.x1}
@@ -1292,6 +1406,19 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                   const maxY = Math.max(...ys);
                   return (
                     <>
+                      {/* Halo/glow effect for enhanced visibility */}
+                      <rect
+                        x={minX - 8}
+                        y={minY - 8}
+                        width={maxX - minX + 16}
+                        height={maxY - minY + 16}
+                        stroke="var(--color-primary)"
+                        strokeWidth="2"
+                        fill="none"
+                        pointerEvents="none"
+                        opacity="0.3"
+                        rx="1"
+                      />
                       {/* Outer dark stroke for visibility */}
                       <rect
                         x={minX - 4}
