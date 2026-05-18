@@ -146,13 +146,14 @@ describe('PhotoViewer', () => {
     jest.clearAllMocks();
   });
 
-  function renderViewer(photos: Photo[], initialIndex = 0) {
+  function renderViewer(photos: Photo[], initialIndex = 0, editable = true) {
     return render(
       React.createElement(PhotoViewer, {
         photos,
         initialIndex,
         onClose: mockOnClose,
         onPhotoAnnotated: mockOnPhotoAnnotated,
+        editable,
       }),
     );
   }
@@ -183,6 +184,19 @@ describe('PhotoViewer', () => {
 
     // PhotoAnnotator mock should be rendered
     expect(screen.getByTestId('mock-photo-annotator')).toBeInTheDocument();
+  });
+
+  it('annotate button is disabled when editable=false', () => {
+    const photo = makePhoto({ width: 800, height: 600 });
+    renderViewer([photo], 0, false);
+    expect(screen.getByTestId('photo-viewer-annotate')).toBeDisabled();
+  });
+
+  it('annotate button has signed entry tooltip when editable=false', () => {
+    const photo = makePhoto({ width: 800, height: 600 });
+    renderViewer([photo], 0, false);
+    const btn = screen.getByTestId('photo-viewer-annotate');
+    expect(btn).toHaveAttribute('title', expect.stringContaining('cannot be annotated'));
   });
 
   it('navigation arrows are hidden while annotating', () => {

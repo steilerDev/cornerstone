@@ -12,19 +12,56 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
+import { eq } from 'drizzle-orm';
 import {
   NotFoundError,
   UnauthorizedError,
   ValidationError,
   PayloadTooLargeError,
+  ConflictError,
 } from '../errors/AppError.js';
 import * as photoService from '../services/photoService.js';
 import * as photoAnnotationService from '../services/photoAnnotationService.js';
+import { diaryEntries } from '../db/schema.js';
 import type {
   UpdatePhotoRequest,
   ReorderPhotosRequest,
   PhotoEntityType,
 } from '@cornerstone/shared';
+
+// ─── Helper functions ─────────────────────────────────────────────────────────
+
+/**
+ * Check if a diary entry is signed (has non-empty signatures array in metadata).
+ * Returns true if signed, false if not signed or entry not found.
+ */
+function isDiaryEntrySigned(db: any, diaryEntryId: string): boolean {
+  const entry = db
+    .select({ metadata: diaryEntries.metadata })
+    .from(diaryEntries)
+    .where(eq(diaryEntries.id, diaryEntryId))
+    .get();
+
+  if (!entry) {
+    return false;
+  }
+
+  if (!entry.metadata) {
+    return false;
+  }
+
+  try {
+    const metadata = JSON.parse(entry.metadata);
+    return (
+      Boolean(metadata) &&
+      'signatures' in metadata &&
+      Array.isArray(metadata.signatures) &&
+      metadata.signatures.length > 0
+    );
+  } catch {
+    return false;
+  }
+}
 
 // ─── JSON schemas ─────────────────────────────────────────────────────────────
 
@@ -373,7 +410,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    * Form field:
    *   - file: the annotated PNG blob
    *
-   * Returns: 200 with { photo } or 400/404
+   * Returns: 200 with { photo } or 400/404/409
    */
   fastify.put(
     '/:id/annotation',
@@ -381,6 +418,19 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!request.user) throw new UnauthorizedError();
       const { id } = request.params as { id: string };
+
+      // Fetch photo metadata to check entity type
+      const photo = photoService.getPhoto(fastify.db, id);
+      if (!photo) {
+        throw new NotFoundError('Photo not found');
+      }
+
+      // Block annotation if photo is attached to a signed diary entry
+      if (photo.entityType === 'diary_entry') {
+        if (isDiaryEntrySigned(fastify.db, photo.entityId)) {
+          throw new ConflictError('Cannot annotate photos on signed diary entries');
+        }
+      }
 
       const file = await request.file();
       if (!file) throw new ValidationError('No file uploaded');
@@ -399,14 +449,14 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
         );
       }
 
-      const photo = await photoAnnotationService.saveAnnotatedImage(
+      const updatedPhoto = await photoAnnotationService.saveAnnotatedImage(
         fastify.db,
         fastify.config.photoStoragePath,
         id,
         pngBuffer,
       );
 
-      return reply.status(200).send({ photo });
+      return reply.status(200).send({ photo: updatedPhoto });
     },
   );
 
@@ -414,7 +464,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    * DELETE /:id/annotation
    * Clear the annotated image for a photo.
    *
-   * Returns: 204 No Content or 404
+   * Returns: 204 No Content or 404/409
    */
   fastify.delete(
     '/:id/annotation',
@@ -422,6 +472,19 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
     async (request: FastifyRequest, reply: FastifyReply) => {
       if (!request.user) throw new UnauthorizedError();
       const { id } = request.params as { id: string };
+
+      // Fetch photo metadata to check entity type
+      const photo = photoService.getPhoto(fastify.db, id);
+      if (!photo) {
+        throw new NotFoundError('Photo not found');
+      }
+
+      // Block annotation if photo is attached to a signed diary entry
+      if (photo.entityType === 'diary_entry') {
+        if (isDiaryEntrySigned(fastify.db, photo.entityId)) {
+          throw new ConflictError('Cannot remove annotation from photos on signed diary entries');
+        }
+      }
 
       await photoAnnotationService.clearAnnotation(fastify.db, fastify.config.photoStoragePath, id);
 

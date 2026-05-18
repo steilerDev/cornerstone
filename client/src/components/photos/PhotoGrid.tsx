@@ -8,9 +8,10 @@ export interface PhotoGridProps {
   onDelete?: (photo: Photo) => void;
   onEdit?: (photo: Photo) => void;
   loading?: boolean;
+  editable?: boolean;
 }
 
-export function PhotoGrid({ photos, onPhotoClick, onDelete, onEdit, loading }: PhotoGridProps) {
+export function PhotoGrid({ photos, onPhotoClick, onDelete, onEdit, loading, editable = true }: PhotoGridProps) {
   if (loading) {
     return (
       <div className={styles.grid} role="list" aria-label="Loading photos">
@@ -34,6 +35,7 @@ export function PhotoGrid({ photos, onPhotoClick, onDelete, onEdit, loading }: P
           onClick={() => onPhotoClick(photo)}
           onDelete={onDelete ? () => onDelete(photo) : undefined}
           onEdit={onEdit ? () => onEdit(photo) : undefined}
+          editable={editable}
         />
       ))}
     </div>

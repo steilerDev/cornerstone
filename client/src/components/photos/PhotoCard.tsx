@@ -8,9 +8,10 @@ export interface PhotoCardProps {
   onClick: () => void;
   onDelete?: () => void;
   onEdit?: () => void;
+  editable?: boolean;
 }
 
-export function PhotoCard({ photo, onClick, onDelete, onEdit }: PhotoCardProps) {
+export function PhotoCard({ photo, onClick, onDelete, onEdit, editable = true }: PhotoCardProps) {
   const { t } = useTranslation('photoViewer');
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -81,7 +82,7 @@ export function PhotoCard({ photo, onClick, onDelete, onEdit }: PhotoCardProps) 
       {/* Edit and Delete buttons (shown on hover/focus) */}
       {(isHovered || isFocused) && (
         <div className={styles.actionButtons}>
-          {onEdit && (
+          {onEdit && editable && (
             <button
               type="button"
               onClick={(e) => {

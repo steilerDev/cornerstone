@@ -12,9 +12,10 @@ export interface PhotoViewerProps {
   initialIndex: number;
   onClose: () => void;
   onPhotoAnnotated?: (photo: Photo) => void;
+  editable?: boolean;
 }
 
-export function PhotoViewer({ photos, initialIndex, onClose, onPhotoAnnotated }: PhotoViewerProps) {
+export function PhotoViewer({ photos, initialIndex, onClose, onPhotoAnnotated, editable = true }: PhotoViewerProps) {
   const { t } = useTranslation(['photoViewer', 'common']);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isAnnotating, setIsAnnotating] = useState(false);
@@ -201,14 +202,16 @@ export function PhotoViewer({ photos, initialIndex, onClose, onPhotoAnnotated }:
               ref={annotateBtnRef}
               type="button"
               className={`${styles.iconButton} ${
-                !currentPhoto.width || !currentPhoto.height ? styles.iconButtonDisabled : ''
+                !editable || !currentPhoto.width || !currentPhoto.height ? styles.iconButtonDisabled : ''
               }`}
-              disabled={!currentPhoto.width || !currentPhoto.height}
+              disabled={!editable || !currentPhoto.width || !currentPhoto.height}
               aria-label={t('photoViewer:annotate')}
               title={
-                !currentPhoto.width || !currentPhoto.height
-                  ? t('photoViewer:annotateDisabledMissingDimensions')
-                  : undefined
+                !editable
+                  ? t('photoViewer:annotateDisabledSigned')
+                  : !currentPhoto.width || !currentPhoto.height
+                    ? t('photoViewer:annotateDisabledMissingDimensions')
+                    : undefined
               }
               data-testid="photo-viewer-annotate"
               onClick={() => {

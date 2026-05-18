@@ -279,6 +279,7 @@ export default function DiaryEntryDetailPage() {
                     setSelectedPhotoIndex(index);
                   }}
                   loading={photosResult.loading}
+                  editable={!entry.isSigned}
                 />
               </>
             )}
@@ -292,6 +293,7 @@ export default function DiaryEntryDetailPage() {
             initialIndex={selectedPhotoIndex}
             onClose={() => setSelectedPhotoIndex(null)}
             onPhotoAnnotated={photosResult.updatePhotoAnnotation}
+            editable={!entry.isSigned}
           />
         )}
 
