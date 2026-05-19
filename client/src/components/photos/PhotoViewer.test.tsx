@@ -98,30 +98,14 @@ jest.unstable_mockModule('../Modal/Modal.js', () => ({
 }));
 
 // ─── Mock PhotoMetadataSidepanel ──────────────────────────────────────────────
+// The sidepanel no longer accepts isOpen/onClose — it is always rendered.
 
 jest.unstable_mockModule('./PhotoMetadataSidepanel.js', () => ({
-  PhotoMetadataSidepanel: ({
-    photo,
-    isOpen,
-    onClose,
-  }: {
-    photo: Photo;
-    isOpen: boolean;
-    onClose: () => void;
-  }) =>
-    React.createElement(
-      'div',
-      {
-        'data-testid': 'mock-metadata-sidepanel',
-        'data-is-open': isOpen,
-        style: { display: isOpen ? 'block' : 'none' },
-      },
-      React.createElement(
-        'button',
-        { 'data-testid': 'sidepanel-close', onClick: onClose },
-        'Close Metadata',
-      ),
-    ),
+  PhotoMetadataSidepanel: ({ photo }: { photo: Photo }) =>
+    React.createElement('div', {
+      'data-testid': 'mock-metadata-sidepanel',
+      'data-photo-id': photo.id,
+    }),
 }));
 
 // ─── Dynamic imports ──────────────────────────────────────────────────────────
@@ -450,46 +434,12 @@ describe('PhotoViewer', () => {
     expect(screen.getByTestId('photo-viewer-annotate')).toBeDisabled();
   });
 
-  // ─── Metadata Sidepanel ────────────────────────────────────────────────────
+  // ─── Metadata Sidepanel (always visible) ──────────────────────────────────
+  // The sidepanel no longer has a toggle button — it is always rendered
+  // alongside the photo. No isOpen/onClose props exist on the component.
 
-  it('shows metadata button in info bar', () => {
+  it('metadata sidepanel is always rendered when the viewer is open', () => {
     renderViewer([makePhoto()]);
-    const metadataBtn = screen.getByTestId('photo-viewer-metadata');
-    expect(metadataBtn).toBeInTheDocument();
-  });
-
-  it('metadata button has aria-label', () => {
-    renderViewer([makePhoto()]);
-    const metadataBtn = screen.getByTestId('photo-viewer-metadata');
-    expect(metadataBtn).toHaveAttribute('aria-label');
-  });
-
-  it('metadata button starts with aria-pressed=false', () => {
-    renderViewer([makePhoto()]);
-    const metadataBtn = screen.getByTestId('photo-viewer-metadata');
-    expect(metadataBtn).toHaveAttribute('aria-pressed', 'false');
-  });
-
-  it('clicking metadata button opens sidepanel', () => {
-    renderViewer([makePhoto()]);
-    const metadataBtn = screen.getByTestId('photo-viewer-metadata');
-    fireEvent.click(metadataBtn);
-    const sidepanel = screen.getByTestId('mock-metadata-sidepanel');
-    expect(sidepanel).toHaveAttribute('data-is-open', 'true');
-  });
-
-  it('clicking metadata button again closes sidepanel', () => {
-    renderViewer([makePhoto()]);
-    const metadataBtn = screen.getByTestId('photo-viewer-metadata');
-    fireEvent.click(metadataBtn);
-    expect(screen.getByTestId('mock-metadata-sidepanel')).toHaveAttribute('data-is-open', 'true');
-    fireEvent.click(metadataBtn);
-    expect(screen.getByTestId('mock-metadata-sidepanel')).toHaveAttribute('data-is-open', 'false');
-  });
-
-  it('sidepanel is hidden by default', () => {
-    renderViewer([makePhoto()]);
-    const sidepanel = screen.getByTestId('mock-metadata-sidepanel');
-    expect(sidepanel).toHaveAttribute('data-is-open', 'false');
+    expect(screen.getByTestId('mock-metadata-sidepanel')).toBeInTheDocument();
   });
 });

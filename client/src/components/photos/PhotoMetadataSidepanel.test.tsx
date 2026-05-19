@@ -157,11 +157,11 @@ describe('PhotoMetadataSidepanel', () => {
    * Render helper: wraps the component in LocaleProvider so useFormatters() has
    * locale context. In CI the LocaleProvider mock is a passthrough; locally it's
    * the real provider (with configApi/preferencesApi mocked to avoid network calls).
+   *
+   * The sidepanel no longer accepts isOpen/onClose — it is always visible.
    */
   function renderSidepanel(props: {
     photo: Photo;
-    isOpen: boolean;
-    onClose: () => void;
     onPhotoUpdated?: (photo: Photo) => void;
   }) {
     return render(
@@ -171,36 +171,9 @@ describe('PhotoMetadataSidepanel', () => {
     );
   }
 
-  it('renders the sidepanel when isOpen is true', async () => {
-    renderSidepanel({
-      photo: mockPhoto,
-      isOpen: true,
-      onClose: jest.fn(),
-    });
-
-    // In CI: t() returns key "metadataTitle". Locally: real i18n returns "Photo Metadata".
-    await waitFor(() => {
-      const heading = screen.queryByText('metadataTitle') ?? screen.queryByText('Photo Metadata');
-      expect(heading).toBeInTheDocument();
-    });
-  });
-
-  it('hides the sidepanel when isOpen is false', () => {
-    const { container } = renderSidepanel({
-      photo: mockPhoto,
-      isOpen: false,
-      onClose: jest.fn(),
-    });
-
-    const sidepanel = container.querySelector('.sidepanel');
-    expect(sidepanel).toHaveClass('hidden');
-  });
-
   it('renders upload date formatted', async () => {
     renderSidepanel({
       photo: mockPhoto,
-      isOpen: true,
-      onClose: jest.fn(),
     });
 
     // formatDate('2026-05-19T10:00:00Z', 'en-US') = "May 19, 2026"
@@ -212,8 +185,6 @@ describe('PhotoMetadataSidepanel', () => {
   it('renders description textarea with current caption', async () => {
     renderSidepanel({
       photo: mockPhoto,
-      isOpen: true,
-      onClose: jest.fn(),
     });
 
     const textarea = screen.getByDisplayValue('Test caption');
@@ -224,8 +195,6 @@ describe('PhotoMetadataSidepanel', () => {
   it('does not show save button when no changes have been made', async () => {
     renderSidepanel({
       photo: mockPhoto,
-      isOpen: true,
-      onClose: jest.fn(),
     });
 
     // Wait for the component to settle (areas load, etc.) then assert no Save button.
@@ -242,8 +211,6 @@ describe('PhotoMetadataSidepanel', () => {
   it('loads areas on mount (CI only — areasApi mock must intercept)', async () => {
     renderSidepanel({
       photo: mockPhoto,
-      isOpen: true,
-      onClose: jest.fn(),
     });
 
     // fetchAreas is called by the component's mount effect.
@@ -260,8 +227,6 @@ describe('PhotoMetadataSidepanel', () => {
   it('resets form when photo changes', async () => {
     const { rerender } = renderSidepanel({
       photo: mockPhoto,
-      isOpen: true,
-      onClose: jest.fn(),
     });
 
     const newPhoto: Photo = { ...mockPhoto, caption: 'Different caption' };
@@ -270,8 +235,6 @@ describe('PhotoMetadataSidepanel', () => {
       React.createElement(LocaleProvider, {
         children: React.createElement(PhotoMetadataSidepanel, {
           photo: newPhoto,
-          isOpen: true,
-          onClose: jest.fn(),
         }),
       }),
     );
@@ -286,8 +249,6 @@ describe('PhotoMetadataSidepanel', () => {
 
     renderSidepanel({
       photo,
-      isOpen: true,
-      onClose: jest.fn(),
     });
 
     // Placeholder: "Add a description..." (real i18n) or "descriptionPlaceholder" (CI mock).
