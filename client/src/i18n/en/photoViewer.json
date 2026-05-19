@@ -17,5 +17,9 @@
   "noArea": "(no area)",
   "saveButton": "Save",
   "saving": "Saving...",
-  "saveError": "Failed to save metadata"
+  "saveError": "Failed to save metadata",
+  "delete": "Delete photo",
+  "deleteConfirmTitle": "Delete this photo?",
+  "deleteConfirmBody": "This photo will be permanently removed. This action cannot be undone.",
+  "deleteConfirmAction": "Delete"
 }

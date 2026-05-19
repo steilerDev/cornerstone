@@ -2,6 +2,7 @@
  * Unit tests for PhotoViewer component.
  *
  * Story #1473: Photo Annotator Foundation
+ * Story #1497: Lightbox Delete for Non-Draft Entries
  *
  * Tests:
  *   - Annotate button visible, disabled when photo has no dimensions
@@ -16,6 +17,13 @@
  *   - Clicking Clear Annotations opens confirmation modal
  *   - Cancelling clear modal closes it without calling clearAnnotation
  *   - Confirming clear modal calls clearAnnotation(id) and updates photo
+ *   - Delete button hidden when onDelete not provided
+ *   - Delete button hidden when editable=false
+ *   - Delete button visible regardless of annotation state (gated only by editable + onDelete)
+ *   - Delete button visible when editable=true, onDelete provided, no annotations
+ *   - Clicking delete opens confirmation modal
+ *   - Cancelling delete modal closes it without calling onDelete
+ *   - Confirming delete calls onDelete and closes viewer
  *
  * Note: jest.unstable_mockModule may not intercept locally (systemic worktree issue).
  * Tests are structured correctly and will pass in CI.
@@ -98,10 +106,11 @@ jest.unstable_mockModule('../Modal/Modal.js', () => ({
 }));
 
 // ─── Mock PhotoMetadataSidepanel ──────────────────────────────────────────────
-// The sidepanel no longer accepts isOpen/onClose — it is always rendered.
+// The sidepanel now always renders (no isOpen/onClose props). Mock to avoid
+// rendering dependencies like LocaleProvider which aren't available in unit tests.
 
 jest.unstable_mockModule('./PhotoMetadataSidepanel.js', () => ({
-  PhotoMetadataSidepanel: ({ photo }: { photo: Photo }) =>
+  PhotoMetadataSidepanel: ({ photo }: { photo: Photo; onPhotoUpdated?: (p: Photo) => void }) =>
     React.createElement('div', {
       'data-testid': 'mock-metadata-sidepanel',
       'data-photo-id': photo.id,
@@ -143,6 +152,7 @@ function makePhoto(overrides: Record<string, unknown> = {}): Photo {
 describe('PhotoViewer', () => {
   const mockOnClose = jest.fn() as AnyMock;
   const mockOnPhotoAnnotated = jest.fn() as AnyMock;
+  const mockOnDelete = jest.fn() as AnyMock;
 
   beforeEach(async () => {
     if (!PhotoViewer) {
@@ -163,6 +173,7 @@ describe('PhotoViewer', () => {
     initialIndex = 0,
     editable = true,
     startInAnnotator = false,
+    onDelete?: typeof mockOnDelete,
   ) {
     return render(
       React.createElement(PhotoViewer, {
@@ -172,6 +183,7 @@ describe('PhotoViewer', () => {
         onPhotoAnnotated: mockOnPhotoAnnotated,
         editable,
         startInAnnotator,
+        onDelete,
       }),
     );
   }
@@ -441,5 +453,70 @@ describe('PhotoViewer', () => {
   it('metadata sidepanel is always rendered when the viewer is open', () => {
     renderViewer([makePhoto()]);
     expect(screen.getByTestId('mock-metadata-sidepanel')).toBeInTheDocument();
+  });
+
+  // ─── Delete Photo button ──────────────────────────────────────────────────
+
+  it('delete button is hidden when onDelete is not provided', () => {
+    renderViewer([makePhoto()], 0, true, false, undefined);
+    expect(screen.queryByTestId('photo-viewer-delete')).not.toBeInTheDocument();
+  });
+
+  it('delete button is hidden when editable=false', () => {
+    renderViewer([makePhoto()], 0, false, false, mockOnDelete);
+    expect(screen.queryByTestId('photo-viewer-delete')).not.toBeInTheDocument();
+  });
+
+  it('delete button is visible when photo is annotated (annotation state does not gate delete)', () => {
+    const photo = makePhoto({ annotatedAt: '2026-05-17T10:00:00.000Z' });
+    renderViewer([photo], 0, true, false, mockOnDelete);
+    expect(screen.getByTestId('photo-viewer-delete')).toBeInTheDocument();
+  });
+
+  it('delete button is visible when editable=true and onDelete is provided', () => {
+    renderViewer([makePhoto({ annotatedAt: null })], 0, true, false, mockOnDelete);
+    expect(screen.getByTestId('photo-viewer-delete')).toBeInTheDocument();
+  });
+
+  it('clicking delete button opens confirmation modal', () => {
+    renderViewer([makePhoto()], 0, true, false, mockOnDelete);
+
+    fireEvent.click(screen.getByTestId('photo-viewer-delete'));
+
+    expect(screen.getByTestId('mock-modal')).toBeInTheDocument();
+  });
+
+  it('cancelling delete modal closes it without calling onDelete', () => {
+    renderViewer([makePhoto()], 0, true, false, mockOnDelete);
+
+    fireEvent.click(screen.getByTestId('photo-viewer-delete'));
+    expect(screen.getByTestId('mock-modal')).toBeInTheDocument();
+
+    // Close via modal's X button
+    fireEvent.click(screen.getByTestId('modal-close'));
+
+    expect(screen.queryByTestId('mock-modal')).not.toBeInTheDocument();
+    expect(mockOnDelete).not.toHaveBeenCalled();
+  });
+
+  it('confirming delete calls onDelete with photo id and closes viewer', async () => {
+    const photo = makePhoto({ id: 'photo-to-delete' });
+    renderViewer([photo], 0, true, false, mockOnDelete);
+
+    fireEvent.click(screen.getByTestId('photo-viewer-delete'));
+
+    // Scope the query to within the modal to avoid collision with other buttons
+    const modal = screen.getByTestId('mock-modal');
+    const confirmBtn = within(modal).getByRole('button', { name: /Delete/i });
+
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mockOnDelete).toHaveBeenCalledWith('photo-to-delete');
+      expect(mockOnClose).toHaveBeenCalled();
+    });
   });
 });

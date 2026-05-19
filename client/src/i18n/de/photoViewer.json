@@ -17,5 +17,9 @@
   "noArea": "(kein Bereich)",
   "saveButton": "Speichern",
   "saving": "Wird gespeichert...",
-  "saveError": "Metadaten konnten nicht gespeichert werden"
+  "saveError": "Metadaten konnten nicht gespeichert werden",
+  "delete": "Foto löschen",
+  "deleteConfirmTitle": "Foto löschen?",
+  "deleteConfirmBody": "Dieses Foto wird dauerhaft entfernt. Diese Aktion kann nicht rückgängig gemacht werden.",
+  "deleteConfirmAction": "Löschen"
 }
