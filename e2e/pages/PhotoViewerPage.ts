@@ -60,7 +60,6 @@ export type AnnotatorToolName =
   | 'line'
   | 'ellipse'
   | 'text'
-  | 'callout'
   | 'measurement'
   | 'freehand';
 
@@ -126,9 +125,6 @@ export class PhotoViewerPage {
 
   /** Text tool button */
   readonly textToolButton: Locator;
-
-  /** Callout tool button */
-  readonly calloutToolButton: Locator;
 
   /** Measurement tool button */
   readonly measurementToolButton: Locator;
@@ -196,7 +192,6 @@ export class PhotoViewerPage {
     this.lineToolButton = page.getByTestId('tool-line');
     this.ellipseToolButton = page.getByTestId('tool-ellipse');
     this.textToolButton = page.getByTestId('tool-text');
-    this.calloutToolButton = page.getByTestId('tool-callout');
     this.measurementToolButton = page.getByTestId('tool-measurement');
     this.freehandToolButton = page.getByTestId('tool-freehand');
 
@@ -228,7 +223,6 @@ export class PhotoViewerPage {
       line: this.lineToolButton,
       ellipse: this.ellipseToolButton,
       text: this.textToolButton,
-      callout: this.calloutToolButton,
       measurement: this.measurementToolButton,
       freehand: this.freehandToolButton,
     };
@@ -348,48 +342,6 @@ export class PhotoViewerPage {
   async discardTextInput(): Promise<void> {
     await this.inlineInput.waitFor({ state: 'visible' });
     await this.page.keyboard.press('Escape');
-    await this.inlineInput.waitFor({ state: 'hidden' });
-  }
-
-  /**
-   * Draw a callout: drag the box, click for tail, type text, then press Enter.
-   *
-   * Phase 1: Drag box from start→end.
-   * Phase 2: Click once to place the tail.
-   * Phase 3: Type text in inline input and press Enter.
-   */
-  async drawCallout(
-    boxStartXPct = 0.1,
-    boxStartYPct = 0.1,
-    boxEndXPct = 0.4,
-    boxEndYPct = 0.3,
-    tailXPct = 0.6,
-    tailYPct = 0.7,
-    text = 'Callout',
-  ): Promise<void> {
-    const svgBox = await this.svgOverlay.boundingBox();
-    if (!svgBox) throw new Error('SVG overlay not visible');
-
-    const bx1 = svgBox.x + svgBox.width * boxStartXPct;
-    const by1 = svgBox.y + svgBox.height * boxStartYPct;
-    const bx2 = svgBox.x + svgBox.width * boxEndXPct;
-    const by2 = svgBox.y + svgBox.height * boxEndYPct;
-    const tx = svgBox.x + svgBox.width * tailXPct;
-    const ty = svgBox.y + svgBox.height * tailYPct;
-
-    // Phase 1: drag box
-    await this.page.mouse.move(bx1, by1);
-    await this.page.mouse.down();
-    await this.page.mouse.move(bx2, by2, { steps: 5 });
-    await this.page.mouse.up();
-
-    // Phase 2: click to place tail
-    await this.page.mouse.click(tx, ty);
-
-    // Phase 3: type text and commit
-    await this.inlineInput.waitFor({ state: 'visible' });
-    await this.inlineInput.fill(text);
-    await this.page.keyboard.press('Enter');
     await this.inlineInput.waitFor({ state: 'hidden' });
   }
 
