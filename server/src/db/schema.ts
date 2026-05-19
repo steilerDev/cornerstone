@@ -441,6 +441,34 @@ export const invoiceBudgetLines = sqliteTable(
 );
 
 /**
+ * Invoice deposits table - tracks staged partial payments within a parent invoice.
+ * Cascade-deletes with the parent invoice.
+ */
+export const invoiceDeposits = sqliteTable(
+  'invoice_deposits',
+  {
+    id: text('id').primaryKey(),
+    invoiceId: text('invoice_id')
+      .notNull()
+      .references(() => invoices.id, { onDelete: 'cascade' }),
+    amount: real('amount').notNull(),
+    dueDate: text('due_date').notNull(),
+    paidDate: text('paid_date'),
+    claimedDate: text('claimed_date'),
+    description: text('description'),
+    status: text('status', { enum: ['pending', 'paid', 'claimed'] })
+      .notNull()
+      .default('pending'),
+    createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    invoiceIdIdx: index('idx_invoice_deposits_invoice_id').on(table.invoiceId),
+  }),
+);
+
+/**
  * Subsidy programs table - government/institutional programs reducing construction costs.
  */
 export const subsidyPrograms = sqliteTable('subsidy_programs', {
@@ -824,6 +852,7 @@ export const householdItemSubsidies = sqliteTable(
  * Photos table - stores photo attachment metadata for various entities.
  * Uses entity_type + entity_id polymorphic pattern (same as document_links).
  * Actual files stored on disk at {photoStoragePath}/{id}/original.{ext} + thumbnail.webp.
+ * Photos can optionally be associated with an area for spatial organization.
  */
 export const photos = sqliteTable(
   'photos',
@@ -839,13 +868,16 @@ export const photos = sqliteTable(
     height: integer('height'),
     takenAt: text('taken_at'),
     caption: text('caption'),
+    areaId: text('area_id').references(() => areas.id, { onDelete: 'set null' }),
     sortOrder: integer('sort_order').notNull().default(0),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
+    annotatedAt: text('annotated_at'),
   },
   (table) => ({
     entityIdx: index('idx_photos_entity').on(table.entityType, table.entityId),
+    areaIdIdx: index('idx_photos_area_id').on(table.areaId),
     createdAtIdx: index('idx_photos_created_at').on(table.createdAt),
   }),
 );
@@ -881,6 +913,9 @@ export const diaryEntries = sqliteTable(
     title: text('title'),
     body: text('body').notNull(),
     metadata: text('metadata'),
+    status: text('status', { enum: ['draft', 'saved'] })
+      .notNull()
+      .default('saved'),
     isAutomatic: integer('is_automatic', { mode: 'boolean' }).notNull().default(false),
     sourceEntityType: text('source_entity_type'),
     sourceEntityId: text('source_entity_id'),

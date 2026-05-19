@@ -110,6 +110,19 @@
   background-color: var(--color-primary-hover);
 }
 
+/* Drafts chip — same shape as mode chips, active state uses muted secondary tokens */
+.draftsChip.modeChipActive {
+  background-color: var(--color-bg-tertiary);
+  border-color: var(--color-border-focus);
+  color: var(--color-text-primary);
+}
+
+.draftsChip.modeChipActive:hover {
+  background-color: var(--color-bg-hover);
+  border-color: var(--color-border-focus);
+  color: var(--color-text-primary);
+}
+
 .typeChips {
   display: flex;
   flex-wrap: wrap;
@@ -215,6 +228,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .mobileToggle,
+  .modeChip,
   .typeChip,
   .clearButton {
     transition: none;

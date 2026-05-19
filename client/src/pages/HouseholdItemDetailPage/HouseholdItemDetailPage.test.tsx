@@ -624,9 +624,21 @@ describe('HouseholdItemDetailPage', () => {
       expect(dashValues.length).toBeGreaterThan(0);
     });
 
-    it.skip('shows dash for missing area — area display not yet implemented in UI', () => {
-      // The HouseholdItemDetailPage does not yet display the area field.
-      // This test should be re-enabled when area display is added to the detail page.
+    it('shows area picker with no selection when area is null', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ area: null }));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      // The Area section heading should be present
+      expect(screen.getByRole('heading', { name: 'Area', level: 2 })).toBeInTheDocument();
+
+      // The AreaPicker renders an input with "Select an area" placeholder when no area is set
+      const areaInput = screen.getByPlaceholderText('Select an area');
+      expect(areaInput).toBeInTheDocument();
     });
 
     it('shows dash for missing vendor', async () => {

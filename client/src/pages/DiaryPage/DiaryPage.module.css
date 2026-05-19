@@ -55,10 +55,6 @@
   flex-shrink: 0;
 }
 
-.createButton {
-  flex-shrink: 0;
-}
-
 .timeline {
   display: flex;
   flex-direction: column;

@@ -1,7 +1,72 @@
 # E2E Test Engineer — Agent Memory (Index)
 
 > Detailed notes live in topic files. This index links to them.
-> See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`
+> See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
+
+## Photo Annotator E2E (Story #1478, 2026-05-18) — See photo-annotator-e2e.md
+
+- 23 scenarios total. PR #1526 migrated annotator to Konva canvas — 21 tests are `test.fixme()`, 2 kept active (Scenarios 2, 22).
+- ACTIVE: Scenario 2 (cancel — no shape DOM check), Scenario 22 (tool palette aria-pressed only).
+- FIXME: All SVG-coupled tests (Scenarios 1, 4–21, 23). SVG shape locators don't exist in Konva canvas DOM.
+- Rewrite strategy: use `stage.toJSON()` or visual regression; see photo-annotator-e2e.md for details.
+- **TIMING**: Shape assertions after drawing MUST use `waitFor({ state: 'visible', timeout: 15_000 })` or `expect(locator).toBeVisible()`. `waitFor` without explicit timeout uses `actionTimeout: 5s` which is too short on 2-vCPU CI shards — shape commits go through two async React renders (useReducer + undoStack useState). `expect(...)` uses `expect.timeout: 7s`. Both work; prefer 15s explicit timeout for safety. See photo-annotator-e2e.md.
+- **SELECT TOOL MOVE**: After drag-to-move, use `expect.poll(() => parseFloat(el.getAttribute('x')))` to wait for the updated attribute value rather than reading it immediately after mouse.up().
+- **COLOR PALETTE** strict mode: ToolPalette renders up to 3 radiogroups (color, stroke width, and font size for text tools). Use `getByRole('radiogroup', { name: 'Annotation color' })` — aria-label comes from i18n key `colorPalette` = `"Annotation color"`. Never use unscoped `getByRole('radiogroup')`.
+- **CALLOUT** multi-phase: `drawCallout` has 3 interaction phases (drag box, click tail, type+Enter). Always follow `drawCallout()` with `calloutGroup.waitFor({ state: 'visible', timeout: 15_000 })` because the shape is only committed after the text input is committed in the 3rd phase.
+- Inline input testid: `annotator-inline-input`. Tool buttons: `tool-{name}`. Action bar: `annotator-save`, `annotator-cancel`, `annotator-undo`, `annotator-redo`.
+- **MOBILE WEBKIT TOUCH / REACT STATE BATCHING** (fixed 2026-05-19): `page.mouse.*` does not fire `onPointerDown/Move/Up` on SVG elements in WebKit/hasTouch viewports. Use `svgOverlay.evaluate(el => el.dispatchEvent(new PointerEvent(...)))` instead. CRITICAL: dispatching all events in ONE synchronous evaluate() causes React to batch all state updates — `handlePointerMove` sees stale `state.draftShape=null` and bails. **Must split into multiple evaluate() calls with `page.evaluate(() => new Promise(r => requestAnimationFrame(r)))` yield between pointerdown and pointermove/pointerup.** FreehandTool (uses module-level capturedPoints): 2-phase OK. MeasurementTool (reads state.draftShape.x2/y2 in onPointerUp): needs 3-phase (pointerdown + rAF + pointermove-batch + rAF + pointerup). See PhotoViewerPage.ts `drawFreehandTouch` and `drawLineTouch` helpers.
+
+## Budget Print + i18n Stale Skip Re-enable (PR #1447, 2026-05-17) — See print-and-i18n.md
+
+## Known Beta Flakes & Regressions (triaged 2026-05-17)
+
+- `dashboard.spec.ts:566` "Customize button appears when card dismissed" — RESOLVED in PR #1445 (expect.poll for preference state). Was Issue #1431.
+- `invoice-budget-line-create-and-link.spec.ts:210` "Create Budget Line button below existing lines" — RESOLVED in PR #1445 (waitFor visible before click). Was Issue #1430.
+- `invoice-deposits-ux.spec.ts:259` "Portal clipping — last row kebab" — RESOLVED in PR #1444 (backend supports quotation deposits; regression-guard test added). Was Issue #1432.
+- `invoice-deposits.spec.ts:665 [mobile]` "Mark paid flow on mobile" — RESOLVED in PR #1444 (OverflowMenu portal z-index elevated). Was Issue #1433.
+- `App.test.tsx:383` redirect lazy-import timeout — RESOLVED in PR #1445 (pre-resolve DashboardPage). Was Issue #1438.
+- `i18n/i18n.spec.ts` "German text does not overflow navigation sidebar on desktop" — pre-existing locale init race; needs separate investigation.
+- `budget-overview-print.spec.ts` "Dark mode: print resets CSS variables" — HARD FAIL: `:global(@media print)` in CSS Module dropped by bundler; variable reset not in compiled CSS. Production bug #1451.
+- `budget-overview-print.spec.ts` "On-screen expansion state restored after afterprint" — HARD FAIL: usePrintExpansion hook closure bug loses snapshot on effect re-run. Production bug #1450.
+- `i18n.spec.ts` "Key page headings render in German" — intermittent flake ~10-20%: concurrent worker afterEach(resetToEnglish) races with test's setLanguage('de'). Pre-existing.
+- `budget-overview-print.spec.ts` "Print forces full expansion" — FIXED in PR #1447 (selector bug: was locator('span') for work-item row; should be locator('a')). Now passes.
+
+## Diary Draft E2E (Fix #1426, UX #1435, 2026-05-17)
+
+- **#1435 BREAKING CHANGE**: DiaryEntryCreatePage no longer has a form step. Type-card click fires POST immediately and navigates to /diary/:id/edit. Removed from POM: bodyTextarea, entryDateInput, titleInput, weatherSelect, temperatureInput, workersInput, inspectorNameInput, outcomeSelect, vendorInput, deliveryConfirmedCheckbox, materialInput, addMaterialButton, severitySelect, resolutionStatusSelect, cancelButton, backToTypeButton.
+- **#1435**: Status filter chips (statusFilterAll/statusFilterDraft/statusFilterSaved) removed from DiaryPage POM. Replaced by `hideDraftsCheckbox` (data-testid="hide-drafts-checkbox"). Use `filterDraftsOnly()` helper for direct URL navigation to ?status=draft.
+- **#1446**: `hideDraftsCheckbox` replaced by `draftsChip` (data-testid="status-filter-drafts", aria-pressed button). Default aria-pressed="true" (all entries shown). Click → aria-pressed="false" (?status=saved). Use `.toHaveAttribute('aria-pressed', 'true'/'false')` and `.click()` (never `.check()/.uncheck()`). `draftsChipPressed()` helper reads aria-pressed value.
+- PhotoCard selector: `data-testid="photo-card-{id}"` (not `photo-grid-item`). PhotoGrid wraps them in `role="list" aria-label="Photos"`.
+- Draft badge on edit page: `data-testid="draft-status-badge"`. On list card: `data-testid="draft-badge-{id}"`.
+- Auto-save indicator: `data-testid="autosave-status"` — only rendered when `saveStatus !== 'idle'`.
+- Discard Draft button text: `"Discard Draft"` (exact). Discard modal: `aria-labelledby="discard-modal-title"`. Confirm: `"Discard Draft"`. Cancel: `"Keep Draft"`.
+- Delete modal: `aria-labelledby="delete-modal-title"` (distinct from discard). Use specific `aria-labelledby` selectors to disambiguate the two modals.
+- Promote endpoint: `PATCH /api/diary-entries/:id/promote`. Edit page submit button: "Save" for drafts, "Save Changes" for saved entries.
+- Draft card in list links to `/diary/:id/edit`; saved card links to `/diary/:id`. Confirmed in DiaryEntryCard source.
+- Dashboard (`/project/overview`) fetches diary entries with `status=saved` — use `url.includes('status=saved')` in waitForResponse predicate to match this specific call.
+- `createDraftDiaryEntryViaApi(page, { entryType })` — POST with `status: 'draft'`, no body required. Server sets entryDate=today, body=''.
+- Photo upload API: `uploadPhoto()` uses XHR to `${getBaseUrl()}/photos`. Response shape: `{ photo: { id, entityType, ... } }` (wrapped in "photo" key).
+- Photo route mock MUST wrap response in `{ photo: { ... } }` — not the photo object directly.
+- Release all `uploadHolds` BEFORE calling `page.unroute()` — unrouting with pending handlers causes unhandled rejections.
+- Test file: `e2e/tests/diary/diary-drafts.spec.ts` (18 scenarios + 1 sub-test in Scenario 6; smoke tags on scenarios 1, 9, 12).
+- **Photo immediate appearance test (Scenario 6 sub-test)**: must mock BOTH `POST /api/photos` (201 + `{ photo: mockPhoto }`) AND `GET **/api/photos?entityType=diary_entry&entityId={id}` (200 + `{ photos: [mockPhoto] }`). The GET mock is required because `onUpload={() => photosResult.refresh()}` triggers a refetch that the server can't satisfy (real photo was never stored). Use `page.unrouteAll()` in finally.
+- **Scenario 8 in diary-r2-uat.spec.ts**: Migrated from `create-photo-input` on create form to `photo-file-input` on edit page (post-#1435 flow). Now tests: goto /diary/new → selectType → waitForURL(/diary\/.+\/edit$/) → assert photo-file-input present, has accept=image/\*, has multiple=''. Uses `deleteDiaryEntryViaApi` for cleanup — import added to file.
+- **`create-photo-input` testId is GONE** post-#1435. Only `photo-file-input` (on edit page) exists.
+
+## InvoiceBudgetLinesSection Picker (Issue #1401, 2026-05-10)
+
+- Picker modal: `role="dialog"`, `aria-labelledby="picker-title"` — same modal for BOTH the invoice edit modal and the picker.
+- Step 1 WorkItemPicker: `getByPlaceholder('Search work items...')` inside the modal; results in `role="listbox"` → `role="option"` items.
+- Step 2 "Create Budget Line" button text: exact `"Create Budget Line"` — appears in empty-state OR below existing list (only one visible at a time).
+- BudgetLineForm IDs: `#budget-description`, `#budget-planned-amount`, `#budget-quantity`, `#budget-unit`, `#budget-unit-price`, `#budget-confidence`, `#budget-category`, `#budget-source`, `#budget-vendor`.
+- Mode toggle buttons: "Direct Amount" (default), "Unit Pricing" — plain `type="button"`.
+- Submit text: `"Add Line"` (isEditing=false) / `"Saving..."` — NOT "Save Changes".
+- On success: component calls `closePicker()` → modal unmounts. On ITEMIZED_SUM_EXCEEDS_INVOICE error: form closes, reverts to list view, error in `pickerState.error` (rendered as `role="alert"` inside modal).
+- Error message for exceeds: `"Linking this budget line would exceed the invoice total."` — test `.toContainText('exceed the invoice total')`.
+- `createBudgetSourceViaApi(page, { name, totalAmount })` — NOT `createBudgetSourceViaApi(page, name, { ... })`.
+- InvoiceGroup badge on WI detail: `[class*="invoiceLink"]` inside `budgetSection`; text = `#InvoiceNumber` or `"Invoice"` if no number.
+- `pickerErrorBanner` is scoped to `budgetLinePickerModal` via `locator('[role="alert"]')` — avoids confusion with the page-level error banner.
+- Test file: `e2e/tests/invoices/invoice-budget-line-create-and-link.spec.ts` (5 scenarios, no @smoke tag).
 
 ## Budget Overview Hero Card Removed (Issues #1389/#1390, 2026-04-29)
 

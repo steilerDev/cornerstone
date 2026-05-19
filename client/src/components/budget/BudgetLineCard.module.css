@@ -57,21 +57,13 @@
 }
 
 .amountQuoted {
-  color: var(--color-gray-700);
+  color: var(--color-text-quoted);
 }
 
 .quotedLabel {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
-  color: var(--color-gray-700);
-}
-
-[data-theme='dark'] .amountQuoted {
-  color: var(--color-slate-200);
-}
-
-[data-theme='dark'] .quotedLabel {
-  color: var(--color-slate-200);
+  color: var(--color-text-quoted);
 }
 
 .plannedSecondary {

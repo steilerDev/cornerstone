@@ -53,6 +53,7 @@ export default function DiaryEntryDetailPage() {
 
   // Photo state
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
+  const [openAsAnnotator, setOpenAsAnnotator] = useState(false);
   const photosResult = usePhotos(id ? 'diary_entry' : '', id || '');
 
   useEffect(() => {
@@ -272,9 +273,16 @@ export default function DiaryEntryDetailPage() {
                   photos={photosResult.photos}
                   onPhotoClick={(photo) => {
                     const index = photosResult.photos.findIndex((p) => p.id === photo.id);
+                    setOpenAsAnnotator(false);
+                    setSelectedPhotoIndex(index);
+                  }}
+                  onEdit={(photo) => {
+                    const index = photosResult.photos.findIndex((p) => p.id === photo.id);
+                    setOpenAsAnnotator(true);
                     setSelectedPhotoIndex(index);
                   }}
                   loading={photosResult.loading}
+                  editable={!entry.isSigned}
                 />
               </>
             )}
@@ -286,7 +294,17 @@ export default function DiaryEntryDetailPage() {
           <PhotoViewer
             photos={photosResult.photos}
             initialIndex={selectedPhotoIndex}
-            onClose={() => setSelectedPhotoIndex(null)}
+            onClose={() => {
+              setSelectedPhotoIndex(null);
+              setOpenAsAnnotator(false);
+            }}
+            onPhotoAnnotated={photosResult.updatePhotoAnnotation}
+            editable={!entry.isSigned}
+            startInAnnotator={openAsAnnotator}
+            onDelete={(photoId) => {
+              photosResult.deletePhoto(photoId);
+              setSelectedPhotoIndex(null);
+            }}
           />
         )}
 

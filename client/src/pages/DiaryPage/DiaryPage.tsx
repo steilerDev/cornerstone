@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { DiaryEntryType, DiaryEntrySummary } from '@cornerstone/shared';
+import type { DiaryEntryType, DiaryEntrySummary, DiaryEntryStatus } from '@cornerstone/shared';
 import { listDiaryEntries } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { DiaryFilterBar } from '../../components/diary/DiaryFilterBar/DiaryFilterBar.js';
@@ -45,6 +45,7 @@ export default function DiaryPage() {
   const activeTypes: DiaryEntryType[] = typeFilterStr
     ? (typeFilterStr.split(',') as DiaryEntryType[])
     : [];
+  const statusFilter = (searchParams.get('status') as DiaryEntryStatus | null) || null;
   const urlPage = parseInt(searchParams.get('page') || '1', 10);
 
   const [searchInput, setSearchInput] = useState(searchQuery);
@@ -75,7 +76,7 @@ export default function DiaryPage() {
   useEffect(() => {
     void loadEntries();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, dateFrom, dateTo, filterMode, typeFilterStr, currentPage]);
+  }, [searchQuery, dateFrom, dateTo, filterMode, typeFilterStr, statusFilter, currentPage]);
 
   const loadEntries = async () => {
     setIsLoading(true);
@@ -110,6 +111,7 @@ export default function DiaryPage() {
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
         type: queriableTypes.length > 0 ? queriableTypes.join(',') : undefined,
+        status: statusFilter || undefined,
       });
 
       setEntries(response.items);
@@ -188,6 +190,19 @@ export default function DiaryPage() {
     setSearchParams(newParams);
   };
 
+  const draftsVisible = statusFilter !== 'saved';
+
+  const handleDraftsVisibleChange = (visible: boolean) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (visible) {
+      newParams.delete('status');
+    } else {
+      newParams.set('status', 'saved');
+    }
+    newParams.set('page', '1');
+    setSearchParams(newParams);
+  };
+
   const handleClearAll = () => {
     setSearchInput('');
     const newParams = new URLSearchParams();
@@ -239,6 +254,8 @@ export default function DiaryPage() {
         onClearAll={handleClearAll}
         filterMode={filterMode}
         onFilterModeChange={handleFilterModeChange}
+        draftsVisible={draftsVisible}
+        onDraftsVisibleChange={handleDraftsVisibleChange}
       />
 
       {isLoading && <div className={shared.loading}>{t('loading')}</div>}

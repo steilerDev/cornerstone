@@ -126,13 +126,34 @@ describe('Standalone Invoice Routes', () => {
       const body = response.json<{
         invoices: Invoice[];
         pagination: Record<string, number>;
-        summary: Record<string, unknown>;
+        summary: { overdue: { count: number; totalAmount: number }; [key: string]: unknown };
         filterMeta: Record<string, unknown>;
       }>();
       expect(body.invoices).toHaveLength(0);
       expect(body.pagination).toBeDefined();
       expect(body.summary).toBeDefined();
       expect(body.filterMeta).toBeDefined();
+      // R1: overdue summary is zero when no invoices exist
+      expect(body.summary.overdue).toEqual({ count: 0, totalAmount: 0 });
+    });
+
+    it('R2: returns overdue count 1 when a pending invoice has a past dueDate', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const vendorId = createTestVendor('Overdue Route Vendor');
+      createTestInvoice(vendorId, { status: 'pending', amount: 1200, dueDate: '2020-01-01' });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/invoices',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{
+        summary: { overdue: { count: number; totalAmount: number } };
+      }>();
+      expect(body.summary.overdue.count).toBe(1);
+      expect(body.summary.overdue.totalAmount).toBe(1200);
     });
 
     it('returns invoices from all vendors', async () => {

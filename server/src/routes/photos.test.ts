@@ -26,6 +26,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import type { Photo, ApiErrorResponse } from '@cornerstone/shared';
+import { diaryEntries } from '../db/schema.js';
 
 // ─── Mock photoService BEFORE importing app ────────────────────────────────────
 
@@ -41,6 +42,16 @@ const mockDeletePhoto = jest.fn() as AnyMock;
 const mockGetPhotoFilePath = jest.fn() as AnyMock;
 
 const mockDeletePhotosForEntity = jest.fn() as AnyMock;
+
+// ─── Mock photoAnnotationService BEFORE importing app ─────────────────────────
+
+const mockSaveAnnotatedImage = jest.fn() as AnyMock;
+const mockClearAnnotation = jest.fn() as AnyMock;
+
+jest.unstable_mockModule('../services/photoAnnotationService.js', () => ({
+  saveAnnotatedImage: mockSaveAnnotatedImage,
+  clearAnnotation: mockClearAnnotation,
+}));
 
 jest.unstable_mockModule('../services/photoService.js', () => ({
   uploadPhoto: mockUploadPhoto,
@@ -62,8 +73,11 @@ let sessionService: typeof import('../services/sessionService.js');
 // ─── Test fixtures ────────────────────────────────────────────────────────────
 
 function makePhoto(overrides: Partial<Photo> = {}): Photo {
+  const updatedAt = '2026-03-01T12:00:00.000Z';
+  const annotatedAt = null;
+  const cacheVersion = annotatedAt ?? updatedAt;
   return {
-    id: 'photo-id-123',
+    id: '33333333-3333-3333-3333-333333333333',
     entityType: 'test',
     entityId: 'entity-id-456',
     originalFilename: 'photo.jpg',
@@ -73,12 +87,14 @@ function makePhoto(overrides: Partial<Photo> = {}): Photo {
     height: 600,
     takenAt: null,
     caption: null,
+    areaId: null,
     sortOrder: 0,
     createdBy: { id: 'user-id', displayName: 'Test User' },
     createdAt: '2026-03-01T12:00:00.000Z',
-    updatedAt: '2026-03-01T12:00:00.000Z',
-    fileUrl: '/api/photos/photo-id-123/file',
-    thumbnailUrl: '/api/photos/photo-id-123/thumbnail',
+    updatedAt,
+    annotatedAt,
+    fileUrl: '/api/photos/33333333-3333-3333-3333-333333333333/file',
+    thumbnailUrl: `/api/photos/33333333-3333-3333-3333-333333333333/thumbnail?v=${encodeURIComponent(cacheVersion)}`,
     ...overrides,
   };
 }
@@ -163,6 +179,10 @@ describe('Photo Routes', () => {
     mockReorderPhotos.mockReturnValue(undefined);
     mockDeletePhoto.mockResolvedValue(undefined);
     mockGetPhotoFilePath.mockResolvedValue(null);
+    mockSaveAnnotatedImage.mockResolvedValue(
+      makePhoto({ annotatedAt: '2026-01-01T00:00:00.000Z' }),
+    );
+    mockClearAnnotation.mockResolvedValue(undefined);
   });
 
   afterEach(async () => {
@@ -178,6 +198,38 @@ describe('Photo Routes', () => {
   });
 
   // ─── Helpers ────────────────────────────────────────────────────────────
+
+  /**
+   * Insert a diary entry directly into the test database.
+   * photos.ts uses a direct DB query (not diaryService) to check signatures,
+   * so tests that exercise the signed-entry 409 path must seed the DB.
+   */
+  let diaryEntryCounter = 0;
+  function insertDiaryEntry(overrides: Partial<typeof diaryEntries.$inferInsert> = {}): string {
+    diaryEntryCounter += 1;
+    const id = `diary-photos-test-${Date.now()}-${diaryEntryCounter}`;
+    const now = new Date().toISOString();
+    app.db
+      .insert(diaryEntries)
+      .values({
+        id,
+        entryType: 'daily_log',
+        entryDate: '2026-03-14',
+        title: 'Test Entry',
+        body: 'Test body content',
+        metadata: null,
+        status: 'saved',
+        isAutomatic: false,
+        sourceEntityType: null,
+        sourceEntityId: null,
+        createdBy: null,
+        createdAt: now,
+        updatedAt: now,
+        ...overrides,
+      })
+      .run();
+    return id;
+  }
 
   async function createUserWithSession(
     email: string,
@@ -278,6 +330,7 @@ describe('Photo Routes', () => {
         'entity-456',
         expect.any(String), // userId
         'My caption',
+        undefined, // areaId (not provided in this test)
       );
     });
 
@@ -345,7 +398,7 @@ describe('Photo Routes', () => {
       expect(response.statusCode).toBe(400);
     });
 
-    it('returns 400 when file size exceeds configured limit', async () => {
+    it('returns 413 when file size exceeds configured limit', async () => {
       const { cookie } = await createUserWithSession('oversize@example.com', 'Big', 'password');
 
       // Set a 1MB limit
@@ -374,7 +427,8 @@ describe('Photo Routes', () => {
         payload: body,
       });
 
-      expect(response.statusCode).toBe(400);
+      // Backend returns 413 (PayloadTooLargeError) for oversized uploads per security Concern 2
+      expect(response.statusCode).toBe(413);
       const errBody = JSON.parse(response.body) as ApiErrorResponse;
       expect(errBody.error.message).toMatch(/exceeds maximum/i);
     });
@@ -441,7 +495,8 @@ describe('Photo Routes', () => {
         'diary_entry',
         'entry-abc',
         userId,
-        undefined,
+        undefined, // caption
+        undefined, // areaId
       );
     });
   });
@@ -541,7 +596,7 @@ describe('Photo Routes', () => {
     it('returns 401 without authentication', async () => {
       const response = await app.inject({
         method: 'GET',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
       });
       expect(response.statusCode).toBe(401);
     });
@@ -556,7 +611,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'GET',
-        url: '/api/photos/non-existent-id',
+        url: '/api/photos/00000000-0000-0000-0000-000000000000',
         headers: { cookie },
       });
 
@@ -571,18 +626,18 @@ describe('Photo Routes', () => {
         'GetPhoto2',
         'password',
       );
-      const photo = makePhoto({ id: 'existing-photo' });
+      const photo = makePhoto({ id: '11111111-1111-1111-1111-111111111111' });
       mockGetPhoto.mockReturnValue(photo);
 
       const response = await app.inject({
         method: 'GET',
-        url: '/api/photos/existing-photo',
+        url: '/api/photos/11111111-1111-1111-1111-111111111111',
         headers: { cookie },
       });
 
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body) as { photo: Photo };
-      expect(body.photo.id).toBe('existing-photo');
+      expect(body.photo.id).toBe('11111111-1111-1111-1111-111111111111');
       expect(body.photo.mimeType).toBe('image/jpeg');
     });
   });
@@ -668,6 +723,7 @@ describe('Photo Routes', () => {
         photoStoragePath,
         'photo-id-123',
         'original',
+        true, // preferAnnotated=true when no variant specified
       );
     });
   });
@@ -760,7 +816,7 @@ describe('Photo Routes', () => {
     it('returns 401 without authentication', async () => {
       const response = await app.inject({
         method: 'PATCH',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
         payload: { caption: 'updated' },
       });
       expect(response.statusCode).toBe(401);
@@ -772,7 +828,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'PATCH',
-        url: '/api/photos/no-such-photo',
+        url: '/api/photos/00000000-0000-0000-0000-000000000000',
         headers: { cookie, 'content-type': 'application/json' },
         payload: { caption: 'test' },
       });
@@ -793,7 +849,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'PATCH',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
         headers: { cookie, 'content-type': 'application/json' },
         payload: { caption: 'New Caption' },
       });
@@ -814,7 +870,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'PATCH',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
         headers: { cookie, 'content-type': 'application/json' },
         payload: { sortOrder: 5 },
       });
@@ -835,7 +891,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'PATCH',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
         headers: { cookie, 'content-type': 'application/json' },
         payload: { caption: null },
       });
@@ -852,7 +908,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'PATCH',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
         headers: { cookie, 'content-type': 'application/json' },
         payload: {},
       });
@@ -866,7 +922,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'PATCH',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
         headers: { cookie, 'content-type': 'application/json' },
         payload: { sortOrder: -1 },
       });
@@ -1003,7 +1059,7 @@ describe('Photo Routes', () => {
     it('returns 401 without authentication', async () => {
       const response = await app.inject({
         method: 'DELETE',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
       });
       expect(response.statusCode).toBe(401);
     });
@@ -1018,7 +1074,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'DELETE',
-        url: '/api/photos/no-such-photo',
+        url: '/api/photos/00000000-0000-0000-0000-000000000000',
         headers: { cookie },
       });
 
@@ -1034,7 +1090,7 @@ describe('Photo Routes', () => {
 
       const response = await app.inject({
         method: 'DELETE',
-        url: '/api/photos/photo-id-123',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
         headers: { cookie },
       });
 
@@ -1047,20 +1103,737 @@ describe('Photo Routes', () => {
         'DeleteArgs',
         'password',
       );
-      mockGetPhoto.mockReturnValue(makePhoto({ id: 'photo-to-delete' }));
+      mockGetPhoto.mockReturnValue(makePhoto({ id: '22222222-2222-2222-2222-222222222222' }));
       mockDeletePhoto.mockResolvedValue(undefined);
 
       await app.inject({
         method: 'DELETE',
-        url: '/api/photos/photo-to-delete',
+        url: '/api/photos/22222222-2222-2222-2222-222222222222',
         headers: { cookie },
       });
 
       expect(mockDeletePhoto).toHaveBeenCalledWith(
         expect.anything(),
         photoStoragePath,
-        'photo-to-delete',
+        '22222222-2222-2222-2222-222222222222',
       );
+    });
+  });
+
+  // ─── PUT /api/photos/:id/annotation ────────────────────────────────────────
+
+  describe('PUT /api/photos/:id/annotation', () => {
+    it('returns 401 without authentication', async () => {
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-webp-data'),
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
+        },
+      ]);
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
+        headers: { 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(401);
+    });
+
+    it('returns 200 with { photo } on success', async () => {
+      const { cookie } = await createUserWithSession('ann@example.com', 'Ann', 'password');
+      mockGetPhoto.mockReturnValue(
+        makePhoto({
+          id: '33333333-3333-3333-3333-333333333333',
+          entityType: 'work_item',
+          entityId: 'work-item-1',
+        }),
+      );
+      const annotatedPhoto = makePhoto({ annotatedAt: '2026-05-17T10:00:00.000Z' });
+      mockSaveAnnotatedImage.mockResolvedValue(annotatedPhoto);
+
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-webp-data'),
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
+        },
+      ]);
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(200);
+      const responseBody = JSON.parse(response.body) as { photo: Photo };
+      expect(responseBody.photo.annotatedAt).toBe('2026-05-17T10:00:00.000Z');
+    });
+
+    it('calls saveAnnotatedImage with correct buffer', async () => {
+      const { cookie } = await createUserWithSession('ann2@example.com', 'Ann2', 'password');
+      mockGetPhoto.mockReturnValue(
+        makePhoto({
+          id: '33333333-3333-3333-3333-333333333333',
+          entityType: 'work_item',
+          entityId: 'work-item-1',
+        }),
+      );
+      const webpContent = Buffer.from('real-webp-content-bytes');
+      mockSaveAnnotatedImage.mockResolvedValue(
+        makePhoto({ annotatedAt: '2026-05-17T10:00:00.000Z' }),
+      );
+
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: webpContent,
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
+        },
+      ]);
+
+      await app.inject({
+        method: 'PUT',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(mockSaveAnnotatedImage).toHaveBeenCalledWith(
+        expect.anything(), // db
+        photoStoragePath,
+        '33333333-3333-3333-3333-333333333333',
+        expect.any(Buffer),
+      );
+      // Verify the buffer content matches what was sent
+      const calledWith = mockSaveAnnotatedImage.mock.calls[0]!;
+      const bufArg = calledWith[3] as Buffer;
+      expect(bufArg.equals(webpContent)).toBe(true);
+    });
+
+    it('returns 413 when file exceeds photoMaxFileSizeMb', async () => {
+      const { cookie } = await createUserWithSession('annbig@example.com', 'AnnBig', 'password');
+      // Set limit to 1 MB; config validator rejects 0, so use 1 and send a file > 1 MB.
+      process.env.PHOTO_MAX_FILE_SIZE_MB = '1';
+      await app.close();
+      app = await buildApp();
+
+      // Send a buffer slightly larger than 1 MB (1,048,577 bytes > 1 * 1024 * 1024)
+      const oversizedBuffer = Buffer.alloc(1024 * 1024 + 1, 0x89);
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: oversizedBuffer,
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
+        },
+      ]);
+
+      const { cookie: cookie2 } = await createUserWithSession(
+        'annbig2@example.com',
+        'AnnBig2',
+        'password',
+      );
+      mockGetPhoto.mockReturnValue(
+        makePhoto({
+          id: '33333333-3333-3333-3333-333333333333',
+          entityType: 'work_item',
+          entityId: 'work-item-1',
+        }),
+      );
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
+        headers: { cookie: cookie2, 'content-type': contentType },
+        payload: body,
+      });
+
+      // Backend returns 413 (PayloadTooLargeError) for oversized annotation uploads per security Concern 2
+      expect(response.statusCode).toBe(413);
+    });
+
+    it('returns 404 when service throws NotFoundError', async () => {
+      const { cookie } = await createUserWithSession('ann404@example.com', 'Ann404', 'password');
+      const { NotFoundError } = await import('../errors/AppError.js');
+      mockSaveAnnotatedImage.mockRejectedValue(new NotFoundError('Photo not found'));
+
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-webp'),
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
+        },
+      ]);
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/photos/00000000-0000-0000-0000-000000000000/annotation',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(404);
+    });
+
+    it('returns 409 when photo is on a signed diary entry', async () => {
+      const { cookie } = await createUserWithSession(
+        'ann-signed@example.com',
+        'AnnSigned',
+        'password',
+      );
+
+      // Seed a diary entry with a non-empty signatures array in metadata.
+      // photos.ts uses isDiaryEntrySigned() which queries diaryEntries directly (not diaryService).
+      const signedEntryId = insertDiaryEntry({
+        metadata: JSON.stringify({ signatures: [{ timestamp: '2026-05-18T10:00:00Z' }] }),
+      });
+
+      const photoWithDiaryEntity = makePhoto({
+        entityType: 'diary_entry',
+        entityId: signedEntryId,
+      });
+      mockGetPhoto.mockReturnValue(photoWithDiaryEntity);
+
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-webp-data'),
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
+        },
+      ]);
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(409);
+      const errBody = JSON.parse(response.body) as ApiErrorResponse;
+      expect(errBody.error.code).toBe('CONFLICT');
+      expect(errBody.error.message).toContain('Cannot annotate photos on signed diary entries');
+    });
+
+    it('returns 200 when photo is on an unsigned diary entry', async () => {
+      const { cookie } = await createUserWithSession(
+        'ann-unsigned@example.com',
+        'AnnUnsigned',
+        'password',
+      );
+
+      // Seed a diary entry with empty signatures — isDiaryEntrySigned() must return false.
+      const unsignedEntryId = insertDiaryEntry({
+        metadata: JSON.stringify({ signatures: [] }),
+      });
+
+      const photoWithDiaryEntity = makePhoto({
+        entityType: 'diary_entry',
+        entityId: unsignedEntryId,
+      });
+      mockGetPhoto.mockReturnValue(photoWithDiaryEntity);
+
+      const annotatedPhoto = makePhoto({
+        entityType: 'diary_entry',
+        entityId: unsignedEntryId,
+        annotatedAt: '2026-05-18T10:00:00.000Z',
+      });
+      mockSaveAnnotatedImage.mockResolvedValue(annotatedPhoto);
+
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-webp-data'),
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
+        },
+      ]);
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(200);
+      const responseBody = JSON.parse(response.body) as { photo: Photo };
+      expect(responseBody.photo.annotatedAt).toBe('2026-05-18T10:00:00.000Z');
+    });
+
+    it('returns 200 when photo is not on a diary entry', async () => {
+      const { cookie } = await createUserWithSession(
+        'ann-other@example.com',
+        'AnnOther',
+        'password',
+      );
+      const photoWithOtherEntity = makePhoto({
+        entityType: 'work_item',
+        entityId: 'work-item-789',
+      });
+      mockGetPhoto.mockReturnValue(photoWithOtherEntity);
+
+      const annotatedPhoto = makePhoto({
+        entityType: 'work_item',
+        entityId: 'work-item-789',
+        annotatedAt: '2026-05-18T10:00:00.000Z',
+      });
+      mockSaveAnnotatedImage.mockResolvedValue(annotatedPhoto);
+
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-webp-data'),
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
+        },
+      ]);
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(200);
+      const responseBody = JSON.parse(response.body) as { photo: Photo };
+      expect(responseBody.photo.entityType).toBe('work_item');
+    });
+  });
+
+  // ─── DELETE /api/photos/:id/annotation ────────────────────────────────────
+
+  describe('DELETE /api/photos/:id/annotation', () => {
+    it('returns 401 without authentication', async () => {
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
+      });
+
+      expect(response.statusCode).toBe(401);
+    });
+
+    it('returns 204 on success', async () => {
+      const { cookie } = await createUserWithSession('del-ann@example.com', 'DelAnn', 'password');
+      mockGetPhoto.mockReturnValue(
+        makePhoto({
+          id: '33333333-3333-3333-3333-333333333333',
+          entityType: 'work_item',
+          entityId: 'work-item-1',
+        }),
+      );
+      mockClearAnnotation.mockResolvedValue(undefined);
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(204);
+    });
+
+    it('calls clearAnnotation with correct id and storagePath', async () => {
+      const { cookie } = await createUserWithSession('del-ann2@example.com', 'DelAnn2', 'password');
+      mockGetPhoto.mockReturnValue(
+        makePhoto({
+          id: '44444444-4444-4444-4444-444444444444',
+          entityType: 'work_item',
+          entityId: 'work-item-2',
+        }),
+      );
+
+      await app.inject({
+        method: 'DELETE',
+        url: '/api/photos/44444444-4444-4444-4444-444444444444/annotation',
+        headers: { cookie },
+      });
+
+      expect(mockClearAnnotation).toHaveBeenCalledWith(
+        expect.anything(), // db
+        photoStoragePath,
+        '44444444-4444-4444-4444-444444444444',
+      );
+    });
+
+    it('returns 404 when service throws NotFoundError', async () => {
+      const { cookie } = await createUserWithSession(
+        'del-ann404@example.com',
+        'DelAnn404',
+        'password',
+      );
+      const { NotFoundError } = await import('../errors/AppError.js');
+      mockClearAnnotation.mockRejectedValue(new NotFoundError('Photo not found'));
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/photos/00000000-0000-0000-0000-000000000000/annotation',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(404);
+    });
+
+    it('returns 409 when photo is on a signed diary entry', async () => {
+      const { cookie } = await createUserWithSession(
+        'del-ann-signed@example.com',
+        'DelAnnSigned',
+        'password',
+      );
+
+      // Seed a signed diary entry — photos.ts uses isDiaryEntrySigned() which reads the DB directly.
+      const signedEntryId = insertDiaryEntry({
+        metadata: JSON.stringify({ signatures: [{ timestamp: '2026-05-18T10:00:00Z' }] }),
+      });
+
+      const photoWithDiaryEntity = makePhoto({
+        entityType: 'diary_entry',
+        entityId: signedEntryId,
+      });
+      mockGetPhoto.mockReturnValue(photoWithDiaryEntity);
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(409);
+      const errBody = JSON.parse(response.body) as ApiErrorResponse;
+      expect(errBody.error.code).toBe('CONFLICT');
+      expect(errBody.error.message).toContain('Cannot remove annotation');
+    });
+
+    it('returns 204 when photo is on an unsigned diary entry', async () => {
+      const { cookie } = await createUserWithSession(
+        'del-ann-unsigned@example.com',
+        'DelAnnUnsigned',
+        'password',
+      );
+
+      // Seed an unsigned diary entry — isDiaryEntrySigned() must return false.
+      const unsignedEntryId = insertDiaryEntry({
+        metadata: JSON.stringify({ signatures: [] }),
+      });
+
+      const photoWithDiaryEntity = makePhoto({
+        entityType: 'diary_entry',
+        entityId: unsignedEntryId,
+      });
+      mockGetPhoto.mockReturnValue(photoWithDiaryEntity);
+
+      mockClearAnnotation.mockResolvedValue(undefined);
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(204);
+    });
+
+    it('returns 204 when photo is not on a diary entry', async () => {
+      const { cookie } = await createUserWithSession(
+        'del-ann-other@example.com',
+        'DelAnnOther',
+        'password',
+      );
+      const photoWithOtherEntity = makePhoto({
+        entityType: 'work_item',
+        entityId: 'work-item-999',
+      });
+      mockGetPhoto.mockReturnValue(photoWithOtherEntity);
+
+      mockClearAnnotation.mockResolvedValue(undefined);
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333/annotation',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(204);
+    });
+  });
+
+  // ─── Security: PUT annotation — MIME type and size validation ─────────────────
+  //
+  // Story #1478 (security Concern 2): Annotation endpoint must reject non-PNG MIME
+  // types before reading the body, and return 413 (not 400) for oversized files.
+  // Concern 3: Sharp validates the buffer; no file should be written on decode error.
+
+  describe('PUT /api/photos/:id/annotation — security validations', () => {
+    it('returns 400 when file MIME type is not image/webp (e.g. image/jpeg)', async () => {
+      const { cookie } = await createUserWithSession('ann-mime@example.com', 'AnnMime', 'password');
+      // Send a JPEG-typed body — even if the bytes look like WebP, the MIME must be rejected
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('\x52\x49\x46\x46fake-webp-bytes'),
+          filename: 'annotated.jpg',
+          contentType: 'image/jpeg',
+        },
+      ]);
+
+      // Use a valid UUID so param schema validation passes; mock photo so the new locked-entry
+      // check passes before MIME validation.
+      const validId = '00000000-0000-0000-0000-000000000001';
+      mockGetPhoto.mockReturnValue(
+        makePhoto({ id: validId, entityType: 'work_item', entityId: 'work-item-1' }),
+      );
+      const response = await app.inject({
+        method: 'PUT',
+        url: `/api/photos/${validId}/annotation`,
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(400);
+      const errBody = JSON.parse(response.body) as ApiErrorResponse;
+      expect(errBody.error.message).toMatch(/webp/i);
+    });
+
+    it('does not call saveAnnotatedImage when MIME type is rejected (no service invocation)', async () => {
+      const { cookie } = await createUserWithSession(
+        'ann-mime2@example.com',
+        'AnnMime2',
+        'password',
+      );
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-gif-data'),
+          filename: 'annotated.gif',
+          contentType: 'image/gif',
+        },
+      ]);
+
+      const validId = '00000000-0000-0000-0000-000000000002';
+      mockGetPhoto.mockReturnValue(
+        makePhoto({ id: validId, entityType: 'work_item', entityId: 'work-item-1' }),
+      );
+      await app.inject({
+        method: 'PUT',
+        url: `/api/photos/${validId}/annotation`,
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      // Service must NOT be called when MIME type is invalid (not image/webp)
+      expect(mockSaveAnnotatedImage).not.toHaveBeenCalled();
+    });
+
+    it('returns 413 when annotation WebP exceeds PHOTO_MAX_FILE_SIZE_MB', async () => {
+      const { cookie } = await createUserWithSession('ann-sz@example.com', 'AnnSz', 'password');
+      process.env.PHOTO_MAX_FILE_SIZE_MB = '1';
+      await app.close();
+      app = await buildApp();
+
+      const oversizedBuffer = Buffer.alloc(1024 * 1024 + 1, 0xff);
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: oversizedBuffer,
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
+        },
+      ]);
+
+      const { cookie: cookie2 } = await createUserWithSession(
+        'ann-sz2@example.com',
+        'AnnSz2',
+        'password',
+      );
+      const validId = '00000000-0000-0000-0000-000000000003';
+      mockGetPhoto.mockReturnValue(
+        makePhoto({ id: validId, entityType: 'work_item', entityId: 'work-item-1' }),
+      );
+      const response = await app.inject({
+        method: 'PUT',
+        url: `/api/photos/${validId}/annotation`,
+        headers: { cookie: cookie2, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(413);
+    });
+  });
+
+  // ─── Security: UUID param validation ──────────────────────────────────────────
+  //
+  // Story #1478 (security Concern 1): getPhotoSchema.params now enforces a strict
+  // UUID pattern. Authenticated requests with non-UUID :id values must return 400.
+  // Auth preValidation hook fires before schema validation in Fastify's lifecycle,
+  // so unauthenticated requests still return 401 (as tested elsewhere).
+
+  describe('UUID param validation — GET/PATCH/DELETE with malformed :id', () => {
+    it('GET /api/photos/:id returns 400 for malformed UUID (not matching pattern)', async () => {
+      const { cookie } = await createUserWithSession('uuid-get@example.com', 'UuidGet', 'password');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/photos/not-a-valid-uuid',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body) as ApiErrorResponse;
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('PATCH /api/photos/:id returns 400 for malformed UUID', async () => {
+      const { cookie } = await createUserWithSession(
+        'uuid-patch@example.com',
+        'UuidPatch',
+        'password',
+      );
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/photos/123-bad-id',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({ caption: 'test' }),
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body) as ApiErrorResponse;
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('DELETE /api/photos/:id returns 400 for malformed UUID', async () => {
+      const { cookie } = await createUserWithSession(
+        'uuid-delete@example.com',
+        'UuidDelete',
+        'password',
+      );
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: '/api/photos/short',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body) as ApiErrorResponse;
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('PUT /api/photos/:id/annotation returns 400 for malformed UUID', async () => {
+      const { cookie } = await createUserWithSession('uuid-put@example.com', 'UuidPut', 'password');
+      const { body: reqBody, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-webp'),
+          filename: 'annotated.webp',
+          contentType: 'image/webp',
+        },
+      ]);
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: '/api/photos/bad-id/annotation',
+        headers: { cookie, 'content-type': contentType },
+        payload: reqBody,
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body) as ApiErrorResponse;
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+  });
+
+  // ─── GET /api/photos/:id/file?variant=original ─────────────────────────────
+
+  describe('GET /api/photos/:id/file — variant param', () => {
+    it('calls getPhotoFilePath with preferAnnotated=true when no variant param', async () => {
+      const { cookie } = await createUserWithSession(
+        'file-no-variant@example.com',
+        'NoVariant',
+        'password',
+      );
+      const photo = makePhoto({ id: 'my-photo' });
+      mockGetPhoto.mockReturnValue(photo);
+      // Create a real file to serve
+      const photoDir = join(photoStoragePath, 'my-photo');
+      mkdirSync(photoDir, { recursive: true });
+      const filePath = join(photoDir, 'annotated.png');
+      writeFileSync(filePath, Buffer.from('annotated-image-data'));
+      mockGetPhotoFilePath.mockResolvedValue(filePath);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/photos/my-photo/file',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(mockGetPhotoFilePath).toHaveBeenCalledWith(
+        photoStoragePath,
+        'my-photo',
+        'original',
+        true, // preferAnnotated=true when no variant specified
+      );
+    });
+
+    it('calls getPhotoFilePath with preferAnnotated=false when ?variant=original', async () => {
+      const { cookie } = await createUserWithSession(
+        'file-orig@example.com',
+        'FileOrig',
+        'password',
+      );
+      const photo = makePhoto({ id: 'my-photo-2' });
+      mockGetPhoto.mockReturnValue(photo);
+      const photoDir = join(photoStoragePath, 'my-photo-2');
+      mkdirSync(photoDir, { recursive: true });
+      const filePath = join(photoDir, 'original.jpg');
+      writeFileSync(filePath, Buffer.from('original-image-data'));
+      mockGetPhotoFilePath.mockResolvedValue(filePath);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/photos/my-photo-2/file?variant=original',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(mockGetPhotoFilePath).toHaveBeenCalledWith(
+        photoStoragePath,
+        'my-photo-2',
+        'original',
+        false, // preferAnnotated=false when variant=original
+      );
+    });
+
+    it('returns Content-Type image/webp when serving annotated.webp', async () => {
+      const { cookie } = await createUserWithSession('file-ct@example.com', 'FileCt', 'password');
+      const photo = makePhoto({ id: 'my-photo-3', mimeType: 'image/jpeg' });
+      mockGetPhoto.mockReturnValue(photo);
+      const photoDir = join(photoStoragePath, 'my-photo-3');
+      mkdirSync(photoDir, { recursive: true });
+      const filePath = join(photoDir, 'annotated.webp');
+      writeFileSync(filePath, Buffer.from('annotated-webp-data'));
+      mockGetPhotoFilePath.mockResolvedValue(filePath);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/photos/my-photo-3/file',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      // Even though photo.mimeType is image/jpeg, annotated.webp gets image/webp
+      expect(response.headers['content-type']).toMatch(/image\/webp/);
     });
   });
 });

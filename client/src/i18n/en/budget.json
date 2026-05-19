@@ -396,6 +396,7 @@
     },
     "quotedLabel": "Quoted",
     "quotedAmount": "Quoted Amount",
+    "invoicedAmount": "Invoiced Amount",
     "invoiceTable": {
       "invoiceNumber": "Invoice #",
       "amount": "Amount",
@@ -438,6 +439,9 @@
     "summaryPaid": "Paid",
     "summaryClaimed": "Claimed",
     "summaryQuotation": "Quotation",
+    "summaryOverdue": "Overdue",
+    "summaryOverdueWarning_one": "{{count}} pending invoice past due",
+    "summaryOverdueWarning_other": "{{count}} pending invoices past due",
     "filterByStatus": "Filter by status",
     "filterByVendor": "Filter by vendor",
     "allStatuses": "All Statuses",
@@ -593,6 +597,154 @@
     "messages": {
       "updateError": "Failed to update invoice. Please try again.",
       "deleteError": "Failed to delete invoice. Please try again."
+    },
+    "budgetLines": {
+      "createFormLegend": "Create new budget line",
+      "autoLinkedSuccess": "Budget line created and added for {{amount}}",
+      "sectionTitle": "Budget Lines",
+      "addButton": "Add Budget Line",
+      "loading": "Loading budget lines…",
+      "loadError": "Failed to load budget lines. Please try again.",
+      "dismissError": "Dismiss",
+      "dismissErrorAriaLabel": "Dismiss error",
+      "empty": {
+        "message": "No budget lines linked",
+        "description": "Link budget lines to allocate portions of this invoice to specific work items or household items."
+      },
+      "countLabel_one": "{{count}} budget line linked",
+      "countLabel_other": "{{count}} budget lines linked",
+      "columns": {
+        "description": "Description",
+        "category": "Category",
+        "planned": "Planned",
+        "itemized": "Itemized",
+        "linkedItem": "Linked Item",
+        "actions": "Actions",
+        "remaining": "Remaining"
+      },
+      "menu": {
+        "edit": "Edit",
+        "remove": "Remove",
+        "ariaLabel": "Budget line actions for {{description}}"
+      },
+      "modal": {
+        "editTitle": "Edit Budget Line",
+        "removeTitle": "Remove Budget Line",
+        "removeConfirm": "This budget line will be unlinked from the invoice. The budget line itself will remain in the work item or household item.",
+        "removeConfirmButton": "Remove",
+        "removing": "Removing…"
+      },
+      "form": {
+        "itemizedAmount": "Itemized Amount",
+        "saving": "Saving…",
+        "required": "*"
+      },
+      "editError": {
+        "amountInvalid": "Amount must be a non-negative number.",
+        "exceedsTotal": "The new amount would exceed the invoice total.",
+        "saveFailed": "Failed to update budget line. Please try again."
+      },
+      "picker": {
+        "title": "Add Budget Line",
+        "step2Title": "Select Budget Line for {{itemTitle}}",
+        "closeAriaLabel": "Close budget line picker",
+        "workItemTab": "Work Item",
+        "householdItemTab": "Household Item",
+        "separator": "or",
+        "loadingLines": "Loading budget lines...",
+        "noUnlinkedLines": "No unlinked budget lines for this item.",
+        "createLine": "Create Budget Line",
+        "unnamedBudgetLine": "Unnamed budget line",
+        "plannedLabel": "Planned: {{amount}}",
+        "itemizedAmountAriaLabel": "Itemized amount for {{description}}",
+        "budgetLineGeneric": "budget line",
+        "remainingToAllocate": "Remaining to allocate:",
+        "addSelectedLines": "Add Selected Lines",
+        "backButton": "← Back",
+        "loadError": "Failed to load budget lines.",
+        "loadFormError": "Failed to load form data.",
+        "error": {
+          "plannedAmountInvalid": "Planned amount must be a valid non-negative number.",
+          "quantityInvalid": "Quantity must be a valid positive number.",
+          "unitPriceInvalid": "Unit price must be a valid non-negative number.",
+          "exceedsTotal": "Linking this budget line would exceed the invoice total.",
+          "alreadyLinked": "This budget line is already linked to another invoice.",
+          "linkFailed": "Failed to link budget line. Please try again.",
+          "createFailed": "Failed to create budget line."
+        }
+      },
+      "remainingAriaLabel": "Remaining amount: {{amount}}"
+    },
+    "deposits": {
+      "sectionTitle": "Deposits",
+      "countChip": "{{count}} deposits",
+      "addButton": "Add deposit",
+      "loading": "Loading deposits...",
+      "empty": {
+        "message": "No deposits yet",
+        "description": "Break this invoice into staged payments by adding a deposit."
+      },
+      "finalPayment": "Final payment",
+      "columns": {
+        "dueDate": "Due date",
+        "amount": "Amount",
+        "status": "Status",
+        "paidDate": "Paid date",
+        "claimedDate": "Claimed date",
+        "description": "Description",
+        "actions": "Actions"
+      },
+      "mobile": {
+        "due": "Due",
+        "paid": "Paid",
+        "claimed": "Claimed"
+      },
+      "menu": {
+        "markPaid": "Mark paid…",
+        "markClaimed": "Mark claimed…",
+        "revertToPending": "Revert to pending",
+        "revertToPaid": "Revert to paid",
+        "edit": "Edit",
+        "delete": "Delete",
+        "ariaLabel": "Deposit actions for {{description}}"
+      },
+      "modal": {
+        "addTitle": "Add deposit",
+        "editTitle": "Edit deposit",
+        "deleteTitle": "Delete deposit",
+        "deleteConfirm": "Delete this deposit? This cannot be undone.",
+        "deleteWarningPaidClaimed": "This deposit has been marked paid/claimed. Deleting it will remove its contribution from budget totals.",
+        "markPaidTitle": "Mark as paid",
+        "markClaimedTitle": "Mark as claimed"
+      },
+      "form": {
+        "amount": "Amount",
+        "dueDate": "Due date",
+        "status": "Status",
+        "paidDate": "Paid date",
+        "claimedDate": "Claimed date",
+        "description": "Description",
+        "amountPlaceholder": "0.00",
+        "descriptionPlaceholder": "Optional description",
+        "charCounter": "{{count}} / 500",
+        "saving": "Saving...",
+        "required": "*"
+      },
+      "errors": {
+        "exceedsTotal": "Deposit amount exceeds invoice total. Available headroom: {{availableHeadroom}}",
+        "invalidTransition": "Cannot transition from {{from}} to {{to}}",
+        "invalidDate": "Invalid date for the selected status",
+        "loadError": "Failed to load deposits. Please try again.",
+        "saveError": "Failed to save deposit. Please try again.",
+        "deleteError": "Failed to delete deposit. Please try again.",
+        "revertError": "Failed to revert deposit status. Please try again.",
+        "revertNetworkError": "Network error — could not revert deposit status. Please try again.",
+        "stateConfirmNetworkError": "Network error — could not update deposit status. Please try again."
+      },
+      "stateConfirm": {
+        "paidDateLabel": "Paid date",
+        "claimedDateLabel": "Claimed date"
+      }
     }
   },
   "subsidies": {

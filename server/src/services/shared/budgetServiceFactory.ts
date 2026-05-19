@@ -17,6 +17,7 @@ import {
   validateBudgetSourceId,
   validateVendorId,
 } from './validators.js';
+import { computeDepositAwareAggregates, type DepositAwareRow } from './depositAggregateUtils.js';
 import { CONFIDENCE_MARGINS as confidenceMargins } from '@cornerstone/shared';
 import type { ConfidenceLevel } from '@cornerstone/shared';
 import { NotFoundError, ValidationError, BudgetLineInUseError } from '../../errors/AppError.js';
@@ -34,6 +35,8 @@ export function getInvoiceLink(
   invoiceDate: string;
   invoiceStatus: string;
   itemizedAmount: number;
+  vendorId: string | null;
+  vendorName: string | null;
 } | null {
   const row = db.get<{
     ibl_id: string;
@@ -42,10 +45,14 @@ export function getInvoiceLink(
     date: string;
     status: string;
     itemized_amount: number;
+    vendor_id: string | null;
+    vendor_name: string | null;
   }>(
-    sql`SELECT ibl.id AS ibl_id, ibl.invoice_id, i.invoice_number, i.date, i.status, ibl.itemized_amount
+    sql`SELECT ibl.id AS ibl_id, ibl.invoice_id, i.invoice_number, i.date, i.status, ibl.itemized_amount,
+      i.vendor_id, v.name AS vendor_name
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
+    LEFT JOIN vendors v ON v.id = i.vendor_id
     WHERE ibl.${sql.raw(invoiceBudgetIdColumn)} = ${budgetId}
     LIMIT 1`,
   );
@@ -57,6 +64,8 @@ export function getInvoiceLink(
     invoiceDate: row.date,
     invoiceStatus: row.status,
     itemizedAmount: row.itemized_amount,
+    vendorId: row.vendor_id,
+    vendorName: row.vendor_name,
   };
 }
 
@@ -76,6 +85,8 @@ export interface ResolvedBudgetRelations {
     invoiceDate: string;
     invoiceStatus: string;
     itemizedAmount: number;
+    vendorId: string | null;
+    vendorName: string | null;
   } | null;
   createdBy: ReturnType<typeof toUserSummary>;
 }
@@ -192,7 +203,7 @@ export function resolveRelationsBatch(
     userList.forEach((u) => userMap.set(u.id, u));
   }
 
-  // Bulk-fetch invoice aggregates
+  // Bulk-fetch invoice aggregates with deposit-aware split
   const invoiceAggregatesMap = new Map<
     string,
     { actualCost: number; actualCostPaid: number; invoiceCount: number }
@@ -200,29 +211,40 @@ export function resolveRelationsBatch(
   if (invoiceBudgetIdColumn) {
     const budgetIds = rows.map((r) => r.id);
     const idItems = budgetIds.map((id) => sql`${id}`);
-    const aggregateRows = db.all<{
-      budget_id: string;
-      actualCost: number;
-      actualCostPaid: number;
-      invoiceCount: number;
-    }>(
+    const allRows = db.all<DepositAwareRow & { budget_id: string }>(
       sql`SELECT
         ibl.${sql.raw(invoiceBudgetIdColumn)} AS budget_id,
-        COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost,
-        COALESCE(SUM(CASE WHEN i.status IN ('paid', 'claimed') THEN ibl.itemized_amount ELSE 0 END), 0) AS actualCostPaid,
-        COUNT(*) AS invoiceCount
+        ibl.id              AS ibl_id,
+        ibl.itemized_amount AS itemized_amount,
+        i.id                AS invoice_id,
+        i.amount            AS invoice_amount,
+        i.status            AS invoice_status,
+        d.id                AS deposit_id,
+        d.amount            AS deposit_amount,
+        d.status            AS deposit_status
       FROM invoice_budget_lines ibl
       INNER JOIN invoices i ON i.id = ibl.invoice_id
-      WHERE ibl.${sql.raw(invoiceBudgetIdColumn)} IN (${sql.join(idItems, sql`, `)})
-      GROUP BY ibl.${sql.raw(invoiceBudgetIdColumn)}`,
+      LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
+      WHERE ibl.${sql.raw(invoiceBudgetIdColumn)} IN (${sql.join(idItems, sql`, `)})`,
     );
-    aggregateRows.forEach((row) => {
-      invoiceAggregatesMap.set(row.budget_id, {
-        actualCost: row.actualCost,
-        actualCostPaid: row.actualCostPaid,
-        invoiceCount: row.invoiceCount,
+
+    // Group by budget_id, then compute aggregates
+    const rowsByBudgetId = new Map<string, DepositAwareRow[]>();
+    for (const row of allRows) {
+      const rows = rowsByBudgetId.get(row.budget_id) ?? [];
+      rows.push(row);
+      rowsByBudgetId.set(row.budget_id, rows);
+    }
+
+    for (const [budgetId, budgetRows] of rowsByBudgetId) {
+      const { actualCost, actualCostPaid, invoiceCount } =
+        computeDepositAwareAggregates(budgetRows);
+      invoiceAggregatesMap.set(budgetId, {
+        actualCost,
+        actualCostPaid,
+        invoiceCount,
       });
-    });
+    }
   }
 
   // Bulk-fetch invoice links (one per budget line)
@@ -235,6 +257,8 @@ export function resolveRelationsBatch(
       invoiceDate: string;
       invoiceStatus: string;
       itemizedAmount: number;
+      vendorId: string | null;
+      vendorName: string | null;
     }
   >();
   if (invoiceBudgetIdColumn) {
@@ -248,6 +272,8 @@ export function resolveRelationsBatch(
       date: string;
       status: string;
       itemized_amount: number;
+      vendor_id: string | null;
+      vendor_name: string | null;
     }>(
       sql`SELECT
         ibl.${sql.raw(invoiceBudgetIdColumn)} AS budget_id,
@@ -256,9 +282,12 @@ export function resolveRelationsBatch(
         i.invoice_number,
         i.date,
         i.status,
-        ibl.itemized_amount
+        ibl.itemized_amount,
+        i.vendor_id,
+        v.name AS vendor_name
       FROM invoice_budget_lines ibl
       INNER JOIN invoices i ON i.id = ibl.invoice_id
+      LEFT JOIN vendors v ON v.id = i.vendor_id
       WHERE ibl.${sql.raw(invoiceBudgetIdColumn)} IN (${sql.join(idItems, sql`, `)})
       ORDER BY ibl.${sql.raw(invoiceBudgetIdColumn)}`,
     );
@@ -272,6 +301,8 @@ export function resolveRelationsBatch(
           invoiceDate: row.date,
           invoiceStatus: row.status,
           itemizedAmount: row.itemized_amount,
+          vendorId: row.vendor_id,
+          vendorName: row.vendor_name,
         });
       }
     });
@@ -335,24 +366,29 @@ export function getInvoiceAggregates(
   budgetId: string,
   invoiceBudgetIdColumn: string,
 ): { actualCost: number; actualCostPaid: number; invoiceCount: number } {
-  const row = db.get<{
-    actualCost: number | null;
-    actualCostPaid: number | null;
-    invoiceCount: number;
-  }>(
+  // Fetch (ibl, invoice, deposit?) tuples with deposit-aware split
+  const rows = db.all<DepositAwareRow>(
     sql`SELECT
-      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost,
-      COALESCE(SUM(CASE WHEN i.status IN ('paid', 'claimed') THEN ibl.itemized_amount ELSE 0 END), 0) AS actualCostPaid,
-      COUNT(*) AS invoiceCount
+      ibl.id              AS ibl_id,
+      ibl.itemized_amount AS itemized_amount,
+      i.id                AS invoice_id,
+      i.amount            AS invoice_amount,
+      i.status            AS invoice_status,
+      d.id                AS deposit_id,
+      d.amount            AS deposit_amount,
+      d.status            AS deposit_status
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
+    LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
     WHERE ibl.${sql.raw(invoiceBudgetIdColumn)} = ${budgetId}`,
   );
 
+  const { actualCost, actualCostPaid, invoiceCount } = computeDepositAwareAggregates(rows);
+
   return {
-    actualCost: row?.actualCost ?? 0,
-    actualCostPaid: row?.actualCostPaid ?? 0,
-    invoiceCount: row?.invoiceCount ?? 0,
+    actualCost,
+    actualCostPaid,
+    invoiceCount,
   };
 }
 

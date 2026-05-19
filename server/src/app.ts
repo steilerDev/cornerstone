@@ -31,6 +31,7 @@ import vendorRoutes from './routes/vendors.js';
 import invoiceRoutes from './routes/invoices.js';
 import standaloneInvoiceRoutes from './routes/standaloneInvoices.js';
 import invoiceBudgetLineRoutes from './routes/invoiceBudgetLines.js';
+import invoiceDepositRoutes from './routes/invoiceDeposits.js';
 import subsidyProgramRoutes from './routes/subsidyPrograms.js';
 import workItemVendorRoutes from './routes/workItemVendors.js';
 import workItemSubsidyRoutes from './routes/workItemSubsidies.js';
@@ -56,6 +57,7 @@ import davTokenRoutes from './routes/davTokens.js';
 import davRoutes from './routes/dav.js';
 import backupRoutes from './routes/backups.js';
 import * as backupService from './services/backupService.js';
+import * as draftCleanupService from './services/draftCleanupService.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -165,6 +167,12 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Invoice budget line routes (nested under invoices)
   await app.register(invoiceBudgetLineRoutes, { prefix: '/api/invoices/:invoiceId/budget-lines' });
 
+  // Invoice deposit routes (nested under invoices, both vendor-scoped and standalone)
+  await app.register(invoiceDepositRoutes, {
+    prefix: '/api/vendors/:vendorId/invoices/:invoiceId/deposits',
+  });
+  await app.register(invoiceDepositRoutes, { prefix: '/api/invoices/:invoiceId/deposits' });
+
   // Subsidy program routes
   await app.register(subsidyProgramRoutes, { prefix: '/api/subsidy-programs' });
 
@@ -244,9 +252,13 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Initialize automatic backup scheduler (if configured)
   backupService.initScheduler(app.db, app.config, app.log);
 
-  // Stop backup scheduler on shutdown
+  // Initialize draft cleanup scheduler (if configured)
+  draftCleanupService.initScheduler(app.db, app.config, app.log);
+
+  // Stop schedulers on shutdown
   app.addHook('onClose', () => {
     backupService.stopScheduler();
+    draftCleanupService.stopScheduler();
   });
 
   // Well-known redirects for CalDAV/CardDAV discovery

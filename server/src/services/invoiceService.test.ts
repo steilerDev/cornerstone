@@ -980,6 +980,255 @@ describe('Invoice Service', () => {
     });
   });
 
+  // ─── listAllInvoices() overdue aggregation (#1421) ──────────────────────────
+
+  describe('listAllInvoices() overdue aggregation (#1421)', () => {
+    it('S1: no invoices — summary.overdue is zero count and zero totalAmount', () => {
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.overdue).toEqual({ count: 0, totalAmount: 0 });
+    });
+
+    it('S2: one pending invoice with dueDate in the past — count 1, totalAmount equals invoice amount', () => {
+      const vendorId = createTestVendor('Overdue S2 Vendor');
+      insertRawInvoice(vendorId, { status: 'pending', amount: 500, dueDate: '2020-01-01' });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.overdue.count).toBe(1);
+      expect(result.summary.overdue.totalAmount).toBe(500);
+    });
+
+    it('S3: one pending invoice with dueDate === today — count 0 (strict less-than, today is not overdue)', () => {
+      const vendorId = createTestVendor('Overdue S3 Vendor');
+      // Use SQLite's own date() function so "today" matches the date() comparison
+      // the production query performs (date('now', 'localtime')). Avoids UTC vs
+      // local-time drift and midnight-boundary flakes when the test runner clock
+      // and the SQLite engine disagree on what "today" is.
+      const todayRow = sqlite.prepare("SELECT date('now', 'localtime') AS today").get() as {
+        today: string;
+      };
+      insertRawInvoice(vendorId, { status: 'pending', amount: 750, dueDate: todayRow.today });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.overdue.count).toBe(0);
+      expect(result.summary.overdue.totalAmount).toBe(0);
+    });
+
+    it('S4: one pending invoice with dueDate in the future — count 0', () => {
+      const vendorId = createTestVendor('Overdue S4 Vendor');
+      insertRawInvoice(vendorId, { status: 'pending', amount: 300, dueDate: '2099-12-30' });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.overdue.count).toBe(0);
+      expect(result.summary.overdue.totalAmount).toBe(0);
+    });
+
+    it('S5: one pending invoice with dueDate null — count 0 (null dueDate is excluded)', () => {
+      const vendorId = createTestVendor('Overdue S5 Vendor');
+      insertRawInvoice(vendorId, { status: 'pending', amount: 200, dueDate: null });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.overdue.count).toBe(0);
+      expect(result.summary.overdue.totalAmount).toBe(0);
+    });
+
+    it('S6: one paid invoice with dueDate in the past — count 0 (only pending qualifies)', () => {
+      const vendorId = createTestVendor('Overdue S6 Vendor');
+      insertRawInvoice(vendorId, { status: 'paid', amount: 1000, dueDate: '2020-01-01' });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.overdue.count).toBe(0);
+      expect(result.summary.overdue.totalAmount).toBe(0);
+    });
+
+    it('S7: one claimed invoice with dueDate in the past — count 0 (only pending qualifies)', () => {
+      const vendorId = createTestVendor('Overdue S7 Vendor');
+      insertRawInvoice(vendorId, { status: 'claimed', amount: 800, dueDate: '2020-01-01' });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.overdue.count).toBe(0);
+      expect(result.summary.overdue.totalAmount).toBe(0);
+    });
+
+    it('S8: 3 pending invoices (2 past dueDate, 1 future) — count 2, totalAmount is sum of the 2 overdue', () => {
+      const vendorId = createTestVendor('Overdue S8 Vendor');
+      insertRawInvoice(vendorId, { status: 'pending', amount: 400, dueDate: '2020-01-01' });
+      insertRawInvoice(vendorId, { status: 'pending', amount: 600, dueDate: '2020-06-15' });
+      insertRawInvoice(vendorId, { status: 'pending', amount: 200, dueDate: '2099-12-30' });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.overdue.count).toBe(2);
+      expect(result.summary.overdue.totalAmount).toBe(1000);
+    });
+
+    it('S9: overdue is global — 2 overdue invoices exist but status filter returns 0 results, summary.overdue.count is still 2', () => {
+      const vendorId = createTestVendor('Overdue S9 Vendor');
+      insertRawInvoice(vendorId, { status: 'pending', amount: 300, dueDate: '2020-01-01' });
+      insertRawInvoice(vendorId, { status: 'pending', amount: 700, dueDate: '2020-03-01' });
+
+      // Filter by 'paid' — page returns 0 invoices, but summary must still reflect global overdue
+      const result = invoiceService.listAllInvoices(db, { status: 'paid' });
+
+      expect(result.invoices).toHaveLength(0);
+      expect(result.summary.overdue.count).toBe(2);
+      expect(result.summary.overdue.totalAmount).toBe(1000);
+    });
+  });
+
+  // ─── listAllInvoices() deposit-aware summary (#1411) ────────────────────────
+
+  describe('listAllInvoices() deposit-aware summary (#1411)', () => {
+    /**
+     * Insert a deposit directly into the DB (bypassing service validation).
+     * Scoped to this describe block; mirrors the helper in the #1403 block.
+     */
+    function insertRawDeposit(
+      invoiceId: string,
+      amount: number,
+      status: 'pending' | 'paid' | 'claimed' = 'pending',
+    ): string {
+      const id = `dep-summary-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      const ts = new Date(Date.now() + timestampOffset++).toISOString();
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id,
+          invoiceId,
+          amount,
+          dueDate: '2026-03-01',
+          paidDate: status === 'paid' || status === 'claimed' ? '2026-02-15' : null,
+          claimedDate: status === 'claimed' ? '2026-02-20' : null,
+          description: null,
+          status,
+          createdBy: null,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return id;
+    }
+
+    // ─── AC-1: quotation invoice with pending deposit ──────────────────────
+
+    it('AC-1: quotation invoice (1000) with pending deposit (200) — residual 800 under quotation, 200 under pending', () => {
+      const vendorId = createTestVendor('AC1 Vendor');
+      const invoiceId = insertRawInvoice(vendorId, {
+        // insertRawInvoice only types 'pending'|'paid'|'claimed' but the DB accepts 'quotation'
+        status: 'pending' as const,
+        amount: 1000,
+      });
+      // Override status to 'quotation' via underlying better-sqlite3 (Drizzle type doesn't include it)
+      sqlite.prepare(`UPDATE invoices SET status = 'quotation' WHERE id = ?`).run(invoiceId);
+      insertRawDeposit(invoiceId, 200, 'pending');
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.quotation.totalAmount).toBe(800);
+      expect(result.summary.pending.totalAmount).toBe(200);
+      expect(result.summary.quotation.count).toBe(1);
+      expect(result.summary.pending.count).toBe(0);
+    });
+
+    // ─── AC-2: invoice with no deposits unchanged ──────────────────────────
+
+    it('AC-2 regression: invoice with no deposits has its full amount in the summary', () => {
+      const vendorId = createTestVendor('AC2 Vendor');
+      insertRawInvoice(vendorId, { status: 'pending', amount: 1000 });
+      // no deposits — behavior must be unchanged from pre-deposit era
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.pending.totalAmount).toBe(1000);
+      expect(result.summary.pending.count).toBe(1);
+    });
+
+    // ─── AC-3: count reflects invoices not deposits ────────────────────────
+
+    it('AC-3: one invoice with two deposits — summary count = 1, not 3', () => {
+      const vendorId = createTestVendor('AC3 Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { status: 'pending', amount: 1000 });
+      insertRawDeposit(invoiceId, 300, 'pending');
+      insertRawDeposit(invoiceId, 400, 'paid');
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      // The invoice itself is pending, so count must be 1 (not 2 deposits + 1 invoice = 3)
+      expect(result.summary.pending.count).toBe(1);
+    });
+
+    // ─── Sum invariant integration ─────────────────────────────────────────
+
+    it('sum invariant: all status totals sum to the invoice amount', () => {
+      const invoiceAmount = 1000;
+      const vendorId = createTestVendor('Sum Invariant Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { status: 'pending', amount: invoiceAmount });
+      insertRawDeposit(invoiceId, 300, 'pending');
+      insertRawDeposit(invoiceId, 400, 'paid');
+      // residual = 1000 - 300 - 400 = 300 under pending
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      const totalAcrossStatuses =
+        result.summary.pending.totalAmount +
+        result.summary.paid.totalAmount +
+        result.summary.claimed.totalAmount +
+        result.summary.quotation.totalAmount;
+      expect(totalAcrossStatuses).toBe(invoiceAmount);
+    });
+
+    // ─── Multi-status deposits (residual + per-status accrual) ────────────
+
+    it('multi-status deposits: residual under parent status + per-deposit status accrual', () => {
+      const vendorId = createTestVendor('Multi Deposit Status Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { status: 'pending', amount: 1200 });
+      insertRawDeposit(invoiceId, 300, 'pending');
+      insertRawDeposit(invoiceId, 400, 'paid');
+      // residual = 1200 - 300 - 400 = 500 under pending (invoice status)
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      // pending.totalAmount = residual (500) + pending deposit (300) = 800
+      expect(result.summary.pending.totalAmount).toBe(800);
+      expect(result.summary.paid.totalAmount).toBe(400);
+      expect(result.summary.pending.count).toBe(1); // only the invoice, not deposits
+      expect(result.summary.paid.count).toBe(0);
+    });
+
+    // ─── Global behavior preserved ─────────────────────────────────────────
+
+    it('global behavior preserved: summary is not filtered even when status + pageSize filter applied', () => {
+      const vendorId = createTestVendor('Global Behavior Vendor');
+      const pending1Id = insertRawInvoice(vendorId, { status: 'pending', amount: 400 });
+      insertRawInvoice(vendorId, { status: 'pending', amount: 300 });
+      insertRawInvoice(vendorId, { status: 'paid', amount: 500 });
+      // Add a pending deposit to the first pending invoice to exercise deposit-aware path globally
+      insertRawDeposit(pending1Id, 50, 'pending');
+      // pending1 residual = 400 - 50 = 350 under pending; deposit 50 under pending
+      // pending1 total contribution to pending = 350 + 50 = 400 (same as before, just split)
+      // pending2 = 300 under pending; paid = 500 under paid
+
+      // Filter to only paid invoices, page 1 of 1
+      const result = invoiceService.listAllInvoices(db, { status: 'paid', pageSize: 1 });
+
+      // Filtered list: only the paid invoice
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.amount).toBe(500);
+
+      // Summary must be GLOBAL (all 3 invoices, deposit-aware)
+      expect(result.summary.pending.count).toBe(2);
+      // pending total = 350 (residual of pending1) + 50 (deposit from pending1, status pending) + 300 (pending2) = 700
+      expect(result.summary.pending.totalAmount).toBe(700);
+      expect(result.summary.paid.count).toBe(1);
+      expect(result.summary.paid.totalAmount).toBe(500);
+    });
+  });
+
   // ─── getInvoiceById() ───────────────────────────────────────────────────────
 
   describe('getInvoiceById()', () => {
@@ -1124,6 +1373,115 @@ describe('Invoice Service', () => {
       expect(remaining.find((inv) => inv.id === inv1Id)).toBeDefined();
       expect(remaining.find((inv) => inv.id === inv2Id)).toBeUndefined();
       expect(remaining.find((inv) => inv.id === inv3Id)).toBeDefined();
+    });
+  });
+
+  // ─── toInvoice() embeds deposits + finalPaymentAmount (#1403) ───────────────
+
+  describe('getInvoiceById() deposit embedding (#1403)', () => {
+    function insertRawDeposit(
+      invoiceId: string,
+      amount: number,
+      status: 'pending' | 'paid' | 'claimed' = 'pending',
+    ): string {
+      const id = `deposit-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      const ts = new Date(Date.now() + timestampOffset++).toISOString();
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id,
+          invoiceId,
+          amount,
+          dueDate: '2026-02-01',
+          paidDate: status === 'paid' || status === 'claimed' ? '2026-01-20' : null,
+          claimedDate: status === 'claimed' ? '2026-01-25' : null,
+          description: null,
+          status,
+          createdBy: null,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return id;
+    }
+
+    it('embeds deposits array when invoice has deposits', () => {
+      const vendorId = createTestVendor('Deposit Embed Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 1000 });
+      const d1Id = insertRawDeposit(invoiceId, 200, 'paid');
+      const d2Id = insertRawDeposit(invoiceId, 300, 'pending');
+
+      const invoice = invoiceService.getInvoiceById(db, invoiceId);
+
+      expect(invoice.deposits).toHaveLength(2);
+      expect(invoice.deposits.some((d) => d.id === d1Id)).toBe(true);
+      expect(invoice.deposits.some((d) => d.id === d2Id)).toBe(true);
+    });
+
+    it('computes finalPaymentAmount as invoice total minus sum of ALL deposits (pending + paid + claimed)', () => {
+      const vendorId = createTestVendor('Final Payment Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 1000 });
+      insertRawDeposit(invoiceId, 100, 'pending'); // pending — reduces final payment
+      insertRawDeposit(invoiceId, 200, 'paid'); // paid — reduces final payment
+      insertRawDeposit(invoiceId, 300, 'claimed'); // claimed — reduces final payment
+
+      const invoice = invoiceService.getInvoiceById(db, invoiceId);
+
+      // finalPaymentAmount = 1000 - 100 (pending) - 200 (paid) - 300 (claimed) = 400
+      expect(invoice.finalPaymentAmount).toBe(400);
+    });
+
+    it('returns empty deposits array and finalPaymentAmount = amount when no deposits', () => {
+      const vendorId = createTestVendor('No Deposit Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 500 });
+
+      const invoice = invoiceService.getInvoiceById(db, invoiceId);
+
+      expect(invoice.deposits).toHaveLength(0);
+      expect(invoice.finalPaymentAmount).toBe(500);
+    });
+  });
+
+  // ─── listAllInvoices() deposit inline map (#1403) ────────────────────────────
+
+  describe('listAllInvoices() deposit inline map (#1403)', () => {
+    function insertRawDeposit(
+      invoiceId: string,
+      amount: number,
+      status: 'pending' | 'paid' | 'claimed' = 'pending',
+    ): string {
+      const id = `deposit-list-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      const ts = new Date(Date.now() + timestampOffset++).toISOString();
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id,
+          invoiceId,
+          amount,
+          dueDate: '2026-02-01',
+          paidDate: status === 'paid' || status === 'claimed' ? '2026-01-20' : null,
+          claimedDate: status === 'claimed' ? '2026-01-25' : null,
+          description: null,
+          status,
+          createdBy: null,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return id;
+    }
+
+    it('list response has deposits: [] and finalPaymentAmount = invoice amount (not computed)', () => {
+      const vendorId = createTestVendor('List Deposit Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 800 });
+      insertRawDeposit(invoiceId, 200, 'paid');
+      insertRawDeposit(invoiceId, 300, 'claimed');
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      const listed = result.invoices.find((inv) => inv.id === invoiceId);
+      expect(listed).toBeDefined();
+      expect(listed!.deposits).toHaveLength(0);
+      // List intentionally sets finalPaymentAmount = row.amount without computing
+      expect(listed!.finalPaymentAmount).toBe(800);
     });
   });
 });

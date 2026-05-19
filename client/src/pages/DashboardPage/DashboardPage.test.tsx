@@ -72,6 +72,7 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   updateDiaryEntry: jest.fn(),
   deleteDiaryEntry: jest.fn(),
   getDiaryEntry: jest.fn(),
+  promoteDiaryEntry: jest.fn(),
 }));
 
 jest.unstable_mockModule('../../hooks/usePreferences.js', () => ({
@@ -160,6 +161,7 @@ const emptyInvoicesResponse: InvoiceListPaginatedResponse = {
     paid: { count: 0, totalAmount: 0 },
     claimed: { count: 0, totalAmount: 0 },
     quotation: { count: 0, totalAmount: 0 },
+    overdue: { count: 0, totalAmount: 0 },
   },
 };
 
@@ -891,5 +893,41 @@ describe('DashboardPage', () => {
     // All 10 cards still visible
     expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { name: 'Quick Actions' })[0]).toBeInTheDocument();
+  });
+
+  // ─── Story #1426: Dashboard only shows saved diary entries ───────────────────
+
+  describe('diary entries status filter (Story #1426)', () => {
+    it('Scenario 57: calls listDiaryEntries with status=saved (not draft) for the Recent Diary card', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledWith(
+          expect.objectContaining({ status: 'saved' }),
+        );
+      });
+    });
+
+    it('calls listDiaryEntries with pageSize=5 for the Recent Diary card', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 5 }));
+      });
+    });
+
+    it('does NOT call listDiaryEntries with status=draft for the Recent Diary card', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalled();
+      });
+
+      const calls = mockListDiaryEntries.mock.calls;
+      const hasDraftCall = calls.some(
+        (call) => (call[0] as { status?: string })?.status === 'draft',
+      );
+      expect(hasDraftCall).toBe(false);
+    });
   });
 });

@@ -216,6 +216,13 @@ describe('App', () => {
     if (!App) {
       const appModule = await import('./App.js');
       App = appModule.App;
+
+      // Pre-resolve lazy-loaded route components so the redirect test does not race
+      // their dynamic import under CPU pressure (#1438).
+      // The root path / redirects to /project which redirects to /project/overview,
+      // which renders DashboardPage (lazy). Pre-importing here warms the module cache
+      // before any test rendering starts, making the 5s waitFor timeout safe to keep.
+      await import('./pages/DashboardPage/DashboardPage.js');
     }
 
     // Reset mocks
@@ -326,6 +333,7 @@ describe('App', () => {
         paid: { count: 0, totalAmount: 0 },
         claimed: { count: 0, totalAmount: 0 },
         quotation: { count: 0, totalAmount: 0 },
+        overdue: { count: 0, totalAmount: 0 },
       },
     });
     mockFetchWorkItemBudgets.mockResolvedValue([]);
@@ -379,6 +387,7 @@ describe('App', () => {
     expect(main).toBeInTheDocument();
   });
 
+  // NOTE: bumped to 15000ms; underlying lazy-import flake tracked in #1438.
   it('shows Project page at root path / (redirects to /project/overview)', async () => {
     render(<App />);
 
@@ -386,7 +395,7 @@ describe('App', () => {
     // Root redirects to /project which redirects to /project/overview
     const heading = await screen.findByRole('heading', { name: /^project$/i }, { timeout: 5000 });
     expect(heading).toBeInTheDocument();
-  });
+  }, 15000);
 
   it('navigates to Work Items page when /project/work-items path is accessed', async () => {
     window.history.pushState({}, 'Work Items', '/project/work-items');

@@ -577,9 +577,18 @@ test.describe('Card re-enable (Scenario 7)', () => {
       await dashboardPage.goto();
       await dashboardPage.waitForCardsLoaded();
 
-      // Verify Customize button is NOT visible before dismissing
-      // The button is only rendered when cards are hidden, so it may be absent from the DOM entirely.
-      await expect(dashboardPage.customizeButton).not.toBeVisible();
+      // Verify Customize button is NOT visible before dismissing.
+      // The button visibility depends on the preferences GET that the dashboard issues on mount.
+      // This GET is independent of the card-loading skeleton, so waitForCardsLoaded() does not
+      // guarantee it has completed. Use expect.poll to wait until the preference state settles
+      // (waitForResponse is not usable here because the request fires during goto() before we
+      // can attach a listener).
+      await expect
+        .poll(() => dashboardPage.customizeButton.isVisible(), {
+          timeout: 7000,
+          intervals: [100, 200, 500],
+        })
+        .toBe(false);
 
       // Dismiss a card
       await dashboardPage.dismissCard('Quick Actions');

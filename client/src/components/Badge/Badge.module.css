@@ -199,6 +199,12 @@
   font-style: italic;
 }
 
+/* Draft status badge */
+.draft {
+  background-color: var(--color-warning-bg);
+  color: var(--color-text-primary);
+}
+
 /* Responsive */
 @media (max-width: 767px) {
   .badge {

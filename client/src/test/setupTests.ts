@@ -40,3 +40,17 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
     }),
   });
 }
+
+// Polyfill ResizeObserver for jsdom (not implemented in jsdom by default).
+// PhotoAnnotator uses ResizeObserver to track image layout changes.
+if (typeof window !== 'undefined' && !window.ResizeObserver) {
+  class ResizeObserverPolyfill {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  Object.defineProperty(window, 'ResizeObserver', {
+    writable: true,
+    value: ResizeObserverPolyfill,
+  });
+}

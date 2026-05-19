@@ -19,6 +19,8 @@ interface DiaryFilterBarProps {
   filterMode?: FilterMode;
   onFilterModeChange?: (mode: FilterMode) => void;
   isCollapsed?: boolean;
+  draftsVisible?: boolean;
+  onDraftsVisibleChange?: (visible: boolean) => void;
 }
 
 const MANUAL_ENTRY_TYPES: DiaryEntryType[] = [
@@ -77,6 +79,8 @@ export function DiaryFilterBar({
   filterMode = 'all',
   onFilterModeChange,
   isCollapsed = false,
+  draftsVisible = false,
+  onDraftsVisibleChange,
 }: DiaryFilterBarProps) {
   const { t } = useTranslation('diary');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -162,6 +166,21 @@ export function DiaryFilterBar({
               {t('filterBar.filterModeAutomatic')}
             </button>
           </div>
+
+          {/* Drafts visibility chip — separate axis from mode chips */}
+          {onDraftsVisibleChange && (
+            <div role="group" aria-label={t('filterBar.draftsChipGroupLabel')}>
+              <button
+                type="button"
+                onClick={() => onDraftsVisibleChange(!draftsVisible)}
+                aria-pressed={draftsVisible}
+                className={`${styles.modeChip} ${styles.draftsChip} ${draftsVisible ? styles.modeChipActive : ''}`}
+                data-testid="status-filter-drafts"
+              >
+                {t('filterBar.filterModeDrafts')}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Search input */}

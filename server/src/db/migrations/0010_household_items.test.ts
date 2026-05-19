@@ -420,73 +420,9 @@ describe('Migration 0010: Household Items', () => {
     });
   });
 
-  // ── 7. household_item_tags composite PK ───────────────────────────────────
-  // NOTE: Migration 0028 dropped household_item_tags and tags tables.
-  // These tests are skipped because the tables no longer exist after all migrations run.
-
-  describe.skip('household_item_tags composite primary key (dropped in migration 0028)', () => {
-    it('prevents duplicate (household_item_id, tag_id) pairs', () => {
-      insertHouseholdItem(sqlite, 'item-tag-pk');
-      insertTag(sqlite, 'tag-pk-1');
-
-      // First insert succeeds
-      sqlite
-        .prepare(`INSERT INTO household_item_tags (household_item_id, tag_id) VALUES (?, ?)`)
-        .run('item-tag-pk', 'tag-pk-1');
-
-      // Duplicate insert should fail
-      let error: Error | undefined;
-      try {
-        sqlite
-          .prepare(`INSERT INTO household_item_tags (household_item_id, tag_id) VALUES (?, ?)`)
-          .run('item-tag-pk', 'tag-pk-1');
-      } catch (err) {
-        error = err as Error;
-      }
-      expect(error).toBeDefined();
-      expect(error?.message).toMatch(/UNIQUE constraint failed/);
-    });
-
-    it('allows same item linked to different tags', () => {
-      insertHouseholdItem(sqlite, 'item-multi-tag');
-      insertTag(sqlite, 'tag-a');
-      insertTag(sqlite, 'tag-b');
-
-      expect(() => {
-        sqlite
-          .prepare(`INSERT INTO household_item_tags (household_item_id, tag_id) VALUES (?, ?)`)
-          .run('item-multi-tag', 'tag-a');
-        sqlite
-          .prepare(`INSERT INTO household_item_tags (household_item_id, tag_id) VALUES (?, ?)`)
-          .run('item-multi-tag', 'tag-b');
-      }).not.toThrow();
-
-      const links = sqlite
-        .prepare('SELECT * FROM household_item_tags WHERE household_item_id = ?')
-        .all('item-multi-tag');
-      expect(links).toHaveLength(2);
-    });
-  });
-
   // ── 8. CASCADE on household item delete ───────────────────────────────────
 
   describe('CASCADE delete from household_items', () => {
-    // household_item_tags was dropped in migration 0028 — skip tag cascade test
-    it.skip('removes tag links when household item is deleted (dropped in migration 0028)', () => {
-      insertHouseholdItem(sqlite, 'item-cascade-1');
-      insertTag(sqlite, 'tag-cascade-1');
-      sqlite
-        .prepare(`INSERT INTO household_item_tags (household_item_id, tag_id) VALUES (?, ?)`)
-        .run('item-cascade-1', 'tag-cascade-1');
-
-      sqlite.prepare('DELETE FROM household_items WHERE id = ?').run('item-cascade-1');
-
-      const links = sqlite
-        .prepare('SELECT * FROM household_item_tags WHERE household_item_id = ?')
-        .all('item-cascade-1');
-      expect(links).toHaveLength(0);
-    });
-
     it('removes notes when household item is deleted', () => {
       insertHouseholdItem(sqlite, 'item-cascade-notes');
       const now = new Date().toISOString();
@@ -681,17 +617,6 @@ describe('Migration 0010: Household Items', () => {
       expect(indexNames).toContain('idx_household_items_area_id');
       expect(indexNames).toContain('idx_household_items_vendor_id');
       expect(indexNames).toContain('idx_household_items_created_at');
-    });
-
-    it.skip('creates index on household_item_tags tag_id (dropped in migration 0028)', () => {
-      // household_item_tags table was dropped in migration 0028
-      const indexes = sqlite
-        .prepare(
-          `SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='household_item_tags'`,
-        )
-        .all() as Array<{ name: string }>;
-      const indexNames = indexes.map((i) => i.name);
-      expect(indexNames).toContain('idx_household_item_tags_tag_id');
     });
 
     it('creates index on household_item_notes household_item_id', () => {

@@ -137,6 +137,32 @@ export function onInvoiceStatusChanged(
 }
 
 /**
+ * Log a deposit status change to the diary.
+ *
+ * @param db - Database connection
+ * @param enabled - Whether auto-events are enabled
+ * @param depositId - ID of the deposit that changed
+ * @param invoiceNumber - Invoice number (for reference)
+ * @param previousStatus - Previous status value
+ * @param newStatus - New status value
+ */
+export function onDepositStatusChanged(
+  db: DbType,
+  enabled: boolean,
+  depositId: string,
+  invoiceNumber: string,
+  previousStatus: string,
+  newStatus: string,
+): void {
+  const previousLabel = toLabel(previousStatus);
+  const newLabel = toLabel(newStatus);
+  const title = `Deposit status changed from ${previousLabel} to ${newLabel}`;
+  const body = `Deposit for invoice ${invoiceNumber || 'N/A'} changed from ${previousLabel} to ${newLabel}`;
+
+  tryCreateDiaryEntry(db, enabled, 'invoice_status', title, body, 'invoice_deposit', depositId);
+}
+
+/**
  * Log a milestone delay detection to the diary.
  *
  * @param db - Database connection

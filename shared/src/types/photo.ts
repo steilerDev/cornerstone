@@ -21,19 +21,22 @@ export interface Photo {
   height: number | null;
   takenAt: string | null;
   caption: string | null;
+  areaId: string | null;
   sortOrder: number;
   createdBy: { id: string; displayName: string } | null;
   createdAt: string;
   updatedAt: string;
+  annotatedAt: string | null;
   fileUrl: string;
   thumbnailUrl: string;
 }
 
 /**
- * Request to update photo metadata (caption and sort order).
+ * Request to update photo metadata (caption, area, and sort order).
  */
 export interface UpdatePhotoRequest {
   caption?: string | null;
+  areaId?: string | null;
   sortOrder?: number;
 }
 

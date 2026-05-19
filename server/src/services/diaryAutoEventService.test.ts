@@ -24,6 +24,7 @@ import {
   onAutoRescheduleCompleted,
   onSubsidyStatusChanged,
   onInvoiceCreated,
+  onDepositStatusChanged,
 } from './diaryAutoEventService.js';
 // diaryService is imported internally by diaryAutoEventService — not needed here
 
@@ -308,6 +309,52 @@ describe('diaryAutoEventService', () => {
     it('does not create entry when enabled=false', () => {
       onInvoiceCreated(db, false, 'inv-102', 'INV-2026-102', 'Some Vendor');
       expect(getAllEntries()).toHaveLength(0);
+    });
+  });
+
+  // ─── onDepositStatusChanged (#1403) ────────────────────────────────────────
+
+  describe('onDepositStatusChanged', () => {
+    it('creates a diary entry with invoice_status entryType and invoice_deposit sourceEntityType when enabled=true', () => {
+      onDepositStatusChanged(db, true, 'deposit-001', 'INV-2026-001', 'pending', 'paid');
+
+      const entries = getAllEntries();
+      expect(entries).toHaveLength(1);
+
+      const entry = entries[0]!;
+      expect(entry.entryType).toBe('invoice_status');
+      expect(entry.sourceEntityType).toBe('invoice_deposit');
+      expect(entry.sourceEntityId).toBe('deposit-001');
+      expect(entry.isAutomatic).toBe(true);
+      expect(entry.createdBy).toBeNull();
+    });
+
+    it('does not create a diary entry when enabled=false', () => {
+      onDepositStatusChanged(db, false, 'deposit-002', 'INV-2026-002', 'paid', 'claimed');
+
+      const entries = getAllEntries();
+      expect(entries).toHaveLength(0);
+    });
+
+    it('stores title containing status labels for pending → paid transition', () => {
+      onDepositStatusChanged(db, true, 'deposit-003', 'INV-2026-003', 'pending', 'paid');
+
+      const entries = getAllEntries();
+      expect(entries).toHaveLength(1);
+
+      expect(entries[0]!.title).toContain('Pending');
+      expect(entries[0]!.title).toContain('Paid');
+    });
+
+    it('stores body referencing the invoice number', () => {
+      onDepositStatusChanged(db, true, 'deposit-004', 'INV-2026-004', 'paid', 'claimed');
+
+      const entries = getAllEntries();
+      expect(entries).toHaveLength(1);
+
+      expect(entries[0]!.body).toContain('INV-2026-004');
+      expect(entries[0]!.body).toContain('Paid');
+      expect(entries[0]!.body).toContain('Claimed');
     });
   });
 

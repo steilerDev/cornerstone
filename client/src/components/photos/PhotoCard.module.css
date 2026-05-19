@@ -69,10 +69,48 @@
   word-break: break-word;
 }
 
-.deleteButton {
+.actionButtons {
   position: absolute;
   top: var(--spacing-2);
   right: var(--spacing-2);
+  display: flex;
+  gap: var(--spacing-1);
+  z-index: 10;
+}
+
+.editButton {
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  min-width: 32px;
+  padding: 0;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.editButton:hover {
+  background: rgba(59, 130, 246, 1);
+  transform: scale(1.1);
+}
+
+.editButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.editButton:active {
+  transform: scale(0.95);
+}
+
+.deleteButton {
   background: rgba(220, 38, 38, 0.9);
   color: white;
   border: none;
@@ -89,7 +127,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
+  flex-shrink: 0;
 }
 
 .deleteButton:hover {
@@ -112,6 +150,7 @@
     border-radius: var(--radius-sm);
   }
 
+  .editButton,
   .deleteButton {
     width: 36px;
     height: 36px;

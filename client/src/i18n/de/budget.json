@@ -186,7 +186,9 @@
         "claimed": "Beantragt",
         "quotation": "Angebot"
       },
-      "categoryVendorSeparator": " · "
+      "categoryVendorSeparator": " · ",
+      "typeColumnHeader": "Typ",
+      "statusColumnHeader": "Status"
     },
     "budgetLines": {
       "move": {
@@ -394,6 +396,7 @@
     },
     "quotedLabel": "Angebot",
     "quotedAmount": "Angebotsbetrag",
+    "invoicedAmount": "Rechnungsbetrag",
     "invoiceTable": {
       "invoiceNumber": "Rechnung #",
       "amount": "Betrag",
@@ -480,6 +483,154 @@
     "messages": {
       "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
       "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
+    },
+    "budgetLines": {
+      "createFormLegend": "Neue Budgetposition erstellen",
+      "autoLinkedSuccess": "Budgetposition erstellt und mit {{amount}} hinzugefügt",
+      "sectionTitle": "Budgetpositionen",
+      "addButton": "Budgetposition Hinzufügen",
+      "loading": "Budgetpositionen werden geladen…",
+      "empty": {
+        "message": "Keine Budgetpositionen verknüpft",
+        "description": "Verknüpfen Sie Budgetpositionen, um Teile dieser Rechnung bestimmten Arbeitspaketen oder Haushaltsartikeln zuzuordnen."
+      },
+      "countLabel_one": "{{count}} Budgetposition verknüpft",
+      "countLabel_other": "{{count}} Budgetpositionen verknüpft",
+      "columns": {
+        "description": "Beschreibung",
+        "category": "Kategorie",
+        "planned": "Geplant",
+        "itemized": "Aufgeschlüsselt",
+        "linkedItem": "Verknüpftes Element",
+        "actions": "Aktionen",
+        "remaining": "Verbleibend"
+      },
+      "menu": {
+        "edit": "Bearbeiten",
+        "remove": "Entfernen",
+        "ariaLabel": "Aktionen für Budgetposition {{description}}"
+      },
+      "modal": {
+        "editTitle": "Budgetposition Bearbeiten",
+        "removeTitle": "Budgetposition Entfernen",
+        "removeConfirm": "Diese Budgetposition wird von der Rechnung getrennt. Die Budgetposition selbst verbleibt im Arbeitspaket oder Haushaltsartikel.",
+        "removeConfirmButton": "Entfernen",
+        "removing": "Wird entfernt…"
+      },
+      "form": {
+        "itemizedAmount": "Aufgeschlüsselter Betrag",
+        "saving": "Wird gespeichert…",
+        "required": "*"
+      },
+      "editError": {
+        "amountInvalid": "Betrag muss eine nicht-negative Zahl sein.",
+        "exceedsTotal": "Der neue Betrag würde den Rechnungsgesamtbetrag überschreiten.",
+        "saveFailed": "Budgetposition konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
+      },
+      "picker": {
+        "title": "Budgetposition Hinzufügen",
+        "step2Title": "Budgetposition für {{itemTitle}} auswählen",
+        "closeAriaLabel": "Budgetpositions-Auswahl schließen",
+        "workItemTab": "Arbeitspaket",
+        "householdItemTab": "Haushaltsartikel",
+        "separator": "oder",
+        "loadingLines": "Budgetpositionen werden geladen…",
+        "noUnlinkedLines": "Keine nicht verknüpften Budgetpositionen für dieses Element.",
+        "createLine": "Budgetposition Erstellen",
+        "unnamedBudgetLine": "Unbenannte Budgetposition",
+        "plannedLabel": "Geplant: {{amount}}",
+        "itemizedAmountAriaLabel": "Aufgeschlüsselter Betrag für {{description}}",
+        "budgetLineGeneric": "Budgetposition",
+        "remainingToAllocate": "Noch zuzuordnen:",
+        "addSelectedLines": "Ausgewählte Positionen Hinzufügen",
+        "backButton": "← Zurück",
+        "loadError": "Budgetpositionen konnten nicht geladen werden.",
+        "loadFormError": "Formulardaten konnten nicht geladen werden.",
+        "error": {
+          "plannedAmountInvalid": "Geplanter Betrag muss eine gültige nicht-negative Zahl sein.",
+          "quantityInvalid": "Menge muss eine gültige positive Zahl sein.",
+          "unitPriceInvalid": "Stückpreis muss eine gültige nicht-negative Zahl sein.",
+          "exceedsTotal": "Das Verknüpfen dieser Budgetposition würde den Rechnungsgesamtbetrag überschreiten.",
+          "alreadyLinked": "Diese Budgetposition ist bereits mit einer anderen Rechnung verknüpft.",
+          "linkFailed": "Budgetposition konnte nicht verknüpft werden. Bitte versuchen Sie es erneut.",
+          "createFailed": "Budgetposition konnte nicht erstellt werden."
+        }
+      },
+      "remainingAriaLabel": "Verbleibender Betrag: {{amount}}",
+      "loadError": "Budgetpositionen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "dismissError": "Schließen",
+      "dismissErrorAriaLabel": "Fehler schließen"
+    },
+    "deposits": {
+      "sectionTitle": "Abschlagszahlungen",
+      "countChip": "{{count}} Abschlagszahlungen",
+      "addButton": "Abschlagszahlung Hinzufügen",
+      "loading": "Abschlagszahlungen werden geladen...",
+      "empty": {
+        "message": "Noch keine Abschlagszahlungen",
+        "description": "Teilen Sie diese Rechnung in Teilzahlungen auf, indem Sie eine Abschlagszahlung hinzufügen."
+      },
+      "finalPayment": "Schlusszahlung",
+      "columns": {
+        "dueDate": "Fälligkeitsdatum",
+        "amount": "Betrag",
+        "status": "Status",
+        "paidDate": "Bezahlt am",
+        "claimedDate": "Eingereicht am",
+        "description": "Beschreibung",
+        "actions": "Aktionen"
+      },
+      "mobile": {
+        "due": "Fällig",
+        "paid": "Bezahlt",
+        "claimed": "Eingereicht"
+      },
+      "menu": {
+        "markPaid": "Als bezahlt markieren…",
+        "markClaimed": "Als eingereicht markieren…",
+        "revertToPending": "Auf ausstehend zurücksetzen",
+        "revertToPaid": "Auf bezahlt zurücksetzen",
+        "edit": "Bearbeiten",
+        "delete": "Löschen",
+        "ariaLabel": "Aktionen für Abschlagszahlung {{description}}"
+      },
+      "modal": {
+        "addTitle": "Abschlagszahlung Hinzufügen",
+        "editTitle": "Abschlagszahlung Bearbeiten",
+        "deleteTitle": "Abschlagszahlung Löschen",
+        "deleteConfirm": "Diese Abschlagszahlung löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+        "deleteWarningPaidClaimed": "Diese Abschlagszahlung wurde als bezahlt/eingereicht markiert. Beim Löschen wird ihr Beitrag aus den Budgetgesamtwerten entfernt.",
+        "markPaidTitle": "Als bezahlt markieren",
+        "markClaimedTitle": "Als eingereicht markieren"
+      },
+      "form": {
+        "amount": "Betrag",
+        "dueDate": "Fälligkeitsdatum",
+        "status": "Status",
+        "paidDate": "Bezahlt am",
+        "claimedDate": "Eingereicht am",
+        "description": "Beschreibung",
+        "amountPlaceholder": "0.00",
+        "descriptionPlaceholder": "Optionale Beschreibung",
+        "charCounter": "{{count}} / 500",
+        "saving": "Wird gespeichert...",
+        "required": "*"
+      },
+      "errors": {
+        "exceedsTotal": "Betrag der Abschlagszahlung überschreitet den Rechnungsgesamtbetrag. Verfügbarer Spielraum: {{availableHeadroom}}",
+        "invalidTransition": "Statuswechsel von {{from}} nach {{to}} nicht möglich",
+        "invalidDate": "Ungültiges Datum für den ausgewählten Status",
+        "loadError": "Abschlagszahlungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+        "saveError": "Abschlagszahlung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+        "deleteError": "Abschlagszahlung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
+        "revertError": "Status der Abschlagszahlung konnte nicht zurückgesetzt werden. Bitte versuchen Sie es erneut.",
+        "revertNetworkError": "Netzwerkfehler – Status der Abschlagszahlung konnte nicht zurückgesetzt werden. Bitte versuchen Sie es erneut.",
+        "stateConfirmNetworkError": "Netzwerkfehler – Status der Abschlagszahlung konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
+      },
+      "stateConfirm": {
+        "paidDateLabel": "Bezahlt am",
+        "claimedDateLabel": "Eingereicht am"
+      }
     }
   },
   "subsidies": {
@@ -615,6 +766,9 @@
     "summaryPaid": "Bezahlt",
     "summaryClaimed": "Eingereicht",
     "summaryQuotation": "Angebot",
+    "summaryOverdue": "Überfällig",
+    "summaryOverdueWarning_one": "{{count}} ausstehende Rechnung überfällig",
+    "summaryOverdueWarning_other": "{{count}} ausstehende Rechnungen überfällig",
     "filterByStatus": "Nach Status filtern",
     "filterByVendor": "Nach Auftragnehmer filtern",
     "allStatuses": "Alle Status",

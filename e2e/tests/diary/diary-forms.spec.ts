@@ -2,14 +2,18 @@
  * E2E tests for Diary Entry Create, Edit, and Delete flows
  *
  * Story #805: Diary entry creation, editing, and deletion
+ * UX Polish #1435: Type-card click fires POST immediately; no form step on create page.
  *
  * Scenarios covered:
- * 1.  [smoke] Type selector shows 5 type cards at /diary/new
- * 2.  [smoke] Create general_note — happy path (fill body, submit, verify detail page)
- *             Note: UAT R2 #867 changed post-creation navigation back to /diary/:id (detail page)
- * 3.  Create daily_log with weather/temperature/workers metadata
- * 4.  Create site_visit with inspector name and outcome metadata
- * 5.  Validation error — empty body shows error, no navigation
+ * 1.  [smoke] Type selector shows 5 type cards at /diary/new;
+ *             clicking a type card fires POST and navigates to /diary/:id/edit (#1435)
+ * 2.  [smoke] Create general_note — happy path (type-card-click draft flow):
+ *             click type card → POST draft → /diary/:id/edit → promote → /diary/:id
+ *             Note: #1435 changed trigger from body blur to type-card click.
+ * 3.  Create daily_log with weather/temperature/workers metadata (type-card-click flow)
+ * 4.  Create site_visit with inspector name and outcome metadata (type-card-click flow)
+ * 5.  [removed] Validation error on submit — removed in #1426 (no submit button on create page).
+ *              Coverage moved to diary-drafts.spec.ts Scenario 10 (promote-time validation).
  * 6.  Edit entry — form pre-populated with existing values, save redirects to detail
  * 7.  Delete from edit page — modal confirm, redirects to /diary
  * 8.  Delete from detail page — modal confirm, redirects to /diary
@@ -26,6 +30,7 @@ import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/a
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1: Type selector shows 5 type cards
 // ─────────────────────────────────────────────────────────────────────────────
+
 test.describe('Type selector (Scenario 1)', { tag: '@responsive' }, () => {
   test(
     'Create page shows 5 entry type cards at /diary/new',
@@ -50,16 +55,34 @@ test.describe('Type selector (Scenario 1)', { tag: '@responsive' }, () => {
     },
   );
 
-  test('Clicking a type card transitions to the form step', async ({ page }) => {
+  test('Clicking a type card fires POST and navigates to /diary/:id/edit', async ({ page }) => {
     const createPage = new DiaryEntryCreatePage(page);
-    await createPage.goto();
+    const editPage = new DiaryEntryEditPage(page);
+    let draftId: string | null = null;
 
-    // Clicking "General Note" transitions to the form
-    await createPage.selectType('general_note');
+    try {
+      await createPage.goto();
 
-    // Form fields should be visible
-    await expect(createPage.bodyTextarea).toBeVisible();
-    await expect(createPage.submitButton).toBeVisible();
+      // #1435: clicking a type card fires POST /api/diary-entries immediately
+      // and navigates to /diary/:id/edit (no intermediate form step).
+      const draftResponsePromise = page.waitForResponse(
+        (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
+      );
+
+      await createPage.typeCard('general_note').click();
+      const draftResponse = await draftResponsePromise;
+      expect(draftResponse.ok()).toBeTruthy();
+
+      const responseBody = (await draftResponse.json()) as { id: string };
+      draftId = responseBody.id;
+
+      // Edit page should load with draft badge
+      await page.waitForURL(/diary\/.+\/edit$/);
+      await expect(editPage.draftBadge).toBeVisible();
+      await expect(editPage.heading).toBeVisible();
+    } finally {
+      if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+    }
   });
 });
 
@@ -72,39 +95,60 @@ test.describe('Create general_note — happy path (Scenario 2)', { tag: '@respon
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       const createPage = new DiaryEntryCreatePage(page);
+      const editPage = new DiaryEntryEditPage(page);
       const detailPage = new DiaryEntryDetailPage(page);
       let createdId: string | null = null;
 
       try {
         await createPage.goto();
-        await createPage.selectType('general_note');
 
-        // Fill required fields
-        const body = `${testPrefix} general note body text`;
-        const title = `${testPrefix} General Note Create Test`;
-
-        await createPage.titleInput.waitFor({ state: 'visible' });
-        await createPage.titleInput.fill(title);
-        await createPage.bodyTextarea.fill(body);
-
-        // Register the waitForResponse BEFORE submitting
-        const responsePromise = page.waitForResponse(
+        // #1435 flow: clicking the type card fires POST /api/diary-entries (status: 'draft')
+        // and navigates to /diary/:id/edit (replace history). No form step on create page.
+        const draftResponsePromise = page.waitForResponse(
           (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
         );
 
-        await createPage.submit();
-        const response = await responsePromise;
-        expect(response.ok()).toBeTruthy();
+        await createPage.typeCard('general_note').click();
+        const draftResponse = await draftResponsePromise;
+        expect(draftResponse.ok(), 'Draft creation should succeed').toBeTruthy();
 
-        const responseBody = (await response.json()) as { id: string };
+        const responseBody = (await draftResponse.json()) as { id: string };
         createdId = responseBody.id;
 
-        // UAT R2 fix #867: after creation, the app navigates to the detail page /diary/:id
-        // (not /diary/:id/edit — photos are now uploaded during the creation flow itself)
-        await page.waitForURL(`**/diary/${createdId}`);
+        // After type-card click: navigate to /diary/:id/edit (replace history)
+        await page.waitForURL(/diary\/.+\/edit$/);
+        expect(page.url()).toMatch(new RegExp(`/diary/${createdId}/edit$`));
+
+        // The edit page should show the Draft badge
+        await expect(editPage.draftBadge).toBeVisible();
+        await expect(editPage.heading).toBeVisible();
+
+        // Fill body and title on the edit page before promoting
+        const body = `${testPrefix} general note body text`;
+        const title = `${testPrefix} General Note Create Test`;
+
+        await editPage.bodyTextarea.fill(body);
+        await editPage.titleInput.waitFor({ state: 'visible' });
+        await editPage.titleInput.fill(title);
+
+        // Register the promote PATCH listener BEFORE clicking Save
+        const promoteResponsePromise = page.waitForResponse(
+          (resp) =>
+            resp.url().includes(`/api/diary-entries/${createdId}/promote`) &&
+            resp.request().method() === 'PATCH',
+        );
+
+        // Click "Save" — promotes the draft to saved status
+        await editPage.submitButton.scrollIntoViewIfNeeded();
+        await editPage.submitButton.click();
+        const promoteResponse = await promoteResponsePromise;
+        expect(promoteResponse.ok(), 'Promote should succeed').toBeTruthy();
+
+        // After promote: navigate to /diary/:id (detail page)
+        await page.waitForURL(new RegExp(`/diary/${createdId}$`));
         expect(page.url()).toMatch(new RegExp(`/diary/${createdId}$`));
 
-        // Detail page back button should be visible
+        // Detail page back button should be visible (confirms we are on the detail page)
         await expect(detailPage.backButton).toBeVisible();
       } finally {
         if (createdId) await deleteDiaryEntryViaApi(page, createdId);
@@ -122,37 +166,69 @@ test.describe('Create daily_log with metadata (Scenario 3)', () => {
     testPrefix,
   }) => {
     const createPage = new DiaryEntryCreatePage(page);
+    const editPage = new DiaryEntryEditPage(page);
     const detailPage = new DiaryEntryDetailPage(page);
     let createdId: string | null = null;
 
     try {
       await createPage.goto();
-      await createPage.selectType('daily_log');
 
-      const body = `${testPrefix} daily log with metadata`;
-
-      await createPage.bodyTextarea.fill(body);
-
-      // Fill daily_log-specific metadata
-      await createPage.weatherSelect.waitFor({ state: 'visible' });
-      await createPage.weatherSelect.selectOption('sunny');
-      await createPage.temperatureInput.fill('22');
-      await createPage.workersInput.fill('8');
-
-      // Register the response listener BEFORE submitting
-      const responsePromise = page.waitForResponse(
+      // #1435 flow: clicking the type card fires POST immediately.
+      // Register the POST listener BEFORE clicking.
+      const draftResponsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
       );
 
-      await createPage.submit();
-      const response = await responsePromise;
-      expect(response.ok()).toBeTruthy();
+      await createPage.typeCard('daily_log').click();
+      const draftResponse = await draftResponsePromise;
+      expect(draftResponse.ok()).toBeTruthy();
 
-      const responseBody = (await response.json()) as { id: string };
+      const responseBody = (await draftResponse.json()) as { id: string };
       createdId = responseBody.id;
 
-      // UAT R2 fix #867: navigates to detail page /diary/:id after creation
-      await page.waitForURL(`**/diary/${createdId}`);
+      // Navigates to /diary/:id/edit after type-card click
+      await page.waitForURL(/diary\/.+\/edit$/);
+
+      // Draft badge should be visible on the edit page
+      await expect(editPage.draftBadge).toBeVisible();
+      await expect(editPage.heading).toBeVisible();
+
+      // Fill body on the edit page before promoting
+      const body = `${testPrefix} daily log with metadata`;
+      await editPage.bodyTextarea.fill(body);
+
+      // Fill metadata on the edit page. The edit-page metadata onChange handlers (setDailyLogWeather
+      // etc.) correctly update React state. The auto-save effect fires immediately after each change.
+      // The promote request (below) reads from React state, so it will include all metadata values.
+      await editPage.weatherSelect.waitFor({ state: 'visible' });
+
+      // Register PATCH listener before the weather change to wait for the auto-save
+      const autoSavePatchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes(`/api/diary-entries/${createdId}`) &&
+          resp.request().method() === 'PATCH' &&
+          !resp.url().includes('/promote'),
+      );
+      await editPage.weatherSelect.selectOption('sunny');
+      await editPage.workersInput.fill('8');
+      // Wait for at least one auto-save PATCH to confirm the values are persisted server-side
+      await autoSavePatchPromise;
+
+      // Register the promote PATCH listener BEFORE clicking Save
+      const promoteResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes(`/api/diary-entries/${createdId}/promote`) &&
+          resp.request().method() === 'PATCH',
+      );
+
+      // Click "Save" to promote the draft — promote sends all current field values from React state
+      await editPage.submitButton.scrollIntoViewIfNeeded();
+      await editPage.submitButton.click();
+      const promoteResponse = await promoteResponsePromise;
+      expect(promoteResponse.ok()).toBeTruthy();
+
+      // After promote: navigate to /diary/:id (detail page)
+      await page.waitForURL(new RegExp(`/diary/${createdId}$`));
 
       // Verify metadata is shown on the detail page.
       // DiaryMetadataSummary for daily_log renders: weather emoji + label, and workers count.
@@ -179,36 +255,70 @@ test.describe('Create site_visit with metadata (Scenario 4)', () => {
     testPrefix,
   }) => {
     const createPage = new DiaryEntryCreatePage(page);
+    const editPage = new DiaryEntryEditPage(page);
     const detailPage = new DiaryEntryDetailPage(page);
     let createdId: string | null = null;
 
     try {
       await createPage.goto();
-      await createPage.selectType('site_visit');
 
-      const body = `${testPrefix} site visit with outcome`;
-
-      await createPage.bodyTextarea.fill(body);
-
-      // Fill site_visit-specific metadata (both required)
-      await createPage.inspectorNameInput.waitFor({ state: 'visible' });
-      await createPage.inspectorNameInput.fill('Jane Inspector');
-      await createPage.outcomeSelect.selectOption('pass');
-
-      // Register the response listener BEFORE submitting
-      const responsePromise = page.waitForResponse(
+      // #1435 flow: clicking the type card fires POST immediately.
+      // Register the POST listener BEFORE clicking.
+      const draftResponsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/api/diary-entries') && resp.request().method() === 'POST',
       );
 
-      await createPage.submit();
-      const response = await responsePromise;
-      expect(response.ok()).toBeTruthy();
+      await createPage.typeCard('site_visit').click();
+      const draftResponse = await draftResponsePromise;
+      expect(draftResponse.ok()).toBeTruthy();
 
-      const responseBody = (await response.json()) as { id: string };
+      const responseBody = (await draftResponse.json()) as { id: string };
       createdId = responseBody.id;
 
-      // UAT R2 fix #867: navigates to detail page /diary/:id after creation
-      await page.waitForURL(`**/diary/${createdId}`);
+      // Navigates to /diary/:id/edit after type-card click
+      await page.waitForURL(/diary\/.+\/edit$/);
+
+      // Draft badge should be visible on the edit page
+      await expect(editPage.draftBadge).toBeVisible();
+      await expect(editPage.heading).toBeVisible();
+
+      // Fill body on the edit page before promoting
+      const body = `${testPrefix} site visit with outcome`;
+      await editPage.bodyTextarea.fill(body);
+
+      // Fill site_visit metadata on the edit page. Both inspector name and outcome are required
+      // for site_visit promote; filling them on the edit page ensures validate passes at promote.
+      await editPage.inspectorNameInput.waitFor({ state: 'visible' });
+
+      // Register PATCH listener before inspector name fill to wait for auto-save
+      const autoSavePatchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes(`/api/diary-entries/${createdId}`) &&
+          resp.request().method() === 'PATCH' &&
+          !resp.url().includes('/promote'),
+      );
+      await editPage.inspectorNameInput.fill('Jane Inspector');
+      // Blur inspector name to trigger debounced auto-save (onFieldBlur fires triggerAutoSave)
+      await editPage.inspectorNameInput.press('Tab');
+      await editPage.outcomeSelect.selectOption('pass');
+      // Wait for auto-save to confirm inspector + outcome are persisted before promoting
+      await autoSavePatchPromise;
+
+      // Register the promote PATCH listener BEFORE clicking Save
+      const promoteResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes(`/api/diary-entries/${createdId}/promote`) &&
+          resp.request().method() === 'PATCH',
+      );
+
+      // Click "Save" to promote — promote sends all current React state (including inspector+outcome)
+      await editPage.submitButton.scrollIntoViewIfNeeded();
+      await editPage.submitButton.click();
+      const promoteResponse = await promoteResponsePromise;
+      expect(promoteResponse.ok()).toBeTruthy();
+
+      // After promote: navigate to /diary/:id (detail page)
+      await page.waitForURL(new RegExp(`/diary/${createdId}$`));
 
       // Verify metadata on the detail page
       await detailPage.backButton.waitFor({ state: 'visible' });
@@ -223,72 +333,11 @@ test.describe('Create site_visit with metadata (Scenario 4)', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5: Validation error — empty body
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Validation errors (Scenario 5)', () => {
-  test('Submitting with an empty body shows a validation error and does not navigate', async ({
-    page,
-  }) => {
-    const createPage = new DiaryEntryCreatePage(page);
-    await createPage.goto();
-
-    // Select a type to get to the form step
-    await createPage.selectType('general_note');
-
-    // Fill the body with whitespace only: native HTML5 required validation passes
-    // (textarea is non-empty at the DOM level) but React's validateForm() trims the
-    // value and produces a "Entry text is required" error.
-    await createPage.bodyTextarea.fill(' ');
-
-    // Submit — handleSubmit fires, validateForm() detects trimmed body is empty
-    await createPage.submit();
-
-    // URL should remain on /diary/new
-    expect(page.url()).toContain('/diary/new');
-
-    // Validation error should be shown via role="alert"
-    const errors = await createPage.getValidationErrors();
-    expect(errors.length).toBeGreaterThan(0);
-    const hasBodyError = errors.some((e) => e.toLowerCase().includes('entry text is required'));
-    expect(hasBodyError).toBe(true);
-  });
-
-  test('site_visit form requires inspector name', async ({ page }) => {
-    const createPage = new DiaryEntryCreatePage(page);
-    await createPage.goto();
-    await createPage.selectType('site_visit');
-
-    // Fill body so the textarea's native required validation passes
-    await createPage.bodyTextarea.fill('Site visit body text');
-
-    // Fill inspector name with whitespace only — native required on the text input passes
-    // (non-empty), but React validateForm() trims the value and produces an error.
-    // Select an outcome value so the outcome select's native required validation also passes,
-    // allowing handleSubmit to fire and exercise the React validation path.
-    await createPage.inspectorNameInput.waitFor({ state: 'visible' });
-    await createPage.inspectorNameInput.fill(' ');
-    await createPage.outcomeSelect.selectOption('pass');
-    // Reset outcome back to empty via selectOption to test missing outcome error.
-    // The outcome select uses value="" for the placeholder option — native validation
-    // would block this, so instead we check inspector-only error when outcome is present.
-    // (Testing both missing fields simultaneously is not feasible without disabling native
-    // HTML5 form validation, which is browser-managed for <select required> with value="".)
-
-    await createPage.submit();
-
-    // URL should remain on /diary/new
-    expect(page.url()).toContain('/diary/new');
-
-    // React validation error for the whitespace-only inspector name should appear
-    const errors = await createPage.getValidationErrors();
-    expect(errors.length).toBeGreaterThan(0);
-    const hasInspectorError = errors.some((e) =>
-      e.toLowerCase().includes('inspector name is required'),
-    );
-    expect(hasInspectorError).toBe(true);
-  });
-});
+// NOTE: Scenario 5 (submit-based validation errors on the create page) was removed in #1426.
+// The create page no longer has a submit button — it uses an auto-draft/blur flow instead.
+// Validation now fires at promote-time on the edit page.
+// Coverage is provided by diary-drafts.spec.ts Scenario 10:
+//   "Clicking Save with empty body shows validation error; URL unchanged; entry stays draft"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 6: Edit entry — form pre-populated, save redirects to detail
@@ -694,19 +743,9 @@ test.describe('Responsive layout (Scenario 10)', { tag: '@responsive' }, () => {
     },
   );
 
-  test('Create page (form step) has no horizontal scroll on current viewport', async ({ page }) => {
-    const createPage = new DiaryEntryCreatePage(page);
-    await createPage.goto();
-    await createPage.selectType('general_note');
-
-    await createPage.bodyTextarea.waitFor({ state: 'visible' });
-
-    const hasHorizontalScroll = await page.evaluate(() => {
-      return document.documentElement.scrollWidth > window.innerWidth;
-    });
-
-    expect(hasHorizontalScroll).toBe(false);
-  });
+  // NOTE: The "Create page (form step)" test is removed in #1435 — the form step no longer
+  // exists on /diary/new. Clicking a type card fires POST and navigates to /diary/:id/edit.
+  // Responsive coverage for the edit page form is in the "Edit page has no horizontal scroll" test.
 
   test('Edit page has no horizontal scroll on current viewport', async ({ page, testPrefix }) => {
     const editPage = new DiaryEntryEditPage(page);

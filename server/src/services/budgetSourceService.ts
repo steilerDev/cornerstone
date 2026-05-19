@@ -15,6 +15,11 @@ import {
   budgetCategories,
   vendors,
 } from '../db/schema.js';
+import {
+  computeStatusContribution,
+  splitByDeposits,
+  type DepositAwareRow,
+} from './shared/depositAggregateUtils.js';
 import type {
   BudgetSource,
   BudgetSourceType,
@@ -119,56 +124,74 @@ function computeUsedAmount(db: DbType, sourceId: string): number {
 
 /**
  * Compute the claimed amount for a budget source.
- * Sums invoice amounts where status = 'claimed' and the invoice's budget line
- * references this source (either work item OR household item budget). Returns 0 if no claimed invoices exist.
+ * Sums claimed contributions from invoice budget lines linked to this source,
+ * including deposits split proportionally by amount.
+ * Returns 0 if no claimed invoices exist.
  */
 function computeClaimedAmount(db: DbType, sourceId: string): number {
-  // EPIC-15: Join through invoiceBudgetLines junction table; fixed in EPIC-16 to include household items
-  const result = db.get<{ total: number }>(
-    sql`SELECT COALESCE(SUM(ibl.itemized_amount), 0) AS total
+  const rows = db.all<DepositAwareRow>(
+    sql`SELECT
+      ibl.id              AS ibl_id,
+      ibl.itemized_amount AS itemized_amount,
+      i.id                AS invoice_id,
+      i.amount            AS invoice_amount,
+      i.status            AS invoice_status,
+      d.id                AS deposit_id,
+      d.amount            AS deposit_amount,
+      d.status            AS deposit_status
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
-    WHERE i.status = 'claimed'
-      AND (
-        (ibl.work_item_budget_id IS NOT NULL AND EXISTS (
-          SELECT 1 FROM work_item_budgets wib
-          WHERE wib.id = ibl.work_item_budget_id AND wib.budget_source_id = ${sourceId}
-        ))
-        OR
-        (ibl.household_item_budget_id IS NOT NULL AND EXISTS (
-          SELECT 1 FROM household_item_budgets hib
-          WHERE hib.id = ibl.household_item_budget_id AND hib.budget_source_id = ${sourceId}
-        ))
-      )`,
+    LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
+    WHERE (
+      (ibl.work_item_budget_id IS NOT NULL AND EXISTS (
+        SELECT 1 FROM work_item_budgets wib
+        WHERE wib.id = ibl.work_item_budget_id AND wib.budget_source_id = ${sourceId}
+      ))
+      OR
+      (ibl.household_item_budget_id IS NOT NULL AND EXISTS (
+        SELECT 1 FROM household_item_budgets hib
+        WHERE hib.id = ibl.household_item_budget_id AND hib.budget_source_id = ${sourceId}
+      ))
+    )`,
   );
-  return result?.total ?? 0;
+
+  return computeStatusContribution(rows, 'claimed');
 }
 
 /**
  * Compute the unclaimed (paid but not claimed) amount for a budget source.
- * Sums invoice amounts where status = 'paid' and the invoice's budget line
- * references this source (either work item OR household item budget). Returns 0 if no paid invoices exist.
+ * Sums paid contributions from invoice budget lines linked to this source,
+ * including deposits split proportionally by amount.
+ * Returns 0 if no paid invoices exist.
  */
 function computeUnclaimedAmount(db: DbType, sourceId: string): number {
-  // EPIC-15: Join through invoiceBudgetLines junction table; fixed in EPIC-16 to include household items
-  const result = db.get<{ total: number }>(
-    sql`SELECT COALESCE(SUM(ibl.itemized_amount), 0) AS total
+  const rows = db.all<DepositAwareRow>(
+    sql`SELECT
+      ibl.id              AS ibl_id,
+      ibl.itemized_amount AS itemized_amount,
+      i.id                AS invoice_id,
+      i.amount            AS invoice_amount,
+      i.status            AS invoice_status,
+      d.id                AS deposit_id,
+      d.amount            AS deposit_amount,
+      d.status            AS deposit_status
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
-    WHERE i.status = 'paid'
-      AND (
-        (ibl.work_item_budget_id IS NOT NULL AND EXISTS (
-          SELECT 1 FROM work_item_budgets wib
-          WHERE wib.id = ibl.work_item_budget_id AND wib.budget_source_id = ${sourceId}
-        ))
-        OR
-        (ibl.household_item_budget_id IS NOT NULL AND EXISTS (
-          SELECT 1 FROM household_item_budgets hib
-          WHERE hib.id = ibl.household_item_budget_id AND hib.budget_source_id = ${sourceId}
-        ))
-      )`,
+    LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
+    WHERE (
+      (ibl.work_item_budget_id IS NOT NULL AND EXISTS (
+        SELECT 1 FROM work_item_budgets wib
+        WHERE wib.id = ibl.work_item_budget_id AND wib.budget_source_id = ${sourceId}
+      ))
+      OR
+      (ibl.household_item_budget_id IS NOT NULL AND EXISTS (
+        SELECT 1 FROM household_item_budgets hib
+        WHERE hib.id = ibl.household_item_budget_id AND hib.budget_source_id = ${sourceId}
+      ))
+    )`,
   );
-  return result?.total ?? 0;
+
+  return computeStatusContribution(rows, 'paid');
 }
 
 /**
@@ -190,43 +213,104 @@ function countBudgetLineReferences(db: DbType, sourceId: string): number {
 /**
  * Compute the discretionary invoice amount for a given status.
  * Includes:
- * 1. Unallocated remainder: invoice.amount - SUM(itemized_amount) for invoices with this status
- * 2. Lines with no budget_source: amount allocated to budget lines where source is NULL
+ * 1. Unallocated remainder: invoice.amount - SUM(itemized_amount) for invoices with this status,
+ *    split proportionally by deposits
+ * 2. Lines with no budget_source: amount allocated to budget lines where source is NULL,
+ *    split proportionally by deposits
  */
 function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
-  // 1. Unallocated remainder: invoice.amount - SUM(itemized_amount) for invoices with this status
-  const remainderResult = db.get<{ total: number }>(
-    sql`SELECT COALESCE(SUM(remainder), 0) AS total
-    FROM (
-      SELECT i.amount - COALESCE(SUM(ibl.itemized_amount), 0) AS remainder
-      FROM invoices i
-      LEFT JOIN invoice_budget_lines ibl ON ibl.invoice_id = i.id
-      WHERE i.status = ${status}
-      GROUP BY i.id
-    )
-    WHERE remainder > 0`,
+  // 1. Unallocated remainder with deposit-aware split
+  // Fetch all invoices with unallocated remainder, along with their deposits
+  const remainderRows = db.all<{
+    invoice_id: string;
+    invoice_amount: number;
+    invoice_status: string;
+    total_itemized: number | null;
+    deposit_id: string | null;
+    deposit_amount: number | null;
+    deposit_status: string | null;
+  }>(
+    sql`SELECT
+      i.id              AS invoice_id,
+      i.amount          AS invoice_amount,
+      i.status          AS invoice_status,
+      COALESCE(SUM(ibl.itemized_amount), 0) AS total_itemized,
+      d.id              AS deposit_id,
+      d.amount          AS deposit_amount,
+      d.status          AS deposit_status
+    FROM invoices i
+    LEFT JOIN invoice_budget_lines ibl ON ibl.invoice_id = i.id
+    LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
+    WHERE i.status = ${status}
+    GROUP BY i.id, d.id
+    HAVING (i.amount - COALESCE(SUM(ibl.itemized_amount), 0)) > 0`,
   );
 
-  // 2. Lines with no budget_source: amount allocated to budget lines where source is NULL
-  const noSourceResult = db.get<{ total: number }>(
-    sql`SELECT COALESCE(SUM(ibl.itemized_amount), 0) AS total
+  // Build remainder amounts map and split by deposits
+  let remainderTotal = 0;
+  if (remainderRows.length > 0) {
+    // First pass: collect remainder amounts
+    const remainderAmountByInvoice = new Map<string, number>();
+    for (const row of remainderRows) {
+      if (!remainderAmountByInvoice.has(row.invoice_id)) {
+        const remainderAmount = row.invoice_amount - (row.total_itemized ?? 0);
+        remainderAmountByInvoice.set(row.invoice_id, remainderAmount > 0 ? remainderAmount : 0);
+      }
+    }
+
+    // Split invoices by deposits
+    const splitsByInvoiceId = splitByDeposits(remainderRows);
+
+    // Compute proportional split for remainder
+    for (const [invoiceId, split] of splitsByInvoiceId) {
+      const remainderAmount = remainderAmountByInvoice.get(invoiceId)!;
+
+      // Residual contribution under parent invoice status
+      const residualAmount = remainderAmount * split.residualFraction;
+      if (split.invoiceStatus === status) {
+        remainderTotal += residualAmount;
+      }
+
+      // Per-deposit contributions
+      for (const df of split.depositFractions) {
+        if (df.depositStatus === status) {
+          const depositContribution = remainderAmount * df.fraction;
+          remainderTotal += depositContribution;
+        }
+      }
+    }
+  }
+
+  // 2. Lines with no budget_source with deposit-aware split
+  const noSourceRows = db.all<DepositAwareRow>(
+    sql`SELECT
+      ibl.id              AS ibl_id,
+      ibl.itemized_amount AS itemized_amount,
+      i.id                AS invoice_id,
+      i.amount            AS invoice_amount,
+      i.status            AS invoice_status,
+      d.id                AS deposit_id,
+      d.amount            AS deposit_amount,
+      d.status            AS deposit_status
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
-    WHERE i.status = ${status}
-      AND (
-        (ibl.work_item_budget_id IS NOT NULL AND EXISTS (
-          SELECT 1 FROM work_item_budgets wib
-          WHERE wib.id = ibl.work_item_budget_id AND wib.budget_source_id IS NULL
-        ))
-        OR
-        (ibl.household_item_budget_id IS NOT NULL AND EXISTS (
-          SELECT 1 FROM household_item_budgets hib
-          WHERE hib.id = ibl.household_item_budget_id AND hib.budget_source_id IS NULL
-        ))
-      )`,
+    LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
+    WHERE (
+      (ibl.work_item_budget_id IS NOT NULL AND EXISTS (
+        SELECT 1 FROM work_item_budgets wib
+        WHERE wib.id = ibl.work_item_budget_id AND wib.budget_source_id IS NULL
+      ))
+      OR
+      (ibl.household_item_budget_id IS NOT NULL AND EXISTS (
+        SELECT 1 FROM household_item_budgets hib
+        WHERE hib.id = ibl.household_item_budget_id AND hib.budget_source_id IS NULL
+      ))
+    )`,
   );
 
-  return (remainderResult?.total ?? 0) + (noSourceResult?.total ?? 0);
+  const noSourceTotal = computeStatusContribution(noSourceRows, status);
+
+  return remainderTotal + noSourceTotal;
 }
 
 /**
@@ -691,10 +775,14 @@ function getWorkItemLineInvoiceLink(db: DbType, lineId: string): BudgetLineInvoi
     date: string;
     status: string;
     itemized_amount: number;
+    vendor_id: string | null;
+    vendor_name: string | null;
   }>(
-    sql`SELECT ibl.id AS ibl_id, i.id AS invoice_id, i.invoice_number, i.date, i.status, ibl.itemized_amount
+    sql`SELECT ibl.id AS ibl_id, i.id AS invoice_id, i.invoice_number, i.date, i.status, ibl.itemized_amount,
+      i.vendor_id, v.name AS vendor_name
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
+    LEFT JOIN vendors v ON v.id = i.vendor_id
     WHERE ibl.work_item_budget_id = ${lineId}
     LIMIT 1`,
   );
@@ -707,6 +795,8 @@ function getWorkItemLineInvoiceLink(db: DbType, lineId: string): BudgetLineInvoi
     invoiceDate: row.date,
     invoiceStatus: row.status,
     itemizedAmount: row.itemized_amount,
+    vendorId: row.vendor_id,
+    vendorName: row.vendor_name,
   };
 }
 
@@ -722,10 +812,14 @@ function getHouseholdItemLineInvoiceLink(db: DbType, lineId: string): BudgetLine
     date: string;
     status: string;
     itemized_amount: number;
+    vendor_id: string | null;
+    vendor_name: string | null;
   }>(
-    sql`SELECT ibl.id AS ibl_id, i.id AS invoice_id, i.invoice_number, i.date, i.status, ibl.itemized_amount
+    sql`SELECT ibl.id AS ibl_id, i.id AS invoice_id, i.invoice_number, i.date, i.status, ibl.itemized_amount,
+      i.vendor_id, v.name AS vendor_name
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
+    LEFT JOIN vendors v ON v.id = i.vendor_id
     WHERE ibl.household_item_budget_id = ${lineId}
     LIMIT 1`,
   );
@@ -738,6 +832,8 @@ function getHouseholdItemLineInvoiceLink(db: DbType, lineId: string): BudgetLine
     invoiceDate: row.date,
     invoiceStatus: row.status,
     itemizedAmount: row.itemized_amount,
+    vendorId: row.vendor_id,
+    vendorName: row.vendor_name,
   };
 }
 

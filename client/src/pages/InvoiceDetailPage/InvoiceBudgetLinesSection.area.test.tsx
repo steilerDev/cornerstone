@@ -13,6 +13,7 @@ import { MemoryRouter } from 'react-router-dom';
 import type * as InvoiceBudgetLinesApiTypes from '../../lib/invoiceBudgetLinesApi.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
+import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as InvoiceBudgetLinesSectionTypes from './InvoiceBudgetLinesSection.js';
 import type {
   InvoiceBudgetLineDetailResponse,
@@ -27,6 +28,7 @@ const mockFetchInvoiceBudgetLines =
   jest.fn<typeof InvoiceBudgetLinesApiTypes.fetchInvoiceBudgetLines>();
 const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiTypes.fetchBudgetCategories>();
 const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
+const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 
 jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
   fetchInvoiceBudgetLines: mockFetchInvoiceBudgetLines,
@@ -64,6 +66,13 @@ jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
   createBudgetSource: jest.fn(),
   updateBudgetSource: jest.fn(),
   deleteBudgetSource: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
+  fetchVendors: mockFetchVendors,
+  createVendor: jest.fn(),
+  updateVendor: jest.fn(),
+  deleteVendor: jest.fn(),
 }));
 
 jest.unstable_mockModule('../../components/WorkItemPicker/WorkItemPicker.js', () => ({
@@ -184,9 +193,14 @@ beforeEach(async () => {
   mockFetchInvoiceBudgetLines.mockReset();
   mockFetchBudgetCategories.mockReset();
   mockFetchBudgetSources.mockReset();
+  mockFetchVendors.mockReset();
 
   mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
   mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
+  mockFetchVendors.mockResolvedValue({
+    vendors: [],
+    pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+  });
 
   if (!InvoiceBudgetLinesSection) {
     const module =

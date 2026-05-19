@@ -48,6 +48,7 @@ const makeConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
   photoStoragePath: '/app/data/photos',
   photoMaxFileSizeMb: 20,
   diaryAutoEvents: false,
+  diaryDraftRetentionDays: 30,
   currency: 'EUR',
   backupEnabled: true,
   backupDir: '/tmp/test-backups',

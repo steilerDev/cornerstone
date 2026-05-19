@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, desc, and, asc, sql, gte, lte } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { invoices, vendors, users } from '../db/schema.js';
+import { invoices, vendors, users, invoiceDeposits } from '../db/schema.js';
 import type {
   Invoice,
   InvoiceStatus,
@@ -18,6 +18,10 @@ import { NotFoundError, ValidationError } from '../errors/AppError.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { getInvoiceBudgetLinesForInvoice } from './invoiceBudgetLineService.js';
 import { onInvoiceStatusChanged } from './diaryAutoEventService.js';
+import {
+  aggregateInvoiceStatusBreakdown,
+  type InvoiceDepositRow,
+} from './shared/depositAggregateUtils.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -52,6 +56,7 @@ function toUserSummary(user: typeof users.$inferSelect | null | undefined): User
  * Convert a database invoice row to Invoice API shape.
  * Resolves vendorName and createdBy via separate queries.
  * Resolves budget lines via invoiceBudgetLineService.
+ * Resolves deposits via invoiceDepositService.
  * If knownVendorName is provided, skips the vendor DB lookup.
  */
 function toInvoice(
@@ -69,6 +74,38 @@ function toInvoice(
 
   const { budgetLines, remainingAmount } = getInvoiceBudgetLinesForInvoice(db, row.id, row.amount);
 
+  // Fetch deposits for this invoice, ordered by dueDate then createdAt
+  const depositRows = db
+    .select()
+    .from(invoiceDeposits)
+    .where(eq(invoiceDeposits.invoiceId, row.id))
+    .orderBy(asc(invoiceDeposits.dueDate), asc(invoiceDeposits.createdAt))
+    .all();
+
+  const deposits = depositRows.map((depositRow) => {
+    const depositCreatedByUser = depositRow.createdBy
+      ? db.select().from(users).where(eq(users.id, depositRow.createdBy)).get()
+      : null;
+
+    return {
+      id: depositRow.id,
+      invoiceId: depositRow.invoiceId,
+      amount: depositRow.amount,
+      dueDate: depositRow.dueDate,
+      paidDate: depositRow.paidDate,
+      claimedDate: depositRow.claimedDate,
+      description: depositRow.description,
+      status: depositRow.status,
+      createdBy: toUserSummary(depositCreatedByUser),
+      createdAt: depositRow.createdAt,
+      updatedAt: depositRow.updatedAt,
+    };
+  });
+
+  // Compute finalPaymentAmount: invoice total minus sum of ALL deposits (regardless of status)
+  const depositSum = depositRows.reduce((sum, d) => sum + d.amount, 0);
+  const finalPaymentAmount = Math.max(0, row.amount - depositSum);
+
   return {
     id: row.id,
     vendorId: row.vendorId,
@@ -81,6 +118,8 @@ function toInvoice(
     notes: row.notes,
     budgetLines,
     remainingAmount,
+    deposits,
+    finalPaymentAmount,
     createdBy: toUserSummary(createdByUser),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -234,43 +273,86 @@ export function listAllInvoices(
     .offset(offset)
     .all();
 
-  // Compute global summary (unfiltered — across all invoices)
-  const summaryRows = db
+  // Compute deposit-aware GLOBAL summary across ALL invoices (filter-independent).
+  // The page filters only narrow the listed rows; the header summary always shows totals
+  // across the entire dataset so users can see what the other filter values would yield.
+  const summaryRawRows: InvoiceDepositRow[] = db
     .select({
-      status: invoices.status,
+      invoice_id: invoices.id,
+      invoice_amount: invoices.amount,
+      invoice_status: invoices.status,
+      deposit_id: invoiceDeposits.id,
+      deposit_amount: invoiceDeposits.amount,
+      deposit_status: invoiceDeposits.status,
+    })
+    .from(invoices)
+    .leftJoin(invoiceDeposits, eq(invoiceDeposits.invoiceId, invoices.id))
+    .all();
+
+  const aggregated = aggregateInvoiceStatusBreakdown(summaryRawRows);
+
+  // Compute overdue count + total: pending invoices with due_date < today (global, unfiltered)
+  const overdueRow = db
+    .select({
       count: sql<number>`COUNT(*)`,
       totalAmount: sql<number>`COALESCE(SUM(${invoices.amount}), 0)`,
     })
     .from(invoices)
-    .groupBy(invoices.status)
-    .all();
+    .where(
+      and(
+        eq(invoices.status, 'pending'),
+        sql`${invoices.dueDate} IS NOT NULL`,
+        sql`${invoices.dueDate} < date('now', 'localtime')`,
+      ),
+    )
+    .get();
 
   const defaultSummary: InvoiceStatusSummary = { count: 0, totalAmount: 0 };
   const summary: InvoiceStatusBreakdown = {
-    pending: { ...defaultSummary },
-    paid: { ...defaultSummary },
-    claimed: { ...defaultSummary },
-    quotation: { ...defaultSummary },
+    pending: aggregated['pending'] ?? { ...defaultSummary },
+    paid: aggregated['paid'] ?? { ...defaultSummary },
+    claimed: aggregated['claimed'] ?? { ...defaultSummary },
+    quotation: aggregated['quotation'] ?? { ...defaultSummary },
+    overdue: {
+      count: overdueRow?.count ?? 0,
+      totalAmount: overdueRow?.totalAmount ?? 0,
+    },
   };
-  for (const row of summaryRows) {
-    const status = row.status as InvoiceStatus;
-    if (
-      status === 'pending' ||
-      status === 'paid' ||
-      status === 'claimed' ||
-      status === 'quotation'
-    ) {
-      summary[status] = { count: row.count, totalAmount: row.totalAmount };
-    }
-  }
 
-  // Map rows using toInvoice(), passing the joined vendorName to avoid an extra DB lookup
-  // NOTE: toInvoice() will call toWorkItemBudgetSummary() and toHouseholdItemBudgetSummary()
-  // for any linked budget lines. If new Invoice fields are added in the future,
-  // ensure they are resolved in BOTH toInvoice() AND this inline map.
-  const invoiceList: Invoice[] = rows.map(({ invoice: row, vendorName }) =>
-    toInvoice(db, row, vendorName),
-  );
+  // Map rows directly (not using toInvoice()) to avoid fetching full deposits in list.
+  // NOTE: List endpoints set deposits: [] and finalPaymentAmount: row.amount to keep payload small.
+  // If new Invoice fields are added, ensure they are updated in BOTH toInvoice() (for detail endpoints)
+  // AND here (for list endpoints).
+  const invoiceList: Invoice[] = rows.map(({ invoice: row, vendorName: vName }) => {
+    const createdByUser = row.createdBy
+      ? db.select().from(users).where(eq(users.id, row.createdBy)).get()
+      : null;
+
+    const { budgetLines, remainingAmount } = getInvoiceBudgetLinesForInvoice(
+      db,
+      row.id,
+      row.amount,
+    );
+
+    return {
+      id: row.id,
+      vendorId: row.vendorId,
+      vendorName: vName,
+      invoiceNumber: row.invoiceNumber,
+      amount: row.amount,
+      date: row.date,
+      dueDate: row.dueDate,
+      status: row.status as InvoiceStatus,
+      notes: row.notes,
+      budgetLines,
+      remainingAmount,
+      deposits: [],
+      finalPaymentAmount: row.amount,
+      createdBy: toUserSummary(createdByUser),
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    };
+  });
 
   const filterMeta: FilterMeta = {
     amount: { min: metaRow?.amountMin ?? 0, max: metaRow?.amountMax ?? 0 },

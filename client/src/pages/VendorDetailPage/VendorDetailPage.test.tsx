@@ -135,6 +135,8 @@ describe('VendorDetailPage', () => {
     dueDate: '2026-03-01',
     status: 'pending',
     notes: 'First invoice note',
+    deposits: [],
+    finalPaymentAmount: 1500.0,
     createdBy: { id: 'user-1', displayName: 'Admin User', email: 'admin@example.com' },
     createdAt: '2026-02-01T00:00:00.000Z',
     updatedAt: '2026-02-01T00:00:00.000Z',
@@ -152,6 +154,8 @@ describe('VendorDetailPage', () => {
     dueDate: null,
     status: 'paid',
     notes: null,
+    deposits: [],
+    finalPaymentAmount: 2500.0,
     createdBy: null,
     createdAt: '2026-01-15T00:00:00.000Z',
     updatedAt: '2026-01-15T00:00:00.000Z',
@@ -169,6 +173,8 @@ describe('VendorDetailPage', () => {
     dueDate: '2026-01-01',
     status: 'claimed',
     notes: null,
+    deposits: [],
+    finalPaymentAmount: 800.0,
     createdBy: null,
     createdAt: '2025-12-01T00:00:00.000Z',
     updatedAt: '2025-12-01T00:00:00.000Z',
@@ -247,16 +253,16 @@ describe('VendorDetailPage', () => {
       });
     });
 
-    // Trade display not yet implemented in the component (Story 3 TODO) — skipped
-    it.skip('renders vendor specialty', async () => {
+    it('renders vendor trade', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
 
       renderPage();
 
       await waitFor(() => {
-        // Specialty appears both in the page subtitle and in the info list — use getAllByText
-        const specialtyElements = screen.getAllByText('Plumbing');
-        expect(specialtyElements.length).toBeGreaterThan(0);
+        // Trade name appears in the info list; getCategoryDisplayName falls back to
+        // vendor.trade.name when translationKey is null
+        const tradeElements = screen.getAllByText('Plumbing');
+        expect(tradeElements.length).toBeGreaterThan(0);
       });
     });
 

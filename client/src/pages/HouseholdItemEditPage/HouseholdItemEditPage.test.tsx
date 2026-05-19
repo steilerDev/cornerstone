@@ -566,11 +566,6 @@ describe('HouseholdItemEditPage', () => {
         expect(screen.getByText('Failed to load form data. Please try again.')).toBeInTheDocument();
       });
     });
-
-    // Tags were removed in migration 0028 (areas_trades_rework) — tagsApi no longer called
-    it.skip('shows generic error banner when tags fail to load', () => {
-      // Test removed: tagsApi.ts has been deleted; tags table was dropped in migration 0028
-    });
   });
 
   describe('Accessibility - Form input ARIA attributes', () => {

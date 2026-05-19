@@ -1,7 +1,13 @@
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { Invoice, CreateInvoiceRequest, InvoiceStatus, FilterMeta } from '@cornerstone/shared';
+import type {
+  Invoice,
+  CreateInvoiceRequest,
+  InvoiceStatus,
+  FilterMeta,
+  InvoiceStatusBreakdown,
+} from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { Modal } from '../../components/Modal/Modal.js';
@@ -64,17 +70,19 @@ export function InvoicesPage() {
 
   // Data state
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [summary, setSummary] = useState({
+  const [summary, setSummary] = useState<InvoiceStatusBreakdown>({
     pending: { count: 0, totalAmount: 0 },
     paid: { count: 0, totalAmount: 0 },
     claimed: { count: 0, totalAmount: 0 },
     quotation: { count: 0, totalAmount: 0 },
+    overdue: { count: 0, totalAmount: 0 },
   });
   const [filterMeta, setFilterMeta] = useState<FilterMeta>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [hasOverdue, setHasOverdue] = useState(false);
 
   // Table state management with URL sync
   const { tableState, toApiParams } = useTableState({
@@ -150,6 +158,7 @@ export function InvoicesPage() {
       setFilterMeta(response.filterMeta ?? {});
       setTotalPages(response.pagination.totalPages);
       setTotalItems(response.pagination.totalItems);
+      setHasOverdue(response.summary.overdue.count > 0);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(err.error.message);
@@ -454,6 +463,22 @@ export function InvoicesPage() {
           {formatCurrency(summary.quotation.totalAmount)}
         </span>
       </div>
+      {hasOverdue && (
+        <div
+          className={`${styles.summaryCard} ${styles.summaryCardOverdue}`}
+          data-testid="summary-card-overdue"
+        >
+          <span className={`${styles.summaryLabel} ${styles.summaryLabelOverdue}`}>
+            {t('invoices.summaryOverdue')}
+          </span>
+          <span className={`${styles.summaryCount} ${styles.summaryCountOverdue}`}>
+            {summary.overdue.count}
+          </span>
+          <span className={`${styles.summaryAmount} ${styles.summaryCountOverdue}`}>
+            {t('invoices.summaryOverdueWarning', { count: summary.overdue.count })}
+          </span>
+        </div>
+      )}
     </div>
   );
 

@@ -70,6 +70,11 @@ const config: Config = {
       moduleNameMapper: {
         ...baseConfig.moduleNameMapper,
         '^@cornerstone/shared$': '<rootDir>/shared/src/index.ts',
+        '^nanoid$': '<rootDir>/client/src/test/nanoidMock.cjs',
+        // Konva requires node-canvas (native binary, project policy forbids it).
+        // Stub both for tests; real Konva loads in the browser build.
+        '^konva$': '<rootDir>/__mocks__/konva.ts',
+        '^react-konva$': '<rootDir>/__mocks__/react-konva.ts',
       },
       setupFilesAfterEnv: ['<rootDir>/client/src/test/setupTests.ts'],
       transformIgnorePatterns: ['node_modules/(?!@testing-library)'],

@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { screen, waitFor, render, act } from '@testing-library/react';
+import { screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
@@ -19,6 +19,7 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   createDiaryEntry: jest.fn(),
   updateDiaryEntry: jest.fn(),
   deleteDiaryEntry: jest.fn(),
+  promoteDiaryEntry: jest.fn(),
 }));
 
 // ─── Mock: formatters — DiaryDateGroup and DiaryEntryCard use useFormatters() ──
@@ -67,6 +68,7 @@ function makeSummary(id: string, overrides: Partial<DiaryEntrySummary> = {}): Di
     metadata: null,
     isAutomatic: false,
     isSigned: false,
+    status: 'saved',
     sourceEntityType: null,
     sourceEntityId: null,
     sourceEntityArea: null,
@@ -313,5 +315,81 @@ describe('DiaryPage', () => {
     expect(screen.queryByRole('button', { name: /export/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /pdf/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /export/i })).not.toBeInTheDocument();
+  });
+
+  // ─── Status chip row removed (Story #1435) ────────────────────────────────────
+
+  describe('status chip row removed (Story #1435)', () => {
+    it('Scenario 8: no status chip group rendered', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage();
+      // The OLD status chip row had three buttons: "All", "Drafts only", "Saved only".
+      // It was removed in Story #1435. Assert by button text so this doesn't collide
+      // with the new drafts chip group (aria-label "Filter by draft status", Story #1446).
+      expect(screen.queryByRole('button', { name: /^Drafts only$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Saved only$/i })).not.toBeInTheDocument();
+    });
+  });
+
+  // ─── Drafts chip integration via DiaryFilterBar (Story #1446) ───────────────
+
+  describe('drafts chip integration (Story #1446)', () => {
+    it('Scenario 9: chip has aria-pressed=true when URL has no status param (drafts visible)', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage(['/diary']);
+      await waitFor(() => {
+        const chip = screen.getByTestId('status-filter-drafts');
+        expect(chip).toHaveAttribute('aria-pressed', 'true');
+      });
+    });
+
+    it('Scenario 10: chip has aria-pressed=false when URL has ?status=saved (drafts hidden)', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage(['/diary?status=saved']);
+      await waitFor(() => {
+        const chip = screen.getByTestId('status-filter-drafts');
+        expect(chip).toHaveAttribute('aria-pressed', 'false');
+      });
+    });
+
+    it('Scenario 11: clicking pressed chip sets status=saved and calls listDiaryEntries with status="saved"', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage(['/diary']);
+
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
+      });
+
+      const chip = screen.getByTestId('status-filter-drafts');
+      await user.click(chip);
+
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledWith(
+          expect.objectContaining({ status: 'saved' }),
+        );
+      });
+    });
+
+    it('Scenario 11b: clicking unpressed chip removes status param and calls listDiaryEntries without status', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage(['/diary?status=saved']);
+
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
+      });
+
+      const chip = screen.getByTestId('status-filter-drafts');
+      await user.click(chip);
+
+      await waitFor(() => {
+        const lastCall =
+          mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
+        expect(lastCall?.[0]?.status).toBeUndefined();
+      });
+    });
   });
 });

@@ -407,30 +407,31 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 
 ### Environment Variables
 
-| Variable                 | Default                    | Description                                                                           |
-| ------------------------ | -------------------------- | ------------------------------------------------------------------------------------- |
-| `PORT`                   | `3000`                     | Server port                                                                           |
-| `HOST`                   | `0.0.0.0`                  | Server bind address                                                                   |
-| `DATABASE_URL`           | `/app/data/cornerstone.db` | SQLite database path                                                                  |
-| `LOG_LEVEL`              | `info`                     | Log level (trace/debug/info/warn/error/fatal)                                         |
-| `NODE_ENV`               | `production`               | Environment                                                                           |
-| `SESSION_DURATION`       | `604800`                   | Session duration in seconds (default: 7 days)                                         |
-| `SECURE_COOKIES`         | `true`                     | Enable HTTPS-only cookie flag                                                         |
-| `TRUST_PROXY`            | `false`                    | Trust X-Forwarded-\* headers from a reverse proxy                                     |
-| `OIDC_ISSUER`            | (none)                     | OpenID Connect issuer URL                                                             |
-| `OIDC_CLIENT_ID`         | (none)                     | OIDC application client ID                                                            |
-| `OIDC_CLIENT_SECRET`     | (none)                     | OIDC application client secret                                                        |
-| `EXTERNAL_URL`           | (none)                     | Public-facing base URL (e.g., `https://myhouse.example.com`) for reverse-proxy setups |
-| `PHOTO_MAX_FILE_SIZE_MB` | `20`                       | Maximum photo upload size in MB                                                       |
-| `PHOTO_STORAGE_PATH`     | `{DB_DIR}/photos`          | Directory for photo storage                                                           |
-| `DIARY_AUTO_EVENTS`      | `true`                     | Enable automatic diary event creation                                                 |
-| `PAPERLESS_URL`          | (none)                     | Paperless-ngx instance base URL                                                       |
-| `PAPERLESS_API_TOKEN`    | (none)                     | Paperless-ngx API authentication token                                                |
-| `PAPERLESS_EXTERNAL_URL` | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset)   |
-| `PAPERLESS_FILTER_TAG`   | (none)                     | Tag name for automatic document pre-filtering                                         |
-| `BACKUP_DIR`             | `/backups`                 | Backup destination directory (must be outside app data directory)                     |
-| `BACKUP_CADENCE`         | (none)                     | Cron expression for automatic backups (e.g., `0 2 * * *` for daily at 2 AM)           |
-| `BACKUP_RETENTION`       | (none)                     | Maximum number of backup archives to retain (oldest deleted when exceeded)            |
+| Variable                     | Default                    | Description                                                                                                   |
+| ---------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `PORT`                       | `3000`                     | Server port                                                                                                   |
+| `HOST`                       | `0.0.0.0`                  | Server bind address                                                                                           |
+| `DATABASE_URL`               | `/app/data/cornerstone.db` | SQLite database path                                                                                          |
+| `LOG_LEVEL`                  | `info`                     | Log level (trace/debug/info/warn/error/fatal)                                                                 |
+| `NODE_ENV`                   | `production`               | Environment                                                                                                   |
+| `SESSION_DURATION`           | `604800`                   | Session duration in seconds (default: 7 days)                                                                 |
+| `SECURE_COOKIES`             | `true`                     | Enable HTTPS-only cookie flag                                                                                 |
+| `TRUST_PROXY`                | `false`                    | Trust X-Forwarded-\* headers from a reverse proxy                                                             |
+| `OIDC_ISSUER`                | (none)                     | OpenID Connect issuer URL                                                                                     |
+| `OIDC_CLIENT_ID`             | (none)                     | OIDC application client ID                                                                                    |
+| `OIDC_CLIENT_SECRET`         | (none)                     | OIDC application client secret                                                                                |
+| `EXTERNAL_URL`               | (none)                     | Public-facing base URL (e.g., `https://myhouse.example.com`) for reverse-proxy setups                         |
+| `PHOTO_MAX_FILE_SIZE_MB`     | `20`                       | Maximum photo upload size in MB                                                                               |
+| `PHOTO_STORAGE_PATH`         | `{DB_DIR}/photos`          | Directory for photo storage                                                                                   |
+| `DIARY_AUTO_EVENTS`          | `true`                     | Enable automatic diary event creation                                                                         |
+| `PAPERLESS_URL`              | (none)                     | Paperless-ngx instance base URL                                                                               |
+| `PAPERLESS_API_TOKEN`        | (none)                     | Paperless-ngx API authentication token                                                                        |
+| `PAPERLESS_EXTERNAL_URL`     | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset)                           |
+| `PAPERLESS_FILTER_TAG`       | (none)                     | Tag name for automatic document pre-filtering                                                                 |
+| `BACKUP_DIR`                 | `/backups`                 | Backup destination directory (must be outside app data directory)                                             |
+| `BACKUP_CADENCE`             | (none)                     | Cron expression for automatic backups (e.g., `0 2 * * *` for daily at 2 AM)                                   |
+| `BACKUP_RETENTION`           | (none)                     | Maximum number of backup archives to retain (oldest deleted when exceeded)                                    |
+| `DIARY_DRAFT_RETENTION_DAYS` | `30`                       | Days a draft diary entry can sit untouched before the daily orphan cleanup deletes it (set to `0` to disable) |
 
 Production images use Docker Hardened Images (DHI). See `Dockerfile` and `docker-compose.yml` for build/deploy details.
 

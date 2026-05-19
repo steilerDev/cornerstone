@@ -137,6 +137,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
             (sum, line) => sum + effectivePlannedAmount(line),
             0,
           );
+          const vendorName = groupLines[0]?.invoiceLink?.vendorName ?? null;
 
           return (
             <InvoiceGroup
@@ -157,6 +158,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
               onUnlink={onUnlinkInvoice || (() => {})}
               isUnlinking={isUnlinking || {}}
               confidenceLabels={CONFIDENCE_LABELS}
+              vendorName={vendorName}
             />
           );
         })}

@@ -29,8 +29,8 @@ export interface BudgetSource {
   totalAmount: number;
   usedAmount: number; // planned allocation: SUM(planned_amount) of linked budget lines
   availableAmount: number; // totalAmount - usedAmount (planned perspective)
-  claimedAmount: number; // actual drawdown: SUM(amount) of claimed invoices on linked budget lines
-  unclaimedAmount: number; // paid but not claimed: SUM(amount) of paid invoices on linked budget lines
+  claimedAmount: number; // actual drawdown: claimed contributions — includes claimed deposits in split invoices
+  unclaimedAmount: number; // paid but not claimed: paid contributions — includes paid deposits in split invoices
   paidAmount: number; // paid and claimed: claimedAmount + unclaimedAmount
   actualAvailableAmount: number; // totalAmount - claimedAmount (actual perspective)
   projectedAmount: number; // confidence-margined planned amount for non-invoiced lines + actual cost for invoiced

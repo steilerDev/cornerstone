@@ -122,8 +122,12 @@ export type { DavTokenStatus, DavTokenResponse } from './types/dav.js';
 export type {
   Invoice,
   InvoiceStatus,
+  InvoiceDeposit,
+  InvoiceDepositStatus,
   CreateInvoiceRequest,
   UpdateInvoiceRequest,
+  CreateDepositRequest,
+  UpdateDepositRequest,
   InvoiceListResponse,
   InvoiceResponse,
   InvoiceStatusSummary,
@@ -329,6 +333,7 @@ export type {
   ManualDiaryEntryType,
   AutomaticDiaryEntryType,
   DiaryEntryType,
+  DiaryEntryStatus,
   DiaryWeather,
   DiaryInspectionOutcome,
   DiaryIssueSeverity,
@@ -347,6 +352,7 @@ export type {
   DiaryEntryDetail,
   CreateDiaryEntryRequest,
   UpdateDiaryEntryRequest,
+  PromoteDiaryEntryRequest,
   DiaryEntryListQuery,
   DiaryEntryListResponse,
 } from './types/diary.js';

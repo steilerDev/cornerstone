@@ -1,0 +1,138 @@
+.annotator {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.canvasArea {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--color-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.baseImage {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.svgOverlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  /* SVG fills container with preserveAspectRatio="xMidYMid meet" (center-fit like object-fit: contain) */
+}
+
+.inlineInput {
+  position: absolute;
+  background: transparent;
+  border: 2px dashed var(--color-primary);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-1) var(--spacing-2);
+  outline: none;
+  min-width: 80px;
+  z-index: 1000;
+}
+
+.inlineInput:focus {
+  outline: 1px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.actions {
+  display: flex;
+  gap: var(--spacing-3);
+  justify-content: flex-end;
+  padding: var(--spacing-4);
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
+}
+
+.saveButton {
+  composes: btnPrimary from '../../../styles/shared.module.css';
+  min-height: 44px;
+}
+
+.cancelButton {
+  composes: btnSecondary from '../../../styles/shared.module.css';
+  min-height: 44px;
+}
+
+.resetButton {
+  composes: btnSecondary from '../../../styles/shared.module.css';
+  min-height: 44px;
+}
+
+/* Shared iconButton sub-pattern (dark surface — used by PhotoViewer info bar buttons) */
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: var(--spacing-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: white;
+  cursor: pointer;
+}
+
+.iconButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6);
+}
+
+.iconButtonActive {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Modal buttons (for reset confirmation) */
+.modalActions {
+  display: flex;
+  gap: var(--spacing-3);
+  justify-content: flex-end;
+  margin-top: var(--spacing-4);
+}
+
+.confirmButton {
+  composes: btnPrimary from '../../../styles/shared.module.css';
+}
+
+.liveRegion {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .iconButton {
+    transition: background-color var(--transition-normal);
+  }
+}

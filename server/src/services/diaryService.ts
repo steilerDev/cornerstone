@@ -21,6 +21,7 @@ import {
   InvalidMetadataError,
   ImmutableEntryError,
   InvalidEntryTypeError,
+  AlreadySavedError,
 } from '../errors/AppError.js';
 import { deletePhotosForEntity } from './photoService.js';
 import type {
@@ -28,10 +29,12 @@ import type {
   DiaryEntryDetail,
   CreateDiaryEntryRequest,
   UpdateDiaryEntryRequest,
+  PromoteDiaryEntryRequest,
   DiaryEntryListQuery,
   DiaryUserSummary,
   ManualDiaryEntryType,
   DiaryEntryMetadata,
+  DiaryEntryStatus,
   DailyLogMetadata,
   SiteVisitMetadata,
   DeliveryMetadata,
@@ -195,6 +198,7 @@ function toDiarySummary(
   return {
     id: entry.id,
     entryType: entry.entryType as DiaryEntryType,
+    status: (entry.status ?? 'saved') as DiaryEntryStatus,
     entryDate: entry.entryDate,
     title: entry.title,
     body: entry.body,
@@ -437,6 +441,10 @@ export function listDiaryEntries(
     conditions.push(eq(diaryEntries.isAutomatic, query.automatic));
   }
 
+  if (query.status) {
+    conditions.push(eq(diaryEntries.status, query.status));
+  }
+
   if (query.q) {
     // Escape SQL LIKE wildcards
     const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
@@ -580,6 +588,8 @@ export function getDiaryEntry(db: DbType, id: string): DiaryEntryDetail {
 /**
  * Create a new diary entry.
  * Only manual entry types can be created by users; automatic types are system-generated.
+ * When status='draft', validation is relaxed: body and entryDate are optional.
+ * When status='saved' or omitted, full validation applies.
  * @throws ValidationError if entryType is automatic
  * @throws InvalidMetadataError if metadata validation fails
  */
@@ -595,13 +605,27 @@ export function createDiaryEntry(
     );
   }
 
-  // Validate body is not empty
-  const trimmedBody = data.body.trim();
-  if (trimmedBody.length === 0) {
-    throw new ValidationError('Entry body cannot be empty');
+  // Determine if creating a draft or saved entry
+  const isDraft = data.status === 'draft';
+  const status = data.status ?? 'saved';
+
+  // Validate body: required and non-empty for saved, optional/empty for drafts
+  let trimmedBody = '';
+  if (!isDraft) {
+    // Saved entry requires non-empty body
+    if (!data.body) {
+      throw new ValidationError('Entry body is required');
+    }
+    trimmedBody = data.body.trim();
+    if (trimmedBody.length === 0) {
+      throw new ValidationError('Entry body cannot be empty');
+    }
+  } else {
+    // Draft allows empty or missing body
+    trimmedBody = data.body?.trim() ?? '';
   }
 
-  // Validate metadata
+  // Validate metadata (both drafts and saved entries enforce type validation)
   validateMetadata(data.entryType, data.metadata);
 
   // Validate metadata size
@@ -609,6 +633,13 @@ export function createDiaryEntry(
     if (JSON.stringify(data.metadata).length > 2_097_152) {
       throw new ValidationError('Metadata must not exceed 2MB when serialized');
     }
+  }
+
+  // Determine entry date: required for saved, defaults to today for drafts
+  const entryDate =
+    data.entryDate ?? (isDraft ? new Date().toISOString().split('T')[0] : undefined);
+  if (!isDraft && !entryDate) {
+    throw new ValidationError('Entry date is required');
   }
 
   // Create entry
@@ -619,10 +650,11 @@ export function createDiaryEntry(
     .values({
       id,
       entryType: data.entryType,
-      entryDate: data.entryDate,
+      entryDate: entryDate || '',
       title: data.title || null,
       body: trimmedBody,
       metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+      status,
       isAutomatic: false,
       sourceEntityType: null,
       sourceEntityId: null,
@@ -639,10 +671,11 @@ export function createDiaryEntry(
     {
       id,
       entryType: data.entryType,
-      entryDate: data.entryDate,
+      entryDate: entryDate || '',
       title: data.title || null,
       body: trimmedBody,
       metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+      status,
       isAutomatic: false,
       sourceEntityType: null,
       sourceEntityId: null,
@@ -660,8 +693,9 @@ export function createDiaryEntry(
 /**
  * Update a diary entry.
  * Cannot update automatic entries.
+ * Validation rules depend on entry status: drafts have relaxed validation, saved entries have full validation.
  * @throws NotFoundError if entry does not exist
- * @throws ImmutableEntryError if entry is automatic
+ * @throws ImmutableEntryError if entry is automatic or signed
  * @throws InvalidMetadataError if metadata validation fails
  */
 export function updateDiaryEntry(
@@ -693,10 +727,14 @@ export function updateDiaryEntry(
     throw new ImmutableEntryError('Signed diary entries cannot be modified');
   }
 
+  // Determine if entry is a draft
+  const currentIsDraft = entry.status === 'draft';
+
   // Validate body if provided
   if (data.body !== undefined) {
     const trimmedBody = data.body.trim();
-    if (trimmedBody.length === 0) {
+    // For saved entries, body must be non-empty. For drafts, empty is allowed.
+    if (!currentIsDraft && trimmedBody.length === 0) {
       throw new ValidationError('Entry body cannot be empty');
     }
   }
@@ -813,6 +851,7 @@ export function createAutomaticDiaryEntry(
       title,
       body,
       metadata: null,
+      status: 'saved',
       isAutomatic: true,
       sourceEntityType,
       sourceEntityId,
@@ -821,4 +860,117 @@ export function createAutomaticDiaryEntry(
       updatedAt: now,
     })
     .run();
+}
+
+/**
+ * Promote a draft diary entry to saved status.
+ * Applies optional field overrides from the request, validates the merged entry,
+ * and transitions status to 'saved' atomically.
+ * @throws NotFoundError if entry does not exist
+ * @throws ImmutableEntryError if entry is automatic
+ * @throws AlreadySavedError if entry is already saved
+ * @throws ValidationError if validation fails after applying overrides
+ */
+export function promoteDiaryEntry(
+  db: DbType,
+  id: string,
+  data: PromoteDiaryEntryRequest,
+): DiaryEntryDetail {
+  // Fetch entry
+  const entry = db.select().from(diaryEntries).where(eq(diaryEntries.id, id)).get();
+
+  if (!entry) {
+    throw new NotFoundError('Diary entry not found');
+  }
+
+  // Cannot promote automatic entries
+  if (entry.isAutomatic) {
+    throw new ImmutableEntryError('Automatic entries cannot be promoted');
+  }
+
+  // Cannot promote entries that are already saved
+  if (entry.status === 'saved') {
+    throw new AlreadySavedError();
+  }
+
+  // Compute final values using overrides from request or current entry values
+  const finalEntryDate = data.entryDate ?? entry.entryDate;
+  const finalTitle = data.title !== undefined ? data.title : entry.title;
+  const finalBody = data.body ?? entry.body;
+  const finalMetadata = data.metadata !== undefined ? data.metadata : parseMetadata(entry.metadata);
+
+  // Validate required fields for saved entry
+  if (!finalEntryDate || !/^\d{4}-\d{2}-\d{2}$/.test(finalEntryDate)) {
+    throw new ValidationError('Entry date is required and must be in YYYY-MM-DD format');
+  }
+
+  if (!finalBody || finalBody.trim().length === 0) {
+    throw new ValidationError('Entry body is required and cannot be empty');
+  }
+
+  // Validate type-specific required metadata
+  const entryType = entry.entryType;
+  if (entryType === 'site_visit') {
+    const svm = finalMetadata as SiteVisitMetadata | null;
+    if (!svm || !svm.inspectorName || svm.inspectorName.trim().length === 0) {
+      throw new ValidationError('site_visit entries require non-empty inspectorName in metadata');
+    }
+    if (!svm.outcome || !['pass', 'fail', 'conditional'].includes(svm.outcome)) {
+      throw new ValidationError('site_visit entries require outcome in metadata');
+    }
+  }
+
+  if (entryType === 'issue') {
+    const im = finalMetadata as IssueMetadata | null;
+    if (!im || !im.severity || !['low', 'medium', 'high', 'critical'].includes(im.severity)) {
+      throw new ValidationError('issue entries require severity in metadata');
+    }
+    if (
+      !im.resolutionStatus ||
+      !['open', 'in_progress', 'resolved'].includes(im.resolutionStatus)
+    ) {
+      throw new ValidationError('issue entries require resolutionStatus in metadata');
+    }
+  }
+
+  // Validate merged metadata
+  validateMetadata(entryType, finalMetadata);
+
+  // Validate metadata size
+  if (finalMetadata !== null && finalMetadata !== undefined) {
+    if (JSON.stringify(finalMetadata).length > 2_097_152) {
+      throw new ValidationError('Metadata must not exceed 2MB when serialized');
+    }
+  }
+
+  // Update entry atomically to saved status with merged fields
+  const now = new Date().toISOString();
+  db.update(diaryEntries)
+    .set({
+      entryDate: finalEntryDate,
+      title: finalTitle,
+      body: finalBody.trim(),
+      metadata: finalMetadata ? JSON.stringify(finalMetadata) : null,
+      status: 'saved',
+      updatedAt: now,
+    })
+    .where(eq(diaryEntries.id, id))
+    .run();
+
+  // Fetch and return the updated entry
+  return getDiaryEntry(db, id);
+}
+
+/**
+ * Find IDs of orphan draft entries older than a specified number of days.
+ * Used by the cleanup cron job to identify drafts to delete.
+ */
+export function findOrphanDraftIds(db: DbType, olderThanDays: number): string[] {
+  const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();
+  const rows = db
+    .select({ id: diaryEntries.id })
+    .from(diaryEntries)
+    .where(and(eq(diaryEntries.status, 'draft'), sql`${diaryEntries.updatedAt} < ${cutoff}`))
+    .all();
+  return rows.map((r) => r.id);
 }

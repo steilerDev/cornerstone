@@ -1,4 +1,4 @@
-import { get, patch, del, getBaseUrl, NetworkError } from './apiClient.js';
+import { get, patch, del, getBaseUrl, NetworkError, ApiClientError } from './apiClient.js';
 import type { Photo, UpdatePhotoRequest } from '@cornerstone/shared';
 
 /**
@@ -90,4 +90,34 @@ export function getPhotoFileUrl(id: string): string {
  */
 export function getPhotoThumbnailUrl(id: string): string {
   return `${getBaseUrl()}/photos/${id}/thumbnail`;
+}
+
+/**
+ * Upload a baked annotated WebP for a photo.
+ * Uses fetch (no XHR) — no progress tracking needed.
+ */
+export async function uploadAnnotation(id: string, blob: Blob): Promise<Photo> {
+  const formData = new FormData();
+  formData.append('file', blob, 'annotated.webp');
+
+  const response = await fetch(`${getBaseUrl()}/photos/${id}/annotation`, {
+    method: 'PUT',
+    body: formData,
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
+    throw new Error(body.error?.message ?? `Upload failed (${response.status})`);
+  }
+
+  const data = (await response.json()) as { photo: Photo };
+  return data.photo;
+}
+
+/**
+ * Clear the annotated image for a photo (DELETE /api/photos/:id/annotation).
+ */
+export async function clearAnnotation(id: string): Promise<void> {
+  await del<void>(`/photos/${id}/annotation`);
 }

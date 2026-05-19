@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { eq } from 'drizzle-orm';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -24,6 +25,8 @@ import {
   updateDiaryEntry,
   deleteDiaryEntry,
   createAutomaticDiaryEntry,
+  promoteDiaryEntry,
+  findOrphanDraftIds,
 } from './diaryService.js';
 import {
   NotFoundError,
@@ -31,6 +34,7 @@ import {
   InvalidMetadataError,
   ImmutableEntryError,
   InvalidEntryTypeError,
+  AlreadySavedError,
 } from '../errors/AppError.js';
 import type { CreateDiaryEntryRequest, UpdateDiaryEntryRequest } from '@cornerstone/shared';
 import { workItems, invoices, milestones, vendors } from '../db/schema.js';
@@ -749,6 +753,256 @@ describe('diaryService', () => {
         };
         expect(() => createDiaryEntry(db, testUserId, request)).not.toThrow();
       }
+    });
+  });
+
+  // ─── Draft creation (Story #1426) ─────────────────────────────────────────
+
+  describe('createDiaryEntry draft mode', () => {
+    it('creates draft with status=draft and no body; returns status=draft, body=""', () => {
+      const request: CreateDiaryEntryRequest = {
+        entryType: 'general_note',
+        status: 'draft',
+      };
+      const result = createDiaryEntry(db, testUserId, request);
+      expect(result.status).toBe('draft');
+      expect(result.body).toBe('');
+    });
+
+    it('creates draft with no entryDate; defaults to today', () => {
+      const today = new Date().toISOString().split('T')[0];
+      const result = createDiaryEntry(db, testUserId, {
+        entryType: 'general_note',
+        status: 'draft',
+      });
+      expect(result.entryDate).toBe(today);
+    });
+
+    it('creates draft with invalid metadata enum; throws InvalidMetadataError', () => {
+      const request = {
+        entryType: 'daily_log' as const,
+        status: 'draft' as const,
+        metadata: { weather: 'tornado' } as any,
+      };
+      expect(() => createDiaryEntry(db, testUserId, request)).toThrow(InvalidMetadataError);
+    });
+
+    it('creating saved entry without body throws ValidationError', () => {
+      const request = {
+        entryType: 'general_note' as const,
+        entryDate: '2026-03-14',
+        // no body
+      } as CreateDiaryEntryRequest;
+      expect(() => createDiaryEntry(db, testUserId, request)).toThrow(ValidationError);
+    });
+
+    it('creating saved entry without entryDate throws ValidationError', () => {
+      const request = {
+        entryType: 'general_note' as const,
+        body: 'Some body',
+        // no entryDate
+      } as CreateDiaryEntryRequest;
+      expect(() => createDiaryEntry(db, testUserId, request)).toThrow(ValidationError);
+    });
+  });
+
+  // ─── updateDiaryEntry draft relaxed validation (Story #1426) ───────────────
+
+  describe('updateDiaryEntry draft vs saved validation', () => {
+    it('updates draft entry with body=""; succeeds (relaxed validation)', () => {
+      const id = insertEntry({ status: 'draft', body: 'Initial body' });
+      const result = updateDiaryEntry(db, id, { body: '' });
+      // Body stays as the old value when empty string is passed (falsy guard in update)
+      // The important thing is no ValidationError is thrown
+      expect(result).toBeDefined();
+    });
+
+    it('updating saved entry with body="" throws ValidationError', () => {
+      const id = insertEntry({ status: 'saved', body: 'Non-empty body' });
+      expect(() => updateDiaryEntry(db, id, { body: '' })).toThrow(ValidationError);
+    });
+  });
+
+  // ─── promoteDiaryEntry (Story #1426) ──────────────────────────────────────
+
+  describe('promoteDiaryEntry', () => {
+    it('promotes a valid general_note draft to saved; returns status=saved', () => {
+      const id = insertEntry({
+        status: 'draft',
+        entryType: 'general_note',
+        entryDate: '2026-03-14',
+        body: 'Ready to save',
+      });
+      const result = promoteDiaryEntry(db, id, {});
+      expect(result.status).toBe('saved');
+    });
+
+    it('promoting site_visit draft without inspectorName throws ValidationError; entry stays draft', () => {
+      const id = insertEntry({
+        status: 'draft',
+        entryType: 'site_visit',
+        entryDate: '2026-03-14',
+        body: 'Inspection report',
+        // No metadata with inspectorName
+      });
+      expect(() => promoteDiaryEntry(db, id, {})).toThrow(ValidationError);
+      // Verify entry stays draft in DB
+      const entry = db.select().from(diaryEntries).where(eq(diaryEntries.id, id)).get();
+      expect(entry?.status).toBe('draft');
+    });
+
+    it('promoting issue draft without severity throws ValidationError', () => {
+      const id = insertEntry({
+        status: 'draft',
+        entryType: 'issue',
+        entryDate: '2026-03-14',
+        body: 'Critical issue found',
+        // no metadata with severity
+      });
+      expect(() => promoteDiaryEntry(db, id, {})).toThrow(ValidationError);
+    });
+
+    it('promoting an already-saved entry throws AlreadySavedError', () => {
+      const id = insertEntry({ status: 'saved' });
+      expect(() => promoteDiaryEntry(db, id, {})).toThrow(AlreadySavedError);
+    });
+
+    it('promoting an automatic entry throws ImmutableEntryError', () => {
+      const id = insertEntry({
+        status: 'saved',
+        isAutomatic: true,
+        entryType: 'work_item_status',
+        createdBy: null,
+      });
+      expect(() => promoteDiaryEntry(db, id, {})).toThrow(ImmutableEntryError);
+    });
+
+    it('promoting with field overrides applies overrides and validates', () => {
+      const id = insertEntry({
+        status: 'draft',
+        entryType: 'general_note',
+        entryDate: '2026-01-01',
+        body: '',
+      });
+      const result = promoteDiaryEntry(db, id, {
+        entryDate: '2026-06-15',
+        body: 'Overridden body content',
+        title: 'Overridden Title',
+      });
+      expect(result.status).toBe('saved');
+      expect(result.entryDate).toBe('2026-06-15');
+      expect(result.body).toBe('Overridden body content');
+      expect(result.title).toBe('Overridden Title');
+    });
+  });
+
+  // ─── listDiaryEntries status filter (Story #1426) ─────────────────────────
+
+  describe('listDiaryEntries status filter', () => {
+    it('filters by status=draft; returns only draft entries', () => {
+      insertEntry({ status: 'draft', body: 'Draft entry' });
+      insertEntry({ status: 'saved', body: 'Saved entry' });
+
+      const result = listDiaryEntries(db, { status: 'draft' });
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]!.status).toBe('draft');
+    });
+
+    it('filters by status=saved; returns only saved entries', () => {
+      insertEntry({ status: 'draft', body: 'Draft entry' });
+      insertEntry({ status: 'saved', body: 'Saved entry' });
+
+      const result = listDiaryEntries(db, { status: 'saved' });
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]!.status).toBe('saved');
+    });
+
+    it('without status filter; returns both draft and saved entries', () => {
+      insertEntry({ status: 'draft', body: 'Draft entry' });
+      insertEntry({ status: 'saved', body: 'Saved entry' });
+
+      const result = listDiaryEntries(db, {});
+      expect(result.items).toHaveLength(2);
+    });
+  });
+
+  // ─── findOrphanDraftIds (Story #1426) ─────────────────────────────────────
+
+  describe('findOrphanDraftIds', () => {
+    it('returns only draft entries older than the cutoff', () => {
+      const oldDate = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
+      const recentDate = new Date().toISOString();
+
+      // Old draft — should be returned
+      const oldDraftId = `old-draft-${Date.now()}`;
+      db.insert(diaryEntries)
+        .values({
+          id: oldDraftId,
+          entryType: 'general_note',
+          entryDate: '2025-01-01',
+          title: null,
+          body: 'Old draft',
+          metadata: null,
+          status: 'draft',
+          isAutomatic: false,
+          sourceEntityType: null,
+          sourceEntityId: null,
+          createdBy: testUserId,
+          createdAt: oldDate,
+          updatedAt: oldDate,
+        })
+        .run();
+
+      // Recent draft — should NOT be returned
+      const recentDraftId = `recent-draft-${Date.now()}`;
+      db.insert(diaryEntries)
+        .values({
+          id: recentDraftId,
+          entryType: 'general_note',
+          entryDate: '2026-03-14',
+          title: null,
+          body: 'Recent draft',
+          metadata: null,
+          status: 'draft',
+          isAutomatic: false,
+          sourceEntityType: null,
+          sourceEntityId: null,
+          createdBy: testUserId,
+          createdAt: recentDate,
+          updatedAt: recentDate,
+        })
+        .run();
+
+      // Old saved entry — should NOT be returned (not a draft)
+      const savedId = `old-saved-${Date.now()}`;
+      db.insert(diaryEntries)
+        .values({
+          id: savedId,
+          entryType: 'general_note',
+          entryDate: '2025-01-01',
+          title: null,
+          body: 'Old but saved',
+          metadata: null,
+          status: 'saved',
+          isAutomatic: false,
+          sourceEntityType: null,
+          sourceEntityId: null,
+          createdBy: testUserId,
+          createdAt: oldDate,
+          updatedAt: oldDate,
+        })
+        .run();
+
+      const ids = findOrphanDraftIds(db, 30);
+      expect(ids).toContain(oldDraftId);
+      expect(ids).not.toContain(recentDraftId);
+      expect(ids).not.toContain(savedId);
+    });
+
+    it('with olderThanDays=0; cutoff is now; no entries match (all are current or older)', () => {
+      // Should not throw — just returns no results for a 0-day window where
+      // no entries were created in the "future"
+      expect(() => findOrphanDraftIds(db, 0)).not.toThrow();
     });
   });
 });

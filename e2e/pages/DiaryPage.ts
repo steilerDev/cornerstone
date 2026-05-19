@@ -4,7 +4,8 @@
  * The page renders:
  * - A page header with h1 "Construction Diary" and a subtitle with the total entry count
  * - A DiaryFilterBar with search input (data-testid="diary-search-input"), date range pickers,
- *   entry type chip filters, and a "Clear all" button
+ *   entry type chip filters, a "Drafts" toggle chip (data-testid="status-filter-drafts"),
+ *   and a "Clear all" button
  * - A "New Entry" link button navigating to /diary/new
  * - A timeline of DiaryDateGroup sections (data-testid="date-group-{date}"), each containing
  *   DiaryEntryCard links (data-testid="diary-card-{id}")
@@ -22,6 +23,10 @@
  * - Type chips: data-testid="type-filter-{type}"
  * - Clear filters: data-testid="clear-filters-button"
  * - Pagination buttons: data-testid="prev-page-button" / data-testid="next-page-button"
+ * - Draft badge on entry card: data-testid="draft-badge-{id}"
+ * - Draft entries link to /diary/:id/edit (not /diary/:id)
+ * - Drafts chip: data-testid="status-filter-drafts" with aria-pressed="true" (default, shows all)
+ *   or aria-pressed="false" (hides drafts, adds ?status=saved to URL)
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -59,6 +64,11 @@ export class DiaryPage {
   readonly prevPageButton: Locator;
   readonly nextPageButton: Locator;
 
+  // "Drafts" toggle chip — data-testid="status-filter-drafts" (added in #1446)
+  // aria-pressed="true"  → all entries shown (default)
+  // aria-pressed="false" → only saved entries shown (?status=saved in URL)
+  readonly draftsChip: Locator;
+
   // Mobile filter toggle button (visible only on mobile, aria-label="Toggle filters")
   readonly mobileFilterToggle: Locator;
 
@@ -74,6 +84,11 @@ export class DiaryPage {
     this.dateFromInput = page.getByTestId('diary-date-from');
     this.dateToInput = page.getByTestId('diary-date-to');
     this.clearFiltersButton = page.getByTestId('clear-filters-button');
+
+    // Drafts chip — added in #1446; replaces the previous hide-drafts-checkbox.
+    // aria-pressed="true" (default) shows all entries; click toggles to aria-pressed="false"
+    // which adds ?status=saved and hides draft entries.
+    this.draftsChip = page.getByTestId('status-filter-drafts');
 
     this.mobileFilterToggle = page.getByRole('button', { name: 'Toggle filters' });
 
@@ -97,6 +112,17 @@ export class DiaryPage {
    */
   async goto(): Promise<void> {
     await this.page.goto(DIARY_ROUTE);
+    await this.heading.waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Navigate directly to /diary?status=draft (drafts-only filter) and wait for the
+   * heading to be visible. Use this instead of clicking the old status filter chip
+   * (removed in #1435) to assert on draft-only visibility.
+   * No explicit timeout — uses project-level actionTimeout.
+   */
+  async filterDraftsOnly(): Promise<void> {
+    await this.page.goto(`${DIARY_ROUTE}?status=draft`);
     await this.heading.waitFor({ state: 'visible' });
   }
 
@@ -150,6 +176,14 @@ export class DiaryPage {
   }
 
   /**
+   * Get the Draft badge on a specific entry card.
+   * data-testid="draft-badge-{id}" — rendered by DiaryEntryCard when entry.status === 'draft'.
+   */
+  getDraftBadge(entryId: string): Locator {
+    return this.page.getByTestId(`draft-badge-${entryId}`);
+  }
+
+  /**
    * On mobile (max-width: 767px) the filter panel (containing the search input,
    * date pickers, and type chips) is hidden behind a toggle button.  Call this
    * before interacting with any filter control to ensure the panel is expanded.
@@ -167,6 +201,15 @@ export class DiaryPage {
         await this.searchInput.waitFor({ state: 'visible' });
       }
     }
+  }
+
+  /**
+   * Returns true if the Drafts chip is currently pressed (aria-pressed="true").
+   * Requires openFiltersIfCollapsed() to have been called first on mobile.
+   */
+  async draftsChipPressed(): Promise<boolean> {
+    const value = await this.draftsChip.getAttribute('aria-pressed');
+    return value === 'true';
   }
 
   /**

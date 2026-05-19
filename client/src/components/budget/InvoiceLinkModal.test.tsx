@@ -104,6 +104,8 @@ function buildInvoice(id: string, invoiceNumber: string | null = `INV-${id}`): I
     notes: null,
     budgetLines: [],
     remainingAmount: 1000,
+    deposits: [],
+    finalPaymentAmount: 1000,
     createdBy: null,
     createdAt: '2025-01-01T00:00:00Z',
     updatedAt: '2025-01-01T00:00:00Z',
@@ -119,6 +121,7 @@ function buildPaginatedResponse(invoices: Invoice[]): InvoiceListPaginatedRespon
       paid: { count: 0, totalAmount: 0 },
       claimed: { count: 0, totalAmount: 0 },
       quotation: { count: 0, totalAmount: 0 },
+      overdue: { count: 0, totalAmount: 0 },
     },
   };
 }

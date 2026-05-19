@@ -194,6 +194,13 @@ export class InvalidEntryTypeError extends AppError {
   }
 }
 
+export class AlreadySavedError extends AppError {
+  constructor(message = 'Cannot promote an entry that is already saved') {
+    super('ALREADY_SAVED', 400, message);
+    this.name = 'AlreadySavedError';
+  }
+}
+
 export class AreaInUseError extends AppError {
   constructor(
     message = 'Area is in use and cannot be deleted',
@@ -269,5 +276,42 @@ export class StaleOwnershipError extends AppError {
   ) {
     super('STALE_OWNERSHIP', 409, message);
     this.name = 'StaleOwnershipError';
+  }
+}
+
+export class DepositsExceedInvoiceTotalError extends AppError {
+  constructor(
+    message = 'Sum of deposit amounts would exceed the invoice total',
+    details?: Record<string, unknown>,
+  ) {
+    super('DEPOSITS_EXCEED_INVOICE_TOTAL', 400, message, details);
+    this.name = 'DepositsExceedInvoiceTotalError';
+  }
+}
+
+export class InvalidDepositStatusTransitionError extends AppError {
+  constructor(
+    message = 'Deposit status transition is not allowed',
+    details?: Record<string, unknown>,
+  ) {
+    super('INVALID_DEPOSIT_STATUS_TRANSITION', 400, message, details);
+    this.name = 'InvalidDepositStatusTransitionError';
+  }
+}
+
+export class InvalidDepositDateForStatusError extends AppError {
+  constructor(
+    message = 'Date field cannot be set for the current deposit status',
+    details?: Record<string, unknown>,
+  ) {
+    super('INVALID_DEPOSIT_DATE_FOR_STATUS', 400, message, details);
+    this.name = 'InvalidDepositDateForStatusError';
+  }
+}
+
+export class PayloadTooLargeError extends AppError {
+  constructor(message = 'Payload too large') {
+    super('PAYLOAD_TOO_LARGE', 413, message);
+    this.name = 'PayloadTooLargeError';
   }
 }

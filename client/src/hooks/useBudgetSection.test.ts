@@ -759,6 +759,141 @@ describe('handleSaveBudgetLine', () => {
 
     expect(preventDefaultMock).toHaveBeenCalled();
   });
+
+  // ─── #1439: direct-mode VAT regression tests ────────────────────────────────
+
+  it('direct mode, includesVat=false: passes plannedAmount unchanged to toPayload', async () => {
+    // Bug #1439: a previously removed VAT pre-multiplier was doubling the amount.
+    // toPayload must receive the raw plannedAmount without any multiplier applied.
+    mockToFormState.mockReturnValue({
+      description: 'Test line',
+      plannedAmount: '100',
+      confidence: 'own_estimate',
+      budgetCategoryId: '',
+      budgetSourceId: '',
+      vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: false,
+    });
+
+    const { result } = renderHook(() => useBudgetSection(makeOptions()));
+
+    act(() => {
+      result.current.openEditBudgetForm(makeLine({ id: 'bl-vat-false' }));
+    });
+
+    await act(async () => {
+      await result.current.handleSaveBudgetLine(makeFormEvent());
+    });
+
+    // toPayload should have been called with form state that has plannedAmount '100'
+    // (using mock.calls via unknown cast to avoid TS 0-arg type constraint on mockToPayload)
+    expect(mockToPayload.mock.calls).toHaveLength(1);
+    const calledWith = (mockToPayload.mock.calls[0] as unknown as BudgetLineFormState[])[0]!;
+    expect(calledWith.plannedAmount).toBe('100');
+    expect(calledWith.includesVat).toBe(false);
+  });
+
+  it('direct mode, includesVat=true: passes plannedAmount unchanged to toPayload', async () => {
+    // Regression: when includesVat=true, amount must also pass through unchanged.
+    mockToFormState.mockReturnValue({
+      description: 'Test line',
+      plannedAmount: '100',
+      confidence: 'own_estimate',
+      budgetCategoryId: '',
+      budgetSourceId: '',
+      vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: true,
+    });
+
+    const { result } = renderHook(() => useBudgetSection(makeOptions()));
+
+    act(() => {
+      result.current.openEditBudgetForm(makeLine({ id: 'bl-vat-true' }));
+    });
+
+    await act(async () => {
+      await result.current.handleSaveBudgetLine(makeFormEvent());
+    });
+
+    expect(mockToPayload.mock.calls).toHaveLength(1);
+    const calledWith2 = (mockToPayload.mock.calls[0] as unknown as BudgetLineFormState[])[0]!;
+    expect(calledWith2.plannedAmount).toBe('100');
+    expect(calledWith2.includesVat).toBe(true);
+  });
+
+  it('unit pricing mode: computes plannedAmount = qty * unitPrice (regression, no VAT multiplier)', async () => {
+    // Unit pricing: qty=2, unitPrice=50 → plannedAmount = 2 * 50 = 100
+    // No VAT multiplier should be applied in this mode.
+    mockToFormState.mockReturnValue({
+      description: 'Unit priced line',
+      plannedAmount: '',
+      confidence: 'own_estimate',
+      budgetCategoryId: '',
+      budgetSourceId: '',
+      vendorId: '',
+      pricingMode: 'unit',
+      quantity: '2',
+      unit: 'm²',
+      unitPrice: '50',
+      includesVat: false,
+    });
+
+    const { result } = renderHook(() => useBudgetSection(makeOptions()));
+
+    act(() => {
+      result.current.openEditBudgetForm(makeLine({ id: 'bl-unit' }));
+    });
+
+    await act(async () => {
+      await result.current.handleSaveBudgetLine(makeFormEvent());
+    });
+
+    // 2 * 50 = 100, passed to toPayload as string '100'
+    expect(mockToPayload.mock.calls).toHaveLength(1);
+    const calledWith3 = (mockToPayload.mock.calls[0] as unknown as BudgetLineFormState[])[0]!;
+    expect(calledWith3.plannedAmount).toBe('100');
+  });
+
+  it('round-trip edit: open existing line (plannedAmount=100, includesVat=false), save unchanged, toPayload receives 100', async () => {
+    // Open an existing line that already has plannedAmount 100 (from toFormState).
+    // Save without changes. toPayload should receive '100', not a doubled or modified value.
+    mockToFormState.mockReturnValue({
+      description: 'Existing line',
+      plannedAmount: '100',
+      confidence: 'professional_estimate',
+      budgetCategoryId: 'cat-1',
+      budgetSourceId: 'src-1',
+      vendorId: '',
+      pricingMode: 'direct',
+      quantity: '',
+      unit: '',
+      unitPrice: '',
+      includesVat: false,
+    });
+
+    const { result } = renderHook(() => useBudgetSection(makeOptions()));
+
+    act(() => {
+      result.current.openEditBudgetForm(makeLine({ id: 'bl-roundtrip', plannedAmount: 100 }));
+    });
+
+    await act(async () => {
+      await result.current.handleSaveBudgetLine(makeFormEvent());
+    });
+
+    expect(mockToPayload.mock.calls).toHaveLength(1);
+    const calledWith4 = (mockToPayload.mock.calls[0] as unknown as BudgetLineFormState[])[0]!;
+    expect(calledWith4.plannedAmount).toBe('100');
+    expect(calledWith4.includesVat).toBe(false);
+  });
 });
 
 // ─── handleDeleteBudgetLine ───────────────────────────────────────────────────

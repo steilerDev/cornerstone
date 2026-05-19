@@ -21,6 +21,7 @@ export interface InvoiceGroupProps<T extends BaseBudgetLine> {
   onUnlink: (lineId: string, invoiceBudgetLineId: string) => void;
   isUnlinking: Record<string, boolean>;
   confidenceLabels: Record<string, string>;
+  vendorName: string | null;
 }
 
 export function InvoiceGroup<T extends BaseBudgetLine>({
@@ -38,6 +39,7 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
   onUnlink,
   isUnlinking,
   confidenceLabels,
+  vendorName,
 }: InvoiceGroupProps<T>) {
   const { formatCurrency } = useFormatters();
   const { t } = useTranslation('budget');
@@ -69,8 +71,11 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
     return t('vendorDetail.invoiceStatusLabels.paid'); // Default to "Invoiced" equivalent
   };
 
-  const amountLabel = invoiceStatus === 'quotation' ? t('vendorDetail.quotedAmount') : 'Invoiced';
-  const ariaLabel = `Invoice ${invoiceNumber || 'unknown'}: ${lines.length} budget lines, ${formatCurrency(itemizedTotal)} ${amountLabel}`;
+  const amountLabel =
+    invoiceStatus === 'quotation'
+      ? t('vendorDetail.quotedAmount')
+      : t('vendorDetail.invoicedAmount');
+  const ariaLabel = `Invoice ${invoiceNumber || 'unknown'}${vendorName ? ` from ${vendorName}` : ''}: ${lines.length} budget lines, ${formatCurrency(itemizedTotal)} ${amountLabel}`;
 
   return (
     <div className={styles.group} role="group" aria-label={ariaLabel}>
@@ -86,21 +91,24 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
       >
         <div className={styles.headerContent}>
           <div className={styles.invoiceInfo}>
-            <Link
-              to={`/budget/invoices/${invoiceId}`}
-              className={styles.invoiceLink}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {invoiceNumber ? `#${invoiceNumber}` : 'Invoice'}
-            </Link>
+            <div className={styles.invoiceIdentity}>
+              <Link
+                to={`/budget/invoices/${invoiceId}`}
+                className={styles.invoiceLink}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {invoiceNumber ? `#${invoiceNumber}` : 'Invoice'}
+              </Link>
+              {vendorName && <span className={styles.vendorName}>{vendorName}</span>}
+            </div>
             <span className={statusBadgeClass}>{invoiceStatus}</span>
           </div>
           <div className={styles.amounts}>
             <div className={styles.amountGroup}>
-              <span className={styles.amountValue}>
-                {invoiceStatus === 'quotation'
-                  ? `${formatCurrency(itemizedTotal * 0.95)} – ${formatCurrency(itemizedTotal * 1.05)}`
-                  : formatCurrency(itemizedTotal)}
+              <span
+                className={`${styles.amountValue}${invoiceStatus === 'quotation' ? ` ${styles.amountValueQuoted}` : ''}`}
+              >
+                {formatCurrency(itemizedTotal)}
               </span>
               <span className={styles.amountLabel}>{amountLabel}</span>
             </div>

@@ -10,7 +10,7 @@
 
 - Formal register: use "Sie" form in German
 - Translation files: `client/src/i18n/{locale}/{namespace}.json`
-- Namespaces: areas, auth, budget, common, dashboard, diary, documents, errors, householdItems, schedule, settings, workItems
+- Namespaces: areas, auth, budget, common, dashboard, diary, documents, errors, householdItems, photoAnnotator, schedule, settings, workItems
 - Preserve `{{variable}}` interpolation placeholders exactly
 - Preserve `_one` / `_other` pluralization suffixes
 
@@ -29,6 +29,7 @@
 | Quotation      | Angebot           | Angebote         |
 | Area           | Bereich           | Bereiche         |
 | Trade          | Gewerk            | Gewerke          |
+| Draft          | Entwurf           | Entwürfe         |
 
 ## Button/Action Label Convention
 
@@ -48,6 +49,7 @@ Action labels in German follow the pattern: `{Noun} {Verb}` with capitalised fir
 - `de/budget.json` — `sources.lines.noCategory` orphan deleted 2026-04-19 (Issue #1313); `sources.lines.invoiceStatus.*`, `sources.lines.underArea`, `sources.lines.typeColumnHeader`, `sources.lines.statusColumnHeader` added 2026-04-19 (Issue #1313)
 - `de/budget.json` — Issue #1356 (2026-04-25): `sourceFilter` rework — removed `label`, `allSources`, `clearAriaLabel`, `chipSelected`, `chipNotSelected`, `activeAnnouncement`; added `statusAnnouncement`; added new blocks `sourceRow.*` and `availableFunds.*`
 - **Pre-existing gap** (as of 2026-04-25, outside #1356 scope): `sources.lines.typeColumnHeader` and `sources.lines.statusColumnHeader` exist in `en` but not `de` — needs a dedicated spec to fix
+- `de/budget.json` — `invoiceDetail.budgetLines` block added 2026-05-10 (Issue #1401): `createFormLegend` + `autoLinkedSuccess`
 - Always check key parity when picking up a new translator spec
 
 ## Backup/Restore Terminology (2026-03-22)
@@ -150,3 +152,44 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - `sourceRow.deselectedAriaLabel` → "{{name}}, abgewählt – zum Auswählen klicken"
 - `availableFunds.activeFilterCaption` → "({{selected}} von {{total}} ausgewählt)"
 - Aria label click-instruction pattern: "– zum [Verb] klicken" (en-dash, infinitive with "zu")
+
+## Draft / Auto-Save Terminology — Issue #1426 (2026-05-16)
+
+- "Draft" → "Entwurf" (singular), "Entwürfe" (plural) — added to glossary
+- "Discard Draft" → "Entwurf verwerfen"
+- "Keep Draft" → "Entwurf behalten"
+- "Discard" (progressive) → "Wird verworfen..."
+- Auto-save status bar labels: "Gespeichert" (saved), "Wird gespeichert..." (saving), error uses em-dash: "Speichern fehlgeschlagen – wird beim nächsten Ändern erneut versucht"
+- "Promote" (draft → saved entry, button) → "Speichern" — matches the entry of the existing `saveChanges` pattern
+- Upload-blocker dialog: "Uploads laufen noch" (title); "Trotzdem verlassen" / "Auf Seite bleiben" (buttons)
+- Status filter chips: "Nur Entwürfe" / "Nur gespeicherte" (using "Nur" prefix, consistent with filter chip patterns)
+- Photo upload queue states: `stateQueued` → "In Warteschlange", `stateUploading` → "Wird hochgeladen ...", `stateSucceeded` → "Hochgeladen", `stateFailed` → "Fehlgeschlagen"
+- `queueAriaLabel` → "Foto-Upload-Warteschlange" (compound noun, no space)
+- `unknownError` → "Unbekannter Upload-Fehler"
+- **Duplicate key issue in en/diary.json**: The English file has duplicate top-level keys (`filterBar`, `createPage`, `editPage`). In JSON the last occurrence wins. The de/ file must be kept as a single flat object — never duplicate keys. New keys from the second English occurrence are appended to the existing de/ section.
+
+## photoAnnotator Namespace Patterns (Issue #1475, 2026-05-18)
+
+- Namespace `photoAnnotator` added in Story #1483 (foundation); geometric tools added in Issue #1475
+- Tool aria-label pattern: `{Noun}-Werkzeug` (hyphenated compound) — e.g. "Pfeil-Werkzeug", "Linien-Werkzeug", "Ellipsen-Werkzeug"
+  - Note: "Linien-" and "Ellipsen-" use genitive/compound form; "Pfeil-" is the bare stem (standard German compounding)
+- Live-region announcement pattern: `{Noun} hinzugefügt` — e.g. "Pfeil hinzugefügt", "Linie hinzugefügt", "Ellipse hinzugefügt"
+- Geometric terms (not in glossary — use standard German): Pfeil (Arrow), Linie (Line), Ellipse (Ellipse), Rechteck (Rectangle)
+- Highlight → "Markierung" (not "Hervorhebung") — this is established in Story #1483 translations
+
+## photoAnnotator Measurement & Freehand Patterns (Issue #1477, 2026-05-18)
+
+- `toolMeasurement` → "Maß-Werkzeug" — stem is "Maß" (dimension/measure, construction context); NOT "Maßband" (physical tape measure object) and NOT "Messen" (verb)
+- `toolFreehand` → "Freihand-Werkzeug" — "Freihand" is the standard German compound stem (as in "Freihandzeichnung")
+- `shapeAddedMeasurement` → "Maß hinzugefügt" — consistent noun stem with toolMeasurement
+- `shapeAddedFreehand` → "Freihandlinie hinzugefügt" — "Linie" chosen over "Strich" or "Pfad" for consistency with existing "Linie hinzugefügt" in the file
+- `measurementPlaceholder` → "Maß eingeben" — placeholder for free-form distance text (e.g., "2.5 m"); "Maß" preferred over "Distanz" in construction context
+- `editMeasurement` → "Maßbeschriftung bearbeiten" — "Beschriftung" (label text) parallels `editCallout` = "Sprechblasentext bearbeiten"
+- "Freehand" added to glossary as `{ "de": { "singular": "Freihand" } }` — compound stem, no plural (it's always used as a modifier in German)
+
+## photoAnnotator Polish — Issue #1478 (2026-05-18)
+
+- Compound rule: "Annotations-" (noun stem) NOT "Annotierungs-" (gerund stem) — three keys fixed: `region`, `canvas`, `actions`
+- "Annotate" verb added to glossary: `{ "de": { "verb": "annotieren" } }` — loanword preferred over "markieren" (used for Highlight) or "anmerken"
+- `photoViewer.json` achieved exact parity (8 EN = 8 DE) with all #1475–#1477 keys present
+- `photoViewer.json` — 10 metadata sidepanel keys added 2026-05-19: `saving` → "Wird gespeichert..." (NOT "Speichern..."); `noArea` uses parenthesised lowercase `(kein Bereich)` as inline field fallback (distinct from `areas.noArea` = "Kein Bereich" heading form); parity now 19 EN = 19 DE

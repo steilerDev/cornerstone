@@ -20,7 +20,7 @@ import sharp from 'sharp';
 import { eq, and, asc, inArray, desc } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { photos, users } from '../db/schema.js';
+import { photos, users, areas } from '../db/schema.js';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 import type { Photo, PhotoEntityType } from '@cornerstone/shared';
 
@@ -53,11 +53,16 @@ function getExtensionForMimeType(mimeType: string): string {
 
 /**
  * Map a photos DB row + user to a Photo shape.
+ * Includes cache-buster version param in thumbnailUrl based on annotatedAt (or updatedAt as fallback).
  */
 function toPhoto(
   row: typeof photos.$inferSelect,
   user: typeof users.$inferSelect | null | undefined,
 ): Photo {
+  // Use annotatedAt if present (annotation was made), otherwise use updatedAt for cache busting
+  const cacheVersion = row.annotatedAt ?? row.updatedAt;
+  const thumbnailUrl = `/api/photos/${row.id}/thumbnail?v=${encodeURIComponent(cacheVersion)}`;
+
   return {
     id: row.id,
     entityType: row.entityType,
@@ -69,12 +74,14 @@ function toPhoto(
     height: row.height,
     takenAt: row.takenAt,
     caption: row.caption,
+    areaId: row.areaId,
     sortOrder: row.sortOrder,
     createdBy: user ? { id: user.id, displayName: user.displayName } : null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    annotatedAt: row.annotatedAt ?? null,
     fileUrl: `/api/photos/${row.id}/file`,
-    thumbnailUrl: `/api/photos/${row.id}/thumbnail`,
+    thumbnailUrl,
   };
 }
 
@@ -101,6 +108,7 @@ function resolveCreatedBy(db: DbType, createdBy: string | null): typeof users.$i
  * @param entityId Entity ID (UUID string)
  * @param userId User ID of uploader
  * @param caption Optional caption
+ * @param areaId Optional area ID
  * @throws ValidationError if MIME type not allowed
  * @returns Photo object with metadata and URLs
  */
@@ -114,6 +122,7 @@ export async function uploadPhoto(
   entityId: string,
   userId: string,
   caption?: string | null,
+  areaId?: string | null,
 ): Promise<Photo> {
   // Validate MIME type
   if (!ALLOWED_MIME_TYPES.has(mimeType)) {
@@ -130,11 +139,12 @@ export async function uploadPhoto(
     // Process image with sharp
     let processedImage = sharp(fileBuffer);
 
-    // Get image metadata (including EXIF orientation)
-    const metadata = await processedImage.metadata();
-
-    // Auto-rotate based on EXIF orientation (sharp does this by default with rotate())
+    // Auto-rotate based on EXIF orientation FIRST (sharp does this by default with rotate())
+    // Must call rotate() BEFORE metadata() to get post-rotation dimensions
     processedImage = processedImage.rotate();
+
+    // Get image metadata (including dimensions after rotation)
+    const metadata = await processedImage.metadata();
 
     // Extract dimensions after processing
     const width = metadata.width ?? null;
@@ -192,6 +202,7 @@ export async function uploadPhoto(
       height,
       takenAt,
       caption: caption ?? null,
+      areaId: areaId ?? null,
       sortOrder: 0,
       createdBy: userId,
       createdAt: now,
@@ -260,10 +271,18 @@ export function getPhotosForEntity(db: DbType, entityType: string, entityId: str
 export function updatePhoto(
   db: DbType,
   id: string,
-  updates: { caption?: string | null; sortOrder?: number },
+  updates: { caption?: string | null; areaId?: string | null; sortOrder?: number },
 ): Photo | null {
   const row = db.select().from(photos).where(eq(photos.id, id)).get();
   if (!row) return null;
+
+  // Validate areaId if provided and not null
+  if (updates.areaId !== undefined && updates.areaId !== null) {
+    const area = db.select().from(areas).where(eq(areas.id, updates.areaId)).get();
+    if (!area) {
+      throw new ValidationError('Area not found');
+    }
+  }
 
   const now = new Date().toISOString();
   const updateData: Partial<typeof photos.$inferInsert> = {
@@ -272,6 +291,9 @@ export function updatePhoto(
 
   if (updates.caption !== undefined) {
     updateData.caption = updates.caption;
+  }
+  if (updates.areaId !== undefined) {
+    updateData.areaId = updates.areaId;
   }
   if (updates.sortOrder !== undefined) {
     updateData.sortOrder = updates.sortOrder;
@@ -359,15 +381,18 @@ export async function deletePhotosForEntity(
  * Get the file path for a photo variant.
  *
  * For 'original', reads the directory to find the actual file (since extension varies).
+ * When preferAnnotated is true and annotated.webp exists, returns it instead.
  * For 'thumbnail', returns the thumbnail.webp path.
  *
  * @param variant 'original' or 'thumbnail'
+ * @param preferAnnotated When variant is 'original', prefer annotated.webp if it exists (default: true)
  * @returns Full file path or null if not found
  */
 export async function getPhotoFilePath(
   photoStoragePath: string,
   id: string,
   variant: 'original' | 'thumbnail',
+  preferAnnotated: boolean = true,
 ): Promise<string | null> {
   const photoDir = path.join(photoStoragePath, id);
 
@@ -377,6 +402,16 @@ export async function getPhotoFilePath(
       await stat(thumbnailPath);
       return thumbnailPath;
     } else {
+      // original: prefer annotated.webp if requested and exists
+      if (preferAnnotated) {
+        const annotatedPath = path.join(photoDir, 'annotated.webp');
+        try {
+          await stat(annotatedPath);
+          return annotatedPath;
+        } catch {
+          // annotated.webp doesn't exist; fall through to original
+        }
+      }
       // original: find the file starting with "original."
       const files = await readdir(photoDir);
       const originalFile = files.find((f) => f.startsWith('original.'));

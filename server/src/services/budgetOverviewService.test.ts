@@ -426,6 +426,124 @@ describe('getBudgetOverview', () => {
       expect(result.actualCostPaid).toBe(8000); // only paid
     });
 
+    it('quotation invoice contributes to actualCost but not actualCostPaid (ADR-029)', () => {
+      // Insert a budget line with a quotation invoice using raw DB inserts
+      const now = new Date().toISOString();
+      const workItemId = `wi-quotation-${idCounter++}`;
+      db.insert(schema.workItems)
+        .values({
+          id: workItemId,
+          title: 'Quotation WI',
+          status: 'not_started',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const budgetId = `bud-quotation-${idCounter++}`;
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: budgetId,
+          workItemId,
+          plannedAmount: 5000,
+          confidence: 'own_estimate',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const vendorId = `v-quotation-${idCounter++}`;
+      db.insert(schema.vendors)
+        .values({ id: vendorId, name: 'Quotation Vendor', createdAt: now, updatedAt: now })
+        .run();
+      const quotationInvoiceId = `inv-quotation-${idCounter++}`;
+      db.insert(schema.invoices)
+        .values({
+          id: quotationInvoiceId,
+          vendorId,
+          amount: 3000,
+          date: '2026-03-01',
+          status: 'quotation',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: quotationInvoiceId,
+          workItemBudgetId: budgetId,
+          itemizedAmount: 3000,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const result = getBudgetOverview(db);
+
+      // quotation invoice now counted in actualCost (ADR-029)
+      expect(result.actualCost).toBe(3000);
+      // quotation is not paid → actualCostPaid stays 0
+      expect(result.actualCostPaid).toBe(0);
+    });
+
+    it('mixed quotation + paid invoices: actualCost sums both, actualCostPaid counts only paid (ADR-029)', () => {
+      // paid invoice via helper
+      insertWorkItem({ plannedAmount: 8000, actualCost: 5000 }); // paid 5000
+      // quotation invoice via raw inserts
+      const now = new Date().toISOString();
+      const workItemId2 = `wi-qmix-${idCounter++}`;
+      db.insert(schema.workItems)
+        .values({
+          id: workItemId2,
+          title: 'Quotation WI 2',
+          status: 'not_started',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const budgetId2 = `bud-qmix-${idCounter++}`;
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: budgetId2,
+          workItemId: workItemId2,
+          plannedAmount: 4000,
+          confidence: 'own_estimate',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const vendorId2 = `v-qmix-${idCounter++}`;
+      db.insert(schema.vendors)
+        .values({ id: vendorId2, name: 'Mix Vendor', createdAt: now, updatedAt: now })
+        .run();
+      const qInvId = `inv-qmix-${idCounter++}`;
+      db.insert(schema.invoices)
+        .values({
+          id: qInvId,
+          vendorId: vendorId2,
+          amount: 4000,
+          date: '2026-03-01',
+          status: 'quotation',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: qInvId,
+          workItemBudgetId: budgetId2,
+          itemizedAmount: 4000,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const result = getBudgetOverview(db);
+
+      expect(result.actualCost).toBe(9000); // 5000 paid + 4000 quotation
+      expect(result.actualCostPaid).toBe(5000); // only the paid invoice
+    });
+
     it('returns zero actualCost when no invoices are linked to budget lines', () => {
       insertWorkItem({ plannedAmount: 10000 });
 
@@ -1336,6 +1454,209 @@ describe('getBudgetOverview', () => {
       // No subsidies → payback = 0 → adjusted === non-adjusted
       expect(result.remainingVsMinPlannedWithPayback).toBe(result.remainingVsMinPlanned);
       expect(result.remainingVsMaxPlannedWithPayback).toBe(result.remainingVsMaxPlanned);
+    });
+  });
+
+  // ─── #1405 deposit-aware actualCostPaid / actualCostClaimed (step 8) ─────
+
+  describe('deposit-aware invoice totals (#1405)', () => {
+    /**
+     * Helper: insert a deposit for a given invoice, directly into the DB.
+     */
+    function insertDeposit(
+      invoiceId: string,
+      opts: { amount: number; status: 'pending' | 'paid' | 'claimed' },
+    ): void {
+      const id = `dep-ov-${idCounter++}`;
+      const now = new Date().toISOString();
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id,
+          invoiceId,
+          amount: opts.amount,
+          dueDate: '2026-03-01',
+          status: opts.status,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+
+    /**
+     * Create a paid invoice for a work item budget line and return its id.
+     * The paid invoice uses the 'paid' status for insertion; allows deposit override.
+     */
+    function insertWorkItemWithPaidInvoiceAndDeposits(opts: {
+      plannedAmount: number;
+      invoiceAmount: number;
+      invoiceStatus: 'pending' | 'paid' | 'claimed';
+      deposits: Array<{ amount: number; status: 'pending' | 'paid' | 'claimed' }>;
+    }): string {
+      const { workItemId, budgetLineId } = insertWorkItem({
+        plannedAmount: opts.plannedAmount,
+        actualCost: opts.invoiceStatus !== 'pending' ? opts.invoiceAmount : undefined,
+      });
+
+      if (budgetLineId === null) return workItemId;
+
+      // The insertWorkItem helper already created the invoice when actualCost > 0 and invoiceStatus=paid.
+      // For cases where we need a specific invoice status, insert manually.
+      // Get the last invoice inserted (from actualCost helper) and update its status if needed.
+      // Simpler: create our own invoice directly.
+      const vendorId = `dep-ov-v-${idCounter++}`;
+      const now = new Date().toISOString();
+      db.insert(schema.vendors)
+        .values({ id: vendorId, name: `DepOv Vendor ${vendorId}`, createdAt: now, updatedAt: now })
+        .run();
+
+      // Create a sibling budget line (primary may already have an invoice from insertWorkItem helper)
+      const siblingBudgetId = `bud-dep-ov-${idCounter++}`;
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: siblingBudgetId,
+          workItemId,
+          plannedAmount: opts.invoiceAmount,
+          confidence: 'own_estimate',
+          budgetSourceId: null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const invoiceId = `inv-dep-ov-${idCounter++}`;
+      db.insert(schema.invoices)
+        .values({
+          id: invoiceId,
+          vendorId,
+          amount: opts.invoiceAmount,
+          date: '2026-01-01',
+          status: opts.invoiceStatus,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: siblingBudgetId,
+          itemizedAmount: opts.invoiceAmount,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      // Insert deposits
+      for (const dep of opts.deposits) {
+        insertDeposit(invoiceId, dep);
+      }
+
+      return workItemId;
+    }
+
+    it('AC-25: actualCostPaid includes paid deposit fractions for pending invoice', () => {
+      // Invoice=1000 pending; deposit 300 paid → actualCostPaid += 300, actualCostClaimed += 0
+      insertWorkItemWithPaidInvoiceAndDeposits({
+        plannedAmount: 1000,
+        invoiceAmount: 1000,
+        invoiceStatus: 'pending',
+        deposits: [{ amount: 300, status: 'paid' }],
+      });
+
+      const result = getBudgetOverview(db);
+
+      expect(result.actualCost).toBeGreaterThanOrEqual(1000);
+      expect(result.actualCostPaid).toBeGreaterThanOrEqual(300);
+    });
+
+    it('AC-25: actualCostClaimed includes claimed deposit fraction', () => {
+      // Invoice=1000 pending; deposit 400 claimed → actualCostClaimed += 400
+      insertWorkItemWithPaidInvoiceAndDeposits({
+        plannedAmount: 1000,
+        invoiceAmount: 1000,
+        invoiceStatus: 'pending',
+        deposits: [{ amount: 400, status: 'claimed' }],
+      });
+
+      const result = getBudgetOverview(db);
+
+      expect(result.actualCostClaimed).toBeGreaterThanOrEqual(400);
+    });
+
+    it('AC-26 (AC-10 regression): zero-deposit paid invoice — actualCostPaid unchanged', () => {
+      // No deposits: full invoice amount goes to actualCostPaid
+      insertWorkItem({ plannedAmount: 500, actualCost: 500 });
+
+      const result = getBudgetOverview(db);
+
+      expect(result.actualCost).toBeGreaterThanOrEqual(500);
+      expect(result.actualCostPaid).toBeGreaterThanOrEqual(500);
+    });
+
+    it('mixed deposits: actualCostPaid includes both paid and claimed deposit contributions', () => {
+      // Invoice=1000 pending; deposit 200 paid + 300 claimed → actualCostPaid = 500
+      insertWorkItemWithPaidInvoiceAndDeposits({
+        plannedAmount: 1000,
+        invoiceAmount: 1000,
+        invoiceStatus: 'pending',
+        deposits: [
+          { amount: 200, status: 'paid' },
+          { amount: 300, status: 'claimed' },
+        ],
+      });
+
+      const result = getBudgetOverview(db);
+
+      expect(result.actualCostPaid).toBeGreaterThanOrEqual(500);
+      expect(result.actualCostClaimed).toBeGreaterThanOrEqual(300);
+    });
+
+    it('quotation invoice with deposits: included in actualCost, paid deposits in actualCostPaid (ADR-029)', () => {
+      // ADR-029: Quotation invoices now count toward actualCost
+      // Deposits on a quotation invoice contribute proportionally to actualCostPaid
+      const { workItemId, budgetLineId } = insertWorkItem({ plannedAmount: 500 });
+      if (budgetLineId) {
+        const now = new Date().toISOString();
+        const vendorId = `dep-quot-v-${idCounter++}`;
+        db.insert(schema.vendors)
+          .values({
+            id: vendorId,
+            name: `Quot Vendor ${vendorId}`,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+        const invoiceId = `inv-quot-${idCounter++}`;
+        db.insert(schema.invoices)
+          .values({
+            id: invoiceId,
+            vendorId,
+            amount: 500,
+            date: '2026-01-01',
+            status: 'quotation',
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+        db.insert(schema.invoiceBudgetLines)
+          .values({
+            id: randomUUID(),
+            invoiceId,
+            workItemBudgetId: budgetLineId,
+            itemizedAmount: 500,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+        insertDeposit(invoiceId, { amount: 200, status: 'paid' });
+      }
+
+      const result = getBudgetOverview(db);
+
+      // ADR-029: quotation included in actualCost
+      expect(result.actualCost).toBe(500);
+      // Paid deposit of 200 on invoice of 500 → fraction 0.4 → actualCostPaid = 0.4 * 500 = 200
+      expect(result.actualCostPaid).toBe(200);
     });
   });
 });

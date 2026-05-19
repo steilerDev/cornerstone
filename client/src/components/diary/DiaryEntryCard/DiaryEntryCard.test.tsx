@@ -83,6 +83,7 @@ const manualEntry: DiaryEntrySummary = {
   metadata: null,
   isAutomatic: false,
   isSigned: false,
+  status: 'saved',
   sourceEntityType: null,
   sourceEntityId: null,
   sourceEntityArea: null,
@@ -91,6 +92,15 @@ const manualEntry: DiaryEntrySummary = {
   createdBy: { id: 'user-1', displayName: 'Alice Builder' },
   createdAt: '2026-03-14T09:30:00.000Z',
   updatedAt: '2026-03-14T09:30:00.000Z',
+};
+
+const draftEntry: DiaryEntrySummary = {
+  ...manualEntry,
+  id: 'de-draft-1',
+  entryType: 'general_note',
+  title: 'Draft note',
+  body: 'Draft in progress',
+  status: 'draft',
 };
 
 const automaticEntry: DiaryEntrySummary = {
@@ -106,6 +116,7 @@ const automaticEntry: DiaryEntrySummary = {
   },
   isAutomatic: true,
   isSigned: false,
+  status: 'saved',
   sourceEntityType: 'work_item',
   sourceEntityId: 'wi-kitchen-1',
   sourceEntityArea: null,
@@ -325,5 +336,29 @@ describe('DiaryEntryCard', () => {
   it('does not show signed badge when entry.isSigned is false', () => {
     renderCard(manualEntry); // manualEntry has isSigned: false
     expect(screen.queryByTestId('signed-badge-de-manual-1')).not.toBeInTheDocument();
+  });
+
+  // ─── Draft status (Story #1426) ─────────────────────────────────────────────
+
+  it('Scenario 54: draft entry links to /diary/:id/edit (not /diary/:id)', () => {
+    renderCard(draftEntry);
+    const card = screen.getByTestId('diary-card-de-draft-1');
+    expect(card).toHaveAttribute('href', '/diary/de-draft-1/edit');
+  });
+
+  it('Scenario 54: draft entry renders Draft Badge', () => {
+    renderCard(draftEntry);
+    expect(screen.getByTestId('draft-badge-de-draft-1')).toBeInTheDocument();
+  });
+
+  it('Scenario 55: saved entry links to /diary/:id (not /diary/:id/edit)', () => {
+    renderCard(manualEntry);
+    const card = screen.getByTestId('diary-card-de-manual-1');
+    expect(card).toHaveAttribute('href', '/diary/de-manual-1');
+  });
+
+  it('Scenario 55: saved entry does NOT render Draft Badge', () => {
+    renderCard(manualEntry);
+    expect(screen.queryByTestId('draft-badge-de-manual-1')).not.toBeInTheDocument();
   });
 });

@@ -19,6 +19,7 @@ import type {
   DiaryEntryDetail,
   ApiErrorResponse,
   CreateDiaryEntryRequest,
+  PromoteDiaryEntryRequest,
 } from '@cornerstone/shared';
 
 describe('Diary Routes', () => {
@@ -562,6 +563,240 @@ describe('Diary Routes', () => {
         headers: { cookie },
       });
       expect(getResponse.statusCode).toBe(404);
+    });
+  });
+
+  // ─── Story #1426: Draft lifecycle and promote endpoint ─────────────────────
+
+  describe('POST /api/diary-entries (draft mode, Story #1426)', () => {
+    it('Scenario 19: POST with status=draft → 201 with status=draft (no body/entryDate required)', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/diary-entries',
+        headers: { cookie },
+        payload: {
+          entryType: 'general_note',
+          status: 'draft',
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const result = response.json<DiaryEntrySummary>();
+      expect(result.id).toBeDefined();
+      expect(result.status).toBe('draft');
+      expect(result.entryType).toBe('general_note');
+    });
+
+    it('Scenario 20: POST without body and without status → 400 VALIDATION_ERROR (saved entries require body)', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/diary-entries',
+        headers: { cookie },
+        payload: {
+          entryType: 'general_note',
+          // No body, no status — should fail because saved mode requires body
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const error = response.json<ApiErrorResponse>();
+      expect(error.error.code).toBe('VALIDATION_ERROR');
+    });
+  });
+
+  describe('PATCH /api/diary-entries/:id/promote (Story #1426)', () => {
+    it('Scenario 21: PATCH /:id/promote on valid general_note draft → 200 status=saved', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
+      const id = insertDiaryEntry({
+        status: 'draft',
+        entryType: 'general_note',
+        body: 'My draft note',
+        entryDate: '2026-03-14',
+      });
+
+      const payload: PromoteDiaryEntryRequest = {};
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/diary-entries/${id}/promote`,
+        headers: { cookie },
+        payload,
+      });
+
+      expect(response.statusCode).toBe(200);
+      const result = response.json<DiaryEntrySummary>();
+      expect(result.id).toBe(id);
+      expect(result.status).toBe('saved');
+    });
+
+    it('Scenario 22: PATCH /:id/promote on site_visit draft missing inspectorName → 400 VALIDATION_ERROR, entry stays draft', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
+      const id = insertDiaryEntry({
+        status: 'draft',
+        entryType: 'site_visit',
+        body: 'Site inspection',
+        entryDate: '2026-03-14',
+        // metadata is null — missing inspectorName
+        metadata: null,
+      });
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/diary-entries/${id}/promote`,
+        headers: { cookie },
+        payload: {},
+      });
+
+      expect(response.statusCode).toBe(400);
+      const error = response.json<ApiErrorResponse>();
+      expect(error.error.code).toBe('VALIDATION_ERROR');
+
+      // Entry must still be draft (not promoted)
+      const getResponse = await app.inject({
+        method: 'GET',
+        url: `/api/diary-entries/${id}`,
+        headers: { cookie },
+      });
+      expect(getResponse.statusCode).toBe(200);
+      const entry = getResponse.json<DiaryEntrySummary>();
+      expect(entry.status).toBe('draft');
+    });
+
+    it('Scenario 23: PATCH /:id/promote on already-saved entry → 400 ALREADY_SAVED', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
+      const id = insertDiaryEntry({
+        status: 'saved',
+        entryType: 'general_note',
+        body: 'Already saved',
+        entryDate: '2026-03-14',
+      });
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/diary-entries/${id}/promote`,
+        headers: { cookie },
+        payload: {},
+      });
+
+      expect(response.statusCode).toBe(400);
+      const error = response.json<ApiErrorResponse>();
+      expect(error.error.code).toBe('ALREADY_SAVED');
+    });
+
+    it('Scenario 24: PATCH /:id/promote on non-existent ID → 404 NOT_FOUND', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/diary-entries/does-not-exist/promote',
+        headers: { cookie },
+        payload: {},
+      });
+
+      expect(response.statusCode).toBe(404);
+      const error = response.json<ApiErrorResponse>();
+      expect(error.error.code).toBe('NOT_FOUND');
+    });
+  });
+
+  describe('GET /api/diary-entries status filter (Story #1426)', () => {
+    it('Scenario 25: GET /?status=draft → only returns draft entries', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
+      insertDiaryEntry({
+        status: 'draft',
+        entryType: 'general_note',
+        body: 'draft content',
+        entryDate: '2026-03-14',
+      });
+      insertDiaryEntry({ status: 'saved', body: 'Saved content' });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/diary-entries?status=draft',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ items: DiaryEntrySummary[] }>();
+      expect(body.items.length).toBeGreaterThanOrEqual(1);
+      expect(body.items.every((e) => e.status === 'draft')).toBe(true);
+    });
+
+    it('Scenario 26: GET /?status=saved → only returns saved entries', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
+      insertDiaryEntry({
+        status: 'draft',
+        entryType: 'general_note',
+        body: 'draft content',
+        entryDate: '2026-03-14',
+      });
+      insertDiaryEntry({ status: 'saved', body: 'Saved content' });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/diary-entries?status=saved',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ items: DiaryEntrySummary[] }>();
+      expect(body.items.length).toBeGreaterThanOrEqual(1);
+      expect(body.items.every((e) => e.status === 'saved')).toBe(true);
+    });
+  });
+
+  describe('PATCH /api/diary-entries/:id additionalProperties (Story #1426)', () => {
+    it('Scenario 27: PATCH /:id with only status field in body → 200 (status silently stripped, entry unchanged — status only changes via promote)', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
+      const id = insertDiaryEntry({ status: 'saved', body: 'Saved content' });
+
+      // Fastify strips unknown props (removeAdditional:true), so sending only
+      // { status: 'saved' } leaves an empty body {}. Ajv 8 with removeAdditional:true
+      // does NOT re-evaluate minProperties against the stripped object — validation passes.
+      // The service receives {} (all fields undefined) and performs a no-op update.
+      // Status is never written by updateDiaryEntry — it only changes via promote.
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/diary-entries/${id}`,
+        headers: { cookie },
+        payload: { status: 'saved' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const result = response.json<{ status: string; body: string }>();
+      // Entry is unchanged — status and body are unmodified
+      expect(result.status).toBe('saved');
+      expect(result.body).toBe('Saved content');
+    });
+
+    it('Scenario 28: PATCH /:id/promote route does not conflict with PATCH /:id', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'Test User', 'password');
+      const id = insertDiaryEntry({ status: 'saved', body: 'saved', entryDate: '2026-03-14' });
+
+      // PATCH /:id (update) and PATCH /:id/promote (promote) are separate routes
+      // Updating by /:id with valid fields works
+      const updateResponse = await app.inject({
+        method: 'PATCH',
+        url: `/api/diary-entries/${id}`,
+        headers: { cookie },
+        payload: { title: 'Updated title' },
+      });
+      expect(updateResponse.statusCode).toBe(200);
+
+      // Promote route is also reachable separately
+      const promoteResponse = await app.inject({
+        method: 'PATCH',
+        url: `/api/diary-entries/${id}/promote`,
+        headers: { cookie },
+        payload: {},
+      });
+      // Entry is already saved → ALREADY_SAVED (confirms promote route was hit, not update route)
+      expect(promoteResponse.statusCode).toBe(400);
+      const err = promoteResponse.json<ApiErrorResponse>();
+      expect(err.error.code).toBe('ALREADY_SAVED');
     });
   });
 });

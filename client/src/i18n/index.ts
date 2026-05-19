@@ -14,6 +14,8 @@ import enDiary from './en/diary.json';
 import enDocuments from './en/documents.json';
 import enSettings from './en/settings.json';
 import enAreas from './en/areas.json';
+import enPhotoViewer from './en/photoViewer.json';
+import enPhotoAnnotator from './en/photoAnnotator.json';
 
 import deCommon from './de/common.json';
 import deErrors from './de/errors.json';
@@ -27,6 +29,8 @@ import deDiary from './de/diary.json';
 import deDocuments from './de/documents.json';
 import deSettings from './de/settings.json';
 import deAreas from './de/areas.json';
+import dePhotoViewer from './de/photoViewer.json';
+import dePhotoAnnotator from './de/photoAnnotator.json';
 
 const resources = {
   en: {
@@ -42,6 +46,8 @@ const resources = {
     documents: enDocuments,
     settings: enSettings,
     areas: enAreas,
+    photoViewer: enPhotoViewer,
+    photoAnnotator: enPhotoAnnotator,
   },
   de: {
     common: deCommon,
@@ -56,6 +62,8 @@ const resources = {
     documents: deDocuments,
     settings: deSettings,
     areas: deAreas,
+    photoViewer: dePhotoViewer,
+    photoAnnotator: dePhotoAnnotator,
   },
 };
 
@@ -96,6 +104,8 @@ void i18n.use(initReactI18next).init({
     'documents',
     'settings',
     'areas',
+    'photoViewer',
+    'photoAnnotator',
   ],
   interpolation: {
     escapeValue: false,

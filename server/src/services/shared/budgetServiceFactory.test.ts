@@ -1419,6 +1419,117 @@ describe('budgetServiceFactory — createBudgetService()', () => {
       expect(result.confidenceMargin).toBe(0);
     });
   });
+
+  // ─── #1405 deposit-aware aggregates via list() ──────────────────────────────
+
+  describe('deposit-aware invoice aggregates via list() (#1405)', () => {
+    /**
+     * Helper: insert a deposit directly into the DB for a given invoice.
+     */
+    function insertDeposit(
+      invoiceId: string,
+      opts: { amount: number; status: 'pending' | 'paid' | 'claimed' },
+    ): string {
+      const id = `dep-list-${++idCounter}`;
+      const now = new Date(Date.now() + idCounter).toISOString();
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id,
+          invoiceId,
+          amount: opts.amount,
+          dueDate: '2026-03-01',
+          status: opts.status,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      return id;
+    }
+
+    it('AC-22: work-item list — single paid deposit split counted in actualCostPaid', () => {
+      // Invoice 1000 pending; deposit 300 paid, residual 700 pending
+      // listWorkItemBudgets actualCostPaid should be 300 (deposit fraction only)
+      const workItemId = insertWorkItem();
+      const vendorId = insertVendor();
+      const line = createWorkItemBudget(db, workItemId, 'user-001', {
+        plannedAmount: 1000,
+        budgetSourceId: 'discretionary-system',
+      });
+      const invoiceId = insertInvoiceForWorkItemBudget(line.id, vendorId, {
+        amount: 1000,
+        status: 'pending',
+      });
+      insertDeposit(invoiceId, { amount: 300, status: 'paid' });
+
+      const result = listWorkItemBudgets(db, workItemId);
+      const lineResult = result.find((r) => r.id === line.id)!;
+
+      expect(lineResult.actualCost).toBe(1000);
+      expect(lineResult.actualCostPaid).toBeCloseTo(300);
+      expect(lineResult.invoiceCount).toBe(1);
+    });
+
+    it('zero-deposit paid invoice: actualCostPaid unchanged (AC-10 regression)', () => {
+      // Pre-deposit behavior must be preserved
+      const workItemId = insertWorkItem();
+      const vendorId = insertVendor();
+      const line = createWorkItemBudget(db, workItemId, 'user-001', {
+        plannedAmount: 500,
+        budgetSourceId: 'discretionary-system',
+      });
+      insertInvoiceForWorkItemBudget(line.id, vendorId, { amount: 500, status: 'paid' });
+
+      const result = listWorkItemBudgets(db, workItemId);
+      const lineResult = result.find((r) => r.id === line.id)!;
+
+      expect(lineResult.actualCost).toBe(500);
+      expect(lineResult.actualCostPaid).toBe(500);
+    });
+
+    it('household-item list — deposit-aware split via household_item_budget_id column', () => {
+      // Deposit 200 claimed on 600-pending invoice → actualCostPaid = 200
+      const hiId = insertHouseholdItem();
+      const vendorId = insertVendor();
+      const line = createHouseholdItemBudget(db, hiId, 'user-001', {
+        plannedAmount: 600,
+        budgetSourceId: 'discretionary-system',
+      });
+      const invoiceId = insertInvoiceForHouseholdItemBudget(line.id, vendorId, {
+        amount: 600,
+        status: 'pending',
+      });
+      insertDeposit(invoiceId, { amount: 200, status: 'claimed' });
+
+      const result = listHouseholdItemBudgets(db, hiId);
+      const lineResult = result.find((r) => r.id === line.id)!;
+
+      expect(lineResult.actualCost).toBe(600);
+      expect(lineResult.actualCostPaid).toBeCloseTo(200);
+    });
+
+    it('fully-allocated deposits (Σ=invoice.amount): residual=0, parent status ignored', () => {
+      // Invoice 800 pending; deposit 500 paid + 300 pending = 800 total → residual 0
+      // parent status pending contributes 0; only paid deposit (500) counts
+      const workItemId = insertWorkItem();
+      const vendorId = insertVendor();
+      const line = createWorkItemBudget(db, workItemId, 'user-001', {
+        plannedAmount: 800,
+        budgetSourceId: 'discretionary-system',
+      });
+      const invoiceId = insertInvoiceForWorkItemBudget(line.id, vendorId, {
+        amount: 800,
+        status: 'pending',
+      });
+      insertDeposit(invoiceId, { amount: 500, status: 'paid' });
+      insertDeposit(invoiceId, { amount: 300, status: 'pending' });
+
+      const result = listWorkItemBudgets(db, workItemId);
+      const lineResult = result.find((r) => r.id === line.id)!;
+
+      expect(lineResult.actualCost).toBe(800);
+      expect(lineResult.actualCostPaid).toBeCloseTo(500);
+    });
+  });
 });
 
 // ─── resolveRelationsBatch() unit tests ────────────────────────────────────────
@@ -1856,5 +1967,319 @@ describe('resolveRelationsBatch()', () => {
     const workItemId = insertWorkItem();
     const result = listWorkItemBudgets(db, workItemId);
     expect(result).toEqual([]);
+  });
+
+  // ─── #1405 deposit-aware aggregate tests ──────────────────────────────────
+
+  describe('deposit-aware invoice aggregates (#1405)', () => {
+    /**
+     * Helper: insert a deposit record for an existing invoice.
+     */
+    function insertDeposit(
+      invoiceId: string,
+      opts: {
+        amount: number;
+        status: 'pending' | 'paid' | 'claimed';
+        dueDate?: string;
+      },
+    ): string {
+      const id = `dep-${++idCounter}`;
+      const now = new Date(Date.now() + idCounter).toISOString();
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id,
+          invoiceId,
+          amount: opts.amount,
+          dueDate: opts.dueDate ?? '2026-03-01',
+          status: opts.status,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      return id;
+    }
+
+    it('AC-22: single paid deposit — paid fraction counted in actualCostPaid via resolveRelationsBatch', () => {
+      // invoice 1000 pending, deposit 300 paid, residual 700 pending
+      // resolveRelationsBatch should yield: actualCost=1000, actualCostPaid=300
+      const workItemId = insertWorkItem();
+      const vendorId = insertVendor();
+      const line = insertWorkItemBudgetLine({ workItemId, plannedAmount: 1000 });
+      const { invoiceId } = insertInvoiceLinkedToWorkItemBudget(line.id, vendorId, {
+        amount: 1000,
+        status: 'pending',
+      });
+      insertDeposit(invoiceId, { amount: 300, status: 'paid' });
+
+      const rows = [
+        {
+          id: line.id,
+          confidence: line.confidence,
+          budgetCategoryId: line.budgetCategoryId,
+          budgetSourceId: line.budgetSourceId,
+          vendorId: line.vendorId,
+          createdBy: line.createdBy,
+        },
+      ];
+      const result = resolveRelationsBatch(db, rows, 'work_item_budget_id');
+      const resolved = result.get(line.id)!;
+
+      expect(resolved.actualCost).toBe(1000);
+      expect(resolved.actualCostPaid).toBeCloseTo(300);
+      expect(resolved.invoiceCount).toBe(1);
+    });
+
+    it('claimed deposit + pending residual — actualCostClaimed proportional', () => {
+      // Invoice 1000 pending, deposit 400 claimed → actualCostPaid = 400, actualCostClaimed = 400
+      const workItemId = insertWorkItem();
+      const vendorId = insertVendor();
+      const line = insertWorkItemBudgetLine({ workItemId, plannedAmount: 1000 });
+      const { invoiceId } = insertInvoiceLinkedToWorkItemBudget(line.id, vendorId, {
+        amount: 1000,
+        status: 'pending',
+      });
+      insertDeposit(invoiceId, { amount: 400, status: 'claimed' });
+
+      const rows = [
+        {
+          id: line.id,
+          confidence: line.confidence,
+          budgetCategoryId: line.budgetCategoryId,
+          budgetSourceId: line.budgetSourceId,
+          vendorId: line.vendorId,
+          createdBy: line.createdBy,
+        },
+      ];
+      const result = resolveRelationsBatch(db, rows, 'work_item_budget_id');
+      const resolved = result.get(line.id)!;
+
+      expect(resolved.actualCost).toBe(1000);
+      // claimed deposit contributes to actualCostPaid
+      expect(resolved.actualCostPaid).toBeCloseTo(400);
+    });
+
+    it('zero-deposit invoice aggregates unchanged (AC-10 regression)', () => {
+      // Pre-deposit behavior: paid invoice, no deposits → actualCostPaid = full ibl amount
+      const workItemId = insertWorkItem();
+      const vendorId = insertVendor();
+      const line = insertWorkItemBudgetLine({ workItemId, plannedAmount: 500 });
+      insertInvoiceLinkedToWorkItemBudget(line.id, vendorId, { amount: 500, status: 'paid' });
+
+      const rows = [
+        {
+          id: line.id,
+          confidence: line.confidence,
+          budgetCategoryId: line.budgetCategoryId,
+          budgetSourceId: line.budgetSourceId,
+          vendorId: line.vendorId,
+          createdBy: line.createdBy,
+        },
+      ];
+      const result = resolveRelationsBatch(db, rows, 'work_item_budget_id');
+      const resolved = result.get(line.id)!;
+
+      expect(resolved.actualCost).toBe(500);
+      expect(resolved.actualCostPaid).toBe(500);
+      expect(resolved.invoiceCount).toBe(1);
+    });
+
+    it('fully-allocated deposits (Σ=invoice.amount) — residual = 0, only deposits count', () => {
+      // Invoice 800 pending; deposit 500 paid + deposit 300 pending → residual 0
+      // actualCostPaid = 500 (paid deposit only)
+      const workItemId = insertWorkItem();
+      const vendorId = insertVendor();
+      const line = insertWorkItemBudgetLine({ workItemId, plannedAmount: 800 });
+      const { invoiceId } = insertInvoiceLinkedToWorkItemBudget(line.id, vendorId, {
+        amount: 800,
+        status: 'pending',
+      });
+      insertDeposit(invoiceId, { amount: 500, status: 'paid' });
+      insertDeposit(invoiceId, { amount: 300, status: 'pending' });
+
+      const rows = [
+        {
+          id: line.id,
+          confidence: line.confidence,
+          budgetCategoryId: line.budgetCategoryId,
+          budgetSourceId: line.budgetSourceId,
+          vendorId: line.vendorId,
+          createdBy: line.createdBy,
+        },
+      ];
+      const result = resolveRelationsBatch(db, rows, 'work_item_budget_id');
+      const resolved = result.get(line.id)!;
+
+      expect(resolved.actualCost).toBe(800);
+      expect(resolved.actualCostPaid).toBeCloseTo(500);
+    });
+
+    it('batch with multiple budget lines — each gets its own deposit-aware split', () => {
+      // Line A: invoice 600 pending, deposit 200 paid → actualCostPaid=200
+      // Line B: invoice 400 paid (no deposits) → actualCostPaid=400
+      const workItemId = insertWorkItem();
+      const vendorId = insertVendor();
+      const lineA = insertWorkItemBudgetLine({ workItemId, plannedAmount: 600 });
+      const lineB = insertWorkItemBudgetLine({ workItemId, plannedAmount: 400 });
+      const { invoiceId: invA } = insertInvoiceLinkedToWorkItemBudget(lineA.id, vendorId, {
+        amount: 600,
+        status: 'pending',
+      });
+      insertDeposit(invA, { amount: 200, status: 'paid' });
+      insertInvoiceLinkedToWorkItemBudget(lineB.id, vendorId, { amount: 400, status: 'paid' });
+
+      const rows = [lineA, lineB].map((l) => ({
+        id: l.id,
+        confidence: l.confidence,
+        budgetCategoryId: l.budgetCategoryId,
+        budgetSourceId: l.budgetSourceId,
+        vendorId: l.vendorId,
+        createdBy: l.createdBy,
+      }));
+      const result = resolveRelationsBatch(db, rows, 'work_item_budget_id');
+
+      const resolvedA = result.get(lineA.id)!;
+      expect(resolvedA.actualCostPaid).toBeCloseTo(200);
+
+      const resolvedB = result.get(lineB.id)!;
+      expect(resolvedB.actualCostPaid).toBe(400);
+    });
+  });
+
+  // ─── #1439/#1441: vendorId and vendorName on invoiceLink (ADR-029) ────────────
+
+  describe('invoiceLink vendor fields (#1441)', () => {
+    it('invoiceLink.vendorId and invoiceLink.vendorName are populated when invoice has a vendor', () => {
+      const workItemId = insertWorkItem();
+      const vendorId = insertVendor('Acme Corp');
+      const line = insertWorkItemBudgetLine({ workItemId, plannedAmount: 500 });
+      const { invoiceId: _invId, iblId } = insertInvoiceLinkedToWorkItemBudget(line.id, vendorId, {
+        amount: 500,
+        status: 'pending',
+        invoiceNumber: 'INV-VENDOR',
+      });
+
+      const rows = [
+        {
+          id: line.id,
+          confidence: line.confidence,
+          budgetCategoryId: line.budgetCategoryId,
+          budgetSourceId: line.budgetSourceId,
+          vendorId: line.vendorId,
+          createdBy: line.createdBy,
+        },
+      ];
+      const result = resolveRelationsBatch(db, rows, 'work_item_budget_id');
+      const resolved = result.get(line.id)!;
+
+      expect(resolved.invoiceLink).not.toBeNull();
+      expect(resolved.invoiceLink?.invoiceBudgetLineId).toBe(iblId);
+      expect(resolved.invoiceLink?.vendorId).toBe(vendorId);
+      expect(resolved.invoiceLink?.vendorName).toBe('Acme Corp');
+    });
+
+    it('invoiceLink is null when no invoice is linked (vendorId/vendorName inaccessible)', () => {
+      const workItemId = insertWorkItem();
+      const line = insertWorkItemBudgetLine({ workItemId, plannedAmount: 300 });
+      // No invoice linked — invoiceLink must be null
+
+      const rows = [
+        {
+          id: line.id,
+          confidence: line.confidence,
+          budgetCategoryId: line.budgetCategoryId,
+          budgetSourceId: line.budgetSourceId,
+          vendorId: line.vendorId,
+          createdBy: line.createdBy,
+        },
+      ];
+      const result = resolveRelationsBatch(db, rows, 'work_item_budget_id');
+      const resolved = result.get(line.id)!;
+
+      expect(resolved.invoiceLink).toBeNull();
+    });
+
+    it('batch with multiple budget lines: each invoiceLink gets correct vendor fields', () => {
+      const workItemId = insertWorkItem();
+      const vendorA = insertVendor('Vendor Alpha');
+      const vendorB = insertVendor('Vendor Beta');
+
+      const lineA = insertWorkItemBudgetLine({ workItemId, plannedAmount: 400 });
+      const lineB = insertWorkItemBudgetLine({ workItemId, plannedAmount: 600 });
+
+      insertInvoiceLinkedToWorkItemBudget(lineA.id, vendorA, { amount: 400, status: 'paid' });
+      insertInvoiceLinkedToWorkItemBudget(lineB.id, vendorB, { amount: 600, status: 'pending' });
+
+      const rows = [lineA, lineB].map((l) => ({
+        id: l.id,
+        confidence: l.confidence,
+        budgetCategoryId: l.budgetCategoryId,
+        budgetSourceId: l.budgetSourceId,
+        vendorId: l.vendorId,
+        createdBy: l.createdBy,
+      }));
+      const result = resolveRelationsBatch(db, rows, 'work_item_budget_id');
+
+      const resolvedA = result.get(lineA.id)!;
+      expect(resolvedA.invoiceLink?.vendorId).toBe(vendorA);
+      expect(resolvedA.invoiceLink?.vendorName).toBe('Vendor Alpha');
+
+      const resolvedB = result.get(lineB.id)!;
+      expect(resolvedB.invoiceLink?.vendorId).toBe(vendorB);
+      expect(resolvedB.invoiceLink?.vendorName).toBe('Vendor Beta');
+    });
+
+    it('quotation invoice is included in actualCost via resolveRelationsBatch (ADR-029)', () => {
+      // Budget line linked to a quotation invoice → actualCost should be populated
+      const workItemId = insertWorkItem();
+      const vendorId = insertVendor('Quotation Co');
+      const line = insertWorkItemBudgetLine({ workItemId, plannedAmount: 800 });
+
+      // Insert quotation invoice manually (insertInvoiceLinkedToWorkItemBudget only accepts pending/paid/claimed)
+      const invoiceId = `inv-quot-${++idCounter}`;
+      const iblId = `ibl-quot-${++idCounter}`;
+      const now = new Date(Date.now() + idCounter).toISOString();
+      db.insert(schema.invoices)
+        .values({
+          id: invoiceId,
+          vendorId,
+          amount: 800,
+          date: '2025-06-01',
+          status: 'quotation',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: iblId,
+          invoiceId,
+          workItemBudgetId: line.id,
+          itemizedAmount: 800,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const rows = [
+        {
+          id: line.id,
+          confidence: line.confidence,
+          budgetCategoryId: line.budgetCategoryId,
+          budgetSourceId: line.budgetSourceId,
+          vendorId: line.vendorId,
+          createdBy: line.createdBy,
+        },
+      ];
+      const result = resolveRelationsBatch(db, rows, 'work_item_budget_id');
+      const resolved = result.get(line.id)!;
+
+      // ADR-029: quotation invoice contributes to actualCost
+      expect(resolved.actualCost).toBe(800);
+      expect(resolved.actualCostPaid).toBe(0); // quotation is not paid
+      expect(resolved.invoiceCount).toBe(1);
+      // invoiceLink vendor fields populated
+      expect(resolved.invoiceLink?.vendorId).toBe(vendorId);
+      expect(resolved.invoiceLink?.vendorName).toBe('Quotation Co');
+    });
   });
 });

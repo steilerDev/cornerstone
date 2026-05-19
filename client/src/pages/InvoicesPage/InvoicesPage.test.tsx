@@ -69,6 +69,22 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
   };
 });
 
+// ── LocaleContext mock — InvoicesPage uses useFormatters() → useLocale() ─────
+// Defensive layer to ensure useLocale never reaches the real LocaleContext
+// implementation (which throws if no LocaleProvider wraps the tree). Pattern
+// matches CalendarView.test.tsx.
+
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // ── Location helper ───────────────────────────────────────────────────────────
 
 function LocationDisplay() {
@@ -90,6 +106,8 @@ const sampleInvoice1: Invoice = {
   notes: null,
   budgetLines: [],
   remainingAmount: 15000,
+  deposits: [],
+  finalPaymentAmount: 15000,
   createdBy: null,
   createdAt: '2026-02-01T00:00:00.000Z',
   updatedAt: '2026-02-01T00:00:00.000Z',
@@ -121,6 +139,8 @@ const sampleInvoice2: Invoice = {
     },
   ],
   remainingAmount: 0,
+  deposits: [],
+  finalPaymentAmount: 3500,
   createdBy: null,
   createdAt: '2026-01-15T00:00:00.000Z',
   updatedAt: '2026-01-15T00:00:00.000Z',
@@ -131,6 +151,7 @@ const emptySummary = {
   paid: { count: 0, totalAmount: 0 },
   claimed: { count: 0, totalAmount: 0 },
   quotation: { count: 0, totalAmount: 0 },
+  overdue: { count: 0, totalAmount: 0 },
 };
 
 const populatedSummary = {
@@ -138,6 +159,7 @@ const populatedSummary = {
   paid: { count: 1, totalAmount: 3500 },
   claimed: { count: 0, totalAmount: 0 },
   quotation: { count: 0, totalAmount: 0 },
+  overdue: { count: 0, totalAmount: 0 },
 };
 
 const emptyResponse: InvoiceListPaginatedResponse = {
@@ -639,6 +661,7 @@ describe('InvoicesPage', () => {
           paid: { count: 0, totalAmount: 0 },
           claimed: { count: 3, totalAmount: 900 },
           quotation: { count: 0, totalAmount: 0 },
+          overdue: { count: 0, totalAmount: 0 },
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithClaimed);
@@ -662,6 +685,7 @@ describe('InvoicesPage', () => {
           paid: { count: 0, totalAmount: 0 },
           claimed: { count: 0, totalAmount: 0 },
           quotation: { count: 0, totalAmount: 0 },
+          overdue: { count: 0, totalAmount: 0 },
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithZeroClaimed);
@@ -683,6 +707,7 @@ describe('InvoicesPage', () => {
           paid: { count: 2, totalAmount: 5000 },
           claimed: { count: 3, totalAmount: 900 },
           quotation: { count: 0, totalAmount: 0 },
+          overdue: { count: 0, totalAmount: 0 },
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithSeparateData);
@@ -704,6 +729,82 @@ describe('InvoicesPage', () => {
       // Paid total is €5,000 and claimed total is €900 — they must appear as separate amounts
       expect(screen.getByText(fmtCurrency(5000))).toBeInTheDocument();
       expect(screen.getByText(fmtCurrency(900))).toBeInTheDocument();
+    });
+  });
+
+  // ─── Overdue summary card (#1421) ────────────────────────────────────────────
+
+  describe('overdue summary card (#1421)', () => {
+    it('T1: renders overdue card when summary.overdue.count is 2', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce({
+        ...emptyResponse,
+        summary: { ...emptySummary, overdue: { count: 2, totalAmount: 3000 } },
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('summary-card-overdue')).toBeInTheDocument();
+      });
+      // The count "2" must appear inside the overdue card
+      const card = screen.getByTestId('summary-card-overdue');
+      expect(card).toHaveTextContent('2');
+    });
+
+    it('T2: does NOT render overdue card when summary.overdue.count is 0', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce({
+        ...emptyResponse,
+        summary: { ...emptySummary, overdue: { count: 0, totalAmount: 0 } },
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        // Wait for the loading state to clear
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('summary-card-overdue')).not.toBeInTheDocument();
+    });
+
+    it('T3: empty response (no invoices, overdue 0) — card is NOT in document', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(emptyResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('summary-card-overdue')).not.toBeInTheDocument();
+    });
+
+    it('T4: renders overdue count "3" inside the card when summary.overdue.count is 3', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce({
+        ...emptyResponse,
+        summary: { ...emptySummary, overdue: { count: 3, totalAmount: 7500 } },
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('summary-card-overdue')).toBeInTheDocument();
+      });
+      const card = screen.getByTestId('summary-card-overdue');
+      expect(card).toHaveTextContent('3');
+    });
+
+    it('summaryGrid container exists in the DOM', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(emptyResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+
+      // The summaryGrid className is applied to the grid container div
+      // identity-obj-proxy returns 'summaryGrid' as the class name
+      const grid = document.querySelector('[class*="summaryGrid"]');
+      expect(grid).toBeInTheDocument();
     });
   });
 
