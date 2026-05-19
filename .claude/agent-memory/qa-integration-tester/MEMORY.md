@@ -3,6 +3,19 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## CJS node_modules Mocking in ESM Jest (Konva pattern, 2026-05-19)
+
+To mock a CJS node_module (e.g., `konva`, `react-konva`) in ESM Jest tests when the module requires a native binary (`canvas`):
+1. Create `<rootDir>/__mocks__/module-name.js` (CJS file with `module.exports = ...`)
+2. Call `jest.mock('module-name')` in the test file at module-top-level (NOT inside describe/beforeEach)
+3. Do NOT use `jest.unstable_mockModule` for CJS packages — it only works for ESM modules
+4. The `jest.mock()` call runs before `beforeEach` callbacks, so it's registered before dynamic imports
+5. `react-konva` re-exports from `konva`, so both need mocks
+6. Use `@jest-environment jsdom` docblock + stub components that render `<div data-konva-stub>` instead of canvas elements
+7. For image loading (`new Image()` in useEffect), stub `globalThis.Image` in `beforeAll` with a Proxy that fires `onload` via `setTimeout(0)` when `src` is set, then use `await act(async () => { await new Promise(r => setTimeout(r, 20)); })` after render to flush state updates
+
+**Konva coverage caveat**: Konva-based components will have low statement coverage (23-25%) in JSDOM because `renderKonvaShape`, shape-drawing event handlers (onMouseDown/Move/Up), and the Stage rendering path cannot execute without a real canvas renderer. This is expected — mark shape interaction tests as `it.todo('E2E covers this')`.
+
 ## jest.mock vs jest.unstable_mockModule for Child Component Mocks (2026-05-19)
 
 When a test needs to mock child components (e.g., `PhotoAnnotator`, `Modal`) and the API modules they call, use `jest.mock` (synchronous CJS form) — NOT `jest.unstable_mockModule`. The systemic `jest.unstable_mockModule` non-interception applies to ALL module types (components AND lib modules), not just context modules. Pattern:
