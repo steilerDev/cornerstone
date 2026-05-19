@@ -122,9 +122,11 @@ export function annotatorReducer(
     case 'SELECT_SHAPE':
       return { ...state, selectedShapeId: action.id };
 
-    case 'UPDATE_SHAPE':
+    case 'UPDATE_SHAPE': {
       const updatedShapes = state.shapes.map((s) => (s.id === action.shape.id ? action.shape : s));
+      undoStack?.replace(updatedShapes);
       return { ...state, shapes: updatedShapes };
+    }
 
     case 'DELETE_SELECTED':
       if (!state.selectedShapeId) return state;
