@@ -160,10 +160,7 @@ describe('PhotoMetadataSidepanel', () => {
    *
    * The sidepanel no longer accepts isOpen/onClose — it is always visible.
    */
-  function renderSidepanel(props: {
-    photo: Photo;
-    onPhotoUpdated?: (photo: Photo) => void;
-  }) {
+  function renderSidepanel(props: { photo: Photo; onPhotoUpdated?: (photo: Photo) => void }) {
     return render(
       React.createElement(LocaleProvider, {
         children: React.createElement(PhotoMetadataSidepanel, props),

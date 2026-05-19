@@ -12,10 +12,7 @@ export interface PhotoMetadataSidepanelProps {
   onPhotoUpdated?: (photo: Photo) => void;
 }
 
-export function PhotoMetadataSidepanel({
-  photo,
-  onPhotoUpdated,
-}: PhotoMetadataSidepanelProps) {
+export function PhotoMetadataSidepanel({ photo, onPhotoUpdated }: PhotoMetadataSidepanelProps) {
   const { t } = useTranslation('photoViewer');
   const { formatDate } = useFormatters();
 
@@ -81,11 +78,7 @@ export function PhotoMetadataSidepanel({
   });
 
   return (
-    <div
-      className={styles.sidepanel}
-      aria-label={t('metadataTitle')}
-      role="complementary"
-    >
+    <div className={styles.sidepanel} aria-label={t('metadataTitle')} role="complementary">
       <div className={styles.header}>
         <h3 className={styles.title}>{t('metadataTitle')}</h3>
       </div>
