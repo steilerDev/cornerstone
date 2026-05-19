@@ -2,9 +2,9 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { nanoid } from 'nanoid';
 import type { Photo } from '@cornerstone/shared';
-import { useAnnotator, type ToolName, type FontSizeKey } from './useAnnotator.js';
+import { useAnnotator, type ToolName, type FontSizeKey, type StrokeWidthKey } from './useAnnotator.js';
 import type { TextShape, CalloutShape, MeasurementShape } from './useUndoStack.js';
-import { resolveFontSize } from './annotationConstants.js';
+import { resolveFontSize, resolveStrokeWidth } from './annotationConstants.js';
 import { ToolPalette } from './ToolPalette.js';
 import { RectangleTool } from './tools/RectangleTool.js';
 import { HighlightTool } from './tools/HighlightTool.js';
@@ -747,11 +747,53 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         canUndo={undoStack.canUndo}
         canRedo={undoStack.canRedo}
         onSelectTool={(tool) => dispatch({ type: 'SET_TOOL', tool })}
-        onSelectColor={(color) => dispatch({ type: 'SET_COLOR', color })}
-        onSelectStrokeWidth={(key) => dispatch({ type: 'SET_STROKE_WIDTH', key })}
+        onSelectColor={(color) => {
+          dispatch({ type: 'SET_COLOR', color });
+          // If a shape is selected, update its color too
+          if (state.selectedShapeId) {
+            const shape = state.shapes.find((s) => s.id === state.selectedShapeId);
+            if (shape && (shape.type === 'text' || shape.type === 'callout')) {
+              const updated = { ...shape, color };
+              dispatch({ type: 'UPDATE_SHAPE', shape: updated });
+              undoStack.commit(state.shapes.map((s) => (s.id === updated.id ? updated : s)));
+            }
+          }
+        }}
+        onSelectStrokeWidth={(key) => {
+          dispatch({ type: 'SET_STROKE_WIDTH', key });
+          // If a shape is selected, update its stroke width too
+          if (state.selectedShapeId) {
+            const shape = state.shapes.find((s) => s.id === state.selectedShapeId);
+            if (shape) {
+              // Resolve the new stroke width based on photo dimensions
+              const newStrokeWidth = resolveStrokeWidth(key, photo.width!, photo.height!);
+              const updated = {
+                ...shape,
+                strokeWidth: newStrokeWidth,
+              };
+              dispatch({ type: 'UPDATE_SHAPE', shape: updated });
+              undoStack.commit(state.shapes.map((s) => (s.id === updated.id ? updated : s)));
+            }
+          }
+        }}
         onSelectFontSize={(key) => {
           fontSizePerTool.current[state.selectedTool] = key as FontSizeKey;
           dispatch({ type: 'SET_FONT_SIZE', key: key as FontSizeKey });
+          // If a shape is selected, update its font size too (text/callout/measurement)
+          if (state.selectedShapeId) {
+            const shape = state.shapes.find((s) => s.id === state.selectedShapeId);
+            if (shape && (shape.type === 'text' || shape.type === 'callout')) {
+              const newFontSize = resolveFontSize(key as FontSizeKey, photo.width!, photo.height!);
+              const updated = { ...shape, fontSize: newFontSize };
+              dispatch({ type: 'UPDATE_SHAPE', shape: updated });
+              undoStack.commit(state.shapes.map((s) => (s.id === updated.id ? updated : s)));
+            } else if (shape && shape.type === 'measurement') {
+              const newFontSize = resolveFontSize(key as FontSizeKey, photo.width!, photo.height!);
+              const updated = { ...shape, fontSize: newFontSize };
+              dispatch({ type: 'UPDATE_SHAPE', shape: updated });
+              undoStack.commit(state.shapes.map((s) => (s.id === updated.id ? updated : s)));
+            }
+          }
         }}
         onUndo={() => undoStack.undo()}
         onRedo={() => undoStack.redo()}
