@@ -27,7 +27,16 @@
  *   so tests see the fully loaded state (with action buttons and keyboard handlers).
  */
 
-import { jest, describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from '@jest/globals';
+import {
+  jest,
+  describe,
+  it,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterEach,
+  afterAll,
+} from '@jest/globals';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import React from 'react';
 import type { Photo } from '@cornerstone/shared';
@@ -49,9 +58,8 @@ type AnyMock = jest.MockedFunction<(...args: any[]) => any>;
 // code runs before describe/beforeEach callbacks. This means the mock is registered
 // in the CJS module registry before the first dynamic import, intercepting correctly.
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 jest.mock('konva');
-// eslint-disable-next-line @typescript-eslint/no-unsafe-call
+
 jest.mock('react-konva');
 
 // ─── Mock photoApi ─────────────────────────────────────────────────────────────
@@ -107,11 +115,7 @@ jest.unstable_mockModule('../../Modal/Modal.js', () => ({
       'div',
       { 'data-testid': 'modal', role: 'dialog', 'aria-modal': 'true' },
       React.createElement('h2', null, title),
-      React.createElement(
-        'button',
-        { 'data-testid': 'modal-close', onClick: onClose },
-        'Close',
-      ),
+      React.createElement('button', { 'data-testid': 'modal-close', onClick: onClose }, 'Close'),
       children,
     ),
 }));
@@ -333,7 +337,8 @@ describe('PhotoAnnotator', () => {
           (target as any)[prop] = value;
           if (prop === 'src') {
             capturedSrcs.push(value as string);
-            if (target.onload) setTimeout(() => target.onload && target.onload(new Event('load')), 0);
+            if (target.onload)
+              setTimeout(() => target.onload && target.onload(new Event('load')), 0);
           }
           return true;
         },
@@ -389,9 +394,16 @@ describe('PhotoAnnotator', () => {
   it('shows all 9 tool buttons in ToolPalette', async () => {
     await renderAnnotator();
     const toolIds = [
-      'tool-select', 'tool-rectangle', 'tool-highlight', 'tool-arrow',
-      'tool-line', 'tool-ellipse', 'tool-text', 'tool-callout',
-      'tool-measurement', 'tool-freehand',
+      'tool-select',
+      'tool-rectangle',
+      'tool-highlight',
+      'tool-arrow',
+      'tool-line',
+      'tool-ellipse',
+      'tool-text',
+      'tool-callout',
+      'tool-measurement',
+      'tool-freehand',
     ];
     for (const testId of toolIds) {
       expect(screen.getByTestId(testId)).toBeInTheDocument();
@@ -550,7 +562,9 @@ describe('PhotoAnnotator', () => {
     await renderAnnotator({ width: 800, height: 600 });
 
     // The live region uses role="status" aria-live="polite" aria-atomic
-    const liveRegion = document.querySelector('[role="status"][aria-live="polite"]') as HTMLElement | null;
+    const liveRegion = document.querySelector(
+      '[role="status"][aria-live="polite"]',
+    ) as HTMLElement | null;
 
     expect(liveRegion).toBeInTheDocument();
     expect(liveRegion).toHaveAttribute('aria-live', 'polite');
@@ -567,7 +581,9 @@ describe('PhotoAnnotator', () => {
 
   function getLiveRegion(): HTMLElement {
     // In the Konva-based component, the live region uses role="status"
-    const el = document.querySelector('[role="status"][aria-live="polite"]') as HTMLElement | undefined;
+    const el = document.querySelector('[role="status"][aria-live="polite"]') as
+      | HTMLElement
+      | undefined;
     if (!el) throw new Error('Live region not found (role="status" aria-live="polite")');
     return el;
   }
@@ -678,7 +694,9 @@ describe('PhotoAnnotator', () => {
     expect(screen.getByRole('region', { name: /annotation tool/i })).toBeInTheDocument();
   });
 
-  it.todo('callout Phase 1→Phase 2 transition does not discard draft (E2E covers Konva pointer flow)');
+  it.todo(
+    'callout Phase 1→Phase 2 transition does not discard draft (E2E covers Konva pointer flow)',
+  );
 
   // ── Canvas bake uses naturalWidth/naturalHeight (not photo.width/height) ────
   //

@@ -120,14 +120,17 @@ Shapes have no DOM representation — Konva renders them onto the canvas element
 **All 21 SVG-coupled tests marked `test.fixme()`** in `photoAnnotation.spec.ts`.
 
 **2 tests kept active** (no SVG shape locator assertions):
+
 - Scenario 2: Cancel annotation — asserts toolPalette gone, no PUT fired (no shape DOM check)
 - Scenario 22: Tool palette UI state — asserts aria-pressed on tool buttons only
 
 **Fixme breakdown:**
+
 - Scenarios 1, 4–21, 23: `test.fixme(...)` with "TODO: rewrite for Konva canvas — ..."
 - All smoke-tagged fixme tests: 1, 12, 16, 21 (smoke tag kept in fixme metadata)
 
 **Rewrite strategy when Konva tests are reimplemented:**
+
 - Use `page.evaluate()` with Konva's `stage.findOne()` API, or
 - Use pixel-diff / visual regression (screenshot comparison), or
 - Use Konva's internal stage JSON (`stage.toJSON()`) to inspect shape state

@@ -123,73 +123,73 @@ export function PhotoMetadataSidepanel({
         </div>
 
         <div className={styles.content}>
-        {/* Upload date — read-only */}
-        <div className={styles.section}>
-          <label className={styles.label}>{t('uploadDate')}</label>
-          <div className={styles.dateValue}>{formatDate(photo.createdAt)}</div>
-        </div>
+          {/* Upload date — read-only */}
+          <div className={styles.section}>
+            <label className={styles.label}>{t('uploadDate')}</label>
+            <div className={styles.dateValue}>{formatDate(photo.createdAt)}</div>
+          </div>
 
-        {/* Description */}
-        <div className={styles.section}>
-          <label htmlFor="photo-caption" className={styles.label}>
-            {t('description')}
-          </label>
-          <textarea
-            id="photo-caption"
-            className={styles.descriptionTextarea}
-            placeholder={t('descriptionPlaceholder')}
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            disabled={isDisabled}
-            rows={4}
-          />
-        </div>
-
-        {/* Area picker */}
-        <div className={styles.section}>
-          <label htmlFor="photo-area" className={styles.label}>
-            {t('area')}
-          </label>
-          <div className={styles.areaPicker}>
-            <SearchPicker<AreaResponse>
-              id="photo-area"
-              value={areaId}
-              onChange={setAreaId}
-              excludeIds={[]}
+          {/* Description */}
+          <div className={styles.section}>
+            <label htmlFor="photo-caption" className={styles.label}>
+              {t('description')}
+            </label>
+            <textarea
+              id="photo-caption"
+              className={styles.descriptionTextarea}
+              placeholder={t('descriptionPlaceholder')}
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
               disabled={isDisabled}
-              placeholder={t('areaPlaceholder')}
-              searchFn={searchAreas}
-              renderItem={renderAreaItem}
-              specialOptions={[{ id: '', label: t('noArea') }]}
-              showItemsOnFocus={true}
-              initialTitle={
-                areas.find((a) => a.id === areaId)?.name ||
-                (areaId === '' ? t('noArea') : undefined)
-              }
+              rows={4}
             />
           </div>
-        </div>
 
-        {/* Error message */}
-        {error && <div className={styles.errorMessage}>{error}</div>}
-
-        {/* Save button */}
-        {hasChanges && (
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.saveButton}
-              onClick={handleSave}
-              disabled={isDisabled}
-              aria-busy={isSaving}
-            >
-              {isSaving ? t('saving') : t('saveButton')}
-            </button>
+          {/* Area picker */}
+          <div className={styles.section}>
+            <label htmlFor="photo-area" className={styles.label}>
+              {t('area')}
+            </label>
+            <div className={styles.areaPicker}>
+              <SearchPicker<AreaResponse>
+                id="photo-area"
+                value={areaId}
+                onChange={setAreaId}
+                excludeIds={[]}
+                disabled={isDisabled}
+                placeholder={t('areaPlaceholder')}
+                searchFn={searchAreas}
+                renderItem={renderAreaItem}
+                specialOptions={[{ id: '', label: t('noArea') }]}
+                showItemsOnFocus={true}
+                initialTitle={
+                  areas.find((a) => a.id === areaId)?.name ||
+                  (areaId === '' ? t('noArea') : undefined)
+                }
+              />
+            </div>
           </div>
-        )}
 
-        {isSaving && <div className={styles.savingIndicator}>{t('saving')}</div>}
-      </div>
+          {/* Error message */}
+          {error && <div className={styles.errorMessage}>{error}</div>}
+
+          {/* Save button */}
+          {hasChanges && (
+            <div className={styles.actions}>
+              <button
+                type="button"
+                className={styles.saveButton}
+                onClick={handleSave}
+                disabled={isDisabled}
+                aria-busy={isSaving}
+              >
+                {isSaving ? t('saving') : t('saveButton')}
+              </button>
+            </div>
+          )}
+
+          {isSaving && <div className={styles.savingIndicator}>{t('saving')}</div>}
+        </div>
       </div>
     </>
   );

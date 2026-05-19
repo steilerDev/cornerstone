@@ -178,7 +178,9 @@
     color: white;
     cursor: pointer;
     z-index: 20;
-    transition: background-color var(--transition-fast), transform var(--transition-fast);
+    transition:
+      background-color var(--transition-fast),
+      transform var(--transition-fast);
   }
 
   .toggleButton:hover {
@@ -194,7 +196,7 @@
     box-shadow: var(--shadow-focus);
   }
 
-  .toggleButton[aria-expanded="true"] {
+  .toggleButton[aria-expanded='true'] {
     transform: rotate(180deg);
   }
 
@@ -211,7 +213,9 @@
     display: none;
     flex-direction: column;
     transform: translateY(100%);
-    transition: transform var(--transition-normal), display var(--transition-normal) allow-discrete;
+    transition:
+      transform var(--transition-normal),
+      display var(--transition-normal) allow-discrete;
   }
 
   .sidepanelOpen {
@@ -237,7 +241,7 @@
     transition: none;
   }
 
-  .toggleButton[aria-expanded="true"] {
+  .toggleButton[aria-expanded='true'] {
     transform: none;
   }
 }

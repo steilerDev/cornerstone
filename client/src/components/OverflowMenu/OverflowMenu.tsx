@@ -35,7 +35,9 @@ export function OverflowMenu({
   const [isOpen, setIsOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const [triggerRect, setTriggerRect] = useState<DOMRect | null>(null);
-  const [effectivePlacement, setEffectivePlacement] = useState<'bottom-end' | 'top-end'>('bottom-end');
+  const [effectivePlacement, setEffectivePlacement] = useState<'bottom-end' | 'top-end'>(
+    'bottom-end',
+  );
   const wrapperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);

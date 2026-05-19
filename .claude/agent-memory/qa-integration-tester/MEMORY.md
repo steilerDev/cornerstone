@@ -6,6 +6,7 @@
 ## CJS node_modules Mocking in ESM Jest (Konva pattern, 2026-05-19)
 
 To mock a CJS node_module (e.g., `konva`, `react-konva`) in ESM Jest tests when the module requires a native binary (`canvas`):
+
 1. Create `<rootDir>/__mocks__/module-name.js` (CJS file with `module.exports = ...`)
 2. Call `jest.mock('module-name')` in the test file at module-top-level (NOT inside describe/beforeEach)
 3. Do NOT use `jest.unstable_mockModule` for CJS packages — it only works for ESM modules

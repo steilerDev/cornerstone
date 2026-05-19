@@ -1,7 +1,18 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import Konva from 'konva';
-import { Stage, Layer, Image as KonvaImage, Rect, Line, Ellipse, Text, Group, Transformer, Arrow } from 'react-konva';
+import type Konva from 'konva';
+import {
+  Stage,
+  Layer,
+  Image as KonvaImage,
+  Rect,
+  Line,
+  Ellipse,
+  Text,
+  Group,
+  Transformer,
+  Arrow,
+} from 'react-konva';
 import { nanoid } from 'nanoid';
 import type { Photo } from '@cornerstone/shared';
 import {
@@ -346,8 +357,14 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
           } else if (selectedShape.type === 'ellipse') {
             updated = {
               ...selectedShape,
-              cx: Math.max(selectedShape.rx, Math.min(selectedShape.cx + dx, photo.width! - selectedShape.rx)),
-              cy: Math.max(selectedShape.ry, Math.min(selectedShape.cy + dy, photo.height! - selectedShape.ry)),
+              cx: Math.max(
+                selectedShape.rx,
+                Math.min(selectedShape.cx + dx, photo.width! - selectedShape.rx),
+              ),
+              cy: Math.max(
+                selectedShape.ry,
+                Math.min(selectedShape.cy + dy, photo.height! - selectedShape.ry),
+              ),
             };
           } else if (selectedShape.type === 'text') {
             updated = {
@@ -449,9 +466,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
           prev ? { ...prev, points: [...prev.points, [pos.x, pos.y]] } : null,
         );
       } else {
-        setDraftShape((prev) =>
-          prev ? { ...prev, endX: pos.x, endY: pos.y } : null,
-        );
+        setDraftShape((prev) => (prev ? { ...prev, endX: pos.x, endY: pos.y } : null));
       }
     },
     [draftShape, state.selectedTool, inlineInput.isOpen],
@@ -486,7 +501,12 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         }
       } else if (w > MIN_SIZE && h > MIN_SIZE) {
         const newShape = createShapeFromDraft(draftShape);
-        if (newShape && (state.selectedTool === 'text' || state.selectedTool === 'callout' || state.selectedTool === 'measurement')) {
+        if (
+          newShape &&
+          (state.selectedTool === 'text' ||
+            state.selectedTool === 'callout' ||
+            state.selectedTool === 'measurement')
+        ) {
           // These require text input
           openInlineInput(draftShape.startX, draftShape.startY);
         } else if (newShape) {
@@ -728,7 +748,15 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       boxSizing: 'border-box',
       zIndex: 1000,
     };
-  }, [inlineInput, photo.width, photo.height, state.activeColor, state.shapes, state.selectedTool, draftShape]);
+  }, [
+    inlineInput,
+    photo.width,
+    photo.height,
+    state.activeColor,
+    state.shapes,
+    state.selectedTool,
+    draftShape,
+  ]);
 
   const stageWidth = photo.width ?? 800;
   const stageHeight = photo.height ?? 600;
@@ -794,7 +822,10 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
           dispatch({ type: 'SET_FONT_SIZE', key: key as FontSizeKey });
           if (state.selectedShapeId) {
             const shape = state.shapes.find((s) => s.id === state.selectedShapeId);
-            if (shape && (shape.type === 'text' || shape.type === 'callout' || shape.type === 'measurement')) {
+            if (
+              shape &&
+              (shape.type === 'text' || shape.type === 'callout' || shape.type === 'measurement')
+            ) {
               const newFontSize = resolveFontSize(key as FontSizeKey, photo.width!, photo.height!);
               const updated = { ...shape, fontSize: newFontSize };
               undoStack.commit(state.shapes.map((s) => (s.id === updated.id ? updated : s)));
@@ -906,7 +937,9 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
           <p>{t('resetConfirmBody')}</p>
           <div className={styles.modalActions}>
             <button onClick={() => setShowResetConfirm(false)}>{t('cancel')}</button>
-            <button onClick={handleReset} className={styles.confirmButton}>{t('reset')}</button>
+            <button onClick={handleReset} className={styles.confirmButton}>
+              {t('reset')}
+            </button>
           </div>
         </Modal>
       )}
@@ -1081,27 +1114,67 @@ function renderKonvaShape(
 
   if (shape.type === 'callout') {
     return (
-      <Group key={shape.id} id={`shape-${shape.id}`} draggable={selectedTool === 'select'} ref={(node) => {
-        if (node) {
-          shapesNodesRef.current.set(shape.id, node);
-        }
-      }}>
-        <Rect x={shape.x} y={shape.y} width={shape.w} height={shape.h} stroke={shape.stroke} fill={shape.fill} fillOpacity={0.2} />
-        <Line points={[shape.x, shape.y, shape.tailX, shape.tailY]} stroke={shape.stroke} strokeWidth={shape.strokeWidth} />
-        <Text x={shape.x + 6} y={shape.y + 6} text={shape.text} fontSize={shape.fontSize} fill={shape.color} fontFamily={ANNOTATION_FONT_FAMILY} />
+      <Group
+        key={shape.id}
+        id={`shape-${shape.id}`}
+        draggable={selectedTool === 'select'}
+        ref={(node) => {
+          if (node) {
+            shapesNodesRef.current.set(shape.id, node);
+          }
+        }}
+      >
+        <Rect
+          x={shape.x}
+          y={shape.y}
+          width={shape.w}
+          height={shape.h}
+          stroke={shape.stroke}
+          fill={shape.fill}
+          fillOpacity={0.2}
+        />
+        <Line
+          points={[shape.x, shape.y, shape.tailX, shape.tailY]}
+          stroke={shape.stroke}
+          strokeWidth={shape.strokeWidth}
+        />
+        <Text
+          x={shape.x + 6}
+          y={shape.y + 6}
+          text={shape.text}
+          fontSize={shape.fontSize}
+          fill={shape.color}
+          fontFamily={ANNOTATION_FONT_FAMILY}
+        />
       </Group>
     );
   }
 
   if (shape.type === 'measurement') {
     return (
-      <Group key={shape.id} id={`shape-${shape.id}`} draggable={selectedTool === 'select'} ref={(node) => {
-        if (node) {
-          shapesNodesRef.current.set(shape.id, node);
-        }
-      }}>
-        <Line points={[shape.x1, shape.y1, shape.x2, shape.y2]} stroke={shape.stroke} strokeWidth={shape.strokeWidth} />
-        <Text x={((shape.x1 + shape.x2) / 2) - 20} y={((shape.y1 + shape.y2) / 2) - shape.fontSize} text={shape.label} fontSize={shape.fontSize} fill={shape.color} fontFamily={ANNOTATION_FONT_FAMILY} />
+      <Group
+        key={shape.id}
+        id={`shape-${shape.id}`}
+        draggable={selectedTool === 'select'}
+        ref={(node) => {
+          if (node) {
+            shapesNodesRef.current.set(shape.id, node);
+          }
+        }}
+      >
+        <Line
+          points={[shape.x1, shape.y1, shape.x2, shape.y2]}
+          stroke={shape.stroke}
+          strokeWidth={shape.strokeWidth}
+        />
+        <Text
+          x={(shape.x1 + shape.x2) / 2 - 20}
+          y={(shape.y1 + shape.y2) / 2 - shape.fontSize}
+          text={shape.label}
+          fontSize={shape.fontSize}
+          fill={shape.color}
+          fontFamily={ANNOTATION_FONT_FAMILY}
+        />
       </Group>
     );
   }

@@ -496,59 +496,55 @@ export class PhotoViewerPage {
     // so handlePointerMove sees stale state (draftShape === null) and returns early.
     // Splitting into two evaluate calls — with an rAF yield in between — lets React
     // commit the SET_DRAFT before pointermove events arrive.
-    await this.svgOverlay.evaluate(
-      (el: Element, pt: [number, number]) => {
+    await this.svgOverlay.evaluate((el: Element, pt: [number, number]) => {
+      el.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          pointerId: 1,
+          pointerType: 'touch',
+          isPrimary: true,
+          clientX: pt[0],
+          clientY: pt[1],
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    }, points[0]);
+
+    // Yield one animation frame so React flushes the SET_DRAFT state update
+    // before pointermove events arrive.
+    await this.page.evaluate(
+      () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+    );
+
+    // Phase 2: dispatch pointermove (subdivided per segment) + pointerup.
+    await this.svgOverlay.evaluate((el: Element, pts: Array<[number, number]>) => {
+      const dispatch = (type: string, x: number, y: number) => {
         el.dispatchEvent(
-          new PointerEvent('pointerdown', {
+          new PointerEvent(type, {
             pointerId: 1,
             pointerType: 'touch',
             isPrimary: true,
-            clientX: pt[0],
-            clientY: pt[1],
+            clientX: x,
+            clientY: y,
             bubbles: true,
             cancelable: true,
           }),
         );
-      },
-      points[0],
-    );
+      };
 
-    // Yield one animation frame so React flushes the SET_DRAFT state update
-    // before pointermove events arrive.
-    await this.page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
-
-    // Phase 2: dispatch pointermove (subdivided per segment) + pointerup.
-    await this.svgOverlay.evaluate(
-      (el: Element, pts: Array<[number, number]>) => {
-        const dispatch = (type: string, x: number, y: number) => {
-          el.dispatchEvent(
-            new PointerEvent(type, {
-              pointerId: 1,
-              pointerType: 'touch',
-              isPrimary: true,
-              clientX: x,
-              clientY: y,
-              bubbles: true,
-              cancelable: true,
-            }),
-          );
-        };
-
-        // Walk each segment, subdividing into 3 steps to give FreehandTool
-        // enough intermediate points to survive RDP simplification (≥ 2 points).
-        for (let i = 1; i < pts.length; i++) {
-          const [x0, y0] = pts[i - 1];
-          const [x1, y1] = pts[i];
-          for (let s = 1; s <= 3; s++) {
-            dispatch('pointermove', x0 + (x1 - x0) * (s / 3), y0 + (y1 - y0) * (s / 3));
-          }
+      // Walk each segment, subdividing into 3 steps to give FreehandTool
+      // enough intermediate points to survive RDP simplification (≥ 2 points).
+      for (let i = 1; i < pts.length; i++) {
+        const [x0, y0] = pts[i - 1];
+        const [x1, y1] = pts[i];
+        for (let s = 1; s <= 3; s++) {
+          dispatch('pointermove', x0 + (x1 - x0) * (s / 3), y0 + (y1 - y0) * (s / 3));
         }
+      }
 
-        // Fire pointerup at the last point
-        dispatch('pointerup', pts[pts.length - 1][0], pts[pts.length - 1][1]);
-      },
-      points,
-    );
+      // Fire pointerup at the last point
+      dispatch('pointerup', pts[pts.length - 1][0], pts[pts.length - 1][1]);
+    }, points);
   }
 
   /**
@@ -596,7 +592,9 @@ export class PhotoViewerPage {
       },
       [startX, startY] as [number, number],
     );
-    await this.page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+    await this.page.evaluate(
+      () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+    );
 
     // Phase 2: pointermove (5 steps) → rAF → React commits final x2=endX, y2=endY
     await this.svgOverlay.evaluate(
@@ -622,7 +620,9 @@ export class PhotoViewerPage {
       },
       [startX, startY, endX, endY] as [number, number, number, number],
     );
-    await this.page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+    await this.page.evaluate(
+      () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+    );
 
     // Phase 3: pointerup — state.draftShape.x2/y2 now reflects the final endpoint
     await this.svgOverlay.evaluate(
