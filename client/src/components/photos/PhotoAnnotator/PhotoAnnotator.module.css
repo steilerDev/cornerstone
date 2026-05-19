@@ -31,7 +31,7 @@
   /* SVG fills container with preserveAspectRatio="xMidYMid meet" (center-fit like object-fit: contain) */
 }
 
-.inlineTextInput {
+.inlineInput {
   position: absolute;
   background: transparent;
   border: 2px dashed var(--color-primary);
@@ -39,21 +39,21 @@
   padding: var(--spacing-1) var(--spacing-2);
   outline: none;
   min-width: 80px;
-  z-index: var(--z-dropdown);
+  z-index: 1000;
 }
 
-.inlineTextInput:focus {
+.inlineInput:focus {
   outline: 1px solid var(--color-primary);
   outline-offset: 1px;
 }
 
-.actionBar {
+.actions {
   display: flex;
   gap: var(--spacing-3);
   justify-content: flex-end;
   padding: var(--spacing-4);
-  background: rgba(0, 0, 0, 0.7);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
 }
 
 .saveButton {
@@ -108,12 +108,27 @@
 }
 
 /* Modal buttons (for reset confirmation) */
-.modalButtonSecondary {
-  composes: btnSecondary from '../../../styles/shared.module.css';
+.modalActions {
+  display: flex;
+  gap: var(--spacing-3);
+  justify-content: flex-end;
+  margin-top: var(--spacing-4);
 }
 
-.modalButtonPrimary {
+.confirmButton {
   composes: btnPrimary from '../../../styles/shared.module.css';
+}
+
+.liveRegion {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
 @media (prefers-reduced-motion: no-preference) {
