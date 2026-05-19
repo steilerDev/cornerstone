@@ -850,11 +850,16 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         onSelectTool={(tool) => dispatch({ type: 'SET_TOOL', tool })}
         onSelectColor={(color) => {
           dispatch({ type: 'SET_COLOR', color });
-          // If a shape is selected, update its color too
+          // If a shape is selected, update its color too.
+          // Text and callout shapes store the user-picked colour as `color`;
+          // every other shape type stores it as `stroke`.
           if (state.selectedShapeId) {
             const shape = state.shapes.find((s) => s.id === state.selectedShapeId);
-            if (shape && (shape.type === 'text' || shape.type === 'callout')) {
-              const updated = { ...shape, color };
+            if (shape) {
+              const updated =
+                shape.type === 'text' || shape.type === 'callout'
+                  ? { ...shape, color }
+                  : { ...shape, stroke: color };
               dispatch({ type: 'UPDATE_SHAPE', shape: updated });
               undoStack.commit(state.shapes.map((s) => (s.id === updated.id ? updated : s)));
             }
