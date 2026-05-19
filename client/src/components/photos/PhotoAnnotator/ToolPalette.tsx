@@ -223,8 +223,7 @@ export function ToolPalette({
         })}
       </div>
 
-      {(selectedTool === 'text' ||
-        selectedTool === 'measurement') && (
+      {(selectedTool === 'text' || selectedTool === 'measurement') && (
         <>
           <div className={styles.divider} aria-hidden="true" />
           <div role="radiogroup" aria-label={t('fontSize')} className={styles.fontSizeGroup}>

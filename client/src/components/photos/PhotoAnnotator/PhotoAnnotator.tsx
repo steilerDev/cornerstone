@@ -143,8 +143,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         : null;
       const originalText = (() => {
         if (!existingShape) return '';
-        if (existingShape.type === 'text')
-          return existingShape.text;
+        if (existingShape.type === 'text') return existingShape.text;
         if (existingShape.type === 'measurement') return existingShape.label;
         return '';
       })();
@@ -770,9 +769,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
             const shape = state.shapes.find((s) => s.id === state.selectedShapeId);
             if (shape) {
               const updated =
-                shape.type === 'text'
-                  ? { ...shape, color }
-                  : { ...shape, stroke: color };
+                shape.type === 'text' ? { ...shape, color } : { ...shape, stroke: color };
               undoStack.commit(state.shapes.map((s) => (s.id === updated.id ? updated : s)));
             }
           }
@@ -793,10 +790,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
           dispatch({ type: 'SET_FONT_SIZE', key: key as FontSizeKey });
           if (state.selectedShapeId) {
             const shape = state.shapes.find((s) => s.id === state.selectedShapeId);
-            if (
-              shape &&
-              (shape.type === 'text' || shape.type === 'measurement')
-            ) {
+            if (shape && (shape.type === 'text' || shape.type === 'measurement')) {
               const newFontSize = resolveFontSize(key as FontSizeKey, photo.width!, photo.height!);
               const updated = { ...shape, fontSize: newFontSize };
               undoStack.commit(state.shapes.map((s) => (s.id === updated.id ? updated : s)));

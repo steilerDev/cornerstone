@@ -109,7 +109,6 @@ describe('ToolPalette', () => {
       fireEvent.click(screen.getByTestId('tool-text'));
       expect(onSelectTool).toHaveBeenCalledWith('text');
     });
-
   });
 
   describe('Font-size selector visibility', () => {
@@ -395,6 +394,5 @@ describe('ToolPalette', () => {
 
       expect(groupsWithText).toBeGreaterThan(groupsWithSelect);
     });
-
   });
 });
