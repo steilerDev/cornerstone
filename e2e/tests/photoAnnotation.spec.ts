@@ -1501,15 +1501,10 @@ test(
 
       await viewer.activateTool('measurement');
 
-      // Draw measurement line using pointer events (works on mobile WebKit too)
-      const svgBox = await viewer.svgOverlay.boundingBox();
-      expect(svgBox).not.toBeNull();
-      await page.mouse.move(svgBox!.x + svgBox!.width * 0.15, svgBox!.y + svgBox!.height * 0.5);
-      await page.mouse.down();
-      await page.mouse.move(svgBox!.x + svgBox!.width * 0.75, svgBox!.y + svgBox!.height * 0.5, {
-        steps: 5,
-      });
-      await page.mouse.up();
+      // Draw measurement line using synthetic touch PointerEvents via drawLineTouch.
+      // On WebKit/hasTouch viewports page.mouse.* does not reliably fire
+      // onPointerDown/Move/Up on the SVG element — use the synthetic helper instead.
+      await viewer.drawLineTouch(0.15, 0.5, 0.75, 0.5);
 
       // Inline input should appear at the midpoint
       await expect(viewer.inlineInput).toBeVisible();
@@ -1772,8 +1767,12 @@ test(
       await expect(viewer.svgOverlay.locator('ellipse[data-shapeid]').first()).toBeVisible();
 
       // Draw Freehand
+      // Use drawFreehandTouch (synthetic PointerEvents) so this step works on
+      // mobile WebKit (hasTouch=true) where page.mouse.* does not reliably fire
+      // the onPointerDown/Move/Up handlers on the SVG element.  The helper is
+      // safe to call on desktop viewports too.
       await viewer.activateTool('freehand');
-      await viewer.drawFreehand(0.1, 0.7, [
+      await viewer.drawFreehandTouch(0.1, 0.7, [
         [0.3, 0.6],
         [0.5, 0.8],
         [0.7, 0.6],
