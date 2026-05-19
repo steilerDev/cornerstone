@@ -251,10 +251,10 @@ export function renderShapeSvgProps(shape: AnnotationShape, isDraft: boolean): S
     // Use strokeWidth from shape if available, otherwise default to 2 for backward compat
     const strokeWidth = calloutShape.strokeWidth ?? 2;
 
-    // Padding inset from box border (in image-space pixels)
-    const inset = 6;
-    const availW = Math.max(1, calloutShape.w - 2 * inset);
-    const availH = Math.max(1, calloutShape.h - 2 * inset);
+    // Initial inset for available space calculation
+    const initialInset = 6;
+    const availW = Math.max(1, calloutShape.w - 2 * initialInset);
+    const availH = Math.max(1, calloutShape.h - 2 * initialInset);
 
     // Calculate effective font size with auto-scaling for overflow
     const effectiveFontSize = calculateCalloutEffectiveFontSize(
@@ -263,6 +263,9 @@ export function renderShapeSvgProps(shape: AnnotationShape, isDraft: boolean): S
       availW,
       availH,
     );
+
+    // Padding inset from box border (proportional to font size for better visual balance)
+    const inset = Math.max(6, Math.round(effectiveFontSize * 0.5));
 
     return {
       tagName: 'callout',
@@ -511,9 +514,9 @@ export function drawShapeOnCanvas(ctx: CanvasRenderingContext2D, shape: Annotati
     ctx.stroke();
 
     // 3. Text with wrapping and auto-scaling
-    const inset = 6;
-    const availW = Math.max(1, calloutShape.w - 2 * inset);
-    const availH = Math.max(1, calloutShape.h - 2 * inset);
+    const initialInset = 6;
+    const availW = Math.max(1, calloutShape.w - 2 * initialInset);
+    const availH = Math.max(1, calloutShape.h - 2 * initialInset);
 
     const effectiveFontSize = calculateCalloutEffectiveFontSize(
       calloutShape.text,
@@ -521,6 +524,9 @@ export function drawShapeOnCanvas(ctx: CanvasRenderingContext2D, shape: Annotati
       availW,
       availH,
     );
+
+    // Padding inset from box border (proportional to font size for better visual balance)
+    const inset = Math.max(6, Math.round(effectiveFontSize * 0.5));
 
     ctx.fillStyle = calloutShape.color;
     ctx.font = `${effectiveFontSize}px ${ANNOTATION_FONT_FAMILY}`;
