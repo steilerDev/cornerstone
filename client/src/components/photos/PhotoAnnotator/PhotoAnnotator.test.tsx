@@ -101,6 +101,7 @@ jest.unstable_mockModule('./geometry.js', () => ({
     tailY: newTailY,
   }),
   hitTestPolyline: () => null,
+  hitTestMeasurementLabel: () => false,
   translateMeasurement: (x1: number, y1: number, x2: number, y2: number) => ({ x1, y1, x2, y2 }),
   translateFreehand: (points: [number, number][]) => points,
 }));
