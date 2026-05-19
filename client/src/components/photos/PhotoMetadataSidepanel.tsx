@@ -7,14 +7,31 @@ import { useFormatters } from '../../lib/formatters.js';
 import { SearchPicker } from '../SearchPicker/index.js';
 import styles from './PhotoMetadataSidepanel.module.css';
 
+/**
+ * PhotoMetadataSidepanel — displays and edits photo metadata (caption, area).
+ * On mobile, renders as a bottom sheet with a toggle button.
+ * When annotation mode is active, the sidepanel and toggle button are hidden
+ * to prevent interaction interference with the annotation canvas.
+ */
 export interface PhotoMetadataSidepanelProps {
   photo: Photo;
   onPhotoUpdated?: (photo: Photo) => void;
+  /** If true, hides the sidepanel and toggle button to avoid pointer event interference during annotation. */
+  isAnnotating?: boolean;
 }
 
-export function PhotoMetadataSidepanel({ photo, onPhotoUpdated }: PhotoMetadataSidepanelProps) {
+export function PhotoMetadataSidepanel({
+  photo,
+  onPhotoUpdated,
+  isAnnotating = false,
+}: PhotoMetadataSidepanelProps) {
   const { t } = useTranslation('photoViewer');
   const { formatDate } = useFormatters();
+
+  // Hide sidepanel entirely when annotation mode is active
+  if (isAnnotating) {
+    return null;
+  }
 
   const [caption, setCaption] = useState(photo.caption ?? '');
   const [areaId, setAreaId] = useState(photo.areaId ?? '');

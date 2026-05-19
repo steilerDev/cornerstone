@@ -82,6 +82,27 @@ export function OverflowMenu({
     };
   }, [isOpen, usePortal]);
 
+  // Close menu on Escape key at document level
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      // Skip if the menu element itself already handled this event
+      if (menuRef.current?.contains(e.target as Node)) {
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setIsOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen]);
+
   // Keyboard navigation
   const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown' && !isOpen) {

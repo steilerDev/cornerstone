@@ -383,7 +383,11 @@ export function PhotoViewer({
         )}
 
         {/* Metadata sidepanel */}
-        <PhotoMetadataSidepanel photo={currentPhoto} onPhotoUpdated={handlePhotoUpdated} />
+        <PhotoMetadataSidepanel
+          photo={currentPhoto}
+          onPhotoUpdated={handlePhotoUpdated}
+          isAnnotating={isAnnotating}
+        />
       </div>
     </div>
   );
