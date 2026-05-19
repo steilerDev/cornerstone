@@ -107,9 +107,10 @@ export const SelectTool: ToolHandler = {
 
       // Check for handle hit first (only for rect/highlight and arrow/line/ellipse/callout)
       let handleHit: string | null = null;
+      const HANDLE_HIT_TOLERANCE = 14; // Increased from 8 for better touch target accuracy
 
       if (shape.type === 'rectangle' || shape.type === 'highlight') {
-        handleHit = hitTestHandles(imageX, imageY, shape, 8);
+        handleHit = hitTestHandles(imageX, imageY, shape, HANDLE_HIT_TOLERANCE);
       } else if (shape.type === 'arrow' || shape.type === 'line') {
         handleHit = hitTestEndpointHandles(
           imageX,
@@ -118,7 +119,7 @@ export const SelectTool: ToolHandler = {
           shape.y1,
           shape.x2,
           shape.y2,
-          8,
+          HANDLE_HIT_TOLERANCE,
         );
       } else if (shape.type === 'ellipse') {
         handleHit = hitTestCardinalHandles(
@@ -128,10 +129,10 @@ export const SelectTool: ToolHandler = {
           shape.cy,
           shape.rx,
           shape.ry,
-          8,
+          HANDLE_HIT_TOLERANCE,
         );
       } else if (shape.type === 'callout') {
-        handleHit = hitTestTailHandle(imageX, imageY, shape.tailX, shape.tailY, 8) ? 'tail' : null;
+        handleHit = hitTestTailHandle(imageX, imageY, shape.tailX, shape.tailY, HANDLE_HIT_TOLERANCE) ? 'tail' : null;
       } else if (shape.type === 'measurement') {
         handleHit = hitTestEndpointHandles(
           imageX,
@@ -140,7 +141,7 @@ export const SelectTool: ToolHandler = {
           shape.y1,
           shape.x2,
           shape.y2,
-          8,
+          HANDLE_HIT_TOLERANCE,
         );
       }
 

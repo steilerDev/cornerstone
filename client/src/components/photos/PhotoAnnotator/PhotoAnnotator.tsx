@@ -585,7 +585,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         const dx = imageX - prevClickInfo.startImageX;
         const dy = imageY - prevClickInfo.startImageY;
         const clickDist = Math.sqrt(dx * dx + dy * dy);
-        const CLICK_THRESHOLD = 3; // Allow 3px of drift before considering it a drag
+        const CLICK_THRESHOLD = 5; // Require at least 5px of movement to avoid accidental edit opens during slow drags
         const wasActualDrag = clickDist > CLICK_THRESHOLD;
 
         // If this is the same shape and pointer didn't move much, try to open inline input
