@@ -2,7 +2,12 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { nanoid } from 'nanoid';
 import type { Photo } from '@cornerstone/shared';
-import { useAnnotator, type ToolName, type FontSizeKey, type StrokeWidthKey } from './useAnnotator.js';
+import {
+  useAnnotator,
+  type ToolName,
+  type FontSizeKey,
+  type StrokeWidthKey,
+} from './useAnnotator.js';
 import type { TextShape, CalloutShape, MeasurementShape } from './useUndoStack.js';
 import { resolveFontSize, resolveStrokeWidth } from './annotationConstants.js';
 import { ToolPalette } from './ToolPalette.js';
