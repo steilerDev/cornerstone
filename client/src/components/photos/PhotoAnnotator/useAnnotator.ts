@@ -91,7 +91,7 @@ export function annotatorReducer(
 ): AnnotatorState {
   switch (action.type) {
     case 'SET_TOOL':
-      return { ...state, selectedTool: action.tool };
+      return { ...state, selectedTool: action.tool, selectedShapeId: null };
 
     case 'SET_COLOR':
       return { ...state, activeColor: action.color };

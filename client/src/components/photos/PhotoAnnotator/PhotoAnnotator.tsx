@@ -397,30 +397,44 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       const pos = stageRef.current.getPointerPosition();
       if (!pos) return;
 
-      // Click on stage background to deselect
-      if (e.target === stageRef.current) {
-        dispatch({ type: 'SELECT_SHAPE', id: null });
+      // Walk up the parent chain to find a shape node (Group or shape with shape-* id)
+      const target = e.target;
+      let cursor: Konva.Node | null = target;
+      let shapeNode: Konva.Node | null = null;
+      while (cursor && cursor !== stageRef.current) {
+        const nodeId = cursor.id();
+        if (nodeId && nodeId.startsWith('shape-')) {
+          shapeNode = cursor;
+          break;
+        }
+        cursor = cursor.getParent();
+      }
+
+      if (state.selectedTool === 'select') {
+        // In select mode: handle shape selection and deselection
+        if (shapeNode) {
+          // Click was on a shape — select it
+          dispatch({ type: 'SELECT_SHAPE', id: shapeNode.id().replace('shape-', '') });
+        } else {
+          // Click was on background / stage / non-shape node — deselect
+          dispatch({ type: 'SELECT_SHAPE', id: null });
+        }
         return;
       }
 
-      // Click on a shape to select it
-      const shapeId = e.target.id();
-      if (shapeId && shapeId.startsWith('shape-')) {
-        dispatch({ type: 'SELECT_SHAPE', id: shapeId.replace('shape-', '') });
+      // Drawing mode — ignore shape clicks, start draft only if not clicking on a shape
+      if (shapeNode) {
         return;
       }
 
-      // Drawing tools: start draft
-      if (state.selectedTool !== 'select') {
-        setDraftShape({
-          type: state.selectedTool,
-          points: state.selectedTool === 'freehand' ? [[pos.x, pos.y]] : [],
-          startX: pos.x,
-          startY: pos.y,
-          endX: pos.x,
-          endY: pos.y,
-        });
-      }
+      setDraftShape({
+        type: state.selectedTool,
+        points: state.selectedTool === 'freehand' ? [[pos.x, pos.y]] : [],
+        startX: pos.x,
+        startY: pos.y,
+        endX: pos.x,
+        endY: pos.y,
+      });
     },
     [state.selectedTool, dispatch, inlineInput.isOpen],
   );
@@ -1100,6 +1114,7 @@ function renderKonvaShape(
         key={shape.id}
         id={`shape-${shape.id}`}
         draggable={selectedTool === 'select'}
+        onClick={() => onSelect(shape.id)}
         ref={(node) => {
           if (node) {
             shapesNodesRef.current.set(shape.id, node);
