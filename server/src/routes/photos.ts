@@ -103,6 +103,7 @@ const updatePhotoSchema = {
     minProperties: 1,
     properties: {
       caption: { type: ['string', 'null'] },
+      areaId: { type: ['string', 'null'] },
       sortOrder: { type: 'integer', minimum: 0 },
     },
     additionalProperties: false,
@@ -189,6 +190,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
     const entityTypeField = fields['entityType'];
     const entityIdField = fields['entityId'];
     const captionField = fields['caption'];
+    const areaIdField = fields['areaId'];
 
     if (!entityTypeField?.value || !entityIdField?.value) {
       throw new ValidationError('Missing required fields: entityType, entityId');
@@ -197,6 +199,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
     const entityType = entityTypeField.value as PhotoEntityType;
     const entityId = entityIdField.value;
     const caption = captionField?.value ?? undefined;
+    const areaId = areaIdField?.value ?? undefined;
 
     // Validate file size against config limit
     const maxFileSizeBytes = fastify.config.photoMaxFileSizeMb * 1024 * 1024;
@@ -217,6 +220,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
       entityId,
       request.user.id,
       caption,
+      areaId,
     );
 
     return reply.status(201).send({ photo });

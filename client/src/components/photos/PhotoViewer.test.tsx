@@ -97,6 +97,33 @@ jest.unstable_mockModule('../Modal/Modal.js', () => ({
     ),
 }));
 
+// ─── Mock PhotoMetadataSidepanel ──────────────────────────────────────────────
+
+jest.unstable_mockModule('./PhotoMetadataSidepanel.js', () => ({
+  PhotoMetadataSidepanel: ({
+    photo,
+    isOpen,
+    onClose,
+  }: {
+    photo: Photo;
+    isOpen: boolean;
+    onClose: () => void;
+  }) =>
+    React.createElement(
+      'div',
+      {
+        'data-testid': 'mock-metadata-sidepanel',
+        'data-is-open': isOpen,
+        style: { display: isOpen ? 'block' : 'none' },
+      },
+      React.createElement(
+        'button',
+        { 'data-testid': 'sidepanel-close', onClick: onClose },
+        'Close Metadata',
+      ),
+    ),
+}));
+
 // ─── Dynamic imports ──────────────────────────────────────────────────────────
 
 let PhotoViewer: typeof import('./PhotoViewer.js').PhotoViewer;
@@ -115,6 +142,7 @@ function makePhoto(overrides: Record<string, unknown> = {}): Photo {
     height: 600,
     takenAt: null,
     caption: null,
+    areaId: null,
     sortOrder: 0,
     createdBy: null,
     annotatedAt: null,
@@ -420,5 +448,48 @@ describe('PhotoViewer', () => {
     renderViewer([makePhoto({ width: 800, height: 600 })], 0, false, true);
     // Should stay in view mode — annotate button disabled, navigation visible
     expect(screen.getByTestId('photo-viewer-annotate')).toBeDisabled();
+  });
+
+  // ─── Metadata Sidepanel ────────────────────────────────────────────────────
+
+  it('shows metadata button in info bar', () => {
+    renderViewer([makePhoto()]);
+    const metadataBtn = screen.getByTestId('photo-viewer-metadata');
+    expect(metadataBtn).toBeInTheDocument();
+  });
+
+  it('metadata button has aria-label', () => {
+    renderViewer([makePhoto()]);
+    const metadataBtn = screen.getByTestId('photo-viewer-metadata');
+    expect(metadataBtn).toHaveAttribute('aria-label');
+  });
+
+  it('metadata button starts with aria-pressed=false', () => {
+    renderViewer([makePhoto()]);
+    const metadataBtn = screen.getByTestId('photo-viewer-metadata');
+    expect(metadataBtn).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('clicking metadata button opens sidepanel', () => {
+    renderViewer([makePhoto()]);
+    const metadataBtn = screen.getByTestId('photo-viewer-metadata');
+    fireEvent.click(metadataBtn);
+    const sidepanel = screen.getByTestId('mock-metadata-sidepanel');
+    expect(sidepanel).toHaveAttribute('data-is-open', 'true');
+  });
+
+  it('clicking metadata button again closes sidepanel', () => {
+    renderViewer([makePhoto()]);
+    const metadataBtn = screen.getByTestId('photo-viewer-metadata');
+    fireEvent.click(metadataBtn);
+    expect(screen.getByTestId('mock-metadata-sidepanel')).toHaveAttribute('data-is-open', 'true');
+    fireEvent.click(metadataBtn);
+    expect(screen.getByTestId('mock-metadata-sidepanel')).toHaveAttribute('data-is-open', 'false');
+  });
+
+  it('sidepanel is hidden by default', () => {
+    renderViewer([makePhoto()]);
+    const sidepanel = screen.getByTestId('mock-metadata-sidepanel');
+    expect(sidepanel).toHaveAttribute('data-is-open', 'false');
   });
 });

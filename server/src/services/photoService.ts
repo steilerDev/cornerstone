@@ -20,7 +20,7 @@ import sharp from 'sharp';
 import { eq, and, asc, inArray, desc } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { photos, users } from '../db/schema.js';
+import { photos, users, areas } from '../db/schema.js';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
 import type { Photo, PhotoEntityType } from '@cornerstone/shared';
 
@@ -69,6 +69,7 @@ function toPhoto(
     height: row.height,
     takenAt: row.takenAt,
     caption: row.caption,
+    areaId: row.areaId,
     sortOrder: row.sortOrder,
     createdBy: user ? { id: user.id, displayName: user.displayName } : null,
     createdAt: row.createdAt,
@@ -102,6 +103,7 @@ function resolveCreatedBy(db: DbType, createdBy: string | null): typeof users.$i
  * @param entityId Entity ID (UUID string)
  * @param userId User ID of uploader
  * @param caption Optional caption
+ * @param areaId Optional area ID
  * @throws ValidationError if MIME type not allowed
  * @returns Photo object with metadata and URLs
  */
@@ -115,6 +117,7 @@ export async function uploadPhoto(
   entityId: string,
   userId: string,
   caption?: string | null,
+  areaId?: string | null,
 ): Promise<Photo> {
   // Validate MIME type
   if (!ALLOWED_MIME_TYPES.has(mimeType)) {
@@ -194,6 +197,7 @@ export async function uploadPhoto(
       height,
       takenAt,
       caption: caption ?? null,
+      areaId: areaId ?? null,
       sortOrder: 0,
       createdBy: userId,
       createdAt: now,
@@ -262,10 +266,18 @@ export function getPhotosForEntity(db: DbType, entityType: string, entityId: str
 export function updatePhoto(
   db: DbType,
   id: string,
-  updates: { caption?: string | null; sortOrder?: number },
+  updates: { caption?: string | null; areaId?: string | null; sortOrder?: number },
 ): Photo | null {
   const row = db.select().from(photos).where(eq(photos.id, id)).get();
   if (!row) return null;
+
+  // Validate areaId if provided and not null
+  if (updates.areaId !== undefined && updates.areaId !== null) {
+    const area = db.select().from(areas).where(eq(areas.id, updates.areaId)).get();
+    if (!area) {
+      throw new ValidationError('Area not found');
+    }
+  }
 
   const now = new Date().toISOString();
   const updateData: Partial<typeof photos.$inferInsert> = {
@@ -274,6 +286,9 @@ export function updatePhoto(
 
   if (updates.caption !== undefined) {
     updateData.caption = updates.caption;
+  }
+  if (updates.areaId !== undefined) {
+    updateData.areaId = updates.areaId;
   }
   if (updates.sortOrder !== undefined) {
     updateData.sortOrder = updates.sortOrder;

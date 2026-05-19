@@ -84,6 +84,7 @@ function makePhoto(overrides: Partial<Photo> = {}): Photo {
     height: 600,
     takenAt: null,
     caption: null,
+    areaId: null,
     sortOrder: 0,
     createdBy: { id: 'user-id', displayName: 'Test User' },
     createdAt: '2026-03-01T12:00:00.000Z',
@@ -326,6 +327,7 @@ describe('Photo Routes', () => {
         'entity-456',
         expect.any(String), // userId
         'My caption',
+        undefined, // areaId (not provided in this test)
       );
     });
 
@@ -490,7 +492,8 @@ describe('Photo Routes', () => {
         'diary_entry',
         'entry-abc',
         userId,
-        undefined,
+        undefined, // caption
+        undefined, // areaId
       );
     });
   });
