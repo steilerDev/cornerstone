@@ -831,18 +831,20 @@ test('Line tool — Shift-snap constrains angle to 45° increments', async ({
     await page.keyboard.up('Shift');
 
     // The committed line should have y1 ≈ y2 (horizontal snap).
-    // Use waitFor with explicit 15 s timeout: actionTimeout (5 s) is too tight on
-    // a 2-vCPU CI shard; the shape commit goes through two async React state
-    // updates (useReducer → undoStack useState).
+    // Use state:'attached' rather than state:'visible': a horizontal SVG <line>
+    // (y1 === y2) has a zero-height bounding box, which causes Playwright's
+    // visibility check to fail even though the stroke is visually correct.
+    // The 15 s explicit timeout gives CI shards comfortable headroom beyond the
+    // default actionTimeout (5 s) for two async React state updates.
     const lineEl = viewer.svgOverlay.locator('line[data-shapeid]').first();
     try {
-      await lineEl.waitFor({ state: 'visible', timeout: 15_000 });
+      await lineEl.waitFor({ state: 'attached', timeout: 15_000 });
     } catch (e) {
       const svgHtml = await page
         .evaluate(() => document.querySelector('[role="application"]')?.innerHTML ?? '(not found)')
         .catch(() => '(eval failed)');
       console.error(
-        '[DEBUG] Shift-snap: line shape not visible after Shift+drag. SVG innerHTML:',
+        '[DEBUG] Shift-snap: line shape not attached after Shift+drag. SVG innerHTML:',
         svgHtml,
       );
       throw e;
