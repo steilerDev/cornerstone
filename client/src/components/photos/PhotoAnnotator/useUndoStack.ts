@@ -64,23 +64,6 @@ export interface TextShape {
   color: string;
 }
 
-export interface CalloutShape {
-  type: 'callout';
-  id: string;
-  x: number; // image-space — top-left of box
-  y: number;
-  w: number;
-  h: number;
-  text: string;
-  tailX: number; // image-space — tail anchor point
-  tailY: number;
-  stroke: string;
-  fill: string; // semi-transparent fill for the box
-  fontSize: number;
-  color: string; // text color
-  strokeWidth?: number; // image-space pixels for box/tail stroke (backward compat: defaults to 2 if missing)
-}
-
 export interface MeasurementShape {
   type: 'measurement';
   id: string;
@@ -110,7 +93,6 @@ export type AnnotationShape =
   | LineShape
   | EllipseShape
   | TextShape
-  | CalloutShape
   | MeasurementShape
   | FreehandShape;
 

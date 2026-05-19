@@ -24,7 +24,6 @@ import {
 import type {
   AnnotationShape,
   TextShape,
-  CalloutShape,
   MeasurementShape,
   FreehandShape,
 } from './useUndoStack.js';
@@ -144,7 +143,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         : null;
       const originalText = (() => {
         if (!existingShape) return '';
-        if (existingShape.type === 'text' || existingShape.type === 'callout')
+        if (existingShape.type === 'text')
           return existingShape.text;
         if (existingShape.type === 'measurement') return existingShape.label;
         return '';
@@ -188,7 +187,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
     if (inlineInput.editingShapeId !== null) {
       const shape = state.shapes.find((s) => s.id === inlineInput.editingShapeId);
-      if (shape && (shape.type === 'text' || shape.type === 'callout')) {
+      if (shape && shape.type === 'text') {
         const updated = { ...shape, text };
         undoStack.commit(state.shapes.map((s) => (s.id === updated.id ? updated : s)));
       } else if (shape && shape.type === 'measurement') {
@@ -207,27 +206,6 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       };
       undoStack.commit([...undoStack.shapes, newShape]);
       dispatch({ type: 'SELECT_SHAPE', id: newShape.id });
-    } else if (state.selectedTool === 'callout' && draftShape?.type === 'callout') {
-      const committed: CalloutShape = {
-        type: 'callout',
-        id: nanoid(),
-        x: Math.min(draftShape.startX, draftShape.endX),
-        y: Math.min(draftShape.startY, draftShape.endY),
-        w: Math.abs(draftShape.endX - draftShape.startX),
-        h: Math.abs(draftShape.endY - draftShape.startY),
-        text,
-        tailX: draftShape.endX,
-        tailY: draftShape.endY,
-        stroke: state.activeColor,
-        fill: state.activeColor,
-        fontSize,
-        color: state.activeColor,
-        strokeWidth: resolveStrokeWidth(state.activeStrokeWidthKey, photo.width!, photo.height!),
-      };
-      const newShapes = [...undoStack.shapes, committed];
-      setDraftShape(null);
-      undoStack.commit(newShapes);
-      dispatch({ type: 'SELECT_SHAPE', id: committed.id });
     } else if (state.selectedTool === 'measurement' && draftShape?.type === 'measurement') {
       const committed: MeasurementShape = {
         type: 'measurement',
@@ -372,12 +350,6 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
               x: Math.max(0, Math.min(selectedShape.x + dx, photo.width!)),
               y: Math.max(0, Math.min(selectedShape.y + dy, photo.height!)),
             };
-          } else if (selectedShape.type === 'callout') {
-            updated = {
-              ...selectedShape,
-              x: Math.max(0, Math.min(selectedShape.x + dx, photo.width! - selectedShape.w)),
-              y: Math.max(0, Math.min(selectedShape.y + dy, photo.height! - selectedShape.h)),
-            };
           } else if (selectedShape.type === 'measurement') {
             updated = {
               ...selectedShape,
@@ -502,13 +474,6 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       } else if (state.selectedTool === 'text') {
         // Text tool: click-to-place, no drag size requirement
         openInlineInput(draftShape.startX, draftShape.startY);
-      } else if (state.selectedTool === 'callout') {
-        // Callout: requires minimum drag (rect with tail)
-        if (w > MIN_SIZE && h > MIN_SIZE) {
-          openInlineInput(draftShape.startX, draftShape.startY);
-        } else {
-          setDraftShape(null);
-        }
       } else if (state.selectedTool === 'measurement') {
         // Measurement: line-based, use Euclidean distance gate
         const distance = Math.hypot(
@@ -516,7 +481,9 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
           draftShape.endY - draftShape.startY,
         );
         if (distance > MIN_SIZE) {
-          openInlineInput(draftShape.startX, draftShape.startY);
+          const midX = (draftShape.startX + draftShape.endX) / 2;
+          const midY = (draftShape.startY + draftShape.endY) / 2;
+          openInlineInput(midX, midY);
         } else {
           setDraftShape(null);
         }
@@ -532,7 +499,6 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
             line: t('shapeAddedLine'),
             ellipse: t('shapeAddedEllipse'),
             text: '',
-            callout: '',
             measurement: '',
             freehand: '',
             select: '',
@@ -700,7 +666,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     let editingShape = null;
     if (inlineInput.editingShapeId) {
       editingShape = state.shapes.find((s) => s.id === inlineInput.editingShapeId);
-      if (editingShape && (editingShape.type === 'text' || editingShape.type === 'callout')) {
+      if (editingShape && editingShape.type === 'text') {
         textColor = editingShape.color;
       }
     }
@@ -713,25 +679,17 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     let imgH = screenFontSizePx / scale;
     let textAlign: 'left' | 'center' = 'left';
 
-    if (shapeType === 'callout' && draftShape?.type === 'callout') {
-      const inset = 6;
-      imgX = draftShape.startX + inset;
-      imgY = draftShape.startY + inset;
-      imgW = Math.max(1, Math.abs(draftShape.endX - draftShape.startX) - 2 * inset);
-      imgH = Math.max(1, Math.abs(draftShape.endY - draftShape.startY) - 2 * inset);
-    } else if (shapeType === 'measurement' && draftShape?.type === 'measurement') {
+    if (shapeType === 'measurement' && draftShape?.type === 'measurement') {
       const fontSize = getActiveFontSizePx();
       const dx = draftShape.endX - draftShape.startX;
       const dy = draftShape.endY - draftShape.startY;
-      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const len = Math.hypot(dx, dy) || 1;
       const nx = -dy / len;
       const ny = dx / len;
-      const midX = (draftShape.startX + draftShape.endX) / 2;
-      const midY = (draftShape.startY + draftShape.endY) / 2;
-      const labelOffsetX = -nx * fontSize * 0.6;
-      const labelOffsetY = -ny * fontSize * 0.6;
-      imgX = midX + labelOffsetX - fontSize * 2;
-      imgY = midY + labelOffsetY - fontSize * 0.5;
+      const labelOffsetX = nx * fontSize * 1.2;
+      const labelOffsetY = ny * fontSize * 1.2;
+      imgX = inlineInput.anchorImageX + labelOffsetX - fontSize * 2;
+      imgY = inlineInput.anchorImageY + labelOffsetY - fontSize * 0.5;
       imgW = fontSize * 4;
       imgH = fontSize;
       textAlign = 'center';
@@ -812,7 +770,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
             const shape = state.shapes.find((s) => s.id === state.selectedShapeId);
             if (shape) {
               const updated =
-                shape.type === 'text' || shape.type === 'callout'
+                shape.type === 'text'
                   ? { ...shape, color }
                   : { ...shape, stroke: color };
               undoStack.commit(state.shapes.map((s) => (s.id === updated.id ? updated : s)));
@@ -837,7 +795,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
             const shape = state.shapes.find((s) => s.id === state.selectedShapeId);
             if (
               shape &&
-              (shape.type === 'text' || shape.type === 'callout' || shape.type === 'measurement')
+              (shape.type === 'text' || shape.type === 'measurement')
             ) {
               const newFontSize = resolveFontSize(key as FontSizeKey, photo.width!, photo.height!);
               const updated = { ...shape, fontSize: newFontSize };
@@ -1033,9 +991,11 @@ function renderKonvaShape(
         points={[shape.x1, shape.y1, shape.x2, shape.y2]}
         stroke={shape.stroke}
         strokeWidth={shape.strokeWidth}
-        fill="none"
+        fill={shape.stroke}
         draggable={selectedTool === 'select'}
         onClick={() => onSelect(shape.id)}
+        pointerLength={Math.max(8, shape.strokeWidth * 3)}
+        pointerWidth={Math.max(8, shape.strokeWidth * 3)}
         ref={(node) => {
           if (node) {
             shapesNodesRef.current.set(shape.id, node);
@@ -1125,45 +1085,16 @@ function renderKonvaShape(
     );
   }
 
-  if (shape.type === 'callout') {
-    return (
-      <Group
-        key={shape.id}
-        id={`shape-${shape.id}`}
-        draggable={selectedTool === 'select'}
-        ref={(node) => {
-          if (node) {
-            shapesNodesRef.current.set(shape.id, node);
-          }
-        }}
-      >
-        <Rect
-          x={shape.x}
-          y={shape.y}
-          width={shape.w}
-          height={shape.h}
-          stroke={shape.stroke}
-          fill={shape.fill}
-          fillOpacity={0.2}
-        />
-        <Line
-          points={[shape.x, shape.y, shape.tailX, shape.tailY]}
-          stroke={shape.stroke}
-          strokeWidth={shape.strokeWidth}
-        />
-        <Text
-          x={shape.x + 6}
-          y={shape.y + 6}
-          text={shape.text}
-          fontSize={shape.fontSize}
-          fill={shape.color}
-          fontFamily={ANNOTATION_FONT_FAMILY}
-        />
-      </Group>
-    );
-  }
-
   if (shape.type === 'measurement') {
+    const dx = shape.x2 - shape.x1;
+    const dy = shape.y2 - shape.y1;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const midX = (shape.x1 + shape.x2) / 2;
+    const midY = (shape.y1 + shape.y2) / 2;
+    const offset = shape.fontSize * 1.2;
+
     return (
       <Group
         key={shape.id}
@@ -1175,18 +1106,25 @@ function renderKonvaShape(
           }
         }}
       >
-        <Line
+        <Arrow
           points={[shape.x1, shape.y1, shape.x2, shape.y2]}
           stroke={shape.stroke}
           strokeWidth={shape.strokeWidth}
+          fill={shape.stroke}
+          pointerAtBeginning
+          pointerAtEnding
+          pointerLength={Math.max(8, shape.strokeWidth * 3)}
+          pointerWidth={Math.max(8, shape.strokeWidth * 3)}
         />
         <Text
-          x={(shape.x1 + shape.x2) / 2 - 20}
-          y={(shape.y1 + shape.y2) / 2 - shape.fontSize}
+          x={midX + nx * offset}
+          y={midY + ny * offset - shape.fontSize / 2}
           text={shape.label}
           fontSize={shape.fontSize}
           fill={shape.color}
           fontFamily={ANNOTATION_FONT_FAMILY}
+          align="center"
+          offsetX={shape.fontSize}
         />
       </Group>
     );
@@ -1271,7 +1209,9 @@ function renderDraftShape(draft: DraftShape, state: any): React.ReactNode {
         points={[draft.startX, draft.startY, draft.endX, draft.endY]}
         stroke={state.activeColor}
         strokeWidth={1}
-        fill="none"
+        fill={state.activeColor}
+        pointerLength={8}
+        pointerWidth={8}
         opacity={0.8}
         listening={false}
       />
@@ -1285,6 +1225,24 @@ function renderDraftShape(draft: DraftShape, state: any): React.ReactNode {
         points={[draft.startX, draft.startY, draft.endX, draft.endY]}
         stroke={state.activeColor}
         strokeWidth={1}
+        opacity={0.8}
+        listening={false}
+      />
+    );
+  }
+
+  if (draft.type === 'measurement') {
+    return (
+      <Arrow
+        key="draft"
+        points={[draft.startX, draft.startY, draft.endX, draft.endY]}
+        stroke={state.activeColor}
+        strokeWidth={1}
+        fill={state.activeColor}
+        pointerAtBeginning
+        pointerAtEnding
+        pointerLength={8}
+        pointerWidth={8}
         opacity={0.8}
         listening={false}
       />

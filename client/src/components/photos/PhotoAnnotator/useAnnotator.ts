@@ -5,7 +5,6 @@ import type {
   RectangleShape,
   HighlightShape,
   TextShape,
-  CalloutShape,
 } from './useUndoStack.js';
 import type { UseUndoStackResult } from './useUndoStack.js';
 import type { ANNOTATION_STROKE_WIDTH_RATIOS } from './annotationConstants.js';
@@ -20,7 +19,6 @@ export type ToolName =
   | 'line'
   | 'ellipse'
   | 'text'
-  | 'callout'
   | 'measurement'
   | 'freehand';
 
@@ -34,7 +32,6 @@ export type {
   LineShape,
   EllipseShape,
   TextShape,
-  CalloutShape,
   MeasurementShape,
   FreehandShape,
 } from './useUndoStack.js';
