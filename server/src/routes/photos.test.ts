@@ -327,6 +327,7 @@ describe('Photo Routes', () => {
         'entity-456',
         expect.any(String), // userId
         'My caption',
+        undefined, // areaId (not provided in this test)
       );
     });
 
