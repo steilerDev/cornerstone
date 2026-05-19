@@ -572,8 +572,14 @@ export class PhotoViewerPage {
     const endX = svgBox.x + svgBox.width * endXPct;
     const endY = svgBox.y + svgBox.height * endYPct;
 
-    // Phase 1: pointerdown, then yield an rAF so React flushes its state update
-    // before pointermove events arrive (same pattern as drawFreehandTouch).
+    // Three-phase dispatch to work around React state batching:
+    // MeasurementTool reads state.draftShape.x2/y2 in onPointerUp (via React state,
+    // not a module-level variable). All events within one synchronous evaluate()
+    // call are batched by React, so onPointerUp would see stale x2=startX
+    // (distance === 0 → discard). Three separate evaluate() calls with rAF yields
+    // ensure each phase flushes before the next one reads state.
+
+    // Phase 1: pointerdown → rAF → React commits SET_DRAFT (x2=startX, y2=startY)
     await this.svgOverlay.evaluate(
       (el: Element, pt: [number, number]) => {
         el.dispatchEvent(
@@ -590,11 +596,9 @@ export class PhotoViewerPage {
       },
       [startX, startY] as [number, number],
     );
-
-    // Yield one animation frame so React flushes the SET_DRAFT state update.
     await this.page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
-    // Phase 2: pointermove (5 steps) + pointerup.
+    // Phase 2: pointermove (5 steps) → rAF → React commits final x2=endX, y2=endY
     await this.svgOverlay.evaluate(
       (el: Element, coords: [number, number, number, number]) => {
         const [sx, sy, ex, ey] = coords;
@@ -611,14 +615,31 @@ export class PhotoViewerPage {
             }),
           );
         };
-
         // Subdivide into 5 steps so the tool's onPointerMove fires multiple times
         for (let s = 1; s <= 5; s++) {
           dispatch('pointermove', sx + (ex - sx) * (s / 5), sy + (ey - sy) * (s / 5));
         }
-        dispatch('pointerup', ex, ey);
       },
       [startX, startY, endX, endY] as [number, number, number, number],
+    );
+    await this.page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+
+    // Phase 3: pointerup — state.draftShape.x2/y2 now reflects the final endpoint
+    await this.svgOverlay.evaluate(
+      (el: Element, pt: [number, number]) => {
+        el.dispatchEvent(
+          new PointerEvent('pointerup', {
+            pointerId: 1,
+            pointerType: 'touch',
+            isPrimary: true,
+            clientX: pt[0],
+            clientY: pt[1],
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      },
+      [endX, endY] as [number, number],
     );
   }
 
