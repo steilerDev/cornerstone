@@ -29,11 +29,12 @@ import type { Photo } from '@cornerstone/shared';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyMock = jest.MockedFunction<(...args: any[]) => any>;
 
-// ─── Mock clearAnnotation from photoApi ───────────────────────────────────────
+// ─── Mock photoApi ────────────────────────────────────────────────────────────
+// Use jest.mock (synchronous CJS form) so the mock intercepts both locally and in CI.
+// jest.unstable_mockModule does not intercept in this worktree environment (systemic issue).
+// clearAnnotation is retrieved from the mocked module after import so tests can spy on it.
 
-const mockClearAnnotation = jest.fn() as AnyMock;
-
-jest.unstable_mockModule('../../lib/photoApi.js', () => ({
+jest.mock('../../lib/photoApi.js', () => ({
   uploadAnnotation: jest.fn(),
   uploadPhoto: jest.fn(),
   getPhotosForEntity: jest.fn(),
@@ -41,12 +42,17 @@ jest.unstable_mockModule('../../lib/photoApi.js', () => ({
   deletePhoto: jest.fn(),
   getPhotoFileUrl: jest.fn((id: string) => `/api/photos/${id}/file`),
   getPhotoThumbnailUrl: jest.fn((id: string) => `/api/photos/${id}/thumbnail`),
-  clearAnnotation: mockClearAnnotation,
+  clearAnnotation: jest.fn(),
 }));
 
-// ─── Mock PhotoAnnotator to avoid deep rendering ──────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const mockClearAnnotation = (require('../../lib/photoApi.js') as typeof import('../../lib/photoApi.js')).clearAnnotation as AnyMock;
 
-jest.unstable_mockModule('./PhotoAnnotator/PhotoAnnotator.js', () => ({
+// ─── Mock PhotoAnnotator to avoid deep rendering ──────────────────────────────
+// Use jest.mock (synchronous CJS form) so the mock intercepts both locally and in CI.
+// jest.unstable_mockModule does not intercept in this worktree environment (systemic issue).
+
+jest.mock('./PhotoAnnotator/PhotoAnnotator.js', () => ({
   PhotoAnnotator: ({
     onSave,
     onCancel,
@@ -75,8 +81,9 @@ jest.unstable_mockModule('./PhotoAnnotator/PhotoAnnotator.js', () => ({
 }));
 
 // ─── Mock Modal to avoid portal/focus issues ──────────────────────────────────
+// Use jest.mock (synchronous CJS form) so the mock intercepts both locally and in CI.
 
-jest.unstable_mockModule('../Modal/Modal.js', () => ({
+jest.mock('../Modal/Modal.js', () => ({
   Modal: ({
     title,
     children,
