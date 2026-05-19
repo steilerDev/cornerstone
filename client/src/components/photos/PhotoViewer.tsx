@@ -171,126 +171,126 @@ export function PhotoViewer({
 
           {/* Photo or Annotator */}
           <div className={styles.photoContainer}>
-          {isAnnotating ? (
-            <PhotoAnnotator
-              photo={currentPhoto}
-              onSave={handleAnnotationSave}
-              onCancel={handleAnnotationCancel}
-            />
-          ) : (
-            <img
-              src={buildPhotoUrl(currentPhoto, showingOriginal)}
-              alt={currentPhoto.caption || currentPhoto.originalFilename}
-              className={styles.photo}
-            />
+            {isAnnotating ? (
+              <PhotoAnnotator
+                photo={currentPhoto}
+                onSave={handleAnnotationSave}
+                onCancel={handleAnnotationCancel}
+              />
+            ) : (
+              <img
+                src={buildPhotoUrl(currentPhoto, showingOriginal)}
+                alt={currentPhoto.caption || currentPhoto.originalFilename}
+                className={styles.photo}
+              />
+            )}
+          </div>
+
+          {/* Navigation */}
+          {photos.length > 1 && !isAnnotating && (
+            <>
+              <button
+                type="button"
+                onClick={handlePrevious}
+                className={`${styles.navButton} ${styles.navButtonLeft}`}
+                aria-label="Previous photo"
+                data-testid="photo-viewer-prev"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={handleNext}
+                className={`${styles.navButton} ${styles.navButtonRight}`}
+                aria-label="Next photo"
+                data-testid="photo-viewer-next"
+              >
+                ›
+              </button>
+            </>
           )}
-        </div>
 
-        {/* Navigation */}
-        {photos.length > 1 && !isAnnotating && (
-          <>
-            <button
-              type="button"
-              onClick={handlePrevious}
-              className={`${styles.navButton} ${styles.navButtonLeft}`}
-              aria-label="Previous photo"
-              data-testid="photo-viewer-prev"
-            >
-              ‹
-            </button>
-            <button
-              type="button"
-              onClick={handleNext}
-              className={`${styles.navButton} ${styles.navButtonRight}`}
-              aria-label="Next photo"
-              data-testid="photo-viewer-next"
-            >
-              ›
-            </button>
-          </>
-        )}
-
-        {/* Info bar */}
-        <div className={styles.infoBar} style={{ display: isAnnotating ? 'none' : undefined }}>
-          <div className={styles.infoLeft}>
-            {currentPhoto.caption && <p className={styles.caption}>{currentPhoto.caption}</p>}
-          </div>
-          <div className={styles.infoRight}>
-            {/* Annotate button */}
-            <button
-              ref={annotateBtnRef}
-              type="button"
-              className={`${styles.iconButton} ${
-                !editable || !currentPhoto.width || !currentPhoto.height
-                  ? styles.iconButtonDisabled
-                  : ''
-              }`}
-              disabled={!editable || !currentPhoto.width || !currentPhoto.height}
-              aria-label={t('photoViewer:annotate')}
-              title={
-                !editable
-                  ? t('photoViewer:annotateDisabledSigned')
-                  : !currentPhoto.width || !currentPhoto.height
-                    ? t('photoViewer:annotateDisabledMissingDimensions')
-                    : undefined
-              }
-              data-testid="photo-viewer-annotate"
-              onClick={() => {
-                setIsAnnotating(true);
-                setShowingOriginal(false);
-              }}
-            >
-              <PencilIcon />
-            </button>
-
-            {/* View Original toggle — only when annotatedAt is set */}
-            {currentPhoto.annotatedAt && (
+          {/* Info bar */}
+          <div className={styles.infoBar} style={{ display: isAnnotating ? 'none' : undefined }}>
+            <div className={styles.infoLeft}>
+              {currentPhoto.caption && <p className={styles.caption}>{currentPhoto.caption}</p>}
+            </div>
+            <div className={styles.infoRight}>
+              {/* Annotate button */}
               <button
+                ref={annotateBtnRef}
                 type="button"
-                aria-pressed={showingOriginal}
-                aria-label={
-                  showingOriginal ? t('photoViewer:viewAnnotated') : t('photoViewer:viewOriginal')
+                className={`${styles.iconButton} ${
+                  !editable || !currentPhoto.width || !currentPhoto.height
+                    ? styles.iconButtonDisabled
+                    : ''
+                }`}
+                disabled={!editable || !currentPhoto.width || !currentPhoto.height}
+                aria-label={t('photoViewer:annotate')}
+                title={
+                  !editable
+                    ? t('photoViewer:annotateDisabledSigned')
+                    : !currentPhoto.width || !currentPhoto.height
+                      ? t('photoViewer:annotateDisabledMissingDimensions')
+                      : undefined
                 }
-                data-testid="photo-viewer-view-original"
-                className={`${styles.iconButton} ${showingOriginal ? styles.iconButtonActive : ''}`}
-                onClick={() => setShowingOriginal((v) => !v)}
+                data-testid="photo-viewer-annotate"
+                onClick={() => {
+                  setIsAnnotating(true);
+                  setShowingOriginal(false);
+                }}
               >
-                {showingOriginal ? <EyeSlashIcon /> : <EyeIcon />}
+                <PencilIcon />
               </button>
-            )}
 
-            {/* Clear Annotations — only when annotatedAt is set */}
-            {currentPhoto.annotatedAt && (
+              {/* View Original toggle — only when annotatedAt is set */}
+              {currentPhoto.annotatedAt && (
+                <button
+                  type="button"
+                  aria-pressed={showingOriginal}
+                  aria-label={
+                    showingOriginal ? t('photoViewer:viewAnnotated') : t('photoViewer:viewOriginal')
+                  }
+                  data-testid="photo-viewer-view-original"
+                  className={`${styles.iconButton} ${showingOriginal ? styles.iconButtonActive : ''}`}
+                  onClick={() => setShowingOriginal((v) => !v)}
+                >
+                  {showingOriginal ? <EyeSlashIcon /> : <EyeIcon />}
+                </button>
+              )}
+
+              {/* Clear Annotations — only when annotatedAt is set */}
+              {currentPhoto.annotatedAt && (
+                <button
+                  ref={clearBtnRef}
+                  type="button"
+                  className={styles.iconButtonDanger}
+                  aria-label={t('photoViewer:clearAnnotations')}
+                  data-testid="photo-viewer-clear-annotations"
+                  onClick={() => setShowClearConfirm(true)}
+                >
+                  <TrashIcon />
+                </button>
+              )}
+
+              {/* Metadata info button */}
               <button
-                ref={clearBtnRef}
+                ref={infoBtnRef}
                 type="button"
-                className={styles.iconButtonDanger}
-                aria-label={t('photoViewer:clearAnnotations')}
-                data-testid="photo-viewer-clear-annotations"
-                onClick={() => setShowClearConfirm(true)}
+                className={styles.iconButton}
+                aria-label={t('photoViewer:metadataTitle')}
+                aria-pressed={isSidepanelOpen}
+                data-testid="photo-viewer-metadata"
+                onClick={() => setIsSidepanelOpen((v) => !v)}
               >
-                <TrashIcon />
+                <InfoIcon />
               </button>
-            )}
 
-            {/* Metadata info button */}
-            <button
-              ref={infoBtnRef}
-              type="button"
-              className={styles.iconButton}
-              aria-label={t('photoViewer:metadataTitle')}
-              aria-pressed={isSidepanelOpen}
-              data-testid="photo-viewer-metadata"
-              onClick={() => setIsSidepanelOpen((v) => !v)}
-            >
-              <InfoIcon />
-            </button>
-
-            <span className={styles.counter}>
-              {currentIndex + 1} / {photos.length}
-            </span>
+              <span className={styles.counter}>
+                {currentIndex + 1} / {photos.length}
+              </span>
+            </div>
           </div>
-        </div>
         </div>
 
         {/* Clear Annotations confirmation modal */}

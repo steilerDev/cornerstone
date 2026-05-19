@@ -75,12 +75,9 @@ export function PhotoMetadataSidepanel({
   const hasChanges = caption !== (photo.caption ?? '') || areaId !== (photo.areaId ?? '');
   const isDisabled = isSaving || isLoadingAreas;
 
-  const searchAreas = useCallback(
-    async (query: string) => {
-      return fetchAreas({ search: query }).then((resp) => resp.areas || []);
-    },
-    [],
-  );
+  const searchAreas = useCallback(async (query: string) => {
+    return fetchAreas({ search: query }).then((resp) => resp.areas || []);
+  }, []);
 
   const renderAreaItem = (area: AreaResponse) => ({
     id: area.id,

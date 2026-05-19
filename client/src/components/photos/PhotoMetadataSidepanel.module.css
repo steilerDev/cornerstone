@@ -8,7 +8,9 @@
   width: 320px;
   max-height: 100%;
   overflow-y: auto;
-  transition: transform var(--transition-standard), opacity var(--transition-standard);
+  transition:
+    transform var(--transition-standard),
+    opacity var(--transition-standard);
   z-index: 8;
 }
 
@@ -80,7 +82,9 @@
   color: var(--color-text-primary);
   resize: vertical;
   max-height: 200px;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .descriptionTextarea::placeholder {
