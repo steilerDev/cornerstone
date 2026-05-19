@@ -21,5 +21,6 @@
   "delete": "Delete photo",
   "deleteConfirmTitle": "Delete this photo?",
   "deleteConfirmBody": "This photo will be permanently removed. This action cannot be undone.",
-  "deleteConfirmAction": "Delete"
+  "deleteConfirmAction": "Delete",
+  "metadataToggle": "Toggle photo metadata"
 }

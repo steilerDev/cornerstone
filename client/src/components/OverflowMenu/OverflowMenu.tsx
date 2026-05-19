@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './OverflowMenu.module.css';
 
@@ -34,6 +34,8 @@ export function OverflowMenu({
 }: OverflowMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const [triggerRect, setTriggerRect] = useState<DOMRect | null>(null);
+  const [effectivePlacement, setEffectivePlacement] = useState<'bottom-end' | 'top-end'>('bottom-end');
   const wrapperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -133,6 +135,40 @@ export function OverflowMenu({
     }
   };
 
+  // Flip menu above trigger if it doesn't fit below (portal mode only)
+  useLayoutEffect(() => {
+    if (!usePortal || !isOpen || !triggerRect || !menuRef.current) return;
+
+    const menuRect = menuRef.current.getBoundingClientRect();
+    const menuHeight = menuRect.height;
+    const spaceBelow = window.innerHeight - triggerRect.bottom;
+    const spaceAbove = triggerRect.top;
+    const MIN_MARGIN = 4;
+
+    // For 'bottom-end' placement: check if menu fits below
+    if (effectivePlacement === 'bottom-end') {
+      if (spaceBelow < menuHeight + MIN_MARGIN && spaceAbove >= menuHeight + MIN_MARGIN) {
+        // Flip to top
+        setMenuPos({
+          top: triggerRect.top - MIN_MARGIN,
+          right: window.innerWidth - triggerRect.right,
+        });
+        setEffectivePlacement('top-end');
+      }
+    }
+    // For 'top-end' placement: check if menu fits above
+    else if (effectivePlacement === 'top-end') {
+      if (spaceAbove < menuHeight + MIN_MARGIN && spaceBelow >= menuHeight + MIN_MARGIN) {
+        // Flip to bottom
+        setMenuPos({
+          top: triggerRect.bottom + MIN_MARGIN,
+          right: window.innerWidth - triggerRect.right,
+        });
+        setEffectivePlacement('bottom-end');
+      }
+    }
+  }, [isOpen, usePortal, triggerRect, effectivePlacement]);
+
   const handleItemClick = (item: OverflowMenuItem) => {
     setIsOpen(false);
     item.onClick();
@@ -141,6 +177,8 @@ export function OverflowMenu({
   const handleTriggerClick = () => {
     if (usePortal && !isOpen) {
       const rect = triggerRef.current!.getBoundingClientRect();
+      setTriggerRect(rect);
+      setEffectivePlacement(placement);
       setMenuPos({
         top: placement === 'top-end' ? rect.top - 4 : rect.bottom + 4,
         right: window.innerWidth - rect.right,
@@ -161,7 +199,7 @@ export function OverflowMenu({
               position: 'fixed',
               top: `${menuPos.top}px`,
               right: `${menuPos.right}px`,
-              ...(placement === 'top-end' ? { transform: 'translateY(-100%)' } : {}),
+              ...(effectivePlacement === 'top-end' ? { transform: 'translateY(-100%)' } : {}),
             }
           : undefined
       }
