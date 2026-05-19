@@ -1009,10 +1009,12 @@ describe('renderShapeSvgProps() — Callout', () => {
   it('includes foreignObjectAttrs with inset position and reduced dimensions', () => {
     const shape = makeCallout({ x: 10, y: 20, w: 100, h: 80 });
     const { foreignObjectAttrs } = getCalloutParts(renderShapeSvgProps(shape, false));
-    expect(foreignObjectAttrs.x).toBe(16); // 10 + 6 inset
-    expect(foreignObjectAttrs.y).toBe(26); // 20 + 6 inset
-    expect(foreignObjectAttrs.width).toBe(88); // 100 - 2*6
-    expect(foreignObjectAttrs.height).toBe(68); // 80 - 2*6
+    // effectiveFontSize = 18 (text 'Note' fits comfortably), inset = max(6, round(18*0.5)) = 9
+    // width/height use initialInset=6: availW = 100-2*6 = 88, availH = 80-2*6 = 68
+    expect(foreignObjectAttrs.x).toBe(19); // 10 + 9 inset
+    expect(foreignObjectAttrs.y).toBe(29); // 20 + 9 inset
+    expect(foreignObjectAttrs.width).toBe(88); // 100 - 2*6 (availW uses initialInset)
+    expect(foreignObjectAttrs.height).toBe(68); // 80 - 2*6 (availH uses initialInset)
   });
 
   it('includes textDivStyle with font properties', () => {
