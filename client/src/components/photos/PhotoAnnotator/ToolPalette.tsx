@@ -4,10 +4,25 @@ import {
   ANNOTATION_COLORS,
   ANNOTATION_STROKE_WIDTH_RATIOS,
   ANNOTATION_FONT_SIZE_RATIOS,
-  resolveStrokeWidth,
-  resolveFontSize,
 } from './annotationConstants.js';
 import styles from './ToolPalette.module.css';
+
+/** Visually distinct stroke widths for 24px preview icons */
+const STROKE_PREVIEW_PX: Record<StrokeWidthKey, number> = {
+  'extra-thin': 1.5,
+  thin: 2.5,
+  medium: 4,
+  thick: 6,
+};
+
+/** Visually distinct font sizes for 24px preview icons */
+const FONT_PREVIEW_PX: Record<FontSizeKey, number> = {
+  xsmall: 10,
+  small: 13,
+  medium: 16,
+  large: 19,
+  xlarge: 22,
+};
 
 interface ToolPaletteProps {
   selectedTool: ToolName;
@@ -187,8 +202,7 @@ export function ToolPalette({
       {/* Stroke width picker */}
       <div role="radiogroup" aria-label={t('strokeWidth')} className={styles.strokeGroup}>
         {Object.entries(ANNOTATION_STROKE_WIDTH_RATIOS).map(([key]) => {
-          // Use a reference image dimension of 1000px for consistent button preview
-          const previewWidth = resolveStrokeWidth(key as StrokeWidthKey, 1000, 1000);
+          const previewStrokeWidth = STROKE_PREVIEW_PX[key as StrokeWidthKey];
           return (
             <button
               key={key}
@@ -214,7 +228,7 @@ export function ToolPalette({
                   x2="20"
                   y2="12"
                   stroke="currentColor"
-                  strokeWidth={Math.max(1, previewWidth * 0.06)}
+                  strokeWidth={previewStrokeWidth}
                   strokeLinecap="round"
                 />
               </svg>
@@ -228,8 +242,7 @@ export function ToolPalette({
           <div className={styles.divider} aria-hidden="true" />
           <div role="radiogroup" aria-label={t('fontSize')} className={styles.fontSizeGroup}>
             {Object.entries(ANNOTATION_FONT_SIZE_RATIOS).map(([key]) => {
-              // Use a reference image dimension of 1000px for consistent button preview
-              const previewSize = resolveFontSize(key as FontSizeKey, 1000, 1000);
+              const previewFontSize = FONT_PREVIEW_PX[key as FontSizeKey];
               return (
                 <button
                   key={key}
@@ -242,7 +255,7 @@ export function ToolPalette({
                   }`}
                   onClick={() => onSelectFontSize(key)}
                 >
-                  <span style={{ fontSize: `${Math.max(10, previewSize * 0.06)}px` }}>A</span>
+                  <span style={{ fontSize: `${previewFontSize}px` }}>A</span>
                 </button>
               );
             })}
