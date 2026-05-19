@@ -492,7 +492,8 @@ describe('Photo Routes', () => {
         'diary_entry',
         'entry-abc',
         userId,
-        undefined,
+        undefined, // caption
+        undefined, // areaId
       );
     });
   });
