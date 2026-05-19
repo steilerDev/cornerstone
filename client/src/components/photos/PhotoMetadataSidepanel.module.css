@@ -1,0 +1,192 @@
+/* Metadata sidepanel — shows upload date, caption, and area */
+
+.sidepanel {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-primary);
+  border-left: 1px solid var(--color-border);
+  width: 320px;
+  max-height: 100%;
+  overflow-y: auto;
+  transition: transform var(--transition-standard), opacity var(--transition-standard);
+  z-index: 8;
+}
+
+.sidepanel.hidden {
+  transform: translateX(100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.header {
+  padding: var(--spacing-4);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.content {
+  flex: 1;
+  padding: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  overflow-y: auto;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.value {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+/* Upload date — read-only */
+.dateValue {
+  padding: var(--spacing-2);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+/* Description textarea */
+.descriptionTextarea {
+  min-height: 100px;
+  padding: var(--spacing-2);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text-primary);
+  resize: vertical;
+  max-height: 200px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.descriptionTextarea::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+.descriptionTextarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.descriptionTextarea:disabled {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  border-color: var(--color-border);
+}
+
+/* Area picker — using SearchPicker */
+.areaPicker {
+  width: 100%;
+}
+
+/* Action buttons */
+.actions {
+  display: flex;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-2);
+}
+
+.saveButton {
+  flex: 1;
+  padding: var(--spacing-2) var(--spacing-3);
+  background: var(--color-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: white;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.saveButton:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.saveButton:active:not(:disabled) {
+  background: var(--color-primary-active);
+}
+
+.saveButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.saveButton:disabled {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.savingIndicator {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  padding: var(--spacing-2) 0;
+  text-align: center;
+}
+
+.errorMessage {
+  padding: var(--spacing-2);
+  background: var(--color-red-50);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+}
+
+/* Responsive: hide sidepanel on mobile */
+@media (max-width: 767px) {
+  .sidepanel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: 60vh;
+    border-left: none;
+    border-top: 1px solid var(--color-border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  .sidepanel.hidden {
+    transform: translateY(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidepanel {
+    transition: none;
+  }
+
+  .descriptionTextarea,
+  .saveButton {
+    transition: none;
+  }
+}

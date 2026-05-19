@@ -7,5 +7,15 @@
   "clearAnnotations": "Clear annotations",
   "clearConfirmTitle": "Clear annotations?",
   "clearConfirmBody": "This will remove all annotations from this photo. This action cannot be undone.",
-  "clearConfirmAction": "Clear annotations"
+  "clearConfirmAction": "Clear annotations",
+  "metadataTitle": "Photo Metadata",
+  "uploadDate": "Upload Date",
+  "description": "Description",
+  "descriptionPlaceholder": "Add a description...",
+  "area": "Area",
+  "areaPlaceholder": "Select an area...",
+  "noArea": "(no area)",
+  "saveButton": "Save",
+  "saving": "Saving...",
+  "saveError": "Failed to save metadata"
 }

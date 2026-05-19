@@ -84,6 +84,7 @@ function makePhoto(overrides: Partial<Photo> = {}): Photo {
     height: 600,
     takenAt: null,
     caption: null,
+    areaId: null,
     sortOrder: 0,
     createdBy: { id: 'user-id', displayName: 'Test User' },
     createdAt: '2026-03-01T12:00:00.000Z',

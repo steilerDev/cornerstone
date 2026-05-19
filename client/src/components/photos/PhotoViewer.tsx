@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { Photo } from '@cornerstone/shared';
 import { PhotoAnnotator } from './PhotoAnnotator/PhotoAnnotator.js';
+import { PhotoMetadataSidepanel } from './PhotoMetadataSidepanel.js';
 import { Modal } from '../Modal/Modal.js';
 import { clearAnnotation } from '../../lib/photoApi.js';
 import styles from './PhotoViewer.module.css';
@@ -30,13 +31,18 @@ export function PhotoViewer({
   const [showingOriginal, setShowingOriginal] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isClearingAnnotation, setIsClearingAnnotation] = useState(false);
+  const [isSidepanelOpen, setIsSidepanelOpen] = useState(false);
+  const [currentPhoto, setCurrentPhoto] = useState(photos[initialIndex]!);
 
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const annotateBtnRef = useRef<HTMLButtonElement>(null);
   const clearBtnRef = useRef<HTMLButtonElement>(null);
+  const infoBtnRef = useRef<HTMLButtonElement>(null);
 
-  // currentIndex is always within bounds [0, photos.length) due to cyclic navigation logic
-  const currentPhoto = photos[currentIndex]!;
+  // Update currentPhoto when currentIndex or photos array changes
+  useEffect(() => {
+    setCurrentPhoto(photos[currentIndex]!);
+  }, [currentIndex, photos]);
 
   // Store previous focus and restore on close
   useEffect(() => {
@@ -134,6 +140,10 @@ export function PhotoViewer({
     }
   }, [currentPhoto, onPhotoAnnotated]);
 
+  const handlePhotoUpdated = useCallback((updatedPhoto: Photo) => {
+    setCurrentPhoto(updatedPhoto);
+  }, []);
+
   const buildPhotoUrl = (photo: Photo, showOriginal: boolean): string => {
     if (showOriginal) {
       return `${photo.fileUrl}?variant=original${photo.annotatedAt ? `&v=${photo.annotatedAt}` : ''}`;
@@ -146,20 +156,21 @@ export function PhotoViewer({
       <div className={styles.backdrop} onClick={handleBackdropClick} />
 
       <div className={styles.container}>
-        {/* Close button */}
-        <button
-          type="button"
-          onClick={onClose}
-          className={styles.closeButton}
-          aria-label="Close photo viewer"
-          data-testid="photo-viewer-close"
-          style={{ display: isAnnotating ? 'none' : undefined }}
-        >
-          ×
-        </button>
+        <div className={styles.mainViewer}>
+          {/* Close button */}
+          <button
+            type="button"
+            onClick={onClose}
+            className={styles.closeButton}
+            aria-label="Close photo viewer"
+            data-testid="photo-viewer-close"
+            style={{ display: isAnnotating ? 'none' : undefined }}
+          >
+            ×
+          </button>
 
-        {/* Photo or Annotator */}
-        <div className={styles.photoContainer}>
+          {/* Photo or Annotator */}
+          <div className={styles.photoContainer}>
           {isAnnotating ? (
             <PhotoAnnotator
               photo={currentPhoto}
@@ -262,10 +273,24 @@ export function PhotoViewer({
               </button>
             )}
 
+            {/* Metadata info button */}
+            <button
+              ref={infoBtnRef}
+              type="button"
+              className={styles.iconButton}
+              aria-label={t('photoViewer:metadataTitle')}
+              aria-pressed={isSidepanelOpen}
+              data-testid="photo-viewer-metadata"
+              onClick={() => setIsSidepanelOpen((v) => !v)}
+            >
+              <InfoIcon />
+            </button>
+
             <span className={styles.counter}>
               {currentIndex + 1} / {photos.length}
             </span>
           </div>
+        </div>
         </div>
 
         {/* Clear Annotations confirmation modal */}
@@ -302,6 +327,14 @@ export function PhotoViewer({
             <p>{t('photoViewer:clearConfirmBody')}</p>
           </Modal>
         )}
+
+        {/* Metadata sidepanel */}
+        <PhotoMetadataSidepanel
+          photo={currentPhoto}
+          isOpen={isSidepanelOpen}
+          onClose={() => setIsSidepanelOpen(false)}
+          onPhotoUpdated={handlePhotoUpdated}
+        />
       </div>
     </div>
   );
@@ -360,6 +393,15 @@ function TrashIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function InfoIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" />
+      <path d="M12 16v-4M12 8h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }

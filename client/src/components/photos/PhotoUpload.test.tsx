@@ -118,6 +118,7 @@ describe('PhotoUpload', () => {
       height: 600,
       takenAt: null,
       caption: null,
+      areaId: null,
       sortOrder: 0,
       createdBy: null,
       annotatedAt: null,
