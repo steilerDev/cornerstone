@@ -511,7 +511,10 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         }
       } else if (state.selectedTool === 'measurement') {
         // Measurement: line-based, use Euclidean distance gate
-        const distance = Math.hypot(draftShape.endX - draftShape.startX, draftShape.endY - draftShape.startY);
+        const distance = Math.hypot(
+          draftShape.endX - draftShape.startX,
+          draftShape.endY - draftShape.startY,
+        );
         if (distance > MIN_SIZE) {
           openInlineInput(draftShape.startX, draftShape.startY);
         } else {
