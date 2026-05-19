@@ -31,13 +31,11 @@ export function PhotoViewer({
   const [showingOriginal, setShowingOriginal] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isClearingAnnotation, setIsClearingAnnotation] = useState(false);
-  const [isSidepanelOpen, setIsSidepanelOpen] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState(photos[initialIndex]!);
 
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const annotateBtnRef = useRef<HTMLButtonElement>(null);
   const clearBtnRef = useRef<HTMLButtonElement>(null);
-  const infoBtnRef = useRef<HTMLButtonElement>(null);
 
   // Update currentPhoto when currentIndex or photos array changes
   useEffect(() => {
@@ -273,19 +271,6 @@ export function PhotoViewer({
                 </button>
               )}
 
-              {/* Metadata info button */}
-              <button
-                ref={infoBtnRef}
-                type="button"
-                className={styles.iconButton}
-                aria-label={t('photoViewer:metadataTitle')}
-                aria-pressed={isSidepanelOpen}
-                data-testid="photo-viewer-metadata"
-                onClick={() => setIsSidepanelOpen((v) => !v)}
-              >
-                <InfoIcon />
-              </button>
-
               <span className={styles.counter}>
                 {currentIndex + 1} / {photos.length}
               </span>
@@ -331,8 +316,6 @@ export function PhotoViewer({
         {/* Metadata sidepanel */}
         <PhotoMetadataSidepanel
           photo={currentPhoto}
-          isOpen={isSidepanelOpen}
-          onClose={() => setIsSidepanelOpen(false)}
           onPhotoUpdated={handlePhotoUpdated}
         />
       </div>

@@ -9,15 +9,11 @@ import styles from './PhotoMetadataSidepanel.module.css';
 
 export interface PhotoMetadataSidepanelProps {
   photo: Photo;
-  isOpen: boolean;
-  onClose: () => void;
   onPhotoUpdated?: (photo: Photo) => void;
 }
 
 export function PhotoMetadataSidepanel({
   photo,
-  isOpen,
-  onClose,
   onPhotoUpdated,
 }: PhotoMetadataSidepanelProps) {
   const { t } = useTranslation('photoViewer');
@@ -86,7 +82,7 @@ export function PhotoMetadataSidepanel({
 
   return (
     <div
-      className={`${styles.sidepanel} ${!isOpen ? styles.hidden : ''}`}
+      className={styles.sidepanel}
       aria-label={t('metadataTitle')}
       role="complementary"
     >
