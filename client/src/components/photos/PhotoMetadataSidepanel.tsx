@@ -28,11 +28,6 @@ export function PhotoMetadataSidepanel({
   const { t } = useTranslation('photoViewer');
   const { formatDate } = useFormatters();
 
-  // Hide sidepanel entirely when annotation mode is active
-  if (isAnnotating) {
-    return null;
-  }
-
   const [caption, setCaption] = useState(photo.caption ?? '');
   const [areaId, setAreaId] = useState(photo.areaId ?? '');
   const [isSaving, setIsSaving] = useState(false);
@@ -83,12 +78,17 @@ export function PhotoMetadataSidepanel({
     }
   }, [photo.id, caption, areaId, onPhotoUpdated]);
 
-  const hasChanges = caption !== (photo.caption ?? '') || areaId !== (photo.areaId ?? '');
-  const isDisabled = isSaving || isLoadingAreas;
-
   const searchAreas = useCallback(async (query: string) => {
     return fetchAreas({ search: query }).then((resp) => resp.areas || []);
   }, []);
+
+  // Hide sidepanel entirely when annotation mode is active
+  if (isAnnotating) {
+    return null;
+  }
+
+  const hasChanges = caption !== (photo.caption ?? '') || areaId !== (photo.areaId ?? '');
+  const isDisabled = isSaving || isLoadingAreas;
 
   const renderAreaItem = (area: AreaResponse) => ({
     id: area.id,
