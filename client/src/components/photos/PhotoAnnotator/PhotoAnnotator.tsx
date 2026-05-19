@@ -499,17 +499,27 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         if (liveRegionRef.current) {
           liveRegionRef.current.textContent = t('shapeAddedFreehand');
         }
+      } else if (state.selectedTool === 'text') {
+        // Text tool: click-to-place, no drag size requirement
+        openInlineInput(draftShape.startX, draftShape.startY);
+      } else if (state.selectedTool === 'callout') {
+        // Callout: requires minimum drag (rect with tail)
+        if (w > MIN_SIZE && h > MIN_SIZE) {
+          openInlineInput(draftShape.startX, draftShape.startY);
+        } else {
+          setDraftShape(null);
+        }
+      } else if (state.selectedTool === 'measurement') {
+        // Measurement: line-based, use Euclidean distance gate
+        const distance = Math.hypot(draftShape.endX - draftShape.startX, draftShape.endY - draftShape.startY);
+        if (distance > MIN_SIZE) {
+          openInlineInput(draftShape.startX, draftShape.startY);
+        } else {
+          setDraftShape(null);
+        }
       } else if (w > MIN_SIZE && h > MIN_SIZE) {
         const newShape = createShapeFromDraft(draftShape);
-        if (
-          newShape &&
-          (state.selectedTool === 'text' ||
-            state.selectedTool === 'callout' ||
-            state.selectedTool === 'measurement')
-        ) {
-          // These require text input
-          openInlineInput(draftShape.startX, draftShape.startY);
-        } else if (newShape) {
+        if (newShape) {
           undoStack.commit(undoStack.shapes.concat([newShape as AnnotationShape]));
           setDraftShape(null);
           const announcements: Record<ToolName, string> = {
