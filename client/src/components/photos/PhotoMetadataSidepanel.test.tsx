@@ -157,10 +157,12 @@ describe('PhotoMetadataSidepanel', () => {
    * Render helper: wraps the component in LocaleProvider so useFormatters() has
    * locale context. In CI the LocaleProvider mock is a passthrough; locally it's
    * the real provider (with configApi/preferencesApi mocked to avoid network calls).
-   *
-   * The sidepanel no longer accepts isOpen/onClose — it is always visible.
    */
-  function renderSidepanel(props: { photo: Photo; onPhotoUpdated?: (photo: Photo) => void }) {
+  function renderSidepanel(props: {
+    photo: Photo;
+    onPhotoUpdated?: (photo: Photo) => void;
+    isAnnotating?: boolean;
+  }) {
     return render(
       React.createElement(LocaleProvider, {
         children: React.createElement(PhotoMetadataSidepanel, props),

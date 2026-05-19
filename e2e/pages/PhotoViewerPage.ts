@@ -457,8 +457,19 @@ export class PhotoViewerPage {
   }
 
   /**
-   * Draw a freehand stroke using touch events (for mobile viewports).
-   * Uses page.touchscreen for the gesture.
+   * Draw a freehand stroke on touch/mobile viewports using synthetic PointerEvents.
+   *
+   * On WebKit with hasTouch=true, `page.mouse.*` calls do not reliably propagate
+   * `pointerdown`/`pointermove`/`pointerup` events to React's onPointer* handlers.
+   * Instead, we dispatch PointerEvents directly on the SVG element via
+   * `svgOverlay.evaluate(...)`, which fires them synchronously in the browser
+   * context regardless of viewport type. Each segment between waypoints is
+   * subdivided into 3 steps so that FreehandTool.onPointerMove captures enough
+   * intermediate points for simplifyPolyline to retain ≥ 2 points after RDP.
+   *
+   * This helper is safe to call on desktop viewports as well — the synthetic
+   * dispatch targets the element's event listeners directly, bypassing the
+   * mouse-model entirely.
    */
   async drawFreehandTouch(
     startXPct = 0.1,
@@ -472,22 +483,164 @@ export class PhotoViewerPage {
     const svgBox = await this.svgOverlay.boundingBox();
     if (!svgBox) throw new Error('SVG overlay not visible');
 
+    const points: Array<[number, number]> = [
+      [svgBox.x + svgBox.width * startXPct, svgBox.y + svgBox.height * startYPct],
+      ...waypoints.map(([x, y]): [number, number] => [
+        svgBox.x + svgBox.width * x,
+        svgBox.y + svgBox.height * y,
+      ]),
+    ];
+
+    // Phase 1: dispatch pointerdown and let React flush the SET_DRAFT state update.
+    // If all events fire in one synchronous JS task, React batches the state updates
+    // so handlePointerMove sees stale state (draftShape === null) and returns early.
+    // Splitting into two evaluate calls — with an rAF yield in between — lets React
+    // commit the SET_DRAFT before pointermove events arrive.
+    await this.svgOverlay.evaluate(
+      (el: Element, pt: [number, number]) => {
+        el.dispatchEvent(
+          new PointerEvent('pointerdown', {
+            pointerId: 1,
+            pointerType: 'touch',
+            isPrimary: true,
+            clientX: pt[0],
+            clientY: pt[1],
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      },
+      points[0],
+    );
+
+    // Yield one animation frame so React flushes the SET_DRAFT state update
+    // before pointermove events arrive.
+    await this.page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+
+    // Phase 2: dispatch pointermove (subdivided per segment) + pointerup.
+    await this.svgOverlay.evaluate(
+      (el: Element, pts: Array<[number, number]>) => {
+        const dispatch = (type: string, x: number, y: number) => {
+          el.dispatchEvent(
+            new PointerEvent(type, {
+              pointerId: 1,
+              pointerType: 'touch',
+              isPrimary: true,
+              clientX: x,
+              clientY: y,
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+        };
+
+        // Walk each segment, subdividing into 3 steps to give FreehandTool
+        // enough intermediate points to survive RDP simplification (≥ 2 points).
+        for (let i = 1; i < pts.length; i++) {
+          const [x0, y0] = pts[i - 1];
+          const [x1, y1] = pts[i];
+          for (let s = 1; s <= 3; s++) {
+            dispatch('pointermove', x0 + (x1 - x0) * (s / 3), y0 + (y1 - y0) * (s / 3));
+          }
+        }
+
+        // Fire pointerup at the last point
+        dispatch('pointerup', pts[pts.length - 1][0], pts[pts.length - 1][1]);
+      },
+      points,
+    );
+  }
+
+  /**
+   * Draw a line (or measurement) drag on touch/mobile viewports using synthetic PointerEvents.
+   *
+   * Mirrors drawFreehandTouch but for a simple two-point drag (start → end).
+   * Subdivides the segment into 5 steps to ensure the tool's onPointerMove
+   * handler receives intermediate events. Safe to call on desktop viewports.
+   */
+  async drawLineTouch(
+    startXPct = 0.15,
+    startYPct = 0.5,
+    endXPct = 0.75,
+    endYPct = 0.5,
+  ): Promise<void> {
+    const svgBox = await this.svgOverlay.boundingBox();
+    if (!svgBox) throw new Error('SVG overlay not visible');
+
     const startX = svgBox.x + svgBox.width * startXPct;
     const startY = svgBox.y + svgBox.height * startYPct;
+    const endX = svgBox.x + svgBox.width * endXPct;
+    const endY = svgBox.y + svgBox.height * endYPct;
 
-    // Touch: tap-and-hold to start, then tap for waypoints
-    // Playwright touchscreen.tap fires a quick tap; for drag we use mouse.
-    // On mobile WebKit pointerevents from mouse.move still fire correctly.
-    await this.page.mouse.move(startX, startY);
-    await this.page.mouse.down();
+    // Three-phase dispatch to work around React state batching:
+    // MeasurementTool reads state.draftShape.x2/y2 in onPointerUp (via React state,
+    // not a module-level variable). All events within one synchronous evaluate()
+    // call are batched by React, so onPointerUp would see stale x2=startX
+    // (distance === 0 → discard). Three separate evaluate() calls with rAF yields
+    // ensure each phase flushes before the next one reads state.
 
-    for (const [xPct, yPct] of waypoints) {
-      await this.page.mouse.move(svgBox.x + svgBox.width * xPct, svgBox.y + svgBox.height * yPct, {
-        steps: 3,
-      });
-    }
+    // Phase 1: pointerdown → rAF → React commits SET_DRAFT (x2=startX, y2=startY)
+    await this.svgOverlay.evaluate(
+      (el: Element, pt: [number, number]) => {
+        el.dispatchEvent(
+          new PointerEvent('pointerdown', {
+            pointerId: 1,
+            pointerType: 'touch',
+            isPrimary: true,
+            clientX: pt[0],
+            clientY: pt[1],
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      },
+      [startX, startY] as [number, number],
+    );
+    await this.page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
-    await this.page.mouse.up();
+    // Phase 2: pointermove (5 steps) → rAF → React commits final x2=endX, y2=endY
+    await this.svgOverlay.evaluate(
+      (el: Element, coords: [number, number, number, number]) => {
+        const [sx, sy, ex, ey] = coords;
+        const dispatch = (type: string, x: number, y: number) => {
+          el.dispatchEvent(
+            new PointerEvent(type, {
+              pointerId: 1,
+              pointerType: 'touch',
+              isPrimary: true,
+              clientX: x,
+              clientY: y,
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+        };
+        // Subdivide into 5 steps so the tool's onPointerMove fires multiple times
+        for (let s = 1; s <= 5; s++) {
+          dispatch('pointermove', sx + (ex - sx) * (s / 5), sy + (ey - sy) * (s / 5));
+        }
+      },
+      [startX, startY, endX, endY] as [number, number, number, number],
+    );
+    await this.page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+
+    // Phase 3: pointerup — state.draftShape.x2/y2 now reflects the final endpoint
+    await this.svgOverlay.evaluate(
+      (el: Element, pt: [number, number]) => {
+        el.dispatchEvent(
+          new PointerEvent('pointerup', {
+            pointerId: 1,
+            pointerType: 'touch',
+            isPrimary: true,
+            clientX: pt[0],
+            clientY: pt[1],
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      },
+      [endX, endY] as [number, number],
+    );
   }
 
   /**

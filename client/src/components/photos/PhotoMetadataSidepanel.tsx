@@ -7,12 +7,24 @@ import { useFormatters } from '../../lib/formatters.js';
 import { SearchPicker } from '../SearchPicker/index.js';
 import styles from './PhotoMetadataSidepanel.module.css';
 
+/**
+ * PhotoMetadataSidepanel — displays and edits photo metadata (caption, area).
+ * On mobile, renders as a bottom sheet with a toggle button.
+ * When annotation mode is active, the sidepanel and toggle button are hidden
+ * to prevent interaction interference with the annotation canvas.
+ */
 export interface PhotoMetadataSidepanelProps {
   photo: Photo;
   onPhotoUpdated?: (photo: Photo) => void;
+  /** If true, hides the sidepanel and toggle button to avoid pointer event interference during annotation. */
+  isAnnotating?: boolean;
 }
 
-export function PhotoMetadataSidepanel({ photo, onPhotoUpdated }: PhotoMetadataSidepanelProps) {
+export function PhotoMetadataSidepanel({
+  photo,
+  onPhotoUpdated,
+  isAnnotating = false,
+}: PhotoMetadataSidepanelProps) {
   const { t } = useTranslation('photoViewer');
   const { formatDate } = useFormatters();
 
@@ -22,6 +34,7 @@ export function PhotoMetadataSidepanel({ photo, onPhotoUpdated }: PhotoMetadataS
   const [error, setError] = useState<string | null>(null);
   const [areas, setAreas] = useState<AreaResponse[]>([]);
   const [isLoadingAreas, setIsLoadingAreas] = useState(false);
+  const [isOpenMobile, setIsOpenMobile] = useState(false);
 
   // Load areas on mount
   useEffect(() => {
@@ -65,12 +78,17 @@ export function PhotoMetadataSidepanel({ photo, onPhotoUpdated }: PhotoMetadataS
     }
   }, [photo.id, caption, areaId, onPhotoUpdated]);
 
-  const hasChanges = caption !== (photo.caption ?? '') || areaId !== (photo.areaId ?? '');
-  const isDisabled = isSaving || isLoadingAreas;
-
   const searchAreas = useCallback(async (query: string) => {
     return fetchAreas({ search: query }).then((resp) => resp.areas || []);
   }, []);
+
+  // Hide sidepanel entirely when annotation mode is active
+  if (isAnnotating) {
+    return null;
+  }
+
+  const hasChanges = caption !== (photo.caption ?? '') || areaId !== (photo.areaId ?? '');
+  const isDisabled = isSaving || isLoadingAreas;
 
   const renderAreaItem = (area: AreaResponse) => ({
     id: area.id,
@@ -78,12 +96,33 @@ export function PhotoMetadataSidepanel({ photo, onPhotoUpdated }: PhotoMetadataS
   });
 
   return (
-    <div className={styles.sidepanel} aria-label={t('metadataTitle')} role="complementary">
-      <div className={styles.header}>
-        <h3 className={styles.title}>{t('metadataTitle')}</h3>
-      </div>
+    <>
+      {/* Toggle button — visible on mobile only */}
+      <button
+        type="button"
+        className={styles.toggleButton}
+        onClick={() => setIsOpenMobile((v) => !v)}
+        aria-expanded={isOpenMobile}
+        aria-controls="photo-metadata-sidepanel"
+        data-testid="photo-metadata-toggle"
+        title={t('metadataToggle')}
+        aria-label={t('metadataToggle')}
+      >
+        <ChevronUpIcon />
+      </button>
 
-      <div className={styles.content}>
+      {/* Sidepanel */}
+      <div
+        className={`${styles.sidepanel} ${isOpenMobile ? styles.sidepanelOpen : ''}`}
+        aria-label={t('metadataTitle')}
+        role="complementary"
+        id="photo-metadata-sidepanel"
+      >
+        <div className={styles.header}>
+          <h3 className={styles.title}>{t('metadataTitle')}</h3>
+        </div>
+
+        <div className={styles.content}>
         {/* Upload date — read-only */}
         <div className={styles.section}>
           <label className={styles.label}>{t('uploadDate')}</label>
@@ -151,6 +190,21 @@ export function PhotoMetadataSidepanel({ photo, onPhotoUpdated }: PhotoMetadataS
 
         {isSaving && <div className={styles.savingIndicator}>{t('saving')}</div>}
       </div>
-    </div>
+      </div>
+    </>
+  );
+}
+
+function ChevronUpIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M18 15l-6-6-6 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

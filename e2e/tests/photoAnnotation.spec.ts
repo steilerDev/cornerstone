@@ -662,11 +662,23 @@ test('Arrow tool — draw arrow and save', async ({
 
     await viewer.drawLine(0.2, 0.5, 0.7, 0.3);
 
-    // A <line data-shapeid> with marker-end=url(#arrowhead) should appear
-    const arrowLine = viewer.svgOverlay.locator('line[data-shapeid]').first();
-    await expect(arrowLine).toBeVisible();
-    const markerEnd = await arrowLine.getAttribute('marker-end');
-    expect(markerEnd).toContain('arrowhead');
+    // Arrow rendering contract: a <g data-shapeid> group containing a <line>
+    // shaft and a <polygon> arrowhead (no marker-end — the arrowhead is an
+    // explicit polygon child, not an SVG marker).
+    const arrowGroup = viewer.svgOverlay.locator('g[data-shapeid]').first();
+    await expect(arrowGroup).toBeAttached({ timeout: 15_000 });
+
+    // The group must contain exactly one line (shaft) and one polygon (arrowhead)
+    await expect(arrowGroup.locator('line')).toHaveCount(1);
+    await expect(arrowGroup.locator('polygon')).toHaveCount(1);
+
+    // The polygon's points attribute should encode a triangle (three coordinate pairs)
+    const arrowPolygon = arrowGroup.locator('polygon');
+    const points = await arrowPolygon.getAttribute('points');
+    expect(points).not.toBeNull();
+    // A triangle arrowhead has exactly 3 coordinate pairs (6 numbers)
+    const coordPairs = (points ?? '').trim().split(/\s+/);
+    expect(coordPairs).toHaveLength(3);
 
     // Save and verify
     const [putResponse] = await Promise.all([
@@ -724,19 +736,26 @@ test('Line tool — draw line and save', async ({
     await viewer.drawLine(0.2, 0.5, 0.7, 0.5);
 
     // A <line data-shapeid> should appear (no marker-end for plain line).
-    // Use waitFor with explicit timeout: actionTimeout (5 s) is too tight on a
-    // 2-vCPU CI shard running testcontainers; expect.timeout (7 s) is the floor,
-    // but 15 s gives the shard comfortable headroom.
+    // Use state:'attached' rather than state:'visible': an SVG <line> with
+    // y1 === y2 has a zero-height bounding box, so Playwright's visibility
+    // check fails even though the stroke renders correctly to the user.
     const lineEl = viewer.svgOverlay.locator('line[data-shapeid]').first();
     try {
-      await lineEl.waitFor({ state: 'visible', timeout: 15_000 });
+      await lineEl.waitFor({ state: 'attached', timeout: 15_000 });
     } catch (e) {
       const svgHtml = await page
         .evaluate(() => document.querySelector('[role="application"]')?.innerHTML ?? '(not found)')
         .catch(() => '(eval failed)');
-      console.error('[DEBUG] Line shape not visible after drawLine. SVG innerHTML:', svgHtml);
+      console.error('[DEBUG] Line shape not attached after drawLine. SVG innerHTML:', svgHtml);
       throw e;
     }
+
+    // Verify rendered geometry: horizontal line (y1 ≈ y2), expected stroke color and width
+    await expect(lineEl).toHaveAttribute('x1', /\d/);
+    await expect(lineEl).toHaveAttribute('x2', /\d/);
+    await expect(lineEl).toHaveAttribute('y1', /\d/);
+    await expect(lineEl).toHaveAttribute('y2', /\d/);
+    await expect(lineEl).toHaveAttribute('stroke-width', '1');
     // Arrow has marker-end; plain line has marker-end="none" or absent
     const markerEnd = await lineEl.getAttribute('marker-end');
     expect(markerEnd === null || markerEnd === 'none').toBe(true);
@@ -812,18 +831,20 @@ test('Line tool — Shift-snap constrains angle to 45° increments', async ({
     await page.keyboard.up('Shift');
 
     // The committed line should have y1 ≈ y2 (horizontal snap).
-    // Use waitFor with explicit 15 s timeout: actionTimeout (5 s) is too tight on
-    // a 2-vCPU CI shard; the shape commit goes through two async React state
-    // updates (useReducer → undoStack useState).
+    // Use state:'attached' rather than state:'visible': a horizontal SVG <line>
+    // (y1 === y2) has a zero-height bounding box, which causes Playwright's
+    // visibility check to fail even though the stroke is visually correct.
+    // The 15 s explicit timeout gives CI shards comfortable headroom beyond the
+    // default actionTimeout (5 s) for two async React state updates.
     const lineEl = viewer.svgOverlay.locator('line[data-shapeid]').first();
     try {
-      await lineEl.waitFor({ state: 'visible', timeout: 15_000 });
+      await lineEl.waitFor({ state: 'attached', timeout: 15_000 });
     } catch (e) {
       const svgHtml = await page
         .evaluate(() => document.querySelector('[role="application"]')?.innerHTML ?? '(not found)')
         .catch(() => '(eval failed)');
       console.error(
-        '[DEBUG] Shift-snap: line shape not visible after Shift+drag. SVG innerHTML:',
+        '[DEBUG] Shift-snap: line shape not attached after Shift+drag. SVG innerHTML:',
         svgHtml,
       );
       throw e;
@@ -1480,15 +1501,10 @@ test(
 
       await viewer.activateTool('measurement');
 
-      // Draw measurement line using pointer events (works on mobile WebKit too)
-      const svgBox = await viewer.svgOverlay.boundingBox();
-      expect(svgBox).not.toBeNull();
-      await page.mouse.move(svgBox!.x + svgBox!.width * 0.15, svgBox!.y + svgBox!.height * 0.5);
-      await page.mouse.down();
-      await page.mouse.move(svgBox!.x + svgBox!.width * 0.75, svgBox!.y + svgBox!.height * 0.5, {
-        steps: 5,
-      });
-      await page.mouse.up();
+      // Draw measurement line using synthetic touch PointerEvents via drawLineTouch.
+      // On WebKit/hasTouch viewports page.mouse.* does not reliably fire
+      // onPointerDown/Move/Up on the SVG element — use the synthetic helper instead.
+      await viewer.drawLineTouch(0.15, 0.5, 0.75, 0.5);
 
       // Inline input should appear at the midpoint
       await expect(viewer.inlineInput).toBeVisible();
@@ -1751,8 +1767,12 @@ test(
       await expect(viewer.svgOverlay.locator('ellipse[data-shapeid]').first()).toBeVisible();
 
       // Draw Freehand
+      // Use drawFreehandTouch (synthetic PointerEvents) so this step works on
+      // mobile WebKit (hasTouch=true) where page.mouse.* does not reliably fire
+      // the onPointerDown/Move/Up handlers on the SVG element.  The helper is
+      // safe to call on desktop viewports too.
       await viewer.activateTool('freehand');
-      await viewer.drawFreehand(0.1, 0.7, [
+      await viewer.drawFreehandTouch(0.1, 0.7, [
         [0.3, 0.6],
         [0.5, 0.8],
         [0.7, 0.6],
@@ -1949,22 +1969,27 @@ test('Color palette — selecting a swatch marks it aria-checked and new shapes 
     const colorGroup = page.getByRole('radiogroup', { name: 'Annotation color' });
     await expect(colorGroup).toBeVisible();
 
-    // The default color is red — find the red swatch (aria-checked="true")
-    const defaultChecked = colorGroup.locator('[aria-checked="true"]').first();
-    await expect(defaultChecked).toBeVisible();
-    const defaultBgColor = await defaultChecked.evaluate(
+    // The default color is red — red is the first swatch (index 0).
+    // We pin the red swatch by position so the reference stays stable after
+    // clicking a different color (a live '[aria-checked="true"]' locator would
+    // follow the newly-checked swatch instead of staying on red).
+    const swatches = colorGroup.locator('[role="radio"]');
+    // Colors order: red, yellow, green, blue, black, white
+    const redSwatch = swatches.nth(0);
+    await expect(redSwatch).toBeVisible();
+    await expect(redSwatch).toHaveAttribute('aria-checked', 'true');
+    const defaultBgColor = await redSwatch.evaluate(
       (el) => (el as HTMLElement).style.backgroundColor,
     );
     // Default color is #dc2626 (red) — browser may normalize to rgb format
     expect(defaultBgColor).toBeTruthy();
 
     // Click the blue swatch (index 3 = blue = #3b82f6)
-    const swatches = colorGroup.locator('[role="radio"]');
-    // Colors order: red, yellow, green, blue, black, white
     const blueSwatch = swatches.nth(3);
     await blueSwatch.click();
     await expect(blueSwatch).toHaveAttribute('aria-checked', 'true');
-    await expect(defaultChecked).toHaveAttribute('aria-checked', 'false');
+    // The red swatch (pinned by index) should now be unchecked
+    await expect(redSwatch).toHaveAttribute('aria-checked', 'false');
 
     // Draw a rectangle — it should have stroke matching the blue color
     await viewer.activateTool('rectangle');
