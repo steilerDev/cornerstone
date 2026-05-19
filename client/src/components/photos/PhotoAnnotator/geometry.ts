@@ -607,6 +607,48 @@ export function hitTestPolyline(
 }
 
 /**
+ * Hit-test whether a point is within the bounding box of a measurement label.
+ * The label is positioned at the midpoint of the line, with a generous tolerance.
+ * Returns 'label' if the point is near the label text, null otherwise.
+ */
+export function hitTestMeasurementLabel(
+  px: number,
+  py: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  fontSize: number,
+  tolerance: number = 16,
+): 'label' | null {
+  // Midpoint of the line
+  const midX = (x1 + x2) / 2;
+  const midY = (y1 + y2) / 2;
+
+  // Estimate label bounds: roughly 4 character widths at fontSize
+  // fontSize is in pixels at native resolution; use it as a dimension guide
+  const labelWidth = Math.max(fontSize * 3, 20); // Min 20px wide
+  const labelHeight = fontSize;
+
+  const labelLeft = midX - labelWidth / 2;
+  const labelRight = midX + labelWidth / 2;
+  const labelTop = midY - labelHeight / 2;
+  const labelBottom = midY + labelHeight / 2;
+
+  // Check if point is within the label bounds with tolerance
+  if (
+    px >= labelLeft - tolerance &&
+    px <= labelRight + tolerance &&
+    py >= labelTop - tolerance &&
+    py <= labelBottom + tolerance
+  ) {
+    return 'label';
+  }
+
+  return null;
+}
+
+/**
  * Translate a measurement shape (two endpoints) by dx, dy, clamped to image bounds.
  * Delegates to translateArrowLine since measurement shares the same geometry.
  */

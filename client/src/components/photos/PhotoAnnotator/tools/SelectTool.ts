@@ -12,6 +12,7 @@ import {
   hitTestText,
   hitTestCallout,
   hitTestTailHandle,
+  hitTestMeasurementLabel,
   type HandlePosition,
   translateShape,
   resizeShape,
@@ -78,6 +79,25 @@ export const SelectTool: ToolHandler = {
             12 + shape.strokeWidth / 2,
           ) !== null;
         if (hit) {
+          const midX = (shape.x1 + shape.x2) / 2;
+          const midY = (shape.y1 + shape.y2) / 2;
+          ctx.onOpenInlineInput?.(midX, midY, shape.id);
+          return [{ type: 'SELECT_SHAPE', id: shape.id }];
+        }
+      }
+
+      // Single-click on measurement label to edit it (single click, not double)
+      if (ctx.event.detail === 1 && shape.type === 'measurement') {
+        const labelHit = hitTestMeasurementLabel(
+          imageX,
+          imageY,
+          shape.x1,
+          shape.y1,
+          shape.x2,
+          shape.y2,
+          shape.fontSize,
+        );
+        if (labelHit) {
           const midX = (shape.x1 + shape.x2) / 2;
           const midY = (shape.y1 + shape.y2) / 2;
           ctx.onOpenInlineInput?.(midX, midY, shape.id);
