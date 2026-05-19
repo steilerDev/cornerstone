@@ -3,11 +3,11 @@
  *
  * Unit tests for ToolPalette.tsx
  *
- * Story #1476: Photo Annotator — Text-based Tools (Text, Callout)
+ * Story #1476: Photo Annotator — Text-based Tools (Text)
  *
  * Tests:
- *   - Text and Callout tool buttons rendered with data-testid
- *   - Font-size selector visibility: hidden for non-text tools, shown for 'text' and 'callout'
+ *   - Text tool button rendered with data-testid
+ *   - Font-size selector visibility: hidden for non-text tools, shown for 'text'
  *   - Font-size selector active state (aria-checked)
  *   - Clicking a font-size button calls onSelectFontSize with the correct size
  */
@@ -93,29 +93,14 @@ describe('ToolPalette', () => {
       expect(screen.getByTestId('tool-text')).toBeInTheDocument();
     });
 
-    it('renders callout tool button with data-testid="tool-callout"', () => {
-      renderPalette();
-      expect(screen.getByTestId('tool-callout')).toBeInTheDocument();
-    });
-
     it('text tool button is not active by default (selectedTool=select)', () => {
       renderPalette({ selectedTool: 'select' });
       expect(screen.getByTestId('tool-text')).toHaveAttribute('aria-pressed', 'false');
     });
 
-    it('callout tool button is not active by default (selectedTool=select)', () => {
-      renderPalette({ selectedTool: 'select' });
-      expect(screen.getByTestId('tool-callout')).toHaveAttribute('aria-pressed', 'false');
-    });
-
     it('text tool button is active when selectedTool="text"', () => {
       renderPalette({ selectedTool: 'text' });
       expect(screen.getByTestId('tool-text')).toHaveAttribute('aria-pressed', 'true');
-    });
-
-    it('callout tool button is active when selectedTool="callout"', () => {
-      renderPalette({ selectedTool: 'callout' });
-      expect(screen.getByTestId('tool-callout')).toHaveAttribute('aria-pressed', 'true');
     });
 
     it('clicking text tool button calls onSelectTool with "text"', () => {
@@ -125,12 +110,6 @@ describe('ToolPalette', () => {
       expect(onSelectTool).toHaveBeenCalledWith('text');
     });
 
-    it('clicking callout tool button calls onSelectTool with "callout"', () => {
-      const onSelectTool = jest.fn() as AnyMock;
-      renderPalette({ onSelectTool });
-      fireEvent.click(screen.getByTestId('tool-callout'));
-      expect(onSelectTool).toHaveBeenCalledWith('callout');
-    });
   });
 
   describe('Font-size selector visibility', () => {
@@ -140,7 +119,7 @@ describe('ToolPalette', () => {
 
     it('font-size selector is NOT visible when selectedTool is "select"', () => {
       renderPalette({ selectedTool: 'select' });
-      // Font size radiogroup is gated by selectedTool === 'text' || 'callout'
+      // Font size radiogroup is gated by selectedTool === 'text'
       // Use queryAllByRole to check absence regardless of label string
       const radiogroups = screen.queryAllByRole('radiogroup');
       // Should only have colorPalette and strokeWidth groups — NOT fontSize
@@ -185,17 +164,6 @@ describe('ToolPalette', () => {
       const groupsWithText = screen.queryAllByRole('radiogroup').length;
 
       expect(groupsWithText).toBeGreaterThan(groupsWithSelect);
-    });
-
-    it('font-size selector IS visible when selectedTool is "callout" (more radiogroups than without)', () => {
-      const { unmount } = renderPalette({ selectedTool: 'select' });
-      const groupsWithSelect = screen.queryAllByRole('radiogroup').length;
-      unmount();
-
-      renderPalette({ selectedTool: 'callout' });
-      const groupsWithCallout = screen.queryAllByRole('radiogroup').length;
-
-      expect(groupsWithCallout).toBeGreaterThan(groupsWithSelect);
     });
 
     it('font-size radiogroup has exactly 5 font-size radio buttons', () => {
@@ -251,7 +219,7 @@ describe('ToolPalette', () => {
     });
 
     it('Large button has aria-checked=true when activeFontSize=24', () => {
-      renderPalette({ selectedTool: 'callout', activeFontSizeKey: 'large' });
+      renderPalette({ selectedTool: 'text', activeFontSizeKey: 'large' });
       const largeBtn = getFontSizeRadio(getFontSizeGroup(), 'Large', 'Large');
       expect(largeBtn).toHaveAttribute('aria-checked', 'true');
     });
@@ -304,7 +272,7 @@ describe('ToolPalette', () => {
 
     it('clicking Small button calls onSelectFontSize("small")', () => {
       const onSelectFontSize = jest.fn() as AnyMock;
-      renderPalette({ selectedTool: 'callout', activeFontSizeKey: 'medium', onSelectFontSize });
+      renderPalette({ selectedTool: 'text', activeFontSizeKey: 'medium', onSelectFontSize });
       const smallBtn = getFontSizeRadio(getFontSizeGroup(), 'Small', 'Small');
       fireEvent.click(smallBtn);
       expect(onSelectFontSize).toHaveBeenCalledWith('small');
@@ -428,15 +396,5 @@ describe('ToolPalette', () => {
       expect(groupsWithText).toBeGreaterThan(groupsWithSelect);
     });
 
-    it('font-size selector remains visible for callout tool (not regressed)', () => {
-      const { unmount } = renderPalette({ selectedTool: 'select' });
-      const groupsWithSelect = screen.queryAllByRole('radiogroup').length;
-      unmount();
-
-      renderPalette({ selectedTool: 'callout' });
-      const groupsWithCallout = screen.queryAllByRole('radiogroup').length;
-
-      expect(groupsWithCallout).toBeGreaterThan(groupsWithSelect);
-    });
   });
 });

@@ -401,7 +401,6 @@ describe('PhotoAnnotator', () => {
       'tool-line',
       'tool-ellipse',
       'tool-text',
-      'tool-callout',
       'tool-measurement',
       'tool-freehand',
     ];
@@ -676,28 +675,6 @@ describe('PhotoAnnotator', () => {
     expect(screen.getByRole('region', { name: /annotation tool/i })).toBeInTheDocument();
   });
 
-  // ─── Callout tool ──────────────────────────────────────────────────────────
-  //
-  // Story #1476: Callout text tool with two-phase interaction.
-  // The Phase 1 → Phase 2 flow uses Konva Stage mouse events which are not
-  // simulatable in JSDOM. We verify that the tool can be selected without error.
-
-  it('callout tool button can be selected without errors', async () => {
-    await renderAnnotator({ width: 800, height: 600 });
-
-    const calloutBtn = screen.getByTestId('tool-callout');
-    expect(calloutBtn).toBeInTheDocument();
-    fireEvent.click(calloutBtn);
-    expect(calloutBtn).toHaveAttribute('aria-pressed', 'true');
-
-    // Component still rendered (no error from tool switch)
-    expect(screen.getByRole('region', { name: /annotation tool/i })).toBeInTheDocument();
-  });
-
-  it.todo(
-    'callout Phase 1→Phase 2 transition does not discard draft (E2E covers Konva pointer flow)',
-  );
-
   // ── Canvas bake uses naturalWidth/naturalHeight (not photo.width/height) ────
   //
   // Fix: canvas dimensions now come from `img.naturalWidth` / `img.naturalHeight`
@@ -775,24 +752,6 @@ describe('PhotoAnnotator', () => {
     // The canvas must use natural dimensions, not photo.width/photo.height
     expect(capturedCanvasWidth).toBe(2400);
     expect(capturedCanvasHeight).toBe(1800);
-  });
-
-  // ── Callout text commitment regression (fix for: callout disappears after text entry) ──
-  //
-  // Bug fix: missing return statement in commitInlineInput() after empty text handling.
-  // The fix prevents fall-through. E2E tests fully exercise the callout text flow.
-  it('photoAnnotator renders and processes callout tool without errors', async () => {
-    await renderAnnotator({ width: 800, height: 600 });
-
-    // Verify the component renders
-    expect(screen.getByRole('region', { name: /annotation tool/i })).toBeInTheDocument();
-
-    // Verify we can switch to the callout tool without errors
-    fireEvent.click(screen.getByTestId('tool-callout'));
-    expect(screen.getByTestId('tool-callout')).toHaveAttribute('aria-pressed', 'true');
-
-    // Verify action buttons are still present
-    expect(screen.getByRole('button', { name: /^Cancel$/i })).toBeInTheDocument();
   });
 
   // ── Coordinate-transform tests ────────────────────────────────────────────

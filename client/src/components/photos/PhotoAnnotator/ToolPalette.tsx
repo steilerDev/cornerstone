@@ -137,19 +137,6 @@ export function ToolPalette({
 
         <button
           type="button"
-          aria-pressed={selectedTool === 'callout'}
-          data-testid="tool-callout"
-          aria-label={t('toolCallout')}
-          className={`${styles.toolButton} ${
-            selectedTool === 'callout' ? styles.toolButtonActive : ''
-          }`}
-          onClick={() => onSelectTool('callout')}
-        >
-          <CalloutIcon />
-        </button>
-
-        <button
-          type="button"
           aria-pressed={selectedTool === 'measurement'}
           data-testid="tool-measurement"
           aria-label={t('toolMeasurement')}
@@ -237,7 +224,6 @@ export function ToolPalette({
       </div>
 
       {(selectedTool === 'text' ||
-        selectedTool === 'callout' ||
         selectedTool === 'measurement') && (
         <>
           <div className={styles.divider} aria-hidden="true" />
@@ -390,24 +376,6 @@ function TextIcon() {
       <text x="4" y="18" fontSize="16" fontWeight="700" fill="currentColor" fontFamily="serif">
         T
       </text>
-    </svg>
-  );
-}
-
-function CalloutIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect
-        x="3"
-        y="4"
-        width="16"
-        height="11"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="2"
-        fill="none"
-      />
-      <path d="M9 15 L6 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
