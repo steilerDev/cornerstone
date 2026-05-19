@@ -661,7 +661,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     // Compute image-space rect for the input based on shape type
     let imgX = inlineInput.anchorImageX;
     let imgY = inlineInput.anchorImageY;
-    let imgW = Math.max(100, screenFontSizePx / scale * 10); // Default width estimate
+    let imgW = Math.max(100, (screenFontSizePx / scale) * 10); // Default width estimate
     let imgH = screenFontSizePx / scale;
     let textAlign: 'left' | 'center' = 'left';
     let baselineAdjust = 0; // Vertical offset to align baseline
@@ -698,7 +698,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       const labelOffsetY = -ny * measurement.fontSize * 0.6;
 
       // Position so text is centered at the label point
-      imgX = midX + labelOffsetX - (measurement.fontSize * 2); // ~4 chars wide
+      imgX = midX + labelOffsetX - measurement.fontSize * 2; // ~4 chars wide
       imgY = midY + labelOffsetY - measurement.fontSize * 0.5;
       imgW = measurement.fontSize * 4; // ~4 character widths
       imgH = measurement.fontSize;
@@ -707,8 +707,8 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     } else if (shapeType === 'text') {
       // Text shape: anchor is at baseline; position input so baseline aligns
       imgX = inlineInput.anchorImageX;
-      imgY = inlineInput.anchorImageY - screenFontSizePx / scale * 0.75; // Offset to align baseline
-      imgW = Math.max(100, screenFontSizePx / scale * 12); // Wider for text
+      imgY = inlineInput.anchorImageY - (screenFontSizePx / scale) * 0.75; // Offset to align baseline
+      imgW = Math.max(100, (screenFontSizePx / scale) * 12); // Wider for text
       imgH = screenFontSizePx / scale;
       textAlign = 'left';
       // Baseline adjustment: input's top should align roughly with text's baseline
