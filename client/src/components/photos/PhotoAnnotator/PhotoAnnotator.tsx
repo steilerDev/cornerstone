@@ -805,7 +805,12 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         onRedo={() => undoStack.redo()}
       />
 
-      <div className={styles.canvasArea} style={{ position: 'relative' }}>
+      <div
+        className={styles.canvasArea}
+        style={{ position: 'relative' }}
+        role="application"
+        aria-label={t('canvas')}
+      >
         <Stage
           ref={stageRef}
           width={stageWidth}
@@ -858,15 +863,38 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
               }
             }}
             className={styles.inlineInput}
+            data-testid="annotator-inline-input"
           />
         )}
       </div>
 
       {/* Action buttons */}
       <div className={styles.actions}>
-        <button onClick={handleCancel}>{t('cancel')}</button>
-        <button onClick={() => setShowResetConfirm(true)}>{t('reset')}</button>
-        <button onClick={handleSave} disabled={isSaving}>
+        <button
+          type="button"
+          onClick={handleCancel}
+          className={styles.cancelButton}
+          data-testid="annotator-cancel"
+        >
+          {t('cancel')}
+        </button>
+        {photo.annotatedAt && (
+          <button
+            type="button"
+            onClick={() => setShowResetConfirm(true)}
+            className={styles.resetButton}
+            data-testid="annotator-reset"
+          >
+            {t('reset')}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={isSaving}
+          className={styles.saveButton}
+          data-testid="annotator-save"
+        >
           {isSaving ? t('saving') : t('save')}
         </button>
       </div>
