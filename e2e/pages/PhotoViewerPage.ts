@@ -491,6 +491,33 @@ export class PhotoViewerPage {
       ]),
     ];
 
+    // Phase 1: dispatch pointerdown and let React flush the SET_DRAFT state update.
+    // If all events fire in one synchronous JS task, React batches the state updates
+    // so handlePointerMove sees stale state (draftShape === null) and returns early.
+    // Splitting into two evaluate calls — with an rAF yield in between — lets React
+    // commit the SET_DRAFT before pointermove events arrive.
+    await this.svgOverlay.evaluate(
+      (el: Element, pt: [number, number]) => {
+        el.dispatchEvent(
+          new PointerEvent('pointerdown', {
+            pointerId: 1,
+            pointerType: 'touch',
+            isPrimary: true,
+            clientX: pt[0],
+            clientY: pt[1],
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      },
+      points[0],
+    );
+
+    // Yield one animation frame so React flushes the SET_DRAFT state update
+    // before pointermove events arrive.
+    await this.page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+
+    // Phase 2: dispatch pointermove (subdivided per segment) + pointerup.
     await this.svgOverlay.evaluate(
       (el: Element, pts: Array<[number, number]>) => {
         const dispatch = (type: string, x: number, y: number) => {
@@ -506,9 +533,6 @@ export class PhotoViewerPage {
             }),
           );
         };
-
-        // Fire pointerdown at the start point
-        dispatch('pointerdown', pts[0][0], pts[0][1]);
 
         // Walk each segment, subdividing into 3 steps to give FreehandTool
         // enough intermediate points to survive RDP simplification (≥ 2 points).
@@ -548,6 +572,29 @@ export class PhotoViewerPage {
     const endX = svgBox.x + svgBox.width * endXPct;
     const endY = svgBox.y + svgBox.height * endYPct;
 
+    // Phase 1: pointerdown, then yield an rAF so React flushes its state update
+    // before pointermove events arrive (same pattern as drawFreehandTouch).
+    await this.svgOverlay.evaluate(
+      (el: Element, pt: [number, number]) => {
+        el.dispatchEvent(
+          new PointerEvent('pointerdown', {
+            pointerId: 1,
+            pointerType: 'touch',
+            isPrimary: true,
+            clientX: pt[0],
+            clientY: pt[1],
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      },
+      [startX, startY] as [number, number],
+    );
+
+    // Yield one animation frame so React flushes the SET_DRAFT state update.
+    await this.page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+
+    // Phase 2: pointermove (5 steps) + pointerup.
     await this.svgOverlay.evaluate(
       (el: Element, coords: [number, number, number, number]) => {
         const [sx, sy, ex, ey] = coords;
@@ -565,7 +612,6 @@ export class PhotoViewerPage {
           );
         };
 
-        dispatch('pointerdown', sx, sy);
         // Subdivide into 5 steps so the tool's onPointerMove fires multiple times
         for (let s = 1; s <= 5; s++) {
           dispatch('pointermove', sx + (ex - sx) * (s / 5), sy + (ey - sy) * (s / 5));
