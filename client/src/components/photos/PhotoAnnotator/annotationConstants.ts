@@ -16,10 +16,10 @@ export type AnnotationColor = (typeof ANNOTATION_COLORS)[keyof typeof ANNOTATION
  * These scale stroke widths to match the image resolution.
  */
 export const ANNOTATION_STROKE_WIDTH_RATIOS = {
+  'extra-thin': 0.003,
   thin: 0.005,
   medium: 0.009,
   thick: 0.015,
-  'extra-thick': 0.025,
 } as const;
 
 export type StrokeWidthKey = keyof typeof ANNOTATION_STROKE_WIDTH_RATIOS;
@@ -29,22 +29,22 @@ export type StrokeWidthKey = keyof typeof ANNOTATION_STROKE_WIDTH_RATIOS;
  * These scale font sizes to match the image resolution.
  */
 export const ANNOTATION_FONT_SIZE_RATIOS = {
+  xsmall: 0.012,
   small: 0.018,
   medium: 0.028,
   large: 0.04,
   xlarge: 0.056,
-  xxlarge: 0.08,
 } as const;
 
 export type FontSizeKey = keyof typeof ANNOTATION_FONT_SIZE_RATIOS;
 
 export const DEFAULT_COLOR: AnnotationColor = ANNOTATION_COLORS.red;
-export const DEFAULT_STROKE_WIDTH: StrokeWidthKey = 'medium';
-export const DEFAULT_FONT_SIZE: FontSizeKey = 'medium';
+export const DEFAULT_STROKE_WIDTH: StrokeWidthKey = 'thin';
+export const DEFAULT_FONT_SIZE: FontSizeKey = 'small';
 
 /**
  * Resolve a stroke width key to an actual pixel value based on image dimensions.
- * @param key The stroke width key (thin/medium/thick/extra-thick)
+ * @param key The stroke width key (extra-thin/thin/medium/thick)
  * @param imageWidth The image width in pixels
  * @param imageHeight The image height in pixels
  * @returns The resolved stroke width in image-space pixels (minimum 1)
@@ -60,7 +60,7 @@ export function resolveStrokeWidth(
 
 /**
  * Resolve a font size key to an actual pixel value based on image dimensions.
- * @param key The font size key (small/medium/large/xlarge/xxlarge)
+ * @param key The font size key (xsmall/small/medium/large/xlarge)
  * @param imageWidth The image width in pixels
  * @param imageHeight The image height in pixels
  * @returns The resolved font size in image-space pixels (minimum 8)
