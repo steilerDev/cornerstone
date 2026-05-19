@@ -53,11 +53,16 @@ function getExtensionForMimeType(mimeType: string): string {
 
 /**
  * Map a photos DB row + user to a Photo shape.
+ * Includes cache-buster version param in thumbnailUrl based on annotatedAt (or updatedAt as fallback).
  */
 function toPhoto(
   row: typeof photos.$inferSelect,
   user: typeof users.$inferSelect | null | undefined,
 ): Photo {
+  // Use annotatedAt if present (annotation was made), otherwise use updatedAt for cache busting
+  const cacheVersion = row.annotatedAt ?? row.updatedAt;
+  const thumbnailUrl = `/api/photos/${row.id}/thumbnail?v=${encodeURIComponent(cacheVersion)}`;
+
   return {
     id: row.id,
     entityType: row.entityType,
@@ -76,7 +81,7 @@ function toPhoto(
     updatedAt: row.updatedAt,
     annotatedAt: row.annotatedAt ?? null,
     fileUrl: `/api/photos/${row.id}/file`,
-    thumbnailUrl: `/api/photos/${row.id}/thumbnail`,
+    thumbnailUrl,
   };
 }
 

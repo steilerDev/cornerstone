@@ -186,7 +186,9 @@ describe('photoService', () => {
       expect(photo.caption).toBeNull();
       expect(photo.sortOrder).toBe(0);
       expect(photo.fileUrl).toBe(`/api/photos/${photo.id}/file`);
-      expect(photo.thumbnailUrl).toBe(`/api/photos/${photo.id}/thumbnail`);
+      expect(photo.thumbnailUrl).toMatch(
+        new RegExp(`^/api/photos/${photo.id}/thumbnail\\?v=`),
+      );
       expect(photo.createdBy).toEqual({ id: userId, displayName: 'Test User' });
       expect(photo.createdAt).toBeDefined();
       expect(photo.updatedAt).toBeDefined();
@@ -586,7 +588,9 @@ describe('photoService', () => {
 
       const result = photoService.getPhoto(db, uploaded.id);
       expect(result!.fileUrl).toBe(`/api/photos/${uploaded.id}/file`);
-      expect(result!.thumbnailUrl).toBe(`/api/photos/${uploaded.id}/thumbnail`);
+      expect(result!.thumbnailUrl).toMatch(
+        new RegExp(`^/api/photos/${uploaded.id}/thumbnail\\?v=`),
+      );
     });
   });
 

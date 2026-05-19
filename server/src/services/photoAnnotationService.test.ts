@@ -183,6 +183,7 @@ describe('photoAnnotationService', () => {
               .where(eq(schema.users.id, row.createdBy))
               .get()
           : null;
+        const cacheVersion = row.annotatedAt ?? row.updatedAt;
         return {
           id: row.id,
           entityType: row.entityType,
@@ -200,7 +201,7 @@ describe('photoAnnotationService', () => {
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
           fileUrl: `/api/photos/${row.id}/file`,
-          thumbnailUrl: `/api/photos/${row.id}/thumbnail`,
+          thumbnailUrl: `/api/photos/${row.id}/thumbnail?v=${encodeURIComponent(cacheVersion)}`,
         } as Photo;
       };
     }
