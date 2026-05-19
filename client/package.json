@@ -12,9 +12,11 @@
   "dependencies": {
     "@cornerstone/shared": "*",
     "i18next": "26.0.10",
+    "konva": "9.3.22",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "react-i18next": "17.0.7",
+    "react-konva": "19.2.4",
     "react-router-dom": "7.15.0"
   },
   "devDependencies": {
