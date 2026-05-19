@@ -132,7 +132,15 @@ export const SelectTool: ToolHandler = {
           HANDLE_HIT_TOLERANCE,
         );
       } else if (shape.type === 'callout') {
-        handleHit = hitTestTailHandle(imageX, imageY, shape.tailX, shape.tailY, HANDLE_HIT_TOLERANCE) ? 'tail' : null;
+        handleHit = hitTestTailHandle(
+          imageX,
+          imageY,
+          shape.tailX,
+          shape.tailY,
+          HANDLE_HIT_TOLERANCE,
+        )
+          ? 'tail'
+          : null;
       } else if (shape.type === 'measurement') {
         handleHit = hitTestEndpointHandles(
           imageX,
