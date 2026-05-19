@@ -15,6 +15,7 @@ export interface PhotoViewerProps {
   onPhotoAnnotated?: (photo: Photo) => void;
   editable?: boolean;
   startInAnnotator?: boolean;
+  onDelete?: (photoId: string) => void;
 }
 
 export function PhotoViewer({
@@ -24,6 +25,7 @@ export function PhotoViewer({
   onPhotoAnnotated,
   editable = true,
   startInAnnotator = false,
+  onDelete,
 }: PhotoViewerProps) {
   const { t } = useTranslation(['photoViewer', 'common']);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -31,11 +33,14 @@ export function PhotoViewer({
   const [showingOriginal, setShowingOriginal] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isClearingAnnotation, setIsClearingAnnotation] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState(photos[initialIndex]!);
 
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const annotateBtnRef = useRef<HTMLButtonElement>(null);
   const clearBtnRef = useRef<HTMLButtonElement>(null);
+  const deleteBtnRef = useRef<HTMLButtonElement>(null);
 
   // Update currentPhoto when currentIndex or photos array changes
   useEffect(() => {
@@ -141,6 +146,21 @@ export function PhotoViewer({
   const handlePhotoUpdated = useCallback((updatedPhoto: Photo) => {
     setCurrentPhoto(updatedPhoto);
   }, []);
+
+  const handleDeletePhoto = useCallback(async () => {
+    if (!onDelete) return;
+    setIsDeletingPhoto(true);
+    try {
+      onDelete(currentPhoto.id);
+      // Close the viewer after deletion
+      onClose();
+    } catch (err) {
+      // Error handling — could show a toast here
+      console.error('Failed to delete photo:', err);
+    } finally {
+      setIsDeletingPhoto(false);
+    }
+  }, [currentPhoto.id, onDelete, onClose]);
 
   const buildPhotoUrl = (photo: Photo, showOriginal: boolean): string => {
     if (showOriginal) {
@@ -271,6 +291,20 @@ export function PhotoViewer({
                 </button>
               )}
 
+              {/* Delete Photo — visible whenever the entry is editable and a handler is provided */}
+              {editable && onDelete && (
+                <button
+                  ref={deleteBtnRef}
+                  type="button"
+                  className={styles.iconButtonDanger}
+                  aria-label={t('photoViewer:delete')}
+                  data-testid="photo-viewer-delete"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  <TrashIcon />
+                </button>
+              )}
+
               <span className={styles.counter}>
                 {currentIndex + 1} / {photos.length}
               </span>
@@ -310,6 +344,41 @@ export function PhotoViewer({
             }
           >
             <p>{t('photoViewer:clearConfirmBody')}</p>
+          </Modal>
+        )}
+
+        {/* Delete Photo confirmation modal */}
+        {showDeleteConfirm && (
+          <Modal
+            title={t('photoViewer:deleteConfirmTitle')}
+            onClose={() => {
+              setShowDeleteConfirm(false);
+              deleteBtnRef.current?.focus();
+            }}
+            footer={
+              <>
+                <button
+                  type="button"
+                  className={styles.modalButtonSecondary}
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    deleteBtnRef.current?.focus();
+                  }}
+                >
+                  {t('common:button.cancel')}
+                </button>
+                <button
+                  type="button"
+                  className={styles.modalButtonDanger}
+                  onClick={handleDeletePhoto}
+                  disabled={isDeletingPhoto}
+                >
+                  {t('photoViewer:deleteConfirmAction')}
+                </button>
+              </>
+            }
+          >
+            <p>{t('photoViewer:deleteConfirmBody')}</p>
           </Modal>
         )}
 
