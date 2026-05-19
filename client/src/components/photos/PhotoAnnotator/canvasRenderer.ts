@@ -1,6 +1,76 @@
 import type { AnnotationShape, TextShape, CalloutShape } from './useUndoStack.js';
 import { nearestBoxEdgePoint } from './geometry.js';
-import { calculateCalloutEffectiveFontSize, wrapTextForCanvas, ANNOTATION_FONT_FAMILY } from './render.js';
+
+/** Canonical UI sans-serif font family for all text annotations.
+ *  Must be kept in sync between SVG rendering and canvas 2D rendering. */
+export const ANNOTATION_FONT_FAMILY = 'system-ui, -apple-system, sans-serif';
+
+/**
+ * Calculates the effective font size for a callout, shrinking if needed to fit text.
+ * Uses a heuristic based on character count vs available area.
+ *
+ * @param text - The callout text
+ * @param fontSize - The user-chosen font size
+ * @param availW - Available width inside the box (after padding)
+ * @param availH - Available height inside the box (after padding)
+ * @returns Effective font size (may be smaller than fontSize, never < 8px)
+ */
+export function calculateCalloutEffectiveFontSize(
+  text: string,
+  fontSize: number,
+  availW: number,
+  availH: number,
+): number {
+  if (!text || text.length === 0) return fontSize;
+
+  // Heuristic: assume ~0.55 character widths per font size unit (varies by font)
+  // and ~1.2 line heights per font size unit.
+  const charsPerLine = Math.max(1, Math.floor(availW / (fontSize * 0.55)));
+  const linesAvailable = Math.max(1, Math.floor(availH / (fontSize * 1.2)));
+
+  // Estimate how many lines this text will need
+  const estimatedLines = Math.ceil(text.length / charsPerLine);
+
+  // If it overflows, scale down proportionally
+  const fontScale = estimatedLines > linesAvailable ? linesAvailable / estimatedLines : 1;
+  const effectiveFontSize = Math.max(8, fontSize * fontScale); // minimum 8px
+
+  return effectiveFontSize;
+}
+
+/**
+ * Wraps text into multiple lines given a max width on canvas context.
+ * Uses word-break: greedy word wrapping with the canvas context's current font.
+ *
+ * @param text - The text to wrap
+ * @param maxWidth - Maximum width per line
+ * @param ctx - Canvas context with font already set
+ * @returns Array of line strings
+ */
+export function wrapTextForCanvas(
+  text: string,
+  maxWidth: number,
+  ctx: CanvasRenderingContext2D,
+): string[] {
+  if (!text) return [];
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width <= maxWidth) {
+      currentLine = testLine;
+    } else {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+
+  return lines;
+}
 
 /**
  * Draws a shape onto a 2D canvas context (for baking).

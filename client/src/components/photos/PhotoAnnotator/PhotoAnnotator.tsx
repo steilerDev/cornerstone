@@ -20,12 +20,11 @@ import type {
 import { resolveFontSize, resolveStrokeWidth } from './annotationConstants.js';
 import { simplifyPolyline } from './simplify.js';
 import { ToolPalette } from './ToolPalette.js';
-import { ANNOTATION_FONT_FAMILY } from './render.js';
+import { ANNOTATION_FONT_FAMILY, drawShapeOnCanvas } from './canvasRenderer.js';
 import { FormError } from '../../FormError/FormError.js';
 import { Modal } from '../../Modal/Modal.js';
 import { getBaseUrl } from '../../../lib/apiClient.js';
 import { uploadAnnotation } from '../../../lib/photoApi.js';
-import { drawShapeOnCanvas } from './canvasRenderer.js';
 import styles from './PhotoAnnotator.module.css';
 
 interface PhotoAnnotatorProps {
