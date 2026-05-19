@@ -637,39 +637,113 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   // Floating input positioning and styling
   const inlineInputStyle = useMemo((): React.CSSProperties => {
     if (!inlineInput.isOpen || !svgRef.current) return { display: 'none' };
-    const { x: screenX, y: screenY } = imageToScreen(
-      inlineInput.anchorImageX,
-      inlineInput.anchorImageY,
-      svgRef.current,
-    );
-    // Position is relative to the `.canvasArea` container; subtract its top-left
     const containerRect = svgRef.current.parentElement!.getBoundingClientRect();
+    const svgRect = svgRef.current.getBoundingClientRect();
+    const scale = svgRect.width / photo.width!;
+    const screenFontSizePx = getActiveFontSizePx() * scale;
 
     // Determine the text color to use:
     // - If editing an existing text/callout shape, use its color
     // - Otherwise, use the currently-selected active color
     let textColor = state.activeColor;
+    let editingShape = null;
     if (inlineInput.editingShapeId) {
-      const editingShape = state.shapes.find((s) => s.id === inlineInput.editingShapeId);
+      editingShape = state.shapes.find((s) => s.id === inlineInput.editingShapeId);
       if (editingShape && (editingShape.type === 'text' || editingShape.type === 'callout')) {
         textColor = editingShape.color;
       }
     }
 
-    // Get SVG bounding rect to calculate scale factor for font size
-    const svgRect = svgRef.current.getBoundingClientRect();
-    const screenFontSizePx = getActiveFontSizePx() * (svgRect.width / photo.width!);
+    // Also check for draft shape (new shape being created)
+    const draftOrShape = editingShape || state.draftShape;
+    const shapeType = draftOrShape?.type || state.selectedTool;
+
+    // Compute image-space rect for the input based on shape type
+    let imgX = inlineInput.anchorImageX;
+    let imgY = inlineInput.anchorImageY;
+    let imgW = Math.max(100, screenFontSizePx / scale * 10); // Default width estimate
+    let imgH = screenFontSizePx / scale;
+    let textAlign: 'left' | 'center' = 'left';
+    let baselineAdjust = 0; // Vertical offset to align baseline
+
+    if (shapeType === 'callout' && draftOrShape?.type === 'callout') {
+      // Position input inside the callout box with same inset as rendered text
+      const callout = draftOrShape as CalloutShape;
+      const initialInset = 6;
+      const availW = Math.max(1, callout.w - 2 * initialInset);
+      const availH = Math.max(1, callout.h - 2 * initialInset);
+      const effectiveFontSize = getActiveFontSizePx(); // in image-space pixels
+      const inset = Math.max(6, Math.round(effectiveFontSize * 0.5));
+
+      imgX = callout.x + inset;
+      imgY = callout.y + inset;
+      imgW = availW;
+      imgH = availH;
+      textAlign = 'left';
+      // Callout renders text at top of box with padding; input should align similarly
+      baselineAdjust = 0;
+    } else if (shapeType === 'measurement' && draftOrShape?.type === 'measurement') {
+      // Position input at midpoint with perpendicular offset, centered horizontally
+      const measurement = draftOrShape as MeasurementShape;
+      const dx = measurement.x2 - measurement.x1;
+      const dy = measurement.y2 - measurement.y1;
+      const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const nx = -dy / len; // unit normal
+      const ny = dx / len;
+
+      const midX = (measurement.x1 + measurement.x2) / 2;
+      const midY = (measurement.y1 + measurement.y2) / 2;
+      // Label sits above the midpoint (same as render.ts)
+      const labelOffsetX = -nx * measurement.fontSize * 0.6;
+      const labelOffsetY = -ny * measurement.fontSize * 0.6;
+
+      // Position so text is centered at the label point
+      imgX = midX + labelOffsetX - (measurement.fontSize * 2); // ~4 chars wide
+      imgY = midY + labelOffsetY - measurement.fontSize * 0.5;
+      imgW = measurement.fontSize * 4; // ~4 character widths
+      imgH = measurement.fontSize;
+      textAlign = 'center';
+      baselineAdjust = 0;
+    } else if (shapeType === 'text') {
+      // Text shape: anchor is at baseline; position input so baseline aligns
+      imgX = inlineInput.anchorImageX;
+      imgY = inlineInput.anchorImageY - screenFontSizePx / scale * 0.75; // Offset to align baseline
+      imgW = Math.max(100, screenFontSizePx / scale * 12); // Wider for text
+      imgH = screenFontSizePx / scale;
+      textAlign = 'left';
+      // Baseline adjustment: input's top should align roughly with text's baseline
+      baselineAdjust = screenFontSizePx * 0.85;
+    }
+
+    // Convert image-space rect to screen-space
+    const topLeft = imageToScreen(imgX, imgY, svgRef.current);
+    const bottomRight = imageToScreen(imgX + imgW, imgY + imgH, svgRef.current);
 
     return {
       position: 'absolute',
-      left: screenX - containerRect.left,
-      top: screenY - containerRect.top,
+      left: `${topLeft.x - containerRect.left}px`,
+      top: `${topLeft.y - containerRect.top}px`,
+      width: `${Math.max(50, bottomRight.x - topLeft.x)}px`,
+      height: `${Math.max(20, bottomRight.y - topLeft.y)}px`,
       fontSize: `${screenFontSizePx}px`,
+      lineHeight: '1',
       color: textColor,
       fontFamily: ANNOTATION_FONT_FAMILY,
       background: 'transparent',
+      textAlign,
+      paddingTop: baselineAdjust > 0 ? `${Math.round(baselineAdjust * 0.15)}px` : '0px',
+      boxSizing: 'border-box',
     };
-  }, [inlineInput, photo.width, state.activeFontSizeKey, state.activeColor, state.shapes]);
+  }, [
+    inlineInput,
+    photo.width,
+    photo.height,
+    state.activeFontSizeKey,
+    state.activeColor,
+    state.shapes,
+    state.draftShape,
+    state.selectedTool,
+  ]);
 
   const handleCancel = useCallback(() => {
     onCancel();
