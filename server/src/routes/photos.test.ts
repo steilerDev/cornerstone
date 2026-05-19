@@ -73,6 +73,9 @@ let sessionService: typeof import('../services/sessionService.js');
 // ─── Test fixtures ────────────────────────────────────────────────────────────
 
 function makePhoto(overrides: Partial<Photo> = {}): Photo {
+  const updatedAt = '2026-03-01T12:00:00.000Z';
+  const annotatedAt = null;
+  const cacheVersion = annotatedAt ?? updatedAt;
   return {
     id: '33333333-3333-3333-3333-333333333333',
     entityType: 'test',
@@ -88,10 +91,10 @@ function makePhoto(overrides: Partial<Photo> = {}): Photo {
     sortOrder: 0,
     createdBy: { id: 'user-id', displayName: 'Test User' },
     createdAt: '2026-03-01T12:00:00.000Z',
-    updatedAt: '2026-03-01T12:00:00.000Z',
-    annotatedAt: null,
+    updatedAt,
+    annotatedAt,
     fileUrl: '/api/photos/33333333-3333-3333-3333-333333333333/file',
-    thumbnailUrl: '/api/photos/33333333-3333-3333-3333-333333333333/thumbnail',
+    thumbnailUrl: `/api/photos/33333333-3333-3333-3333-333333333333/thumbnail?v=${encodeURIComponent(cacheVersion)}`,
     ...overrides,
   };
 }
