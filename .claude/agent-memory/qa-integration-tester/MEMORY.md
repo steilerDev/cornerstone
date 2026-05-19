@@ -14,6 +14,7 @@ When a test needs to mock child components (e.g., `PhotoAnnotator`, `Modal`) and
 ## LocaleProvider Wrapper Pattern for useFormatters() Components (2026-05-19)
 
 When a component calls `useFormatters()` (which calls `useLocale()` → requires `LocaleContext`), mocking `LocaleContext.js` via `jest.unstable_mockModule` doesn't intercept locally. The fix:
+
 1. Mock `../../lib/configApi.js` and `../../lib/preferencesApi.js` (prevent real network calls from LocaleProvider)
 2. Also mock `../../contexts/LocaleContext.js` (for CI where it intercepts)
 3. Dynamically import `LocaleProvider` alongside the component under test

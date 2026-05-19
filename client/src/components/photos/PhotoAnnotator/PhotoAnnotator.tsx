@@ -1630,11 +1630,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
               >
                 {t('cancel')}
               </button>
-              <button
-                type="button"
-                className={styles.modalButtonPrimary}
-                onClick={handleReset}
-              >
+              <button type="button" className={styles.modalButtonPrimary} onClick={handleReset}>
                 {t('resetConfirm')}
               </button>
             </>

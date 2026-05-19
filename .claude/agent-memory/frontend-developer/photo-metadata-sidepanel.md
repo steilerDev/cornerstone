@@ -68,18 +68,21 @@ Built a metadata sidepanel inside the photo viewer modal (PR feature/photo-metad
 ### Design & Layout
 
 **Desktop layout:**
+
 - Photo viewer centered in modal
 - Info bar at bottom with buttons and counter
 - Metadata sidebar fixed on right (320px wide), scrollable
 - Toggle button in toolbar opens/closes sidebar smoothly
 
 **Mobile layout:**
+
 - Photo viewer full width
 - Info bar at bottom with buttons
 - Metadata sidepanel slides up from bottom as sheet (max 60vh)
 - Rounded top corners, smooth slide animation
 
 **Visual hierarchy:**
+
 - Upload date: read-only display
 - Description: multi-line editable textarea
 - Area: SearchPicker dropdown with area hierarchy
@@ -106,7 +109,7 @@ areaPlaceholder     // "Select an area..."
 noArea              // "(no area)"
 saveButton          // "Save"
 saving              // "Saving..."
-saveError           // "Failed to save metadata"  
+saveError           // "Failed to save metadata"
 ```
 
 ### Verification
