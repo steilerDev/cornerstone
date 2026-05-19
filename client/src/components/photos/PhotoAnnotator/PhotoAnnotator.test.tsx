@@ -370,13 +370,11 @@ describe('PhotoAnnotator', () => {
     });
   });
 
-  it('shows Reset button even when photo has no annotations (always visible in loaded state)', async () => {
-    // The Konva-based PhotoAnnotator always shows the Reset button in the loaded state,
-    // regardless of whether photo.annotatedAt is set. Resetting when there are no saved
-    // annotations is a no-op (handled by handleReset). The previous SVG-based version
-    // conditionally showed this button; the Konva version renders it unconditionally.
+  it('does NOT show Reset button when photo has no annotations (annotatedAt is null)', async () => {
+    // Reset button is conditional on photo.annotatedAt — it only appears for previously-annotated
+    // photos. When annotatedAt is null the button must be absent (E2E compatibility: round-7 behavior).
     await renderAnnotator({ annotatedAt: null });
-    expect(screen.getByRole('button', { name: /Reset to original/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('annotator-reset')).not.toBeInTheDocument();
   });
 
   // ─── Tool Palette ──────────────────────────────────────────────────────────
