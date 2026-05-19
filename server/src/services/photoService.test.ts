@@ -186,9 +186,7 @@ describe('photoService', () => {
       expect(photo.caption).toBeNull();
       expect(photo.sortOrder).toBe(0);
       expect(photo.fileUrl).toBe(`/api/photos/${photo.id}/file`);
-      expect(photo.thumbnailUrl).toMatch(
-        new RegExp(`^/api/photos/${photo.id}/thumbnail\\?v=`),
-      );
+      expect(photo.thumbnailUrl).toMatch(new RegExp(`^/api/photos/${photo.id}/thumbnail\\?v=`));
       expect(photo.createdBy).toEqual({ id: userId, displayName: 'Test User' });
       expect(photo.createdAt).toBeDefined();
       expect(photo.updatedAt).toBeDefined();
