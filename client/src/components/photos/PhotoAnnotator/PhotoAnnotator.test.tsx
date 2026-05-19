@@ -191,6 +191,50 @@ describe('PhotoAnnotator', () => {
     expect(screen.getByTestId('annotator-save')).toBeInTheDocument();
   });
 
+  it('loads annotated image when photo.annotatedAt is set', () => {
+    const annotatedAt = '2026-05-17T10:00:00.000Z';
+    renderAnnotator({ annotatedAt });
+
+    const img = screen.getByRole('img') as HTMLImageElement;
+    // The annotated version should be loaded (default behavior: prefer annotated)
+    // The URL should NOT contain variant=original
+    expect(img.src).toContain('/api/photos/photo-annotator-test/file');
+    expect(img.src).not.toContain('variant=original');
+  });
+
+  it('loads original image when reset button is used', async () => {
+    const annotatedAt = '2026-05-17T10:00:00.000Z';
+    renderAnnotator({ annotatedAt });
+
+    // Reset button should be visible when annotatedAt is set
+    const resetBtn = screen.getByTestId('annotator-reset');
+    expect(resetBtn).toBeInTheDocument();
+
+    // Click reset — should show confirmation modal
+    fireEvent.click(resetBtn);
+    // The modal title should be visible
+    const modalTitle = await screen.findByText(/Reset to original photo/);
+    expect(modalTitle).toBeInTheDocument();
+
+    // Find the confirm button by looking for buttons in the document and selecting the Reset one
+    // (there will be Cancel and Reset in the modal footer)
+    const buttons = screen.getAllByRole('button');
+    const confirmBtn = buttons.find((btn) => btn.textContent === 'Reset' && btn !== resetBtn);
+    expect(confirmBtn).toBeDefined();
+
+    // Confirm reset
+    fireEvent.click(confirmBtn!);
+
+    // After reset, the image src should include variant=original
+    const img = screen.getByRole('img') as HTMLImageElement;
+    expect(img.src).toContain('variant=original');
+  });
+
+  it('does NOT show reset button when photo has no annotations', () => {
+    renderAnnotator({ annotatedAt: null });
+    expect(screen.queryByTestId('annotator-reset')).not.toBeInTheDocument();
+  });
+
   // ─── Tool Palette ──────────────────────────────────────────────────────────
 
   it('shows ToolPalette with three tool buttons', () => {

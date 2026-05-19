@@ -25,6 +25,7 @@ import type { PointerContext } from './tools/SelectTool.js';
 import { screenToImage, imageToScreen, clamp } from './geometry.js';
 import { renderShapeSvgProps, drawShapeOnCanvas, ANNOTATION_FONT_FAMILY } from './render.js';
 import { FormError } from '../../FormError/FormError.js';
+import { Modal } from '../../Modal/Modal.js';
 import { getBaseUrl } from '../../../lib/apiClient.js';
 import { uploadAnnotation } from '../../../lib/photoApi.js';
 import styles from './PhotoAnnotator.module.css';
@@ -41,6 +42,8 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isShowingOriginal, setIsShowingOriginal] = useState(false);
 
   // Inline edit state
   interface InlineInputState {
@@ -76,7 +79,11 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   }>({ shapeId: null, startImageX: 0, startImageY: 0 });
 
   // Calculate canonical URL
-  const canonicalUrl = `${getBaseUrl()}/photos/${photo.id}/file`;
+  // When editing an annotated photo, start from the annotated image (unless showing original).
+  // isShowingOriginal switches to the original for a fresh start if user wants to reset.
+  const canonicalUrl = isShowingOriginal
+    ? `${getBaseUrl()}/photos/${photo.id}/file?variant=original`
+    : `${getBaseUrl()}/photos/${photo.id}/file`;
 
   // Helper to get the active font size key for the current tool
   function getActiveFontSizeKey(): FontSizeKey {
@@ -748,6 +755,21 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   const handleCancel = useCallback(() => {
     onCancel();
   }, [onCancel]);
+
+  const handleReset = useCallback(() => {
+    // Switch to original image and clear any in-progress annotations
+    setIsShowingOriginal(true);
+    // Clear the undo stack of any new shapes drawn since opening the annotator
+    undoStack.clear();
+    // Clear draft shape if any
+    dispatch({ type: 'SET_DRAFT', shape: null });
+    // Deselect any selected shape
+    dispatch({ type: 'SELECT_SHAPE', id: null });
+    setShowResetConfirm(false);
+    if (liveRegionRef.current) {
+      liveRegionRef.current.textContent = t('resetComplete');
+    }
+  }, [undoStack, dispatch, t]);
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
@@ -1571,6 +1593,17 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         >
           {t('cancel')}
         </button>
+        {photo.annotatedAt && !isShowingOriginal && (
+          <button
+            type="button"
+            onClick={() => setShowResetConfirm(true)}
+            data-testid="annotator-reset"
+            className={styles.resetButton}
+            aria-label={t('reset')}
+          >
+            {t('reset')}
+          </button>
+        )}
         <button
           type="button"
           onClick={handleSave}
@@ -1582,6 +1615,34 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
           {isSaving ? t('saving') : t('save')}
         </button>
       </div>
+
+      {/* Reset confirmation modal */}
+      {showResetConfirm && (
+        <Modal
+          title={t('resetTitle')}
+          onClose={() => setShowResetConfirm(false)}
+          footer={
+            <>
+              <button
+                type="button"
+                className={styles.modalButtonSecondary}
+                onClick={() => setShowResetConfirm(false)}
+              >
+                {t('cancel')}
+              </button>
+              <button
+                type="button"
+                className={styles.modalButtonPrimary}
+                onClick={handleReset}
+              >
+                {t('resetConfirm')}
+              </button>
+            </>
+          }
+        >
+          <p>{t('resetBody')}</p>
+        </Modal>
+      )}
     </section>
   );
 }

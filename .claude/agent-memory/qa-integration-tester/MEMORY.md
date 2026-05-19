@@ -3,6 +3,25 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## jest.mock vs jest.unstable_mockModule for Child Component Mocks (2026-05-19)
+
+When a test needs to mock child components (e.g., `PhotoAnnotator`, `Modal`) and the API modules they call, use `jest.mock` (synchronous CJS form) — NOT `jest.unstable_mockModule`. The systemic `jest.unstable_mockModule` non-interception applies to ALL module types (components AND lib modules), not just context modules. Pattern:
+
+- `jest.mock('./ChildComponent.js', () => ({ ChildComponent: (props) => React.createElement(...) }))` — works locally and in CI
+- To get a spy reference from a `jest.mock`-ed module: `const mockFn = (require('../../lib/api.js') as typeof import('../../lib/api.js')).fnName as AnyMock;` (place AFTER `jest.mock` factory, NOT inside it). The `require()` call gets the already-mocked module.
+- Variable referenced inside `jest.mock` factory must start with `mock` prefix (jest hoisting rule) — or just use inline `jest.fn()` in the factory and `require()` to get the reference afterward.
+
+## LocaleProvider Wrapper Pattern for useFormatters() Components (2026-05-19)
+
+When a component calls `useFormatters()` (which calls `useLocale()` → requires `LocaleContext`), mocking `LocaleContext.js` via `jest.unstable_mockModule` doesn't intercept locally. The fix:
+1. Mock `../../lib/configApi.js` and `../../lib/preferencesApi.js` (prevent real network calls from LocaleProvider)
+2. Also mock `../../contexts/LocaleContext.js` (for CI where it intercepts)
+3. Dynamically import `LocaleProvider` alongside the component under test
+4. Wrap all `render()` calls: `React.createElement(LocaleProvider, { children: React.createElement(Component, props) })`
+5. In CI, the LocaleProvider mock is a passthrough `({ children }) => children`. Locally, it's the real provider (safe because API mocks prevent network calls).
+6. Use dual-path text assertions: `screen.queryByText('t-key') ?? screen.queryByText('Real Translation')` to work in both environments.
+7. Tests that assert `mockFetchAreas.toHaveBeenCalled()` (module-mock dependent) fail locally — name them "(CI only — module mock must intercept)" and add `{ timeout: 2000 }` to `waitFor`.
+
 ## Resolution-Aware Sizing Refactor — PhotoAnnotator Test Patterns (2026-05-18)
 
 **Approach**: When tool code switches from fixed pixel constants to `resolveStrokeWidth(key, w, h)` / `resolveFontSize(key, w, h)`, replace hardcoded pixel assertions in tool tests with calls to the resolve helpers using the test's image dims (e.g. `resolveStrokeWidth('medium', 800, 600)`). The test's `makeCtx()` always sets `imageWidth: 800, imageHeight: 600`, so expected values = `Math.max(1, Math.round(min(800,600) * ratio))`.
@@ -22,6 +41,16 @@
 **geometry.test.ts letterbox regression tests**: Added 3 pure-function tests at end of `describe('screenToImage()')` block documenting the coordinate contract for letterboxed images. These tests document the diff between using imgRect vs containerRect.
 
 **Canvas naturalWidth test in JSDOM**: Works by overriding `globalThis.Image` before the save flow runs. Use setters to capture `canvas.width` and `canvas.height` assignments. Wrap in `await act(async () => { ...; await new Promise<void>((r) => setTimeout(r, 10)); })` to let the Image onload timer fire.
+
+## PR #1496 — photos.test.ts diaryService Mock Fix (2026-05-18)
+
+**Problem**: `jest.unstable_mockModule('../services/diaryService.js', () => ({ getDiaryEntry: mockGetDiaryEntry }))` was a partial mock — it replaced the entire module with one export. CI failed with `SyntaxError: The requested module './diaryService.js' does not provide an export named 'createAutomaticDiaryEntry'` because `diaryAutoEventService.ts` (transitively imported by the app) needed other diaryService exports.
+
+**Root cause of wrong approach**: `photos.ts` never imports `diaryService` — it uses `isDiaryEntrySigned()` which queries `diaryEntries` table directly via Drizzle. The mock was attempting to control a code path that doesn't exist.
+
+**Fix applied (Option B — clean)**: Removed the `diaryService` mock entirely. Added an `insertDiaryEntry()` DB seeding helper inside the test suite (same pattern as `diary.test.ts`). Signed/unsigned tests now seed real diary entries into the real test DB. `mockGetPhoto` returns a photo whose `entityId` matches the seeded entry ID — the production code's DB query picks it up correctly.
+
+**Key pattern**: When a route uses a direct Drizzle DB query (not a service), tests MUST seed the DB — mocking the service won't work. Use `app.db.insert(table).values({...}).run()` to seed synchronously in SQLite.
 
 ## Story #1478 — PhotoAnnotator Polish Tests (2026-05-18)
 
