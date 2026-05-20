@@ -290,7 +290,7 @@ test.fixme(
       // ── Open annotator ─────────────────────────────────────────────────────
       await openAnnotator(viewer);
 
-      // All ten tool buttons present
+      // All nine tool buttons present (callout was removed)
       await expect(viewer.selectToolButton).toBeVisible();
       await expect(viewer.rectangleToolButton).toBeVisible();
       await expect(viewer.highlightToolButton).toBeVisible();
@@ -298,7 +298,6 @@ test.fixme(
       await expect(viewer.lineToolButton).toBeVisible();
       await expect(viewer.ellipseToolButton).toBeVisible();
       await expect(viewer.textToolButton).toBeVisible();
-      await expect(viewer.calloutToolButton).toBeVisible();
       await expect(viewer.measurementToolButton).toBeVisible();
       await expect(viewer.freehandToolButton).toBeVisible();
 
@@ -1123,85 +1122,9 @@ test.fixme('TODO: rewrite for Konva canvas — Text tool — Escape discards the
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 12: [smoke] Callout tool — two-phase drag + text
+// Scenario 12 (Callout tool) removed — Callout tool was deleted in favour of
+// the simpler Text + Rectangle composition.
 // ─────────────────────────────────────────────────────────────────────────────
-
-// Konva renders to <canvas>; shape locators (g[data-shapeid], foreignObject div) have no DOM representation.
-test.fixme(
-  'TODO: rewrite for Konva canvas — [smoke] Callout tool — draw box, place tail, type text, commits callout shape',
-  { tag: '@smoke' },
-  async ({ page, testPrefix }: { page: Page; testPrefix: string }) => {
-    let entryId: string | null = null;
-    let photoId: string | null = null;
-
-    test.setTimeout(30_000);
-
-    try {
-      entryId = await createDiaryEntryViaApi(page, {
-        entryType: 'general_note',
-        entryDate: '2026-05-17',
-        body: `${testPrefix} callout tool test`,
-      });
-      const photo = await uploadTestPhotoViaApi(page, entryId);
-      photoId = photo.id;
-
-      const detailPage = new DiaryEntryDetailPage(page);
-      const viewer = new PhotoViewerPage(page);
-
-      await detailPage.goto(entryId);
-      await expect(detailPage.backButton).toBeVisible();
-      await openPhotoViewer(page, photoId, viewer);
-      await openAnnotator(viewer);
-
-      await viewer.activateTool('callout');
-      await expect(viewer.calloutToolButton).toHaveAttribute('aria-pressed', 'true');
-
-      // Draw callout: box at top-left, tail pointing to center-right
-      await viewer.drawCallout(0.05, 0.05, 0.45, 0.35, 0.7, 0.6, 'Defect found');
-
-      // A <g data-shapeid> containing <rect>, <line>, <text> should appear.
-      // The callout has 3 interaction phases (drag box, click tail, type text + Enter);
-      // use waitFor with explicit 15 s timeout — the callout commit goes through
-      // undoStack.commit() (a useState setter) and actionTimeout (5 s) is too tight
-      // on a 2-vCPU CI shard running testcontainers.
-      const calloutGroup = viewer.svgOverlay.locator('g[data-shapeid]').first();
-      try {
-        await calloutGroup.waitFor({ state: 'visible', timeout: 15_000 });
-      } catch (e) {
-        const svgHtml = await page
-          .evaluate(
-            () => document.querySelector('[role="application"]')?.innerHTML ?? '(not found)',
-          )
-          .catch(() => '(eval failed)');
-        console.error(
-          '[DEBUG] Callout group not visible after drawCallout. SVG innerHTML:',
-          svgHtml,
-        );
-        throw e;
-      }
-
-      // The text now renders inside foreignObject > div (for auto-flow + padding)
-      const calloutText = calloutGroup.locator('foreignObject div').first();
-      await expect(calloutText).toBeVisible();
-      expect((await calloutText.textContent())?.trim()).toBe('Defect found');
-
-      // Save and verify
-      const [putResponse] = await Promise.all([
-        page.waitForResponse(
-          (resp) =>
-            resp.url().includes(`/api/photos/${photoId}/annotation`) &&
-            resp.request().method() === 'PUT',
-        ),
-        viewer.saveButton.click(),
-      ]);
-      expect(putResponse.status()).toBe(200);
-      await expect(viewer.toolPalette).not.toBeVisible();
-    } finally {
-      if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
-      if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
-    }
-  },
-);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 13: Measurement tool — drag, type label, Enter commits with label
@@ -1867,10 +1790,10 @@ test.fixme(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 22: All 10 tool buttons visible; switching updates aria-pressed
+// Scenario 22: All 9 tool buttons visible; switching updates aria-pressed
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('Tool palette — all 10 tools visible; switching tool updates aria-pressed', async ({
+test('Tool palette — all 9 tools visible; switching tool updates aria-pressed', async ({
   page,
   testPrefix,
 }: {
@@ -1899,7 +1822,7 @@ test('Tool palette — all 10 tools visible; switching tool updates aria-pressed
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
-    // Verify all 10 tool buttons are visible
+    // Verify all 9 tool buttons are visible (callout was removed)
     await expect(viewer.selectToolButton).toBeVisible();
     await expect(viewer.rectangleToolButton).toBeVisible();
     await expect(viewer.highlightToolButton).toBeVisible();
@@ -1907,7 +1830,6 @@ test('Tool palette — all 10 tools visible; switching tool updates aria-pressed
     await expect(viewer.lineToolButton).toBeVisible();
     await expect(viewer.ellipseToolButton).toBeVisible();
     await expect(viewer.textToolButton).toBeVisible();
-    await expect(viewer.calloutToolButton).toBeVisible();
     await expect(viewer.measurementToolButton).toBeVisible();
     await expect(viewer.freehandToolButton).toBeVisible();
 
@@ -1921,7 +1843,6 @@ test('Tool palette — all 10 tools visible; switching tool updates aria-pressed
       { button: viewer.lineToolButton, name: 'line' },
       { button: viewer.ellipseToolButton, name: 'ellipse' },
       { button: viewer.textToolButton, name: 'text' },
-      { button: viewer.calloutToolButton, name: 'callout' },
       { button: viewer.measurementToolButton, name: 'measurement' },
       { button: viewer.freehandToolButton, name: 'freehand' },
     ];
