@@ -672,6 +672,12 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     const stage = stageRef.current;
     const container = stage.container();
     const stageRect = container.getBoundingClientRect();
+
+    // Get canvasArea's viewport position to convert stage coordinates to canvasArea-relative
+    const canvasAreaEl = container.parentElement;
+    if (!canvasAreaEl) return { display: 'none' };
+    const canvasAreaRect = canvasAreaEl.getBoundingClientRect();
+
     const scale = stageRect.width / (photo.width ?? 800);
     const screenFontSizePx = getActiveFontSizePx() * scale;
 
@@ -711,9 +717,11 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       imgW = Math.max(100, (screenFontSizePx / scale) * 12);
     }
 
-    // Convert to screen space
-    const screenX = (imgX / (photo.width ?? 800)) * stageRect.width + stageRect.left;
-    const screenY = (imgY / (photo.height ?? 600)) * stageRect.height + stageRect.top;
+    // Convert to canvasArea-relative coordinates (stage offset relative to canvasArea parent)
+    const stageOffsetX = stageRect.left - canvasAreaRect.left;
+    const stageOffsetY = stageRect.top - canvasAreaRect.top;
+    const screenX = (imgX / (photo.width ?? 800)) * stageRect.width + stageOffsetX;
+    const screenY = (imgY / (photo.height ?? 600)) * stageRect.height + stageOffsetY;
     const screenW = (imgW / (photo.width ?? 800)) * stageRect.width;
     const screenH = (imgH / (photo.height ?? 600)) * stageRect.height;
 
