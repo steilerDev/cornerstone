@@ -12,6 +12,7 @@ import {
   Group,
   Transformer,
   Arrow,
+  Circle,
 } from 'react-konva';
 import { nanoid } from 'nanoid';
 import type { Photo } from '@cornerstone/shared';
@@ -123,7 +124,14 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   // Attach transformer to selected shape
   useEffect(() => {
     if (!transformerRef.current) return;
-    if (!state.selectedShapeId) {
+
+    const selectedShape = state.shapes.find((s) => s.id === state.selectedShapeId);
+    const isLineLike =
+      selectedShape?.type === 'arrow' ||
+      selectedShape?.type === 'line' ||
+      selectedShape?.type === 'measurement';
+
+    if (!state.selectedShapeId || isLineLike) {
       transformerRef.current.nodes([]);
       return;
     }
@@ -133,7 +141,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       transformerRef.current.nodes([selectedNode]);
       layerRef.current?.batchDraw();
     }
-  }, [state.selectedShapeId]);
+  }, [state.selectedShapeId, state.shapes]);
 
   // Open inline input for text editing
   const openInlineInput = useCallback(
@@ -396,8 +404,19 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       const pos = stageRef.current.getPointerPosition();
       if (!pos) return;
 
-      // Walk up the parent chain to find a shape node (Group or shape with shape-* id)
       const target = e.target;
+
+      // If click landed on the Transformer (an anchor handle) or an endpoint Circle handle,
+      // let it handle the resize/drag natively.
+      let n: Konva.Node | null = target;
+      while (n && n !== stageRef.current) {
+        if (n === transformerRef.current) return;
+        const nodeId = n.id();
+        if (nodeId && nodeId.startsWith('endpoint-')) return;
+        n = n.getParent();
+      }
+
+      // Walk up the parent chain to find a shape node (Group or shape with shape-* id)
       let cursor: Konva.Node | null = target;
       let shapeNode: Konva.Node | null = null;
       while (cursor && cursor !== stageRef.current) {
@@ -862,6 +881,73 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
             {/* Transformer for selected shape */}
             {state.selectedShapeId && <Transformer ref={transformerRef} />}
+
+            {/* Endpoint handles for line-family shapes */}
+            {state.selectedShapeId &&
+              (() => {
+                const sel = state.shapes.find((s) => s.id === state.selectedShapeId);
+                if (
+                  !sel ||
+                  (sel.type !== 'arrow' && sel.type !== 'line' && sel.type !== 'measurement')
+                ) {
+                  return null;
+                }
+
+                const endpointRadius = Math.max(8, sel.strokeWidth * 1.5);
+
+                return (
+                  <>
+                    <Circle
+                      id={`endpoint-${sel.id}-start`}
+                      x={sel.x1}
+                      y={sel.y1}
+                      radius={endpointRadius}
+                      fill="#ffffff"
+                      stroke={sel.stroke}
+                      strokeWidth={2}
+                      draggable
+                      onDragMove={(e) => {
+                        const pos = e.target.position();
+                        dispatch({
+                          type: 'UPDATE_SHAPE',
+                          shape: { ...sel, x1: pos.x, y1: pos.y },
+                        });
+                      }}
+                      onDragEnd={(e) => {
+                        const pos = e.target.position();
+                        const updated = { ...sel, x1: pos.x, y1: pos.y };
+                        undoStack.commit(
+                          state.shapes.map((s) => (s.id === sel.id ? updated : s)),
+                        );
+                      }}
+                    />
+                    <Circle
+                      id={`endpoint-${sel.id}-end`}
+                      x={sel.x2}
+                      y={sel.y2}
+                      radius={endpointRadius}
+                      fill="#ffffff"
+                      stroke={sel.stroke}
+                      strokeWidth={2}
+                      draggable
+                      onDragMove={(e) => {
+                        const pos = e.target.position();
+                        dispatch({
+                          type: 'UPDATE_SHAPE',
+                          shape: { ...sel, x2: pos.x, y2: pos.y },
+                        });
+                      }}
+                      onDragEnd={(e) => {
+                        const pos = e.target.position();
+                        const updated = { ...sel, x2: pos.x, y2: pos.y };
+                        undoStack.commit(
+                          state.shapes.map((s) => (s.id === sel.id ? updated : s)),
+                        );
+                      }}
+                    />
+                  </>
+                );
+              })()}
           </Layer>
         </Stage>
 
