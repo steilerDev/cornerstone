@@ -916,9 +916,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                       onDragEnd={(e) => {
                         const pos = e.target.position();
                         const updated = { ...sel, x1: pos.x, y1: pos.y };
-                        undoStack.commit(
-                          state.shapes.map((s) => (s.id === sel.id ? updated : s)),
-                        );
+                        undoStack.commit(state.shapes.map((s) => (s.id === sel.id ? updated : s)));
                       }}
                     />
                     <Circle
@@ -940,9 +938,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                       onDragEnd={(e) => {
                         const pos = e.target.position();
                         const updated = { ...sel, x2: pos.x, y2: pos.y };
-                        undoStack.commit(
-                          state.shapes.map((s) => (s.id === sel.id ? updated : s)),
-                        );
+                        undoStack.commit(state.shapes.map((s) => (s.id === sel.id ? updated : s)));
                       }}
                     />
                   </>
