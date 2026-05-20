@@ -112,184 +112,90 @@ describe('ToolPalette', () => {
   });
 
   describe('Font-size selector visibility', () => {
-    // The mock returns t(k) => k, so the radiogroup's accessible name is "fontSize" (the key).
-    // The visibility checks use queryAllByRole + attribute value matching against both the key
-    // string and the real EN string for robustness, but under the mock only "fontSize" is set.
-
     it('font-size selector is NOT visible when selectedTool is "select"', () => {
       renderPalette({ selectedTool: 'select' });
-      // Font size radiogroup is gated by selectedTool === 'text'
-      // Use queryAllByRole to check absence regardless of label string
-      const radiogroups = screen.queryAllByRole('radiogroup');
-      // Should only have colorPalette and strokeWidth groups — NOT fontSize
-      const hasFontSize = radiogroups.some(
-        (el) =>
-          el.getAttribute('aria-label') === 'fontSize' ||
-          el.getAttribute('aria-label') === 'Font size',
-      );
-      expect(hasFontSize).toBe(false);
+      expect(screen.queryByTestId('annotator-font-size')).not.toBeInTheDocument();
     });
 
     it('font-size selector is NOT visible when selectedTool is "rectangle"', () => {
       renderPalette({ selectedTool: 'rectangle' });
-      const radiogroups = screen.queryAllByRole('radiogroup');
-      const hasFontSize = radiogroups.some(
-        (el) =>
-          el.getAttribute('aria-label') === 'fontSize' ||
-          el.getAttribute('aria-label') === 'Font size',
-      );
-      expect(hasFontSize).toBe(false);
+      expect(screen.queryByTestId('annotator-font-size')).not.toBeInTheDocument();
     });
 
     it('font-size selector is NOT visible when selectedTool is "arrow"', () => {
       renderPalette({ selectedTool: 'arrow' });
-      const radiogroups = screen.queryAllByRole('radiogroup');
-      const hasFontSize = radiogroups.some(
-        (el) =>
-          el.getAttribute('aria-label') === 'fontSize' ||
-          el.getAttribute('aria-label') === 'Font size',
-      );
-      expect(hasFontSize).toBe(false);
+      expect(screen.queryByTestId('annotator-font-size')).not.toBeInTheDocument();
     });
 
-    it('font-size selector IS visible when selectedTool is "text" (more radiogroups than without)', () => {
-      // With selectedTool='select': 2 radiogroups (color + stroke)
-      // With selectedTool='text': 3 radiogroups (color + stroke + fontSize)
-      const { unmount } = renderPalette({ selectedTool: 'select' });
-      const groupsWithSelect = screen.queryAllByRole('radiogroup').length;
-      unmount();
-
+    it('font-size selector IS visible when selectedTool is "text"', () => {
       renderPalette({ selectedTool: 'text' });
-      const groupsWithText = screen.queryAllByRole('radiogroup').length;
-
-      expect(groupsWithText).toBeGreaterThan(groupsWithSelect);
+      expect(screen.getByTestId('annotator-font-size')).toBeInTheDocument();
     });
 
-    it('font-size radiogroup has exactly 5 font-size radio buttons', () => {
+    it('font-size select has exactly 5 options', () => {
       renderPalette({ selectedTool: 'text' });
-      const radios = screen.getAllByRole('radio');
-      // 6 color swatches + 4 stroke widths (thin/medium/thick/extra-thick) + 5 font sizes
-      // (small/medium/large/xlarge/xxlarge) = 15 total
-      // Subtract color and stroke to isolate: we check total is 15
-      expect(radios.length).toBe(15);
+      const select = screen.getByTestId('annotator-font-size');
+      const options = select.querySelectorAll('option');
+      expect(options.length).toBe(5);
     });
   });
 
   describe('Font-size selector active state', () => {
-    // In CI: jest.unstable_mockModule intercepts react-i18next → t(k) => k
-    //   radiogroup aria-label = "fontSize", radio aria-labels = "fontSizeSmall" etc.
-    // Locally: mock does not intercept (systemic worktree ESM issue) → real EN translations load
-    //   radiogroup aria-label = "Font size", radio aria-labels = "Small", "Medium" etc.
-    // getFontSizeGroup and getFontSizeRadio handle both environments.
-
-    function getFontSizeGroup() {
-      const groups = screen.getAllByRole('radiogroup');
-      // CI: aria-label="fontSize" (key passthrough); Local: aria-label="Font size" (real EN)
-      const fsGroup = groups.find(
-        (el) =>
-          el.getAttribute('aria-label') === 'fontSize' ||
-          el.getAttribute('aria-label') === 'Font size',
-      );
-      if (!fsGroup) throw new Error('Font-size radiogroup not found');
-      return fsGroup;
-    }
-
-    // Query a font-size radio by its i18n key suffix (e.g. 'Small', 'Medium', 'Large', 'Xlarge').
-    // In CI the aria-label is the key string ("fontSizeSmall"); locally it is the EN translation ("Small").
-    function getFontSizeRadio(group: HTMLElement, keySuffix: string, enLabel: string): HTMLElement {
-      // Try key string first (CI), fall back to EN translation (local).
-      const byKey = group.querySelector(`[aria-label="fontSize${keySuffix}"]`);
-      if (byKey) return byKey as HTMLElement;
-      const byEn = group.querySelector(`[aria-label="${enLabel}"]`);
-      if (byEn) return byEn as HTMLElement;
-      throw new Error(`Font-size radio not found: fontSize${keySuffix} / ${enLabel}`);
-    }
-
-    it('Medium button has aria-checked=true when activeFontSize=18', () => {
+    it('select has value="medium" when activeFontSizeKey="medium"', () => {
       renderPalette({ selectedTool: 'text', activeFontSizeKey: 'medium' });
-      const mediumBtn = getFontSizeRadio(getFontSizeGroup(), 'Medium', 'Medium');
-      expect(mediumBtn).toHaveAttribute('aria-checked', 'true');
+      const select = screen.getByTestId('annotator-font-size') as HTMLSelectElement;
+      expect(select.value).toBe('medium');
     });
 
-    it('Small button has aria-checked=false when activeFontSize=18', () => {
-      renderPalette({ selectedTool: 'text', activeFontSizeKey: 'medium' });
-      const smallBtn = getFontSizeRadio(getFontSizeGroup(), 'Small', 'Small');
-      expect(smallBtn).toHaveAttribute('aria-checked', 'false');
+    it('select has value="small" when activeFontSizeKey="small"', () => {
+      renderPalette({ selectedTool: 'text', activeFontSizeKey: 'small' });
+      const select = screen.getByTestId('annotator-font-size') as HTMLSelectElement;
+      expect(select.value).toBe('small');
     });
 
-    it('Large button has aria-checked=true when activeFontSize=24', () => {
+    it('select has value="large" when activeFontSizeKey="large"', () => {
       renderPalette({ selectedTool: 'text', activeFontSizeKey: 'large' });
-      const largeBtn = getFontSizeRadio(getFontSizeGroup(), 'Large', 'Large');
-      expect(largeBtn).toHaveAttribute('aria-checked', 'true');
+      const select = screen.getByTestId('annotator-font-size') as HTMLSelectElement;
+      expect(select.value).toBe('large');
     });
 
-    it('XLarge button has aria-checked=true when activeFontSize=32', () => {
+    it('select has value="xlarge" when activeFontSizeKey="xlarge"', () => {
       renderPalette({ selectedTool: 'text', activeFontSizeKey: 'xlarge' });
-      const xlargeBtn = getFontSizeRadio(getFontSizeGroup(), 'Xlarge', 'Extra large');
-      expect(xlargeBtn).toHaveAttribute('aria-checked', 'true');
-    });
-
-    it('Small, Large, and XLarge buttons have aria-checked=false when activeFontSize=18', () => {
-      renderPalette({ selectedTool: 'text', activeFontSizeKey: 'medium' });
-      const fsGroup = getFontSizeGroup();
-      const smallBtn = getFontSizeRadio(fsGroup, 'Small', 'Small');
-      const largeBtn = getFontSizeRadio(fsGroup, 'Large', 'Large');
-      const xlargeBtn = getFontSizeRadio(fsGroup, 'Xlarge', 'Extra large');
-      expect(smallBtn).toHaveAttribute('aria-checked', 'false');
-      expect(largeBtn).toHaveAttribute('aria-checked', 'false');
-      expect(xlargeBtn).toHaveAttribute('aria-checked', 'false');
+      const select = screen.getByTestId('annotator-font-size') as HTMLSelectElement;
+      expect(select.value).toBe('xlarge');
     });
   });
 
   describe('Font-size selector interaction', () => {
-    function getFontSizeGroup() {
-      const groups = screen.getAllByRole('radiogroup');
-      const fsGroup = groups.find(
-        (el) =>
-          el.getAttribute('aria-label') === 'fontSize' ||
-          el.getAttribute('aria-label') === 'Font size',
-      );
-      if (!fsGroup) throw new Error('Font-size radiogroup not found');
-      return fsGroup;
-    }
-
-    function getFontSizeRadio(group: HTMLElement, keySuffix: string, enLabel: string): HTMLElement {
-      const byKey = group.querySelector(`[aria-label="fontSize${keySuffix}"]`);
-      if (byKey) return byKey as HTMLElement;
-      const byEn = group.querySelector(`[aria-label="${enLabel}"]`);
-      if (byEn) return byEn as HTMLElement;
-      throw new Error(`Font-size radio not found: fontSize${keySuffix} / ${enLabel}`);
-    }
-
-    it('clicking Large button calls onSelectFontSize("large")', () => {
+    it('changing select to "large" calls onSelectFontSize("large")', () => {
       const onSelectFontSize = jest.fn() as AnyMock;
       renderPalette({ selectedTool: 'text', activeFontSizeKey: 'medium', onSelectFontSize });
-      const largeBtn = getFontSizeRadio(getFontSizeGroup(), 'Large', 'Large');
-      fireEvent.click(largeBtn);
+      const select = screen.getByTestId('annotator-font-size');
+      fireEvent.change(select, { target: { value: 'large' } });
       expect(onSelectFontSize).toHaveBeenCalledWith('large');
     });
 
-    it('clicking Small button calls onSelectFontSize("small")', () => {
+    it('changing select to "small" calls onSelectFontSize("small")', () => {
       const onSelectFontSize = jest.fn() as AnyMock;
       renderPalette({ selectedTool: 'text', activeFontSizeKey: 'medium', onSelectFontSize });
-      const smallBtn = getFontSizeRadio(getFontSizeGroup(), 'Small', 'Small');
-      fireEvent.click(smallBtn);
+      const select = screen.getByTestId('annotator-font-size');
+      fireEvent.change(select, { target: { value: 'small' } });
       expect(onSelectFontSize).toHaveBeenCalledWith('small');
     });
 
-    it('clicking XLarge button calls onSelectFontSize("xlarge")', () => {
+    it('changing select to "xlarge" calls onSelectFontSize("xlarge")', () => {
       const onSelectFontSize = jest.fn() as AnyMock;
       renderPalette({ selectedTool: 'text', activeFontSizeKey: 'medium', onSelectFontSize });
-      const xlargeBtn = getFontSizeRadio(getFontSizeGroup(), 'Xlarge', 'Extra large');
-      fireEvent.click(xlargeBtn);
+      const select = screen.getByTestId('annotator-font-size');
+      fireEvent.change(select, { target: { value: 'xlarge' } });
       expect(onSelectFontSize).toHaveBeenCalledWith('xlarge');
     });
 
-    it('clicking Medium button calls onSelectFontSize("medium")', () => {
+    it('changing select to "medium" calls onSelectFontSize("medium")', () => {
       const onSelectFontSize = jest.fn() as AnyMock;
-      renderPalette({ selectedTool: 'text', activeFontSizeKey: 'medium', onSelectFontSize });
-      const mediumBtn = getFontSizeRadio(getFontSizeGroup(), 'Medium', 'Medium');
-      fireEvent.click(mediumBtn);
+      renderPalette({ selectedTool: 'text', activeFontSizeKey: 'small', onSelectFontSize });
+      const select = screen.getByTestId('annotator-font-size');
+      fireEvent.change(select, { target: { value: 'medium' } });
       expect(onSelectFontSize).toHaveBeenCalledWith('medium');
     });
   });
@@ -362,37 +268,18 @@ describe('ToolPalette', () => {
 
   describe('Font-size selector visibility — measurement tool', () => {
     it('font-size selector IS visible when selectedTool is "measurement"', () => {
-      const { unmount } = renderPalette({ selectedTool: 'select' });
-      const groupsWithSelect = screen.queryAllByRole('radiogroup').length;
-      unmount();
-
       renderPalette({ selectedTool: 'measurement' });
-      const groupsWithMeasurement = screen.queryAllByRole('radiogroup').length;
-
-      // measurement was added to the font-size selector gate — should show it
-      expect(groupsWithMeasurement).toBeGreaterThan(groupsWithSelect);
+      expect(screen.getByTestId('annotator-font-size')).toBeInTheDocument();
     });
 
     it('font-size selector is NOT visible when selectedTool is "freehand"', () => {
       renderPalette({ selectedTool: 'freehand' });
-      const radiogroups = screen.queryAllByRole('radiogroup');
-      const hasFontSize = radiogroups.some(
-        (el) =>
-          el.getAttribute('aria-label') === 'fontSize' ||
-          el.getAttribute('aria-label') === 'Font size',
-      );
-      expect(hasFontSize).toBe(false);
+      expect(screen.queryByTestId('annotator-font-size')).not.toBeInTheDocument();
     });
 
     it('font-size selector remains visible for text tool (not regressed)', () => {
-      const { unmount } = renderPalette({ selectedTool: 'select' });
-      const groupsWithSelect = screen.queryAllByRole('radiogroup').length;
-      unmount();
-
       renderPalette({ selectedTool: 'text' });
-      const groupsWithText = screen.queryAllByRole('radiogroup').length;
-
-      expect(groupsWithText).toBeGreaterThan(groupsWithSelect);
+      expect(screen.getByTestId('annotator-font-size')).toBeInTheDocument();
     });
   });
 });
