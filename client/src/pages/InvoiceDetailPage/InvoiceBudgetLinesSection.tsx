@@ -15,6 +15,8 @@ import {
   updateInvoiceBudgetLine,
   deleteInvoiceBudgetLine,
 } from '../../lib/invoiceBudgetLinesApi.js';
+import { assignBudgetLine } from '../../lib/budgetLineAssignApi.js';
+import type { BudgetLineAssignRequest } from '@cornerstone/shared';
 import { fetchWorkItemBudgets, createWorkItemBudget } from '../../lib/workItemBudgetsApi.js';
 import {
   fetchHouseholdItemBudgets,
@@ -37,6 +39,8 @@ import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import { OverflowMenu, type OverflowMenuItem } from '../../components/OverflowMenu/index.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { FormError } from '../../components/FormError/FormError.js';
+import { Badge } from '../../components/Badge/Badge.js';
+import badgeStyles from '../../components/Badge/Badge.module.css';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './InvoiceBudgetLinesSection.module.css';
 
@@ -102,6 +106,8 @@ export function InvoiceBudgetLinesSection({
   const [budgetLineFormAmount, setBudgetLineFormAmount] = useState('');
   const [budgetLineFormError, setBudgetLineFormError] = useState('');
   const [isBudgetLineMutating, setIsBudgetLineMutating] = useState(false);
+  const [assigningLineId, setAssigningLineId] = useState<string | null>(null);
+  const [openedWithFocusParentPicker, setOpenedWithFocusParentPicker] = useState(false);
 
   // Focus management
   const addButtonRef = useRef<HTMLButtonElement>(null);
@@ -139,15 +145,27 @@ export function InvoiceBudgetLinesSection({
       setSelectedBudgetLine(null);
       setBudgetLineFormAmount('');
       setBudgetLineFormError('');
+      setOpenedWithFocusParentPicker(false);
     }
   };
 
-  const openEditBudgetLineModal = (line: InvoiceBudgetLineDetailResponse) => {
+  const openEditBudgetLineModal = (
+    line: InvoiceBudgetLineDetailResponse,
+    options?: { focusParentPicker?: boolean },
+  ) => {
     setSelectedBudgetLine(line);
     setBudgetLineFormAmount(line.itemizedAmount.toString());
     setBudgetLineFormError('');
+    setOpenedWithFocusParentPicker(options?.focusParentPicker ?? false);
     setBudgetLineModalMode('edit');
   };
+
+  const openAssignModal = useCallback(
+    (line: InvoiceBudgetLineDetailResponse) => {
+      openEditBudgetLineModal(line, { focusParentPicker: true });
+    },
+    [],
+  );
 
   const openRemoveBudgetLineModal = (line: InvoiceBudgetLineDetailResponse) => {
     setSelectedBudgetLine(line);
@@ -528,6 +546,28 @@ export function InvoiceBudgetLinesSection({
     }
   };
 
+  /**
+   * Handle assigning an unassigned budget line.
+   */
+  const handleAssignBudgetLine = useCallback(
+    async (body: BudgetLineAssignRequest) => {
+      if (!selectedBudgetLine) return;
+      setAssigningLineId(selectedBudgetLine.id);
+
+      try {
+        await assignBudgetLine(selectedBudgetLine.id, body);
+        await loadBudgetLines();
+        closeBudgetLineModal();
+      } catch (err) {
+        // Error will be displayed inside BudgetLineForm via parentPickerError
+        throw err;
+      } finally {
+        setAssigningLineId(null);
+      }
+    },
+    [selectedBudgetLine],
+  );
+
   // Determine remaining color
   const getRemainingColor = () => {
     if (remainingAmount > 0.01) return 'warning'; // > 0
@@ -672,14 +712,40 @@ export function InvoiceBudgetLinesSection({
                     <span>{formatCurrency(line.itemizedAmount)}</span>
                   </td>
                   <td className={styles.tdLinkedItem}>
-                    <Link
-                      to={`/project/${line.parentItemType === 'work_item' ? 'work-items' : 'household-items'}/${line.parentItemId}`}
-                      className={styles.linkedItemLink}
-                    >
-                      {line.parentItemTitle}
-                    </Link>
-                    {line.parentItemType === 'work_item' && (
-                      <AreaBreadcrumb area={line.parentItemArea ?? null} variant="compact" />
+                    {line.parentItemType === 'unassigned' ? (
+                      <div className={styles.unassignedCell}>
+                        <Badge
+                          className={badgeStyles.iblUnassigned}
+                          aria-label={t('invoiceDetail.budgetLines.unassignedAriaLabel')}
+                        >
+                          {t('invoiceDetail.budgetLines.unassigned')}
+                        </Badge>
+                        <button
+                          type="button"
+                          className={styles.assignButton}
+                          disabled={assigningLineId === line.id}
+                          onClick={() => openAssignModal(line)}
+                          aria-label={t('invoiceDetail.budgetLines.assignAriaLabel', {
+                            description: line.budgetLineDescription || 'budget line',
+                          })}
+                        >
+                          {assigningLineId === line.id
+                            ? t('invoiceDetail.budgetLines.assigningButton')
+                            : t('invoiceDetail.budgetLines.assignButton')}
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <Link
+                          to={`/project/${line.parentItemType === 'work_item' ? 'work-items' : 'household-items'}/${line.parentItemId}`}
+                          className={styles.linkedItemLink}
+                        >
+                          {line.parentItemTitle}
+                        </Link>
+                        {line.parentItemType === 'work_item' && (
+                          <AreaBreadcrumb area={line.parentItemArea ?? null} variant="compact" />
+                        )}
+                      </>
                     )}
                   </td>
                   <td className={styles.tdActions}>
@@ -1093,7 +1159,10 @@ export function InvoiceBudgetLinesSection({
           onClose={closeBudgetLineModal}
           error={budgetLineFormError}
           isMutating={isBudgetLineMutating}
+          focusParentPicker={openedWithFocusParentPicker}
+          onAssign={handleAssignBudgetLine}
           t={t}
+          tSettings={tSettings}
         />
       )}
 
@@ -1124,68 +1193,118 @@ interface EditBudgetLineModalProps {
   onClose: () => void;
   error: string;
   isMutating: boolean;
+  focusParentPicker?: boolean;
+  onAssign?: (body: BudgetLineAssignRequest) => Promise<void>;
   t: (key: string, opts?: Record<string, unknown>) => string;
+  tSettings: (key: string) => string;
 }
 
 function EditBudgetLineModal({
+  line,
   formAmount,
   onFormAmountChange,
   onSubmit,
   onClose,
   error,
   isMutating,
+  focusParentPicker,
+  onAssign,
   t,
+  tSettings,
 }: EditBudgetLineModalProps) {
+  const isUnassigned = line.parentItemType === 'unassigned';
+
   return (
     <Modal
       title={t('invoiceDetail.budgetLines.modal.editTitle')}
       onClose={onClose}
       footer={
-        <div className={styles.modalActions}>
-          <button
-            type="button"
-            className={sharedStyles.btnSecondary}
-            onClick={onClose}
-            disabled={isMutating}
-          >
-            {t('common:button.cancel')}
-          </button>
-          <button
-            type="submit"
-            className={sharedStyles.btnPrimary}
-            form="budget-line-edit-form"
-            disabled={isMutating || !formAmount}
-          >
-            {isMutating ? t('invoiceDetail.budgetLines.form.saving') : t('common:button.save')}
-          </button>
-        </div>
+        !isUnassigned && (
+          <div className={styles.modalActions}>
+            <button
+              type="button"
+              className={sharedStyles.btnSecondary}
+              onClick={onClose}
+              disabled={isMutating}
+            >
+              {t('common:button.cancel')}
+            </button>
+            <button
+              type="submit"
+              className={sharedStyles.btnPrimary}
+              form="budget-line-edit-form"
+              disabled={isMutating || !formAmount}
+            >
+              {isMutating ? t('invoiceDetail.budgetLines.form.saving') : t('common:button.save')}
+            </button>
+          </div>
+        )
       }
     >
-      <form id="budget-line-edit-form" onSubmit={onSubmit} noValidate>
-        {error && <FormError message={error} />}
+      {isUnassigned ? (
+        // For unassigned budget lines, show the BudgetLineForm with parent picker
+        <BudgetLineForm
+          form={{
+            description: line.budgetLineDescription || '',
+            plannedAmount: line.plannedAmount.toString(),
+            confidence: line.confidence || 'own_estimate',
+            budgetCategoryId: line.categoryId || '',
+            budgetSourceId: line.budgetSourceId || '',
+            vendorId: line.vendorId || '',
+            pricingMode: 'direct',
+            quantity: '',
+            unit: '',
+            unitPrice: '',
+            includesVat: false,
+          }}
+          onSubmit={() => {}}
+          onFormChange={() => {}}
+          onCancel={onClose}
+          error={null}
+          isSaving={false}
+          isEditing={true}
+          confidenceLabels={CONFIDENCE_LABELS}
+          budgetSources={[]}
+          vendors={[]}
+          budgetCategories={[]}
+          staticCategoryLabel={
+            line.categoryName
+              ? getCategoryDisplayName(tSettings, line.categoryName, line.categoryTranslationKey)
+              : undefined
+          }
+          isUnassigned={true}
+          focusParentPicker={focusParentPicker}
+          onAssign={onAssign}
+          assignBudgetLineId={line.id}
+        />
+      ) : (
+        // For assigned budget lines, show the simple amount input form
+        <form id="budget-line-edit-form" onSubmit={onSubmit} noValidate>
+          {error && <FormError message={error} />}
 
-        <p className={styles.editModalHint}>{t('invoiceDetail.budgetLines.form.itemizedAmount')}</p>
+          <p className={styles.editModalHint}>{t('invoiceDetail.budgetLines.form.itemizedAmount')}</p>
 
-        <div className={styles.formField}>
-          <label htmlFor="budget-line-amount" className={styles.label}>
-            {t('invoiceDetail.budgetLines.form.itemizedAmount')}
-            <span className={styles.required}>{t('invoiceDetail.budgetLines.form.required')}</span>
-          </label>
-          <input
-            type="number"
-            id="budget-line-amount"
-            value={formAmount}
-            onChange={(e) => onFormAmountChange(e.target.value)}
-            className={sharedStyles.input}
-            placeholder="0.00"
-            min="0"
-            step="0.01"
-            required
-            disabled={isMutating}
-            onWheel={(e) => e.currentTarget.blur()}
-          />
-        </div>
-      </form>
+          <div className={styles.formField}>
+            <label htmlFor="budget-line-amount" className={styles.label}>
+              {t('invoiceDetail.budgetLines.form.itemizedAmount')}
+              <span className={styles.required}>{t('invoiceDetail.budgetLines.form.required')}</span>
+            </label>
+            <input
+              type="number"
+              id="budget-line-amount"
+              value={formAmount}
+              onChange={(e) => onFormAmountChange(e.target.value)}
+              className={sharedStyles.input}
+              placeholder="0.00"
+              min="0"
+              step="0.01"
+              required
+              disabled={isMutating}
+              onWheel={(e) => e.currentTarget.blur()}
+            />
+          </div>
+        </form>
+      )}
     </Modal>
   );
 }

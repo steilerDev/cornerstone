@@ -29,6 +29,7 @@
   "MUTUALLY_EXCLUSIVE_BUDGET_LINK": "This budget line is already linked to a different invoice.",
   "ITEMIZED_SUM_EXCEEDS_INVOICE": "The sum of itemized amounts exceeds the invoice total.",
   "BUDGET_LINE_ALREADY_LINKED": "This budget line is already linked to an invoice.",
+  "BUDGET_LINE_ALREADY_ASSIGNED": "This budget line is already assigned to a work item or household item.",
   "RATE_LIMIT_EXCEEDED": "Too many requests. Please wait a moment before trying again.",
   "ACCOUNT_LOCKED": "This account has been temporarily locked due to too many failed login attempts.",
   "INVALID_METADATA": "The entry metadata is invalid.",

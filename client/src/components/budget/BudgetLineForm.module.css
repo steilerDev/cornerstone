@@ -229,11 +229,104 @@
   }
 }
 
+/* Parent picker section — for assigning unassigned budget lines */
+.parentPickerSection {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-4);
+  margin-top: var(--spacing-4);
+}
+
+.parentPickerLegend {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  padding: 0 var(--spacing-1);
+  margin-bottom: var(--spacing-3);
+}
+
+.parentPickerTabs {
+  display: flex;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-3);
+}
+
+.parentPickerTab {
+  padding: var(--spacing-1-5) var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: none;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  transition: all var(--transition-normal);
+}
+
+.parentPickerTab:hover:not(:disabled) {
+  background-color: var(--color-bg-tertiary);
+  border-color: var(--color-border-strong);
+}
+
+.parentPickerTabActive {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background-color: var(--color-primary-bg, rgba(59 130 246 / 0.08));
+}
+
+.parentPickerBody {
+  margin-bottom: var(--spacing-3);
+}
+
+.parentPickerError {
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-2);
+  padding: var(--spacing-2);
+  background-color: var(--color-danger-bg, rgba(220 38 38 / 0.08));
+  border: 1px solid var(--color-danger-border, rgba(220 38 38 / 0.2));
+  border-radius: var(--radius-md);
+}
+
+.assignSubmitButton {
+  width: 100%;
+  padding: var(--spacing-2) var(--spacing-4);
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-normal);
+  margin-top: var(--spacing-2);
+}
+
+.assignSubmitButton:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.assignSubmitButton:active:not(:disabled) {
+  background-color: var(--color-primary-active);
+}
+
+.assignSubmitButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.assignSubmitButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .input,
   .select,
   .submitButton,
-  .cancelButton {
+  .cancelButton,
+  .parentPickerTab {
     transition: none;
   }
 }
