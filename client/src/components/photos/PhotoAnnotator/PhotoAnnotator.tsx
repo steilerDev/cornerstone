@@ -914,9 +914,10 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                         });
                       }}
                       onDragEnd={(e) => {
-                        const pos = e.target.position();
-                        const updated = { ...sel, x1: pos.x, y1: pos.y };
-                        undoStack.commit(state.shapes.map((s) => (s.id === sel.id ? updated : s)));
+                        const newX1 = e.target.x();
+                        const newY1 = e.target.y();
+                        const updated = { ...sel, x1: newX1, y1: newY1 };
+                        undoStack.commit(undoStack.shapes.map((s) => (s.id === sel.id ? updated : s)));
                       }}
                     />
                     <Circle
@@ -936,9 +937,10 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                         });
                       }}
                       onDragEnd={(e) => {
-                        const pos = e.target.position();
-                        const updated = { ...sel, x2: pos.x, y2: pos.y };
-                        undoStack.commit(state.shapes.map((s) => (s.id === sel.id ? updated : s)));
+                        const newX2 = e.target.x();
+                        const newY2 = e.target.y();
+                        const updated = { ...sel, x2: newX2, y2: newY2 };
+                        undoStack.commit(undoStack.shapes.map((s) => (s.id === sel.id ? updated : s)));
                       }}
                     />
                   </>
@@ -1102,7 +1104,16 @@ function renderKonvaShape(
         onDragEnd={(e) => {
           const target = e.target as Konva.Arrow;
           const points = target.points();
-          onChange(shape.id, { x1: points[0], y1: points[1], x2: points[2], y2: points[3] });
+          if (!points) return;
+          const dx = target.x();
+          const dy = target.y();
+          onChange(shape.id, {
+            x1: (points[0] ?? 0) + dx,
+            y1: (points[1] ?? 0) + dy,
+            x2: (points[2] ?? 0) + dx,
+            y2: (points[3] ?? 0) + dy,
+          });
+          target.position({ x: 0, y: 0 });
         }}
       />
     );
@@ -1126,7 +1137,16 @@ function renderKonvaShape(
         onDragEnd={(e) => {
           const target = e.target as Konva.Line;
           const points = target.points();
-          onChange(shape.id, { x1: points[0], y1: points[1], x2: points[2], y2: points[3] });
+          if (!points) return;
+          const dx = target.x();
+          const dy = target.y();
+          onChange(shape.id, {
+            x1: (points[0] ?? 0) + dx,
+            y1: (points[1] ?? 0) + dy,
+            x2: (points[2] ?? 0) + dx,
+            y2: (points[3] ?? 0) + dy,
+          });
+          target.position({ x: 0, y: 0 });
         }}
       />
     );
@@ -1204,6 +1224,18 @@ function renderKonvaShape(
             shapesNodesRef.current.set(shape.id, node);
           }
         }}
+        onDragEnd={(e) => {
+          const target = e.target as Konva.Group;
+          const dx = target.x();
+          const dy = target.y();
+          onChange(shape.id, {
+            x1: shape.x1 + dx,
+            y1: shape.y1 + dy,
+            x2: shape.x2 + dx,
+            y2: shape.y2 + dy,
+          });
+          target.position({ x: 0, y: 0 });
+        }}
       >
         <Arrow
           points={[shape.x1, shape.y1, shape.x2, shape.y2]}
@@ -1251,11 +1283,15 @@ function renderKonvaShape(
         onDragEnd={(e) => {
           const target = e.target as Konva.Line;
           const points = target.points();
-          const newPoints = [];
+          if (!points) return;
+          const dx = target.x();
+          const dy = target.y();
+          const newPoints: [number, number][] = [];
           for (let i = 0; i < points.length; i += 2) {
-            newPoints.push([points[i], points[i + 1]]);
+            newPoints.push([(points[i] ?? 0) + dx, (points[i + 1] ?? 0) + dy]);
           }
-          onChange(shape.id, { points: newPoints as [number, number][] });
+          onChange(shape.id, { points: newPoints });
+          target.position({ x: 0, y: 0 });
         }}
       />
     );
