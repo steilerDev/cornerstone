@@ -32,7 +32,7 @@ Cornerstone is designed for **homeowners managing a construction or renovation p
 ## Key Features
 
 - **Work Items** -- Create and manage construction tasks with statuses, dates, assignments, areas, notes, subtasks, and dependencies -- each work item surfaces its full area ancestor path (e.g. `House / Ground Floor / Kitchen`) as a breadcrumb wherever it appears
-- **Budget Management** -- Track costs with budget categories, financing sources, multi-budget-line invoice linking with itemized amounts, subsidies, and an area-grouped overview dashboard with multiple projection perspectives, clickable summary tiles, and print-friendly export
+- **Budget Management** -- Track costs with budget categories, financing sources, multi-budget-line invoice linking with itemized amounts, **staged-payment deposits** for invoices paid in instalments, subsidies, and an area-grouped overview dashboard with multiple projection perspectives, clickable summary tiles, and print-friendly export
 - **Hierarchical Financing Sources** -- Click any source to expand it inline, see every attached budget line grouped by area and work item, and mass-move selected lines between sources
 - **Timeline & Gantt Chart** -- Interactive Gantt chart with dependency arrows, critical path highlighting, zoom controls, milestones, and automatic scheduling via the Critical Path Method
 - **Calendar View** -- Monthly and weekly calendar grids showing work items and milestones
@@ -41,7 +41,7 @@ Cornerstone is designed for **homeowners managing a construction or renovation p
 - **Areas & Trades** -- Hierarchical project areas (rooms, floors, zones) and trade specialties (Electrical, Plumbing, etc.) for organizing work and linking vendors
 - **Authentication** -- Local accounts with first-run setup wizard, plus OIDC single sign-on for existing identity providers
 - **User Management** -- Admin and Member roles with a dedicated admin panel
-- **Construction Diary** -- Maintain a construction diary (Bautagebuch) with daily logs, site visits, delivery records, issue tracking, automatic system events, photo attachments, and digital signature capture
+- **Construction Diary** -- Maintain a construction diary (Bautagebuch) with daily logs, site visits, delivery records, issue tracking, automatic system events, photo attachments with in-browser annotation (rectangles, arrows, text, measurements, freehand), auto-saved drafts, and digital signature capture
 - **Project Dashboard** -- At-a-glance project health with budget summary, timeline status, invoice and subsidy pipelines, mini Gantt preview, and customizable card layout
 - **Document Integration** -- Browse, search, and link documents from a connected [Paperless-ngx](https://docs.paperless-ngx.com/) instance to work items and invoices
 - **Dark Mode** -- Light, Dark, or System theme with instant switching
