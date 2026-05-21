@@ -29,7 +29,7 @@
   "MUTUALLY_EXCLUSIVE_BUDGET_LINK": "Diese Budgetposition ist bereits mit einer anderen Rechnung verknüpft.",
   "ITEMIZED_SUM_EXCEEDS_INVOICE": "Die Summe der aufgeschlüsselten Beträge übersteigt den Rechnungsbetrag.",
   "BUDGET_LINE_ALREADY_LINKED": "Diese Budgetposition ist bereits mit einer Rechnung verknüpft.",
-  "BUDGET_LINE_ALREADY_ASSIGNED": "Diese Budgetposition ist bereits einem Arbeitselement oder Haushaltsgegenstand zugeordnet.",
+  "BUDGET_LINE_ALREADY_ASSIGNED": "Diese Budgetposition ist bereits einem Arbeitspaket oder Haushaltsartikel zugeordnet.",
   "RATE_LIMIT_EXCEEDED": "Zu viele Anfragen. Bitte kurz warten und erneut versuchen.",
   "ACCOUNT_LOCKED": "Dieses Konto wurde aufgrund zu vieler fehlgeschlagener Anmeldeversuche vorübergehend gesperrt.",
   "INVALID_METADATA": "Die Eintragsmetadaten sind ungültig.",
