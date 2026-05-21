@@ -3,6 +3,24 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1545 — Orphan Budget Line Assignment Test Patterns (2026-05-21)
+
+**Orphan WIB seed pattern**: Insert `workItemBudgets` with `workItemId: null` (requires migration 0036 which made the column nullable). Always pair with an `invoiceBudgetLines` row pointing to the WIB — the `assignToHouseholdItem` path requires an IBL to repoint; without one it throws `NotFoundError` (no partial writes due to transaction).
+
+**ConflictError code**: The `budgetLineAssignService` uses `ConflictError` which resolves to code `'CONFLICT'`, NOT `'BUDGET_LINE_ALREADY_ASSIGNED'` (that specific sub-code doesn't exist in the shared ErrorCode union). Route tests should assert `body.error.code === 'CONFLICT'`.
+
+**bc-household-items category**: Migrations seed this category ID — it's always available in test DBs. The `assignToHouseholdItem` path hardcodes `budgetCategoryId: 'bc-household-items'` for new HIB rows regardless of the original WIB's category.
+
+**hic-furniture category**: Seeded by migrations; use as `categoryId` when inserting test `householdItems` rows.
+
+**Transaction atomicity test**: Create an orphan WIB without a linked IBL row, then call `assignToHouseholdItem` — it throws `NotFoundError` midway through the transaction. Verify wib count and hib count are unchanged (rollback worked). This directly tests the transaction boundary.
+
+**budgetOverviewService orphan exclusion**: The `WHERE work_item_id IS NOT NULL` clause in the UNION query means orphan lines do NOT inflate `totalMinPlanned`/`totalMaxPlanned`. Test by inserting a large orphan (e.g., 10000) alongside a small assigned line (e.g., 500) and verify totals match only the assigned line's margins.
+
+**own_estimate confidence margins**: CONFIDENCE_MARGINS['own_estimate'] = 0.2. So for a 500 planned: min=400, max=600. Used in budgetOverviewService tests.
+
+**Client API test for budgetLineAssignApi**: 17 tests, 100% coverage locally. Uses `globalThis.fetch` mock pattern same as all other lib API tests. Key: verify `encodeURIComponent(id)` is applied to the `:id` path segment.
+
 ## CJS node_modules Mocking in ESM Jest (Konva pattern, 2026-05-19)
 
 To mock a CJS node_module (e.g., `konva`, `react-konva`) in ESM Jest tests when the module requires a native binary (`canvas`):
