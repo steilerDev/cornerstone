@@ -545,6 +545,7 @@ test.describe('Edit modal for assigned budget line — no parent picker (Scenari
           plannedAmount: 250,
           confidence: 'own_estimate',
           description: `${testPrefix} Assigned Line`,
+          budgetSourceId: 'discretionary-system',
         },
       });
       expect(budgetResp.ok(), `POST budget failed: ${budgetResp.status()}`).toBeTruthy();
@@ -619,6 +620,7 @@ test.describe('POST assign on already-assigned line → 409 (Scenario 5)', () =>
           plannedAmount: 200,
           confidence: 'own_estimate',
           description: `${testPrefix} Already Assigned`,
+          budgetSourceId: 'discretionary-system',
         },
       });
       expect(budgetResp.ok()).toBeTruthy();
