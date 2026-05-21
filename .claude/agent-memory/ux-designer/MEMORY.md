@@ -108,3 +108,16 @@ See `pr-1490-measurement-freehand.md`. Medium: `labelAttrs { display:'none' }` d
 ## Story 4.9 — Invoice Linking for HI Budget Lines (Issue #413)
 
 See `story-4-9-invoice-linking-hi.md`. Entity type toggle (`role="group"` + `role="radio"`), "Linked To" column hidden at tablet.
+
+## Story #1545 — Unassigned IBL + One-Shot Parent Assignment
+
+- `iblUnassigned` Badge class: `--color-status-not-started-bg` + `--color-text-muted` + `font-style:italic` — distinguishes from work-item "not_started" badge (which uses `--color-status-not-started-text` = gray-700, darker)
+- IBL table `tdLinkedItem` cell: `display:flex; align-items:center; gap:var(--spacing-2)` wrapper (`unassignedCell`) holding badge + inline "Assign…" ghost button
+- "Assign…" button styled like existing `.editButton` in IBL section: `--color-bg-tertiary` / `--color-border-strong` / `--color-text-secondary`; `border-radius: var(--radius-sm)` (4px, same as table action buttons, NOT `--radius-md`)
+- Parent picker section in BudgetLineForm: inset panel with `--color-bg-tertiary` bg (not `--color-bg-secondary`) + `--color-border` border + `--radius-md`; replicates tabsContainer/tab/separator pattern from IBL section step 1
+- Tab title style: `font-size: --font-size-xs; font-weight: --font-weight-semibold; text-transform: uppercase; letter-spacing: 0.05em; color: --color-text-secondary`
+- Modal width for edit with picker visible: `min(640px, calc(100vw - 2rem))` — default `28rem` is too narrow for SearchPicker dropdowns
+- Focus auto-advance: use `requestAnimationFrame` (not `setTimeout`) for React 19 concurrent rendering
+- Assignment success live-region: `aria-live="polite" aria-atomic="true"` — announce `"Budget line '{{desc}}' assigned to {{parentName}}"`
+- "Assign…" `aria-label` must include line description (not generic "Assign…")
+- `focusParentPicker?: boolean` new prop on `BudgetLineFormProps`; `{children}` slot is the preferred way to inject the picker section (avoids prop drilling)

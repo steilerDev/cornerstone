@@ -147,6 +147,8 @@ export type {
   InvoiceBudgetLineDetailResponse,
   InvoiceBudgetLineCreateResponse,
   InvoiceBudgetLineListDetailResponse,
+  BudgetLineAssignRequest,
+  BudgetLineAssignResponse,
 } from './types/invoiceBudgetLine.js';
 
 // Budget Sources

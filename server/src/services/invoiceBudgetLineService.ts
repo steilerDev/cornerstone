@@ -68,6 +68,7 @@ function getAreaWithAncestors(
 /**
  * Resolve the full detail for a single invoice budget line row.
  * Queries the budget line table, category, and parent item.
+ * Handles orphan work_item_budget rows (work_item_id IS NULL).
  */
 function resolveDetail(
   db: DbType,
@@ -75,14 +76,16 @@ function resolveDetail(
   areaMap: Map<string, AreaMapEntry>,
 ): InvoiceBudgetLineDetailResponse {
   const budgetLineId = row.workItemBudgetId || row.householdItemBudgetId;
-  const budgetLineType = row.workItemBudgetId ? 'work_item' : 'household_item';
+  let budgetLineType: 'work_item' | 'household_item' | 'unassigned' = row.workItemBudgetId
+    ? 'work_item'
+    : 'household_item';
 
   let budgetLineDescription: string | null = null;
   let plannedAmount = 0;
   let confidence: ConfidenceLevel = 'own_estimate';
   let categoryId: string | null = null;
-  let parentItemId = '';
-  let parentItemTitle = '';
+  let parentItemId: string | null = null;
+  let parentItemTitle: string | null = null;
   let parentItemArea: AreaSummary | null = null;
 
   if (row.workItemBudgetId) {
@@ -99,13 +102,21 @@ function resolveDetail(
     confidence = wib.confidence as ConfidenceLevel;
     categoryId = wib.budgetCategoryId;
 
-    const wi = db.select().from(workItems).where(eq(workItems.id, wib.workItemId)).get();
-    if (!wi) {
-      throw new NotFoundError('Work item not found');
+    // Check if this is an orphan (unassigned) budget line
+    if (wib.workItemId === null) {
+      budgetLineType = 'unassigned';
+      parentItemId = null;
+      parentItemTitle = null;
+      parentItemArea = null;
+    } else {
+      const wi = db.select().from(workItems).where(eq(workItems.id, wib.workItemId)).get();
+      if (!wi) {
+        throw new NotFoundError('Work item not found');
+      }
+      parentItemId = wi.id;
+      parentItemTitle = wi.title;
+      parentItemArea = getAreaWithAncestors(wi.areaId, areaMap);
     }
-    parentItemId = wi.id;
-    parentItemTitle = wi.title;
-    parentItemArea = getAreaWithAncestors(wi.areaId, areaMap);
   } else if (row.householdItemBudgetId) {
     const hib = db
       .select()
@@ -160,7 +171,7 @@ function resolveDetail(
     categoryTranslationKey,
     parentItemId,
     parentItemTitle,
-    parentItemType: budgetLineType,
+    parentItemType: budgetLineType as 'work_item' | 'household_item' | 'unassigned',
     parentItemArea,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -534,4 +545,23 @@ export function getInvoiceBudgetLinesForInvoice(
     budgetLines,
     remainingAmount,
   };
+}
+
+/**
+ * Get the full detail for a single invoice budget line by its ID.
+ * Used by assignment and other operations that need to return the full detail.
+ */
+export function getBudgetLineDetail(db: DbType, invoiceBudgetLineId: string): InvoiceBudgetLineDetailResponse {
+  const row = db
+    .select()
+    .from(invoiceBudgetLines)
+    .where(eq(invoiceBudgetLines.id, invoiceBudgetLineId))
+    .get();
+
+  if (!row) {
+    throw new NotFoundError('Invoice budget line not found');
+  }
+
+  const areaMap = loadAreaMap(db);
+  return resolveDetail(db, row, areaMap);
 }

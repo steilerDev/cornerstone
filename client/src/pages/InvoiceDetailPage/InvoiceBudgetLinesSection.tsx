@@ -39,8 +39,7 @@ import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import { OverflowMenu, type OverflowMenuItem } from '../../components/OverflowMenu/index.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { FormError } from '../../components/FormError/FormError.js';
-import { Badge } from '../../components/Badge/Badge.js';
-import badgeStyles from '../../components/Badge/Badge.module.css';
+import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './InvoiceBudgetLinesSection.module.css';
 
@@ -53,6 +52,15 @@ interface InvoiceBudgetLinesSectionProps {
  * Budget line type discriminator for the two-step picker.
  */
 type BudgetLineType = 'work_item' | 'household_item';
+
+/**
+ * Badge variants for budget line unassigned state.
+ */
+const UNASSIGNED_BADGE_VARIANTS: BadgeVariantMap = {
+  unassigned: {
+    label: 'Unassigned',
+  },
+};
 
 /**
  * Budget line modal modes.
@@ -715,11 +723,10 @@ export function InvoiceBudgetLinesSection({
                     {line.parentItemType === 'unassigned' ? (
                       <div className={styles.unassignedCell}>
                         <Badge
-                          className={badgeStyles.iblUnassigned}
-                          aria-label={t('invoiceDetail.budgetLines.unassignedAriaLabel')}
-                        >
-                          {t('invoiceDetail.budgetLines.unassigned')}
-                        </Badge>
+                          variants={UNASSIGNED_BADGE_VARIANTS}
+                          value="unassigned"
+                          ariaLabel={t('invoiceDetail.budgetLines.unassignedAriaLabel')}
+                        />
                         <button
                           type="button"
                           className={styles.assignButton}
@@ -1247,10 +1254,10 @@ function EditBudgetLineModal({
           form={{
             description: line.budgetLineDescription || '',
             plannedAmount: line.plannedAmount.toString(),
-            confidence: line.confidence || 'own_estimate',
+            confidence: line.confidence,
             budgetCategoryId: line.categoryId || '',
-            budgetSourceId: line.budgetSourceId || '',
-            vendorId: line.vendorId || '',
+            budgetSourceId: '',
+            vendorId: '',
             pricingMode: 'direct',
             quantity: '',
             unit: '',
@@ -1266,7 +1273,7 @@ function EditBudgetLineModal({
           confidenceLabels={CONFIDENCE_LABELS}
           budgetSources={[]}
           vendors={[]}
-          budgetCategories={[]}
+          budgetCategories={line.categoryName ? [{ id: line.categoryId || '', name: line.categoryName, translationKey: line.categoryTranslationKey || '' }] : []}
           staticCategoryLabel={
             line.categoryName
               ? getCategoryDisplayName(tSettings, line.categoryName, line.categoryTranslationKey)
