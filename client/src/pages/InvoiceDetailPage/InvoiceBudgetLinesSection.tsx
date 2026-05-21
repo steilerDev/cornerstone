@@ -1273,7 +1273,7 @@ function EditBudgetLineModal({
           confidenceLabels={CONFIDENCE_LABELS}
           budgetSources={[]}
           vendors={[]}
-          budgetCategories={line.categoryName ? [{ id: line.categoryId || '', name: line.categoryName, translationKey: line.categoryTranslationKey || '' }] : []}
+          budgetCategories={line.categoryName ? ([{ id: line.categoryId || '', name: line.categoryName, translationKey: line.categoryTranslationKey || '' }] as BudgetCategory[]) : []}
           staticCategoryLabel={
             line.categoryName
               ? getCategoryDisplayName(tSettings, line.categoryName, line.categoryTranslationKey)

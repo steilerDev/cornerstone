@@ -864,7 +864,8 @@
     "parentPickerWorkItemTab": "Work Item",
     "parentPickerHouseholdItemTab": "Household Item",
     "parentPickerSeparator": "or",
-    "parentPickerFieldsetLegend": "Assign to work item or household item"
+    "parentPickerFieldsetLegend": "Assign to work item or household item",
+    "parentPickerError": "Failed to assign budget line. Please try again."
   },
   "health": {
     "overBudget": "Over Budget",

@@ -56,6 +56,7 @@ export function BudgetLineForm({
 }: BudgetLineFormProps) {
   const { t } = useTranslation('budget');
   const { t: tSettings } = useTranslation('settings');
+  const { t: tErrors } = useTranslation('errors');
 
   // Parent picker state
   const [selectedParentType, setSelectedParentType] = useState<'work_item' | 'household_item'>(
@@ -90,8 +91,8 @@ export function BudgetLineForm({
         budgetCategoryId: form.budgetCategoryId || null,
       };
       await onAssign(body);
-    } catch (err) {
-      setParentPickerError(translateApiError(err));
+    } catch {
+      setParentPickerError(t('budgetLineForm.parentPickerError') || 'Failed to assign budget line');
     } finally {
       setIsAssigning(false);
     }
@@ -392,21 +393,21 @@ export function BudgetLineForm({
             <div className={styles.parentPickerBody}>
               {selectedParentType === 'work_item' ? (
                 <WorkItemPicker
-                  value={selectedParentId}
-                  onChange={(id, name) => {
+                  value={selectedParentId ?? ''}
+                  onChange={(id: string) => {
                     setSelectedParentId(id);
-                    setSelectedParentName(name);
                   }}
                   placeholder={t('budgetLineForm.parentPickerWorkItemTab')}
+                  excludeIds={[]}
                 />
               ) : (
                 <HouseholdItemPicker
-                  value={selectedParentId}
-                  onChange={(id, name) => {
+                  value={selectedParentId ?? ''}
+                  onChange={(id: string) => {
                     setSelectedParentId(id);
-                    setSelectedParentName(name);
                   }}
                   placeholder={t('budgetLineForm.parentPickerHouseholdItemTab')}
+                  excludeIds={[]}
                 />
               )}
             </div>
