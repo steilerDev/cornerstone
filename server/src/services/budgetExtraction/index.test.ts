@@ -144,9 +144,9 @@ describe('getProvider()', () => {
     const result = await provider.extract('ocr text here', { vendorName: 'Installateur' });
 
     expect(result).toHaveLength(1);
-    expect(result[0].description).toBe('Rohrarbeiten');
-    expect(result[0].totalAmount).toBe(350.0);
-    expect(result[0].confidence).toBe(0.9);
+    expect(result[0]!.description).toBe('Rohrarbeiten');
+    expect(result[0]!.totalAmount).toBe(350.0);
+    expect(result[0]!.confidence).toBe(0.9);
   });
 
   it('provider passes the configured baseUrl/apiKey/model from AppConfig to the fetch call', async () => {
@@ -193,6 +193,6 @@ describe('index re-exports', () => {
     const result = validateExtractedLines({
       lines: [{ description: 'Re-export test', totalAmount: 100, confidence: 0.9 }],
     });
-    expect(result[0].description).toBe('Re-export test');
+    expect(result[0]!.description).toBe('Re-export test');
   });
 });

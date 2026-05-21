@@ -185,8 +185,8 @@ describe('createOpenAICompatibleProvider — happy path', () => {
       messages: Array<{ role: string; content: string }>;
     };
     expect(body.messages).toHaveLength(2);
-    expect(body.messages[0].role).toBe('system');
-    expect(body.messages[1].role).toBe('user');
+    expect(body.messages[0]!.role).toBe('system');
+    expect(body.messages[1]!.role).toBe('user');
   });
 
   it('returns parsed ExtractedLine[] from choices[0].message.content', async () => {
@@ -201,11 +201,11 @@ describe('createOpenAICompatibleProvider — happy path', () => {
     const result = await provider.extract('ocr text', {});
 
     expect(result).toHaveLength(2);
-    expect(result[0].description).toBe('Rigipsplatten');
-    expect(result[0].totalAmount).toBe(62.5);
-    expect(result[0].confidence).toBe(0.95);
-    expect(result[1].description).toBe('Trockenbauschrauben');
-    expect(result[1].totalAmount).toBe(17.98);
+    expect(result[0]!.description).toBe('Rigipsplatten');
+    expect(result[0]!.totalAmount).toBe(62.5);
+    expect(result[0]!.confidence).toBe(0.95);
+    expect(result[1]!.description).toBe('Trockenbauschrauben');
+    expect(result[1]!.totalAmount).toBe(17.98);
   });
 
   it('returns empty array when lines is []', async () => {
@@ -285,12 +285,12 @@ describe('createOpenAICompatibleProvider — happy path', () => {
     const provider = createOpenAICompatibleProvider(BASE_CONFIG);
     const result = await provider.extract('ocr text', {});
 
-    expect(result[0].quantity).toBe(8);
-    expect(result[0].unit).toBe('m²');
-    expect(result[0].unitPrice).toBe(28.5);
-    expect(result[0].includesVat).toBe(false);
-    expect(result[0].vatRate).toBe(0.19);
-    expect(result[0].vendorName).toBe('Fliesen König');
+    expect(result[0]!.quantity).toBe(8);
+    expect(result[0]!.unit).toBe('m²');
+    expect(result[0]!.unitPrice).toBe(28.5);
+    expect(result[0]!.includesVat).toBe(false);
+    expect(result[0]!.vatRate).toBe(0.19);
+    expect(result[0]!.vendorName).toBe('Fliesen König');
   });
 });
 
@@ -515,9 +515,9 @@ describe('validateExtractedLines()', () => {
       });
 
       expect(result).toHaveLength(1);
-      expect(result[0].description).toBe('Item A');
-      expect(result[0].totalAmount).toBe(100);
-      expect(result[0].confidence).toBe(0.9);
+      expect(result[0]!.description).toBe('Item A');
+      expect(result[0]!.totalAmount).toBe(100);
+      expect(result[0]!.confidence).toBe(0.9);
     });
 
     it('validates an empty lines array', () => {
@@ -539,14 +539,14 @@ describe('validateExtractedLines()', () => {
       const result = validateExtractedLines({
         lines: [{ description: 'Item A', totalAmount: 50, confidence: 0 }],
       });
-      expect(result[0].confidence).toBe(0);
+      expect(result[0]!.confidence).toBe(0);
     });
 
     it('accepts confidence = 1 (boundary)', () => {
       const result = validateExtractedLines({
         lines: [{ description: 'Item A', totalAmount: 50, confidence: 1 }],
       });
-      expect(result[0].confidence).toBe(1);
+      expect(result[0]!.confidence).toBe(1);
     });
 
     it('accepts a line with all optional fields set', () => {
@@ -566,12 +566,12 @@ describe('validateExtractedLines()', () => {
         ],
       });
 
-      expect(result[0].quantity).toBe(8);
-      expect(result[0].unit).toBe('m²');
-      expect(result[0].unitPrice).toBe(28.5);
-      expect(result[0].includesVat).toBe(false);
-      expect(result[0].vatRate).toBe(0.19);
-      expect(result[0].vendorName).toBe('Fliesen König');
+      expect(result[0]!.quantity).toBe(8);
+      expect(result[0]!.unit).toBe('m²');
+      expect(result[0]!.unitPrice).toBe(28.5);
+      expect(result[0]!.includesVat).toBe(false);
+      expect(result[0]!.vatRate).toBe(0.19);
+      expect(result[0]!.vendorName).toBe('Fliesen König');
     });
 
     it('treats null optional fields as undefined (strips them)', () => {
@@ -591,26 +591,26 @@ describe('validateExtractedLines()', () => {
         ],
       });
 
-      expect(result[0].quantity).toBeUndefined();
-      expect(result[0].unit).toBeUndefined();
-      expect(result[0].unitPrice).toBeUndefined();
-      expect(result[0].includesVat).toBeUndefined();
-      expect(result[0].vatRate).toBeUndefined();
-      expect(result[0].vendorName).toBeUndefined();
+      expect(result[0]!.quantity).toBeUndefined();
+      expect(result[0]!.unit).toBeUndefined();
+      expect(result[0]!.unitPrice).toBeUndefined();
+      expect(result[0]!.includesVat).toBeUndefined();
+      expect(result[0]!.vatRate).toBeUndefined();
+      expect(result[0]!.vendorName).toBeUndefined();
     });
 
     it('treats empty string unit as undefined', () => {
       const result = validateExtractedLines({
         lines: [{ description: 'Item A', unit: '', totalAmount: 100, confidence: 0.9 }],
       });
-      expect(result[0].unit).toBeUndefined();
+      expect(result[0]!.unit).toBeUndefined();
     });
 
     it('treats empty string vendorName as undefined', () => {
       const result = validateExtractedLines({
         lines: [{ description: 'Item A', vendorName: '', totalAmount: 100, confidence: 0.9 }],
       });
-      expect(result[0].vendorName).toBeUndefined();
+      expect(result[0]!.vendorName).toBeUndefined();
     });
 
     it('accepts extra unknown fields on a line without throwing (forward-compatibility)', () => {
@@ -635,14 +635,14 @@ describe('validateExtractedLines()', () => {
       const result = validateExtractedLines({
         lines: [{ description: 'Free item', totalAmount: 0, confidence: 0.9 }],
       });
-      expect(result[0].totalAmount).toBe(0);
+      expect(result[0]!.totalAmount).toBe(0);
     });
 
     it('accepts negative totalAmount (credit notes)', () => {
       const result = validateExtractedLines({
         lines: [{ description: 'Credit', totalAmount: -50.0, confidence: 0.7 }],
       });
-      expect(result[0].totalAmount).toBe(-50.0);
+      expect(result[0]!.totalAmount).toBe(-50.0);
     });
   });
 
