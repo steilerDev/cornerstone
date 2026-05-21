@@ -69,9 +69,15 @@ Use the **Quotation** status for vendor quotes that you want to track alongside 
 
 ### Invoice Detail
 
-Click an invoice to see its full detail page with the invoice amount, current status, and the **Linked Budget Lines** section.
+Click an invoice to see its full detail page with the invoice amount, current status, the **Deposits** section (for tracking staged payments), and the **Linked Budget Lines** section.
 
 If you have [Paperless-ngx configured](/guides/documents/setup), you can also link documents (invoice PDFs, receipts, supporting files) directly to invoices from the detail page. See [Linking Documents](/guides/documents/linking-documents) for details.
+
+### Staged Payments (Deposits)
+
+Many invoices are paid in stages -- a deposit on signing, progress payments at milestones, and a final balance. Cornerstone supports this with **invoice deposits**: each deposit is a partial payment with its own due date, status, and description. The remaining (final) payment uses the parent invoice's status. Budget rollups respect deposit status so `actualCostPaid` reflects real cash flow.
+
+See [Invoice Deposits](invoice-deposits) for the full guide.
 
 ![Invoice detail page](/img/screenshots/budget-invoice-detail-light.png)
 

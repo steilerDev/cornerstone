@@ -14,8 +14,10 @@ The diary provides:
 - **Manual Entries** -- Write daily logs, record site visits, track deliveries, flag issues, and add general notes
 - **Automatic Events** -- System-generated entries for work item status changes, invoice creation and status changes, milestone delays, budget breaches, schedule changes, and subsidy changes
 - **Photo Attachments** -- Attach photos to manual entries for visual documentation
+- **Photo Annotation** -- Mark up photos with rectangles, arrows, text, measurements, and more, directly in the browser
+- **Drafts** -- Pick an entry type and start drafting immediately; the entry is saved as a draft until you promote it to a full entry, with auto-save while you type
 - **Signature Capture** -- Collect digital signatures from users or vendors with a drawing canvas; signed entries become immutable
-- **Filtering** -- Filter the diary by All, Manual, or Automatic entries with type-specific filter chips
+- **Filtering** -- Filter the diary by All, Manual, or Automatic entries with type-specific filter chips, plus a separate Drafts chip to show or hide unfinished work
 
 ## Entry Types
 
@@ -57,10 +59,13 @@ At the top of the diary page, filter chips let you narrow the view:
 
 When the Automatic filter is active, additional type-specific chips appear for finer control (e.g., "Invoice" groups both invoice creation and status change events).
 
+A separate **Drafts** chip controls whether unfinished draft entries are included in the view. Drafts are hidden by default so your diary stays focused on finalized entries -- toggle the chip on to surface them.
+
 ## Next Steps
 
 - [Manual Entries](manual-entries) -- Creating and editing diary entries
 - [Automatic Events](automatic-events) -- How system events are generated
+- [Photo Annotation](photo-annotation) -- Marking up diary photos with shapes, text, and measurements
 - [Signatures](signatures) -- Digital signature capture and immutability
 
 ![Diary page](/img/screenshots/diary-list-light.png)

@@ -60,7 +60,8 @@ The OIDC callback URL is automatically derived as `<EXTERNAL_URL>/api/auth/oidc/
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DIARY_AUTO_EVENTS` | `true` | Whether the construction diary automatically logs system events (status changes, invoice updates, etc.). Set to `false` to disable automatic entries. |
-| `PHOTO_STORAGE_PATH` | `<data-dir>/photos` | Directory where diary photo attachments are stored. Defaults to a `photos` folder next to the database file. |
+| `DIARY_DRAFT_RETENTION_DAYS` | `30` | Days a draft diary entry can sit untouched before the daily orphan cleanup deletes it. Set to `0` to disable the cleanup and keep drafts forever. |
+| `PHOTO_STORAGE_PATH` | `<data-dir>/photos` | Directory where diary photos are stored (both originals and annotated copies). Defaults to a `photos` folder next to the database file. |
 | `PHOTO_MAX_FILE_SIZE_MB` | `20` | Maximum file size in megabytes for photo uploads |
 
 :::note

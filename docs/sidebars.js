@@ -41,6 +41,7 @@ const sidebars = {
         'guides/budget/financing-sources',
         'guides/budget/work-item-budgets',
         'guides/budget/vendors-and-invoices',
+        'guides/budget/invoice-deposits',
         'guides/budget/subsidies',
         'guides/budget/budget-overview',
       ],
@@ -83,6 +84,7 @@ const sidebars = {
       items: [
         'guides/diary/manual-entries',
         'guides/diary/automatic-events',
+        'guides/diary/photo-annotation',
         'guides/diary/signatures',
       ],
     },
