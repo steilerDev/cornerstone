@@ -724,6 +724,7 @@
     }
   },
   "budgetLineForm": {
+    "assignButton": "Zuweisen",
     "descriptionLabel": "Beschreibung",
     "descriptionPlaceholder": "Optionale Beschreibung",
     "modeDirect": "Direktbetrag",

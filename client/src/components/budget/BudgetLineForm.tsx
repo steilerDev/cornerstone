@@ -420,7 +420,9 @@ export function BudgetLineForm({
               disabled={isAssigning || !selectedParentId}
               onClick={handleAssign}
             >
-              {isAssigning ? t('invoiceDetail.budgetLines.assigningButton') : t('budgetLineForm.parentPickerWorkItemTab')}
+              {isAssigning
+                ? t('invoiceDetail.budgetLines.assigningButton')
+                : t('budgetLineForm.assignButton')}
             </button>
           </fieldset>
         )}

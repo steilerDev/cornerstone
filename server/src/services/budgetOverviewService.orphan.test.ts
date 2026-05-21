@@ -216,24 +216,24 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
       expect(() => getBudgetOverview(db)).not.toThrow();
     });
 
-    it('totalMinPlanned is 0 when only orphan rows exist (no assigned WI budget lines)', () => {
+    it('minPlanned is 0 when only orphan rows exist (no assigned WI budget lines)', () => {
       insertOrphanWIB(1000);
 
       const result = getBudgetOverview(db);
 
-      // With no assigned lines, totalMinPlanned = 0
-      expect(result.totalMinPlanned).toBe(0);
+      // With no assigned lines, minPlanned = 0
+      expect(result.minPlanned).toBe(0);
     });
 
-    it('totalMaxPlanned is 0 when only orphan rows exist', () => {
+    it('maxPlanned is 0 when only orphan rows exist', () => {
       insertOrphanWIB(1000);
 
       const result = getBudgetOverview(db);
 
-      expect(result.totalMaxPlanned).toBe(0);
+      expect(result.maxPlanned).toBe(0);
     });
 
-    it('orphan row does NOT inflate totalMinPlanned beyond assigned lines', () => {
+    it('orphan row does NOT inflate minPlanned beyond assigned lines', () => {
       const wiId = insertWorkItem('Normal WI');
       insertAssignedWIB(wiId, 500);
       insertOrphanWIB(10000); // orphan with large amount — must NOT affect rollup
@@ -242,10 +242,10 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
 
       // Only the assigned 500 should count (with own_estimate margin 0.2)
       // min = 500 * (1 - 0.2) = 400
-      expect(result.totalMinPlanned).toBe(400);
+      expect(result.minPlanned).toBe(400);
     });
 
-    it('orphan row does NOT inflate totalMaxPlanned beyond assigned lines', () => {
+    it('orphan row does NOT inflate maxPlanned beyond assigned lines', () => {
       const wiId = insertWorkItem('Normal WI');
       insertAssignedWIB(wiId, 500);
       insertOrphanWIB(10000); // orphan with large amount
@@ -253,7 +253,7 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
       const result = getBudgetOverview(db);
 
       // max = 500 * (1 + 0.2) = 600
-      expect(result.totalMaxPlanned).toBe(600);
+      expect(result.maxPlanned).toBe(600);
     });
 
     it('multiple orphan rows are all excluded', () => {
@@ -266,8 +266,8 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
       const result = getBudgetOverview(db);
 
       // Only the 200 assigned line counts: min = 200 * 0.8 = 160, max = 200 * 1.2 = 240
-      expect(result.totalMinPlanned).toBe(160);
-      expect(result.totalMaxPlanned).toBe(240);
+      expect(result.minPlanned).toBe(160);
+      expect(result.maxPlanned).toBe(240);
     });
   });
 
@@ -285,8 +285,8 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
       // (the lineInvoiceRows query uses INNER JOIN so this correctly returns data,
       // but the budget_lines list filtered by WHERE work_item_id IS NOT NULL means
       // the orphan line won't be in the iteration set)
-      expect(result.totalMinPlanned).toBe(0);
-      expect(result.totalMaxPlanned).toBe(0);
+      expect(result.minPlanned).toBe(0);
+      expect(result.maxPlanned).toBe(0);
     });
 
     it('actualCost is still correct for assigned lines even with orphan lines present', () => {
@@ -300,10 +300,10 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
 
       const result = getBudgetOverview(db);
 
-      // Only the assigned line (800) should be in totalMinPlanned/maxPlanned
+      // Only the assigned line (800) should be in minPlanned/maxPlanned
       // Orphan is excluded from the UNION query
-      expect(result.totalMinPlanned).toBe(800); // invoice overrides margin
-      expect(result.totalMaxPlanned).toBe(800);
+      expect(result.minPlanned).toBe(800); // invoice overrides margin
+      expect(result.maxPlanned).toBe(800);
     });
   });
 
@@ -339,8 +339,8 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
       const result = getBudgetOverview(db);
 
       expect(result).toHaveProperty('availableFunds');
-      expect(result).toHaveProperty('totalMinPlanned');
-      expect(result).toHaveProperty('totalMaxPlanned');
+      expect(result).toHaveProperty('minPlanned');
+      expect(result).toHaveProperty('maxPlanned');
       expect(result).toHaveProperty('actualCost');
       expect(result).toHaveProperty('actualPaid');
     });
@@ -357,8 +357,8 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
       // own_estimate margin = 0.2
       // min = (1000 + 500) * 0.8 = 1200
       // max = (1000 + 500) * 1.2 = 1800
-      expect(result.totalMinPlanned).toBe(1200);
-      expect(result.totalMaxPlanned).toBe(1800);
+      expect(result.minPlanned).toBe(1200);
+      expect(result.maxPlanned).toBe(1800);
     });
   });
 });

@@ -838,6 +838,7 @@
     }
   },
   "budgetLineForm": {
+    "assignButton": "Assign",
     "descriptionLabel": "Description",
     "descriptionPlaceholder": "Optional description",
     "modeDirect": "Direct Amount",
