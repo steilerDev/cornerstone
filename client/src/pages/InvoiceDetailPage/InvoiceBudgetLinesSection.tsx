@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -40,6 +40,7 @@ import { OverflowMenu, type OverflowMenuItem } from '../../components/OverflowMe
 import { Modal } from '../../components/Modal/Modal.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
+import badgeStyles from '../../components/Badge/Badge.module.css';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './InvoiceBudgetLinesSection.module.css';
 
@@ -56,12 +57,6 @@ type BudgetLineType = 'work_item' | 'household_item';
 /**
  * Badge variants for budget line unassigned state.
  */
-const UNASSIGNED_BADGE_VARIANTS: BadgeVariantMap = {
-  unassigned: {
-    label: 'Unassigned',
-  },
-};
-
 /**
  * Budget line modal modes.
  */
@@ -94,6 +89,16 @@ export function InvoiceBudgetLinesSection({
   const { t: tSettings } = useTranslation('settings');
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
+
+  const unassignedBadgeVariants: BadgeVariantMap = useMemo(
+    () => ({
+      unassigned: {
+        label: t('invoiceDetail.budgetLines.unassigned'),
+        className: badgeStyles.iblUnassigned,
+      },
+    }),
+    [t],
+  );
   const [budgetLines, setBudgetLines] = useState<InvoiceBudgetLineDetailResponse[]>([]);
   const [remainingAmount, setRemainingAmount] = useState(invoiceTotal);
   const [isLoading, setIsLoading] = useState(true);
@@ -724,7 +729,7 @@ export function InvoiceBudgetLinesSection({
                     {line.parentItemType === 'unassigned' ? (
                       <div className={styles.unassignedCell}>
                         <Badge
-                          variants={UNASSIGNED_BADGE_VARIANTS}
+                          variants={unassignedBadgeVariants}
                           value="unassigned"
                           ariaLabel={t('invoiceDetail.budgetLines.unassignedAriaLabel')}
                         />

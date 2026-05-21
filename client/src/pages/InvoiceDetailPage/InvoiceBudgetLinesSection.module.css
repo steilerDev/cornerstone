@@ -262,6 +262,12 @@
   opacity: 0.85;
 }
 
+.assignButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
 .assignButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;

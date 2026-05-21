@@ -63,7 +63,6 @@ export function BudgetLineForm({
     'work_item',
   );
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
-  const [selectedParentName, setSelectedParentName] = useState<string | null>(null);
   const [isAssigning, setIsAssigning] = useState(false);
   const [parentPickerError, setParentPickerError] = useState<string | null>(null);
   const parentPickerRef = useRef<HTMLFieldSetElement>(null);
@@ -71,10 +70,12 @@ export function BudgetLineForm({
   // Auto-focus parent picker when requested
   useEffect(() => {
     if (focusParentPicker && parentPickerRef.current) {
-      setTimeout(() => {
+      const id = requestAnimationFrame(() => {
         parentPickerRef.current?.focus();
-      }, 0);
+      });
+      return () => cancelAnimationFrame(id);
     }
+    return undefined;
   }, [focusParentPicker]);
 
   // Handle parent assignment
@@ -373,7 +374,6 @@ export function BudgetLineForm({
                 onClick={() => {
                   setSelectedParentType('work_item');
                   setSelectedParentId(null);
-                  setSelectedParentName(null);
                 }}
               >
                 {t('budgetLineForm.parentPickerWorkItemTab')}
@@ -384,7 +384,6 @@ export function BudgetLineForm({
                 onClick={() => {
                   setSelectedParentType('household_item');
                   setSelectedParentId(null);
-                  setSelectedParentName(null);
                 }}
               >
                 {t('budgetLineForm.parentPickerHouseholdItemTab')}
