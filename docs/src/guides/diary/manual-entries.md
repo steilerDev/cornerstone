@@ -21,18 +21,31 @@ Choose the type that best fits what you are recording:
 
 1. Navigate to the diary page at `/diary`
 2. Click **New Entry**
-3. Fill in the entry form:
+3. Pick an entry type card (Daily Log, Site Visit, Delivery, Issue, or General Note). The moment you click a card, Cornerstone creates a **draft entry** and opens the edit page -- no extra "create" step needed.
+4. Fill in the entry form:
 
 | Field | Description |
 |-------|-------------|
-| **Type** | Select the entry type (daily log, site visit, delivery, issue, or general note) |
 | **Date** | The date of the entry (defaults to today) |
 | **Weather** | Temperature and conditions (sunny, cloudy, rainy, snowy, windy, foggy) -- optional |
 | **Title** | A short summary of the entry |
 | **Body** | Detailed description (or "Items" for delivery entries) |
 
-4. Optionally attach photos (see below)
-5. Click **Save**
+5. Optionally attach photos (see below)
+6. Click **Save** to promote the draft to a full entry, or **Discard Draft** to remove it entirely
+
+## Drafts and Auto-Save
+
+While you are editing an entry, Cornerstone auto-saves changes in the background and shows a small status indicator (`Saving...`, `Saved`, or "save failed — will retry on next change") so you always know whether your work is persisted.
+
+Entries created from the **New Entry** flow start in **draft** state. Drafts:
+
+- Are tagged with a **Draft** badge wherever they appear
+- Are **hidden by default** from the diary list -- toggle the **Drafts** filter chip to surface them
+- Can be discarded with the **Discard Draft** button -- this permanently removes the draft and any photos you have uploaded to it
+- Are promoted to a regular entry when you click **Save**
+
+If you start a draft and abandon it without saving or discarding, the server cleans it up automatically after `DIARY_DRAFT_RETENTION_DAYS` days of inactivity (default: 30). Set the environment variable to `0` to disable the cleanup, or to another integer to shorten or extend retention. See [Configuration](/getting-started/configuration#diary) for details.
 
 ## Weather Tracking
 
@@ -43,12 +56,17 @@ Each entry can record the weather conditions at the time. This is useful for tra
 
 ## Photo Attachments
 
-You can attach photos directly when creating or editing a diary entry. Photos are added inline during the creation flow -- there is no separate upload step.
+You can attach photos directly when editing a diary entry. Photos upload as soon as you pick them -- the upload queue shows progress for each file and lets you retry failed uploads without re-selecting them. There is no separate "attach" or "submit" step; uploaded photos are immediately part of the entry.
 
-Photos provide visual documentation of progress, deliveries, issues, or site conditions.
+Photos provide visual documentation of progress, deliveries, issues, or site conditions. Each photo can be opened in a viewer where you can:
+
+- View the original or, if it has been edited, the annotated copy
+- Edit metadata (description, area assignment)
+- [Annotate the photo](photo-annotation) with rectangles, arrows, text, measurements, and other markup
+- Delete the photo (only when the entry is not signed)
 
 :::caution
-Once an entry is signed, the photo section is hidden when no photos are attached, and no new photos can be added. Attach photos before collecting signatures.
+Once an entry is signed, the photo section is hidden when no photos are attached, and no new photos can be added. Existing photos remain visible but cannot be deleted or annotated. Attach and annotate photos before collecting signatures.
 :::
 
 ## Editing Entries

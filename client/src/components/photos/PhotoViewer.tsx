@@ -287,7 +287,7 @@ export function PhotoViewer({
                   data-testid="photo-viewer-clear-annotations"
                   onClick={() => setShowClearConfirm(true)}
                 >
-                  <TrashIcon />
+                  <EraserIcon />
                 </button>
               )}
 
@@ -446,6 +446,21 @@ function TrashIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function EraserIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M16.24 3.56l4.95 4.94a2 2 0 010 2.83l-8.49 8.49H7.05L3.51 16.27a2 2 0 010-2.83l9.9-9.88a2 2 0 012.83 0z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M9.5 7.5l7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }

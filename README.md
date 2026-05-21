@@ -38,12 +38,12 @@ A self-hosted home building project management tool for homeowners. Track work i
 
 - **Work Items** -- Manage construction tasks with statuses, dates, area assignments, notes, subtasks, dependencies, and keyboard shortcuts -- every work item shows its full area ancestor path (e.g. `House / Ground Floor / Kitchen`) as a breadcrumb across lists, detail pages, pickers, and every place it is referenced
 - **Areas & Trades** -- Organize your project with hierarchical areas (rooms, floors, zones) and trade specialties (Electrical, Plumbing, etc.) for vendors; a dedicated "No Area" filter surfaces items that have not been classified yet
-- **Budget Management** -- Budget categories, financing sources with inline expansion and mass-move of attached lines, multi-budget-line invoice linking with itemized amounts, subsidies with caps, quotation tracking, and an area-grouped overview dashboard with source attribution badges on every line, a per-source filter (URL-persisted, server-side) that updates totals and subsidy math, clickable summary tiles, and print-friendly export
+- **Budget Management** -- Budget categories, financing sources with inline expansion and mass-move of attached lines, multi-budget-line invoice linking with itemized amounts, staged-payment deposits for invoices paid in instalments (deposit-aware paid/claimed rollups), subsidies with caps, quotation tracking, and an area-grouped overview dashboard with source attribution badges on every line, a per-source filter (URL-persisted, server-side) that updates totals and subsidy math, clickable summary tiles, and print-friendly export
 - **Timeline & Gantt Chart** -- Interactive Gantt chart with dependency arrows, critical path, zoom controls, milestones, and CPM-based auto-scheduling
 - **Calendar View** -- Monthly and weekly calendar grids with work items and milestones
 - **Household Items** -- Track furniture, appliances, and fixtures with categories, area assignment, delivery scheduling, budget integration, and work item linking
 - **Project Dashboard** -- At-a-glance project health with budget, timeline, invoice, and subsidy cards, mini Gantt preview, and customizable layout
-- **Construction Diary** -- Daily logs, site visits, delivery records, automatic system events, photo attachments, and digital signature capture
+- **Construction Diary** -- Daily logs, site visits, delivery records, automatic system events, photo attachments with in-browser annotation (rectangles, arrows, text, measurements, freehand), auto-saved drafts, and digital signature capture
 - **Document Integration** -- Browse and link documents from Paperless-ngx to work items, household items, and invoices
 - **Advanced List Views** -- Filter, sort, paginate, and customize columns across all list pages with the shared DataTable system
 - **Backup & Restore** -- Manual and scheduled backups with configurable retention, restore from the settings UI

@@ -1,28 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { ToolName, StrokeWidthKey, FontSizeKey } from './useAnnotator.js';
-import {
-  ANNOTATION_COLORS,
-  ANNOTATION_STROKE_WIDTH_RATIOS,
-  ANNOTATION_FONT_SIZE_RATIOS,
-} from './annotationConstants.js';
+import { ANNOTATION_COLORS } from './annotationConstants.js';
 import styles from './ToolPalette.module.css';
-
-/** Visually distinct stroke widths for 24px preview icons */
-const STROKE_PREVIEW_PX: Record<StrokeWidthKey, number> = {
-  'extra-thin': 1.5,
-  thin: 2.5,
-  medium: 4,
-  thick: 6,
-};
-
-/** Visually distinct font sizes for 24px preview icons */
-const FONT_PREVIEW_PX: Record<FontSizeKey, number> = {
-  xsmall: 10,
-  small: 13,
-  medium: 16,
-  large: 19,
-  xlarge: 22,
-};
 
 interface ToolPaletteProps {
   selectedTool: ToolName;
@@ -197,68 +176,53 @@ export function ToolPalette({
         ))}
       </div>
 
-      <div className={styles.divider} aria-hidden="true" />
+      {selectedTool !== 'text' && (
+        <>
+          <div className={styles.divider} aria-hidden="true" />
 
-      {/* Stroke width picker */}
-      <div role="radiogroup" aria-label={t('strokeWidth')} className={styles.strokeGroup}>
-        {Object.entries(ANNOTATION_STROKE_WIDTH_RATIOS).map(([key]) => {
-          const previewStrokeWidth = STROKE_PREVIEW_PX[key as StrokeWidthKey];
-          return (
-            <button
-              key={key}
-              type="button"
-              role="radio"
-              aria-checked={activeStrokeWidthKey === key}
-              aria-label={t(`stroke${key.charAt(0).toUpperCase() + key.slice(1)}`)}
-              className={`${styles.strokeButton} ${
-                activeStrokeWidthKey === key ? styles.strokeButtonActive : ''
-              }`}
-              onClick={() => onSelectStrokeWidth(key as StrokeWidthKey)}
+          {/* Stroke width picker — irrelevant for the text tool */}
+          <div className={styles.sizeDropdown}>
+            <label htmlFor="stroke-width-select" className={styles.sizeDropdownLabel}>
+              {t('strokeWidth')}
+            </label>
+            <select
+              id="stroke-width-select"
+              aria-label={t('strokeWidth')}
+              data-testid="annotator-stroke-width"
+              className={styles.sizeDropdownSelect}
+              value={activeStrokeWidthKey}
+              onChange={(e) => onSelectStrokeWidth(e.target.value as StrokeWidthKey)}
             >
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <line
-                  x1="4"
-                  y1="12"
-                  x2="20"
-                  y2="12"
-                  stroke="currentColor"
-                  strokeWidth={previewStrokeWidth}
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-          );
-        })}
-      </div>
+              <option value="extra-thin">{t('strokeExtra-thin')}</option>
+              <option value="thin">{t('strokeThin')}</option>
+              <option value="medium">{t('strokeMedium')}</option>
+              <option value="thick">{t('strokeThick')}</option>
+            </select>
+          </div>
+        </>
+      )}
 
       {(selectedTool === 'text' || selectedTool === 'measurement') && (
         <>
           <div className={styles.divider} aria-hidden="true" />
-          <div role="radiogroup" aria-label={t('fontSize')} className={styles.fontSizeGroup}>
-            {Object.entries(ANNOTATION_FONT_SIZE_RATIOS).map(([key]) => {
-              const previewFontSize = FONT_PREVIEW_PX[key as FontSizeKey];
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  role="radio"
-                  aria-checked={activeFontSizeKey === key}
-                  aria-label={t(`fontSize${key.charAt(0).toUpperCase() + key.slice(1)}`)}
-                  className={`${styles.fontSizeButton} ${
-                    activeFontSizeKey === key ? styles.fontSizeButtonActive : ''
-                  }`}
-                  onClick={() => onSelectFontSize(key)}
-                >
-                  <span style={{ fontSize: `${previewFontSize}px` }}>A</span>
-                </button>
-              );
-            })}
+          <div className={styles.sizeDropdown}>
+            <label htmlFor="font-size-select" className={styles.sizeDropdownLabel}>
+              {t('fontSize')}
+            </label>
+            <select
+              id="font-size-select"
+              aria-label={t('fontSize')}
+              data-testid="annotator-font-size"
+              className={styles.sizeDropdownSelect}
+              value={activeFontSizeKey}
+              onChange={(e) => onSelectFontSize(e.target.value)}
+            >
+              <option value="xsmall">{t('fontSizeXsmall')}</option>
+              <option value="small">{t('fontSizeSmall')}</option>
+              <option value="medium">{t('fontSizeMedium')}</option>
+              <option value="large">{t('fontSizeLarge')}</option>
+              <option value="xlarge">{t('fontSizeXlarge')}</option>
+            </select>
           </div>
         </>
       )}
