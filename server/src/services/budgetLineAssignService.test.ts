@@ -14,7 +14,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import { assignBudgetLine } from './budgetLineAssignService.js';
-import { NotFoundError, ConflictError } from '../errors/AppError.js';
+import { NotFoundError, BudgetLineAlreadyAssignedError } from '../errors/AppError.js';
 
 describe('budgetLineAssignService', () => {
   let sqlite: Database.Database;
@@ -246,17 +246,17 @@ describe('budgetLineAssignService', () => {
   // ─── 409: already assigned ─────────────────────────────────────────────────
 
   describe('409: budget line already assigned', () => {
-    it('throws ConflictError when the wib already has a work_item_id', () => {
+    it('throws BudgetLineAlreadyAssignedError when the wib already has a work_item_id', () => {
       const wiId = insertWorkItem();
       const wibId = insertAssignedWIB(wiId);
       const targetWiId = insertWorkItem('Another WI');
 
       expect(() => {
         assignBudgetLine(db, wibId, { targetType: 'work_item', targetId: targetWiId }, 'user-1');
-      }).toThrow(ConflictError);
+      }).toThrow(BudgetLineAlreadyAssignedError);
     });
 
-    it('ConflictError has code CONFLICT', () => {
+    it('BudgetLineAlreadyAssignedError has code BUDGET_LINE_ALREADY_ASSIGNED', () => {
       const wiId = insertWorkItem();
       const wibId = insertAssignedWIB(wiId);
       const targetWiId = insertWorkItem('Another WI');
@@ -267,8 +267,8 @@ describe('budgetLineAssignService', () => {
       } catch (e) {
         caught = e;
       }
-      expect(caught).toBeInstanceOf(ConflictError);
-      expect((caught as ConflictError).code).toBe('CONFLICT');
+      expect(caught).toBeInstanceOf(BudgetLineAlreadyAssignedError);
+      expect((caught as BudgetLineAlreadyAssignedError).code).toBe('BUDGET_LINE_ALREADY_ASSIGNED');
     });
   });
 

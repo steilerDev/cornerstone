@@ -13,7 +13,7 @@ import type {
   BudgetLineAssignRequest,
   InvoiceBudgetLineDetailResponse,
 } from '@cornerstone/shared';
-import { NotFoundError, ConflictError, ValidationError } from '../errors/AppError.js';
+import { NotFoundError, BudgetLineAlreadyAssignedError, ValidationError } from '../errors/AppError.js';
 import * as invoiceBudgetLineService from './invoiceBudgetLineService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -45,7 +45,7 @@ export function assignBudgetLine(
 
   // Check it's an orphan (unassigned)
   if (wib.workItemId !== null) {
-    throw new ConflictError('This budget line is already assigned.');
+    throw new BudgetLineAlreadyAssignedError('This budget line is already assigned.');
   }
 
   // Route by targetType

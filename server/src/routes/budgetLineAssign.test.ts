@@ -407,7 +407,7 @@ describe('POST /api/budget-lines/:id/assign', () => {
 
       expect(response.statusCode).toBe(409);
       const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('CONFLICT');
+      expect(body.error.code).toBe('BUDGET_LINE_ALREADY_ASSIGNED');
     });
   });
 
