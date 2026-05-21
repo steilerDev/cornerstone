@@ -30,6 +30,11 @@ export interface AppConfig {
   backupCadence?: string;
   backupRetention?: number;
   backupEnabled: boolean;
+  llmBaseUrl?: string;
+  llmApiKey?: string;
+  llmModel?: string;
+  llmRequestTimeoutMs: number;
+  autoItemizeEnabled: boolean;
 }
 
 // Type augmentation: makes fastify.config available across all routes/plugins
@@ -251,6 +256,38 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
 
   const backupEnabled = !!backupDir;
 
+  // LLM configuration (for auto-itemization via OpenAI-compatible gateway)
+  const llmBaseUrl = getValue('LLM_BASE_URL');
+  const llmApiKey = getValue('LLM_API_KEY');
+  const llmModel = getValue('LLM_MODEL');
+
+  // Validate LLM_BASE_URL scheme if provided
+  if (llmBaseUrl) {
+    try {
+      const parsed = new URL(llmBaseUrl);
+      const allowedSchemes = ['http:', 'https:'];
+      if (!allowedSchemes.includes(parsed.protocol)) {
+        errors.push(
+          `LLM_BASE_URL must use http or https scheme, got: ${parsed.protocol.replace(':', '')}`,
+        );
+      }
+    } catch {
+      errors.push(`LLM_BASE_URL must be a valid URL, got: ${llmBaseUrl}`);
+    }
+  }
+
+  // Parse and validate LLM_REQUEST_TIMEOUT_MS
+  const llmRequestTimeoutMsStr = getValue('LLM_REQUEST_TIMEOUT_MS') ?? '30000';
+  const llmRequestTimeoutMs = parseInt(llmRequestTimeoutMsStr, 10);
+  if (isNaN(llmRequestTimeoutMs) || llmRequestTimeoutMs <= 0) {
+    errors.push(
+      `LLM_REQUEST_TIMEOUT_MS must be a positive integer, got: ${llmRequestTimeoutMsStr}`,
+    );
+  }
+
+  // Auto-itemization is enabled when all three LLM env vars are set
+  const autoItemizeEnabled = !!(llmBaseUrl && llmApiKey && llmModel);
+
   // If there are any validation errors, throw a single error listing all of them
   if (errors.length > 0) {
     throw new Error(`Configuration validation failed:\n  - ${errors.join('\n  - ')}`);
@@ -284,6 +321,11 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     backupCadence,
     backupRetention,
     backupEnabled,
+    llmBaseUrl,
+    llmApiKey,
+    llmModel,
+    llmRequestTimeoutMs,
+    autoItemizeEnabled,
   };
 }
 
@@ -292,7 +334,7 @@ export default fp(
     // Load and validate configuration
     const config = loadConfig(process.env);
 
-    // Log the configuration (excluding sensitive values like oidcClientSecret)
+    // Log the configuration (excluding sensitive values like oidcClientSecret, llmApiKey)
     fastify.log.info(
       {
         port: config.port,
@@ -316,6 +358,7 @@ export default fp(
         currency: config.currency,
         backupEnabled: config.backupEnabled,
         backupDir: config.backupDir,
+        autoItemizeEnabled: config.autoItemizeEnabled,
       },
       'Configuration loaded',
     );

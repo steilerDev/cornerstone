@@ -461,6 +461,10 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 | `BACKUP_CADENCE`             | (none)                     | Cron expression for automatic backups (e.g., `0 2 * * *` for daily at 2 AM)                                   |
 | `BACKUP_RETENTION`           | (none)                     | Maximum number of backup archives to retain (oldest deleted when exceeded)                                    |
 | `DIARY_DRAFT_RETENTION_DAYS` | `30`                       | Days a draft diary entry can sit untouched before the daily orphan cleanup deletes it (set to `0` to disable) |
+| `LLM_BASE_URL`               | (none)                     | Base URL for OpenAI-compatible LLM API (e.g., `https://api.openai.com/v1`)                                    |
+| `LLM_API_KEY`                | (none)                     | API key for LLM provider authentication                                                                       |
+| `LLM_MODEL`                  | (none)                     | LLM model identifier (e.g., `gpt-4-turbo`, `claude-3-opus-20240229`)                                          |
+| `LLM_REQUEST_TIMEOUT_MS`     | `30000`                    | Timeout in milliseconds for LLM requests (must be positive integer)                                           |
 
 Production images use Docker Hardened Images (DHI). See `Dockerfile` and `docker-compose.yml` for build/deploy details.
 

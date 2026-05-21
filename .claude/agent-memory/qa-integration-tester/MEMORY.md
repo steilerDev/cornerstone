@@ -3,6 +3,22 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1546 — BudgetExtraction Service Test Patterns (2026-05-21)
+
+**fetch mock pattern for server tests**: Use `jest.fn<typeof fetch>()` + replace `globalThis.fetch` in `beforeEach`, restore in `afterEach`. Do NOT use `jest.spyOn(globalThis, 'fetch')` — the return type `ReturnType<typeof jest.spyOn<...>>` causes TS2344/TS2635 errors. See `openAICompatibleProvider.test.ts` for the pattern (also used in `paperlessService.test.ts`).
+
+**Double-call pattern causes test failures**: Tests that call `provider.extract()` twice (once in `expect(...).rejects.toThrow()` and once in a catch block to assert error.code) fail because `mockFetch` runs out of queued responses after the first call. Use a single try/catch and assert on the caught error directly.
+
+**Fixture path without import.meta**: Server test files can't use `import.meta.url` (TS1343 locally, worktree issue). Use `path.resolve(process.cwd(), 'server/src/services/...')` — `process.cwd()` is the project root when Jest runs.
+
+**`expect.fail()` not in Jest**: Use `throw new Error('should have thrown')` inside a try/catch instead of `expect.fail()`.
+
+**AppConfig toEqual maintenance**: When new fields are added to `AppConfig`, all existing `toEqual` assertions in `config.test.ts` that do exact object matching MUST be updated. Also update `makeConfig()` factories in `backupService.test.ts`, `draftCleanupService.test.ts`, and `LocaleContext.test.tsx`.
+
+**validateExtractedLines forward-compat**: Extra unknown fields on a line object are silently ignored (implementation uses `Record<string, unknown>` cast and only reads known fields). Test documents this behavior explicitly.
+
+**Provider trailing slash**: Implementation uses `.replace(/\/$/, '')` — strips exactly ONE trailing slash. Multiple trailing slashes are not fully normalized. Test only the single-slash case.
+
 ## Story #1545 — Orphan Budget Line Assignment Test Patterns (2026-05-21)
 
 **Orphan WIB seed pattern**: Insert `workItemBudgets` with `workItemId: null` (requires migration 0036 which made the column nullable). Always pair with an `invoiceBudgetLines` row pointing to the WIB — the `assignToHouseholdItem` path requires an IBL to repoint; without one it throws `NotFoundError` (no partial writes due to transaction).

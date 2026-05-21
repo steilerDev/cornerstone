@@ -325,3 +325,31 @@ export class PayloadTooLargeError extends AppError {
     this.name = 'PayloadTooLargeError';
   }
 }
+
+export class LlmUnreachableError extends AppError {
+  constructor(message = 'LLM provider is unreachable', details?: Record<string, unknown>) {
+    super('LLM_UNREACHABLE', 502, message, details);
+    this.name = 'LlmUnreachableError';
+  }
+}
+
+export class LlmInvalidResponseError extends AppError {
+  constructor(message = 'LLM returned an invalid response', details?: Record<string, unknown>) {
+    super('LLM_INVALID_RESPONSE', 502, message, details);
+    this.name = 'LlmInvalidResponseError';
+  }
+}
+
+export class LlmUpstreamError extends AppError {
+  constructor(message = 'LLM upstream error', details?: Record<string, unknown>) {
+    super('LLM_UPSTREAM_ERROR', 502, message, details);
+    this.name = 'LlmUpstreamError';
+  }
+}
+
+export class LlmNotConfiguredError extends AppError {
+  constructor(message = 'LLM gateway is not configured', details?: Record<string, unknown>) {
+    super('LLM_NOT_CONFIGURED', 503, message, details);
+    this.name = 'LlmNotConfiguredError';
+  }
+}
