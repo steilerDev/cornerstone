@@ -460,12 +460,7 @@ function EraserIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path
-        d="M9.5 7.5l7 7"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      <path d="M9.5 7.5l7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
