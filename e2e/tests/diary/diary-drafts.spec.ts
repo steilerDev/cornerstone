@@ -649,7 +649,7 @@ test.describe('Promote draft — happy path (Scenario 9)', { tag: '@responsive' 
 // an empty-body draft. Production code path inspects as correct; needs trace
 // investigation. Server-side validation on /promote still enforces the rule.
 test.describe('Promote draft — validation error (Scenario 10)', () => {
-  test.skip('Clicking Save with empty body shows validation error; URL unchanged; entry stays draft', async ({
+  test('Clicking Save with empty body shows validation error; URL unchanged; entry stays draft', async ({
     page,
   }) => {
     const editPage = new DiaryEntryEditPage(page);

@@ -167,3 +167,16 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - `queueAriaLabel` → "Foto-Upload-Warteschlange" (compound noun, no space)
 - `unknownError` → "Unbekannter Upload-Fehler"
 - **Duplicate key issue in en/diary.json**: The English file has duplicate top-level keys (`filterBar`, `createPage`, `editPage`). In JSON the last occurrence wins. The de/ file must be kept as a single flat object — never duplicate keys. New keys from the second English occurrence are appended to the existing de/ section.
+
+## Photo Annotator Namespace Patterns — Stories #1475 / #1476 (2026-05-18)
+
+Namespace: `photoAnnotator` (`client/src/i18n/de/photoAnnotator.json`)
+
+- Tool labels: `{Noun}-Werkzeug` compound — e.g., "Pfeil-Werkzeug", "Ellipsen-Werkzeug", "Text-Werkzeug", "Sprechblasen-Werkzeug"
+- Live-region announcements: `{Noun} hinzugefügt` — e.g., "Pfeil hinzugefügt", "Sprechblase hinzugefügt"
+- **"Callout" = "Sprechblase"** (speech bubble) — most natural German UI term for a callout annotation shape. Used consistently: `toolCallout` = "Sprechblasen-Werkzeug", `shapeAddedCallout` = "Sprechblase hinzugefügt", `editCallout` = "Sprechblasentext bearbeiten"
+- `calloutTailPositioning` (instructional drag hint) = "Zeiger der Sprechblase positionieren" — kept short and imperative, avoids overly long compound nouns
+- Font size labels: `fontSizeSmall/Medium/Large/Xlarge` = "Klein" / "Mittel" / "Gross" / "Sehr gross"
+- Note: `fontSizeMedium` = "Mittel" — same string as `strokeMedium`; intentional (both are size labels)
+- "Callout" is a generic UI term (not a domain model entity) — no glossary entry required per spec
+- `de/photoAnnotator.json` key count after #1476: 49 keys (matches `en/photoAnnotator.json`)
