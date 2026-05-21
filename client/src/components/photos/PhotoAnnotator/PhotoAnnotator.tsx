@@ -917,7 +917,9 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                         const newX1 = e.target.x();
                         const newY1 = e.target.y();
                         const updated = { ...sel, x1: newX1, y1: newY1 };
-                        undoStack.commit(undoStack.shapes.map((s) => (s.id === sel.id ? updated : s)));
+                        undoStack.commit(
+                          undoStack.shapes.map((s) => (s.id === sel.id ? updated : s)),
+                        );
                       }}
                     />
                     <Circle
@@ -940,7 +942,9 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
                         const newX2 = e.target.x();
                         const newY2 = e.target.y();
                         const updated = { ...sel, x2: newX2, y2: newY2 };
-                        undoStack.commit(undoStack.shapes.map((s) => (s.id === sel.id ? updated : s)));
+                        undoStack.commit(
+                          undoStack.shapes.map((s) => (s.id === sel.id ? updated : s)),
+                        );
                       }}
                     />
                   </>

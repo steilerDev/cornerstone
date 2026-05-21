@@ -117,7 +117,9 @@ export function annotatorReducer(
 
     case 'UPDATE_SHAPE': {
       const liveShapesOnUpdate = undoStack?.shapes ?? state.shapes;
-      const updatedShapes = liveShapesOnUpdate.map((s) => (s.id === action.shape.id ? action.shape : s));
+      const updatedShapes = liveShapesOnUpdate.map((s) =>
+        s.id === action.shape.id ? action.shape : s,
+      );
       undoStack?.replace(updatedShapes);
       return { ...state, shapes: updatedShapes };
     }
