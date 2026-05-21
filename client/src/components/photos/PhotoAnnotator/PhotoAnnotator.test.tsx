@@ -356,28 +356,13 @@ describe('PhotoAnnotator', () => {
     }
   });
 
-  it('shows Reset button when photo.annotatedAt is set', async () => {
-    const annotatedAt = '2026-05-17T10:00:00.000Z';
-    await renderAnnotator({ annotatedAt });
-    // Reset button — text from t('reset') = "Reset to original"
-    expect(screen.getByRole('button', { name: /Reset to original/i })).toBeInTheDocument();
-  });
-
-  it('clicking Reset button opens confirmation modal', async () => {
+  it('does NOT show in-annotator Reset button on an annotated photo', async () => {
+    // Reset button was removed; the PhotoViewer "Clear annotations" entry-point covers this.
     await renderAnnotator({ annotatedAt: '2026-05-17T10:00:00.000Z' });
-
-    const resetBtn = screen.getByRole('button', { name: /Reset to original/i });
-    fireEvent.click(resetBtn);
-
-    // Modal renders with a dialog role (from the Modal stub)
-    await waitFor(() => {
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-    });
+    expect(screen.queryByTestId('annotator-reset')).not.toBeInTheDocument();
   });
 
-  it('does NOT show Reset button when photo has no annotations (annotatedAt is null)', async () => {
-    // Reset button is conditional on photo.annotatedAt — it only appears for previously-annotated
-    // photos. When annotatedAt is null the button must be absent (E2E compatibility: round-7 behavior).
+  it('does NOT show Reset button when photo has no annotations', async () => {
     await renderAnnotator({ annotatedAt: null });
     expect(screen.queryByTestId('annotator-reset')).not.toBeInTheDocument();
   });

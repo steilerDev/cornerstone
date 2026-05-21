@@ -176,27 +176,31 @@ export function ToolPalette({
         ))}
       </div>
 
-      <div className={styles.divider} aria-hidden="true" />
+      {selectedTool !== 'text' && (
+        <>
+          <div className={styles.divider} aria-hidden="true" />
 
-      {/* Stroke width picker */}
-      <div className={styles.sizeDropdown}>
-        <label htmlFor="stroke-width-select" className={styles.sizeDropdownLabel}>
-          {t('strokeWidth')}
-        </label>
-        <select
-          id="stroke-width-select"
-          aria-label={t('strokeWidth')}
-          data-testid="annotator-stroke-width"
-          className={styles.sizeDropdownSelect}
-          value={activeStrokeWidthKey}
-          onChange={(e) => onSelectStrokeWidth(e.target.value as StrokeWidthKey)}
-        >
-          <option value="extra-thin">{t('strokeExtra-thin')}</option>
-          <option value="thin">{t('strokeThin')}</option>
-          <option value="medium">{t('strokeMedium')}</option>
-          <option value="thick">{t('strokeThick')}</option>
-        </select>
-      </div>
+          {/* Stroke width picker — irrelevant for the text tool */}
+          <div className={styles.sizeDropdown}>
+            <label htmlFor="stroke-width-select" className={styles.sizeDropdownLabel}>
+              {t('strokeWidth')}
+            </label>
+            <select
+              id="stroke-width-select"
+              aria-label={t('strokeWidth')}
+              data-testid="annotator-stroke-width"
+              className={styles.sizeDropdownSelect}
+              value={activeStrokeWidthKey}
+              onChange={(e) => onSelectStrokeWidth(e.target.value as StrokeWidthKey)}
+            >
+              <option value="extra-thin">{t('strokeExtra-thin')}</option>
+              <option value="thin">{t('strokeThin')}</option>
+              <option value="medium">{t('strokeMedium')}</option>
+              <option value="thick">{t('strokeThick')}</option>
+            </select>
+          </div>
+        </>
+      )}
 
       {(selectedTool === 'text' || selectedTool === 'measurement') && (
         <>

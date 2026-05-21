@@ -67,8 +67,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [isShowingOriginal, setIsShowingOriginal] = useState(false);
+  const [isShowingOriginal] = useState(false);
 
   const [inlineInput, setInlineInput] = useState<InlineInputState>({
     isOpen: false,
@@ -126,12 +125,15 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     if (!transformerRef.current) return;
 
     const selectedShape = state.shapes.find((s) => s.id === state.selectedShapeId);
-    const isLineLike =
+    // Line-family shapes get custom endpoint Circle handles instead of the 2D Transformer.
+    // Text shapes are sized via the Font Size dropdown, not by dragging anchors.
+    const skipsTransformer =
       selectedShape?.type === 'arrow' ||
       selectedShape?.type === 'line' ||
-      selectedShape?.type === 'measurement';
+      selectedShape?.type === 'measurement' ||
+      selectedShape?.type === 'text';
 
-    if (!state.selectedShapeId || isLineLike) {
+    if (!state.selectedShapeId || skipsTransformer) {
       transformerRef.current.nodes([]);
       return;
     }
@@ -669,17 +671,6 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     }
   }, [photo, canonicalUrl, undoStack, onSave, t]);
 
-  const handleReset = useCallback(() => {
-    setIsShowingOriginal(true);
-    undoStack.clear();
-    setDraftShape(null);
-    dispatch({ type: 'SELECT_SHAPE', id: null });
-    setShowResetConfirm(false);
-    if (liveRegionRef.current) {
-      liveRegionRef.current.textContent = t('resetComplete');
-    }
-  }, [undoStack, dispatch, t]);
-
   const handleCancel = useCallback(() => {
     onCancel();
   }, [onCancel]);
@@ -984,16 +975,6 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         >
           {t('cancel')}
         </button>
-        {photo.annotatedAt && (
-          <button
-            type="button"
-            onClick={() => setShowResetConfirm(true)}
-            className={styles.resetButton}
-            data-testid="annotator-reset"
-          >
-            {t('reset')}
-          </button>
-        )}
         <button
           type="button"
           onClick={handleSave}
@@ -1006,18 +987,6 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       </div>
 
       {saveError && <FormError message={saveError} />}
-
-      {showResetConfirm && (
-        <Modal onClose={() => setShowResetConfirm(false)} title={t('resetConfirmTitle')}>
-          <p>{t('resetConfirmBody')}</p>
-          <div className={styles.modalActions}>
-            <button onClick={() => setShowResetConfirm(false)}>{t('cancel')}</button>
-            <button onClick={handleReset} className={styles.confirmButton}>
-              {t('reset')}
-            </button>
-          </div>
-        </Modal>
-      )}
 
       <div ref={liveRegionRef} role="status" aria-live="polite" aria-atomic />
     </section>
