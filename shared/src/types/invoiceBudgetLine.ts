@@ -90,6 +90,7 @@ export interface InvoiceBudgetLineSummary {
 /**
  * Detailed invoice budget line response (GET /api/invoices/:invoiceId/budget-lines).
  * Includes full details of the linked budget line and its parent item.
+ * parentItemType can be 'unassigned' for orphan work_item_budget rows with no parent.
  */
 export interface InvoiceBudgetLineDetailResponse {
   id: string;
@@ -104,9 +105,9 @@ export interface InvoiceBudgetLineDetailResponse {
   categoryName: string | null;
   categoryColor: string | null;
   categoryTranslationKey: string | null;
-  parentItemId: string;
-  parentItemTitle: string;
-  parentItemType: 'work_item' | 'household_item';
+  parentItemId: string | null;
+  parentItemTitle: string | null;
+  parentItemType: 'work_item' | 'household_item' | 'unassigned';
   parentItemArea: AreaSummary | null;
   createdAt: string;
   updatedAt: string;
@@ -129,3 +130,19 @@ export interface InvoiceBudgetLineListDetailResponse {
   budgetLines: InvoiceBudgetLineDetailResponse[];
   remainingAmount: number;
 }
+
+/**
+ * Request body for assigning an orphan budget line to a parent item.
+ * targetType determines whether the line is assigned to a work_item or household_item.
+ * budgetCategoryId is optional; if provided, it overrides the line's current category.
+ */
+export interface BudgetLineAssignRequest {
+  targetType: 'work_item' | 'household_item';
+  targetId: string;
+  budgetCategoryId?: string | null;
+}
+
+/**
+ * Response for assigning a budget line (returns the full detail of the assigned line).
+ */
+export type BudgetLineAssignResponse = InvoiceBudgetLineDetailResponse;

@@ -108,3 +108,12 @@ See `pr-1490-measurement-freehand.md`. Medium: `labelAttrs { display:'none' }` d
 ## Story 4.9 — Invoice Linking for HI Budget Lines (Issue #413)
 
 See `story-4-9-invoice-linking-hi.md`. Entity type toggle (`role="group"` + `role="radio"`), "Linked To" column hidden at tablet.
+
+## Story #1545 — Unassigned IBL + One-Shot Parent Assignment (PR #1548)
+
+- `iblUnassigned` Badge class: `--color-status-not-started-bg` + `--color-text-muted` + `font-style:italic` — distinguishes from work-item "not_started" badge
+- IBL table `tdLinkedItem` cell: `display:flex; align-items:center; gap:var(--spacing-2)` wrapper (`unassignedCell`) holding badge + inline "Assign…" ghost button
+- Parent picker section in BudgetLineForm: inset panel with `--color-bg-tertiary` bg + `--color-border` border + `--radius-md`
+- Modal width for edit with picker visible: `min(640px, calc(100vw - 2rem))`
+- Focus auto-advance: use `requestAnimationFrame` (not `setTimeout`) for React 19 concurrent rendering
+- RECURRING BUG pattern: `BadgeVariantMap` entries must include BOTH `label` (translated) AND `className` (CSS module class) — missing className means the CSS variant rule has no effect; missing i18n means hardcoded English text visible to users. PR #1548 shipped `UNASSIGNED_BADGE_VARIANTS` without `className: badgeStyles.iblUnassigned` — the `.iblUnassigned` style rule was dead on arrival.

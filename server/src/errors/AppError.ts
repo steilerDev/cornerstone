@@ -141,6 +141,16 @@ export class BudgetLineAlreadyLinkedError extends AppError {
   }
 }
 
+export class BudgetLineAlreadyAssignedError extends AppError {
+  constructor(
+    message = 'Budget line is already assigned to a parent item',
+    details?: Record<string, unknown>,
+  ) {
+    super('BUDGET_LINE_ALREADY_ASSIGNED', 409, message, details);
+    this.name = 'BudgetLineAlreadyAssignedError';
+  }
+}
+
 export class ItemizedSumExceedsInvoiceError extends AppError {
   constructor(
     message = 'Sum of itemized amounts would exceed the invoice total',

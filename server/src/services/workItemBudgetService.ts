@@ -21,7 +21,7 @@ function toWorkItemBudgetLine(
 ): WorkItemBudgetLine {
   return {
     id: row.id,
-    workItemId: row.workItemId,
+    workItemId: row.workItemId!,
     description: row.description,
     plannedAmount: row.plannedAmount,
     confidence: rel.confidence,

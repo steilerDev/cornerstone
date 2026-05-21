@@ -81,6 +81,8 @@ export interface BaseBudgetLine {
   budgetCategory: BudgetCategory | null;
   budgetSource: BudgetSourceSummary | null;
   vendor: VendorSummary | null;
+  /** Origin of the budget line: 'manual' (user-created) or 'auto' (system-generated, e.g., from Paperless OCR) */
+  origin?: 'manual' | 'auto';
   /**
    * Computed: sum of itemized amounts from all linked invoices regardless of
    * status — `draft`, `received`, `paid`, `claimed`, AND `quotation` are all

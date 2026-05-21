@@ -239,6 +239,40 @@
   text-decoration: underline;
 }
 
+.unassignedCell {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.assignButton {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.assignButton:hover:not(:disabled) {
+  color: var(--color-primary-hover);
+  opacity: 0.85;
+}
+
+.assignButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.assignButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .tdActions {
   @extend .td;
   text-align: center;

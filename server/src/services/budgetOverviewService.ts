@@ -49,6 +49,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   const sourceCount = sourcesRow?.sourceCount ?? 0;
 
   // ── 2. All budget lines (UNION work items + household items) ────────────────
+  // Note: work_item_budgets must filter WHERE work_item_id IS NOT NULL to exclude orphan rows
   const budgetLines = db.all<{
     id: string;
     entityId: string;
@@ -65,6 +66,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       budget_category_id AS budgetCategoryId,
       includes_vat    AS includesVat
     FROM work_item_budgets
+    WHERE work_item_id IS NOT NULL
     UNION ALL
     SELECT
       id              AS id,

@@ -50,6 +50,8 @@ Action labels in German follow the pattern: `{Noun} {Verb}` with capitalised fir
 - `de/budget.json` — Issue #1356 (2026-04-25): `sourceFilter` rework — removed `label`, `allSources`, `clearAriaLabel`, `chipSelected`, `chipNotSelected`, `activeAnnouncement`; added `statusAnnouncement`; added new blocks `sourceRow.*` and `availableFunds.*`
 - **Pre-existing gap** (as of 2026-04-25, outside #1356 scope): `sources.lines.typeColumnHeader` and `sources.lines.statusColumnHeader` exist in `en` but not `de` — needs a dedicated spec to fix
 - `de/budget.json` — `invoiceDetail.budgetLines` block added 2026-05-10 (Issue #1401): `createFormLegend` + `autoLinkedSuccess`
+- `de/budget.json` — Issue #1545 (2026-05-21): `invoiceDetail.budgetLines.unassigned`, `unassignedAriaLabel`, `assignButton`, `assigningButton`, `assignAriaLabel`, `assignedSuccess`, `assignParentRequired` added; `budgetLineForm.parentPickerLabel`, `parentPickerWorkItemTab`, `parentPickerHouseholdItemTab`, `parentPickerSeparator`, `parentPickerFieldsetLegend`, `parentPickerError` added
+- `de/errors.json` — `BUDGET_LINE_ALREADY_ASSIGNED` had glossary violations ("Arbeitselement" → "Arbeitspaket", "Haushaltsgegenstand" → "Haushaltsartikel") — corrected 2026-05-21 (Issue #1545)
 - Always check key parity when picking up a new translator spec
 
 ## Backup/Restore Terminology (2026-03-22)
@@ -167,6 +169,20 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - `queueAriaLabel` → "Foto-Upload-Warteschlange" (compound noun, no space)
 - `unknownError` → "Unbekannter Upload-Fehler"
 - **Duplicate key issue in en/diary.json**: The English file has duplicate top-level keys (`filterBar`, `createPage`, `editPage`). In JSON the last occurrence wins. The de/ file must be kept as a single flat object — never duplicate keys. New keys from the second English occurrence are appended to the existing de/ section.
+
+## Budget Line Assignment Patterns — Issue #1545 (2026-05-21)
+
+- `invoiceDetail.budgetLines.unassigned` → "Nicht zugewiesen" (glossary: Unassigned = "Nicht zugewiesen"; same as source-filter and source-badge contexts)
+- `unassignedAriaLabel` → "Nicht zugewiesen – kein Arbeitspaket oder Haushaltsartikel verknüpft" (en-dash separating state from elaboration)
+- `assignButton` → "Zuweisen…" (ellipsis = opens dialog/picker, consistent with German UI convention)
+- `assigningButton` → "Wird zugewiesen…" (progressive: "Wird [Verb]…" pattern)
+- `assignAriaLabel` → "{{description}} einem Arbeitspaket oder Haushaltsartikel zuweisen" (dative "einem" before Arbeitspaket; "oder einem" elided because Haushaltsartikel takes the same dative article)
+- `assignedSuccess` → "Budgetposition '{{lineDescription}}' wurde {{parentItemName}} zugewiesen" (passive past, glossary term "Budgetposition")
+- `assignParentRequired` → "Bitte wählen Sie ein Arbeitspaket oder einen Haushaltsartikel aus" ("ein" for neuter Arbeitspaket; "einen" for masculine Haushaltsartikel — correct article agreement)
+- `budgetLineForm.parentPickerLabel` → "Zuweisen zu" (short label; "Assign to" rendered as "Zuweisen zu" not "Zuweisung an" — verb-based label consistent with action buttons)
+- `parentPickerFieldsetLegend` → "Arbeitspaket oder Haushaltsartikel zuweisen" (infinitive phrase for fieldset legends)
+- `parentPickerError` → "Budgetposition konnte nicht zugewiesen werden. Bitte versuchen Sie es erneut." (standard error message pattern)
+- **Glossary violation found and fixed**: frontend-developer used "Arbeitselement" and "Haushaltsgegenstand" in `de/errors.json` `BUDGET_LINE_ALREADY_ASSIGNED` — always scan errors.json for non-glossary terms when new error codes are added
 
 ## photoAnnotator Namespace Patterns (Issue #1475, 2026-05-18)
 

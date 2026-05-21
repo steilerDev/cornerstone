@@ -627,6 +627,13 @@
         "remove": "Remove",
         "ariaLabel": "Budget line actions for {{description}}"
       },
+      "unassigned": "Unassigned",
+      "unassignedAriaLabel": "Unassigned — no work item or household item linked",
+      "assignButton": "Assign…",
+      "assigningButton": "Assigning…",
+      "assignAriaLabel": "Assign {{description}} to a work item or household item",
+      "assignedSuccess": "Budget line '{{lineDescription}}' assigned to {{parentItemName}}",
+      "assignParentRequired": "Please select a work item or household item",
       "modal": {
         "editTitle": "Edit Budget Line",
         "removeTitle": "Remove Budget Line",
@@ -831,6 +838,7 @@
     }
   },
   "budgetLineForm": {
+    "assignButton": "Assign",
     "descriptionLabel": "Description",
     "descriptionPlaceholder": "Optional description",
     "modeDirect": "Direct Amount",
@@ -852,7 +860,13 @@
     "submitSaving": "Saving...",
     "submitSave": "Save Changes",
     "submitAdd": "Add Line",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "parentPickerLabel": "Assign to",
+    "parentPickerWorkItemTab": "Work Item",
+    "parentPickerHouseholdItemTab": "Household Item",
+    "parentPickerSeparator": "or",
+    "parentPickerFieldsetLegend": "Assign to work item or household item",
+    "parentPickerError": "Failed to assign budget line. Please try again."
   },
   "health": {
     "overBudget": "Over Budget",

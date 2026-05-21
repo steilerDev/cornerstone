@@ -559,7 +559,14 @@
       "remainingAriaLabel": "Verbleibender Betrag: {{amount}}",
       "loadError": "Budgetpositionen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
       "dismissError": "Schließen",
-      "dismissErrorAriaLabel": "Fehler schließen"
+      "dismissErrorAriaLabel": "Fehler schließen",
+      "unassigned": "Nicht zugewiesen",
+      "unassignedAriaLabel": "Nicht zugewiesen – kein Arbeitspaket oder Haushaltsartikel verknüpft",
+      "assignButton": "Zuweisen…",
+      "assigningButton": "Wird zugewiesen…",
+      "assignAriaLabel": "{{description}} einem Arbeitspaket oder Haushaltsartikel zuweisen",
+      "assignedSuccess": "Budgetposition '{{lineDescription}}' wurde {{parentItemName}} zugewiesen",
+      "assignParentRequired": "Bitte wählen Sie ein Arbeitspaket oder einen Haushaltsartikel aus"
     },
     "deposits": {
       "sectionTitle": "Abschlagszahlungen",
@@ -717,6 +724,7 @@
     }
   },
   "budgetLineForm": {
+    "assignButton": "Zuweisen",
     "descriptionLabel": "Beschreibung",
     "descriptionPlaceholder": "Optionale Beschreibung",
     "modeDirect": "Direktbetrag",
@@ -738,7 +746,13 @@
     "submitSaving": "Wird gespeichert...",
     "submitSave": "Änderungen speichern",
     "submitAdd": "Position hinzufügen",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "parentPickerLabel": "Zuweisen zu",
+    "parentPickerWorkItemTab": "Arbeitspaket",
+    "parentPickerHouseholdItemTab": "Haushaltsartikel",
+    "parentPickerSeparator": "oder",
+    "parentPickerFieldsetLegend": "Arbeitspaket oder Haushaltsartikel zuweisen",
+    "parentPickerError": "Budgetposition konnte nicht zugewiesen werden. Bitte versuchen Sie es erneut."
   },
   "health": {
     "overBudget": "Über Budget",

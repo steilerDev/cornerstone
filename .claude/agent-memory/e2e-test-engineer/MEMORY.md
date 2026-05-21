@@ -53,6 +53,19 @@
 - **Scenario 8 in diary-r2-uat.spec.ts**: Migrated from `create-photo-input` on create form to `photo-file-input` on edit page (post-#1435 flow). Now tests: goto /diary/new → selectType → waitForURL(/diary\/.+\/edit$/) → assert photo-file-input present, has accept=image/\*, has multiple=''. Uses `deleteDiaryEntryViaApi` for cleanup — import added to file.
 - **`create-photo-input` testId is GONE** post-#1435. Only `photo-file-input` (on edit page) exists.
 
+## Orphan Budget Line Assignment E2E (Story #1545, 2026-05-21) — PR #1548
+
+- No REST API creates `work_item_budgets` with `work_item_id=NULL`. Seed via Docker exec: `execSync("docker exec <cornerstoneContainerId> node -e \"...\"")`. Container has `node` binary (confirmed by HEALTHCHECK). `better-sqlite3` at `/app/server/node_modules/`. Read container ID from `e2e/test-results/.state/containers.json`.
+- Unassigned badge selector: `locator('[class*="badge"]', { hasText: 'Unassigned' })`. Has `aria-label="Unassigned — no work item or household item linked"`.
+- Assign button selector: `locator('[class*="assignButton"]', { hasText: 'Assign…' })`. Only present when `line.parentItemType === 'unassigned'`.
+- Edit modal title "Edit Budget Line": `page.getByRole('dialog', { name: 'Edit Budget Line' })`. Same modal renders differently for assigned vs unassigned lines.
+- Parent picker fieldset: `editModal.locator('fieldset[class*="parentPickerSection"]')`. Only visible for unassigned lines (`isUnassigned={true}` in BudgetLineForm props).
+- Assign submit button: `parentPickerFieldset.locator('[class*="assignSubmitButton"]')`. **BUG**: Button text is "Work Item" (uses wrong i18n key `budgetLineForm.parentPickerWorkItemTab`) — use CSS selector, NOT button text.
+- After HI assignment: original `work_item_budgets` row is DELETED by service (replaced by `household_item_budgets`). No need to call `deleteOrphanWorkItemBudget` in cleanup.
+- Assign endpoint: `POST /api/budget-lines/:id/assign` where `:id` is `work_item_budget.id` (NOT `invoice_budget_line.id`).
+- Line rows have `data-row-id` attribute: `locator('tr[data-row-id]').filter({ hasText: description })`.
+- Test file: `e2e/tests/budget/budget-line-assign.spec.ts` (6 scenarios; @smoke on 1 and 2; @responsive on 1 and 2).
+
 ## InvoiceBudgetLinesSection Picker (Issue #1401, 2026-05-10)
 
 - Picker modal: `role="dialog"`, `aria-labelledby="picker-title"` — same modal for BOTH the invoice edit modal and the picker.

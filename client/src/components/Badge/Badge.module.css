@@ -199,6 +199,13 @@
   font-style: italic;
 }
 
+/* IBL unassigned parent — neutral gray, italic */
+.iblUnassigned {
+  background-color: var(--color-status-not-started-bg);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
 /* Draft status badge */
 .draft {
   background-color: var(--color-warning-bg);
