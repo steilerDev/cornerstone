@@ -309,7 +309,7 @@ describe('POST /api/budget-lines/:id/assign', () => {
       expect(response.statusCode).toBe(400);
     });
 
-    it('returns 400 when additional unknown properties are included', async () => {
+    it('returns 400 when targetId is missing', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
       const { wibId } = createOrphanWithInvoice();
 
@@ -317,7 +317,7 @@ describe('POST /api/budget-lines/:id/assign', () => {
         method: 'POST',
         url: `/api/budget-lines/${wibId}/assign`,
         headers: { cookie },
-        payload: { targetType: 'work_item', targetId: 'wi-1', unknownField: 'x' },
+        payload: { targetType: 'work_item' },
       });
 
       expect(response.statusCode).toBe(400);
@@ -446,12 +446,12 @@ describe('POST /api/budget-lines/:id/assign', () => {
         method: 'POST',
         url: `/api/budget-lines/${wibId}/assign`,
         headers: { cookie },
-        payload: { targetType: 'work_item', targetId: wiId, budgetCategoryId: 'bc-construction' },
+        payload: { targetType: 'work_item', targetId: wiId, budgetCategoryId: 'bc-materials' },
       });
 
       expect(response.statusCode).toBe(200);
       const body = response.json<InvoiceBudgetLineDetailResponse>();
-      expect(body.categoryId).toBe('bc-construction');
+      expect(body.categoryId).toBe('bc-materials');
     });
 
     it('response includes id, invoiceId, and timestamp fields', async () => {

@@ -342,7 +342,7 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
       expect(result).toHaveProperty('minPlanned');
       expect(result).toHaveProperty('maxPlanned');
       expect(result).toHaveProperty('actualCost');
-      expect(result).toHaveProperty('actualPaid');
+      expect(result).toHaveProperty('actualCostPaid');
     });
 
     it('two assigned lines and one orphan — correct rollup', () => {

@@ -559,11 +559,12 @@ export function InvoiceBudgetLinesSection({
    */
   const handleAssignBudgetLine = useCallback(
     async (body: BudgetLineAssignRequest) => {
-      if (!selectedBudgetLine) return;
+      if (!selectedBudgetLine?.workItemBudgetId) return;
+      const wibId = selectedBudgetLine.workItemBudgetId;
       setAssigningLineId(selectedBudgetLine.id);
 
       try {
-        await assignBudgetLine(selectedBudgetLine.id, body);
+        await assignBudgetLine(wibId, body);
         await loadBudgetLines();
         closeBudgetLineModal();
       } catch (err) {
@@ -1282,7 +1283,7 @@ function EditBudgetLineModal({
           isUnassigned={true}
           focusParentPicker={focusParentPicker}
           onAssign={onAssign}
-          assignBudgetLineId={line.id}
+          assignBudgetLineId={line.workItemBudgetId ?? undefined}
         />
       ) : (
         // For assigned budget lines, show the simple amount input form

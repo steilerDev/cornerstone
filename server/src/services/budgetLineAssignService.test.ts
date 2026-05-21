@@ -332,8 +332,8 @@ describe('budgetLineAssignService', () => {
     it('updates budgetCategoryId when budgetCategoryId is provided in body', () => {
       const { wibId } = insertOrphanWithInvoice({ budgetCategoryId: null });
       const wiId = insertWorkItem();
-      // 'bc-construction' is a seeded budget category from migrations
-      const catId = 'bc-construction';
+      // 'bc-materials' is a seeded budget category from migrations
+      const catId = 'bc-materials';
 
       assignBudgetLine(db, wibId, {
         targetType: 'work_item',
@@ -423,7 +423,7 @@ describe('budgetLineAssignService', () => {
     });
 
     it('new household_item_budgets row has budgetCategoryId forced to bc-household-items', () => {
-      const { wibId } = insertOrphanWithInvoice({ budgetCategoryId: 'bc-construction' });
+      const { wibId } = insertOrphanWithInvoice({ budgetCategoryId: 'bc-materials' });
       const hiId = insertHouseholdItem();
 
       assignBudgetLine(db, wibId, { targetType: 'household_item', targetId: hiId }, 'user-1');
