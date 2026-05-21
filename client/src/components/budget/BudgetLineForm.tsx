@@ -410,9 +410,7 @@ export function BudgetLineForm({
                 />
               )}
             </div>
-            {parentPickerError && (
-              <p className={styles.parentPickerError}>{parentPickerError}</p>
-            )}
+            {parentPickerError && <p className={styles.parentPickerError}>{parentPickerError}</p>}
             <button
               type="button"
               className={styles.assignSubmitButton}

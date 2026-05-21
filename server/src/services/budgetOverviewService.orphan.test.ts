@@ -151,7 +151,18 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
     const id = makeId('vendor');
     const t = ts();
     db.insert(schema.vendors)
-      .values({ id, name: `Vendor ${id}`, tradeId: null, phone: null, email: null, address: null, notes: null, createdBy: null, createdAt: t, updatedAt: t })
+      .values({
+        id,
+        name: `Vendor ${id}`,
+        tradeId: null,
+        phone: null,
+        email: null,
+        address: null,
+        notes: null,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
       .run();
     return id;
   }
@@ -159,7 +170,11 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
   /**
    * Insert an invoice linked to a work_item_budget via invoice_budget_lines.
    */
-  function insertInvoiceLinkedToWIB(wibId: string, amount: number, status: 'pending' | 'paid' | 'claimed' | 'quotation' = 'paid'): string {
+  function insertInvoiceLinkedToWIB(
+    wibId: string,
+    amount: number,
+    status: 'pending' | 'paid' | 'claimed' | 'quotation' = 'paid',
+  ): string {
     const vendorId = insertVendor();
     const invoiceId = makeId('inv');
     const t1 = ts();

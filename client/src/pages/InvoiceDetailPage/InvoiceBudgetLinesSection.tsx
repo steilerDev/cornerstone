@@ -173,12 +173,9 @@ export function InvoiceBudgetLinesSection({
     setBudgetLineModalMode('edit');
   };
 
-  const openAssignModal = useCallback(
-    (line: InvoiceBudgetLineDetailResponse) => {
-      openEditBudgetLineModal(line, { focusParentPicker: true });
-    },
-    [],
-  );
+  const openAssignModal = useCallback((line: InvoiceBudgetLineDetailResponse) => {
+    openEditBudgetLineModal(line, { focusParentPicker: true });
+  }, []);
 
   const openRemoveBudgetLineModal = (line: InvoiceBudgetLineDetailResponse) => {
     setSelectedBudgetLine(line);
@@ -1279,7 +1276,17 @@ function EditBudgetLineModal({
           confidenceLabels={CONFIDENCE_LABELS}
           budgetSources={[]}
           vendors={[]}
-          budgetCategories={line.categoryName ? ([{ id: line.categoryId || '', name: line.categoryName, translationKey: line.categoryTranslationKey || '' }] as BudgetCategory[]) : []}
+          budgetCategories={
+            line.categoryName
+              ? ([
+                  {
+                    id: line.categoryId || '',
+                    name: line.categoryName,
+                    translationKey: line.categoryTranslationKey || '',
+                  },
+                ] as BudgetCategory[])
+              : []
+          }
           staticCategoryLabel={
             line.categoryName
               ? getCategoryDisplayName(tSettings, line.categoryName, line.categoryTranslationKey)
@@ -1295,12 +1302,16 @@ function EditBudgetLineModal({
         <form id="budget-line-edit-form" onSubmit={onSubmit} noValidate>
           {error && <FormError message={error} />}
 
-          <p className={styles.editModalHint}>{t('invoiceDetail.budgetLines.form.itemizedAmount')}</p>
+          <p className={styles.editModalHint}>
+            {t('invoiceDetail.budgetLines.form.itemizedAmount')}
+          </p>
 
           <div className={styles.formField}>
             <label htmlFor="budget-line-amount" className={styles.label}>
               {t('invoiceDetail.budgetLines.form.itemizedAmount')}
-              <span className={styles.required}>{t('invoiceDetail.budgetLines.form.required')}</span>
+              <span className={styles.required}>
+                {t('invoiceDetail.budgetLines.form.required')}
+              </span>
             </label>
             <input
               type="number"

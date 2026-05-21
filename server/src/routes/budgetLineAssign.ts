@@ -38,22 +38,18 @@ export default async function budgetLineAssignRoutes(fastify: FastifyInstance) {
   fastify.post<{
     Params: { id: string };
     Body: BudgetLineAssignRequest;
-  }>(
-    '/:id/assign',
-    { schema: assignBudgetLineSchema },
-    async (request, reply) => {
-      if (!request.user) {
-        throw new UnauthorizedError();
-      }
+  }>('/:id/assign', { schema: assignBudgetLineSchema }, async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError();
+    }
 
-      const result = budgetLineAssignService.assignBudgetLine(
-        fastify.db,
-        request.params.id,
-        request.body,
-        request.user.id,
-      );
+    const result = budgetLineAssignService.assignBudgetLine(
+      fastify.db,
+      request.params.id,
+      request.body,
+      request.user.id,
+    );
 
-      return reply.status(200).send(result);
-    },
-  );
+    return reply.status(200).send(result);
+  });
 }

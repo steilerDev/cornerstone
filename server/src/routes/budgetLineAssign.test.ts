@@ -57,8 +57,20 @@ describe('POST /api/budget-lines/:id/assign', () => {
   function createTestVendor(name: string): string {
     const id = `vendor-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = new Date(Date.now() + tsOffset++).toISOString();
-    app.db.insert(schema.vendors)
-      .values({ id, name, tradeId: null, phone: null, email: null, address: null, notes: null, createdBy: null, createdAt: t, updatedAt: t })
+    app.db
+      .insert(schema.vendors)
+      .values({
+        id,
+        name,
+        tradeId: null,
+        phone: null,
+        email: null,
+        address: null,
+        notes: null,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
       .run();
     return id;
   }
@@ -66,7 +78,8 @@ describe('POST /api/budget-lines/:id/assign', () => {
   function createTestWorkItem(title = 'Test Work Item'): string {
     const id = `wi-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = new Date(Date.now() + tsOffset++).toISOString();
-    app.db.insert(schema.workItems)
+    app.db
+      .insert(schema.workItems)
       .values({
         id,
         title,
@@ -93,7 +106,8 @@ describe('POST /api/budget-lines/:id/assign', () => {
   function createTestHouseholdItem(name = 'Test HI'): string {
     const id = `hi-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = new Date(Date.now() + tsOffset++).toISOString();
-    app.db.insert(schema.householdItems)
+    app.db
+      .insert(schema.householdItems)
       .values({
         id,
         name,
@@ -122,10 +136,14 @@ describe('POST /api/budget-lines/:id/assign', () => {
    * Insert an orphan work_item_budget linked to an invoice via invoice_budget_lines.
    * Returns the wibId so it can be used as the `:id` param.
    */
-  function createOrphanWithInvoice(opts: { plannedAmount?: number } = {}): { wibId: string; invoiceId: string } {
+  function createOrphanWithInvoice(opts: { plannedAmount?: number } = {}): {
+    wibId: string;
+    invoiceId: string;
+  } {
     const wibId = `wib-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t1 = new Date(Date.now() + tsOffset++).toISOString();
-    app.db.insert(schema.workItemBudgets)
+    app.db
+      .insert(schema.workItemBudgets)
       .values({
         id: wibId,
         workItemId: null, // ORPHAN
@@ -149,7 +167,8 @@ describe('POST /api/budget-lines/:id/assign', () => {
     const vendorId = createTestVendor('Invoice Vendor');
     const invoiceId = `inv-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t2 = new Date(Date.now() + tsOffset++).toISOString();
-    app.db.insert(schema.invoices)
+    app.db
+      .insert(schema.invoices)
       .values({
         id: invoiceId,
         vendorId,
@@ -167,7 +186,8 @@ describe('POST /api/budget-lines/:id/assign', () => {
 
     const iblId = `ibl-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t3 = new Date(Date.now() + tsOffset++).toISOString();
-    app.db.insert(schema.invoiceBudgetLines)
+    app.db
+      .insert(schema.invoiceBudgetLines)
       .values({
         id: iblId,
         invoiceId,
@@ -188,7 +208,8 @@ describe('POST /api/budget-lines/:id/assign', () => {
   function createAssignedWIB(workItemId: string): string {
     const wibId = `wib-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = new Date(Date.now() + tsOffset++).toISOString();
-    app.db.insert(schema.workItemBudgets)
+    app.db
+      .insert(schema.workItemBudgets)
       .values({
         id: wibId,
         workItemId, // Already assigned
@@ -230,7 +251,12 @@ describe('POST /api/budget-lines/:id/assign', () => {
     });
 
     it('allows a member user to assign a budget line', async () => {
-      const { cookie } = await createUserWithSession('member@test.com', 'Member', 'password', 'member');
+      const { cookie } = await createUserWithSession(
+        'member@test.com',
+        'Member',
+        'password',
+        'member',
+      );
       const { wibId } = createOrphanWithInvoice();
       const wiId = createTestWorkItem();
 
@@ -245,7 +271,12 @@ describe('POST /api/budget-lines/:id/assign', () => {
     });
 
     it('allows an admin user to assign a budget line', async () => {
-      const { cookie } = await createUserWithSession('admin@test.com', 'Admin', 'password', 'admin');
+      const { cookie } = await createUserWithSession(
+        'admin@test.com',
+        'Admin',
+        'password',
+        'admin',
+      );
       const { wibId } = createOrphanWithInvoice();
       const wiId = createTestWorkItem();
 
@@ -547,7 +578,10 @@ describe('POST /api/budget-lines/:id/assign', () => {
         payload: { targetType: 'household_item', targetId: hiId },
       });
 
-      const wib = app.db.select().from(schema.workItemBudgets).all()
+      const wib = app.db
+        .select()
+        .from(schema.workItemBudgets)
+        .all()
         .find((r) => r.id === wibId);
       expect(wib).toBeUndefined();
     });

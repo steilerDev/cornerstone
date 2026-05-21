@@ -9,11 +9,12 @@ import {
   workItems,
   householdItems,
 } from '../db/schema.js';
-import type {
-  BudgetLineAssignRequest,
-  InvoiceBudgetLineDetailResponse,
-} from '@cornerstone/shared';
-import { NotFoundError, BudgetLineAlreadyAssignedError, ValidationError } from '../errors/AppError.js';
+import type { BudgetLineAssignRequest, InvoiceBudgetLineDetailResponse } from '@cornerstone/shared';
+import {
+  NotFoundError,
+  BudgetLineAlreadyAssignedError,
+  ValidationError,
+} from '../errors/AppError.js';
 import * as invoiceBudgetLineService from './invoiceBudgetLineService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -33,11 +34,7 @@ export function assignBudgetLine(
   userId: string,
 ): InvoiceBudgetLineDetailResponse {
   // Look up the work_item_budget row
-  const wib = db
-    .select()
-    .from(workItemBudgets)
-    .where(eq(workItemBudgets.id, budgetLineId))
-    .get();
+  const wib = db.select().from(workItemBudgets).where(eq(workItemBudgets.id, budgetLineId)).get();
 
   if (!wib) {
     throw new NotFoundError('Work item budget line not found');

@@ -14,10 +14,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
-import {
-  listInvoiceBudgetLines,
-  getBudgetLineDetail,
-} from './invoiceBudgetLineService.js';
+import { listInvoiceBudgetLines, getBudgetLineDetail } from './invoiceBudgetLineService.js';
 
 describe('invoiceBudgetLineService — orphan budget line handling', () => {
   let sqlite: Database.Database;
@@ -46,7 +43,18 @@ describe('invoiceBudgetLineService — orphan budget line handling', () => {
     const id = makeId('vendor');
     const t = ts();
     db.insert(schema.vendors)
-      .values({ id, name: `Vendor ${id}`, tradeId: null, phone: null, email: null, address: null, notes: null, createdBy: null, createdAt: t, updatedAt: t })
+      .values({
+        id,
+        name: `Vendor ${id}`,
+        tradeId: null,
+        phone: null,
+        email: null,
+        address: null,
+        notes: null,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
       .run();
     return id;
   }
@@ -131,7 +139,10 @@ describe('invoiceBudgetLineService — orphan budget line handling', () => {
    * Insert an orphan work_item_budget (workItemId = null) and link it to an invoice.
    * Returns { wibId, iblId }.
    */
-  function insertOrphanLinkedToInvoice(invoiceId: string, plannedAmount = 400): { wibId: string; iblId: string } {
+  function insertOrphanLinkedToInvoice(
+    invoiceId: string,
+    plannedAmount = 400,
+  ): { wibId: string; iblId: string } {
     const wibId = makeId('wib');
     const t1 = ts();
     db.insert(schema.workItemBudgets)
@@ -175,7 +186,11 @@ describe('invoiceBudgetLineService — orphan budget line handling', () => {
   /**
    * Insert an assigned work_item_budget (workItemId set) and link it to an invoice.
    */
-  function insertAssignedWIBLinkedToInvoice(invoiceId: string, workItemId: string, plannedAmount = 300): { wibId: string; iblId: string } {
+  function insertAssignedWIBLinkedToInvoice(
+    invoiceId: string,
+    workItemId: string,
+    plannedAmount = 300,
+  ): { wibId: string; iblId: string } {
     const wibId = makeId('wib');
     const t1 = ts();
     db.insert(schema.workItemBudgets)
@@ -219,7 +234,11 @@ describe('invoiceBudgetLineService — orphan budget line handling', () => {
   /**
    * Insert a household_item_budget and link it to an invoice.
    */
-  function insertHIBLinkedToInvoice(invoiceId: string, householdItemId: string, plannedAmount = 200): { hibId: string; iblId: string } {
+  function insertHIBLinkedToInvoice(
+    invoiceId: string,
+    householdItemId: string,
+    plannedAmount = 200,
+  ): { hibId: string; iblId: string } {
     const hibId = makeId('hib');
     const t1 = ts();
     db.insert(schema.householdItemBudgets)

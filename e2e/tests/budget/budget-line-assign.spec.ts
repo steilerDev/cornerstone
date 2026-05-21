@@ -105,10 +105,13 @@ function seedOrphanBudgetLine(opts: {
     `console.log('ok');`,
   ].join('');
 
-  const result = execSync(`docker exec ${state.cornerstoneContainerId} node -e ${JSON.stringify(script)}`, {
-    encoding: 'utf-8',
-    timeout: 15_000,
-  });
+  const result = execSync(
+    `docker exec ${state.cornerstoneContainerId} node -e ${JSON.stringify(script)}`,
+    {
+      encoding: 'utf-8',
+      timeout: 15_000,
+    },
+  );
 
   if (!result.trim().includes('ok')) {
     throw new Error(`Failed to seed orphan budget line: ${result}`);
@@ -240,7 +243,9 @@ test.describe(
 
           // Budget lines section must be visible with the orphan row
           await expect(detailPage.budgetLinesSection).toBeVisible();
-          await expect(detailPage.budgetLinesSection).toContainText(`${testPrefix} Unassigned Line`);
+          await expect(detailPage.budgetLinesSection).toContainText(
+            `${testPrefix} Unassigned Line`,
+          );
 
           // The "Linked Item" column shows the Unassigned badge (text content)
           // Badge renders as <span class="badge ...">Unassigned</span>
@@ -279,119 +284,123 @@ test.describe(
 // Scenario 2: Assign to work item
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Assign unassigned budget line to work item (Scenario 2)', { tag: '@responsive' }, () => {
-  test(
-    'Clicking "Assign…" opens edit modal with parent picker; selecting Work Item and confirming removes the Unassigned badge',
-    { tag: '@smoke' },
-    async ({ page, testPrefix }) => {
-      const detailPage = new InvoiceDetailPage(page);
-      let vendorId = '';
-      let invoiceId = '';
-      let workItemId = '';
-      let wibId = '';
+test.describe(
+  'Assign unassigned budget line to work item (Scenario 2)',
+  { tag: '@responsive' },
+  () => {
+    test(
+      'Clicking "Assign…" opens edit modal with parent picker; selecting Work Item and confirming removes the Unassigned badge',
+      { tag: '@smoke' },
+      async ({ page, testPrefix }) => {
+        const detailPage = new InvoiceDetailPage(page);
+        let vendorId = '';
+        let invoiceId = '';
+        let workItemId = '';
+        let wibId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} AssWI Vendor`);
-        invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 800,
-          date: '2026-06-01',
-        });
-        workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} AssWI Work Item` });
+        try {
+          vendorId = await createVendorViaApi(page, `${testPrefix} AssWI Vendor`);
+          invoiceId = await createInvoiceViaApi(page, vendorId, {
+            amount: 800,
+            date: '2026-06-01',
+          });
+          workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} AssWI Work Item` });
 
-        const seeded = seedOrphanBudgetLine({
-          invoiceId,
-          plannedAmount: 500,
-          itemizedAmount: 400,
-          description: `${testPrefix} AssWI Line`,
-        });
-        wibId = seeded.wibId;
+          const seeded = seedOrphanBudgetLine({
+            invoiceId,
+            plannedAmount: 500,
+            itemizedAmount: 400,
+            description: `${testPrefix} AssWI Line`,
+          });
+          wibId = seeded.wibId;
 
-        await detailPage.goto(invoiceId);
-        await expect(detailPage.heading).toBeVisible();
+          await detailPage.goto(invoiceId);
+          await expect(detailPage.heading).toBeVisible();
 
-        // Verify orphan badge is visible
-        const unassignedBadge = detailPage.budgetLinesSection.locator('[class*="badge"]', {
-          hasText: 'Unassigned',
-        });
-        await expect(unassignedBadge).toBeVisible();
+          // Verify orphan badge is visible
+          const unassignedBadge = detailPage.budgetLinesSection.locator('[class*="badge"]', {
+            hasText: 'Unassigned',
+          });
+          await expect(unassignedBadge).toBeVisible();
 
-        // Click the "Assign…" button (scoped to this row using its description text)
-        const lineRow = detailPage.budgetLinesSection.locator('tr[data-row-id]').filter({
-          hasText: `${testPrefix} AssWI Line`,
-        });
-        const assignBtn = lineRow.locator('[class*="assignButton"]');
-        await expect(assignBtn).toBeVisible();
-        await assignBtn.click();
+          // Click the "Assign…" button (scoped to this row using its description text)
+          const lineRow = detailPage.budgetLinesSection.locator('tr[data-row-id]').filter({
+            hasText: `${testPrefix} AssWI Line`,
+          });
+          const assignBtn = lineRow.locator('[class*="assignButton"]');
+          await expect(assignBtn).toBeVisible();
+          await assignBtn.click();
 
-        // The edit modal opens with title "Edit Budget Line"
-        const editModal = page.getByRole('dialog', { name: 'Edit Budget Line' });
-        await expect(editModal).toBeVisible();
+          // The edit modal opens with title "Edit Budget Line"
+          const editModal = page.getByRole('dialog', { name: 'Edit Budget Line' });
+          await expect(editModal).toBeVisible();
 
-        // The parent picker section (fieldset "Assign to work item or household item") IS visible
-        const parentPickerFieldset = editModal.locator('fieldset[class*="parentPickerSection"]');
-        await expect(parentPickerFieldset).toBeVisible();
+          // The parent picker section (fieldset "Assign to work item or household item") IS visible
+          const parentPickerFieldset = editModal.locator('fieldset[class*="parentPickerSection"]');
+          await expect(parentPickerFieldset).toBeVisible();
 
-        // "Work Item" tab is active by default
-        const workItemTab = parentPickerFieldset.getByRole('button', {
-          name: 'Work Item',
-          exact: true,
-        });
-        await expect(workItemTab).toBeVisible();
+          // "Work Item" tab is active by default
+          const workItemTab = parentPickerFieldset.getByRole('button', {
+            name: 'Work Item',
+            exact: true,
+          });
+          await expect(workItemTab).toBeVisible();
 
-        // Type in the Work Item picker to find our work item
-        // WorkItemPicker renders a SearchPicker with a text input
-        const wiInput = parentPickerFieldset.locator('input[type="text"]').first();
-        await wiInput.fill(`${testPrefix} AssWI Work Item`);
+          // Type in the Work Item picker to find our work item
+          // WorkItemPicker renders a SearchPicker with a text input
+          const wiInput = parentPickerFieldset.locator('input[type="text"]').first();
+          await wiInput.fill(`${testPrefix} AssWI Work Item`);
 
-        // Wait for the option to appear and click it
-        const option = page.getByRole('option', { name: `${testPrefix} AssWI Work Item` });
-        await option.waitFor({ state: 'visible' });
-        await option.click();
+          // Wait for the option to appear and click it
+          const option = page.getByRole('option', { name: `${testPrefix} AssWI Work Item` });
+          await option.waitFor({ state: 'visible' });
+          await option.click();
 
-        // The assign submit button is now enabled — it shows "Work Item" text (current implementation)
-        // Scoped to the fieldset so we don't click the tab button
-        const assignSubmitBtn = parentPickerFieldset.locator('[class*="assignSubmitButton"]');
-        await expect(assignSubmitBtn).toBeVisible();
-        await expect(assignSubmitBtn).not.toBeDisabled();
+          // The assign submit button is now enabled — it shows "Work Item" text (current implementation)
+          // Scoped to the fieldset so we don't click the tab button
+          const assignSubmitBtn = parentPickerFieldset.locator('[class*="assignSubmitButton"]');
+          await expect(assignSubmitBtn).toBeVisible();
+          await expect(assignSubmitBtn).not.toBeDisabled();
 
-        // Register waitForResponse for POST /api/budget-lines/:id/assign BEFORE clicking
-        const assignPromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes('/budget-lines/') &&
-            resp.url().includes('/assign') &&
-            resp.request().method() === 'POST' &&
-            resp.status() === 200,
-        );
-        await assignSubmitBtn.click();
-        await assignPromise;
+          // Register waitForResponse for POST /api/budget-lines/:id/assign BEFORE clicking
+          const assignPromise = page.waitForResponse(
+            (resp) =>
+              resp.url().includes('/budget-lines/') &&
+              resp.url().includes('/assign') &&
+              resp.request().method() === 'POST' &&
+              resp.status() === 200,
+          );
+          await assignSubmitBtn.click();
+          await assignPromise;
 
-        // Modal should close after successful assignment
-        await expect(editModal).not.toBeVisible();
+          // Modal should close after successful assignment
+          await expect(editModal).not.toBeVisible();
 
-        // The table row should now show a LINK to the work item, not the Unassigned badge
-        await expect(unassignedBadge).not.toBeVisible();
+          // The table row should now show a LINK to the work item, not the Unassigned badge
+          await expect(unassignedBadge).not.toBeVisible();
 
-        // A link to the work item detail page should appear in the row
-        const workItemLink = detailPage.budgetLinesSection.locator('a', {
-          hasText: `${testPrefix} AssWI Work Item`,
-        });
-        await expect(workItemLink).toBeVisible();
+          // A link to the work item detail page should appear in the row
+          const workItemLink = detailPage.budgetLinesSection.locator('a', {
+            hasText: `${testPrefix} AssWI Work Item`,
+          });
+          await expect(workItemLink).toBeVisible();
 
-        // The link should point to /project/work-items/:id
-        await expect(workItemLink).toHaveAttribute('href', new RegExp('/project/work-items/'));
+          // The link should point to /project/work-items/:id
+          await expect(workItemLink).toHaveAttribute('href', new RegExp('/project/work-items/'));
 
-        // wibId is now assigned — the budget line has a workItemId, so deleteOrphanWorkItemBudget
-        // is no longer needed (it's cleaned up via deleteWorkItemViaApi cascade)
-        wibId = ''; // clear so finally block doesn't try to delete it
-      } finally {
-        if (wibId) deleteOrphanWorkItemBudget(wibId);
-        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
-      }
-    },
-  );
-});
+          // wibId is now assigned — the budget line has a workItemId, so deleteOrphanWorkItemBudget
+          // is no longer needed (it's cleaned up via deleteWorkItemViaApi cascade)
+          wibId = ''; // clear so finally block doesn't try to delete it
+        } finally {
+          if (wibId) deleteOrphanWorkItemBudget(wibId);
+          if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+          if (vendorId) await deleteVendorViaApi(page, vendorId);
+          if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+        }
+      },
+    );
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 3: Assign to household item

@@ -43,7 +43,18 @@ describe('budgetLineAssignService', () => {
     const id = makeId('vendor');
     const t = ts();
     db.insert(schema.vendors)
-      .values({ id, name: `Vendor ${id}`, tradeId: null, phone: null, email: null, address: null, notes: null, createdBy: null, createdAt: t, updatedAt: t })
+      .values({
+        id,
+        name: `Vendor ${id}`,
+        tradeId: null,
+        phone: null,
+        email: null,
+        address: null,
+        notes: null,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
       .run();
     return id;
   }
@@ -107,18 +118,20 @@ describe('budgetLineAssignService', () => {
    * Insert an orphan work_item_budget (workItemId = null) and link it to an invoice
    * via invoice_budget_lines. Returns { wibId, invoiceId, iblId }.
    */
-  function insertOrphanWithInvoice(opts: {
-    description?: string;
-    plannedAmount?: number;
-    confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
-    budgetCategoryId?: string | null;
-    vendorId?: string | null;
-    quantity?: number | null;
-    unit?: string | null;
-    unitPrice?: number | null;
-    includesVat?: boolean;
-    createdBy?: string | null;
-  } = {}): { wibId: string; invoiceId: string; iblId: string } {
+  function insertOrphanWithInvoice(
+    opts: {
+      description?: string;
+      plannedAmount?: number;
+      confidence?: 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
+      budgetCategoryId?: string | null;
+      vendorId?: string | null;
+      quantity?: number | null;
+      unit?: string | null;
+      unitPrice?: number | null;
+      includesVat?: boolean;
+      createdBy?: string | null;
+    } = {},
+  ): { wibId: string; invoiceId: string; iblId: string } {
     const wibId = makeId('wib');
     const t = ts();
 
@@ -227,14 +240,24 @@ describe('budgetLineAssignService', () => {
   describe('404: budget line not found', () => {
     it('throws NotFoundError when the wib ID does not exist', () => {
       expect(() => {
-        assignBudgetLine(db, 'nonexistent-wib-id', { targetType: 'work_item', targetId: 'wi-1' }, 'user-1');
+        assignBudgetLine(
+          db,
+          'nonexistent-wib-id',
+          { targetType: 'work_item', targetId: 'wi-1' },
+          'user-1',
+        );
       }).toThrow(NotFoundError);
     });
 
     it('error message references the missing budget line', () => {
       let caught: unknown;
       try {
-        assignBudgetLine(db, 'nonexistent-wib-id', { targetType: 'work_item', targetId: 'wi-1' }, 'user-1');
+        assignBudgetLine(
+          db,
+          'nonexistent-wib-id',
+          { targetType: 'work_item', targetId: 'wi-1' },
+          'user-1',
+        );
       } catch (e) {
         caught = e;
       }
@@ -278,7 +301,12 @@ describe('budgetLineAssignService', () => {
     it('throws NotFoundError when target work item does not exist', () => {
       const { wibId } = insertOrphanWithInvoice();
       expect(() => {
-        assignBudgetLine(db, wibId, { targetType: 'work_item', targetId: 'nonexistent-wi' }, 'user-1');
+        assignBudgetLine(
+          db,
+          wibId,
+          { targetType: 'work_item', targetId: 'nonexistent-wi' },
+          'user-1',
+        );
       }).toThrow(NotFoundError);
     });
 
@@ -288,7 +316,11 @@ describe('budgetLineAssignService', () => {
 
       assignBudgetLine(db, wibId, { targetType: 'work_item', targetId: wiId }, 'user-1');
 
-      const updated = db.select().from(schema.workItemBudgets).where(eq(schema.workItemBudgets.id, wibId)).get();
+      const updated = db
+        .select()
+        .from(schema.workItemBudgets)
+        .where(eq(schema.workItemBudgets.id, wibId))
+        .get();
       expect(updated?.workItemId).toBe(wiId);
     });
 
@@ -296,7 +328,12 @@ describe('budgetLineAssignService', () => {
       const { wibId } = insertOrphanWithInvoice();
       const wiId = insertWorkItem('Kitchen Reno');
 
-      const result = assignBudgetLine(db, wibId, { targetType: 'work_item', targetId: wiId }, 'user-1');
+      const result = assignBudgetLine(
+        db,
+        wibId,
+        { targetType: 'work_item', targetId: wiId },
+        'user-1',
+      );
 
       expect(result.parentItemType).toBe('work_item');
     });
@@ -305,7 +342,12 @@ describe('budgetLineAssignService', () => {
       const { wibId } = insertOrphanWithInvoice();
       const wiId = insertWorkItem('Kitchen Reno');
 
-      const result = assignBudgetLine(db, wibId, { targetType: 'work_item', targetId: wiId }, 'user-1');
+      const result = assignBudgetLine(
+        db,
+        wibId,
+        { targetType: 'work_item', targetId: wiId },
+        'user-1',
+      );
 
       expect(result.parentItemId).toBe(wiId);
     });
@@ -314,7 +356,12 @@ describe('budgetLineAssignService', () => {
       const { wibId } = insertOrphanWithInvoice();
       const wiId = insertWorkItem('Bathroom Tiles');
 
-      const result = assignBudgetLine(db, wibId, { targetType: 'work_item', targetId: wiId }, 'user-1');
+      const result = assignBudgetLine(
+        db,
+        wibId,
+        { targetType: 'work_item', targetId: wiId },
+        'user-1',
+      );
 
       expect(result.parentItemTitle).toBe('Bathroom Tiles');
     });
@@ -325,7 +372,11 @@ describe('budgetLineAssignService', () => {
 
       assignBudgetLine(db, wibId, { targetType: 'work_item', targetId: wiId }, 'user-1');
 
-      const updated = db.select().from(schema.workItemBudgets).where(eq(schema.workItemBudgets.id, wibId)).get();
+      const updated = db
+        .select()
+        .from(schema.workItemBudgets)
+        .where(eq(schema.workItemBudgets.id, wibId))
+        .get();
       expect(updated?.budgetCategoryId).toBeNull();
     });
 
@@ -335,13 +386,22 @@ describe('budgetLineAssignService', () => {
       // 'bc-materials' is a seeded budget category from migrations
       const catId = 'bc-materials';
 
-      assignBudgetLine(db, wibId, {
-        targetType: 'work_item',
-        targetId: wiId,
-        budgetCategoryId: catId,
-      }, 'user-1');
+      assignBudgetLine(
+        db,
+        wibId,
+        {
+          targetType: 'work_item',
+          targetId: wiId,
+          budgetCategoryId: catId,
+        },
+        'user-1',
+      );
 
-      const updated = db.select().from(schema.workItemBudgets).where(eq(schema.workItemBudgets.id, wibId)).get();
+      const updated = db
+        .select()
+        .from(schema.workItemBudgets)
+        .where(eq(schema.workItemBudgets.id, wibId))
+        .get();
       expect(updated?.budgetCategoryId).toBe(catId);
     });
 
@@ -349,7 +409,12 @@ describe('budgetLineAssignService', () => {
       const { wibId } = insertOrphanWithInvoice();
       const wiId = insertWorkItem();
 
-      const result = assignBudgetLine(db, wibId, { targetType: 'work_item', targetId: wiId }, 'user-1');
+      const result = assignBudgetLine(
+        db,
+        wibId,
+        { targetType: 'work_item', targetId: wiId },
+        'user-1',
+      );
 
       expect(result.workItemBudgetId).toBe(wibId);
     });
@@ -358,7 +423,12 @@ describe('budgetLineAssignService', () => {
       const { wibId } = insertOrphanWithInvoice();
       const wiId = insertWorkItem();
 
-      const result = assignBudgetLine(db, wibId, { targetType: 'work_item', targetId: wiId }, 'user-1');
+      const result = assignBudgetLine(
+        db,
+        wibId,
+        { targetType: 'work_item', targetId: wiId },
+        'user-1',
+      );
 
       expect(result.householdItemBudgetId).toBeNull();
     });
@@ -369,7 +439,11 @@ describe('budgetLineAssignService', () => {
 
       assignBudgetLine(db, wibId, { targetType: 'work_item', targetId: wiId }, 'user-1');
 
-      const stillExists = db.select().from(schema.workItemBudgets).where(eq(schema.workItemBudgets.id, wibId)).get();
+      const stillExists = db
+        .select()
+        .from(schema.workItemBudgets)
+        .where(eq(schema.workItemBudgets.id, wibId))
+        .get();
       expect(stillExists).toBeDefined();
     });
   });
@@ -380,7 +454,12 @@ describe('budgetLineAssignService', () => {
     it('throws NotFoundError when target household item does not exist', () => {
       const { wibId } = insertOrphanWithInvoice();
       expect(() => {
-        assignBudgetLine(db, wibId, { targetType: 'household_item', targetId: 'nonexistent-hi' }, 'user-1');
+        assignBudgetLine(
+          db,
+          wibId,
+          { targetType: 'household_item', targetId: 'nonexistent-hi' },
+          'user-1',
+        );
       }).toThrow(NotFoundError);
     });
 
@@ -388,7 +467,12 @@ describe('budgetLineAssignService', () => {
       const { wibId } = insertOrphanWithInvoice();
       const hiId = insertHouseholdItem('Sofa');
 
-      const result = assignBudgetLine(db, wibId, { targetType: 'household_item', targetId: hiId }, 'user-1');
+      const result = assignBudgetLine(
+        db,
+        wibId,
+        { targetType: 'household_item', targetId: hiId },
+        'user-1',
+      );
 
       expect(result.parentItemType).toBe('household_item');
     });
@@ -397,7 +481,12 @@ describe('budgetLineAssignService', () => {
       const { wibId } = insertOrphanWithInvoice();
       const hiId = insertHouseholdItem('Coffee Table');
 
-      const result = assignBudgetLine(db, wibId, { targetType: 'household_item', targetId: hiId }, 'user-1');
+      const result = assignBudgetLine(
+        db,
+        wibId,
+        { targetType: 'household_item', targetId: hiId },
+        'user-1',
+      );
 
       expect(result.parentItemId).toBe(hiId);
     });
@@ -406,7 +495,12 @@ describe('budgetLineAssignService', () => {
       const { wibId } = insertOrphanWithInvoice();
       const hiId = insertHouseholdItem('Dining Chair');
 
-      const result = assignBudgetLine(db, wibId, { targetType: 'household_item', targetId: hiId }, 'user-1');
+      const result = assignBudgetLine(
+        db,
+        wibId,
+        { targetType: 'household_item', targetId: hiId },
+        'user-1',
+      );
 
       expect(result.parentItemTitle).toBe('Dining Chair');
     });
@@ -530,7 +624,11 @@ describe('budgetLineAssignService', () => {
 
       assignBudgetLine(db, wibId, { targetType: 'household_item', targetId: hiId }, 'user-1');
 
-      const gone = db.select().from(schema.workItemBudgets).where(eq(schema.workItemBudgets.id, wibId)).get();
+      const gone = db
+        .select()
+        .from(schema.workItemBudgets)
+        .where(eq(schema.workItemBudgets.id, wibId))
+        .get();
       expect(gone).toBeUndefined();
     });
 
@@ -540,7 +638,11 @@ describe('budgetLineAssignService', () => {
 
       assignBudgetLine(db, wibId, { targetType: 'household_item', targetId: hiId }, 'user-1');
 
-      const ibl = db.select().from(schema.invoiceBudgetLines).where(eq(schema.invoiceBudgetLines.id, iblId)).get();
+      const ibl = db
+        .select()
+        .from(schema.invoiceBudgetLines)
+        .where(eq(schema.invoiceBudgetLines.id, iblId))
+        .get();
       expect(ibl?.workItemBudgetId).toBeNull();
     });
 
@@ -550,7 +652,11 @@ describe('budgetLineAssignService', () => {
 
       assignBudgetLine(db, wibId, { targetType: 'household_item', targetId: hiId }, 'user-1');
 
-      const ibl = db.select().from(schema.invoiceBudgetLines).where(eq(schema.invoiceBudgetLines.id, iblId)).get();
+      const ibl = db
+        .select()
+        .from(schema.invoiceBudgetLines)
+        .where(eq(schema.invoiceBudgetLines.id, iblId))
+        .get();
       const hib = db.select().from(schema.householdItemBudgets).all()[0];
       expect(ibl?.householdItemBudgetId).toBe(hib?.id);
     });
@@ -559,7 +665,12 @@ describe('budgetLineAssignService', () => {
       const { wibId } = insertOrphanWithInvoice();
       const hiId = insertHouseholdItem();
 
-      const result = assignBudgetLine(db, wibId, { targetType: 'household_item', targetId: hiId }, 'user-1');
+      const result = assignBudgetLine(
+        db,
+        wibId,
+        { targetType: 'household_item', targetId: hiId },
+        'user-1',
+      );
 
       expect(result.householdItemBudgetId).not.toBeNull();
     });
@@ -568,7 +679,12 @@ describe('budgetLineAssignService', () => {
       const { wibId } = insertOrphanWithInvoice();
       const hiId = insertHouseholdItem();
 
-      const result = assignBudgetLine(db, wibId, { targetType: 'household_item', targetId: hiId }, 'user-1');
+      const result = assignBudgetLine(
+        db,
+        wibId,
+        { targetType: 'household_item', targetId: hiId },
+        'user-1',
+      );
 
       expect(result.workItemBudgetId).toBeNull();
     });
@@ -622,7 +738,12 @@ describe('budgetLineAssignService', () => {
       const { wibId, invoiceId } = insertOrphanWithInvoice({ plannedAmount: 600 });
       const wiId = insertWorkItem('Wall Paint');
 
-      const result = assignBudgetLine(db, wibId, { targetType: 'work_item', targetId: wiId }, 'user-1');
+      const result = assignBudgetLine(
+        db,
+        wibId,
+        { targetType: 'work_item', targetId: wiId },
+        'user-1',
+      );
 
       expect(result.id).toBeDefined();
       expect(result.invoiceId).toBe(invoiceId);
@@ -636,7 +757,12 @@ describe('budgetLineAssignService', () => {
       const { wibId, invoiceId } = insertOrphanWithInvoice({ plannedAmount: 800 });
       const hiId = insertHouseholdItem('Armchair');
 
-      const result = assignBudgetLine(db, wibId, { targetType: 'household_item', targetId: hiId }, 'user-1');
+      const result = assignBudgetLine(
+        db,
+        wibId,
+        { targetType: 'household_item', targetId: hiId },
+        'user-1',
+      );
 
       expect(result.id).toBeDefined();
       expect(result.invoiceId).toBe(invoiceId);

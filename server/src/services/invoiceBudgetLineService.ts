@@ -551,7 +551,10 @@ export function getInvoiceBudgetLinesForInvoice(
  * Get the full detail for a single invoice budget line by its ID.
  * Used by assignment and other operations that need to return the full detail.
  */
-export function getBudgetLineDetail(db: DbType, invoiceBudgetLineId: string): InvoiceBudgetLineDetailResponse {
+export function getBudgetLineDetail(
+  db: DbType,
+  invoiceBudgetLineId: string,
+): InvoiceBudgetLineDetailResponse {
   const row = db
     .select()
     .from(invoiceBudgetLines)

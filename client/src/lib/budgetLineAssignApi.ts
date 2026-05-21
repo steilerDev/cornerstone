@@ -1,8 +1,5 @@
 import { post } from './apiClient.js';
-import type {
-  BudgetLineAssignRequest,
-  BudgetLineAssignResponse,
-} from '@cornerstone/shared';
+import type { BudgetLineAssignRequest, BudgetLineAssignResponse } from '@cornerstone/shared';
 
 /**
  * Assigns an unassigned (orphan) budget line to a work item or household item.

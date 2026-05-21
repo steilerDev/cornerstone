@@ -92,7 +92,7 @@ See `review-history.md` for detailed findings per PR.
 | #1047 | EPIC-18 Story #1030 — Migration + Shared Types (Areas & Trades foundation)                        | COMMENTED (2 informational: XOR CHECK deferred, UNIQUE(name,parent_id) NULL gap)                                              | 2026-03-19 |
 | #1054 | EPIC-18 Stories #1031+#1032 — Areas CRUD, Trades CRUD, Vendor trade linking                       | COMMENTED (3 informational: search no maxLength, parentId no minLength:1, sql.raw safe)                                       | 2026-03-19 |
 | #1150 | EPIC-19 Story #1146 — Backup & Restore                                                            | COMMENTED (3 informational: restore mid-op orphan dir, filename in 404 msg, node-cron 3.x not 4.x)                            | 2026-03-22 |
-| #1548 | EPIC-20 Story #1545 — Unassigned Budget Lines & One-Shot Parent Assignment                         | COMMENTED (3 informational: assignToWorkItem no transaction, computeUsedAmount includes orphans, targetId no minLength)        | 2026-05-21 |
+| #1548 | EPIC-20 Story #1545 — Unassigned Budget Lines & One-Shot Parent Assignment                        | COMMENTED (3 informational: assignToWorkItem no transaction, computeUsedAmount includes orphans, targetId no minLength)       | 2026-05-21 |
 
 ## Known Open Recommendations (Low Priority)
 
