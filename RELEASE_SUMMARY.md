@@ -55,9 +55,9 @@ Creating a diary entry no longer needs a separate "create" step.
 
 New environment variable:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DIARY_DRAFT_RETENTION_DAYS` | `30` | Days an untouched draft sits before automatic cleanup. Set to `0` to disable. |
+| Variable                     | Default | Description                                                                   |
+| ---------------------------- | ------- | ----------------------------------------------------------------------------- |
+| `DIARY_DRAFT_RETENTION_DAYS` | `30`    | Days an untouched draft sits before automatic cleanup. Set to `0` to disable. |
 
 No other configuration changes are required. Migration 0032 adds the `invoice_deposits` table and runs automatically on container start.
 
