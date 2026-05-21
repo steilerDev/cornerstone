@@ -150,6 +150,20 @@ echo "Waiting for Quality Gates + E2E Gates..."; SECONDS=0; while true; do if [ 
 
 Replace `<PR>` with the PR number. The polling loop handles the "checks not yet reported" edge case — an empty bucket means we retry after 30s. Timeouts prevent agents from polling indefinitely if CI hangs.
 
+#### Auto-fix Bot `[skip ci]` Workaround
+
+The auto-fix bot (`.github/workflows/auto-fix.yml`) pushes cosmetic lint/format commits to `beta` with `[skip ci]` in the commit message. When that push lands on top of a recently-merged squash on `beta`, it advances the HEAD of any open `beta -> main` PR (e.g., the promotion PR) to a SHA that has **no CI runs** — leaving the PR `MERGEABLE` but `BLOCKED` on required checks that will never report.
+
+Symptoms: `gh pr checks <PR>` returns nothing for `Quality Gates` / `E2E Gates`; `gh run list --commit <sha>` is empty; PR is `BLOCKED` even though the prior HEAD's checks passed.
+
+**Fix:** the `Quality Gates` workflow exposes `workflow_dispatch:` for exactly this case. Re-trigger CI manually on the affected branch:
+
+```bash
+gh workflow run ci.yml --repo steilerDev/cornerstone --ref beta
+```
+
+GitHub reports the resulting `Quality Gates` / `E2E Gates` check buckets against the branch HEAD SHA, which is the same SHA the PR uses — so the required checks are satisfied automatically and the PR unblocks. Use the same polling pattern above (main variant for promotion PRs) to wait for completion. Do not push an empty/no-op commit just to retrigger CI — the dispatch is cleaner and avoids cluttering the commit log.
+
 ### GitHub Rate-Limit Retry Policy
 
 When `gh` or `git push` commands fail with a GitHub rate-limit error (primary API limit, secondary abuse limit, or `HTTP 403`/`HTTP 429` with a rate-limit message), retry with **exponential backoff** instead of aborting:
