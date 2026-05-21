@@ -150,19 +150,34 @@ echo "Waiting for Quality Gates + E2E Gates..."; SECONDS=0; while true; do if [ 
 
 Replace `<PR>` with the PR number. The polling loop handles the "checks not yet reported" edge case — an empty bucket means we retry after 30s. Timeouts prevent agents from polling indefinitely if CI hangs.
 
-#### Auto-fix Bot `[skip ci]` Workaround
+#### CI Skip-Directive Quirks (two failure modes when CI stops firing)
 
-The auto-fix bot (`.github/workflows/auto-fix.yml`) pushes cosmetic lint/format commits to `beta` with `[skip ci]` in the commit message. When that push lands on top of a recently-merged squash on `beta`, it advances the HEAD of any open `beta -> main` PR (e.g., the promotion PR) to a SHA that has **no CI runs** — leaving the PR `MERGEABLE` but `BLOCKED` on required checks that will never report.
+Two distinct GitHub Actions quirks can leave a PR `MERGEABLE` but `BLOCKED` because the required `Quality Gates` / `E2E Gates` checks did not run on the current HEAD. Diagnose with `gh pr view <PR> --json mergeable,mergeStateStatus,headRefOid` (state `BLOCKED`/`MERGEABLE`) and `gh api repos/steilerDev/cornerstone/commits/<sha>/check-runs` (empty or missing the required check names). The two failure modes look similar but require different fixes — pick by checking the head commit's message.
 
-Symptoms: `gh pr checks <PR>` returns nothing for `Quality Gates` / `E2E Gates`; `gh run list --commit <sha>` is empty; PR is `BLOCKED` even though the prior HEAD's checks passed.
+**Mode A — Auto-fix bot `[skip ci]` push (PR is for non-promotion work or already had a passing parent commit)**
 
-**Fix:** the `Quality Gates` workflow exposes `workflow_dispatch:` for exactly this case. Re-trigger CI manually on the affected branch:
+The auto-fix bot (`.github/workflows/auto-fix.yml`) pushes cosmetic lint/format commits to `beta` with `[skip ci]` in the commit message. When that push lands on top of a recently-merged squash on `beta`, it advances the HEAD of any open `beta -> main` PR (e.g., the promotion PR) to a SHA that has no CI runs. The PR becomes `BLOCKED` even though the prior HEAD's checks passed.
+
+Detect: head commit's first line ends with `[skip ci]`; `gh run list --commit <sha>` is empty.
+
+**Fix (only when the PR is NOT base=main):** the `Quality Gates` workflow exposes `workflow_dispatch:` for exactly this case. Re-trigger CI on the affected branch:
 
 ```bash
 gh workflow run ci.yml --repo steilerDev/cornerstone --ref beta
 ```
 
-GitHub reports the resulting `Quality Gates` / `E2E Gates` check buckets against the branch HEAD SHA, which is the same SHA the PR uses — so the required checks are satisfied automatically and the PR unblocks. Use the same polling pattern above (main variant for promotion PRs) to wait for completion. Do not push an empty/no-op commit just to retrigger CI — the dispatch is cleaner and avoids cluttering the commit log.
+> [!IMPORTANT]
+> `workflow_dispatch` runs report check-runs on the commit SHA but **GitHub does NOT include them in the PR's `statusCheckRollup`**. The PR's required-status-checks evaluation only considers check runs whose triggering event was tied to the PR itself (`pull_request`, `pull_request_target`) or to a push to the PR's source branch. Use `workflow_dispatch` only for unblocking dev/feature PRs where the check name matters for visibility, **not** for satisfying a branch-protection gate on a promotion PR. For a stuck promotion PR, fall through to Mode B's fix (advance the source branch with a clean commit).
+
+**Mode B — Squash title containing the literal `[skip ci]`**
+
+GitHub Actions parses **any commit's first line** for `[skip ci]` (and equivalents: `[ci skip]`, `[skip actions]`, `[actions skip]`, `[skip-checks: true]`). When a PR's title or body intentionally references `[skip ci]` (e.g., a docs PR explaining the directive), the squash-merge to `beta` picks up that title as the merged commit's first line. The directive then suppresses **all** workflows that would otherwise fire on that push, including `pull_request:synchronize` runs on any open `beta -> main` PR — the promotion PR is blocked, and `workflow_dispatch` cannot satisfy its required checks (see Mode A's note).
+
+Detect: head commit's first line literally contains `[skip ci]`; `gh run list --commit <sha>` is empty; no `Auto Fix` workflow ran either.
+
+**Prevention:** before squash-merging a PR whose title contains a skip directive, override the squash subject/body with `gh pr merge <N> --squash --subject "<clean subject>"` so the merged commit message is skip-directive-free. Likewise, do not include `[skip ci]` (or equivalents) verbatim in PR titles — reference them with code spans (`` `[skip ci]` ``) or rewrite as "the CI-skip directive".
+
+**Recovery if it already happened:** push another commit to `beta` via a fresh tiny PR with a clean title (e.g., `chore: retrigger promotion CI`). That advances HEAD with a clean message, fires `pull_request:synchronize` on the promotion PR, and CI runs normally.
 
 ### GitHub Rate-Limit Retry Policy
 
