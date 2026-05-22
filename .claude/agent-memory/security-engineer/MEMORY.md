@@ -95,6 +95,7 @@ See `review-history.md` for detailed findings per PR.
 | #1548 | EPIC-20 Story #1545 — Unassigned Budget Lines & One-Shot Parent Assignment                        | COMMENTED (3 informational: assignToWorkItem no transaction, computeUsedAmount includes orphans, targetId no minLength)       | 2026-05-21 |
 | #1549 | Story #1546 — BudgetExtractionService with OpenAI-compatible LLM gateway (FIRST LLM INTEGRATION)  | APPROVED (4 informational: URL in startup error, no timeout upper bound, localhost SSRF allowed, no OCR size cap)             | 2026-05-21 |
 | #1550 | Story #1547 — Invoice Auto-Itemize POST endpoint and commit service                               | COMMENTED (2 informational: OCR cap carry-forward unaddressed, lines array no maxItems)                                       | 2026-05-22 |
+| #1554 | Story #1553 — Full edit + linked-item move for invoice budget lines                               | COMMENTED (1 low: move fields no minLength:1; 1 informational: WIB/HIB no minProperties:1)                                   | 2026-05-22 |
 
 ## Known Open Recommendations (Low Priority)
 
@@ -130,6 +131,8 @@ These have been noted in previous reviews. **GitHub Issue #315** tracks items 1-
 28. **localhost targets allowed in LLM_BASE_URL** (Informational): config.ts:264-277 — intentional for Ollama self-hosting; operator-trust model; no client-supplied URL path (PR #1549)
 29. **OCR payload no size cap before LLM dispatch** (Informational): invoiceAutoItemizeService.ts:143 passes doc.content raw to provider.extract() with no truncation; confirmed NOT addressed in PR #1550; recommend fix before beta→main (PRs #1549 #1550)
 30. **lines array no maxItems in auto-itemize commit route** (Informational): invoiceAutoItemize.ts:21 — `lines` array has no `maxItems`; commit mode loops N inserts; suggest `maxItems: 200` (PR #1550)
+31. **Move fields no minLength: 1** (Low): workItemBudgets.ts:80-81, householdItemBudgets.ts:83-84, invoiceBudgetLines.ts:57-68 — `newWorkItemId`/`newHouseholdItemId` accept empty string; service throws NotFoundError as backstop; fix: add `minLength: 1` (PR #1554)
+32. **WIB/HIB PATCH schemas missing minProperties: 1** (Informational): workItemBudgets.ts, householdItemBudgets.ts — empty body `{}` passes schema, causes no-op `updatedAt` touch; IBL PATCH has this correctly (PR #1554)
 
 ## Key Architecture Patterns (Security-Relevant)
 

@@ -109,15 +109,15 @@ See `pr-1490-measurement-freehand.md`. Medium: `labelAttrs { display:'none' }` d
 
 See `story-4-9-invoice-linking-hi.md`. Entity type toggle (`role="group"` + `role="radio"`), "Linked To" column hidden at tablet.
 
-## Story #1553 — Full Edit for Budget Lines
+## Story #1553 — Full Edit for Budget Lines (PR #1554 reviewed)
 
 - `BudgetLineForm` parent-picker extends to edit path (not just unassigned): show collapsed "Linked item" row with "Change" button when `currentParentId` is set
 - Entity type pill: WI = `--color-status-in-progress-*`; HI = `--color-hi-status-scheduled-*`; `--radius-full`
-- Cross-table move hint: `role="status"` (do NOT add `aria-live` separately); `--color-warning-bg` / `--color-warning` / `--color-warning-text-on-light`
-- NOTE: `--color-warning-bg` DOES exist in tokens.css (`#fff7ed`) — earlier memory note about it not existing was wrong for this context (that note applies only to a now-stale token name pattern)
+- Cross-table move hint: `role="status" aria-atomic="true"` (do NOT add `aria-live` separately)
+- `--color-warning-bg` / `--color-warning` / `--color-warning-text-on-light` — all exist and have dark mode overrides
 - Modal width: `min(540px, calc(100vw - 2rem))` for full-edit modal
-- "Change" ghost button: `aria-expanded="true|false"` + `aria-controls` pointing to picker body id
-- Funding source: do NOT proactively null-out on cross-table move — let server validate; show `FormError` banner on rejection
+- RECURRING A11Y BUG: `aria-controls` with conditional rendering — if the button and its target are in mutually exclusive branches, `aria-controls` referent never exists in DOM simultaneously. Fix: keep both in DOM, toggle with `hidden` prop, update `aria-expanded` dynamically.
+- `parentPickerTab` and `modeBtn` in BudgetLineForm.module.css missing `:focus-visible` (pre-existing gap, WCAG 2.4.7 Medium)
 - New i18n keys (namespace `budget`): `linkedItemLegend`, `changeParentButton`, `cancelChangeParentButton`, `moveButton`, `movingButton`, `moveCrossTableHint`, `moveCrossTableHintReverse`
 
 ## Story #1545 — Unassigned IBL + One-Shot Parent Assignment (PR #1548)

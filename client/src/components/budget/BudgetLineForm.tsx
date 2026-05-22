@@ -499,101 +499,99 @@ export function BudgetLineForm({
               {t('budgetLineForm.linkedItemLegend')}
             </legend>
 
-            {!isPickerExpanded ? (
-              // Collapsed: show current parent + "Change" button
-              <div className={styles.currentParentRow}>
-                <span className={`${styles.entityTypePill} ${styles[`entityTypePill_${currentParentType ?? 'work_item'}`]}`}>
-                  {currentParentType === 'work_item'
-                    ? t('budgetLineForm.parentPickerWorkItemTab')
-                    : t('budgetLineForm.parentPickerHouseholdItemTab')}
-                </span>
-                <span className={styles.currentParentLabel}>{currentParentLabel ?? '—'}</span>
+            {/* Collapsed view: current parent + "Change" button */}
+            <div className={styles.currentParentRow} hidden={isPickerExpanded}>
+              <span className={`${styles.entityTypePill} ${styles[`entityTypePill_${currentParentType ?? 'work_item'}`]}`}>
+                {currentParentType === 'work_item'
+                  ? t('budgetLineForm.parentPickerWorkItemTab')
+                  : t('budgetLineForm.parentPickerHouseholdItemTab')}
+              </span>
+              <span className={styles.currentParentLabel}>{currentParentLabel ?? '—'}</span>
+              <button
+                type="button"
+                className={styles.ghostChangeButton}
+                onClick={() => setIsPickerExpanded(true)}
+                aria-expanded={isPickerExpanded}
+                aria-controls="parent-picker-body"
+                disabled={isSaving || isMoving}
+              >
+                {t('budgetLineForm.changeParentButton')}
+              </button>
+            </div>
+
+            {/* Expanded view: type tabs + picker + optional move hint + buttons */}
+            <div id="parent-picker-body" hidden={!isPickerExpanded}>
+              <div className={styles.parentPickerTabs}>
                 <button
                   type="button"
-                  className={styles.ghostChangeButton}
-                  onClick={() => setIsPickerExpanded(true)}
-                  aria-expanded={false}
-                  aria-controls="parent-picker-body"
-                  disabled={isSaving || isMoving}
-                >
-                  {t('budgetLineForm.changeParentButton')}
-                </button>
-              </div>
-            ) : (
-              // Expanded: type tabs + picker + optional move hint + buttons
-              <div id="parent-picker-body">
-                <div className={styles.parentPickerTabs}>
-                  <button
-                    type="button"
-                    className={`${styles.parentPickerTab} ${selectedParentType === 'work_item' ? styles.parentPickerTabActive : ''}`}
-                    onClick={() => {
-                      setSelectedParentType('work_item');
-                      setSelectedParentId(null);
-                    }}
-                  >
-                    {t('budgetLineForm.parentPickerWorkItemTab')}
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.parentPickerTab} ${selectedParentType === 'household_item' ? styles.parentPickerTabActive : ''}`}
-                    onClick={() => {
-                      setSelectedParentType('household_item');
-                      setSelectedParentId(null);
-                    }}
-                  >
-                    {t('budgetLineForm.parentPickerHouseholdItemTab')}
-                  </button>
-                </div>
-                <div className={styles.parentPickerBody}>
-                  {selectedParentType === 'work_item' ? (
-                    <WorkItemPicker
-                      value={selectedParentId ?? ''}
-                      onChange={(id) => setSelectedParentId(id)}
-                      placeholder={t('budgetLineForm.parentPickerWorkItemTab')}
-                      excludeIds={[]}
-                      showItemsOnFocus={false}
-                    />
-                  ) : (
-                    <HouseholdItemPicker
-                      value={selectedParentId ?? ''}
-                      onChange={(id) => setSelectedParentId(id)}
-                      placeholder={t('budgetLineForm.parentPickerHouseholdItemTab')}
-                      excludeIds={[]}
-                      showItemsOnFocus={false}
-                    />
-                  )}
-                </div>
-                {/* Cross-table move hint */}
-                {currentParentType && currentParentType !== 'unassigned' && selectedParentType !== currentParentType && (
-                  <div className={styles.moveHint} role="status" aria-atomic="true">
-                    {selectedParentType === 'household_item'
-                      ? t('budgetLineForm.moveCrossTableHint')
-                      : t('budgetLineForm.moveCrossTableHintReverse')}
-                  </div>
-                )}
-                {movePickerError && <p className={styles.parentPickerError}>{movePickerError}</p>}
-                <button
-                  type="button"
-                  className={styles.assignSubmitButton}
-                  disabled={isMoving || !selectedParentId}
-                  onClick={() => void handleMove()}
-                >
-                  {isMoving ? t('budgetLineForm.movingButton') : t('budgetLineForm.moveButton')}
-                </button>
-                <button
-                  type="button"
-                  className={styles.ghostCancelButton}
+                  className={`${styles.parentPickerTab} ${selectedParentType === 'work_item' ? styles.parentPickerTabActive : ''}`}
                   onClick={() => {
-                    setIsPickerExpanded(false);
+                    setSelectedParentType('work_item');
                     setSelectedParentId(null);
-                    setMovePickerError(null);
                   }}
-                  disabled={isMoving}
                 >
-                  {t('budgetLineForm.cancelChangeParentButton')}
+                  {t('budgetLineForm.parentPickerWorkItemTab')}
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.parentPickerTab} ${selectedParentType === 'household_item' ? styles.parentPickerTabActive : ''}`}
+                  onClick={() => {
+                    setSelectedParentType('household_item');
+                    setSelectedParentId(null);
+                  }}
+                >
+                  {t('budgetLineForm.parentPickerHouseholdItemTab')}
                 </button>
               </div>
-            )}
+              <div className={styles.parentPickerBody}>
+                {selectedParentType === 'work_item' ? (
+                  <WorkItemPicker
+                    value={selectedParentId ?? ''}
+                    onChange={(id) => setSelectedParentId(id)}
+                    placeholder={t('budgetLineForm.parentPickerWorkItemTab')}
+                    excludeIds={[]}
+                    showItemsOnFocus={false}
+                  />
+                ) : (
+                  <HouseholdItemPicker
+                    value={selectedParentId ?? ''}
+                    onChange={(id) => setSelectedParentId(id)}
+                    placeholder={t('budgetLineForm.parentPickerHouseholdItemTab')}
+                    excludeIds={[]}
+                    showItemsOnFocus={false}
+                  />
+                )}
+              </div>
+              {/* Cross-table move hint */}
+              {currentParentType && currentParentType !== 'unassigned' && selectedParentType !== currentParentType && (
+                <div className={styles.moveHint} role="status" aria-atomic="true">
+                  {selectedParentType === 'household_item'
+                    ? t('budgetLineForm.moveCrossTableHint')
+                    : t('budgetLineForm.moveCrossTableHintReverse')}
+                </div>
+              )}
+              {movePickerError && <p className={styles.parentPickerError}>{movePickerError}</p>}
+              <button
+                type="button"
+                className={styles.assignSubmitButton}
+                disabled={isMoving || !selectedParentId}
+                onClick={() => void handleMove()}
+              >
+                {isMoving ? t('budgetLineForm.movingButton') : t('budgetLineForm.moveButton')}
+              </button>
+              <button
+                type="button"
+                className={styles.ghostCancelButton}
+                onClick={() => {
+                  setIsPickerExpanded(false);
+                  setSelectedParentId(null);
+                  setMovePickerError(null);
+                }}
+                disabled={isMoving}
+              >
+                {t('budgetLineForm.cancelChangeParentButton')}
+              </button>
+            </div>
           </fieldset>
         )}
 
