@@ -1373,7 +1373,7 @@ export function HouseholdItemDetailPage() {
             isUnlinking={isUnlinkingInvoice}
             inlineError={inlineError}
             parentEntityId={item?.id}
-            parentEntityLabel={item?.title}
+            parentEntityLabel={item?.name}
             onMoveBudgetLine={handleMoveBudgetLine}
           />
         </section>

@@ -39,6 +39,14 @@ Keys added to `de/budget.json` under `budgetLineForm`:
   - "aufgeschlüsselt" is the established term for "itemized" in this codebase (see `invoiceDetail.budgetLines.tableHeaders.itemizedAmount` = "Aufgeschlüsselter Betrag")
   - Pattern follows `plannedAmountLabel` = "Geplanter Betrag ({{currencySymbol}}) *" — adjective + "Betrag" + currency placeholder + asterisk
 
+## New Key: moveCrossTableNoInvoiceError (2026-05-22)
+
+- `moveCrossTableNoInvoiceError` → Error message when user attempts cross-table move without invoice link
+  - EN: "Cross-table moves require an invoice link. Either remove the move or link this budget line to an invoice first."
+  - Pattern: User-facing error guidance, not a system error
+  - Context: Thrown when non-invoiced budget line move is attempted from WI→HI or HI→WI
+  - Constraint: No structural reformatting — direct translation acceptable; retain the serial "Either X or Y" structure if natural in target language
+
 ## Compound Nouns for Budget Contexts
 
 - "household item budget" → "Haushaltsartikelbudget" (Haushaltsartikel + Budget, no hyphen)
