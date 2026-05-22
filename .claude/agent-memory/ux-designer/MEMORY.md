@@ -97,7 +97,7 @@ See `annotator-a11y-audit.md` for full findings. Key items:
 ## HI / Invoice Patterns (Stories 4.3–4.10)
 
 - `--spacing-xs` / `--spacing-sm` are NOT valid tokens — use `--spacing-1` through `--spacing-16`
-- `--color-warning-bg` does NOT exist; for warning bg use `--color-hi-status-in-transit-bg`
+- `--color-warning-bg` EXISTS in tokens.css (`#fff7ed`, dark: `rgba(251,146,60,0.1)`) — use it for warning banners
 - HI Detail: section cards use `border: 1px solid var(--color-border)` NOT `box-shadow: var(--shadow-sm)`
 - RECURRING BUG: `outline: 2px solid var(--color-primary)` on focus-visible — flagged PRs #402, #414
 
@@ -108,6 +108,17 @@ See `pr-1490-measurement-freehand.md`. Medium: `labelAttrs { display:'none' }` d
 ## Story 4.9 — Invoice Linking for HI Budget Lines (Issue #413)
 
 See `story-4-9-invoice-linking-hi.md`. Entity type toggle (`role="group"` + `role="radio"`), "Linked To" column hidden at tablet.
+
+## Story #1553 — Full Edit for Budget Lines (PR #1554 reviewed)
+
+- `BudgetLineForm` parent-picker extends to edit path (not just unassigned): show collapsed "Linked item" row with "Change" button when `currentParentId` is set
+- Entity type pill: WI = `--color-status-in-progress-*`; HI = `--color-hi-status-scheduled-*`; `--radius-full`
+- Cross-table move hint: `role="status" aria-atomic="true"` (do NOT add `aria-live` separately)
+- `--color-warning-bg` / `--color-warning` / `--color-warning-text-on-light` — all exist and have dark mode overrides
+- Modal width: `min(540px, calc(100vw - 2rem))` for full-edit modal
+- RECURRING A11Y BUG: `aria-controls` with conditional rendering — if the button and its target are in mutually exclusive branches, `aria-controls` referent never exists in DOM simultaneously. Fix: keep both in DOM, toggle with `hidden` prop, update `aria-expanded` dynamically.
+- `parentPickerTab` and `modeBtn` in BudgetLineForm.module.css missing `:focus-visible` (pre-existing gap, WCAG 2.4.7 Medium)
+- New i18n keys (namespace `budget`): `linkedItemLegend`, `changeParentButton`, `cancelChangeParentButton`, `moveButton`, `movingButton`, `moveCrossTableHint`, `moveCrossTableHintReverse`
 
 ## Story #1545 — Unassigned IBL + One-Shot Parent Assignment (PR #1548)
 

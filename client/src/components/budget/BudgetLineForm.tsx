@@ -5,6 +5,7 @@ import type {
   Vendor,
   BudgetSource,
   BudgetCategory,
+  // TODO: BudgetLineAssignRequest exported by backend-developer in shared types
   BudgetLineAssignRequest,
 } from '@cornerstone/shared';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
@@ -33,6 +34,14 @@ export interface BudgetLineFormProps {
   onAssign?: (body: BudgetLineAssignRequest) => Promise<void>;
   assignBudgetLineId?: string;
   children?: ReactNode;
+  // Props for the "edit assigned line" parent-picker (move affordance)
+  currentParentType?: 'work_item' | 'household_item' | 'unassigned';
+  currentParentId?: string | null;
+  currentParentLabel?: string | null;
+  onMove?: (newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>;
+  // Itemized amount field (only used in invoice-side edit context)
+  itemizedAmount?: string;
+  onItemizedAmountChange?: (value: string) => void;
 }
 
 export function BudgetLineForm({
@@ -53,6 +62,12 @@ export function BudgetLineForm({
   onAssign,
   assignBudgetLineId,
   children,
+  currentParentType,
+  currentParentId,
+  currentParentLabel,
+  onMove,
+  itemizedAmount,
+  onItemizedAmountChange,
 }: BudgetLineFormProps) {
   const { t } = useTranslation('budget');
   const { t: tSettings } = useTranslation('settings');
@@ -67,6 +82,11 @@ export function BudgetLineForm({
   const [parentPickerError, setParentPickerError] = useState<string | null>(null);
   const parentPickerRef = useRef<HTMLFieldSetElement>(null);
 
+  // Edit-move specific state
+  const [isPickerExpanded, setIsPickerExpanded] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
+  const [movePickerError, setMovePickerError] = useState<string | null>(null);
+
   // Auto-focus parent picker when requested
   useEffect(() => {
     if (focusParentPicker && parentPickerRef.current) {
@@ -77,6 +97,13 @@ export function BudgetLineForm({
     }
     return undefined;
   }, [focusParentPicker]);
+
+  // Initialize selectedParentType when editing an assigned line
+  useEffect(() => {
+    if (currentParentType && currentParentType !== 'unassigned') {
+      setSelectedParentType(currentParentType);
+    }
+  }, [currentParentType]);
 
   // Handle parent assignment
   const handleAssign = async () => {
@@ -96,6 +123,25 @@ export function BudgetLineForm({
       setParentPickerError(t('budgetLineForm.parentPickerError') || 'Failed to assign budget line');
     } finally {
       setIsAssigning(false);
+    }
+  };
+
+  // Handle parent move (for edit mode)
+  const handleMove = async () => {
+    if (!selectedParentId || !onMove) return;
+    setMovePickerError(null);
+    setIsMoving(true);
+    try {
+      await onMove(selectedParentType, selectedParentId);
+      setIsPickerExpanded(false);
+      setSelectedParentId(null);
+    } catch (err) {
+      const msg = err instanceof Error && err.message
+        ? err.message
+        : t('budgetLineForm.parentPickerError');
+      setMovePickerError(msg);
+    } finally {
+      setIsMoving(false);
     }
   };
 
@@ -361,6 +407,28 @@ export function BudgetLineForm({
 
         {children}
 
+        {itemizedAmount !== undefined && onItemizedAmountChange !== undefined && (
+          <div className={`${styles.field} ${styles.itemizedAmountField}`}>
+            <label className={styles.label} htmlFor="budget-itemized-amount">
+              {t('budgetLineForm.itemizedAmountLabel', { currencySymbol: '€' })}
+              <span className={styles.requiredStar}>*</span>
+            </label>
+            <input
+              type="number"
+              id="budget-itemized-amount"
+              className={styles.input}
+              value={itemizedAmount}
+              onChange={(e) => onItemizedAmountChange(e.target.value)}
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              required
+              disabled={isSaving}
+              onWheel={(e) => e.currentTarget.blur()}
+            />
+          </div>
+        )}
+
         {/* Parent picker section for assigning unassigned budget lines */}
         {isUnassigned && onAssign && (
           <fieldset ref={parentPickerRef} className={styles.parentPickerSection} tabIndex={-1}>
@@ -421,6 +489,109 @@ export function BudgetLineForm({
                 ? t('invoiceDetail.budgetLines.assigningButton')
                 : t('budgetLineForm.assignButton')}
             </button>
+          </fieldset>
+        )}
+
+        {/* Parent picker section for editing assigned budget lines (move affordance) */}
+        {!isUnassigned && currentParentId && onMove && (
+          <fieldset ref={parentPickerRef} className={styles.parentPickerSection} tabIndex={-1}>
+            <legend className={styles.parentPickerLegend}>
+              {t('budgetLineForm.linkedItemLegend')}
+            </legend>
+
+            {/* Collapsed view: current parent + "Change" button */}
+            <div className={styles.currentParentRow} hidden={isPickerExpanded}>
+              <span className={`${styles.entityTypePill} ${styles[`entityTypePill_${currentParentType ?? 'work_item'}`]}`}>
+                {currentParentType === 'work_item'
+                  ? t('budgetLineForm.parentPickerWorkItemTab')
+                  : t('budgetLineForm.parentPickerHouseholdItemTab')}
+              </span>
+              <span className={styles.currentParentLabel}>{currentParentLabel ?? '—'}</span>
+              <button
+                type="button"
+                className={styles.ghostChangeButton}
+                onClick={() => setIsPickerExpanded(true)}
+                aria-expanded={isPickerExpanded}
+                aria-controls="parent-picker-body"
+                disabled={isSaving || isMoving}
+              >
+                {t('budgetLineForm.changeParentButton')}
+              </button>
+            </div>
+
+            {/* Expanded view: type tabs + picker + optional move hint + buttons */}
+            <div id="parent-picker-body" hidden={!isPickerExpanded}>
+              <div className={styles.parentPickerTabs}>
+                <button
+                  type="button"
+                  className={`${styles.parentPickerTab} ${selectedParentType === 'work_item' ? styles.parentPickerTabActive : ''}`}
+                  onClick={() => {
+                    setSelectedParentType('work_item');
+                    setSelectedParentId(null);
+                  }}
+                >
+                  {t('budgetLineForm.parentPickerWorkItemTab')}
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.parentPickerTab} ${selectedParentType === 'household_item' ? styles.parentPickerTabActive : ''}`}
+                  onClick={() => {
+                    setSelectedParentType('household_item');
+                    setSelectedParentId(null);
+                  }}
+                >
+                  {t('budgetLineForm.parentPickerHouseholdItemTab')}
+                </button>
+              </div>
+              <div className={styles.parentPickerBody}>
+                {selectedParentType === 'work_item' ? (
+                  <WorkItemPicker
+                    value={selectedParentId ?? ''}
+                    onChange={(id) => setSelectedParentId(id)}
+                    placeholder={t('budgetLineForm.parentPickerWorkItemTab')}
+                    excludeIds={[]}
+                    showItemsOnFocus={false}
+                  />
+                ) : (
+                  <HouseholdItemPicker
+                    value={selectedParentId ?? ''}
+                    onChange={(id) => setSelectedParentId(id)}
+                    placeholder={t('budgetLineForm.parentPickerHouseholdItemTab')}
+                    excludeIds={[]}
+                    showItemsOnFocus={false}
+                  />
+                )}
+              </div>
+              {/* Cross-table move hint */}
+              {currentParentType && currentParentType !== 'unassigned' && selectedParentType !== currentParentType && (
+                <div className={styles.moveHint} role="status" aria-atomic="true">
+                  {selectedParentType === 'household_item'
+                    ? t('budgetLineForm.moveCrossTableHint')
+                    : t('budgetLineForm.moveCrossTableHintReverse')}
+                </div>
+              )}
+              {movePickerError && <p className={styles.parentPickerError}>{movePickerError}</p>}
+              <button
+                type="button"
+                className={styles.assignSubmitButton}
+                disabled={isMoving || !selectedParentId}
+                onClick={() => void handleMove()}
+              >
+                {isMoving ? t('budgetLineForm.movingButton') : t('budgetLineForm.moveButton')}
+              </button>
+              <button
+                type="button"
+                className={styles.ghostCancelButton}
+                onClick={() => {
+                  setIsPickerExpanded(false);
+                  setSelectedParentId(null);
+                  setMovePickerError(null);
+                }}
+                disabled={isMoving}
+              >
+                {t('budgetLineForm.cancelChangeParentButton')}
+              </button>
+            </div>
           </fieldset>
         )}
 

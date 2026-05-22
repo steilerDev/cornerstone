@@ -34,6 +34,13 @@ export interface BudgetSectionProps<T extends BaseBudgetLine> {
   isUnlinking?: Record<string, boolean>;
   inlineError?: string | null;
   oversubscribedSubsidyIds?: Set<string>;
+  parentEntityId?: string;
+  parentEntityLabel?: string;
+  onMoveBudgetLine?: (
+    budgetLineId: string,
+    newParentType: 'work_item' | 'household_item',
+    newParentId: string,
+  ) => Promise<void>;
 }
 
 export function BudgetSection<T extends BaseBudgetLine>({
@@ -55,6 +62,9 @@ export function BudgetSection<T extends BaseBudgetLine>({
   isUnlinking,
   inlineError,
   oversubscribedSubsidyIds,
+  parentEntityId,
+  parentEntityLabel,
+  onMoveBudgetLine,
 }: BudgetSectionProps<T>) {
   const { t } = useTranslation(budgetLineType === 'household_item' ? 'householdItems' : 'budget');
 
@@ -180,6 +190,15 @@ export function BudgetSection<T extends BaseBudgetLine>({
                 vendors={vendors}
                 budgetCategories={budgetCategories}
                 staticCategoryLabel={staticCategoryLabel}
+                currentParentType={budgetLineType ?? undefined}
+                currentParentId={parentEntityId ?? undefined}
+                currentParentLabel={parentEntityLabel ?? undefined}
+                onMove={
+                  onMoveBudgetLine
+                    ? async (newParentType, newParentId) =>
+                        onMoveBudgetLine(line.id, newParentType, newParentId)
+                    : undefined
+                }
               />
             ) : (
               <BudgetLineCard

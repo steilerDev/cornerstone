@@ -11,12 +11,14 @@ import type {
   ExtractedLine,
   AutoItemizeWarning,
   AppConfigResponse,
+  EditAndMoveBudgetLineRequest,
 } from '@cornerstone/shared';
 import {
   fetchInvoiceBudgetLines,
   createInvoiceBudgetLine,
   updateInvoiceBudgetLine,
   deleteInvoiceBudgetLine,
+  editAndMoveBudgetLine,
 } from '../../lib/invoiceBudgetLinesApi.js';
 import { assignBudgetLine } from '../../lib/budgetLineAssignApi.js';
 import type { BudgetLineAssignRequest } from '@cornerstone/shared';
@@ -130,6 +132,10 @@ export function InvoiceBudgetLinesSection({
   const [assigningLineId, setAssigningLineId] = useState<string | null>(null);
   const [openedWithFocusParentPicker, setOpenedWithFocusParentPicker] = useState(false);
 
+  // Full form state for editing assigned budget lines
+  const [budgetLineFullForm, setBudgetLineFullForm] = useState<BudgetLineFormState | null>(null);
+  const [budgetLineItemizedAmount, setBudgetLineItemizedAmount] = useState('');
+
   // Focus management
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const pickerModalRef = useRef<HTMLDivElement>(null);
@@ -193,6 +199,8 @@ export function InvoiceBudgetLinesSection({
       setBudgetLineFormAmount('');
       setBudgetLineFormError('');
       setOpenedWithFocusParentPicker(false);
+      setBudgetLineFullForm(null);
+      setBudgetLineItemizedAmount('');
     }
   };
 
@@ -296,6 +304,28 @@ export function InvoiceBudgetLinesSection({
     setBudgetLineFormAmount(line.itemizedAmount.toString());
     setBudgetLineFormError('');
     setOpenedWithFocusParentPicker(options?.focusParentPicker ?? false);
+
+    // Initialize full form state for assigned lines
+    if (line.parentItemType !== 'unassigned') {
+      // Derive pricingMode: if both quantity and unitPrice are non-null, use 'unit'; else 'direct'
+      const pricingMode = line.quantity !== null && line.unitPrice !== null ? 'unit' : 'direct';
+
+      setBudgetLineFullForm({
+        description: line.budgetLineDescription ?? '',
+        plannedAmount: line.plannedAmount.toString(),
+        confidence: line.confidence,
+        budgetCategoryId: line.categoryId ?? '',
+        budgetSourceId: line.budgetSourceId ?? '',
+        vendorId: line.vendorId ?? '',
+        pricingMode,
+        quantity: line.quantity !== null ? line.quantity.toString() : '',
+        unit: line.unit ?? '',
+        unitPrice: line.unitPrice !== null ? line.unitPrice.toString() : '',
+        includesVat: line.includesVat ?? true,
+      });
+      setBudgetLineItemizedAmount(line.itemizedAmount.toString());
+    }
+
     setBudgetLineModalMode('edit');
   };
 
@@ -681,6 +711,131 @@ export function InvoiceBudgetLinesSection({
       setIsBudgetLineMutating(false);
     }
   };
+
+  /**
+   * Handle full form submission for editing assigned budget lines.
+   */
+  const handleBudgetLineFullEditSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedBudgetLine || !budgetLineFullForm) return;
+
+    const newAmount = parseFloat(budgetLineItemizedAmount);
+    if (isNaN(newAmount) || newAmount <= 0) {
+      setBudgetLineFormError(t('invoiceDetail.budgetLines.editError.amountInvalid'));
+      return;
+    }
+
+    setIsBudgetLineMutating(true);
+    setBudgetLineFormError('');
+
+    try {
+      // Compute plannedAmount from form
+      let plannedAmount: number;
+      if (budgetLineFullForm.pricingMode === 'direct') {
+        plannedAmount = parseFloat(budgetLineFullForm.plannedAmount);
+      } else {
+        const qty = parseFloat(budgetLineFullForm.quantity);
+        const price = parseFloat(budgetLineFullForm.unitPrice);
+        plannedAmount = Math.round(qty * price * 100) / 100;
+      }
+
+      const payload: EditAndMoveBudgetLineRequest = {
+        itemizedAmount: newAmount,
+        description: budgetLineFullForm.description || null,
+        plannedAmount,
+        confidence: budgetLineFullForm.confidence,
+        budgetCategoryId: budgetLineFullForm.budgetCategoryId || null,
+        budgetSourceId: budgetLineFullForm.budgetSourceId || null,
+        vendorId: budgetLineFullForm.vendorId || null,
+        quantity:
+          budgetLineFullForm.pricingMode === 'unit' && budgetLineFullForm.quantity
+            ? parseFloat(budgetLineFullForm.quantity)
+            : null,
+        unit: budgetLineFullForm.pricingMode === 'unit' ? budgetLineFullForm.unit || null : null,
+        unitPrice:
+          budgetLineFullForm.pricingMode === 'unit' && budgetLineFullForm.unitPrice
+            ? parseFloat(budgetLineFullForm.unitPrice)
+            : null,
+        includesVat: budgetLineFullForm.includesVat,
+      };
+
+      const response = await editAndMoveBudgetLine(invoiceId, selectedBudgetLine.id, payload);
+      setBudgetLines((prev) =>
+        prev.map((line) => (line.id === selectedBudgetLine.id ? response.budgetLine : line)),
+      );
+      setRemainingAmount(response.remainingAmount);
+      closeBudgetLineModal();
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
+          setBudgetLineFormError(t('invoiceDetail.budgetLines.editError.exceedsTotal'));
+        } else if (err.error.code === 'BUDGET_LINE_ALREADY_LINKED') {
+          setBudgetLineFormError(translateApiError('BUDGET_LINE_ALREADY_LINKED', tErrors));
+        } else {
+          setBudgetLineFormError(translateApiError(err.error.code, tErrors));
+        }
+      } else {
+        setBudgetLineFormError(t('invoiceDetail.budgetLines.editError.saveFailed'));
+      }
+    } finally {
+      setIsBudgetLineMutating(false);
+    }
+  };
+
+  /**
+   * Handle moving a budget line to a new parent.
+   */
+  const handleMoveBudgetLine = useCallback(
+    async (newParentType: 'work_item' | 'household_item', newParentId: string) => {
+      if (!selectedBudgetLine || !budgetLineFullForm) return;
+
+      const newAmount = parseFloat(budgetLineItemizedAmount);
+      if (isNaN(newAmount) || newAmount <= 0) {
+        throw new Error(t('invoiceDetail.budgetLines.editError.amountInvalid'));
+      }
+
+      let plannedAmount: number;
+      if (budgetLineFullForm.pricingMode === 'direct') {
+        plannedAmount = parseFloat(budgetLineFullForm.plannedAmount);
+      } else {
+        plannedAmount =
+          Math.round(
+            parseFloat(budgetLineFullForm.quantity) * parseFloat(budgetLineFullForm.unitPrice) * 100,
+          ) / 100;
+      }
+
+      const payload: EditAndMoveBudgetLineRequest = {
+        itemizedAmount: newAmount,
+        description: budgetLineFullForm.description || null,
+        plannedAmount,
+        confidence: budgetLineFullForm.confidence,
+        budgetCategoryId: budgetLineFullForm.budgetCategoryId || null,
+        budgetSourceId: budgetLineFullForm.budgetSourceId || null,
+        vendorId: budgetLineFullForm.vendorId || null,
+        quantity:
+          budgetLineFullForm.pricingMode === 'unit' && budgetLineFullForm.quantity
+            ? parseFloat(budgetLineFullForm.quantity)
+            : null,
+        unit: budgetLineFullForm.pricingMode === 'unit' ? budgetLineFullForm.unit || null : null,
+        unitPrice:
+          budgetLineFullForm.pricingMode === 'unit' && budgetLineFullForm.unitPrice
+            ? parseFloat(budgetLineFullForm.unitPrice)
+            : null,
+        includesVat: budgetLineFullForm.includesVat,
+        ...(newParentType === 'work_item'
+          ? { newWorkItemId: newParentId }
+          : { newHouseholdItemId: newParentId }),
+      };
+
+      const response = await editAndMoveBudgetLine(invoiceId, selectedBudgetLine.id, payload);
+      setBudgetLines((prev) =>
+        prev.map((line) => (line.id === selectedBudgetLine.id ? response.budgetLine : line)),
+      );
+      setRemainingAmount(response.remainingAmount);
+      closeBudgetLineModal();
+    },
+    [selectedBudgetLine, budgetLineFullForm, budgetLineItemizedAmount, invoiceId, t],
+  );
 
   /**
    * Handle assigning an unassigned budget line.
@@ -1312,14 +1467,37 @@ export function InvoiceBudgetLinesSection({
       {budgetLineModalMode === 'edit' && selectedBudgetLine && (
         <EditBudgetLineModal
           line={selectedBudgetLine}
-          formAmount={budgetLineFormAmount}
-          onFormAmountChange={setBudgetLineFormAmount}
-          onSubmit={handleBudgetLineEditSubmit}
+          fullForm={
+            budgetLineFullForm ??
+            ({
+              description: '',
+              plannedAmount: '',
+              confidence: 'own_estimate',
+              budgetCategoryId: '',
+              budgetSourceId: '',
+              vendorId: '',
+              pricingMode: 'direct',
+              quantity: '',
+              unit: '',
+              unitPrice: '',
+              includesVat: true,
+            } as BudgetLineFormState)
+          }
+          onFullFormChange={(updates) =>
+            setBudgetLineFullForm((prev) => (prev ? { ...prev, ...updates } : null))
+          }
+          itemizedAmount={budgetLineItemizedAmount}
+          onItemizedAmountChange={setBudgetLineItemizedAmount}
+          onSubmit={selectedBudgetLine.parentItemType === 'unassigned' ? () => {} : handleBudgetLineFullEditSubmit}
+          onMove={handleMoveBudgetLine}
+          onAssign={handleAssignBudgetLine}
           onClose={closeBudgetLineModal}
           error={budgetLineFormError}
           isMutating={isBudgetLineMutating}
           focusParentPicker={openedWithFocusParentPicker}
-          onAssign={handleAssignBudgetLine}
+          budgetSources={pickerState.budgetSources ?? []}
+          vendors={pickerState.vendors ?? []}
+          budgetCategories={pickerState.categories}
           t={t}
           tSettings={tSettings}
         />
@@ -1385,28 +1563,40 @@ export function InvoiceBudgetLinesSection({
 
 interface EditBudgetLineModalProps {
   line: InvoiceBudgetLineDetailResponse;
-  formAmount: string;
-  onFormAmountChange: (amount: string) => void;
+  fullForm: BudgetLineFormState;
+  onFullFormChange: (updates: Partial<BudgetLineFormState>) => void;
+  itemizedAmount: string;
+  onItemizedAmountChange: (value: string) => void;
   onSubmit: (e: FormEvent) => void;
+  onMove: (parentType: 'work_item' | 'household_item', parentId: string) => Promise<void>;
+  onAssign?: (body: BudgetLineAssignRequest) => Promise<void>;
   onClose: () => void;
   error: string;
   isMutating: boolean;
   focusParentPicker?: boolean;
-  onAssign?: (body: BudgetLineAssignRequest) => Promise<void>;
+  budgetSources: BudgetSource[];
+  vendors: Vendor[];
+  budgetCategories?: BudgetCategory[];
   t: (key: string, opts?: Record<string, unknown>) => string;
   tSettings: (key: string) => string;
 }
 
 function EditBudgetLineModal({
   line,
-  formAmount,
-  onFormAmountChange,
+  fullForm,
+  onFullFormChange,
+  itemizedAmount,
+  onItemizedAmountChange,
   onSubmit,
+  onMove,
+  onAssign,
   onClose,
   error,
   isMutating,
   focusParentPicker,
-  onAssign,
+  budgetSources,
+  vendors,
+  budgetCategories,
   t,
   tSettings,
 }: EditBudgetLineModalProps) {
@@ -1416,28 +1606,6 @@ function EditBudgetLineModal({
     <Modal
       title={t('invoiceDetail.budgetLines.modal.editTitle')}
       onClose={onClose}
-      footer={
-        !isUnassigned && (
-          <div className={styles.modalActions}>
-            <button
-              type="button"
-              className={sharedStyles.btnSecondary}
-              onClick={onClose}
-              disabled={isMutating}
-            >
-              {t('common:button.cancel')}
-            </button>
-            <button
-              type="submit"
-              className={sharedStyles.btnPrimary}
-              form="budget-line-edit-form"
-              disabled={isMutating || !formAmount}
-            >
-              {isMutating ? t('invoiceDetail.budgetLines.form.saving') : t('common:button.save')}
-            </button>
-          </div>
-        )
-      }
     >
       {isUnassigned ? (
         // For unassigned budget lines, show the BudgetLineForm with parent picker
@@ -1486,36 +1654,31 @@ function EditBudgetLineModal({
           assignBudgetLineId={line.workItemBudgetId ?? undefined}
         />
       ) : (
-        // For assigned budget lines, show the simple amount input form
-        <form id="budget-line-edit-form" onSubmit={onSubmit} noValidate>
-          {error && <FormError message={error} />}
-
-          <p className={styles.editModalHint}>
-            {t('invoiceDetail.budgetLines.form.itemizedAmount')}
-          </p>
-
-          <div className={styles.formField}>
-            <label htmlFor="budget-line-amount" className={styles.label}>
-              {t('invoiceDetail.budgetLines.form.itemizedAmount')}
-              <span className={styles.required}>
-                {t('invoiceDetail.budgetLines.form.required')}
-              </span>
-            </label>
-            <input
-              type="number"
-              id="budget-line-amount"
-              value={formAmount}
-              onChange={(e) => onFormAmountChange(e.target.value)}
-              className={sharedStyles.input}
-              placeholder="0.00"
-              min="0"
-              step="0.01"
-              required
-              disabled={isMutating}
-              onWheel={(e) => e.currentTarget.blur()}
-            />
-          </div>
-        </form>
+        // For assigned budget lines, show the full BudgetLineForm with move support
+        <BudgetLineForm
+          form={fullForm}
+          onSubmit={onSubmit}
+          onFormChange={onFullFormChange}
+          onCancel={onClose}
+          error={error}
+          isSaving={isMutating}
+          isEditing={true}
+          confidenceLabels={CONFIDENCE_LABELS}
+          budgetSources={budgetSources}
+          vendors={vendors}
+          budgetCategories={budgetCategories}
+          staticCategoryLabel={
+            line.categoryName
+              ? getCategoryDisplayName(tSettings, line.categoryName, line.categoryTranslationKey)
+              : undefined
+          }
+          currentParentType={line.parentItemType as 'work_item' | 'household_item' | 'unassigned'}
+          currentParentId={line.parentItemId ?? null}
+          currentParentLabel={line.parentItemTitle ?? null}
+          onMove={onMove}
+          itemizedAmount={itemizedAmount}
+          onItemizedAmountChange={onItemizedAmountChange}
+        />
       )}
     </Modal>
   );

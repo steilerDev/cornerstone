@@ -35,6 +35,7 @@ jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
   createInvoiceBudgetLine: jest.fn(),
   updateInvoiceBudgetLine: jest.fn(),
   deleteInvoiceBudgetLine: jest.fn(),
+  editAndMoveBudgetLine: jest.fn(),
 }));
 
 jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
@@ -152,6 +153,12 @@ function makeWorkItemLine(
     parentItemTitle: 'Foundation',
     parentItemType: 'work_item',
     parentItemArea: null,
+    quantity: null,
+    unit: null,
+    unitPrice: null,
+    includesVat: true,
+    vendorId: null,
+    budgetSourceId: null,
     createdAt: '2026-01-15T10:00:00Z',
     updatedAt: '2026-01-15T10:00:00Z',
     ...overrides,
@@ -178,6 +185,12 @@ function makeHouseholdItemLine(
     parentItemTitle: 'Standing Desk',
     parentItemType: 'household_item',
     parentItemArea: null,
+    quantity: null,
+    unit: null,
+    unitPrice: null,
+    includesVat: true,
+    vendorId: null,
+    budgetSourceId: null,
     createdAt: '2026-01-15T10:00:00Z',
     updatedAt: '2026-01-15T10:00:00Z',
     ...overrides,

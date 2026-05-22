@@ -572,6 +572,9 @@ describe('Invoice Budget Lines Routes', () => {
 
   // ─── PATCH /api/invoices/:invoiceId/budget-lines/:id ────────────────────────
 
+  // Move semantics (newWorkItemId / newHouseholdItemId) are tested in
+  // invoiceBudgetLines.editAndMove.test.ts — this suite covers auth, validation, and
+  // amount-only update behaviour.
   describe('PATCH /api/invoices/:invoiceId/budget-lines/:id', () => {
     it('returns 401 UNAUTHORIZED without authentication', async () => {
       const response = await app.inject({
@@ -668,33 +671,6 @@ describe('Invoice Budget Lines Routes', () => {
       expect(response.statusCode).toBe(404);
       const body = response.json<ApiErrorResponse>();
       expect(body.error.code).toBe('NOT_FOUND');
-    });
-
-    it('returns 400 VALIDATION_ERROR when attempting to change workItemBudgetId', async () => {
-      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
-      const vendorId = createTestVendor('Vendor PATCH Change WIB');
-      const invoiceId = createTestInvoice(vendorId, 1000);
-      const wiId = createTestWorkItem('Task PATCH Change WIB');
-      const wibId = createTestWorkItemBudget(wiId);
-
-      const createResp = await app.inject({
-        method: 'POST',
-        url: `/api/invoices/${invoiceId}/budget-lines`,
-        headers: { cookie },
-        payload: { workItemBudgetId: wibId, itemizedAmount: 100 },
-      });
-      const createBody = createResp.json<{ budgetLine: { id: string } }>();
-
-      const response = await app.inject({
-        method: 'PATCH',
-        url: `/api/invoices/${invoiceId}/budget-lines/${createBody.budgetLine.id}`,
-        headers: { cookie },
-        payload: { workItemBudgetId: 'another-wib' },
-      });
-
-      expect(response.statusCode).toBe(400);
-      const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('VALIDATION_ERROR');
     });
 
     it('returns 400 ITEMIZED_SUM_EXCEEDS_INVOICE when update would exceed invoice total', async () => {

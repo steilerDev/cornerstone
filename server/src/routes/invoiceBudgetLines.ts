@@ -4,6 +4,7 @@ import * as invoiceBudgetLineService from '../services/invoiceBudgetLineService.
 import type {
   CreateInvoiceBudgetLineRequest,
   UpdateInvoiceBudgetLineRequest,
+  EditAndMoveBudgetLineRequest,
 } from '@cornerstone/shared';
 
 // JSON schema for GET /api/invoices/:invoiceId/budget-lines
@@ -43,9 +44,25 @@ const updateBudgetLineSchema = {
   body: {
     type: 'object',
     properties: {
-      workItemBudgetId: { type: ['string', 'null'] },
-      householdItemBudgetId: { type: ['string', 'null'] },
+      // IBL field
       itemizedAmount: { type: 'number', exclusiveMinimum: 0 },
+      // Budget-line fields
+      description: { type: ['string', 'null'], maxLength: 500 },
+      plannedAmount: { type: 'number', minimum: 0 },
+      confidence: {
+        type: 'string',
+        enum: ['own_estimate', 'professional_estimate', 'quote', 'invoice'],
+      },
+      budgetCategoryId: { type: ['string', 'null'] },
+      budgetSourceId: { type: ['string', 'null'] },
+      vendorId: { type: ['string', 'null'] },
+      quantity: { type: ['number', 'null'], minimum: 0 },
+      unit: { type: ['string', 'null'], maxLength: 100 },
+      unitPrice: { type: ['number', 'null'], minimum: 0 },
+      includesVat: { type: 'boolean' },
+      // Move fields
+      newWorkItemId: { type: ['string', 'null'] },
+      newHouseholdItemId: { type: ['string', 'null'] },
     },
     additionalProperties: false,
     minProperties: 1,
@@ -118,18 +135,18 @@ export default async function invoiceBudgetLineRoutes(fastify: FastifyInstance) 
 
   /**
    * PATCH /api/invoices/:invoiceId/budget-lines/:id
-   * Update an invoice budget line.
+   * Update an invoice budget line (fields) and/or move to a new parent.
    * Auth required: Yes (both admin and member)
    */
   fastify.patch<{
     Params: { invoiceId: string; id: string };
-    Body: UpdateInvoiceBudgetLineRequest;
+    Body: EditAndMoveBudgetLineRequest;
   }>('/:id', { schema: updateBudgetLineSchema }, async (request, reply) => {
     if (!request.user) {
       throw new UnauthorizedError();
     }
 
-    const result = invoiceBudgetLineService.updateInvoiceBudgetLine(
+    const result = invoiceBudgetLineService.editAndMoveBudgetLine(
       fastify.db,
       request.params.invoiceId,
       request.params.id,

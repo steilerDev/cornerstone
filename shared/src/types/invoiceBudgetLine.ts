@@ -91,6 +91,7 @@ export interface InvoiceBudgetLineSummary {
  * Detailed invoice budget line response (GET /api/invoices/:invoiceId/budget-lines).
  * Includes full details of the linked budget line and its parent item.
  * parentItemType can be 'unassigned' for orphan work_item_budget rows with no parent.
+ * Includes underlying budget-line pricing/source/vendor fields for edit form pre-population.
  */
 export interface InvoiceBudgetLineDetailResponse {
   id: string;
@@ -109,6 +110,13 @@ export interface InvoiceBudgetLineDetailResponse {
   parentItemTitle: string | null;
   parentItemType: 'work_item' | 'household_item' | 'unassigned';
   parentItemArea: AreaSummary | null;
+  // Budget line pricing and source fields (for edit form pre-population)
+  quantity: number | null;
+  unit: string | null;
+  unitPrice: number | null;
+  includesVat: boolean;
+  vendorId: string | null;
+  budgetSourceId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -146,3 +154,31 @@ export interface BudgetLineAssignRequest {
  * Response for assigning a budget line (returns the full detail of the assigned line).
  */
 export type BudgetLineAssignResponse = InvoiceBudgetLineDetailResponse;
+
+/**
+ * Request body for full edit (all fields) + optional parent move on an invoice budget line.
+ * Used by PATCH /api/invoices/:invoiceId/budget-lines/:id.
+ *
+ * If newWorkItemId or newHouseholdItemId is provided, the underlying budget line row
+ * is moved to the new parent (same-table update or cross-table transaction).
+ * If neither is provided, the underlying budget line is updated in place (no move).
+ * newWorkItemId and newHouseholdItemId are mutually exclusive.
+ */
+export interface EditAndMoveBudgetLineRequest {
+  // IBL-level field
+  itemizedAmount?: number;
+  // Budget-line fields (applied to WIB or HIB row)
+  description?: string | null;
+  plannedAmount?: number;
+  confidence?: ConfidenceLevel;
+  budgetCategoryId?: string | null;
+  budgetSourceId?: string | null;
+  vendorId?: string | null;
+  quantity?: number | null;
+  unit?: string | null;
+  unitPrice?: number | null;
+  includesVat?: boolean;
+  // Move fields — provide to change parent; mutually exclusive
+  newWorkItemId?: string | null;
+  newHouseholdItemId?: string | null;
+}

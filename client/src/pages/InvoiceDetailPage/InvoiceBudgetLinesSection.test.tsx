@@ -33,6 +33,8 @@ const mockUpdateInvoiceBudgetLine =
   jest.fn<typeof InvoiceBudgetLinesApiTypes.updateInvoiceBudgetLine>();
 const mockDeleteInvoiceBudgetLine =
   jest.fn<typeof InvoiceBudgetLinesApiTypes.deleteInvoiceBudgetLine>();
+const mockEditAndMoveBudgetLine =
+  jest.fn<typeof InvoiceBudgetLinesApiTypes.editAndMoveBudgetLine>();
 const mockFetchWorkItemBudgets = jest.fn<typeof WorkItemBudgetsApiTypes.fetchWorkItemBudgets>();
 const mockFetchHouseholdItemBudgets =
   jest.fn<typeof HouseholdItemBudgetsApiTypes.fetchHouseholdItemBudgets>();
@@ -44,6 +46,7 @@ jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
   createInvoiceBudgetLine: mockCreateInvoiceBudgetLine,
   updateInvoiceBudgetLine: mockUpdateInvoiceBudgetLine,
   deleteInvoiceBudgetLine: mockDeleteInvoiceBudgetLine,
+  editAndMoveBudgetLine: mockEditAndMoveBudgetLine,
 }));
 
 // ─── Mock: workItemBudgetsApi ──────────────────────────────────────────────────
@@ -105,6 +108,9 @@ jest.unstable_mockModule('../../components/budget/BudgetLineForm.js', () => ({
     error: string | null;
     isSaving: boolean;
     budgetCategories?: unknown[];
+    // Itemized amount field — used in the invoice-side edit context
+    itemizedAmount?: string;
+    onItemizedAmountChange?: (value: string) => void;
   }) => (
     <form data-testid="budget-line-form" onSubmit={props.onSubmit}>
       <input
@@ -117,7 +123,19 @@ jest.unstable_mockModule('../../components/budget/BudgetLineForm.js', () => ({
         value={props.form.plannedAmount ?? ''}
         onChange={(e) => props.onFormChange({ plannedAmount: e.target.value })}
       />
-      {props.error && <div data-testid="form-error">{props.error}</div>}
+      {/* Itemized Amount field — rendered when prop is provided (edit-modal context) */}
+      {props.itemizedAmount !== undefined && (
+        <div>
+          <label htmlFor="mock-itemized-amount">Itemized Amount (€) *</label>
+          <input
+            id="mock-itemized-amount"
+            type="number"
+            value={props.itemizedAmount}
+            onChange={(e) => props.onItemizedAmountChange?.(e.target.value)}
+          />
+        </div>
+      )}
+      {props.error && <div data-testid="form-error" role="alert">{props.error}</div>}
       {props.isSaving && <span data-testid="form-saving">Saving...</span>}
       <button type="submit" data-testid="form-submit" disabled={props.isSaving}>
         Submit
@@ -253,6 +271,12 @@ const makeDetailLine = (
   parentItemTitle: 'Foundation',
   parentItemType: 'work_item',
   parentItemArea: null,
+  quantity: null,
+  unit: null,
+  unitPrice: null,
+  includesVat: true,
+  vendorId: null,
+  budgetSourceId: null,
   createdAt: '2026-01-15T10:00:00Z',
   updatedAt: '2026-01-15T10:00:00Z',
   ...overrides,
@@ -281,6 +305,7 @@ beforeEach(async () => {
   mockCreateInvoiceBudgetLine.mockReset();
   mockUpdateInvoiceBudgetLine.mockReset();
   mockDeleteInvoiceBudgetLine.mockReset();
+  mockEditAndMoveBudgetLine.mockReset();
   mockFetchWorkItemBudgets.mockReset();
   mockFetchHouseholdItemBudgets.mockReset();
   mockFetchBudgetCategories.mockReset();
@@ -1221,9 +1246,10 @@ describe('InvoiceBudgetLinesSection', () => {
       expect(amountInput.value).toBe('500');
     });
 
-    it('changing amount and submitting calls updateInvoiceBudgetLine with new value', async () => {
+    it('changing amount and submitting calls editAndMoveBudgetLine with new value', async () => {
       const updatedLine = makeDetailLine('ibl-001', { itemizedAmount: 750.0 });
-      mockUpdateInvoiceBudgetLine.mockResolvedValue(makeCreateResponse(updatedLine, 750.0));
+      // The full-form edit path uses editAndMoveBudgetLine (not updateInvoiceBudgetLine)
+      mockEditAndMoveBudgetLine.mockResolvedValue(makeCreateResponse(updatedLine, 750.0));
 
       renderSection();
       await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
@@ -1247,15 +1273,19 @@ describe('InvoiceBudgetLinesSection', () => {
       });
 
       await waitFor(() => {
-        expect(mockUpdateInvoiceBudgetLine).toHaveBeenCalledWith(INVOICE_ID, 'ibl-001', {
-          itemizedAmount: 750,
-        });
+        // editAndMoveBudgetLine is called with the full payload; verify itemizedAmount
+        expect(mockEditAndMoveBudgetLine).toHaveBeenCalledWith(
+          INVOICE_ID,
+          'ibl-001',
+          expect.objectContaining({ itemizedAmount: 750 }),
+        );
       });
     });
 
     it('successful edit closes the modal', async () => {
       const updatedLine = makeDetailLine('ibl-001', { itemizedAmount: 750.0 });
-      mockUpdateInvoiceBudgetLine.mockResolvedValue(makeCreateResponse(updatedLine, 750.0));
+      // The full-form edit path uses editAndMoveBudgetLine (not updateInvoiceBudgetLine)
+      mockEditAndMoveBudgetLine.mockResolvedValue(makeCreateResponse(updatedLine, 750.0));
 
       renderSection();
       await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
@@ -1281,7 +1311,8 @@ describe('InvoiceBudgetLinesSection', () => {
     });
 
     it('ITEMIZED_SUM_EXCEEDS_INVOICE error shows error in modal and modal stays open', async () => {
-      mockUpdateInvoiceBudgetLine.mockRejectedValue(
+      // The full-form edit path uses editAndMoveBudgetLine (not updateInvoiceBudgetLine)
+      mockEditAndMoveBudgetLine.mockRejectedValue(
         new MockApiClientError(400, {
           code: 'ITEMIZED_SUM_EXCEEDS_INVOICE',
           message: 'The new amount would exceed the invoice total.',

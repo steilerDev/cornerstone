@@ -53,6 +53,7 @@ import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesA
 import {
   createInvoiceBudgetLine,
   deleteInvoiceBudgetLine,
+  editAndMoveBudgetLine,
 } from '../../lib/invoiceBudgetLinesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -79,6 +80,7 @@ export function HouseholdItemDetailPage() {
   const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   const { t } = useTranslation('householdItems');
   const { t: tSettings } = useTranslation('settings');
+  const { t: tBudget } = useTranslation('budget');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -511,6 +513,52 @@ export function HouseholdItemDetailPage() {
     setShowInvoiceLinkModal(false);
     setInvoiceLinkingBudgetId(null);
     reloadBudgetLines();
+  };
+
+  const handleMoveBudgetLine = async (
+    budgetLineId: string,
+    newParentType: 'work_item' | 'household_item',
+    newParentId: string,
+  ) => {
+    const budgetLine = budgetLines.find((line) => line.id === budgetLineId);
+    if (!budgetLine) return;
+
+    setInlineError(null);
+
+    try {
+      // If the line has an invoice link, use the invoice budget line endpoint
+      if (budgetLine.invoiceLink?.invoiceBudgetLineId && budgetLine.invoiceLink?.invoiceId) {
+        const moveData =
+          newParentType === 'work_item'
+            ? { newWorkItemId: newParentId }
+            : { newHouseholdItemId: newParentId };
+
+        await editAndMoveBudgetLine(
+          budgetLine.invoiceLink.invoiceId,
+          budgetLine.invoiceLink.invoiceBudgetLineId,
+          moveData,
+        );
+      } else {
+        // No invoice link — check if it's a same-table or cross-table move
+        if (newParentType === 'work_item') {
+          // Cross-table move without invoice link is not supported
+          throw new Error(tBudget('budgetLineForm.moveCrossTableNoInvoiceError'));
+        }
+
+        // Same-table household item to household item move
+        await updateHouseholdItemBudget(item!.id, budgetLineId, {
+          newHouseholdItemId: newParentId,
+        });
+      }
+
+      // Reload budget lines to reflect the move
+      await reloadBudgetLines();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to move budget line. Please try again.';
+      setInlineError(message);
+      throw err; // Re-throw so BudgetSection's handleMove can display inline error
+    }
   };
 
   function triggerAutosaveReset(setter: (v: AutosaveState) => void, key: string) {
@@ -1324,6 +1372,9 @@ export function HouseholdItemDetailPage() {
             onUnlinkInvoice={handleUnlinkInvoice}
             isUnlinking={isUnlinkingInvoice}
             inlineError={inlineError}
+            parentEntityId={item?.id}
+            parentEntityLabel={item?.name}
+            onMoveBudgetLine={handleMoveBudgetLine}
           />
         </section>
 

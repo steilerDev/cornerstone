@@ -781,7 +781,16 @@
     "parentPickerHouseholdItemTab": "Haushaltsartikel",
     "parentPickerSeparator": "oder",
     "parentPickerFieldsetLegend": "Arbeitspaket oder Haushaltsartikel zuweisen",
-    "parentPickerError": "Budgetposition konnte nicht zugewiesen werden. Bitte versuchen Sie es erneut."
+    "parentPickerError": "Budgetposition konnte nicht zugewiesen werden. Bitte versuchen Sie es erneut.",
+    "linkedItemLegend": "Verknüpftes Element",
+    "changeParentButton": "Ändern",
+    "cancelChangeParentButton": "Abbrechen",
+    "moveButton": "Zum ausgewählten Element verschieben",
+    "movingButton": "Wird verschoben…",
+    "moveCrossTableHint": "Das Verschieben zu einem Haushaltsartikel überträgt diese Budgetposition in das Haushaltsartikelbudget.",
+    "moveCrossTableHintReverse": "Das Verschieben zu einem Arbeitspaket überträgt diese Budgetposition in das Arbeitspaketbudget.",
+    "itemizedAmountLabel": "Aufgeschlüsselter Betrag ({{currencySymbol}}) *",
+    "moveCrossTableNoInvoiceError": "Tabellenübergreifende Verschiebungen erfordern eine Rechnungsverknüpfung. Entfernen Sie entweder die Verschiebung oder verknüpfen Sie diese Budgetposition zuerst mit einer Rechnung."
   },
   "health": {
     "overBudget": "Über Budget",
