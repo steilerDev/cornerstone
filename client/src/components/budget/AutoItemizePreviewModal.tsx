@@ -25,9 +25,11 @@ interface AutoItemizePreviewModalProps {
   paperlessDocumentId: number;
   initialLines: ExtractedLine[];
   initialWarnings: AutoItemizeWarning[];
+  initialErrorCode?: string;
   triggerRef?: React.RefObject<HTMLButtonElement | null>;
   onCancel: () => void;
   onApplied: () => void;
+  onRetry?: () => void;
 }
 
 export function AutoItemizePreviewModal({
@@ -37,9 +39,11 @@ export function AutoItemizePreviewModal({
   paperlessDocumentId,
   initialLines,
   initialWarnings,
+  initialErrorCode,
   triggerRef,
   onCancel,
   onApplied,
+  onRetry,
 }: AutoItemizePreviewModalProps) {
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
@@ -57,8 +61,14 @@ export function AutoItemizePreviewModal({
       setLines(initialLines.map((line) => ({ ...line, included: true })));
       setError(null);
       setMode('append');
+      // If there's an initial error, set retry state
+      if (initialErrorCode) {
+        const errorMsg = translateApiError(initialErrorCode, tErrors);
+        setError(errorMsg);
+        setIsRetrying(true);
+      }
     }
-  }, [isOpen, initialLines]);
+  }, [isOpen, initialLines, initialErrorCode, tErrors]);
 
   // Calculate total from included lines
   const includedTotal = useMemo(() => {
@@ -133,7 +143,11 @@ export function AutoItemizePreviewModal({
 
   const handleRetry = async () => {
     setIsRetrying(false);
-    await handleApply();
+    if (onRetry) {
+      onRetry();
+    } else {
+      await handleApply();
+    }
   };
 
   // Restore focus on close
@@ -145,24 +159,44 @@ export function AutoItemizePreviewModal({
 
   if (!isOpen) return null;
 
-  // Empty state
+  // Empty state or error state (with no lines to show)
   if (initialLines.length === 0) {
     return (
       <Modal
         title={t('invoiceDetail.budgetLines.autoItemize.modalTitle')}
         onClose={onCancel}
         footer={
-          <button
-            type="button"
-            className={sharedStyles.btnSecondary}
-            onClick={onCancel}
-          >
-            {t('invoiceDetail.budgetLines.autoItemize.cancelButton')}
-          </button>
+          <div className={sharedStyles.modalActions}>
+            <button
+              type="button"
+              className={sharedStyles.btnSecondary}
+              onClick={onCancel}
+            >
+              {t('invoiceDetail.budgetLines.autoItemize.cancelButton')}
+            </button>
+            {initialErrorCode && (
+              <button
+                type="button"
+                className={sharedStyles.btnPrimary}
+                onClick={() => void handleRetry()}
+              >
+                {t('invoiceDetail.budgetLines.autoItemize.retryButton')}
+              </button>
+            )}
+          </div>
         }
       >
-        <div className={styles.emptyState}>
-          <p>{t('invoiceDetail.budgetLines.autoItemize.noLines')}</p>
+        <div className={styles.container}>
+          {error && (
+            <div role="alert">
+              <FormError message={error} />
+            </div>
+          )}
+          {!error && (
+            <div className={styles.emptyState}>
+              <p>{t('invoiceDetail.budgetLines.autoItemize.noLines')}</p>
+            </div>
+          )}
         </div>
       </Modal>
     );
@@ -245,7 +279,7 @@ export function AutoItemizePreviewModal({
 
         {/* Mismatch warning */}
         {initialWarnings.length > 0 && (
-          <div className={styles.warningBlock}>
+          <div className={styles.warningBlock} role="status" aria-atomic="true">
             <div className={styles.warningIcon}>⚠</div>
             <div className={styles.warningContent}>
               {initialWarnings.map((w) =>
@@ -308,6 +342,7 @@ export function AutoItemizePreviewModal({
                       disabled={isApplying}
                       aria-label={t(
                         'invoiceDetail.budgetLines.autoItemize.includeCheckboxAriaLabel',
+                        { description: line.description },
                       )}
                     />
                   </td>

@@ -62,7 +62,8 @@
 @media (prefers-reduced-motion: reduce) {
   .spinner {
     animation: none;
-    border-top-color: var(--color-border);
+    border-top-color: var(--color-primary);
+    opacity: 0.8;
   }
 }
 
@@ -870,6 +871,10 @@
   .sectionHeader {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .buttonGroup {
+    flex-direction: column;
   }
 
   .addButton {

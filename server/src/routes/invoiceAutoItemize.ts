@@ -20,6 +20,7 @@ const schema = {
       dryRun: { type: 'boolean' },
       lines: {
         type: 'array',
+        maxItems: 200,
         items: {
           type: 'object',
           required: ['description', 'totalAmount', 'confidence'],

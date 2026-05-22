@@ -28,12 +28,15 @@ import { getProvider, validateExtractedLines } from './budgetExtraction/index.js
 import * as paperlessService from './paperlessService.js';
 import * as invoiceBudgetLineService from './invoiceBudgetLineService.js';
 import type { AppConfig } from '../plugins/config.js';
-import type { ExtractedLine, ExtractionHints } from './budgetExtraction/types.js';
-import type {
-  InvoiceBudgetLineListDetailResponse,
-} from '@cornerstone/shared';
+import type { ExtractedLine, ExtractionHints, InvoiceBudgetLineListDetailResponse } from '@cornerstone/shared';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
+
+/**
+ * Maximum OCR text size to send to LLM (32KB).
+ * Prevents excessively large documents from overwhelming the LLM provider.
+ */
+const MAX_OCR_CHARS = 32_000;
 
 export interface AutoItemizeRequestBody {
   paperlessDocumentId: number;
@@ -69,6 +72,11 @@ function buildHints(invoice: typeof invoices.$inferSelect, vendorName?: string):
  * Compute warnings based on extracted vs. invoice totals (>1% tolerance).
  */
 function computeWarnings(lines: ExtractedLine[], invoiceTotal: number): AutoItemizeWarning[] {
+  // No lines extracted is its own (empty) signal — emitting a mismatch warning would be
+  // misleading. The UI surfaces "No line items detected" instead.
+  if (lines.length === 0) {
+    return [];
+  }
   const extractedTotal = lines.reduce((sum, l) => sum + (l.totalAmount ?? 0), 0);
   const tolerance = invoiceTotal * 0.01; // 1% tolerance
   if (Math.abs(extractedTotal - invoiceTotal) > tolerance) {
@@ -140,7 +148,11 @@ export async function autoItemize(
 
     const provider = getProvider(config);
     const hints = buildHints(invoice, vendorName);
-    const extractedLines = await provider.extract(doc.content ?? '', hints);
+    // Truncate OCR text to MAX_OCR_CHARS to prevent LLM overload
+    const ocrText = (doc.content ?? '').length > MAX_OCR_CHARS
+      ? (doc.content ?? '').slice(0, MAX_OCR_CHARS)
+      : (doc.content ?? '');
+    const extractedLines = await provider.extract(ocrText, hints);
     const warnings = computeWarnings(extractedLines, invoice.amount);
 
     return {

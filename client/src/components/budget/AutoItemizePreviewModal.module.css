@@ -12,9 +12,9 @@
 
 .modeLegend {
   display: block;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   margin-bottom: var(--spacing-2);
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
 
@@ -28,7 +28,7 @@
   align-items: center;
   gap: var(--spacing-2);
   cursor: pointer;
-  font-size: 0.9375rem;
+  font-size: var(--font-size-base);
 }
 
 .modeOption input[type='radio'] {
@@ -65,7 +65,7 @@
 .warningContent p {
   margin: 0;
   color: var(--color-warning-text-on-light);
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
   line-height: 1.4;
 }
 
@@ -76,7 +76,7 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
 }
 
 .table th {
@@ -85,7 +85,7 @@
   border-bottom: 2px solid var(--color-border-strong);
   background-color: var(--color-bg-secondary);
   color: var(--color-text-secondary);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .table td {
@@ -136,7 +136,7 @@
   width: 100%;
   box-sizing: border-box;
   font-family: 'Monaco', 'Courier', monospace;
-  font-size: 0.8125rem;
+  font-size: var(--font-size-xs);
 }
 
 .tdInclude input {
@@ -154,7 +154,7 @@
 }
 
 .totalsRow {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   background-color: var(--color-bg-secondary);
   border-top: 2px solid var(--color-border-strong);
 }
@@ -173,7 +173,7 @@
 }
 
 .totalWarning {
-  color: var(--color-warning);
+  color: var(--color-warning-text-on-light);
 }
 
 .totalDanger {
@@ -188,7 +188,7 @@
 
 .emptyState p {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: var(--font-size-base);
 }
 
 /* Responsive: stack on smaller screens */
@@ -216,6 +216,10 @@
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .table tbody tr {
+    transition: none;
+  }
+
+  .item {
     transition: none;
   }
 }

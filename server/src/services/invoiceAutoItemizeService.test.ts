@@ -284,6 +284,26 @@ describe('invoiceAutoItemizeService', () => {
     sqlite = testDb.sqlite;
     db = testDb.db;
     idSeq = 0;
+    // Seed the user referenced by autoItemize calls ('user-1') so the FK on
+    // work_item_budgets.created_by passes when commit-mode tests run.
+    const userT = new Date().toISOString();
+    db.insert(schema.users)
+      .values({
+        id: 'user-1',
+        email: 'test@example.com',
+        displayName: 'Test User',
+        role: 'member',
+        authProvider: 'local',
+        passwordHash: null,
+        oidcSubject: null,
+        deactivatedAt: null,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        davToken: null,
+        createdAt: userT,
+        updatedAt: userT,
+      })
+      .run();
     originalFetch = globalThis.fetch;
     globalThis.fetch = mockFetch as unknown as typeof fetch;
     mockFetch.mockReset();

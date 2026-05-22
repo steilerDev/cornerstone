@@ -148,6 +148,7 @@ export function InvoiceBudgetLinesSection({
   const [selectedDocId, setSelectedDocId] = useState<number | null>(null);
   const [isLoadingDryRun, setIsLoadingDryRun] = useState(false);
   const [autoItemizeError, setAutoItemizeError] = useState<string | null>(null);
+  const [previewModalErrorCode, setPreviewModalErrorCode] = useState<string | null>(null);
 
   // Load config on mount
   useEffect(() => {
@@ -249,8 +250,18 @@ export function InvoiceBudgetLinesSection({
       }
     } catch (err) {
       if (err instanceof ApiClientError) {
-        const errorMsg = translateApiError(err.error.code, tErrors);
-        setAutoItemizeError(errorMsg);
+        const errorCode = err.error.code;
+        // For LLM_INVALID_RESPONSE, open the modal in error state with retry
+        if (errorCode === 'LLM_INVALID_RESPONSE') {
+          setPreviewLines([]);
+          setPreviewWarnings([]);
+          setSelectedDocId(paperlessDocumentId);
+          setPreviewModalErrorCode(errorCode);
+          setShowPreviewModal(true);
+        } else {
+          const errorMsg = translateApiError(errorCode, tErrors);
+          setAutoItemizeError(errorMsg);
+        }
       } else {
         setAutoItemizeError(t('invoiceDetail.budgetLines.autoItemize.providerError'));
       }
@@ -264,6 +275,7 @@ export function InvoiceBudgetLinesSection({
     setPreviewLines([]);
     setPreviewWarnings([]);
     setSelectedDocId(null);
+    setPreviewModalErrorCode(null);
     // Refresh budget lines
     await loadBudgetLines();
   };
@@ -273,6 +285,7 @@ export function InvoiceBudgetLinesSection({
     setPreviewLines([]);
     setPreviewWarnings([]);
     setSelectedDocId(null);
+    setPreviewModalErrorCode(null);
   };
 
   const openEditBudgetLineModal = (
@@ -750,6 +763,7 @@ export function InvoiceBudgetLinesSection({
               ref={autoItemizeButtonRef}
               className={sharedStyles.btnSecondary}
               disabled={isLoading || isLoadingDryRun}
+              aria-busy={isLoadingDryRun}
               onClick={() => void handleAutoItemizeClick()}
               aria-label={t('invoiceDetail.budgetLines.autoItemize.buttonAriaLabel')}
               title={t('invoiceDetail.budgetLines.autoItemize.button')}
@@ -1355,9 +1369,11 @@ export function InvoiceBudgetLinesSection({
         paperlessDocumentId={selectedDocId ?? 0}
         initialLines={previewLines}
         initialWarnings={previewWarnings}
+        initialErrorCode={previewModalErrorCode ?? undefined}
         triggerRef={autoItemizeButtonRef}
         onCancel={handleAutoItemizeCancel}
         onApplied={handleAutoItemizeApplied}
+        onRetry={selectedDocId ? () => void handleDocumentSelected(selectedDocId, '') : undefined}
       />
     </section>
   );

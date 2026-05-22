@@ -572,7 +572,7 @@
         "noDocuments": "Keine verknüpften Paperless-Dokumente verfügbar",
         "totalMismatchWarning": "Extrahierter Gesamtbetrag ({{extractedTotal}}) stimmt nicht mit dem Rechnungsbetrag ({{invoiceTotal}}) überein",
         "docPickerTitle": "Dokument zur Analyse auswählen",
-        "includeCheckboxAriaLabel": "Diese Position in die Aufschlüsselung einbeziehen",
+        "includeCheckboxAriaLabel": "{{description}} in die Aufschlüsselung einbeziehen",
         "selectAllAriaLabel": "Alle Positionen auswählen",
         "columns": {
           "description": "Beschreibung",

@@ -696,7 +696,7 @@
         "noDocuments": "No linked Paperless documents available",
         "totalMismatchWarning": "Extracted total ({{extractedTotal}}) does not match invoice total ({{invoiceTotal}})",
         "docPickerTitle": "Choose document to analyze",
-        "includeCheckboxAriaLabel": "Include this line in the itemization",
+        "includeCheckboxAriaLabel": "Include {{description}} in the itemization",
         "selectAllAriaLabel": "Select all lines",
         "columns": {
           "description": "Description",

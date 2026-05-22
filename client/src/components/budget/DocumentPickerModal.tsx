@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { DocumentLinkWithMetadata } from '@cornerstone/shared';
+import { useFormatters } from '../../lib/formatters.js';
 import { Modal } from '../Modal/Modal.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './DocumentPickerModal.module.css';
@@ -20,6 +21,7 @@ export function DocumentPickerModal({
   onCancel,
 }: DocumentPickerModalProps) {
   const { t } = useTranslation('budget');
+  const { formatDate } = useFormatters();
 
   if (!isOpen) return null;
 
@@ -65,7 +67,7 @@ export function DocumentPickerModal({
                 <div className={styles.itemTitle}>{link.document?.title}</div>
                 {link.document?.created && (
                   <div className={styles.itemDate}>
-                    {new Date(link.document.created).toLocaleDateString()}
+                    {formatDate(link.document.created)}
                   </div>
                 )}
               </button>

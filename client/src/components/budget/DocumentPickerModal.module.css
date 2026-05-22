@@ -11,7 +11,7 @@
   justify-content: center;
   height: 200px;
   color: var(--color-text-secondary);
-  font-size: 0.9375rem;
+  font-size: var(--font-size-base);
 }
 
 .emptyState {
@@ -20,7 +20,7 @@
   justify-content: center;
   height: 200px;
   color: var(--color-text-muted);
-  font-size: 0.9375rem;
+  font-size: var(--font-size-base);
   text-align: center;
   padding: var(--spacing-4);
 }
@@ -40,9 +40,9 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: var(--transition-button);
   font-family: inherit;
-  font-size: 0.9375rem;
+  font-size: var(--font-size-base);
 }
 
 .item:hover:not(:disabled) {
@@ -62,12 +62,12 @@
 }
 
 .itemTitle {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin-bottom: var(--spacing-1);
 }
 
 .itemDate {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
 }
