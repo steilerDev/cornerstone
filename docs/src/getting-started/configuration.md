@@ -90,3 +90,18 @@ The document integration is automatically enabled when both `PAPERLESS_URL` and 
 | `PAPERLESS_FILTER_TAG` | -- | Optional tag name. When set, only Paperless-ngx documents tagged with this name are visible to Cornerstone. Useful for keeping personal documents private when sharing a Paperless-ngx instance across applications. |
 
 For detailed setup instructions, see [Documents Setup](/guides/documents/setup).
+
+## Auto-itemize Invoices (LLM)
+
+The auto-itemize feature reads line items off invoice PDFs (via Paperless OCR) and proposes budget lines using any OpenAI-compatible LLM provider. It is **disabled by default** -- set all three required variables to enable it.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LLM_BASE_URL` | -- | Base URL of the LLM API (e.g., `https://api.openai.com/v1`, `https://generativelanguage.googleapis.com/v1beta/openai`) |
+| `LLM_API_KEY` | -- | Bearer token / API key for the LLM provider |
+| `LLM_MODEL` | -- | Model identifier (e.g., `gpt-4o-mini`, `gemini-2.5-flash`, `claude-haiku-4-5-20251001`) |
+| `LLM_REQUEST_TIMEOUT_MS` | `30000` | Request timeout in milliseconds |
+| `LLM_MAX_TOKENS` | `16384` | Max output tokens per call. The default handles 100+ line invoices; increase if you see `LLM_INVALID_RESPONSE` errors with `finishReason="length"`. |
+| `LLM_PROVIDER` | -- | One of `openai`, `anthropic`, `gemini`, `ollama`, or `generic`. Auto-detected from `LLM_BASE_URL` when unset; override only if auto-detection misses your provider. |
+
+When all three required variables are set, the **Auto-itemize** button appears on invoice detail pages that have at least one Paperless document linked. See [Auto-itemize Invoices](/guides/budget/auto-itemize) for the full guide, provider examples, and what data leaves your host.
