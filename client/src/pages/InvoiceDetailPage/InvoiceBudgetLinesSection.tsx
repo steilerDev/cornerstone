@@ -307,18 +307,21 @@ export function InvoiceBudgetLinesSection({
 
     // Initialize full form state for assigned lines
     if (line.parentItemType !== 'unassigned') {
+      // Derive pricingMode: if both quantity and unitPrice are non-null, use 'unit'; else 'direct'
+      const pricingMode = line.quantity !== null && line.unitPrice !== null ? 'unit' : 'direct';
+
       setBudgetLineFullForm({
         description: line.budgetLineDescription ?? '',
         plannedAmount: line.plannedAmount.toString(),
         confidence: line.confidence,
         budgetCategoryId: line.categoryId ?? '',
-        budgetSourceId: '',
-        vendorId: '',
-        pricingMode: 'direct',
-        quantity: '',
-        unit: '',
-        unitPrice: '',
-        includesVat: true,
+        budgetSourceId: line.budgetSourceId ?? '',
+        vendorId: line.vendorId ?? '',
+        pricingMode,
+        quantity: line.quantity !== null ? line.quantity.toString() : '',
+        unit: line.unit ?? '',
+        unitPrice: line.unitPrice !== null ? line.unitPrice.toString() : '',
+        includesVat: line.includesVat ?? true,
       });
       setBudgetLineItemizedAmount(line.itemizedAmount.toString());
     }

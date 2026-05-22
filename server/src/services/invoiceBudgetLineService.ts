@@ -69,6 +69,7 @@ function getAreaWithAncestors(
  * Resolve the full detail for a single invoice budget line row.
  * Queries the budget line table, category, and parent item.
  * Handles orphan work_item_budget rows (work_item_id IS NULL).
+ * Returns budget-line pricing/source/vendor fields for edit form pre-population.
  */
 function resolveDetail(
   db: DbType,
@@ -87,6 +88,12 @@ function resolveDetail(
   let parentItemId: string | null = null;
   let parentItemTitle: string | null = null;
   let parentItemArea: AreaSummary | null = null;
+  let quantity: number | null = null;
+  let unit: string | null = null;
+  let unitPrice: number | null = null;
+  let includesVat = true;
+  let vendorId: string | null = null;
+  let budgetSourceId: string | null = null;
 
   if (row.workItemBudgetId) {
     const wib = db
@@ -101,6 +108,12 @@ function resolveDetail(
     plannedAmount = wib.plannedAmount;
     confidence = wib.confidence as ConfidenceLevel;
     categoryId = wib.budgetCategoryId;
+    quantity = wib.quantity;
+    unit = wib.unit;
+    unitPrice = wib.unitPrice;
+    includesVat = wib.includesVat;
+    vendorId = wib.vendorId;
+    budgetSourceId = wib.budgetSourceId;
 
     // Check if this is an orphan (unassigned) budget line
     if (wib.workItemId === null) {
@@ -130,6 +143,12 @@ function resolveDetail(
     plannedAmount = hib.plannedAmount;
     confidence = hib.confidence as ConfidenceLevel;
     categoryId = hib.budgetCategoryId;
+    quantity = hib.quantity;
+    unit = hib.unit;
+    unitPrice = hib.unitPrice;
+    includesVat = hib.includesVat;
+    vendorId = hib.vendorId;
+    budgetSourceId = hib.budgetSourceId;
 
     const hi = db
       .select()
@@ -173,6 +192,12 @@ function resolveDetail(
     parentItemTitle,
     parentItemType: budgetLineType as 'work_item' | 'household_item' | 'unassigned',
     parentItemArea,
+    quantity,
+    unit,
+    unitPrice,
+    includesVat,
+    vendorId,
+    budgetSourceId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

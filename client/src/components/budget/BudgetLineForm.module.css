@@ -154,6 +154,11 @@
   background: var(--color-bg-tertiary);
 }
 
+.modeBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
 .modeBtn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -267,6 +272,11 @@
 .parentPickerTab:hover:not(:disabled) {
   background-color: var(--color-bg-tertiary);
   border-color: var(--color-border-strong);
+}
+
+.parentPickerTab:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .parentPickerTabActive {
