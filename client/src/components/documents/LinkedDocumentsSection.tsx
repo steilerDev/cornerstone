@@ -6,7 +6,7 @@ import type {
   PaperlessDocumentSearchResult,
 } from '@cornerstone/shared';
 import { getPaperlessStatus } from '../../lib/paperlessApi.js';
-import { useDocumentLinks } from '../../hooks/useDocumentLinks.js';
+import { useDocumentLinks, useAllLinkedDocumentIds } from '../../hooks/useDocumentLinks.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { LinkedDocumentCard } from './LinkedDocumentCard.js';
 import { DocumentBrowser } from './DocumentBrowser.js';
@@ -22,6 +22,7 @@ interface LinkedDocumentsSectionProps {
 export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocumentsSectionProps) {
   const { t } = useTranslation('documents');
   const hook = useDocumentLinks(entityType, entityId);
+  const systemLinkedIds = useAllLinkedDocumentIds();
 
   // Copy for different entity types
   const entityCopyKeys = {
@@ -100,12 +101,13 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
 
   // Focus into picker modal when it opens
   useEffect(() => {
-    if (showPicker && pickerModalRef.current) {
+    if (showPicker) {
+      void systemLinkedIds.fetch();
       setTimeout(() => {
         pickerModalRef.current?.focus();
       }, 0);
     }
-  }, [showPicker]);
+  }, [showPicker, systemLinkedIds.fetch]);
 
   // Focus Cancel button when unlink confirmation opens
   useEffect(() => {
@@ -375,9 +377,14 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
               <DocumentBrowser
                 mode="modal"
                 onSelect={handleDocumentSelect}
-                linkedDocumentIds={hook.links
-                  .map((link) => link.document?.id)
-                  .filter((id): id is number => id !== undefined)}
+                linkedDocumentIds={Array.from(
+                  new Set([
+                    ...systemLinkedIds.ids,
+                    ...hook.links
+                      .map((link) => link.document?.id)
+                      .filter((id): id is number => id !== undefined),
+                  ]),
+                )}
               />
             </div>
           </div>

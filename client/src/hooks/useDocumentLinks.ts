@@ -4,6 +4,7 @@ import {
   listDocumentLinks,
   createDocumentLink,
   deleteDocumentLink,
+  listAllLinkedDocumentIds,
 } from '../lib/documentLinksApi.js';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
 
@@ -96,4 +97,42 @@ export function useDocumentLinks(
     removeLink,
     refresh,
   };
+}
+
+export interface UseAllLinkedDocumentIdsResult {
+  ids: number[];
+  isLoading: boolean;
+  error: string | null;
+  fetch: () => Promise<void>;
+}
+
+/**
+ * Fetches the system-wide set of linked Paperless-ngx document IDs on demand.
+ * Does NOT fetch on mount — call `.fetch()` to trigger a load (e.g. on picker open).
+ */
+export function useAllLinkedDocumentIds(): UseAllLinkedDocumentIdsResult {
+  const [ids, setIds] = useState<number[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetch = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const fetched = await listAllLinkedDocumentIds();
+      setIds(fetched);
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.error.message ?? 'Failed to load linked document IDs.');
+      } else if (err instanceof NetworkError) {
+        setError('Network error: Unable to connect to the server.');
+      } else {
+        setError('An unexpected error occurred.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return { ids, isLoading, error, fetch };
 }

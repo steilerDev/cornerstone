@@ -3,6 +3,16 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
 
+## Document Linking System-wide Hide E2E (Story #1557, 2026-05-22) — `e2e/tests/documents/document-linking.spec.ts`
+
+- Scenarios 7a/7b added to existing `document-linking.spec.ts` — no new file.
+- `mockSystemLinkedIds(page, ids)` helper intercepts `GET **/api/document-links/linked-ids` → `{ paperlessDocumentIds: ids }`. Unroute with `page.unroute('**/api/document-links/linked-ids')` in finally.
+- The "Hide already-linked documents" checkbox is only rendered when `linkedDocumentIds.length > 0` in `DocumentBrowser`. For it to appear the system-linked-ids mock MUST return a non-empty array.
+- Toggle label i18n key: `documents:browser.hideLinked` = `"Hide already-linked documents"`. Locate via `getByRole('checkbox', { name: /hide already-linked documents/i })`.
+- Picker modal resolved via `getByRole('dialog', { name: 'Add Document' })` — Playwright resolves `aria-labelledby="picker-title"` (h2 = "Add Document" from `linkedDocuments.addDocumentModal`).
+- `cleanupMocks(page)` unroutes `**/api/document-links**` and `**/api/document-links?*` — does NOT unroute `**/api/document-links/linked-ids`. Call that separately in finally.
+- `linkedDocumentIds` passed to `DocumentBrowser` = union of `systemLinkedIds.ids` + entity-own link doc IDs. `systemLinkedIds.fetch()` is called when picker opens (`showPicker` effect).
+
 ## Photo Annotator E2E (Story #1478, 2026-05-18) — See photo-annotator-e2e.md
 
 - 23 scenarios total. PR #1526 migrated annotator to Konva canvas — 21 tests are `test.fixme()`, 2 kept active (Scenarios 2, 22).

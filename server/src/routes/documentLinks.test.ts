@@ -25,6 +25,12 @@ import type {
   DocumentLinkListResponse,
 } from '@cornerstone/shared';
 
+// Local type definition to avoid worktree symlink resolution issues with @cornerstone/shared
+// (the root project symlinks to the old shared dist; worktree's updated shared type is not visible)
+interface AllLinkedDocumentIdsResponse {
+  paperlessDocumentIds: number[];
+}
+
 // ─── Mock global fetch ────────────────────────────────────────────────────────
 
 const mockFetch = jest.fn<typeof fetch>();
@@ -708,6 +714,155 @@ describe('Document Links Routes', () => {
       const body = listResponse.json<DocumentLinkListResponse>();
       expect(body.documentLinks).toHaveLength(1);
       expect(body.documentLinks[0]!.paperlessDocumentId).toBe(99);
+    });
+  });
+
+  // ─── GET /api/document-links/linked-ids ───────────────────────────────────
+
+  describe('GET /api/document-links/linked-ids', () => {
+    it('returns 401 with UNAUTHORIZED error code when not authenticated', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/document-links/linked-ids',
+      });
+
+      expect(response.statusCode).toBe(401);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('returns 200 with { paperlessDocumentIds: [] } when no links exist', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/document-links/linked-ids',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<AllLinkedDocumentIdsResponse>();
+      expect(body.paperlessDocumentIds).toEqual([]);
+    });
+
+    it('returns 200 with a single ID when one link exists', async () => {
+      const { cookie } = await createUserWithSession();
+      const workItemId = await createWorkItem(cookie);
+
+      await app.inject({
+        method: 'POST',
+        url: '/api/document-links',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          entityType: 'work_item',
+          entityId: workItemId,
+          paperlessDocumentId: 42,
+        }),
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/document-links/linked-ids',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<AllLinkedDocumentIdsResponse>();
+      expect(body.paperlessDocumentIds).toHaveLength(1);
+      expect(body.paperlessDocumentIds).toContain(42);
+    });
+
+    it('returns deduplicated IDs — document #42 linked to a work item AND an invoice appears once', async () => {
+      const { cookie } = await createUserWithSession();
+      const workItemId = await createWorkItem(cookie);
+      const invoiceId = await createVendorAndInvoice(cookie);
+
+      // Link document #42 to a work item
+      await app.inject({
+        method: 'POST',
+        url: '/api/document-links',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          entityType: 'work_item',
+          entityId: workItemId,
+          paperlessDocumentId: 42,
+        }),
+      });
+
+      // Link the same document #42 to an invoice
+      await app.inject({
+        method: 'POST',
+        url: '/api/document-links',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          entityType: 'invoice',
+          entityId: invoiceId,
+          paperlessDocumentId: 42,
+        }),
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/document-links/linked-ids',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<AllLinkedDocumentIdsResponse>();
+      // Should appear exactly once despite being linked to two entities
+      expect(body.paperlessDocumentIds).toHaveLength(1);
+      expect(body.paperlessDocumentIds).toContain(42);
+    });
+
+    it('returns all distinct IDs when multiple different documents are linked to various entities', async () => {
+      const { cookie } = await createUserWithSession();
+      const workItem1 = await createWorkItem(cookie, 'Work Item 1');
+      const workItem2 = await createWorkItem(cookie, 'Work Item 2');
+      const invoiceId = await createVendorAndInvoice(cookie);
+
+      await app.inject({
+        method: 'POST',
+        url: '/api/document-links',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          entityType: 'work_item',
+          entityId: workItem1,
+          paperlessDocumentId: 10,
+        }),
+      });
+      await app.inject({
+        method: 'POST',
+        url: '/api/document-links',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          entityType: 'work_item',
+          entityId: workItem2,
+          paperlessDocumentId: 20,
+        }),
+      });
+      await app.inject({
+        method: 'POST',
+        url: '/api/document-links',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          entityType: 'invoice',
+          entityId: invoiceId,
+          paperlessDocumentId: 30,
+        }),
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/document-links/linked-ids',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<AllLinkedDocumentIdsResponse>();
+      expect(body.paperlessDocumentIds).toHaveLength(3);
+      expect(body.paperlessDocumentIds).toContain(10);
+      expect(body.paperlessDocumentIds).toContain(20);
+      expect(body.paperlessDocumentIds).toContain(30);
     });
   });
 

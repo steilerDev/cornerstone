@@ -216,3 +216,15 @@ export function deleteLinksForEntity(
     .where(and(eq(documentLinks.entityType, entityType), eq(documentLinks.entityId, entityId)))
     .run();
 }
+
+/**
+ * Return the distinct set of Paperless-ngx document IDs linked to any entity in the system.
+ * Used by the frontend to implement system-wide "hide already-linked" filtering.
+ */
+export function getAllLinkedDocumentIds(db: DbType): number[] {
+  const rows = db
+    .selectDistinct({ paperlessDocumentId: documentLinks.paperlessDocumentId })
+    .from(documentLinks)
+    .all();
+  return rows.map((r) => r.paperlessDocumentId);
+}

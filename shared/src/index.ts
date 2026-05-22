@@ -284,6 +284,7 @@ export type {
   CreateDocumentLinkRequest,
   DocumentLinkResponse,
   DocumentLinkListResponse,
+  AllLinkedDocumentIdsResponse,
 } from './types/document.js';
 
 // Household Items

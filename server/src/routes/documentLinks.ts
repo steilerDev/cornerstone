@@ -12,7 +12,11 @@
 import type { FastifyInstance } from 'fastify';
 import { NotFoundError, UnauthorizedError } from '../errors/AppError.js';
 import * as documentLinkService from '../services/documentLinkService.js';
-import type { CreateDocumentLinkRequest, DocumentLinkEntityType } from '@cornerstone/shared';
+import type {
+  CreateDocumentLinkRequest,
+  DocumentLinkEntityType,
+  AllLinkedDocumentIdsResponse,
+} from '@cornerstone/shared';
 
 // ─── JSON schemas ─────────────────────────────────────────────────────────────
 
@@ -107,6 +111,26 @@ export default async function documentLinksRoutes(fastify: FastifyInstance) {
         paperlessApiToken: fastify.config.paperlessApiToken,
       });
       return reply.status(200).send({ documentLinks: links });
+    },
+  );
+
+  /**
+   * GET /api/document-links/linked-ids
+   *
+   * Return the distinct set of Paperless-ngx document IDs linked to any
+   * entity in the system. Used by the picker's "hide already-linked" checkbox
+   * to filter system-wide rather than per-entity.
+   *
+   * Auth required: Yes
+   */
+  fastify.get<{ Reply: AllLinkedDocumentIdsResponse }>(
+    '/linked-ids',
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+      const ids = documentLinkService.getAllLinkedDocumentIds(fastify.db);
+      return reply.status(200).send({ paperlessDocumentIds: ids });
     },
   );
 
