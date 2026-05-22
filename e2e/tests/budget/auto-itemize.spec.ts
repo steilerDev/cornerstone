@@ -776,9 +776,11 @@ test.describe('Auto-itemize mismatch warning (Scenario 5)', () => {
       const warningBanner = detailPage.getMismatchWarningBanner();
       await expect(warningBanner).toBeVisible();
 
-      // Warning text references both totals
-      await expect(warningBanner).toContainText('1.700');
-      await expect(warningBanner).toContainText('2.000');
+      // Warning text references both totals.
+      // formatCurrency uses the current locale — en-US produces "€1,700.00", de-DE produces
+      // "1.700,00 €". Use a locale-agnostic regex that matches both separators.
+      await expect(warningBanner).toContainText(/1[.,]700/);
+      await expect(warningBanner).toContainText(/2[.,]000/);
 
       // Apply button should still be enabled (non-blocking warning)
       const applyBtn = previewModal.getByRole('button', { name: 'Apply', exact: true });
@@ -859,8 +861,12 @@ test.describe('Auto-itemize ITEMIZED_SUM_EXCEEDS_INVOICE on Apply (Scenario 6)',
       // Modal must STAY open (not close on error)
       await expect(previewModal).toBeVisible();
 
-      // Inline error banner must appear inside the modal
-      const errorBanner = previewModal.locator('[role="alert"]');
+      // Inline error banner must appear inside the modal.
+      // AutoItemizePreviewModal wraps the error in <div role="alert"><FormError .../></div>.
+      // FormError with variant='banner' (the default) also renders role="alert" on its own div,
+      // so there are TWO nested role="alert" elements. Use .last() to target the innermost one
+      // (the FormError), which carries the actual message text.
+      const errorBanner = previewModal.locator('[role="alert"]').last();
       await expect(errorBanner).toBeVisible();
       await expect(errorBanner).toContainText('exceed');
 
@@ -920,25 +926,26 @@ test.describe('Auto-itemize LLM unreachable (Scenario 7)', () => {
       await detailPage.goto(invoiceId);
       await expect(detailPage.heading).toBeVisible();
 
-      // Click Auto-itemize
-      await detailPage.clickAutoItemizeButton();
-
-      // Wait a moment for the error handling to settle
+      // Register waitForResponse BEFORE clicking — the request fires synchronously on click.
       const errorWait = page.waitForResponse(
         (resp) => resp.url().includes('/auto-itemize') && resp.status() === 502,
       );
+
+      // Click Auto-itemize
+      await detailPage.clickAutoItemizeButton();
       await errorWait;
 
       // Preview modal should NOT open
       const previewModal = detailPage.getAutoItemizePreviewModal();
       await expect(previewModal).not.toBeVisible();
 
-      // An error message should appear somewhere in the section
-      // (either as a toast or as an inline error banner in the section)
-      const autoItemizeError = detailPage.budgetLinesSection.locator('[class*="autoItemizeError"]');
-      // The component renders autoItemizeError in a div — check for it
-      // or check for any visible error text
-      await expect(page.locator('[class*="errorBanner"], [class*="autoItemizeError"]').first()).toBeVisible();
+      // InvoiceBudgetLinesSection sets autoItemizeError state for non-LLM_INVALID_RESPONSE errors.
+      // This renders as <div className={styles.errorBanner} role="alert"> inside the section.
+      // CSS Modules emit the class as "errorBanner_<hash>", so [class*="errorBanner"] matches it.
+      // Scoped to budgetLinesSection to avoid false matches with other sections on the page.
+      await expect(
+        detailPage.budgetLinesSection.locator('[role="alert"]').filter({ visible: true }).first(),
+      ).toBeVisible();
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
@@ -1063,9 +1070,13 @@ test.describe('Auto-itemize row include/exclude toggle (Scenario 9)', () => {
       await detailPage.toggleIncludeLine(1);
       await expect(rowCheckboxes.nth(1)).not.toBeChecked();
 
-      // The description input in that row should be disabled
-      const descInputs = previewModal.locator('table tbody tr input[type="text"]');
-      await expect(descInputs.nth(1)).toBeDisabled();
+      // The description input in that row should be disabled.
+      // Each row has two input[type="text"] elements (description + unit), so we cannot use a
+      // flat nth() selector. Instead, scope to the specific tbody row at index 1 (0-based) and
+      // pick its first text input, which is the description column.
+      const secondRow = previewModal.locator('table tbody tr').nth(1);
+      const descInput = secondRow.locator('input[type="text"]').first();
+      await expect(descInput).toBeDisabled();
 
       // The Apply button should still be enabled (2 rows still included)
       const applyBtn = previewModal.getByRole('button', { name: 'Apply', exact: true });
