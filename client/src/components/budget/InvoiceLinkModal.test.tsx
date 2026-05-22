@@ -72,6 +72,7 @@ jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
   createInvoiceBudgetLine: mockCreateInvoiceBudgetLine,
   updateInvoiceBudgetLine: jest.fn(),
   deleteInvoiceBudgetLine: jest.fn(),
+  editAndMoveBudgetLine: jest.fn(),
 }));
 
 // ─── Mock: ToastContext ───────────────────────────────────────────────────────

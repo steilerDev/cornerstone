@@ -1606,28 +1606,6 @@ function EditBudgetLineModal({
     <Modal
       title={t('invoiceDetail.budgetLines.modal.editTitle')}
       onClose={onClose}
-      footer={
-        !isUnassigned && (
-          <div className={styles.modalActions}>
-            <button
-              type="button"
-              className={sharedStyles.btnSecondary}
-              onClick={onClose}
-              disabled={isMutating}
-            >
-              {t('common:button.cancel')}
-            </button>
-            <button
-              type="submit"
-              className={sharedStyles.btnPrimary}
-              form="budget-line-edit-form"
-              disabled={isMutating || !itemizedAmount}
-            >
-              {isMutating ? t('invoiceDetail.budgetLines.form.saving') : t('common:button.save')}
-            </button>
-          </div>
-        )
-      }
     >
       {isUnassigned ? (
         // For unassigned budget lines, show the BudgetLineForm with parent picker
@@ -1677,32 +1655,30 @@ function EditBudgetLineModal({
         />
       ) : (
         // For assigned budget lines, show the full BudgetLineForm with move support
-        <form id="budget-line-edit-form" onSubmit={onSubmit} noValidate>
-          <BudgetLineForm
-            form={fullForm}
-            onSubmit={onSubmit}
-            onFormChange={onFullFormChange}
-            onCancel={onClose}
-            error={error}
-            isSaving={isMutating}
-            isEditing={true}
-            confidenceLabels={CONFIDENCE_LABELS}
-            budgetSources={budgetSources}
-            vendors={vendors}
-            budgetCategories={budgetCategories}
-            staticCategoryLabel={
-              line.categoryName
-                ? getCategoryDisplayName(tSettings, line.categoryName, line.categoryTranslationKey)
-                : undefined
-            }
-            currentParentType={line.parentItemType as 'work_item' | 'household_item' | 'unassigned'}
-            currentParentId={line.parentItemId ?? null}
-            currentParentLabel={line.parentItemTitle ?? null}
-            onMove={onMove}
-            itemizedAmount={itemizedAmount}
-            onItemizedAmountChange={onItemizedAmountChange}
-          />
-        </form>
+        <BudgetLineForm
+          form={fullForm}
+          onSubmit={onSubmit}
+          onFormChange={onFullFormChange}
+          onCancel={onClose}
+          error={error}
+          isSaving={isMutating}
+          isEditing={true}
+          confidenceLabels={CONFIDENCE_LABELS}
+          budgetSources={budgetSources}
+          vendors={vendors}
+          budgetCategories={budgetCategories}
+          staticCategoryLabel={
+            line.categoryName
+              ? getCategoryDisplayName(tSettings, line.categoryName, line.categoryTranslationKey)
+              : undefined
+          }
+          currentParentType={line.parentItemType as 'work_item' | 'household_item' | 'unassigned'}
+          currentParentId={line.parentItemId ?? null}
+          currentParentLabel={line.parentItemTitle ?? null}
+          onMove={onMove}
+          itemizedAmount={itemizedAmount}
+          onItemizedAmountChange={onItemizedAmountChange}
+        />
       )}
     </Modal>
   );

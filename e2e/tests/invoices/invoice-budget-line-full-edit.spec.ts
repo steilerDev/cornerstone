@@ -199,7 +199,7 @@ test.describe('Full edit — non-parent fields (Scenario 1)', { tag: '@responsiv
             resp.request().method() === 'PATCH' &&
             resp.status() === 200,
         );
-        const saveButton = editModal.getByRole('button', { name: /^Save|Saving/i });
+        const saveButton = editModal.getByRole('button', { name: /Save Changes|Saving/i });
         await saveButton.click();
         await patchPromise;
 
@@ -304,7 +304,7 @@ test.describe('Same-table WI → WI move (Scenario 2)', { tag: '@responsive' }, 
         // Work Item tab already active — no need to click
 
         // Search for WI-B in the work item picker
-        const wiPickerInput = parentPickerSection.getByRole('combobox');
+        const wiPickerInput = parentPickerSection.getByRole('textbox');
         await wiPickerInput.fill(`${testPrefix} WI-B Target`);
 
         // Select from dropdown
@@ -422,7 +422,7 @@ test.describe('Cross-table WI → HI move (Scenario 3)', { tag: '@responsive' },
         await expect(moveHint).toContainText(/transfer/i);
 
         // Search for the target HI
-        const hiPickerInput = parentPickerSection.getByRole('combobox');
+        const hiPickerInput = parentPickerSection.getByRole('textbox');
         await hiPickerInput.fill(`${testPrefix} WI2HI Target HI`);
 
         const option = page.getByRole('option', { name: new RegExp(`WI2HI Target HI`, 'i') });
@@ -543,7 +543,7 @@ test.describe('BUDGET_LINE_ALREADY_LINKED guard (Scenario 4)', () => {
         await changeButton.click();
 
         // Work Item tab already active — search for WI-B (which already has a line on this invoice)
-        const wiPickerInput = parentPickerSection.getByRole('combobox');
+        const wiPickerInput = parentPickerSection.getByRole('textbox');
         await wiPickerInput.fill(`${testPrefix} AlreadyLinked WI-B`);
 
         const option = page.getByRole('option', {
@@ -778,7 +778,7 @@ test.describe('Mobile viewport — full edit modal (Scenario 6)', () => {
       await itemizedInput.fill('300');
 
       // Scroll Save button into view and click
-      const saveButton = editModal.getByRole('button', { name: /^Save|Saving/i });
+      const saveButton = editModal.getByRole('button', { name: /Save Changes|Saving/i });
       await saveButton.scrollIntoViewIfNeeded();
 
       const patchPromise = page.waitForResponse(

@@ -33,6 +33,8 @@ const mockUpdateInvoiceBudgetLine =
   jest.fn<typeof InvoiceBudgetLinesApiTypes.updateInvoiceBudgetLine>();
 const mockDeleteInvoiceBudgetLine =
   jest.fn<typeof InvoiceBudgetLinesApiTypes.deleteInvoiceBudgetLine>();
+const mockEditAndMoveBudgetLine =
+  jest.fn<typeof InvoiceBudgetLinesApiTypes.editAndMoveBudgetLine>();
 const mockFetchWorkItemBudgets = jest.fn<typeof WorkItemBudgetsApiTypes.fetchWorkItemBudgets>();
 const mockFetchHouseholdItemBudgets =
   jest.fn<typeof HouseholdItemBudgetsApiTypes.fetchHouseholdItemBudgets>();
@@ -44,6 +46,7 @@ jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
   createInvoiceBudgetLine: mockCreateInvoiceBudgetLine,
   updateInvoiceBudgetLine: mockUpdateInvoiceBudgetLine,
   deleteInvoiceBudgetLine: mockDeleteInvoiceBudgetLine,
+  editAndMoveBudgetLine: mockEditAndMoveBudgetLine,
 }));
 
 // ─── Mock: workItemBudgetsApi ──────────────────────────────────────────────────

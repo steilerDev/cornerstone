@@ -35,6 +35,7 @@ jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
   createInvoiceBudgetLine: jest.fn(),
   updateInvoiceBudgetLine: jest.fn(),
   deleteInvoiceBudgetLine: jest.fn(),
+  editAndMoveBudgetLine: jest.fn(),
 }));
 
 jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
