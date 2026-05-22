@@ -94,6 +94,7 @@ See `review-history.md` for detailed findings per PR.
 | #1150 | EPIC-19 Story #1146 — Backup & Restore                                                            | COMMENTED (3 informational: restore mid-op orphan dir, filename in 404 msg, node-cron 3.x not 4.x)                            | 2026-03-22 |
 | #1548 | EPIC-20 Story #1545 — Unassigned Budget Lines & One-Shot Parent Assignment                        | COMMENTED (3 informational: assignToWorkItem no transaction, computeUsedAmount includes orphans, targetId no minLength)       | 2026-05-21 |
 | #1549 | Story #1546 — BudgetExtractionService with OpenAI-compatible LLM gateway (FIRST LLM INTEGRATION)  | APPROVED (4 informational: URL in startup error, no timeout upper bound, localhost SSRF allowed, no OCR size cap)             | 2026-05-21 |
+| #1550 | Story #1547 — Invoice Auto-Itemize POST endpoint and commit service                                | COMMENTED (2 informational: OCR cap carry-forward unaddressed, lines array no maxItems)                                       | 2026-05-22 |
 
 ## Known Open Recommendations (Low Priority)
 
@@ -127,7 +128,8 @@ These have been noted in previous reviews. **GitHub Issue #315** tracks items 1-
 26. **LLM_BASE_URL leaks into startup error message** (Informational): config.ts:275 — echoes raw URL in validation error; consistent with PAPERLESS_URL/EXTERNAL_URL pattern (PR #1549)
 27. **LLM_REQUEST_TIMEOUT_MS no upper bound** (Informational): config.ts:282 — only validates positive; no maximum cap; suggested ≤ 300 000 ms (PR #1549)
 28. **localhost targets allowed in LLM_BASE_URL** (Informational): config.ts:264-277 — intentional for Ollama self-hosting; operator-trust model; no client-supplied URL path (PR #1549)
-29. **OCR payload no size cap before LLM dispatch** (Informational): prompts.ts:51, openAICompatibleProvider.ts:168 — no truncation of ocrText; no route exposed yet in this PR; Story #1547 implementing agent must add cap (suggested 32 000 chars) (PR #1549)
+29. **OCR payload no size cap before LLM dispatch** (Informational): invoiceAutoItemizeService.ts:143 passes doc.content raw to provider.extract() with no truncation; confirmed NOT addressed in PR #1550; recommend fix before beta→main (PRs #1549 #1550)
+30. **lines array no maxItems in auto-itemize commit route** (Informational): invoiceAutoItemize.ts:21 — `lines` array has no `maxItems`; commit mode loops N inserts; suggest `maxItems: 200` (PR #1550)
 
 ## Key Architecture Patterns (Security-Relevant)
 

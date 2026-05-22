@@ -103,6 +103,12 @@ jest.unstable_mockModule('../../lib/apiClient.js', () => ({
       this.name = 'ApiClientError';
     }
   },
+  NetworkError: class MockNetworkError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'NetworkError';
+    }
+  },
 }));
 
 jest.unstable_mockModule('../../lib/formatters.js', () => ({

@@ -1,25 +1,13 @@
 /**
  * Types for budget extraction from OCR text using an LLM provider.
+ *
+ * ExtractedLine and ExtractionHints are re-exported from @cornerstone/shared.
+ * BudgetExtractionProvider and LlmConfig are server-only internal types.
  */
 
-export interface ExtractedLine {
-  description: string;
-  quantity?: number;
-  unit?: string;
-  unitPrice?: number;
-  totalAmount: number;
-  includesVat?: boolean;
-  vatRate?: number;
-  vendorName?: string;
-  confidence: number; // 0..1
-}
+import type { ExtractedLine, ExtractionHints } from '@cornerstone/shared';
 
-export interface ExtractionHints {
-  vendorName?: string;
-  invoiceTotal?: number;
-  invoiceDate?: string; // ISO 8601 date
-  locale?: string; // e.g., 'de-DE'
-}
+export type { ExtractedLine, ExtractionHints } from '@cornerstone/shared';
 
 export interface BudgetExtractionProvider {
   extract(ocrText: string, hints: ExtractionHints): Promise<ExtractedLine[]>;

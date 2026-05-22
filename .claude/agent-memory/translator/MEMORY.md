@@ -209,3 +209,11 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - "Annotate" verb added to glossary: `{ "de": { "verb": "annotieren" } }` — loanword preferred over "markieren" (used for Highlight) or "anmerken"
 - `photoViewer.json` achieved exact parity (8 EN = 8 DE) with all #1475–#1477 keys present
 - `photoViewer.json` — 10 metadata sidepanel keys added 2026-05-19: `saving` → "Wird gespeichert..." (NOT "Speichern..."); `noArea` uses parenthesised lowercase `(kein Bereich)` as inline field fallback (distinct from `areas.noArea` = "Kein Bereich" heading form); parity now 19 EN = 19 DE
+
+## Auto-itemize Feature — Issue #1547 (2026-05-22)
+
+- See [auto-itemize-patterns.md](auto-itemize-patterns.md) for full details
+- "Auto-itemize" button → "Positionen Extrahieren" (`{Noun} {Verb}` capitalised pattern)
+- "Auto-itemization" as noun concept in errors → "Automatische Positionsextraktion" (not "Auto-Itemisierung")
+- "Itemize manually" → "manuell aufschlüsseln" (consistent with column `itemized` = "Aufgeschlüsselt")
+- `de/errors.json` LLM_NOT_CONFIGURED updated: "Auto-Itemisierung" → "Automatische Positionsextraktion"

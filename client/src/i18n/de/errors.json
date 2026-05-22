@@ -38,5 +38,9 @@
   "BACKUP_NOT_CONFIGURED": "Sicherung ist nicht konfiguriert. Setzen Sie die Umgebungsvariable BACKUP_DIR.",
   "BACKUP_IN_PROGRESS": "Eine Sicherungs- oder Wiederherstellungsoperation läuft bereits.",
   "BACKUP_NOT_FOUND": "Das angeforderte Sicherungsarchiv wurde nicht gefunden.",
-  "RESTORE_FAILED": "Die Wiederherstellung ist fehlgeschlagen. Der Server befindet sich möglicherweise in einem inkonsistenten Zustand."
+  "RESTORE_FAILED": "Die Wiederherstellung ist fehlgeschlagen. Der Server befindet sich möglicherweise in einem inkonsistenten Zustand.",
+  "LLM_NOT_CONFIGURED": "Automatische Positionsextraktion ist auf diesem Server nicht konfiguriert.",
+  "LLM_UNREACHABLE": "Der Extraktionsdienst ist nicht erreichbar. Bitte versuchen Sie es später erneut.",
+  "LLM_INVALID_RESPONSE": "Der Extraktionsdienst hat eine ungültige Antwort zurückgegeben.",
+  "LLM_UPSTREAM_ERROR": "Der Extraktionsdienst hat einen Fehler zurückgegeben."
 }

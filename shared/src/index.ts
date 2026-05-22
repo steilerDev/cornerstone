@@ -151,6 +151,16 @@ export type {
   BudgetLineAssignResponse,
 } from './types/invoiceBudgetLine.js';
 
+// Budget Extraction (LLM-powered line item extraction)
+export type { ExtractedLine, ExtractionHints } from './types/budgetExtraction.js';
+
+// Invoice Auto-Itemize (EPIC-16 Story #1547)
+export type {
+  AutoItemizeRequest,
+  AutoItemizeWarning,
+  AutoItemizeDryRunResponse,
+} from './types/invoiceAutoItemize.js';
+
 // Budget Sources
 export type {
   BudgetSource,

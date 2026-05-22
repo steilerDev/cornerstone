@@ -16,6 +16,20 @@
 - Inline input testid: `annotator-inline-input`. Tool buttons: `tool-{name}`. Action bar: `annotator-save`, `annotator-cancel`, `annotator-undo`, `annotator-redo`.
 - **MOBILE WEBKIT TOUCH / REACT STATE BATCHING** (fixed 2026-05-19): `page.mouse.*` does not fire `onPointerDown/Move/Up` on SVG elements in WebKit/hasTouch viewports. Use `svgOverlay.evaluate(el => el.dispatchEvent(new PointerEvent(...)))` instead. CRITICAL: dispatching all events in ONE synchronous evaluate() causes React to batch all state updates — `handlePointerMove` sees stale `state.draftShape=null` and bails. **Must split into multiple evaluate() calls with `page.evaluate(() => new Promise(r => requestAnimationFrame(r)))` yield between pointerdown and pointermove/pointerup.** FreehandTool (uses module-level capturedPoints): 2-phase OK. MeasurementTool (reads state.draftShape.x2/y2 in onPointerUp): needs 3-phase (pointerdown + rAF + pointermove-batch + rAF + pointerup). See PhotoViewerPage.ts `drawFreehandTouch` and `drawLineTouch` helpers.
 
+## Auto-Itemize E2E (Story #1547, 2026-05-22) — `e2e/tests/budget/auto-itemize.spec.ts`
+
+- 9 scenarios; @smoke on Scenarios 1 (visibility) and 2 (happy path AC19); @responsive on 1 and 2.
+- Mocking strategy: `page.route('**/api/config', ...)` injects `autoItemizeEnabled:true/false`. `page.route('**/api/document-links', ...)` filtered by URL params for `entityType=invoice&entityId=<id>`. `page.route('**/api/invoices/<id>/auto-itemize', ...)` discriminates dry-run vs commit via `request.postDataJSON().dryRun`.
+- Modal locators: use `page.locator('[role="dialog"]').filter({ has: page.locator('h2', { hasText: '...' }) })` since Modal uses `useId()` for aria-labelledby — NOT accessible name on the dialog itself. Preview modal h2 = "Review extracted line items". Doc picker h2 = "Choose document to analyze".
+- Auto-itemize button aria-label = "Extract line items from a linked Paperless document" (from i18n key `autoItemize.buttonAriaLabel`) — use this as stable locator, not button text.
+- `autoItemizeError` banner renders inside the `<section>` (NOT a portal) as `<div role="alert">`. Located via `budgetLinesSection.locator('[role="alert"]').filter({ visible: true }).first()`.
+- **DOUBLE role="alert" inside AutoItemizePreviewModal**: When the modal shows an error, it wraps `<FormError>` in `<div role="alert"><FormError .../></div>`. Since `FormError` variant='banner' (default) also renders `role="alert"`, there are TWO nested role="alert" elements. Use `.last()` to get the innermost (the FormError with the text). Strict mode violation if you use a single-match locator.
+- **waitForResponse before click**: In Scenario 7 (and all scenarios that trigger a network request), `page.waitForResponse()` MUST be called before the action that triggers it. Calling it after the click risks a race where the response arrives before the listener is registered.
+- Mismatch warning: `[class*="warningBlock"]` inside preview modal. Currency amounts rendered by `formatCurrency` (en-US = `€1,700.00`; de-DE = `1.700,00 €`). Always use locale-agnostic regex `/1[.,]700/` in assertions — never hardcode a locale-specific format.
+- After mockAutoItemize commit returns successfully, the component calls `loadBudgetLines()` which hits the real GET endpoint. Since we mocked the POST (commit) but not the GET, the budget lines table shows whatever the real server has (empty for test invoice). This is intentional — the AC19 scenario verifies modal flow and clean close, not actual DB persistence (tested by backend integration tests).
+- Scenarios 3–9 skip on mobile (`viewportWidth < 1024`) — functional tests, not layout tests.
+- `THREE_EXTRACTED_LINES` fixture: sum = 900 + 680 + 120 = 1700. Invoice amount of 2000 triggers TOTAL_MISMATCH warning. Invoice amount of 100 triggers ITEMIZED_SUM_EXCEEDS_INVOICE.
+
 ## Budget Print + i18n Stale Skip Re-enable (PR #1447, 2026-05-17) — See print-and-i18n.md
 
 ## Known Beta Flakes & Regressions (triaged 2026-05-17)

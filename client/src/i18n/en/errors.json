@@ -38,5 +38,9 @@
   "BACKUP_NOT_CONFIGURED": "Backup is not configured. Set the BACKUP_DIR environment variable.",
   "BACKUP_IN_PROGRESS": "A backup or restore operation is already in progress.",
   "BACKUP_NOT_FOUND": "The requested backup archive was not found.",
-  "RESTORE_FAILED": "The restore operation failed. The server may be in an inconsistent state."
+  "RESTORE_FAILED": "The restore operation failed. The server may be in an inconsistent state.",
+  "LLM_NOT_CONFIGURED": "Auto-itemization is not configured on this server.",
+  "LLM_UNREACHABLE": "The extraction service is unavailable. Please try again later.",
+  "LLM_INVALID_RESPONSE": "The extraction service returned an invalid response.",
+  "LLM_UPSTREAM_ERROR": "The extraction service returned an error."
 }
