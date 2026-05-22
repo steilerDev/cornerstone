@@ -28,10 +28,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
 // Fixtures directory resolved from project root (process.cwd() = project root when jest runs)
-const FIXTURES_DIR = resolve(
-  process.cwd(),
-  'server/src/services/budgetExtraction/fixtures',
-);
+const FIXTURES_DIR = resolve(process.cwd(), 'server/src/services/budgetExtraction/fixtures');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -130,9 +127,7 @@ describe('createOpenAICompatibleProvider — happy path', () => {
     await provider.extract('ocr text', {});
 
     const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-    expect((init.headers as Record<string, string>)['Authorization']).toBe(
-      'Bearer test-api-key',
-    );
+    expect((init.headers as Record<string, string>)['Authorization']).toBe('Bearer test-api-key');
   });
 
   it('sends the configured model in the request body', async () => {
@@ -767,9 +762,7 @@ describe('validateExtractedLines()', () => {
     it('non-numeric "quantity" → throws LlmInvalidResponseError', () => {
       expect(() =>
         validateExtractedLines({
-          lines: [
-            { description: 'Item A', quantity: 'five', totalAmount: 100, confidence: 0.9 },
-          ],
+          lines: [{ description: 'Item A', quantity: 'five', totalAmount: 100, confidence: 0.9 }],
         }),
       ).toThrow(LlmInvalidResponseError);
     });
@@ -785,9 +778,7 @@ describe('validateExtractedLines()', () => {
     it('non-numeric "unitPrice" → throws LlmInvalidResponseError', () => {
       expect(() =>
         validateExtractedLines({
-          lines: [
-            { description: 'Item A', unitPrice: 'cheap', totalAmount: 100, confidence: 0.9 },
-          ],
+          lines: [{ description: 'Item A', unitPrice: 'cheap', totalAmount: 100, confidence: 0.9 }],
         }),
       ).toThrow(LlmInvalidResponseError);
     });
@@ -805,9 +796,7 @@ describe('validateExtractedLines()', () => {
     it('non-numeric "vatRate" → throws LlmInvalidResponseError', () => {
       expect(() =>
         validateExtractedLines({
-          lines: [
-            { description: 'Item A', vatRate: '19%', totalAmount: 100, confidence: 0.9 },
-          ],
+          lines: [{ description: 'Item A', vatRate: '19%', totalAmount: 100, confidence: 0.9 }],
         }),
       ).toThrow(LlmInvalidResponseError);
     });
@@ -815,9 +804,7 @@ describe('validateExtractedLines()', () => {
     it('non-string "vendorName" → throws LlmInvalidResponseError', () => {
       expect(() =>
         validateExtractedLines({
-          lines: [
-            { description: 'Item A', vendorName: 99, totalAmount: 100, confidence: 0.9 },
-          ],
+          lines: [{ description: 'Item A', vendorName: 99, totalAmount: 100, confidence: 0.9 }],
         }),
       ).toThrow(LlmInvalidResponseError);
     });

@@ -120,7 +120,8 @@ describe('getProvider()', () => {
     fetchSpy.mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: () => Promise.resolve({ choices: [{ message: { content: JSON.stringify({ lines: [] }) } }] }),
+      json: () =>
+        Promise.resolve({ choices: [{ message: { content: JSON.stringify({ lines: [] }) } }] }),
     } as unknown as Response);
 
     const result = provider.extract('some ocr', {});
@@ -170,9 +171,7 @@ describe('getProvider()', () => {
 
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
     expect(url).toContain('my-gateway.example.com');
-    expect((init.headers as Record<string, string>)['Authorization']).toBe(
-      'Bearer my-secret-key',
-    );
+    expect((init.headers as Record<string, string>)['Authorization']).toBe('Bearer my-secret-key');
     const body = JSON.parse(init.body as string) as { model: string };
     expect(body.model).toBe('claude-haiku');
   });

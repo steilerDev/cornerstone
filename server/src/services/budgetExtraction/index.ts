@@ -29,4 +29,7 @@ export function getProvider(config: AppConfig): BudgetExtractionProvider {
 
 // Re-export public types
 export type { ExtractedLine, ExtractionHints, BudgetExtractionProvider } from './types.js';
-export { validateExtractedLines, createOpenAICompatibleProvider } from './openAICompatibleProvider.js';
+export {
+  validateExtractedLines,
+  createOpenAICompatibleProvider,
+} from './openAICompatibleProvider.js';

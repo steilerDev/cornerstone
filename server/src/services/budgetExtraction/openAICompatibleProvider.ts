@@ -6,7 +6,12 @@
  */
 
 import { SYSTEM_PROMPT, buildUserPrompt } from './prompts.js';
-import type { BudgetExtractionProvider, ExtractedLine, ExtractionHints, LlmConfig } from './types.js';
+import type {
+  BudgetExtractionProvider,
+  ExtractedLine,
+  ExtractionHints,
+  LlmConfig,
+} from './types.js';
 import {
   LlmUnreachableError,
   LlmInvalidResponseError,

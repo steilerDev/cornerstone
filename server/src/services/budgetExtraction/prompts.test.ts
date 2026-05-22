@@ -14,10 +14,7 @@ import { resolve } from 'node:path';
 import { SYSTEM_PROMPT, buildUserPrompt } from './prompts.js';
 
 // Fixtures directory resolved from project root (process.cwd() = project root when jest runs)
-const FIXTURES_DIR = resolve(
-  process.cwd(),
-  'server/src/services/budgetExtraction/fixtures',
-);
+const FIXTURES_DIR = resolve(process.cwd(), 'server/src/services/budgetExtraction/fixtures');
 
 describe('SYSTEM_PROMPT', () => {
   it('mentions German construction invoice domain scoping', () => {

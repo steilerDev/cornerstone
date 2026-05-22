@@ -186,7 +186,10 @@ describe('LocaleProvider', () => {
     });
 
     it('keeps EUR when fetchConfig returns a config with no currency field', async () => {
-      mockFetchConfig.mockResolvedValue({ currency: undefined as unknown as string, autoItemizeEnabled: false });
+      mockFetchConfig.mockResolvedValue({
+        currency: undefined as unknown as string,
+        autoItemizeEnabled: false,
+      });
 
       renderWithProvider();
 
