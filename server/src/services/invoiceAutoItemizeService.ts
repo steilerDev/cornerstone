@@ -28,7 +28,11 @@ import { getProvider, validateExtractedLines } from './budgetExtraction/index.js
 import * as paperlessService from './paperlessService.js';
 import * as invoiceBudgetLineService from './invoiceBudgetLineService.js';
 import type { AppConfig } from '../plugins/config.js';
-import type { ExtractedLine, ExtractionHints, InvoiceBudgetLineListDetailResponse } from '@cornerstone/shared';
+import type {
+  ExtractedLine,
+  ExtractionHints,
+  InvoiceBudgetLineListDetailResponse,
+} from '@cornerstone/shared';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -103,21 +107,13 @@ export async function autoItemize(
   paperlessAuth: { url: string; apiToken: string },
 ): Promise<AutoItemizeDryRunResponse | InvoiceBudgetLineListDetailResponse> {
   // 1. Verify invoice exists and load vendor + amount
-  const invoice = db
-    .select()
-    .from(invoices)
-    .where(eq(invoices.id, invoiceId))
-    .get();
+  const invoice = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get();
   if (!invoice) {
     throw new NotFoundError('Invoice not found');
   }
 
   // Load vendor name for extraction hints
-  const vendor = db
-    .select()
-    .from(vendors)
-    .where(eq(vendors.id, invoice.vendorId))
-    .get();
+  const vendor = db.select().from(vendors).where(eq(vendors.id, invoice.vendorId)).get();
   const vendorName = vendor?.name;
 
   // 2. Verify the paperlessDocumentId is linked to this invoice
@@ -149,9 +145,10 @@ export async function autoItemize(
     const provider = getProvider(config);
     const hints = buildHints(invoice, vendorName);
     // Truncate OCR text to MAX_OCR_CHARS to prevent LLM overload
-    const ocrText = (doc.content ?? '').length > MAX_OCR_CHARS
-      ? (doc.content ?? '').slice(0, MAX_OCR_CHARS)
-      : (doc.content ?? '');
+    const ocrText =
+      (doc.content ?? '').length > MAX_OCR_CHARS
+        ? (doc.content ?? '').slice(0, MAX_OCR_CHARS)
+        : (doc.content ?? '');
     const extractedLines = await provider.extract(ocrText, hints);
     const warnings = computeWarnings(extractedLines, invoice.amount);
 
@@ -185,9 +182,7 @@ export async function autoItemize(
               .get();
             if (wib && wib.origin === 'auto') {
               // Delete the work_item_budget row (cascades to invoice_budget_lines)
-              db.delete(workItemBudgets)
-                .where(eq(workItemBudgets.id, line.workItemBudgetId))
-                .run();
+              db.delete(workItemBudgets).where(eq(workItemBudgets.id, line.workItemBudgetId)).run();
             }
           }
         }

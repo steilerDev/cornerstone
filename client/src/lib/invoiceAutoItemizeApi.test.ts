@@ -147,7 +147,7 @@ describe('invoiceAutoItemizeApi', () => {
       // so we verify the URL is constructed as documented.
       await autoItemize('inv-100', body);
 
-      const [url] = (mockFetch.mock.calls[0] as [string, RequestInit]);
+      const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
       expect(url).toContain('/invoices/inv-100/');
     });
   });
@@ -165,7 +165,7 @@ describe('invoiceAutoItemizeApi', () => {
       const body: AutoItemizeRequest = { paperlessDocumentId: 42, mode: 'append', dryRun: true };
       await autoItemize('inv-100', body);
 
-      const [, init] = (mockFetch.mock.calls[0] as [string, RequestInit]);
+      const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
       expect((init.headers as Record<string, string>)['Content-Type']).toBe('application/json');
     });
 
@@ -183,7 +183,7 @@ describe('invoiceAutoItemizeApi', () => {
       };
       await autoItemize('inv-100', requestBody);
 
-      const [, init] = (mockFetch.mock.calls[0] as [string, RequestInit]);
+      const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
       const sentBody = JSON.parse(init.body as string) as AutoItemizeRequest;
       expect(sentBody.paperlessDocumentId).toBe(42);
       expect(sentBody.mode).toBe('append');
@@ -206,7 +206,7 @@ describe('invoiceAutoItemizeApi', () => {
       };
       await autoItemize('inv-100', requestBody);
 
-      const [, init] = (mockFetch.mock.calls[0] as [string, RequestInit]);
+      const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
       const sentBody = JSON.parse(init.body as string) as AutoItemizeRequest;
       expect(sentBody.dryRun).toBe(false);
       expect(sentBody.mode).toBe('replace');
@@ -226,11 +226,11 @@ describe('invoiceAutoItemizeApi', () => {
         json: async () => mockResponse,
       } as Response);
 
-      const result = await autoItemize('inv-100', {
+      const result = (await autoItemize('inv-100', {
         paperlessDocumentId: 42,
         mode: 'append',
         dryRun: true,
-      }) as AutoItemizeDryRunResponse;
+      })) as AutoItemizeDryRunResponse;
 
       expect(result).toEqual(mockResponse);
       expect(result.lines).toHaveLength(2);
@@ -247,11 +247,11 @@ describe('invoiceAutoItemizeApi', () => {
         json: async () => mockResponse,
       } as Response);
 
-      const result = await autoItemize('inv-100', {
+      const result = (await autoItemize('inv-100', {
         paperlessDocumentId: 42,
         mode: 'append',
         dryRun: true,
-      }) as AutoItemizeDryRunResponse;
+      })) as AutoItemizeDryRunResponse;
 
       expect(result.warnings).toHaveLength(1);
       expect(result.warnings[0]!.code).toBe('TOTAL_MISMATCH');
@@ -267,11 +267,11 @@ describe('invoiceAutoItemizeApi', () => {
         json: async () => mockResponse,
       } as Response);
 
-      const result = await autoItemize('inv-100', {
+      const result = (await autoItemize('inv-100', {
         paperlessDocumentId: 42,
         mode: 'append',
         dryRun: true,
-      }) as AutoItemizeDryRunResponse;
+      })) as AutoItemizeDryRunResponse;
 
       expect(result.lines).toHaveLength(0);
     });
@@ -288,12 +288,12 @@ describe('invoiceAutoItemizeApi', () => {
         json: async () => mockResponse,
       } as Response);
 
-      const result = await autoItemize('inv-100', {
+      const result = (await autoItemize('inv-100', {
         paperlessDocumentId: 42,
         mode: 'append',
         dryRun: false,
         lines: [{ description: 'Tile', totalAmount: 300, confidence: 0.9 }],
-      }) as InvoiceBudgetLineListDetailResponse;
+      })) as InvoiceBudgetLineListDetailResponse;
 
       expect(result).toEqual(mockResponse);
       expect(result.budgetLines).toHaveLength(1);
@@ -313,12 +313,12 @@ describe('invoiceAutoItemizeApi', () => {
         json: async () => mockResponse,
       } as Response);
 
-      const result = await autoItemize('inv-100', {
+      const result = (await autoItemize('inv-100', {
         paperlessDocumentId: 42,
         mode: 'append',
         dryRun: false,
         lines: [{ description: 'Special grout', totalAmount: 150, confidence: 0.9 }],
-      }) as InvoiceBudgetLineListDetailResponse;
+      })) as InvoiceBudgetLineListDetailResponse;
 
       expect(result.budgetLines[0]!.budgetLineDescription).toBe('Special grout');
       expect(result.budgetLines[0]!.itemizedAmount).toBe(150);

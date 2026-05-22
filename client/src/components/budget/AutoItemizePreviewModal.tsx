@@ -95,7 +95,11 @@ export function AutoItemizePreviewModal({
     });
   };
 
-  const handleLineChange = (index: number, field: keyof ExtractedLine, value: string | number | boolean | undefined) => {
+  const handleLineChange = (
+    index: number,
+    field: keyof ExtractedLine,
+    value: string | number | boolean | undefined,
+  ) => {
     setLines((prev) => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value } as LineWithInclude;
@@ -167,11 +171,7 @@ export function AutoItemizePreviewModal({
         onClose={onCancel}
         footer={
           <div className={sharedStyles.modalActions}>
-            <button
-              type="button"
-              className={sharedStyles.btnSecondary}
-              onClick={onCancel}
-            >
+            <button type="button" className={sharedStyles.btnSecondary} onClick={onCancel}>
               {t('invoiceDetail.budgetLines.autoItemize.cancelButton')}
             </button>
             {initialErrorCode && (
@@ -306,9 +306,7 @@ export function AutoItemizePreviewModal({
                     type="checkbox"
                     checked={lines.length > 0 && lines.every((l) => l.included)}
                     onChange={(e) => {
-                      setLines((prev) =>
-                        prev.map((l) => ({ ...l, included: e.target.checked }))
-                      );
+                      setLines((prev) => prev.map((l) => ({ ...l, included: e.target.checked })));
                     }}
                     disabled={isApplying}
                     aria-label={t('invoiceDetail.budgetLines.autoItemize.selectAllAriaLabel')}

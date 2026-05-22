@@ -94,7 +94,7 @@ See `review-history.md` for detailed findings per PR.
 | #1150 | EPIC-19 Story #1146 — Backup & Restore                                                            | COMMENTED (3 informational: restore mid-op orphan dir, filename in 404 msg, node-cron 3.x not 4.x)                            | 2026-03-22 |
 | #1548 | EPIC-20 Story #1545 — Unassigned Budget Lines & One-Shot Parent Assignment                        | COMMENTED (3 informational: assignToWorkItem no transaction, computeUsedAmount includes orphans, targetId no minLength)       | 2026-05-21 |
 | #1549 | Story #1546 — BudgetExtractionService with OpenAI-compatible LLM gateway (FIRST LLM INTEGRATION)  | APPROVED (4 informational: URL in startup error, no timeout upper bound, localhost SSRF allowed, no OCR size cap)             | 2026-05-21 |
-| #1550 | Story #1547 — Invoice Auto-Itemize POST endpoint and commit service                                | COMMENTED (2 informational: OCR cap carry-forward unaddressed, lines array no maxItems)                                       | 2026-05-22 |
+| #1550 | Story #1547 — Invoice Auto-Itemize POST endpoint and commit service                               | COMMENTED (2 informational: OCR cap carry-forward unaddressed, lines array no maxItems)                                       | 2026-05-22 |
 
 ## Known Open Recommendations (Low Priority)
 

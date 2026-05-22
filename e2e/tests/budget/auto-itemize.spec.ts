@@ -334,73 +334,73 @@ test.describe(
       },
     );
 
-    test(
-      'Auto-itemize button is NOT visible when no document is linked (even if autoItemizeEnabled=true)',
-      async ({ page, testPrefix }) => {
-        const detailPage = new InvoiceDetailPage(page);
-        let vendorId = '';
-        let invoiceId = '';
+    test('Auto-itemize button is NOT visible when no document is linked (even if autoItemizeEnabled=true)', async ({
+      page,
+      testPrefix,
+    }) => {
+      const detailPage = new InvoiceDetailPage(page);
+      let vendorId = '';
+      let invoiceId = '';
 
-        try {
-          vendorId = await createVendorViaApi(page, `${testPrefix} AI-NoDocs Vendor`);
-          invoiceId = await createInvoiceViaApi(page, vendorId, {
-            amount: 1000,
-            date: '2026-06-01',
-          });
+      try {
+        vendorId = await createVendorViaApi(page, `${testPrefix} AI-NoDocs Vendor`);
+        invoiceId = await createInvoiceViaApi(page, vendorId, {
+          amount: 1000,
+          date: '2026-06-01',
+        });
 
-          // Config has autoItemizeEnabled=true but NO document links
-          await mockConfigEnabled(page);
-          await mockDocumentLinks(page, invoiceId, []); // zero docs
+        // Config has autoItemizeEnabled=true but NO document links
+        await mockConfigEnabled(page);
+        await mockDocumentLinks(page, invoiceId, []); // zero docs
 
-          await detailPage.goto(invoiceId);
-          await expect(detailPage.heading).toBeVisible();
+        await detailPage.goto(invoiceId);
+        await expect(detailPage.heading).toBeVisible();
 
-          // Wait for the section to render (Add Budget Line button should appear)
-          await expect(detailPage.pickerAddBudgetLineButton).toBeVisible();
+        // Wait for the section to render (Add Budget Line button should appear)
+        await expect(detailPage.pickerAddBudgetLineButton).toBeVisible();
 
-          // The Auto-itemize button must NOT be rendered
-          await expect(detailPage.getAutoItemizeButton()).not.toBeVisible();
-        } finally {
-          if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-          if (vendorId) await deleteVendorViaApi(page, vendorId);
-        }
-      },
-    );
+        // The Auto-itemize button must NOT be rendered
+        await expect(detailPage.getAutoItemizeButton()).not.toBeVisible();
+      } finally {
+        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
 
-    test(
-      'Auto-itemize button is NOT visible when autoItemizeEnabled=false (even if a doc is linked)',
-      async ({ page, testPrefix }) => {
-        const detailPage = new InvoiceDetailPage(page);
-        let vendorId = '';
-        let invoiceId = '';
+    test('Auto-itemize button is NOT visible when autoItemizeEnabled=false (even if a doc is linked)', async ({
+      page,
+      testPrefix,
+    }) => {
+      const detailPage = new InvoiceDetailPage(page);
+      let vendorId = '';
+      let invoiceId = '';
 
-        try {
-          vendorId = await createVendorViaApi(page, `${testPrefix} AI-Disabled Vendor`);
-          invoiceId = await createInvoiceViaApi(page, vendorId, {
-            amount: 500,
-            date: '2026-06-01',
-          });
+      try {
+        vendorId = await createVendorViaApi(page, `${testPrefix} AI-Disabled Vendor`);
+        invoiceId = await createInvoiceViaApi(page, vendorId, {
+          amount: 500,
+          date: '2026-06-01',
+        });
 
-          // Config has autoItemizeEnabled=false but a doc IS linked
-          await mockConfigDisabled(page);
-          await mockDocumentLinks(page, invoiceId, [
-            { linkId: 'dl-e2e-2', docId: 42002, title: 'Invoice Doc 2' },
-          ]);
+        // Config has autoItemizeEnabled=false but a doc IS linked
+        await mockConfigDisabled(page);
+        await mockDocumentLinks(page, invoiceId, [
+          { linkId: 'dl-e2e-2', docId: 42002, title: 'Invoice Doc 2' },
+        ]);
 
-          await detailPage.goto(invoiceId);
-          await expect(detailPage.heading).toBeVisible();
+        await detailPage.goto(invoiceId);
+        await expect(detailPage.heading).toBeVisible();
 
-          // Wait for the section to render
-          await expect(detailPage.pickerAddBudgetLineButton).toBeVisible();
+        // Wait for the section to render
+        await expect(detailPage.pickerAddBudgetLineButton).toBeVisible();
 
-          // The Auto-itemize button must NOT be rendered
-          await expect(detailPage.getAutoItemizeButton()).not.toBeVisible();
-        } finally {
-          if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-          if (vendorId) await deleteVendorViaApi(page, vendorId);
-        }
-      },
-    );
+        // The Auto-itemize button must NOT be rendered
+        await expect(detailPage.getAutoItemizeButton()).not.toBeVisible();
+      } finally {
+        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
   },
 );
 
@@ -508,63 +508,63 @@ test.describe(
       },
     );
 
-    test(
-      'After apply, budget lines section is refreshed — page stays stable',
-      async ({ page, testPrefix }) => {
-        // Skip on mobile — functional test
-        const viewportWidth = page.viewportSize()?.width ?? 1440;
-        if (viewportWidth < 1024) {
-          test.skip(true, 'Functional test — desktop/tablet only');
-          return;
-        }
+    test('After apply, budget lines section is refreshed — page stays stable', async ({
+      page,
+      testPrefix,
+    }) => {
+      // Skip on mobile — functional test
+      const viewportWidth = page.viewportSize()?.width ?? 1440;
+      if (viewportWidth < 1024) {
+        test.skip(true, 'Functional test — desktop/tablet only');
+        return;
+      }
 
-        const detailPage = new InvoiceDetailPage(page);
-        let vendorId = '';
-        let invoiceId = '';
+      const detailPage = new InvoiceDetailPage(page);
+      let vendorId = '';
+      let invoiceId = '';
 
-        try {
-          vendorId = await createVendorViaApi(page, `${testPrefix} AI-Refresh Vendor`);
-          invoiceId = await createInvoiceViaApi(page, vendorId, {
-            amount: 1700,
-            date: '2026-06-01',
-          });
+      try {
+        vendorId = await createVendorViaApi(page, `${testPrefix} AI-Refresh Vendor`);
+        invoiceId = await createInvoiceViaApi(page, vendorId, {
+          amount: 1700,
+          date: '2026-06-01',
+        });
 
-          await mockConfigEnabled(page);
-          await mockDocumentLinks(page, invoiceId, [
-            { linkId: 'dl-e2e-ref1', docId: 44001, title: 'Invoice PDF' },
-          ]);
+        await mockConfigEnabled(page);
+        await mockDocumentLinks(page, invoiceId, [
+          { linkId: 'dl-e2e-ref1', docId: 44001, title: 'Invoice PDF' },
+        ]);
 
-          // Mock dry-run returns 3 lines, commit returns updated list
-          await mockAutoItemize(page, invoiceId);
+        // Mock dry-run returns 3 lines, commit returns updated list
+        await mockAutoItemize(page, invoiceId);
 
-          await detailPage.goto(invoiceId);
-          await expect(detailPage.heading).toBeVisible();
+        await detailPage.goto(invoiceId);
+        await expect(detailPage.heading).toBeVisible();
 
-          // Trigger the full flow
-          await detailPage.clickAutoItemizeButton();
-          const previewModal = detailPage.getAutoItemizePreviewModal();
-          await expect(previewModal).toBeVisible();
+        // Trigger the full flow
+        await detailPage.clickAutoItemizeButton();
+        const previewModal = detailPage.getAutoItemizePreviewModal();
+        await expect(previewModal).toBeVisible();
 
-          // Apply without editing
-          const applyPromise = page.waitForResponse(
-            (resp) =>
-              resp.url().includes('/auto-itemize') &&
-              resp.request().method() === 'POST' &&
-              resp.status() === 200,
-          );
-          await detailPage.clickApplyButton();
-          await applyPromise;
+        // Apply without editing
+        const applyPromise = page.waitForResponse(
+          (resp) =>
+            resp.url().includes('/auto-itemize') &&
+            resp.request().method() === 'POST' &&
+            resp.status() === 200,
+        );
+        await detailPage.clickApplyButton();
+        await applyPromise;
 
-          // Modal closes, page still functional
-          await expect(previewModal).not.toBeVisible();
-          await expect(detailPage.budgetLinesSection).toBeVisible();
-          await expect(detailPage.heading).toBeVisible();
-        } finally {
-          if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-          if (vendorId) await deleteVendorViaApi(page, vendorId);
-        }
-      },
-    );
+        // Modal closes, page still functional
+        await expect(previewModal).not.toBeVisible();
+        await expect(detailPage.budgetLinesSection).toBeVisible();
+        await expect(detailPage.heading).toBeVisible();
+      } finally {
+        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
   },
 );
 
@@ -704,9 +704,7 @@ test.describe('Auto-itemize empty state (Scenario 4)', () => {
       ).not.toBeVisible();
 
       // Cancel/Close button is present
-      await expect(
-        previewModal.getByRole('button', { name: 'Cancel', exact: true }),
-      ).toBeVisible();
+      await expect(previewModal.getByRole('button', { name: 'Cancel', exact: true })).toBeVisible();
 
       // Close
       await previewModal.getByRole('button', { name: 'Cancel', exact: true }).click();

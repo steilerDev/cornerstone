@@ -77,7 +77,12 @@ const PAPERLESS_TAGS_RESPONSE = { count: 0, results: [] };
 
 /** Build a valid LLM response body with the given lines. */
 function makeLlmResponse(
-  lines: Array<{ description: string; totalAmount: number; confidence: number; [k: string]: unknown }>,
+  lines: Array<{
+    description: string;
+    totalAmount: number;
+    confidence: number;
+    [k: string]: unknown;
+  }>,
 ): object {
   return {
     choices: [
@@ -320,11 +325,18 @@ describe('invoiceAutoItemizeService', () => {
     it('throws NotFoundError when invoiceId does not exist', async () => {
       const config = makeConfig();
       await expect(
-        autoItemize(db, config, 'nonexistent-inv', 'user-1', {
-          paperlessDocumentId: 1,
-          mode: 'append',
-          dryRun: true,
-        }, PAPERLESS_AUTH),
+        autoItemize(
+          db,
+          config,
+          'nonexistent-inv',
+          'user-1',
+          {
+            paperlessDocumentId: 1,
+            mode: 'append',
+            dryRun: true,
+          },
+          PAPERLESS_AUTH,
+        ),
       ).rejects.toThrow(NotFoundError);
     });
 
@@ -332,11 +344,18 @@ describe('invoiceAutoItemizeService', () => {
       const config = makeConfig();
       let caught: unknown;
       try {
-        await autoItemize(db, config, 'nonexistent-inv', 'user-1', {
-          paperlessDocumentId: 1,
-          mode: 'append',
-          dryRun: true,
-        }, PAPERLESS_AUTH);
+        await autoItemize(
+          db,
+          config,
+          'nonexistent-inv',
+          'user-1',
+          {
+            paperlessDocumentId: 1,
+            mode: 'append',
+            dryRun: true,
+          },
+          PAPERLESS_AUTH,
+        );
       } catch (e) {
         caught = e;
       }
@@ -354,11 +373,18 @@ describe('invoiceAutoItemizeService', () => {
       const config = makeConfig();
 
       await expect(
-        autoItemize(db, config, invoiceId, 'user-1', {
-          paperlessDocumentId: 999,
-          mode: 'append',
-          dryRun: true,
-        }, PAPERLESS_AUTH),
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 999,
+            mode: 'append',
+            dryRun: true,
+          },
+          PAPERLESS_AUTH,
+        ),
       ).rejects.toThrow(NotFoundError);
     });
   });
@@ -373,11 +399,18 @@ describe('invoiceAutoItemizeService', () => {
       setupDryRunFetch([{ description: 'Tile', totalAmount: 200, confidence: 0.9 }]);
       const config = makeConfig();
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: true,
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: true,
+        },
+        PAPERLESS_AUTH,
+      );
 
       // First fetch call should be to Paperless doc endpoint
       const [firstUrl] = mockFetch.mock.calls[0] as [string];
@@ -394,11 +427,18 @@ describe('invoiceAutoItemizeService', () => {
       );
       const config = makeConfig();
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: true,
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: true,
+        },
+        PAPERLESS_AUTH,
+      );
 
       // Third fetch call should be to LLM chat completions
       const llmCall = mockFetch.mock.calls[2] as [string, RequestInit];
@@ -418,11 +458,18 @@ describe('invoiceAutoItemizeService', () => {
       setupDryRunFetch([{ description: 'Wiring', totalAmount: 400, confidence: 0.9 }]);
       const config = makeConfig();
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: true,
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: true,
+        },
+        PAPERLESS_AUTH,
+      );
 
       const llmCall = mockFetch.mock.calls[2] as [string, RequestInit];
       const llmBody = JSON.parse(llmCall![1].body as string) as {
@@ -443,11 +490,18 @@ describe('invoiceAutoItemizeService', () => {
       ]);
       const config = makeConfig();
 
-      const result = await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: true,
-      }, PAPERLESS_AUTH) as { lines: Array<{ description: string; totalAmount: number }>; warnings: unknown[] };
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: true,
+        },
+        PAPERLESS_AUTH,
+      )) as { lines: Array<{ description: string; totalAmount: number }>; warnings: unknown[] };
 
       expect(result.lines).toHaveLength(2);
       expect(result.lines[0]!.description).toBe('Tile');
@@ -461,11 +515,18 @@ describe('invoiceAutoItemizeService', () => {
       setupDryRunFetch([]);
       const config = makeConfig();
 
-      const result = await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: true,
-      }, PAPERLESS_AUTH) as { lines: unknown[]; warnings: unknown[] };
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: true,
+        },
+        PAPERLESS_AUTH,
+      )) as { lines: unknown[]; warnings: unknown[] };
 
       expect(result.lines).toHaveLength(0);
       expect(result.warnings).toHaveLength(0);
@@ -481,11 +542,18 @@ describe('invoiceAutoItemizeService', () => {
       const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
       const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: true,
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: true,
+        },
+        PAPERLESS_AUTH,
+      );
 
       const wibCountAfter = db.select().from(schema.workItemBudgets).all().length;
       const iblCountAfter = db.select().from(schema.invoiceBudgetLines).all().length;
@@ -503,11 +571,18 @@ describe('invoiceAutoItemizeService', () => {
       setupDryRunFetch([{ description: 'Big item', totalAmount: 900, confidence: 0.9 }]);
       const config = makeConfig();
 
-      const result = await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: true,
-      }, PAPERLESS_AUTH) as {
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: true,
+        },
+        PAPERLESS_AUTH,
+      )) as {
         lines: unknown[];
         warnings: Array<{ code: string; extractedTotal: number; invoiceTotal: number }>;
       };
@@ -526,11 +601,18 @@ describe('invoiceAutoItemizeService', () => {
       setupDryRunFetch([{ description: 'Item', totalAmount: 1005, confidence: 0.9 }]);
       const config = makeConfig();
 
-      const result = await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: true,
-      }, PAPERLESS_AUTH) as { lines: unknown[]; warnings: unknown[] };
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: true,
+        },
+        PAPERLESS_AUTH,
+      )) as { lines: unknown[]; warnings: unknown[] };
 
       expect(result.warnings).toHaveLength(0);
     });
@@ -542,11 +624,18 @@ describe('invoiceAutoItemizeService', () => {
       setupDryRunFetch([]);
       const config = makeConfig();
 
-      const result = await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: true,
-      }, PAPERLESS_AUTH) as { lines: unknown[]; warnings: unknown[] };
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: true,
+        },
+        PAPERLESS_AUTH,
+      )) as { lines: unknown[]; warnings: unknown[] };
 
       expect(result.warnings).toHaveLength(0);
     });
@@ -563,21 +652,24 @@ describe('invoiceAutoItemizeService', () => {
 
       const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: false,
-        lines: [
-          { description: 'Tile A', totalAmount: 200, confidence: 0.9 },
-          { description: 'Grout B', totalAmount: 150, confidence: 0.85 },
-        ],
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            { description: 'Tile A', totalAmount: 200, confidence: 0.9 },
+            { description: 'Grout B', totalAmount: 150, confidence: 0.85 },
+          ],
+        },
+        PAPERLESS_AUTH,
+      );
 
-      const newWibs = db
-        .select()
-        .from(schema.workItemBudgets)
-        .all()
-        .slice(wibCountBefore);
+      const newWibs = db.select().from(schema.workItemBudgets).all().slice(wibCountBefore);
       expect(newWibs).toHaveLength(2);
       expect(newWibs.every((w) => w.origin === 'auto')).toBe(true);
     });
@@ -590,18 +682,21 @@ describe('invoiceAutoItemizeService', () => {
 
       const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: false,
-        lines: [{ description: 'Item', totalAmount: 300, confidence: 0.9 }],
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [{ description: 'Item', totalAmount: 300, confidence: 0.9 }],
+        },
+        PAPERLESS_AUTH,
+      );
 
-      const newWibs = db
-        .select()
-        .from(schema.workItemBudgets)
-        .all()
-        .slice(wibCountBefore);
+      const newWibs = db.select().from(schema.workItemBudgets).all().slice(wibCountBefore);
       expect(newWibs[0]!.workItemId).toBeNull();
     });
 
@@ -613,18 +708,21 @@ describe('invoiceAutoItemizeService', () => {
 
       const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: false,
-        lines: [{ description: 'Item', totalAmount: 300, confidence: 0.9 }],
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [{ description: 'Item', totalAmount: 300, confidence: 0.9 }],
+        },
+        PAPERLESS_AUTH,
+      );
 
-      const newWibs = db
-        .select()
-        .from(schema.workItemBudgets)
-        .all()
-        .slice(wibCountBefore);
+      const newWibs = db.select().from(schema.workItemBudgets).all().slice(wibCountBefore);
       expect(newWibs[0]!.budgetSourceId).toBe('discretionary-system');
     });
 
@@ -636,18 +734,21 @@ describe('invoiceAutoItemizeService', () => {
 
       const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: false,
-        lines: [{ description: 'Item', totalAmount: 300, confidence: 0.9 }],
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [{ description: 'Item', totalAmount: 300, confidence: 0.9 }],
+        },
+        PAPERLESS_AUTH,
+      );
 
-      const newWibs = db
-        .select()
-        .from(schema.workItemBudgets)
-        .all()
-        .slice(wibCountBefore);
+      const newWibs = db.select().from(schema.workItemBudgets).all().slice(wibCountBefore);
       expect(newWibs[0]!.confidence).toBe('invoice');
     });
 
@@ -659,18 +760,21 @@ describe('invoiceAutoItemizeService', () => {
 
       const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: false,
-        lines: [{ description: 'Pipe fitting', totalAmount: 200, confidence: 0.9 }],
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [{ description: 'Pipe fitting', totalAmount: 200, confidence: 0.9 }],
+        },
+        PAPERLESS_AUTH,
+      );
 
-      const newWibs = db
-        .select()
-        .from(schema.workItemBudgets)
-        .all()
-        .slice(wibCountBefore);
+      const newWibs = db.select().from(schema.workItemBudgets).all().slice(wibCountBefore);
       expect(newWibs[0]!.vendorId).toBe(vendorId);
     });
 
@@ -682,28 +786,31 @@ describe('invoiceAutoItemizeService', () => {
 
       const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: false,
-        lines: [
-          {
-            description: 'Ceramic Tile 30x30',
-            totalAmount: 450,
-            confidence: 0.92,
-            quantity: 10,
-            unit: 'm²',
-            unitPrice: 45,
-            includesVat: false,
-          },
-        ],
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            {
+              description: 'Ceramic Tile 30x30',
+              totalAmount: 450,
+              confidence: 0.92,
+              quantity: 10,
+              unit: 'm²',
+              unitPrice: 45,
+              includesVat: false,
+            },
+          ],
+        },
+        PAPERLESS_AUTH,
+      );
 
-      const newWib = db
-        .select()
-        .from(schema.workItemBudgets)
-        .all()
-        .slice(wibCountBefore)[0]!;
+      const newWib = db.select().from(schema.workItemBudgets).all().slice(wibCountBefore)[0]!;
       expect(newWib.description).toBe('Ceramic Tile 30x30');
       expect(newWib.quantity).toBe(10);
       expect(newWib.unit).toBe('m²');
@@ -720,15 +827,22 @@ describe('invoiceAutoItemizeService', () => {
 
       const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: false,
-        lines: [
-          { description: 'Line 1', totalAmount: 300, confidence: 0.9 },
-          { description: 'Line 2', totalAmount: 200, confidence: 0.8 },
-        ],
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            { description: 'Line 1', totalAmount: 300, confidence: 0.9 },
+            { description: 'Line 2', totalAmount: 200, confidence: 0.8 },
+          ],
+        },
+        PAPERLESS_AUTH,
+      );
 
       const iblCountAfter = db.select().from(schema.invoiceBudgetLines).all().length;
       expect(iblCountAfter).toBe(iblCountBefore + 2);
@@ -742,18 +856,21 @@ describe('invoiceAutoItemizeService', () => {
 
       const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: false,
-        lines: [{ description: 'Line', totalAmount: 333, confidence: 0.9 }],
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [{ description: 'Line', totalAmount: 333, confidence: 0.9 }],
+        },
+        PAPERLESS_AUTH,
+      );
 
-      const newIbls = db
-        .select()
-        .from(schema.invoiceBudgetLines)
-        .all()
-        .slice(iblCountBefore);
+      const newIbls = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore);
       expect(newIbls[0]!.itemizedAmount).toBe(333);
     });
 
@@ -763,12 +880,19 @@ describe('invoiceAutoItemizeService', () => {
       linkDocument(db, invoiceId, 42);
       const config = makeConfig();
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: false,
-        lines: [{ description: 'Item', totalAmount: 200, confidence: 0.9 }],
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [{ description: 'Item', totalAmount: 200, confidence: 0.9 }],
+        },
+        PAPERLESS_AUTH,
+      );
 
       expect(mockFetch).not.toHaveBeenCalled();
     });
@@ -778,15 +902,25 @@ describe('invoiceAutoItemizeService', () => {
       const invoiceId = insertInvoice(db, vendorId, 2000);
       linkDocument(db, invoiceId, 42);
       // Insert a manual line
-      const { iblId: manualIblId } = insertWIB(db, invoiceId, { origin: 'manual', plannedAmount: 500 });
+      const { iblId: manualIblId } = insertWIB(db, invoiceId, {
+        origin: 'manual',
+        plannedAmount: 500,
+      });
       const config = makeConfig();
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: false,
-        lines: [{ description: 'New auto', totalAmount: 300, confidence: 0.9 }],
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [{ description: 'New auto', totalAmount: 300, confidence: 0.9 }],
+        },
+        PAPERLESS_AUTH,
+      );
 
       const manualIbl = db
         .select()
@@ -802,12 +936,19 @@ describe('invoiceAutoItemizeService', () => {
       linkDocument(db, invoiceId, 42);
       const config = makeConfig();
 
-      const result = await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'append',
-        dryRun: false,
-        lines: [{ description: 'Line', totalAmount: 300, confidence: 0.9 }],
-      }, PAPERLESS_AUTH) as { budgetLines: unknown[]; remainingAmount: number };
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [{ description: 'Line', totalAmount: 300, confidence: 0.9 }],
+        },
+        PAPERLESS_AUTH,
+      )) as { budgetLines: unknown[]; remainingAmount: number };
 
       expect(Array.isArray(result.budgetLines)).toBe(true);
       expect(typeof result.remainingAmount).toBe('number');
@@ -826,12 +967,19 @@ describe('invoiceAutoItemizeService', () => {
       const { wibId: autoWib2 } = insertWIB(db, invoiceId, { origin: 'auto', plannedAmount: 150 });
       const config = makeConfig();
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'replace',
-        dryRun: false,
-        lines: [{ description: 'New line', totalAmount: 400, confidence: 0.9 }],
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'replace',
+          dryRun: false,
+          lines: [{ description: 'New line', totalAmount: 400, confidence: 0.9 }],
+        },
+        PAPERLESS_AUTH,
+      );
 
       const wib1 = db
         .select()
@@ -855,12 +1003,19 @@ describe('invoiceAutoItemizeService', () => {
       const { iblId: autoIbl2 } = insertWIB(db, invoiceId, { origin: 'auto', plannedAmount: 150 });
       const config = makeConfig();
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'replace',
-        dryRun: false,
-        lines: [{ description: 'New line', totalAmount: 400, confidence: 0.9 }],
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'replace',
+          dryRun: false,
+          lines: [{ description: 'New line', totalAmount: 400, confidence: 0.9 }],
+        },
+        PAPERLESS_AUTH,
+      );
 
       const ibl1 = db
         .select()
@@ -887,12 +1042,19 @@ describe('invoiceAutoItemizeService', () => {
       insertWIB(db, invoiceId, { origin: 'auto', plannedAmount: 200 }); // will be deleted
       const config = makeConfig();
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'replace',
-        dryRun: false,
-        lines: [{ description: 'New auto', totalAmount: 300, confidence: 0.9 }],
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'replace',
+          dryRun: false,
+          lines: [{ description: 'New auto', totalAmount: 300, confidence: 0.9 }],
+        },
+        PAPERLESS_AUTH,
+      );
 
       const manualWib = db
         .select()
@@ -919,16 +1081,23 @@ describe('invoiceAutoItemizeService', () => {
 
       const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
 
-      await autoItemize(db, config, invoiceId, 'user-1', {
-        paperlessDocumentId: 42,
-        mode: 'replace',
-        dryRun: false,
-        lines: [
-          { description: 'New 1', totalAmount: 300, confidence: 0.9 },
-          { description: 'New 2', totalAmount: 200, confidence: 0.9 },
-          { description: 'New 3', totalAmount: 100, confidence: 0.9 },
-        ],
-      }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'replace',
+          dryRun: false,
+          lines: [
+            { description: 'New 1', totalAmount: 300, confidence: 0.9 },
+            { description: 'New 2', totalAmount: 200, confidence: 0.9 },
+            { description: 'New 3', totalAmount: 100, confidence: 0.9 },
+          ],
+        },
+        PAPERLESS_AUTH,
+      );
 
       const wibCountAfter = db.select().from(schema.workItemBudgets).all().length;
       // started with 3 (2 auto + 1 manual), removed 2 auto, added 3 new → 1 + 3 = 4
@@ -946,15 +1115,22 @@ describe('invoiceAutoItemizeService', () => {
       const config = makeConfig();
 
       await expect(
-        autoItemize(db, config, invoiceId, 'user-1', {
-          paperlessDocumentId: 42,
-          mode: 'append',
-          dryRun: false,
-          lines: [
-            { description: 'Line A', totalAmount: 300, confidence: 0.9 },
-            { description: 'Line B', totalAmount: 250, confidence: 0.8 }, // 550 > 500
-          ],
-        }, PAPERLESS_AUTH),
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            lines: [
+              { description: 'Line A', totalAmount: 300, confidence: 0.9 },
+              { description: 'Line B', totalAmount: 250, confidence: 0.8 }, // 550 > 500
+            ],
+          },
+          PAPERLESS_AUTH,
+        ),
       ).rejects.toThrow(ItemizedSumExceedsInvoiceError);
     });
 
@@ -966,12 +1142,19 @@ describe('invoiceAutoItemizeService', () => {
       let caught: unknown;
 
       try {
-        await autoItemize(db, config, invoiceId, 'user-1', {
-          paperlessDocumentId: 42,
-          mode: 'append',
-          dryRun: false,
-          lines: [{ description: 'Over', totalAmount: 600, confidence: 0.9 }],
-        }, PAPERLESS_AUTH);
+        await autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            lines: [{ description: 'Over', totalAmount: 600, confidence: 0.9 }],
+          },
+          PAPERLESS_AUTH,
+        );
       } catch (e) {
         caught = e;
       }
@@ -989,12 +1172,19 @@ describe('invoiceAutoItemizeService', () => {
       const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
 
       try {
-        await autoItemize(db, config, invoiceId, 'user-1', {
-          paperlessDocumentId: 42,
-          mode: 'append',
-          dryRun: false,
-          lines: [{ description: 'Over', totalAmount: 600, confidence: 0.9 }],
-        }, PAPERLESS_AUTH);
+        await autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            lines: [{ description: 'Over', totalAmount: 600, confidence: 0.9 }],
+          },
+          PAPERLESS_AUTH,
+        );
       } catch {
         // expected
       }
@@ -1010,12 +1200,19 @@ describe('invoiceAutoItemizeService', () => {
       const config = makeConfig();
 
       await expect(
-        autoItemize(db, config, invoiceId, 'user-1', {
-          paperlessDocumentId: 42,
-          mode: 'append',
-          dryRun: false,
-          lines: [{ description: 'Exact', totalAmount: 500, confidence: 0.9 }],
-        }, PAPERLESS_AUTH),
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            lines: [{ description: 'Exact', totalAmount: 500, confidence: 0.9 }],
+          },
+          PAPERLESS_AUTH,
+        ),
       ).resolves.toBeDefined();
     });
   });
@@ -1031,11 +1228,18 @@ describe('invoiceAutoItemizeService', () => {
       const config = makeConfig();
 
       await expect(
-        autoItemize(db, config, invoiceId, 'user-1', {
-          paperlessDocumentId: 42,
-          mode: 'append',
-          dryRun: true,
-        }, PAPERLESS_AUTH),
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: true,
+          },
+          PAPERLESS_AUTH,
+        ),
       ).rejects.toThrow();
     });
 
@@ -1043,17 +1247,22 @@ describe('invoiceAutoItemizeService', () => {
       const vendorId = insertVendor(db);
       const invoiceId = insertInvoice(db, vendorId, 500);
       linkDocument(db, invoiceId, 42);
-      mockFetch.mockResolvedValueOnce(
-        makeErrorFetch(404, { detail: 'Not found' }),
-      );
+      mockFetch.mockResolvedValueOnce(makeErrorFetch(404, { detail: 'Not found' }));
       const config = makeConfig();
 
       await expect(
-        autoItemize(db, config, invoiceId, 'user-1', {
-          paperlessDocumentId: 42,
-          mode: 'append',
-          dryRun: true,
-        }, PAPERLESS_AUTH),
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: true,
+          },
+          PAPERLESS_AUTH,
+        ),
       ).rejects.toThrow();
     });
   });
@@ -1074,11 +1283,18 @@ describe('invoiceAutoItemizeService', () => {
 
       // The openAICompatibleProvider wraps network errors as LlmUnreachableError
       await expect(
-        autoItemize(db, config, invoiceId, 'user-1', {
-          paperlessDocumentId: 42,
-          mode: 'append',
-          dryRun: true,
-        }, PAPERLESS_AUTH),
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: true,
+          },
+          PAPERLESS_AUTH,
+        ),
       ).rejects.toThrow();
     });
 
@@ -1090,17 +1306,26 @@ describe('invoiceAutoItemizeService', () => {
       mockFetch
         .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
         .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
-        .mockResolvedValueOnce(makeOkFetch({
-          choices: [{ message: { content: 'NOT JSON {{{' } }],
-        }));
+        .mockResolvedValueOnce(
+          makeOkFetch({
+            choices: [{ message: { content: 'NOT JSON {{{' } }],
+          }),
+        );
       const config = makeConfig();
 
       await expect(
-        autoItemize(db, config, invoiceId, 'user-1', {
-          paperlessDocumentId: 42,
-          mode: 'append',
-          dryRun: true,
-        }, PAPERLESS_AUTH),
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: true,
+          },
+          PAPERLESS_AUTH,
+        ),
       ).rejects.toThrow();
     });
 
@@ -1116,11 +1341,18 @@ describe('invoiceAutoItemizeService', () => {
       const config = makeConfig({ autoItemizeEnabled: false });
 
       await expect(
-        autoItemize(db, config, invoiceId, 'user-1', {
-          paperlessDocumentId: 42,
-          mode: 'append',
-          dryRun: true,
-        }, PAPERLESS_AUTH),
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: true,
+          },
+          PAPERLESS_AUTH,
+        ),
       ).rejects.toThrow(LlmNotConfiguredError);
     });
 
@@ -1136,11 +1368,18 @@ describe('invoiceAutoItemizeService', () => {
       let caught: unknown;
 
       try {
-        await autoItemize(db, config, invoiceId, 'user-1', {
-          paperlessDocumentId: 42,
-          mode: 'append',
-          dryRun: true,
-        }, PAPERLESS_AUTH);
+        await autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: true,
+          },
+          PAPERLESS_AUTH,
+        );
       } catch (e) {
         caught = e;
       }
@@ -1161,12 +1400,19 @@ describe('invoiceAutoItemizeService', () => {
 
       // When dryRun=true AND lines are present, neither branch matches → ValidationError
       await expect(
-        autoItemize(db, config, invoiceId, 'user-1', {
-          paperlessDocumentId: 42,
-          mode: 'append',
-          dryRun: true,
-          lines: [{ description: 'Ignored', totalAmount: 100, confidence: 0.9 }],
-        }, PAPERLESS_AUTH),
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: true,
+            lines: [{ description: 'Ignored', totalAmount: 100, confidence: 0.9 }],
+          },
+          PAPERLESS_AUTH,
+        ),
       ).rejects.toThrow(ValidationError);
     });
 
@@ -1177,12 +1423,19 @@ describe('invoiceAutoItemizeService', () => {
       const config = makeConfig();
 
       await expect(
-        autoItemize(db, config, invoiceId, 'user-1', {
-          paperlessDocumentId: 42,
-          mode: 'append',
-          dryRun: false,
-          // no lines
-        }, PAPERLESS_AUTH),
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            // no lines
+          },
+          PAPERLESS_AUTH,
+        ),
       ).rejects.toThrow(ValidationError);
     });
   });

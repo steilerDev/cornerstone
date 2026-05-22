@@ -106,9 +106,9 @@ describe('POST /api/invoices/:invoiceId/auto-itemize', () => {
 
     // Default fetch mock: first call = Paperless doc, second = Paperless tags, third = LLM
     mockFetch
-      .mockResolvedValueOnce(makeFetchResponse(PAPERLESS_DOC_RESPONSE))    // getDocument
-      .mockResolvedValueOnce(makeFetchResponse(PAPERLESS_TAGS_RESPONSE))   // fetchTagsMap
-      .mockResolvedValueOnce(makeFetchResponse(LLM_LINES_RESPONSE));       // LLM extract
+      .mockResolvedValueOnce(makeFetchResponse(PAPERLESS_DOC_RESPONSE)) // getDocument
+      .mockResolvedValueOnce(makeFetchResponse(PAPERLESS_TAGS_RESPONSE)) // fetchTagsMap
+      .mockResolvedValueOnce(makeFetchResponse(LLM_LINES_RESPONSE)); // LLM extract
   });
 
   afterEach(async () => {

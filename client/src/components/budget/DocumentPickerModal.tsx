@@ -32,17 +32,15 @@ export function DocumentPickerModal({
       title={t('invoiceDetail.budgetLines.autoItemize.docPickerTitle')}
       onClose={onCancel}
       footer={
-        <button
-          type="button"
-          className={sharedStyles.btnSecondary}
-          onClick={onCancel}
-        >
+        <button type="button" className={sharedStyles.btnSecondary} onClick={onCancel}>
           {t('invoiceDetail.budgetLines.autoItemize.cancelButton')}
         </button>
       }
     >
       <div className={styles.container}>
-        {isLoading && <div className={styles.loading}>{t('invoiceDetail.budgetLines.loading')}</div>}
+        {isLoading && (
+          <div className={styles.loading}>{t('invoiceDetail.budgetLines.loading')}</div>
+        )}
 
         {!isLoading && availableDocs.length === 0 && (
           <div className={styles.emptyState}>
@@ -66,9 +64,7 @@ export function DocumentPickerModal({
               >
                 <div className={styles.itemTitle}>{link.document?.title}</div>
                 {link.document?.created && (
-                  <div className={styles.itemDate}>
-                    {formatDate(link.document.created)}
-                  </div>
+                  <div className={styles.itemDate}>{formatDate(link.document.created)}</div>
                 )}
               </button>
             ))}
