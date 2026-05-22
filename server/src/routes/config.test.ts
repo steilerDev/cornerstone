@@ -118,8 +118,72 @@ describe('Config Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<AppConfigResponse>();
-      // Only 'currency' field should be present per the API contract
-      expect(Object.keys(body)).toEqual(['currency']);
+      // Fields present per the API contract: currency + autoItemizeEnabled (Story #1546)
+      expect(Object.keys(body).sort()).toEqual(['autoItemizeEnabled', 'currency']);
+    });
+
+    it('returns autoItemizeEnabled: false when LLM env vars are not set', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/config',
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<AppConfigResponse>();
+      expect(body).toHaveProperty('autoItemizeEnabled');
+      expect(body.autoItemizeEnabled).toBe(false);
+    });
+
+    it('returns autoItemizeEnabled: true when all LLM env vars are set', async () => {
+      // Must create a custom app instance AFTER setting the env vars so the
+      // config plugin reads the overridden values.
+      process.env.LLM_BASE_URL = 'https://api.openai.com/v1';
+      process.env.LLM_API_KEY = 'sk-test-key-do-not-log';
+      process.env.LLM_MODEL = 'gpt-4o';
+      const customApp = await buildApp();
+
+      try {
+        const response = await customApp.inject({
+          method: 'GET',
+          url: '/api/config',
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = response.json<AppConfigResponse>();
+        expect(body.autoItemizeEnabled).toBe(true);
+      } finally {
+        await customApp.close();
+        delete process.env.LLM_BASE_URL;
+        delete process.env.LLM_API_KEY;
+        delete process.env.LLM_MODEL;
+      }
+    });
+
+    it('response does NOT expose llmApiKey, llmBaseUrl, or llmModel values', async () => {
+      // Security: LLM credentials must never be returned in the config response
+      process.env.LLM_BASE_URL = 'https://api.openai.com/v1';
+      process.env.LLM_API_KEY = 'sk-super-secret-key';
+      process.env.LLM_MODEL = 'gpt-4o';
+      const customApp = await buildApp();
+
+      try {
+        const response = await customApp.inject({
+          method: 'GET',
+          url: '/api/config',
+        });
+
+        expect(response.statusCode).toBe(200);
+        const rawBody = response.body;
+        // Ensure the secret key value is not present in the response body
+        expect(rawBody).not.toContain('sk-super-secret-key');
+        expect(rawBody).not.toContain('api.openai.com');
+        expect(rawBody).not.toContain('gpt-4o');
+      } finally {
+        await customApp.close();
+        delete process.env.LLM_BASE_URL;
+        delete process.env.LLM_API_KEY;
+        delete process.env.LLM_MODEL;
+      }
     });
   });
 });

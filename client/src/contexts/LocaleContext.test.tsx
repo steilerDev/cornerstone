@@ -54,8 +54,8 @@ beforeEach(async () => {
   mockChangeLanguage.mockReset();
   mockChangeLanguage.mockResolvedValue(undefined);
 
-  // Default: fetchConfig returns EUR
-  mockFetchConfig.mockResolvedValue({ currency: 'EUR' });
+  // Default: fetchConfig returns EUR and autoItemizeEnabled false
+  mockFetchConfig.mockResolvedValue({ currency: 'EUR', autoItemizeEnabled: false });
 
   try {
     localStorage.clear();
@@ -163,7 +163,7 @@ describe('LocaleProvider', () => {
     });
 
     it('updates currency from fetchConfig response', async () => {
-      mockFetchConfig.mockResolvedValue({ currency: 'CHF' });
+      mockFetchConfig.mockResolvedValue({ currency: 'CHF', autoItemizeEnabled: false });
 
       renderWithProvider();
 
@@ -186,7 +186,7 @@ describe('LocaleProvider', () => {
     });
 
     it('keeps EUR when fetchConfig returns a config with no currency field', async () => {
-      mockFetchConfig.mockResolvedValue({ currency: undefined as unknown as string });
+      mockFetchConfig.mockResolvedValue({ currency: undefined as unknown as string, autoItemizeEnabled: false });
 
       renderWithProvider();
 

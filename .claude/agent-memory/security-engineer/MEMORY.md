@@ -93,6 +93,7 @@ See `review-history.md` for detailed findings per PR.
 | #1054 | EPIC-18 Stories #1031+#1032 — Areas CRUD, Trades CRUD, Vendor trade linking                       | COMMENTED (3 informational: search no maxLength, parentId no minLength:1, sql.raw safe)                                       | 2026-03-19 |
 | #1150 | EPIC-19 Story #1146 — Backup & Restore                                                            | COMMENTED (3 informational: restore mid-op orphan dir, filename in 404 msg, node-cron 3.x not 4.x)                            | 2026-03-22 |
 | #1548 | EPIC-20 Story #1545 — Unassigned Budget Lines & One-Shot Parent Assignment                        | COMMENTED (3 informational: assignToWorkItem no transaction, computeUsedAmount includes orphans, targetId no minLength)       | 2026-05-21 |
+| #1549 | Story #1546 — BudgetExtractionService with OpenAI-compatible LLM gateway (FIRST LLM INTEGRATION)  | APPROVED (4 informational: URL in startup error, no timeout upper bound, localhost SSRF allowed, no OCR size cap)             | 2026-05-21 |
 
 ## Known Open Recommendations (Low Priority)
 
@@ -123,6 +124,10 @@ These have been noted in previous reviews. **GitHub Issue #315** tracks items 1-
 23. **assignToWorkItem not wrapped in transaction** (Informational): budgetLineAssignService.ts — orphan check + update + select not atomic; not exploitable due to better-sqlite3 synchronous serialization (PR #1548)
 24. **computeUsedAmount includes orphan rows** (Informational): budgetSourceService.ts:117 — missing `AND work_item_id IS NOT NULL`; latent until Story #1547 creates orphans with non-null budgetSourceId (PR #1548)
 25. **targetId / id route param no minLength: 1** (Informational): budgetLineAssign.ts — empty string passes schema validation, caught by DB lookup as 404 (PR #1548)
+26. **LLM_BASE_URL leaks into startup error message** (Informational): config.ts:275 — echoes raw URL in validation error; consistent with PAPERLESS_URL/EXTERNAL_URL pattern (PR #1549)
+27. **LLM_REQUEST_TIMEOUT_MS no upper bound** (Informational): config.ts:282 — only validates positive; no maximum cap; suggested ≤ 300 000 ms (PR #1549)
+28. **localhost targets allowed in LLM_BASE_URL** (Informational): config.ts:264-277 — intentional for Ollama self-hosting; operator-trust model; no client-supplied URL path (PR #1549)
+29. **OCR payload no size cap before LLM dispatch** (Informational): prompts.ts:51, openAICompatibleProvider.ts:168 — no truncation of ocrText; no route exposed yet in this PR; Story #1547 implementing agent must add cap (suggested 32 000 chars) (PR #1549)
 
 ## Key Architecture Patterns (Security-Relevant)
 
@@ -137,6 +142,7 @@ These have been noted in previous reviews. **GitHub Issue #315** tracks items 1-
 - **location.state navigation pattern** (PR #267 WorkItemDetailPage): `?.from === 'timeline'` strict-equality check against a literal. All `navigate()` targets are hardcoded strings. No open redirect risk from this pattern.
 - **Ctrl+scroll / keyboard zoom** (PR #267 TimelinePage): Raw wheel deltaY/keyboard events reduced to ±1 direction sign before arithmetic. Column width clamped to [COLUMN_WIDTH_MIN, COLUMN_WIDTH_MAX]. Clean pattern.
 - **createPortal to document.body** (PR #263 WorkItemSelector): Safe pattern — renders React virtual DOM tree; all dynamic content remains in React's controlled rendering pipeline (no raw HTML injection). Outside-click handled via `document.querySelector('[data-work-item-selector-dropdown]')` data attribute — legitimate pattern.
+- **LLM integration security posture** (PR #1549 BudgetExtractionService): API key in Authorization: Bearer header only — never in URL, body, logs, or errors. `GET /api/config` returns only `autoItemizeEnabled: boolean` (AppConfigResponse type enforces this at compile time). Non-200 responses: only `{ status: response.status }` in error details — response body deliberately not read. Scheme guard on LLM_BASE_URL (`http:`/`https:` only) but localhost/private ranges allowed by design for Ollama. ExtractionHints (vendorName, invoiceDate, locale) come from server-side DB lookups, not client request fields. `fetch()` is Node.js built-in — no new dependencies.
 - **GanttChart hover state (PR #306)**: hoveredItemId set exclusively from DOM event handlers. Arrow keys (`${predId}-${succId}-${dep.dependencyType}`) used only for Set.has() lookups — no execution path. All user data in tooltip dependency list rendered as JSX text nodes. No dangerouslySetInnerHTML anywhere in GanttChart component tree. ARIA labels with user titles safe — React escapes JSX attributes.
 - **Wiki submodule detached HEAD**: After `git submodule update --init`, the wiki is in detached HEAD. Must `git -C wiki checkout master` before committing. Always `git -C wiki pull --rebase origin master` before pushing to handle concurrent wiki edits from other PRs.
 - **Wiki submodule commit on virtiofs FAILS**: The sandbox uses a virtiofs mount — git's tmp-file write pattern for objects is incompatible with virtiofs write semantics. `git -C wiki add` always fails with "insufficient permission for adding an object to repository database". Workaround: `git clone /path/to/wiki /tmp/wiki-tmp` → edit in /tmp/wiki-tmp → commit → `git remote set-url origin <token-url-from-wiki/.git/config>` → push. Token URL is in `wiki/.git/config` under `[remote "origin"] url`.
