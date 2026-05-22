@@ -239,6 +239,51 @@ export class InvoiceDetailPage {
    */
   readonly removeBudgetLineModal: Locator;
 
+  // ─── Full Edit + Parent Move locators (Issue #1553) ──────────────────────
+
+  /**
+   * Description input in the full BudgetLineForm inside the Edit modal: #budget-description
+   */
+  readonly budgetLineFormDescription: Locator;
+
+  /**
+   * Itemized amount input rendered in the invoice-side edit context: #budget-itemized-amount
+   */
+  readonly budgetLineItemizedAmount: Locator;
+
+  /**
+   * "Linked item" legend text inside the parent picker fieldset (collapsed state).
+   * Scoped to editBudgetLineModal.
+   */
+  readonly linkedItemLegend: Locator;
+
+  /**
+   * "Change" ghost button in the collapsed parent-picker row.
+   * Clicking this expands the full parent picker tabs + search.
+   * Scoped to editBudgetLineModal.
+   */
+  readonly changeParentButton: Locator;
+
+  /**
+   * "Move to selected item" submit button in the expanded parent picker.
+   * Scoped to editBudgetLineModal.
+   */
+  readonly moveButton: Locator;
+
+  /**
+   * "Cancel" ghost button inside the expanded parent picker (collapses picker without moving).
+   * Uses .last() because the modal-level Cancel button is also in scope.
+   * Scoped to editBudgetLineModal.
+   */
+  readonly cancelChangeButton: Locator;
+
+  /**
+   * Cross-table move hint banner: role="status" with text about "transfer".
+   * Visible only when the picker is expanded and a different table type is selected.
+   * Scoped to editBudgetLineModal.
+   */
+  readonly moveHintBanner: Locator;
+
   // ─── Auto-itemize (Issue #1547) ──────────────────────────────────────────────
   //
   // Auto-itemize button: rendered in the section header when
@@ -561,6 +606,42 @@ export class InvoiceDetailPage {
     // DeleteBudgetLineModal renders via the shared Modal component.
     // Title: "Remove Budget Line" (i18n: budget:invoiceDetail.budgetLines.modal.removeTitle).
     this.removeBudgetLineModal = page.getByRole('dialog', { name: 'Remove Budget Line' });
+
+    // ─── Full Edit + Parent Move locators (Issue #1553) ──────────────────────
+    // These locators are scoped to the Edit Budget Line modal and work alongside
+    // the existing editBudgetLineModal locator above.
+
+    // Description input in the full BudgetLineForm: #budget-description
+    this.budgetLineFormDescription = page.locator('#budget-description');
+
+    // Itemized amount input in invoice-side edit context: #budget-itemized-amount
+    this.budgetLineItemizedAmount = page.locator('#budget-itemized-amount');
+
+    // The "Linked item" legend/label inside the collapsed parent picker fieldset.
+    // Scoped to the edit modal to avoid matching other BudgetLineForm instances.
+    this.linkedItemLegend = this.editBudgetLineModal.getByText('Linked item');
+
+    // "Change" ghost button in the collapsed parent-picker row.
+    // Scoped to the edit modal.
+    this.changeParentButton = this.editBudgetLineModal.getByRole('button', { name: 'Change' });
+
+    // "Move to selected item" button in the expanded parent picker.
+    // Scoped to the edit modal.
+    this.moveButton = this.editBudgetLineModal.getByRole('button', {
+      name: /Move to selected item|Moving/i,
+    });
+
+    // "Cancel" ghost button inside the expanded parent picker (collapses picker).
+    // Uses .last() because the outer Cancel button (closes modal) is also in scope.
+    this.cancelChangeButton = this.editBudgetLineModal
+      .getByRole('button', { name: 'Cancel' })
+      .last();
+
+    // Cross-table move hint banner: role="status" with text about "transfer".
+    // Visible only when the picker is expanded and a different table type is selected.
+    this.moveHintBanner = this.editBudgetLineModal
+      .locator('[role="status"]')
+      .filter({ hasText: /transfer/i });
   }
 
   /**
