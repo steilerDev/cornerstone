@@ -239,6 +239,148 @@ export class InvoiceDetailPage {
    */
   readonly removeBudgetLineModal: Locator;
 
+  // ─── Auto-itemize (Issue #1547) ──────────────────────────────────────────────
+  //
+  // Auto-itemize button: rendered in the section header when
+  //   config.autoItemizeEnabled === true AND linkedDocs.length > 0.
+  // Button text: t('invoiceDetail.budgetLines.autoItemize.button') = "Auto-itemize"
+  // aria-label: t('invoiceDetail.budgetLines.autoItemize.buttonAriaLabel')
+  //           = "Extract line items from a linked Paperless document"
+  //
+  // DocumentPickerModal: shown when 2+ docs are linked.
+  //   Modal title: t('invoiceDetail.budgetLines.autoItemize.docPickerTitle')
+  //              = "Choose document to analyze"
+  //   The Modal component uses createPortal + useId(), so we locate by
+  //   role="dialog" filtered to h2 containing the title text.
+  //
+  // AutoItemizePreviewModal: shown after successful dry-run.
+  //   Modal title: t('invoiceDetail.budgetLines.autoItemize.modalTitle')
+  //              = "Review extracted line items"
+  //
+  // autoItemizeError banner: rendered inside the <section> (not a portal)
+  //   as <div className={styles.errorBanner} role="alert">{autoItemizeError}</div>
+  //   Selector: budgetLinesSection locator('[role="alert"]')
+  //   or: page.locator('[class*="errorBanner"]').first() for the section-level banner
+
+  // ─── Auto-itemize constructor helpers ────────────────────────────────────────
+
+  /**
+   * Returns the "Auto-itemize" button locator.
+   * The button is only rendered when autoItemizeEnabled=true AND docs are linked.
+   * Scoped to the budgetLinesSection to avoid false matches.
+   */
+  getAutoItemizeButton(): Locator {
+    // aria-label is stable and locale-independent for this selector
+    return this.budgetLinesSection.getByRole('button', {
+      name: 'Extract line items from a linked Paperless document',
+    });
+  }
+
+  /**
+   * Returns the Document Picker modal locator.
+   * Modal title (from Modal's useId() h2): "Choose document to analyze"
+   */
+  getDocumentPickerModal(): Locator {
+    return this.page.locator('[role="dialog"]').filter({
+      has: this.page.locator('h2', { hasText: 'Choose document to analyze' }),
+    });
+  }
+
+  /**
+   * Returns the Auto-itemize Preview modal locator.
+   * Modal title (from Modal's useId() h2): "Review extracted line items"
+   */
+  getAutoItemizePreviewModal(): Locator {
+    return this.page.locator('[role="dialog"]').filter({
+      has: this.page.locator('h2', { hasText: 'Review extracted line items' }),
+    });
+  }
+
+  /**
+   * Returns the mismatch warning banner inside the preview modal.
+   * The component renders it as <div className={styles.warningBlock}> containing a <div className={styles.warningIcon}> and <div className={styles.warningContent}>.
+   */
+  getMismatchWarningBanner(): Locator {
+    return this.getAutoItemizePreviewModal().locator('[class*="warningBlock"]');
+  }
+
+  /**
+   * Returns the empty state message inside the preview modal.
+   * Rendered as <div className={styles.emptyState}><p>No line items detected</p></div>
+   */
+  getEmptyStateMessage(): Locator {
+    return this.getAutoItemizePreviewModal().locator('[class*="emptyState"]');
+  }
+
+  /**
+   * Clicks the "Auto-itemize" button.
+   * Waits for the button to be visible first.
+   */
+  async clickAutoItemizeButton(): Promise<void> {
+    const btn = this.getAutoItemizeButton();
+    await btn.waitFor({ state: 'visible' });
+    await btn.click();
+  }
+
+  /**
+   * Clicks a document in the Document Picker modal by its title text.
+   * Waits for the picker modal to be visible before clicking.
+   */
+  async selectDocument(title: string): Promise<void> {
+    const pickerModal = this.getDocumentPickerModal();
+    await pickerModal.waitFor({ state: 'visible' });
+    // Documents render as <button type="button" className={styles.item}>
+    await pickerModal.getByRole('button', { name: title }).click();
+  }
+
+  /**
+   * Edits the description of a preview line at the given 0-based index.
+   * Clears the current value and types the new description.
+   */
+  async editPreviewLineDescription(index: number, newDescription: string): Promise<void> {
+    const previewModal = this.getAutoItemizePreviewModal();
+    await previewModal.waitFor({ state: 'visible' });
+    // Description inputs are <input type="text"> in table tbody rows
+    const descInput = previewModal.locator('table tbody tr input[type="text"]').nth(index);
+    await descInput.clear();
+    await descInput.fill(newDescription);
+  }
+
+  /**
+   * Toggles the include/exclude checkbox for a preview line at the given 0-based index.
+   * Skips the select-all checkbox (first header checkbox).
+   */
+  async toggleIncludeLine(index: number): Promise<void> {
+    const previewModal = this.getAutoItemizePreviewModal();
+    await previewModal.waitFor({ state: 'visible' });
+    // Row checkboxes are <input type="checkbox"> in tbody — exclude the aria-label="Select all lines" one
+    const rowCheckboxes = previewModal.locator(
+      'table tbody tr input[type="checkbox"]:not([aria-label*="Select all"])',
+    );
+    await rowCheckboxes.nth(index).click();
+  }
+
+  /**
+   * Selects the append or replace mode radio button inside the preview modal.
+   */
+  async selectMode(mode: 'append' | 'replace'): Promise<void> {
+    const previewModal = this.getAutoItemizePreviewModal();
+    await previewModal.waitFor({ state: 'visible' });
+    const radio = previewModal.locator(`input[type="radio"][value="${mode}"]`);
+    await radio.click();
+  }
+
+  /**
+   * Clicks the "Apply" button inside the preview modal.
+   * Does NOT wait for network responses — register waitForResponse before calling.
+   */
+  async clickApplyButton(): Promise<void> {
+    const previewModal = this.getAutoItemizePreviewModal();
+    await previewModal.waitFor({ state: 'visible' });
+    const applyBtn = previewModal.getByRole('button', { name: 'Apply', exact: true });
+    await applyBtn.click();
+  }
+
   constructor(page: Page) {
     this.page = page;
 

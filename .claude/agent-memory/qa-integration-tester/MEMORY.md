@@ -3,6 +3,22 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1547 — Auto-Itemize Service/Route Test Patterns (2026-05-22)
+
+**Server service test fetch mock setup**: Service tests that exercise both Paperless AND LLM calls must queue 3 mock responses in order: (1) Paperless `GET /api/documents/:id/` → raw doc JSON, (2) Paperless `GET /api/tags/` → `{ count: 0, results: [] }` (paperlessService.getDocument always fetches tags via `fetchTagsMap`), (3) LLM `POST .../chat/completions`. Missing the tags response causes the third mock to be consumed by the wrong call and LLM parsing fails.
+
+**do NOT use jest.mock/jest.unstable_mockModule for server service tests**: Server service tests use `globalThis.fetch` stubbing only (same pattern as `index.test.ts`, `openAICompatibleProvider.test.ts`). `jest.mock` with top-level `await import()` for mock references fails with TS1343 and TS2352 in the worktree environment. Stick to fetch stubbing.
+
+**dryRun=true + lines provided → ValidationError**: The service falls through to the `ValidationError` at the end (neither branch matches). The route schema doesn't enforce this constraint — it's service-layer validation only.
+
+**Commit mode (dryRun=false) makes 0 fetch calls**: The LLM and Paperless are NOT called in commit mode — lines come from the caller. Asserting `expect(mockFetch).not.toHaveBeenCalled()` is the right check.
+
+**discretionary-system budget source**: Always seeded by migrations — always available in test DBs. Use as `budgetSourceId` for auto WIB rows.
+
+**Route test Paperless env vars required**: Set `process.env.PAPERLESS_URL`, `process.env.PAPERLESS_API_TOKEN`, `process.env.LLM_BASE_URL`, `process.env.LLM_API_KEY`, `process.env.LLM_MODEL` before `buildApp()` so `autoItemizeEnabled=true` and route tests work end-to-end.
+
+**LLM_NOT_CONFIGURED test**: Rebuild app without LLM env vars (`delete process.env.LLM_*`) then call `buildApp()` again; use `createUserWithSession` on the new app (the old session cookie won't work since the DB was recreated).
+
 ## Story #1546 — BudgetExtraction Service Test Patterns (2026-05-21)
 
 **fetch mock pattern for server tests**: Use `jest.fn<typeof fetch>()` + replace `globalThis.fetch` in `beforeEach`, restore in `afterEach`. Do NOT use `jest.spyOn(globalThis, 'fetch')` — the return type `ReturnType<typeof jest.spyOn<...>>` causes TS2344/TS2635 errors. See `openAICompatibleProvider.test.ts` for the pattern (also used in `paperlessService.test.ts`).
