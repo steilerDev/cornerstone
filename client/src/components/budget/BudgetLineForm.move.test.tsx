@@ -106,15 +106,19 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
 
     render(React.createElement(BudgetLineForm, props));
 
-    // Should show the entity type tab label text (Work Item pill)
-    expect(screen.getByText('Work Item')).toBeInTheDocument();
+    // Should show the entity type tab label text (Work Item pill).
+    // The render-both pattern means "Work Item" text appears in both the collapsed
+    // entityTypePill (a <span>) and the always-rendered expanded tab button (<button hidden>).
+    // Use getAllByText to handle multiple matches and verify the pill exists.
+    const workItemElements = screen.getAllByText('Work Item');
+    expect(workItemElements.some((el) => el.tagName === 'SPAN')).toBe(true);
     // Should show the current parent label
     expect(screen.getByText('Test WI')).toBeInTheDocument();
     // Should show the "Change" button (exact match to avoid matching "Save Changes")
     expect(getChangeButton()).toBeInTheDocument();
-    // Should NOT show pickers while collapsed
-    expect(screen.queryByTestId('work-item-picker')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('household-item-picker')).not.toBeInTheDocument();
+    // The render-both pattern means the expanded picker body is always in the DOM
+    // but hidden via the HTML `hidden` attribute when collapsed. Verify it's hidden.
+    expect(document.getElementById('parent-picker-body')).toHaveAttribute('hidden');
   });
 
   // Scenario 2: Expanding the picker with "Change" click
@@ -256,8 +260,10 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
     expect(cancelInPicker).toBeDefined();
     fireEvent.click(cancelInPicker!);
 
-    // After collapse, pickers should be gone and "Change" should be visible again
-    expect(screen.queryByTestId('work-item-picker')).not.toBeInTheDocument();
+    // After collapse, the expanded picker body is hidden (render-both pattern keeps
+    // it in the DOM but marks it hidden via the HTML `hidden` attribute).
+    expect(document.getElementById('parent-picker-body')).toHaveAttribute('hidden');
+    // The collapsed "Change" button should be visible again.
     expect(getChangeButton()).toBeInTheDocument();
   });
 
@@ -315,9 +321,10 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
       fireEvent.click(screen.getByRole('button', { name: /Move to selected item/i }));
     });
 
-    // Error message should appear (from t('budgetLineForm.parentPickerError'))
+    // Production code uses err.message when available, so the mock error's message
+    // ("Network error") is displayed directly, not the translation key fallback.
     await waitFor(() => {
-      expect(screen.getByText(/failed to/i)).toBeInTheDocument();
+      expect(screen.getByText(/network error/i)).toBeInTheDocument();
     });
   });
 
