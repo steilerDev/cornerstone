@@ -39,6 +39,7 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     llmApiKey: undefined,
     llmModel: undefined,
     llmRequestTimeoutMs: 30000,
+    llmProvider: 'generic',
     autoItemizeEnabled: false,
     ...overrides,
   };
@@ -50,6 +51,7 @@ function makeLlmConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     llmApiKey: 'test-key',
     llmModel: 'gpt-4o',
     llmRequestTimeoutMs: 5000,
+    llmProvider: 'generic',
     autoItemizeEnabled: true,
     ...overrides,
   });

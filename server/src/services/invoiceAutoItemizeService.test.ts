@@ -161,6 +161,7 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     llmApiKey: 'llm-key',
     llmModel: 'gpt-4o',
     llmRequestTimeoutMs: 5000,
+    llmProvider: 'openai',
     autoItemizeEnabled: true,
     ...overrides,
   };

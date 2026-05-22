@@ -6,6 +6,7 @@
  */
 
 import { SYSTEM_PROMPT, buildUserPrompt } from './prompts.js';
+import { buildRequestBody } from './providerProfiles.js';
 import type {
   BudgetExtractionProvider,
   ExtractedLine,
@@ -166,15 +167,14 @@ export function createOpenAICompatibleProvider(config: LlmConfig): BudgetExtract
             'Content-Type': 'application/json',
             Authorization: `Bearer ${config.apiKey}`,
           },
-          body: JSON.stringify({
-            model: config.model,
-            messages: [
-              { role: 'system', content: SYSTEM_PROMPT },
-              { role: 'user', content: buildUserPrompt(ocrText, hints) },
-            ],
-            response_format: { type: 'json_object' },
-            temperature: 0,
-          }),
+          body: JSON.stringify(
+            buildRequestBody({
+              provider: config.provider,
+              model: config.model,
+              systemPrompt: SYSTEM_PROMPT,
+              userPrompt: buildUserPrompt(ocrText, hints),
+            }),
+          ),
           signal: controller.signal,
         });
       } catch (err) {
