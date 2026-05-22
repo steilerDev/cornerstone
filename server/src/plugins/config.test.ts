@@ -44,6 +44,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmApiKey: undefined,
         llmModel: undefined,
         llmRequestTimeoutMs: 30000,
+        llmProvider: 'generic',
         autoItemizeEnabled: false,
       });
     });
@@ -90,6 +91,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmApiKey: undefined,
         llmModel: undefined,
         llmRequestTimeoutMs: 30000,
+        llmProvider: 'generic',
         autoItemizeEnabled: false,
       });
     });
@@ -138,6 +140,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmApiKey: undefined,
         llmModel: undefined,
         llmRequestTimeoutMs: 30000,
+        llmProvider: 'generic',
         autoItemizeEnabled: false,
       });
     });
@@ -181,6 +184,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmApiKey: undefined,
         llmModel: undefined,
         llmRequestTimeoutMs: 30000,
+        llmProvider: 'generic',
         autoItemizeEnabled: false,
       });
     });
