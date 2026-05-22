@@ -3,6 +3,7 @@ import type {
   DocumentLink,
   DocumentLinkWithMetadata,
   CreateDocumentLinkRequest,
+  AllLinkedDocumentIdsResponse,
 } from '@cornerstone/shared';
 
 /**
@@ -30,4 +31,14 @@ export function createDocumentLink(data: CreateDocumentLinkRequest): Promise<Doc
  */
 export function deleteDocumentLink(id: string): Promise<void> {
   return del<void>(`/document-links/${id}`);
+}
+
+/**
+ * Returns the distinct set of Paperless-ngx document IDs linked to any entity
+ * in the system.
+ */
+export function listAllLinkedDocumentIds(): Promise<number[]> {
+  return get<AllLinkedDocumentIdsResponse>('/document-links/linked-ids').then(
+    (r) => r.paperlessDocumentIds,
+  );
 }

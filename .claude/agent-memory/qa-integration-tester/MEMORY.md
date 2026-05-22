@@ -3,6 +3,16 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1557 — New @cornerstone/shared type in worktree (2026-05-22)
+
+**Root cause of TS2305 on new shared types**: `node_modules/@cornerstone/shared` is a symlink to `../../shared` (the ROOT project's shared, on main branch). When new types are added to the worktree's `shared/src/`, they are NOT visible to ts-jest type-checking in server tests or (via TypeScript's type resolution) in client tests — even though the Jest moduleNameMapper maps `@cornerstone/shared` → `<rootDir>/shared/src/index.ts` for runtime imports. TypeScript's diagnostic phase uses its own node_modules resolution.
+
+**Fix for local testing**: Copy the worktree's `shared/dist/` to the root project's `shared/dist/` — this updates the symlink target so TypeScript finds the new declaration files. Command: `cp -r .claude/worktrees/<name>/shared/dist/* shared/dist/`. This is safe to do locally; the root shared dist is not committed.
+
+**Route test import workaround**: In route test files, avoid importing new shared types that don't exist in the root shared dist yet. Define a local inline interface instead (e.g., `interface AllLinkedDocumentIdsResponse { paperlessDocumentIds: number[]; }`) with a comment explaining the workaround.
+
+**Mock variable capture for LinkedDocumentsSection DOM spy**: To assert what props DocumentBrowser received in LinkedDocumentsSection tests, declare a module-scope `let capturedProp: T | undefined` and assign it inside the mock factory function. Reset in `beforeEach`. Works even when `jest.unstable_mockModule` doesn't intercept locally — if the test fails (mock not intercepted), the assertion on `capturedProp` will also fail, making the failure mode consistent.
+
 ## Story #1553 — EditAndMove Budget Line Test Patterns (2026-05-22)
 
 **render-both parent picker pattern**: BudgetLineForm renders both collapsed AND expanded picker regions always (using HTML `hidden` attribute toggled by `isPickerExpanded`). This means "Work Item" text appears twice (in `<span>` pill + `<button>` tab). Use `getAllByText('Work Item')` and assert `.some(el => el.tagName === 'SPAN')` for the collapsed pill. To check "picker is hidden when collapsed", assert `expect(document.getElementById('parent-picker-body')).toHaveAttribute('hidden')` instead of `queryByTestId(...).not.toBeInTheDocument()` (the picker IS in DOM, just hidden).
