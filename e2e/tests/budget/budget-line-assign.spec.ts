@@ -607,8 +607,10 @@ test.describe('Edit modal for assigned budget line — collapsed parent picker (
       const pickerBody = parentPickerFieldset.locator('#parent-picker-body');
       await expect(pickerBody).toBeHidden();
 
-      // The amount input is still shown (full edit form for assigned lines)
-      const amountInput = page.locator('#budget-line-amount');
+      // The itemized amount input is still shown (full edit form for assigned lines)
+      // The field id changed from #budget-line-amount to #budget-itemized-amount in PR #1553
+      // when the simple amount-only modal was replaced by the unified BudgetLineForm.
+      const amountInput = page.locator('#budget-itemized-amount');
       await expect(amountInput).toBeVisible();
 
       // Close the modal
