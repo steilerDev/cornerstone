@@ -222,11 +222,8 @@ export function createOpenAICompatibleProvider(config: LlmConfig): BudgetExtract
       }
 
       let body: unknown;
-      // Capture the raw response text once so we can include it in error
-      // details if JSON parsing or schema validation fails.
-      const rawResponseText = await response.text();
       try {
-        const json = JSON.parse(rawResponseText) as {
+        const json = (await response.json()) as {
           choices?: Array<{ message?: { content?: string } }>;
         };
         const content = json.choices?.[0]?.message?.content;
@@ -236,10 +233,7 @@ export function createOpenAICompatibleProvider(config: LlmConfig): BudgetExtract
             {
               provider: config.provider,
               url,
-              rawResponse:
-                rawResponseText.length > 8000
-                  ? `${rawResponseText.slice(0, 8000)}…[truncated]`
-                  : rawResponseText,
+              envelope: json,
             },
           );
         }
@@ -259,10 +253,6 @@ export function createOpenAICompatibleProvider(config: LlmConfig): BudgetExtract
           provider: config.provider,
           url,
           parseError: (err as Error).message,
-          rawResponse:
-            rawResponseText.length > 8000
-              ? `${rawResponseText.slice(0, 8000)}…[truncated]`
-              : rawResponseText,
         });
       }
 
