@@ -326,23 +326,27 @@ export class PayloadTooLargeError extends AppError {
   }
 }
 
+// LLM errors carry diagnostic context (underlying fetch error, response body,
+// parse error) in `details` for the server log. `suppressDetails: true` keeps
+// `details` out of the API response — the response body can echo prompts
+// (vendor names, amounts from OCR) so we never want it leaving the host.
 export class LlmUnreachableError extends AppError {
   constructor(message = 'LLM provider is unreachable', details?: Record<string, unknown>) {
-    super('LLM_UNREACHABLE', 502, message, details);
+    super('LLM_UNREACHABLE', 502, message, details, true);
     this.name = 'LlmUnreachableError';
   }
 }
 
 export class LlmInvalidResponseError extends AppError {
   constructor(message = 'LLM returned an invalid response', details?: Record<string, unknown>) {
-    super('LLM_INVALID_RESPONSE', 502, message, details);
+    super('LLM_INVALID_RESPONSE', 502, message, details, true);
     this.name = 'LlmInvalidResponseError';
   }
 }
 
 export class LlmUpstreamError extends AppError {
   constructor(message = 'LLM upstream error', details?: Record<string, unknown>) {
-    super('LLM_UPSTREAM_ERROR', 502, message, details);
+    super('LLM_UPSTREAM_ERROR', 502, message, details, true);
     this.name = 'LlmUpstreamError';
   }
 }
