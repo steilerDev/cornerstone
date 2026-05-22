@@ -28,9 +28,9 @@
 - Cross-table move hint: `parentPickerSection.locator('[role="status"]').filter({ hasText: /transfer/i })`.
 - Error on failed move: `parentPickerSection.locator('[class*="parentPickerError"]')` — paragraph rendered in picker.
 - BUDGET_LINE_ALREADY_LINKED guard: server returns 409. Error surfaced via `movePickerError` state → `parentPickerError` CSS class paragraph (NOT role="alert"). Modal stays open.
-- Save button (full edit submit): `editModal.getByRole('button', { name: /Save Changes|Saving/i })`.
+- Save button (full edit submit): `editModal.getByRole('button', { name: /^Save|Saving/i })` — idle text is "Save" (NOT "Save Changes"); regex must anchor with `^Save` to match both "Save" and "Saving…".
 - `expect.stringContaining()` NOT valid in `toHaveValue()` — use regex `/pattern/` instead.
-- WI detail page does NOT pass `onMoveBudgetLine` to BudgetSection — parent picker absent there. Scenario 5 verifies inline BudgetLineForm IS visible but asserts parent picker NOT visible.
+- **WI/HI detail page DOES wire `onMoveBudgetLine`** (commit e924b70f). Scenario 5 asserts parent picker IS visible with "Change" button present. Old assertion `not.toBeVisible()` was fixed to `toBeVisible()` in commit 5ab0cdab.
 - WI inline edit Save button: `wiDetailPage.budgetSection.locator('[class*="submitButton"]').filter({ visible: true })`.
 - WI inline save response: `PATCH /api/work-items/:workItemId/budgets/:budgetId` (NOT /budget-lines/).
 
