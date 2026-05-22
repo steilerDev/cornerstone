@@ -19,7 +19,6 @@ import type {
 import {
   NotFoundError,
   ValidationError,
-  BudgetLineAlreadyLinkedError,
 } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -215,25 +214,6 @@ function updateAndMoveHouseholdItemBudget(
     if ('unit' in data) updates.unit = data.unit;
     if ('unitPrice' in data) updates.unitPrice = data.unitPrice;
     if ('includesVat' in data) updates.includesVat = data.includesVat;
-
-    // Check BUDGET_LINE_ALREADY_LINKED guard: does target HI have any IBLs linking to it?
-    const existingLink = db
-      .select({ id: invoiceBudgetLines.id })
-      .from(invoiceBudgetLines)
-      .innerJoin(
-        householdItemBudgets,
-        eq(householdItemBudgets.id, invoiceBudgetLines.householdItemBudgetId),
-      )
-      .where(
-        sql`${householdItemBudgets.householdItemId} = ${targetId} AND ${invoiceBudgetLines.householdItemBudgetId} IS NOT NULL`,
-      )
-      .get();
-
-    if (existingLink) {
-      throw new BudgetLineAlreadyLinkedError(
-        'Target household item already has a linked budget line',
-      );
-    }
 
     // Update budget line with new parent and field updates
     db.update(householdItemBudgets).set(updates).where(eq(householdItemBudgets.id, budgetId)).run();

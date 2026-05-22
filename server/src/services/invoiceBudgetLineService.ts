@@ -735,22 +735,6 @@ export function editAndMoveBudgetLine(
           throw new NotFoundError('Work item not found');
         }
 
-        // Check BUDGET_LINE_ALREADY_LINKED guard
-        const existingLink = db
-          .select({ id: invoiceBudgetLines.id })
-          .from(invoiceBudgetLines)
-          .innerJoin(workItemBudgets, eq(workItemBudgets.id, invoiceBudgetLines.workItemBudgetId))
-          .where(
-            sql`${invoiceBudgetLines.invoiceId} = ${invoiceId} AND ${workItemBudgets.workItemId} = ${targetId} AND ${invoiceBudgetLines.id} != ${lineId}`,
-          )
-          .get();
-
-        if (existingLink) {
-          throw new BudgetLineAlreadyLinkedError(
-            'Target work item already has a linked budget line for this invoice',
-          );
-        }
-
         // Apply budget-line field updates and set new parent FK
         budgetLineUpdates.workItemId = targetId;
         db.update(workItemBudgets)
@@ -762,25 +746,6 @@ export function editAndMoveBudgetLine(
         const hi = db.select().from(householdItems).where(eq(householdItems.id, targetId)).get();
         if (!hi) {
           throw new NotFoundError('Household item not found');
-        }
-
-        // Check BUDGET_LINE_ALREADY_LINKED guard
-        const existingLink = db
-          .select({ id: invoiceBudgetLines.id })
-          .from(invoiceBudgetLines)
-          .innerJoin(
-            householdItemBudgets,
-            eq(householdItemBudgets.id, invoiceBudgetLines.householdItemBudgetId),
-          )
-          .where(
-            sql`${invoiceBudgetLines.invoiceId} = ${invoiceId} AND ${householdItemBudgets.householdItemId} = ${targetId} AND ${invoiceBudgetLines.id} != ${lineId}`,
-          )
-          .get();
-
-        if (existingLink) {
-          throw new BudgetLineAlreadyLinkedError(
-            'Target household item already has a linked budget line for this invoice',
-          );
         }
 
         // Apply budget-line field updates and set new parent FK
@@ -810,25 +775,6 @@ export function editAndMoveBudgetLine(
         const hi = db.select().from(householdItems).where(eq(householdItems.id, targetId)).get();
         if (!hi) {
           throw new NotFoundError('Household item not found');
-        }
-
-        // Check BUDGET_LINE_ALREADY_LINKED guard for destination type
-        const existingLink = db
-          .select({ id: invoiceBudgetLines.id })
-          .from(invoiceBudgetLines)
-          .innerJoin(
-            householdItemBudgets,
-            eq(householdItemBudgets.id, invoiceBudgetLines.householdItemBudgetId),
-          )
-          .where(
-            sql`${invoiceBudgetLines.invoiceId} = ${invoiceId} AND ${householdItemBudgets.householdItemId} = ${targetId}`,
-          )
-          .get();
-
-        if (existingLink) {
-          throw new BudgetLineAlreadyLinkedError(
-            'Target household item already has a linked budget line for this invoice',
-          );
         }
 
         // Read the full current budget-line row (WIB)
@@ -902,22 +848,6 @@ export function editAndMoveBudgetLine(
         const wi = db.select().from(workItems).where(eq(workItems.id, targetId)).get();
         if (!wi) {
           throw new NotFoundError('Work item not found');
-        }
-
-        // Check BUDGET_LINE_ALREADY_LINKED guard for destination type
-        const existingLink = db
-          .select({ id: invoiceBudgetLines.id })
-          .from(invoiceBudgetLines)
-          .innerJoin(workItemBudgets, eq(workItemBudgets.id, invoiceBudgetLines.workItemBudgetId))
-          .where(
-            sql`${invoiceBudgetLines.invoiceId} = ${invoiceId} AND ${workItemBudgets.workItemId} = ${targetId}`,
-          )
-          .get();
-
-        if (existingLink) {
-          throw new BudgetLineAlreadyLinkedError(
-            'Target work item already has a linked budget line for this invoice',
-          );
         }
 
         // Read the full current budget-line row (HIB)
