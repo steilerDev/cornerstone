@@ -641,11 +641,7 @@ export function editAndMoveBudgetLine(
   }
 
   // Step 3: Verify IBL exists and belongs to this invoice
-  const ibl = db
-    .select()
-    .from(invoiceBudgetLines)
-    .where(eq(invoiceBudgetLines.id, lineId))
-    .get();
+  const ibl = db.select().from(invoiceBudgetLines).where(eq(invoiceBudgetLines.id, lineId)).get();
   if (!ibl) {
     throw new NotFoundError('Invoice budget line not found');
   }
@@ -854,8 +850,7 @@ export function editAndMoveBudgetLine(
 
         // Insert new HIB row
         const newHibId = 'hib-' + randomUUID();
-        const newHibDescription =
-          'description' in data ? data.description : wib.description;
+        const newHibDescription = 'description' in data ? data.description : wib.description;
         const newHibPlannedAmount =
           'plannedAmount' in data ? data.plannedAmount : wib.plannedAmount;
         const newHibConfidence = 'confidence' in data ? data.confidence : wib.confidence;
@@ -942,8 +937,7 @@ export function editAndMoveBudgetLine(
 
         // Insert new WIB row
         const newWibId = 'wib-' + randomUUID();
-        const newWibDescription =
-          'description' in data ? data.description : hib.description;
+        const newWibDescription = 'description' in data ? data.description : hib.description;
         const newWibPlannedAmount =
           'plannedAmount' in data ? data.plannedAmount : hib.plannedAmount;
         const newWibConfidence = 'confidence' in data ? data.confidence : hib.confidence;

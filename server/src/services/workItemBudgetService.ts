@@ -2,7 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { eq, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { workItems, workItemBudgets, householdItems, householdItemBudgets, invoiceBudgetLines } from '../db/schema.js';
+import {
+  workItems,
+  workItemBudgets,
+  householdItems,
+  householdItemBudgets,
+  invoiceBudgetLines,
+} from '../db/schema.js';
 import { createBudgetService } from './shared/budgetServiceFactory.js';
 import type { ResolvedBudgetRelations } from './shared/budgetServiceFactory.js';
 import type {
@@ -11,7 +17,11 @@ import type {
   UpdateWorkItemBudgetRequest,
   InvoiceStatus,
 } from '@cornerstone/shared';
-import { NotFoundError, ValidationError, BudgetLineAlreadyLinkedError } from '../errors/AppError.js';
+import {
+  NotFoundError,
+  ValidationError,
+  BudgetLineAlreadyLinkedError,
+} from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -167,11 +177,7 @@ function updateAndMoveWorkItemBudget(
   }
 
   // Verify the budget line exists and belongs to this work item
-  const wib = db
-    .select()
-    .from(workItemBudgets)
-    .where(eq(workItemBudgets.id, budgetId))
-    .get();
+  const wib = db.select().from(workItemBudgets).where(eq(workItemBudgets.id, budgetId)).get();
   if (!wib) {
     throw new NotFoundError('Budget line not found');
   }
@@ -212,9 +218,7 @@ function updateAndMoveWorkItemBudget(
       .get();
 
     if (existingLink) {
-      throw new BudgetLineAlreadyLinkedError(
-        'Target work item already has a linked budget line',
-      );
+      throw new BudgetLineAlreadyLinkedError('Target work item already has a linked budget line');
     }
 
     // Update budget line with new parent and field updates

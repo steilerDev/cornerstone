@@ -800,7 +800,9 @@ export function InvoiceBudgetLinesSection({
       } else {
         plannedAmount =
           Math.round(
-            parseFloat(budgetLineFullForm.quantity) * parseFloat(budgetLineFullForm.unitPrice) * 100,
+            parseFloat(budgetLineFullForm.quantity) *
+              parseFloat(budgetLineFullForm.unitPrice) *
+              100,
           ) / 100;
       }
 
@@ -1488,7 +1490,11 @@ export function InvoiceBudgetLinesSection({
           }
           itemizedAmount={budgetLineItemizedAmount}
           onItemizedAmountChange={setBudgetLineItemizedAmount}
-          onSubmit={selectedBudgetLine.parentItemType === 'unassigned' ? () => {} : handleBudgetLineFullEditSubmit}
+          onSubmit={
+            selectedBudgetLine.parentItemType === 'unassigned'
+              ? () => {}
+              : handleBudgetLineFullEditSubmit
+          }
           onMove={handleMoveBudgetLine}
           onAssign={handleAssignBudgetLine}
           onClose={closeBudgetLineModal}
@@ -1603,10 +1609,7 @@ function EditBudgetLineModal({
   const isUnassigned = line.parentItemType === 'unassigned';
 
   return (
-    <Modal
-      title={t('invoiceDetail.budgetLines.modal.editTitle')}
-      onClose={onClose}
-    >
+    <Modal title={t('invoiceDetail.budgetLines.modal.editTitle')} onClose={onClose}>
       {isUnassigned ? (
         // For unassigned budget lines, show the BudgetLineForm with parent picker
         <BudgetLineForm

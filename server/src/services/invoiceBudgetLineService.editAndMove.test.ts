@@ -34,7 +34,18 @@ describe('editAndMoveBudgetLine()', () => {
     const id = `vendor-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = ts();
     db.insert(schema.vendors)
-      .values({ id, name, tradeId: null, phone: null, email: null, address: null, notes: null, createdBy: null, createdAt: t, updatedAt: t })
+      .values({
+        id,
+        name,
+        tradeId: null,
+        phone: null,
+        email: null,
+        address: null,
+        notes: null,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
       .run();
     return id;
   }
@@ -43,7 +54,19 @@ describe('editAndMoveBudgetLine()', () => {
     const id = `inv-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = ts();
     db.insert(schema.invoices)
-      .values({ id, vendorId, invoiceNumber: null, amount, date: '2026-01-15', dueDate: null, status: 'pending', notes: null, createdBy: null, createdAt: t, updatedAt: t })
+      .values({
+        id,
+        vendorId,
+        invoiceNumber: null,
+        amount,
+        date: '2026-01-15',
+        dueDate: null,
+        status: 'pending',
+        notes: null,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
       .run();
     return id;
   }
@@ -52,16 +75,57 @@ describe('editAndMoveBudgetLine()', () => {
     const id = `wi-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = ts();
     db.insert(schema.workItems)
-      .values({ id, title, description: null, status: 'not_started', startDate: null, endDate: null, actualStartDate: null, actualEndDate: null, durationDays: null, startAfter: null, startBefore: null, assignedUserId: null, areaId: null, assignedVendorId: null, createdBy: null, createdAt: t, updatedAt: t })
+      .values({
+        id,
+        title,
+        description: null,
+        status: 'not_started',
+        startDate: null,
+        endDate: null,
+        actualStartDate: null,
+        actualEndDate: null,
+        durationDays: null,
+        startAfter: null,
+        startBefore: null,
+        assignedUserId: null,
+        areaId: null,
+        assignedVendorId: null,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
       .run();
     return id;
   }
 
-  function createWorkItemBudget(workItemId: string, options: { plannedAmount?: number; description?: string; budgetCategoryId?: string | null } = {}): string {
+  function createWorkItemBudget(
+    workItemId: string,
+    options: {
+      plannedAmount?: number;
+      description?: string;
+      budgetCategoryId?: string | null;
+    } = {},
+  ): string {
     const id = `wib-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = ts();
     db.insert(schema.workItemBudgets)
-      .values({ id, workItemId, description: options.description ?? 'WI Budget', plannedAmount: options.plannedAmount ?? 500, confidence: 'own_estimate', budgetCategoryId: options.budgetCategoryId ?? null, budgetSourceId: null, vendorId: null, quantity: null, unit: null, unitPrice: null, includesVat: true, createdBy: null, createdAt: t, updatedAt: t })
+      .values({
+        id,
+        workItemId,
+        description: options.description ?? 'WI Budget',
+        plannedAmount: options.plannedAmount ?? 500,
+        confidence: 'own_estimate',
+        budgetCategoryId: options.budgetCategoryId ?? null,
+        budgetSourceId: null,
+        vendorId: null,
+        quantity: null,
+        unit: null,
+        unitPrice: null,
+        includesVat: true,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
       .run();
     return id;
   }
@@ -70,31 +134,83 @@ describe('editAndMoveBudgetLine()', () => {
     const id = `hi-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = ts();
     db.insert(schema.householdItems)
-      .values({ id, name, description: null, categoryId: 'hic-furniture', status: 'planned', vendorId: null, areaId: null, url: null, quantity: 1, orderDate: null, actualDeliveryDate: null, earliestDeliveryDate: null, latestDeliveryDate: null, targetDeliveryDate: null, isLate: false, createdBy: null, createdAt: t, updatedAt: t })
+      .values({
+        id,
+        name,
+        description: null,
+        categoryId: 'hic-furniture',
+        status: 'planned',
+        vendorId: null,
+        areaId: null,
+        url: null,
+        quantity: 1,
+        orderDate: null,
+        actualDeliveryDate: null,
+        earliestDeliveryDate: null,
+        latestDeliveryDate: null,
+        targetDeliveryDate: null,
+        isLate: false,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
       .run();
     return id;
   }
 
-  function createHouseholdItemBudget(householdItemId: string, options: { plannedAmount?: number; description?: string } = {}): string {
+  function createHouseholdItemBudget(
+    householdItemId: string,
+    options: { plannedAmount?: number; description?: string } = {},
+  ): string {
     const id = `hib-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = ts();
     db.insert(schema.householdItemBudgets)
-      .values({ id, householdItemId, description: options.description ?? 'HI Budget', plannedAmount: options.plannedAmount ?? 500, confidence: 'own_estimate', budgetCategoryId: 'bc-household-items', budgetSourceId: null, vendorId: null, quantity: null, unit: null, unitPrice: null, includesVat: true, createdBy: null, createdAt: t, updatedAt: t })
+      .values({
+        id,
+        householdItemId,
+        description: options.description ?? 'HI Budget',
+        plannedAmount: options.plannedAmount ?? 500,
+        confidence: 'own_estimate',
+        budgetCategoryId: 'bc-household-items',
+        budgetSourceId: null,
+        vendorId: null,
+        quantity: null,
+        unit: null,
+        unitPrice: null,
+        includesVat: true,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
       .run();
     return id;
   }
 
   /** Creates an IBL linked to a WIB and returns { iblId, wibId }. */
-  function createIblOnWorkItem(invoiceId: string, workItemId: string, itemizedAmount = 300): { iblId: string; wibId: string } {
+  function createIblOnWorkItem(
+    invoiceId: string,
+    workItemId: string,
+    itemizedAmount = 300,
+  ): { iblId: string; wibId: string } {
     const wibId = createWorkItemBudget(workItemId);
-    const result = invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, { workItemBudgetId: wibId, itemizedAmount });
+    const result = invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+      workItemBudgetId: wibId,
+      itemizedAmount,
+    });
     return { iblId: result.budgetLine.id, wibId };
   }
 
   /** Creates an IBL linked to a HIB and returns { iblId, hibId }. */
-  function createIblOnHouseholdItem(invoiceId: string, householdItemId: string, itemizedAmount = 300): { iblId: string; hibId: string } {
+  function createIblOnHouseholdItem(
+    invoiceId: string,
+    householdItemId: string,
+    itemizedAmount = 300,
+  ): { iblId: string; hibId: string } {
     const hibId = createHouseholdItemBudget(householdItemId);
-    const result = invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, { householdItemBudgetId: hibId, itemizedAmount });
+    const result = invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+      householdItemBudgetId: hibId,
+      itemizedAmount,
+    });
     return { iblId: result.budgetLine.id, hibId };
   }
 
@@ -155,7 +271,11 @@ describe('editAndMoveBudgetLine()', () => {
     expect(result.budgetLine.parentItemType).toBe('work_item');
 
     // The WIB now belongs to wi2
-    const updatedWib = db.select().from(schema.workItemBudgets).where(eq(schema.workItemBudgets.id, wibId)).get()!;
+    const updatedWib = db
+      .select()
+      .from(schema.workItemBudgets)
+      .where(eq(schema.workItemBudgets.id, wibId))
+      .get()!;
     expect(updatedWib.workItemId).toBe(wi2);
   });
 
@@ -177,7 +297,11 @@ describe('editAndMoveBudgetLine()', () => {
     expect(result.budgetLine.parentItemId).toBe(hi2);
     expect(result.budgetLine.parentItemType).toBe('household_item');
 
-    const updatedHib = db.select().from(schema.householdItemBudgets).where(eq(schema.householdItemBudgets.id, hibId)).get()!;
+    const updatedHib = db
+      .select()
+      .from(schema.householdItemBudgets)
+      .where(eq(schema.householdItemBudgets.id, hibId))
+      .get()!;
     expect(updatedHib.householdItemId).toBe(hi2);
   });
 
@@ -203,7 +327,11 @@ describe('editAndMoveBudgetLine()', () => {
     expect(result.budgetLine.parentItemType).toBe('household_item');
 
     // Old WIB deleted
-    const oldWib = db.select().from(schema.workItemBudgets).where(eq(schema.workItemBudgets.id, wibId)).get();
+    const oldWib = db
+      .select()
+      .from(schema.workItemBudgets)
+      .where(eq(schema.workItemBudgets.id, wibId))
+      .get();
     expect(oldWib).toBeUndefined();
 
     // WIB count decreased by 1
@@ -211,7 +339,11 @@ describe('editAndMoveBudgetLine()', () => {
 
     // New HIB exists
     const newHibId = result.budgetLine.householdItemBudgetId!;
-    const newHib = db.select().from(schema.householdItemBudgets).where(eq(schema.householdItemBudgets.id, newHibId)).get();
+    const newHib = db
+      .select()
+      .from(schema.householdItemBudgets)
+      .where(eq(schema.householdItemBudgets.id, newHibId))
+      .get();
     expect(newHib).toBeDefined();
     expect(newHib!.householdItemId).toBe(hiId);
   });
@@ -238,7 +370,11 @@ describe('editAndMoveBudgetLine()', () => {
     expect(result.budgetLine.parentItemType).toBe('work_item');
 
     // Old HIB deleted
-    const oldHib = db.select().from(schema.householdItemBudgets).where(eq(schema.householdItemBudgets.id, hibId)).get();
+    const oldHib = db
+      .select()
+      .from(schema.householdItemBudgets)
+      .where(eq(schema.householdItemBudgets.id, hibId))
+      .get();
     expect(oldHib).toBeUndefined();
 
     // HIB count decreased by 1
@@ -246,7 +382,11 @@ describe('editAndMoveBudgetLine()', () => {
 
     // New WIB exists
     const newWibId = result.budgetLine.workItemBudgetId!;
-    const newWib = db.select().from(schema.workItemBudgets).where(eq(schema.workItemBudgets.id, newWibId)).get();
+    const newWib = db
+      .select()
+      .from(schema.workItemBudgets)
+      .where(eq(schema.workItemBudgets.id, newWibId))
+      .get();
     expect(newWib).toBeDefined();
     expect(newWib!.workItemId).toBe(wiId);
   });
@@ -260,7 +400,10 @@ describe('editAndMoveBudgetLine()', () => {
     const hiId = createHouseholdItem('Chair');
     // WIB with no budget category
     const wibId = createWorkItemBudget(wiId, { budgetCategoryId: null });
-    const iblResult = invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, { workItemBudgetId: wibId, itemizedAmount: 300 });
+    const iblResult = invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+      workItemBudgetId: wibId,
+      itemizedAmount: 300,
+    });
     const iblId = iblResult.budgetLine.id;
 
     invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, {
@@ -268,8 +411,16 @@ describe('editAndMoveBudgetLine()', () => {
       // no budgetCategoryId provided
     });
 
-    const updatedIbl = db.select().from(schema.invoiceBudgetLines).where(eq(schema.invoiceBudgetLines.id, iblId)).get()!;
-    const newHib = db.select().from(schema.householdItemBudgets).where(eq(schema.householdItemBudgets.id, updatedIbl.householdItemBudgetId!)).get()!;
+    const updatedIbl = db
+      .select()
+      .from(schema.invoiceBudgetLines)
+      .where(eq(schema.invoiceBudgetLines.id, iblId))
+      .get()!;
+    const newHib = db
+      .select()
+      .from(schema.householdItemBudgets)
+      .where(eq(schema.householdItemBudgets.id, updatedIbl.householdItemBudgetId!))
+      .get()!;
     expect(newHib.budgetCategoryId).toBe('bc-household-items');
   });
 
@@ -287,8 +438,16 @@ describe('editAndMoveBudgetLine()', () => {
       budgetCategoryId: 'bc-household-items', // explicitly provided
     });
 
-    const updatedIbl = db.select().from(schema.invoiceBudgetLines).where(eq(schema.invoiceBudgetLines.id, iblId)).get()!;
-    const newHib = db.select().from(schema.householdItemBudgets).where(eq(schema.householdItemBudgets.id, updatedIbl.householdItemBudgetId!)).get()!;
+    const updatedIbl = db
+      .select()
+      .from(schema.invoiceBudgetLines)
+      .where(eq(schema.invoiceBudgetLines.id, iblId))
+      .get()!;
+    const newHib = db
+      .select()
+      .from(schema.householdItemBudgets)
+      .where(eq(schema.householdItemBudgets.id, updatedIbl.householdItemBudgetId!))
+      .get()!;
     expect(newHib.budgetCategoryId).toBe('bc-household-items');
   });
 
@@ -397,7 +556,11 @@ describe('editAndMoveBudgetLine()', () => {
     expect(db.select().from(schema.invoiceBudgetLines).all().length).toBe(iblCountBefore);
 
     // Original IBL still points to original WIB
-    const ibl = db.select().from(schema.invoiceBudgetLines).where(eq(schema.invoiceBudgetLines.id, iblId)).get()!;
+    const ibl = db
+      .select()
+      .from(schema.invoiceBudgetLines)
+      .where(eq(schema.invoiceBudgetLines.id, iblId))
+      .get()!;
     expect(ibl.workItemBudgetId).not.toBeNull();
   });
 
@@ -429,8 +592,14 @@ describe('editAndMoveBudgetLine()', () => {
     const invoiceId = createInvoice(vendorId, 1000);
     const wi1 = createWorkItem('Painting');
     const wi2 = createWorkItem('Flooring');
-    const wibId = createWorkItemBudget(wi1, { description: 'Original description', plannedAmount: 888 });
-    const iblResult = invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, { workItemBudgetId: wibId, itemizedAmount: 300 });
+    const wibId = createWorkItemBudget(wi1, {
+      description: 'Original description',
+      plannedAmount: 888,
+    });
+    const iblResult = invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+      workItemBudgetId: wibId,
+      itemizedAmount: 300,
+    });
     const iblId = iblResult.budgetLine.id;
 
     const result = invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, {

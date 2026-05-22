@@ -42,16 +42,53 @@ describe('updateWorkItemBudget() — move scenarios', () => {
     const id = `wi-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = ts();
     db.insert(schema.workItems)
-      .values({ id, title, description: null, status: 'not_started', startDate: null, endDate: null, actualStartDate: null, actualEndDate: null, durationDays: null, startAfter: null, startBefore: null, assignedUserId: null, areaId: null, assignedVendorId: null, createdBy: null, createdAt: t, updatedAt: t })
+      .values({
+        id,
+        title,
+        description: null,
+        status: 'not_started',
+        startDate: null,
+        endDate: null,
+        actualStartDate: null,
+        actualEndDate: null,
+        durationDays: null,
+        startAfter: null,
+        startBefore: null,
+        assignedUserId: null,
+        areaId: null,
+        assignedVendorId: null,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
       .run();
     return id;
   }
 
-  function createWorkItemBudget(workItemId: string, options: { plannedAmount?: number; description?: string } = {}): string {
+  function createWorkItemBudget(
+    workItemId: string,
+    options: { plannedAmount?: number; description?: string } = {},
+  ): string {
     const id = `wib-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = ts();
     db.insert(schema.workItemBudgets)
-      .values({ id, workItemId, description: options.description ?? 'WI Budget', plannedAmount: options.plannedAmount ?? 500, confidence: 'own_estimate', budgetCategoryId: null, budgetSourceId: null, vendorId: null, quantity: null, unit: null, unitPrice: null, includesVat: true, createdBy: null, createdAt: t, updatedAt: t })
+      .values({
+        id,
+        workItemId,
+        description: options.description ?? 'WI Budget',
+        plannedAmount: options.plannedAmount ?? 500,
+        confidence: 'own_estimate',
+        budgetCategoryId: null,
+        budgetSourceId: null,
+        vendorId: null,
+        quantity: null,
+        unit: null,
+        unitPrice: null,
+        includesVat: true,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
       .run();
     return id;
   }
@@ -60,7 +97,26 @@ describe('updateWorkItemBudget() — move scenarios', () => {
     const id = `hi-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = ts();
     db.insert(schema.householdItems)
-      .values({ id, name, description: null, categoryId: 'hic-furniture', status: 'planned', vendorId: null, areaId: null, url: null, quantity: 1, orderDate: null, actualDeliveryDate: null, earliestDeliveryDate: null, latestDeliveryDate: null, targetDeliveryDate: null, isLate: false, createdBy: null, createdAt: t, updatedAt: t })
+      .values({
+        id,
+        name,
+        description: null,
+        categoryId: 'hic-furniture',
+        status: 'planned',
+        vendorId: null,
+        areaId: null,
+        url: null,
+        quantity: 1,
+        orderDate: null,
+        actualDeliveryDate: null,
+        earliestDeliveryDate: null,
+        latestDeliveryDate: null,
+        targetDeliveryDate: null,
+        isLate: false,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
       .run();
     return id;
   }
@@ -69,7 +125,18 @@ describe('updateWorkItemBudget() — move scenarios', () => {
     const id = `vendor-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = ts();
     db.insert(schema.vendors)
-      .values({ id, name, tradeId: null, phone: null, email: null, address: null, notes: null, createdBy: null, createdAt: t, updatedAt: t })
+      .values({
+        id,
+        name,
+        tradeId: null,
+        phone: null,
+        email: null,
+        address: null,
+        notes: null,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
       .run();
     return id;
   }
@@ -78,7 +145,19 @@ describe('updateWorkItemBudget() — move scenarios', () => {
     const id = `inv-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = ts();
     db.insert(schema.invoices)
-      .values({ id, vendorId, invoiceNumber: null, amount, date: '2026-01-15', dueDate: null, status: 'pending', notes: null, createdBy: null, createdAt: t, updatedAt: t })
+      .values({
+        id,
+        vendorId,
+        invoiceNumber: null,
+        amount,
+        date: '2026-01-15',
+        dueDate: null,
+        status: 'pending',
+        notes: null,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
       .run();
     return id;
   }
@@ -108,7 +187,11 @@ describe('updateWorkItemBudget() — move scenarios', () => {
     expect(result.description).toBe('Test line');
 
     // Verify DB state
-    const updatedWib = db.select().from(schema.workItemBudgets).where(eq(schema.workItemBudgets.id, wibId)).get()!;
+    const updatedWib = db
+      .select()
+      .from(schema.workItemBudgets)
+      .where(eq(schema.workItemBudgets.id, wibId))
+      .get()!;
     expect(updatedWib.workItemId).toBe(wi2);
   });
 
@@ -177,7 +260,17 @@ describe('updateWorkItemBudget() — move scenarios', () => {
     const invoiceId = createInvoice(vendorId);
     const iblId = `ibl-${Date.now()}`;
     const t = ts();
-    db.insert(schema.invoiceBudgetLines).values({ id: iblId, invoiceId, workItemBudgetId: wib2Id, householdItemBudgetId: null, itemizedAmount: 200, createdAt: t, updatedAt: t }).run();
+    db.insert(schema.invoiceBudgetLines)
+      .values({
+        id: iblId,
+        invoiceId,
+        workItemBudgetId: wib2Id,
+        householdItemBudgetId: null,
+        itemizedAmount: 200,
+        createdAt: t,
+        updatedAt: t,
+      })
+      .run();
 
     expect(() => {
       updateWorkItemBudget(db, wi1, wibId, { newWorkItemId: wi2 });

@@ -35,9 +35,9 @@ Keys added to `de/budget.json` under `budgetLineForm`:
   - Parallel construction to `moveCrossTableHint`
   - Compound noun "Arbeitspaketbudget" = "work item budget" (Arbeitspaket + Budget)
 
-- `itemizedAmountLabel` → "Aufgeschlüsselter Betrag ({{currencySymbol}}) *"
+- `itemizedAmountLabel` → "Aufgeschlüsselter Betrag ({{currencySymbol}}) \*"
   - "aufgeschlüsselt" is the established term for "itemized" in this codebase (see `invoiceDetail.budgetLines.tableHeaders.itemizedAmount` = "Aufgeschlüsselter Betrag")
-  - Pattern follows `plannedAmountLabel` = "Geplanter Betrag ({{currencySymbol}}) *" — adjective + "Betrag" + currency placeholder + asterisk
+  - Pattern follows `plannedAmountLabel` = "Geplanter Betrag ({{currencySymbol}}) \*" — adjective + "Betrag" + currency placeholder + asterisk
 
 ## New Key: moveCrossTableNoInvoiceError (2026-05-22)
 

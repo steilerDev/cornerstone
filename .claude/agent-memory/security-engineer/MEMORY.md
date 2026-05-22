@@ -95,7 +95,7 @@ See `review-history.md` for detailed findings per PR.
 | #1548 | EPIC-20 Story #1545 — Unassigned Budget Lines & One-Shot Parent Assignment                        | COMMENTED (3 informational: assignToWorkItem no transaction, computeUsedAmount includes orphans, targetId no minLength)       | 2026-05-21 |
 | #1549 | Story #1546 — BudgetExtractionService with OpenAI-compatible LLM gateway (FIRST LLM INTEGRATION)  | APPROVED (4 informational: URL in startup error, no timeout upper bound, localhost SSRF allowed, no OCR size cap)             | 2026-05-21 |
 | #1550 | Story #1547 — Invoice Auto-Itemize POST endpoint and commit service                               | COMMENTED (2 informational: OCR cap carry-forward unaddressed, lines array no maxItems)                                       | 2026-05-22 |
-| #1554 | Story #1553 — Full edit + linked-item move for invoice budget lines                               | COMMENTED (1 low: move fields no minLength:1; 1 informational: WIB/HIB no minProperties:1)                                   | 2026-05-22 |
+| #1554 | Story #1553 — Full edit + linked-item move for invoice budget lines                               | COMMENTED (1 low: move fields no minLength:1; 1 informational: WIB/HIB no minProperties:1)                                    | 2026-05-22 |
 
 ## Known Open Recommendations (Low Priority)
 

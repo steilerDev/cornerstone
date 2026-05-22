@@ -52,43 +52,149 @@ describe('PATCH /api/invoices/:invoiceId/budget-lines/:id — editAndMove', () =
   function createVendor(name = 'Vendor'): string {
     const id = `vendor-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = ts();
-    app.db.insert(schema.vendors).values({ id, name, tradeId: null, phone: null, email: null, address: null, notes: null, createdBy: null, createdAt: t, updatedAt: t }).run();
+    app.db
+      .insert(schema.vendors)
+      .values({
+        id,
+        name,
+        tradeId: null,
+        phone: null,
+        email: null,
+        address: null,
+        notes: null,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
+      .run();
     return id;
   }
 
   function createInvoice(vendorId: string, amount = 1000): string {
     const id = `inv-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = ts();
-    app.db.insert(schema.invoices).values({ id, vendorId, invoiceNumber: null, amount, date: '2026-01-15', dueDate: null, status: 'pending', notes: null, createdBy: null, createdAt: t, updatedAt: t }).run();
+    app.db
+      .insert(schema.invoices)
+      .values({
+        id,
+        vendorId,
+        invoiceNumber: null,
+        amount,
+        date: '2026-01-15',
+        dueDate: null,
+        status: 'pending',
+        notes: null,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
+      .run();
     return id;
   }
 
   function createWorkItem(title = 'Work Item'): string {
     const id = `wi-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = ts();
-    app.db.insert(schema.workItems).values({ id, title, description: null, status: 'not_started', startDate: null, endDate: null, actualStartDate: null, actualEndDate: null, durationDays: null, startAfter: null, startBefore: null, assignedUserId: null, areaId: null, assignedVendorId: null, createdBy: null, createdAt: t, updatedAt: t }).run();
+    app.db
+      .insert(schema.workItems)
+      .values({
+        id,
+        title,
+        description: null,
+        status: 'not_started',
+        startDate: null,
+        endDate: null,
+        actualStartDate: null,
+        actualEndDate: null,
+        durationDays: null,
+        startAfter: null,
+        startBefore: null,
+        assignedUserId: null,
+        areaId: null,
+        assignedVendorId: null,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
+      .run();
     return id;
   }
 
   function createWorkItemBudget(workItemId: string, plannedAmount = 500): string {
     const id = `wib-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = ts();
-    app.db.insert(schema.workItemBudgets).values({ id, workItemId, description: 'WI Budget', plannedAmount, confidence: 'own_estimate', budgetCategoryId: null, budgetSourceId: null, vendorId: null, quantity: null, unit: null, unitPrice: null, includesVat: true, createdBy: null, createdAt: t, updatedAt: t }).run();
+    app.db
+      .insert(schema.workItemBudgets)
+      .values({
+        id,
+        workItemId,
+        description: 'WI Budget',
+        plannedAmount,
+        confidence: 'own_estimate',
+        budgetCategoryId: null,
+        budgetSourceId: null,
+        vendorId: null,
+        quantity: null,
+        unit: null,
+        unitPrice: null,
+        includesVat: true,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
+      .run();
     return id;
   }
 
   function createHouseholdItem(name = 'HI'): string {
     const id = `hi-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = ts();
-    app.db.insert(schema.householdItems).values({ id, name, description: null, categoryId: 'hic-furniture', status: 'planned', vendorId: null, areaId: null, url: null, quantity: 1, orderDate: null, actualDeliveryDate: null, earliestDeliveryDate: null, latestDeliveryDate: null, targetDeliveryDate: null, isLate: false, createdBy: null, createdAt: t, updatedAt: t }).run();
+    app.db
+      .insert(schema.householdItems)
+      .values({
+        id,
+        name,
+        description: null,
+        categoryId: 'hic-furniture',
+        status: 'planned',
+        vendorId: null,
+        areaId: null,
+        url: null,
+        quantity: 1,
+        orderDate: null,
+        actualDeliveryDate: null,
+        earliestDeliveryDate: null,
+        latestDeliveryDate: null,
+        targetDeliveryDate: null,
+        isLate: false,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+      })
+      .run();
     return id;
   }
 
-  function createIblOnWorkItem(invoiceId: string, workItemId: string, itemizedAmount = 300): { iblId: string; wibId: string } {
+  function createIblOnWorkItem(
+    invoiceId: string,
+    workItemId: string,
+    itemizedAmount = 300,
+  ): { iblId: string; wibId: string } {
     const wibId = createWorkItemBudget(workItemId);
     const iblId = `ibl-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const t = ts();
-    app.db.insert(schema.invoiceBudgetLines).values({ id: iblId, invoiceId, workItemBudgetId: wibId, householdItemBudgetId: null, itemizedAmount, createdAt: t, updatedAt: t }).run();
+    app.db
+      .insert(schema.invoiceBudgetLines)
+      .values({
+        id: iblId,
+        invoiceId,
+        workItemBudgetId: wibId,
+        householdItemBudgetId: null,
+        itemizedAmount,
+        createdAt: t,
+        updatedAt: t,
+      })
+      .run();
     return { iblId, wibId };
   }
 

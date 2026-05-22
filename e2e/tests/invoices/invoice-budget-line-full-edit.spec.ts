@@ -89,10 +89,7 @@ async function createAndLinkWIBudgetLine(
       description: opts.description ?? 'E2E Budget Line',
     },
   });
-  expect(
-    budgetResp.ok(),
-    `POST work item budget failed: ${budgetResp.status()}`,
-  ).toBeTruthy();
+  expect(budgetResp.ok(), `POST work item budget failed: ${budgetResp.status()}`).toBeTruthy();
   const budgetBody = (await budgetResp.json()) as { budget: { id: string } };
 
   const linkResp = await page.request.post(`/api/invoices/${opts.invoiceId}/budget-lines`, {
@@ -101,10 +98,7 @@ async function createAndLinkWIBudgetLine(
       itemizedAmount: opts.itemizedAmount,
     },
   });
-  expect(
-    linkResp.ok(),
-    `POST invoice budget-line failed: ${linkResp.status()}`,
-  ).toBeTruthy();
+  expect(linkResp.ok(), `POST invoice budget-line failed: ${linkResp.status()}`).toBeTruthy();
   const linkBody = (await linkResp.json()) as { budgetLine: { id: string } };
 
   return {
@@ -352,115 +346,115 @@ test.describe('Same-table WI → WI move (Scenario 2)', { tag: '@responsive' }, 
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Cross-table WI → HI move (Scenario 3)', { tag: '@responsive' }, () => {
-  test(
-    'Move budget line from WI to HI → move hint visible, Linked Item updates, HI shows line',
-    async ({ page, testPrefix }) => {
-      // Skip on mobile — functional move test, not layout
-      const viewportWidth = page.viewportSize()?.width ?? 1440;
-      if (viewportWidth < 768) {
-        test.skip(true, 'Cross-table move test — desktop/tablet only');
-        return;
-      }
+  test('Move budget line from WI to HI → move hint visible, Linked Item updates, HI shows line', async ({
+    page,
+    testPrefix,
+  }) => {
+    // Skip on mobile — functional move test, not layout
+    const viewportWidth = page.viewportSize()?.width ?? 1440;
+    if (viewportWidth < 768) {
+      test.skip(true, 'Cross-table move test — desktop/tablet only');
+      return;
+    }
 
-      const detailPage = new InvoiceDetailPage(page);
-      let vendorId = '';
-      let invoiceId = '';
-      let workItemId = '';
-      let householdItemId = '';
-      let budgetSourceId = '';
+    const detailPage = new InvoiceDetailPage(page);
+    let vendorId = '';
+    let invoiceId = '';
+    let workItemId = '';
+    let householdItemId = '';
+    let budgetSourceId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} WI2HI Vendor`);
-        invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 1500,
-          date: '2026-06-01',
-        });
-        workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI2HI Source WI` });
-        householdItemId = await createHouseholdItemViaApi(page, {
-          name: `${testPrefix} WI2HI Target HI`,
-        });
-        budgetSourceId = await createBudgetSourceViaApi(page, {
-          name: `${testPrefix} WI2HI Source`,
-          totalAmount: 50000,
-        });
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} WI2HI Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 1500,
+        date: '2026-06-01',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI2HI Source WI` });
+      householdItemId = await createHouseholdItemViaApi(page, {
+        name: `${testPrefix} WI2HI Target HI`,
+      });
+      budgetSourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} WI2HI Source`,
+        totalAmount: 50000,
+      });
 
-        await createAndLinkWIBudgetLine(page, {
-          workItemId,
-          budgetSourceId,
-          invoiceId,
-          plannedAmount: 700,
-          itemizedAmount: 400,
-          description: `${testPrefix} WI2HI Line`,
-        });
+      await createAndLinkWIBudgetLine(page, {
+        workItemId,
+        budgetSourceId,
+        invoiceId,
+        plannedAmount: 700,
+        itemizedAmount: 400,
+        description: `${testPrefix} WI2HI Line`,
+      });
 
-        await detailPage.goto(invoiceId);
-        await expect(detailPage.heading).toBeVisible();
+      await detailPage.goto(invoiceId);
+      await expect(detailPage.heading).toBeVisible();
 
-        // Confirm WI is shown in Linked Item column
-        await expect(detailPage.budgetLinesSection).toContainText('WI2HI Source WI');
+      // Confirm WI is shown in Linked Item column
+      await expect(detailPage.budgetLinesSection).toContainText('WI2HI Source WI');
 
-        // Open Edit modal
-        await detailPage.openBudgetLineMenu();
-        await detailPage.clickBudgetLineMenuItem('Edit');
+      // Open Edit modal
+      await detailPage.openBudgetLineMenu();
+      await detailPage.clickBudgetLineMenuItem('Edit');
 
-        const editModal = page.getByRole('dialog', { name: 'Edit Budget Line' });
-        await expect(editModal).toBeVisible();
+      const editModal = page.getByRole('dialog', { name: 'Edit Budget Line' });
+      await expect(editModal).toBeVisible();
 
-        // Expand parent picker
-        const parentPickerSection = editModal.locator('fieldset[class*="parentPickerSection"]');
-        const changeButton = parentPickerSection.getByRole('button', { name: 'Change' });
-        await changeButton.click();
+      // Expand parent picker
+      const parentPickerSection = editModal.locator('fieldset[class*="parentPickerSection"]');
+      const changeButton = parentPickerSection.getByRole('button', { name: 'Change' });
+      await changeButton.click();
 
-        // Switch to Household Item tab
-        const hiTab = parentPickerSection.getByRole('button', { name: 'Household Item' });
-        await expect(hiTab).toBeVisible();
-        await hiTab.click();
+      // Switch to Household Item tab
+      const hiTab = parentPickerSection.getByRole('button', { name: 'Household Item' });
+      await expect(hiTab).toBeVisible();
+      await hiTab.click();
 
-        // Cross-table move hint banner appears (role="status")
-        const moveHint = parentPickerSection.locator('[role="status"]');
-        await expect(moveHint).toBeVisible();
-        await expect(moveHint).toContainText(/transfer/i);
+      // Cross-table move hint banner appears (role="status")
+      const moveHint = parentPickerSection.locator('[role="status"]');
+      await expect(moveHint).toBeVisible();
+      await expect(moveHint).toContainText(/transfer/i);
 
-        // Search for the target HI
-        const hiPickerInput = parentPickerSection.getByRole('textbox');
-        await hiPickerInput.fill(`${testPrefix} WI2HI Target HI`);
+      // Search for the target HI
+      const hiPickerInput = parentPickerSection.getByRole('textbox');
+      await hiPickerInput.fill(`${testPrefix} WI2HI Target HI`);
 
-        const option = page.getByRole('option', { name: new RegExp(`WI2HI Target HI`, 'i') });
-        await expect(option).toBeVisible();
-        await option.click();
+      const option = page.getByRole('option', { name: new RegExp(`WI2HI Target HI`, 'i') });
+      await expect(option).toBeVisible();
+      await option.click();
 
-        // Move hint still visible after selection
-        await expect(moveHint).toBeVisible();
+      // Move hint still visible after selection
+      await expect(moveHint).toBeVisible();
 
-        // Click "Move to selected item"
-        const moveButton = parentPickerSection.getByRole('button', {
-          name: /Move to selected item|Moving/i,
-        });
+      // Click "Move to selected item"
+      const moveButton = parentPickerSection.getByRole('button', {
+        name: /Move to selected item|Moving/i,
+      });
 
-        const patchPromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes('/budget-lines/') &&
-            resp.request().method() === 'PATCH' &&
-            resp.status() === 200,
-        );
-        await moveButton.click();
-        await patchPromise;
+      const patchPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/budget-lines/') &&
+          resp.request().method() === 'PATCH' &&
+          resp.status() === 200,
+      );
+      await moveButton.click();
+      await patchPromise;
 
-        // Modal closes
-        await expect(editModal).not.toBeVisible();
+      // Modal closes
+      await expect(editModal).not.toBeVisible();
 
-        // Linked Item column now references the HI
-        await expect(detailPage.budgetLinesSection).toContainText('WI2HI Target HI');
-        await expect(detailPage.budgetLinesSection).not.toContainText('WI2HI Source WI');
-      } finally {
-        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
-        if (householdItemId) await deleteHouseholdItemViaApi(page, householdItemId);
-        if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
-      }
-    },
-  );
+      // Linked Item column now references the HI
+      await expect(detailPage.budgetLinesSection).toContainText('WI2HI Target HI');
+      await expect(detailPage.budgetLinesSection).not.toContainText('WI2HI Source WI');
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (householdItemId) await deleteHouseholdItemViaApi(page, householdItemId);
+      if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -468,128 +462,128 @@ test.describe('Cross-table WI → HI move (Scenario 3)', { tag: '@responsive' },
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('BUDGET_LINE_ALREADY_LINKED guard (Scenario 4)', () => {
-  test(
-    'Attempting to move budget line to WI that already has a line on this invoice → error in modal',
-    async ({ page, testPrefix }) => {
-      // Desktop only — error behaviour test
-      const viewportWidth = page.viewportSize()?.width ?? 1440;
-      if (viewportWidth < 1024) {
-        test.skip(true, 'Error guard test — desktop only');
-        return;
-      }
+  test('Attempting to move budget line to WI that already has a line on this invoice → error in modal', async ({
+    page,
+    testPrefix,
+  }) => {
+    // Desktop only — error behaviour test
+    const viewportWidth = page.viewportSize()?.width ?? 1440;
+    if (viewportWidth < 1024) {
+      test.skip(true, 'Error guard test — desktop only');
+      return;
+    }
 
-      const detailPage = new InvoiceDetailPage(page);
-      let vendorId = '';
-      let invoiceId = '';
-      let workItemAId = '';
-      let workItemBId = '';
-      let budgetSourceId = '';
+    const detailPage = new InvoiceDetailPage(page);
+    let vendorId = '';
+    let invoiceId = '';
+    let workItemAId = '';
+    let workItemBId = '';
+    let budgetSourceId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} AlreadyLinked Vendor`);
-        invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 3000,
-          date: '2026-06-01',
-        });
-        workItemAId = await createWorkItemViaApi(page, {
-          title: `${testPrefix} AlreadyLinked WI-A`,
-        });
-        workItemBId = await createWorkItemViaApi(page, {
-          title: `${testPrefix} AlreadyLinked WI-B`,
-        });
-        budgetSourceId = await createBudgetSourceViaApi(page, {
-          name: `${testPrefix} AlreadyLinked Source`,
-          totalAmount: 50000,
-        });
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AlreadyLinked Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 3000,
+        date: '2026-06-01',
+      });
+      workItemAId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} AlreadyLinked WI-A`,
+      });
+      workItemBId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} AlreadyLinked WI-B`,
+      });
+      budgetSourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} AlreadyLinked Source`,
+        totalAmount: 50000,
+      });
 
-        // Link WI-A budget line to invoice
-        await createAndLinkWIBudgetLine(page, {
-          workItemId: workItemAId,
-          budgetSourceId,
-          invoiceId,
-          plannedAmount: 1000,
-          itemizedAmount: 500,
-          description: `${testPrefix} Line A`,
-        });
+      // Link WI-A budget line to invoice
+      await createAndLinkWIBudgetLine(page, {
+        workItemId: workItemAId,
+        budgetSourceId,
+        invoiceId,
+        plannedAmount: 1000,
+        itemizedAmount: 500,
+        description: `${testPrefix} Line A`,
+      });
 
-        // Link WI-B budget line to the SAME invoice (creating the conflict)
-        await createAndLinkWIBudgetLine(page, {
-          workItemId: workItemBId,
-          budgetSourceId,
-          invoiceId,
-          plannedAmount: 800,
-          itemizedAmount: 400,
-          description: `${testPrefix} Line B`,
-        });
+      // Link WI-B budget line to the SAME invoice (creating the conflict)
+      await createAndLinkWIBudgetLine(page, {
+        workItemId: workItemBId,
+        budgetSourceId,
+        invoiceId,
+        plannedAmount: 800,
+        itemizedAmount: 400,
+        description: `${testPrefix} Line B`,
+      });
 
-        await detailPage.goto(invoiceId);
-        await expect(detailPage.heading).toBeVisible();
+      await detailPage.goto(invoiceId);
+      await expect(detailPage.heading).toBeVisible();
 
-        // Both lines should be visible
-        await expect(detailPage.budgetLinesSection).toContainText('Line A');
-        await expect(detailPage.budgetLinesSection).toContainText('Line B');
+      // Both lines should be visible
+      await expect(detailPage.budgetLinesSection).toContainText('Line A');
+      await expect(detailPage.budgetLinesSection).toContainText('Line B');
 
-        // Open Edit modal for WI-A's line (the one with "Line A" description)
-        // Use the description-scoped menu trigger
-        await detailPage.openBudgetLineMenu('Line A');
-        await detailPage.clickBudgetLineMenuItem('Edit');
+      // Open Edit modal for WI-A's line (the one with "Line A" description)
+      // Use the description-scoped menu trigger
+      await detailPage.openBudgetLineMenu('Line A');
+      await detailPage.clickBudgetLineMenuItem('Edit');
 
-        const editModal = page.getByRole('dialog', { name: 'Edit Budget Line' });
-        await expect(editModal).toBeVisible();
+      const editModal = page.getByRole('dialog', { name: 'Edit Budget Line' });
+      await expect(editModal).toBeVisible();
 
-        // Expand parent picker
-        const parentPickerSection = editModal.locator('fieldset[class*="parentPickerSection"]');
-        const changeButton = parentPickerSection.getByRole('button', { name: 'Change' });
-        await changeButton.click();
+      // Expand parent picker
+      const parentPickerSection = editModal.locator('fieldset[class*="parentPickerSection"]');
+      const changeButton = parentPickerSection.getByRole('button', { name: 'Change' });
+      await changeButton.click();
 
-        // Work Item tab already active — search for WI-B (which already has a line on this invoice)
-        const wiPickerInput = parentPickerSection.getByRole('textbox');
-        await wiPickerInput.fill(`${testPrefix} AlreadyLinked WI-B`);
+      // Work Item tab already active — search for WI-B (which already has a line on this invoice)
+      const wiPickerInput = parentPickerSection.getByRole('textbox');
+      await wiPickerInput.fill(`${testPrefix} AlreadyLinked WI-B`);
 
-        const option = page.getByRole('option', {
-          name: new RegExp(`AlreadyLinked WI-B`, 'i'),
-        });
-        await expect(option).toBeVisible();
-        await option.click();
+      const option = page.getByRole('option', {
+        name: new RegExp(`AlreadyLinked WI-B`, 'i'),
+      });
+      await expect(option).toBeVisible();
+      await option.click();
 
-        // Click "Move to selected item" — expect 409 from the backend guard
-        const moveButton = parentPickerSection.getByRole('button', {
-          name: /Move to selected item|Moving/i,
-        });
+      // Click "Move to selected item" — expect 409 from the backend guard
+      const moveButton = parentPickerSection.getByRole('button', {
+        name: /Move to selected item|Moving/i,
+      });
 
-        const patchErrorPromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes('/budget-lines/') &&
-            resp.request().method() === 'PATCH' &&
-            (resp.status() === 409 || resp.status() === 400),
-        );
-        await moveButton.click();
-        await patchErrorPromise;
+      const patchErrorPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/budget-lines/') &&
+          resp.request().method() === 'PATCH' &&
+          (resp.status() === 409 || resp.status() === 400),
+      );
+      await moveButton.click();
+      await patchErrorPromise;
 
-        // Error banner appears inside the modal (from movePickerError state)
-        const errorParagraph = parentPickerSection.locator('[class*="parentPickerError"]');
-        await expect(errorParagraph).toBeVisible();
+      // Error banner appears inside the modal (from movePickerError state)
+      const errorParagraph = parentPickerSection.locator('[class*="parentPickerError"]');
+      await expect(errorParagraph).toBeVisible();
 
-        // Modal stays open — user can correct their choice
-        await expect(editModal).toBeVisible();
+      // Modal stays open — user can correct their choice
+      await expect(editModal).toBeVisible();
 
-        // Both budget lines remain unchanged
-        await expect(detailPage.budgetLinesSection).toContainText('Line A');
-        await expect(detailPage.budgetLinesSection).toContainText('Line B');
+      // Both budget lines remain unchanged
+      await expect(detailPage.budgetLinesSection).toContainText('Line A');
+      await expect(detailPage.budgetLinesSection).toContainText('Line B');
 
-        // Cancel to close modal cleanly
-        const cancelButton = editModal.getByRole('button', { name: 'Cancel' });
-        await cancelButton.click();
-        await expect(editModal).not.toBeVisible();
-      } finally {
-        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-        if (workItemAId) await deleteWorkItemViaApi(page, workItemAId);
-        if (workItemBId) await deleteWorkItemViaApi(page, workItemBId);
-        if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
-      }
-    },
-  );
+      // Cancel to close modal cleanly
+      const cancelButton = editModal.getByRole('button', { name: 'Cancel' });
+      await cancelButton.click();
+      await expect(editModal).not.toBeVisible();
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (workItemAId) await deleteWorkItemViaApi(page, workItemAId);
+      if (workItemBId) await deleteWorkItemViaApi(page, workItemBId);
+      if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -605,99 +599,96 @@ test.describe('BUDGET_LINE_ALREADY_LINKED guard (Scenario 4)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('WI detail page inline edit — form visible (Scenario 5)', () => {
-  test(
-    'Edit budget line on WI detail page → inline form opens with description + planned amount',
-    async ({ page, testPrefix }) => {
-      // Desktop / tablet only — functional test
-      const viewportWidth = page.viewportSize()?.width ?? 1440;
-      if (viewportWidth < 768) {
-        test.skip(true, 'WI inline edit test — desktop/tablet only');
-        return;
-      }
+  test('Edit budget line on WI detail page → inline form opens with description + planned amount', async ({
+    page,
+    testPrefix,
+  }) => {
+    // Desktop / tablet only — functional test
+    const viewportWidth = page.viewportSize()?.width ?? 1440;
+    if (viewportWidth < 768) {
+      test.skip(true, 'WI inline edit test — desktop/tablet only');
+      return;
+    }
 
-      const wiDetailPage = new WorkItemDetailPage(page);
-      let workItemId = '';
-      let budgetSourceId = '';
+    const wiDetailPage = new WorkItemDetailPage(page);
+    let workItemId = '';
+    let budgetSourceId = '';
 
-      try {
-        workItemId = await createWorkItemViaApi(page, {
-          title: `${testPrefix} WI Inline Edit`,
-        });
-        budgetSourceId = await createBudgetSourceViaApi(page, {
-          name: `${testPrefix} WI Inline Source`,
-          totalAmount: 50000,
-        });
+    try {
+      workItemId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} WI Inline Edit`,
+      });
+      budgetSourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} WI Inline Source`,
+        totalAmount: 50000,
+      });
 
-        // Create a budget line directly on the work item (not linked to any invoice)
-        const budgetResp = await page.request.post(`${API.workItems}/${workItemId}/budgets`, {
-          data: {
-            plannedAmount: 600,
-            budgetSourceId,
-            confidence: 'own_estimate',
-            description: `${testPrefix} WI Inline Desc`,
-          },
-        });
-        expect(
-          budgetResp.ok(),
-          `POST work item budget failed: ${budgetResp.status()}`,
-        ).toBeTruthy();
+      // Create a budget line directly on the work item (not linked to any invoice)
+      const budgetResp = await page.request.post(`${API.workItems}/${workItemId}/budgets`, {
+        data: {
+          plannedAmount: 600,
+          budgetSourceId,
+          confidence: 'own_estimate',
+          description: `${testPrefix} WI Inline Desc`,
+        },
+      });
+      expect(budgetResp.ok(), `POST work item budget failed: ${budgetResp.status()}`).toBeTruthy();
 
-        await wiDetailPage.goto(workItemId);
-        await expect(wiDetailPage.heading).toBeVisible();
+      await wiDetailPage.goto(workItemId);
+      await expect(wiDetailPage.heading).toBeVisible();
 
-        // Budget section visible and contains the line
-        await expect(wiDetailPage.budgetSection).toBeVisible();
-        await expect(wiDetailPage.budgetSection).toContainText('WI Inline Desc');
+      // Budget section visible and contains the line
+      await expect(wiDetailPage.budgetSection).toBeVisible();
+      await expect(wiDetailPage.budgetSection).toContainText('WI Inline Desc');
 
-        // Click the Edit button for this budget line
-        const editBudgetLineButton = wiDetailPage.budgetSection.getByRole('button', {
-          name: /Edit budget line/i,
-        });
-        await expect(editBudgetLineButton).toBeVisible();
-        await editBudgetLineButton.click();
+      // Click the Edit button for this budget line
+      const editBudgetLineButton = wiDetailPage.budgetSection.getByRole('button', {
+        name: /Edit budget line/i,
+      });
+      await expect(editBudgetLineButton).toBeVisible();
+      await editBudgetLineButton.click();
 
-        // Inline form opens with description and planned amount inputs
-        const descriptionInput = wiDetailPage.budgetSection.locator('#budget-description');
-        await expect(descriptionInput).toBeVisible();
-        await expect(descriptionInput).toHaveValue(/WI Inline Desc/);
+      // Inline form opens with description and planned amount inputs
+      const descriptionInput = wiDetailPage.budgetSection.locator('#budget-description');
+      await expect(descriptionInput).toBeVisible();
+      await expect(descriptionInput).toHaveValue(/WI Inline Desc/);
 
-        const plannedAmountInput = wiDetailPage.budgetSection.locator('#budget-planned-amount');
-        await expect(plannedAmountInput).toBeVisible();
-        await expect(plannedAmountInput).toHaveValue('600');
+      const plannedAmountInput = wiDetailPage.budgetSection.locator('#budget-planned-amount');
+      await expect(plannedAmountInput).toBeVisible();
+      await expect(plannedAmountInput).toHaveValue('600');
 
-        // Parent picker section IS present (onMoveBudgetLine is now wired by WorkItemDetailPage)
-        const parentPickerSection = wiDetailPage.budgetSection.locator(
-          'fieldset[class*="parentPickerSection"]',
-        );
-        await expect(parentPickerSection).toBeVisible();
-        // "Change" button visible in collapsed state — line has a current parent (this WI)
-        const changeButton = parentPickerSection.getByRole('button', { name: 'Change' });
-        await expect(changeButton).toBeVisible();
+      // Parent picker section IS present (onMoveBudgetLine is now wired by WorkItemDetailPage)
+      const parentPickerSection = wiDetailPage.budgetSection.locator(
+        'fieldset[class*="parentPickerSection"]',
+      );
+      await expect(parentPickerSection).toBeVisible();
+      // "Change" button visible in collapsed state — line has a current parent (this WI)
+      const changeButton = parentPickerSection.getByRole('button', { name: 'Change' });
+      await expect(changeButton).toBeVisible();
 
-        // Update description and save
-        await descriptionInput.clear();
-        await descriptionInput.fill(`${testPrefix} WI Inline Updated`);
+      // Update description and save
+      await descriptionInput.clear();
+      await descriptionInput.fill(`${testPrefix} WI Inline Updated`);
 
-        const savePromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes(`/work-items/${workItemId}/budgets`) &&
-            resp.request().method() === 'PATCH' &&
-            resp.status() === 200,
-        );
-        const saveButton = wiDetailPage.budgetSection
-          .locator('[class*="submitButton"]')
-          .filter({ visible: true });
-        await saveButton.click();
-        await savePromise;
+      const savePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes(`/work-items/${workItemId}/budgets`) &&
+          resp.request().method() === 'PATCH' &&
+          resp.status() === 200,
+      );
+      const saveButton = wiDetailPage.budgetSection
+        .locator('[class*="submitButton"]')
+        .filter({ visible: true });
+      await saveButton.click();
+      await savePromise;
 
-        // Budget line row now shows updated description
-        await expect(wiDetailPage.budgetSection).toContainText('WI Inline Updated');
-      } finally {
-        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
-        if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
-      }
-    },
-  );
+      // Budget line row now shows updated description
+      await expect(wiDetailPage.budgetSection).toContainText('WI Inline Updated');
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -136,9 +136,8 @@ export function BudgetLineForm({
       setIsPickerExpanded(false);
       setSelectedParentId(null);
     } catch (err) {
-      const msg = err instanceof Error && err.message
-        ? err.message
-        : t('budgetLineForm.parentPickerError');
+      const msg =
+        err instanceof Error && err.message ? err.message : t('budgetLineForm.parentPickerError');
       setMovePickerError(msg);
     } finally {
       setIsMoving(false);
@@ -501,7 +500,9 @@ export function BudgetLineForm({
 
             {/* Collapsed view: current parent + "Change" button */}
             <div className={styles.currentParentRow} hidden={isPickerExpanded}>
-              <span className={`${styles.entityTypePill} ${styles[`entityTypePill_${currentParentType ?? 'work_item'}`]}`}>
+              <span
+                className={`${styles.entityTypePill} ${styles[`entityTypePill_${currentParentType ?? 'work_item'}`]}`}
+              >
                 {currentParentType === 'work_item'
                   ? t('budgetLineForm.parentPickerWorkItemTab')
                   : t('budgetLineForm.parentPickerHouseholdItemTab')}
@@ -563,13 +564,15 @@ export function BudgetLineForm({
                 )}
               </div>
               {/* Cross-table move hint */}
-              {currentParentType && currentParentType !== 'unassigned' && selectedParentType !== currentParentType && (
-                <div className={styles.moveHint} role="status" aria-atomic="true">
-                  {selectedParentType === 'household_item'
-                    ? t('budgetLineForm.moveCrossTableHint')
-                    : t('budgetLineForm.moveCrossTableHintReverse')}
-                </div>
-              )}
+              {currentParentType &&
+                currentParentType !== 'unassigned' &&
+                selectedParentType !== currentParentType && (
+                  <div className={styles.moveHint} role="status" aria-atomic="true">
+                    {selectedParentType === 'household_item'
+                      ? t('budgetLineForm.moveCrossTableHint')
+                      : t('budgetLineForm.moveCrossTableHintReverse')}
+                  </div>
+                )}
               {movePickerError && <p className={styles.parentPickerError}>{movePickerError}</p>}
               <button
                 type="button"

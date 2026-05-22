@@ -135,7 +135,11 @@ jest.unstable_mockModule('../../components/budget/BudgetLineForm.js', () => ({
           />
         </div>
       )}
-      {props.error && <div data-testid="form-error" role="alert">{props.error}</div>}
+      {props.error && (
+        <div data-testid="form-error" role="alert">
+          {props.error}
+        </div>
+      )}
       {props.isSaving && <span data-testid="form-saving">Saving...</span>}
       <button type="submit" data-testid="form-submit" disabled={props.isSaving}>
         Submit

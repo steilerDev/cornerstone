@@ -16,7 +16,13 @@ let capturedWorkItemPickerOnChange: ((id: string) => void) | null = null;
 let capturedHouseholdItemPickerOnChange: ((id: string) => void) | null = null;
 
 jest.unstable_mockModule('../WorkItemPicker/WorkItemPicker.js', () => ({
-  WorkItemPicker: (props: { value: string; onChange: (id: string) => void; placeholder?: string; excludeIds?: string[]; showItemsOnFocus?: boolean }) => {
+  WorkItemPicker: (props: {
+    value: string;
+    onChange: (id: string) => void;
+    placeholder?: string;
+    excludeIds?: string[];
+    showItemsOnFocus?: boolean;
+  }) => {
     capturedWorkItemPickerOnChange = props.onChange;
     return React.createElement('div', {
       'data-testid': 'work-item-picker',
@@ -26,7 +32,13 @@ jest.unstable_mockModule('../WorkItemPicker/WorkItemPicker.js', () => ({
 }));
 
 jest.unstable_mockModule('../HouseholdItemPicker/HouseholdItemPicker.js', () => ({
-  HouseholdItemPicker: (props: { value: string; onChange: (id: string) => void; placeholder?: string; excludeIds?: string[]; showItemsOnFocus?: boolean }) => {
+  HouseholdItemPicker: (props: {
+    value: string;
+    onChange: (id: string) => void;
+    placeholder?: string;
+    excludeIds?: string[];
+    showItemsOnFocus?: boolean;
+  }) => {
     capturedHouseholdItemPickerOnChange = props.onChange;
     return React.createElement('div', {
       'data-testid': 'household-item-picker',
@@ -139,8 +151,8 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
     // Pickers should now be visible (Work Item tab active)
     expect(screen.getByTestId('work-item-picker')).toBeInTheDocument();
     // Should show both tabs
-    expect(screen.getAllByText('Work Item').some(el => el.tagName === 'BUTTON')).toBe(true);
-    expect(screen.getAllByText('Household Item').some(el => el.tagName === 'BUTTON')).toBe(true);
+    expect(screen.getAllByText('Work Item').some((el) => el.tagName === 'BUTTON')).toBe(true);
+    expect(screen.getAllByText('Household Item').some((el) => el.tagName === 'BUTTON')).toBe(true);
   });
 
   // Scenario 3: Switching to Household Item tab
@@ -160,7 +172,7 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
     expect(screen.getByTestId('work-item-picker')).toBeInTheDocument();
 
     // Click HI tab — find button with exact text "Household Item"
-    const hiTab = screen.getAllByText('Household Item').find(el => el.tagName === 'BUTTON');
+    const hiTab = screen.getAllByText('Household Item').find((el) => el.tagName === 'BUTTON');
     expect(hiTab).toBeDefined();
     fireEvent.click(hiTab!);
 
@@ -184,7 +196,7 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
     fireEvent.click(getChangeButton());
 
     // Switch to HI tab (different from current WI)
-    const hiTab = screen.getAllByText('Household Item').find(el => el.tagName === 'BUTTON');
+    const hiTab = screen.getAllByText('Household Item').find((el) => el.tagName === 'BUTTON');
     fireEvent.click(hiTab!);
 
     // moveHint should be visible
@@ -256,7 +268,7 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
     // Both have role=button name="Cancel" — click the one inside parent-picker-body
     const pickerBody = document.getElementById('parent-picker-body')!;
     const cancelInPicker = Array.from(pickerBody.querySelectorAll('button')).find(
-      btn => btn.textContent?.trim() === 'Cancel',
+      (btn) => btn.textContent?.trim() === 'Cancel',
     );
     expect(cancelInPicker).toBeDefined();
     fireEvent.click(cancelInPicker!);
