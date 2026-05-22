@@ -322,12 +322,154 @@
   cursor: not-allowed;
 }
 
+/* ── Current parent row (collapsed edit mode) ─────────────────────────── */
+.currentParentRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.currentParentLabel {
+  flex: 1;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+/* Entity type pill badge */
+.entityTypePill {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.entityTypePill_work_item {
+  background: var(--color-status-in-progress-bg);
+  color: var(--color-status-in-progress-text);
+}
+
+.entityTypePill_household_item {
+  background: var(--color-hi-status-scheduled-bg);
+  color: var(--color-hi-status-scheduled-text);
+}
+
+/* Ghost "Change" button */
+.ghostChangeButton {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.ghostChangeButton:hover:not(:disabled) {
+  color: var(--color-primary-hover);
+}
+
+.ghostChangeButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.ghostChangeButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Ghost "Cancel" button inside expanded picker */
+.ghostCancelButton {
+  width: 100%;
+  margin-top: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-4);
+  background: none;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.ghostCancelButton:hover:not(:disabled) {
+  background: var(--color-bg-tertiary);
+}
+
+.ghostCancelButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.ghostCancelButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Cross-table move hint banner */
+.moveHint {
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-warning-text-on-light);
+  margin-bottom: var(--spacing-2);
+}
+
+/* Itemized amount field separator */
+.itemizedAmountField {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--spacing-4);
+  margin-top: var(--spacing-2);
+}
+
+.requiredStar {
+  color: var(--color-danger);
+  margin-left: var(--spacing-1);
+}
+
+/* Touch targets on mobile/tablet */
+@media (max-width: 1024px) {
+  .ghostChangeButton {
+    min-height: 44px;
+    padding: var(--spacing-2) var(--spacing-3);
+  }
+
+  .parentPickerTab {
+    min-height: 44px;
+    flex: 1;
+  }
+}
+
+/* Mobile parent picker tabs: full width */
+@media (max-width: 639px) {
+  .parentPickerTabs {
+    display: flex;
+  }
+}
+
+/* Extend the existing prefers-reduced-motion block */
 @media (prefers-reduced-motion: reduce) {
   .input,
   .select,
   .submitButton,
   .cancelButton,
-  .parentPickerTab {
+  .parentPickerTab,
+  .ghostChangeButton,
+  .ghostCancelButton,
+  .moveHint {
     transition: none;
   }
 }

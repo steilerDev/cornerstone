@@ -895,7 +895,15 @@
     "parentPickerHouseholdItemTab": "Household Item",
     "parentPickerSeparator": "or",
     "parentPickerFieldsetLegend": "Assign to work item or household item",
-    "parentPickerError": "Failed to assign budget line. Please try again."
+    "parentPickerError": "Failed to assign budget line. Please try again.",
+    "linkedItemLegend": "Linked item",
+    "changeParentButton": "Change",
+    "cancelChangeParentButton": "Cancel",
+    "moveButton": "Move to selected item",
+    "movingButton": "Moving…",
+    "moveCrossTableHint": "Moving to a household item will transfer this budget line to the household item budget.",
+    "moveCrossTableHintReverse": "Moving to a work item will transfer this budget line to the work item budget.",
+    "itemizedAmountLabel": "Itemized Amount ({{currencySymbol}}) *"
   },
   "health": {
     "overBudget": "Over Budget",
