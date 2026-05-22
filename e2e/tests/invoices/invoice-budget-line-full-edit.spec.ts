@@ -10,7 +10,7 @@
  *   1. Edit non-parent fields (description + itemized amount) on a WI budget line
  *   2. Same-table WI → WI move from invoice detail page
  *   3. Cross-table WI → HI move with move-hint banner
- *   4. BUDGET_LINE_ALREADY_LINKED guard — error shown, modal stays open
+ *   4. Move to WI that already has a line on the same invoice → succeeds (guard removed in #1555)
  *   5. WI detail page inline edit — full form visible, parent picker present (wired)
  *   6. Mobile viewport — edit modal usable at 375px touch targets
  *
@@ -458,18 +458,25 @@ test.describe('Cross-table WI → HI move (Scenario 3)', { tag: '@responsive' },
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: BUDGET_LINE_ALREADY_LINKED guard
+// Scenario 4: Move to WI that already has a line on the same invoice → succeeds
+//
+// The BUDGET_LINE_ALREADY_LINKED guard was removed in issue #1555 because it was
+// over-restrictive: there is no business reason to block a work item from holding
+// multiple budget lines on the same invoice. This test is an inverted regression
+// guard: same setup as before (WI-A and WI-B each have a budget line linked to
+// the same invoice), but now asserts the move SUCCEEDS and WI-B ends up owning
+// BOTH lines (its original one plus the moved one from WI-A).
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('BUDGET_LINE_ALREADY_LINKED guard (Scenario 4)', () => {
-  test('Attempting to move budget line to WI that already has a line on this invoice → error in modal', async ({
+test.describe('Move budget line to WI that already has a line on this invoice (Scenario 4)', () => {
+  test('Move WI-A line to WI-B (WI-B already has a line on this invoice) → both lines now under WI-B', async ({
     page,
     testPrefix,
   }) => {
-    // Desktop only — error behaviour test
+    // Desktop only — functional move test
     const viewportWidth = page.viewportSize()?.width ?? 1440;
     if (viewportWidth < 1024) {
-      test.skip(true, 'Error guard test — desktop only');
+      test.skip(true, 'Multi-line WI move test — desktop only');
       return;
     }
 
@@ -481,23 +488,23 @@ test.describe('BUDGET_LINE_ALREADY_LINKED guard (Scenario 4)', () => {
     let budgetSourceId = '';
 
     try {
-      vendorId = await createVendorViaApi(page, `${testPrefix} AlreadyLinked Vendor`);
+      vendorId = await createVendorViaApi(page, `${testPrefix} MultiLine Vendor`);
       invoiceId = await createInvoiceViaApi(page, vendorId, {
         amount: 3000,
         date: '2026-06-01',
       });
       workItemAId = await createWorkItemViaApi(page, {
-        title: `${testPrefix} AlreadyLinked WI-A`,
+        title: `${testPrefix} MultiLine WI-A`,
       });
       workItemBId = await createWorkItemViaApi(page, {
-        title: `${testPrefix} AlreadyLinked WI-B`,
+        title: `${testPrefix} MultiLine WI-B`,
       });
       budgetSourceId = await createBudgetSourceViaApi(page, {
-        name: `${testPrefix} AlreadyLinked Source`,
+        name: `${testPrefix} MultiLine Source`,
         totalAmount: 50000,
       });
 
-      // Link WI-A budget line to invoice
+      // WI-A: one budget line linked to the invoice (itemized 500)
       await createAndLinkWIBudgetLine(page, {
         workItemId: workItemAId,
         budgetSourceId,
@@ -507,7 +514,7 @@ test.describe('BUDGET_LINE_ALREADY_LINKED guard (Scenario 4)', () => {
         description: `${testPrefix} Line A`,
       });
 
-      // Link WI-B budget line to the SAME invoice (creating the conflict)
+      // WI-B: a DIFFERENT budget line also linked to the SAME invoice (itemized 400)
       await createAndLinkWIBudgetLine(page, {
         workItemId: workItemBId,
         budgetSourceId,
@@ -520,12 +527,11 @@ test.describe('BUDGET_LINE_ALREADY_LINKED guard (Scenario 4)', () => {
       await detailPage.goto(invoiceId);
       await expect(detailPage.heading).toBeVisible();
 
-      // Both lines should be visible
+      // Both lines visible on the invoice
       await expect(detailPage.budgetLinesSection).toContainText('Line A');
       await expect(detailPage.budgetLinesSection).toContainText('Line B');
 
-      // Open Edit modal for WI-A's line (the one with "Line A" description)
-      // Use the description-scoped menu trigger
+      // Open Edit modal for WI-A's line
       await detailPage.openBudgetLineMenu('Line A');
       await detailPage.clickBudgetLineMenuItem('Edit');
 
@@ -537,45 +543,45 @@ test.describe('BUDGET_LINE_ALREADY_LINKED guard (Scenario 4)', () => {
       const changeButton = parentPickerSection.getByRole('button', { name: 'Change' });
       await changeButton.click();
 
-      // Work Item tab already active — search for WI-B (which already has a line on this invoice)
+      // Work Item tab already active — search for WI-B
       const wiPickerInput = parentPickerSection.getByRole('textbox');
-      await wiPickerInput.fill(`${testPrefix} AlreadyLinked WI-B`);
+      await wiPickerInput.fill(`${testPrefix} MultiLine WI-B`);
 
       const option = page.getByRole('option', {
-        name: new RegExp(`AlreadyLinked WI-B`, 'i'),
+        name: new RegExp(`MultiLine WI-B`, 'i'),
       });
       await expect(option).toBeVisible();
       await option.click();
 
-      // Click "Move to selected item" — expect 409 from the backend guard
+      // Click "Move to selected item" — guard is gone, expect 200
       const moveButton = parentPickerSection.getByRole('button', {
         name: /Move to selected item|Moving/i,
       });
 
-      const patchErrorPromise = page.waitForResponse(
+      const patchPromise = page.waitForResponse(
         (resp) =>
           resp.url().includes('/budget-lines/') &&
           resp.request().method() === 'PATCH' &&
-          (resp.status() === 409 || resp.status() === 400),
+          resp.status() === 200,
       );
       await moveButton.click();
-      await patchErrorPromise;
+      await patchPromise;
 
-      // Error banner appears inside the modal (from movePickerError state)
-      const errorParagraph = parentPickerSection.locator('[class*="parentPickerError"]');
-      await expect(errorParagraph).toBeVisible();
+      // Modal closes — the move succeeded
+      await expect(editModal).not.toBeVisible();
 
-      // Modal stays open — user can correct their choice
-      await expect(editModal).toBeVisible();
-
-      // Both budget lines remain unchanged
+      // Both lines are still visible on the invoice, now both linked via WI-B
       await expect(detailPage.budgetLinesSection).toContainText('Line A');
       await expect(detailPage.budgetLinesSection).toContainText('Line B');
 
-      // Cancel to close modal cleanly
-      const cancelButton = editModal.getByRole('button', { name: 'Cancel' });
-      await cancelButton.click();
-      await expect(editModal).not.toBeVisible();
+      // The moved line now shows WI-B as its linked item
+      // (Line A row should reference WI-B title, not WI-A)
+      await expect(detailPage.budgetLinesSection).toContainText('MultiLine WI-B');
+      await expect(detailPage.budgetLinesSection).not.toContainText('MultiLine WI-A');
+
+      // Remaining amount = 3000 − 500 − 400 = 2100 (unchanged; amounts weren't modified)
+      const remainingCell = detailPage.budgetLinesSection.locator('[aria-live="polite"]');
+      await expect(remainingCell).toContainText('2100');
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
