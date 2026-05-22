@@ -14,7 +14,7 @@ import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 let capturedWorkItemPickerOnChange: ((id: string) => void) | null = null;
 let capturedHouseholdItemPickerOnChange: ((id: string) => void) | null = null;
 
-jest.mock('./../../components/WorkItemPicker/WorkItemPicker.js', () => ({
+jest.mock('../WorkItemPicker/WorkItemPicker.js', () => ({
   WorkItemPicker: (props: { value: string; onChange: (id: string) => void; placeholder?: string; excludeIds?: string[]; showItemsOnFocus?: boolean }) => {
     capturedWorkItemPickerOnChange = props.onChange;
     return React.createElement('div', {
@@ -24,7 +24,7 @@ jest.mock('./../../components/WorkItemPicker/WorkItemPicker.js', () => ({
   },
 }));
 
-jest.mock('./../../components/HouseholdItemPicker/HouseholdItemPicker.js', () => ({
+jest.mock('../HouseholdItemPicker/HouseholdItemPicker.js', () => ({
   HouseholdItemPicker: (props: { value: string; onChange: (id: string) => void; placeholder?: string; excludeIds?: string[]; showItemsOnFocus?: boolean }) => {
     capturedHouseholdItemPickerOnChange = props.onChange;
     return React.createElement('div', {
