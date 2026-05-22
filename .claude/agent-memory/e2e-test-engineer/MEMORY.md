@@ -16,19 +16,20 @@
 - Inline input testid: `annotator-inline-input`. Tool buttons: `tool-{name}`. Action bar: `annotator-save`, `annotator-cancel`, `annotator-undo`, `annotator-redo`.
 - **MOBILE WEBKIT TOUCH / REACT STATE BATCHING** (fixed 2026-05-19): `page.mouse.*` does not fire `onPointerDown/Move/Up` on SVG elements in WebKit/hasTouch viewports. Use `svgOverlay.evaluate(el => el.dispatchEvent(new PointerEvent(...)))` instead. CRITICAL: dispatching all events in ONE synchronous evaluate() causes React to batch all state updates — `handlePointerMove` sees stale `state.draftShape=null` and bails. **Must split into multiple evaluate() calls with `page.evaluate(() => new Promise(r => requestAnimationFrame(r)))` yield between pointerdown and pointermove/pointerup.** FreehandTool (uses module-level capturedPoints): 2-phase OK. MeasurementTool (reads state.draftShape.x2/y2 in onPointerUp): needs 3-phase (pointerdown + rAF + pointermove-batch + rAF + pointerup). See PhotoViewerPage.ts `drawFreehandTouch` and `drawLineTouch` helpers.
 
-## Invoice Budget Line Full Edit + Parent Move E2E (Story #1553, 2026-05-22) — `e2e/tests/invoices/invoice-budget-line-full-edit.spec.ts`
+## Invoice Budget Line Full Edit + Parent Move E2E (Story #1553, 2026-05-22) — `e2e/tests/invoices/invoice-budget-line-full-edit.spec.ts` + `invoice-budget-line-edit-remove.spec.ts`
 
 - 6 scenarios; @smoke on Scenarios 1 (edit fields) and 2 (WI→WI move); @responsive on 1 and 2.
 - Edit modal: `page.getByRole('dialog', { name: 'Edit Budget Line' })` (uses accessible name, NOT aria-labelledby filter — EditBudgetLineModal passes `title=` to Modal component which sets it as accessible name).
 - Description input: `#budget-description` (inside edit modal). Itemized amount: `#budget-itemized-amount`.
+- **OLD modal used `#budget-line-amount` — replaced by unified BudgetLineForm using `#budget-itemized-amount`** (commit 5f5cb79b).
 - Parent picker fieldset: `editModal.locator('fieldset[class*="parentPickerSection"]')` — present for assigned (non-unassigned) lines.
 - "Change" ghost button: `parentPickerSection.getByRole('button', { name: 'Change' })` — collapses/expands picker.
-- Picker combobox (WI or HI): `parentPickerSection.getByRole('combobox')` — matches whichever picker is active.
+- **Picker search input (WI or HI): `parentPickerSection.getByRole('textbox')` — NOT `getByRole('combobox')`**. SearchPicker uses plain `<input type="text">` with no ARIA combobox role.
 - "Move to selected item" button: `parentPickerSection.getByRole('button', { name: /Move to selected item|Moving/i })`.
 - Cross-table move hint: `parentPickerSection.locator('[role="status"]').filter({ hasText: /transfer/i })`.
 - Error on failed move: `parentPickerSection.locator('[class*="parentPickerError"]')` — paragraph rendered in picker.
 - BUDGET_LINE_ALREADY_LINKED guard: server returns 409. Error surfaced via `movePickerError` state → `parentPickerError` CSS class paragraph (NOT role="alert"). Modal stays open.
-- Save button (full edit submit): `editModal.getByRole('button', { name: /^Save|Saving/i })` — idle text is "Save" (NOT "Save Changes"); regex must anchor with `^Save` to match both "Save" and "Saving…".
+- **Save button (full edit submit): `editModal.getByRole('button', { name: /Save Changes|Saving/i })` — button text is "Save Changes" (budgetLineForm.submitSave i18n key), NOT bare "Save"**.
 - `expect.stringContaining()` NOT valid in `toHaveValue()` — use regex `/pattern/` instead.
 - **WI/HI detail page DOES wire `onMoveBudgetLine`** (commit e924b70f). Scenario 5 asserts parent picker IS visible with "Change" button present. Old assertion `not.toBeVisible()` was fixed to `toBeVisible()` in commit 5ab0cdab.
 - WI inline edit Save button: `wiDetailPage.budgetSection.locator('[class*="submitButton"]').filter({ visible: true })`.
