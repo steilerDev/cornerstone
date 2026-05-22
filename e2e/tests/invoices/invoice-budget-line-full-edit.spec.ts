@@ -11,7 +11,7 @@
  *   2. Same-table WI → WI move from invoice detail page
  *   3. Cross-table WI → HI move with move-hint banner
  *   4. BUDGET_LINE_ALREADY_LINKED guard — error shown, modal stays open
- *   5. WI detail page inline edit — full form visible, parent picker absent (not wired)
+ *   5. WI detail page inline edit — full form visible, parent picker present (wired)
  *   6. Mobile viewport — edit modal usable at 375px touch targets
  *
  * API used:
@@ -199,7 +199,7 @@ test.describe('Full edit — non-parent fields (Scenario 1)', { tag: '@responsiv
             resp.request().method() === 'PATCH' &&
             resp.status() === 200,
         );
-        const saveButton = editModal.getByRole('button', { name: /Save Changes|Saving/i });
+        const saveButton = editModal.getByRole('button', { name: /^Save|Saving/i });
         await saveButton.click();
         await patchPromise;
 
@@ -595,14 +595,13 @@ test.describe('BUDGET_LINE_ALREADY_LINKED guard (Scenario 4)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 5: WI detail page inline edit — full BudgetLineForm visible
 //
-// NOTE: WorkItemDetailPage does not currently wire onMoveBudgetLine (the prop
-// was added to BudgetSection but not yet passed by WorkItemDetailPage or
-// HouseholdItemDetailPage). Therefore the "Change" / parent-picker affordance is
-// NOT present when editing a budget line on the WI detail page. This test
-// verifies that:
+// NOTE: WorkItemDetailPage now wires onMoveBudgetLine (commit e924b70f), so the
+// parent picker IS present when editing a budget line on the WI/HI detail page.
+// This test verifies that:
 //   a) The Edit button opens the inline BudgetLineForm (parity with invoice page)
 //   b) The description and planned amount inputs are visible and editable
-//   c) The parent picker section is absent (onMoveBudgetLine not wired)
+//   c) The parent picker section IS visible (onMoveBudgetLine is now wired)
+//   d) The "Change" button is visible in collapsed state (line has a current parent)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('WI detail page inline edit — form visible (Scenario 5)', () => {
@@ -666,11 +665,14 @@ test.describe('WI detail page inline edit — form visible (Scenario 5)', () => 
         await expect(plannedAmountInput).toBeVisible();
         await expect(plannedAmountInput).toHaveValue('600');
 
-        // Parent picker section is NOT present (onMoveBudgetLine not passed by WorkItemDetailPage)
+        // Parent picker section IS present (onMoveBudgetLine is now wired by WorkItemDetailPage)
         const parentPickerSection = wiDetailPage.budgetSection.locator(
           'fieldset[class*="parentPickerSection"]',
         );
-        await expect(parentPickerSection).not.toBeVisible();
+        await expect(parentPickerSection).toBeVisible();
+        // "Change" button visible in collapsed state — line has a current parent (this WI)
+        const changeButton = parentPickerSection.getByRole('button', { name: 'Change' });
+        await expect(changeButton).toBeVisible();
 
         // Update description and save
         await descriptionInput.clear();
@@ -776,7 +778,7 @@ test.describe('Mobile viewport — full edit modal (Scenario 6)', () => {
       await itemizedInput.fill('300');
 
       // Scroll Save button into view and click
-      const saveButton = editModal.getByRole('button', { name: /Save Changes|Saving/i });
+      const saveButton = editModal.getByRole('button', { name: /^Save|Saving/i });
       await saveButton.scrollIntoViewIfNeeded();
 
       const patchPromise = page.waitForResponse(
