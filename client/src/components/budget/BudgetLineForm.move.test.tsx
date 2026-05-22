@@ -8,13 +8,14 @@ import type { BudgetLineFormProps } from './BudgetLineForm.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 
 // ─── Mocks: WorkItemPicker and HouseholdItemPicker ────────────────────────────
-// Use jest.mock (CJS synchronous form) so mocks intercept in both local and CI environments.
-// Per MEMORY.md: jest.mock (CJS) works for child component mocks where jest.unstable_mockModule fails.
+// Use jest.unstable_mockModule (ESM form) so mocks intercept in this project's
+// pure-ESM Jest setup (--experimental-vm-modules). jest.mock (CJS) does NOT hoist
+// or intercept ESM imports and will cause tests to render the real SearchPicker.
 
 let capturedWorkItemPickerOnChange: ((id: string) => void) | null = null;
 let capturedHouseholdItemPickerOnChange: ((id: string) => void) | null = null;
 
-jest.mock('../WorkItemPicker/WorkItemPicker.js', () => ({
+jest.unstable_mockModule('../WorkItemPicker/WorkItemPicker.js', () => ({
   WorkItemPicker: (props: { value: string; onChange: (id: string) => void; placeholder?: string; excludeIds?: string[]; showItemsOnFocus?: boolean }) => {
     capturedWorkItemPickerOnChange = props.onChange;
     return React.createElement('div', {
@@ -24,7 +25,7 @@ jest.mock('../WorkItemPicker/WorkItemPicker.js', () => ({
   },
 }));
 
-jest.mock('../HouseholdItemPicker/HouseholdItemPicker.js', () => ({
+jest.unstable_mockModule('../HouseholdItemPicker/HouseholdItemPicker.js', () => ({
   HouseholdItemPicker: (props: { value: string; onChange: (id: string) => void; placeholder?: string; excludeIds?: string[]; showItemsOnFocus?: boolean }) => {
     capturedHouseholdItemPickerOnChange = props.onChange;
     return React.createElement('div', {

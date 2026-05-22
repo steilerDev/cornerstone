@@ -15,7 +15,7 @@
 
 **Button selector collision with "Save Changes"**: `getByRole('button', { name: /Change/i })` matches both the "Change" parent button AND the "Save Changes" submit button. Use exact regex `/^Change$/i` to target only the change button. Similarly for any button where translation produces compound words.
 
-**jest.mock (CJS) for child component mocks in BudgetLineForm-class tests**: `jest.unstable_mockModule` doesn't intercept WorkItemPicker/HouseholdItemPicker locally. Use `jest.mock('./../../components/WorkItemPicker/WorkItemPicker.js', () => ({ ... }))` (CJS form, synchronous, top-level). Capture `onChange` in module-scope variable reassigned each render call. Trigger programmatically with `act(() => { capturedPicker!('id'); })`.
+**jest.unstable_mockModule for child component mocks (ESM — always use this)**: `jest.mock` (CJS) does NOT hoist or intercept ESM imports in this project's `--experimental-vm-modules` setup. The test renders the REAL component. Always use `jest.unstable_mockModule('../WorkItemPicker/WorkItemPicker.js', () => ({ ... }))` at top-level (before `beforeEach`), and do the `await import('./BudgetLineForm.js')` inside `beforeEach`. Capture `onChange` in module-scope variable reassigned each render call. Trigger programmatically with `act(() => { capturedPicker!('id'); })`. Canonical reference: `InvoiceBudgetLinesSection.test.tsx` lines 153-172.
 
 **Cancel button disambiguation in expanded picker**: When the expanded picker section AND the form both have a "Cancel" button, use `document.getElementById('parent-picker-body')` to scope querySelector: `Array.from(pickerBody.querySelectorAll('button')).find(btn => btn.textContent?.trim() === 'Cancel')`.
 
