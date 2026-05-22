@@ -148,6 +148,7 @@ export interface CreateBudgetLineRequest {
  * Request body for updating a budget line.
  * All fields are optional; at least one must be provided.
  * Used for both work item and household item budgets.
+ * Supports optional cross-table parent move via newWorkItemId or newHouseholdItemId.
  */
 export interface UpdateBudgetLineRequest {
   description?: string | null;
@@ -160,6 +161,9 @@ export interface UpdateBudgetLineRequest {
   unit?: string | null;
   unitPrice?: number | null;
   includesVat?: boolean;
+  // Move fields — provide to change parent; mutually exclusive
+  newWorkItemId?: string | null;
+  newHouseholdItemId?: string | null;
 }
 
 /**

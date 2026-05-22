@@ -142,6 +142,7 @@ export type {
   InvoiceBudgetLineSummary,
   CreateInvoiceBudgetLineRequest,
   UpdateInvoiceBudgetLineRequest,
+  EditAndMoveBudgetLineRequest,
   InvoiceBudgetLineResponse,
   InvoiceBudgetLineListResponse,
   InvoiceBudgetLineDetailResponse,
