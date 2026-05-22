@@ -17,10 +17,7 @@ import type {
   UpdateWorkItemBudgetRequest,
   InvoiceStatus,
 } from '@cornerstone/shared';
-import {
-  NotFoundError,
-  ValidationError,
-} from '../errors/AppError.js';
+import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
