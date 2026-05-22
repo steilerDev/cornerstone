@@ -70,9 +70,8 @@ const makeLink = (id: string, paperlessDocumentId = 42) => ({
 });
 
 beforeEach(async () => {
-  ({ useDocumentLinks, useAllLinkedDocumentIds } = (await import(
-    './useDocumentLinks.js'
-  )) as typeof UseDocumentLinksModule);
+  ({ useDocumentLinks, useAllLinkedDocumentIds } =
+    (await import('./useDocumentLinks.js')) as typeof UseDocumentLinksModule);
   mockListDocumentLinks.mockReset();
   mockCreateDocumentLink.mockReset();
   mockDeleteDocumentLink.mockReset();
@@ -458,9 +457,7 @@ describe('useAllLinkedDocumentIds', () => {
   });
 
   it('handles NetworkError — sets error to network error message', async () => {
-    mockListAllLinkedDocumentIds.mockRejectedValueOnce(
-      new MockNetworkError('Connection refused'),
-    );
+    mockListAllLinkedDocumentIds.mockRejectedValueOnce(new MockNetworkError('Connection refused'));
 
     const { result } = renderHook(() => useAllLinkedDocumentIds());
 

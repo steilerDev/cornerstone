@@ -474,10 +474,7 @@ test.describe('Document Linking — System-wide Hide (Scenario 7)', { tag: '@res
   // Verifies that the toggle is visible (system IDs > 0) but unchecked by
   // default, so all documents are shown regardless of system-wide link state.
   // ---------------------------------------------------------------------------
-  test('Toggle is unchecked by default and shows all documents', async ({
-    page,
-    testPrefix,
-  }) => {
+  test('Toggle is unchecked by default and shows all documents', async ({ page, testPrefix }) => {
     let createdId: string | null = null;
     try {
       createdId = await createWorkItemViaApi(page, {

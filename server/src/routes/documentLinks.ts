@@ -123,16 +123,13 @@ export default async function documentLinksRoutes(fastify: FastifyInstance) {
    *
    * Auth required: Yes
    */
-  fastify.get<{ Reply: AllLinkedDocumentIdsResponse }>(
-    '/linked-ids',
-    async (request, reply) => {
-      if (!request.user) {
-        throw new UnauthorizedError();
-      }
-      const ids = documentLinkService.getAllLinkedDocumentIds(fastify.db);
-      return reply.status(200).send({ paperlessDocumentIds: ids });
-    },
-  );
+  fastify.get<{ Reply: AllLinkedDocumentIdsResponse }>('/linked-ids', async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError();
+    }
+    const ids = documentLinkService.getAllLinkedDocumentIds(fastify.db);
+    return reply.status(200).send({ paperlessDocumentIds: ids });
+  });
 
   /**
    * DELETE /api/document-links/:id
