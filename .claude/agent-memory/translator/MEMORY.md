@@ -52,6 +52,7 @@ Action labels in German follow the pattern: `{Noun} {Verb}` with capitalised fir
 - `de/budget.json` — `invoiceDetail.budgetLines` block added 2026-05-10 (Issue #1401): `createFormLegend` + `autoLinkedSuccess`
 - `de/budget.json` — Issue #1545 (2026-05-21): `invoiceDetail.budgetLines.unassigned`, `unassignedAriaLabel`, `assignButton`, `assigningButton`, `assignAriaLabel`, `assignedSuccess`, `assignParentRequired` added; `budgetLineForm.parentPickerLabel`, `parentPickerWorkItemTab`, `parentPickerHouseholdItemTab`, `parentPickerSeparator`, `parentPickerFieldsetLegend`, `parentPickerError` added
 - `de/errors.json` — `BUDGET_LINE_ALREADY_ASSIGNED` had glossary violations ("Arbeitselement" → "Arbeitspaket", "Haushaltsgegenstand" → "Haushaltsartikel") — corrected 2026-05-21 (Issue #1545)
+- `de/budget.json` — `budgetLineForm` parent-move keys added 2026-05-22 (Issue #1553): `linkedItemLegend`, `changeParentButton`, `cancelChangeParentButton`, `moveButton`, `movingButton`, `moveCrossTableHint`, `moveCrossTableHintReverse`, `itemizedAmountLabel` — see [parent-move-patterns.md](parent-move-patterns.md)
 - Always check key parity when picking up a new translator spec
 
 ## Backup/Restore Terminology (2026-03-22)

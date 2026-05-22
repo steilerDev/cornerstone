@@ -16,6 +16,24 @@
 - Inline input testid: `annotator-inline-input`. Tool buttons: `tool-{name}`. Action bar: `annotator-save`, `annotator-cancel`, `annotator-undo`, `annotator-redo`.
 - **MOBILE WEBKIT TOUCH / REACT STATE BATCHING** (fixed 2026-05-19): `page.mouse.*` does not fire `onPointerDown/Move/Up` on SVG elements in WebKit/hasTouch viewports. Use `svgOverlay.evaluate(el => el.dispatchEvent(new PointerEvent(...)))` instead. CRITICAL: dispatching all events in ONE synchronous evaluate() causes React to batch all state updates — `handlePointerMove` sees stale `state.draftShape=null` and bails. **Must split into multiple evaluate() calls with `page.evaluate(() => new Promise(r => requestAnimationFrame(r)))` yield between pointerdown and pointermove/pointerup.** FreehandTool (uses module-level capturedPoints): 2-phase OK. MeasurementTool (reads state.draftShape.x2/y2 in onPointerUp): needs 3-phase (pointerdown + rAF + pointermove-batch + rAF + pointerup). See PhotoViewerPage.ts `drawFreehandTouch` and `drawLineTouch` helpers.
 
+## Invoice Budget Line Full Edit + Parent Move E2E (Story #1553, 2026-05-22) — `e2e/tests/invoices/invoice-budget-line-full-edit.spec.ts`
+
+- 6 scenarios; @smoke on Scenarios 1 (edit fields) and 2 (WI→WI move); @responsive on 1 and 2.
+- Edit modal: `page.getByRole('dialog', { name: 'Edit Budget Line' })` (uses accessible name, NOT aria-labelledby filter — EditBudgetLineModal passes `title=` to Modal component which sets it as accessible name).
+- Description input: `#budget-description` (inside edit modal). Itemized amount: `#budget-itemized-amount`.
+- Parent picker fieldset: `editModal.locator('fieldset[class*="parentPickerSection"]')` — present for assigned (non-unassigned) lines.
+- "Change" ghost button: `parentPickerSection.getByRole('button', { name: 'Change' })` — collapses/expands picker.
+- Picker combobox (WI or HI): `parentPickerSection.getByRole('combobox')` — matches whichever picker is active.
+- "Move to selected item" button: `parentPickerSection.getByRole('button', { name: /Move to selected item|Moving/i })`.
+- Cross-table move hint: `parentPickerSection.locator('[role="status"]').filter({ hasText: /transfer/i })`.
+- Error on failed move: `parentPickerSection.locator('[class*="parentPickerError"]')` — paragraph rendered in picker.
+- BUDGET_LINE_ALREADY_LINKED guard: server returns 409. Error surfaced via `movePickerError` state → `parentPickerError` CSS class paragraph (NOT role="alert"). Modal stays open.
+- Save button (full edit submit): `editModal.getByRole('button', { name: /Save Changes|Saving/i })`.
+- `expect.stringContaining()` NOT valid in `toHaveValue()` — use regex `/pattern/` instead.
+- WI detail page does NOT pass `onMoveBudgetLine` to BudgetSection — parent picker absent there. Scenario 5 verifies inline BudgetLineForm IS visible but asserts parent picker NOT visible.
+- WI inline edit Save button: `wiDetailPage.budgetSection.locator('[class*="submitButton"]').filter({ visible: true })`.
+- WI inline save response: `PATCH /api/work-items/:workItemId/budgets/:budgetId` (NOT /budget-lines/).
+
 ## Auto-Itemize E2E (Story #1547, 2026-05-22) — `e2e/tests/budget/auto-itemize.spec.ts`
 
 - 9 scenarios; @smoke on Scenarios 1 (visibility) and 2 (happy path AC19); @responsive on 1 and 2.
