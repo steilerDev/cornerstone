@@ -300,16 +300,19 @@ describe('PATCH /api/invoices/:invoiceId/budget-lines/:id — editAndMove', () =
     expect(response.statusCode).toBe(400);
   });
 
-  // ─── Scenario 6: WI already linked to same invoice → 409 ────────────────────
+  // ─── Scenario 6: move to WI that already has another IBL on same invoice → 200 ──
 
-  it('PATCH with newWorkItemId already linked → 409 BUDGET_LINE_ALREADY_LINKED', async () => {
+  // Issue #1555: the BUDGET_LINE_ALREADY_LINKED guard was overly restrictive and
+  // has been removed. Moving to a target work item that already has another budget
+  // line on the same invoice is valid (e.g. two itemized lines for "Kitchen" WI).
+  it('PATCH with newWorkItemId that already has another IBL on same invoice → 200', async () => {
     const { cookie } = await createUserWithSession();
     const vendorId = createVendor();
     const invoiceId = createInvoice(vendorId, 2000);
     const wi1 = createWorkItem('Painting');
     const wi2 = createWorkItem('Plumbing');
     const { iblId } = createIblOnWorkItem(invoiceId, wi1, 300);
-    // wi2 already linked to the same invoice
+    // wi2 already has another IBL on the same invoice — move must succeed
     createIblOnWorkItem(invoiceId, wi2, 300);
 
     const response = await app.inject({
@@ -319,9 +322,10 @@ describe('PATCH /api/invoices/:invoiceId/budget-lines/:id — editAndMove', () =
       payload: { newWorkItemId: wi2 },
     });
 
-    expect(response.statusCode).toBe(409);
-    const body = response.json<ApiErrorResponse>();
-    expect(body.error.code).toBe('BUDGET_LINE_ALREADY_LINKED');
+    expect(response.statusCode).toBe(200);
+    const body = response.json<InvoiceBudgetLineCreateResponse>();
+    expect(body.budgetLine.parentItemId).toBe(wi2);
+    expect(body.budgetLine.parentItemType).toBe('work_item');
   });
 
   // ─── Scenario 7: Both move fields provided → 400 ────────────────────────────

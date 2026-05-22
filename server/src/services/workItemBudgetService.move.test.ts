@@ -6,11 +6,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import { updateWorkItemBudget } from './workItemBudgetService.js';
-import {
-  NotFoundError,
-  ValidationError,
-  BudgetLineAlreadyLinkedError,
-} from '../errors/AppError.js';
+import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
 /**
  * Tests for updateWorkItemBudget() move functionality (same-table WI→WI moves
@@ -250,11 +246,15 @@ describe('updateWorkItemBudget() — move scenarios', () => {
     }).toThrow(NotFoundError);
   });
 
-  it('same-table move: throws BudgetLineAlreadyLinkedError when target WI already has linked IBL', () => {
+  // Issue #1555: the BUDGET_LINE_ALREADY_LINKED guard was overly restrictive and
+  // has been removed from the same-table move path. The unique constraint is per-WIB-row,
+  // not per-(invoice, work-item) pair. Moving a WIB to a target that already has a
+  // different WIB linked to the same invoice is allowed.
+  it('same-table move: succeeds even when target WI already has a linked IBL on the same invoice', () => {
     const wi1 = createWorkItem('Painting');
     const wi2 = createWorkItem('Plumbing');
     const wibId = createWorkItemBudget(wi1);
-    // Link wi2 to an invoice
+    // Link wi2 to an invoice via a different WIB — move must still succeed
     const wib2Id = createWorkItemBudget(wi2);
     const vendorId = createVendor();
     const invoiceId = createInvoice(vendorId);
@@ -272,9 +272,18 @@ describe('updateWorkItemBudget() — move scenarios', () => {
       })
       .run();
 
-    expect(() => {
-      updateWorkItemBudget(db, wi1, wibId, { newWorkItemId: wi2 });
-    }).toThrow(BudgetLineAlreadyLinkedError);
+    const result = updateWorkItemBudget(db, wi1, wibId, { newWorkItemId: wi2 });
+
+    expect(result.id).toBe(wibId);
+    expect(result.workItemId).toBe(wi2);
+
+    // Verify DB: WIB now belongs to wi2
+    const updatedWib = db
+      .select()
+      .from(schema.workItemBudgets)
+      .where(eq(schema.workItemBudgets.id, wibId))
+      .get()!;
+    expect(updatedWib.workItemId).toBe(wi2);
   });
 
   // ─── Cross-table rejection ───────────────────────────────────────────────────

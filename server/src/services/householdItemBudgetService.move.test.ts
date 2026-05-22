@@ -6,11 +6,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import { updateHouseholdItemBudget } from './householdItemBudgetService.js';
-import {
-  NotFoundError,
-  ValidationError,
-  BudgetLineAlreadyLinkedError,
-} from '../errors/AppError.js';
+import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
 /**
  * Tests for updateHouseholdItemBudget() move functionality (same-table HI→HI moves
@@ -250,11 +246,15 @@ describe('updateHouseholdItemBudget() — move scenarios', () => {
     }).toThrow(NotFoundError);
   });
 
-  it('same-table move: throws BudgetLineAlreadyLinkedError when target HI already has linked IBL', () => {
+  // Issue #1555: the BUDGET_LINE_ALREADY_LINKED guard was overly restrictive and
+  // has been removed from the same-table move path. The unique constraint is per-HIB-row,
+  // not per-(invoice, household-item) pair. Moving a HIB to a target that already has a
+  // different HIB linked to the same invoice is allowed.
+  it('same-table move: succeeds even when target HI already has a linked IBL on the same invoice', () => {
     const hi1 = createHouseholdItem('Sofa');
     const hi2 = createHouseholdItem('Table');
     const hibId = createHouseholdItemBudget(hi1);
-    // Link hi2 to an invoice
+    // Link hi2 to an invoice via a different HIB — move must still succeed
     const hib2Id = createHouseholdItemBudget(hi2);
     const vendorId = createVendor();
     const invoiceId = createInvoice(vendorId);
@@ -272,9 +272,18 @@ describe('updateHouseholdItemBudget() — move scenarios', () => {
       })
       .run();
 
-    expect(() => {
-      updateHouseholdItemBudget(db, hi1, hibId, { newHouseholdItemId: hi2 });
-    }).toThrow(BudgetLineAlreadyLinkedError);
+    const result = updateHouseholdItemBudget(db, hi1, hibId, { newHouseholdItemId: hi2 });
+
+    expect(result.id).toBe(hibId);
+    expect(result.householdItemId).toBe(hi2);
+
+    // Verify DB: HIB now belongs to hi2
+    const updatedHib = db
+      .select()
+      .from(schema.householdItemBudgets)
+      .where(eq(schema.householdItemBudgets.id, hibId))
+      .get()!;
+    expect(updatedHib.householdItemId).toBe(hi2);
   });
 
   // ─── Cross-table rejection ───────────────────────────────────────────────────

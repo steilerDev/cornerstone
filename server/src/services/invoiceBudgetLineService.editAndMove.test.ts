@@ -9,7 +9,6 @@ import * as invoiceBudgetLineService from './invoiceBudgetLineService.js';
 import {
   NotFoundError,
   ValidationError,
-  BudgetLineAlreadyLinkedError,
   ItemizedSumExceedsInvoiceError,
 } from '../errors/AppError.js';
 
@@ -451,22 +450,38 @@ describe('editAndMoveBudgetLine()', () => {
     expect(newHib.budgetCategoryId).toBe('bc-household-items');
   });
 
-  // ─── Scenario 8: BUDGET_LINE_ALREADY_LINKED guard ───────────────────────────
+  // ─── Scenario 8: Move to target WI that already has another IBL on the same invoice ─
 
-  it('guard: throws BudgetLineAlreadyLinkedError when target WI already linked to same invoice via different IBL', () => {
+  // Issue #1555: the BUDGET_LINE_ALREADY_LINKED guard was overly restrictive.
+  // The unique constraint is per-WIB-row, not per-(invoice, work-item) pair.
+  // Moving a budget line to a target work item that already has another budget line
+  // on the same invoice is a perfectly valid operation (e.g. "Kitchen" WI with
+  // separate lines for "cabinets" and "appliances" on one vendor invoice).
+  it('same-table WI move succeeds even when target WI already has another IBL on the same invoice', () => {
     const vendorId = createVendor();
     const invoiceId = createInvoice(vendorId, 2000);
     const wi1 = createWorkItem('Painting');
     const wi2 = createWorkItem('Plumbing');
-    const { iblId } = createIblOnWorkItem(invoiceId, wi1, 300);
-    // Link wi2 to the same invoice as well
+    const { iblId, wibId } = createIblOnWorkItem(invoiceId, wi1, 300);
+    // wi2 already has a different IBL on the same invoice — move must still succeed
     createIblOnWorkItem(invoiceId, wi2, 300);
 
-    expect(() => {
-      invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, {
-        newWorkItemId: wi2, // wi2 already has a different IBL on this invoice
-      });
-    }).toThrow(BudgetLineAlreadyLinkedError);
+    const result = invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, {
+      newWorkItemId: wi2,
+    });
+
+    // IBL still exists and still points at the same WIB (FK unchanged)
+    expect(result.budgetLine.id).toBe(iblId);
+    expect(result.budgetLine.workItemBudgetId).toBe(wibId);
+    // WIB parent updated to wi2
+    expect(result.budgetLine.parentItemId).toBe(wi2);
+    expect(result.budgetLine.parentItemType).toBe('work_item');
+    const updatedWib = db
+      .select()
+      .from(schema.workItemBudgets)
+      .where(eq(schema.workItemBudgets.id, wibId))
+      .get()!;
+    expect(updatedWib.workItemId).toBe(wi2);
   });
 
   // ─── Scenario 9: ITEMIZED_SUM_EXCEEDS_INVOICE guard ─────────────────────────
@@ -533,23 +548,24 @@ describe('editAndMoveBudgetLine()', () => {
 
   // ─── Scenario 12: Transaction atomicity ─────────────────────────────────────
 
-  it('transaction atomicity: no partial changes when move fails mid-transaction', () => {
+  // Issue #1555: the prior version of this test relied on BudgetLineAlreadyLinkedError
+  // to trigger a rollback. That guard has been removed (moves to targets with existing
+  // IBLs are now allowed). Transaction atomicity is validated via a NotFoundError
+  // (non-existent target WI) which still aborts the transaction mid-flight.
+  it('transaction atomicity: no partial changes when move fails due to non-existent target', () => {
     const vendorId = createVendor();
-    const invoiceId = createInvoice(vendorId, 2000);
+    const invoiceId = createInvoice(vendorId, 1000);
     const wi1 = createWorkItem('Painting');
-    const wi2 = createWorkItem('Plumbing');
     const { iblId } = createIblOnWorkItem(invoiceId, wi1, 300);
-    // wi2 is already linked — will trigger BudgetLineAlreadyLinkedError inside transaction
-    createIblOnWorkItem(invoiceId, wi2, 300);
 
     const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
     const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
 
     expect(() => {
       invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, {
-        newWorkItemId: wi2,
+        newWorkItemId: 'non-existent-wi', // triggers NotFoundError inside transaction
       });
-    }).toThrow(BudgetLineAlreadyLinkedError);
+    }).toThrow(NotFoundError);
 
     // No changes committed
     expect(db.select().from(schema.workItemBudgets).all().length).toBe(wibCountBefore);
