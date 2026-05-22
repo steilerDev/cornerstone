@@ -5,6 +5,14 @@
 
 ## Story #1553 — EditAndMove Budget Line Test Patterns (2026-05-22)
 
+**render-both parent picker pattern**: BudgetLineForm renders both collapsed AND expanded picker regions always (using HTML `hidden` attribute toggled by `isPickerExpanded`). This means "Work Item" text appears twice (in `<span>` pill + `<button>` tab). Use `getAllByText('Work Item')` and assert `.some(el => el.tagName === 'SPAN')` for the collapsed pill. To check "picker is hidden when collapsed", assert `expect(document.getElementById('parent-picker-body')).toHaveAttribute('hidden')` instead of `queryByTestId(...).not.toBeInTheDocument()` (the picker IS in DOM, just hidden).
+
+**onMove error uses err.message**: The handleMove handler uses `err instanceof Error && err.message ? err.message : t('budgetLineForm.parentPickerError')`. Tests that mock `onMove.mockRejectedValue(new Error('Network error'))` will see "Network error" displayed — NOT the translation key fallback. Update assertions to match the mock error message, not the translation.
+
+**BudgetLineForm mock for InvoiceBudgetLinesSection tests**: When the unified EditBudgetLineModal passes `itemizedAmount` prop to the mocked BudgetLineForm, the mock must render a labeled input (`<label htmlFor="mock-itemized-amount">Itemized Amount (€) *</label>`) to allow `getByLabelText(/itemized amount/i)`. Also add `role="alert"` to the error div so `getByRole('alert')` works in error tests.
+
+**editAndMoveBudgetLine vs updateInvoiceBudgetLine**: The full-form edit path in the unified modal calls `editAndMoveBudgetLine` (not `updateInvoiceBudgetLine`). Tests that assert on the API call must use `mockEditAndMoveBudgetLine` with `expect.objectContaining({ itemizedAmount: N })`.
+
 **Button selector collision with "Save Changes"**: `getByRole('button', { name: /Change/i })` matches both the "Change" parent button AND the "Save Changes" submit button. Use exact regex `/^Change$/i` to target only the change button. Similarly for any button where translation produces compound words.
 
 **jest.mock (CJS) for child component mocks in BudgetLineForm-class tests**: `jest.unstable_mockModule` doesn't intercept WorkItemPicker/HouseholdItemPicker locally. Use `jest.mock('./../../components/WorkItemPicker/WorkItemPicker.js', () => ({ ... }))` (CJS form, synchronous, top-level). Capture `onChange` in module-scope variable reassigned each render call. Trigger programmatically with `act(() => { capturedPicker!('id'); })`.
