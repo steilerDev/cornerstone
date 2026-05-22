@@ -8,6 +8,9 @@ import type {
   Vendor,
   BudgetCategory,
   CreateInvoiceBudgetLineRequest,
+  ExtractedLine,
+  AutoItemizeWarning,
+  AppConfigResponse,
 } from '@cornerstone/shared';
 import {
   fetchInvoiceBudgetLines,
@@ -41,6 +44,11 @@ import { Modal } from '../../components/Modal/Modal.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
+import { AutoItemizePreviewModal } from '../../components/budget/AutoItemizePreviewModal.js';
+import { DocumentPickerModal } from '../../components/budget/DocumentPickerModal.js';
+import { autoItemize } from '../../lib/invoiceAutoItemizeApi.js';
+import { useDocumentLinks } from '../../hooks/useDocumentLinks.js';
+import { fetchConfig } from '../../lib/configApi.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './InvoiceBudgetLinesSection.module.css';
 
@@ -128,6 +136,31 @@ export function InvoiceBudgetLinesSection({
   const remainingAmountRef = useRef<HTMLTableCellElement>(null);
   const newLineRowRef = useRef<HTMLTableRowElement>(null);
   const createBudgetLineButtonRef = useRef<HTMLButtonElement>(null);
+  const autoItemizeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Auto-itemize state
+  const { links: linkedDocs } = useDocumentLinks('invoice', invoiceId);
+  const [config, setConfig] = useState<AppConfigResponse | null>(null);
+  const [showDocPicker, setShowDocPicker] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewLines, setPreviewLines] = useState<ExtractedLine[]>([]);
+  const [previewWarnings, setPreviewWarnings] = useState<AutoItemizeWarning[]>([]);
+  const [selectedDocId, setSelectedDocId] = useState<number | null>(null);
+  const [isLoadingDryRun, setIsLoadingDryRun] = useState(false);
+  const [autoItemizeError, setAutoItemizeError] = useState<string | null>(null);
+
+  // Load config on mount
+  useEffect(() => {
+    void (async () => {
+      try {
+        const cfg = await fetchConfig();
+        setConfig(cfg);
+      } catch {
+        // silently fail; button will be hidden if config is null
+        setConfig({ autoItemizeEnabled: false, currency: 'EUR' });
+      }
+    })();
+  }, []);
 
   // Load budget lines on mount
   useEffect(() => {
@@ -160,6 +193,86 @@ export function InvoiceBudgetLinesSection({
       setBudgetLineFormError('');
       setOpenedWithFocusParentPicker(false);
     }
+  };
+
+  /**
+   * Handle auto-itemize button click.
+   * If multiple documents, show picker. Otherwise, proceed to dry-run.
+   */
+  const handleAutoItemizeClick = async () => {
+    setAutoItemizeError(null);
+
+    const availableDocs = linkedDocs.filter((doc) => doc.document !== null);
+
+    if (availableDocs.length === 0) {
+      setAutoItemizeError(t('invoiceDetail.budgetLines.autoItemize.noDocuments'));
+      return;
+    }
+
+    if (availableDocs.length === 1) {
+      // Single document: proceed directly to dry-run
+      await handleDocumentSelected(
+        availableDocs[0]!.paperlessDocumentId,
+        availableDocs[0]!.document?.title || `Document #${availableDocs[0]!.paperlessDocumentId}`,
+      );
+    } else {
+      // Multiple documents: show picker
+      setShowDocPicker(true);
+    }
+  };
+
+  /**
+   * Called when user selects a document from the picker (or auto-selected if only one).
+   * Runs the dry-run extraction.
+   */
+  const handleDocumentSelected = async (paperlessDocumentId: number, _title: string) => {
+    setShowDocPicker(false);
+    setIsLoadingDryRun(true);
+    setAutoItemizeError(null);
+
+    try {
+      const result = await autoItemize(invoiceId, {
+        paperlessDocumentId,
+        mode: 'append',
+        dryRun: true,
+      });
+
+      // Check if this is a dry-run response
+      if ('lines' in result && 'warnings' in result) {
+        setPreviewLines(result.lines);
+        setPreviewWarnings(result.warnings);
+        setSelectedDocId(paperlessDocumentId);
+        setShowPreviewModal(true);
+      } else {
+        // Unexpected response type
+        setAutoItemizeError(t('invoiceDetail.budgetLines.autoItemize.unexpectedResponse'));
+      }
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        const errorMsg = translateApiError(err.error.code, tErrors);
+        setAutoItemizeError(errorMsg);
+      } else {
+        setAutoItemizeError(t('invoiceDetail.budgetLines.autoItemize.providerError'));
+      }
+    } finally {
+      setIsLoadingDryRun(false);
+    }
+  };
+
+  const handleAutoItemizeApplied = async () => {
+    setShowPreviewModal(false);
+    setPreviewLines([]);
+    setPreviewWarnings([]);
+    setSelectedDocId(null);
+    // Refresh budget lines
+    await loadBudgetLines();
+  };
+
+  const handleAutoItemizeCancel = () => {
+    setShowPreviewModal(false);
+    setPreviewLines([]);
+    setPreviewWarnings([]);
+    setSelectedDocId(null);
   };
 
   const openEditBudgetLineModal = (
@@ -630,18 +743,40 @@ export function InvoiceBudgetLinesSection({
             </span>
           )}
         </h2>
-        <button
-          type="button"
-          ref={addButtonRef}
-          className={sharedStyles.btnPrimary}
-          disabled={isLoading}
-          onClick={() => {
-            setShowPicker(true);
-            setError(null);
-          }}
-        >
-          + {t('invoiceDetail.budgetLines.addButton')}
-        </button>
+        <div className={styles.buttonGroup}>
+          {config?.autoItemizeEnabled && linkedDocs.length > 0 && (
+            <button
+              type="button"
+              ref={autoItemizeButtonRef}
+              className={sharedStyles.btnSecondary}
+              disabled={isLoading || isLoadingDryRun}
+              onClick={() => void handleAutoItemizeClick()}
+              aria-label={t('invoiceDetail.budgetLines.autoItemize.buttonAriaLabel')}
+              title={t('invoiceDetail.budgetLines.autoItemize.button')}
+            >
+              {isLoadingDryRun ? (
+                <>
+                  <span className={styles.spinner} aria-hidden="true" />
+                  {t('invoiceDetail.budgetLines.autoItemize.loading')}
+                </>
+              ) : (
+                t('invoiceDetail.budgetLines.autoItemize.button')
+              )}
+            </button>
+          )}
+          <button
+            type="button"
+            ref={addButtonRef}
+            className={sharedStyles.btnPrimary}
+            disabled={isLoading}
+            onClick={() => {
+              setShowPicker(true);
+              setError(null);
+            }}
+          >
+            + {t('invoiceDetail.budgetLines.addButton')}
+          </button>
+        </div>
       </div>
 
       {/* Error banner */}
@@ -1187,6 +1322,43 @@ export function InvoiceBudgetLinesSection({
           t={t}
         />
       )}
+
+      {/* Auto-itemize error banner */}
+      {autoItemizeError && (
+        <div className={styles.errorBanner} role="alert">
+          {autoItemizeError}
+          <button
+            type="button"
+            className={styles.dismissButton}
+            onClick={() => setAutoItemizeError(null)}
+            aria-label={t('invoiceDetail.budgetLines.dismissErrorAriaLabel')}
+          >
+            {t('invoiceDetail.budgetLines.dismissError')}
+          </button>
+        </div>
+      )}
+
+      {/* Document picker modal */}
+      <DocumentPickerModal
+        isOpen={showDocPicker}
+        documents={linkedDocs}
+        isLoading={isLoadingDryRun}
+        onSelectDocument={handleDocumentSelected}
+        onCancel={() => setShowDocPicker(false)}
+      />
+
+      {/* Auto-itemize preview modal */}
+      <AutoItemizePreviewModal
+        isOpen={showPreviewModal}
+        invoiceId={invoiceId}
+        invoiceAmount={invoiceTotal}
+        paperlessDocumentId={selectedDocId ?? 0}
+        initialLines={previewLines}
+        initialWarnings={previewWarnings}
+        triggerRef={autoItemizeButtonRef}
+        onCancel={handleAutoItemizeCancel}
+        onApplied={handleAutoItemizeApplied}
+      />
     </section>
   );
 }

@@ -680,7 +680,36 @@
           "createFailed": "Failed to create budget line."
         }
       },
-      "remainingAriaLabel": "Remaining amount: {{amount}}"
+      "remainingAriaLabel": "Remaining amount: {{amount}}",
+      "autoItemize": {
+        "button": "Auto-itemize",
+        "buttonAriaLabel": "Extract line items from a linked Paperless document",
+        "loading": "Extracting...",
+        "modalTitle": "Review extracted line items",
+        "modeLabel": "Apply mode",
+        "modeAppend": "Append to existing",
+        "modeReplace": "Replace extracted items",
+        "applyButton": "Apply",
+        "cancelButton": "Cancel",
+        "retryButton": "Retry",
+        "noLines": "No line items detected",
+        "noDocuments": "No linked Paperless documents available",
+        "totalMismatchWarning": "Extracted total ({{extractedTotal}}) does not match invoice total ({{invoiceTotal}})",
+        "docPickerTitle": "Choose document to analyze",
+        "includeCheckboxAriaLabel": "Include this line in the itemization",
+        "selectAllAriaLabel": "Select all lines",
+        "columns": {
+          "description": "Description",
+          "quantity": "Quantity",
+          "unit": "Unit",
+          "unitPrice": "Unit Price",
+          "total": "Total"
+        },
+        "totalLabel": "Total",
+        "unexpectedResponse": "Received an unexpected response from the extraction service.",
+        "providerError": "Could not reach the extraction service. Try again or itemize manually.",
+        "invalidResponseError": "The extraction service returned an invalid response."
+      }
     },
     "deposits": {
       "sectionTitle": "Deposits",

@@ -8,7 +8,7 @@
  */
 
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import * as schemaTypes from '../db/schema.js';
+import type * as schemaTypes from '../db/schema.js';
 import {
   invoices,
   invoiceBudgetLines,
