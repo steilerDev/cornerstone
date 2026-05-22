@@ -272,7 +272,7 @@
 .parentPickerTabActive {
   border-color: var(--color-primary);
   color: var(--color-primary);
-  background-color: var(--color-primary-bg, rgba(59 130 246 / 0.08));
+  background-color: var(--color-primary-bg);
 }
 
 .parentPickerBody {
@@ -284,8 +284,8 @@
   font-size: var(--font-size-sm);
   margin-top: var(--spacing-2);
   padding: var(--spacing-2);
-  background-color: var(--color-danger-bg, rgba(220 38 38 / 0.08));
-  border: 1px solid var(--color-danger-border, rgba(220 38 38 / 0.2));
+  background-color: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
   border-radius: var(--radius-md);
 }
 

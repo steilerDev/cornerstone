@@ -135,8 +135,11 @@ export function BudgetLineForm({
       await onMove(selectedParentType, selectedParentId);
       setIsPickerExpanded(false);
       setSelectedParentId(null);
-    } catch {
-      setMovePickerError(t('budgetLineForm.parentPickerError'));
+    } catch (err) {
+      const msg = err instanceof Error && err.message
+        ? err.message
+        : t('budgetLineForm.parentPickerError');
+      setMovePickerError(msg);
     } finally {
       setIsMoving(false);
     }
