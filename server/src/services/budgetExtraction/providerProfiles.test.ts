@@ -87,18 +87,54 @@ describe('buildRequestBody', () => {
     expect(body.response_format).toEqual({ type: 'json_object' });
   });
 
-  it('anthropic → response_format: json_schema with full ExtractedLine schema', () => {
+  it('anthropic → response_format: json_schema with strict mode + full ExtractedLine schema', () => {
     const body = buildRequestBody({ ...common, provider: 'anthropic' });
     assertBaseFields(body);
     const rf = body.response_format as {
       type: string;
-      json_schema: { name: string; schema: { properties: { lines: unknown } } };
+      json_schema: {
+        name: string;
+        strict: boolean;
+        schema: {
+          type: string;
+          required: string[];
+          additionalProperties: boolean;
+          properties: {
+            lines: {
+              type: string;
+              items: {
+                type: string;
+                required: string[];
+                additionalProperties: boolean;
+                properties: Record<string, unknown>;
+              };
+            };
+          };
+        };
+      };
     };
     expect(rf.type).toBe('json_schema');
     expect(rf.json_schema.name).toBe('extracted_lines');
-    // Schema must allow our optional fields with type unions; we don't snapshot the full
-    // shape (brittle) but verify the top-level lines array is declared.
-    expect(rf.json_schema.schema.properties.lines).toBeDefined();
+    // Anthropic requires strict: true (the original strict: false produced a 400).
+    expect(rf.json_schema.strict).toBe(true);
+    // strict mode requires additionalProperties: false on every object node.
+    expect(rf.json_schema.schema.additionalProperties).toBe(false);
+    expect(rf.json_schema.schema.properties.lines.items.additionalProperties).toBe(false);
+    // strict mode requires EVERY property to be listed in `required` (optional
+    // fields use union-typed nulls).
+    expect(rf.json_schema.schema.properties.lines.items.required).toEqual(
+      expect.arrayContaining([
+        'description',
+        'quantity',
+        'unit',
+        'unitPrice',
+        'totalAmount',
+        'includesVat',
+        'vatRate',
+        'vendorName',
+        'confidence',
+      ]),
+    );
   });
 
   it('generic → no response_format hint', () => {
