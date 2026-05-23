@@ -135,10 +135,15 @@ test.describe('i18n: Language Switching', () => {
     await setLanguage(page, 'de');
 
     // Then: Dashboard/project overview renders with German heading
-    // Reload after setLanguage to ensure the app re-reads locale from localStorage
+    // Reload after setLanguage to ensure the app re-reads locale from localStorage.
+    // Wait for the network to be idle so the dashboard's data + translations are
+    // both resolved before asserting on the localized heading.
     await page.goto(ROUTES.home);
     await page.reload();
-    await expect(page.getByRole('heading', { level: 1, name: 'Projekt' })).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { level: 1, name: 'Projekt' })).toBeVisible({
+      timeout: 15000,
+    });
 
     // And: Budget page renders in German
     await page.goto(ROUTES.budget);

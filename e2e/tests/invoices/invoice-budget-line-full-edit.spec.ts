@@ -580,8 +580,11 @@ test.describe('Move budget line to WI that already has a line on this invoice (S
       await expect(detailPage.budgetLinesSection).not.toContainText('MultiLine WI-A');
 
       // Remaining amount = 3000 − 500 − 400 = 2100 (unchanged; amounts weren't modified)
+      // Locale-agnostic match: en-US renders €2,100.00 (comma thousands separator);
+      // de-DE renders €2.100,00 (period thousands separator). Plain '2100' substring
+      // fails both because of the inserted separator.
       const remainingCell = detailPage.budgetLinesSection.locator('[aria-live="polite"]');
-      await expect(remainingCell).toContainText('2100');
+      await expect(remainingCell).toContainText(/2[.,]?100/);
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);

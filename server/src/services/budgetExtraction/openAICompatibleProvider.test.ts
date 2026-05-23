@@ -37,6 +37,7 @@ const BASE_CONFIG: LlmConfig = {
   apiKey: 'test-api-key',
   model: 'gpt-4o',
   requestTimeoutMs: 5000,
+  provider: 'openai',
 };
 
 /**
@@ -46,9 +47,11 @@ function makeOkResponse(content: string, status = 200): Response {
   const body = {
     choices: [{ message: { content } }],
   };
+  const bodyText = JSON.stringify(body);
   return {
     ok: status >= 200 && status < 300,
     status,
+    text: () => Promise.resolve(bodyText),
     json: () => Promise.resolve(body),
   } as unknown as Response;
 }

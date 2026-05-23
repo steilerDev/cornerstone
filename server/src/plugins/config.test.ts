@@ -44,6 +44,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmApiKey: undefined,
         llmModel: undefined,
         llmRequestTimeoutMs: 30000,
+        llmProvider: 'generic',
         autoItemizeEnabled: false,
       });
     });
@@ -90,6 +91,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmApiKey: undefined,
         llmModel: undefined,
         llmRequestTimeoutMs: 30000,
+        llmProvider: 'generic',
         autoItemizeEnabled: false,
       });
     });
@@ -138,6 +140,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmApiKey: undefined,
         llmModel: undefined,
         llmRequestTimeoutMs: 30000,
+        llmProvider: 'generic',
         autoItemizeEnabled: false,
       });
     });
@@ -181,6 +184,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmApiKey: undefined,
         llmModel: undefined,
         llmRequestTimeoutMs: 30000,
+        llmProvider: 'generic',
         autoItemizeEnabled: false,
       });
     });
@@ -788,6 +792,76 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
 
       expect(config.autoItemizeEnabled).toBe(true);
       expect(config.llmBaseUrl).toBe('http://localhost:11434/v1');
+    });
+  });
+
+  describe('LLM Provider Resolution', () => {
+    const baseEnv = {
+      LLM_API_KEY: 'sk-test',
+      LLM_MODEL: 'test-model',
+    };
+
+    it.each([
+      ['https://api.anthropic.com/v1', 'anthropic'],
+      ['https://api.openai.com/v1', 'openai'],
+      ['https://generativelanguage.googleapis.com/v1beta/openai', 'gemini'],
+      ['http://localhost:11434/v1', 'ollama'],
+      ['http://ollama:11434/v1', 'ollama'],
+    ] as const)('auto-detects %s as %s when LLM_PROVIDER unset', (url, expected) => {
+      const config = loadConfig({ ...baseEnv, LLM_BASE_URL: url });
+      expect(config.llmProvider).toBe(expected);
+    });
+
+    it('falls back to generic for unknown hosts', () => {
+      const config = loadConfig({
+        ...baseEnv,
+        LLM_BASE_URL: 'https://openrouter.ai/api/v1',
+      });
+      expect(config.llmProvider).toBe('generic');
+    });
+
+    it('explicit LLM_PROVIDER overrides auto-detection', () => {
+      const config = loadConfig({
+        ...baseEnv,
+        LLM_BASE_URL: 'https://api.anthropic.com/v1',
+        LLM_PROVIDER: 'openai',
+      });
+      expect(config.llmProvider).toBe('openai');
+    });
+
+    it('LLM_PROVIDER is case-insensitive and trims whitespace', () => {
+      const config = loadConfig({
+        ...baseEnv,
+        LLM_BASE_URL: 'https://example.com',
+        LLM_PROVIDER: '  ANTHROPIC  ',
+      });
+      expect(config.llmProvider).toBe('anthropic');
+    });
+
+    it('rejects unknown LLM_PROVIDER values', () => {
+      expect(() =>
+        loadConfig({
+          ...baseEnv,
+          LLM_BASE_URL: 'https://example.com',
+          LLM_PROVIDER: 'bedrock',
+        }),
+      ).toThrow(/LLM_PROVIDER must be one of/);
+    });
+
+    it('defaults to generic when LLM is not configured at all', () => {
+      const config = loadConfig({});
+      expect(config.llmProvider).toBe('generic');
+      expect(config.autoItemizeEnabled).toBe(false);
+    });
+
+    it('llmProvider is in the /api/config-loaded log (no secrets)', () => {
+      // The config object exposes llmProvider — covered by the route-level test
+      // that asserts secrets are NOT in the response. We only verify the shape here.
+      const config = loadConfig({
+        ...baseEnv,
+        LLM_BASE_URL: 'https://api.anthropic.com/v1',
+      });
+      expect(config).toHaveProperty('llmProvider', 'anthropic');
     });
   });
 });

@@ -6,8 +6,10 @@
  */
 
 import type { ExtractedLine, ExtractionHints } from '@cornerstone/shared';
+import type { LlmProvider } from './providerProfiles.js';
 
 export type { ExtractedLine, ExtractionHints } from '@cornerstone/shared';
+export type { LlmProvider } from './providerProfiles.js';
 
 export interface BudgetExtractionProvider {
   extract(ocrText: string, hints: ExtractionHints): Promise<ExtractedLine[]>;
@@ -18,4 +20,9 @@ export interface LlmConfig {
   apiKey: string;
   model: string;
   requestTimeoutMs: number;
+  /**
+   * Which provider profile shapes the outbound request body.
+   * See `providerProfiles.ts` for the differences.
+   */
+  provider: LlmProvider;
 }

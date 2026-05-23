@@ -6,6 +6,7 @@
  */
 
 import { SYSTEM_PROMPT, buildUserPrompt } from './prompts.js';
+import { buildRequestBody } from './providerProfiles.js';
 import type {
   BudgetExtractionProvider,
   ExtractedLine,
@@ -166,30 +167,57 @@ export function createOpenAICompatibleProvider(config: LlmConfig): BudgetExtract
             'Content-Type': 'application/json',
             Authorization: `Bearer ${config.apiKey}`,
           },
-          body: JSON.stringify({
-            model: config.model,
-            messages: [
-              { role: 'system', content: SYSTEM_PROMPT },
-              { role: 'user', content: buildUserPrompt(ocrText, hints) },
-            ],
-            response_format: { type: 'json_object' },
-            temperature: 0,
-          }),
+          body: JSON.stringify(
+            buildRequestBody({
+              provider: config.provider,
+              model: config.model,
+              systemPrompt: SYSTEM_PROMPT,
+              userPrompt: buildUserPrompt(ocrText, hints),
+            }),
+          ),
           signal: controller.signal,
         });
       } catch (err) {
-        // AbortError (timeout) or network error → treat as unreachable
+        // AbortError (timeout) or network error → treat as unreachable.
+        // Include the underlying error so the server log shows DNS / TLS /
+        // refused / AbortError context. `LlmUnreachableError` suppresses
+        // details from the API response.
         clearTimeout(timeoutId);
-        throw new LlmUnreachableError('LLM provider is unreachable');
+        const e = err as { name?: string; message?: string; code?: string; cause?: unknown };
+        throw new LlmUnreachableError('LLM provider is unreachable', {
+          provider: config.provider,
+          url,
+          cause: {
+            name: e?.name,
+            message: e?.message,
+            code: e?.code,
+            // Node's fetch nests the underlying ECONNREFUSED/ENOTFOUND in cause
+            innerCause:
+              e?.cause && typeof e.cause === 'object'
+                ? {
+                    name: (e.cause as { name?: string }).name,
+                    message: (e.cause as { message?: string }).message,
+                    code: (e.cause as { code?: string }).code,
+                  }
+                : undefined,
+          },
+        });
       }
 
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        // Do NOT include response body — it may echo the prompt (vendor names, amounts, etc.)
-        // Only include status code and method for diagnostic purposes.
+        // Read the body so ops can debug from the server log. `LlmUpstreamError`
+        // suppresses `details` from the API response so the body (which may
+        // echo prompt content) never leaves the host.
+        const bodyText = await response.text().catch(() => '<failed to read response body>');
         throw new LlmUpstreamError(`LLM upstream returned ${response.status}`, {
+          provider: config.provider,
+          url,
           status: response.status,
+          statusText: response.statusText,
+          // Cap body at 8KB so a runaway response doesn't flood the log.
+          body: bodyText.length > 8000 ? `${bodyText.slice(0, 8000)}…[truncated]` : bodyText,
         });
       }
 
@@ -200,12 +228,32 @@ export function createOpenAICompatibleProvider(config: LlmConfig): BudgetExtract
         };
         const content = json.choices?.[0]?.message?.content;
         if (typeof content !== 'string') {
-          throw new LlmInvalidResponseError('LLM response missing choices[0].message.content');
+          throw new LlmInvalidResponseError(
+            'LLM response missing choices[0].message.content',
+            {
+              provider: config.provider,
+              url,
+              envelope: json,
+            },
+          );
         }
-        body = JSON.parse(content);
+        try {
+          body = JSON.parse(content);
+        } catch (parseErr) {
+          throw new LlmInvalidResponseError('LLM content is not valid JSON', {
+            provider: config.provider,
+            url,
+            parseError: (parseErr as Error).message,
+            content: content.length > 8000 ? `${content.slice(0, 8000)}…[truncated]` : content,
+          });
+        }
       } catch (err) {
         if (err instanceof LlmInvalidResponseError) throw err;
-        throw new LlmInvalidResponseError('LLM response is not valid JSON');
+        throw new LlmInvalidResponseError('LLM response envelope is not valid JSON', {
+          provider: config.provider,
+          url,
+          parseError: (err as Error).message,
+        });
       }
 
       return validateExtractedLines(body);

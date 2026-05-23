@@ -34,6 +34,12 @@ export interface AppConfig {
   llmApiKey?: string;
   llmModel?: string;
   llmRequestTimeoutMs: number;
+  /**
+   * Provider profile that shapes the outbound request body. Set explicitly
+   * via `LLM_PROVIDER`, otherwise auto-detected from `LLM_BASE_URL`, with
+   * fallback to `'generic'`. See `services/budgetExtraction/providerProfiles.ts`.
+   */
+  llmProvider: 'openai' | 'anthropic' | 'gemini' | 'ollama' | 'generic';
   autoItemizeEnabled: boolean;
 }
 
@@ -288,6 +294,30 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   // Auto-itemization is enabled when all three LLM env vars are set
   const autoItemizeEnabled = !!(llmBaseUrl && llmApiKey && llmModel);
 
+  // Resolve LLM provider: explicit env var wins, otherwise auto-detect from URL,
+  // fall back to 'generic' when both are unavailable.
+  const llmProviderEnv = getValue('LLM_PROVIDER');
+  const validProviders = ['openai', 'anthropic', 'gemini', 'ollama', 'generic'] as const;
+  type ProviderTuple = typeof validProviders;
+  let llmProvider: ProviderTuple[number] = 'generic';
+  if (llmProviderEnv) {
+    const normalized = llmProviderEnv.trim().toLowerCase();
+    if ((validProviders as readonly string[]).includes(normalized)) {
+      llmProvider = normalized as ProviderTuple[number];
+    } else {
+      errors.push(
+        `LLM_PROVIDER must be one of ${validProviders.join(', ')}, got: ${llmProviderEnv}`,
+      );
+    }
+  } else if (llmBaseUrl) {
+    // Inline auto-detect — keep config plugin free of service imports.
+    const url = llmBaseUrl.toLowerCase();
+    if (url.includes('api.anthropic.com')) llmProvider = 'anthropic';
+    else if (url.includes('api.openai.com')) llmProvider = 'openai';
+    else if (url.includes('generativelanguage.googleapis.com')) llmProvider = 'gemini';
+    else if (url.includes(':11434') || /\bollama\b/.test(url)) llmProvider = 'ollama';
+  }
+
   // If there are any validation errors, throw a single error listing all of them
   if (errors.length > 0) {
     throw new Error(`Configuration validation failed:\n  - ${errors.join('\n  - ')}`);
@@ -325,6 +355,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     llmApiKey,
     llmModel,
     llmRequestTimeoutMs,
+    llmProvider,
     autoItemizeEnabled,
   };
 }
@@ -359,6 +390,7 @@ export default fp(
         backupEnabled: config.backupEnabled,
         backupDir: config.backupDir,
         autoItemizeEnabled: config.autoItemizeEnabled,
+        llmProvider: config.llmProvider,
       },
       'Configuration loaded',
     );

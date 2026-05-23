@@ -523,8 +523,13 @@ test.describe('Assign unassigned budget line to household item (Scenario 3)', ()
 // Scenario 4: Edit modal on already-assigned line — no parent picker
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Edit modal for assigned budget line — no parent picker (Scenario 4)', () => {
-  test('Opening Edit modal on an already-assigned line does NOT show the parent picker fieldset', async ({
+test.describe('Edit modal for assigned budget line — collapsed parent picker (Scenario 4)', () => {
+  // Behavior updated by PR #1553 ("full edit + linked-item move"): assigned
+  // budget lines now render the parent picker in a COLLAPSED state inside
+  // the edit modal — the current parent is shown as a pill + label with a
+  // "Change" affordance, and the expandable picker body is hidden by default.
+  // The picker only expands when the user clicks "Change".
+  test('Opening Edit modal on an already-assigned line shows the collapsed parent row with the current parent and a Change button (picker body hidden)', async ({
     page,
     testPrefix,
   }) => {
@@ -541,12 +546,14 @@ test.describe('Edit modal for assigned budget line — no parent picker (Scenari
     let workItemId = '';
 
     try {
-      vendorId = await createVendorViaApi(page, `${testPrefix} NoPicker Vendor`);
+      vendorId = await createVendorViaApi(page, `${testPrefix} CollapsedPicker Vendor`);
       invoiceId = await createInvoiceViaApi(page, vendorId, {
         amount: 500,
         date: '2026-06-01',
       });
-      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} NoPicker WI` });
+      workItemId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} CollapsedPicker WI`,
+      });
 
       // Create and link a NORMAL (assigned) budget line via REST API
       const budgetResp = await page.request.post(`${API.workItems}/${workItemId}/budgets`, {
@@ -581,12 +588,29 @@ test.describe('Edit modal for assigned budget line — no parent picker (Scenari
       const editModal = page.getByRole('dialog', { name: 'Edit Budget Line' });
       await expect(editModal).toBeVisible();
 
-      // For assigned lines, the parent picker fieldset MUST NOT be present
+      // The parent picker fieldset IS present (collapsed state)
       const parentPickerFieldset = editModal.locator('fieldset[class*="parentPickerSection"]');
-      await expect(parentPickerFieldset).not.toBeVisible();
+      await expect(parentPickerFieldset).toBeVisible();
 
-      // The amount input IS shown (normal edit form for assigned lines)
-      const amountInput = page.locator('#budget-line-amount');
+      // The collapsed current-parent row shows the current parent name
+      const currentParentRow = parentPickerFieldset.locator('[class*="currentParentRow"]');
+      await expect(currentParentRow).toBeVisible();
+      await expect(currentParentRow).toContainText(`${testPrefix} CollapsedPicker WI`);
+
+      // A "Change" button is available to expand the picker
+      const changeButton = currentParentRow.getByRole('button');
+      await expect(changeButton).toBeVisible();
+      // The button starts collapsed (aria-expanded="false")
+      await expect(changeButton).toHaveAttribute('aria-expanded', 'false');
+
+      // The expanded picker body is hidden by default
+      const pickerBody = parentPickerFieldset.locator('#parent-picker-body');
+      await expect(pickerBody).toBeHidden();
+
+      // The itemized amount input is still shown (full edit form for assigned lines)
+      // The field id changed from #budget-line-amount to #budget-itemized-amount in PR #1553
+      // when the simple amount-only modal was replaced by the unified BudgetLineForm.
+      const amountInput = page.locator('#budget-itemized-amount');
       await expect(amountInput).toBeVisible();
 
       // Close the modal

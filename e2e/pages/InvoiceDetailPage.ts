@@ -567,8 +567,12 @@ export class InvoiceDetailPage {
     // ─── Budget Line Picker locators (Issue #1401) ────────────────────────
     this.budgetLinePickerModal = page.locator('[role="dialog"][aria-labelledby="picker-title"]');
 
+    // The visible text is `+ Add Budget Line` but the `+` is a literal text node and
+    // `Add Budget Line` comes from i18n; accessible-name normalization can collapse
+    // whitespace inconsistently across React renders. Match the i18n text only so
+    // the locator is resilient to the optional `+` prefix.
     this.pickerAddBudgetLineButton = this.budgetLinesSection.getByRole('button', {
-      name: /\+ Add Budget Line/i,
+      name: /Add Budget Line/i,
     });
 
     this.pickerCreateBudgetLineButton = this.budgetLinePickerModal.getByRole('button', {
