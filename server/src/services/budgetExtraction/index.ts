@@ -29,9 +29,19 @@ export function getProvider(config: AppConfig): BudgetExtractionProvider {
 }
 
 // Re-export public types
-export type { ExtractedLine, ExtractionHints, BudgetExtractionProvider, LlmProvider } from './types.js';
+export type {
+  ExtractedLine,
+  ExtractionHints,
+  BudgetExtractionProvider,
+  LlmProvider,
+} from './types.js';
 export {
   validateExtractedLines,
   createOpenAICompatibleProvider,
 } from './openAICompatibleProvider.js';
-export { detectProvider, parseProviderEnv, buildRequestBody, LLM_PROVIDERS } from './providerProfiles.js';
+export {
+  detectProvider,
+  parseProviderEnv,
+  buildRequestBody,
+  LLM_PROVIDERS,
+} from './providerProfiles.js';

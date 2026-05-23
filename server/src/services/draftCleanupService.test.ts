@@ -75,7 +75,7 @@ const makeConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
   llmApiKey: undefined,
   llmModel: undefined,
   llmRequestTimeoutMs: 30000,
-    llmProvider: 'generic',
+  llmProvider: 'generic',
   autoItemizeEnabled: false,
   ...overrides,
 });

@@ -228,14 +228,11 @@ export function createOpenAICompatibleProvider(config: LlmConfig): BudgetExtract
         };
         const content = json.choices?.[0]?.message?.content;
         if (typeof content !== 'string') {
-          throw new LlmInvalidResponseError(
-            'LLM response missing choices[0].message.content',
-            {
-              provider: config.provider,
-              url,
-              envelope: json,
-            },
-          );
+          throw new LlmInvalidResponseError('LLM response missing choices[0].message.content', {
+            provider: config.provider,
+            url,
+            envelope: json,
+          });
         }
         try {
           body = JSON.parse(content);

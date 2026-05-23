@@ -17,10 +17,7 @@ describe('detectProvider', () => {
     ['https://api.anthropic.com/v1/', 'anthropic'],
     ['https://api.openai.com/v1', 'openai'],
     ['https://api.openai.com/v1/', 'openai'],
-    [
-      'https://generativelanguage.googleapis.com/v1beta/openai',
-      'gemini',
-    ],
+    ['https://generativelanguage.googleapis.com/v1beta/openai', 'gemini'],
     ['http://ollama:11434/v1', 'ollama'],
     ['http://localhost:11434/v1', 'ollama'],
     ['http://my-host:11434', 'ollama'],
@@ -93,7 +90,10 @@ describe('buildRequestBody', () => {
   it('anthropic → response_format: json_schema with full ExtractedLine schema', () => {
     const body = buildRequestBody({ ...common, provider: 'anthropic' });
     assertBaseFields(body);
-    const rf = body.response_format as { type: string; json_schema: { name: string; schema: { properties: { lines: unknown } } } };
+    const rf = body.response_format as {
+      type: string;
+      json_schema: { name: string; schema: { properties: { lines: unknown } } };
+    };
     expect(rf.type).toBe('json_schema');
     expect(rf.json_schema.name).toBe('extracted_lines');
     // Schema must allow our optional fields with type unions; we don't snapshot the full
