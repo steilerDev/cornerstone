@@ -33,9 +33,17 @@ export const LLM_PROVIDERS: readonly LlmProvider[] = [
  * Anthropic's OpenAI-compat layer requires this when `response_format.type`
  * is `'json_schema'`.
  */
+// Anthropic's OpenAI-compat layer requires `strict: true` (Input must literally
+// be `true`, not `false`). OpenAI's structured-outputs spec — which Anthropic
+// mirrors — imposes additional rules when `strict: true`:
+//   1. `additionalProperties: false` must be set on every object schema
+//   2. EVERY property must be listed in `required` (optional fields use
+//      union-typed nulls: `type: ['number', 'null']`)
+// Our `validateExtractedLines` already tolerates null for the optional fields,
+// so the LLM emitting `quantity: null` instead of omitting it is fine.
 const EXTRACTED_LINES_SCHEMA = {
   name: 'extracted_lines',
-  strict: false,
+  strict: true,
   schema: {
     type: 'object',
     properties: {
@@ -54,11 +62,23 @@ const EXTRACTED_LINES_SCHEMA = {
             vendorName: { type: ['string', 'null'] },
             confidence: { type: 'number' },
           },
-          required: ['description', 'totalAmount', 'confidence'],
+          required: [
+            'description',
+            'quantity',
+            'unit',
+            'unitPrice',
+            'totalAmount',
+            'includesVat',
+            'vatRate',
+            'vendorName',
+            'confidence',
+          ],
+          additionalProperties: false,
         },
       },
     },
     required: ['lines'],
+    additionalProperties: false,
   },
 } as const;
 
