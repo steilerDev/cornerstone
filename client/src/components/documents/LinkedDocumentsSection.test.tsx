@@ -53,10 +53,33 @@ jest.unstable_mockModule('../../lib/apiClient.js', () => ({
   NetworkError: class MockNetworkError extends Error {},
 }));
 
+// ─── Mock: configApi (for auto-itemize enabled flag) ─────────────────────────
+
+const mockFetchConfig = jest.fn<() => Promise<unknown>>();
+
+jest.unstable_mockModule('../../lib/configApi.js', () => ({
+  fetchConfig: mockFetchConfig,
+}));
+
+// ─── Mock: react-router-dom useNavigate ──────────────────────────────────────
+
+const mockNavigate = jest.fn();
+
+jest.unstable_mockModule('react-router-dom', async () => {
+  const actual = await import('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 // ─── Mock: child components (to avoid transitive dependency issues) ───────────
 
 // Capture linkedDocumentIds for assertions in system-wide filter tests
 let capturedLinkedDocumentIds: number[] | undefined;
+
+// Capture onItemize prop for assertions in auto-itemize routing tests
+let capturedOnItemize: ((link: DocumentLinkWithMetadata) => void) | undefined;
 
 jest.unstable_mockModule('./DocumentBrowser.js', () => ({
   DocumentBrowser: function MockDocumentBrowser(props: {
@@ -101,11 +124,16 @@ jest.unstable_mockModule('./LinkedDocumentCard.js', () => ({
     link: DocumentLinkWithMetadata;
     onView?: (link: DocumentLinkWithMetadata) => void;
     onUnlink?: (link: DocumentLinkWithMetadata) => void;
+    onItemize?: (link: DocumentLinkWithMetadata) => void;
   }) {
+    capturedOnItemize = props.onItemize;
     return (
       <div data-testid={`linked-card-${props.link.id}`}>
         <button onClick={() => props.onView?.(props.link)}>View {props.link.id}</button>
         <button onClick={() => props.onUnlink?.(props.link)}>Unlink {props.link.id}</button>
+        {props.onItemize && (
+          <button onClick={() => props.onItemize!(props.link)}>Itemize {props.link.id}</button>
+        )}
       </div>
     );
   },
@@ -202,12 +230,16 @@ beforeEach(async () => {
   mockUseDocumentLinks.mockReset();
   mockUseAllLinkedDocumentIds.mockReset();
   mockGetPaperlessStatus.mockReset();
+  mockFetchConfig.mockReset();
+  mockNavigate.mockReset();
   capturedLinkedDocumentIds = undefined;
+  capturedOnItemize = undefined;
 
-  // Default: configured paperless, no links
+  // Default: configured paperless, no links, auto-itemize disabled
   mockUseDocumentLinks.mockReturnValue(makeHook());
   mockUseAllLinkedDocumentIds.mockReturnValue(makeAllLinkedIdsHook());
   mockGetPaperlessStatus.mockResolvedValue(makeConfiguredStatus());
+  mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: false, currency: 'EUR' });
 });
 
 afterEach(() => {
@@ -758,6 +790,90 @@ describe('LinkedDocumentsSection', () => {
       await waitFor(() => expect(screen.getByTestId('document-browser')).toBeInTheDocument());
 
       expect(capturedLinkedDocumentIds).toEqual([]);
+    });
+  });
+
+  // ─── onItemize callback (Story #1564) ────────────────────────────────────
+
+  describe('onItemize callback', () => {
+    it('passes onItemize to LinkedDocumentCard when entityType=invoice AND autoItemizeEnabled=true', async () => {
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: true, currency: 'EUR' });
+      mockUseDocumentLinks.mockReturnValue(
+        makeHook({ links: [makeInvoiceLink('link-inv-1')], isLoading: false }),
+      );
+
+      render(<LinkedDocumentsSection entityType="invoice" entityId="inv-xyz" />);
+
+      // Wait for config to load and cards to render
+      await waitFor(() =>
+        expect(screen.getByTestId('linked-card-link-inv-1')).toBeInTheDocument(),
+      );
+      await waitFor(() => expect(capturedOnItemize).toBeDefined());
+
+      expect(capturedOnItemize).toBeDefined();
+    });
+
+    it('does NOT pass onItemize when entityType=invoice but autoItemizeEnabled=false', async () => {
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: false, currency: 'EUR' });
+      mockUseDocumentLinks.mockReturnValue(
+        makeHook({ links: [makeInvoiceLink('link-inv-2')], isLoading: false }),
+      );
+
+      render(<LinkedDocumentsSection entityType="invoice" entityId="inv-xyz" />);
+
+      await waitFor(() =>
+        expect(screen.getByTestId('linked-card-link-inv-2')).toBeInTheDocument(),
+      );
+      await waitFor(() => expect(mockFetchConfig).toHaveBeenCalled());
+
+      // Give config time to load
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 10));
+      });
+
+      expect(capturedOnItemize).toBeUndefined();
+    });
+
+    it('does NOT pass onItemize when entityType=work_item even if autoItemizeEnabled=true', async () => {
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: true, currency: 'EUR' });
+      mockUseDocumentLinks.mockReturnValue(
+        makeHook({ links: [makeLink('link-wi-1')], isLoading: false }),
+      );
+
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
+
+      await waitFor(() =>
+        expect(screen.getByTestId('linked-card-link-wi-1')).toBeInTheDocument(),
+      );
+      await waitFor(() => expect(mockFetchConfig).toHaveBeenCalled());
+
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 10));
+      });
+
+      expect(capturedOnItemize).toBeUndefined();
+    });
+
+    it('clicking Itemize button navigates to auto-itemize page', async () => {
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: true, currency: 'EUR' });
+      const invoiceLink = makeInvoiceLink('link-inv-3');
+      mockUseDocumentLinks.mockReturnValue(
+        makeHook({ links: [invoiceLink], isLoading: false }),
+      );
+
+      render(<LinkedDocumentsSection entityType="invoice" entityId="inv-xyz" />);
+
+      await waitFor(() =>
+        expect(screen.getByTestId('linked-card-link-inv-3')).toBeInTheDocument(),
+      );
+      await waitFor(() => expect(capturedOnItemize).toBeDefined());
+
+      // Click the Itemize button exposed by mock
+      fireEvent.click(screen.getByRole('button', { name: /Itemize link-inv-3/i }));
+
+      expect(mockNavigate).toHaveBeenCalledWith(
+        `/budget/invoices/inv-xyz/auto-itemize/${invoiceLink.document!.id}`,
+      );
     });
   });
 });

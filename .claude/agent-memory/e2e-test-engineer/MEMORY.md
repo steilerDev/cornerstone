@@ -3,6 +3,21 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
 
+## AutoItemizePage E2E (Story #1564, 2026-05-24) — `e2e/tests/invoices/invoice-auto-itemize-page.spec.ts`
+
+- 13 scenarios; @smoke on 1+2 (feature flag visibility), 3 (happy path), 8 (old modal absence).
+- POM: `e2e/pages/AutoItemizePage.ts`. Picker modal: `[role="dialog"]` filtered by `h2` text `/Assign to Work Item or Household Item/i` (Modal uses `useId()` for aria-labelledby — NOT accessible name on dialog).
+- Per-row assignment locators: `[class*="assignButtonInTable"]`, `[class*="assignedBadge"]`, `[class*="clearAssignButton"]`.
+- lineCheckbox() uses `.first()` — rows have multiple checkboxes (include + includesVat).
+- **UPDATED 2026-05-24**: Scenario 13 is NO LONGER fixme. Step 2 is now wired up in AutoItemizePage.tsx.
+- Picker modal step 1 locators: `pickerWorkItemSearchInput` = `pickerModal.getByPlaceholder('Search work items...')` (hardcoded prop); `pickerHouseholdItemSearchInput` = `pickerModal.getByPlaceholder('Search household items...')`. NO type-selection buttons — replaced by side-by-side WorkItemPicker + HouseholdItemPicker with h3 headings.
+- Step 2 locators: `pickerStep2Modal()` returns dialog filtered by h2 `/Select Budget Line/i`; `pickerBudgetLineRow(nameOrIndex)` returns `[class*="pickerBudgetLineRow"]` buttons; `pickerBackButton` = `"← Back"` button; `pickerCreateBudgetLineButton` = `"Create Budget Line"`.
+- Step-1 search results: SearchPicker renders `role="listbox"` → `role="option"` buttons; use `getByRole('option', { name })` scoped to `pickerModal`.
+- After item selected via option click, modal title changes from "Assign to Work Item or Household Item" → "Select Budget Line for {itemTitle}". Wait on `pickerStep2Modal()` not `pickerModal`.
+- eagerLinkInvoice: false in useBudgetLinePicker for AutoItemizePage — budget line is NOT immediately linked to invoice; linking is deferred to the Save commit POST payload.
+- Commit POST intercept: use `page.waitForResponse()` with predicate `postDataJSON().dryRun === false` BEFORE the click; capture body into closure variable for later assertion.
+- `createWorkItemBudgetViaApi(page, wiId, {description, plannedAmount})` — seeds a real WI budget row for picker tests; budget line cascades on WI deletion so no separate cleanup needed.
+
 ## Document Linking System-wide Hide E2E (Story #1557, 2026-05-22) — `e2e/tests/documents/document-linking.spec.ts`
 
 - Scenarios 7a/7b added to existing `document-linking.spec.ts` — no new file.

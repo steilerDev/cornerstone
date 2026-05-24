@@ -1,16 +1,33 @@
 /**
  * E2E tests for Issue #1547: Auto-itemize invoices from Paperless OCR documents.
  *
- * AC19 and related acceptance criteria exercise the full UI flow:
+ * ⚠️  IMPORTANT — Story #1564 (auto-itemize UX redesign) removed the modal-based
+ * flow that many tests in this file exercise:
+ *   - AutoItemizePreviewModal → REMOVED
+ *   - DocumentPickerModal → REMOVED
+ *   - "Auto-itemize" button in InvoiceBudgetLinesSection → REMOVED
+ *
+ * The new page-based flow is covered in:
+ *   e2e/tests/invoices/invoice-auto-itemize-page.spec.ts
+ *
+ * The tests below that reference removed UI (modal, picker, button in budget lines)
+ * will FAIL after story #1564 lands and are marked `@legacy-modal`.
+ * They are preserved here for historical reference but should be removed once
+ * story #1564 is fully merged to main and the old UI is confirmed gone.
+ *
+ * Tests NOT referencing the removed modal UI (e.g. the config-mocking helpers)
+ * remain valid and are exercised by the new spec file above.
+ *
+ * AC19 and related acceptance criteria (original story #1547):
  *   - Button visibility conditions (autoItemizeEnabled, linked docs)
- *   - Single-doc auto-select → dry-run → preview modal
- *   - Multi-doc picker → select → preview modal
- *   - Editing lines in preview modal, then applying (append)
- *   - Empty state when no lines detected
- *   - Total mismatch warning banner
- *   - ITEMIZED_SUM_EXCEEDS_INVOICE error inline in modal
- *   - LLM_UNREACHABLE / 502 error → error toast, no modal
- *   - After apply: Unassigned pills rendered; "Assign…" completes (Story A #1545)
+ *   - Single-doc auto-select → dry-run → preview modal  [REMOVED in #1564]
+ *   - Multi-doc picker → select → preview modal          [REMOVED in #1564]
+ *   - Editing lines in preview modal, then applying      [REMOVED in #1564]
+ *   - Empty state when no lines detected                 [REMOVED in #1564]
+ *   - Total mismatch warning banner                      [now in AutoItemizePage]
+ *   - ITEMIZED_SUM_EXCEEDS_INVOICE error inline in modal [REMOVED in #1564]
+ *   - LLM_UNREACHABLE / 502 error → error toast, no modal [now in AutoItemizePage]
+ *   - After apply: Unassigned pills rendered; "Assign…"  [REMOVED in #1564]
  *
  * Mocking strategy:
  *   - POST /api/invoices/:id/auto-itemize: intercepted via page.route() on every test.
@@ -292,15 +309,26 @@ async function mockAutoItemize(
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1: Auto-itemize button visibility
 // ─────────────────────────────────────────────────────────────────────────────
+//
+// NOTE (#1564): The "Auto-itemize" button in the budget lines section header was
+// REMOVED in story #1564. The first test below checks for presence of this button
+// and is now skipped. The replacement coverage is in invoice-auto-itemize-page.spec.ts
+// (Scenarios 1 & 2: Itemize button on LinkedDocumentCard).
+// The other two tests in this group (absence assertions) remain valid.
 
 test.describe(
   'Auto-itemize button visibility (Scenario 1)',
   { tag: ['@smoke', '@responsive'] },
   () => {
     test(
-      'Auto-itemize button is visible when autoItemizeEnabled=true AND a document is linked',
-      { tag: '@smoke' },
+      '[SKIPPED #1564] Auto-itemize button is visible when autoItemizeEnabled=true AND a document is linked',
+      { tag: ['@smoke', '@legacy-modal'] },
       async ({ page, testPrefix }) => {
+        // Skipped: The "Auto-itemize" button in InvoiceBudgetLinesSection was removed in
+        // story #1564. The new entry point is the "Itemize" button on LinkedDocumentCard.
+        // Replacement: e2e/tests/invoices/invoice-auto-itemize-page.spec.ts Scenario 1.
+        test.skip(true, 'Removed in story #1564: button moved to LinkedDocumentCard');
+
         const detailPage = new InvoiceDetailPage(page);
         let vendorId = '';
         let invoiceId = '';
@@ -406,11 +434,11 @@ test.describe(
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 2: Full happy-path flow (AC19)
+// SKIPPED (#1564): modal-based flow removed. Replacement: invoice-auto-itemize-page.spec.ts Scenario 3.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe(
-  'Auto-itemize full happy-path flow (Scenario 2 — AC19)',
-  { tag: ['@smoke', '@responsive'] },
+test.describe.skip(
+  '[SKIPPED #1564] Auto-itemize full happy-path flow (Scenario 2 — AC19)',
   () => {
     test(
       'Click Auto-itemize → preview modal shows 3 rows → edit one → Apply → 3 Unassigned rows appear → Assign one to work item',
@@ -570,9 +598,11 @@ test.describe(
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 3: Document picker when 2+ docs are linked
+// SKIPPED (#1564): DocumentPickerModal removed. With the new flow, clicking Itemize
+// on a single document card navigates directly to /auto-itemize/:documentId.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Document picker when multiple docs linked (Scenario 3)', () => {
+test.describe.skip('[SKIPPED #1564] Document picker when multiple docs linked (Scenario 3)', () => {
   test('Clicking Auto-itemize with 2 docs opens document picker; selecting one starts dry-run and opens preview', async ({
     page,
     testPrefix,
@@ -651,9 +681,11 @@ test.describe('Document picker when multiple docs linked (Scenario 3)', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 4: Empty state — no lines detected
+// SKIPPED (#1564): AutoItemizePreviewModal removed. The empty state is now handled
+// on the AutoItemizePage itself (shows the table with 0 rows).
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Auto-itemize empty state (Scenario 4)', () => {
+test.describe.skip('[SKIPPED #1564] Auto-itemize empty state (Scenario 4)', () => {
   test('Preview modal shows "No line items detected" when dry-run returns empty lines array', async ({
     page,
     testPrefix,
@@ -718,9 +750,11 @@ test.describe('Auto-itemize empty state (Scenario 4)', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 5: Total mismatch warning banner (AC14)
+// SKIPPED (#1564): The mismatch warning is now a SuggestionBadge on AutoItemizePage,
+// not a banner in the modal. Replacement: invoice-auto-itemize-page.spec.ts Scenario 4.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Auto-itemize mismatch warning (Scenario 5)', () => {
+test.describe.skip('[SKIPPED #1564] Auto-itemize mismatch warning (Scenario 5)', () => {
   test('Preview modal shows non-blocking warning banner when extracted total diverges >1% from invoice amount', async ({
     page,
     testPrefix,
@@ -796,9 +830,11 @@ test.describe('Auto-itemize mismatch warning (Scenario 5)', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 6: ITEMIZED_SUM_EXCEEDS_INVOICE on Apply (AC10)
+// SKIPPED (#1564): The commit (Apply) flow is now on AutoItemizePage Save button,
+// not in AutoItemizePreviewModal. The error handling is in AutoItemizePage errorBanner.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Auto-itemize ITEMIZED_SUM_EXCEEDS_INVOICE on Apply (Scenario 6)', () => {
+test.describe.skip('[SKIPPED #1564] Auto-itemize ITEMIZED_SUM_EXCEEDS_INVOICE on Apply (Scenario 6)', () => {
   test('Clicking Apply when commit returns 400 ITEMIZED_SUM_EXCEEDS_INVOICE shows inline error in modal', async ({
     page,
     testPrefix,
@@ -880,9 +916,11 @@ test.describe('Auto-itemize ITEMIZED_SUM_EXCEEDS_INVOICE on Apply (Scenario 6)',
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 7: LLM unreachable — 502 on dry-run (AC11)
+// SKIPPED (#1564): The error flow is now on AutoItemizePage (errorBanner + Retry),
+// not as a toast before the modal opens. Replacement: invoice-auto-itemize-page.spec.ts Scenario 9.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Auto-itemize LLM unreachable (Scenario 7)', () => {
+test.describe.skip('[SKIPPED #1564] Auto-itemize LLM unreachable (Scenario 7)', () => {
   test('502 on dry-run shows error toast/banner; preview modal does NOT open', async ({
     page,
     testPrefix,
@@ -953,9 +991,15 @@ test.describe('Auto-itemize LLM unreachable (Scenario 7)', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 8: Mode toggle — replace vs append radio selection
+// This test is still valid: the mode toggle moved from the modal to AutoItemizePage.
+// It tests the mode radio group, which still exists at the page level.
 // ─────────────────────────────────────────────────────────────────────────────
+//
+// NOTE (#1564): The mode toggle now lives on AutoItemizePage (not the preview modal).
+// The test needs to be rewritten to use AutoItemizePage instead of the old modal POM.
+// For now, skip it — a replacement test can be added to invoice-auto-itemize-page.spec.ts.
 
-test.describe('Auto-itemize mode toggle (Scenario 8)', () => {
+test.describe.skip('[SKIPPED #1564] Auto-itemize mode toggle (Scenario 8) — needs rewrite for AutoItemizePage', () => {
   test('Mode radio defaults to "Append" and can be switched to "Replace"', async ({
     page,
     testPrefix,
@@ -1017,9 +1061,14 @@ test.describe('Auto-itemize mode toggle (Scenario 8)', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 9: Include/exclude toggle (row checkbox)
+// NOTE (#1564): The checkbox toggle still exists on AutoItemizePage. This test
+// exercises the same behavior but via the old modal POM (detailPage.toggleIncludeLine).
+// The include/exclude logic is now on AutoItemizePage — see Scenario 3 in
+// invoice-auto-itemize-page.spec.ts which also exercises the toggle.
+// Skip here to avoid false failures from the old modal POM.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Auto-itemize row include/exclude toggle (Scenario 9)', () => {
+test.describe.skip('[SKIPPED #1564] Auto-itemize row include/exclude toggle (Scenario 9) — needs rewrite for AutoItemizePage', () => {
   test('Unchecking a row disables it and removes it from the apply payload', async ({
     page,
     testPrefix,

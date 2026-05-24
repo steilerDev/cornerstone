@@ -211,10 +211,12 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - `photoViewer.json` achieved exact parity (8 EN = 8 DE) with all #1475–#1477 keys present
 - `photoViewer.json` — 10 metadata sidepanel keys added 2026-05-19: `saving` → "Wird gespeichert..." (NOT "Speichern..."); `noArea` uses parenthesised lowercase `(kein Bereich)` as inline field fallback (distinct from `areas.noArea` = "Kein Bereich" heading form); parity now 19 EN = 19 DE
 
-## Auto-itemize Feature — Issue #1547 (2026-05-22)
+## Auto-itemize Feature — Issues #1547 + #1564 (2026-05-22 / 2026-05-24)
 
 - See [auto-itemize-patterns.md](auto-itemize-patterns.md) for full details
 - "Auto-itemize" button → "Positionen Extrahieren" (`{Noun} {Verb}` capitalised pattern)
 - "Auto-itemization" as noun concept in errors → "Automatische Positionsextraktion" (not "Auto-Itemisierung")
 - "Itemize manually" → "manuell aufschlüsseln" (consistent with column `itemized` = "Aufgeschlüsselt")
 - `de/errors.json` LLM_NOT_CONFIGURED updated: "Auto-Itemisierung" → "Automatische Positionsextraktion"
+- Story #1564 Round 2: 19 keys added (`unit`, `includesVat`, `vatRate`, edit aria-labels, picker keys); duplicate `amount` removed; `pickerHouseholdItemType` = "Haushaltsartikel" (glossary wins over spec's "Haushaltsposten")
+- Edit aria-label pattern: "X der Position bearbeiten"; toggle exception: `editIncludesVatAriaLabel` = "MwSt.-Einschluss umschalten"

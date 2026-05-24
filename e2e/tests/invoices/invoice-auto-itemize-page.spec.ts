@@ -1109,22 +1109,17 @@ test.describe('Scenarios 10–12 — Responsive layout', { tag: '@responsive' },
 // Story #1564 AC 18-21: Each extracted row has an "Assign To" cell that
 // opens the two-step budget-line picker (same logic as InvoiceBudgetLinesSection).
 //
-// FIXME: The AutoItemizePage picker modal currently only renders step 1 (type
-// selection: "Work Item" / "Household Item" buttons). Step 2 — the WorkItemPicker
-// search input and budget line selection list — is NOT yet rendered inside the
-// modal. The picker in AutoItemizePage.tsx sets `pickerState.type` when a type
-// button is clicked, but `picker.handleSelectItem()` is never called from the
-// modal, so the modal never transitions to step 2.
-//
-// This test is marked test.fixme() until the frontend implements step 2 in the
-// AutoItemizePage picker modal (WorkItemPicker + budget line list).
-//
-// Once unfixed, the test exercises:
+// The picker flow:
 //   1. "Assign…" button visible in the first row's "Assign To" cell
-//   2. Click "Assign…" → picker modal opens with step 1 type selection
-//   3. Click "Work Item" → modal advances to step 2 (WorkItemPicker search)
-//   4. Search for the seeded work item → click it → budget line list loads
-//   5. Click the seeded budget line → picker closes (step 2 confirmation)
+//   2. Click "Assign…" → picker modal opens (step 1: two side-by-side pickers)
+//      - Left tab: h3 "Work Item" + WorkItemPicker search input
+//        (placeholder="Search work items...")
+//      - Right tab: h3 "Household Item" + HouseholdItemPicker search input
+//        (placeholder="Search household items...")
+//   3. Type in work-item search input → seeded work item appears → click it
+//   4. Modal advances to step 2 (title: "Select Budget Line for {itemTitle}")
+//      Budget lines for the selected work item are listed as buttons
+//   5. Click the seeded budget line → picker closes
 //   6. Row 1 shows assigned badge with description; row 2 still has "Assign…"
 //   7. Click "Save" → POST /api/invoices/:id/auto-itemize intercepted
 //   8. Payload lines[0] contains assignedBudgetLineId + assignedBudgetLineType: 'work_item'
@@ -1132,7 +1127,7 @@ test.describe('Scenarios 10–12 — Responsive layout', { tag: '@responsive' },
 //  10. Navigation returns to invoice detail page
 
 test.describe('Scenario 13 — Per-row assignment: "Assign…" picker flow', () => {
-  test.fixme(
+  test(
     'Assign a seeded work-item budget line to the first extracted row; Save payload reflects the assignment',
     async ({ page, testPrefix }) => {
       // Skip on narrow mobile — functional test requires visible table
@@ -1183,41 +1178,38 @@ test.describe('Scenario 13 — Per-row assignment: "Assign…" picker flow', () 
         const secondAssignBtn = autoItemizePage.lineAssignButton(1);
         await expect(secondAssignBtn).toBeVisible();
 
-        // ── Click "Assign…" on first row → picker modal opens ─────────────────
+        // ── Click "Assign…" on first row → picker modal opens (step 1) ─────────
         await firstAssignBtn.click();
         await expect(autoItemizePage.pickerModal).toBeVisible();
         await expect(autoItemizePage.pickerModal).toContainText('Assign to Work Item or Household Item');
 
-        // ── Step 1: Type selection visible ────────────────────────────────────
-        await expect(autoItemizePage.pickerWorkItemButton).toBeVisible();
-        await expect(autoItemizePage.pickerHouseholdItemButton).toBeVisible();
+        // ── Step 1: Two side-by-side pickers visible ──────────────────────────
+        // WorkItemPicker renders a plain <input type="text"> with the hardcoded placeholder
+        await expect(autoItemizePage.pickerWorkItemSearchInput).toBeVisible();
+        // HouseholdItemPicker renders a plain <input type="text"> with its hardcoded placeholder
+        await expect(autoItemizePage.pickerHouseholdItemSearchInput).toBeVisible();
 
-        // ── Click "Work Item" → advances to step 2 (WorkItemPicker search) ────
-        // NOTE: Step 2 is NOT yet rendered in AutoItemizePage.tsx.
-        // When this FIXME is resolved, the following assertions will validate:
-        //   - A text input appears for searching work items
-        //   - The seeded work item appears in results
-        //   - Clicking it advances to the budget line list
-        //   - The seeded budget line appears and can be selected
-        await autoItemizePage.pickerWorkItemButton.click();
+        // ── Type in the work-item search input to find the seeded WI ─────────
+        await autoItemizePage.pickerWorkItemSearchInput.fill(`${testPrefix} AI-Assign WI`);
 
-        // ── Step 2: WorkItemPicker search input appears (not yet implemented) ──
-        // Once implemented, the picker should show a search input:
-        const wiSearchInput = autoItemizePage.pickerModal.locator('input[type="text"]').first();
-        await wiSearchInput.waitFor({ state: 'visible' });
-        await wiSearchInput.fill(`${testPrefix} AI-Assign WI`);
-
-        // Wait for the work item option to appear in the dropdown
-        const wiOption = page.getByRole('option', { name: `${testPrefix} AI-Assign WI` });
+        // The SearchPicker opens a listbox with role="listbox" → role="option" buttons
+        const wiOption = autoItemizePage.pickerModal.getByRole('option', {
+          name: `${testPrefix} AI-Assign WI`,
+        });
         await wiOption.waitFor({ state: 'visible' });
         await wiOption.click();
 
-        // ── Step 2b: Budget line list renders; click the seeded budget line ────
-        // After selecting a work item, the picker fetches its budget lines.
-        // The seeded budget line appears as a button in the list.
-        const budgetLineButton = autoItemizePage.pickerModal.getByRole('button', {
-          name: new RegExp(budgetLineDescription, 'i'),
-        });
+        // ── Step 2: Modal title changes; budget line list renders ─────────────
+        // After selecting a work item via WorkItemPicker.onSelectItem, the picker hook
+        // calls handleSelectItem(id, 'work_item', title) → pickerState.step=2 and
+        // fetches budget lines for the selected item.
+        const step2Modal = autoItemizePage.pickerStep2Modal();
+        await expect(step2Modal).toBeVisible();
+
+        // The seeded budget line appears as a button in the step-2 list
+        const budgetLineButton = autoItemizePage.pickerBudgetLineRow(
+          new RegExp(budgetLineDescription, 'i'),
+        );
         await budgetLineButton.waitFor({ state: 'visible' });
         await budgetLineButton.click();
 

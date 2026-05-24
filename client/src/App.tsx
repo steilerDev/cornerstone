@@ -85,6 +85,7 @@ const UserManagementPage = lazy(() => import('./pages/UserManagementPage/UserMan
 const BackupsPage = lazy(() => import('./pages/BackupsPage/BackupsPage'));
 const InvoicesPage = lazy(() => import('./pages/InvoicesPage/InvoicesPage'));
 const InvoiceDetailPage = lazy(() => import('./pages/InvoiceDetailPage/InvoiceDetailPage'));
+const AutoItemizePage = lazy(() => import('./pages/AutoItemizePage/index.js'));
 const DiaryPage = lazy(() => import('./pages/DiaryPage/DiaryPage'));
 const DiaryEntryDetailPage = lazy(
   () => import('./pages/DiaryEntryDetailPage/DiaryEntryDetailPage'),
@@ -157,6 +158,14 @@ export function App() {
                       <Route path="subsidies" element={<SubsidyProgramsPage />} />
                       <Route path="invoices" element={<InvoicesPage />} />
                       <Route path="invoices/:id" element={<InvoiceDetailPage />} />
+                      <Route
+                        path="invoices/:id/auto-itemize/:documentId"
+                        element={
+                          <Suspense fallback={<div>Loading...</div>}>
+                            <AutoItemizePage />
+                          </Suspense>
+                        }
+                      />
                     </Route>
 
                     {/* Schedule (renamed from Timeline) */}

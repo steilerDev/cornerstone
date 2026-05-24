@@ -7,6 +7,8 @@ import type {
   AutoItemizeWarning,
   PaperlessDocumentSearchResult,
   InvoicePatchForAutoItemize,
+  WorkItemBudgetLine,
+  HouseholdItemBudgetLine,
 } from '@cornerstone/shared';
 import { fetchInvoiceById } from '../../lib/invoicesApi.js';
 import { autoItemize } from '../../lib/invoiceAutoItemizeApi.js';
@@ -14,6 +16,7 @@ import { getPaperlessDocument } from '../../lib/paperlessApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useBudgetLinePicker } from '../../hooks/useBudgetLinePicker.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { Modal } from '../../components/Modal/Modal.js';
@@ -21,6 +24,10 @@ import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { DocumentDetailPanel } from '../../components/documents/DocumentDetailPanel.js';
 import { SuggestionBadge } from '../../components/SuggestionBadge/SuggestionBadge.js';
+import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
+import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
+import { BudgetLineForm } from '../../components/budget/BudgetLineForm.js';
+import { CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './AutoItemizePage.module.css';
 
@@ -80,6 +87,8 @@ export function AutoItemizePage() {
   // Budget line picker state
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
   const [lineFieldsEdited, setLineFieldsEdited] = useState(false);
+  const { t: tSettings } = useTranslation('settings');
+
   const picker = useBudgetLinePicker({
     invoiceId: invoiceId || '',
     invoiceAmount: invoice?.amount ?? 0,
@@ -355,6 +364,37 @@ export function AutoItemizePage() {
     setActiveRowId(rowId);
     picker.openPicker();
   }, [picker]);
+
+  /**
+   * Step 2: User selects a budget line from the filtered list.
+   * Do NOT call any API — just store the budget line ID and details on the row.
+   */
+  const handleSelectBudgetLine = useCallback(
+    (budgetLine: WorkItemBudgetLine | HouseholdItemBudgetLine) => {
+      if (!activeRowId) return;
+
+      const lineType: 'work_item' | 'household_item' = 'workItemId' in budgetLine
+        ? 'work_item'
+        : 'household_item';
+
+      setLines((prev) =>
+        prev.map((l) =>
+          l.rowId === activeRowId
+            ? {
+                ...l,
+                assignedBudgetLineId: budgetLine.id,
+                assignedBudgetLineType: lineType,
+                assignedBudgetLineDescription: budgetLine.description ?? null,
+              }
+            : l,
+        ),
+      );
+      setLineFieldsEdited(true);
+      picker.closePicker();
+      setActiveRowId(null);
+    },
+    [activeRowId, picker],
+  );
 
   const handleRetry = useCallback(() => {
     if (!invoiceId || !documentId) return;
@@ -875,32 +915,184 @@ export function AutoItemizePage() {
           onClose={picker.closePicker}
         >
           <div className={styles.pickerContent}>
+            {/* Step 1: Select item type and item */}
             {picker.pickerState.step === 1 && (
-              <div>
-                <p>{t('autoItemize.pickerSelectTypeLabel')}</p>
-                <div className={styles.pickerTypeButtons}>
-                  <button
-                    type="button"
-                    className={sharedStyles.btnSecondary}
-                    onClick={() => picker.setPickerState((prev) => ({ ...prev, type: 'work_item' }))}
-                  >
-                    {t('autoItemize.pickerWorkItemType')}
-                  </button>
-                  <button
-                    type="button"
-                    className={sharedStyles.btnSecondary}
-                    onClick={() =>
-                      picker.setPickerState((prev) => ({ ...prev, type: 'household_item' }))
-                    }
-                  >
-                    {t('autoItemize.pickerHouseholdItemType')}
-                  </button>
+              <div className={styles.pickerStep}>
+                <div className={styles.tabsContainer}>
+                  <div className={styles.tab}>
+                    <h3 className={styles.tabTitle}>
+                      {t('invoiceDetail.budgetLines.picker.workItemTab')}
+                    </h3>
+                    <WorkItemPicker
+                      value=""
+                      onChange={(itemId) => {
+                        picker.handleSelectItem(itemId, 'work_item');
+                      }}
+                      onSelectItem={(item) => {
+                        picker.handleSelectItem(item.id, 'work_item', item.title);
+                      }}
+                      excludeIds={[]}
+                      placeholder="Search work items..."
+                      showItemsOnFocus
+                    />
+                  </div>
+
+                  <div className={styles.separator}>
+                    {t('invoiceDetail.budgetLines.picker.separator')}
+                  </div>
+
+                  <div className={styles.tab}>
+                    <h3 className={styles.tabTitle}>
+                      {t('invoiceDetail.budgetLines.picker.householdItemTab')}
+                    </h3>
+                    <HouseholdItemPicker
+                      value=""
+                      onChange={(itemId) => {
+                        picker.handleSelectItem(itemId, 'household_item');
+                      }}
+                      onSelectItem={(item) => {
+                        picker.handleSelectItem(item.id, 'household_item', item.name);
+                      }}
+                      excludeIds={[]}
+                      placeholder="Search household items..."
+                      showItemsOnFocus
+                    />
+                  </div>
                 </div>
               </div>
             )}
 
-            {picker.pickerState.error && (
-              <FormError variant="banner" message={picker.pickerState.error} />
+            {/* Step 2: Select budget line and set itemized amounts */}
+            {picker.pickerState.step === 2 && (
+              <div className={styles.pickerStep}>
+                {picker.pickerState.isLoading && (
+                  <div className={styles.loadingState}>
+                    {t('invoiceDetail.budgetLines.picker.loadingLines')}
+                  </div>
+                )}
+
+                {picker.pickerState.error && (
+                  <div className={styles.errorBanner} role="alert">
+                    {picker.pickerState.error}
+                  </div>
+                )}
+
+                {!picker.pickerState.isLoading &&
+                  picker.pickerState.budgetLines.length === 0 &&
+                  !picker.pickerState.error &&
+                  !picker.pickerState.showCreateForm && (
+                    <div className={styles.emptyState}>
+                      <p>{t('invoiceDetail.budgetLines.picker.noUnlinkedLines')}</p>
+                      <button
+                        type="button"
+                        ref={picker.createBudgetLineButtonRef}
+                        className={styles.addButton}
+                        onClick={() => picker.showCreateBudgetLineForm()}
+                      >
+                        {t('invoiceDetail.budgetLines.picker.createLine')}
+                      </button>
+                    </div>
+                  )}
+
+                {!picker.pickerState.isLoading &&
+                  picker.pickerState.showCreateForm &&
+                  picker.pickerState.createForm && (
+                    <div className={styles.createBudgetLineForm}>
+                      <fieldset className={styles.createBudgetLineFieldset}>
+                        <legend className={styles.srOnly}>
+                          {t('invoiceDetail.budgetLines.createFormLegend')}
+                        </legend>
+                        <BudgetLineForm
+                          form={picker.pickerState.createForm}
+                          onSubmit={(e) => picker.handleCreateBudgetLine(e)}
+                          onFormChange={(updates) =>
+                            picker.setPickerState((prev) => ({
+                              ...prev,
+                              createForm: prev.createForm
+                                ? { ...prev.createForm, ...updates }
+                                : prev.createForm,
+                            }))
+                          }
+                          onCancel={() => {
+                            picker.setPickerState((prev) => ({
+                              ...prev,
+                              showCreateForm: false,
+                              createForm: undefined,
+                              createError: null,
+                            }));
+                            setTimeout(() => {
+                              picker.createBudgetLineButtonRef.current?.focus();
+                            }, 0);
+                          }}
+                          error={picker.pickerState.createError ?? null}
+                          isSaving={picker.pickerState.isCreatingBudgetLine ?? false}
+                          isEditing={false}
+                          confidenceLabels={CONFIDENCE_LABELS}
+                          budgetSources={picker.pickerState.budgetSources ?? []}
+                          vendors={picker.pickerState.vendors ?? []}
+                          budgetCategories={
+                            picker.pickerState.type === 'work_item'
+                              ? (picker.pickerState.categories ?? [])
+                              : undefined
+                          }
+                        />
+                      </fieldset>
+                    </div>
+                  )}
+
+                {!picker.pickerState.isLoading &&
+                  picker.pickerState.budgetLines.length > 0 &&
+                  !picker.pickerState.showCreateForm && (
+                    <div className={styles.budgetLineList}>
+                      {picker.pickerState.budgetLines.map((line) => (
+                        <button
+                          key={line.id}
+                          type="button"
+                          className={styles.pickerBudgetLineRow}
+                          onClick={() => void handleSelectBudgetLine(line)}
+                        >
+                          <div className={styles.budgetLineInfo}>
+                            <div className={styles.budgetLineDesc}>
+                              {line.description ||
+                                t('invoiceDetail.budgetLines.picker.unnamedBudgetLine')}
+                            </div>
+                            <div className={styles.budgetLineDetails}>
+                              {line.budgetCategory && (
+                                <span className={styles.budgetLineCategory}>
+                                  {getCategoryDisplayName(
+                                    tSettings,
+                                    line.budgetCategory.name,
+                                    line.budgetCategory.translationKey,
+                                  )}
+                                </span>
+                              )}
+                              <span className={styles.budgetLinePlanned}>
+                                {t('invoiceDetail.budgetLines.picker.plannedLabel', {
+                                  amount: formatCurrency(line.plannedAmount),
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                <button
+                  type="button"
+                  className={styles.backButton}
+                  onClick={() =>
+                    picker.setPickerState((prev) => ({
+                      ...prev,
+                      step: 1,
+                      budgetLines: [],
+                      isLoading: false,
+                    }))
+                  }
+                >
+                  {t('invoiceDetail.budgetLines.picker.backButton')}
+                </button>
+              </div>
             )}
           </div>
         </Modal>

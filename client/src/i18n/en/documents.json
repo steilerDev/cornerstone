@@ -56,7 +56,9 @@
   },
   "documentCard": {
     "documentLabel": "Document: {{title}}{{date}}",
-    "view": "View",
+    "details": "Details",
+    "detailsAriaLabel": "View details: {{title}}",
+    "itemize": "Itemize",
     "openInPaperless": "Open in Paperless-ngx",
     "removeLink": "Remove document link"
   },

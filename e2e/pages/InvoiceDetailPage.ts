@@ -284,46 +284,83 @@ export class InvoiceDetailPage {
    */
   readonly moveHintBanner: Locator;
 
-  // ─── Auto-itemize (Issue #1547) ──────────────────────────────────────────────
+  // ─── Auto-itemize (Issue #1547, redesigned in Issue #1564) ─────────────────
   //
-  // Auto-itemize button: rendered in the section header when
-  //   config.autoItemizeEnabled === true AND linkedDocs.length > 0.
-  // Button text: t('invoiceDetail.budgetLines.autoItemize.button') = "Auto-itemize"
-  // aria-label: t('invoiceDetail.budgetLines.autoItemize.buttonAriaLabel')
-  //           = "Extract line items from a linked Paperless document"
+  // Story #1564 redesigned the auto-itemize flow as a full page instead of a modal.
+  // The "Auto-itemize" button in InvoiceBudgetLinesSection was REMOVED.
+  // The "Itemize" button now appears on each LinkedDocumentCard (in LinkedDocumentsSection)
+  //   when: entityType='invoice' AND config.autoItemizeEnabled=true.
+  // Clicking "Itemize" navigates to /budget/invoices/:id/auto-itemize/:documentId.
   //
-  // DocumentPickerModal: shown when 2+ docs are linked.
-  //   Modal title: t('invoiceDetail.budgetLines.autoItemize.docPickerTitle')
-  //              = "Choose document to analyze"
-  //   The Modal component uses createPortal + useId(), so we locate by
-  //   role="dialog" filtered to h2 containing the title text.
+  // REMOVED components (story #1564):
+  //   - AutoItemizePreviewModal
+  //   - DocumentPickerModal
+  //   - "Auto-itemize" button in InvoiceBudgetLinesSection header
   //
-  // AutoItemizePreviewModal: shown after successful dry-run.
-  //   Modal title: t('invoiceDetail.budgetLines.autoItemize.modalTitle')
-  //              = "Review extracted line items"
+  // ADDED (story #1564):
+  //   - "Itemize" button on LinkedDocumentCard (in LinkedDocumentsSection)
+  //     Translation key: documents:documentCard.itemize = "Itemize"
+  //     aria-label: `${t('documentCard.itemize')}: ${title}` = "Itemize: {docTitle}"
+  //   - "Details" button renamed from "View" (same button, new label)
+  //     Translation key: documents:documentCard.details = "Details"
+  //     aria-label: t('documentCard.detailsAriaLabel', { title }) = "View details: {title}"
   //
-  // autoItemizeError banner: rendered inside the <section> (not a portal)
-  //   as <div className={styles.errorBanner} role="alert">{autoItemizeError}</div>
-  //   Selector: budgetLinesSection locator('[role="alert"]')
-  //   or: page.locator('[class*="errorBanner"]').first() for the section-level banner
+  // For the new AutoItemizePage POM, see: e2e/pages/AutoItemizePage.ts
 
-  // ─── Auto-itemize constructor helpers ────────────────────────────────────────
+  // ─── LinkedDocumentCard helpers (Issue #1564) ────────────────────────────────
 
   /**
-   * Returns the "Auto-itemize" button locator.
-   * The button is only rendered when autoItemizeEnabled=true AND docs are linked.
-   * Scoped to the budgetLinesSection to avoid false matches.
+   * Returns the "Itemize" button locator for a specific document card.
+   * Only present when entityType=invoice AND autoItemizeEnabled=true.
+   * Scoped to the documentsSection.
+   *
+   * aria-label pattern: "Itemize: {documentTitle}"
    */
-  getAutoItemizeButton(): Locator {
-    // aria-label is stable and locale-independent for this selector
+  itemizeButton(documentTitle: string): Locator {
+    return this.documentsSection.getByRole('button', {
+      name: new RegExp(`Itemize.*${documentTitle}`, 'i'),
+    });
+  }
+
+  /**
+   * Returns the "Details" button locator for a specific document card.
+   * Renamed from "View" in story #1564.
+   * Scoped to the documentsSection.
+   *
+   * aria-label pattern: "View details: {documentTitle}"
+   */
+  detailsButton(documentTitle: string): Locator {
+    return this.documentsSection.getByRole('button', {
+      name: new RegExp(`View details.*${documentTitle}`, 'i'),
+    });
+  }
+
+  /**
+   * Returns a locator for the OLD "Auto-itemize" button that was in the budget lines
+   * section header. After story #1564 this button NO LONGER EXISTS.
+   * Use this locator ONLY to assert absence (expect(...).not.toBeVisible()).
+   *
+   * @deprecated The auto-itemize button was removed in story #1564.
+   *             Use itemizeButton() on the LinkedDocumentCard instead.
+   */
+  autoItemizeButton(): Locator {
     return this.budgetLinesSection.getByRole('button', {
       name: 'Extract line items from a linked Paperless document',
     });
   }
 
   /**
-   * Returns the Document Picker modal locator.
-   * Modal title (from Modal's useId() h2): "Choose document to analyze"
+   * @deprecated Alias kept for backward compat with tests written before story #1564.
+   * The "Auto-itemize" button in the budget lines section was removed.
+   * Use autoItemizeButton() and assert its absence, or use itemizeButton() on the card.
+   */
+  getAutoItemizeButton(): Locator {
+    return this.autoItemizeButton();
+  }
+
+  /**
+   * @deprecated Removed in story #1564. The DocumentPickerModal no longer exists.
+   * The new flow navigates directly to /auto-itemize/:documentId when Itemize is clicked.
    */
   getDocumentPickerModal(): Locator {
     return this.page.locator('[role="dialog"]').filter({
@@ -332,8 +369,8 @@ export class InvoiceDetailPage {
   }
 
   /**
-   * Returns the Auto-itemize Preview modal locator.
-   * Modal title (from Modal's useId() h2): "Review extracted line items"
+   * @deprecated Removed in story #1564. The AutoItemizePreviewModal no longer exists.
+   * Use AutoItemizePage POM instead.
    */
   getAutoItemizePreviewModal(): Locator {
     return this.page.locator('[role="dialog"]').filter({
@@ -342,24 +379,22 @@ export class InvoiceDetailPage {
   }
 
   /**
-   * Returns the mismatch warning banner inside the preview modal.
-   * The component renders it as <div className={styles.warningBlock}> containing a <div className={styles.warningIcon}> and <div className={styles.warningContent}>.
+   * @deprecated Removed in story #1564. The mismatch warning is now in AutoItemizePage.
    */
   getMismatchWarningBanner(): Locator {
     return this.getAutoItemizePreviewModal().locator('[class*="warningBlock"]');
   }
 
   /**
-   * Returns the empty state message inside the preview modal.
-   * Rendered as <div className={styles.emptyState}><p>No line items detected</p></div>
+   * @deprecated Removed in story #1564. The empty state is now in AutoItemizePage.
    */
   getEmptyStateMessage(): Locator {
     return this.getAutoItemizePreviewModal().locator('[class*="emptyState"]');
   }
 
   /**
-   * Clicks the "Auto-itemize" button.
-   * Waits for the button to be visible first.
+   * @deprecated Removed in story #1564. The old auto-itemize button was removed.
+   * Use itemizeButton(documentTitle).click() on the LinkedDocumentCard instead.
    */
   async clickAutoItemizeButton(): Promise<void> {
     const btn = this.getAutoItemizeButton();
@@ -368,37 +403,31 @@ export class InvoiceDetailPage {
   }
 
   /**
-   * Clicks a document in the Document Picker modal by its title text.
-   * Waits for the picker modal to be visible before clicking.
+   * @deprecated Removed in story #1564. DocumentPickerModal was removed.
    */
   async selectDocument(title: string): Promise<void> {
     const pickerModal = this.getDocumentPickerModal();
     await pickerModal.waitFor({ state: 'visible' });
-    // Documents render as <button type="button" className={styles.item}>
     await pickerModal.getByRole('button', { name: title }).click();
   }
 
   /**
-   * Edits the description of a preview line at the given 0-based index.
-   * Clears the current value and types the new description.
+   * @deprecated Removed in story #1564. AutoItemizePreviewModal was removed.
    */
   async editPreviewLineDescription(index: number, newDescription: string): Promise<void> {
     const previewModal = this.getAutoItemizePreviewModal();
     await previewModal.waitFor({ state: 'visible' });
-    // Description inputs are <input type="text"> in table tbody rows
     const descInput = previewModal.locator('table tbody tr input[type="text"]').nth(index);
     await descInput.clear();
     await descInput.fill(newDescription);
   }
 
   /**
-   * Toggles the include/exclude checkbox for a preview line at the given 0-based index.
-   * Skips the select-all checkbox (first header checkbox).
+   * @deprecated Removed in story #1564. AutoItemizePreviewModal was removed.
    */
   async toggleIncludeLine(index: number): Promise<void> {
     const previewModal = this.getAutoItemizePreviewModal();
     await previewModal.waitFor({ state: 'visible' });
-    // Row checkboxes are <input type="checkbox"> in tbody — exclude the aria-label="Select all lines" one
     const rowCheckboxes = previewModal.locator(
       'table tbody tr input[type="checkbox"]:not([aria-label*="Select all"])',
     );
@@ -406,7 +435,7 @@ export class InvoiceDetailPage {
   }
 
   /**
-   * Selects the append or replace mode radio button inside the preview modal.
+   * @deprecated Removed in story #1564. AutoItemizePreviewModal was removed.
    */
   async selectMode(mode: 'append' | 'replace'): Promise<void> {
     const previewModal = this.getAutoItemizePreviewModal();
@@ -416,8 +445,7 @@ export class InvoiceDetailPage {
   }
 
   /**
-   * Clicks the "Apply" button inside the preview modal.
-   * Does NOT wait for network responses — register waitForResponse before calling.
+   * @deprecated Removed in story #1564. AutoItemizePreviewModal was removed.
    */
   async clickApplyButton(): Promise<void> {
     const previewModal = this.getAutoItemizePreviewModal();

@@ -35,6 +35,8 @@ const schema = {
             vatRate: { type: ['number', 'null'] },
             vendorName: { type: ['string', 'null'] },
             confidence: { type: 'number', minimum: 0, maximum: 1 },
+            assignedBudgetLineId: { type: ['string', 'null'] },
+            assignedBudgetLineType: { type: ['string', 'null'], enum: ['work_item', 'household_item', null] },
           },
           additionalProperties: false,
         },

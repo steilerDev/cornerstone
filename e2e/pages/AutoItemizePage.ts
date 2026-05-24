@@ -28,13 +28,23 @@
  *     contains <span> with description and <button class*="clearAssignButton" aria-label="Clear budget line assignment">
  * - Budget line picker modal (opened by "Assign…" button):
  *   - Modal title (step 1): t('autoItemize.pickerTitle') = "Assign to Work Item or Household Item"
- *   - Step 1 body: p with t('autoItemize.pickerSelectTypeLabel') = "Choose item type:"
- *     followed by two buttons in div class*="pickerTypeButtons":
- *       "Work Item" (t('autoItemize.pickerWorkItemType'))
- *       "Household Item" (t('autoItemize.pickerHouseholdItemType'))
- *   - NOTE (story #1564 Round 2): Step 2 (WorkItemPicker search + budget line selection)
- *     is NOT yet rendered in AutoItemizePage.tsx. The picker modal only shows step 1 type
- *     buttons. Step 2 UI must be implemented before Scenario 13 can be fully exercised.
+ *   - Modal title (step 2): t('autoItemize.pickerStep2Title', { itemTitle }) =
+ *       "Select Budget Line for {itemTitle}"
+ *   - Step 1 body: two tabs rendered side-by-side inside div class*="tabsContainer":
+ *       Left tab  — div class*="tab" with h3 "Work Item" (t('invoiceDetail.budgetLines.picker.workItemTab'))
+ *                   + WorkItemPicker search input: plain <input type="text"> with
+ *                     placeholder="Search work items..." (hardcoded prop in AutoItemizePage.tsx)
+ *       Separator — div class*="separator" text "or"
+ *       Right tab — div class*="tab" with h3 "Household Item" + HouseholdItemPicker:
+ *                   plain <input type="text"> placeholder="Search household items..."
+ *       Selecting a work item via WorkItemPicker.onSelectItem calls picker.handleSelectItem(id, 'work_item', title)
+ *       which sets pickerState.step=2 and fetches budget lines for the selected item.
+ *   - Step 2 body (after item selected):
+ *       Budget line list: buttons class*="pickerBudgetLineRow" (one per unlinked budget line)
+ *       Empty state: "No unlinked budget lines for this item." + "Create Budget Line" button
+ *       Back button: "← Back" (t('invoiceDetail.budgetLines.picker.backButton')) — returns to step 1
+ *       Inline create form: BudgetLineForm inside fieldset class*="createBudgetLineFieldset"
+ *         (shown when showCreateForm=true; triggered by "Create Budget Line" button)
  * - Cancel modal (Discard Changes?): rendered via Modal component
  *   title: t('autoItemize.cancelConfirmTitle') = "Discard Changes?"
  *   discard button: t('autoItemize.discardChanges') = "Discard Changes"
@@ -88,19 +98,55 @@ export class AutoItemizePage {
   //  b) An assigned badge (class*="assignedBadge") — assignment is made
   //     containing a description <span> and a "Clear" button (class*="clearAssignButton")
   //
-  // The budget line picker modal (step 1 only — step 2 not yet implemented):
-  //  - pickerModal: role="dialog" with h2 "Assign to Work Item or Household Item"
-  //  - pickerWorkItemButton: "Work Item" button inside the picker type selection
-  //  - pickerHouseholdItemButton: "Household Item" button inside the picker type selection
+  // The budget line picker modal has two steps:
+  //  Step 1: Two side-by-side pickers (WorkItemPicker + HouseholdItemPicker) with h3 headings.
+  //    - pickerModal: role="dialog" filtered by h2 "Assign to Work Item or Household Item"
+  //    - pickerWorkItemSearchInput: plain <input type="text"> inside the Work Item tab
+  //      (placeholder="Search work items..." — hardcoded prop in AutoItemizePage.tsx)
+  //    - pickerHouseholdItemSearchInput: plain <input type="text"> inside the Household Item tab
+  //      (placeholder="Search household items..." — hardcoded prop in AutoItemizePage.tsx)
+  //  Step 2: Budget line list for the selected item (modal title changes to step-2 title).
+  //    - pickerBudgetLineRows: buttons class*="pickerBudgetLineRow"
+  //    - pickerBackButton: "← Back" button
+  //    - pickerCreateBudgetLineButton: "Create Budget Line" button (empty-state or below list)
+  //    - pickerCreateBudgetLineFieldset: fieldset class*="createBudgetLineFieldset" (inline form)
 
-  /** Budget line assignment picker modal (step 1: type selection). */
+  /** Budget line assignment picker modal (step 1 OR step 2). */
   readonly pickerModal: Locator;
 
-  /** "Work Item" type-selection button inside the picker modal (step 1). */
-  readonly pickerWorkItemButton: Locator;
+  /**
+   * Search input for Work Items in step 1 of the picker modal.
+   * Rendered by WorkItemPicker → SearchPicker as a plain <input type="text">
+   * with placeholder "Search work items..." (hardcoded in AutoItemizePage.tsx).
+   */
+  readonly pickerWorkItemSearchInput: Locator;
 
-  /** "Household Item" type-selection button inside the picker modal (step 1). */
-  readonly pickerHouseholdItemButton: Locator;
+  /**
+   * Search input for Household Items in step 1 of the picker modal.
+   * Rendered by HouseholdItemPicker → SearchPicker as a plain <input type="text">
+   * with placeholder "Search household items..." (hardcoded in AutoItemizePage.tsx).
+   */
+  readonly pickerHouseholdItemSearchInput: Locator;
+
+  /**
+   * "← Back" button in step 2 of the picker modal.
+   * Returns to step 1 (resets budgetLines and step to 1).
+   * Text: t('invoiceDetail.budgetLines.picker.backButton') = "← Back"
+   */
+  readonly pickerBackButton: Locator;
+
+  /**
+   * "Create Budget Line" button in step 2 of the picker modal (empty-state or below list).
+   * Text: t('invoiceDetail.budgetLines.picker.createLine') = "Create Budget Line"
+   */
+  readonly pickerCreateBudgetLineButton: Locator;
+
+  /**
+   * Fieldset wrapping the inline BudgetLineForm in step 2.
+   * Only rendered when pickerState.showCreateForm=true.
+   * class*="createBudgetLineFieldset"
+   */
+  readonly pickerCreateBudgetLineFieldset: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -160,21 +206,39 @@ export class AutoItemizePage {
     this.previewColumn = page.locator('[class*="previewColumn"]');
 
     // ─── Per-row assignment picker modal (story #1564 Round 2) ─────────────
-    // Modal title (step 1): "Assign to Work Item or Household Item"
-    // (t('autoItemize.pickerTitle'))
+    // The Modal uses useId() for aria-labelledby — NOT accessible name on the dialog itself.
+    // Filter by the h2 text to scope to the correct dialog.
+    // Step 1 title: "Assign to Work Item or Household Item" (t('autoItemize.pickerTitle'))
+    // Step 2 title: "Select Budget Line for {itemTitle}" (t('autoItemize.pickerStep2Title'))
+    // We scope pickerModal only to step 1 here; use pickerStep2Modal() method for step 2.
     this.pickerModal = page.locator('[role="dialog"]').filter({
       has: page.locator('h2', { hasText: /Assign to Work Item or Household Item/i }),
     });
 
-    // "Work Item" button inside the picker modal step 1 type-selection div
-    this.pickerWorkItemButton = this.pickerModal.getByRole('button', {
-      name: /^Work Item$/i,
+    // Step 1 — Work Item search input (WorkItemPicker → SearchPicker plain <input type="text">)
+    // Scoped to the left tab (div class*="tab" containing h3 "Work Item")
+    this.pickerWorkItemSearchInput = this.pickerModal.getByPlaceholder('Search work items...');
+
+    // Step 1 — Household Item search input (HouseholdItemPicker → SearchPicker plain <input type="text">)
+    // Scoped to the right tab (div class*="tab" containing h3 "Household Item")
+    this.pickerHouseholdItemSearchInput = this.pickerModal.getByPlaceholder('Search household items...');
+
+    // Step 2 — "← Back" button: returns to step 1
+    // The modal title changes to "Select Budget Line for …" in step 2.
+    // We scope the back button to the dialog element (which stays open during step transitions).
+    // Use a broader dialog scope that matches both step titles.
+    const anyPickerModal = page.locator('[role="dialog"]').filter({
+      has: page.locator('h2', { hasText: /Assign to Work Item or Household Item|Select Budget Line/i }),
+    });
+    this.pickerBackButton = anyPickerModal.getByRole('button', { name: /← Back/i });
+
+    // Step 2 — "Create Budget Line" button (shown in empty state and below existing lines)
+    this.pickerCreateBudgetLineButton = anyPickerModal.getByRole('button', {
+      name: /Create Budget Line/i,
     });
 
-    // "Household Item" button inside the picker modal step 1 type-selection div
-    this.pickerHouseholdItemButton = this.pickerModal.getByRole('button', {
-      name: /^Household Item$/i,
-    });
+    // Step 2 — Inline BudgetLineForm fieldset (class*="createBudgetLineFieldset")
+    this.pickerCreateBudgetLineFieldset = anyPickerModal.locator('[class*="createBudgetLineFieldset"]');
   }
 
   /**
@@ -184,6 +248,32 @@ export class AutoItemizePage {
   async goto(invoiceId: string, documentId: number): Promise<void> {
     await this.page.goto(`/budget/invoices/${invoiceId}/auto-itemize/${documentId}`);
     await this.pageTitle.waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Returns the picker modal when it is in step 2 (budget line list).
+   * The modal title in step 2 changes to "Select Budget Line for {itemTitle}".
+   * Use this locator to scope step-2 assertions.
+   */
+  pickerStep2Modal(): Locator {
+    return this.page.locator('[role="dialog"]').filter({
+      has: this.page.locator('h2', { hasText: /Select Budget Line/i }),
+    });
+  }
+
+  /**
+   * Returns a budget line row button in step 2 of the picker modal.
+   * Each unlinked budget line is rendered as a <button class*="pickerBudgetLineRow">.
+   * @param nameOrIndex - 0-based row index OR a string/RegExp to match by visible text
+   */
+  pickerBudgetLineRow(nameOrIndex: number | string | RegExp): Locator {
+    const step2 = this.pickerStep2Modal();
+    if (typeof nameOrIndex === 'number') {
+      return step2.locator('[class*="pickerBudgetLineRow"]').nth(nameOrIndex);
+    }
+    return step2.locator('[class*="pickerBudgetLineRow"]').filter({
+      hasText: nameOrIndex,
+    });
   }
 
   /**

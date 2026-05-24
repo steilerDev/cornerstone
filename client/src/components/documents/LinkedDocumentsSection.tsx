@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import type {
   DocumentLinkWithMetadata,
   DocumentLinkEntityType,
   PaperlessDocumentSearchResult,
+  AppConfigResponse,
 } from '@cornerstone/shared';
 import { getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { useDocumentLinks, useAllLinkedDocumentIds } from '../../hooks/useDocumentLinks.js';
+import { fetchConfig } from '../../lib/configApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { LinkedDocumentCard } from './LinkedDocumentCard.js';
 import { DocumentBrowser } from './DocumentBrowser.js';
@@ -21,8 +24,25 @@ interface LinkedDocumentsSectionProps {
 
 export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocumentsSectionProps) {
   const { t } = useTranslation('documents');
+  const navigate = useNavigate();
   const hook = useDocumentLinks(entityType, entityId);
   const systemLinkedIds = useAllLinkedDocumentIds();
+
+  // Config state for auto-itemize
+  const [config, setConfig] = useState<AppConfigResponse | null>(null);
+
+  // Load config on mount
+  useEffect(() => {
+    void (async () => {
+      try {
+        const cfg = await fetchConfig();
+        setConfig(cfg);
+      } catch {
+        // silently fail; button will be hidden if config is null
+        setConfig({ autoItemizeEnabled: false, currency: 'EUR' });
+      }
+    })();
+  }, []);
 
   // Copy for different entity types
   const entityCopyKeys = {
@@ -326,6 +346,15 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
                 paperlessBaseUrl={paperlessStatus?.paperlessUrl ?? null}
                 onView={(l) => setViewingLink(l)}
                 onUnlink={(l) => setUnlinkTarget(l)}
+                onItemize={
+                  entityType === 'invoice' && config?.autoItemizeEnabled
+                    ? (l) => {
+                        if (l.document) {
+                          navigate(`/budget/invoices/${entityId}/auto-itemize/${l.document.id}`);
+                        }
+                      }
+                    : undefined
+                }
               />
             </div>
           ))}
