@@ -66,7 +66,7 @@ describe('buildRequestBody', () => {
       { role: 'user', content: 'user' },
     ]);
     expect(body.temperature).toBe(0);
-    expect(body.max_tokens).toBe(4096);
+    expect(body.max_tokens).toBe(16384);
   }
 
   it('openai → response_format: json_object', () => {

@@ -408,6 +408,42 @@ describe('createOpenAICompatibleProvider — failure modes', () => {
     expect((thrown as LlmInvalidResponseError).code).toBe('LLM_INVALID_RESPONSE');
   });
 
+  it('finish_reason: "length" → throws LlmInvalidResponseError with truncation message', async () => {
+    // Simulate Anthropic/OpenAI hitting max_tokens mid-stream: the JSON content
+    // would be cut off, but rather than producing a confusing "Unterminated
+    // string in JSON" we surface a distinct truncation error.
+    const truncatedResponse = {
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          choices: [
+            {
+              message: { content: '{"lines":[{"description":"item' },
+              finish_reason: 'length',
+            },
+          ],
+        }),
+    } as unknown as Response;
+    fetchSpy.mockResolvedValueOnce(truncatedResponse);
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+
+    let thrown: unknown;
+    try {
+      await provider.extract('ocr text', {});
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(LlmInvalidResponseError);
+    const err = thrown as LlmInvalidResponseError;
+    expect(err.code).toBe('LLM_INVALID_RESPONSE');
+    // Message must reference max_tokens for ops debugging.
+    expect(err.message.toLowerCase()).toContain('max_tokens');
+    // Details must carry finishReason for log diagnostics.
+    expect(err.details?.finishReason).toBe('length');
+  });
+
   it('response body { choices: [] } (no message) → throws LlmInvalidResponseError', async () => {
     const emptyChoices = {
       ok: true,

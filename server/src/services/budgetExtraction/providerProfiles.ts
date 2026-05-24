@@ -82,7 +82,18 @@ const EXTRACTED_LINES_SCHEMA = {
   },
 } as const;
 
-const DEFAULT_MAX_TOKENS = 4096;
+// Output cap. A typical German construction invoice has 20–60 line items,
+// each ~200–400 chars of JSON, so ~10–25K output chars ≈ 3–8K tokens. Many
+// real-world invoices exceed this (one Göbel Farbwerk invoice was 40+ lines
+// with verbose descriptions and truncated at 4096). 16384 handles 100+ lines
+// comfortably and stays under every supported provider's max output:
+//   - Anthropic Haiku: 64K output
+//   - OpenAI gpt-4o-mini: 16K output (this is the binding constraint)
+//   - Gemini 2.5 Flash: 65K output
+//   - Ollama: model-dependent, typically 4–32K
+// Truncation surfaces as LLM_INVALID_RESPONSE with a JSON parse error in
+// details — we also check `finish_reason: 'length'` for a clearer signal.
+const DEFAULT_MAX_TOKENS = 16384;
 
 /**
  * Infer the provider from a base URL. Returns 'generic' when the URL doesn't
