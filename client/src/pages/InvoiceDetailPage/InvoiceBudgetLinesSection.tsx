@@ -3,8 +3,6 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   InvoiceBudgetLineDetailResponse,
-  WorkItemBudgetLine,
-  HouseholdItemBudgetLine,
   Vendor,
   BudgetCategory,
   BudgetSource,
@@ -89,18 +87,16 @@ export function InvoiceBudgetLinesSection({
   const remainingAmountRef = useRef<HTMLTableCellElement>(null);
   const newLineRowRef = useRef<HTMLTableRowElement>(null);
 
-  // Use the picker hook
+  // Multi-select state for step 2 of the picker (InvoiceBudgetLinesSection-specific UX)
+  const [selectedLineIds, setSelectedLineIds] = useState<Set<string>>(() => new Set());
+  const [itemizedAmounts, setItemizedAmounts] = useState<Record<string, number>>({});
+
+  // Use the picker hook with a no-op callback (InvoiceBudgetLinesSection uses multi-select, not eager link)
   const picker = useBudgetLinePicker({
     invoiceId,
     invoiceAmount: invoiceTotal,
-    onLineCreated: (line, invoiceBudgetLineId) => {
-      setBudgetLines((prev) => [...prev, { id: invoiceBudgetLineId } as InvoiceBudgetLineDetailResponse]);
-      setRemainingAmount((prev) => prev - (line.plannedAmount ?? 0));
-      picker.closePicker();
-      setTimeout(() => {
-        newLineRowRef.current?.focus();
-      }, 100);
-    },
+    onLineCreated: () => {}, // No-op: InvoiceBudgetLinesSection handles linking via handleAddSelectedLines
+    eagerLinkInvoice: false, // Don't auto-link in the create flow
   });
 
   // Load budget lines on mount
@@ -204,53 +200,63 @@ export function InvoiceBudgetLinesSection({
 
 
   /**
-   * Step 2: User selects a budget line from the filtered list.
-   * Create the invoice budget line link.
+   * Step 2: User submits selected budget lines with their itemized amounts.
+   * Create invoice budget line links for all selected lines.
    */
-  const handleSelectBudgetLine = async (
-    budgetLine: WorkItemBudgetLine | HouseholdItemBudgetLine,
-  ) => {
+  const handleAddSelectedLines = async () => {
     if (!picker.pickerState.itemId || !picker.pickerState.type) return;
 
-    try {
-      const createData = {
-        invoiceId,
-        ...(picker.pickerState.type === 'work_item'
-          ? { workItemBudgetId: budgetLine.id }
-          : { householdItemBudgetId: budgetLine.id }),
-        itemizedAmount: budgetLine.plannedAmount,
-      };
+    // Create links for all selected lines
+    for (const line of picker.pickerState.budgetLines) {
+      if (!selectedLineIds.has(line.id)) continue;
 
-      const response = await createInvoiceBudgetLine(invoiceId, createData);
+      const amount = itemizedAmounts[line.id] ?? 0;
+      if (amount <= 0) continue;
 
-      // Update state with new line and remaining amount
-      const newBudgetLines = [...budgetLines, response.budgetLine];
-      setBudgetLines(newBudgetLines);
-      setRemainingAmount(response.remainingAmount);
-      picker.closePicker();
+      try {
+        const createData = {
+          invoiceId,
+          ...(picker.pickerState.type === 'work_item'
+            ? { workItemBudgetId: line.id }
+            : { householdItemBudgetId: line.id }),
+          itemizedAmount: amount,
+        };
 
-      // Focus the newly added row after a short delay
-      setTimeout(() => {
-        newLineRowRef.current?.focus();
-      }, 100);
-    } catch (err) {
-      let errorMsg = t('invoiceDetail.budgetLines.picker.error.linkFailed');
+        const response = await createInvoiceBudgetLine(invoiceId, createData);
 
-      if (err instanceof ApiClientError) {
-        if (err.error.code === 'BUDGET_LINE_ALREADY_LINKED') {
-          errorMsg = t('invoiceDetail.budgetLines.picker.error.alreadyLinked');
-        } else if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
-          errorMsg = t('invoiceDetail.budgetLines.picker.error.exceedsTotal');
-        } else {
-          errorMsg = err.error.message;
+        // Update state with new line and remaining amount
+        setBudgetLines((prev) => [...prev, response.budgetLine]);
+        setRemainingAmount(response.remainingAmount);
+      } catch (err) {
+        let errorMsg = t('invoiceDetail.budgetLines.picker.error.linkFailed');
+
+        if (err instanceof ApiClientError) {
+          if (err.error.code === 'BUDGET_LINE_ALREADY_LINKED') {
+            errorMsg = t('invoiceDetail.budgetLines.picker.error.alreadyLinked');
+          } else if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
+            errorMsg = t('invoiceDetail.budgetLines.picker.error.exceedsTotal');
+          } else {
+            errorMsg = err.error.message;
+          }
         }
-      }
 
-      picker.setPickerState({
-        ...picker.pickerState,
-        error: errorMsg,
-      });
+        picker.setPickerState({
+          ...picker.pickerState,
+          error: errorMsg,
+        });
+        return;
+      }
     }
+
+    // Clear selection and close picker on success
+    setSelectedLineIds(new Set());
+    setItemizedAmounts({});
+    picker.closePicker();
+
+    // Focus the newly added row after a short delay
+    setTimeout(() => {
+      newLineRowRef.current?.focus();
+    }, 100);
   };
 
   /**
@@ -796,39 +802,153 @@ export function InvoiceBudgetLinesSection({
                   {!picker.pickerState.isLoading &&
                     picker.pickerState.budgetLines.length > 0 &&
                     !picker.pickerState.showCreateForm && (
-                      <div className={styles.budgetLineList}>
-                        {picker.pickerState.budgetLines.map((line) => (
-                          <button
-                            key={line.id}
-                            type="button"
-                            className={styles.pickerBudgetLineRow}
-                            onClick={() => void handleSelectBudgetLine(line)}
-                          >
-                            <div className={styles.budgetLineInfo}>
-                              <div className={styles.budgetLineDesc}>
-                                {line.description ||
-                                  t('invoiceDetail.budgetLines.picker.unnamedBudgetLine')}
-                              </div>
-                              <div className={styles.budgetLineDetails}>
-                                {line.budgetCategory && (
-                                  <span className={styles.budgetLineCategory}>
-                                    {getCategoryDisplayName(
-                                      tSettings,
-                                      line.budgetCategory.name,
-                                      line.budgetCategory.translationKey,
-                                    )}
-                                  </span>
-                                )}
-                                <span className={styles.budgetLinePlanned}>
-                                  {t('invoiceDetail.budgetLines.picker.plannedLabel', {
-                                    amount: formatCurrency(line.plannedAmount),
+                      <>
+                        <div className={styles.budgetLineList}>
+                          {picker.pickerState.budgetLines.map((line) => {
+                            const isSelected = selectedLineIds.has(line.id);
+                            const amount = itemizedAmounts[line.id] ?? 0;
+                            return (
+                              <div
+                                key={line.id}
+                                className={styles.pickerBudgetLineRow}
+                                data-testid={`budget-line-row-${line.id}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  id={`budget-line-check-${line.id}`}
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedLineIds((prev) => new Set([...prev, line.id]));
+                                      // Auto-populate with planned amount
+                                      setItemizedAmounts((prev) => ({
+                                        ...prev,
+                                        [line.id]: line.plannedAmount,
+                                      }));
+                                    } else {
+                                      setSelectedLineIds((prev) => {
+                                        const next = new Set(prev);
+                                        next.delete(line.id);
+                                        return next;
+                                      });
+                                      setItemizedAmounts((prev) => {
+                                        const next = { ...prev };
+                                        delete next[line.id];
+                                        return next;
+                                      });
+                                    }
+                                  }}
+                                  className={styles.budgetLineCheckbox}
+                                  aria-label={t('invoiceDetail.budgetLines.picker.selectAriaLabel', {
+                                    description:
+                                      line.description ||
+                                      t('invoiceDetail.budgetLines.picker.budgetLineGeneric'),
                                   })}
-                                </span>
+                                />
+                                <div className={styles.budgetLineInfo}>
+                                  <label
+                                    htmlFor={`budget-line-check-${line.id}`}
+                                    className={styles.budgetLineLabel}
+                                  >
+                                    <div className={styles.budgetLineDesc}>
+                                      {line.description ||
+                                        t('invoiceDetail.budgetLines.picker.unnamedBudgetLine')}
+                                    </div>
+                                    <div className={styles.budgetLineDetails}>
+                                      {line.budgetCategory && (
+                                        <span className={styles.budgetLineCategory}>
+                                          {getCategoryDisplayName(
+                                            tSettings,
+                                            line.budgetCategory.name,
+                                            line.budgetCategory.translationKey,
+                                          )}
+                                        </span>
+                                      )}
+                                      <span className={styles.budgetLinePlanned}>
+                                        {t('invoiceDetail.budgetLines.picker.plannedLabel', {
+                                          amount: formatCurrency(line.plannedAmount),
+                                        })}
+                                      </span>
+                                    </div>
+                                  </label>
+                                </div>
+                                <div className={styles.pickerBudgetLineAmount}>
+                                  <input
+                                    type="number"
+                                    value={amount > 0 ? amount.toString() : ''}
+                                    onChange={(e) => {
+                                      const newAmount = parseFloat(e.target.value) || 0;
+                                      setItemizedAmounts((prev) => ({
+                                        ...prev,
+                                        [line.id]: newAmount,
+                                      }));
+                                    }}
+                                    className={styles.pickerAmountInput}
+                                    placeholder="0.00"
+                                    min="0"
+                                    step="0.01"
+                                    aria-label={t(
+                                      'invoiceDetail.budgetLines.picker.itemizedAmountAriaLabel',
+                                      {
+                                        description:
+                                          line.description ||
+                                          t('invoiceDetail.budgetLines.picker.budgetLineGeneric'),
+                                      },
+                                    )}
+                                    onWheel={(e) => e.currentTarget.blur()}
+                                    disabled={!isSelected}
+                                  />
+                                </div>
                               </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Remaining to allocate indicator */}
+                        <div className={styles.remainingIndicator}>
+                          <span className={styles.remainingLabel}>
+                            {t('invoiceDetail.budgetLines.picker.remainingToAllocate')}
+                          </span>
+                          <span
+                            className={`${styles.remainingAmount} ${
+                              Object.values(itemizedAmounts).reduce((sum, v) => sum + v, 0) >
+                              invoiceTotal
+                                ? styles.remainingExceeds
+                                : ''
+                            }`}
+                          >
+                            {formatCurrency(
+                              invoiceTotal -
+                                Object.values(itemizedAmounts).reduce((sum, v) => sum + v, 0),
+                            )}
+                          </span>
+                        </div>
+
+                        {/* Add Selected Lines button */}
+                        <button
+                          type="button"
+                          className={styles.addButton}
+                          onClick={() => void handleAddSelectedLines()}
+                          disabled={
+                            selectedLineIds.size === 0 ||
+                            Array.from(selectedLineIds).every(
+                              (id) => (itemizedAmounts[id] ?? 0) <= 0,
+                            )
+                          }
+                        >
+                          {t('invoiceDetail.budgetLines.picker.addSelectedLines')}
+                        </button>
+
+                        {/* Create Budget Line button (alongside list) */}
+                        <button
+                          type="button"
+                          ref={picker.createBudgetLineButtonRef}
+                          className={styles.addButton}
+                          onClick={() => picker.showCreateBudgetLineForm()}
+                        >
+                          {t('invoiceDetail.budgetLines.picker.createLine')}
+                        </button>
+                      </>
                     )}
 
                   <button

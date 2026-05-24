@@ -368,7 +368,8 @@ describe('AutoItemizePage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Tile work')).toBeInTheDocument();
+        // Description is rendered inside an <input>, so use getByDisplayValue
+        expect(screen.getByDisplayValue('Tile work')).toBeInTheDocument();
       });
     });
 
@@ -435,7 +436,8 @@ describe('AutoItemizePage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Tile work')).toBeInTheDocument();
+        // Description is rendered inside an <input>, so use getByDisplayValue
+        expect(screen.getByDisplayValue('Tile work')).toBeInTheDocument();
       });
 
       expect(screen.queryByText(/LLM suggests/i)).not.toBeInTheDocument();
@@ -460,8 +462,10 @@ describe('AutoItemizePage', () => {
       // Click the Apply button
       fireEvent.click(screen.getByRole('button', { name: /Apply/i }));
 
-      // After applying, the amount field should be updated to 800
-      const amountField = screen.getByRole('spinbutton') as HTMLInputElement;
+      // After applying, the metadata amount field (id="amount") should be updated to 800
+      // Use getElementById to target the single metadata amount input, not per-row spinbuttons
+      const amountField = document.getElementById('amount') as HTMLInputElement;
+      expect(amountField).not.toBeNull();
       expect(amountField.value).toBe('800');
     });
 
@@ -503,7 +507,8 @@ describe('AutoItemizePage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Tile work')).toBeInTheDocument();
+        // Description is rendered inside an <input>, so use getByDisplayValue
+        expect(screen.getByDisplayValue('Tile work')).toBeInTheDocument();
       });
 
       // Find the checkbox for the line (aria-label contains description)
@@ -853,7 +858,8 @@ describe('AutoItemizePage', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText('Retried line')).toBeInTheDocument();
+        // Description is rendered inside an <input>, so use getByDisplayValue
+        expect(screen.getByDisplayValue('Retried line')).toBeInTheDocument();
       });
     });
   });
@@ -871,7 +877,8 @@ describe('AutoItemizePage', () => {
 
       await waitFor(() => {
         // The variance warning icon ⚠ should appear (3% variance is ≤5% but >1%)
-        expect(screen.getByText('Near match')).toBeInTheDocument();
+        // Description is rendered inside an <input>, so use getByDisplayValue
+        expect(screen.getByDisplayValue('Near match')).toBeInTheDocument();
       });
 
       // The ⚠ icon is present inside the variance indicator
@@ -972,7 +979,8 @@ describe('AutoItemizePage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Sofa')).toBeInTheDocument();
+        // Description is rendered inside an <input>, so use getByDisplayValue
+        expect(screen.getByDisplayValue('Sofa')).toBeInTheDocument();
       });
 
       // The row initially shows the Assign… button (no assignment yet)
@@ -1009,7 +1017,8 @@ describe('AutoItemizePage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Assigned line')).toBeInTheDocument();
+        // Description is rendered inside an <input>, so use getByDisplayValue
+        expect(screen.getByDisplayValue('Assigned line')).toBeInTheDocument();
       });
 
       // The two rows are rendered — both start unassigned (Assign… buttons)
@@ -1073,11 +1082,15 @@ describe('AutoItemizePage', () => {
 
       renderPage();
 
+      // Wait for the page to reach ready state (metadata amount field becomes visible)
       await waitFor(() => {
-        expect(screen.getByRole('spinbutton')).toBeInTheDocument();
+        expect(document.getElementById('amount')).not.toBeNull();
       });
 
-      const amountInput = screen.getByRole('spinbutton') as HTMLInputElement;
+      // Target the metadata invoice amount input specifically using its unique id="amount".
+      // Cannot use getByRole('spinbutton') because the page also renders per-row number inputs
+      // (quantity, unitPrice, totalAmount, vatRate) — Testing Library would find multiple elements.
+      const amountInput = document.getElementById('amount') as HTMLInputElement;
       fireEvent.change(amountInput, { target: { value: '1200' } });
 
       await act(async () => {

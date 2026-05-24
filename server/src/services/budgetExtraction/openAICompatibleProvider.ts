@@ -130,6 +130,29 @@ export function validateExtractedLines(body: unknown): ExtractedLine[] {
       vendorName = line.vendorName || undefined; // Treat empty string as undefined
     }
 
+    let assignedBudgetLineId: string | undefined;
+    if (line.assignedBudgetLineId !== null && line.assignedBudgetLineId !== undefined) {
+      if (typeof line.assignedBudgetLineId !== 'string') {
+        throw new LlmInvalidResponseError(
+          `Line item at index ${i} has invalid "assignedBudgetLineId" (must be a string)`,
+        );
+      }
+      assignedBudgetLineId = line.assignedBudgetLineId || undefined; // Treat empty string as undefined
+    }
+
+    let assignedBudgetLineType: 'work_item' | 'household_item' | undefined;
+    if (line.assignedBudgetLineType !== null && line.assignedBudgetLineType !== undefined) {
+      if (
+        line.assignedBudgetLineType !== 'work_item' &&
+        line.assignedBudgetLineType !== 'household_item'
+      ) {
+        throw new LlmInvalidResponseError(
+          `Line item at index ${i} has invalid "assignedBudgetLineType" (must be 'work_item' or 'household_item')`,
+        );
+      }
+      assignedBudgetLineType = line.assignedBudgetLineType;
+    }
+
     lines.push({
       description: line.description,
       quantity,
@@ -140,6 +163,8 @@ export function validateExtractedLines(body: unknown): ExtractedLine[] {
       vatRate,
       vendorName,
       confidence: line.confidence,
+      assignedBudgetLineId,
+      assignedBudgetLineType,
     });
   }
 

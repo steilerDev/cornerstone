@@ -4,6 +4,23 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+
+// ─── Mock: LocaleContext (MUST be before any module that imports formatters) ──
+// Defensive layer to ensure useLocale never reaches the real LocaleContext
+// implementation (which throws if no LocaleProvider wraps the tree).
+// NOTE: Mock on .ts not .js because moduleNameMapper redirects .js to .ts
+
+jest.unstable_mockModule('../../contexts/LocaleContext.tsx', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 import type * as InvoiceBudgetLinesApiTypes from '../../lib/invoiceBudgetLinesApi.js';
 import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
 import type * as HouseholdItemBudgetsApiTypes from '../../lib/householdItemBudgetsApi.js';
@@ -418,9 +435,23 @@ afterEach(() => {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function renderSection(invoiceId = INVOICE_ID, invoiceTotal = INVOICE_TOTAL) {
+  // LocaleProvider is required by useFormatters() hook
+  // Import it dynamically to avoid circular dependencies with mocked modules
+  let LocaleProvider: React.ComponentType<{ children: React.ReactNode }>;
+  try {
+    // Try the mocked version first
+    const mocked = jest.requireMock('../../contexts/LocaleContext.tsx') as { LocaleProvider: React.ComponentType<{ children: React.ReactNode }> };
+    LocaleProvider = mocked.LocaleProvider;
+  } catch {
+    // Fallback if mock doesn't exist
+    LocaleProvider = ({ children }: { children: React.ReactNode }) => <>{children}</>;
+  }
+
   return render(
     <MemoryRouter initialEntries={[`/budget/invoices/${invoiceId}`]}>
-      <InvoiceBudgetLinesSection invoiceId={invoiceId} invoiceTotal={invoiceTotal} />
+      <LocaleProvider>
+        <InvoiceBudgetLinesSection invoiceId={invoiceId} invoiceTotal={invoiceTotal} />
+      </LocaleProvider>
     </MemoryRouter>,
   );
 }

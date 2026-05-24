@@ -310,7 +310,7 @@ export class AutoItemizePage {
    * Returns the <tr> at the given 0-based index in the extracted lines tbody.
    */
   lineRow(index: number): Locator {
-    return this.page.locator('table tbody tr').filter({ hasNot: this.page.locator('[class*="totalsRow"]') }).nth(index);
+    return this.page.locator('table tbody tr:not([class*="totalsRow"])').nth(index);
   }
 
   /**
@@ -382,8 +382,7 @@ export class AutoItemizePage {
     await this.analyzingCaption.waitFor({ state: 'hidden' });
     // Then wait for at least one data row to appear
     await this.page
-      .locator('table tbody tr')
-      .filter({ hasNot: this.page.locator('[class*="totalsRow"]') })
+      .locator('table tbody tr:not([class*="totalsRow"])')
       .first()
       .waitFor({ state: 'visible' });
   }

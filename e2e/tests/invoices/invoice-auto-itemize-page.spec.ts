@@ -506,9 +506,7 @@ test.describe('Scenario 3 — Happy path: full itemize flow', { tag: ['@smoke'] 
         await autoItemizePage.waitForAnalyzingDone();
 
         // ── Three line rows visible ───────────────────────────────────────────
-        const rows = page.locator('table tbody tr').filter({
-          hasNot: page.locator('[class*="totalsRow"]'),
-        });
+        const rows = page.locator('table tbody tr:not([class*="totalsRow"])');
         await expect(rows).toHaveCount(3);
 
         // ── First row description visible ─────────────────────────────────────
@@ -933,9 +931,7 @@ test.describe('Scenario 9 — Error state: LLM failure on dry-run', () => {
         await expect(autoItemizePage.retryButton).toBeVisible();
 
         // ── No lines table (still in error state) ────────────────────────────
-        const rows = page.locator('table tbody tr').filter({
-          hasNot: page.locator('[class*="totalsRow"]'),
-        });
+        const rows = page.locator('table tbody tr:not([class*="totalsRow"])');
         await expect(rows).toHaveCount(0);
       } finally {
         if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
