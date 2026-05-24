@@ -886,6 +886,16 @@ describe('InvoiceBudgetLinesSection', () => {
       const newBudgetLineStub = makeBudgetLineStub('wib-new-001', 500);
       mockCreateWorkItemBudget.mockResolvedValue(newBudgetLineStub);
 
+      // After the first (empty) render call, return the newly-created line on refetch
+      const linkedLine = makeDetailLine('ibl-linked-001', {
+        workItemBudgetId: 'wib-new-001',
+        itemizedAmount: 500,
+        plannedAmount: 500,
+      });
+      mockFetchInvoiceBudgetLines
+        .mockResolvedValueOnce(makeListResponse([], INVOICE_TOTAL)) // initial load (empty)
+        .mockResolvedValue(makeListResponse([linkedLine], INVOICE_TOTAL)); // after create
+
       await openCreateFormWorkItemEmpty();
 
       // Drive form state: set plannedAmount to '500' (includesVat defaults to true in initial form)
