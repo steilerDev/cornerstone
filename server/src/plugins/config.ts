@@ -35,6 +35,13 @@ export interface AppConfig {
   llmModel?: string;
   llmRequestTimeoutMs: number;
   /**
+   * Maximum output tokens per LLM call. Caps cost on runaway/inject-attack
+   * calls and bounds latency. Default 16384 handles 100+ line invoices on
+   * every supported provider. Increase if your invoices regularly exceed
+   * this (the symptom is LLM_INVALID_RESPONSE with finishReason="length").
+   */
+  llmMaxTokens: number;
+  /**
    * Provider profile that shapes the outbound request body. Set explicitly
    * via `LLM_PROVIDER`, otherwise auto-detected from `LLM_BASE_URL`, with
    * fallback to `'generic'`. See `services/budgetExtraction/providerProfiles.ts`.
@@ -291,6 +298,14 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     );
   }
 
+  // Parse and validate LLM_MAX_TOKENS (default 16384 — handles 100+ line invoices
+  // on every supported provider, stays under OpenAI gpt-4o-mini's 16K binding cap).
+  const llmMaxTokensStr = getValue('LLM_MAX_TOKENS') ?? '16384';
+  const llmMaxTokens = parseInt(llmMaxTokensStr, 10);
+  if (isNaN(llmMaxTokens) || llmMaxTokens <= 0) {
+    errors.push(`LLM_MAX_TOKENS must be a positive integer, got: ${llmMaxTokensStr}`);
+  }
+
   // Auto-itemization is enabled when all three LLM env vars are set
   const autoItemizeEnabled = !!(llmBaseUrl && llmApiKey && llmModel);
 
@@ -355,6 +370,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     llmApiKey,
     llmModel,
     llmRequestTimeoutMs,
+    llmMaxTokens,
     llmProvider,
     autoItemizeEnabled,
   };
@@ -391,6 +407,7 @@ export default fp(
         backupDir: config.backupDir,
         autoItemizeEnabled: config.autoItemizeEnabled,
         llmProvider: config.llmProvider,
+        llmMaxTokens: config.llmMaxTokens,
       },
       'Configuration loaded',
     );

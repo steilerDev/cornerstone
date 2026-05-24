@@ -24,6 +24,7 @@ export function getProvider(config: AppConfig): BudgetExtractionProvider {
     apiKey: config.llmApiKey!,
     model: config.llmModel!,
     requestTimeoutMs: config.llmRequestTimeoutMs,
+    maxTokens: config.llmMaxTokens,
     provider: config.llmProvider,
   });
 }

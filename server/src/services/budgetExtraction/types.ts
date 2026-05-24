@@ -21,6 +21,11 @@ export interface LlmConfig {
   model: string;
   requestTimeoutMs: number;
   /**
+   * Maximum output tokens per call. Forwarded as `max_tokens` on the request.
+   * Operator-configurable via `LLM_MAX_TOKENS` env var.
+   */
+  maxTokens: number;
+  /**
    * Which provider profile shapes the outbound request body.
    * See `providerProfiles.ts` for the differences.
    */

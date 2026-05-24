@@ -125,6 +125,11 @@ export interface RequestBodyInput {
   model: string;
   systemPrompt: string;
   userPrompt: string;
+  /**
+   * Maximum output tokens. Optional — falls back to `DEFAULT_MAX_TOKENS`
+   * (16384) when omitted. Operator override exposed via `LLM_MAX_TOKENS`.
+   */
+  maxTokens?: number;
 }
 
 /**
@@ -141,7 +146,7 @@ export function buildRequestBody(input: RequestBodyInput): Record<string, unknow
       { role: 'user', content: input.userPrompt },
     ],
     temperature: 0,
-    max_tokens: DEFAULT_MAX_TOKENS,
+    max_tokens: input.maxTokens ?? DEFAULT_MAX_TOKENS,
   };
 
   switch (input.provider) {
