@@ -224,15 +224,32 @@ export function createOpenAICompatibleProvider(config: LlmConfig): BudgetExtract
       let body: unknown;
       try {
         const json = (await response.json()) as {
-          choices?: Array<{ message?: { content?: string } }>;
+          choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
         };
-        const content = json.choices?.[0]?.message?.content;
+        const choice = json.choices?.[0];
+        const content = choice?.message?.content;
+        const finishReason = choice?.finish_reason;
         if (typeof content !== 'string') {
           throw new LlmInvalidResponseError('LLM response missing choices[0].message.content', {
             provider: config.provider,
             url,
             envelope: json,
           });
+        }
+        // Detect upstream truncation explicitly. `finish_reason: 'length'` means
+        // the LLM hit our `max_tokens` cap mid-stream and the JSON will be
+        // unterminated. Surface a distinct, actionable error instead of a
+        // confusing "Unterminated string in JSON" parse failure.
+        if (finishReason === 'length') {
+          throw new LlmInvalidResponseError(
+            'LLM response was truncated (hit max_tokens). Increase LLM max_tokens or shorten the invoice OCR.',
+            {
+              provider: config.provider,
+              url,
+              finishReason,
+              contentLength: content.length,
+            },
+          );
         }
         try {
           body = JSON.parse(content);
@@ -241,6 +258,7 @@ export function createOpenAICompatibleProvider(config: LlmConfig): BudgetExtract
             provider: config.provider,
             url,
             parseError: (parseErr as Error).message,
+            finishReason,
             content: content.length > 8000 ? `${content.slice(0, 8000)}…[truncated]` : content,
           });
         }
