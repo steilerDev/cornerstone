@@ -58,7 +58,7 @@ const makeConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
   llmApiKey: undefined,
   llmModel: undefined,
   llmRequestTimeoutMs: 30000,
-    llmMaxTokens: 16384,
+  llmMaxTokens: 16384,
   llmProvider: 'generic',
   autoItemizeEnabled: false,
   ...overrides,
