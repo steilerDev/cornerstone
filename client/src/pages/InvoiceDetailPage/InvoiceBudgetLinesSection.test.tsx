@@ -434,24 +434,16 @@ afterEach(() => {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function renderSection(invoiceId = INVOICE_ID, invoiceTotal = INVOICE_TOTAL) {
-  // LocaleProvider is required by useFormatters() hook
-  // Import it dynamically to avoid circular dependencies with mocked modules
-  let LocaleProvider: React.ComponentType<{ children: React.ReactNode }>;
-  try {
-    // Try the mocked version first
-    const mocked = jest.requireMock('../../contexts/LocaleContext.tsx') as { LocaleProvider: React.ComponentType<{ children: React.ReactNode }> };
-    LocaleProvider = mocked.LocaleProvider;
-  } catch {
-    // Fallback if mock doesn't exist
-    LocaleProvider = ({ children }: { children: React.ReactNode }) => <>{children}</>;
-  }
+// LocaleProvider passthrough stub — useLocale is already mocked via jest.unstable_mockModule above,
+// so we just need a valid React wrapper that renders children.
+const LocaleProviderStub = ({ children }: { children: React.ReactNode }) => <>{children}</>;
 
+function renderSection(invoiceId = INVOICE_ID, invoiceTotal = INVOICE_TOTAL) {
   return render(
     <MemoryRouter initialEntries={[`/budget/invoices/${invoiceId}`]}>
-      <LocaleProvider>
+      <LocaleProviderStub>
         <InvoiceBudgetLinesSection invoiceId={invoiceId} invoiceTotal={invoiceTotal} />
-      </LocaleProvider>
+      </LocaleProviderStub>
     </MemoryRouter>,
   );
 }

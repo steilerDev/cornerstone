@@ -322,19 +322,21 @@ export class AutoItemizePage {
   }
 
   /**
-   * Returns the description text cell of the line at the given 0-based index.
-   * The description column renders as a plain <td> (no input).
+   * Returns the description input of the line at the given 0-based index.
+   * The description column renders as an <input> inside a <td class="tdEditable">.
+   * Column order: Include(0), Description(1), Quantity(2), Unit(3), UnitPrice(4), Amount(5), IncludesVat(6), VatRate(7), AssignTo(8)
    */
   lineDescription(index: number): Locator {
-    // Column order: Include, Description(1), Quantity(2), UnitPrice(3), Amount(4), AssignTo(5)
-    return this.lineRow(index).locator('td').nth(1);
+    return this.lineRow(index).locator('td').nth(1).locator('input');
   }
 
   /**
-   * Returns the total amount cell of the line at the given 0-based index.
+   * Returns the total amount input of the line at the given 0-based index.
+   * The amount column renders as an <input> inside a <td class="tdEditable">.
+   * Column order: Include(0), Description(1), Quantity(2), Unit(3), UnitPrice(4), Amount(5), IncludesVat(6), VatRate(7), AssignTo(8)
    */
   lineTotal(index: number): Locator {
-    return this.lineRow(index).locator('td').nth(4);
+    return this.lineRow(index).locator('td').nth(5).locator('input');
   }
 
   // ─── Per-row assignment helpers (story #1564 Round 2) ──────────────────────
