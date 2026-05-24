@@ -510,7 +510,7 @@ test.describe('Scenario 3 — Happy path: full itemize flow', { tag: ['@smoke'] 
         await expect(rows).toHaveCount(3);
 
         // ── First row description visible ─────────────────────────────────────
-        await expect(autoItemizePage.lineDescription(0)).toHaveValue('Bathroom tiles');
+        await expect(autoItemizePage.lineDescription(0)).toHaveValue('Bathroom tiles (600x600mm)');
 
         // ── Toggle the second row (uncheck → excluded) ───────────────────────
         const secondCheckbox = autoItemizePage.lineCheckbox(1);
