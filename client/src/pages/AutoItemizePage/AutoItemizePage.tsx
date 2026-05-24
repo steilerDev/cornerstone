@@ -1,0 +1,936 @@
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import type {
+  Invoice,
+  ExtractedLine,
+  AutoItemizeWarning,
+  PaperlessDocumentSearchResult,
+  InvoicePatchForAutoItemize,
+} from '@cornerstone/shared';
+import { fetchInvoiceById } from '../../lib/invoicesApi.js';
+import { autoItemize } from '../../lib/invoiceAutoItemizeApi.js';
+import { getPaperlessDocument } from '../../lib/paperlessApi.js';
+import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
+import { useFormatters } from '../../lib/formatters.js';
+import { useBudgetLinePicker } from '../../hooks/useBudgetLinePicker.js';
+import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
+import { Modal } from '../../components/Modal/Modal.js';
+import { Skeleton } from '../../components/Skeleton/Skeleton.js';
+import { FormError } from '../../components/FormError/FormError.js';
+import { DocumentDetailPanel } from '../../components/documents/DocumentDetailPanel.js';
+import { SuggestionBadge } from '../../components/SuggestionBadge/SuggestionBadge.js';
+import sharedStyles from '../../styles/shared.module.css';
+import styles from './AutoItemizePage.module.css';
+
+type PageStatus = 'loading' | 'error' | 'ready' | 'saving';
+
+interface LineWithInclude extends ExtractedLine {
+  included: boolean;
+  rowId: string;
+  workItemBudgetId?: string | null;
+  householdItemBudgetId?: string | null;
+  assignedItemId?: string;
+  assignedItemType?: 'work_item' | 'household_item';
+  assignedBudgetLineId?: string;
+  assignedBudgetLineType?: 'work_item' | 'household_item';
+  assignedBudgetLineDescription?: string | null;
+  inlineCreatedBudgetLineDraft?: BudgetLineFormState;
+}
+
+interface MetadataEdits {
+  invoiceNumber: string | null;
+  amount: string;
+  date: string;
+  dueDate: string | null;
+  notes: string | null;
+}
+
+export function AutoItemizePage() {
+  const { id: invoiceId, documentId } = useParams<{ id: string; documentId: string }>();
+  const navigate = useNavigate();
+  const { t } = useTranslation('budget');
+  const { t: tErrors } = useTranslation('errors');
+  const { formatCurrency } = useFormatters();
+
+  // Page state - ALL hooks must be called unconditionally before any early return
+  const [pageStatus, setPageStatus] = useState<PageStatus>('loading');
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [document, setDocument] = useState<PaperlessDocumentSearchResult | null>(null);
+  const [lines, setLines] = useState<LineWithInclude[]>([]);
+  const [warnings, setWarnings] = useState<AutoItemizeWarning[]>([]);
+  const [mode, setMode] = useState<'append' | 'replace'>('append');
+  const [pageError, setPageError] = useState<string | null>(null);
+
+  // Metadata edits
+  const [metadataEdits, setMetadataEdits] = useState<MetadataEdits>({
+    invoiceNumber: null,
+    amount: '',
+    date: '',
+    dueDate: null,
+    notes: null,
+  });
+
+  // Dirty state tracking and cancel confirmation
+  const [isDirty, setIsDirty] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [announceMessage, setAnnounceMessage] = useState('');
+
+  // Budget line picker state
+  const [activeRowId, setActiveRowId] = useState<string | null>(null);
+  const [lineFieldsEdited, setLineFieldsEdited] = useState(false);
+  const picker = useBudgetLinePicker({
+    invoiceId: invoiceId || '',
+    invoiceAmount: invoice?.amount ?? 0,
+    eagerLinkInvoice: false,
+    onLineCreated: (line, _invoiceBudgetLineId) => {
+      if (!activeRowId) return;
+      // Determine the type from the returned budget line object
+      // WorkItemBudgetLine has workItemId, HouseholdItemBudgetLine has householdItemId
+      const lineType = 'workItemId' in line ? 'work_item' : 'household_item';
+      // Store the assigned budget line ID, type, and description on the row
+      // Note: when eagerLinkInvoice is false, invoiceBudgetLineId will be null
+      // Use line.id (the work_item_budget or household_item_budget ID) instead
+      setLines((prev) =>
+        prev.map((l) =>
+          l.rowId === activeRowId
+            ? {
+                ...l,
+                assignedBudgetLineId: line.id,
+                assignedBudgetLineType: lineType,
+                assignedBudgetLineDescription: line.description,
+                inlineCreatedBudgetLineDraft: undefined,
+              }
+            : l,
+        ),
+      );
+      setLineFieldsEdited(true);
+      picker.closePicker();
+      setActiveRowId(null);
+    },
+  });
+
+  // Load invoice and fetch dry-run on mount
+  useEffect(() => {
+    if (!invoiceId || !documentId) return; // Guard inside effect
+
+    const loadData = async () => {
+      setPageStatus('loading');
+      setPageError(null);
+      setLineFieldsEdited(false);
+
+      try {
+        // Fetch invoice
+        const inv = await fetchInvoiceById(invoiceId);
+        setInvoice(inv);
+
+        // Fetch document
+        const docId = parseInt(documentId, 10);
+        if (isNaN(docId)) {
+          setPageError(t('autoItemize.invalidDocumentId'));
+          setPageStatus('error');
+          return;
+        }
+
+        const docResponse = await getPaperlessDocument(docId);
+        setDocument({
+          ...docResponse.document,
+          searchHit: null,
+        });
+
+        // Initialize metadata edits with current invoice data
+        setMetadataEdits({
+          invoiceNumber: inv.invoiceNumber ?? null,
+          amount: inv.amount.toString(),
+          date: inv.date,
+          dueDate: inv.dueDate ?? null,
+          notes: inv.notes ?? null,
+        });
+
+        // Run dry-run auto-itemize
+        const _autoItemizeResult = await autoItemize(invoiceId, {
+          paperlessDocumentId: docId,
+          mode: 'append',
+          dryRun: true,
+        });
+
+        if ('lines' in _autoItemizeResult && 'warnings' in _autoItemizeResult) {
+          const linesWithInclude: LineWithInclude[] = _autoItemizeResult.lines.map((line, idx) => ({
+            ...line,
+            included: true,
+            rowId: `row-${idx}-${Math.random().toString(36).slice(2, 9)}`,
+          }));
+          setLines(linesWithInclude);
+          setWarnings(_autoItemizeResult.warnings);
+          setPageStatus('ready');
+        } else {
+          setPageError(t('autoItemize.unexpectedResponse'));
+          setPageStatus('error');
+        }
+      } catch (err) {
+        if (err instanceof ApiClientError) {
+          const errorCode = err.error.code;
+          const errorMsg = translateApiError(errorCode, tErrors);
+          setPageError(errorMsg);
+        } else {
+          setPageError(t('autoItemize.loadError'));
+        }
+        setPageStatus('error');
+      }
+    };
+
+    void loadData();
+  }, [invoiceId, documentId, t, tErrors]);
+
+  // Track dirty state
+  const originalMetadata = useMemo(
+    () => ({
+      invoiceNumber: invoice?.invoiceNumber ?? null,
+      amount: invoice?.amount.toString() ?? '',
+      date: invoice?.date ?? '',
+      dueDate: invoice?.dueDate ?? null,
+      notes: invoice?.notes ?? null,
+    }),
+    [invoice],
+  );
+
+  // Track dirty state without synchronous setState in effect
+  useEffect(() => {
+    const metadataChanged = Object.entries(metadataEdits).some(
+      ([key, value]) => value !== originalMetadata[key as keyof MetadataEdits],
+    );
+    const linesChanged = lines.some((line) => !line.included);
+
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- Intentional: dirty state must be recalculated when inputs change
+    setIsDirty(metadataChanged || linesChanged || lineFieldsEdited);
+  }, [metadataEdits, lines, originalMetadata, lineFieldsEdited]);
+
+  const handleCancel = useCallback(() => {
+    if (!invoiceId) return;
+    if (isDirty) {
+      setShowCancelConfirm(true);
+    } else {
+      navigate(`/budget/invoices/${invoiceId}`);
+    }
+  }, [isDirty, invoiceId, navigate]);
+
+  const handleConfirmCancel = useCallback(() => {
+    if (!invoiceId) return;
+    setShowCancelConfirm(false);
+    navigate(`/budget/invoices/${invoiceId}`);
+  }, [invoiceId, navigate]);
+
+  const handleSave = useCallback(async () => {
+    if (!invoiceId || !documentId || !invoice || !document) return;
+
+    setPageStatus('saving');
+
+    try {
+      const docId = parseInt(documentId, 10);
+      const includedLines = lines.filter((l) => l.included);
+
+      // Build invoicePatch only if metadata changed
+      const patch: Partial<InvoicePatchForAutoItemize> = {};
+      if (metadataEdits.invoiceNumber !== originalMetadata.invoiceNumber) {
+        patch.invoiceNumber = metadataEdits.invoiceNumber;
+      }
+      if (metadataEdits.amount !== originalMetadata.amount) {
+        patch.amount = parseFloat(metadataEdits.amount);
+      }
+      if (metadataEdits.date !== originalMetadata.date) {
+        patch.date = metadataEdits.date;
+      }
+      if (metadataEdits.dueDate !== originalMetadata.dueDate) {
+        patch.dueDate = metadataEdits.dueDate;
+      }
+      if (metadataEdits.notes !== originalMetadata.notes) {
+        patch.notes = metadataEdits.notes;
+      }
+
+      // Map lines to payload, including assignedBudgetLineId and assignedBudgetLineType
+      const linesPayload: ExtractedLine[] = includedLines.map((l) => ({
+        description: l.description,
+        quantity: l.quantity,
+        unit: l.unit,
+        unitPrice: l.unitPrice,
+        totalAmount: l.totalAmount,
+        includesVat: l.includesVat,
+        vatRate: l.vatRate,
+        vendorName: l.vendorName,
+        confidence: l.confidence,
+        ...(l.assignedBudgetLineId && l.assignedBudgetLineType
+          ? {
+              assignedBudgetLineId: l.assignedBudgetLineId,
+              assignedBudgetLineType: l.assignedBudgetLineType,
+            }
+          : {}),
+      }));
+
+      await autoItemize(invoiceId, {
+        paperlessDocumentId: docId,
+        mode,
+        dryRun: false,
+        lines: linesPayload,
+        ...(Object.keys(patch).length > 0 ? { invoicePatch: patch } : {}),
+      });
+
+      // Navigate back on success
+      navigate(`/budget/invoices/${invoiceId}`);
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        const errorCode = err.error.code;
+        const errorMsg = translateApiError(errorCode, tErrors);
+        setPageError(errorMsg);
+      } else {
+        setPageError(t('autoItemize.saveError'));
+      }
+      setPageStatus('ready');
+    }
+  }, [
+    invoiceId,
+    documentId,
+    lines,
+    metadataEdits,
+    originalMetadata,
+    mode,
+    invoice,
+    document,
+    navigate,
+    t,
+    tErrors,
+  ]);
+
+  const handleApplySuggestion = useCallback((field: keyof MetadataEdits, value: string) => {
+    setMetadataEdits((prev) => ({ ...prev, [field]: value }));
+    setAnnounceMessage(t('autoItemize.suggestionApplied', { field }));
+  }, [t]);
+
+  const handleLineToggle = useCallback((rowId: string) => {
+    setLines((prev) =>
+      prev.map((line) =>
+        line.rowId === rowId ? { ...line, included: !line.included } : line,
+      ),
+    );
+  }, []);
+
+  const handleLineFieldChange = useCallback(
+    (rowId: string, field: keyof ExtractedLine, value: unknown) => {
+      setLines((prev) =>
+        prev.map((line) => {
+          if (line.rowId !== rowId) return line;
+
+          // Type coercion for different field types
+          let coercedValue: unknown = value;
+
+          // For number fields, convert empty string to null, else parse
+          if (['quantity', 'unitPrice', 'vatRate'].includes(field)) {
+            if (value === '' || value === null) {
+              coercedValue = null;
+            } else if (typeof value === 'string') {
+              const parsed = parseFloat(value);
+              coercedValue = isNaN(parsed) ? null : parsed;
+            }
+          }
+          // For totalAmount, always parse as number
+          else if (field === 'totalAmount') {
+            if (typeof value === 'string') {
+              const parsed = parseFloat(value);
+              coercedValue = isNaN(parsed) ? 0 : parsed;
+            }
+          }
+
+          return {
+            ...line,
+            [field]: coercedValue,
+          };
+        }),
+      );
+      setLineFieldsEdited(true);
+    },
+    [],
+  );
+
+  const handleAssignButtonClick = useCallback((rowId: string) => {
+    setActiveRowId(rowId);
+    picker.openPicker();
+  }, [picker]);
+
+  const handleRetry = useCallback(() => {
+    if (!invoiceId || !documentId) return;
+
+    setPageStatus('loading');
+    setPageError(null);
+    setLineFieldsEdited(false);
+
+    const loadData = async () => {
+      try {
+        const docId = parseInt(documentId, 10);
+        const result = await autoItemize(invoiceId, {
+          paperlessDocumentId: docId,
+          mode: 'append',
+          dryRun: true,
+        });
+
+        if ('lines' in result && 'warnings' in result) {
+          const linesWithInclude: LineWithInclude[] = result.lines.map((line, idx) => ({
+            ...line,
+            included: true,
+            rowId: `row-${idx}-${Math.random().toString(36).slice(2, 9)}`,
+          }));
+          setLines(linesWithInclude);
+          setWarnings(result.warnings);
+          setPageStatus('ready');
+        } else {
+          setPageError(t('autoItemize.unexpectedResponse'));
+          setPageStatus('error');
+        }
+      } catch (err) {
+        if (err instanceof ApiClientError) {
+          const errorCode = err.error.code;
+          const errorMsg = translateApiError(errorCode, tErrors);
+          setPageError(errorMsg);
+        } else {
+          setPageError(t('autoItemize.loadError'));
+        }
+        setPageStatus('error');
+      }
+    };
+
+    void loadData();
+  }, [invoiceId, documentId, t, tErrors]);
+
+  // Suggest amount from warnings
+  const amountSuggestion = useMemo(
+    () => warnings.find((w) => w.code === 'TOTAL_MISMATCH')?.extractedTotal,
+    [warnings],
+  );
+
+  const computedLineTotal = useMemo(
+    () =>
+      lines
+        .filter((l) => l.included)
+        .reduce((sum, line) => sum + (line.totalAmount ?? 0), 0),
+    [lines],
+  );
+
+  // Variance calculation
+  const invoiceAmount = invoice?.amount ?? 0;
+  const variance = computedLineTotal - invoiceAmount;
+  const variancePercent = invoiceAmount > 0 ? Math.abs(variance) / invoiceAmount : 0;
+
+  // Render variance indicator
+  const renderVarianceIndicator = () => {
+    if (variancePercent <= 0.01) {
+      return (
+        <span className={styles.varianceMatch}>
+          <span aria-hidden="true">✓</span> {t('autoItemize.varianceMatch')}
+        </span>
+      );
+    }
+    if (variancePercent <= 0.05) {
+      return (
+        <span className={styles.varianceWarning}>
+          <span aria-hidden="true">⚠</span> {t('autoItemize.varianceWarning', { amount: formatCurrency(Math.abs(variance)) })}
+        </span>
+      );
+    }
+    return (
+      <span className={styles.varianceDanger}>
+        <span aria-hidden="true">✕</span> {t('autoItemize.varianceDanger', { amount: formatCurrency(Math.abs(variance)) })}
+      </span>
+    );
+  };
+
+  // Guard for missing params (after all hooks are called)
+  if (!invoiceId || !documentId) {
+    return <div>{t('autoItemize.error')}</div>;
+  }
+
+  // Render content based on page status
+  if (pageStatus === 'loading') {
+    return (
+      <div className={styles.pageContainer}>
+        <div className={styles.pageHeader}>
+          <h1 className={styles.pageTitle}>{t('autoItemize.title')}</h1>
+        </div>
+        <div className={styles.pageBody}>
+          <div className={styles.loadingColumn}>
+            <Skeleton lines={5} />
+            <p className={styles.analyzingCaption}>{t('autoItemize.analyzing')}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (pageStatus === 'error' || !invoice || !document) {
+    return (
+      <div className={styles.pageContainer}>
+        <div className={styles.pageHeader}>
+          <h1 className={styles.pageTitle}>{t('autoItemize.title')}</h1>
+        </div>
+        <div className={styles.pageBody}>
+          <div className={styles.errorColumn}>
+            <FormError variant="banner" message={pageError || t('autoItemize.error')} />
+            {pageStatus === 'error' && (
+              <button
+                type="button"
+                className={sharedStyles.btnPrimary}
+                onClick={handleRetry}
+              >
+                {t('autoItemize.retry')}
+              </button>
+            )}
+            <Link to={`/budget/invoices/${invoiceId}`} className={sharedStyles.btnSecondary}>
+              {t('autoItemize.backToInvoice')}
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className={styles.pageContainer}>
+        <div className={styles.pageHeader}>
+          <div>
+            <Link
+              to={`/budget/invoices/${invoiceId}`}
+              className={styles.breadcrumb}
+            >
+              {t('autoItemize.backToInvoice')}
+            </Link>
+          </div>
+          <h1 className={styles.pageTitle}>{t('autoItemize.title')}</h1>
+        </div>
+
+        <div className={styles.pageBody}>
+          {/* Form column */}
+          <div className={styles.formColumn}>
+            <a href="#itemize-form" className={styles.skipLink}>
+              {t('autoItemize.skipToForm')}
+            </a>
+
+            {/* Live region for announcements */}
+            <div role="status" aria-atomic="true" className={sharedStyles.srOnly}>
+              {announceMessage}
+            </div>
+
+            {/* Error banner */}
+            {pageError && <FormError variant="banner" message={pageError} />}
+
+            {/* Metadata section */}
+            <div className={styles.metadataCard}>
+              <h2 className={styles.sectionTitle}>{t('autoItemize.invoiceMetadata')}</h2>
+
+              <div className={styles.fieldRow}>
+                <label htmlFor="invoice-number">{t('autoItemize.invoiceNumber')}</label>
+                <div className={styles.fieldControl}>
+                  <input
+                    id="invoice-number"
+                    type="text"
+                    value={metadataEdits.invoiceNumber ?? ''}
+                    onChange={(e) =>
+                      setMetadataEdits((prev) => ({
+                        ...prev,
+                        invoiceNumber: e.target.value || null,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className={styles.fieldRow}>
+                <label htmlFor="amount">{t('autoItemize.amount')}</label>
+                <div>
+                  <div className={styles.fieldControl}>
+                    <input
+                      id="amount"
+                      type="number"
+                      step="0.01"
+                      value={metadataEdits.amount}
+                      onChange={(e) =>
+                        setMetadataEdits((prev) => ({
+                          ...prev,
+                          amount: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  {amountSuggestion && amountSuggestion.toString() !== metadataEdits.amount && (
+                    <SuggestionBadge
+                      suggestedValue={amountSuggestion.toString()}
+                      fieldLabel={t('autoItemize.amount')}
+                      displayValue={formatCurrency(amountSuggestion)}
+                      onApply={() =>
+                        handleApplySuggestion('amount', amountSuggestion.toString())
+                      }
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div className={styles.fieldRow}>
+                <label htmlFor="date">{t('autoItemize.date')}</label>
+                <div className={styles.fieldControl}>
+                  <input
+                    id="date"
+                    type="date"
+                    value={metadataEdits.date}
+                    onChange={(e) =>
+                      setMetadataEdits((prev) => ({
+                        ...prev,
+                        date: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className={styles.fieldRow}>
+                <label htmlFor="due-date">{t('autoItemize.dueDate')}</label>
+                <div className={styles.fieldControl}>
+                  <input
+                    id="due-date"
+                    type="date"
+                    value={metadataEdits.dueDate ?? ''}
+                    onChange={(e) =>
+                      setMetadataEdits((prev) => ({
+                        ...prev,
+                        dueDate: e.target.value || null,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className={styles.fieldRow}>
+                <label htmlFor="notes">{t('autoItemize.notes')}</label>
+                <div className={styles.fieldControl}>
+                  <textarea
+                    id="notes"
+                    value={metadataEdits.notes ?? ''}
+                    onChange={(e) =>
+                      setMetadataEdits((prev) => ({
+                        ...prev,
+                        notes: e.target.value || null,
+                      }))
+                    }
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Mode selector */}
+            <div className={styles.metadataCard}>
+              <h3>{t('autoItemize.mode')}</h3>
+              <div className={styles.modeSelector} role="group" aria-label={t('autoItemize.modeLabel')}>
+                <label>
+                  <input
+                    type="radio"
+                    name="mode"
+                    value="append"
+                    checked={mode === 'append'}
+                    onChange={(e) => setMode(e.target.value as 'append' | 'replace')}
+                  />
+                  {t('autoItemize.modeAppend')}
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="mode"
+                    value="replace"
+                    checked={mode === 'replace'}
+                    onChange={(e) => setMode(e.target.value as 'append' | 'replace')}
+                  />
+                  {t('autoItemize.modeReplace')}
+                </label>
+              </div>
+            </div>
+
+            {/* Lines table */}
+            <div className={styles.metadataCard}>
+              <h3>{t('autoItemize.extractedLines')}</h3>
+              <div className={styles.tableWrapper}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>{t('autoItemize.included')}</th>
+                      <th>{t('autoItemize.description')}</th>
+                      <th>{t('autoItemize.quantity')}</th>
+                      <th>{t('autoItemize.unit')}</th>
+                      <th>{t('autoItemize.unitPrice')}</th>
+                      <th>{t('autoItemize.amount')}</th>
+                      <th>{t('autoItemize.includesVat')}</th>
+                      <th>{t('autoItemize.vatRate')}</th>
+                      <th>{t('autoItemize.assignTo')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lines.map((line) => (
+                      <tr key={line.rowId} className={!line.included ? styles.rowExcluded : ''}>
+                        <td className={styles.tdCheckbox}>
+                          <input
+                            type="checkbox"
+                            checked={line.included}
+                            onChange={() => handleLineToggle(line.rowId)}
+                            aria-label={t('autoItemize.includeLineAriaLabel', {
+                              description: line.description,
+                            })}
+                          />
+                        </td>
+                        <td className={styles.tdEditable}>
+                          <input
+                            type="text"
+                            value={line.description}
+                            onChange={(e) =>
+                              handleLineFieldChange(line.rowId, 'description', e.target.value)
+                            }
+                            aria-label={t('autoItemize.editDescriptionAriaLabel')}
+                          />
+                        </td>
+                        <td className={styles.tdEditable}>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={line.quantity ?? ''}
+                            onChange={(e) =>
+                              handleLineFieldChange(line.rowId, 'quantity', e.target.value)
+                            }
+                            aria-label={t('autoItemize.editQuantityAriaLabel')}
+                          />
+                        </td>
+                        <td className={styles.tdEditable}>
+                          <input
+                            type="text"
+                            size={6}
+                            value={line.unit ?? ''}
+                            onChange={(e) => handleLineFieldChange(line.rowId, 'unit', e.target.value)}
+                            aria-label={t('autoItemize.editUnitAriaLabel')}
+                          />
+                        </td>
+                        <td className={styles.tdEditable}>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={line.unitPrice ?? ''}
+                            onChange={(e) =>
+                              handleLineFieldChange(line.rowId, 'unitPrice', e.target.value)
+                            }
+                            aria-label={t('autoItemize.editUnitPriceAriaLabel')}
+                          />
+                        </td>
+                        <td className={styles.tdEditable}>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={line.totalAmount ?? 0}
+                            onChange={(e) =>
+                              handleLineFieldChange(line.rowId, 'totalAmount', e.target.value)
+                            }
+                            aria-label={t('autoItemize.editTotalAmountAriaLabel')}
+                          />
+                        </td>
+                        <td className={styles.tdCheckbox}>
+                          <input
+                            type="checkbox"
+                            checked={line.includesVat !== false}
+                            onChange={(e) =>
+                              handleLineFieldChange(line.rowId, 'includesVat', e.target.checked)
+                            }
+                            aria-label={t('autoItemize.editIncludesVatAriaLabel')}
+                          />
+                        </td>
+                        <td className={styles.tdEditable}>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={line.vatRate ?? ''}
+                            onChange={(e) =>
+                              handleLineFieldChange(line.rowId, 'vatRate', e.target.value)
+                            }
+                            aria-label={t('autoItemize.editVatRateAriaLabel')}
+                          />
+                        </td>
+                        <td className={styles.tdAssign}>
+                          {!line.assignedBudgetLineId && !line.inlineCreatedBudgetLineDraft ? (
+                            <button
+                              type="button"
+                              className={styles.assignButtonInTable}
+                              onClick={() => handleAssignButtonClick(line.rowId)}
+                            >
+                              {t('autoItemize.assignButton')}
+                            </button>
+                          ) : line.assignedBudgetLineId ? (
+                            <div className={styles.assignedBadge}>
+                              <span title={line.assignedBudgetLineDescription || undefined}>
+                                {line.assignedBudgetLineDescription || t('autoItemize.assigned')}
+                              </span>
+                              <button
+                                type="button"
+                                className={styles.clearAssignButton}
+                                onClick={() => {
+                                  setLines((prev) =>
+                                    prev.map((l) =>
+                                      l.rowId === line.rowId
+                                        ? {
+                                            ...l,
+                                            assignedBudgetLineId: undefined,
+                                            assignedBudgetLineType: undefined,
+                                            assignedBudgetLineDescription: undefined,
+                                          }
+                                        : l,
+                                    ),
+                                  );
+                                  setLineFieldsEdited(true);
+                                }}
+                                aria-label={t('autoItemize.clearAssignmentAriaLabel')}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
+                            <div className={styles.assignedBadge}>
+                              <span>{t('autoItemize.creatingNew')}</span>
+                              <button
+                                type="button"
+                                className={styles.clearAssignButton}
+                                onClick={() => {
+                                  setLines((prev) =>
+                                    prev.map((l) =>
+                                      l.rowId === line.rowId
+                                        ? { ...l, inlineCreatedBudgetLineDraft: undefined }
+                                        : l,
+                                    ),
+                                  );
+                                  setLineFieldsEdited(true);
+                                }}
+                                aria-label={t('autoItemize.clearAssignmentAriaLabel')}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className={styles.totalsRow}>
+                      <td colSpan={5}>{t('autoItemize.total')}</td>
+                      <td>
+                        <strong>{formatCurrency(computedLineTotal)}</strong>
+                      </td>
+                      <td colSpan={3}>{renderVarianceIndicator()}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className={styles.actions}>
+              <button
+                type="button"
+                className={sharedStyles.btnPrimary}
+                onClick={handleSave}
+                disabled={pageStatus === 'saving'}
+              >
+                {pageStatus === 'saving' ? t('autoItemize.saving') : t('autoItemize.save')}
+              </button>
+              <button
+                type="button"
+                className={sharedStyles.btnSecondary}
+                onClick={handleCancel}
+                disabled={pageStatus === 'saving'}
+              >
+                {t('autoItemize.cancel')}
+              </button>
+            </div>
+          </div>
+
+          {/* Preview column (document detail panel) */}
+          <div className={styles.previewColumn}>
+            {document && (
+              <DocumentDetailPanel
+                document={document}
+                variant="sidebyside"
+              />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Budget line picker modal */}
+      {picker.pickerState.isOpen && (
+        <Modal
+          title={
+            picker.pickerState.step === 1
+              ? t('autoItemize.pickerTitle')
+              : t('autoItemize.pickerStep2Title', {
+                  itemTitle: picker.pickerState.itemTitle,
+                })
+          }
+          onClose={picker.closePicker}
+        >
+          <div className={styles.pickerContent}>
+            {picker.pickerState.step === 1 && (
+              <div>
+                <p>{t('autoItemize.pickerSelectTypeLabel')}</p>
+                <div className={styles.pickerTypeButtons}>
+                  <button
+                    type="button"
+                    className={sharedStyles.btnSecondary}
+                    onClick={() => picker.setPickerState((prev) => ({ ...prev, type: 'work_item' }))}
+                  >
+                    {t('autoItemize.pickerWorkItemType')}
+                  </button>
+                  <button
+                    type="button"
+                    className={sharedStyles.btnSecondary}
+                    onClick={() =>
+                      picker.setPickerState((prev) => ({ ...prev, type: 'household_item' }))
+                    }
+                  >
+                    {t('autoItemize.pickerHouseholdItemType')}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {picker.pickerState.error && (
+              <FormError variant="banner" message={picker.pickerState.error} />
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {/* Cancel confirmation modal */}
+      {showCancelConfirm && (
+        <Modal
+          title={t('autoItemize.cancelConfirmTitle')}
+          onClose={() => setShowCancelConfirm(false)}
+        >
+          <p>{t('autoItemize.cancelConfirmBody')}</p>
+          <div className={styles.modalActions}>
+            <button
+              type="button"
+              className={sharedStyles.btnPrimary}
+              onClick={handleConfirmCancel}
+            >
+              {t('autoItemize.discardChanges')}
+            </button>
+            <button
+              type="button"
+              className={sharedStyles.btnSecondary}
+              onClick={() => setShowCancelConfirm(false)}
+            >
+              {t('autoItemize.keepEditing')}
+            </button>
+          </div>
+        </Modal>
+      )}
+    </>
+  );
+}
