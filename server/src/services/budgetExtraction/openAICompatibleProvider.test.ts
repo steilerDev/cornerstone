@@ -37,6 +37,7 @@ const BASE_CONFIG: LlmConfig = {
   apiKey: 'test-api-key',
   model: 'gpt-4o',
   requestTimeoutMs: 5000,
+  maxTokens: 16384,
   provider: 'openai',
 };
 

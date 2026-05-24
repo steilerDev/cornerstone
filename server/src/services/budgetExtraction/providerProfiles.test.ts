@@ -69,6 +69,16 @@ describe('buildRequestBody', () => {
     expect(body.max_tokens).toBe(16384);
   }
 
+  it('honors the maxTokens override (operator-configurable cap)', () => {
+    const body = buildRequestBody({ ...common, provider: 'openai', maxTokens: 32000 });
+    expect(body.max_tokens).toBe(32000);
+  });
+
+  it('falls back to default max_tokens when override is omitted', () => {
+    const body = buildRequestBody({ ...common, provider: 'openai' });
+    expect(body.max_tokens).toBe(16384);
+  });
+
   it('openai → response_format: json_object', () => {
     const body = buildRequestBody({ ...common, provider: 'openai' });
     assertBaseFields(body);

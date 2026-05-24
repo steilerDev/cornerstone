@@ -465,6 +465,7 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 | `LLM_API_KEY`                | (none)                     | API key for LLM provider authentication                                                                       |
 | `LLM_MODEL`                  | (none)                     | LLM model identifier (e.g., `gpt-4-turbo`, `claude-3-opus-20240229`)                                          |
 | `LLM_REQUEST_TIMEOUT_MS`     | `30000`                    | Timeout in milliseconds for LLM requests (must be positive integer)                                           |
+| `LLM_MAX_TOKENS`             | `16384`                    | Maximum output tokens per LLM call. Increase if extractions truncate (see `finishReason: "length"`)           |
 | `LLM_PROVIDER`               | auto-detect                | Optional: `openai`, `anthropic`, `gemini`, `ollama`, or `generic`. Auto-detected from `LLM_BASE_URL` if unset |
 
 Production images use Docker Hardened Images (DHI). See `Dockerfile` and `docker-compose.yml` for build/deploy details.

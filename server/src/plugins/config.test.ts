@@ -44,6 +44,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmApiKey: undefined,
         llmModel: undefined,
         llmRequestTimeoutMs: 30000,
+    llmMaxTokens: 16384,
         llmProvider: 'generic',
         autoItemizeEnabled: false,
       });
@@ -91,6 +92,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmApiKey: undefined,
         llmModel: undefined,
         llmRequestTimeoutMs: 30000,
+    llmMaxTokens: 16384,
         llmProvider: 'generic',
         autoItemizeEnabled: false,
       });
@@ -140,6 +142,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmApiKey: undefined,
         llmModel: undefined,
         llmRequestTimeoutMs: 30000,
+    llmMaxTokens: 16384,
         llmProvider: 'generic',
         autoItemizeEnabled: false,
       });
@@ -184,6 +187,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmApiKey: undefined,
         llmModel: undefined,
         llmRequestTimeoutMs: 30000,
+    llmMaxTokens: 16384,
         llmProvider: 'generic',
         autoItemizeEnabled: false,
       });
@@ -760,6 +764,28 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
     it('LLM_REQUEST_TIMEOUT_MS=-1 → throws configuration validation error', () => {
       expect(() => loadConfig({ LLM_REQUEST_TIMEOUT_MS: '-1' })).toThrow(
         'LLM_REQUEST_TIMEOUT_MS must be a positive integer',
+      );
+    });
+
+    it('LLM_MAX_TOKENS defaults to 16384', () => {
+      const config = loadConfig({});
+      expect(config.llmMaxTokens).toBe(16384);
+    });
+
+    it('LLM_MAX_TOKENS=32000 parses as integer 32000', () => {
+      const config = loadConfig({ LLM_MAX_TOKENS: '32000' });
+      expect(config.llmMaxTokens).toBe(32000);
+    });
+
+    it('LLM_MAX_TOKENS=abc → throws configuration validation error', () => {
+      expect(() => loadConfig({ LLM_MAX_TOKENS: 'abc' })).toThrow(
+        'LLM_MAX_TOKENS must be a positive integer',
+      );
+    });
+
+    it('LLM_MAX_TOKENS=0 → throws configuration validation error (must be positive)', () => {
+      expect(() => loadConfig({ LLM_MAX_TOKENS: '0' })).toThrow(
+        'LLM_MAX_TOKENS must be a positive integer',
       );
     });
 

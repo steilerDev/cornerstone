@@ -173,6 +173,7 @@ export function createOpenAICompatibleProvider(config: LlmConfig): BudgetExtract
               model: config.model,
               systemPrompt: SYSTEM_PROMPT,
               userPrompt: buildUserPrompt(ocrText, hints),
+              maxTokens: config.maxTokens,
             }),
           ),
           signal: controller.signal,
