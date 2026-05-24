@@ -9,6 +9,7 @@ import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as svc from '../services/invoiceAutoItemizeService.js';
 import type { AutoItemizeRequestBody } from '../services/invoiceAutoItemizeService.js';
+import type { InvoicePatchForAutoItemize } from '@cornerstone/shared';
 
 const schema = {
   body: {
@@ -36,6 +37,18 @@ const schema = {
             confidence: { type: 'number', minimum: 0, maximum: 1 },
           },
           additionalProperties: false,
+        },
+      },
+      invoicePatch: {
+        type: 'object',
+        minProperties: 1,
+        additionalProperties: false,
+        properties: {
+          invoiceNumber: { type: ['string', 'null'], maxLength: 255 },
+          amount: { type: 'number', exclusiveMinimum: 0 },
+          date: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+          dueDate: { type: ['string', 'null'], pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+          notes: { type: ['string', 'null'], maxLength: 10000 },
         },
       },
     },

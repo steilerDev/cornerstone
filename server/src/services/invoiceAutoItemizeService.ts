@@ -27,11 +27,13 @@ import {
 import { getProvider, validateExtractedLines } from './budgetExtraction/index.js';
 import * as paperlessService from './paperlessService.js';
 import * as invoiceBudgetLineService from './invoiceBudgetLineService.js';
+import * as invoiceService from './invoiceService.js';
 import type { AppConfig } from '../plugins/config.js';
 import type {
   ExtractedLine,
   ExtractionHints,
   InvoiceBudgetLineListDetailResponse,
+  InvoicePatchForAutoItemize,
 } from '@cornerstone/shared';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -47,6 +49,7 @@ export interface AutoItemizeRequestBody {
   mode: 'append' | 'replace';
   dryRun: boolean;
   lines?: ExtractedLine[];
+  invoicePatch?: InvoicePatchForAutoItemize;
 }
 
 export interface AutoItemizeWarning {
@@ -164,6 +167,23 @@ export async function autoItemize(
     const validatedLines = validateExtractedLines({ lines: body.lines });
 
     return db.transaction(() => {
+      // 4-pre. Apply invoice metadata patch if provided (must be first in transaction)
+      let effectiveInvoiceAmount = invoice.amount;
+      if (body.invoicePatch) {
+        invoiceService.updateInvoice(
+          db,
+          invoice.vendorId,
+          invoiceId,
+          body.invoicePatch,
+          config.diaryAutoEvents,
+        );
+        // Re-read the (possibly-updated) invoice amount for the Σ validation below
+        const updatedInvoice = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get();
+        if (updatedInvoice) {
+          effectiveInvoiceAmount = updatedInvoice.amount;
+        }
+      }
+
       // 4a. If mode === 'replace', delete existing auto-extracted lines
       if (body.mode === 'replace') {
         // Find all invoice_budget_lines for this invoice that link to auto-extracted work items
@@ -244,10 +264,10 @@ export async function autoItemize(
         totalItemized += extractedLine.totalAmount;
       }
 
-      // 4d. Validate Σ itemized ≤ invoice.amount
-      if (totalItemized > invoice.amount) {
+      // 4d. Validate Σ itemized ≤ effective invoice.amount (post-patch)
+      if (totalItemized > effectiveInvoiceAmount) {
         throw new ItemizedSumExceedsInvoiceError(
-          `Sum of itemized amounts (${totalItemized}) exceeds invoice total (${invoice.amount})`,
+          `Sum of itemized amounts (${totalItemized}) exceeds invoice total (${effectiveInvoiceAmount})`,
         );
       }
 
