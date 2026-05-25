@@ -82,7 +82,9 @@ export function AutoItemizePage() {
   > | null>(null);
   const [extractedInvoiceDate, setExtractedInvoiceDate] = useState<string | undefined>(undefined);
   const [extractedDueDate, setExtractedDueDate] = useState<string | undefined>(undefined);
-  const [extractedInvoiceNumber, setExtractedInvoiceNumber] = useState<string | undefined>(undefined);
+  const [extractedInvoiceNumber, setExtractedInvoiceNumber] = useState<string | undefined>(
+    undefined,
+  );
   const [extractedNotes, setExtractedNotes] = useState<string | undefined>(undefined);
 
   // Metadata edits
@@ -524,8 +526,7 @@ export function AutoItemizePage() {
 
   const invoiceNumberSuggestion = useMemo(
     () =>
-      extractedInvoiceNumber &&
-      extractedInvoiceNumber !== (metadataEdits.invoiceNumber ?? '')
+      extractedInvoiceNumber && extractedInvoiceNumber !== (metadataEdits.invoiceNumber ?? '')
         ? extractedInvoiceNumber
         : undefined,
     [extractedInvoiceNumber, metadataEdits.invoiceNumber],
@@ -533,9 +534,7 @@ export function AutoItemizePage() {
 
   const notesSuggestion = useMemo(
     () =>
-      extractedNotes && extractedNotes !== (metadataEdits.notes ?? '')
-        ? extractedNotes
-        : undefined,
+      extractedNotes && extractedNotes !== (metadataEdits.notes ?? '') ? extractedNotes : undefined,
     [extractedNotes, metadataEdits.notes],
   );
 
@@ -673,7 +672,9 @@ export function AutoItemizePage() {
                       suggestedValue={invoiceNumberSuggestion}
                       fieldLabel={t('autoItemize.invoiceNumber')}
                       displayValue={invoiceNumberSuggestion}
-                      onApply={() => handleApplySuggestion('invoiceNumber', invoiceNumberSuggestion)}
+                      onApply={() =>
+                        handleApplySuggestion('invoiceNumber', invoiceNumberSuggestion)
+                      }
                     />
                   )}
                 </div>

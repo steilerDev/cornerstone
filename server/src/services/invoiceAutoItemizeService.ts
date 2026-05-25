@@ -153,7 +153,9 @@ export async function autoItemize(
       warnings,
       ...(result.invoiceDate !== undefined ? { extractedInvoiceDate: result.invoiceDate } : {}),
       ...(result.dueDate !== undefined ? { extractedDueDate: result.dueDate } : {}),
-      ...(result.invoiceNumber !== undefined ? { extractedInvoiceNumber: result.invoiceNumber } : {}),
+      ...(result.invoiceNumber !== undefined
+        ? { extractedInvoiceNumber: result.invoiceNumber }
+        : {}),
       ...(result.notes !== undefined ? { extractedNotes: result.notes } : {}),
     };
   }
