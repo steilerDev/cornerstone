@@ -16,6 +16,17 @@ export interface ExtractedLine {
   vatRate?: number;
   vendorName?: string;
   confidence: number; // 0..1
+  /**
+   * Optional pre-existing or eagerly-created budget line ID to link this row to.
+   * When present, the server creates only the invoice_budget_lines junction row
+   * (no new work_item_budget / household_item_budget row).
+   * Must reference either an existing work_item_budgets row or household_item_budgets row.
+   *
+   * The assignedBudgetLineType discriminates the FK family.
+   */
+  assignedBudgetLineId?: string;
+  /** Discriminator: which budget line FK family the ID refers to. Required when assignedBudgetLineId is set. */
+  assignedBudgetLineType?: 'work_item' | 'household_item';
 }
 
 export interface ExtractionHints {

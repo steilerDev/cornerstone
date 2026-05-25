@@ -13,6 +13,7 @@ import {
   invoices,
   invoiceBudgetLines,
   workItemBudgets,
+  householdItemBudgets,
   documentLinks,
   vendors,
   budgetSources,
@@ -27,11 +28,13 @@ import {
 import { getProvider, validateExtractedLines } from './budgetExtraction/index.js';
 import * as paperlessService from './paperlessService.js';
 import * as invoiceBudgetLineService from './invoiceBudgetLineService.js';
+import * as invoiceService from './invoiceService.js';
 import type { AppConfig } from '../plugins/config.js';
 import type {
   ExtractedLine,
   ExtractionHints,
   InvoiceBudgetLineListDetailResponse,
+  InvoicePatchForAutoItemize,
 } from '@cornerstone/shared';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -47,6 +50,7 @@ export interface AutoItemizeRequestBody {
   mode: 'append' | 'replace';
   dryRun: boolean;
   lines?: ExtractedLine[];
+  invoicePatch?: InvoicePatchForAutoItemize;
 }
 
 export interface AutoItemizeWarning {
@@ -164,6 +168,23 @@ export async function autoItemize(
     const validatedLines = validateExtractedLines({ lines: body.lines });
 
     return db.transaction(() => {
+      // 4-pre. Apply invoice metadata patch if provided (must be first in transaction)
+      let effectiveInvoiceAmount = invoice.amount;
+      if (body.invoicePatch) {
+        invoiceService.updateInvoice(
+          db,
+          invoice.vendorId,
+          invoiceId,
+          body.invoicePatch,
+          config.diaryAutoEvents,
+        );
+        // Re-read the (possibly-updated) invoice amount for the Σ validation below
+        const updatedInvoice = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get();
+        if (updatedInvoice) {
+          effectiveInvoiceAmount = updatedInvoice.amount;
+        }
+      }
+
       // 4a. If mode === 'replace', delete existing auto-extracted lines
       if (body.mode === 'replace') {
         // Find all invoice_budget_lines for this invoice that link to auto-extracted work items
@@ -202,52 +223,112 @@ export async function autoItemize(
       let totalItemized = 0;
 
       for (const extractedLine of validatedLines) {
-        const workItemBudgetId = randomUUID();
         const invoiceBudgetLineId = randomUUID();
         const now = new Date().toISOString();
 
-        // Insert work_item_budget with auto origin
-        db.insert(workItemBudgets)
-          .values({
-            id: workItemBudgetId,
-            workItemId: null,
-            description: extractedLine.description,
-            plannedAmount: extractedLine.totalAmount,
-            confidence: 'invoice',
-            budgetCategoryId: null,
-            budgetSourceId: discretionarySource.id,
-            vendorId: invoice.vendorId,
-            quantity: extractedLine.quantity ?? null,
-            unit: extractedLine.unit ?? null,
-            unitPrice: extractedLine.unitPrice ?? null,
-            includesVat: extractedLine.includesVat !== false,
-            createdBy: userId,
-            createdAt: now,
-            updatedAt: now,
-            origin: 'auto',
-          })
-          .run();
+        // Case 1: Pre-existing budget line assignment
+        if (extractedLine.assignedBudgetLineId) {
+          // Validate that both assignedBudgetLineId and assignedBudgetLineType are present
+          if (!extractedLine.assignedBudgetLineType) {
+            throw new ValidationError(
+              'assignedBudgetLineType is required when assignedBudgetLineId is provided',
+            );
+          }
 
-        // Insert invoice_budget_lines junction row
-        db.insert(invoiceBudgetLines)
-          .values({
-            id: invoiceBudgetLineId,
-            invoiceId,
-            workItemBudgetId,
-            householdItemBudgetId: null,
-            itemizedAmount: extractedLine.totalAmount,
-            createdAt: now,
-            updatedAt: now,
-          })
-          .run();
+          // Look up the budget line in the appropriate table
+          let budgetLineExists = false;
+          if (extractedLine.assignedBudgetLineType === 'work_item') {
+            const budgetLine = db
+              .select()
+              .from(workItemBudgets)
+              .where(eq(workItemBudgets.id, extractedLine.assignedBudgetLineId))
+              .get();
+            budgetLineExists = !!budgetLine;
+          } else if (extractedLine.assignedBudgetLineType === 'household_item') {
+            const budgetLine = db
+              .select()
+              .from(householdItemBudgets)
+              .where(eq(householdItemBudgets.id, extractedLine.assignedBudgetLineId))
+              .get();
+            budgetLineExists = !!budgetLine;
+          }
 
-        totalItemized += extractedLine.totalAmount;
+          if (!budgetLineExists) {
+            throw new NotFoundError(
+              `Budget line ${extractedLine.assignedBudgetLineId} (type: ${extractedLine.assignedBudgetLineType}) not found`,
+            );
+          }
+
+          // Create only the invoice_budget_lines junction row
+          const workItemBudgetId =
+            extractedLine.assignedBudgetLineType === 'work_item'
+              ? extractedLine.assignedBudgetLineId
+              : null;
+          const householdItemBudgetId =
+            extractedLine.assignedBudgetLineType === 'household_item'
+              ? extractedLine.assignedBudgetLineId
+              : null;
+
+          db.insert(invoiceBudgetLines)
+            .values({
+              id: invoiceBudgetLineId,
+              invoiceId,
+              workItemBudgetId,
+              householdItemBudgetId,
+              itemizedAmount: extractedLine.totalAmount,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .run();
+
+          totalItemized += extractedLine.totalAmount;
+        } else {
+          // Case 2: Auto-create a new work_item_budget (existing behavior)
+          const workItemBudgetId = randomUUID();
+
+          // Insert work_item_budget with auto origin
+          db.insert(workItemBudgets)
+            .values({
+              id: workItemBudgetId,
+              workItemId: null,
+              description: extractedLine.description,
+              plannedAmount: extractedLine.totalAmount,
+              confidence: 'invoice',
+              budgetCategoryId: null,
+              budgetSourceId: discretionarySource.id,
+              vendorId: invoice.vendorId,
+              quantity: extractedLine.quantity ?? null,
+              unit: extractedLine.unit ?? null,
+              unitPrice: extractedLine.unitPrice ?? null,
+              includesVat: extractedLine.includesVat !== false,
+              createdBy: userId,
+              createdAt: now,
+              updatedAt: now,
+              origin: 'auto',
+            })
+            .run();
+
+          // Insert invoice_budget_lines junction row
+          db.insert(invoiceBudgetLines)
+            .values({
+              id: invoiceBudgetLineId,
+              invoiceId,
+              workItemBudgetId,
+              householdItemBudgetId: null,
+              itemizedAmount: extractedLine.totalAmount,
+              createdAt: now,
+              updatedAt: now,
+            })
+            .run();
+
+          totalItemized += extractedLine.totalAmount;
+        }
       }
 
-      // 4d. Validate Σ itemized ≤ invoice.amount
-      if (totalItemized > invoice.amount) {
+      // 4d. Validate Σ itemized ≤ effective invoice.amount (post-patch)
+      if (totalItemized > effectiveInvoiceAmount) {
         throw new ItemizedSumExceedsInvoiceError(
-          `Sum of itemized amounts (${totalItemized}) exceeds invoice total (${invoice.amount})`,
+          `Sum of itemized amounts (${totalItemized}) exceeds invoice total (${effectiveInvoiceAmount})`,
         );
       }
 

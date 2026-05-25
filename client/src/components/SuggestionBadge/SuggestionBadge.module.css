@@ -1,0 +1,40 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  padding: var(--spacing-0-5) var(--spacing-2);
+  background: var(--color-primary-bg);
+  color: var(--color-primary-badge-text);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.applyButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+  padding: var(--spacing-0-5) var(--spacing-1);
+  border-radius: var(--radius-sm);
+  text-decoration: underline;
+  transition: color var(--transition-fast);
+}
+
+.applyButton:hover {
+  color: var(--color-primary-hover);
+}
+
+.applyButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .applyButton {
+    transition: none;
+  }
+}

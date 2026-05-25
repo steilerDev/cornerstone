@@ -157,6 +157,7 @@ export type { ExtractedLine, ExtractionHints } from './types/budgetExtraction.js
 
 // Invoice Auto-Itemize (EPIC-16 Story #1547)
 export type {
+  InvoicePatchForAutoItemize,
   AutoItemizeRequest,
   AutoItemizeWarning,
   AutoItemizeDryRunResponse,

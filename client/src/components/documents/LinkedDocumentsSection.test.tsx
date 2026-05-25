@@ -53,6 +53,28 @@ jest.unstable_mockModule('../../lib/apiClient.js', () => ({
   NetworkError: class MockNetworkError extends Error {},
 }));
 
+// ─── Mock: configApi (for auto-itemize enabled flag) ─────────────────────────
+// LinkedDocumentsSection unconditionally imports fetchConfig; mock must be present
+// so all tests get a predictable (disabled) auto-itemize default.
+// The onItemize-specific tests live in LinkedDocumentsSection.onItemize.test.tsx.
+
+const mockFetchConfig = jest.fn<() => Promise<unknown>>();
+
+jest.unstable_mockModule('../../lib/configApi.js', () => ({
+  fetchConfig: mockFetchConfig,
+}));
+
+// ─── Mock: react-router-dom useNavigate ──────────────────────────────────────
+// LinkedDocumentsSection unconditionally calls useNavigate(); mock must be present.
+// Use a minimal mock (no `...actual` spread) — pulling in the full react-router-dom
+// module via `await import` retains the whole library per-test and causes Jest
+// workers to OOM. This file does not render <Routes>/<Link>/etc., so the real
+// module is not needed.
+
+jest.unstable_mockModule('react-router-dom', () => ({
+  useNavigate: () => jest.fn(),
+}));
+
 // ─── Mock: child components (to avoid transitive dependency issues) ───────────
 
 // Capture linkedDocumentIds for assertions in system-wide filter tests
@@ -101,6 +123,7 @@ jest.unstable_mockModule('./LinkedDocumentCard.js', () => ({
     link: DocumentLinkWithMetadata;
     onView?: (link: DocumentLinkWithMetadata) => void;
     onUnlink?: (link: DocumentLinkWithMetadata) => void;
+    onItemize?: (link: DocumentLinkWithMetadata) => void;
   }) {
     return (
       <div data-testid={`linked-card-${props.link.id}`}>
@@ -202,12 +225,14 @@ beforeEach(async () => {
   mockUseDocumentLinks.mockReset();
   mockUseAllLinkedDocumentIds.mockReset();
   mockGetPaperlessStatus.mockReset();
+  mockFetchConfig.mockReset();
   capturedLinkedDocumentIds = undefined;
 
-  // Default: configured paperless, no links
+  // Default: configured paperless, no links, auto-itemize disabled
   mockUseDocumentLinks.mockReturnValue(makeHook());
   mockUseAllLinkedDocumentIds.mockReturnValue(makeAllLinkedIdsHook());
   mockGetPaperlessStatus.mockResolvedValue(makeConfiguredStatus());
+  mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: false, currency: 'EUR' });
 });
 
 afterEach(() => {
@@ -760,4 +785,5 @@ describe('LinkedDocumentsSection', () => {
       expect(capturedLinkedDocumentIds).toEqual([]);
     });
   });
+
 });

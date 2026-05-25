@@ -149,7 +149,20 @@ describe('LinkedDocumentCard', () => {
     expect(screen.getByText('+2')).toBeInTheDocument();
   });
 
-  it('"View" button calls onView prop with the link', () => {
+  it('"Details" button renders with "Details" text label (not "View")', () => {
+    render(
+      <LinkedDocumentCard
+        link={makeLink()}
+        paperlessBaseUrl={null}
+        onView={jest.fn()}
+        onUnlink={jest.fn()}
+      />,
+    );
+    // The button label is now "Details", not "View" (Story #1564 rename)
+    expect(screen.getByRole('button', { name: /View details: Invoice March/i })).toBeInTheDocument();
+  });
+
+  it('"Details" button calls onView prop with the link', () => {
     const onView = jest.fn();
     const link = makeLink();
     render(
@@ -160,7 +173,7 @@ describe('LinkedDocumentCard', () => {
         onUnlink={jest.fn()}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /View: Invoice March/i }));
+    fireEvent.click(screen.getByRole('button', { name: /View details: Invoice March/i }));
     expect(onView).toHaveBeenCalledWith(link);
   });
 
@@ -330,5 +343,98 @@ describe('LinkedDocumentCard', () => {
     }) as HTMLAnchorElement;
     expect(openLink).toHaveAttribute('target', '_blank');
     expect(openLink).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  // ─── Itemize button (Story #1564) ─────────────────────────────────────────
+
+  describe('Itemize button', () => {
+    it('renders Itemize button when onItemize prop is provided', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink()}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onItemize={jest.fn()}
+        />,
+      );
+      // The Itemize button should be visible
+      expect(
+        screen.getByRole('button', { name: /Itemize.*Invoice March/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('does NOT render Itemize button when onItemize prop is omitted', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink()}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          // no onItemize
+        />,
+      );
+      expect(
+        screen.queryByRole('button', { name: /Itemize/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('calls onItemize with the link when Itemize button is clicked', () => {
+      const onItemize = jest.fn();
+      const link = makeLink();
+      render(
+        <LinkedDocumentCard
+          link={link}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onItemize={onItemize}
+        />,
+      );
+      fireEvent.click(screen.getByRole('button', { name: /Itemize.*Invoice March/i }));
+      expect(onItemize).toHaveBeenCalledWith(link);
+    });
+
+    it('Itemize button aria-label includes document title', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink()}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onItemize={jest.fn()}
+        />,
+      );
+      const btn = screen.getByRole('button', { name: /Itemize.*Invoice March/i });
+      expect(btn.getAttribute('aria-label')).toContain('Invoice March');
+    });
+
+    it('Itemize button has type="button" to prevent accidental form submit', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink()}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onItemize={jest.fn()}
+        />,
+      );
+      expect(
+        screen.getByRole('button', { name: /Itemize.*Invoice March/i }),
+      ).toHaveAttribute('type', 'button');
+    });
+
+    it('Itemize button is NOT shown when document is null (even with onItemize provided)', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink({ document: null })}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onItemize={jest.fn()}
+        />,
+      );
+      expect(screen.queryByRole('button', { name: /Itemize/i })).not.toBeInTheDocument();
+    });
   });
 });

@@ -2,7 +2,7 @@
   "_meta": {
     "description": "Single source of truth for domain terminology translations. The translator agent enforces these.",
     "locales": ["de"],
-    "lastUpdated": "2026-05-18"
+    "lastUpdated": "2026-05-24"
   },
   "terms": {
     "Work Item": { "de": { "singular": "Arbeitspaket", "plural": "Arbeitspakete" } },
@@ -30,6 +30,7 @@
     "Annotation": { "de": { "singular": "Annotation", "plural": "Annotationen" } },
     "Annotate": { "de": { "verb": "annotieren" } },
     "Callout": { "de": { "singular": "Sprechblase", "plural": "Sprechblasen" } },
-    "Freehand": { "de": { "singular": "Freihand" } }
+    "Freehand": { "de": { "singular": "Freihand" } },
+    "Itemize": { "de": { "verb": "aufschlüsseln", "noun": "Aufschlüsselung" } }
   }
 }

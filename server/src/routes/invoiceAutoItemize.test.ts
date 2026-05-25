@@ -12,6 +12,7 @@ import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { eq } from 'drizzle-orm';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
@@ -830,6 +831,173 @@ describe('POST /api/invoices/:invoiceId/auto-itemize', () => {
       // The 2 old auto lines should be gone; only the 1 new line remains
       expect(body.budgetLines).toHaveLength(1);
       expect(body.budgetLines[0]!.budgetLineDescription).toBe('New consolidated line');
+    });
+  });
+
+  // ─── invoicePatch schema validation (Story #1564) ────────────────────────────
+
+  describe('400 VALIDATION_ERROR — invoicePatch schema', () => {
+    it('returns 400 when invoicePatch has no properties (minProperties violation)', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'pass');
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      linkDocument(invoiceId, 42);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [],
+          invoicePatch: {},
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<{ error: { code: string } }>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    // Fastify AJV default: removeAdditional=true strips unknown props instead of rejecting (see invoiceBudgetLines.test.ts:365)
+    it('silently strips disallowed vendorId field (removeAdditional)', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'pass');
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      linkDocument(invoiceId, 42);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [],
+          invoicePatch: { vendorId: 'some-other-vendor-id', notes: 'test' },
+        },
+      });
+
+      // removeAdditional strips vendorId — request succeeds
+      expect(response.statusCode).toBe(200);
+      // vendorId is unchanged — the disallowed field was stripped before reaching the service
+      const updatedInvoice = app.db
+        .select()
+        .from(schema.invoices)
+        .where(eq(schema.invoices.id, invoiceId))
+        .get()!;
+      expect(updatedInvoice.vendorId).toBe(vendorId);
+      // notes is updated — the allowed field was applied
+      expect(updatedInvoice.notes).toBe('test');
+    });
+
+    // Fastify AJV default: removeAdditional=true strips unknown props instead of rejecting (see invoiceBudgetLines.test.ts:365)
+    it('silently strips disallowed status field (removeAdditional)', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'pass');
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      linkDocument(invoiceId, 42);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [],
+          invoicePatch: { status: 'paid', notes: 'test' },
+        },
+      });
+
+      // removeAdditional strips status — request succeeds
+      expect(response.statusCode).toBe(200);
+      // status is unchanged — the disallowed field was stripped before reaching the service
+      const updatedInvoice = app.db
+        .select()
+        .from(schema.invoices)
+        .where(eq(schema.invoices.id, invoiceId))
+        .get()!;
+      expect(updatedInvoice.status).toBe('pending');
+      // notes is updated — the allowed field was applied
+      expect(updatedInvoice.notes).toBe('test');
+    });
+
+    it('returns 400 when invoicePatch.amount is 0 (exclusiveMinimum: 0 violation)', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'pass');
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      linkDocument(invoiceId, 42);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [],
+          invoicePatch: { amount: 0 },
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<{ error: { code: string } }>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 when invoicePatch.date has invalid format (pattern violation)', async () => {
+      // Note: schema validates the date pattern ^\\d{4}-\\d{2}-\\d{2}$ at the route level.
+      // Invalid dates that match the pattern (e.g. '2026-99-99') would be caught by the
+      // service-layer updateInvoice() validation instead. This test verifies the schema-level check.
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'pass');
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      linkDocument(invoiceId, 42);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [],
+          invoicePatch: { date: 'not-a-date' },
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<{ error: { code: string } }>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 200 when invoicePatch has valid notes field', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'pass');
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      linkDocument(invoiceId, 42);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [],
+          invoicePatch: { notes: 'test note' },
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
     });
   });
 });
