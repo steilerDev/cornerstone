@@ -1366,7 +1366,7 @@ describe('AutoItemizePage', () => {
       fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/Discard Changes/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Discard Changes\?/i })).toBeInTheDocument();
       });
     });
 
@@ -1522,8 +1522,9 @@ describe('AutoItemizePage', () => {
       expect(iframes.length).toBeGreaterThan(0);
       // The iframe src should contain the document preview path for documentId 42
       const iframe = iframes[0] as HTMLIFrameElement;
-      expect(iframe.src).toContain('42');
-      expect(iframe.src).toContain('preview');
+      const iframeSrc = iframe.getAttribute('src') ?? '';
+      expect(iframeSrc).toContain('42');
+      expect(iframeSrc).toContain('preview');
     });
 
     it('pdfLoadingOverlay is present before iframe onLoad fires', async () => {
@@ -1549,14 +1550,16 @@ describe('AutoItemizePage', () => {
         expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
       });
 
-      // Fire an error event on the iframe
+      // Fire an error event on the iframe.
+      // Use fireEvent.error() directly — it already wraps in act(). Wrapping it in an
+      // additional await act(async () => {...}) causes double-wrapping which can prevent
+      // React from flushing the setPdfFailed(true) state update before waitFor runs.
       const iframe = document.querySelector('iframe') as HTMLIFrameElement;
-      await act(async () => {
-        fireEvent.error(iframe);
-      });
+      fireEvent.error(iframe);
 
-      // After error, the fallback region should appear
-      // The component renders a div with role="region" and aria-label for the fallback
+      // After the error, the fallback region should appear.
+      // The component replaces the pdfPreviewWrapper (and the iframe) with a
+      // div[role="region"] containing the previewUnavailable label.
       await waitFor(() => {
         const fallback = document.querySelector('[role="region"]');
         expect(fallback).not.toBeNull();
