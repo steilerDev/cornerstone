@@ -1001,7 +1001,11 @@ describe('POST /api/invoices/:invoiceId/auto-itemize', () => {
     });
 
     it('returns 200 when invoicePatch.status is "claimed" (valid enum value)', async () => {
-      const { cookie } = await createUserWithSession('user-claimed@test.com', 'UserClaimed', 'pass');
+      const { cookie } = await createUserWithSession(
+        'user-claimed@test.com',
+        'UserClaimed',
+        'pass',
+      );
       const vendorId = createTestVendor();
       const invoiceId = createTestInvoice(vendorId, 1000);
       linkDocument(invoiceId, 42);
@@ -1025,7 +1029,11 @@ describe('POST /api/invoices/:invoiceId/auto-itemize', () => {
     it('returns 400 VALIDATION_ERROR when invoicePatch.status is an invalid enum value', async () => {
       // The schema defines status as enum: ['pending', 'paid', 'claimed', 'quotation'].
       // An invalid value must be rejected with VALIDATION_ERROR.
-      const { cookie } = await createUserWithSession('user-badstatus@test.com', 'BadStatus', 'pass');
+      const { cookie } = await createUserWithSession(
+        'user-badstatus@test.com',
+        'BadStatus',
+        'pass',
+      );
       const vendorId = createTestVendor();
       const invoiceId = createTestInvoice(vendorId, 1000);
       linkDocument(invoiceId, 42);
@@ -1065,9 +1073,7 @@ describe('POST /api/invoices/:invoiceId/auto-itemize', () => {
               content: JSON.stringify({
                 invoiceDate: '2024-03-15',
                 dueDate: '2024-04-15',
-                lines: [
-                  { description: 'Labor', totalAmount: 200, confidence: 0.9 },
-                ],
+                lines: [{ description: 'Labor', totalAmount: 200, confidence: 0.9 }],
               }),
             },
           },
@@ -1098,7 +1104,11 @@ describe('POST /api/invoices/:invoiceId/auto-itemize', () => {
     });
 
     it('dry-run response omits extractedInvoiceDate when LLM returns no date fields', async () => {
-      const { cookie } = await createUserWithSession('user-nodates@test.com', 'UserNoDates', 'pass');
+      const { cookie } = await createUserWithSession(
+        'user-nodates@test.com',
+        'UserNoDates',
+        'pass',
+      );
       const vendorId = createTestVendor();
       const invoiceId = createTestInvoice(vendorId, 400);
       linkDocument(invoiceId, 42);
@@ -1123,7 +1133,11 @@ describe('POST /api/invoices/:invoiceId/auto-itemize', () => {
     });
 
     it('dry-run response includes only extractedInvoiceDate when LLM returns only invoiceDate', async () => {
-      const { cookie } = await createUserWithSession('user-dateonly@test.com', 'UserDateOnly', 'pass');
+      const { cookie } = await createUserWithSession(
+        'user-dateonly@test.com',
+        'UserDateOnly',
+        'pass',
+      );
       const vendorId = createTestVendor();
       const invoiceId = createTestInvoice(vendorId, 300);
       linkDocument(invoiceId, 42);

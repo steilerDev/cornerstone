@@ -1492,7 +1492,12 @@ describe('invoiceAutoItemizeService', () => {
         'user-1',
         { paperlessDocumentId: 42, mode: 'append', dryRun: true },
         PAPERLESS_AUTH,
-      )) as { lines: unknown[]; warnings: unknown[]; extractedInvoiceDate?: string; extractedDueDate?: string };
+      )) as {
+        lines: unknown[];
+        warnings: unknown[];
+        extractedInvoiceDate?: string;
+        extractedDueDate?: string;
+      };
 
       expect(result.extractedInvoiceDate).toBe('2024-01-15');
       expect(result.extractedDueDate).toBe('2024-02-15');
@@ -1515,7 +1520,12 @@ describe('invoiceAutoItemizeService', () => {
         'user-1',
         { paperlessDocumentId: 42, mode: 'append', dryRun: true },
         PAPERLESS_AUTH,
-      )) as { lines: unknown[]; warnings: unknown[]; extractedInvoiceDate?: string; extractedDueDate?: string };
+      )) as {
+        lines: unknown[];
+        warnings: unknown[];
+        extractedInvoiceDate?: string;
+        extractedDueDate?: string;
+      };
 
       expect(result.extractedInvoiceDate).toBeUndefined();
       expect(result.extractedDueDate).toBeUndefined();
@@ -1545,7 +1555,12 @@ describe('invoiceAutoItemizeService', () => {
         'user-1',
         { paperlessDocumentId: 42, mode: 'append', dryRun: true },
         PAPERLESS_AUTH,
-      )) as { lines: unknown[]; warnings: unknown[]; extractedInvoiceDate?: string; extractedDueDate?: string };
+      )) as {
+        lines: unknown[];
+        warnings: unknown[];
+        extractedInvoiceDate?: string;
+        extractedDueDate?: string;
+      };
 
       expect(result.extractedInvoiceDate).toBe('2024-03-10');
       expect(result.extractedDueDate).toBeUndefined();

@@ -20,11 +20,7 @@ const COLOR_MAP: Record<NonNullable<SpinnerProps['color']>, string> = {
 
 import styles from './Spinner.module.css';
 
-export function Spinner({
-  size = 'md',
-  color = 'primary',
-  label = 'Loading',
-}: SpinnerProps) {
+export function Spinner({ size = 'md', color = 'primary', label = 'Loading' }: SpinnerProps) {
   const { diameter, stroke } = SIZE_MAP[size];
   const strokeColor = COLOR_MAP[color];
 

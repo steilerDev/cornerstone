@@ -528,9 +528,7 @@ test.describe('Scenario 3 — Happy path: full itemize flow', { tag: ['@smoke'] 
         await expect(cards).toHaveCount(3);
 
         // ── First card description textarea visible and populated ─────────────
-        await expect(autoItemizePage.lineDescription(0)).toHaveValue(
-          'Bathroom tiles (600x600mm)',
-        );
+        await expect(autoItemizePage.lineDescription(0)).toHaveValue('Bathroom tiles (600x600mm)');
 
         // ── Toggle the second card (uncheck include → excluded) ───────────────
         const secondCheckbox = autoItemizePage.lineCheckbox(1);

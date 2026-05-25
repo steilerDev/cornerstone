@@ -13,7 +13,11 @@ import type {
 } from '@cornerstone/shared';
 import { fetchInvoiceById } from '../../lib/invoicesApi.js';
 import { autoItemize } from '../../lib/invoiceAutoItemizeApi.js';
-import { getPaperlessDocument, getDocumentPreviewUrl, getPaperlessStatus } from '../../lib/paperlessApi.js';
+import {
+  getPaperlessDocument,
+  getDocumentPreviewUrl,
+  getPaperlessStatus,
+} from '../../lib/paperlessApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -608,10 +612,7 @@ export function AutoItemizePage() {
 
         <div className={styles.pageBody}>
           {/* Form column */}
-          <div
-            className={styles.formColumn}
-            aria-busy={(pageStatus as PageStatus) === 'saving'}
-          >
+          <div className={styles.formColumn} aria-busy={(pageStatus as PageStatus) === 'saving'}>
             <a href="#itemize-form" className={styles.skipLink}>
               {t('autoItemize.skipToForm')}
             </a>
@@ -843,7 +844,9 @@ export function AutoItemizePage() {
                       {/* Middle row: metric grid */}
                       <div className={styles.cardMetricGrid}>
                         <div className={styles.cardMetricCell}>
-                          <span className={styles.cardMetricLabel}>{t('autoItemize.quantity')}</span>
+                          <span className={styles.cardMetricLabel}>
+                            {t('autoItemize.quantity')}
+                          </span>
                           <input
                             type="number"
                             step="0.01"
@@ -1033,7 +1036,11 @@ export function AutoItemizePage() {
                 />
               </div>
             ) : (
-              <div className={styles.pdfFallback} role="region" aria-label={t('autoItemize.previewUnavailable')}>
+              <div
+                className={styles.pdfFallback}
+                role="region"
+                aria-label={t('autoItemize.previewUnavailable')}
+              >
                 <svg
                   aria-hidden="true"
                   width="32"
@@ -1046,7 +1053,9 @@ export function AutoItemizePage() {
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                   <polyline points="14 2 14 8 20 8" />
                 </svg>
-                <span className={styles.pdfFallbackLabel}>{t('autoItemize.previewUnavailable')}</span>
+                <span className={styles.pdfFallbackLabel}>
+                  {t('autoItemize.previewUnavailable')}
+                </span>
                 {paperlessStatus?.paperlessUrl && (
                   <a
                     href={`${paperlessStatus.paperlessUrl}/documents/${documentId}/`}

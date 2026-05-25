@@ -355,8 +355,8 @@ describe('AutoItemizePage', () => {
       });
 
       // In error state, the loading/analyzing caption should be gone
-      const hasCaption = Array.from(document.querySelectorAll('[aria-hidden="true"]')).some(
-        (el) => el.textContent?.includes('s)'),
+      const hasCaption = Array.from(document.querySelectorAll('[aria-hidden="true"]')).some((el) =>
+        el.textContent?.includes('s)'),
       );
       expect(hasCaption).toBe(false);
     });
@@ -541,7 +541,9 @@ describe('AutoItemizePage', () => {
       // Scope the query to the card's <li> element to target the right checkbox.
       const card = screen.getByDisplayValue('Tile work').closest('li');
       expect(card).toBeInTheDocument();
-      const checkbox = within(card!).getByRole('checkbox', { name: /^Include$/i }) as HTMLInputElement;
+      const checkbox = within(card!).getByRole('checkbox', {
+        name: /^Include$/i,
+      }) as HTMLInputElement;
       expect(checkbox.checked).toBe(true);
 
       fireEvent.click(checkbox);

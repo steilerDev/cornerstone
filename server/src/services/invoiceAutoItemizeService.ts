@@ -56,7 +56,6 @@ export interface AutoItemizeRequestBody {
   invoicePatch?: InvoicePatchForAutoItemize;
 }
 
-
 /**
  * Build extraction hints from invoice metadata for better LLM context.
  */

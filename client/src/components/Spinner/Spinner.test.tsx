@@ -89,27 +89,21 @@ describe('Spinner', () => {
     // The animated arc circle sets style.color to the stroke color
     const circles = container.querySelectorAll('circle');
     // At least one circle should have the primary color
-    const hasPrimary = Array.from(circles).some(
-      (c) => c.style.color === 'var(--color-primary)',
-    );
+    const hasPrimary = Array.from(circles).some((c) => c.style.color === 'var(--color-primary)');
     expect(hasPrimary).toBe(true);
   });
 
   it('applies var(--color-text-muted) for muted color variant', () => {
     const { container } = render(<Spinner color="muted" />);
     const circles = container.querySelectorAll('circle');
-    const hasMuted = Array.from(circles).some(
-      (c) => c.style.color === 'var(--color-text-muted)',
-    );
+    const hasMuted = Array.from(circles).some((c) => c.style.color === 'var(--color-text-muted)');
     expect(hasMuted).toBe(true);
   });
 
   it('defaults to primary color (var(--color-primary)) when color prop is omitted', () => {
     const { container } = render(<Spinner />);
     const circles = container.querySelectorAll('circle');
-    const hasPrimary = Array.from(circles).some(
-      (c) => c.style.color === 'var(--color-primary)',
-    );
+    const hasPrimary = Array.from(circles).some((c) => c.style.color === 'var(--color-primary)');
     expect(hasPrimary).toBe(true);
   });
 

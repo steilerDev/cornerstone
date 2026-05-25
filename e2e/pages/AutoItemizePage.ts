@@ -463,9 +463,7 @@ export class AutoItemizePage {
     // Wait for analyzing caption to disappear (indicates loading has ended)
     await this.analyzingCaption.waitFor({ state: 'hidden' });
     // Then wait for at least the card list to appear
-    await this.page
-      .locator('[role="list"][aria-label*="line"]')
-      .waitFor({ state: 'visible' });
+    await this.page.locator('[role="list"][aria-label*="line"]').waitFor({ state: 'visible' });
   }
 
   /**
