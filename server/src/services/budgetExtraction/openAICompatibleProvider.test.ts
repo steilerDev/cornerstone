@@ -1016,6 +1016,88 @@ describe('validateExtractedLines()', () => {
       expect(result.lines).toHaveLength(2);
     });
   });
+
+  // ─── Story #1581 — invoiceNumber and notes on ExtractionResult ───────────────
+
+  describe('invoiceNumber and notes fields on ExtractionResult (Story #1581)', () => {
+    it('returns invoiceNumber when present as non-empty string', () => {
+      const result = validateExtractedLines({
+        invoiceNumber: 'RE-2024-001',
+        lines: [],
+      });
+
+      expect(result.invoiceNumber).toBe('RE-2024-001');
+    });
+
+    it('strips invoiceNumber: null → undefined', () => {
+      const result = validateExtractedLines({
+        invoiceNumber: null,
+        lines: [],
+      });
+
+      expect(result.invoiceNumber).toBeUndefined();
+    });
+
+    it('strips invoiceNumber with only whitespace → undefined', () => {
+      const result = validateExtractedLines({
+        invoiceNumber: '   ',
+        lines: [],
+      });
+
+      expect(result.invoiceNumber).toBeUndefined();
+    });
+
+    it('truncates invoiceNumber longer than 255 chars to exactly 255', () => {
+      const longInvoiceNumber = 'A'.repeat(300);
+      const result = validateExtractedLines({
+        invoiceNumber: longInvoiceNumber,
+        lines: [],
+      });
+
+      expect(result.invoiceNumber).toHaveLength(255);
+      expect(result.invoiceNumber).toBe('A'.repeat(255));
+    });
+
+    it('returns notes when present as non-empty string', () => {
+      const result = validateExtractedLines({
+        notes: 'This invoice covers labor for the kitchen renovation.',
+        lines: [],
+      });
+
+      expect(result.notes).toBe('This invoice covers labor for the kitchen renovation.');
+    });
+
+    it('strips notes: null → undefined', () => {
+      const result = validateExtractedLines({
+        notes: null,
+        lines: [],
+      });
+
+      expect(result.notes).toBeUndefined();
+    });
+
+    it('truncates notes longer than 1000 chars to exactly 1000', () => {
+      const longNotes = 'B'.repeat(1200);
+      const result = validateExtractedLines({
+        notes: longNotes,
+        lines: [],
+      });
+
+      expect(result.notes).toHaveLength(1000);
+      expect(result.notes).toBe('B'.repeat(1000));
+    });
+
+    it('backward compat: response with only { lines: [...] } returns invoiceNumber and notes as undefined', () => {
+      const result = validateExtractedLines({
+        lines: [{ description: 'Item A', totalAmount: 100, confidence: 0.9 }],
+      });
+
+      expect(result.invoiceNumber).toBeUndefined();
+      expect(result.notes).toBeUndefined();
+      // Core fields still work
+      expect(result.lines).toHaveLength(1);
+    });
+  });
 });
 
 // ─── Fixture-driven validate tests ───────────────────────────────────────────

@@ -82,6 +82,8 @@ export function AutoItemizePage() {
   > | null>(null);
   const [extractedInvoiceDate, setExtractedInvoiceDate] = useState<string | undefined>(undefined);
   const [extractedDueDate, setExtractedDueDate] = useState<string | undefined>(undefined);
+  const [extractedInvoiceNumber, setExtractedInvoiceNumber] = useState<string | undefined>(undefined);
+  const [extractedNotes, setExtractedNotes] = useState<string | undefined>(undefined);
 
   // Metadata edits
   const [metadataEdits, setMetadataEdits] = useState<MetadataEdits>({
@@ -158,6 +160,8 @@ export function AutoItemizePage() {
       setElapsed(0);
       setPdfLoaded(false);
       setPdfFailed(false);
+      setExtractedInvoiceNumber(undefined);
+      setExtractedNotes(undefined);
 
       try {
         // Load Paperless status for the fallback link
@@ -219,6 +223,8 @@ export function AutoItemizePage() {
           setWarnings(_autoItemizeResult.warnings);
           setExtractedInvoiceDate(_autoItemizeResult.extractedInvoiceDate ?? undefined);
           setExtractedDueDate(_autoItemizeResult.extractedDueDate ?? undefined);
+          setExtractedInvoiceNumber(_autoItemizeResult.extractedInvoiceNumber ?? undefined);
+          setExtractedNotes(_autoItemizeResult.extractedNotes ?? undefined);
           setPageStatus('ready');
         } else {
           setPageError(t('autoItemize.unexpectedResponse'));
@@ -516,6 +522,23 @@ export function AutoItemizePage() {
     [extractedDueDate, metadataEdits.dueDate],
   );
 
+  const invoiceNumberSuggestion = useMemo(
+    () =>
+      extractedInvoiceNumber &&
+      extractedInvoiceNumber !== (metadataEdits.invoiceNumber ?? '')
+        ? extractedInvoiceNumber
+        : undefined,
+    [extractedInvoiceNumber, metadataEdits.invoiceNumber],
+  );
+
+  const notesSuggestion = useMemo(
+    () =>
+      extractedNotes && extractedNotes !== (metadataEdits.notes ?? '')
+        ? extractedNotes
+        : undefined,
+    [extractedNotes, metadataEdits.notes],
+  );
+
   const computedLineTotal = useMemo(
     () => lines.filter((l) => l.included).reduce((sum, line) => sum + (line.totalAmount ?? 0), 0),
     [lines],
@@ -631,18 +654,28 @@ export function AutoItemizePage() {
 
               <div className={styles.fieldRow}>
                 <label htmlFor="invoice-number">{t('autoItemize.invoiceNumber')}</label>
-                <div className={styles.fieldControl}>
-                  <input
-                    id="invoice-number"
-                    type="text"
-                    value={metadataEdits.invoiceNumber ?? ''}
-                    onChange={(e) =>
-                      setMetadataEdits((prev) => ({
-                        ...prev,
-                        invoiceNumber: e.target.value || null,
-                      }))
-                    }
-                  />
+                <div>
+                  <div className={styles.fieldControl}>
+                    <input
+                      id="invoice-number"
+                      type="text"
+                      value={metadataEdits.invoiceNumber ?? ''}
+                      onChange={(e) =>
+                        setMetadataEdits((prev) => ({
+                          ...prev,
+                          invoiceNumber: e.target.value || null,
+                        }))
+                      }
+                    />
+                  </div>
+                  {invoiceNumberSuggestion && (
+                    <SuggestionBadge
+                      suggestedValue={invoiceNumberSuggestion}
+                      fieldLabel={t('autoItemize.invoiceNumber')}
+                      displayValue={invoiceNumberSuggestion}
+                      onApply={() => handleApplySuggestion('invoiceNumber', invoiceNumberSuggestion)}
+                    />
+                  )}
                 </div>
               </div>
 
@@ -730,18 +763,28 @@ export function AutoItemizePage() {
 
               <div className={styles.fieldRow}>
                 <label htmlFor="notes">{t('autoItemize.notes')}</label>
-                <div className={styles.fieldControl}>
-                  <textarea
-                    id="notes"
-                    value={metadataEdits.notes ?? ''}
-                    onChange={(e) =>
-                      setMetadataEdits((prev) => ({
-                        ...prev,
-                        notes: e.target.value || null,
-                      }))
-                    }
-                    rows={3}
-                  />
+                <div>
+                  <div className={styles.fieldControl}>
+                    <textarea
+                      id="notes"
+                      value={metadataEdits.notes ?? ''}
+                      onChange={(e) =>
+                        setMetadataEdits((prev) => ({
+                          ...prev,
+                          notes: e.target.value || null,
+                        }))
+                      }
+                      rows={3}
+                    />
+                  </div>
+                  {notesSuggestion && (
+                    <SuggestionBadge
+                      suggestedValue={notesSuggestion}
+                      fieldLabel={t('autoItemize.notes')}
+                      displayValue={notesSuggestion}
+                      onApply={() => handleApplySuggestion('notes', notesSuggestion)}
+                    />
+                  )}
                 </div>
               </div>
 

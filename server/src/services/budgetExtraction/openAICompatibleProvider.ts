@@ -54,6 +54,18 @@ export function validateExtractedLines(body: unknown): ExtractionResult {
     dueDate = obj.dueDate;
   }
 
+  let invoiceNumber: string | undefined;
+  if (typeof obj.invoiceNumber === 'string' && obj.invoiceNumber.trim() !== '') {
+    const trimmed = obj.invoiceNumber.trim();
+    invoiceNumber = trimmed.length <= 255 ? trimmed : trimmed.slice(0, 255);
+  }
+
+  let notes: string | undefined;
+  if (typeof obj.notes === 'string' && obj.notes.trim() !== '') {
+    const trimmed = obj.notes.trim();
+    notes = trimmed.length > 1000 ? trimmed.slice(0, 1000) : trimmed;
+  }
+
   const lines: ExtractedLine[] = [];
 
   for (let i = 0; i < obj.lines.length; i++) {
@@ -184,7 +196,7 @@ export function validateExtractedLines(body: unknown): ExtractionResult {
     });
   }
 
-  return { invoiceDate, dueDate, lines };
+  return { invoiceDate, dueDate, invoiceNumber, notes, lines };
 }
 
 /**

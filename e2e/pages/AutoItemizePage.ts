@@ -17,6 +17,7 @@
  *   - pageTitle: h1 with t('autoItemize.title') = "Auto-Itemize Invoice"
  *   - breadcrumb: <a class="breadcrumb"> with t('autoItemize.backToInvoice') = "Back to Invoice"
  *   - metadataCard: invoice metadata form with inputs #invoice-number, #amount, #date, #due-date, #notes
+ *   - SuggestionBadge fields: invoiceNumber, amount, date, dueDate, notes (all use same badge pattern)
  *   - statusSelect: <select id="invoice-status"> with status options
  *   - lineList: <ul role="list" aria-label="Extracted line items"> containing <li class*="lineCard">
  *   - Each lineCard:
@@ -75,6 +76,7 @@ export class AutoItemizePage {
   readonly retryButton: Locator;
 
   // Metadata form inputs
+  readonly invoiceNumberInput: Locator;
   readonly totalAmountInput: Locator;
   readonly invoiceDateInput: Locator;
   readonly dueDateInput: Locator;
@@ -205,6 +207,7 @@ export class AutoItemizePage {
     this.retryButton = page.getByRole('button', { name: /^Retry$/i });
 
     // Metadata inputs
+    this.invoiceNumberInput = page.locator('#invoice-number');
     this.totalAmountInput = page.locator('#amount');
     this.invoiceDateInput = page.locator('#date');
     this.dueDateInput = page.locator('#due-date');
@@ -313,12 +316,21 @@ export class AutoItemizePage {
    * We locate via the SuggestionBadge component's className which uses CSS Modules.
    *
    * Supported fields:
-   *   'amount'  → scoped to the #amount field's parent container
-   *   'date'    → scoped to the #date field's parent container
-   *   'dueDate' → scoped to the #due-date field's parent container
+   *   'amount'        → scoped to the #amount field's parent container
+   *   'date'          → scoped to the #date field's parent container
+   *   'dueDate'       → scoped to the #due-date field's parent container
+   *   'invoiceNumber' → scoped to the #invoice-number field's parent container
+   *   'notes'         → scoped to the #notes field's parent container
    */
-  suggestionBadge(field: 'amount' | 'date' | 'dueDate'): Locator {
-    const inputId = field === 'dueDate' ? 'due-date' : field;
+  suggestionBadge(field: 'amount' | 'date' | 'dueDate' | 'invoiceNumber' | 'notes'): Locator {
+    let inputId: string;
+    if (field === 'dueDate') {
+      inputId = 'due-date';
+    } else if (field === 'invoiceNumber') {
+      inputId = 'invoice-number';
+    } else {
+      inputId = field;
+    }
     // The badge is a sibling of the input, inside a field-control wrapper div.
     // Use ancestor traversal: input → parent div (fieldControl) → parent div → badge span.
     return this.page
@@ -330,9 +342,17 @@ export class AutoItemizePage {
 
   /**
    * Returns the Apply button inside a SuggestionBadge for a given field.
+   * Accepts the same field names as suggestionBadge().
    */
-  applyBadgeButton(field: 'amount' | 'date' | 'dueDate'): Locator {
-    const inputId = field === 'dueDate' ? 'due-date' : field;
+  applyBadgeButton(field: 'amount' | 'date' | 'dueDate' | 'invoiceNumber' | 'notes'): Locator {
+    let inputId: string;
+    if (field === 'dueDate') {
+      inputId = 'due-date';
+    } else if (field === 'invoiceNumber') {
+      inputId = 'invoice-number';
+    } else {
+      inputId = field;
+    }
     return this.page
       .locator(`#${inputId}`)
       .locator('xpath=ancestor::div[contains(@class,"fieldRow") or contains(@class,"field")]')

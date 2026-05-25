@@ -1509,6 +1509,137 @@ describe('AutoItemizePage', () => {
     });
   });
 
+  // ─── Story #1581: SuggestionBadge for invoiceNumber and notes ────────────
+
+  describe('SuggestionBadge for extracted invoiceNumber and notes (Story #1581)', () => {
+    it('badge appears for invoiceNumber when extractedInvoiceNumber differs from stored', async () => {
+      // Invoice has invoiceNumber 'INV-001'; LLM extracts 'RE-2024-001' (different)
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ invoiceNumber: 'INV-001' }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValue({
+        lines: [],
+        warnings: [],
+        extractedInvoiceNumber: 'RE-2024-001',
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/LLM suggests/i)).toBeInTheDocument();
+      });
+    });
+
+    it('badge absent when extractedInvoiceNumber is undefined', async () => {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ invoiceNumber: 'INV-001' }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      // No extractedInvoiceNumber in response
+      mockAutoItemize.mockResolvedValue({ lines: [], warnings: [] });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(/LLM suggests/i)).not.toBeInTheDocument();
+    });
+
+    it('badge absent when extractedInvoiceNumber matches stored value', async () => {
+      // Both invoice and extracted value are 'INV-001' — no difference, no badge
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ invoiceNumber: 'INV-001' }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValue({
+        lines: [],
+        warnings: [],
+        extractedInvoiceNumber: 'INV-001', // same as stored
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(/LLM suggests/i)).not.toBeInTheDocument();
+    });
+
+    it('Apply button updates the #invoice-number field and dismisses the badge', async () => {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ invoiceNumber: 'INV-001' }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValue({
+        lines: [],
+        warnings: [],
+        extractedInvoiceNumber: 'RE-2024-001',
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/LLM suggests/i)).toBeInTheDocument();
+      });
+
+      // Click the Apply button for the invoiceNumber suggestion
+      const applyButtons = screen.getAllByRole('button', { name: /Apply/i });
+      fireEvent.click(applyButtons[0]!);
+
+      // The invoice-number field should now hold the extracted value
+      const invoiceNumberField = document.getElementById('invoice-number') as HTMLInputElement;
+      expect(invoiceNumberField).not.toBeNull();
+      expect(invoiceNumberField.value).toBe('RE-2024-001');
+
+      // Badge disappears after applying (extracted value now matches the field value)
+      await waitFor(() => {
+        expect(screen.queryByText(/LLM suggests/i)).not.toBeInTheDocument();
+      });
+    });
+
+    it('badge appears for notes when extractedNotes differs from stored notes', async () => {
+      // Invoice has notes: null; LLM extracts a non-empty summary
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ notes: null }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValue({
+        lines: [],
+        warnings: [],
+        extractedNotes: 'Kitchen renovation labor and materials.',
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/LLM suggests/i)).toBeInTheDocument();
+      });
+    });
+
+    it('Apply button for notes updates the #notes textarea and dismisses the badge', async () => {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ notes: null }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValue({
+        lines: [],
+        warnings: [],
+        extractedNotes: 'Kitchen renovation labor and materials.',
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/LLM suggests/i)).toBeInTheDocument();
+      });
+
+      const applyButtons = screen.getAllByRole('button', { name: /Apply/i });
+      fireEvent.click(applyButtons[0]!);
+
+      // The #notes textarea should now hold the extracted value
+      const notesField = document.getElementById('notes') as HTMLTextAreaElement;
+      expect(notesField).not.toBeNull();
+      expect(notesField.value).toBe('Kitchen renovation labor and materials.');
+
+      // Badge disappears after applying
+      await waitFor(() => {
+        expect(screen.queryByText(/LLM suggests/i)).not.toBeInTheDocument();
+      });
+    });
+  });
+
   // ─── Story #1576: PDF iframe ─────────────────────────────────────────────
 
   describe('PDF iframe in ready state (Story #1576)', () => {

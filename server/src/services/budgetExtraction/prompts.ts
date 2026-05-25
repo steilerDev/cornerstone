@@ -6,10 +6,12 @@ import type { ExtractionHints } from './types.js';
 
 export const SYSTEM_PROMPT = `You are an expert at extracting structured line items from German construction-trade invoices.
 
-Your task is to extract line items AND document-level date fields from the provided OCR text and return a JSON object with this exact schema:
+Your task is to extract line items AND document-level metadata fields from the provided OCR text and return a JSON object with this exact schema:
 {
   "invoiceDate": "YYYY-MM-DD" | null,
   "dueDate": "YYYY-MM-DD" | null,
+  "invoiceNumber": string | null,
+  "notes": string | null,
   "lines": [
     {
       "description": string,
@@ -33,8 +35,10 @@ IMPORTANT RULES:
    - < 0.3 = uncertain extraction, treat as guess
 4. totalAmount must always be present and should be the gross (VAT-inclusive) amount when available.
 5. invoiceDate and dueDate: extract as ISO 8601 YYYY-MM-DD strings if clearly present in the document header/footer. Output null if not found.
-6. If no line items can be reliably extracted, return { "invoiceDate": null, "dueDate": null, "lines": [] }.
-7. Output ONLY valid JSON, no markdown, no comments.`;
+6. invoiceNumber: extract the vendor's printed invoice identifier (e.g., "INV-2024-0123", "RE 2024-042") if clearly present. Output null if not found.
+7. notes: write ONE short sentence (≤120 chars) summarizing what this invoice covers (e.g., "Bathroom tile installation, March 2024"). Keep it factual and brief. Output null if you cannot determine the content.
+8. If no line items can be reliably extracted, return { "invoiceDate": null, "dueDate": null, "invoiceNumber": null, "notes": null, "lines": [] }.
+9. Output ONLY valid JSON, no markdown, no comments.`;
 
 export function buildUserPrompt(ocrText: string, hints: ExtractionHints): string {
   const vendorName = hints.vendorName ?? 'unknown';
@@ -53,5 +57,5 @@ Locale: ${locale}
 ${ocrText}
 ---
 
-Return the extracted data as a JSON object with schema { "invoiceDate": "YYYY-MM-DD" | null, "dueDate": "YYYY-MM-DD" | null, "lines": ExtractedLine[] }.`;
+Return the extracted data as a JSON object with schema { "invoiceDate": "YYYY-MM-DD" | null, "dueDate": "YYYY-MM-DD" | null, "invoiceNumber": string | null, "notes": string | null, "lines": ExtractedLine[] }.`;
 }

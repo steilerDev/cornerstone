@@ -30,6 +30,7 @@
  *   15. Extracted date suggestion: extractedInvoiceDate → SuggestionBadge → Apply → field updates
  *   16. PDF iframe smoke: iframe present, src contains preview URL
  *   17. VAT applies checkbox: present; vatRate input NOT in DOM
+ *   20. SuggestionBadge for invoiceNumber and notes (parallel to Scenario 15)
  *
  * Mocking strategy:
  *   - GET /api/config: intercepted to inject autoItemizeEnabled: true/false
@@ -264,7 +265,7 @@ async function mockPaperlessDocument(page: Page, docId: number, title: string): 
 
 /**
  * Intercept POST /api/invoices/:id/auto-itemize (dry-run call triggered on mount).
- * Returns the given lines + warnings + optional extracted dates.
+ * Returns the given lines + warnings + optional extracted metadata fields.
  */
 async function mockAutoItemizeDryRun(
   page: Page,
@@ -274,6 +275,8 @@ async function mockAutoItemizeDryRun(
     warnings?: object[];
     extractedInvoiceDate?: string;
     extractedDueDate?: string;
+    extractedInvoiceNumber?: string;
+    extractedNotes?: string;
     status?: number;
     errorBody?: object;
     delayMs?: number;
@@ -308,6 +311,10 @@ async function mockAutoItemizeDryRun(
         warnings,
         ...(opts.extractedInvoiceDate ? { extractedInvoiceDate: opts.extractedInvoiceDate } : {}),
         ...(opts.extractedDueDate ? { extractedDueDate: opts.extractedDueDate } : {}),
+        ...(opts.extractedInvoiceNumber
+          ? { extractedInvoiceNumber: opts.extractedInvoiceNumber }
+          : {}),
+        ...(opts.extractedNotes ? { extractedNotes: opts.extractedNotes } : {}),
       }),
     });
   });
@@ -1784,6 +1791,100 @@ test.describe('Scenario 17 — VAT applies checkbox and no vatRate input', () =>
       const firstCard = autoItemizePage.lineRow(0);
       const metricInputs = firstCard.locator('[class*="cardMetricInput"]');
       await expect(metricInputs).toHaveCount(4);
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 20 — SuggestionBadge for invoiceNumber and notes (parallel to Scenario 15)
+// (New in bug fix #1581 — LLM now extracts invoiceNumber and notes at document level)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 20 — Extracted invoiceNumber and notes SuggestionBadges (Bug #1581)', () => {
+  test('SuggestionBadges appear for invoiceNumber and notes when LLM returns extracted values; Apply updates each field', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — skip on very narrow mobile');
+      return;
+    }
+
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
+
+    try {
+      // Invoice has stored invoiceNumber 'INV-STORED' and no notes (null).
+      // LLM returns extractedInvoiceNumber: 'INV-LLM-042' (differs → badge shows)
+      // LLM returns extractedNotes: 'Facade cladding, April 2024' (differs from null → badge shows)
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-Num-Notes Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 900,
+        date: '2026-06-01',
+        invoiceNumber: 'INV-STORED',
+      });
+
+      const docId = 77001;
+      await mockPaperlessDocument(page, docId, 'InvoiceNumber Notes Suggestion Doc');
+      await mockAutoItemizeDryRun(page, invoiceId, {
+        lines: THREE_LINES,
+        warnings: [],
+        extractedInvoiceNumber: 'INV-LLM-042',
+        extractedNotes: 'Facade cladding, April 2024',
+      });
+
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
+
+      // ── invoiceNumber input should have the stored value ──────────────────
+      await expect(autoItemizePage.invoiceNumberInput).toHaveValue('INV-STORED');
+
+      // ── notes textarea should be empty (stored notes = null) ──────────────
+      await expect(autoItemizePage.notesInput).toHaveValue('');
+
+      // ── SuggestionBadge appears adjacent to the invoiceNumber input ───────
+      const invoiceNumberBadge = autoItemizePage.suggestionBadge('invoiceNumber');
+      await expect(invoiceNumberBadge).toBeVisible();
+
+      // Badge text should contain the suggested invoice number
+      await expect(invoiceNumberBadge).toContainText('INV-LLM-042');
+
+      // ── SuggestionBadge appears adjacent to the notes textarea ────────────
+      const notesBadge = autoItemizePage.suggestionBadge('notes');
+      await expect(notesBadge).toBeVisible();
+
+      // Badge text should contain the suggested notes value
+      await expect(notesBadge).toContainText('Facade cladding, April 2024');
+
+      // ── Click Apply on the invoiceNumber badge ────────────────────────────
+      const invoiceNumberApplyBtn = invoiceNumberBadge.getByRole('button', { name: /Apply/i });
+      await expect(invoiceNumberApplyBtn).toBeVisible();
+      await invoiceNumberApplyBtn.click();
+
+      // ── invoiceNumber input should update to the LLM-extracted value ──────
+      await expect(autoItemizePage.invoiceNumberInput).toHaveValue('INV-LLM-042');
+
+      // ── invoiceNumber badge should disappear (suggestion == field value) ──
+      await expect(invoiceNumberBadge).not.toBeVisible();
+
+      // ── notes badge should still be visible (not yet applied) ────────────
+      await expect(notesBadge).toBeVisible();
+
+      // ── Click Apply on the notes badge ────────────────────────────────────
+      const notesApplyBtn = notesBadge.getByRole('button', { name: /Apply/i });
+      await expect(notesApplyBtn).toBeVisible();
+      await notesApplyBtn.click();
+
+      // ── notes textarea should update to the LLM-extracted value ──────────
+      await expect(autoItemizePage.notesInput).toHaveValue('Facade cladding, April 2024');
+
+      // ── notes badge should disappear (suggestion == field value now) ──────
+      await expect(notesBadge).not.toBeVisible();
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);

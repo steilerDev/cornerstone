@@ -109,7 +109,7 @@ describe('buildRequestBody', () => {
           type: string;
           required: string[];
           additionalProperties: boolean;
-          properties: {
+          properties: Record<string, unknown> & {
             lines: {
               type: string;
               items: {
@@ -130,8 +130,21 @@ describe('buildRequestBody', () => {
     // strict mode requires additionalProperties: false on every object node.
     expect(rf.json_schema.schema.additionalProperties).toBe(false);
     expect(rf.json_schema.schema.properties.lines.items.additionalProperties).toBe(false);
+
+    // Story #1581: top-level schema now includes invoiceDate, dueDate, invoiceNumber, notes.
+    expect(rf.json_schema.schema.required).toEqual(
+      expect.arrayContaining(['invoiceDate', 'dueDate', 'invoiceNumber', 'notes', 'lines']),
+    );
+
+    // Top-level properties include all four document-level fields.
+    const topLevelProps = Object.keys(rf.json_schema.schema.properties);
+    expect(topLevelProps).toContain('invoiceDate');
+    expect(topLevelProps).toContain('dueDate');
+    expect(topLevelProps).toContain('invoiceNumber');
+    expect(topLevelProps).toContain('notes');
+
     // strict mode requires EVERY property to be listed in `required` (optional
-    // fields use union-typed nulls).
+    // fields use union-typed nulls). vatRate was REMOVED from the line schema in #1581.
     expect(rf.json_schema.schema.properties.lines.items.required).toEqual(
       expect.arrayContaining([
         'description',
@@ -140,11 +153,16 @@ describe('buildRequestBody', () => {
         'unitPrice',
         'totalAmount',
         'includesVat',
-        'vatRate',
         'vendorName',
         'confidence',
       ]),
     );
+
+    // vatRate must NOT be in the line items required array (Story #1581 removal).
+    expect(rf.json_schema.schema.properties.lines.items.required).not.toContain('vatRate');
+
+    // vatRate must NOT be in the line items properties (Story #1581 removal).
+    expect(rf.json_schema.schema.properties.lines.items.properties).not.toHaveProperty('vatRate');
   });
 
   it('generic → no response_format hint', () => {
