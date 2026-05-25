@@ -1646,77 +1646,80 @@ test.describe(
   'Scenario 19 — PDF preview column sticks during desktop scroll (Bug #1579, AC-5)',
   { tag: '@responsive' },
   () => {
-    test(
-      'Preview column bounding-box top is within ±10px after scrolling .pageBody by 400px (desktop)',
-      async ({ page, testPrefix }) => {
-        // Force desktop viewport so sticky positioning is active (≥860px).
-        await page.setViewportSize({ width: 1280, height: 800 });
+    test('Preview column bounding-box top is within ±10px after scrolling .pageBody by 400px (desktop)', async ({
+      page,
+      testPrefix,
+    }) => {
+      // Force desktop viewport so sticky positioning is active (≥860px).
+      await page.setViewportSize({ width: 1280, height: 800 });
 
-        const autoItemizePage = new AutoItemizePage(page);
-        let vendorId = '';
-        let invoiceId = '';
+      const autoItemizePage = new AutoItemizePage(page);
+      let vendorId = '';
+      let invoiceId = '';
 
-        try {
-          vendorId = await createVendorViaApi(page, `${testPrefix} AI-Sticky Vendor`);
-          invoiceId = await createInvoiceViaApi(page, vendorId, {
-            amount: 1700,
-            date: '2026-06-01',
-          });
+      try {
+        vendorId = await createVendorViaApi(page, `${testPrefix} AI-Sticky Vendor`);
+        invoiceId = await createInvoiceViaApi(page, vendorId, {
+          amount: 1700,
+          date: '2026-06-01',
+        });
 
-          const docId = 76001;
-          await mockPaperlessDocument(page, docId, 'Sticky PDF Doc');
-          // Use THREE_LINES to ensure enough line cards to make the form column scrollable.
-          await mockAutoItemizeDryRun(page, invoiceId, { lines: THREE_LINES });
+        const docId = 76001;
+        await mockPaperlessDocument(page, docId, 'Sticky PDF Doc');
+        // Use THREE_LINES to ensure enough line cards to make the form column scrollable.
+        await mockAutoItemizeDryRun(page, invoiceId, { lines: THREE_LINES });
 
-          await autoItemizePage.goto(invoiceId, docId);
-          await autoItemizePage.waitForAnalyzingDone();
+        await autoItemizePage.goto(invoiceId, docId);
+        await autoItemizePage.waitForAnalyzingDone();
 
-          // ── Verify both columns are visible at desktop width ────────────────
-          await expect(autoItemizePage.formColumn).toBeVisible();
-          await expect(autoItemizePage.previewColumn).toBeVisible();
+        // ── Verify both columns are visible at desktop width ────────────────
+        await expect(autoItemizePage.formColumn).toBeVisible();
+        await expect(autoItemizePage.previewColumn).toBeVisible();
 
-          // ── Capture pre-scroll bounding box of the preview column ───────────
-          const preBounds = await autoItemizePage.previewColumn.boundingBox();
-          expect(preBounds, 'previewColumn must have a bounding box before scroll').not.toBeNull();
+        // ── Capture pre-scroll bounding box of the preview column ───────────
+        const preBounds = await autoItemizePage.previewColumn.boundingBox();
+        expect(preBounds, 'previewColumn must have a bounding box before scroll').not.toBeNull();
 
-          // ── Scroll .pageBody (the overflow-y: auto container) down 400px ────
-          // .pageBody is the direct scroll container; window.scrollBy would have
-          // no effect because the page body itself handles overflow.
-          await page.evaluate(() => {
-            const pageBody = document.querySelector('[class*="pageBody"]');
-            if (pageBody) {
-              pageBody.scrollBy(0, 400);
-            }
-          });
+        // ── Scroll .pageBody (the overflow-y: auto container) down 400px ────
+        // .pageBody is the direct scroll container; window.scrollBy would have
+        // no effect because the page body itself handles overflow.
+        await page.evaluate(() => {
+          const pageBody = document.querySelector('[class*="pageBody"]');
+          if (pageBody) {
+            pageBody.scrollBy(0, 400);
+          }
+        });
 
-          // Give the browser a frame to apply the sticky recalculation.
-          await page.evaluate(() => new Promise<void>((resolve) => {
-            requestAnimationFrame(() => resolve());
-          }));
+        // Give the browser a frame to apply the sticky recalculation.
+        await page.evaluate(
+          () =>
+            new Promise<void>((resolve) => {
+              requestAnimationFrame(() => resolve());
+            }),
+        );
 
-          // ── Capture post-scroll bounding box of the preview column ──────────
-          const postBounds = await autoItemizePage.previewColumn.boundingBox();
-          expect(postBounds, 'previewColumn must have a bounding box after scroll').not.toBeNull();
+        // ── Capture post-scroll bounding box of the preview column ──────────
+        const postBounds = await autoItemizePage.previewColumn.boundingBox();
+        expect(postBounds, 'previewColumn must have a bounding box after scroll').not.toBeNull();
 
-          // ── Assert sticky: y (top) should remain within ±10px of pre-scroll y ─
-          // Playwright BoundingBox uses { x, y, width, height } where y = top edge.
-          const topDelta = Math.abs(postBounds!.y - preBounds!.y);
-          expect(
-            topDelta,
-            `Expected previewColumn.y to be stable (≤10px shift) after scrolling .pageBody ` +
-              `by 400px, but it shifted by ${topDelta}px ` +
-              `(pre=${preBounds!.y}, post=${postBounds!.y}). ` +
-              `Ensure .previewColumn has position:sticky in the desktop layout.`,
-          ).toBeLessThanOrEqual(10);
+        // ── Assert sticky: y (top) should remain within ±10px of pre-scroll y ─
+        // Playwright BoundingBox uses { x, y, width, height } where y = top edge.
+        const topDelta = Math.abs(postBounds!.y - preBounds!.y);
+        expect(
+          topDelta,
+          `Expected previewColumn.y to be stable (≤10px shift) after scrolling .pageBody ` +
+            `by 400px, but it shifted by ${topDelta}px ` +
+            `(pre=${preBounds!.y}, post=${postBounds!.y}). ` +
+            `Ensure .previewColumn has position:sticky in the desktop layout.`,
+        ).toBeLessThanOrEqual(10);
 
-          // ── Column must still be visible (not scrolled off-screen) ──────────
-          await expect(autoItemizePage.previewColumn).toBeVisible();
-        } finally {
-          if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-          if (vendorId) await deleteVendorViaApi(page, vendorId);
-        }
-      },
-    );
+        // ── Column must still be visible (not scrolled off-screen) ──────────
+        await expect(autoItemizePage.previewColumn).toBeVisible();
+      } finally {
+        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
   },
 );
 
