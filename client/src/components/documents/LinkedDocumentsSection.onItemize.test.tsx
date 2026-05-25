@@ -66,16 +66,15 @@ jest.unstable_mockModule('../../lib/configApi.js', () => ({
 }));
 
 // ─── Mock: react-router-dom useNavigate ──────────────────────────────────────
+// Minimal mock — do not `await import('react-router-dom')` and spread `...actual`,
+// because that retains the entire library per-test and OOMs Jest workers. The
+// test only needs useNavigate; no <Routes>/<Link>/etc. are rendered.
 
 const mockNavigate = jest.fn();
 
-jest.unstable_mockModule('react-router-dom', async () => {
-  const actual = await import('react-router-dom');
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  };
-});
+jest.unstable_mockModule('react-router-dom', () => ({
+  useNavigate: () => mockNavigate,
+}));
 
 // ─── Mock: child components (to avoid transitive dependency issues) ───────────
 
