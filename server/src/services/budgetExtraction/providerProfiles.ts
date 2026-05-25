@@ -29,7 +29,7 @@ export const LLM_PROVIDERS: readonly LlmProvider[] = [
 
 /**
  * JSON schema for the response Anthropic must conform to. Mirrors the
- * `ExtractedLine[]` shape validated at parse time by `validateExtractedLines`.
+ * `ExtractionResult` shape validated at parse time by `validateExtractedLines`.
  * Anthropic's OpenAI-compat layer requires this when `response_format.type`
  * is `'json_schema'`.
  */
@@ -47,6 +47,10 @@ const EXTRACTED_LINES_SCHEMA = {
   schema: {
     type: 'object',
     properties: {
+      invoiceDate: { type: ['string', 'null'] },
+      dueDate: { type: ['string', 'null'] },
+      invoiceNumber: { type: ['string', 'null'] },
+      notes: { type: ['string', 'null'] },
       lines: {
         type: 'array',
         items: {
@@ -58,7 +62,6 @@ const EXTRACTED_LINES_SCHEMA = {
             unitPrice: { type: ['number', 'null'] },
             totalAmount: { type: 'number' },
             includesVat: { type: ['boolean', 'null'] },
-            vatRate: { type: ['number', 'null'] },
             vendorName: { type: ['string', 'null'] },
             confidence: { type: 'number' },
           },
@@ -69,7 +72,6 @@ const EXTRACTED_LINES_SCHEMA = {
             'unitPrice',
             'totalAmount',
             'includesVat',
-            'vatRate',
             'vendorName',
             'confidence',
           ],
@@ -77,7 +79,7 @@ const EXTRACTED_LINES_SCHEMA = {
         },
       },
     },
-    required: ['lines'],
+    required: ['invoiceDate', 'dueDate', 'invoiceNumber', 'notes', 'lines'],
     additionalProperties: false,
   },
 } as const;

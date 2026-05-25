@@ -48,6 +48,10 @@ export interface AutoItemizeDryRunResponse {
   extractedInvoiceDate?: string;
   /** ISO 8601 due date extracted by the LLM, if available. */
   extractedDueDate?: string;
+  /** Vendor's invoice identifier extracted by the LLM, if available. */
+  extractedInvoiceNumber?: string;
+  /** One-sentence summary extracted by the LLM, if available. */
+  extractedNotes?: string;
 }
 
 // Commit response re-uses InvoiceBudgetLineListDetailResponse from invoiceBudgetLine

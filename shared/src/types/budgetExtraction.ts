@@ -38,7 +38,7 @@ export interface ExtractionHints {
 
 /**
  * Top-level extraction result from the LLM provider.
- * Carries document-level extracted fields (invoiceDate, dueDate) alongside line items.
+ * Carries document-level extracted fields (invoiceDate, dueDate, invoiceNumber, notes) alongside line items.
  * Introduced in story #1576.
  */
 export interface ExtractionResult {
@@ -46,5 +46,9 @@ export interface ExtractionResult {
   invoiceDate?: string;
   /** ISO 8601 date (YYYY-MM-DD) if the LLM extracted a due date, else absent. */
   dueDate?: string;
+  /** Vendor's invoice identifier (max 255 chars) if extracted, else absent. */
+  invoiceNumber?: string;
+  /** One-sentence summary (max 1000 chars) if extracted, else absent. */
+  notes?: string;
   lines: ExtractedLine[];
 }

@@ -1594,4 +1594,111 @@ describe('invoiceAutoItemizeService', () => {
       expect(mockFetch).not.toHaveBeenCalled();
     });
   });
+
+  // ─── Story #1581 — dry-run propagates invoiceNumber + notes fields ────────────
+
+  describe('dry-run response includes extractedInvoiceNumber and extractedNotes (Story #1581)', () => {
+    /**
+     * Build an LLM response that includes all four top-level metadata fields
+     * (invoiceDate, dueDate, invoiceNumber, notes) alongside the lines array.
+     */
+    function makeLlmResponseWithMetadata(
+      metadata: {
+        invoiceDate?: string;
+        dueDate?: string;
+        invoiceNumber?: string;
+        notes?: string;
+      },
+      lines: Array<{ description: string; totalAmount: number; confidence: number }>,
+    ): object {
+      const content: Record<string, unknown> = { lines };
+      if (metadata.invoiceDate !== undefined) content.invoiceDate = metadata.invoiceDate;
+      if (metadata.dueDate !== undefined) content.dueDate = metadata.dueDate;
+      if (metadata.invoiceNumber !== undefined) content.invoiceNumber = metadata.invoiceNumber;
+      if (metadata.notes !== undefined) content.notes = metadata.notes;
+      return {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify(content),
+            },
+          },
+        ],
+      };
+    }
+
+    it('returns extractedInvoiceNumber and extractedNotes when LLM provides both', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 200);
+      linkDocument(db, invoiceId, 42);
+
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch(
+            makeLlmResponseWithMetadata(
+              {
+                invoiceDate: '2024-01-15',
+                dueDate: '2024-02-15',
+                invoiceNumber: 'RE-2024-001',
+                notes: 'Kitchen renovation materials',
+              },
+              [{ description: 'Item A', totalAmount: 100, confidence: 0.9 }],
+            ),
+          ),
+        );
+
+      const config = makeConfig();
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+        PAPERLESS_AUTH,
+      )) as {
+        lines: unknown[];
+        warnings: unknown[];
+        extractedInvoiceDate?: string;
+        extractedDueDate?: string;
+        extractedInvoiceNumber?: string;
+        extractedNotes?: string;
+      };
+
+      expect(result.extractedInvoiceNumber).toBe('RE-2024-001');
+      expect(result.extractedNotes).toBe('Kitchen renovation materials');
+      // Also verify the date fields still work alongside the new fields
+      expect(result.extractedInvoiceDate).toBe('2024-01-15');
+      expect(result.extractedDueDate).toBe('2024-02-15');
+      expect(Array.isArray(result.lines)).toBe(true);
+    });
+
+    it('omits extractedInvoiceNumber and extractedNotes when LLM provides neither', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 200);
+      linkDocument(db, invoiceId, 42);
+
+      // LLM response with no invoice-number or notes fields (only lines)
+      setupDryRunFetch([{ description: 'Item A', totalAmount: 100, confidence: 0.9 }]);
+
+      const config = makeConfig();
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+        PAPERLESS_AUTH,
+      )) as {
+        lines: unknown[];
+        warnings: unknown[];
+        extractedInvoiceNumber?: string;
+        extractedNotes?: string;
+      };
+
+      expect(result.extractedInvoiceNumber).toBeUndefined();
+      expect(result.extractedNotes).toBeUndefined();
+    });
+  });
 });
