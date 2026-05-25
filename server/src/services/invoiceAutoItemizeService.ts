@@ -33,8 +33,11 @@ import type { AppConfig } from '../plugins/config.js';
 import type {
   ExtractedLine,
   ExtractionHints,
+  ExtractionResult,
   InvoiceBudgetLineListDetailResponse,
   InvoicePatchForAutoItemize,
+  AutoItemizeDryRunResponse,
+  AutoItemizeWarning,
 } from '@cornerstone/shared';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -53,16 +56,6 @@ export interface AutoItemizeRequestBody {
   invoicePatch?: InvoicePatchForAutoItemize;
 }
 
-export interface AutoItemizeWarning {
-  code: 'TOTAL_MISMATCH';
-  extractedTotal: number;
-  invoiceTotal: number;
-}
-
-export interface AutoItemizeDryRunResponse {
-  lines: ExtractedLine[];
-  warnings: AutoItemizeWarning[];
-}
 
 /**
  * Build extraction hints from invoice metadata for better LLM context.
@@ -153,19 +146,21 @@ export async function autoItemize(
       (doc.content ?? '').length > MAX_OCR_CHARS
         ? (doc.content ?? '').slice(0, MAX_OCR_CHARS)
         : (doc.content ?? '');
-    const extractedLines = await provider.extract(ocrText, hints);
-    const warnings = computeWarnings(extractedLines, invoice.amount);
+    const result = await provider.extract(ocrText, hints);
+    const warnings = computeWarnings(result.lines, invoice.amount);
 
     return {
-      lines: extractedLines,
+      lines: result.lines,
       warnings,
+      ...(result.invoiceDate !== undefined ? { extractedInvoiceDate: result.invoiceDate } : {}),
+      ...(result.dueDate !== undefined ? { extractedDueDate: result.dueDate } : {}),
     };
   }
 
   // 4. Commit mode: persist lines in a transaction
   if (!body.dryRun && body.lines) {
     // Validate the provided lines (defense in depth)
-    const validatedLines = validateExtractedLines({ lines: body.lines });
+    const { lines: validatedLines } = validateExtractedLines({ lines: body.lines });
 
     return db.transaction(() => {
       // 4-pre. Apply invoice metadata patch if provided (must be first in transaction)

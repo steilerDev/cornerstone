@@ -188,7 +188,7 @@ describe('createOpenAICompatibleProvider — happy path', () => {
     expect(body.messages[1]!.role).toBe('user');
   });
 
-  it('returns parsed ExtractedLine[] from choices[0].message.content', async () => {
+  it('returns ExtractionResult with parsed lines from choices[0].message.content', async () => {
     const expected = [
       { description: 'Rigipsplatten', totalAmount: 62.5, confidence: 0.95 },
       { description: 'Trockenbauschrauben', totalAmount: 17.98, confidence: 0.9 },
@@ -199,22 +199,24 @@ describe('createOpenAICompatibleProvider — happy path', () => {
     const provider = createOpenAICompatibleProvider(BASE_CONFIG);
     const result = await provider.extract('ocr text', {});
 
-    expect(result).toHaveLength(2);
-    expect(result[0]!.description).toBe('Rigipsplatten');
-    expect(result[0]!.totalAmount).toBe(62.5);
-    expect(result[0]!.confidence).toBe(0.95);
-    expect(result[1]!.description).toBe('Trockenbauschrauben');
-    expect(result[1]!.totalAmount).toBe(17.98);
+    // extract() now returns ExtractionResult, not a bare array
+    expect(result.lines).toHaveLength(2);
+    expect(result.lines[0]!.description).toBe('Rigipsplatten');
+    expect(result.lines[0]!.totalAmount).toBe(62.5);
+    expect(result.lines[0]!.confidence).toBe(0.95);
+    expect(result.lines[1]!.description).toBe('Trockenbauschrauben');
+    expect(result.lines[1]!.totalAmount).toBe(17.98);
   });
 
-  it('returns empty array when lines is []', async () => {
+  it('returns ExtractionResult with empty lines array when lines is []', async () => {
     const content = buildValidLinesContent([]);
     fetchSpy.mockResolvedValueOnce(makeOkResponse(content));
 
     const provider = createOpenAICompatibleProvider(BASE_CONFIG);
     const result = await provider.extract('ocr text', {});
 
-    expect(result).toEqual([]);
+    // extract() returns ExtractionResult; lines is an empty array
+    expect(result.lines).toEqual([]);
   });
 
   it('normalizes trailing slash on baseUrl (no double slashes in URL)', async () => {
@@ -284,12 +286,12 @@ describe('createOpenAICompatibleProvider — happy path', () => {
     const provider = createOpenAICompatibleProvider(BASE_CONFIG);
     const result = await provider.extract('ocr text', {});
 
-    expect(result[0]!.quantity).toBe(8);
-    expect(result[0]!.unit).toBe('m²');
-    expect(result[0]!.unitPrice).toBe(28.5);
-    expect(result[0]!.includesVat).toBe(false);
-    expect(result[0]!.vatRate).toBe(0.19);
-    expect(result[0]!.vendorName).toBe('Fliesen König');
+    expect(result.lines[0]!.quantity).toBe(8);
+    expect(result.lines[0]!.unit).toBe('m²');
+    expect(result.lines[0]!.unitPrice).toBe(28.5);
+    expect(result.lines[0]!.includesVat).toBe(false);
+    expect(result.lines[0]!.vatRate).toBe(0.19);
+    expect(result.lines[0]!.vendorName).toBe('Fliesen König');
   });
 });
 
@@ -543,21 +545,24 @@ describe('createOpenAICompatibleProvider — failure modes', () => {
 // ─── validateExtractedLines ───────────────────────────────────────────────────
 
 describe('validateExtractedLines()', () => {
-  describe('valid inputs', () => {
+  describe('valid inputs — returns ExtractionResult', () => {
     it('validates a minimal valid line (only required fields)', () => {
       const result = validateExtractedLines({
         lines: [{ description: 'Item A', totalAmount: 100, confidence: 0.9 }],
       });
 
-      expect(result).toHaveLength(1);
-      expect(result[0]!.description).toBe('Item A');
-      expect(result[0]!.totalAmount).toBe(100);
-      expect(result[0]!.confidence).toBe(0.9);
+      // validateExtractedLines now returns ExtractionResult { lines, invoiceDate?, dueDate? }
+      expect(result.lines).toHaveLength(1);
+      expect(result.lines[0]!.description).toBe('Item A');
+      expect(result.lines[0]!.totalAmount).toBe(100);
+      expect(result.lines[0]!.confidence).toBe(0.9);
     });
 
-    it('validates an empty lines array', () => {
+    it('validates an empty lines array — returns ExtractionResult with empty lines', () => {
       const result = validateExtractedLines({ lines: [] });
-      expect(result).toEqual([]);
+      expect(result.lines).toEqual([]);
+      expect(result.invoiceDate).toBeUndefined();
+      expect(result.dueDate).toBeUndefined();
     });
 
     it('validates multiple lines', () => {
@@ -567,21 +572,21 @@ describe('validateExtractedLines()', () => {
           { description: 'Item B', totalAmount: 200, confidence: 0.5 },
         ],
       });
-      expect(result).toHaveLength(2);
+      expect(result.lines).toHaveLength(2);
     });
 
     it('accepts confidence = 0 (boundary)', () => {
       const result = validateExtractedLines({
         lines: [{ description: 'Item A', totalAmount: 50, confidence: 0 }],
       });
-      expect(result[0]!.confidence).toBe(0);
+      expect(result.lines[0]!.confidence).toBe(0);
     });
 
     it('accepts confidence = 1 (boundary)', () => {
       const result = validateExtractedLines({
         lines: [{ description: 'Item A', totalAmount: 50, confidence: 1 }],
       });
-      expect(result[0]!.confidence).toBe(1);
+      expect(result.lines[0]!.confidence).toBe(1);
     });
 
     it('accepts a line with all optional fields set', () => {
@@ -601,12 +606,12 @@ describe('validateExtractedLines()', () => {
         ],
       });
 
-      expect(result[0]!.quantity).toBe(8);
-      expect(result[0]!.unit).toBe('m²');
-      expect(result[0]!.unitPrice).toBe(28.5);
-      expect(result[0]!.includesVat).toBe(false);
-      expect(result[0]!.vatRate).toBe(0.19);
-      expect(result[0]!.vendorName).toBe('Fliesen König');
+      expect(result.lines[0]!.quantity).toBe(8);
+      expect(result.lines[0]!.unit).toBe('m²');
+      expect(result.lines[0]!.unitPrice).toBe(28.5);
+      expect(result.lines[0]!.includesVat).toBe(false);
+      expect(result.lines[0]!.vatRate).toBe(0.19);
+      expect(result.lines[0]!.vendorName).toBe('Fliesen König');
     });
 
     it('treats null optional fields as undefined (strips them)', () => {
@@ -626,26 +631,26 @@ describe('validateExtractedLines()', () => {
         ],
       });
 
-      expect(result[0]!.quantity).toBeUndefined();
-      expect(result[0]!.unit).toBeUndefined();
-      expect(result[0]!.unitPrice).toBeUndefined();
-      expect(result[0]!.includesVat).toBeUndefined();
-      expect(result[0]!.vatRate).toBeUndefined();
-      expect(result[0]!.vendorName).toBeUndefined();
+      expect(result.lines[0]!.quantity).toBeUndefined();
+      expect(result.lines[0]!.unit).toBeUndefined();
+      expect(result.lines[0]!.unitPrice).toBeUndefined();
+      expect(result.lines[0]!.includesVat).toBeUndefined();
+      expect(result.lines[0]!.vatRate).toBeUndefined();
+      expect(result.lines[0]!.vendorName).toBeUndefined();
     });
 
     it('treats empty string unit as undefined', () => {
       const result = validateExtractedLines({
         lines: [{ description: 'Item A', unit: '', totalAmount: 100, confidence: 0.9 }],
       });
-      expect(result[0]!.unit).toBeUndefined();
+      expect(result.lines[0]!.unit).toBeUndefined();
     });
 
     it('treats empty string vendorName as undefined', () => {
       const result = validateExtractedLines({
         lines: [{ description: 'Item A', vendorName: '', totalAmount: 100, confidence: 0.9 }],
       });
-      expect(result[0]!.vendorName).toBeUndefined();
+      expect(result.lines[0]!.vendorName).toBeUndefined();
     });
 
     it('accepts extra unknown fields on a line without throwing (forward-compatibility)', () => {
@@ -670,14 +675,14 @@ describe('validateExtractedLines()', () => {
       const result = validateExtractedLines({
         lines: [{ description: 'Free item', totalAmount: 0, confidence: 0.9 }],
       });
-      expect(result[0]!.totalAmount).toBe(0);
+      expect(result.lines[0]!.totalAmount).toBe(0);
     });
 
     it('accepts negative totalAmount (credit notes)', () => {
       const result = validateExtractedLines({
         lines: [{ description: 'Credit', totalAmount: -50.0, confidence: 0.7 }],
       });
-      expect(result[0]!.totalAmount).toBe(-50.0);
+      expect(result.lines[0]!.totalAmount).toBe(-50.0);
     });
   });
 
@@ -848,6 +853,168 @@ describe('validateExtractedLines()', () => {
         }),
       ).toThrow(LlmInvalidResponseError);
     });
+
+    it('non-string "assignedBudgetLineId" → throws LlmInvalidResponseError', () => {
+      // Lines 151-156: type guard for assignedBudgetLineId must be string
+      expect(() =>
+        validateExtractedLines({
+          lines: [
+            {
+              description: 'Item A',
+              totalAmount: 100,
+              confidence: 0.9,
+              assignedBudgetLineId: 42,
+            },
+          ],
+        }),
+      ).toThrow(LlmInvalidResponseError);
+    });
+
+    it('invalid "assignedBudgetLineType" value → throws LlmInvalidResponseError', () => {
+      // Lines 161-169: type guard for assignedBudgetLineType enum
+      expect(() =>
+        validateExtractedLines({
+          lines: [
+            {
+              description: 'Item A',
+              totalAmount: 100,
+              confidence: 0.9,
+              assignedBudgetLineType: 'invalid_type',
+            },
+          ],
+        }),
+      ).toThrow(LlmInvalidResponseError);
+    });
+  });
+
+  // ─── Story #1576 — ExtractionResult date fields ──────────────────────────────
+
+  describe('date fields on ExtractionResult (Story #1576)', () => {
+    it('passes through valid invoiceDate and dueDate in ISO 8601 YYYY-MM-DD format', () => {
+      const result = validateExtractedLines({
+        invoiceDate: '2024-03-15',
+        dueDate: '2024-04-15',
+        lines: [{ description: 'Item A', totalAmount: 100, confidence: 0.9 }],
+      });
+
+      expect(result.invoiceDate).toBe('2024-03-15');
+      expect(result.dueDate).toBe('2024-04-15');
+      expect(result.lines).toHaveLength(1);
+    });
+
+    it('strips malformed invoiceDate "15/03/2024" (non-ISO format)', () => {
+      const result = validateExtractedLines({
+        invoiceDate: '15/03/2024',
+        lines: [{ description: 'Item A', totalAmount: 100, confidence: 0.9 }],
+      });
+
+      expect(result.invoiceDate).toBeUndefined();
+      // Malformed date is stripped; rest of the result is valid
+      expect(result.lines).toHaveLength(1);
+    });
+
+    it('strips malformed invoiceDate "15.01.2024" (German dot notation)', () => {
+      const result = validateExtractedLines({
+        invoiceDate: '15.01.2024',
+        lines: [],
+      });
+
+      expect(result.invoiceDate).toBeUndefined();
+    });
+
+    it('strips malformed invoiceDate "2024/01/15" (slash separator)', () => {
+      const result = validateExtractedLines({
+        invoiceDate: '2024/01/15',
+        lines: [],
+      });
+
+      expect(result.invoiceDate).toBeUndefined();
+    });
+
+    it('strips invoiceDate: null silently', () => {
+      const result = validateExtractedLines({
+        invoiceDate: null,
+        lines: [],
+      });
+
+      expect(result.invoiceDate).toBeUndefined();
+    });
+
+    it('strips dueDate: "not-a-date" silently', () => {
+      const result = validateExtractedLines({
+        dueDate: 'not-a-date',
+        lines: [],
+      });
+
+      expect(result.dueDate).toBeUndefined();
+    });
+
+    it('strips dueDate: null silently', () => {
+      const result = validateExtractedLines({
+        dueDate: null,
+        lines: [],
+      });
+
+      expect(result.dueDate).toBeUndefined();
+    });
+
+    it('returns invoiceDate=undefined and dueDate=undefined when no date fields provided', () => {
+      const result = validateExtractedLines({
+        lines: [{ description: 'Item A', totalAmount: 50, confidence: 1 }],
+      });
+
+      expect(result.invoiceDate).toBeUndefined();
+      expect(result.dueDate).toBeUndefined();
+    });
+
+    it('accepts { lines: [...] } without top-level date fields — backward compat', () => {
+      // A response with only the lines key (no invoiceDate/dueDate) must still pass
+      expect(() =>
+        validateExtractedLines({
+          lines: [{ description: 'Item A', totalAmount: 100, confidence: 0.9 }],
+        }),
+      ).not.toThrow();
+    });
+
+    it('accepts a valid line containing vatRate: 0.19 (backward compat)', () => {
+      // vatRate is still accepted in the line shape even though the UI drops it from payloads
+      const result = validateExtractedLines({
+        lines: [
+          {
+            description: 'Service',
+            totalAmount: 119,
+            confidence: 0.95,
+            vatRate: 0.19,
+          },
+        ],
+      });
+
+      expect(result.lines[0]!.vatRate).toBe(0.19);
+    });
+
+    it('result always has a lines property that is an array', () => {
+      const result = validateExtractedLines({
+        invoiceDate: '2024-01-01',
+        lines: [],
+      });
+
+      expect(Array.isArray(result.lines)).toBe(true);
+    });
+
+    it('validates a full extraction with all date + line fields populated', () => {
+      const result = validateExtractedLines({
+        invoiceDate: '2024-06-30',
+        dueDate: '2024-07-30',
+        lines: [
+          { description: 'Labor', totalAmount: 500, confidence: 0.9 },
+          { description: 'Materials', totalAmount: 250, confidence: 0.85 },
+        ],
+      });
+
+      expect(result.invoiceDate).toBe('2024-06-30');
+      expect(result.dueDate).toBe('2024-07-30');
+      expect(result.lines).toHaveLength(2);
+    });
   });
 });
 
@@ -924,10 +1091,10 @@ describe('fixture-driven mock extract tests', () => {
         invoiceTotal: fixture.invoiceTotal,
       });
 
-      // Verify result shape
-      expect(Array.isArray(result)).toBe(true);
-      expect(result.length).toBeGreaterThan(0);
-      result.forEach((line) => {
+      // Verify result shape — extract() now returns ExtractionResult
+      expect(Array.isArray(result.lines)).toBe(true);
+      expect(result.lines.length).toBeGreaterThan(0);
+      result.lines.forEach((line) => {
         expect(typeof line.description).toBe('string');
         expect(line.description.length).toBeGreaterThan(0);
         expect(typeof line.totalAmount).toBe('number');

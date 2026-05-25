@@ -35,3 +35,16 @@ export interface ExtractionHints {
   invoiceDate?: string; // ISO 8601 date
   locale?: string; // e.g., 'de-DE'
 }
+
+/**
+ * Top-level extraction result from the LLM provider.
+ * Carries document-level extracted fields (invoiceDate, dueDate) alongside line items.
+ * Introduced in story #1576.
+ */
+export interface ExtractionResult {
+  /** ISO 8601 date (YYYY-MM-DD) if the LLM extracted it from the document header, else absent. */
+  invoiceDate?: string;
+  /** ISO 8601 date (YYYY-MM-DD) if the LLM extracted a due date, else absent. */
+  dueDate?: string;
+  lines: ExtractedLine[];
+}

@@ -894,39 +894,6 @@ describe('POST /api/invoices/:invoiceId/auto-itemize', () => {
       expect(updatedInvoice.notes).toBe('test');
     });
 
-    // Fastify AJV default: removeAdditional=true strips unknown props instead of rejecting (see invoiceBudgetLines.test.ts:365)
-    it('silently strips disallowed status field (removeAdditional)', async () => {
-      const { cookie } = await createUserWithSession('user@test.com', 'User', 'pass');
-      const vendorId = createTestVendor();
-      const invoiceId = createTestInvoice(vendorId, 1000);
-      linkDocument(invoiceId, 42);
-
-      const response = await app.inject({
-        method: 'POST',
-        url: `/api/invoices/${invoiceId}/auto-itemize`,
-        headers: { cookie },
-        payload: {
-          paperlessDocumentId: 42,
-          mode: 'append',
-          dryRun: false,
-          lines: [],
-          invoicePatch: { status: 'paid', notes: 'test' },
-        },
-      });
-
-      // removeAdditional strips status — request succeeds
-      expect(response.statusCode).toBe(200);
-      // status is unchanged — the disallowed field was stripped before reaching the service
-      const updatedInvoice = app.db
-        .select()
-        .from(schema.invoices)
-        .where(eq(schema.invoices.id, invoiceId))
-        .get()!;
-      expect(updatedInvoice.status).toBe('pending');
-      // notes is updated — the allowed field was applied
-      expect(updatedInvoice.notes).toBe('test');
-    });
-
     it('returns 400 when invoicePatch.amount is 0 (exclusiveMinimum: 0 violation)', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'pass');
       const vendorId = createTestVendor();
@@ -998,6 +965,203 @@ describe('POST /api/invoices/:invoiceId/auto-itemize', () => {
       });
 
       expect(response.statusCode).toBe(200);
+    });
+
+    // ─── Story #1576: invoicePatch.status enum ────────────────────────────────
+
+    it('returns 200 when invoicePatch.status is "paid" (valid enum value)', async () => {
+      // Story #1576 added status to the invoicePatch schema properties.
+      // Previously status was stripped by removeAdditional; now it is an allowed field.
+      const { cookie } = await createUserWithSession('user-status@test.com', 'UserStatus', 'pass');
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      linkDocument(invoiceId, 42);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [],
+          invoicePatch: { status: 'paid' },
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      // Verify the status was actually updated in the DB
+      const updatedInvoice = app.db
+        .select()
+        .from(schema.invoices)
+        .where(eq(schema.invoices.id, invoiceId))
+        .get()!;
+      expect(updatedInvoice.status).toBe('paid');
+    });
+
+    it('returns 200 when invoicePatch.status is "claimed" (valid enum value)', async () => {
+      const { cookie } = await createUserWithSession('user-claimed@test.com', 'UserClaimed', 'pass');
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      linkDocument(invoiceId, 42);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [],
+          invoicePatch: { status: 'claimed' },
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+    });
+
+    it('returns 400 VALIDATION_ERROR when invoicePatch.status is an invalid enum value', async () => {
+      // The schema defines status as enum: ['pending', 'paid', 'claimed', 'quotation'].
+      // An invalid value must be rejected with VALIDATION_ERROR.
+      const { cookie } = await createUserWithSession('user-badstatus@test.com', 'BadStatus', 'pass');
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      linkDocument(invoiceId, 42);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [],
+          invoicePatch: { status: 'invalid_status' },
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<{ error: { code: string } }>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+  });
+
+  // ─── Story #1576: dry-run response with extractedInvoiceDate / extractedDueDate ─
+
+  describe('200 success — dry-run with extracted date fields (Story #1576)', () => {
+    it('dry-run response includes extractedInvoiceDate when LLM returns invoiceDate', async () => {
+      const { cookie } = await createUserWithSession('user-dates@test.com', 'UserDates', 'pass');
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 400);
+      linkDocument(invoiceId, 42);
+
+      const llmResponseWithDates = {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                invoiceDate: '2024-03-15',
+                dueDate: '2024-04-15',
+                lines: [
+                  { description: 'Labor', totalAmount: 200, confidence: 0.9 },
+                ],
+              }),
+            },
+          },
+        ],
+      };
+
+      mockFetch.mockReset();
+      mockFetch
+        .mockResolvedValueOnce(makeFetchResponse(PAPERLESS_DOC_RESPONSE))
+        .mockResolvedValueOnce(makeFetchResponse(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(makeFetchResponse(llmResponseWithDates));
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: true,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<AutoItemizeDryRunResponse>();
+      expect(body.extractedInvoiceDate).toBe('2024-03-15');
+      expect(body.extractedDueDate).toBe('2024-04-15');
+    });
+
+    it('dry-run response omits extractedInvoiceDate when LLM returns no date fields', async () => {
+      const { cookie } = await createUserWithSession('user-nodates@test.com', 'UserNoDates', 'pass');
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 400);
+      linkDocument(invoiceId, 42);
+
+      // LLM_LINES_RESPONSE already has no date fields — use the default mock
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: true,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<AutoItemizeDryRunResponse>();
+      // When LLM does not return date fields, the response must NOT include these keys
+      expect(body.extractedInvoiceDate).toBeUndefined();
+      expect(body.extractedDueDate).toBeUndefined();
+    });
+
+    it('dry-run response includes only extractedInvoiceDate when LLM returns only invoiceDate', async () => {
+      const { cookie } = await createUserWithSession('user-dateonly@test.com', 'UserDateOnly', 'pass');
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 300);
+      linkDocument(invoiceId, 42);
+
+      const llmResponseDateOnly = {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                invoiceDate: '2024-06-01',
+                lines: [],
+              }),
+            },
+          },
+        ],
+      };
+
+      mockFetch.mockReset();
+      mockFetch
+        .mockResolvedValueOnce(makeFetchResponse(PAPERLESS_DOC_RESPONSE))
+        .mockResolvedValueOnce(makeFetchResponse(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(makeFetchResponse(llmResponseDateOnly));
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: true,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<AutoItemizeDryRunResponse>();
+      expect(body.extractedInvoiceDate).toBe('2024-06-01');
+      expect(body.extractedDueDate).toBeUndefined();
     });
   });
 });
