@@ -7,12 +7,13 @@ import type {
   AutoItemizeWarning,
   PaperlessDocumentSearchResult,
   InvoicePatchForAutoItemize,
+  InvoiceStatus,
   WorkItemBudgetLine,
   HouseholdItemBudgetLine,
 } from '@cornerstone/shared';
 import { fetchInvoiceById } from '../../lib/invoicesApi.js';
 import { autoItemize } from '../../lib/invoiceAutoItemizeApi.js';
-import { getPaperlessDocument } from '../../lib/paperlessApi.js';
+import { getPaperlessDocument, getDocumentPreviewUrl, getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -20,9 +21,8 @@ import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useBudgetLinePicker } from '../../hooks/useBudgetLinePicker.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { Modal } from '../../components/Modal/Modal.js';
-import { Skeleton } from '../../components/Skeleton/Skeleton.js';
+import { Spinner } from '../../components/Spinner/Spinner.js';
 import { FormError } from '../../components/FormError/FormError.js';
-import { DocumentDetailPanel } from '../../components/documents/DocumentDetailPanel.js';
 import { SuggestionBadge } from '../../components/SuggestionBadge/SuggestionBadge.js';
 import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
 import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
@@ -52,6 +52,7 @@ interface MetadataEdits {
   date: string;
   dueDate: string | null;
   notes: string | null;
+  status: InvoiceStatus;
 }
 
 export function AutoItemizePage() {
@@ -69,6 +70,14 @@ export function AutoItemizePage() {
   const [warnings, setWarnings] = useState<AutoItemizeWarning[]>([]);
   const [mode, setMode] = useState<'append' | 'replace'>('append');
   const [pageError, setPageError] = useState<string | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [pdfLoaded, setPdfLoaded] = useState(false);
+  const [pdfFailed, setPdfFailed] = useState(false);
+  const [paperlessStatus, setPaperlessStatus] = useState<Awaited<
+    ReturnType<typeof getPaperlessStatus>
+  > | null>(null);
+  const [extractedInvoiceDate, setExtractedInvoiceDate] = useState<string | undefined>(undefined);
+  const [extractedDueDate, setExtractedDueDate] = useState<string | undefined>(undefined);
 
   // Metadata edits
   const [metadataEdits, setMetadataEdits] = useState<MetadataEdits>({
@@ -77,6 +86,7 @@ export function AutoItemizePage() {
     date: '',
     dueDate: null,
     notes: null,
+    status: 'pending',
   });
 
   // Dirty state tracking and cancel confirmation
@@ -120,6 +130,19 @@ export function AutoItemizePage() {
     },
   });
 
+  // Timer effect for elapsed seconds counter
+  useEffect(() => {
+    if (pageStatus !== 'loading') {
+      // eslint-disable-next-line @eslint-react/set-state-in-effect -- reset counter when loading stops (not synchronous)
+      setElapsed(0);
+      return;
+    }
+    const id = setInterval(() => {
+      setElapsed((n) => n + 1);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [pageStatus]);
+
   // Load invoice and fetch dry-run on mount
   useEffect(() => {
     if (!invoiceId || !documentId) return; // Guard inside effect
@@ -128,8 +151,25 @@ export function AutoItemizePage() {
       setPageStatus('loading');
       setPageError(null);
       setLineFieldsEdited(false);
+      setElapsed(0);
+      setPdfLoaded(false);
+      setPdfFailed(false);
 
       try {
+        // Load Paperless status for the fallback link
+        try {
+          const status = await getPaperlessStatus();
+          setPaperlessStatus(status);
+        } catch {
+          setPaperlessStatus({
+            configured: false,
+            reachable: false,
+            error: 'Failed to check status',
+            paperlessUrl: null,
+            filterTag: null,
+          });
+        }
+
         // Fetch invoice
         const inv = await fetchInvoiceById(invoiceId);
         setInvoice(inv);
@@ -155,6 +195,7 @@ export function AutoItemizePage() {
           date: inv.date,
           dueDate: inv.dueDate ?? null,
           notes: inv.notes ?? null,
+          status: inv.status,
         });
 
         // Run dry-run auto-itemize
@@ -172,6 +213,8 @@ export function AutoItemizePage() {
           }));
           setLines(linesWithInclude);
           setWarnings(_autoItemizeResult.warnings);
+          setExtractedInvoiceDate(_autoItemizeResult.extractedInvoiceDate ?? undefined);
+          setExtractedDueDate(_autoItemizeResult.extractedDueDate ?? undefined);
           setPageStatus('ready');
         } else {
           setPageError(t('autoItemize.unexpectedResponse'));
@@ -200,6 +243,7 @@ export function AutoItemizePage() {
       date: invoice?.date ?? '',
       dueDate: invoice?.dueDate ?? null,
       notes: invoice?.notes ?? null,
+      status: (invoice?.status ?? 'pending') as InvoiceStatus,
     }),
     [invoice],
   );
@@ -256,8 +300,12 @@ export function AutoItemizePage() {
       if (metadataEdits.notes !== originalMetadata.notes) {
         patch.notes = metadataEdits.notes;
       }
+      if (metadataEdits.status !== originalMetadata.status) {
+        patch.status = metadataEdits.status;
+      }
 
       // Map lines to payload, including assignedBudgetLineId and assignedBudgetLineType
+      // Note: vatRate is omitted from the payload (dropped from UI)
       const linesPayload: ExtractedLine[] = includedLines.map((l) => ({
         description: l.description,
         quantity: l.quantity,
@@ -265,7 +313,6 @@ export function AutoItemizePage() {
         unitPrice: l.unitPrice,
         totalAmount: l.totalAmount,
         includesVat: l.includesVat,
-        vatRate: l.vatRate,
         vendorName: l.vendorName,
         confidence: l.confidence,
         ...(l.assignedBudgetLineId && l.assignedBudgetLineType
@@ -334,7 +381,7 @@ export function AutoItemizePage() {
           let coercedValue: unknown = value;
 
           // For number fields, convert empty string to null, else parse
-          if (['quantity', 'unitPrice', 'vatRate'].includes(field)) {
+          if (['quantity', 'unitPrice'].includes(field)) {
             if (value === '' || value === null) {
               coercedValue = null;
             } else if (typeof value === 'string') {
@@ -449,6 +496,22 @@ export function AutoItemizePage() {
     [warnings],
   );
 
+  const dateSuggestion = useMemo(
+    () =>
+      extractedInvoiceDate && extractedInvoiceDate !== metadataEdits.date
+        ? extractedInvoiceDate
+        : undefined,
+    [extractedInvoiceDate, metadataEdits.date],
+  );
+
+  const dueDateSuggestion = useMemo(
+    () =>
+      extractedDueDate && extractedDueDate !== (metadataEdits.dueDate ?? '')
+        ? extractedDueDate
+        : undefined,
+    [extractedDueDate, metadataEdits.dueDate],
+  );
+
   const computedLineTotal = useMemo(
     () => lines.filter((l) => l.included).reduce((sum, line) => sum + (line.totalAmount ?? 0), 0),
     [lines],
@@ -497,9 +560,11 @@ export function AutoItemizePage() {
           <h1 className={styles.pageTitle}>{t('autoItemize.title')}</h1>
         </div>
         <div className={styles.pageBody}>
-          <div className={styles.loadingColumn}>
-            <Skeleton lines={5} />
-            <p className={styles.analyzingCaption}>{t('autoItemize.analyzing')}</p>
+          <div className={styles.loadingState} aria-busy="true">
+            <Spinner size="lg" color="primary" label={t('autoItemize.spinnerLabel')} />
+            <p className={styles.analyzingCaption} aria-hidden="true">
+              {t('autoItemize.analyzing', { seconds: elapsed })}
+            </p>
           </div>
         </div>
       </div>
@@ -543,7 +608,10 @@ export function AutoItemizePage() {
 
         <div className={styles.pageBody}>
           {/* Form column */}
-          <div className={styles.formColumn}>
+          <div
+            className={styles.formColumn}
+            aria-busy={(pageStatus as PageStatus) === 'saving'}
+          >
             <a href="#itemize-form" className={styles.skipLink}>
               {t('autoItemize.skipToForm')}
             </a>
@@ -607,35 +675,55 @@ export function AutoItemizePage() {
 
               <div className={styles.fieldRow}>
                 <label htmlFor="date">{t('autoItemize.date')}</label>
-                <div className={styles.fieldControl}>
-                  <input
-                    id="date"
-                    type="date"
-                    value={metadataEdits.date}
-                    onChange={(e) =>
-                      setMetadataEdits((prev) => ({
-                        ...prev,
-                        date: e.target.value,
-                      }))
-                    }
-                  />
+                <div>
+                  <div className={styles.fieldControl}>
+                    <input
+                      id="date"
+                      type="date"
+                      value={metadataEdits.date}
+                      onChange={(e) =>
+                        setMetadataEdits((prev) => ({
+                          ...prev,
+                          date: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  {dateSuggestion && (
+                    <SuggestionBadge
+                      suggestedValue={dateSuggestion}
+                      fieldLabel={t('autoItemize.date')}
+                      displayValue={dateSuggestion}
+                      onApply={() => handleApplySuggestion('date', dateSuggestion)}
+                    />
+                  )}
                 </div>
               </div>
 
               <div className={styles.fieldRow}>
                 <label htmlFor="due-date">{t('autoItemize.dueDate')}</label>
-                <div className={styles.fieldControl}>
-                  <input
-                    id="due-date"
-                    type="date"
-                    value={metadataEdits.dueDate ?? ''}
-                    onChange={(e) =>
-                      setMetadataEdits((prev) => ({
-                        ...prev,
-                        dueDate: e.target.value || null,
-                      }))
-                    }
-                  />
+                <div>
+                  <div className={styles.fieldControl}>
+                    <input
+                      id="due-date"
+                      type="date"
+                      value={metadataEdits.dueDate ?? ''}
+                      onChange={(e) =>
+                        setMetadataEdits((prev) => ({
+                          ...prev,
+                          dueDate: e.target.value || null,
+                        }))
+                      }
+                    />
+                  </div>
+                  {dueDateSuggestion && (
+                    <SuggestionBadge
+                      suggestedValue={dueDateSuggestion}
+                      fieldLabel={t('autoItemize.dueDate')}
+                      displayValue={dueDateSuggestion}
+                      onApply={() => handleApplySuggestion('dueDate', dueDateSuggestion)}
+                    />
+                  )}
                 </div>
               </div>
 
@@ -655,11 +743,33 @@ export function AutoItemizePage() {
                   />
                 </div>
               </div>
+
+              <div className={styles.fieldRow}>
+                <label htmlFor="invoice-status">{t('autoItemize.status')}</label>
+                <div className={styles.fieldControl}>
+                  <select
+                    id="invoice-status"
+                    value={metadataEdits.status}
+                    onChange={(e) =>
+                      setMetadataEdits((prev) => ({
+                        ...prev,
+                        status: e.target.value as InvoiceStatus,
+                      }))
+                    }
+                  >
+                    {(['pending', 'paid', 'claimed', 'quotation'] as InvoiceStatus[]).map((s) => (
+                      <option key={s} value={s}>
+                        {t(`invoices.statusLabels.${s}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
 
             {/* Mode selector */}
             <div className={styles.metadataCard}>
-              <h3>{t('autoItemize.mode')}</h3>
+              <h3 className={styles.sectionTitle}>{t('autoItemize.mode')}</h3>
               <div
                 className={styles.modeSelector}
                 role="group"
@@ -688,117 +798,133 @@ export function AutoItemizePage() {
               </div>
             </div>
 
-            {/* Lines table */}
+            {/* Lines list */}
             <div className={styles.metadataCard}>
-              <h3>{t('autoItemize.extractedLines')}</h3>
-              <div className={styles.tableWrapper}>
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      <th>{t('autoItemize.included')}</th>
-                      <th>{t('autoItemize.description')}</th>
-                      <th>{t('autoItemize.quantity')}</th>
-                      <th>{t('autoItemize.unit')}</th>
-                      <th>{t('autoItemize.unitPrice')}</th>
-                      <th>{t('autoItemize.amount')}</th>
-                      <th>{t('autoItemize.includesVat')}</th>
-                      <th>{t('autoItemize.vatRate')}</th>
-                      <th>{t('autoItemize.assignTo')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lines.map((line) => (
-                      <tr key={line.rowId} className={!line.included ? styles.rowExcluded : ''}>
-                        <td className={styles.tdCheckbox}>
-                          <input
-                            type="checkbox"
-                            checked={line.included}
-                            onChange={() => handleLineToggle(line.rowId)}
-                            aria-label={t('autoItemize.includeLineAriaLabel', {
-                              description: line.description,
-                            })}
-                          />
-                        </td>
-                        <td className={styles.tdEditable}>
-                          <input
-                            type="text"
-                            value={line.description}
-                            onChange={(e) =>
-                              handleLineFieldChange(line.rowId, 'description', e.target.value)
-                            }
-                            aria-label={t('autoItemize.editDescriptionAriaLabel')}
-                          />
-                        </td>
-                        <td className={styles.tdEditable}>
+              <h3 className={styles.sectionTitle}>{t('autoItemize.extractedLines')}</h3>
+              <ul
+                role="list"
+                className={styles.lineList}
+                aria-label={t('autoItemize.lineItemsListLabel')}
+              >
+                {lines.map((line) => {
+                  const pct = Math.round(line.confidence * 100);
+                  const confidenceColor =
+                    line.confidence >= 0.85
+                      ? 'var(--color-success)'
+                      : line.confidence >= 0.6
+                        ? 'var(--color-warning)'
+                        : 'var(--color-danger)';
+
+                  return (
+                    <li
+                      key={line.rowId}
+                      className={`${styles.lineCard} ${!line.included ? styles.lineCardExcluded : ''}`}
+                    >
+                      {/* Top row: description + confidence dot */}
+                      <div className={styles.cardTopRow}>
+                        <textarea
+                          className={styles.cardDescriptionInput}
+                          value={line.description}
+                          rows={2}
+                          onChange={(e) =>
+                            handleLineFieldChange(line.rowId, 'description', e.target.value)
+                          }
+                          aria-label={t('autoItemize.editDescriptionAriaLabel')}
+                        />
+                        <span
+                          role="img"
+                          className={styles.confidenceDot}
+                          style={{ backgroundColor: confidenceColor }}
+                          title={`${pct}%`}
+                          aria-label={t('autoItemize.confidenceLabel', { pct })}
+                        />
+                      </div>
+
+                      {/* Middle row: metric grid */}
+                      <div className={styles.cardMetricGrid}>
+                        <div className={styles.cardMetricCell}>
+                          <span className={styles.cardMetricLabel}>{t('autoItemize.quantity')}</span>
                           <input
                             type="number"
                             step="0.01"
+                            className={styles.cardMetricInput}
                             value={line.quantity ?? ''}
+                            placeholder="—"
                             onChange={(e) =>
                               handleLineFieldChange(line.rowId, 'quantity', e.target.value)
                             }
                             aria-label={t('autoItemize.editQuantityAriaLabel')}
                           />
-                        </td>
-                        <td className={styles.tdEditable}>
+                        </div>
+                        <div className={styles.cardMetricCell}>
+                          <span className={styles.cardMetricLabel}>{t('autoItemize.unit')}</span>
                           <input
                             type="text"
-                            size={6}
+                            className={styles.cardMetricInput}
                             value={line.unit ?? ''}
+                            placeholder="—"
                             onChange={(e) =>
                               handleLineFieldChange(line.rowId, 'unit', e.target.value)
                             }
                             aria-label={t('autoItemize.editUnitAriaLabel')}
                           />
-                        </td>
-                        <td className={styles.tdEditable}>
+                        </div>
+                        <div className={styles.cardMetricCell}>
+                          <span className={styles.cardMetricLabel}>
+                            {t('autoItemize.unitPrice')}
+                          </span>
                           <input
                             type="number"
                             step="0.01"
+                            className={styles.cardMetricInput}
                             value={line.unitPrice ?? ''}
+                            placeholder="—"
                             onChange={(e) =>
                               handleLineFieldChange(line.rowId, 'unitPrice', e.target.value)
                             }
                             aria-label={t('autoItemize.editUnitPriceAriaLabel')}
                           />
-                        </td>
-                        <td className={styles.tdEditable}>
+                        </div>
+                        <div className={styles.cardMetricCell}>
+                          <span className={styles.cardMetricLabel}>{t('autoItemize.amount')}</span>
                           <input
                             type="number"
                             step="0.01"
+                            className={styles.cardMetricInput}
                             value={line.totalAmount ?? 0}
                             onChange={(e) =>
                               handleLineFieldChange(line.rowId, 'totalAmount', e.target.value)
                             }
                             aria-label={t('autoItemize.editTotalAmountAriaLabel')}
                           />
-                        </td>
-                        <td className={styles.tdCheckbox}>
+                        </div>
+                      </div>
+
+                      {/* Bottom row: include + VAT + assign */}
+                      <div className={styles.cardBottomRow}>
+                        <label className={styles.cardIncludeLabel}>
+                          <input
+                            type="checkbox"
+                            checked={line.included}
+                            onChange={() => handleLineToggle(line.rowId)}
+                          />
+                          {t('autoItemize.included')}
+                        </label>
+                        <label className={styles.cardIncludeLabel}>
                           <input
                             type="checkbox"
                             checked={line.includesVat !== false}
                             onChange={(e) =>
                               handleLineFieldChange(line.rowId, 'includesVat', e.target.checked)
                             }
-                            aria-label={t('autoItemize.editIncludesVatAriaLabel')}
                           />
-                        </td>
-                        <td className={styles.tdEditable}>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={line.vatRate ?? ''}
-                            onChange={(e) =>
-                              handleLineFieldChange(line.rowId, 'vatRate', e.target.value)
-                            }
-                            aria-label={t('autoItemize.editVatRateAriaLabel')}
-                          />
-                        </td>
-                        <td className={styles.tdAssign}>
+                          {t('autoItemize.vatApplies')}
+                        </label>
+                        <div className={styles.cardAssignZone}>
                           {!line.assignedBudgetLineId && !line.inlineCreatedBudgetLineDraft ? (
                             <button
                               type="button"
-                              className={styles.assignButtonInTable}
+                              className={`${sharedStyles.btnPrimaryCompact} ${styles.assignButtonInTable}`}
                               onClick={() => handleAssignButtonClick(line.rowId)}
                             >
                               {t('autoItemize.assignButton')}
@@ -853,18 +979,18 @@ export function AutoItemizePage() {
                               </button>
                             </div>
                           )}
-                        </td>
-                      </tr>
-                    ))}
-                    <tr className={styles.totalsRow}>
-                      <td colSpan={5}>{t('autoItemize.total')}</td>
-                      <td>
-                        <strong>{formatCurrency(computedLineTotal)}</strong>
-                      </td>
-                      <td colSpan={3}>{renderVarianceIndicator()}</td>
-                    </tr>
-                  </tbody>
-                </table>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {/* Totals card */}
+              <div className={styles.totalsCard}>
+                <span>{t('autoItemize.total')}</span>
+                <span className={styles.totalsAmount}>{formatCurrency(computedLineTotal)}</span>
+                {renderVarianceIndicator()}
               </div>
             </div>
 
@@ -889,9 +1015,50 @@ export function AutoItemizePage() {
             </div>
           </div>
 
-          {/* Preview column (document detail panel) */}
+          {/* Preview column — PDF iframe */}
           <div className={styles.previewColumn}>
-            {document && <DocumentDetailPanel document={document} variant="sidebyside" />}
+            {!pdfFailed ? (
+              <div className={styles.pdfPreviewWrapper}>
+                {!pdfLoaded && (
+                  <div className={styles.pdfLoadingOverlay} aria-hidden="true">
+                    <Spinner size="md" color="muted" label={t('autoItemize.pdfPreviewTitle')} />
+                  </div>
+                )}
+                <iframe
+                  className={styles.pdfIframe}
+                  src={getDocumentPreviewUrl(parseInt(documentId, 10))}
+                  title={t('autoItemize.pdfPreviewTitle')}
+                  onLoad={() => setPdfLoaded(true)}
+                  onError={() => setPdfFailed(true)}
+                />
+              </div>
+            ) : (
+              <div className={styles.pdfFallback} role="region" aria-label={t('autoItemize.previewUnavailable')}>
+                <svg
+                  aria-hidden="true"
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--color-text-muted)"
+                  strokeWidth="1.5"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                <span className={styles.pdfFallbackLabel}>{t('autoItemize.previewUnavailable')}</span>
+                {paperlessStatus?.paperlessUrl && (
+                  <a
+                    href={`${paperlessStatus.paperlessUrl}/documents/${documentId}/`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.pdfFallbackLink}
+                  >
+                    {t('autoItemize.openInPaperless')}
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

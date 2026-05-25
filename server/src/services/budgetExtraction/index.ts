@@ -33,6 +33,7 @@ export function getProvider(config: AppConfig): BudgetExtractionProvider {
 export type {
   ExtractedLine,
   ExtractionHints,
+  ExtractionResult,
   BudgetExtractionProvider,
   LlmProvider,
 } from './types.js';

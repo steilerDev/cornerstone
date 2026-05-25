@@ -68,6 +68,14 @@
 .previewColumn {
   display: flex;
   flex-direction: column;
+  position: sticky;
+  top: calc(var(--auto-itemize-header-height) + var(--spacing-6));
+}
+
+@media (max-width: 860px) {
+  .previewColumn {
+    position: static;
+  }
 }
 
 .metadataCard {
@@ -109,7 +117,8 @@
 }
 
 .fieldControl input,
-.fieldControl textarea {
+.fieldControl textarea,
+.fieldControl select {
   padding: var(--spacing-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -119,7 +128,8 @@
 }
 
 .fieldControl input:focus,
-.fieldControl textarea:focus {
+.fieldControl textarea:focus,
+.fieldControl select:focus {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-bg);
@@ -311,9 +321,9 @@
   background: var(--color-primary-active);
 }
 
-.assignButtonInTable:focus {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+.assignButtonInTable:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .assignedBadge {
@@ -345,9 +355,9 @@
   color: var(--color-danger);
 }
 
-.clearAssignButton:focus {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 1px;
+.clearAssignButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
   border-radius: var(--radius-sm);
 }
 
@@ -602,4 +612,264 @@
   .table th {
     padding: var(--spacing-2) var(--spacing-1-5);
   }
+
+  .fieldControl input,
+  .fieldControl textarea,
+  .fieldControl select {
+    min-height: 44px;
+  }
+
+  .cardMetricInput,
+  .cardDescriptionInput {
+    min-height: 44px;
+  }
+
+  .cardIncludeLabel input[type='checkbox'] {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* PDF Preview Styles */
+
+.pdfPreviewWrapper {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.pdfIframe {
+  width: 100%;
+  height: calc(100vh - var(--auto-itemize-header-height) - var(--spacing-12));
+  min-height: 480px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-tertiary);
+  display: block;
+}
+
+.pdfLoadingOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-lg);
+  z-index: 10;
+}
+
+.pdfFallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-secondary);
+  min-height: 200px;
+  padding: var(--spacing-6);
+}
+
+.pdfFallbackLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.pdfFallbackLink {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  transition: var(--transition-button);
+}
+
+.pdfFallbackLink:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
+.pdfFallbackLink:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+@media (max-width: 860px) {
+  .pdfIframe {
+    min-height: 60vh;
+    height: 60vh;
+    position: static;
+  }
+}
+
+/* Line Card Styles */
+
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-4);
+  min-height: 320px;
+}
+
+.lineList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.lineCard {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  transition: border-color var(--transition-normal);
+}
+
+.lineCard:focus-within {
+  border-color: var(--color-border-strong);
+}
+
+.lineCardExcluded {
+  opacity: 0.45;
+  background: var(--color-bg-secondary);
+}
+
+.lineCardExcluded > .cardBottomRow {
+  opacity: 1;
+}
+
+.cardTopRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+}
+
+.cardDescriptionInput {
+  flex: 1;
+  width: 100%;
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background: transparent;
+  font-family: inherit;
+  resize: none;
+  overflow: hidden;
+  field-sizing: content;
+  min-height: calc(var(--font-size-sm) * 1.5 + var(--spacing-2) * 2);
+  transition: var(--transition-input);
+}
+
+.cardDescriptionInput:focus-visible {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+.confidenceDot {
+  flex-shrink: 0;
+  width: var(--spacing-2);
+  height: var(--spacing-2);
+  border-radius: var(--radius-circle);
+  margin-top: var(--spacing-2);
+  cursor: default;
+}
+
+.cardMetricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-3);
+}
+
+@media (max-width: 600px) {
+  .cardMetricGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.cardMetricCell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.cardMetricLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.cardMetricInput {
+  width: 100%;
+  padding: var(--spacing-1-5) var(--spacing-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background: transparent;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  transition: var(--transition-input);
+}
+
+.cardMetricInput:focus-visible {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+.cardBottomRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+
+.cardIncludeLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cardAssignZone {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.totalsCard {
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-strong);
+  border-top-width: 2px;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-3) var(--spacing-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+  margin-top: var(--spacing-3);
+}
+
+.totalsAmount {
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
 }

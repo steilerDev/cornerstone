@@ -4,12 +4,13 @@
  * EPIC-16 Story #1547: Automatic line item extraction from Paperless-ngx OCR via LLM.
  */
 
-import type { ExtractedLine, ExtractionHints } from './budgetExtraction.js';
+import type { ExtractedLine, ExtractionHints, ExtractionResult } from './budgetExtraction.js';
+import type { InvoiceStatus } from './invoice.js';
 
 /**
  * Optional invoice metadata patch for auto-itemize commit.
  * Applied transactionally with budget line creation.
- * Mirrors UpdateInvoiceRequest minus `status` and `vendorId`.
+ * Mirrors UpdateInvoiceRequest minus `vendorId`.
  */
 export interface InvoicePatchForAutoItemize {
   invoiceNumber?: string | null;
@@ -17,6 +18,8 @@ export interface InvoicePatchForAutoItemize {
   date?: string; // YYYY-MM-DD
   dueDate?: string | null; // YYYY-MM-DD
   notes?: string | null;
+  /** Invoice payment status. When set, triggers the same diary event as the standalone PATCH endpoint. */
+  status?: InvoiceStatus;
 }
 
 export interface AutoItemizeRequest {
@@ -41,10 +44,14 @@ export interface AutoItemizeWarning {
 export interface AutoItemizeDryRunResponse {
   lines: ExtractedLine[];
   warnings: AutoItemizeWarning[];
+  /** ISO 8601 date extracted by the LLM from the document header, if available. */
+  extractedInvoiceDate?: string;
+  /** ISO 8601 due date extracted by the LLM, if available. */
+  extractedDueDate?: string;
 }
 
 // Commit response re-uses InvoiceBudgetLineListDetailResponse from invoiceBudgetLine
 export type { InvoiceBudgetLineListDetailResponse } from './invoiceBudgetLine.js';
 
 // Re-export extraction types for client convenience
-export type { ExtractedLine, ExtractionHints };
+export type { ExtractedLine, ExtractionHints, ExtractionResult };

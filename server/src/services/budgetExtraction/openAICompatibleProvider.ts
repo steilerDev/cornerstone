@@ -11,6 +11,7 @@ import type {
   BudgetExtractionProvider,
   ExtractedLine,
   ExtractionHints,
+  ExtractionResult,
   LlmConfig,
 } from './types.js';
 import {
@@ -20,14 +21,17 @@ import {
 } from '../../errors/AppError.js';
 
 /**
- * Validates that an unknown value conforms to ExtractedLine schema.
+ * Validates that an unknown value conforms to ExtractionResult schema.
  * Throws LlmInvalidResponseError on any structural mismatch.
  *
+ * Handles backward-compat: if the LLM returns a bare array `[...]` or `{ lines: [...] }`
+ * without top-level date fields, returns `{ lines: [...] }` (no dates).
+ *
  * @param body - Unknown value to validate
- * @returns Array of validated ExtractedLine objects
+ * @returns ExtractionResult with validated ExtractedLine objects and optional date fields
  * @throws LlmInvalidResponseError if validation fails
  */
-export function validateExtractedLines(body: unknown): ExtractedLine[] {
+export function validateExtractedLines(body: unknown): ExtractionResult {
   // Validate top-level structure
   if (!body || typeof body !== 'object') {
     throw new LlmInvalidResponseError('LLM response must be a JSON object');
@@ -37,6 +41,17 @@ export function validateExtractedLines(body: unknown): ExtractedLine[] {
 
   if (!Array.isArray(obj.lines)) {
     throw new LlmInvalidResponseError('LLM response must have a "lines" array');
+  }
+
+  // Validate and strip top-level date fields (ISO 8601 YYYY-MM-DD only)
+  const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  let invoiceDate: string | undefined;
+  if (typeof obj.invoiceDate === 'string' && ISO_DATE_RE.test(obj.invoiceDate)) {
+    invoiceDate = obj.invoiceDate;
+  }
+  let dueDate: string | undefined;
+  if (typeof obj.dueDate === 'string' && ISO_DATE_RE.test(obj.dueDate)) {
+    dueDate = obj.dueDate;
   }
 
   const lines: ExtractedLine[] = [];
@@ -110,6 +125,7 @@ export function validateExtractedLines(body: unknown): ExtractedLine[] {
       includesVat = line.includesVat;
     }
 
+    // Backward-compat: vatRate may still be present from in-flight responses, silently accept it
     let vatRate: number | undefined;
     if (line.vatRate !== null && line.vatRate !== undefined) {
       if (typeof line.vatRate !== 'number' || !isFinite(line.vatRate)) {
@@ -168,7 +184,7 @@ export function validateExtractedLines(body: unknown): ExtractedLine[] {
     });
   }
 
-  return lines;
+  return { invoiceDate, dueDate, lines };
 }
 
 /**

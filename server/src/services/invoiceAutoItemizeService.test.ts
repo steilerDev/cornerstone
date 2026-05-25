@@ -1441,4 +1441,142 @@ describe('invoiceAutoItemizeService', () => {
       ).rejects.toThrow(ValidationError);
     });
   });
+
+  // ─── Story #1576 — dry-run propagates extracted date fields ──────────────────
+
+  describe('dry-run response includes extracted date fields (Story #1576)', () => {
+    /**
+     * Build an LLM response that includes top-level invoiceDate and dueDate fields
+     * alongside the lines array.
+     */
+    function makeLlmResponseWithDates(
+      invoiceDate: string | undefined,
+      dueDate: string | undefined,
+      lines: Array<{ description: string; totalAmount: number; confidence: number }>,
+    ): object {
+      const content: Record<string, unknown> = { lines };
+      if (invoiceDate !== undefined) content.invoiceDate = invoiceDate;
+      if (dueDate !== undefined) content.dueDate = dueDate;
+      return {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify(content),
+            },
+          },
+        ],
+      };
+    }
+
+    it('returns extractedInvoiceDate and extractedDueDate when LLM provides both', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 200);
+      linkDocument(db, invoiceId, 42);
+
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch(
+            makeLlmResponseWithDates('2024-01-15', '2024-02-15', [
+              { description: 'Item A', totalAmount: 100, confidence: 0.9 },
+            ]),
+          ),
+        );
+
+      const config = makeConfig();
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+        PAPERLESS_AUTH,
+      )) as { lines: unknown[]; warnings: unknown[]; extractedInvoiceDate?: string; extractedDueDate?: string };
+
+      expect(result.extractedInvoiceDate).toBe('2024-01-15');
+      expect(result.extractedDueDate).toBe('2024-02-15');
+      expect(Array.isArray(result.lines)).toBe(true);
+    });
+
+    it('omits extractedInvoiceDate and extractedDueDate when LLM provides no date fields', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 200);
+      linkDocument(db, invoiceId, 42);
+
+      // LLM response without date fields
+      setupDryRunFetch([{ description: 'Item A', totalAmount: 100, confidence: 0.9 }]);
+
+      const config = makeConfig();
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+        PAPERLESS_AUTH,
+      )) as { lines: unknown[]; warnings: unknown[]; extractedInvoiceDate?: string; extractedDueDate?: string };
+
+      expect(result.extractedInvoiceDate).toBeUndefined();
+      expect(result.extractedDueDate).toBeUndefined();
+    });
+
+    it('returns only extractedInvoiceDate when LLM provides only invoiceDate', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 300);
+      linkDocument(db, invoiceId, 42);
+
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch(
+            makeLlmResponseWithDates('2024-03-10', undefined, [
+              { description: 'Service', totalAmount: 150, confidence: 0.85 },
+            ]),
+          ),
+        );
+
+      const config = makeConfig();
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+        PAPERLESS_AUTH,
+      )) as { lines: unknown[]; warnings: unknown[]; extractedInvoiceDate?: string; extractedDueDate?: string };
+
+      expect(result.extractedInvoiceDate).toBe('2024-03-10');
+      expect(result.extractedDueDate).toBeUndefined();
+    });
+
+    it('commit path does not call LLM (0 fetch calls when dryRun=false)', async () => {
+      // In commit mode, lines come from the caller — no LLM call is made.
+      // Verifying this also confirms that validateExtractedLines destructuring
+      // (const { lines: validatedLines } = validateExtractedLines({ lines: body.lines }))
+      // correctly passes the caller-provided lines through.
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 500);
+      linkDocument(db, invoiceId, 42);
+      mockFetch.mockReset(); // Clear any queued mocks
+
+      const config = makeConfig();
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [{ description: 'Item A', totalAmount: 200, confidence: 0.9 }],
+        },
+        PAPERLESS_AUTH,
+      );
+
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
 });

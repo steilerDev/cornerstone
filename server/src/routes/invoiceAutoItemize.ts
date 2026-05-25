@@ -54,6 +54,7 @@ const schema = {
           date: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
           dueDate: { type: ['string', 'null'], pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
           notes: { type: ['string', 'null'], maxLength: 10000 },
+          status: { type: 'string', enum: ['pending', 'paid', 'claimed', 'quotation'] },
         },
       },
     },
