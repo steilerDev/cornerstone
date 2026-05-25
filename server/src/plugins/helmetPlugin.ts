@@ -12,7 +12,10 @@ export default fp(
           imgSrc: ["'self'", 'data:', 'blob:'],
           fontSrc: ["'self'"],
           connectSrc: ["'self'"],
-          frameSrc: ["'none'"],
+          // 'self' allows same-origin iframes (e.g. /api/paperless/.../preview on the auto-itemize page).
+          // X-Frame-Options: SAMEORIGIN (set below via frameguard) prevents third parties from embedding
+          // our app. These two directives are complementary, not redundant.
+          frameSrc: ["'self'"],
           objectSrc: ["'none'"],
           baseUri: ["'self'"],
           formAction: ["'self'"],

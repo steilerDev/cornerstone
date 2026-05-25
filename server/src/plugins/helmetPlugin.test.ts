@@ -79,4 +79,26 @@ describe('Helmet Plugin — security headers', () => {
     expect(response.headers['x-content-type-options']).toBeDefined();
     expect(response.headers['x-content-type-options']).toBe('nosniff');
   });
+
+  it("CSP header contains frame-src 'self' (allows same-origin iframes for PDF preview)", async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/health',
+    });
+
+    const csp = response.headers['content-security-policy'] as string;
+    expect(csp).toBeDefined();
+    expect(csp).toContain("frame-src 'self'");
+    expect(csp).not.toContain("frame-src 'none'");
+  });
+
+  it("CSP header contains object-src 'none' (no <object>/<embed> allowed)", async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/health',
+    });
+
+    const csp = response.headers['content-security-policy'] as string;
+    expect(csp).toContain("object-src 'none'");
+  });
 });
