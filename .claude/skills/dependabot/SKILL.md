@@ -181,13 +181,13 @@ gh run view "$RUN_ID" --repo steilerDev/cornerstone --log-failed
 
 Map the failure to one of these categories and delegate to the appropriate agent. Multiple categories can apply — launch independent fixes in parallel.
 
-| Failure pattern | Agent | Brief |
-| --- | --- | --- |
-| App code breaks (TypeScript errors, runtime errors in production code) caused by the bump | `backend-developer` for `server/`+`shared/`; `frontend-developer` for `client/` | Pass the architect's `BREAKING` findings as context. Patch call sites. |
-| Unit/integration test failures caused by the bump | `qa-integration-tester` | Follow the test failure debugging protocol from CLAUDE.md — fix tests only if production behaviour is correct per spec/contract. |
-| E2E test failures caused by the bump | `e2e-test-engineer` | Same protocol. Update page objects or assertions only if production behaviour is correct. |
-| CI/workflow break (GitHub Action input required, runner mismatch, etc., from a `github-actions` bump) | `product-architect` | Update `.github/workflows/*.yml`. |
-| Lockfile / install break | `backend-developer` (lockfile is server-rooted) | Re-run `npm install` (never `--package-lock-only` per CLAUDE.md) and commit the regenerated lockfile. |
+| Failure pattern                                                                                       | Agent                                                                           | Brief                                                                                                                            |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| App code breaks (TypeScript errors, runtime errors in production code) caused by the bump             | `backend-developer` for `server/`+`shared/`; `frontend-developer` for `client/` | Pass the architect's `BREAKING` findings as context. Patch call sites.                                                           |
+| Unit/integration test failures caused by the bump                                                     | `qa-integration-tester`                                                         | Follow the test failure debugging protocol from CLAUDE.md — fix tests only if production behaviour is correct per spec/contract. |
+| E2E test failures caused by the bump                                                                  | `e2e-test-engineer`                                                             | Same protocol. Update page objects or assertions only if production behaviour is correct.                                        |
+| CI/workflow break (GitHub Action input required, runner mismatch, etc., from a `github-actions` bump) | `product-architect`                                                             | Update `.github/workflows/*.yml`.                                                                                                |
+| Lockfile / install break                                                                              | `backend-developer` (lockfile is server-rooted)                                 | Re-run `npm install` (never `--package-lock-only` per CLAUDE.md) and commit the regenerated lockfile.                            |
 
 Each agent receives:
 
@@ -323,14 +323,14 @@ The issue should be picked up later via `/develop` — this skill does not imple
 
 Present to the user a table with these rows (omit rows with zero count):
 
-| Outcome | Count | Details |
-| --- | --- | --- |
-| PRs merged as-is | N | `#123 (pkg)`, `#124 (pkg)`, ... |
-| PRs fixed and merged | N | `#125 (pkg) — patched call sites in foo.ts`, ... |
-| PRs blocked (needs user) | N | `#126 (pkg) — <remaining error>` |
-| Orphan alerts remediated | N | `GHSA-xxx → PR #200 merged`, ... |
-| Alerts awaiting user decision | N | `GHSA-yyy — no upstream patch; recommend dismissal with reason "<reason>"` |
-| Adoption follow-ups filed | N | `#250 (pkg)`, `#251 (pkg)`, ... |
+| Outcome                       | Count | Details                                                                    |
+| ----------------------------- | ----- | -------------------------------------------------------------------------- |
+| PRs merged as-is              | N     | `#123 (pkg)`, `#124 (pkg)`, ...                                            |
+| PRs fixed and merged          | N     | `#125 (pkg) — patched call sites in foo.ts`, ...                           |
+| PRs blocked (needs user)      | N     | `#126 (pkg) — <remaining error>`                                           |
+| Orphan alerts remediated      | N     | `GHSA-xxx → PR #200 merged`, ...                                           |
+| Alerts awaiting user decision | N     | `GHSA-yyy — no upstream patch; recommend dismissal with reason "<reason>"` |
+| Adoption follow-ups filed     | N     | `#250 (pkg)`, `#251 (pkg)`, ...                                            |
 
 End with one-line summary: "Processed M open Dependabot PRs and N open alerts. Awaiting your decision on K items."
 

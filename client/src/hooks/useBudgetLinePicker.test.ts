@@ -440,7 +440,6 @@ describe('useBudgetLinePicker', () => {
       });
       mockCreateWorkItemBudget.mockResolvedValue({ ...wib, invoiceLink: null });
       mockCreateInvoiceBudgetLine.mockResolvedValue({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         budgetLine: {
           id: 'ibl-1',
           invoiceId: 'inv-1',
