@@ -90,6 +90,8 @@ jobs:
         run: npm run build -w shared
 
       - name: Run tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: node --experimental-vm-modules node_modules/.bin/jest --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }} --coverage --coverageReporters=json
 
       - name: Rename coverage for merge
